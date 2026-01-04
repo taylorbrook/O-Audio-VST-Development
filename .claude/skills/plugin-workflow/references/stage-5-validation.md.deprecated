@@ -1,0 +1,63 @@
+# Stage 5: Validation (DEPRECATED)
+
+**DEPRECATION NOTICE:** This file is deprecated as of 2025-11-14.
+
+## Why Deprecated
+
+Stage 5 (separate validation stage) has been eliminated from the workflow. Validation is now automatic and continuous across all implementation stages (1-3).
+
+## What Changed
+
+**Before (5-stage workflow):**
+- Stage 1: Planning
+- Stage 2: Foundation
+- Stage 3: DSP
+- Stage 4: GUI
+- Stage 5: Validation (optional, could be skipped)
+
+**After (3-stage workflow with automatic validation):**
+- Stage 0: Planning (plugin-planning skill)
+- Stage 1: Foundation (with automatic validation after)
+- Stage 2: DSP (with automatic validation after)
+- Stage 3: GUI (with automatic validation after)
+- No separate validation stage - validation is automatic and blocking
+
+## Migration Impact
+
+**For existing plugins:**
+- Plugins at Stage 4 or 5: Will be treated as complete (Stage 3 in new system)
+- In-progress plugins: Can continue normally, validation runs automatically
+
+**For orchestrator:**
+- Dispatcher no longer routes to Stage 4/5
+- Validation-agent invoked automatically after each stage (1-3)
+- Validation failures with `continue_to_next_stage: false` are BLOCKING
+
+**For users:**
+- No separate validation step to remember
+- Quality assurance is automatic
+- Faster workflow (no separate validation stage)
+- Better quality (validation can't be skipped)
+
+## New Validation System
+
+Validation is now handled by enhanced validation-agent:
+- Runs automatically after EVERY stage (1-3)
+- Performs compile-time checks (contract matching)
+- Performs runtime tests (load plugin, process audio, parameter changes)
+- BLOCKS workflow if critical failures detected
+- Max 500 tokens per report
+
+See `.claude/skills/plugin-workflow/references/validation-integration.md` for current implementation.
+
+## Preset Generation
+
+Factory preset generation was part of Stage 5 and has been removed from the workflow. Presets are now handled by the `/package` command (optional, for distribution).
+
+## Plugin Testing
+
+The plugin-testing skill is no longer invoked by plugin-workflow. Runtime tests are handled directly by validation-agent.
+
+---
+
+**This file is preserved for historical reference only. Do not use for implementation.**

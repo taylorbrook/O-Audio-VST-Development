@@ -1,0 +1,23 @@
+Installation Complete!
+
+{{PLUGIN_NAME}} by TÂCHES has been successfully installed.
+
+NEXT STEPS
+
+1. Open your DAW (Logic Pro, Ableton, etc.)
+2. Scan for new plugins if needed
+3. Load {{PLUGIN_NAME}} on any audio track
+4. Remember to authorize in System Settings on first use
+
+FIND {{PLUGIN_NAME}} IN YOUR DAW
+
+VST3: Look in your plugin browser under "TÂCHES" or "{{PLUGIN_NAME}}"
+AU: Audio Units > Effect > TÂCHES > {{PLUGIN_NAME}}
+
+QUICK START
+
+{{QUICK_START_PRESETS}}
+
+Thank you for using {{PLUGIN_NAME}}!
+
+— TÂCHES

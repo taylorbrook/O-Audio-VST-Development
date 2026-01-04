@@ -1,0 +1,22 @@
+{
+  "platform": "darwin",
+  "platform_version": "15.6.1",
+  "arch": "arm64",
+  "python_path": "/opt/homebrew/opt/python@3.11/libexec/bin/python3",
+  "python_version": "3.11.13",
+  "xcode_path": "/Applications/Xcode.app/Contents/Developer",
+  "xcode_version": "16.4.0.0.1.1747106510",
+  "cmake_path": "/opt/homebrew/bin/cmake",
+  "cmake_version": "4.1.1",
+  "ninja_path": "/opt/homebrew/bin/ninja",
+  "ninja_version": "1.13.1",
+  "jq_path": "/usr/bin/jq",
+  "jq_version": "jq-1.7.1-apple",
+  "git_path": "/usr/bin/git",
+  "git_version": "2.39.5",
+  "juce_path": "/Applications/JUCE",
+  "juce_version": "8.0.9",
+  "pluginval_path": "/Users/lexchristopherson/bin/pluginval",
+  "pluginval_version": "",
+  "validated_at": "2025-11-11T00:00:00Z"
+}

@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Test Drum Machine - Studio Hardware Aesthetic</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background: #0a0a0a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+
+    .plugin-container {
+      width: 650px;
+      background: repeating-linear-gradient(0deg, #1a1a1a, #1e1e1e 1px, #1a1a1a 2px);
+      border: 1px solid #0a0a0a;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.8), 0 2px 4px rgba(0,0,0,0.8) inset;
+      padding: 24px;
+      position: relative;
+    }
+
+    /* Mounting Holes */
+    .mounting-hole {
+      position: absolute;
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: radial-gradient(circle, #0a0a0a, #1a1a1a);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.9) inset;
+    }
+    .mounting-hole.top-left { top: 12px; left: 12px; }
+    .mounting-hole.top-right { top: 12px; right: 12px; }
+    .mounting-hole.mid-top-left { top: 50%; left: 12px; transform: translateY(-50%); }
+    .mounting-hole.mid-top-right { top: 50%; right: 12px; transform: translateY(-50%); }
+    .mounting-hole.bottom-left { bottom: 12px; left: 12px; }
+    .mounting-hole.bottom-right { bottom: 12px; right: 12px; }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+    }
+
+    .title {
+      font-family: Impact, 'Arial Black', sans-serif;
+      font-size: 28px;
+      font-weight: 900;
+      color: #ffc864;
+      text-transform: uppercase;
+      letter-spacing: -0.02em;
+    }
+
+    .power-led {
+      width: 12px;
+      height: 12px;
+      border-radius: 50%;
+      background: #44ff44;
+      box-shadow: 0 0 8px rgba(68,255,68,0.8), 0 0 4px rgba(68,255,68,0.6);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    /* Section */
+    .section {
+      margin-bottom: 16px;
+    }
+
+    .section:not(:last-child) {
+      padding-bottom: 16px;
+      border-bottom: 1px solid #0a0a0a;
+      box-shadow: 0 1px 0 #1e1e1e;
+    }
+
+    .section-title {
+      font-family: 'Arial Narrow', Arial, sans-serif;
+      font-size: 14px;
+      font-weight: 500;
+      color: #e6b050;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    /* Pad Grid */
+    .pad-grid {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .pad {
+      width: 100%;
+      aspect-ratio: 1;
+      background: #1a1a1a;
+      border: 1px solid #0a0a0a;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.8) inset;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Arial Narrow', Arial, sans-serif;
+      font-size: 11px;
+      color: #e6b050;
+      text-transform: uppercase;
+    }
+
+    .pad.active {
+      background: #1e1e1e;
+      box-shadow: 0 0 12px rgba(255,200,100,0.4), 0 2px 4px rgba(0,0,0,0.8) inset;
+    }
+
+    .pad-led {
+      position: absolute;
+      top: 6px;
+      right: 6px;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #0a0a0a;
+    }
+
+    .pad.active .pad-led {
+      background: #ffff44;
+      box-shadow: 0 0 8px rgba(255,255,68,0.8);
+    }
+
+    /* Controls Row */
+    .controls {
+      display: flex;
+      gap: 12px;
+      justify-content: center;
+      align-items: flex-start;
+    }
+
+    /* Control Group */
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 6px;
+    }
+
+    /* Knob */
+    .knob {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      border: 1px solid #0a0a0a;
+      position: relative;
+      background: conic-gradient(
+        from 0deg,
+        #1e1e1e 0deg,
+        #1a1a1a 60deg,
+        #1e1e1e 120deg,
+        #1a1a1a 180deg,
+        #1e1e1e 240deg,
+        #1a1a1a 300deg,
+        #1e1e1e 360deg
+      );
+      box-shadow: 0 2px 4px rgba(0,0,0,0.8) inset;
+      cursor: pointer;
+    }
+
+    .knob.prominent {
+      width: 84px;
+      height: 84px;
+    }
+
+    .knob.prominent::before {
+      width: 60px;
+      height: 60px;
+    }
+
+    .knob.prominent .knob-indicator {
+      transform-origin: center 42px;
+    }
+
+    .knob::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #1e1e1e, #1a1a1a);
+    }
+
+    .knob-indicator {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 20px;
+      background: #ffc864;
+      box-shadow: 0 0 8px rgba(255,200,100,0.6), 0 2px 4px rgba(0,0,0,0.8);
+      border-radius: 2px;
+      transform-origin: center 35px;
+    }
+
+    /* Label */
+    .label {
+      font-family: 'Arial Narrow', Arial, sans-serif;
+      font-size: 12px;
+      font-weight: 400;
+      color: #ffc864;
+      text-transform: uppercase;
+      letter-spacing: 0em;
+    }
+
+    /* Digital Readout */
+    .readout {
+      font-family: 'Courier New', monospace;
+      font-size: 16px;
+      color: #44ff44;
+      background: #0a0a0a;
+      padding: 4px 8px;
+      border-radius: 2px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.8) inset;
+      text-align: center;
+      min-width: 70px;
+      letter-spacing: 0.05em;
+      text-shadow: 0 0 6px rgba(68,255,68,0.4);
+    }
+
+    /* Pattern Selector */
+    .pattern-selector {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+
+    .pattern-button {
+      padding: 6px 10px;
+      background: #1a1a1a;
+      border: 1px solid #0a0a0a;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.8) inset;
+      color: #e6b050;
+      font-family: 'Arial Narrow', Arial, sans-serif;
+      font-size: 10px;
+      text-transform: uppercase;
+      cursor: pointer;
+      position: relative;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .pattern-button.active {
+      color: #ffc864;
+    }
+
+    .pattern-led {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #0a0a0a;
+    }
+
+    .pattern-button.active .pattern-led {
+      background: #44ff44;
+      box-shadow: 0 0 6px rgba(68,255,68,0.6);
+    }
+  </style>
+</head>
+<body>
+  <div class="plugin-container">
+    <!-- Mounting Holes -->
+    <div class="mounting-hole top-left"></div>
+    <div class="mounting-hole top-right"></div>
+    <div class="mounting-hole mid-top-left"></div>
+    <div class="mounting-hole mid-top-right"></div>
+    <div class="mounting-hole bottom-left"></div>
+    <div class="mounting-hole bottom-right"></div>
+
+    <!-- Header -->
+    <div class="header">
+      <div class="title">Test Drum Machine</div>
+      <div class="power-led"></div>
+    </div>
+
+    <!-- Pads Section -->
+    <div class="section">
+      <div class="section-title">Pattern Pads</div>
+      <div class="pad-grid">
+        <div class="pad active">
+          <div class="pad-led"></div>
+          1
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          2
+        </div>
+        <div class="pad active">
+          <div class="pad-led"></div>
+          3
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          4
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          5
+        </div>
+        <div class="pad active">
+          <div class="pad-led"></div>
+          6
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          7
+        </div>
+        <div class="pad active">
+          <div class="pad-led"></div>
+          8
+        </div>
+        <div class="pad active">
+          <div class="pad-led"></div>
+          9
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          10
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          11
+        </div>
+        <div class="pad active">
+          <div class="pad-led"></div>
+          12
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          13
+        </div>
+        <div class="pad active">
+          <div class="pad-led"></div>
+          14
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          15
+        </div>
+        <div class="pad">
+          <div class="pad-led"></div>
+          16
+        </div>
+      </div>
+    </div>
+
+    <!-- Controls Section -->
+    <div class="section">
+      <div class="section-title">Controls</div>
+      <div class="controls">
+        <!-- Tempo -->
+        <div class="control-group">
+          <div class="label">Tempo</div>
+          <div class="knob">
+            <div class="knob-indicator" style="transform: translateX(-50%) rotate(-45deg);"></div>
+          </div>
+          <div class="readout">120 BPM</div>
+        </div>
+
+        <!-- Swing -->
+        <div class="control-group">
+          <div class="label">Swing</div>
+          <div class="knob">
+            <div class="knob-indicator" style="transform: translateX(-50%) rotate(-135deg);"></div>
+          </div>
+          <div class="readout">0 %</div>
+        </div>
+
+        <!-- Volume (Prominent) -->
+        <div class="control-group">
+          <div class="label">Volume</div>
+          <div class="knob prominent">
+            <div class="knob-indicator" style="transform: translateX(-50%) rotate(45deg);"></div>
+          </div>
+          <div class="readout">80 %</div>
+        </div>
+
+        <!-- Pattern -->
+        <div class="control-group">
+          <div class="label">Pattern</div>
+          <div class="pattern-selector">
+            <div class="pattern-button active">
+              <div class="pattern-led"></div>
+              Pattern 1
+            </div>
+            <div class="pattern-button">
+              <div class="pattern-led"></div>
+              Pattern 2
+            </div>
+            <div class="pattern-button">
+              <div class="pattern-led"></div>
+              Pattern 3
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

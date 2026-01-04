@@ -1,0 +1,19 @@
+⚠️  Rolling back to ideation stage
+
+Will REMOVE:
+- Source code: plugins/[PluginName]/Source/ (47 files)
+- Build config: plugins/[PluginName]/CMakeLists.txt
+- Implementation docs: architecture.md, plan.md
+- Binaries: VST3 + AU (if installed)
+- Build artifacts
+
+Will PRESERVE:
+- Idea: creative-brief.md
+- Mockups: 2 versions (v1-ui, v2-ui)
+- Parameters: parameter-spec.md
+
+A backup will be created in backups/rollbacks/
+
+Status will change: [Current] → 💡 Ideated
+
+Continue? (y/N): _

@@ -1,0 +1,90 @@
+{
+  "plugin-workflow": {
+    "stages": {
+      "0": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": [".ideas/creative-brief.md", ".ideas/parameter-spec.md", ".ideas/architecture.md"],
+        "plugins_md_status": "🚧 Stage 0",
+        "commit_template": "docs({name}): Complete Stage 0 (Research) - DSP architecture documented"
+      },
+      "1": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": [".ideas/creative-brief.md", ".ideas/parameter-spec.md", ".ideas/architecture.md", ".ideas/plan.md"],
+        "plugins_md_status": "🚧 Stage 1",
+        "commit_template": "docs({name}): Complete Stage 1 (Planning) - implementation strategy defined"
+      },
+      "2": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": [".ideas/creative-brief.md", ".ideas/parameter-spec.md", ".ideas/architecture.md", ".ideas/plan.md", "CMakeLists.txt", "PluginProcessor.h", "PluginProcessor.cpp"],
+        "plugins_md_status": "🚧 Stage 2",
+        "commit_template": "feat({name}): Complete Stage 2 (Foundation) - build system operational"
+      },
+      "3": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": [".ideas/creative-brief.md", ".ideas/parameter-spec.md", ".ideas/architecture.md", ".ideas/plan.md", "PluginProcessor.h", "PluginProcessor.cpp"],
+        "plugins_md_status": "🚧 Stage 3",
+        "commit_template": "feat({name}): Complete Stage 3 (DSP Core) - audio processing operational"
+      },
+      "4": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": [".ideas/creative-brief.md", ".ideas/parameter-spec.md", ".ideas/architecture.md", ".ideas/plan.md", "PluginProcessor.h", "PluginProcessor.cpp", "PluginEditor.h", "PluginEditor.cpp"],
+        "plugins_md_status": "🚧 Stage 4",
+        "commit_template": "feat({name}): Complete Stage 4 (Parameters) - APVTS configured"
+      },
+      "5": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": [".ideas/creative-brief.md", ".ideas/parameter-spec.md", ".ideas/architecture.md", ".ideas/plan.md", "PluginEditor.h", "PluginEditor.cpp", "ui/public/index.html"],
+        "plugins_md_status": "🚧 Stage 5",
+        "commit_template": "feat({name}): Complete Stage 5 (GUI) - UI operational"
+      },
+      "6": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": [".ideas/creative-brief.md", ".ideas/parameter-spec.md", ".ideas/architecture.md", ".ideas/plan.md", "test_results.txt"],
+        "plugins_md_status": "✅",
+        "commit_template": "feat({name}): Complete Stage 6 (Validation) - plugin tested and ready"
+      }
+    }
+  },
+  "ui-mockup": {
+    "phases": {
+      "4": {
+        "state_files": [".continue-here.md"],
+        "required_files": ["v{n}-ui.yaml", "v{n}-ui-test.html"],
+        "plugins_md_status": null,
+        "commit_template": "feat({name}): UI mockup v{n} design iteration"
+      },
+      "6": {
+        "state_files": [".continue-here.md", "parameter-spec.md", "PLUGINS.md"],
+        "required_files": [
+          "v{n}-ui.html",
+          "v{n}-PluginEditor.h",
+          "v{n}-PluginEditor.cpp",
+          "v{n}-CMakeLists.txt",
+          "v{n}-integration-checklist.md"
+        ],
+        "plugins_md_status": null,
+        "commit_template": "feat({name}): Complete UI mockup v{n} with implementation files"
+      }
+    }
+  },
+  "plugin-ideation": {
+    "phases": {
+      "complete": {
+        "state_files": [".continue-here.md", "PLUGINS.md"],
+        "required_files": ["creative-brief.md", "parameter-spec.md"],
+        "plugins_md_status": "💡",
+        "commit_template": "docs({name}): Plugin ideation complete"
+      }
+    }
+  },
+  "plugin-improve": {
+    "phases": {
+      "complete": {
+        "state_files": [".continue-here.md", "PLUGINS.md", "CHANGELOG.md"],
+        "required_files": ["Source/*.cpp", "Source/*.h"],
+        "plugins_md_status": "✅",
+        "commit_template": "fix({name}): {description}"
+      }
+    }
+  }
+}

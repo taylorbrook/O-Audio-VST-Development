@@ -1,0 +1,26 @@
+{
+  "id": "swiss-minimal-001",
+  "name": "Swiss Minimal",
+  "description": "Pure geometric simplicity inspired by Swiss typographic design—flat, precise, black and white with 2px borders",
+  "sourcePlugin": null,
+  "sourceVersion": null,
+  "created": "2025-11-11T18:30:00Z",
+  "usedInPlugins": [],
+  "tags": [
+    "swiss",
+    "minimal",
+    "geometric",
+    "black-and-white",
+    "monochrome",
+    "flat",
+    "technical",
+    "sophisticated",
+    "precise",
+    "clean"
+  ],
+  "isTemplateOnly": true,
+  "testPreviews": [
+    "simple-compressor",
+    "simple-synth"
+  ]
+}

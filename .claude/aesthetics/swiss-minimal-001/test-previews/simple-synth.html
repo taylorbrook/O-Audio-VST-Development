@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Synth - Swiss Minimal</title>
+    <style>
+        /* Swiss Minimal Aesthetic - Test Preview */
+
+        :root {
+            /* Colors */
+            --bg-main: #FFFFFF;
+            --text-primary: #000000;
+            --text-secondary: #666666;
+            --control-bg: #FFFFFF;
+            --control-border: #000000;
+            --button-bg: #000000;
+            --button-text: #FFFFFF;
+
+            /* Spacing */
+            --spacing-comfortable: 20px;
+            --spacing-section: 32px;
+
+            /* Borders */
+            --border-width: 2px;
+            --border-color: #000000;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            background: var(--bg-main);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            user-select: none;
+        }
+
+        body {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: var(--spacing-section);
+        }
+
+        h1 {
+            margin: 0 0 var(--spacing-section) 0;
+            font-size: 24px;
+            font-weight: 700;
+            text-align: center;
+            letter-spacing: 0.01em;
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: var(--spacing-section);
+            padding: var(--spacing-section);
+            border: var(--border-width) solid var(--border-color);
+        }
+
+        .section {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .section-title {
+            font-size: 12px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            padding-bottom: 8px;
+            border-bottom: var(--border-width) solid var(--border-color);
+        }
+
+        .control-row {
+            display: flex;
+            gap: var(--spacing-comfortable);
+            align-items: center;
+        }
+
+        .control-wrapper {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .rotary-knob {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            border: var(--border-width) solid var(--border-color);
+            border-radius: 50%;
+            background: var(--control-bg);
+            cursor: pointer;
+        }
+
+        .knob-indicator {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 2px;
+            height: 20px;
+            background: var(--border-color);
+            transform-origin: center 22px;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 8px;
+        }
+
+        .button {
+            padding: 8px 16px;
+            border: var(--border-width) solid var(--border-color);
+            background: var(--button-bg);
+            color: var(--button-text);
+            font-size: 12px;
+            font-weight: 500;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+        }
+
+        .button.active {
+            background: var(--control-bg);
+            color: var(--text-primary);
+        }
+
+        .control-wrapper label {
+            font-size: 12px;
+            font-weight: 400;
+            color: var(--text-primary);
+            text-align: center;
+        }
+
+        .control-wrapper .value {
+            font-size: 11px;
+            font-weight: 400;
+            color: var(--text-secondary);
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body>
+    <h1>Test Synth</h1>
+
+    <div class="controls">
+        <div class="section">
+            <div class="section-title">Oscillator</div>
+            <div class="button-group">
+                <button class="button active" data-param="waveform" data-value="sine">Sine</button>
+                <button class="button" data-param="waveform" data-value="square">Square</button>
+                <button class="button" data-param="waveform" data-value="saw">Saw</button>
+                <button class="button" data-param="waveform" data-value="triangle">Triangle</button>
+            </div>
+            <div class="control-row">
+                <div class="control-wrapper">
+                    <div class="rotary-knob" data-param="frequency">
+                        <div class="knob-indicator" style="transform: translateX(-50%) rotate(0deg);"></div>
+                    </div>
+                    <label>Frequency</label>
+                    <div class="value">440 Hz</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="section">
+            <div class="section-title">Envelope</div>
+            <div class="control-row">
+                <div class="control-wrapper">
+                    <div class="rotary-knob" data-param="attack">
+                        <div class="knob-indicator" style="transform: translateX(-50%) rotate(-90deg);"></div>
+                    </div>
+                    <label>Attack</label>
+                    <div class="value">10 ms</div>
+                </div>
+
+                <div class="control-wrapper">
+                    <div class="rotary-knob" data-param="decay">
+                        <div class="knob-indicator" style="transform: translateX(-50%) rotate(-45deg);"></div>
+                    </div>
+                    <label>Decay</label>
+                    <div class="value">200 ms</div>
+                </div>
+
+                <div class="control-wrapper">
+                    <div class="rotary-knob" data-param="sustain">
+                        <div class="knob-indicator" style="transform: translateX(-50%) rotate(45deg);"></div>
+                    </div>
+                    <label>Sustain</label>
+                    <div class="value">0.7</div>
+                </div>
+
+                <div class="control-wrapper">
+                    <div class="rotary-knob" data-param="release">
+                        <div class="knob-indicator" style="transform: translateX(-50%) rotate(90deg);"></div>
+                    </div>
+                    <label>Release</label>
+                    <div class="value">500 ms</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Button interaction
+        const buttons = document.querySelectorAll('.button');
+        buttons.forEach(button => {
+            button.addEventListener('click', () => {
+                const param = button.dataset.param;
+                const group = document.querySelectorAll(`[data-param="${param}"]`);
+                group.forEach(b => b.classList.remove('active'));
+                button.classList.add('active');
+            });
+        });
+
+        // Knob interaction (relative drag - industry standard)
+        const knobs = document.querySelectorAll('.rotary-knob');
+        knobs.forEach(knob => {
+            let isDragging = false;
+            let lastY = 0;
+            let rotation = 0;
+
+            const indicator = knob.querySelector('.knob-indicator');
+
+            // Extract initial rotation from inline style
+            const initialTransform = indicator.style.transform;
+            const match = initialTransform.match(/rotate\(([^)]+)deg\)/);
+            if (match) {
+                rotation = parseFloat(match[1]);
+            }
+
+            knob.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                lastY = e.clientY;
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                // Relative drag: increment based on distance since last frame
+                const deltaY = lastY - e.clientY;
+                rotation += deltaY * 0.5; // Sensitivity factor
+                rotation = Math.max(-135, Math.min(135, rotation));
+
+                indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+                lastY = e.clientY;
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+        });
+    </script>
+</body>
+</html>

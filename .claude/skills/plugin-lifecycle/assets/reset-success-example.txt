@@ -1,0 +1,23 @@
+✓ [PluginName] reset to ideation stage
+
+Removed:
+- Source code: 47 files
+- Build configuration: CMakeLists.txt
+- Implementation docs: architecture.md, plan.md
+- Binaries: VST3 + AU (uninstalled)
+- Build artifacts
+
+Preserved:
+- Creative brief: creative-brief.md ✓
+- UI mockups: 2 versions ✓
+- Parameters: parameter-spec.md ✓
+
+Backup available at:
+backups/rollbacks/[PluginName]_20251110_235612.tar.gz
+
+Status changed: [Previous] → 💡 Ideated
+
+Next steps:
+1. Review mockups and parameter spec
+2. Run /implement [PluginName] to start fresh from Stage 0
+3. Or modify creative brief and re-run /dream

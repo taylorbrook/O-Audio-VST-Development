@@ -1,0 +1,163 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plugin-freedom-system/schemas/subagent-report.json",
+  "title": "Subagent Report Schema",
+  "description": "Unified JSON schema for all subagent reports (research-planning-agent, foundation-shell-agent, dsp-agent, gui-agent, ui-design-agent, ui-finalization-agent). Ensures consistent report structure and validation.",
+  "type": "object",
+  "required": ["agent", "status", "outputs"],
+  "properties": {
+    "agent": {
+      "type": "string",
+      "enum": ["research-planning-agent", "foundation-shell-agent", "dsp-agent", "gui-agent", "ui-design-agent", "ui-finalization-agent"],
+      "description": "Which subagent generated this report"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["success", "failure"],
+      "description": "Overall status of the stage completion"
+    },
+    "outputs": {
+      "type": "object",
+      "required": ["plugin_name"],
+      "properties": {
+        "plugin_name": {
+          "type": "string",
+          "description": "Name of the plugin being built"
+        },
+        "source_files_created": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of source files created (foundation-shell-agent)"
+        },
+        "parameters_implemented": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["id", "type"],
+            "properties": {
+              "id": {"type": "string"},
+              "type": {"type": "string"},
+              "range": {"type": "string"},
+              "default": {"type": "string"},
+              "units": {"type": "string"}
+            }
+          },
+          "description": "List of parameters implemented (foundation-shell-agent)"
+        },
+        "parameter_count": {
+          "type": "integer",
+          "description": "Number of parameters implemented (foundation-shell-agent)"
+        },
+        "apvts_created": {
+          "type": "boolean",
+          "description": "Whether APVTS was successfully created (foundation-shell-agent)"
+        },
+        "state_management_implemented": {
+          "type": "boolean",
+          "description": "Whether state management was implemented (foundation-shell-agent)"
+        },
+        "dsp_components": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of DSP components implemented (dsp-agent)"
+        },
+        "processing_chain": {
+          "type": "string",
+          "description": "Description of DSP processing chain (dsp-agent)"
+        },
+        "webview_integrated": {
+          "type": "boolean",
+          "description": "Whether WebView was successfully integrated (gui-agent)"
+        },
+        "ui_files_created": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of UI files created/integrated (gui-agent)"
+        },
+        "relays_created": {
+          "type": "integer",
+          "description": "Number of parameter relays created (gui-agent)"
+        },
+        "attachments_created": {
+          "type": "integer",
+          "description": "Number of parameter attachments created (gui-agent)"
+        },
+        "version": {
+          "type": "integer",
+          "description": "UI mockup version number (ui-design-agent, ui-finalization-agent)"
+        },
+        "files_created": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "List of files created (ui-design-agent, ui-finalization-agent)"
+        },
+        "window_dimensions": {
+          "type": "string",
+          "description": "UI window dimensions (ui-design-agent)"
+        },
+        "parameter_spec_created": {
+          "type": "boolean",
+          "description": "Whether parameter-spec.md was created (ui-finalization-agent)"
+        },
+        "relay_count": {
+          "type": "integer",
+          "description": "Number of parameter relays created (ui-finalization-agent)"
+        },
+        "attachment_count": {
+          "type": "integer",
+          "description": "Number of parameter attachments created (ui-finalization-agent)"
+        },
+        "error_type": {
+          "type": "string",
+          "description": "Type of error that occurred (on failure)"
+        },
+        "error_message": {
+          "type": "string",
+          "description": "Detailed error message (on failure)"
+        },
+        "missing_parameters": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Parameters that were expected but missing (on validation failure)"
+        },
+        "implemented_parameters": {
+          "type": "array",
+          "items": {"type": "string"},
+          "description": "Parameters that were actually implemented (on validation failure)"
+        },
+        "expected_count": {
+          "type": "integer",
+          "description": "Expected number of items (on validation failure)"
+        },
+        "actual_count": {
+          "type": "integer",
+          "description": "Actual number of items (on validation failure)"
+        },
+        "build_log_path": {
+          "type": "string",
+          "description": "Path to build log file (if build was attempted)"
+        }
+      },
+      "description": "Stage-specific outputs and metadata"
+    },
+    "issues": {
+      "type": "array",
+      "items": {"type": "string"},
+      "default": [],
+      "description": "List of issues encountered (empty on success)"
+    },
+    "ready_for_next_stage": {
+      "type": "boolean",
+      "description": "Whether the workflow can proceed to the next stage"
+    },
+    "stateUpdated": {
+      "type": "boolean",
+      "description": "True if agent successfully updated .continue-here.md and PLUGINS.md"
+    },
+    "stateUpdateError": {
+      "type": "string",
+      "description": "Error message if state update failed (optional)"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,52 @@
+{
+  "id": "vintage-bakelite-001",
+  "name": "Vintage Bakelite",
+  "description": "Warm, tactile vintage hardware aesthetic with molded brown plastic character, physical rotation model, and nostalgic 1960s-70s industrial feel",
+  "created": "2025-11-13",
+  "sourcePlugin": "AutoClip",
+  "sourceMockupVersion": "v5",
+  "tags": [
+    "vintage",
+    "hardware",
+    "bakelite",
+    "warm",
+    "tactile",
+    "monochromatic",
+    "brown",
+    "retro",
+    "analog",
+    "physical",
+    "1960s",
+    "1970s",
+    "minimal"
+  ],
+  "colorPalette": {
+    "primary": ["#2a1808", "#1a0800", "#6a4a2a", "#3a2010"],
+    "accent": ["#d4b494", "#a88870", "#c49564"],
+    "text": ["#a88870", "#986a4a"]
+  },
+  "bestFor": [
+    "clippers",
+    "compressors",
+    "saturators",
+    "drum-processors",
+    "character-effects",
+    "1-6-parameters"
+  ],
+  "notRecommendedFor": [
+    "surgical-processors",
+    "complex-plugins-10plus-parameters",
+    "bright-colorful-effects",
+    "modern-edm-tools"
+  ],
+  "keyFeatures": [
+    "Physical knob rotation (texture rotates with surface)",
+    "Perlin noise texture for manufactured plastic feel",
+    "Stitched border detail suggesting molded panel",
+    "Warm brown monochromatic palette",
+    "Wide-spaced uppercase typography",
+    "Inset shadow structure (top highlight, bottom shadow)"
+  ],
+  "usedInPlugins": ["AutoClip"],
+  "previewPath": ".claude/aesthetics/vintage-bakelite-001/preview.html"
+}

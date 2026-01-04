@@ -1,0 +1,27 @@
+{
+  "id": "studio-hardware-001",
+  "name": "Studio Hardware",
+  "description": "Professional 19\" rack unit with industrial precision and LED metering",
+  "sourcePlugin": null,
+  "sourceVersion": null,
+  "created": "2025-11-12T00:00:00Z",
+  "usedInPlugins": [],
+  "tags": [
+    "industrial",
+    "rack",
+    "professional",
+    "dark",
+    "led",
+    "hardware",
+    "mixing",
+    "mastering",
+    "metal",
+    "minimal"
+  ],
+  "isTemplateOnly": true,
+  "testPreviews": [
+    "simple-compressor",
+    "simple-synth",
+    "drum-machine"
+  ]
+}

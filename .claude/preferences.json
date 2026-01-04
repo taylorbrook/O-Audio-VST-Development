@@ -1,0 +1,8 @@
+{
+  "workflow": {
+    "mode": "express",
+    "auto_test": true,
+    "auto_install": true,
+    "auto_package": true
+  }
+}

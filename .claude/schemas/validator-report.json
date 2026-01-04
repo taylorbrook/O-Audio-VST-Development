@@ -1,0 +1,63 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "https://plugin-freedom-system/schemas/validator-report.json",
+  "title": "Validator Report Schema",
+  "description": "JSON schema for validator agent reports. Ensures consistent validation report structure.",
+  "type": "object",
+  "required": ["agent", "stage", "status", "checks", "recommendation", "continue_to_next_stage"],
+  "properties": {
+    "agent": {
+      "type": "string",
+      "const": "validation-agent",
+      "description": "Always 'validation-agent' for this report type"
+    },
+    "stage": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 6,
+      "description": "Which stage is being validated (0-6)"
+    },
+    "status": {
+      "type": "string",
+      "enum": ["PASS", "FAIL"],
+      "description": "Overall validation status"
+    },
+    "checks": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "passed", "message", "severity"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Identifier for this check"
+          },
+          "passed": {
+            "type": "boolean",
+            "description": "Whether the check passed"
+          },
+          "message": {
+            "type": "string",
+            "description": "Descriptive message about the check result"
+          },
+          "severity": {
+            "type": "string",
+            "enum": ["error", "warning", "info"],
+            "description": "Severity level: error (blocks), warning (should fix), info (informational)"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "List of validation checks performed"
+    },
+    "recommendation": {
+      "type": "string",
+      "description": "What to do next based on validation results"
+    },
+    "continue_to_next_stage": {
+      "type": "boolean",
+      "description": "Whether the workflow should proceed to the next stage"
+    }
+  },
+  "additionalProperties": false
+}

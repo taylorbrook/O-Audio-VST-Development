@@ -1,0 +1,76 @@
+{
+  "stage_2_complete": {
+    "milestone": "Build System Ready",
+    "completion_statement": "Your plugin compiles successfully with all parameters implemented",
+    "options": [
+      { "label": "Implement audio processing", "description": "Make your DSP vision a reality", "recommended": true, "action": "next_stage" },
+      { "label": "Review build system", "action": "review_code" },
+      { "label": "Test parameters in DAW", "action": "manual_test" },
+      { "label": "Inspect CMake configuration", "action": "review_cmake" },
+      { "label": "Pause workflow", "description": "Resume anytime", "action": "pause" }
+    ]
+  },
+  "stage_3_complete": {
+    "milestone": "Audio Engine Working",
+    "completion_statement": "Your DSP processing is implemented and functional",
+    "options": [
+      { "label": "Integrate UI", "description": "Connect your interface to the audio engine", "recommended": true, "action": "next_stage" },
+      { "label": "Review DSP code", "action": "review_code" },
+      { "label": "Test audio in DAW", "description": "Listen to your processing", "action": "manual_test" },
+      { "label": "Run validation", "action": "run_tests", "discovery": "Automated stability testing" },
+      { "label": "Pause workflow", "description": "Resume anytime", "action": "pause" }
+    ]
+  },
+  "stage_4_complete": {
+    "milestone": "UI Integrated",
+    "completion_statement": "Your interface is connected and responding to parameter changes",
+    "options": [
+      { "label": "Complete validation", "description": "Final polish and testing", "recommended": true, "action": "next_stage" },
+      { "label": "Review UI code", "action": "review_code" },
+      { "label": "Test interface", "description": "Try out your UI design", "action": "manual_test" },
+      { "label": "Save as template", "action": "save_template", "discovery": "Reuse this design" },
+      { "label": "Pause workflow", "description": "Resume anytime", "action": "pause" }
+    ]
+  },
+  "stage_5_complete": {
+    "milestone": "Plugin Complete",
+    "completion_statement": "All validation passed - your plugin is ready to use",
+    "options": [
+      { "label": "Install plugin", "description": "Deploy to your DAW", "recommended": true, "action": "install" },
+      { "label": "Review changelog", "action": "review_changelog" },
+      { "label": "Test in DAW", "description": "Try it in production", "action": "manual_test" },
+      { "label": "Create installer", "action": "package", "discovery": "Package for distribution" },
+      { "label": "Done", "action": "complete" }
+    ]
+  },
+  "build_failure": {
+    "completion_statement": "Build failed during {milestone}",
+    "context": "Cannot proceed until compilation succeeds",
+    "options": [
+      { "label": "Investigate root cause", "action": "deep_research", "discovery": "Deep analysis of build errors" },
+      { "label": "Show error context", "action": "show_code" },
+      { "label": "Show full build log", "action": "show_build_log" },
+      { "label": "I'll fix it manually", "description": "Resume with /continue", "action": "manual_fix" }
+    ]
+  },
+  "validation_failure": {
+    "completion_statement": "Validation failed with {count} issues",
+    "context": "Plugin needs fixes before deployment",
+    "options": [
+      { "label": "Investigate failures", "action": "deep_research", "discovery": "Find validation problems" },
+      { "label": "Show failure details", "action": "show_failures" },
+      { "label": "Retry validation", "action": "retry" },
+      { "label": "I'll fix it manually", "description": "Resume with /continue", "action": "manual_fix" }
+    ]
+  },
+  "phase_complete": {
+    "completion_statement": "Phase {phase_description} complete",
+    "context": "{phases_remaining} phases remaining",
+    "options": [
+      { "label": "Continue to next phase", "description": "{next_phase_description}", "recommended": true, "action": "next_phase" },
+      { "label": "Review this phase", "action": "review_code" },
+      { "label": "Test current state", "action": "manual_test" },
+      { "label": "Pause workflow", "description": "Resume anytime", "action": "pause" }
+    ]
+  }
+}

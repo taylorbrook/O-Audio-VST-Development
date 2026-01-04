@@ -1,0 +1,12 @@
+{{PLUGIN_NAME}} by TÂCHES
+
+Welcome to the {{PLUGIN_NAME}} installer.
+
+This will install {{PLUGIN_NAME}} v{{VERSION}}, {{DESCRIPTION}}
+
+What You're Installing:
+• VST3 format (compatible with most DAWs)
+• AU format (Logic Pro, GarageBand, and more)
+• {{PARAM_COUNT}} parameters for complete control
+
+Click Continue to begin installation.

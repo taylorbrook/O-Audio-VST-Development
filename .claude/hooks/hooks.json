@@ -1,0 +1,82 @@
+{
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PostToolUse.sh",
+            "timeout": 2000,
+            "description": "Real-time code quality validation for JUCE best practices"
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/SubagentStop.sh",
+            "timeout": 10000,
+            "description": "Deterministic contract validation after each subagent"
+          }
+        ]
+      }
+    ],
+    "UserPromptSubmit": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/UserPromptSubmit.sh",
+            "timeout": 5000,
+            "description": "Auto-inject context (handoff files, PLUGINS.md)"
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/Stop.sh",
+            "timeout": 5000,
+            "description": "Stage enforcement and workflow integrity verification"
+          }
+        ]
+      }
+    ],
+    "PreCompact": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PreCompact.sh",
+            "timeout": 10000,
+            "description": "Preserve contracts before context compaction"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": ".*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/SessionStart.sh",
+            "timeout": 5000,
+            "description": "Environment validation at session start"
+          }
+        ]
+      }
+    ]
+  }
+}
