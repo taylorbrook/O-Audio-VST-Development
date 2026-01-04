@@ -13,25 +13,42 @@
   - Registered in PLUGINS.md
   - Ready for `/implement` workflow
 
+- **2026-01-04:** Design refinement session
+  - **Typography updated**: Changed from Garamond to Baskerville (1757, authentic 18th-century botanical publication typeface)
+  - **Retro control style chosen**: Bakelite Radio (1930s-1950s Art Deco aesthetic)
+    - Evaluated 3 styles: Brass Laboratory, Bakelite Radio, Vintage Chrome Amp
+    - Selected Bakelite for warm, approachable vintage feel with dark amber/brown tones
+  - **Layout improvement**: Pan/Tempo Sync buttons changed from vertical to horizontal arrangement
+  - **Knob refinement**: 70px Bakelite knobs with ribbed grip texture, cream pointer notches
+  - **Button refinement**: 75px Art Deco styled buttons with minimal decoration
+  - Production mockup: `v3-bakelite-radio.html` (ready for Stage 3 integration)
+
 ## Description
 
 A tremolo effect plugin featuring a botanical aesthetic inspired by vintage herbarium illustrations. Provides classic amplitude modulation with 6 waveform types, smoothing control, tempo sync, and stereo panning capabilities.
 
 ## Design Highlights
 
-**Visual Theme**: Botanical Scientific
+**Visual Theme**: Botanical Scientific + Bakelite Radio Retro
 - Vintage paper texture background with aged cream tones
 - Semi-transparent carrot botanical illustration overlay
-- Botanical unicode motifs (❦ fleuron, ✿ floral, ❧ leaf)
-- Earthy botanical green color palette
-- Garamond typography for classical elegance
+- Baskerville typeface (1757, authentic botanical publication typography)
+- **Retro controls**: 1930s-1950s Bakelite Radio aesthetic
+  - Dark amber/brown color palette (#6B3410, #4A2511, #3A1A08)
+  - Warm, nostalgic Art Deco styling
+  - Ribbed knobs with cream pointer notches
+  - Minimal decorative accents
 
 **User Interface**:
 - Fixed 600×400px window size
-- WebView-based (HTML/CSS/JS)
-- Left panel: Speed/Depth knobs, Pan/Tempo Sync toggle buttons
-- Right panel: Waveform selector, real-time visualizer, Smoothing slider
-- All controls feature botanical-themed decorations
+- WebView-based (HTML/CSS/JS) with JUCE interop
+- **Left panel**:
+  - Pan Sync & Tempo Sync buttons (horizontal layout, side-by-side)
+  - Speed & Depth knobs (70px Bakelite style, vertically stacked)
+- **Right panel**:
+  - Waveform selector dropdown
+  - Real-time waveform visualizer canvas
+  - Smoothing horizontal slider
 
 ## Parameters
 
@@ -70,20 +87,47 @@ A tremolo effect plugin featuring a botanical aesthetic inspired by vintage herb
 - `carrot.png`: Botanical illustration overlay
 
 **Mockups**:
-- `.ideas/mockups/v1-ui.yaml`: Complete UI specification (600+ lines)
-- `.ideas/mockups/v1-ui-test.html`: Fully functional interactive prototype
-- `.ideas/mockups/v1-ui-mockup.jpg`: Visual reference image
+- `.ideas/mockups/v1-ui.yaml`: Original UI specification (600+ lines, reference only)
+- `.ideas/mockups/v1-ui-test.html`: Original standalone prototype (reference only)
+- `.ideas/mockups/v2-ui-test.html`: JUCE WebView interop version (production base)
+- `.ideas/mockups/v3-bakelite-radio.html`: **FINAL DESIGN** - Bakelite Radio style with JUCE interop ⭐
+  - Horizontal button layout (Pan/Tempo Sync side-by-side)
+  - 70px Bakelite knobs with ribbed texture
+  - Cream pointer notches (6px × 20px rectangular)
+  - Dark amber Art Deco buttons (75px wide)
+- `.ideas/mockups/v3-brass-laboratory.html`: Brass style variation (not chosen)
+- `.ideas/mockups/v3-chrome-amp.html`: Chrome amp style variation (not chosen)
+- `.ideas/mockups/js/juce/`: JUCE WebView bridge files (index.js, check_native_interop.js)
+- `.ideas/mockups/RETRO-STYLE-COMPARISON.md`: Design decision documentation
 
 ## Known Issues
 
 None (plugin not yet implemented)
 
-## Next Steps
+## Current Design Status
 
-1. Run `/implement OuariconTremolo` to begin Stage 1
-2. foundation-shell-agent will create CMakeLists.txt, PluginProcessor skeleton, APVTS parameters
-3. Automatic validation after each stage
-4. Expected completion: All 3 stages complete with working VST3/AU plugin
+**Phase**: Refinement (still in `/dream` stage)
+**Mockup Status**: Finalized - Bakelite Radio style selected
+**Next Action Options**:
+1. Continue refining UI design (if needed)
+2. Run `/implement OuariconTremolo` when ready to build
+
+## Implementation Handoff Notes
+
+When proceeding to `/implement`:
+- Use `v3-bakelite-radio.html` as the UI source for Stage 3 (gui-agent)
+- Copy to `Source/ui/public/index.html` during WebView integration
+- Ensure `js/juce/` directory is copied for JUCE parameter bindings
+- All 6 WebView relay names documented in `parameter-spec.md`
+- Horizontal button layout provides proper spacing for knob labels
+
+## Future Refinement Options
+
+If continuing design work before implementation:
+- Fine-tune knob/button sizes
+- Adjust Bakelite color tones
+- Refine waveform visualizer appearance
+- Test additional layout variations
 
 ## Additional Notes
 

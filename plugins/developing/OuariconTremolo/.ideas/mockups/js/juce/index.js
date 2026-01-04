@@ -61,6 +61,7 @@ class PromiseHandler {
 
 const promiseHandler = new PromiseHandler();
 
+
 /**
  * Returns a function object that calls a function registered on the JUCE backend and forwards all
  * parameters to it.

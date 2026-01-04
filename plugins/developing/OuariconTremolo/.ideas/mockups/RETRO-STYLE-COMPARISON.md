@@ -1,6 +1,24 @@
 # OuariconTremolo - Retro Style Comparison
 
-Three vintage-inspired control styles have been created for you to choose from. All three mockups are now open in your browser for side-by-side comparison.
+## ✅ DESIGN DECISION (2026-01-04)
+
+**Selected Style: Bakelite Radio (1930s-1950s Art Deco)**
+
+**Rationale**: User chose Bakelite Radio for its warm, approachable vintage aesthetic with dark amber/brown tones. While Brass Laboratory offered the most historically accurate match to the botanical theme, Bakelite provides a nostalgic, Art Deco elegance that complements the design without being overly formal.
+
+**Production Mockup**: `v3-bakelite-radio.html`
+
+**Additional Refinements Applied**:
+- Horizontal button layout (Pan/Tempo Sync side-by-side) for better label visibility
+- 70px Bakelite knobs with ribbed grip texture
+- 75px Art Deco buttons with minimal decoration
+- Rectangular cream pointer notches (6px × 20px) with proper rotation (transform-origin: center 27px)
+
+---
+
+## Original Comparison Overview
+
+Three vintage-inspired control styles were created for comparison. All three mockups are available in this directory for reference.
 
 ## Style 1: Brass Laboratory (1920s-1940s Scientific Equipment)
 
@@ -136,14 +154,10 @@ Three vintage-inspired control styles have been created for you to choose from. 
 
 ---
 
-## Next Steps
+## Next Steps (COMPLETED)
 
-**Compare the three open browser tabs and decide which style you prefer!**
+✅ **Design Choice Made**: Bakelite Radio style selected
+✅ **Refinements Applied**: Horizontal button layout, proper knob rotation, label visibility fixes
+✅ **Documentation Updated**: NOTES.md and this file reflect final design decisions
 
-Once you choose:
-1. I'll rename the chosen style to be the production mockup (v2-ui-test.html)
-2. Update all documentation to reflect the chosen aesthetic
-3. You can continue refining that specific style if needed
-4. Or proceed to `/implement` with the finalized design
-
-**Take your time comparing** - this is the fun part of design! The controls are fully interactive, so try dragging knobs and clicking buttons to feel the differences.
+**Ready for Implementation**: Run `/implement OuariconTremolo` when ready to build the plugin. The gui-agent will use `v3-bakelite-radio.html` as the production UI source for Stage 3 integration.
