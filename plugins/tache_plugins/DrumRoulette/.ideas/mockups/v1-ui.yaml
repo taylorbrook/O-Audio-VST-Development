@@ -1,0 +1,240 @@
+# DrumRoulette UI Design Specification v1
+# Generated: 2025-11-12
+# Plugin Type: Instrument (Drum Sampler)
+# Aesthetic: Vintage Neve-style mixer console (charcoal + cream + gold accents)
+
+metadata:
+  plugin_name: DrumRoulette
+  version: 1
+  created: 2025-11-12
+  aesthetic: vintage-neve-mixer
+  inspiration: SSL/Neve mixing consoles, Battery/Geist drum samplers
+
+window:
+  width: 1400
+  height: 700
+  resizable: false
+  background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%)  # Charcoal gradient
+
+layout:
+  type: horizontal-mixer
+  channel_strips: 8
+  strip_width: 160
+  master_section_height: 120
+
+colors:
+  background_main: "#2a2a2a"  # Charcoal
+  background_dark: "#1f1f1f"
+  text_primary: "#e8dcc8"  # Cream
+  text_secondary: "#a89f8f"
+  accent_gold: "#d4a574"  # Gold
+  accent_orange: "#e67e22"  # Orange (for lock state)
+  led_off: "#3a3a3a"
+  led_green: "#44ff44"
+  border_dark: "#0a0a0a"
+  border_light: "#3f3f3f"
+
+# Total parameters: 73 (reduced from 81 - removed Output Routing per user request)
+# Global: 1 (Randomize All button)
+# Per-slot: 9 × 8 = 72
+# Note: Master Volume is not a saveable parameter, just a UI convenience control
+
+parameters:
+  global:
+    - id: RANDOMIZE_ALL
+      type: button
+      label: "RANDOMIZE ALL"
+      description: "Randomize all unlocked slots simultaneously"
+
+  per_slot:  # Multiply by 8 slots
+    - id: FOLDER_PATH_{N}
+      type: file_browser
+      label: "Folder"
+      description: "Select folder containing audio samples"
+      default: ""
+
+    - id: RANDOMIZE_{N}
+      type: button
+      label: "RANDOM"
+      description: "Pick random sample from assigned folder"
+
+    - id: LOCK_{N}
+      type: toggle
+      label: "LOCK"
+      description: "Exclude slot from global randomization"
+      default: false
+      states:
+        off: { color: "#5a5a5a", label: "UNLOCKED" }
+        on: { color: "#e67e22", label: "LOCKED" }  # Orange when locked
+
+    - id: VOLUME_{N}
+      type: fader
+      label: "VOL"
+      range: [-60, 6]  # -60dB to +6dB
+      default: 0
+      unit: "dB"
+      skew: linear
+      description: "Channel level control"
+
+    - id: DECAY_{N}
+      type: knob
+      label: "DECAY"
+      range: [10, 2000]  # 10ms to 2s
+      default: 500
+      unit: "ms"
+      skew: exponential
+      description: "Envelope decay time (sustain always 0)"
+
+    - id: ATTACK_{N}
+      type: knob
+      label: "ATTACK"
+      range: [0, 50]  # 0 to 50ms
+      default: 1
+      unit: "ms"
+      skew: exponential
+      description: "Envelope attack time for percussive shaping"
+
+    - id: TILT_{N}
+      type: knob
+      label: "TILT"
+      range: [-12, 12]  # -12dB to +12dB
+      default: 0
+      unit: "dB"
+      skew: linear
+      description: "Brightness control (pivot at 1kHz)"
+
+    - id: PITCH_{N}
+      type: knob
+      label: "PITCH"
+      range: [-12, 12]  # ±12 semitones
+      default: 0
+      unit: "st"
+      skew: linear
+      description: "Pitch shift in semitones"
+
+    - id: SOLO_{N}
+      type: toggle
+      label: "S"
+      description: "Solo this channel"
+      default: false
+      states:
+        off: { color: "#5a5a5a", label: "S" }
+        on: { color: "#f1c40f", label: "S" }  # Yellow when active
+
+    - id: MUTE_{N}
+      type: toggle
+      label: "M"
+      description: "Mute this channel"
+      default: false
+      states:
+        off: { color: "#5a5a5a", label: "M" }
+        on: { color: "#e74c3c", label: "M" }  # Red when active
+
+controls:
+  # CHANNEL STRIPS (8 total, arranged horizontally)
+  channel_strip:
+    layout: vertical
+    top_to_bottom:
+      - sample_name_display  # Text display showing loaded sample filename
+      - trigger_led          # Velocity-sensitive LED (brightness reflects MIDI velocity)
+      - folder_button        # Icon button to open folder browser
+      - randomize_button     # Per-channel randomize
+      - lock_button          # Toggle lock state (grey → orange)
+      - knobs_column         # 4 knobs in vertical column (Decay, Attack, Tilt, Pitch)
+      - solo_mute_buttons    # S/M buttons side-by-side
+      - volume_fader         # Vertical fader with dB scale
+
+  # MASTER SECTION (bottom, 120px height)
+  master_section:
+    layout: horizontal_centered
+    elements:
+      - randomize_all_button  # Large prominent button
+      - master_volume_knob    # Global output level (UI convenience, not saved)
+      - led_meter             # VU-style LED meter (like LushVerb)
+
+styling:
+  typography:
+    font_family: "'Arial', 'Helvetica', sans-serif"
+    font_weight_normal: 400
+    font_weight_bold: 700
+    label_size: 10px
+    value_size: 11px
+    title_size: 14px
+
+  channel_strip:
+    background: "linear-gradient(180deg, #2f2f2f 0%, #252525 100%)"
+    border: "1px solid #3f3f3f"
+    border_radius: 4px
+    padding: 12px
+    gap: 10px
+
+  sample_name_display:
+    height: 40px
+    background: "#1a1a1a"
+    border: "1px solid #0a0a0a"
+    color: "#e8dcc8"
+    font_size: 10px
+    text_align: center
+    padding: 4px
+    overflow: hidden
+    text_overflow: ellipsis
+
+  trigger_led:
+    width: 12px
+    height: 12px
+    border_radius: 50%
+    background_off: "#3a3a3a"
+    background_on: "#44ff44"  # Green LED
+    behavior: velocity_sensitive_brightness
+    box_shadow: "0 0 8px rgba(68, 255, 68, 0.6)"
+
+  button:
+    height: 24px
+    border_radius: 3px
+    font_size: 10px
+    font_weight: bold
+    letter_spacing: 0.5px
+    cursor: pointer
+    transition: "all 0.15s ease"
+
+  knob:
+    size: 48px
+    border_radius: 50%
+    background: "radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a)"
+    border: "2px solid #4f4f4f"
+    indicator_color: "#d4a574"  # Gold indicator
+    label_position: above
+    value_position: below
+
+  fader:
+    width: 40px
+    height: 180px
+    track_background: "#1a1a1a"
+    track_border: "1px solid #0a0a0a"
+    thumb_width: 38px
+    thumb_height: 20px
+    thumb_color: "#d4a574"  # Gold thumb
+    thumb_border: "1px solid #a88f5f"
+
+  led_meter:
+    type: horizontal_segmented
+    width: 420px
+    height: 20px
+    segment_count: 20
+    colors:
+      low: "#44ff44"      # Green (0-60%)
+      mid: "#f1c40f"      # Yellow (60-85%)
+      high: "#e67e22"     # Orange (85-95%)
+      clip: "#e74c3c"     # Red (95-100%)
+    ballistics:
+      attack_ms: 5
+      release_ms: 300
+
+notes:
+  - Output routing is AUTOMATIC and NOT user-controllable (per user request)
+  - Each slot auto-routes: Slot 1 → Out 1-2, Slot 2 → Out 3-4, ..., Slot 8 → Out 15-16
+  - All slots also sum to main stereo output (Out 1-2 main mix)
+  - Total outputs: 18 (2 main + 16 individual)
+  - Master volume knob is UI convenience only (not a saveable parameter)
+  - Sample name display replaces waveform thumbnail (simpler to implement)
+  - LED trigger indicators use velocity-sensitive brightness (MIDI velocity controls LED intensity)

@@ -1,0 +1,59 @@
+# ============================================================================
+# WebView UI Resources
+# ============================================================================
+#
+# This snippet should be appended to plugins/Drum808/CMakeLists.txt
+# during Stage 5 (GUI) implementation.
+#
+# It adds:
+# - Binary data target for HTML/JS files
+# - WebView module (juce::juce_gui_extra)
+# - WebView compile definitions (JUCE_WEB_BROWSER=1)
+# - NEEDS_WEB_BROWSER flag for VST3 support
+#
+# CRITICAL: This must come AFTER juce_add_plugin() and target_link_libraries()
+# ============================================================================
+
+# Add binary data target for UI resources
+juce_add_binary_data(Drum808_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+)
+
+# Link UI resources to plugin
+target_link_libraries(Drum808
+    PRIVATE
+        Drum808_UIResources
+        juce::juce_gui_extra  # REQUIRED for WebBrowserComponent
+)
+
+# Enable WebView
+target_compile_definitions(Drum808
+    PUBLIC
+        JUCE_WEB_BROWSER=1     # Enable WebBrowserComponent
+        JUCE_USE_CURL=0        # Disable CURL (not needed for local HTML)
+)
+
+# ============================================================================
+# IMPORTANT: Update juce_add_plugin() call
+# ============================================================================
+#
+# Add this flag to the existing juce_add_plugin() call:
+#
+#   NEEDS_WEB_BROWSER TRUE
+#
+# Example:
+#
+#   juce_add_plugin(Drum808
+#       COMPANY_NAME "YourCompany"
+#       PLUGIN_MANUFACTURER_CODE "Ycom"
+#       PLUGIN_CODE "Dr88"
+#       FORMATS VST3 AU Standalone
+#       PRODUCT_NAME "Drum808"
+#       NEEDS_WEB_BROWSER TRUE  # <-- Add this line
+#   )
+#
+# Without NEEDS_WEB_BROWSER TRUE, VST3 format will build but won't load in DAWs.
+# ============================================================================

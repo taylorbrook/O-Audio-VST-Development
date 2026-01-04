@@ -1,0 +1,184 @@
+window:
+  width: 500
+  height: 300
+  resizable: false
+
+metadata:
+  plugin_name: "LushVerb"
+  version: 1
+  description: "Industrial rack unit aesthetic with gold accents and LED metering"
+  created: "2025-11-11"
+
+colors:
+  rack_dark: "#1a1a1a"
+  rack_mid: "#1e1e1e"
+  border_black: "#0a0a0a"
+  accent_gold: "#ffc864"
+  accent_gold_dim: "#e6b050"
+  text_light: "#cccccc"
+  text_dark: "#666666"
+  led_green: "#44ff44"
+  led_yellow: "#ffff44"
+  led_red: "#ff4444"
+  led_off: "#222222"
+
+typography:
+  title:
+    family: "Impact, 'Arial Black', sans-serif"
+    weight: 900
+    size: 24
+    color: "#ffc864"
+  labels:
+    family: "Arial Narrow, Arial, sans-serif"
+    weight: 700
+    size: 11
+    color: "#cccccc"
+    transform: "uppercase"
+    letter_spacing: "1px"
+  values:
+    family: "Monaco, 'Courier New', monospace"
+    weight: 400
+    size: 12
+    color: "#ffc864"
+
+layout:
+  type: "vertical-sections"
+  sections:
+    - id: "header"
+      height: 50
+      elements:
+        - type: "title"
+          text: "LUSHVERB"
+          alignment: "left"
+          position: {x: 20, y: 15}
+        - type: "power_led"
+          color: "#44ff44"
+          position: {x: 470, y: 20}
+          size: 8
+          pulse: true
+
+    - id: "main"
+      height: 180
+      flex: 1
+      elements:
+        - type: "control_row"
+          controls: ["size", "damping", "shimmer", "mix"]
+          spacing: 20
+          y_offset: 30
+
+    - id: "meter_section"
+      height: 60
+      elements:
+        - type: "led_meter"
+          label: "OUTPUT"
+          led_count: 20
+          position: {x: 40, y: 10}
+          width: 420
+          thresholds:
+            green: [-60, -12]
+            yellow: [-12, -3]
+            red: [-3, 0]
+
+controls:
+  - id: "size"
+    type: "rotary_knob"
+    label: "SIZE"
+    parameter: "SIZE"
+    range: [0.5, 20.0]
+    unit: "s"
+    default: 2.5
+    display_format: "{value:.1f}s"
+    style:
+      diameter: 70
+      ridges: true
+      conic_gradient: true
+      indicator_color: "#ffc864"
+      base_color: "#2a2a2a"
+
+  - id: "damping"
+    type: "rotary_knob"
+    label: "DAMPING"
+    parameter: "DAMPING"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    display_format: "{value:.0f}%"
+    style:
+      diameter: 70
+      ridges: true
+      conic_gradient: true
+      indicator_color: "#ffc864"
+      base_color: "#2a2a2a"
+
+  - id: "shimmer"
+    type: "rotary_knob"
+    label: "SHIMMER"
+    parameter: "SHIMMER"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    display_format: "{value:.0f}%"
+    style:
+      diameter: 70
+      ridges: true
+      conic_gradient: true
+      indicator_color: "#ffc864"
+      base_color: "#2a2a2a"
+
+  - id: "mix"
+    type: "rotary_knob"
+    label: "MIX"
+    parameter: "MIX"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    display_format: "{value:.0f}%"
+    style:
+      diameter: 70
+      ridges: true
+      conic_gradient: true
+      indicator_color: "#ffc864"
+      base_color: "#2a2a2a"
+
+visual_elements:
+  - type: "rack_mounting_holes"
+    positions:
+      - {x: 10, y: 10}
+      - {x: 10, y: 290}
+      - {x: 490, y: 10}
+      - {x: 490, y: 290}
+    style:
+      size: 8
+      gradient: "radial"
+      shadow: "inset 0 2px 4px rgba(0,0,0,0.8)"
+
+  - type: "brushed_metal_texture"
+    target: "background"
+    direction: "horizontal"
+    stripe_width: 1
+    stripe_gap: 1
+    opacity: 0.05
+
+  - type: "panel_borders"
+    color: "#0a0a0a"
+    width: 2
+    inset_shadow: "0 2px 4px rgba(0,0,0,0.6)"
+
+interactions:
+  knobs:
+    drag_sensitivity: 0.5
+    scroll_sensitivity: 1.0
+    double_click_reset: true
+    value_tooltip: true
+
+  led_meter:
+    update_rate_ms: 16
+    smoothing: 0.3
+    peak_hold_ms: 500
+
+notes: |
+  Industrial rack unit design with 4 large machined knobs and LED output meter.
+  Dark metal foundation with gold accents for premium professional feel.
+  Horizontal brushed metal texture and deep inset shadows for depth.
+  LED meter uses traffic light thresholds (green/yellow/red).
+  Compact 500x300 layout optimized for single-row knob arrangement.

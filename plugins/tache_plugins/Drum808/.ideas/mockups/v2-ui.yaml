@@ -1,0 +1,236 @@
+window:
+  width: 1000
+  height: 500
+  resizable: false
+
+controls:
+  # KICK DRUM (4 parameters)
+  - id: kick_level
+    type: slider
+    position: { x: 50, y: 150 }
+    range: [0.0, 100.0]
+    default: 80.0
+    label: "LEVEL"
+    unit: "%"
+
+  - id: kick_tone
+    type: slider
+    position: { x: 50, y: 230 }
+    range: [0.0, 100.0]
+    default: 50.0
+    label: "TONE"
+    unit: "%"
+
+  - id: kick_decay
+    type: slider
+    position: { x: 50, y: 310 }
+    range: [50.0, 1000.0]
+    default: 400.0
+    label: "DECAY"
+    unit: "ms"
+
+  - id: kick_tuning
+    type: slider
+    position: { x: 50, y: 390 }
+    range: [-12.0, 12.0]
+    default: 0.0
+    label: "TUNING"
+    unit: "st"
+
+  # LOW TOM (4 parameters)
+  - id: lowtom_level
+    type: slider
+    position: { x: 210, y: 150 }
+    range: [0.0, 100.0]
+    default: 75.0
+    label: "LEVEL"
+    unit: "%"
+
+  - id: lowtom_tone
+    type: slider
+    position: { x: 210, y: 230 }
+    range: [0.0, 100.0]
+    default: 50.0
+    label: "TONE"
+    unit: "%"
+
+  - id: lowtom_decay
+    type: slider
+    position: { x: 210, y: 310 }
+    range: [50.0, 1000.0]
+    default: 300.0
+    label: "DECAY"
+    unit: "ms"
+
+  - id: lowtom_tuning
+    type: slider
+    position: { x: 210, y: 390 }
+    range: [-12.0, 12.0]
+    default: 0.0
+    label: "TUNING"
+    unit: "st"
+
+  # MID TOM (4 parameters)
+  - id: midtom_level
+    type: slider
+    position: { x: 370, y: 150 }
+    range: [0.0, 100.0]
+    default: 75.0
+    label: "LEVEL"
+    unit: "%"
+
+  - id: midtom_tone
+    type: slider
+    position: { x: 370, y: 230 }
+    range: [0.0, 100.0]
+    default: 50.0
+    label: "TONE"
+    unit: "%"
+
+  - id: midtom_decay
+    type: slider
+    position: { x: 370, y: 310 }
+    range: [50.0, 1000.0]
+    default: 250.0
+    label: "DECAY"
+    unit: "ms"
+
+  - id: midtom_tuning
+    type: slider
+    position: { x: 370, y: 390 }
+    range: [-12.0, 12.0]
+    default: 5.0
+    label: "TUNING"
+    unit: "st"
+
+  # CLAP (4 parameters - uses SNAP instead of DECAY)
+  - id: clap_level
+    type: slider
+    position: { x: 530, y: 150 }
+    range: [0.0, 100.0]
+    default: 70.0
+    label: "LEVEL"
+    unit: "%"
+
+  - id: clap_tone
+    type: slider
+    position: { x: 530, y: 230 }
+    range: [0.0, 100.0]
+    default: 50.0
+    label: "TONE"
+    unit: "%"
+
+  - id: clap_snap
+    type: slider
+    position: { x: 530, y: 310 }
+    range: [0.0, 100.0]
+    default: 60.0
+    label: "SNAP"
+    unit: "%"
+
+  - id: clap_tuning
+    type: slider
+    position: { x: 530, y: 390 }
+    range: [-12.0, 12.0]
+    default: 0.0
+    label: "TUNING"
+    unit: "st"
+
+  # CLOSED HI-HAT (4 parameters)
+  - id: closedhat_level
+    type: slider
+    position: { x: 690, y: 150 }
+    range: [0.0, 100.0]
+    default: 65.0
+    label: "LEVEL"
+    unit: "%"
+
+  - id: closedhat_tone
+    type: slider
+    position: { x: 690, y: 230 }
+    range: [0.0, 100.0]
+    default: 60.0
+    label: "TONE"
+    unit: "%"
+
+  - id: closedhat_decay
+    type: slider
+    position: { x: 690, y: 310 }
+    range: [20.0, 200.0]
+    default: 80.0
+    label: "DECAY"
+    unit: "ms"
+
+  - id: closedhat_tuning
+    type: slider
+    position: { x: 690, y: 390 }
+    range: [-12.0, 12.0]
+    default: 0.0
+    label: "TUNING"
+    unit: "st"
+
+  # OPEN HI-HAT (4 parameters)
+  - id: openhat_level
+    type: slider
+    position: { x: 850, y: 150 }
+    range: [0.0, 100.0]
+    default: 60.0
+    label: "LEVEL"
+    unit: "%"
+
+  - id: openhat_tone
+    type: slider
+    position: { x: 850, y: 230 }
+    range: [0.0, 100.0]
+    default: 60.0
+    label: "TONE"
+    unit: "%"
+
+  - id: openhat_decay
+    type: slider
+    position: { x: 850, y: 310 }
+    range: [100.0, 1000.0]
+    default: 500.0
+    label: "DECAY"
+    unit: "ms"
+
+  - id: openhat_tuning
+    type: slider
+    position: { x: 850, y: 390 }
+    range: [-12.0, 12.0]
+    default: 0.0
+    label: "TUNING"
+    unit: "st"
+
+styling:
+  colors:
+    background: "#b8b8b8"  # Brushed metal
+    channel_background: "#c0c0c0"
+    channel_border: "#8a8a8a"
+    knob_body: "#2a2a2a"
+    knob_arc: "#4a9eff"
+    knob_indicator: "#ffffff"
+    led_inactive: "#2a2a2a"
+    led_active: "#ff4500"  # Red/orange
+    text_primary: "#ffffff"
+    text_secondary: "#e0e0e0"
+  fonts:
+    primary: "Arial, Helvetica, sans-serif"
+    label_size: "11px"
+    drum_name_size: "14px"
+
+layout:
+  channel_count: 6
+  drums:
+    - name: "KICK"
+      led_id: "kick-led"
+    - name: "LOW TOM"
+      led_id: "lowtom-led"
+    - name: "MID TOM"
+      led_id: "midtom-led"
+    - name: "CLAP"
+      led_id: "clap-led"
+    - name: "CLOSED HAT"
+      led_id: "closedhat-led"
+    - name: "OPEN HAT"
+      led_id: "openhat-led"

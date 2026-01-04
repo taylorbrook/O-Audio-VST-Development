@@ -1,0 +1,51 @@
+# v1 UI Design Specification
+# Generated: 2025-11-10
+# Plugin: GainKnob
+
+window:
+  width: 400
+  height: 400
+  resizable: false
+
+colors:
+  background: "#1a1a1a"
+  primary: "#4a9eff"
+  secondary: "#333333"
+  text: "#ffffff"
+  knob_track: "#2a2a2a"
+  knob_fill: "#4a9eff"
+
+typography:
+  header: "Inter, system-ui, sans-serif"
+  body: "Inter, system-ui, sans-serif"
+  size:
+    large: "20px"
+    medium: "16px"
+    small: "14px"
+
+layout:
+  type: centered
+  sections:
+    - id: main
+      flex: 1
+      padding: 40
+      controls: [gain]
+
+controls:
+  - id: gain
+    type: rotary-knob
+    label: "Gain"
+    parameter: "gain"
+    range: [-60.0, 0.0]  # -∞ implemented as -60dB minimum
+    unit: "dB"
+    default: 0.0
+    decimals: 1
+    position: centered
+    size: {width: 200, height: 200}
+    value_display: below  # dB readout below knob
+
+notes:
+  - Single centered knob design
+  - -∞ dB implemented as -60dB minimum for practical purposes
+  - Value display shows "−∞ dB" when at minimum
+  - Clean, minimal aesthetic with dark background

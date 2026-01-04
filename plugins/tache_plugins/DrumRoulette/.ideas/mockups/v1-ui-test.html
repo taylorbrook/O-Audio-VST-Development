@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DrumRoulette v1 - Browser Test Mockup</title>
+    <style>
+        /* Reset and base */
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body { height: 100%; }
+
+        html, body {
+            overflow: hidden;
+            font-family: Arial, Helvetica, sans-serif;
+            background: #000;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        /* Disable context menu */
+        body {
+            -webkit-touch-callout: none;
+        }
+
+        /* Main plugin container */
+        #plugin {
+            width: 1400px;
+            height: 700px;
+            background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
+            border: 2px solid #0a0a0a;
+            box-shadow: 0 4px 24px rgba(0,0,0,0.8);
+            display: flex;
+            flex-direction: column;
+            position: relative;
+        }
+
+        /* Header section */
+        .header {
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-bottom: 2px solid #0a0a0a;
+            background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+        }
+
+        .title {
+            font-size: 24px;
+            font-weight: 700;
+            color: #e8dcc8;
+            letter-spacing: 3px;
+            text-shadow: 0 2px 4px rgba(0,0,0,0.6);
+        }
+
+        /* Channel strips container */
+        .strips-container {
+            flex: 1;
+            display: flex;
+            gap: 4px;
+            padding: 12px;
+            overflow-x: auto;
+            overflow-y: hidden;
+        }
+
+        /* Individual channel strip */
+        .channel-strip {
+            width: 160px;
+            background: linear-gradient(180deg, #2f2f2f 0%, #252525 100%);
+            border: 1px solid #3f3f3f;
+            border-radius: 4px;
+            padding: 12px 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            flex-shrink: 0;
+        }
+
+        /* Channel number label */
+        .channel-number {
+            font-size: 10px;
+            font-weight: 700;
+            color: #a89f8f;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        /* Sample name display */
+        .sample-name {
+            width: 100%;
+            height: 40px;
+            background: #1a1a1a;
+            border: 1px solid #0a0a0a;
+            border-radius: 3px;
+            color: #e8dcc8;
+            font-size: 10px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            padding: 4px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        /* Trigger LED */
+        .trigger-led {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: #3a3a3a;
+            box-shadow: inset 0 2px 4px rgba(0,0,0,0.6);
+            transition: all 0.05s ease;
+        }
+
+        .trigger-led.active {
+            background: #44ff44;
+            box-shadow: 0 0 12px rgba(68, 255, 68, 0.8), inset 0 1px 2px rgba(255,255,255,0.3);
+        }
+
+        /* Folder button (icon style) */
+        .folder-button {
+            width: 100%;
+            height: 24px;
+            background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+            border: 1px solid #5a5a5a;
+            border-radius: 3px;
+            color: #e8dcc8;
+            font-size: 16px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s ease;
+        }
+
+        .folder-button:hover {
+            border-color: #d4a574;
+        }
+
+        .folder-button:active {
+            background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+        }
+
+        /* Buttons (Randomize, Lock, S, M) */
+        .btn {
+            width: 100%;
+            height: 24px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-random {
+            background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+            border-color: #5a5a5a;
+            color: #e8dcc8;
+        }
+
+        .btn-random:hover {
+            border-color: #d4a574;
+        }
+
+        .btn-random:active {
+            background: linear-gradient(180deg, #3a3a3a 0%, #2a2a2a 100%);
+        }
+
+        .btn-lock {
+            background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+            border-color: #5a5a5a;
+            color: #5a5a5a;
+        }
+
+        .btn-lock.active {
+            background: linear-gradient(180deg, #f5a65a 0%, #e67e22 100%);
+            border-color: #c86a1a;
+            color: #1f1f1f;
+        }
+
+        /* Solo/Mute buttons */
+        .solo-mute-container {
+            width: 100%;
+            display: flex;
+            gap: 4px;
+        }
+
+        .btn-solo,
+        .btn-mute {
+            flex: 1;
+            height: 24px;
+            border-radius: 3px;
+            font-size: 10px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            border: 1px solid #5a5a5a;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+            color: #5a5a5a;
+        }
+
+        .btn-solo.active {
+            background: linear-gradient(180deg, #f4d56a 0%, #f1c40f 100%);
+            border-color: #d4a017;
+            color: #1f1f1f;
+        }
+
+        .btn-mute.active {
+            background: linear-gradient(180deg, #ed6b5b 0%, #e74c3c 100%);
+            border-color: #c0392b;
+            color: #1f1f1f;
+        }
+
+        /* Knobs column */
+        .knobs-column {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .knob-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: #a89f8f;
+            letter-spacing: 0.5px;
+        }
+
+        .knob {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
+            border: 2px solid #4f4f4f;
+            position: relative;
+            cursor: pointer;
+            transition: border-color 0.15s ease;
+        }
+
+        .knob:hover {
+            border-color: #d4a574;
+        }
+
+        .knob-indicator {
+            position: absolute;
+            width: 3px;
+            height: 18px;
+            background: #d4a574;
+            border-radius: 2px;
+            top: 6px;
+            left: 50%;
+            transform: translateX(-50%);
+            transform-origin: 50% 21px;
+            box-shadow: 0 0 4px rgba(212, 165, 116, 0.6);
+        }
+
+        .knob-value {
+            font-size: 11px;
+            color: #e8dcc8;
+            min-width: 50px;
+            text-align: center;
+        }
+
+        /* Volume fader */
+        .fader-container {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            margin-top: 8px;
+        }
+
+        .fader-label {
+            font-size: 9px;
+            font-weight: 700;
+            color: #a89f8f;
+            letter-spacing: 0.5px;
+        }
+
+        .fader-track {
+            width: 40px;
+            height: 180px;
+            background: #1a1a1a;
+            border: 1px solid #0a0a0a;
+            border-radius: 3px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .fader-thumb {
+            width: 38px;
+            height: 20px;
+            background: linear-gradient(180deg, #e6c59a 0%, #d4a574 100%);
+            border: 1px solid #a88f5f;
+            border-radius: 2px;
+            position: absolute;
+            left: 0;
+            transition: top 0.05s ease;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        }
+
+        .fader-value {
+            font-size: 11px;
+            color: #e8dcc8;
+            text-align: center;
+            min-width: 50px;
+        }
+
+        /* Master section */
+        .master-section {
+            height: 120px;
+            border-top: 2px solid #0a0a0a;
+            background: linear-gradient(180deg, #2a2a2a 0%, #1f1f1f 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 40px;
+            padding: 0 40px;
+        }
+
+        /* Randomize All button */
+        .randomize-all-btn {
+            width: 200px;
+            height: 60px;
+            background: linear-gradient(180deg, #5a5a5a 0%, #4a4a4a 100%);
+            border: 2px solid #6a6a6a;
+            border-radius: 6px;
+            color: #e8dcc8;
+            font-size: 14px;
+            font-weight: 700;
+            letter-spacing: 2px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+        }
+
+        .randomize-all-btn:hover {
+            border-color: #d4a574;
+            box-shadow: 0 4px 16px rgba(212, 165, 116, 0.3);
+        }
+
+        .randomize-all-btn:active {
+            background: linear-gradient(180deg, #4a4a4a 0%, #3a3a3a 100%);
+            transform: translateY(2px);
+        }
+
+        /* Master volume knob */
+        .master-volume-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .master-knob-label {
+            font-size: 11px;
+            font-weight: 700;
+            color: #a89f8f;
+            letter-spacing: 1px;
+        }
+
+        .master-knob {
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 30% 30%, #3a3a3a, #1a1a1a);
+            border: 3px solid #4f4f4f;
+            position: relative;
+            cursor: pointer;
+            transition: border-color 0.15s ease;
+        }
+
+        .master-knob:hover {
+            border-color: #d4a574;
+        }
+
+        .master-knob .knob-indicator {
+            width: 4px;
+            height: 24px;
+            top: 8px;
+            transform-origin: 50% 28px;
+        }
+
+        /* LED Meter */
+        .led-meter-container {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            width: 420px;
+        }
+
+        .meter-label {
+            font-size: 10px;
+            font-weight: 700;
+            color: #a89f8f;
+            letter-spacing: 1px;
+            text-align: center;
+        }
+
+        .led-meter {
+            width: 100%;
+            height: 20px;
+            background: #1a1a1a;
+            border: 1px solid #0a0a0a;
+            border-radius: 3px;
+            display: flex;
+            gap: 2px;
+            padding: 2px;
+        }
+
+        .led-segment {
+            flex: 1;
+            background: #2a2a2a;
+            border-radius: 1px;
+            transition: background 0.05s ease;
+        }
+
+        .led-segment.active.green {
+            background: #44ff44;
+            box-shadow: 0 0 4px rgba(68, 255, 68, 0.6);
+        }
+
+        .led-segment.active.yellow {
+            background: #f1c40f;
+            box-shadow: 0 0 4px rgba(241, 196, 15, 0.6);
+        }
+
+        .led-segment.active.orange {
+            background: #e67e22;
+            box-shadow: 0 0 4px rgba(230, 126, 34, 0.6);
+        }
+
+        .led-segment.active.red {
+            background: #e74c3c;
+            box-shadow: 0 0 6px rgba(231, 76, 60, 0.8);
+        }
+    </style>
+</head>
+<body>
+    <div id="plugin">
+        <!-- Header -->
+        <div class="header">
+            <div class="title">DRUM ROULETTE</div>
+        </div>
+
+        <!-- Channel Strips Container -->
+        <div class="strips-container">
+            <!-- Channel Strip 1-8 -->
+            <div class="channel-strip" data-channel="1">
+                <div class="channel-number">SLOT 1</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_1" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_1" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_1" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_1" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+
+            <!-- Channels 2-8 (duplicate structure) -->
+            <div class="channel-strip" data-channel="2">
+                <div class="channel-number">SLOT 2</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_2" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_2" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_2" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_2" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+
+            <div class="channel-strip" data-channel="3">
+                <div class="channel-number">SLOT 3</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_3" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_3" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_3" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_3" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+
+            <div class="channel-strip" data-channel="4">
+                <div class="channel-number">SLOT 4</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_4" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_4" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_4" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_4" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+
+            <div class="channel-strip" data-channel="5">
+                <div class="channel-number">SLOT 5</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_5" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_5" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_5" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_5" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+
+            <div class="channel-strip" data-channel="6">
+                <div class="channel-number">SLOT 6</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_6" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_6" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_6" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_6" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+
+            <div class="channel-strip" data-channel="7">
+                <div class="channel-number">SLOT 7</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_7" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_7" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_7" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_7" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+
+            <div class="channel-strip" data-channel="8">
+                <div class="channel-number">SLOT 8</div>
+                <div class="sample-name">No sample loaded</div>
+                <div class="trigger-led"></div>
+                <button class="folder-button" title="Browse folder">📁</button>
+                <button class="btn btn-random">RANDOM</button>
+                <button class="btn btn-lock">LOCK</button>
+                <div class="knobs-column">
+                    <div class="knob-container">
+                        <div class="knob-label">DECAY</div>
+                        <div class="knob" data-param="DECAY_8" data-min="10" data-max="2000" data-value="500" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">500ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">ATTACK</div>
+                        <div class="knob" data-param="ATTACK_8" data-min="0" data-max="50" data-value="1" data-unit="ms">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">1ms</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">TILT</div>
+                        <div class="knob" data-param="TILT_8" data-min="-12" data-max="12" data-value="0" data-unit="dB">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0dB</div>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob-label">PITCH</div>
+                        <div class="knob" data-param="PITCH_8" data-min="-12" data-max="12" data-value="0" data-unit="st">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <div class="knob-value">0st</div>
+                    </div>
+                </div>
+                <div class="solo-mute-container">
+                    <button class="btn-solo">S</button>
+                    <button class="btn-mute">M</button>
+                </div>
+                <div class="fader-container">
+                    <div class="fader-label">VOL</div>
+                    <div class="fader-track">
+                        <div class="fader-thumb" style="top: 90px;"></div>
+                    </div>
+                    <div class="fader-value">0dB</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Master Section -->
+        <div class="master-section">
+            <!-- Randomize All Button -->
+            <button class="randomize-all-btn">RANDOMIZE ALL</button>
+
+            <!-- Master Volume -->
+            <div class="master-volume-container">
+                <div class="master-knob-label">MASTER</div>
+                <div class="master-knob" data-param="MASTER_VOLUME" data-min="-60" data-max="6" data-value="0" data-unit="dB">
+                    <div class="knob-indicator"></div>
+                </div>
+                <div class="knob-value">0dB</div>
+            </div>
+
+            <!-- LED Meter -->
+            <div class="led-meter-container">
+                <div class="meter-label">OUTPUT</div>
+                <div class="led-meter">
+                    <!-- 20 LED segments -->
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                    <div class="led-segment"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Disable context menu
+        document.addEventListener('contextmenu', e => e.preventDefault());
+
+        // Mock parameter state
+        const paramState = {};
+
+        // Initialize all knobs
+        document.querySelectorAll('.knob').forEach(knob => {
+            const param = knob.dataset.param;
+            const min = parseFloat(knob.dataset.min);
+            const max = parseFloat(knob.dataset.max);
+            let value = parseFloat(knob.dataset.value);
+            const unit = knob.dataset.unit;
+
+            paramState[param] = value;
+
+            const indicator = knob.querySelector('.knob-indicator');
+            const valueDisplay = knob.parentElement.querySelector('.knob-value');
+
+            let isDragging = false;
+            let startY = 0;
+            let startValue = 0;
+
+            const updateKnob = (newValue) => {
+                value = Math.max(min, Math.min(max, newValue));
+                paramState[param] = value;
+
+                // Rotate indicator (-135° to +135°, 270° total range)
+                const percent = (value - min) / (max - min);
+                const rotation = -135 + (percent * 270);
+                indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+
+                // Update value display
+                valueDisplay.textContent = `${Math.round(value)}${unit}`;
+
+                console.log(`Parameter ${param} = ${value}${unit}`);
+            };
+
+            knob.addEventListener('mousedown', e => {
+                isDragging = true;
+                startY = e.clientY;
+                startValue = value;
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', e => {
+                if (!isDragging) return;
+
+                const deltaY = startY - e.clientY;
+                const range = max - min;
+                const sensitivity = range / 200;
+                const newValue = startValue + (deltaY * sensitivity);
+
+                updateKnob(newValue);
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // Initialize rotation
+            updateKnob(value);
+        });
+
+        // Initialize all faders
+        document.querySelectorAll('.fader-track').forEach(track => {
+            const strip = track.closest('.channel-strip');
+            const channel = strip ? strip.dataset.channel : 'master';
+            const param = `VOLUME_${channel}`;
+            const thumb = track.querySelector('.fader-thumb');
+            const valueDisplay = track.parentElement.querySelector('.fader-value');
+
+            let isDragging = false;
+            let value = 0; // 0dB default
+
+            paramState[param] = value;
+
+            const updateFader = (newValue) => {
+                value = Math.max(-60, Math.min(6, newValue));
+                paramState[param] = value;
+
+                // Map -60dB to +6dB → 0px to 160px (top to bottom, inverted)
+                const percent = (value - (-60)) / (6 - (-60));
+                const position = 160 - (percent * 160); // Invert: 0dB at center
+                thumb.style.top = `${position}px`;
+
+                // Update value display
+                if (value <= -60) {
+                    valueDisplay.textContent = '-∞dB';
+                } else {
+                    valueDisplay.textContent = `${value.toFixed(1)}dB`;
+                }
+
+                console.log(`Parameter ${param} = ${value}dB`);
+            };
+
+            track.addEventListener('mousedown', e => {
+                isDragging = true;
+                const rect = track.getBoundingClientRect();
+                const y = e.clientY - rect.top;
+                const percent = 1 - (y / 160); // Invert
+                const newValue = -60 + (percent * 66);
+                updateFader(newValue);
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', e => {
+                if (!isDragging) return;
+                const rect = track.getBoundingClientRect();
+                const y = Math.max(0, Math.min(160, e.clientY - rect.top));
+                const percent = 1 - (y / 160); // Invert
+                const newValue = -60 + (percent * 66);
+                updateFader(newValue);
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // Initialize position
+            updateFader(value);
+        });
+
+        // Lock buttons
+        document.querySelectorAll('.btn-lock').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+                const state = btn.classList.contains('active') ? 'LOCKED' : 'UNLOCKED';
+                console.log(`Lock button: ${state}`);
+            });
+        });
+
+        // Solo/Mute buttons
+        document.querySelectorAll('.btn-solo').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+                const state = btn.classList.contains('active') ? 'SOLO' : 'UNSOLO';
+                console.log(`Solo button: ${state}`);
+            });
+        });
+
+        document.querySelectorAll('.btn-mute').forEach(btn => {
+            btn.addEventListener('click', () => {
+                btn.classList.toggle('active');
+                const state = btn.classList.contains('active') ? 'MUTE' : 'UNMUTE';
+                console.log(`Mute button: ${state}`);
+            });
+        });
+
+        // Random buttons
+        document.querySelectorAll('.btn-random').forEach(btn => {
+            const strip = btn.closest('.channel-strip');
+            const sampleName = strip.querySelector('.sample-name');
+
+            btn.addEventListener('click', () => {
+                const samples = ['kick_01.wav', 'snare_02.wav', 'hat_03.wav', 'clap_04.wav', 'tom_05.wav'];
+                const randomSample = samples[Math.floor(Math.random() * samples.length)];
+                sampleName.textContent = randomSample;
+                console.log(`Randomize: loaded ${randomSample}`);
+            });
+        });
+
+        // Randomize All button
+        document.querySelector('.randomize-all-btn').addEventListener('click', () => {
+            console.log('RANDOMIZE ALL clicked');
+            document.querySelectorAll('.btn-random').forEach(btn => {
+                if (!btn.closest('.channel-strip').querySelector('.btn-lock').classList.contains('active')) {
+                    btn.click();
+                }
+            });
+        });
+
+        // Folder buttons
+        document.querySelectorAll('.folder-button').forEach(btn => {
+            btn.addEventListener('click', () => {
+                console.log('Folder browser opened (native dialog would appear)');
+                alert('Folder browser would open here (native OS file picker)');
+            });
+        });
+
+        // Trigger LED animation (simulate MIDI input)
+        function flashLED(channel, velocity) {
+            const strip = document.querySelector(`.channel-strip[data-channel="${channel}"]`);
+            const led = strip.querySelector('.trigger-led');
+
+            // Velocity-sensitive brightness (0-127 MIDI velocity)
+            const brightness = velocity / 127;
+            led.style.opacity = brightness;
+            led.classList.add('active');
+
+            setTimeout(() => {
+                led.classList.remove('active');
+                led.style.opacity = 1;
+            }, 100);
+        }
+
+        // LED Meter animation
+        let meterLevel = 0;
+        const segments = document.querySelectorAll('.led-segment');
+
+        function updateMeter(level) {
+            // level: 0-1 (0% to 100%)
+            const activeCount = Math.round(level * 20);
+
+            segments.forEach((seg, i) => {
+                seg.classList.remove('active', 'green', 'yellow', 'orange', 'red');
+
+                if (i < activeCount) {
+                    seg.classList.add('active');
+
+                    if (i < 12) seg.classList.add('green');      // 0-60%
+                    else if (i < 17) seg.classList.add('yellow'); // 60-85%
+                    else if (i < 19) seg.classList.add('orange'); // 85-95%
+                    else seg.classList.add('red');                // 95-100%
+                }
+            });
+        }
+
+        // Simulate meter ballistics
+        setInterval(() => {
+            // Simulate audio level (random for demo)
+            const targetLevel = Math.random() * 0.8;
+
+            // Ballistics: fast attack, slow release
+            if (targetLevel > meterLevel) {
+                meterLevel += (targetLevel - meterLevel) * 0.8; // Fast attack
+            } else {
+                meterLevel += (targetLevel - meterLevel) * 0.05; // Slow release
+            }
+
+            updateMeter(meterLevel);
+        }, 50);
+
+        // Test: Flash LED on channel 1 every 2 seconds
+        setInterval(() => {
+            const velocity = Math.floor(Math.random() * 127);
+            flashLED(1, velocity);
+        }, 2000);
+
+        console.log('DrumRoulette v1 UI loaded - Test in browser');
+        console.log('Mock parameter state:', paramState);
+    </script>
+</body>
+</html>
