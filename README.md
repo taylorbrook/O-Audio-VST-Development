@@ -174,6 +174,12 @@ At every completion point:
 
 All other dependencies (Xcode Command Line Tools, JUCE, CMake, Python, pluginval) can be validated and installed via `/setup`.
 
+MCPs active and suggested:
+  ✅ Filesystem - @modelcontextprotocol/server-filesystem
+  ✅ Context7 - @upstash/context7-mcp
+  ✅ Playwright - @playwright/mcp
+  ✅ Sequential Thinking - @modelcontextprotocol/server-sequential-thinking
+
 ### First-Time Setup
 
 ```bash

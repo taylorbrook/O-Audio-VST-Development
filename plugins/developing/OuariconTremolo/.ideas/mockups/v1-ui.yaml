@@ -42,8 +42,8 @@ colors:
     slider_thumb_border: "#2C3E10"
 
 typography:
-  font_family: "Garamond"
-  fallbacks: ["Times New Roman", "serif"]
+  font_family: "Baskerville"
+  fallbacks: ["Libre Baskerville", "Times New Roman", "serif"]
   sizes:
     title: 24
     section_label: 12
