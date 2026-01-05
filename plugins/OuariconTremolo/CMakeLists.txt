@@ -56,15 +56,17 @@ target_compile_definitions(OuariconTremolo
         JUCE_USE_CURL=0
 )
 
-# WebView UI Resources (will be uncommented by gui-agent in Stage 3)
-# juce_add_binary_data(OuariconTremolo_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-#         Source/ui/public/js/juce/check_native_interop.js
-# )
-#
-# target_link_libraries(OuariconTremolo
-#     PRIVATE
-#         OuariconTremolo_UIResources
-# )
+# WebView UI Resources
+juce_add_binary_data(OuariconTremolo_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/paper.jpg
+        Source/ui/public/img/carrot.png
+)
+
+target_link_libraries(OuariconTremolo
+    PRIVATE
+        OuariconTremolo_UIResources
+)
