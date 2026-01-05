@@ -1,0 +1,355 @@
+# Ouaricon Tremolo - JUCE VST Specification
+
+project:
+  name: "Ouaricon Tremolo"
+  type: "VST/AU Plugin"
+  framework: "JUCE"
+  version: "1.0.0"
+
+dimensions:
+  window:
+    width: 600
+    height: 400
+  panels:
+    left:
+      width: 180
+      gap: 30
+    right:
+      width: 200
+      gap: 30
+
+colors:
+  background:
+    paper: "#FFF8E7"
+    overlay_opacity: 0.9
+  borders:
+    dark: "#5C4033"
+    medium: "#3C2F2F"
+  text:
+    dark: "#3C2F2F"
+    medium: "#5C4033"
+  botanical_green:
+    knob_light: "#8BA870"
+    knob_dark: "#6B8E23"
+    knob_border: "#3C5C1A"
+    knob_indicator: "#2C3E10"
+    button_normal: "rgba(139, 168, 112, 0.3)"
+    button_hover: "rgba(139, 168, 112, 0.5)"
+    button_active: "rgba(107, 142, 35, 0.6)"
+    slider_track: "rgba(107, 142, 35, 0.3)"
+    slider_thumb_light: "#6B8E23"
+    slider_thumb_dark: "#3C5C1A"
+    slider_thumb_border: "#2C3E10"
+
+typography:
+  font_family: "Baskerville"
+  fallbacks: ["Libre Baskerville", "Times New Roman", "serif"]
+  sizes:
+    title: 24
+    section_label: 12
+    knob_label: 13
+    knob_value: 11
+    button: 10
+    dropdown: 13
+  styles:
+    title:
+      uppercase: true
+      letter_spacing: 2
+      weight: "normal"
+    section_label:
+      uppercase: true
+      letter_spacing: 1
+      weight: 600
+    knob_label:
+      weight: 600
+    button:
+      uppercase: true
+      letter_spacing: 0.5
+
+components:
+  header:
+    text: "OUARICON TREMOLO"
+    alignment: "center"
+    color: "#3C2F2F"
+    text_shadow: "1px 1px 2px rgba(255,255,255,0.5)"
+    margin_bottom: 15
+
+  toggle_buttons:
+    count: 2
+    labels: ["Pan Sync", "Tempo Sync"]
+    dimensions:
+      width: 70
+      padding: "8px 12px"
+    styling:
+      border_width: 2
+      border_color: "#3C5C1A"
+      border_radius: 4
+      background_normal: "rgba(139, 168, 112, 0.3)"
+      background_hover: "rgba(139, 168, 112, 0.5)"
+      background_active: "rgba(107, 142, 35, 0.6)"
+      text_color_normal: "#2C3E10"
+      text_color_active: "#1a2a10"
+    decoration:
+      motif: "❦"
+      motif_position: "top-right"
+      dotted_line_bottom: true
+    spacing:
+      vertical_gap: 8
+
+  knobs:
+    common:
+      diameter: 60
+      border_width: 3
+      border_color: "#3C5C1A"
+      background_gradient:
+        - "#8BA870"  # light
+        - "#6B8E23"  # dark
+      rotation_range:
+        min_angle: -140
+        max_angle: 140
+      indicator:
+        width: 3
+        height: 18
+        color: "#2C3E10"
+        transform_origin: "center 30px"
+      decorations:
+        center_symbol: "✿"
+        radial_lines: true
+        ring_radius_percent: 35
+      hover:
+        scale: 1.05
+      spacing:
+        vertical_gap: 15
+    
+    speed:
+      label: "Speed"
+      parameter_id: "SPEED_PARAM"
+      range:
+        min: 0.1
+        max: 20.0
+        default: 4.5
+        unit: " Hz"
+        decimal_places: 1
+      drag_sensitivity: 100  # pixels for full range
+    
+    depth:
+      label: "Depth"
+      parameter_id: "DEPTH_PARAM"
+      range:
+        min: 0
+        max: 100
+        default: 75
+        unit: "%"
+        decimal_places: 1
+      drag_sensitivity: 100
+
+  waveform_selector:
+    label: "WAVEFORM"
+    parameter_id: "WAVEFORM_PARAM"
+    options:
+      - sine
+      - triangle
+      - phasor
+      - noise
+      - square
+      - pulse
+    default: "sine"
+    styling:
+      padding: "8px 28px 8px 12px"
+      background: "rgba(255, 248, 231, 0.9)"
+      border_width: 2
+      border_color: "#5C4033"
+      border_radius: 4
+      custom_arrow: true
+      leaf_motif: "❧"
+
+  waveform_visualizer:
+    dimensions:
+      aspect_ratio: 1
+    styling:
+      background: "rgba(255, 248, 231, 0.8)"
+      border_width: 2
+      border_color: "#5C4033"
+      border_radius: 4
+      inner_border: true
+      motif: "❦"
+      motif_position: "bottom-right"
+    grid:
+      lines: 5
+      orientation: "horizontal"
+      color: "rgba(92, 64, 51, 0.1)"
+      line_width: 0.5
+    waveform:
+      color: "#5C4033"
+      line_width: 2
+      cycles: 4
+      amplitude_percent: 80
+    update:
+      realtime: true
+      triggers: ["waveform_change", "smoothing_change"]
+
+  smoothing_slider:
+    label: "SMOOTHING"
+    parameter_id: "SMOOTHING_PARAM"
+    label_alignment: "center"
+    range:
+      min: 0
+      max: 100
+      default: 30
+    styling:
+      track:
+        height: 6
+        border_radius: 3
+        background: "rgba(107, 142, 35, 0.3)"
+      thumb:
+        diameter: 16
+        background_gradient:
+          - "#6B8E23"  # light
+          - "#3C5C1A"  # dark
+        border_width: 2
+        border_color: "#2C3E10"
+        shadow: "0 2px 4px rgba(0,0,0,0.3)"
+    effect:
+      description: "Controls waveform curve softness"
+      algorithm: "linear interpolation between samples"
+      range_description: "0 = sharp transitions, 100 = very smooth"
+
+assets:
+  images:
+    background:
+      path: "img/paper.jpg"
+      usage: "full_background"
+      object_fit: "cover"
+    botanical_overlay:
+      path: "img/carrot.png"
+      position:
+        horizontal: "right"
+        vertical: "center"
+        offset_x: -20
+      size:
+        height_percent: 71.25
+      opacity: 0.35
+      pointer_events: false
+
+shadows:
+  plugin_container: "0 10px 40px rgba(0,0,0,0.5)"
+  knob_inset: "inset -2px -2px 5px rgba(0,0,0,0.3), inset 2px 2px 5px rgba(255,255,255,0.3)"
+  knob_outer: "3px 3px 8px rgba(0,0,0,0.4)"
+  button: "2px 2px 5px rgba(0,0,0,0.2)"
+  button_hover: "2px 3px 6px rgba(0,0,0,0.3)"
+  visualizer_inset: "inset 1px 1px 3px rgba(0,0,0,0.2)"
+  slider_thumb: "0 2px 4px rgba(0,0,0,0.3), inset 0 1px 2px rgba(255,255,255,0.2)"
+
+botanical_motifs:
+  unicode:
+    fleuron: "❦"  # U+2766
+    floral: "✿"   # U+273F
+    leaf: "❧"     # U+2767
+
+interactions:
+  knobs:
+    drag_direction: "vertical"
+    drag_up: "increase"
+    drag_down: "decrease"
+    hover_effect: "scale_1.05"
+    value_display: "realtime"
+  
+  buttons:
+    click: "toggle_state"
+    hover: "lift_and_brighten"
+    state_persistent: true
+  
+  slider:
+    drag_direction: "horizontal"
+    update: "realtime"
+    affects: "waveform_visualizer"
+  
+  dropdown:
+    click: "open_menu"
+    change: "update_visualizer_immediate"
+
+parameters:
+  audio:
+    - id: "SPEED_PARAM"
+      name: "Tremolo Speed"
+      type: "float"
+      range: [0.1, 20.0]
+      default: 4.5
+      unit: "Hz"
+      
+    - id: "DEPTH_PARAM"
+      name: "Tremolo Depth"
+      type: "float"
+      range: [0, 100]
+      default: 75
+      unit: "%"
+      
+    - id: "WAVEFORM_PARAM"
+      name: "Waveform Type"
+      type: "choice"
+      options: ["Sine", "Triangle", "Phasor", "Noise", "Square", "Pulse"]
+      default: 0
+      
+    - id: "SMOOTHING_PARAM"
+      name: "Waveform Smoothing"
+      type: "float"
+      range: [0, 100]
+      default: 30
+      
+    - id: "PAN_SYNC_PARAM"
+      name: "Pan Sync"
+      type: "bool"
+      default: false
+      
+    - id: "TEMPO_SYNC_PARAM"
+      name: "Tempo Sync"
+      type: "bool"
+      default: false
+
+juce_implementation:
+  structure:
+    source:
+      - "PluginProcessor.h"
+      - "PluginProcessor.cpp"
+      - "PluginEditor.h"
+      - "PluginEditor.cpp"
+    components:
+      - "BotanicalKnob.h"
+      - "BotanicalKnob.cpp"
+      - "WaveformVisualizer.h"
+      - "WaveformVisualizer.cpp"
+      - "BotanicalButton.h"
+      - "BotanicalButton.cpp"
+    lookandfeel:
+      - "BotanicalLookAndFeel.h"
+      - "BotanicalLookAndFeel.cpp"
+    resources:
+      - "paper.jpg"
+      - "carrot.png"
+  
+  notes:
+    - "Use custom LookAndFeel for consistent theming"
+    - "Create BotanicalKnob class extending juce::Slider"
+    - "Load images as binary resources via Projucer"
+    - "Implement waveform visualizer as custom Component with paint()"
+    - "Use juce::Graphics for botanical motifs (Unicode characters)"
+    - "Parameter attachments for all controls"
+    - "Consider juce::Timer for smooth waveform animation"
+    - "Ensure resolution-independent rendering for high-DPI displays"
+
+build_targets:
+  - "VST3"
+  - "AU"
+  - "Standalone"
+
+testing_checklist:
+  - "All knobs rotate smoothly"
+  - "Waveform visualizer updates in real-time"
+  - "Buttons toggle correctly"
+  - "High-DPI displays render correctly"
+  - "All six waveforms render properly"
+  - "Smoothing affects all waveforms"
+  - "UI readable on light and dark DAW backgrounds"
+  - "No performance issues with continuous waveform rendering"
+  - "Parameter automation works correctly"
+  - "Preset saving/loading functions"
