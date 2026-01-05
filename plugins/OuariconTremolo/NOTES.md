@@ -1,8 +1,8 @@
 # OuariconTremolo Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 3 (GUI Integration)
-- **Version:** N/A (in development)
+- **Current Status:** 📦 Installed
+- **Version:** 1.0.1
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
@@ -26,6 +26,14 @@
   - Gain modulation with depth control (0-100%)
   - Real-time safe implementation (atomic parameter reads, ScopedNoDenormals)
   - All processing pipelines optimized for mono and stereo modes
+
+- **2026-01-04 (v1.0.0):** Initial release - plugin completed but crashes on load in all DAWs
+
+- **2026-01-05 (v1.0.1):** Critical crash fix
+  - Fixed WebView navigation crash that prevented plugin loading
+  - Root cause: goToURL() called in constructor before window context existed
+  - Solution: Moved navigation to parentHierarchyChanged() callback
+  - Plugin now loads successfully in Logic Pro, Ableton, Reaper, etc.
 
 - **2026-01-04:** Design refinement session
   - **Typography updated**: Changed from Garamond to Baskerville (1757, authentic 18th-century botanical publication typeface)
@@ -116,7 +124,7 @@ A tremolo effect plugin featuring a botanical aesthetic inspired by vintage herb
 
 ## Known Issues
 
-None (plugin not yet implemented)
+None - All known issues resolved in v1.0.1
 
 ## Current Design Status
 

@@ -4,8 +4,6 @@
 OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(OuariconTremoloAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
-    setSize(600, 400);
-
     // 1. Create relays FIRST (with parameter IDs matching HTML)
     speedRelay = std::make_unique<juce::WebSliderRelay>("speed");
     depthRelay = std::make_unique<juce::WebSliderRelay>("depth");
@@ -41,9 +39,11 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
     tempoSyncAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.parameters.getParameter("TEMPO_SYNC_PARAM"), *tempoSyncRelay, nullptr);
 
-    // Add and navigate WebView
+    // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);
-    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+
+    // Set size AFTER all components are created (CRITICAL: prevents crash)
+    setSize(600, 400);
 }
 
 OuariconTremoloAudioProcessorEditor::~OuariconTremoloAudioProcessorEditor()
@@ -61,6 +61,21 @@ void OuariconTremoloAudioProcessorEditor::resized()
 {
     // WebView fills entire editor
     webView->setBounds(getLocalBounds());
+}
+
+void OuariconTremoloAudioProcessorEditor::parentHierarchyChanged()
+{
+    // Navigate WebView only after editor is attached to a window (JUCE 8 requirement)
+    // This prevents crashes during plugin scanning when no window context exists
+    if (isShowing() && webView != nullptr)
+    {
+        static bool hasNavigated = false;
+        if (!hasNavigated)
+        {
+            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+            hasNavigated = true;
+        }
+    }
 }
 
 // Pattern #8: EXPLICIT URL MAPPING (never use generic loops)
