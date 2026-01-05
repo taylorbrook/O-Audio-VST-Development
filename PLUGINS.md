@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| OuariconTremolo | ✅ Working | 1.0.0 | Audio Effect (Tremolo) | 2026-01-04 |
+| OuariconTremolo | 🐛 Has Issues | 1.0.0 | Audio Effect (Tremolo) | 2026-01-04 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
