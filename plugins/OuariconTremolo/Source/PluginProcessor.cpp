@@ -80,13 +80,27 @@ OuariconTremoloAudioProcessor::~OuariconTremoloAudioProcessor()
 //==============================================================================
 void OuariconTremoloAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // DSP initialization will be added in Stage 2
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    juce::ignoreUnused(samplesPerBlock);
+
+    // Store sample rate for phase increment calculations
+    currentSampleRate = sampleRate;
+
+    // Initialize LFO phase
+    lfoPhase = 0.0f;
+
+    // Calculate initial phase increment
+    auto* speedParam = parameters.getRawParameterValue("SPEED_PARAM");
+    float speedHz = speedParam->load();
+    lfoPhaseIncrement = speedHz / static_cast<float>(currentSampleRate);
+
+    // Reset smoothing filter state
+    smoothedLFO_L = 0.0f;
+    smoothedLFO_R = 0.0f;
 }
 
 void OuariconTremoloAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2
+    // No buffers to release for this simple effect
 }
 
 void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -94,12 +108,146 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    // Pass-through for Stage 1 (DSP implementation in Stage 2)
-    // Audio routing already handled by JUCE
+    // Clear unused channels
+    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Parameter access example (for Stage 2 DSP implementation):
-    // auto* speedParam = parameters.getRawParameterValue("SPEED_PARAM");
-    // float speedValue = speedParam->load();  // Atomic read (real-time safe)
+    // Read parameters (atomic, real-time safe)
+    auto* speedParam = parameters.getRawParameterValue("SPEED_PARAM");
+    auto* depthParam = parameters.getRawParameterValue("DEPTH_PARAM");
+    auto* waveformParam = parameters.getRawParameterValue("WAVEFORM_PARAM");
+    auto* smoothingParam = parameters.getRawParameterValue("SMOOTHING_PARAM");
+    auto* panSyncParam = parameters.getRawParameterValue("PAN_SYNC_PARAM");
+    auto* tempoSyncParam = parameters.getRawParameterValue("TEMPO_SYNC_PARAM");
+
+    float speedHz = speedParam->load();
+    float depth = depthParam->load() / 100.0f;  // Convert 0-100% to 0-1
+    int waveformType = static_cast<int>(waveformParam->load());
+    float smoothing = smoothingParam->load();
+    bool panSyncEnabled = panSyncParam->load() > 0.5f;
+    bool tempoSyncEnabled = tempoSyncParam->load() > 0.5f;
+
+    // Handle tempo sync
+    if (tempoSyncEnabled)
+    {
+        // Query host for BPM
+        if (auto* playHead = getPlayHead())
+        {
+            if (auto positionInfo = playHead->getPosition())
+            {
+                if (positionInfo->getBpm().hasValue())
+                {
+                    double bpm = *positionInfo->getBpm();
+
+                    // Map speed parameter to note divisions
+                    // We'll use the speed parameter range (0.1-20 Hz) to map to divisions
+                    // For simplicity: map to closest note division based on current speed
+                    double beatsPerSecond = bpm / 60.0;
+
+                    // Common note divisions (in beats): 4.0 = 1/1, 2.0 = 1/2, 1.0 = 1/4, 0.5 = 1/8, 0.25 = 1/16
+                    // Find closest division based on current speed
+                    float divisions[] = { 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f };
+                    float closestDivision = 1.0f;
+                    float minDiff = 1000.0f;
+
+                    for (float div : divisions)
+                    {
+                        float divFreq = static_cast<float>(beatsPerSecond / div);
+                        float diff = std::abs(speedHz - divFreq);
+                        if (diff < minDiff)
+                        {
+                            minDiff = diff;
+                            closestDivision = div;
+                        }
+                    }
+
+                    // Calculate Hz from BPM and division
+                    speedHz = static_cast<float>(beatsPerSecond / closestDivision);
+                }
+            }
+        }
+    }
+
+    // Update phase increment
+    lfoPhaseIncrement = speedHz / static_cast<float>(currentSampleRate);
+
+    // Calculate smoothing filter coefficient
+    // 0% smoothing: coefficient ≈ 1.0 (no filtering)
+    // 100% smoothing: coefficient ≈ 0.01 (heavy filtering)
+    float smoothingCoeff = 1.0f - (smoothing / 100.0f) * 0.99f;
+
+    // Get number of channels and samples
+    const int numChannels = buffer.getNumChannels();
+    const int numSamples = buffer.getNumSamples();
+
+    // Process audio
+    if (panSyncEnabled && numChannels == 2)
+    {
+        // Stereo tremolo with 180° phase offset
+        auto* leftData = buffer.getWritePointer(0);
+        auto* rightData = buffer.getWritePointer(1);
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            // Calculate left and right phases (R = L + 0.5 for 180° offset)
+            float leftPhase = lfoPhase;
+            float rightPhase = lfoPhase + 0.5f;
+            if (rightPhase >= 1.0f) rightPhase -= 1.0f;
+
+            // Generate raw waveform values
+            float rawLFO_L = generateWaveform(leftPhase, waveformType);
+            float rawLFO_R = generateWaveform(rightPhase, waveformType);
+
+            // Apply smoothing filter
+            float smoothedLFO_L_val = applySmoothingFilter(rawLFO_L, smoothedLFO_L, smoothingCoeff);
+            float smoothedLFO_R_val = applySmoothingFilter(rawLFO_R, smoothedLFO_R, smoothingCoeff);
+
+            // Convert LFO output (-1 to +1) to 0 to 1
+            float lfoValue_L = (smoothedLFO_L_val + 1.0f) / 2.0f;
+            float lfoValue_R = (smoothedLFO_R_val + 1.0f) / 2.0f;
+
+            // Calculate gain multipliers with depth scaling
+            float gainMultiplier_L = 1.0f - (lfoValue_L * depth);
+            float gainMultiplier_R = 1.0f - (lfoValue_R * depth);
+
+            // Apply gain modulation
+            leftData[sample] *= gainMultiplier_L;
+            rightData[sample] *= gainMultiplier_R;
+
+            // Update LFO phase
+            lfoPhase += lfoPhaseIncrement;
+            if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
+        }
+    }
+    else
+    {
+        // Mono tremolo (both channels modulated identically)
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            // Generate raw waveform value
+            float rawLFO = generateWaveform(lfoPhase, waveformType);
+
+            // Apply smoothing filter
+            float smoothedLFO_val = applySmoothingFilter(rawLFO, smoothedLFO_L, smoothingCoeff);
+
+            // Convert LFO output (-1 to +1) to 0 to 1
+            float lfoValue = (smoothedLFO_val + 1.0f) / 2.0f;
+
+            // Calculate gain multiplier with depth scaling
+            float gainMultiplier = 1.0f - (lfoValue * depth);
+
+            // Apply gain modulation to all channels
+            for (int channel = 0; channel < numChannels; ++channel)
+            {
+                auto* channelData = buffer.getWritePointer(channel);
+                channelData[sample] *= gainMultiplier;
+            }
+
+            // Update LFO phase
+            lfoPhase += lfoPhaseIncrement;
+            if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
+        }
+    }
 }
 
 //==============================================================================
@@ -126,6 +274,56 @@ void OuariconTremoloAudioProcessor::setStateInformation(const void* data, int si
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
         parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+//==============================================================================
+// DSP Helper Methods
+//==============================================================================
+float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformType)
+{
+    switch (waveformType)
+    {
+        case 0: // Sine
+            return std::sin(phase * 2.0f * juce::MathConstants<float>::pi);
+
+        case 1: // Triangle
+        {
+            // Piecewise linear: 0→1→0→-1→0
+            if (phase < 0.25f)
+                return phase * 4.0f;
+            else if (phase < 0.75f)
+                return 2.0f - (phase * 4.0f);
+            else
+                return -4.0f + (phase * 4.0f);
+        }
+
+        case 2: // Phasor (Sawtooth)
+            return phase * 2.0f - 1.0f;
+
+        case 3: // Noise
+            // Sample and hold random value at each cycle start
+            // For continuous noise, generate new random value
+            return random.nextFloat() * 2.0f - 1.0f;
+
+        case 4: // Square
+            return phase < 0.5f ? 1.0f : -1.0f;
+
+        case 5: // Pulse (20% duty cycle)
+            return phase < 0.2f ? 1.0f : -1.0f;
+
+        default:
+            return 0.0f;
+    }
+}
+
+float OuariconTremoloAudioProcessor::applySmoothingFilter(float rawLFO, float& prevSmoothed, float coefficient)
+{
+    // One-pole lowpass IIR filter
+    // coefficient = 1.0 means no smoothing (instant response)
+    // coefficient = 0.01 means heavy smoothing (slow response)
+    float smoothed = prevSmoothed + (rawLFO - prevSmoothed) * coefficient;
+    prevSmoothed = smoothed;
+    return smoothed;
 }
 
 //==============================================================================

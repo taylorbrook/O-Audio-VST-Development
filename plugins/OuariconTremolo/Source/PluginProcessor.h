@@ -36,5 +36,22 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // DSP Components (declared BEFORE parameters for initialization order)
+    // LFO state
+    float lfoPhase = 0.0f;
+    float lfoPhaseIncrement = 0.0f;
+    double currentSampleRate = 44100.0;
+
+    // Smoothing filter state (separate for L/R when Pan Sync enabled)
+    float smoothedLFO_L = 0.0f;
+    float smoothedLFO_R = 0.0f;
+
+    // Random number generator for noise waveform
+    juce::Random random;
+
+    // Helper methods
+    float generateWaveform(float phase, int waveformType);
+    float applySmoothingFilter(float rawLFO, float& prevSmoothed, float coefficient);
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconTremoloAudioProcessor)
 };
