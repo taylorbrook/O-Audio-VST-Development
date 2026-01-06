@@ -254,7 +254,7 @@
         .waveform-selector {
             width: 100%;
             padding: 8px 28px 8px 12px;
-            background: rgba(255, 248, 231, 0.9);
+            background: rgba(139, 168, 112, 0.3);
             border: 2px solid #5C4033;
             border-radius: 4px;
             font-family: 'Garamond', serif;
@@ -333,7 +333,7 @@
         .visualizer {
             width: 100%;
             aspect-ratio: 1;
-            background: rgba(255, 248, 231, 0.8);
+            background: rgba(139, 168, 112, 0.3);
             border: 2px solid #5C4033;
             border-radius: 4px;
             box-shadow: inset 1px 1px 3px rgba(0,0,0,0.2);
@@ -746,17 +746,97 @@
             const waveforms = ['sine', 'triangle', 'phasor', 'noise', 'square', 'pulse'];
             const waveform = waveforms[waveformIndex] || 'sine';
 
+            // Helper function for smooth transitions (matches C++ smoothTransition)
+            function smoothTransition(t) {
+                return t * t * (3.0 - 2.0 * t);
+            }
+
+            // Sample-and-hold noise storage
+            let noiseValues = [];
+            if (waveform === 'noise') {
+                // Generate 4 random values for the 4 quarters
+                for (let i = 0; i < 4; i++) {
+                    noiseValues.push(Math.random() * 2 - 1);
+                }
+            }
+
             for (let x = 0; x < width; x++) {
                 const t = x / width;
                 let y;
 
                 switch(waveform) {
-                    case 'sine': y = Math.sin(t * Math.PI * 4); break;
-                    case 'triangle': y = Math.abs((t * 4) % 2 - 1) * 2 - 1; break;
-                    case 'phasor': y = (t * 4) % 1 * 2 - 1; break;
-                    case 'square': y = Math.sin(t * Math.PI * 4) > 0 ? 1 : -1; break;
-                    case 'pulse': y = (t * 4) % 1 < 0.2 ? 1 : -1; break;
-                    case 'noise': y = Math.random() * 2 - 1; break;
+                    case 'sine':
+                        y = Math.sin(t * Math.PI * 4);
+                        break;
+
+                    case 'triangle':
+                        y = Math.abs((t * 4) % 2 - 1) * 2 - 1;
+                        break;
+
+                    case 'phasor': {
+                        // Sawtooth with smooth reset
+                        const phase = (t * 4) % 1;
+                        const transitionWidth = 0.02;
+                        if (phase < transitionWidth) {
+                            const tt = phase / transitionWidth;
+                            const smoothed = smoothTransition(tt);
+                            y = -1.0 + smoothed * (phase * 2.0 + 1.0);
+                        } else {
+                            y = phase * 2 - 1;
+                        }
+                        break;
+                    }
+
+                    case 'noise': {
+                        // Sample-and-hold: 4 samples per cycle
+                        const phase = (t * 4) % 1;
+                        const quarter = Math.floor(t * 4) % 4;
+                        y = noiseValues[quarter];
+                        break;
+                    }
+
+                    case 'square': {
+                        const phase = (t * 4) % 1;
+                        const transitionWidth = 0.02;
+                        if (phase < 0.5) {
+                            if (phase < transitionWidth) {
+                                const tt = phase / transitionWidth;
+                                y = -1 + smoothTransition(tt) * 2;
+                            } else {
+                                y = 1;
+                            }
+                        } else {
+                            if (phase < 0.5 + transitionWidth) {
+                                const tt = (phase - 0.5) / transitionWidth;
+                                y = 1 - smoothTransition(tt) * 2;
+                            } else {
+                                y = -1;
+                            }
+                        }
+                        break;
+                    }
+
+                    case 'pulse': {
+                        const phase = (t * 4) % 1;
+                        const dutyCycle = 0.2;
+                        const transitionWidth = 0.02;
+                        if (phase < dutyCycle) {
+                            if (phase < transitionWidth) {
+                                const tt = phase / transitionWidth;
+                                y = -1 + smoothTransition(tt) * 2;
+                            } else {
+                                y = 1;
+                            }
+                        } else {
+                            if (phase < dutyCycle + transitionWidth) {
+                                const tt = (phase - dutyCycle) / transitionWidth;
+                                y = 1 - smoothTransition(tt) * 2;
+                            } else {
+                                y = -1;
+                            }
+                        }
+                        break;
+                    }
                 }
 
                 if (smoothing > 0 && x > 0) {

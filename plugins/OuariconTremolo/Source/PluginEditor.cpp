@@ -67,14 +67,11 @@ void OuariconTremoloAudioProcessorEditor::parentHierarchyChanged()
 {
     // Navigate WebView only after editor is attached to a window (JUCE 8 requirement)
     // This prevents crashes during plugin scanning when no window context exists
-    if (isShowing() && webView != nullptr)
+    // FIX: Use member variable instead of static to allow GUI reload on reopen
+    if (isShowing() && webView != nullptr && !hasNavigated)
     {
-        static bool hasNavigated = false;
-        if (!hasNavigated)
-        {
-            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
-            hasNavigated = true;
-        }
+        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+        hasNavigated = true;
     }
 }
 

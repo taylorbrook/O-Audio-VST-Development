@@ -207,6 +207,24 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
 
+    // FIX: Handle mono input → stereo output (center the mono signal)
+    // Check if we have stereo output but mono input
+    // This happens when a mono track is processed through the plugin
+    const int totalInputChannels = getTotalNumInputChannels();
+    const int totalOutputChannels = getTotalNumOutputChannels();
+
+    if (totalInputChannels == 1 && totalOutputChannels == 2 && numChannels == 2)
+    {
+        // Duplicate mono input (channel 0) to channel 1 for centered output
+        auto* leftData = buffer.getWritePointer(0);
+        auto* rightData = buffer.getWritePointer(1);
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            rightData[sample] = leftData[sample];
+        }
+    }
+
     // Process audio
     if (panSyncEnabled && numChannels == 2)
     {
@@ -222,8 +240,9 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             if (rightPhase >= 1.0f) rightPhase -= 1.0f;
 
             // Generate raw waveform values
-            float rawLFO_L = generateWaveform(leftPhase, waveformType);
-            float rawLFO_R = generateWaveform(rightPhase, waveformType);
+            // Pass lfoPhase for noise waveform to track sampling consistently
+            float rawLFO_L = generateWaveform(leftPhase, waveformType, lfoPhase);
+            float rawLFO_R = generateWaveform(rightPhase, waveformType, lfoPhase);
 
             // Apply smoothing filter
             float smoothedLFO_L_val = applySmoothingFilter(rawLFO_L, smoothedLFO_L, smoothingCoeff);
@@ -252,7 +271,7 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         for (int sample = 0; sample < numSamples; ++sample)
         {
             // Generate raw waveform value
-            float rawLFO = generateWaveform(lfoPhase, waveformType);
+            float rawLFO = generateWaveform(lfoPhase, waveformType, lfoPhase);
 
             // Apply smoothing filter
             float smoothedLFO_val = applySmoothingFilter(rawLFO, smoothedLFO_L, smoothingCoeff);
@@ -306,7 +325,14 @@ void OuariconTremoloAudioProcessor::setStateInformation(const void* data, int si
 //==============================================================================
 // DSP Helper Methods
 //==============================================================================
-float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformType)
+float OuariconTremoloAudioProcessor::smoothTransition(float t)
+{
+    // Cubic polynomial smoothstep: 3t^2 - 2t^3
+    // Provides smooth S-curve transition from 0 to 1
+    return t * t * (3.0f - 2.0f * t);
+}
+
+float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformType, float mainLfoPhase)
 {
     switch (waveformType)
     {
@@ -324,19 +350,119 @@ float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformT
                 return -4.0f + (phase * 4.0f);
         }
 
-        case 2: // Phasor (Sawtooth)
-            return phase * 2.0f - 1.0f;
+        case 2: // Phasor (Sawtooth) with smooth reset
+        {
+            // Add polynomial transition zones at wrap point (end→start)
+            const float transitionWidth = 0.02f;  // 2% of cycle for smooth transition
 
-        case 3: // Noise
-            // Sample and hold random value at each cycle start
-            // For continuous noise, generate new random value
-            return random.nextFloat() * 2.0f - 1.0f;
+            // Normal ramp: phase * 2 - 1 maps [0,1] to [-1,+1]
+            float rampValue = phase * 2.0f - 1.0f;
 
-        case 4: // Square
-            return phase < 0.5f ? 1.0f : -1.0f;
+            // Last 2% of cycle: smooth down preparing for wrap to -1
+            if (phase > 1.0f - transitionWidth)
+            {
+                float t = (phase - (1.0f - transitionWidth)) / transitionWidth;
+                float smoothed = smoothTransition(t);
+                // Interpolate from current ramp value to -1
+                float endValue = (1.0f - transitionWidth) * 2.0f - 1.0f;  // Value at start of transition
+                return endValue + smoothed * (-1.0f - endValue);
+            }
+            // First 2% of cycle: smooth up from -1
+            else if (phase < transitionWidth)
+            {
+                float t = phase / transitionWidth;
+                float smoothed = smoothTransition(t);
+                // Interpolate from -1 to ramp value at end of transition
+                float startRamp = transitionWidth * 2.0f - 1.0f;
+                return -1.0f + smoothed * (startRamp - (-1.0f));
+            }
+            else
+            {
+                return rampValue;
+            }
+        }
 
-        case 5: // Pulse (20% duty cycle)
-            return phase < 0.2f ? 1.0f : -1.0f;
+        case 3: // Random (Sample-and-hold, 4 samples per cycle) with smooth transitions
+        {
+            // Use mainLfoPhase to determine quarter (ignores Pan Sync phase offset)
+            // This ensures consistent sampling regardless of stereo phase offset
+            int currentQuarter = static_cast<int>(mainLfoPhase * 4.0f);
+
+            // Generate new random value when entering a new quarter
+            if (currentQuarter != noiseLastQuarter)
+            {
+                noisePrevHeldValue = noiseHeldValue;  // Save previous value for smooth transition
+                noiseHeldValue = random.nextFloat() * 2.0f - 1.0f;
+                noiseLastQuarter = currentQuarter;
+            }
+
+            // Apply smooth transition at quarter boundaries
+            const float transitionWidth = 0.02f;  // 2% of cycle
+            float quarterPhase = mainLfoPhase * 4.0f - currentQuarter;  // Phase within current quarter (0.0-1.0)
+
+            // First 2% of each quarter: smooth from previous to current value
+            if (quarterPhase < transitionWidth)
+            {
+                float t = quarterPhase / transitionWidth;
+                float smoothed = smoothTransition(t);
+                return noisePrevHeldValue + smoothed * (noiseHeldValue - noisePrevHeldValue);
+            }
+
+            return noiseHeldValue;
+        }
+
+        case 4: // Square with smooth transitions
+        {
+            const float transitionWidth = 0.02f;  // 2% of cycle for smooth transition
+
+            if (phase < 0.5f)
+            {
+                // High state, check for transition at start
+                if (phase < transitionWidth)
+                {
+                    float t = phase / transitionWidth;
+                    return -1.0f + smoothTransition(t) * 2.0f;  // -1 to +1
+                }
+                return 1.0f;
+            }
+            else
+            {
+                // Low state, check for transition at midpoint
+                if (phase < 0.5f + transitionWidth)
+                {
+                    float t = (phase - 0.5f) / transitionWidth;
+                    return 1.0f - smoothTransition(t) * 2.0f;  // +1 to -1
+                }
+                return -1.0f;
+            }
+        }
+
+        case 5: // Pulse (20% duty cycle) with smooth transitions
+        {
+            const float dutyCycle = 0.2f;
+            const float transitionWidth = 0.02f;
+
+            if (phase < dutyCycle)
+            {
+                // High state, check for transition at start
+                if (phase < transitionWidth)
+                {
+                    float t = phase / transitionWidth;
+                    return -1.0f + smoothTransition(t) * 2.0f;  // -1 to +1
+                }
+                return 1.0f;
+            }
+            else
+            {
+                // Low state, check for transition at duty cycle end
+                if (phase < dutyCycle + transitionWidth)
+                {
+                    float t = (phase - dutyCycle) / transitionWidth;
+                    return 1.0f - smoothTransition(t) * 2.0f;  // +1 to -1
+                }
+                return -1.0f;
+            }
+        }
 
         default:
             return 0.0f;

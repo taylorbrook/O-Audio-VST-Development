@@ -27,6 +27,9 @@ private:
     // 2. WebView SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
+    // Navigation state (per-instance, not static)
+    bool hasNavigated = false;
+
     // 3. Attachments LAST (depend on both relays and webView)
     std::unique_ptr<juce::WebSliderParameterAttachment> speedAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> depthAttachment;

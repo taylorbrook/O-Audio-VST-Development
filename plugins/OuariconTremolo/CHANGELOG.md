@@ -5,6 +5,84 @@ All notable changes to OuariconTremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.4] - 2026-01-05
+
+### Fixed
+
+- **Fixed mono->stereo centering** - Mono input now properly centered between L/R channels
+  - **Root cause**: When a mono track was processed, the DAW provided a stereo buffer but only populated channel 0, leaving channel 1 silent
+  - **Solution**: Detect mono input → stereo output configuration and duplicate channel 0 to channel 1 before processing tremolo
+  - **Result**: Mono sources now output centered stereo signal instead of hard-panned left
+  - Pan Sync behavior preserved: when OFF = centered tremolo, when ON = stereo phase offset
+
+- **Fixed GUI blank screen on reopen** - Plugin GUI now loads correctly every time it's reopened
+  - **Root cause**: `hasNavigated` flag was declared `static` in `parentHierarchyChanged()`, persisting across editor instances
+  - **Impact**: First GUI open worked, but closing and reopening resulted in blank white window because flag was still `true`
+  - **Solution**: Converted `hasNavigated` to member variable so each editor instance tracks navigation independently
+  - **Result**: GUI reliably loads on every open/reopen within the same session
+
+### Technical Notes
+
+- Added mono input detection using `getTotalNumInputChannels()` and `getTotalNumOutputChannels()`
+- Mono→stereo duplication happens before tremolo processing to ensure consistent behavior with Pan Sync
+- GUI fix maintains JUCE 8 safety requirements (navigation only after window context exists)
+- Both fixes preserve real-time safety (no allocations in audio thread)
+
+## [1.1.3] - 2026-01-05
+
+### Fixed
+
+- **Eliminated remaining clicks from phasor and noise waveforms** - Extended s-curve smoothing to cover all waveform types
+  - **Phasor**: Added polynomial transitions at both wrap boundaries (end and start of cycle)
+    - Last 2% of cycle smoothly prepares for wrap discontinuity
+    - First 2% of cycle smoothly recovers from wrap
+    - Eliminates 2.0-unit discontinuity at cycle boundary
+  - **Noise**: Added smooth interpolation between all quarter-boundary transitions
+    - Transitions at 0°, 90°, 180°, 270° now use cubic polynomial s-curves
+    - Each transition spans 2% of quarter duration (0.5% of full cycle)
+    - Previous held value tracked for smooth interpolation
+  - All waveforms now click-free across full speed range (0.1-20 Hz)
+  - Consistent 2% transition width across square, pulse, phasor, and noise
+
+### Technical Notes
+
+- Added `noisePrevHeldValue` member variable to track previous random value
+- Phasor now uses bidirectional smoothing (end-of-cycle and start-of-cycle zones)
+- Noise transitions use `quarterPhase` calculation for precise boundary detection
+- All smoothing uses `smoothTransition()` cubic polynomial (3t² - 2t³)
+- Real-time safety preserved (no allocations in audio thread)
+
+## [1.1.2] - 2026-01-05
+
+### Fixed
+
+- **Eliminated audio clicks from sharp waveform transitions** - Phasor, square, and pulse waveforms now use polynomial transition zones (cubic smoothstep) instead of hard edges
+  - Transition width: 2% of cycle for smooth S-curve interpolation
+  - High-fidelity approach appropriate for LFO frequencies (0.1-20 Hz)
+  - Zero audible artifacts while preserving waveform character
+
+- **Fixed noise waveform behavior** - Changed from continuous noise burst to smooth sample-and-hold
+  - Samples new random value 4 times per LFO cycle (at 0°, 90°, 180°, 270°)
+  - Creates organic random amplitude modulation instead of harsh noise
+  - **Critical fix**: Resolved Pan Sync phase offset issue where stereo channels triggered new random values every sample instead of holding for 1/4 cycle
+  - Solution: Modified `generateWaveform()` to accept `mainLfoPhase` parameter, ensuring noise uses consistent phase tracking regardless of Pan Sync stereo offset
+  - Matches professional tremolo implementations
+
+### Changed
+
+- **UI color consistency** - Waveform visualizer and dropdown menu now use pale green background matching button theme
+  - Changed from cream `rgba(255, 248, 231, 0.8)` to pale green `rgba(139, 168, 112, 0.3)`
+  - Improved visual coherence across interface elements
+
+### Technical Notes
+
+- Added `smoothTransition()` helper function using cubic polynomial (3t² - 2t³)
+- Sample-and-hold state variables: `noiseHeldValue`, `noiseLastQuarter`
+- Modified `generateWaveform()` signature to accept `mainLfoPhase` parameter for Pan Sync compatibility
+- Noise waveform now ignores stereo phase offset, uses main LFO phase for consistent quarter tracking
+- JavaScript visualizer updated to match C++ waveform behavior
+- All changes preserve real-time safety (no allocations in audio thread)
+
 ## [1.1.1] - 2026-01-05
 
 ### Fixed

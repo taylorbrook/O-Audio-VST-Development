@@ -49,9 +49,15 @@ private:
     // Random number generator for noise waveform
     juce::Random random;
 
+    // Sample-and-hold state for noise waveform
+    float noiseHeldValue = 0.0f;
+    float noisePrevHeldValue = 0.0f;  // Previous value for smooth transitions
+    int noiseLastQuarter = -1;
+
     // Helper methods
-    float generateWaveform(float phase, int waveformType);
+    float generateWaveform(float phase, int waveformType, float mainLfoPhase);
     float applySmoothingFilter(float rawLFO, float& prevSmoothed, float coefficient);
+    float smoothTransition(float t);  // Polynomial smoothing for sharp transitions
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconTremoloAudioProcessor)
 };

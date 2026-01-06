@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.1
+- **Version:** 1.1.4
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
@@ -47,6 +47,22 @@
   - Tightened knob label/value spacing (8px → 4px gap)
   - Adjusted depth dial position up by 5px
   - Waveform visualizer now responds to depth parameter (amplitude scales 0-100%)
+
+- **2026-01-05 (v1.1.2):** Audio quality and visual consistency improvements
+  - Eliminated clicks from phasor, square, and pulse waveforms (polynomial transitions)
+  - Fixed noise waveform with sample-and-hold (4 samples per cycle)
+  - Changed UI colors to pale green for visual consistency
+
+- **2026-01-05 (v1.1.4):** Critical bug fixes for mono->stereo and GUI reload
+  - Fixed mono input hard-panning issue - mono sources now properly centered in stereo output
+  - Fixed GUI blank screen on reopen - converted static hasNavigated flag to member variable
+  - Mono→stereo duplication preserves Pan Sync behavior (OFF=centered, ON=stereo phase)
+
+- **2026-01-05 (v1.1.3):** Complete click elimination across all waveforms
+  - Extended s-curve smoothing to phasor and noise waveforms
+  - Phasor: Added bidirectional polynomial transitions at wrap point (last 2% and first 2% of cycle)
+  - Noise: Added smooth interpolation between all quarter-boundary transitions
+  - All 6 waveforms now click-free across full speed range (0.1-20 Hz)
 
 - **2026-01-04:** Design refinement session
   - **Typography updated**: Changed from Garamond to Baskerville (1757, authentic 18th-century botanical publication typeface)
