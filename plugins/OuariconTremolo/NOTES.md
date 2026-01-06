@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.1
+- **Version:** 1.1.1
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
@@ -34,6 +34,19 @@
   - Root cause: goToURL() called in constructor before window context existed
   - Solution: Moved navigation to parentHierarchyChanged() callback
   - Plugin now loads successfully in Logic Pro, Ableton, Reaper, etc.
+
+- **2026-01-05 (v1.1.0):** Musical division display enhancement
+  - Added musical rhythmic value display when tempo sync is enabled
+  - Expanded from 6 to 16 musical divisions (straight, triplets, quintuplets)
+  - Speed dial now shows "1/8T", "1/4Q", etc. when synced to tempo
+  - Preserves musical relationship across tempo changes
+  - Hz display retained when tempo sync is OFF
+
+- **2026-01-05 (v1.1.1):** UI polish improvements
+  - Centered text in waveform dropdown menu
+  - Tightened knob label/value spacing (8px → 4px gap)
+  - Adjusted depth dial position up by 5px
+  - Waveform visualizer now responds to depth parameter (amplitude scales 0-100%)
 
 - **2026-01-04:** Design refinement session
   - **Typography updated**: Changed from Garamond to Baskerville (1757, authentic 18th-century botanical publication typeface)
@@ -75,6 +88,8 @@ A tremolo effect plugin featuring a botanical aesthetic inspired by vintage herb
 ## Parameters
 
 1. **Speed** (0.1-20.0 Hz, default 4.5 Hz): Tremolo rate
+   - Displays Hz when tempo sync is OFF
+   - Displays musical divisions (1/1, 1/2, 1/4, 1/8, 1/16, 1/32, triplets, quintuplets) when tempo sync is ON
 2. **Depth** (0-100%, default 75%): Modulation intensity
 3. **Waveform** (Sine/Triangle/Phasor/Noise/Square/Pulse, default Sine): Modulation shape
 4. **Smoothing** (0-100%, default 30%): Waveform curve softness

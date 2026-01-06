@@ -138,26 +138,53 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
                 if (positionInfo->getBpm().hasValue())
                 {
                     double bpm = *positionInfo->getBpm();
-
-                    // Map speed parameter to note divisions
-                    // We'll use the speed parameter range (0.1-20 Hz) to map to divisions
-                    // For simplicity: map to closest note division based on current speed
                     double beatsPerSecond = bpm / 60.0;
 
-                    // Common note divisions (in beats): 4.0 = 1/1, 2.0 = 1/2, 1.0 = 1/4, 0.5 = 1/8, 0.25 = 1/16
+                    // Musical divisions table: beat multipliers
+                    // Straight divisions
+                    struct MusicalDivision {
+                        const char* name;
+                        float beatMultiplier;
+                    };
+
+                    const MusicalDivision divisions[] = {
+                        // Straight divisions
+                        { "1/1",   4.0f },      // Whole note
+                        { "1/2",   2.0f },      // Half note
+                        { "1/4",   1.0f },      // Quarter note
+                        { "1/8",   0.5f },      // Eighth note
+                        { "1/16",  0.25f },     // Sixteenth note
+                        { "1/32",  0.125f },    // Thirty-second note
+
+                        // Triplet divisions (3 notes in space of 2)
+                        { "1/2T",  1.333333f }, // Half note triplet
+                        { "1/4T",  0.666667f }, // Quarter triplet
+                        { "1/8T",  0.333333f }, // Eighth triplet
+                        { "1/16T", 0.166667f }, // Sixteenth triplet
+                        { "1/32T", 0.083333f }, // Thirty-second triplet
+
+                        // Quintuplet divisions (5 notes in space of 4)
+                        { "1/2Q",  1.6f },      // Half note quintuplet
+                        { "1/4Q",  0.8f },      // Quarter quintuplet
+                        { "1/8Q",  0.4f },      // Eighth quintuplet
+                        { "1/16Q", 0.2f },      // Sixteenth quintuplet
+                        { "1/32Q", 0.1f }       // Thirty-second quintuplet
+                    };
+
+                    const int numDivisions = sizeof(divisions) / sizeof(divisions[0]);
+
                     // Find closest division based on current speed
-                    float divisions[] = { 4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f };
                     float closestDivision = 1.0f;
                     float minDiff = 1000.0f;
 
-                    for (float div : divisions)
+                    for (int i = 0; i < numDivisions; ++i)
                     {
-                        float divFreq = static_cast<float>(beatsPerSecond / div);
+                        float divFreq = static_cast<float>(beatsPerSecond / divisions[i].beatMultiplier);
                         float diff = std::abs(speedHz - divFreq);
                         if (diff < minDiff)
                         {
                             minDiff = diff;
-                            closestDivision = div;
+                            closestDivision = divisions[i].beatMultiplier;
                         }
                     }
 

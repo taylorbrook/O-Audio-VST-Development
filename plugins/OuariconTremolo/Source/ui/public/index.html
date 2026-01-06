@@ -166,7 +166,11 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
+        }
+
+        .depth-knob-container {
+            margin-top: -5px;
         }
 
         .knob {
@@ -265,6 +269,7 @@
             background-position: calc(100% - 12px) center, calc(100% - 8px) center;
             background-repeat: no-repeat;
             appearance: none;
+            text-align: center;
         }
 
         .slider-container {
@@ -383,7 +388,7 @@
                             <div class="knob-label">Speed</div>
                             <div class="knob-value" id="speedValue">4.5 Hz</div>
                         </div>
-                        <div class="knob-container">
+                        <div class="knob-container depth-knob-container">
                             <div class="knob" id="depthKnob">
                                 <div class="knob-indicator" id="depthIndicator"></div>
                             </div>
@@ -427,6 +432,29 @@
         // JUCE Parameter States
         let speedState, depthState, waveformState, smoothingState, panSyncState, tempoSyncState;
 
+        // Musical divisions table (matches C++ implementation)
+        const musicalDivisions = [
+            // Straight divisions
+            { name: "1/1",   beatMultiplier: 4.0 },
+            { name: "1/2",   beatMultiplier: 2.0 },
+            { name: "1/4",   beatMultiplier: 1.0 },
+            { name: "1/8",   beatMultiplier: 0.5 },
+            { name: "1/16",  beatMultiplier: 0.25 },
+            { name: "1/32",  beatMultiplier: 0.125 },
+            // Triplets
+            { name: "1/2T",  beatMultiplier: 1.333333 },
+            { name: "1/4T",  beatMultiplier: 0.666667 },
+            { name: "1/8T",  beatMultiplier: 0.333333 },
+            { name: "1/16T", beatMultiplier: 0.166667 },
+            { name: "1/32T", beatMultiplier: 0.083333 },
+            // Quintuplets
+            { name: "1/2Q",  beatMultiplier: 1.6 },
+            { name: "1/4Q",  beatMultiplier: 0.8 },
+            { name: "1/8Q",  beatMultiplier: 0.4 },
+            { name: "1/16Q", beatMultiplier: 0.2 },
+            { name: "1/32Q", beatMultiplier: 0.1 }
+        ];
+
         // Wait for DOM load
         document.addEventListener('DOMContentLoaded', () => {
             console.log('JUCE backend:', window.__JUCE__?.backend);
@@ -457,6 +485,26 @@
             initCanvas();
         });
 
+        // Helper function to get musical division name from Hz value
+        function getMusicalDivisionName(hz, bpm = 120) {
+            if (!bpm || bpm <= 0) bpm = 120; // Fallback to 120 BPM
+            const beatsPerSecond = bpm / 60.0;
+
+            let closestDivision = musicalDivisions[0];
+            let minDiff = 1000.0;
+
+            for (const div of musicalDivisions) {
+                const divFreq = beatsPerSecond / div.beatMultiplier;
+                const diff = Math.abs(hz - divFreq);
+                if (diff < minDiff) {
+                    minDiff = diff;
+                    closestDivision = div;
+                }
+            }
+
+            return closestDivision.name;
+        }
+
         // Knob setup with JUCE binding (Pattern #16: Relative drag, Pattern #15: No callback params)
         function setupKnob(paramId, state, min, max, unit) {
             if (!state) {
@@ -482,7 +530,15 @@
                 indicator.style.transformOrigin = 'center 30px';
 
                 // Update value display
-                valueDisplay.textContent = realValue.toFixed(1) + unit;
+                // For speed knob, check if tempo sync is enabled
+                if (paramId === 'speed' && tempoSyncState && tempoSyncState.getValue()) {
+                    // Display musical division instead of Hz
+                    const divisionName = getMusicalDivisionName(realValue);
+                    valueDisplay.textContent = divisionName;
+                } else {
+                    // Display normal value with unit
+                    valueDisplay.textContent = realValue.toFixed(1) + unit;
+                }
 
                 // Redraw waveform
                 drawWaveform();
@@ -541,6 +597,25 @@
                     button.classList.add('active');
                 } else {
                     button.classList.remove('active');
+                }
+
+                // If this is tempo sync button, trigger speed knob visual update
+                if (buttonId === 'tempoButton' && speedState) {
+                    // Manually trigger speed knob update by dispatching a fake event
+                    const speedKnob = document.getElementById('speedKnob');
+                    if (speedKnob) {
+                        const speedIndicator = document.getElementById('speedIndicator');
+                        const speedValue = document.getElementById('speedValue');
+                        const normValue = speedState.getNormalisedValue();
+                        const realValue = 0.1 + (normValue * (20 - 0.1));
+
+                        // Update speed display based on tempo sync state
+                        if (isActive) {
+                            speedValue.textContent = getMusicalDivisionName(realValue);
+                        } else {
+                            speedValue.textContent = realValue.toFixed(1) + ' Hz';
+                        }
+                    }
                 }
             }
 
@@ -638,12 +713,15 @@
 
         // Waveform visualization
         function drawWaveform() {
-            if (!canvas || !ctx || !waveformState || !smoothingState) return;
+            if (!canvas || !ctx || !waveformState || !smoothingState || !depthState) return;
 
             const width = canvas.offsetWidth;
             const height = canvas.offsetHeight;
             const centerY = height / 2;
-            const amplitude = (height / 2) * 0.8;
+
+            // Scale amplitude by depth (0-100% depth → 0-1 multiplier)
+            const depthMultiplier = depthState.getNormalisedValue();
+            const amplitude = (height / 2) * 0.8 * depthMultiplier;
 
             const waveformIndex = Math.round(waveformState.getNormalisedValue() * 5);
             const smoothing = smoothingState.getNormalisedValue();

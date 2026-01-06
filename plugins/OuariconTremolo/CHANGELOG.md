@@ -5,6 +5,49 @@ All notable changes to OuariconTremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-01-05
+
+### Fixed
+
+- **UI polish improvements** - Enhanced visual layout and interactivity
+  - Centered text in waveform dropdown menu for better visual balance
+  - Tightened spacing between knobs and their labels/values (gap reduced from 8px to 4px)
+  - Adjusted depth dial position upward by 5px for improved vertical alignment
+  - Waveform visualizer now responds to depth parameter (amplitude scales with depth 0-100%)
+
+### Technical Notes
+
+- CSS modifications only (no C++ changes required)
+- Waveform amplitude calculation: `baseAmplitude * depthNormalized` where depthNormalized = 0.0 to 1.0
+- Added `.depth-knob-container` class for specific positioning control
+- All changes are visual-only, no parameter behavior changes
+
+## [1.1.0] - 2026-01-05
+
+### Added
+
+- **Musical division display when tempo sync is enabled** - Speed dial now displays musical rhythmic values (e.g., "1/8T", "1/4Q") instead of Hz when tempo sync is ON
+  - Expanded from 6 to 16 musical divisions including:
+    - Straight divisions: 1/1, 1/2, 1/4, 1/8, 1/16, 1/32
+    - Triplet divisions: 1/2T, 1/4T, 1/8T, 1/16T, 1/32T (3 notes in space of 2)
+    - Quintuplet divisions: 1/2Q, 1/4Q, 1/8Q, 1/16Q, 1/32Q (5 notes in space of 4)
+  - Preserves musical relationship when DAW tempo changes (Option A parameter storage)
+  - Hz display retained when tempo sync is OFF for continuous frequency control
+
+### Changed
+
+- **Tempo sync behavior** - Speed parameter now snaps to musical divisions when synced, ensuring tremolo stays locked to musical timing regardless of tempo changes
+- **UI responsiveness** - Speed display automatically switches between Hz and musical notation when toggling tempo sync button
+
+### Technical Notes
+
+- Updated `MusicalDivision` table in PluginProcessor.cpp with 16 divisions using precise beat multipliers
+- Modified WebView UI JavaScript to detect tempo sync state and format speed display accordingly
+- Beat multiplier calculations:
+  - Triplets: `(base_beats * 2/3)` - e.g., 1/8T = 0.5 beats * 2/3 = 0.333 beats
+  - Quintuplets: `(base_beats * 4/5)` - e.g., 1/8Q = 0.5 beats * 4/5 = 0.4 beats
+- No breaking changes - existing presets and sessions remain compatible
+
 ## [1.0.1] - 2026-01-05
 
 ### Fixed
