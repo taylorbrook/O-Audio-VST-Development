@@ -177,12 +177,61 @@
             width: 60px;
             height: 60px;
             border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, #8BA870, #6B8E23);
-            border: 3px solid #3C5C1A;
+            /* Botanical seed cross-section background - vintage cream/sepia palette */
+            background:
+                /* Outer ring - aged paper tone */
+                radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+                /* Seed segments - 10 radial chambers with engraving lines */
+                conic-gradient(from 0deg,
+                    #F5DEB3 0deg, #F5DEB3 18deg,
+                    #8B7355 18deg, #8B7355 19deg,
+                    #E8D5B7 19deg, #E8D5B7 36deg,
+                    #8B7355 36deg, #8B7355 37deg,
+                    #F5DEB3 37deg, #F5DEB3 54deg,
+                    #8B7355 54deg, #8B7355 55deg,
+                    #E8D5B7 55deg, #E8D5B7 72deg,
+                    #8B7355 72deg, #8B7355 73deg,
+                    #F5DEB3 73deg, #F5DEB3 90deg,
+                    #8B7355 90deg, #8B7355 91deg,
+                    #E8D5B7 91deg, #E8D5B7 108deg,
+                    #8B7355 108deg, #8B7355 109deg,
+                    #F5DEB3 109deg, #F5DEB3 126deg,
+                    #8B7355 126deg, #8B7355 127deg,
+                    #E8D5B7 127deg, #E8D5B7 144deg,
+                    #8B7355 144deg, #8B7355 145deg,
+                    #F5DEB3 145deg, #F5DEB3 162deg,
+                    #8B7355 162deg, #8B7355 163deg,
+                    #E8D5B7 163deg, #E8D5B7 180deg,
+                    #8B7355 180deg, #8B7355 181deg,
+                    #F5DEB3 181deg, #F5DEB3 198deg,
+                    #8B7355 198deg, #8B7355 199deg,
+                    #E8D5B7 199deg, #E8D5B7 216deg,
+                    #8B7355 216deg, #8B7355 217deg,
+                    #F5DEB3 217deg, #F5DEB3 234deg,
+                    #8B7355 234deg, #8B7355 235deg,
+                    #E8D5B7 235deg, #E8D5B7 252deg,
+                    #8B7355 252deg, #8B7355 253deg,
+                    #F5DEB3 253deg, #F5DEB3 270deg,
+                    #8B7355 270deg, #8B7355 271deg,
+                    #E8D5B7 271deg, #E8D5B7 288deg,
+                    #8B7355 288deg, #8B7355 289deg,
+                    #F5DEB3 289deg, #F5DEB3 306deg,
+                    #8B7355 306deg, #8B7355 307deg,
+                    #E8D5B7 307deg, #E8D5B7 324deg,
+                    #8B7355 324deg, #8B7355 325deg,
+                    #F5DEB3 325deg, #F5DEB3 342deg,
+                    #8B7355 342deg, #8B7355 343deg,
+                    #E8D5B7 343deg, #E8D5B7 360deg
+                ),
+                /* Inner center - lighter seed core */
+                radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+            border: 2px solid #8B7355;
             box-shadow:
-                inset -2px -2px 5px rgba(0,0,0,0.3),
-                inset 2px 2px 5px rgba(255,255,255,0.3),
-                3px 3px 8px rgba(0,0,0,0.4);
+                /* Engraved depth effect */
+                inset 1px 1px 3px rgba(0,0,0,0.3),
+                inset -1px -1px 2px rgba(255,248,220,0.5),
+                /* Outer shadow for paper depth */
+                2px 2px 6px rgba(0,0,0,0.25);
             position: relative;
             cursor: pointer;
             transition: transform 0.1s;
@@ -194,36 +243,57 @@
         }
 
         .knob::before {
+            /* Cross-hatching engraving texture overlay */
             content: '';
             position: absolute;
             width: 100%;
             height: 100%;
             background-image:
-                radial-gradient(circle at 50% 50%, transparent 35%, rgba(60, 92, 26, 0.15) 35%, rgba(60, 92, 26, 0.15) 36%, transparent 36%),
-                repeating-conic-gradient(from 0deg at 50% 50%, transparent 0deg, rgba(60, 92, 26, 0.08) 5deg, transparent 10deg);
+                /* Fine radial lines from center (like botanical engraving) */
+                repeating-conic-gradient(from 0deg at 50% 50%,
+                    transparent 0deg,
+                    transparent 2deg,
+                    rgba(139, 115, 85, 0.15) 2deg,
+                    rgba(139, 115, 85, 0.15) 2.5deg,
+                    transparent 2.5deg,
+                    transparent 36deg
+                ),
+                /* Concentric circles for seed texture */
+                repeating-radial-gradient(circle at 50% 50%,
+                    transparent 0px,
+                    transparent 8px,
+                    rgba(139, 115, 85, 0.08) 8px,
+                    rgba(139, 115, 85, 0.08) 9px
+                );
             pointer-events: none;
+            mix-blend-mode: multiply;
         }
 
         .knob::after {
+            /* Subtle botanical motif in center */
             content: '✿';
             position: absolute;
             top: 50%;
             left: 50%;
             transform: translate(-50%, -50%);
-            font-size: 18px;
-            color: rgba(60, 92, 26, 0.3);
+            font-size: 14px;
+            color: rgba(139, 115, 85, 0.25);
             pointer-events: none;
         }
 
         .knob-indicator {
+            /* Indicator styled as highlighted seed segment */
             position: absolute;
-            top: 6px;
+            top: 0;
             left: 50%;
             transform: translateX(-50%);
-            width: 3px;
-            height: 18px;
-            background: #2C3E10;
-            border-radius: 2px;
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 22px solid #8B6914;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+            opacity: 0.9;
         }
 
         .knob-label {
@@ -235,6 +305,7 @@
         .knob-value {
             font-size: 11px;
             color: #5C4033;
+            font-weight: bold;
         }
 
         .waveform-section {

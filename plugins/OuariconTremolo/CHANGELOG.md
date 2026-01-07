@@ -5,6 +5,42 @@ All notable changes to OuariconTremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-01-06
+
+### Fixed
+
+- **Improved dial value readability** - Speed and Depth knob value displays (e.g., "4.5 Hz", "75%") now use bold font weight for better legibility
+  - Applied `font-weight: bold` to `.knob-value` CSS class
+  - Dial labels remain unchanged (already bold)
+  - Enhances readability of parameter values against vintage botanical background
+
+### Technical Notes
+
+- CSS-only change (added `font-weight: bold` to `.knob-value` class in index.html:308)
+- No breaking changes - purely cosmetic improvement
+
+## [1.2.0] - 2026-01-06
+
+### Changed
+
+- **Redesigned parameter dials with vintage botanical seed aesthetic** - Speed and Depth knobs now feature hand-drawn seed cross-section illustrations inspired by 18th/19th century botanical engravings
+  - **Visual design**: 10-segment radial seed chamber pattern using CSS conic-gradient (similar to citrus cross-section from botanical manuscripts)
+  - **Color palette**: Vintage warm tones replacing modern green - cream (#F5DEB3), sepia (#E8D5B7), tan (#8B7355), cornsilk center (#FFF8DC)
+  - **Engraving effects**: Cross-hatching texture overlay with fine radial lines and concentric circles for authentic botanical illustration feel
+  - **Indicator integration**: Value indicator redesigned as triangular seed segment (golden brown #8B6914) that rotates within the seed pattern
+  - **Borders and depth**: Aged paper outer ring with engraved inset shadows for dimensional vintage aesthetic
+  - **Botanical motif**: Subtle flower symbol (✿) in center matching the plugin's flora theme
+
+### Technical Notes
+
+- CSS-only implementation (no JavaScript changes required)
+- Knob background uses layered gradients: outer ring (radial), seed segments (conic), inner core (radial)
+- Engraving texture created with `repeating-conic-gradient` (radial lines) and `repeating-radial-gradient` (concentric circles)
+- Indicator uses CSS triangle technique (transparent borders with colored top border)
+- Mix-blend-mode multiply for authentic engraving overlay effect
+- All existing knob functionality preserved (rotation range, interactivity, JUCE parameter binding)
+- No breaking changes - purely visual enhancement
+
 ## [1.1.4] - 2026-01-05
 
 ### Fixed
