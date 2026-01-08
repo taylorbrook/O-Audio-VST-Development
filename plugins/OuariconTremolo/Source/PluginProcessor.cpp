@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    OuariconTremolo - Audio Processor Implementation
+    Ouaricon Audio
+    Developer: Taylor Brook
+
+  ==============================================================================
+*/
+
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 

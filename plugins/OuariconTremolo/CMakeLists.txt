@@ -2,9 +2,9 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconTremolo
-    COMPANY_NAME "YourCompany"
-    PLUGIN_MANUFACTURER_CODE Ycom
-    PLUGIN_CODE Outr
+    COMPANY_NAME "Ouaricon Audio"
+    PLUGIN_MANUFACTURER_CODE OuAu
+    PLUGIN_CODE OuTr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "Ouaricon Tremolo"
     VERSION 1.2.1

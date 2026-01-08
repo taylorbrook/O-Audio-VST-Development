@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    OuariconTremolo - Editor Implementation
+    Ouaricon Audio
+    Developer: Taylor Brook
+
+  ==============================================================================
+*/
+
 #include "PluginEditor.h"
 #include "BinaryData.h"
 

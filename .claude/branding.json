@@ -1,0 +1,22 @@
+{
+  "company": {
+    "full_name": "Ouaricon Audio",
+    "short_name": "O-AUDIO",
+    "manufacturer_code": "OuAu",
+    "website": "https://ouaricon.audio",
+    "copyright_year_start": 2025
+  },
+  "developer": {
+    "name": "Taylor Brook",
+    "role": "Developer"
+  },
+  "defaults": {
+    "plugin_code_prefix": "Ou",
+    "version_start": "1.0.0"
+  },
+  "metadata": {
+    "description": "Professional audio plugins by Ouaricon Audio",
+    "category": "Audio Effect / Instrument",
+    "formats": ["VST3", "AU", "Standalone"]
+  }
+}

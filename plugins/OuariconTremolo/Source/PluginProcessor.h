@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    OuariconTremolo - Audio Processor
+    Ouaricon Audio
+    Developer: Taylor Brook
+
+  ==============================================================================
+*/
+
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 

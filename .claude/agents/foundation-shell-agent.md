@@ -43,6 +43,7 @@ You will receive FILE PATHS for the following contracts (read them yourself usin
 3. **plan.md** - Complexity score, implementation strategy
 4. **parameter-spec.md** - CRITICAL: Complete parameter definitions (IDs, types, ranges, defaults)
 5. **juce8-critical-patterns.md** - REQUIRED READING before any implementation
+6. **branding.json** - REQUIRED: Company branding and developer metadata (`.claude/branding.json`)
 
 **How to read:** Use Read tool with file paths provided in orchestrator prompt.
 
@@ -104,6 +105,11 @@ Read the contract files and extract:
 - **Plugin type** from architecture.md (AudioProcessor code or AudioProcessor code with MIDI)
 - **JUCE version requirement:** 8.0.9+ (system standard)
 - **Parameters** from parameter-spec.md (IDs, types, ranges, defaults)
+- **Branding** from `.claude/branding.json`:
+  - `company.full_name` → COMPANY_NAME
+  - `company.manufacturer_code` → PLUGIN_MANUFACTURER_CODE
+  - `defaults.plugin_code_prefix` → Used in PLUGIN_CODE generation
+  - `developer.name` → Used in code comments/headers
 
 **Debugging output:**
 
@@ -113,6 +119,9 @@ Before implementing, output the extracted information for verification:
 Extracted from contracts:
 - Plugin Name: [PluginName]
 - Plugin Type: [Effect/Instrument]
+- Company: [Ouaricon Audio]
+- Developer: [Taylor Brook]
+- Manufacturer Code: [OuAu]
 - Parameters (from parameter-spec.md):
   1. gain (Float, -60.0 to 12.0 dB, default: 0.0)
   2. bypass (Bool, default: false)
@@ -127,14 +136,20 @@ Create `plugins/[PluginName]/CMakeLists.txt` with:
 
 **CRITICAL:** Do NOT include `project()` or `add_subdirectory(JUCE)` - JUCE is added at root level
 
+**Branding Configuration:**
+- Read `.claude/branding.json` to extract company name and codes
+- Use `company.full_name` for COMPANY_NAME (e.g., "Ouaricon Audio")
+- Use `company.manufacturer_code` for PLUGIN_MANUFACTURER_CODE (e.g., OuAu)
+- Generate PLUGIN_CODE using `defaults.plugin_code_prefix` + unique 2-char suffix (e.g., OuTr for Tremolo)
+
 ```cmake
 cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin([PluginName]
-    COMPANY_NAME "YourCompany"
-    PLUGIN_MANUFACTURER_CODE Manu
-    PLUGIN_CODE Plug
+    COMPANY_NAME "[From branding.json: company.full_name]"
+    PLUGIN_MANUFACTURER_CODE [From branding.json: company.manufacturer_code]
+    PLUGIN_CODE [Generate: plugin_code_prefix + 2-char plugin suffix]
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "[Plugin Name]"
 )
@@ -208,12 +223,37 @@ target_compile_definitions([PluginName]
 - Include all standard audio modules including juce_gui_extra (required for WebBrowserComponent)
 - WebView configuration commented out (gui-agent will uncomment if WebView UI is used)
 - Generate VST3, AU, and Standalone formats
+- **CRITICAL:** All branding metadata MUST come from `.claude/branding.json` (never use placeholder values)
 
 ### 3. Create Source/PluginProcessor.h
 
 Create AudioProcessor subclass with APVTS:
 
+**File Header Template:**
 ```cpp
+/*
+  ==============================================================================
+
+    [PluginName] - Audio Processor
+    [Company Full Name from branding.json]
+    Developer: [Developer Name from branding.json]
+
+  ==============================================================================
+*/
+```
+
+**Implementation:**
+```cpp
+/*
+  ==============================================================================
+
+    [PluginName] - Audio Processor
+    [Company Full Name from branding.json]
+    Developer: [Developer Name from branding.json]
+
+  ==============================================================================
+*/
+
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 
@@ -365,6 +405,16 @@ layout.add(std::make_unique<juce::AudioParameterChoice>(
 Implement with APVTS initialization and state management:
 
 ```cpp
+/*
+  ==============================================================================
+
+    [PluginName] - Audio Processor Implementation
+    [Company Full Name from branding.json]
+    Developer: [Developer Name from branding.json]
+
+  ==============================================================================
+*/
+
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
@@ -451,6 +501,16 @@ juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 Create minimal editor:
 
 ```cpp
+/*
+  ==============================================================================
+
+    [PluginName] - Editor
+    [Company Full Name from branding.json]
+    Developer: [Developer Name from branding.json]
+
+  ==============================================================================
+*/
+
 #pragma once
 #include "PluginProcessor.h"
 
@@ -475,6 +535,16 @@ private:
 Implement minimal UI with parameter count:
 
 ```cpp
+/*
+  ==============================================================================
+
+    [PluginName] - Editor Implementation
+    [Company Full Name from branding.json]
+    Developer: [Developer Name from branding.json]
+
+  ==============================================================================
+*/
+
 #include "PluginEditor.h"
 
 [PluginName]AudioProcessorEditor::[PluginName]AudioProcessorEditor([PluginName]AudioProcessor& p)

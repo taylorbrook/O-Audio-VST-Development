@@ -55,17 +55,19 @@ You are foundation-shell-agent implementing Stage 1 for ${pluginName}.
 - architecture.md: plugins/${pluginName}/.ideas/architecture.md
 - plan.md: plugins/${pluginName}/.ideas/plan.md
 - parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
+- branding.json: .claude/branding.json
 - Required Reading: troubleshooting/patterns/juce8-critical-patterns.md
 
-**CRITICAL: Read Required Reading BEFORE implementation.**
+**CRITICAL: Read Required Reading AND branding.json BEFORE implementation.**
 
 **Implementation steps:**
 1. Read all contract files listed above
-2. Read Required Reading (MANDATORY)
-3. Create CMakeLists.txt with JUCE 8 integration
-4. Create Source/PluginProcessor.{h,cpp} with APVTS
-5. Implement ALL parameters from parameter-spec.md
-6. Return JSON report with status and file list
+2. Read branding.json for company metadata
+3. Read Required Reading (MANDATORY)
+4. Create CMakeLists.txt with JUCE 8 integration and branding
+5. Create Source/PluginProcessor.{h,cpp} with APVTS and file headers
+6. Implement ALL parameters from parameter-spec.md
+7. Return JSON report with status and file list
 
 Build verification handled by orchestrator after you complete.
   `

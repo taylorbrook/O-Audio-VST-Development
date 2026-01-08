@@ -1,3 +1,13 @@
+/*
+  ==============================================================================
+
+    OuariconTremolo - Editor
+    Ouaricon Audio
+    Developer: Taylor Brook
+
+  ==============================================================================
+*/
+
 #pragma once
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
