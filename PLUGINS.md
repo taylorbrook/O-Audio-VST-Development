@@ -27,7 +27,7 @@ Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
 | OuariconTremolo | 📦 Installed | 1.2.1 | Audio Effect (Tremolo) | 2026-01-06 |
-| OuariconSaturationModeling | 🚧 Stage 1 | 1.0.0 | Audio Effect (Saturation) | 2026-01-09 |
+| OuariconSaturationModeling | ✅ Working | 1.0.0 | Audio Effect (Saturation) | 2026-01-09 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
