@@ -1,0 +1,426 @@
+# Ouaricon Saturation Modeling - UI Design Specification v1
+# Generated: 2026-01-09
+# Plugin: OuariconSaturationModeling
+# Aesthetic: Ouaricon Audio Naturalist (botanical vintage)
+
+window:
+  width: 600
+  height: 450
+  resizable: false
+
+colors:
+  # Ouaricon Naturalist palette
+  background: "#F5E6D3"  # Aged paper
+  text: "#3C2F2F"  # Dark brown
+  border: "#8B7355"  # Walnut brown
+  button_default_bg: "rgba(139, 168, 112, 0.3)"
+  button_default_border: "#3C5C1A"
+  button_active_bg: "rgba(107, 142, 35, 0.6)"
+  button_active_border: "#2C3E10"
+  knob_segment_light: "#F5DEB3"  # Wheat
+  knob_segment_dark: "#E8D5B7"  # Darker wheat
+  knob_divider: "#8B7355"  # Walnut brown
+  meter_face: "#FFF8E7"  # Cream
+  meter_needle: "#8B0000"  # Dark red
+
+typography:
+  primary: "'Garamond', 'Times New Roman', serif"
+  title_size: "24px"
+  title_spacing: "3px"
+  label_size: "10px"
+  label_spacing: "1px"
+
+layout:
+  type: vertical-sections
+  sections:
+    - id: header
+      y: 0
+      height: 70
+      description: "Plugin title area"
+    - id: model_selection
+      y: 70
+      height: 50
+      description: "Four model selection buttons"
+    - id: main_control
+      y: 120
+      height: 230
+      description: "Central intensity knob with VU meters and snake overlay"
+    - id: footer
+      y: 350
+      height: 100
+      description: "Quality buttons and auto-gain toggle"
+
+controls:
+  # PRIMARY CONTROL: Intensity knob (center)
+  - id: intensity
+    type: knob
+    label: "INTENSITY"
+    parameter_id: INTENSITY
+    parameter_type: float
+    range: [0.0, 100.0]
+    default: 50.0
+    unit: "%"
+    decimals: 0
+    position: {x: 265, y: 185}
+    size: {diameter: 75}
+    style:
+      type: botanical_seed
+      segments: 10
+      segment_colors: ["#F5DEB3", "#E8D5B7"]
+      divider_color: "#8B7355"
+      divider_width: 2
+      border_color: "#8B7355"
+      border_width: 2
+      indicator_type: dot
+      indicator_color: "#3C2F2F"
+    notes: "Controls opacity of snake overlay (0%=0.1 opacity, 100%=0.5 opacity)"
+
+  # MODEL SELECTION: 4 exclusive buttons
+  - id: model_magnetic
+    type: button
+    label: "MAGNETIC"
+    parameter_id: MODEL
+    parameter_type: choice
+    parameter_value: 0
+    position: {x: 35, y: 85}
+    size: {width: 110, height: 30}
+    style:
+      type: botanical_button
+      border_radius: 5
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "11px"
+      text_transform: uppercase
+      letter_spacing: "0.8px"
+
+  - id: model_tube
+    type: button
+    label: "TUBE"
+    parameter_id: MODEL
+    parameter_type: choice
+    parameter_value: 1
+    position: {x: 155, y: 85}
+    size: {width: 110, height: 30}
+    style:
+      type: botanical_button
+      border_radius: 5
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "11px"
+      text_transform: uppercase
+      letter_spacing: "0.8px"
+
+  - id: model_transformer
+    type: button
+    label: "TRANSFORMER"
+    parameter_id: MODEL
+    parameter_type: choice
+    parameter_value: 2
+    position: {x: 275, y: 85}
+    size: {width: 110, height: 30}
+    style:
+      type: botanical_button
+      border_radius: 5
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "11px"
+      text_transform: uppercase
+      letter_spacing: "0.8px"
+
+  - id: model_diode
+    type: button
+    label: "DIODE"
+    parameter_id: MODEL
+    parameter_type: choice
+    parameter_value: 3
+    position: {x: 395, y: 85}
+    size: {width: 110, height: 30}
+    style:
+      type: botanical_button
+      border_radius: 5
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "11px"
+      text_transform: uppercase
+      letter_spacing: "0.8px"
+
+  # QUALITY SELECTION: 3 exclusive buttons (bottom left)
+  - id: quality_low
+    type: button
+    label: "LOW"
+    parameter_id: QUALITY
+    parameter_type: choice
+    parameter_value: 0
+    position: {x: 50, y: 380}
+    size: {width: 75, height: 28}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "10px"
+      text_transform: uppercase
+      letter_spacing: "0.6px"
+
+  - id: quality_mid
+    type: button
+    label: "MID"
+    parameter_id: QUALITY
+    parameter_type: choice
+    parameter_value: 1
+    position: {x: 135, y: 380}
+    size: {width: 75, height: 28}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "10px"
+      text_transform: uppercase
+      letter_spacing: "0.6px"
+
+  - id: quality_high
+    type: button
+    label: "HIGH"
+    parameter_id: QUALITY
+    parameter_type: choice
+    parameter_value: 2
+    position: {x: 220, y: 380}
+    size: {width: 75, height: 28}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "10px"
+      text_transform: uppercase
+      letter_spacing: "0.6px"
+
+  # AUTO-GAIN TOGGLE (bottom right)
+  - id: autogain
+    type: toggle
+    label: "AUTO"
+    parameter_id: AUTOGAIN
+    parameter_type: bool
+    default: false
+    position: {x: 460, y: 380}
+    size: {width: 90, height: 28}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "10px"
+      text_transform: uppercase
+      letter_spacing: "0.6px"
+      fleuron: "❦"
+
+special_elements:
+  # Title
+  - id: title
+    type: text
+    content: "OUARICON SATURATION MODELING"
+    position: {x: 300, y: 35}
+    anchor: center
+    style:
+      font_family: "'Garamond', 'Times New Roman', serif"
+      font_size: "24px"
+      font_weight: normal
+      color: "#3C2F2F"
+      text_transform: uppercase
+      letter_spacing: "3px"
+
+  # Intensity label (below knob)
+  - id: intensity_label
+    type: text
+    content: "INTENSITY"
+    position: {x: 300, y: 280}
+    anchor: center
+    style:
+      font_family: "'Garamond', 'Times New Roman', serif"
+      font_size: "11px"
+      font_weight: normal
+      color: "#3C2F2F"
+      text_transform: uppercase
+      letter_spacing: "1.2px"
+
+  # Input VU Meter (left side)
+  - id: input_vu_meter
+    type: vu_meter
+    position: {x: 50, y: 160}
+    size: {width: 45, height: 120}
+    data_source: input_level
+    style:
+      type: vintage_needle
+      face_color: "#FFF8E7"
+      scale_color: "#3C2F2F"
+      needle_color: "#8B0000"
+      border_color: "#8B7355"
+      border_width: 2
+      font_family: "'Garamond', serif"
+      font_size: "8px"
+      scale_marks: [-20, -10, -6, -3, 0, 3]
+      scale_labels: ["-20", "-10", "-6", "-3", "0", "+3"]
+
+  # Output VU Meter (right side)
+  - id: output_vu_meter
+    type: vu_meter
+    position: {x: 505, y: 160}
+    size: {width: 45, height: 120}
+    data_source: output_level
+    style:
+      type: vintage_needle
+      face_color: "#FFF8E7"
+      scale_color: "#3C2F2F"
+      needle_color: "#8B0000"
+      border_color: "#8B7355"
+      border_width: 2
+      font_family: "'Garamond', serif"
+      font_size: "8px"
+      scale_marks: [-20, -10, -6, -3, 0, 3]
+      scale_labels: ["-20", "-10", "-6", "-3", "0", "+3"]
+
+  # Botanical snake overlay (behind intensity knob)
+  - id: snake_overlay
+    type: dynamic_image
+    position: {x: 155, y: 150}
+    size: {width: 290, height: 140}
+    layer: background
+    images:
+      magnetic: "/Users/taylorbrook/Dev/Ouaricon Audio Images/fauna/snake_mobot31753000317195_0068.png"
+      tube: "/Users/taylorbrook/Dev/Ouaricon Audio Images/fauna/snake_mobot31753000317195_0070.png"
+      transformer: "/Users/taylorbrook/Dev/Ouaricon Audio Images/fauna/snake_NA_0145.png"
+      diode: "/Users/taylorbrook/Dev/Ouaricon Audio Images/fauna/snake_snakesaustralia00kref_0145.png"
+    opacity_control:
+      parameter_id: INTENSITY
+      min_opacity: 0.1
+      max_opacity: 0.5
+      mapping: linear
+    style:
+      blend_mode: multiply
+      filter: sepia(0.2)
+    notes: "Image changes based on MODEL selection, opacity controlled by INTENSITY"
+
+  # Decorative border
+  - id: border
+    type: rectangle
+    position: {x: 0, y: 0}
+    size: {width: 600, height: 450}
+    layer: decorative
+    style:
+      fill: none
+      stroke: "#8B7355"
+      stroke_width: 3
+      border_radius: 0
+
+  # Section dividers
+  - id: divider_top
+    type: line
+    position: {x: 20, y: 65}
+    end_position: {x: 580, y: 65}
+    layer: decorative
+    style:
+      stroke: "#8B7355"
+      stroke_width: 1
+      opacity: 0.4
+
+  - id: divider_middle
+    type: line
+    position: {x: 20, y: 125}
+    end_position: {x: 580, y: 125}
+    layer: decorative
+    style:
+      stroke: "#8B7355"
+      stroke_width: 1
+      opacity: 0.4
+
+  - id: divider_bottom
+    type: line
+    position: {x: 20, y: 360}
+    end_position: {x: 580, y: 360}
+    layer: decorative
+    style:
+      stroke: "#8B7355"
+      stroke_width: 1
+      opacity: 0.4
+
+parameter_mappings:
+  - ui_id: intensity
+    parameter_id: INTENSITY
+    normalized_range: [0.0, 1.0]
+    display_range: [0, 100]
+    display_unit: "%"
+    smoothing_time: 50ms
+
+  - ui_id: model_buttons
+    parameter_id: MODEL
+    type: choice
+    choices:
+      - id: 0
+        label: "MAGNETIC"
+        ui_element: model_magnetic
+      - id: 1
+        label: "TUBE"
+        ui_element: model_tube
+      - id: 2
+        label: "TRANSFORMER"
+        ui_element: model_transformer
+      - id: 3
+        label: "DIODE"
+        ui_element: model_diode
+
+  - ui_id: quality_buttons
+    parameter_id: QUALITY
+    type: choice
+    choices:
+      - id: 0
+        label: "LOW"
+        ui_element: quality_low
+      - id: 1
+        label: "MID"
+        ui_element: quality_mid
+      - id: 2
+        label: "HIGH"
+        ui_element: quality_high
+
+  - ui_id: autogain
+    parameter_id: AUTOGAIN
+    type: bool
+    normalized_range: [0.0, 1.0]
+
+notes:
+  - "All positions in pixels from top-left (0,0)"
+  - "Parameter IDs must match APVTS in C++ (INTENSITY, MODEL, QUALITY, AUTOGAIN)"
+  - "MODEL and QUALITY are choice parameters (0-indexed integers)"
+  - "AUTOGAIN is boolean parameter"
+  - "Snake images from Ouaricon Audio collection (4 distinct botanical illustrations)"
+  - "VU meters require C++ timer callbacks for real-time updates"
+  - "Knob rotation: standard -135° to +135° range (270° total)"
+  - "All button groups are mutually exclusive (only one active at a time)"
+  - "Edge padding: 15px minimum maintained on all sides"
+  - "Control spacing: 10px minimum between adjacent controls"
+  - "Layout validation: PASSED (600×450px window, all controls within bounds)"
