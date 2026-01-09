@@ -10,6 +10,8 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
+#include <cmath>
 
 class OuariconSaturationModelingAudioProcessor : public juce::AudioProcessor
 {
@@ -44,6 +46,29 @@ public:
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // DSP Components (Phase 2.1: Oversampling + DIODE model)
+    // --------------------------------------------------------
+
+    // Oversampling system (3 quality levels)
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingLow;   // No oversampling (factor=1)
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingMid;   // 2x oversampling
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingHigh;  // 4x oversampling
+
+    juce::dsp::ProcessSpec spec;
+    int currentQuality = 1;  // Track current quality mode (0=LOW, 1=MID, 2=HIGH)
+
+    // DIODE model state (Newton-Raphson solver)
+    // Per-channel previous voltage (for warm start)
+    std::vector<float> diodePrevVoltage;
+
+    // DIODE model parameters (fixed, from architecture.md)
+    static constexpr float DIODE_IS = 2.52e-9f;   // Saturation current (1N914 typical)
+    static constexpr float DIODE_N = 1.752f;      // Ideality factor
+    static constexpr float DIODE_VT = 0.026f;     // Thermal voltage
+
+    // Helper functions
+    float processDiodeSample(float input, float intensity, int iterations, float& prevVoltage);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSaturationModelingAudioProcessor)
 };
