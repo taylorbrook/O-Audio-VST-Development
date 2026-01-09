@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ouaricon Saturation Modeling - UI Mockup v2</title>
+
+  <style>
+    /* ===== CRITICAL WEBVIEW CONSTRAINTS ===== */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Native application feel */
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+    }
+
+    /* ===== TEST HTML FRAME ===== */
+    .plugin-frame {
+      width: 600px;
+      height: 450px;
+      border: 2px solid #444;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ===== PLUGIN CONTAINER ===== */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+
+      /* V2: PAPER TEXTURE BACKGROUND - like OuariconTremolo */
+      background:
+        /* Fine crosshatch grain */
+        repeating-linear-gradient(0deg, rgba(0,0,0,.03) 0px, transparent 1px, transparent 2px, rgba(0,0,0,.03) 3px),
+        repeating-linear-gradient(90deg, rgba(0,0,0,.03) 0px, transparent 1px, transparent 2px, rgba(0,0,0,.03) 3px),
+        /* Paper fiber spots */
+        radial-gradient(ellipse at 20% 30%, rgba(139,115,85,0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 80% 70%, rgba(139,115,85,0.05) 0%, transparent 50%),
+        radial-gradient(ellipse at 50% 50%, rgba(139,115,85,0.03) 0%, transparent 60%),
+        /* Aged paper gradient */
+        linear-gradient(to bottom, #F5E6D3 0%, #EBD9C7 100%);
+    }
+
+    /* ===== DECORATIVE BORDERS ===== */
+    .border {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      border: 3px solid #8B7355;
+      pointer-events: none;
+      z-index: 100;
+    }
+
+    .divider {
+      position: absolute;
+      left: 20px;
+      right: 20px;
+      height: 1px;
+      background: rgba(139, 115, 85, 0.4);
+      pointer-events: none;
+      z-index: 10;
+    }
+
+    .divider.top { top: 47px; }
+    .divider.middle { top: 115px; }
+    .divider.bottom { top: 360px; }
+
+    /* ===== TITLE ===== */
+    .title {
+      position: absolute;
+      top: 28px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 20px;
+      font-weight: normal;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      letter-spacing: 3px;
+      z-index: 20;
+    }
+
+    /* ===== MODEL BUTTONS (centered row) ===== */
+    .model-buttons {
+      position: absolute;
+      top: 70px;
+      left: 70px;
+      display: flex;
+      gap: 10px;
+      z-index: 30;
+    }
+
+    .model-button {
+      width: 110px;
+      height: 30px;
+      background: rgba(139, 168, 112, 0.3);
+      border: 2px solid #3C5C1A;
+      border-radius: 5px;
+      color: #3C2F2F;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .model-button:last-child {
+      width: 100px;
+    }
+
+    .model-button:hover {
+      background: rgba(139, 168, 112, 0.5);
+    }
+
+    .model-button.active {
+      background: rgba(107, 142, 35, 0.6);
+      border-color: #2C3E10;
+      font-weight: bold;
+    }
+
+    /* ===== INTENSITY KNOB (V2: Enhanced 3D texture, positioned LEFT) ===== */
+    .knob-container {
+      position: absolute;
+      left: 175px;  /* V2: MOVED FURTHER LEFT */
+      top: 180px;
+      width: 90px;
+      height: 90px;
+      z-index: 40;
+    }
+
+    .knob {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      position: relative;
+      cursor: ns-resize;
+
+      /* V2: ENHANCED 3D TEXTURE */
+      background: radial-gradient(circle at 35% 35%, #F5DEB3, #E8D5B7 50%, #D8C5A7 100%);
+      border: 2px solid #8B7355;
+
+      /* Multiple layered inset shadows for depth */
+      box-shadow:
+        inset 0 -3px 6px rgba(0,0,0,0.3),
+        inset 0 3px 6px rgba(255,255,255,0.2),
+        inset -2px -2px 4px rgba(0,0,0,0.2),
+        inset 2px 2px 4px rgba(255,255,255,0.15),
+        /* Pronounced drop shadow for lift */
+        0 4px 8px rgba(0,0,0,0.4);
+
+      transform-origin: center center;
+      transition: transform 0.05s ease-out;
+    }
+
+    /* V2: Cross-hatch texture overlay */
+    .knob::before {
+      content: '';
+      position: absolute;
+      inset: 5px;
+      border-radius: 50%;
+      background:
+        repeating-linear-gradient(45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px),
+        repeating-linear-gradient(-45deg, transparent, transparent 2px, rgba(0,0,0,0.08) 2px, rgba(0,0,0,0.08) 4px);
+      opacity: 0.15;
+      pointer-events: none;
+    }
+
+    /* Bevel highlight */
+    .knob::after {
+      content: '';
+      position: absolute;
+      top: 3px;
+      left: 3px;
+      right: 40%;
+      bottom: 40%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, rgba(255,255,255,0.3), transparent 60%);
+      pointer-events: none;
+    }
+
+    /* Knob segments (10 radial sections) */
+    .knob-segments {
+      position: absolute;
+      inset: 10px;
+      border-radius: 50%;
+      background:
+        conic-gradient(
+          #F5DEB3 0deg 36deg,
+          #8B7355 36deg 38deg,
+          #E8D5B7 38deg 72deg,
+          #8B7355 72deg 74deg,
+          #F5DEB3 74deg 108deg,
+          #8B7355 108deg 110deg,
+          #E8D5B7 110deg 144deg,
+          #8B7355 144deg 146deg,
+          #F5DEB3 146deg 180deg,
+          #8B7355 180deg 182deg,
+          #E8D5B7 182deg 216deg,
+          #8B7355 216deg 218deg,
+          #F5DEB3 218deg 252deg,
+          #8B7355 252deg 254deg,
+          #E8D5B7 254deg 288deg,
+          #8B7355 288deg 290deg,
+          #F5DEB3 290deg 324deg,
+          #8B7355 324deg 326deg,
+          #E8D5B7 326deg 360deg
+        );
+      pointer-events: none;
+    }
+
+    /* Indicator dot */
+    .knob-indicator {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 6px;
+      height: 6px;
+      background: #3C2F2F;
+      border-radius: 50%;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.4);
+      pointer-events: none;
+    }
+
+    .knob-label {
+      position: absolute;
+      top: 115px;
+      left: 45px;
+      font-size: 11px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      pointer-events: none;
+      z-index: 20;
+    }
+
+    /* ===== VU METERS (V2: TOP-ORIENTED scales) ===== */
+    .vu-meter {
+      position: absolute;
+      width: 90px;
+      height: 90px;
+      z-index: 30;
+    }
+
+    .vu-meter.input { left: 55px; top: 170px; }
+    .vu-meter.output { left: 455px; top: 170px; }
+
+    .vu-face {
+      width: 100%;
+      height: 100%;
+      background: #FFF8E7;
+      border: 2px solid #8B7355;
+      border-radius: 5px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* V2: Scale labels along TOP arc */
+    .vu-scale {
+      position: absolute;
+      top: 8px;
+      left: 0;
+      right: 0;
+      height: 20px;
+      display: flex;
+      justify-content: space-between;
+      padding: 0 8px;
+      font-size: 7px;
+      color: #3C2F2F;
+      font-family: 'Garamond', serif;
+      pointer-events: none;
+    }
+
+    .vu-scale span {
+      display: inline-block;
+      text-align: center;
+    }
+
+    /* V2: Needle sweeps upward from bottom */
+    .vu-needle {
+      position: absolute;
+      bottom: 15px;
+      left: 50%;
+      width: 2px;
+      height: 40px;
+      background: #8B0000;
+      transform-origin: bottom center;
+      transform: translateX(-50%) rotate(-45deg);
+      transition: transform 0.1s ease-out;
+      pointer-events: none;
+      z-index: 5;
+    }
+
+    .vu-needle::before {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 5px;
+      height: 5px;
+      background: #8B0000;
+      border-radius: 50%;
+    }
+
+    .vu-label {
+      position: absolute;
+      bottom: 5px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 8px;
+      color: #3C2F2F;
+      font-weight: bold;
+      pointer-events: none;
+    }
+
+    /* ===== SNAKE OVERLAY (V2: MOVED FURTHER RIGHT) ===== */
+    .snake-overlay {
+      position: absolute;
+      left: 350px;  /* V2: MOVED FURTHER RIGHT */
+      top: 135px;
+      width: 235px;
+      height: 180px;
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.3;
+      mix-blend-mode: multiply;
+      filter: sepia(0.2);
+      pointer-events: none;
+      z-index: 5;
+      transition: opacity 0.3s ease;
+    }
+
+    .snake-overlay.magnetic {
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150"><text x="50%" y="50%" text-anchor="middle" font-size="12" fill="%233C2F2F">MAGNETIC SNAKE</text></svg>');
+    }
+
+    .snake-overlay.tube {
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150"><text x="50%" y="50%" text-anchor="middle" font-size="12" fill="%233C2F2F">TUBE SNAKE</text></svg>');
+    }
+
+    .snake-overlay.transformer {
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150"><text x="50%" y="50%" text-anchor="middle" font-size="12" fill="%233C2F2F">TRANSFORMER SNAKE</text></svg>');
+    }
+
+    .snake-overlay.diode {
+      background-image: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 150"><text x="50%" y="50%" text-anchor="middle" font-size="12" fill="%233C2F2F">DIODE SNAKE</text></svg>');
+    }
+
+    /* ===== QUALITY SECTION ===== */
+    .quality-label {
+      position: absolute;
+      left: 162px;
+      top: 375px;
+      font-size: 9px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      z-index: 20;
+    }
+
+    .quality-buttons {
+      position: absolute;
+      left: 50px;
+      top: 395px;
+      display: flex;
+      gap: 10px;
+      z-index: 30;
+    }
+
+    .quality-button {
+      width: 75px;
+      height: 28px;
+      background: rgba(139, 168, 112, 0.3);
+      border: 2px solid #3C5C1A;
+      border-radius: 4px;
+      color: #3C2F2F;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .quality-button:hover {
+      background: rgba(139, 168, 112, 0.5);
+    }
+
+    .quality-button.active {
+      background: rgba(107, 142, 35, 0.6);
+      border-color: #2C3E10;
+      font-weight: bold;
+    }
+
+    /* ===== AUTOGAIN TOGGLE ===== */
+    .autogain-toggle {
+      position: absolute;
+      left: 450px;
+      top: 395px;
+      width: 100px;
+      height: 28px;
+      background: rgba(139, 168, 112, 0.3);
+      border: 2px solid #3C5C1A;
+      border-radius: 4px;
+      color: #3C2F2F;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.6px;
+      cursor: pointer;
+      transition: all 0.15s ease;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      z-index: 30;
+    }
+
+    .autogain-toggle:hover {
+      background: rgba(139, 168, 112, 0.5);
+    }
+
+    .autogain-toggle.active {
+      background: rgba(107, 142, 35, 0.6);
+      border-color: #2C3E10;
+      font-weight: bold;
+    }
+
+    .autogain-toggle::after {
+      content: '❦';
+      font-size: 12px;
+      opacity: 0.7;
+    }
+
+    /* ===== DEBUG MONITOR ===== */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.9);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 10px 14px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 180px;
+      pointer-events: none;
+      z-index: 10000;
+      user-select: text;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 6px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+      margin-bottom: 3px;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-bottom: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Plugin frame (test HTML only) -->
+  <div class="plugin-frame">
+    <div class="container">
+      <!-- Decorative elements -->
+      <div class="border"></div>
+      <div class="divider top"></div>
+      <div class="divider middle"></div>
+      <div class="divider bottom"></div>
+
+      <!-- Title -->
+      <div class="title">OUARICON SATURATION</div>
+
+      <!-- Model selection buttons -->
+      <div class="model-buttons">
+        <button class="model-button active" data-model="0" data-param="MODEL">MAGNETIC</button>
+        <button class="model-button" data-model="1" data-param="MODEL">TUBE</button>
+        <button class="model-button" data-model="2" data-param="MODEL">TRANSFORMER</button>
+        <button class="model-button" data-model="3" data-param="MODEL">DIODE</button>
+      </div>
+
+      <!-- Input VU Meter -->
+      <div class="vu-meter input">
+        <div class="vu-face">
+          <div class="vu-scale">
+            <span>-20</span>
+            <span>-10</span>
+            <span>-7</span>
+            <span>-5</span>
+            <span>-3</span>
+            <span>0</span>
+            <span>+3</span>
+          </div>
+          <div class="vu-needle" id="inputNeedle"></div>
+          <div class="vu-label">IN</div>
+        </div>
+      </div>
+
+      <!-- Intensity knob (V2: Enhanced 3D, positioned LEFT) -->
+      <div class="knob-container">
+        <div class="knob" id="intensityKnob" data-param="INTENSITY">
+          <div class="knob-segments"></div>
+          <div class="knob-indicator"></div>
+        </div>
+        <div class="knob-label">INTENSITY</div>
+      </div>
+
+      <!-- Snake overlay (V2: positioned RIGHT) -->
+      <div class="snake-overlay magnetic" id="snakeOverlay"></div>
+
+      <!-- Output VU Meter -->
+      <div class="vu-meter output">
+        <div class="vu-face">
+          <div class="vu-scale">
+            <span>-20</span>
+            <span>-10</span>
+            <span>-7</span>
+            <span>-5</span>
+            <span>-3</span>
+            <span>0</span>
+            <span>+3</span>
+          </div>
+          <div class="vu-needle" id="outputNeedle"></div>
+          <div class="vu-label">OUT</div>
+        </div>
+      </div>
+
+      <!-- Quality section -->
+      <div class="quality-label">QUALITY</div>
+      <div class="quality-buttons">
+        <button class="quality-button" data-quality="0" data-param="QUALITY">LOW</button>
+        <button class="quality-button active" data-quality="1" data-param="QUALITY">MID</button>
+        <button class="quality-button" data-quality="2" data-param="QUALITY">HIGH</button>
+      </div>
+
+      <!-- Autogain toggle -->
+      <button class="autogain-toggle" id="autogainToggle" data-param="AUTOGAIN">AUTOGAIN</button>
+    </div>
+  </div>
+
+  <!-- Debug monitor -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // Mock JUCE backend for browser testing
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        getNormalisedValue: () => 0.5,
+        setNormalisedValue: (v) => console.log(`${id} set to ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        getValue: () => false,
+        setValue: (v) => console.log(`${id} toggled to ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getComboBoxState: (id) => ({
+        selectedId: 0,
+        getSelectedId: () => 0,
+        setSelectedId: (v) => console.log(`${id} selected ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // ===== STATE MANAGEMENT =====
+    let currentIntensity = 50; // 0-100
+    let currentModel = 0; // 0-3
+    let currentQuality = 1; // 0-2
+    let autogainEnabled = false;
+
+    // Debug monitor update
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      document.getElementById('debugValue').textContent = value;
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // ===== INTENSITY KNOB =====
+    const intensityKnob = document.getElementById('intensityKnob');
+    const snakeOverlay = document.getElementById('snakeOverlay');
+    let isDragging = false;
+    let startY = 0;
+    let startValue = 50;
+
+    intensityKnob.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      startY = e.clientY;
+      startValue = currentIntensity;
+      e.preventDefault();
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+
+      const deltaY = startY - e.clientY;
+      const sensitivity = 0.5;
+      const newValue = Math.max(0, Math.min(100, startValue + deltaY * sensitivity));
+
+      currentIntensity = newValue;
+      updateKnob(newValue);
+      updateSnakeOpacity(newValue);
+      updateDebugMonitor('INTENSITY', `${newValue.toFixed(0)}%`, newValue / 100);
+    });
+
+    document.addEventListener('mouseup', () => {
+      isDragging = false;
+    });
+
+    function updateKnob(value) {
+      const normalized = value / 100;
+      const degrees = -135 + (normalized * 270);
+      intensityKnob.style.transform = `rotate(${degrees}deg)`;
+    }
+
+    function updateSnakeOpacity(intensity) {
+      const normalized = intensity / 100;
+      const opacity = 0.1 + (normalized * 0.4); // 0.1 to 0.5
+      snakeOverlay.style.opacity = opacity;
+    }
+
+    // Initialize knob
+    updateKnob(currentIntensity);
+    updateSnakeOpacity(currentIntensity);
+
+    // ===== MODEL BUTTONS =====
+    const modelButtons = document.querySelectorAll('.model-button');
+    const snakeImages = {
+      0: 'magnetic',
+      1: 'tube',
+      2: 'transformer',
+      3: 'diode'
+    };
+
+    modelButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        modelButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const modelId = parseInt(btn.dataset.model);
+        currentModel = modelId;
+
+        // Update snake image
+        snakeOverlay.className = `snake-overlay ${snakeImages[modelId]}`;
+
+        updateDebugMonitor('MODEL', `${modelId} (${btn.textContent})`, modelId / 3);
+      });
+    });
+
+    // ===== QUALITY BUTTONS =====
+    const qualityButtons = document.querySelectorAll('.quality-button');
+
+    qualityButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        qualityButtons.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+
+        const qualityId = parseInt(btn.dataset.quality);
+        currentQuality = qualityId;
+
+        updateDebugMonitor('QUALITY', `${qualityId} (${btn.textContent})`, qualityId / 2);
+      });
+    });
+
+    // ===== AUTOGAIN TOGGLE =====
+    const autogainToggle = document.getElementById('autogainToggle');
+
+    autogainToggle.addEventListener('click', () => {
+      autogainEnabled = !autogainEnabled;
+      autogainToggle.classList.toggle('active', autogainEnabled);
+
+      updateDebugMonitor('AUTOGAIN', autogainEnabled ? 'ON' : 'OFF', autogainEnabled ? 1.0 : 0.0);
+    });
+
+    // ===== VU METERS (mock animation) =====
+    const inputNeedle = document.getElementById('inputNeedle');
+    const outputNeedle = document.getElementById('outputNeedle');
+
+    function animateVUMeters() {
+      // Mock signal: random levels with smooth decay
+      const inputLevel = -20 + Math.random() * 15; // -20dB to -5dB
+      const outputLevel = inputLevel + (currentIntensity / 100) * 8; // Add saturation gain
+
+      // Map dB to needle angle (-45deg to +45deg for -20dB to +3dB range)
+      const mapDBToAngle = (db) => {
+        const normalized = (db + 20) / 23; // -20dB=0, +3dB=1
+        return -45 + (normalized * 90);
+      };
+
+      inputNeedle.style.transform = `translateX(-50%) rotate(${mapDBToAngle(inputLevel)}deg)`;
+      outputNeedle.style.transform = `translateX(-50%) rotate(${mapDBToAngle(outputLevel)}deg)`;
+    }
+
+    // Animate VU meters at 16 FPS
+    setInterval(animateVUMeters, 60);
+
+    // Initial debug display
+    updateDebugMonitor('INTENSITY', `${currentIntensity}%`, currentIntensity / 100);
+
+    console.log('Ouaricon Saturation Modeling v2 - Test UI loaded');
+    console.log('V2 Refinements:');
+    console.log('- VU meters: TOP-oriented scales');
+    console.log('- Knob: FURTHER LEFT (x:175), enhanced 3D texture');
+    console.log('- Snake: FURTHER RIGHT (x:350), 85px separation');
+    console.log('- Background: Paper texture with CSS grain/noise');
+  </script>
+</body>
+</html>
