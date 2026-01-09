@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ouaricon Saturation Modeling - UI Mockup v1</title>
+  <title>Ouaricon Saturation - UI Mockup v1</title>
 
   <style>
     /* ========================================
@@ -73,10 +73,10 @@
     .title {
       position: absolute;
       left: 50%;
-      top: 35px;
+      top: 28px;
       transform: translateX(-50%);
       font-family: 'Garamond', 'Times New Roman', serif;
-      font-size: 24px;
+      font-size: 20px;
       font-weight: normal;
       color: #3C2F2F;
       text-transform: uppercase;
@@ -86,14 +86,26 @@
 
     .intensity-label {
       position: absolute;
-      left: 50%;
-      top: 280px;
+      left: 285px;
+      top: 295px;
       transform: translateX(-50%);
       font-family: 'Garamond', 'Times New Roman', serif;
       font-size: 11px;
       color: #3C2F2F;
       text-transform: uppercase;
       letter-spacing: 1.2px;
+    }
+
+    .quality-label {
+      position: absolute;
+      left: 162px;
+      top: 375px;
+      transform: translateX(-50%);
+      font-family: 'Garamond', 'Times New Roman', serif;
+      font-size: 9px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      letter-spacing: 1px;
     }
 
     /* ========================================
@@ -117,8 +129,8 @@
       pointer-events: none;
     }
 
-    .divider-top { top: 65px; }
-    .divider-middle { top: 125px; }
+    .divider-top { top: 47px; }
+    .divider-middle { top: 115px; }
     .divider-bottom { top: 360px; }
 
     /* ========================================
@@ -127,10 +139,10 @@
 
     .snake-overlay {
       position: absolute;
-      left: 155px;
-      top: 150px;
-      width: 290px;
-      height: 140px;
+      left: 185px;
+      top: 140px;
+      width: 330px;
+      height: 170px;
       pointer-events: none;
       z-index: 1;
       opacity: 0.3;
@@ -151,10 +163,10 @@
 
     .knob-container {
       position: absolute;
-      left: 265px;
-      top: 185px;
-      width: 75px;
-      height: 75px;
+      left: 240px;
+      top: 180px;
+      width: 90px;
+      height: 90px;
       z-index: 10;
     }
 
@@ -206,12 +218,12 @@
 
     .knob-indicator {
       position: absolute;
-      width: 6px;
-      height: 6px;
+      width: 7px;
+      height: 7px;
       background: #3C2F2F;
       border-radius: 50%;
       left: 50%;
-      top: 8px;
+      top: 10px;
       transform: translateX(-50%);
     }
 
@@ -245,24 +257,23 @@
       box-shadow: inset 0 2px 4px rgba(0,0,0,0.2);
     }
 
-    /* Model buttons */
+    /* Model buttons (centered) */
     .model-button {
-      top: 85px;
-      width: 110px;
+      top: 70px;
       height: 30px;
       border-radius: 5px;
       font-size: 11px;
       letter-spacing: 0.8px;
     }
 
-    #model-magnetic { left: 35px; }
-    #model-tube { left: 155px; }
-    #model-transformer { left: 275px; }
-    #model-diode { left: 395px; }
+    #model-magnetic { left: 70px; width: 110px; }
+    #model-tube { left: 190px; width: 110px; }
+    #model-transformer { left: 310px; width: 110px; }
+    #model-diode { left: 430px; width: 100px; }
 
     /* Quality buttons */
     .quality-button {
-      top: 380px;
+      top: 395px;
       width: 75px;
       height: 28px;
       border-radius: 4px;
@@ -274,12 +285,12 @@
     #quality-mid { left: 135px; }
     #quality-high { left: 220px; }
 
-    /* Auto-gain toggle */
+    /* Autogain toggle */
     #autogain {
       position: absolute;
-      left: 460px;
-      top: 380px;
-      width: 90px;
+      left: 450px;
+      top: 395px;
+      width: 100px;
       height: 28px;
       border-radius: 4px;
       font-size: 10px;
@@ -297,21 +308,21 @@
     }
 
     /* ========================================
-       VU Meters
+       VU Meters (Square)
        ======================================== */
 
     .vu-meter {
       position: absolute;
-      width: 45px;
-      height: 120px;
+      width: 90px;
+      height: 90px;
       background: #FFF8E7;
       border: 2px solid #8B7355;
       border-radius: 4px;
       overflow: hidden;
     }
 
-    #input-vu { left: 50px; top: 160px; }
-    #output-vu { left: 505px; top: 160px; }
+    #input-vu { left: 55px; top: 170px; }
+    #output-vu { left: 455px; top: 170px; }
 
     .vu-scale {
       width: 100%;
@@ -342,7 +353,7 @@
       left: 50%;
       bottom: 15px;
       width: 2px;
-      height: 50px;
+      height: 35px;
       background: #8B0000;
       transform-origin: bottom center;
       transform: translateX(-50%) rotate(0deg);
@@ -398,8 +409,8 @@
   <div class="plugin-frame">
     <div class="container">
 
-      <!-- Title -->
-      <div class="title">OUARICON SATURATION MODELING</div>
+      <!-- Title (single line) -->
+      <div class="title">OUARICON SATURATION</div>
 
       <!-- Decorative elements -->
       <div class="border"></div>
@@ -407,18 +418,18 @@
       <div class="divider divider-middle"></div>
       <div class="divider divider-bottom"></div>
 
-      <!-- Botanical snake overlay (dynamic based on MODEL) -->
+      <!-- Botanical snake overlay (larger, moved right) -->
       <div class="snake-overlay" id="snake-overlay">
         <img id="snake-image" src="" alt="" />
       </div>
 
-      <!-- Model selection buttons -->
+      <!-- Model selection buttons (centered) -->
       <button class="button model-button active" id="model-magnetic" data-param="MODEL" data-value="0">MAGNETIC</button>
       <button class="button model-button" id="model-tube" data-param="MODEL" data-value="1">TUBE</button>
       <button class="button model-button" id="model-transformer" data-param="MODEL" data-value="2">TRANSFORMER</button>
       <button class="button model-button" id="model-diode" data-param="MODEL" data-value="3">DIODE</button>
 
-      <!-- Intensity knob -->
+      <!-- Intensity knob (larger, moved left) -->
       <div class="knob-container">
         <div class="knob" id="intensity-knob" data-param="INTENSITY">
           <div class="knob-body">
@@ -441,7 +452,7 @@
 
       <div class="intensity-label">INTENSITY</div>
 
-      <!-- VU Meters -->
+      <!-- VU Meters (square) -->
       <div class="vu-meter" id="input-vu">
         <div class="vu-scale">
           <div class="vu-scale-mark" style="top: 10%;"></div>
@@ -478,13 +489,16 @@
         </div>
       </div>
 
+      <!-- Quality label -->
+      <div class="quality-label">QUALITY</div>
+
       <!-- Quality selection buttons -->
       <button class="button quality-button" id="quality-low" data-param="QUALITY" data-value="0">LOW</button>
       <button class="button quality-button active" id="quality-mid" data-param="QUALITY" data-value="1">MID</button>
       <button class="button quality-button" id="quality-high" data-param="QUALITY" data-value="2">HIGH</button>
 
-      <!-- Auto-gain toggle -->
-      <button class="button" id="autogain" data-param="AUTOGAIN">AUTO</button>
+      <!-- Autogain toggle -->
+      <button class="button" id="autogain" data-param="AUTOGAIN">AUTOGAIN</button>
 
     </div>
   </div>
@@ -677,7 +691,7 @@
       });
     });
 
-    // Auto-gain toggle
+    // Autogain toggle
     const autogainBtn = document.getElementById('autogain');
     autogainBtn.addEventListener('click', () => {
       paramState.AUTOGAIN = !paramState.AUTOGAIN;
@@ -717,7 +731,7 @@
     // ========================================
 
     document.addEventListener('DOMContentLoaded', () => {
-      console.log('[Mockup] Ouaricon Saturation Modeling v1 loaded');
+      console.log('[Mockup] Ouaricon Saturation v1 (refined) loaded');
       console.log('[Mockup] Default state:', paramState);
 
       // Initialize knob position
