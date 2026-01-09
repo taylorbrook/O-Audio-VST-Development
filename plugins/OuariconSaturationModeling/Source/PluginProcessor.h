@@ -77,9 +77,27 @@ private:
     // TRANSFORMER model parameters (fixed, from architecture.md)
     static constexpr float TRANSFORMER_CORE_SATURATION = 0.8f;  // Saturation threshold
 
+    // TUBE model components (Phase 2.3)
+    // ----------------------------------
+
+    // Frequency response filter (per-channel)
+    std::vector<juce::dsp::IIR::Filter<float>> tubePresenceFilters;  // 3kHz peak filter
+
+    // Per-channel previous plate voltage (for warm start)
+    std::vector<float> tubePrevPlateVoltage;
+
+    // TUBE model parameters (fixed, from architecture.md)
+    static constexpr float TUBE_MU = 100.0f;       // Amplification factor (12AX7 typical)
+    static constexpr float TUBE_KP = 600.0f;       // Plate coefficient
+    static constexpr float TUBE_EX = 1.4f;         // Plate current exponent
+    static constexpr float TUBE_KG1 = 1060.0f;     // Grid coefficient
+    static constexpr float TUBE_VSUPPLY = 250.0f;  // Plate supply voltage (fixed)
+    static constexpr float TUBE_RLOAD = 100000.0f; // Load resistance (100kΩ)
+
     // Helper functions
     float processDiodeSample(float input, float intensity, int iterations, float& prevVoltage);
     float processTransformerSample(float input, float intensity, int channel);
+    float processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSaturationModelingAudioProcessor)
 };

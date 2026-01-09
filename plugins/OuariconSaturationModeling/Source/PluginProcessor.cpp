@@ -120,6 +120,22 @@ void OuariconSaturationModelingAudioProcessor::prepareToPlay(double sampleRate, 
         transformerHFSheenFilters[ch].reset();
     }
 
+    // Initialize TUBE model filters (Phase 2.3)
+    tubePresenceFilters.resize(numChannels);
+    tubePrevPlateVoltage.resize(numChannels, TUBE_VSUPPLY * 0.5f);  // Initial guess: Vsupply/2
+
+    // Configure TUBE frequency response filter
+    // Presence boost: Peak filter at 3000Hz, Q=0.7, +1.5dB
+    auto presenceCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        sampleRate, 3000.0f, 0.7f, juce::Decibels::decibelsToGain(1.5f));
+
+    // Apply coefficients to all channels
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        *tubePresenceFilters[ch].coefficients = *presenceCoeffs;
+        tubePresenceFilters[ch].reset();
+    }
+
     // Get initial quality setting and report latency
     auto* qualityParam = parameters.getRawParameterValue("QUALITY");
     currentQuality = static_cast<int>(qualityParam->load());
@@ -149,6 +165,11 @@ void OuariconSaturationModelingAudioProcessor::releaseResources()
     for (auto& filter : transformerLFBumpFilters)
         filter.reset();
     for (auto& filter : transformerHFSheenFilters)
+        filter.reset();
+
+    // Reset TUBE model state (Phase 2.3)
+    std::fill(tubePrevPlateVoltage.begin(), tubePrevPlateVoltage.end(), TUBE_VSUPPLY * 0.5f);
+    for (auto& filter : tubePresenceFilters)
         filter.reset();
 }
 
@@ -195,7 +216,7 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
     // Phase 2.2: MODEL parameter routing implemented (DIODE=3, TRANSFORMER=2)
     // Phase 2.1: DIODE model (model=3)
     // Phase 2.2: TRANSFORMER model (model=2)
-    // TODO Phase 2.3: TUBE model (model=1)
+    // Phase 2.3: TUBE model (model=1)
     // TODO Phase 2.4: MAGNETIC model (model=0)
 
     // Determine iteration count based on quality (for DIODE model)
@@ -228,7 +249,12 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
                 {
                     channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
                 }
-                // else: Pass through (models 0, 1 not yet implemented)
+                else if (model == 1)  // TUBE
+                {
+                    float& prevPlateVoltage = tubePrevPlateVoltage[channel];
+                    channelData[sample] = processTubeSample(channelData[sample], intensity, iterations, channel, prevPlateVoltage);
+                }
+                // else: Pass through (model 0 not yet implemented)
             }
         }
     }
@@ -256,7 +282,12 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
                 {
                     channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
                 }
-                // else: Pass through (models 0, 1 not yet implemented)
+                else if (model == 1)  // TUBE
+                {
+                    float& prevPlateVoltage = tubePrevPlateVoltage[channel];
+                    channelData[sample] = processTubeSample(channelData[sample], intensity, iterations, channel, prevPlateVoltage);
+                }
+                // else: Pass through (model 0 not yet implemented)
             }
         }
 
@@ -287,7 +318,12 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
                 {
                     channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
                 }
-                // else: Pass through (models 0, 1 not yet implemented)
+                else if (model == 1)  // TUBE
+                {
+                    float& prevPlateVoltage = tubePrevPlateVoltage[channel];
+                    channelData[sample] = processTubeSample(channelData[sample], intensity, iterations, channel, prevPlateVoltage);
+                }
+                // else: Pass through (model 0 not yet implemented)
             }
         }
 
@@ -402,6 +438,112 @@ float OuariconSaturationModelingAudioProcessor::processTransformerSample(float i
     float hfProcessed = transformerHFSheenFilters[channel].processSample(lfProcessed);
 
     return hfProcessed;
+}
+
+// ============================================================================
+// TUBE Model Implementation (Koren Triode Equations) - Phase 2.3
+// ============================================================================
+
+float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage)
+{
+    // INTENSITY parameter mapping: Grid voltage Vg = -2.0 + (INTENSITY/100.0) * 4.0
+    // At 0%: Vg = -2.0V (cutoff, minimal conduction)
+    // At 50%: Vg = 0.0V (neutral bias)
+    // At 100%: Vg = +2.0V (maximum drive, heavy saturation)
+    const float Vg = -2.0f + (intensity / 100.0f) * 4.0f;
+
+    // Input signal maps to grid voltage modulation (AC component)
+    // Grid voltage = DC bias (Vg from INTENSITY) + AC signal (input)
+    const float gridVoltage = Vg + input;
+
+    // Newton-Raphson solver for plate voltage (Vp)
+    // Operating point equation: Vp = Vsupply - Ip * Rload
+    // Where Ip is calculated from Koren triode equations
+
+    // Use previous sample's plate voltage as initial guess (warm start)
+    float Vp = prevPlateVoltage;
+
+    // Newton-Raphson iterations (4/6/8 based on QUALITY parameter)
+    for (int iter = 0; iter < iterations; ++iter)
+    {
+        // Koren triode model: Calculate plate current Ip from Vp and Vg
+        // E1 = Vp/Kp * log(1 + exp(Kp * (1/mu + Vg/Vp)))
+        // Ip = (E1^Ex) / Kg1  if E1 > 0, else 0
+
+        // Prevent division by zero and negative arguments
+        if (Vp < 1e-6f)
+            Vp = 1e-6f;
+
+        // Calculate effective voltage E1
+        const float vpOverKp = Vp / TUBE_KP;
+        const float argument = TUBE_KP * ((1.0f / TUBE_MU) + (gridVoltage / Vp));
+
+        // Clamp exponential argument to prevent overflow
+        const float clampedArg = juce::jlimit(-30.0f, 30.0f, argument);
+        const float expTerm = std::exp(clampedArg);
+
+        const float E1 = vpOverKp * std::log(1.0f + expTerm);
+
+        // Calculate plate current
+        float Ip = 0.0f;
+        if (E1 > 0.0f)
+        {
+            Ip = std::pow(E1, TUBE_EX) / TUBE_KG1;
+        }
+
+        // Operating point error function: f(Vp) = Vp - (Vsupply - Ip * Rload)
+        const float f = Vp - (TUBE_VSUPPLY - Ip * TUBE_RLOAD);
+
+        // Calculate derivative numerically (finite difference)
+        // df/dVp = 1 + Rload * dIp/dVp
+        const float delta = 0.01f;  // Small perturbation
+        const float VpPlusDelta = Vp + delta;
+
+        // Recalculate E1 and Ip for perturbed Vp
+        const float vpOverKpDelta = VpPlusDelta / TUBE_KP;
+        const float argumentDelta = TUBE_KP * ((1.0f / TUBE_MU) + (gridVoltage / VpPlusDelta));
+        const float clampedArgDelta = juce::jlimit(-30.0f, 30.0f, argumentDelta);
+        const float expTermDelta = std::exp(clampedArgDelta);
+        const float E1Delta = vpOverKpDelta * std::log(1.0f + expTermDelta);
+
+        float IpDelta = 0.0f;
+        if (E1Delta > 0.0f)
+        {
+            IpDelta = std::pow(E1Delta, TUBE_EX) / TUBE_KG1;
+        }
+
+        // Numerical derivative
+        const float dIp_dVp = (IpDelta - Ip) / delta;
+        const float df = 1.0f + TUBE_RLOAD * dIp_dVp;
+
+        // Prevent division by zero
+        if (std::abs(df) < 1e-8f)
+            break;
+
+        // Newton-Raphson update: Vp_new = Vp - f(Vp) / f'(Vp)
+        Vp -= f / df;
+
+        // Clamp Vp to reasonable range (0 to Vsupply + 20%)
+        Vp = juce::jlimit(0.0f, TUBE_VSUPPLY * 1.2f, Vp);
+
+        // Denormal protection
+        if (std::abs(Vp) < 1e-8f)
+            Vp = 0.0f;
+    }
+
+    // Store plate voltage for next sample (warm start)
+    prevPlateVoltage = Vp;
+
+    // Output is deviation from DC operating point (AC component)
+    // DC operating point at neutral bias (Vg=0): ~Vsupply/2
+    // Output = (Vp - DC_operating_point) scaled to audio range
+    const float dcOperatingPoint = TUBE_VSUPPLY * 0.5f;
+    float output = (Vp - dcOperatingPoint) * 0.02f;  // Scale to ±1.0 range
+
+    // Apply presence filter (3kHz peak, Q=0.7, +1.5dB)
+    output = tubePresenceFilters[channel].processSample(output);
+
+    return output;
 }
 
 // Factory function
