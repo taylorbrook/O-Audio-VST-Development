@@ -1,0 +1,98 @@
+# ==============================================================================
+# WebView UI Resources - CMake Configuration Snippet
+#
+# TEMPLATE FILE - Generated from v4 UI mockup finalization
+#
+# This snippet should be APPENDED to plugins/OuariconSaturationModeling/CMakeLists.txt
+# during Stage 3 (GUI) integration.
+#
+# Generated: 2026-01-09
+# Plugin: OuariconSaturationModeling
+# Version: v4
+#
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Binary Data Embedding (UI Resources)
+# ------------------------------------------------------------------------------
+# Embeds HTML, JavaScript, CSS, and image files as binary data in the plugin
+# BinaryData header generated at build time with accessor functions
+#
+juce_add_binary_data(OuariconSaturationModeling_UIResources
+    SOURCES
+        # HTML (production index.html from v4-ui.html)
+        Source/ui/public/index.html
+
+        # JavaScript (JUCE WebView bridge - REQUIRED)
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+
+        # Images - Background
+        Source/ui/public/img/paper1.jpg
+
+        # Images - Snake Overlays (4 model-specific images)
+        Source/ui/public/img/snake_mobot31753000317195_0068.png
+        Source/ui/public/img/snake_mobot31753000317195_0070.png
+        Source/ui/public/img/snake_NA_0145.png
+        Source/ui/public/img/snake_snakesaustralia00kref_0145.png
+)
+
+# ------------------------------------------------------------------------------
+# Link UI Resources to Plugin Target
+# ------------------------------------------------------------------------------
+target_link_libraries(OuariconSaturationModeling
+    PRIVATE
+        OuariconSaturationModeling_UIResources  # Binary data with UI files
+        juce::juce_gui_extra                    # REQUIRED for WebBrowserComponent
+)
+
+# ------------------------------------------------------------------------------
+# WebView Compile Definitions
+# ------------------------------------------------------------------------------
+# JUCE_WEB_BROWSER=1 enables WebBrowserComponent
+# JUCE_USE_CURL=0 disables CURL (not needed for local HTML)
+#
+target_compile_definitions(OuariconSaturationModeling
+    PUBLIC
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_CURL=0
+)
+
+# ------------------------------------------------------------------------------
+# CRITICAL: Update juce_add_plugin with NEEDS_WEB_BROWSER flag
+# ------------------------------------------------------------------------------
+# Modify existing juce_add_plugin() call to include:
+#
+# juce_add_plugin(OuariconSaturationModeling
+#     COMPANY_NAME "Ouaricon Audio"
+#     PLUGIN_MANUFACTURER_CODE Ouar
+#     PLUGIN_CODE OuSM
+#     FORMATS VST3 AU Standalone
+#     PRODUCT_NAME "Ouaricon Saturation"
+#     NEEDS_WEB_BROWSER TRUE                  # <-- ADD THIS LINE
+#     # ... other existing options ...
+# )
+#
+# CRITICAL (JUCE 8 critical pattern #9):
+# - VST3 format REQUIRES NEEDS_WEB_BROWSER TRUE flag explicitly
+# - AU format works without it, but VST3 won't load in DAWs
+# - Missing flag causes silent failure (binary builds but doesn't scan)
+# ------------------------------------------------------------------------------
+
+# ==============================================================================
+# USAGE INSTRUCTIONS (for gui-agent)
+# ==============================================================================
+#
+# 1. Copy this snippet content to plugins/OuariconSaturationModeling/CMakeLists.txt
+#
+# 2. Append AFTER existing target_link_libraries() and target_compile_definitions()
+#
+# 3. Update existing juce_add_plugin() call to add NEEDS_WEB_BROWSER TRUE flag
+#
+# 4. Verify all Source/ui/public/ file paths exist before building
+#
+# 5. Run: cmake --build build --config Release --target OuariconSaturationModeling
+#
+# 6. Verify BinaryData.h generated in build artifacts with correct symbols
+#
+# ==============================================================================
