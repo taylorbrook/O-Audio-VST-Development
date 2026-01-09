@@ -96,6 +96,30 @@ void OuariconSaturationModelingAudioProcessor::prepareToPlay(double sampleRate, 
     // Initialize DIODE model state (per-channel previous voltage)
     diodePrevVoltage.resize(getTotalNumOutputChannels(), 0.0f);
 
+    // Initialize TRANSFORMER model filters (Phase 2.2)
+    const int numChannels = getTotalNumOutputChannels();
+    transformerLFBumpFilters.resize(numChannels);
+    transformerHFSheenFilters.resize(numChannels);
+
+    // Configure TRANSFORMER frequency response filters
+    // LF bump: Peak filter at 60Hz, Q=0.7, +2.0dB
+    auto lfBumpCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        sampleRate, 60.0f, 0.7f, juce::Decibels::decibelsToGain(2.0f));
+
+    // HF sheen: High shelf at 8000Hz, Q=0.7, +1.0dB
+    auto hfSheenCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+        sampleRate, 8000.0f, 0.7f, juce::Decibels::decibelsToGain(1.0f));
+
+    // Apply coefficients to all channels
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        *transformerLFBumpFilters[ch].coefficients = *lfBumpCoeffs;
+        *transformerHFSheenFilters[ch].coefficients = *hfSheenCoeffs;
+
+        transformerLFBumpFilters[ch].reset();
+        transformerHFSheenFilters[ch].reset();
+    }
+
     // Get initial quality setting and report latency
     auto* qualityParam = parameters.getRawParameterValue("QUALITY");
     currentQuality = static_cast<int>(qualityParam->load());
@@ -120,6 +144,12 @@ void OuariconSaturationModelingAudioProcessor::releaseResources()
 
     // Clear DIODE state
     std::fill(diodePrevVoltage.begin(), diodePrevVoltage.end(), 0.0f);
+
+    // Reset TRANSFORMER filters (Phase 2.2)
+    for (auto& filter : transformerLFBumpFilters)
+        filter.reset();
+    for (auto& filter : transformerHFSheenFilters)
+        filter.reset();
 }
 
 void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -135,10 +165,13 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
     auto* intensityParam = parameters.getRawParameterValue("INTENSITY");
     float intensity = intensityParam->load();  // 0.0-100.0
 
+    auto* modelParam = parameters.getRawParameterValue("MODEL");
+    int model = static_cast<int>(modelParam->load());  // 0=MAGNETIC, 1=TUBE, 2=TRANSFORMER, 3=DIODE
+
     auto* qualityParam = parameters.getRawParameterValue("QUALITY");
     int quality = static_cast<int>(qualityParam->load());  // 0=LOW, 1=MID, 2=HIGH
 
-    // Update latency if quality changed (Phase 2.1: Only check on quality change)
+    // Update latency if quality changed
     if (quality != currentQuality)
     {
         currentQuality = quality;
@@ -159,17 +192,20 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
             oversamplingHigh->reset();
     }
 
-    // Phase 2.1: Only DIODE model implemented
-    // MODEL parameter ignored for now (will be implemented in Phase 2.2)
+    // Phase 2.2: MODEL parameter routing implemented (DIODE=3, TRANSFORMER=2)
+    // Phase 2.1: DIODE model (model=3)
+    // Phase 2.2: TRANSFORMER model (model=2)
+    // TODO Phase 2.3: TUBE model (model=1)
+    // TODO Phase 2.4: MAGNETIC model (model=0)
 
-    // Determine iteration count based on quality
+    // Determine iteration count based on quality (for DIODE model)
     int iterations = 4;  // LOW quality
     if (quality == 1)
         iterations = 6;  // MID quality
     else if (quality == 2)
         iterations = 8;  // HIGH quality
 
-    // Processing chain: Input → Upsample → DIODE Saturation → Downsample → Output
+    // Processing chain: Input → Upsample → Saturation (model-specific) → Downsample → Output
     if (quality == 0)
     {
         // LOW quality: No oversampling (direct processing)
@@ -179,11 +215,20 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
         for (int channel = 0; channel < numChannels; ++channel)
         {
             auto* channelData = buffer.getWritePointer(channel);
-            float& prevVoltage = diodePrevVoltage[channel];
 
             for (int sample = 0; sample < numSamples; ++sample)
             {
-                channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                // Model routing switch
+                if (model == 3)  // DIODE
+                {
+                    float& prevVoltage = diodePrevVoltage[channel];
+                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                }
+                else if (model == 2)  // TRANSFORMER
+                {
+                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                }
+                // else: Pass through (models 0, 1 not yet implemented)
             }
         }
     }
@@ -198,11 +243,20 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
         for (int channel = 0; channel < numChannels; ++channel)
         {
             auto* channelData = oversampledBlock.getChannelPointer(channel);
-            float& prevVoltage = diodePrevVoltage[channel];
 
             for (int sample = 0; sample < numSamples; ++sample)
             {
-                channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                // Model routing switch
+                if (model == 3)  // DIODE
+                {
+                    float& prevVoltage = diodePrevVoltage[channel];
+                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                }
+                else if (model == 2)  // TRANSFORMER
+                {
+                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                }
+                // else: Pass through (models 0, 1 not yet implemented)
             }
         }
 
@@ -220,11 +274,20 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
         for (int channel = 0; channel < numChannels; ++channel)
         {
             auto* channelData = oversampledBlock.getChannelPointer(channel);
-            float& prevVoltage = diodePrevVoltage[channel];
 
             for (int sample = 0; sample < numSamples; ++sample)
             {
-                channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                // Model routing switch
+                if (model == 3)  // DIODE
+                {
+                    float& prevVoltage = diodePrevVoltage[channel];
+                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                }
+                else if (model == 2)  // TRANSFORMER
+                {
+                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                }
+                // else: Pass through (models 0, 1 not yet implemented)
             }
         }
 
@@ -308,6 +371,37 @@ float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, 
     prevVoltage = v;
 
     return v;
+}
+
+// ============================================================================
+// TRANSFORMER Model Implementation (Phase 2.2)
+// ============================================================================
+
+float OuariconSaturationModelingAudioProcessor::processTransformerSample(float input, float intensity, int channel)
+{
+    // INTENSITY parameter mapping: Input gain = 1.0 + (INTENSITY/100.0) * 5.0
+    // At 0%: gain = 1.0 (unity gain, minimal saturation)
+    // At 100%: gain = 6.0 (maximum drive into saturation)
+    const float intensityGain = 1.0f + (intensity / 100.0f) * 5.0f;
+
+    // Apply input gain
+    float driven = input * intensityGain;
+
+    // Core saturation: Soft tanh-based saturation
+    // Formula: output = threshold * tanh(input / threshold)
+    // Threshold = 0.8 (from architecture.md)
+    float saturated = TRANSFORMER_CORE_SATURATION * std::tanh(driven / TRANSFORMER_CORE_SATURATION);
+
+    // Apply frequency response filters
+    // Processing order: Saturation → LF bump → HF sheen
+
+    // LF bump filter (60Hz peak, Q=0.7, +2.0dB)
+    float lfProcessed = transformerLFBumpFilters[channel].processSample(saturated);
+
+    // HF sheen filter (8kHz high shelf, +1.0dB)
+    float hfProcessed = transformerHFSheenFilters[channel].processSample(lfProcessed);
+
+    return hfProcessed;
 }
 
 // Factory function

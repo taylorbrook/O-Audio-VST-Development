@@ -67,8 +67,19 @@ private:
     static constexpr float DIODE_N = 1.752f;      // Ideality factor
     static constexpr float DIODE_VT = 0.026f;     // Thermal voltage
 
+    // TRANSFORMER model components (Phase 2.2)
+    // -----------------------------------------
+
+    // Frequency response filters (per-channel)
+    std::vector<juce::dsp::IIR::Filter<float>> transformerLFBumpFilters;   // 60Hz peak filter
+    std::vector<juce::dsp::IIR::Filter<float>> transformerHFSheenFilters;  // 8kHz high shelf
+
+    // TRANSFORMER model parameters (fixed, from architecture.md)
+    static constexpr float TRANSFORMER_CORE_SATURATION = 0.8f;  // Saturation threshold
+
     // Helper functions
     float processDiodeSample(float input, float intensity, int iterations, float& prevVoltage);
+    float processTransformerSample(float input, float intensity, int channel);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSaturationModelingAudioProcessor)
 };
