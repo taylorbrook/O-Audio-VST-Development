@@ -73,5 +73,5 @@ Designed for adding excitement to musical elements like pianos, guitars, flutes,
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream FlutterVerb` → option 3)
+- [ ] Create UI mockup (`/start FlutterVerb` → option 3)
 - [ ] Start implementation (`/implement FlutterVerb`)

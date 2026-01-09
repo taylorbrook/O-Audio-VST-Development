@@ -56,5 +56,5 @@ Inspired by Mutable Instruments Clouds/Beads, but focused on the delay paradigm 
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream AngelGrain` → option 3)
+- [ ] Create UI mockup (`/start AngelGrain` → option 3)
 - [ ] Start implementation (`/implement AngelGrain`)

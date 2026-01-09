@@ -133,5 +133,5 @@ The sonic goal is to create pads that sound complete without external effects—
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream PadForge` → option 3)
+- [ ] Create UI mockup (`/start PadForge` → option 3)
 - [ ] Start implementation (`/implement PadForge`)

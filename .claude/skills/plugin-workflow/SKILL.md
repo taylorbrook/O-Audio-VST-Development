@@ -58,7 +58,7 @@ Before starting Stage 1, verify these contract files exist:
 - `plugins/$PLUGIN_NAME/.ideas/parameter-spec.md` (from UI mockup finalization)
 
 **If parameter-spec-draft.md exists but parameter-spec.md missing:**
-Block with message: "Draft parameters found, but full specification required. Complete UI mockup workflow to generate parameter-spec.md. Run: /dream [PluginName] → option 2 (Full UI mockup first)"
+Block with message: "Draft parameters found, but full specification required. Complete UI mockup workflow to generate parameter-spec.md. Run: /start [PluginName] → option 2 (Full UI mockup first)"
 
 **If contracts missing:**
 Block and instruct user to run `/plan [PluginName]` to complete Stage 0.

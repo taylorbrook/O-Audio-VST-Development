@@ -131,5 +131,5 @@ TAPE AGE is a vintage tape saturator that captures the warmth and character of 6
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream TapeAge` → option 3)
+- [ ] Create UI mockup (`/start TapeAge` → option 3)
 - [ ] Start implementation (`/implement TapeAge`)

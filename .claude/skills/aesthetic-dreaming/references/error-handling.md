@@ -166,7 +166,7 @@
 
 **Handling:**
 - Log error: "PLUGINS.md not found at [path]"
-- Report to user: "No plugins found. Create a plugin first with /dream or /plan"
+- Report to user: "No plugins found. Create a plugin first with /start or /plan"
 - Return to decision menu with Option 4 disabled
 
 ### Error: ui-mockup skill not available for Option 4

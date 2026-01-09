@@ -23,6 +23,6 @@ Full specification will be generated from finalized UI mockup.
 
 ## Next Steps
 
-- [ ] Complete UI mockup workflow (/dream → option 3)
+- [ ] Complete UI mockup workflow (/start → option 3)
 - [ ] Finalize design and generate full parameter-spec.md
 - [ ] Validate consistency between draft and final spec

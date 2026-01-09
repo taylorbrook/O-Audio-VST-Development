@@ -19,7 +19,7 @@ argument-hint: "[PluginName]"
     <on_failure action="BLOCK">
       Display error: "[PluginName] not found in PLUGINS.md.
 
-      Run /dream to create a new plugin idea first."
+      Run /start to create a new plugin idea first."
     </on_failure>
   </check>
 

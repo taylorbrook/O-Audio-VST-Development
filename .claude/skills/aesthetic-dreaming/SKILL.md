@@ -259,7 +259,7 @@ MUST use inline numbered list format (NOT AskUserQuestion tool) per CLAUDE.md ch
 <workflow_mode_check>
 Before presenting decision menu:
 1. Read .claude/preferences.json to check workflow.mode setting
-2. IF mode === "express" AND skill was NOT explicitly invoked via /dream command:
+2. IF mode === "express" AND skill was NOT explicitly invoked via /start command:
    - Skip decision menu
    - Exit skill gracefully with completion message
 3. ELSE:

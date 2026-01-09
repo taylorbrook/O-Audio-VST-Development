@@ -22,7 +22,7 @@
 ```bash
 if [ ! -f "plugins/${PLUGIN_NAME}/.ideas/creative-brief.md" ]; then
     echo "✗ creative-brief.md not found"
-    echo "Run /dream ${PLUGIN_NAME} first"
+    echo "Run /start ${PLUGIN_NAME} first"
     exit 1
 fi
 ```

@@ -276,7 +276,7 @@ Status changed: [Previous] → 💡 Ideated
 Next steps:
 1. Review mockups and parameter spec
 2. Run /implement [PluginName] to start fresh from Stage 0
-3. Or modify creative brief and re-run /dream
+3. Or modify creative brief and re-run /start
 ```
 
 ## Recovery Instructions

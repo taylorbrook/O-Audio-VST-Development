@@ -152,7 +152,7 @@ Wait for confirmation, then resume workflow at exact continuation point.
 IF no handoff exists for any plugin:
 - Display: "No resumable work found"
 - Explain: Handoffs created after ideation, mockup, during implementation, or after improvements
-- Suggest: `/dream` (explore ideas) or `/implement` (build new plugin)
+- Suggest: `/start` (explore ideas) or `/implement` (build new plugin)
 
 IF specific [PluginName] doesn't have handoff:
 - Display: "[PluginName] doesn't have a handoff file"

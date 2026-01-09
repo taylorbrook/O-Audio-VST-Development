@@ -64,7 +64,7 @@ drift. These contracts are the single source of truth.
 HOW TO UNBLOCK:
 
 1. parameter-spec.md: Complete ui-mockup two-phase workflow
-   - Run: /dream [PluginName]
+   - Run: /start [PluginName]
    - Choose: "Create UI mockup"
    - Design UI and finalize (Phase 4.5)
    - Finalization generates parameter-spec.md

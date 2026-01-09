@@ -861,7 +861,7 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
     "Contract violation: creative-brief.md not found",
     "Required for: Feature extraction and plugin type determination",
     "Stage 0 cannot proceed without creative brief from ideation",
-    "Run /dream [PluginName] first to create creative brief"
+    "Run /start [PluginName] first to create creative brief"
   ],
   "ready_for_next_stage": false
 }
@@ -885,7 +885,7 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
     "Contract violation: creative-brief.md not found",
     "Required for: Feature extraction and plugin type determination",
     "Stage 0 cannot proceed without complete contracts from ideation",
-    "Run /dream [PluginName] first to create creative brief and parameters"
+    "Run /start [PluginName] first to create creative brief and parameters"
   ],
   "ready_for_next_stage": false
 }

@@ -30,7 +30,7 @@ The skill will:
 
   <rationale>
     This command validates and installs system dependencies, so it cannot have dependency preconditions.
-    Should be run BEFORE any plugin development commands (/dream, /plan, /implement).
+    Should be run BEFORE any plugin development commands (/start, /plan, /implement).
   </rationale>
 </preconditions>
 

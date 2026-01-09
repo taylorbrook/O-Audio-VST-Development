@@ -1,0 +1,44 @@
+{
+  "id": "ouaricon-naturalist-001",
+  "name": "Ouaricon Audio Naturalist",
+  "description": "Official Ouaricon Audio brand aesthetic - vintage hardware look with classical naturalist design. Each plugin features a unique vintage naturalist illustration (flora, fauna, anatomy, insects, ocean creatures, skeletons) on aged paper with elegant serif typography and botanical seed cross-section knobs",
+  "sourcePlugin": "OuariconTremolo",
+  "created": "2026-01-08T00:00:00Z",
+  "version": "1.0.0",
+  "status": "official-brand",
+  "tags": [
+    "ouaricon",
+    "brand",
+    "official",
+    "naturalist",
+    "botanical",
+    "vintage",
+    "classical",
+    "elegant",
+    "warm",
+    "earth-tones",
+    "scientific-illustration",
+    "serif",
+    "organic"
+  ],
+  "appliedTo": [
+    "OuariconTremolo"
+  ],
+  "colorPalette": {
+    "primary": "#F5E6D3",
+    "accent": "#6B8E4E",
+    "text": "#3C2F2F",
+    "border": "#8B7355"
+  },
+  "typography": {
+    "family": "Garamond, Times New Roman, serif",
+    "style": "classical-serif"
+  },
+  "signature Elements": [
+    "Botanical illustration overlay",
+    "Seed cross-section knobs",
+    "Aged paper textures",
+    "Fleuron decorations",
+    "Wide letter-spacing"
+  ]
+}

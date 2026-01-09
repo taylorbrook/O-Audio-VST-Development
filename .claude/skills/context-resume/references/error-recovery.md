@@ -58,7 +58,7 @@ Choose (1-5): _
 This plugin may not exist yet or was never registered.
 
 Options:
-1. Create new plugin with this name (/dream [PluginName])
+1. Create new plugin with this name (/start [PluginName])
 2. List all existing plugins
 3. Check if directory exists but not registered
 4. Other

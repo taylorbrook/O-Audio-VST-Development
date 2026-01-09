@@ -273,7 +273,7 @@ See `references/versioning.md` for file management details.
 
 <integration_points>
 <invoked_by>
-- `/dream` command - After creative brief, before implementation
+- `/start` command - After creative brief, before implementation
 - `plugin-workflow` skill - During Stage 0 (UI design phase)
 - `plugin-improve` skill - When redesigning existing plugin UI
 - Natural language: "Design UI for [PluginName]", "Create mockup for compressor"

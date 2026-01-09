@@ -176,5 +176,5 @@ Save/load projects preserve:
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream Words` → option 3)
+- [ ] Create UI mockup (`/start Words` → option 3)
 - [ ] Start implementation (`/implement Words`)

@@ -1,10 +1,10 @@
 ---
-name: dream
+name: start
 description: Explore plugin ideas without implementing
 argument-hint: "[concept or PluginName?]"
 ---
 
-# /dream
+# /start
 
 ## Behavior
 
@@ -72,7 +72,7 @@ argument-hint: "[concept or PluginName?]"
 ## Output
 
 <output_contract>
-  All /dream operations create documentation only - no implementation.
+  All /start operations create documentation only - no implementation.
 
   Output locations managed by invoked skills:
   - plugin-ideation → `plugins/[Name]/.ideas/creative-brief.md`

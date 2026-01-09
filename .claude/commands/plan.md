@@ -44,7 +44,7 @@ When user runs `/plan [PluginName?]`, invoke the plugin-planning skill to handle
       Planning requires a creative brief to define plugin vision.
 
       Would you like to:
-      1. Create one now (/dream [PluginName])
+      1. Create one now (/start [PluginName])
       2. Skip planning (not recommended - leads to implementation drift)"
 
       WAIT for user response. Do NOT invoke plugin-planning skill until contract exists.
@@ -61,7 +61,7 @@ When user runs `/plan [PluginName?]`, invoke the plugin-planning skill to handle
       ELSE:
         1. List plugins with status: 💡 Ideated, 🚧 Stage 0
         2. Present numbered menu of eligible plugins
-        3. Offer to create new plugin via /dream
+        3. Offer to create new plugin via /start
     </condition>
   </routing_logic>
 </behavior>
@@ -95,7 +95,7 @@ After Stage 0 completes, the skill creates handoff state:
 ## Workflow Integration
 
 Complete plugin development flow:
-1. `/dream [PluginName]` - Create creative brief + UI mockup
+1. `/start [PluginName]` - Create creative brief + UI mockup
 2. `/plan [PluginName]` - Research and planning (Stage 0 - consolidated)
 3. `/implement [PluginName]` - Build plugin (Stages 1-3)
 

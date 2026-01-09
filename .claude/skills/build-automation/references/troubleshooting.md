@@ -20,7 +20,7 @@
 **Fix:**
 1. Verify plugin exists: `ls plugins/`
 2. Check exact name (case-sensitive)
-3. If missing, run `/dream` and `/implement` first
+3. If missing, run `/start` and `/implement` first
 
 ## CMakeLists.txt missing
 

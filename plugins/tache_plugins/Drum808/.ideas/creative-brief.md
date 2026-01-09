@@ -152,5 +152,5 @@ The synthesis engine faithfully recreates the analog circuits of each drum voice
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream Drum808` → option 3)
+- [ ] Create UI mockup (`/start Drum808` → option 3)
 - [ ] Start implementation (`/implement Drum808`)

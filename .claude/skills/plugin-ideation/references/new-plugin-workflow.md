@@ -225,7 +225,7 @@ Examples:
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream [PluginName]` → option 3)
+- [ ] Create UI mockup (`/start [PluginName]` → option 3)
 - [ ] Start implementation (`/implement [PluginName]`)
 ```
 

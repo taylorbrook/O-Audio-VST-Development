@@ -114,5 +114,5 @@ Avoid simple Schroeder reverb if it lacks the desired character—prioritize sou
 ## Next Steps
 
 - [ ] Research reverb algorithms (multi-tap delay network, velvet noise, hybrid approaches)
-- [x] Create UI mockup (`/dream LushVerb` → option 3) - v3 finalized
+- [x] Create UI mockup (`/start LushVerb` → option 3) - v3 finalized
 - [ ] Start implementation (`/implement LushVerb`)

@@ -73,5 +73,5 @@ During UI mockup iteration (v1-v5), the aesthetic evolved from the initially pro
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream AutoClip` → option 3)
+- [ ] Create UI mockup (`/start AutoClip` → option 3)
 - [ ] Start implementation (`/implement AutoClip`)

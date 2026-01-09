@@ -7,7 +7,7 @@
 ### Phase 1: Creative Brief Creation
 
 ```
-User: /dream
+User: /start
 System: What would you like to build?
 
 User: A simple compressor with threshold, ratio, attack, and release controls.
@@ -84,7 +84,7 @@ System: [Stage 0 completes - creates architecture.md]
 
 **Session 2 - UI Mockup (parallel):**
 ```
-User: /dream SimpleComp
+User: /start SimpleComp
 System: [ui-mockup skill]
 System: [Phase 0-5 - design iteration]
 User: [Finalize mockup]
@@ -125,7 +125,7 @@ System: ✗ Draft parameters found, but full specification required for implemen
 
 Next step: Complete UI mockup workflow to generate parameter-spec.md
 
-Run: /dream SimpleComp → option 2
+Run: /start SimpleComp → option 2
 ```
 
 **Test Case 2: Full spec exists (should PROCEED)**

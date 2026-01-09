@@ -75,8 +75,8 @@ elif [ -f "plugins/${PLUGIN_NAME}/.ideas/parameter-spec-draft.md" ]; then
 else
     echo "✗ No parameter specification found - SKILL BLOCKED"
     echo "Either:"
-    echo "  1. Run quick parameter capture (/dream → option 1)"
-    echo "  2. Create UI mockup first (/dream → option 2)"
+    echo "  1. Run quick parameter capture (/start → option 1)"
+    echo "  2. Create UI mockup first (/start → option 2)"
     echo "  3. Manually create parameter-spec.md or parameter-spec-draft.md"
     exit 1
 fi

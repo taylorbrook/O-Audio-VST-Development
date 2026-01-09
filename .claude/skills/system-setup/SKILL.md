@@ -354,7 +354,7 @@ Configuration saved to:
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 What's next?
-1. Create your first plugin (/dream)
+1. Create your first plugin (/start)
 2. View available commands (type /? or press Tab)
 3. Read the documentation (@README.md)
 4. Run system check again (/setup)

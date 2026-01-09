@@ -159,7 +159,7 @@ None - All known issues resolved in v1.0.1
 
 ## Current Design Status
 
-**Phase**: Refinement (still in `/dream` stage)
+**Phase**: Refinement (still in `/start` stage)
 **Mockup Status**: Finalized - Bakelite Radio style selected
 **Next Action Options**:
 1. Continue refining UI design (if needed)

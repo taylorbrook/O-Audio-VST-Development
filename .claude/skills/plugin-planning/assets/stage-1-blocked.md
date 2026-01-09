@@ -18,7 +18,7 @@ Stage 1 planning requires complete specifications to prevent implementation drif
 ## How to Unblock
 
 1. **parameter-spec.md**: Complete ui-mockup two-phase workflow
-   - Run: `/dream ${PLUGIN_NAME}`
+   - Run: `/start ${PLUGIN_NAME}`
    - Choose: "Create UI mockup"
    - Design UI and finalize (Phase 4.5)
    - Finalization generates parameter-spec.md

@@ -79,7 +79,7 @@ When user runs `/implement [PluginName?]`, invoke the plugin-workflow skill to b
            - Completes Stage 0 (Planning) → plan.md
 
         2. If parameter-spec.md missing:
-           - Run: /dream [PluginName]
+           - Run: /start [PluginName]
            - Create and finalize UI mockup
            - Finalization generates parameter-spec.md
 
@@ -283,7 +283,7 @@ Resume with `/continue [PluginName]`
 ## Workflow Integration
 
 Complete plugin development flow:
-1. `/dream [PluginName]` - Creative brief + UI mockup
+1. `/start [PluginName]` - Creative brief + UI mockup
 2. `/plan [PluginName]` - Research and planning (Stage 0)
 3. `/implement [PluginName]` - Build plugin (Stages 1-3)
 4. `/install-plugin [PluginName]` - Deploy to system folders

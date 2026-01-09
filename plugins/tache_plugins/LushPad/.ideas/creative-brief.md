@@ -103,5 +103,5 @@ The result is a lush, spacious pad that feels alive - perfect for background atm
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream LushPad` → option 3)
+- [ ] Create UI mockup (`/start LushPad` → option 3)
 - [ ] Start implementation (`/implement LushPad`)

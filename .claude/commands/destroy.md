@@ -19,7 +19,7 @@ argument-hint: "[PluginName]"
   </check>
   <check target="PLUGINS.md" condition="plugin_exists">
     Plugin entry for $1 MUST exist in PLUGINS.md
-    Run /dream to create new plugins
+    Run /start to create new plugins
   </check>
   <check target="status" condition="not_equal(🚧)">
     Plugin status MUST NOT be 🚧 In Progress

@@ -19,7 +19,7 @@ All plugins compile to native VST3/AU formats compatible with any DAW (Ableton, 
 
 ## How It Works
 
-### 1. Dream (`/dream`)
+### 1. Start (`/start`)
 
 Brainstorm your plugin concept through conversation:
 - **Creative brief** - Vision, sonic goals, UX principles
@@ -196,8 +196,8 @@ MCPs active and suggested:
 ### Create Your First Plugin
 
 ```bash
-# 1. Dream the concept
-/dream
+# 1. Start the concept
+/start
 
 # Brainstorm your plugin idea through conversation
 # Creates: creative brief, parameter spec, UI mockups
@@ -249,7 +249,7 @@ MCPs active and suggested:
 
 ### Development Workflow
 
-- `/dream` - Brainstorm concept, create creative brief, parameter spec, and UI mockups
+- `/start` - Brainstorm concept, create creative brief, parameter spec, and UI mockups
 - `/plan` - Research and design DSP architecture and implementation strategy
 - `/implement [Name]` - Build plugin through automated 3-stage workflow with continuous validation
 - `/continue [Name]` - Resume paused workflow
@@ -414,4 +414,4 @@ Built with:
 
 ---
 
-**Start building**: `/dream`
+**Start building**: `/start`

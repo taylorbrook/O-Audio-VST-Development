@@ -462,7 +462,7 @@ After JUCE is installed and validated:
 
 1. Run `/setup` to configure the system
 2. System will detect JUCE and save path to `system-config.json`
-3. Create your first plugin with `/dream`
+3. Create your first plugin with `/start`
 4. Build system will automatically use configured JUCE path
 
 ---

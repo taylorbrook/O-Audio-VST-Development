@@ -49,7 +49,7 @@ Choose (1-5): _
 
 What's next?
 1. Test in DAW (recommended) → Load in Logic/Ableton/Reaper
-2. Create another plugin → /dream
+2. Create another plugin → /start
 3. Document this plugin → Create user guide/manual
 4. Share plugin (export build) → Future: Package for distribution
 5. Other
@@ -71,7 +71,7 @@ Choose (1-5): _
 
 What's next?
 1. Rebuild plugin → /continue [PluginName]
-2. Create new plugin → /dream
+2. Create new plugin → /start
 3. View uninstallation summary → Show paths removed
 4. Other
 
@@ -86,7 +86,7 @@ Choose (1-4): _
 What's next?
 1. Re-implement from Stage 0 → /plan [PluginName]
 2. Modify creative brief → Edit .ideas/creative-brief.md
-3. Create new plugin instead → /dream
+3. Create new plugin instead → /start
 4. Other
 
 Choose (1-4): _
@@ -99,7 +99,7 @@ Choose (1-4): _
 
 What's next?
 1. Verify backup → Show backup location and contents
-2. Create new plugin → /dream
+2. Create new plugin → /start
 3. Restore from backup → Instructions for restore
 4. Other
 

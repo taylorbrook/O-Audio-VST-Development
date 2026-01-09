@@ -80,5 +80,5 @@ Velocity affects both volume and tone brightness. This behavior is always enable
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream OrganicHats` → option 3)
+- [ ] Create UI mockup (`/start OrganicHats` → option 3)
 - [ ] Start implementation (`/implement OrganicHats`)

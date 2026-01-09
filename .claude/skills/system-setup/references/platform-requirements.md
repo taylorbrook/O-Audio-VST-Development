@@ -463,4 +463,4 @@ After all dependencies are installed:
 
 1. Run `/setup` to validate and configure the system
 2. Review system report to confirm all dependencies are ready
-3. Create your first plugin with `/dream`
+3. Create your first plugin with `/start`

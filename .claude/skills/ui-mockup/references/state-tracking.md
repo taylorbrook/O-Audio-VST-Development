@@ -15,7 +15,7 @@ Check for workflow vs standalone mode before any state operation:
 
 **Standalone Mode:**
 - No `.continue-here.md` file present
-- Invoked directly via natural language or /dream
+- Invoked directly via natural language or /start
 - Actions: Skip all state updates, generate mockups independently
 
 ## State Schema

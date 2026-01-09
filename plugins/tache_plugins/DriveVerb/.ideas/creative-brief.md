@@ -83,5 +83,5 @@ Primary use case is adding aggressive, characterful reverb to sources where stan
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream DriveVerb` → option 3)
+- [ ] Create UI mockup (`/start DriveVerb` → option 3)
 - [ ] Start implementation (`/implement DriveVerb`)

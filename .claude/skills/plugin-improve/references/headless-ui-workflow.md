@@ -353,7 +353,7 @@ Choose (1-5): _
 - **Option 1:** Display DAW testing instructions, wait
 - **Option 2:** Provide UI refinement instructions
 - **Option 3:** Re-run /improve (normal mode, not headless)
-- **Option 4:** Suggest `/dream` or `/implement`
+- **Option 4:** Suggest `/start` or `/implement`
 - **Option 5:** Ask what they'd like to do
 
 **DAW testing instructions (Option 1):**

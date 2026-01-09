@@ -6,7 +6,7 @@ This document defines how aesthetic-dreaming integrates with other skills in the
 
 ## Invoked By
 
-- /dream command (option: "Create aesthetic template")
+- /start command (option: "Create aesthetic template")
 - Natural language: "Create aesthetic template", "Design visual system"
 - Direct skill invocation: Skill("aesthetic-dreaming")
 

@@ -44,5 +44,5 @@ A minimalist gain utility plugin featuring a single large knob for volume contro
 
 ## Next Steps
 
-- [ ] Create UI mockup (`/dream GainKnob` → option 3)
+- [ ] Create UI mockup (`/start GainKnob` → option 3)
 - [ ] Start implementation (`/implement GainKnob`)
