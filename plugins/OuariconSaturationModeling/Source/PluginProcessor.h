@@ -94,10 +94,40 @@ private:
     static constexpr float TUBE_VSUPPLY = 250.0f;  // Plate supply voltage (fixed)
     static constexpr float TUBE_RLOAD = 100000.0f; // Load resistance (100kΩ)
 
+    // MAGNETIC model components (Phase 2.4)
+    // --------------------------------------
+
+    // Frequency response filters (per-channel)
+    std::vector<juce::dsp::IIR::Filter<float>> magneticHeadBumpFilters;   // 80Hz peak filter
+    std::vector<juce::dsp::IIR::Filter<float>> magneticHFRolloffFilters;  // 12kHz lowpass
+
+    // Per-channel state variables (Jiles-Atherton hysteresis)
+    std::vector<float> magneticM;       // Magnetization state
+    std::vector<float> magneticHPrev;   // Previous field (for direction detection)
+
+    // MAGNETIC model parameters (fixed, from architecture.md)
+    static constexpr float MAGNETIC_MS = 350000.0f;     // Saturation magnetization
+    static constexpr float MAGNETIC_A = 25.0f;          // Domain wall density
+    static constexpr float MAGNETIC_ALPHA = 1.6e-3f;    // Mean field parameter
+    static constexpr float MAGNETIC_K = 20.0f;          // Pinning coefficient
+    static constexpr float MAGNETIC_C = 0.2f;           // Reversibility
+
+    // Auto-Gain system (Phase 2.4)
+    // ------------------------------
+
+    // Per-channel RMS envelopes
+    std::vector<float> inputRMSEnvelope;    // Pre-saturation RMS (reference)
+    std::vector<float> outputRMSEnvelope;   // Post-saturation RMS (measured)
+
+    // Auto-gain time constant coefficient (100ms)
+    float autoGainCoeff = 0.0f;  // Calculated in prepareToPlay
+
     // Helper functions
     float processDiodeSample(float input, float intensity, int iterations, float& prevVoltage);
     float processTransformerSample(float input, float intensity, int channel);
     float processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage);
+    float processMagneticSample(float input, float intensity, int channel);
+    float langevinFunction(float x);  // Langevin function with singularity handling
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSaturationModelingAudioProcessor)
 };

@@ -136,6 +136,40 @@ void OuariconSaturationModelingAudioProcessor::prepareToPlay(double sampleRate, 
         tubePresenceFilters[ch].reset();
     }
 
+    // Initialize MAGNETIC model filters (Phase 2.4)
+    magneticHeadBumpFilters.resize(numChannels);
+    magneticHFRolloffFilters.resize(numChannels);
+    magneticM.resize(numChannels, 0.0f);      // Initialize magnetization to zero
+    magneticHPrev.resize(numChannels, 0.0f);  // Initialize previous field to zero
+
+    // Configure MAGNETIC frequency response filters
+    // Head bump: Peak filter at 80Hz, Q=0.7, +2.5dB
+    auto headBumpCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        sampleRate, 80.0f, 0.7f, juce::Decibels::decibelsToGain(2.5f));
+
+    // HF rolloff: Lowpass filter at 12000Hz, Q=0.707
+    auto hfRolloffCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(
+        sampleRate, 12000.0f, 0.707f);
+
+    // Apply coefficients to all channels
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        *magneticHeadBumpFilters[ch].coefficients = *headBumpCoeffs;
+        *magneticHFRolloffFilters[ch].coefficients = *hfRolloffCoeffs;
+
+        magneticHeadBumpFilters[ch].reset();
+        magneticHFRolloffFilters[ch].reset();
+    }
+
+    // Initialize Auto-Gain system (Phase 2.4)
+    inputRMSEnvelope.resize(numChannels, 0.0f);
+    outputRMSEnvelope.resize(numChannels, 0.0f);
+
+    // Calculate auto-gain time constant coefficient (100ms attack/release)
+    // Formula: coeff = exp(-1.0 / (timeConstant * sampleRate))
+    const float timeConstantSeconds = 0.1f;  // 100ms
+    autoGainCoeff = std::exp(-1.0f / (timeConstantSeconds * static_cast<float>(sampleRate)));
+
     // Get initial quality setting and report latency
     auto* qualityParam = parameters.getRawParameterValue("QUALITY");
     currentQuality = static_cast<int>(qualityParam->load());
@@ -171,6 +205,18 @@ void OuariconSaturationModelingAudioProcessor::releaseResources()
     std::fill(tubePrevPlateVoltage.begin(), tubePrevPlateVoltage.end(), TUBE_VSUPPLY * 0.5f);
     for (auto& filter : tubePresenceFilters)
         filter.reset();
+
+    // Reset MAGNETIC model state (Phase 2.4)
+    std::fill(magneticM.begin(), magneticM.end(), 0.0f);
+    std::fill(magneticHPrev.begin(), magneticHPrev.end(), 0.0f);
+    for (auto& filter : magneticHeadBumpFilters)
+        filter.reset();
+    for (auto& filter : magneticHFRolloffFilters)
+        filter.reset();
+
+    // Reset Auto-Gain envelopes (Phase 2.4)
+    std::fill(inputRMSEnvelope.begin(), inputRMSEnvelope.end(), 0.0f);
+    std::fill(outputRMSEnvelope.begin(), outputRMSEnvelope.end(), 0.0f);
 }
 
 void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -191,6 +237,9 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
 
     auto* qualityParam = parameters.getRawParameterValue("QUALITY");
     int quality = static_cast<int>(qualityParam->load());  // 0=LOW, 1=MID, 2=HIGH
+
+    auto* autoGainParam = parameters.getRawParameterValue("AUTOGAIN");
+    bool autoGainEnabled = autoGainParam->load() > 0.5f;
 
     // Update latency if quality changed
     if (quality != currentQuality)
@@ -226,7 +275,7 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
     else if (quality == 2)
         iterations = 8;  // HIGH quality
 
-    // Processing chain: Input → Upsample → Saturation (model-specific) → Downsample → Output
+    // Processing chain: Input → RMS Capture (pre) → Upsample → Saturation (model-specific) → Downsample → RMS Capture (post) → Auto-Gain → Output
     if (quality == 0)
     {
         // LOW quality: No oversampling (direct processing)
@@ -237,98 +286,287 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
         {
             auto* channelData = buffer.getWritePointer(channel);
 
+            // Capture input RMS (pre-saturation)
+            float inputRMS = 0.0f;
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                inputRMS += channelData[sample] * channelData[sample];
+            }
+            inputRMS = std::sqrt(inputRMS / numSamples);
+
+            // Update input envelope with time constant
+            inputRMSEnvelope[channel] = autoGainCoeff * inputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * inputRMS;
+
+            // Denormal protection
+            if (inputRMSEnvelope[channel] < 1e-8f)
+                inputRMSEnvelope[channel] = 0.0f;
+
+            // Process saturation
             for (int sample = 0; sample < numSamples; ++sample)
             {
                 // Model routing switch
-                if (model == 3)  // DIODE
+                if (model == 0)  // MAGNETIC
                 {
-                    float& prevVoltage = diodePrevVoltage[channel];
-                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
-                }
-                else if (model == 2)  // TRANSFORMER
-                {
-                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                    channelData[sample] = processMagneticSample(channelData[sample], intensity, channel);
                 }
                 else if (model == 1)  // TUBE
                 {
                     float& prevPlateVoltage = tubePrevPlateVoltage[channel];
                     channelData[sample] = processTubeSample(channelData[sample], intensity, iterations, channel, prevPlateVoltage);
                 }
-                // else: Pass through (model 0 not yet implemented)
+                else if (model == 2)  // TRANSFORMER
+                {
+                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                }
+                else if (model == 3)  // DIODE
+                {
+                    float& prevVoltage = diodePrevVoltage[channel];
+                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                }
+            }
+
+            // Capture output RMS (post-saturation)
+            float outputRMS = 0.0f;
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                outputRMS += channelData[sample] * channelData[sample];
+            }
+            outputRMS = std::sqrt(outputRMS / numSamples);
+
+            // Update output envelope with time constant
+            outputRMSEnvelope[channel] = autoGainCoeff * outputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * outputRMS;
+
+            // Denormal protection
+            if (outputRMSEnvelope[channel] < 1e-8f)
+                outputRMSEnvelope[channel] = 0.0f;
+
+            // Apply auto-gain if enabled
+            if (autoGainEnabled)
+            {
+                // Calculate compensation gain: inputRMS / outputRMS
+                float compensationGain = 1.0f;
+                if (outputRMSEnvelope[channel] > 1e-6f)
+                {
+                    compensationGain = inputRMSEnvelope[channel] / outputRMSEnvelope[channel];
+                    // Clamp to 0.1-10.0 range to prevent extreme swings
+                    compensationGain = juce::jlimit(0.1f, 10.0f, compensationGain);
+                }
+
+                // Apply compensation gain to output
+                for (int sample = 0; sample < numSamples; ++sample)
+                {
+                    channelData[sample] *= compensationGain;
+                }
             }
         }
     }
     else if (quality == 1 && oversamplingMid)
     {
         // MID quality: 2x oversampling
+        const int numChannels = buffer.getNumChannels();
+        const int numSamples = buffer.getNumSamples();
+
+        // Capture input RMS (pre-saturation, at base rate)
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = buffer.getReadPointer(channel);
+
+            float inputRMS = 0.0f;
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                inputRMS += channelData[sample] * channelData[sample];
+            }
+            inputRMS = std::sqrt(inputRMS / numSamples);
+
+            // Update input envelope with time constant
+            inputRMSEnvelope[channel] = autoGainCoeff * inputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * inputRMS;
+
+            // Denormal protection
+            if (inputRMSEnvelope[channel] < 1e-8f)
+                inputRMSEnvelope[channel] = 0.0f;
+        }
+
+        // Upsample
         auto oversampledBlock = oversamplingMid->processSamplesUp(buffer);
 
-        const int numChannels = static_cast<int>(oversampledBlock.getNumChannels());
-        const int numSamples = static_cast<int>(oversampledBlock.getNumSamples());
+        const int oversampledChannels = static_cast<int>(oversampledBlock.getNumChannels());
+        const int oversampledSamples = static_cast<int>(oversampledBlock.getNumSamples());
 
-        for (int channel = 0; channel < numChannels; ++channel)
+        // Process saturation at oversampled rate
+        for (int channel = 0; channel < oversampledChannels; ++channel)
         {
             auto* channelData = oversampledBlock.getChannelPointer(channel);
 
-            for (int sample = 0; sample < numSamples; ++sample)
+            for (int sample = 0; sample < oversampledSamples; ++sample)
             {
                 // Model routing switch
-                if (model == 3)  // DIODE
+                if (model == 0)  // MAGNETIC
                 {
-                    float& prevVoltage = diodePrevVoltage[channel];
-                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
-                }
-                else if (model == 2)  // TRANSFORMER
-                {
-                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                    channelData[sample] = processMagneticSample(channelData[sample], intensity, channel);
                 }
                 else if (model == 1)  // TUBE
                 {
                     float& prevPlateVoltage = tubePrevPlateVoltage[channel];
                     channelData[sample] = processTubeSample(channelData[sample], intensity, iterations, channel, prevPlateVoltage);
                 }
-                // else: Pass through (model 0 not yet implemented)
+                else if (model == 2)  // TRANSFORMER
+                {
+                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                }
+                else if (model == 3)  // DIODE
+                {
+                    float& prevVoltage = diodePrevVoltage[channel];
+                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                }
             }
         }
 
+        // Downsample
         juce::dsp::AudioBlock<float> outputBlock(buffer);
         oversamplingMid->processSamplesDown(outputBlock);
+
+        // Capture output RMS (post-saturation, at base rate)
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = buffer.getWritePointer(channel);
+
+            float outputRMS = 0.0f;
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                outputRMS += channelData[sample] * channelData[sample];
+            }
+            outputRMS = std::sqrt(outputRMS / numSamples);
+
+            // Update output envelope with time constant
+            outputRMSEnvelope[channel] = autoGainCoeff * outputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * outputRMS;
+
+            // Denormal protection
+            if (outputRMSEnvelope[channel] < 1e-8f)
+                outputRMSEnvelope[channel] = 0.0f;
+
+            // Apply auto-gain if enabled
+            if (autoGainEnabled)
+            {
+                // Calculate compensation gain: inputRMS / outputRMS
+                float compensationGain = 1.0f;
+                if (outputRMSEnvelope[channel] > 1e-6f)
+                {
+                    compensationGain = inputRMSEnvelope[channel] / outputRMSEnvelope[channel];
+                    // Clamp to 0.1-10.0 range to prevent extreme swings
+                    compensationGain = juce::jlimit(0.1f, 10.0f, compensationGain);
+                }
+
+                // Apply compensation gain to output
+                for (int sample = 0; sample < numSamples; ++sample)
+                {
+                    channelData[sample] *= compensationGain;
+                }
+            }
+        }
     }
     else if (quality == 2 && oversamplingHigh)
     {
         // HIGH quality: 4x oversampling
+        const int numChannels = buffer.getNumChannels();
+        const int numSamples = buffer.getNumSamples();
+
+        // Capture input RMS (pre-saturation, at base rate)
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = buffer.getReadPointer(channel);
+
+            float inputRMS = 0.0f;
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                inputRMS += channelData[sample] * channelData[sample];
+            }
+            inputRMS = std::sqrt(inputRMS / numSamples);
+
+            // Update input envelope with time constant
+            inputRMSEnvelope[channel] = autoGainCoeff * inputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * inputRMS;
+
+            // Denormal protection
+            if (inputRMSEnvelope[channel] < 1e-8f)
+                inputRMSEnvelope[channel] = 0.0f;
+        }
+
+        // Upsample
         auto oversampledBlock = oversamplingHigh->processSamplesUp(buffer);
 
-        const int numChannels = static_cast<int>(oversampledBlock.getNumChannels());
-        const int numSamples = static_cast<int>(oversampledBlock.getNumSamples());
+        const int oversampledChannels = static_cast<int>(oversampledBlock.getNumChannels());
+        const int oversampledSamples = static_cast<int>(oversampledBlock.getNumSamples());
 
-        for (int channel = 0; channel < numChannels; ++channel)
+        // Process saturation at oversampled rate
+        for (int channel = 0; channel < oversampledChannels; ++channel)
         {
             auto* channelData = oversampledBlock.getChannelPointer(channel);
 
-            for (int sample = 0; sample < numSamples; ++sample)
+            for (int sample = 0; sample < oversampledSamples; ++sample)
             {
                 // Model routing switch
-                if (model == 3)  // DIODE
+                if (model == 0)  // MAGNETIC
                 {
-                    float& prevVoltage = diodePrevVoltage[channel];
-                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
-                }
-                else if (model == 2)  // TRANSFORMER
-                {
-                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                    channelData[sample] = processMagneticSample(channelData[sample], intensity, channel);
                 }
                 else if (model == 1)  // TUBE
                 {
                     float& prevPlateVoltage = tubePrevPlateVoltage[channel];
                     channelData[sample] = processTubeSample(channelData[sample], intensity, iterations, channel, prevPlateVoltage);
                 }
-                // else: Pass through (model 0 not yet implemented)
+                else if (model == 2)  // TRANSFORMER
+                {
+                    channelData[sample] = processTransformerSample(channelData[sample], intensity, channel);
+                }
+                else if (model == 3)  // DIODE
+                {
+                    float& prevVoltage = diodePrevVoltage[channel];
+                    channelData[sample] = processDiodeSample(channelData[sample], intensity, iterations, prevVoltage);
+                }
             }
         }
 
+        // Downsample
         juce::dsp::AudioBlock<float> outputBlock(buffer);
         oversamplingHigh->processSamplesDown(outputBlock);
+
+        // Capture output RMS (post-saturation, at base rate)
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = buffer.getWritePointer(channel);
+
+            float outputRMS = 0.0f;
+            for (int sample = 0; sample < numSamples; ++sample)
+            {
+                outputRMS += channelData[sample] * channelData[sample];
+            }
+            outputRMS = std::sqrt(outputRMS / numSamples);
+
+            // Update output envelope with time constant
+            outputRMSEnvelope[channel] = autoGainCoeff * outputRMSEnvelope[channel] + (1.0f - autoGainCoeff) * outputRMS;
+
+            // Denormal protection
+            if (outputRMSEnvelope[channel] < 1e-8f)
+                outputRMSEnvelope[channel] = 0.0f;
+
+            // Apply auto-gain if enabled
+            if (autoGainEnabled)
+            {
+                // Calculate compensation gain: inputRMS / outputRMS
+                float compensationGain = 1.0f;
+                if (outputRMSEnvelope[channel] > 1e-6f)
+                {
+                    compensationGain = inputRMSEnvelope[channel] / outputRMSEnvelope[channel];
+                    // Clamp to 0.1-10.0 range to prevent extreme swings
+                    compensationGain = juce::jlimit(0.1f, 10.0f, compensationGain);
+                }
+
+                // Apply compensation gain to output
+                for (int sample = 0; sample < numSamples; ++sample)
+                {
+                    channelData[sample] *= compensationGain;
+                }
+            }
+        }
     }
 }
 
@@ -542,6 +780,115 @@ float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, f
 
     // Apply presence filter (3kHz peak, Q=0.7, +1.5dB)
     output = tubePresenceFilters[channel].processSample(output);
+
+    return output;
+}
+
+// ============================================================================
+// MAGNETIC Model Implementation (Jiles-Atherton Hysteresis) - Phase 2.4
+// ============================================================================
+
+float OuariconSaturationModelingAudioProcessor::langevinFunction(float x)
+{
+    // Langevin function: L(x) = coth(x) - 1/x
+    // For |x| < 1e-6, use Taylor series to avoid singularity: L(x) ≈ x/3 - x³/45
+
+    if (std::abs(x) < 1e-6f)
+    {
+        // Taylor series approximation for small x
+        const float x2 = x * x;
+        return (x / 3.0f) - (x2 * x / 45.0f);
+    }
+    else
+    {
+        // Standard Langevin formula: coth(x) - 1/x
+        // coth(x) = (exp(2x) + 1) / (exp(2x) - 1)
+        const float exp2x = std::exp(juce::jlimit(-30.0f, 30.0f, 2.0f * x));
+        const float coth = (exp2x + 1.0f) / (exp2x - 1.0f);
+        return coth - (1.0f / x);
+    }
+}
+
+float OuariconSaturationModelingAudioProcessor::processMagneticSample(float input, float intensity, int channel)
+{
+    // INTENSITY parameter mapping: Drive amount (0% = subtle, 100% = heavy saturation)
+    // Map to input scaling: At 0%, minimal drive; at 100%, maximum drive into hysteresis curve
+    const float drive = 1.0f + (intensity / 100.0f) * 4.0f;  // 1.0 to 5.0 range
+
+    // Apply input drive
+    float H = input * drive;  // Magnetic field (input signal)
+
+    // Read state variables
+    float& M = magneticM[channel];          // Magnetization state
+    float& H_prev = magneticHPrev[channel];  // Previous field
+
+    // Calculate direction (sign of field change)
+    float delta = (H > H_prev) ? 1.0f : -1.0f;
+
+    // Calculate effective field
+    const float He = H + MAGNETIC_ALPHA * M;
+
+    // Calculate anhysteretic magnetization using Langevin function
+    // Man = Ms * L(He/a)
+    const float Man = MAGNETIC_MS * langevinFunction(He / MAGNETIC_A);
+
+    // Calculate derivative of anhysteretic magnetization
+    // dMan/dH = dMan/dHe * dHe/dH = dMan/dHe * (1 + alpha * dM/dH)
+    // For simplicity, approximate dMan/dH ≈ derivative of Langevin
+    // Langevin derivative: L'(x) = -coth²(x) + 1/x² + 1
+    const float x = He / MAGNETIC_A;
+    float dLdx = 0.0f;
+    if (std::abs(x) < 1e-6f)
+    {
+        // Taylor series derivative for small x: dL/dx ≈ 1/3
+        dLdx = 1.0f / 3.0f;
+    }
+    else
+    {
+        const float exp2x = std::exp(juce::jlimit(-30.0f, 30.0f, 2.0f * x));
+        const float coth = (exp2x + 1.0f) / (exp2x - 1.0f);
+        dLdx = 1.0f - (coth * coth) + (1.0f / (x * x));
+    }
+    const float dMan_dH = (MAGNETIC_MS / MAGNETIC_A) * dLdx;
+
+    // Differential hysteresis equation (Jiles-Atherton)
+    // dM/dH = (Man - M) / (k*delta - alpha*(Man - M)) + c * dMan/dH
+    const float denominator = MAGNETIC_K * delta - MAGNETIC_ALPHA * (Man - M);
+
+    // Prevent division by zero
+    float dM_dH = 0.0f;
+    if (std::abs(denominator) > 1e-8f)
+    {
+        dM_dH = (Man - M) / denominator + MAGNETIC_C * dMan_dH;
+    }
+    else
+    {
+        dM_dH = MAGNETIC_C * dMan_dH;  // Use reversible component only
+    }
+
+    // Update magnetization: M += dM/dH * (H - H_prev)
+    const float deltaH = H - H_prev;
+    M += dM_dH * deltaH;
+
+    // Clamp magnetization to physical limits [-Ms, Ms]
+    M = juce::jlimit(-MAGNETIC_MS, MAGNETIC_MS, M);
+
+    // Denormal protection
+    if (std::abs(M) < 1e-8f)
+        M = 0.0f;
+
+    // Store previous field for next sample
+    H_prev = H;
+
+    // Output is magnetization scaled to audio range
+    float output = M / MAGNETIC_MS;  // Normalize to ±1.0 range
+
+    // Apply frequency response filters (head bump → HF rolloff)
+    // Head bump filter (80Hz peak, Q=0.7, +2.5dB)
+    output = magneticHeadBumpFilters[channel].processSample(output);
+
+    // HF rolloff filter (12kHz lowpass, Q=0.707)
+    output = magneticHFRolloffFilters[channel].processSample(output);
 
     return output;
 }
