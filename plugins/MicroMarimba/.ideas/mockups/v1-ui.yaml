@@ -1,0 +1,612 @@
+# MicroMarimba - UI Design Specification v1
+# Generated: 2026-01-09
+# Plugin: MicroMarimba
+# Aesthetic: Ouaricon Audio Naturalist (botanical vintage)
+# Type: Synthesizer (Physical Model - Marimba)
+
+# FINALIZATION STATUS
+finalized: false
+finalized_date: null
+approved_for_implementation: false
+
+window:
+  width: 600
+  height: 400
+  resizable: false
+
+colors:
+  # Ouaricon Naturalist palette
+  background: "#F5E6D3"  # Aged paper base
+  text: "#3C2F2F"  # Dark brown
+  text_secondary: "#5C4033"  # Medium brown
+  border: "#8B7355"  # Walnut brown
+  border_frame: "#5C4033"  # Oak - strong borders
+
+  # Green accents (botanical)
+  button_default_bg: "rgba(139, 168, 112, 0.3)"
+  button_default_border: "#3C5C1A"
+  button_active_bg: "rgba(107, 142, 35, 0.6)"
+  button_active_border: "#2C3E10"
+
+  # Knob colors (seed cross-section)
+  knob_segment_light: "#F5DEB3"  # Wheat
+  knob_segment_dark: "#E8D5B7"  # Darker wheat
+  knob_divider: "#8B7355"  # Walnut brown
+  knob_core: "#FFF8DC"  # Cornsilk center
+
+  # Tab colors
+  tab_inactive_bg: "rgba(212, 196, 176, 0.5)"  # Muted paper
+  tab_active_bg: "#F5E6D3"  # Paper tone (blends with background)
+
+  # Waveform visualization
+  waveform_bg: "rgba(139, 168, 112, 0.15)"  # Very light green
+  waveform_line: "#6B8E4E"  # Botanical green
+  waveform_fill: "rgba(107, 142, 35, 0.3)"  # Green fill
+
+  # Keyboard visualization (tuning tab)
+  key_white: "#FAF0E6"  # Light cream
+  key_black: "#3C2F2F"  # Dark brown
+  key_mapped: "#8BA870"  # Moss green for mapped notes
+  key_unmapped: "rgba(139, 168, 112, 0.3)"  # Faded green
+
+  # Preset browser
+  preset_bg: "rgba(235, 217, 199, 0.8)"  # Light paper
+  preset_selected: "rgba(139, 168, 112, 0.4)"  # Green highlight
+
+typography:
+  primary: "'Garamond', 'Times New Roman', serif"
+  title_size: "18px"
+  title_spacing: "2.5px"
+  label_size: "10px"
+  label_spacing: "1px"
+  tab_size: "11px"
+  tab_spacing: "1.5px"
+  value_size: "9px"
+
+layout:
+  type: tabbed
+  tabs:
+    - id: main
+      label: "SOUND"
+      active: true
+    - id: tuning
+      label: "TUNING"
+      active: false
+
+  sections:
+    # Header (shared across tabs)
+    - id: header
+      y: 0
+      height: 45
+      description: "Plugin title and preset browser"
+
+    # Tab bar
+    - id: tab_bar
+      y: 45
+      height: 30
+      description: "Tab selection"
+
+    # Main content area (changes per tab)
+    - id: content
+      y: 75
+      height: 325
+      description: "Tab content area"
+
+# ====================
+# MAIN TAB CONTROLS
+# ====================
+controls:
+  # SOUND TAB - Mallet Controls (left side)
+  - id: mallet_hardness
+    type: knob
+    tab: main
+    label: "MALLET"
+    sublabel: "Hardness"
+    parameter_id: MALLET_HARDNESS
+    parameter_type: float
+    range: [0.0, 1.0]
+    default: 0.5
+    position: {x: 70, y: 140}
+    size: {diameter: 60}
+    style:
+      type: botanical_seed
+      segments: 10
+      segment_colors: ["#F5DEB3", "#E8D5B7"]
+      divider_color: "#8B7355"
+      border_color: "#8B7355"
+      border_width: 2
+      indicator_type: dot
+      indicator_color: "#3C2F2F"
+      indicator_position: edge
+
+  - id: bar_material
+    type: knob
+    tab: main
+    label: "MATERIAL"
+    sublabel: "Tone"
+    parameter_id: BAR_MATERIAL
+    parameter_type: float
+    range: [0.0, 1.0]
+    default: 0.5
+    position: {x: 160, y: 140}
+    size: {diameter: 60}
+    style:
+      type: botanical_seed
+      segments: 10
+      segment_colors: ["#F5DEB3", "#E8D5B7"]
+      divider_color: "#8B7355"
+      border_color: "#8B7355"
+      border_width: 2
+      indicator_type: dot
+      indicator_color: "#3C2F2F"
+      indicator_position: edge
+
+  - id: resonance
+    type: knob
+    tab: main
+    label: "RESONANCE"
+    sublabel: "Body"
+    parameter_id: RESONANCE
+    parameter_type: float
+    range: [0.0, 1.0]
+    default: 0.6
+    position: {x: 250, y: 140}
+    size: {diameter: 60}
+    style:
+      type: botanical_seed
+      segments: 10
+      segment_colors: ["#F5DEB3", "#E8D5B7"]
+      divider_color: "#8B7355"
+      border_color: "#8B7355"
+      border_width: 2
+      indicator_type: dot
+      indicator_color: "#3C2F2F"
+      indicator_position: edge
+
+  # SOUND TAB - Dynamics Controls (bottom left)
+  - id: velocity_curve
+    type: knob
+    tab: main
+    label: "VELOCITY"
+    sublabel: "Curve"
+    parameter_id: VEL_CURVE
+    parameter_type: float
+    range: [0.0, 1.0]
+    default: 0.5
+    position: {x: 115, y: 250}
+    size: {diameter: 55}
+    style:
+      type: botanical_seed
+      segments: 10
+      segment_colors: ["#F5DEB3", "#E8D5B7"]
+      divider_color: "#8B7355"
+      border_color: "#8B7355"
+      border_width: 2
+      indicator_type: dot
+      indicator_color: "#3C2F2F"
+      indicator_position: edge
+
+  - id: output_gain
+    type: knob
+    tab: main
+    label: "OUTPUT"
+    sublabel: "Gain"
+    parameter_id: OUTPUT_GAIN
+    parameter_type: float
+    range: [-24.0, 12.0]
+    default: 0.0
+    unit: "dB"
+    position: {x: 205, y: 250}
+    size: {diameter: 55}
+    style:
+      type: botanical_seed
+      segments: 10
+      segment_colors: ["#F5DEB3", "#E8D5B7"]
+      divider_color: "#8B7355"
+      border_color: "#8B7355"
+      border_width: 2
+      indicator_type: dot
+      indicator_color: "#3C2F2F"
+      indicator_position: edge
+
+  # ====================
+  # TUNING TAB CONTROLS
+  # ====================
+
+  # Tuning Mode Selector (three exclusive buttons)
+  - id: tuning_12tet
+    type: button
+    tab: tuning
+    label: "12-TET"
+    parameter_id: TUNING_MODE
+    parameter_type: choice
+    parameter_value: 0
+    position: {x: 50, y: 100}
+    size: {width: 80, height: 28}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "10px"
+      text_transform: uppercase
+
+  - id: tuning_scala
+    type: button
+    tab: tuning
+    label: "SCALA"
+    parameter_id: TUNING_MODE
+    parameter_type: choice
+    parameter_value: 1
+    position: {x: 140, y: 100}
+    size: {width: 80, height: 28}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "10px"
+      text_transform: uppercase
+
+  - id: tuning_mts
+    type: button
+    tab: tuning
+    label: "MTS-ESP"
+    parameter_id: TUNING_MODE
+    parameter_type: choice
+    parameter_value: 2
+    position: {x: 230, y: 100}
+    size: {width: 80, height: 28}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      active_bg: "rgba(107, 142, 35, 0.6)"
+      active_border: "#2C3E10"
+      text_color: "#3C2F2F"
+      text_size: "10px"
+      text_transform: uppercase
+
+  # Reference Pitch Knob
+  - id: reference_pitch
+    type: knob
+    tab: tuning
+    label: "A4 REF"
+    sublabel: "Hz"
+    parameter_id: REFERENCE_PITCH
+    parameter_type: float
+    range: [400.0, 480.0]
+    default: 440.0
+    unit: "Hz"
+    decimals: 1
+    position: {x: 70, y: 170}
+    size: {diameter: 55}
+    style:
+      type: botanical_seed
+      segments: 10
+      segment_colors: ["#F5DEB3", "#E8D5B7"]
+      divider_color: "#8B7355"
+      border_color: "#8B7355"
+      border_width: 2
+      indicator_type: dot
+      indicator_color: "#3C2F2F"
+      indicator_position: edge
+
+  # File Load Buttons (Scala mode only)
+  - id: load_scl
+    type: button
+    tab: tuning
+    label: "LOAD .SCL"
+    action: load_scala_file
+    position: {x: 150, y: 160}
+    size: {width: 90, height: 26}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      text_color: "#3C2F2F"
+      text_size: "9px"
+      text_transform: uppercase
+    visibility_condition:
+      parameter_id: TUNING_MODE
+      value: 1
+
+  - id: load_kbm
+    type: button
+    tab: tuning
+    label: "LOAD .KBM"
+    action: load_kbm_file
+    position: {x: 250, y: 160}
+    size: {width: 90, height: 26}
+    style:
+      type: botanical_button
+      border_radius: 4
+      default_bg: "rgba(139, 168, 112, 0.3)"
+      default_border: "#3C5C1A"
+      text_color: "#3C2F2F"
+      text_size: "9px"
+      text_transform: uppercase
+    visibility_condition:
+      parameter_id: TUNING_MODE
+      value: 1
+
+  # MTS-ESP Status (MTS mode only)
+  - id: mts_status
+    type: indicator
+    tab: tuning
+    label: "MTS-ESP"
+    position: {x: 150, y: 160}
+    size: {width: 180, height: 30}
+    style:
+      type: status_display
+      connected_color: "#6B8E4E"  # Green
+      disconnected_color: "#8B7355"  # Brown
+      font_size: "9px"
+    visibility_condition:
+      parameter_id: TUNING_MODE
+      value: 2
+
+special_elements:
+  # Paper texture background
+  - id: paper_background
+    type: background_image
+    layer: background
+    image_path: "/Users/taylorbrook/Dev/Ouaricon Audio Images/paper/paper1.jpg"
+    style:
+      background_size: cover
+      background_position: center
+
+  # Coral/Tree botanical overlay
+  - id: coral_overlay
+    type: image
+    layer: overlay
+    image_path: "/Users/taylorbrook/Dev/Ouaricon Audio Images/flora/tree_expositionmtho00lamo_0207.png"
+    position: {x: 380, y: 80}
+    size: {width: 240, height: 300}
+    style:
+      opacity: 0.3
+      pointer_events: none
+      object_fit: contain
+
+  # Plugin Title
+  - id: title
+    type: text
+    content: "MICROMARIMBA"
+    position: {x: 20, y: 22}
+    style:
+      font_family: "'Garamond', 'Times New Roman', serif"
+      font_size: "18px"
+      font_weight: normal
+      color: "#3C2F2F"
+      text_transform: uppercase
+      letter_spacing: "2.5px"
+
+  # Preset Browser (top right)
+  - id: preset_browser
+    type: preset_browser
+    position: {x: 350, y: 10}
+    size: {width: 230, height: 30}
+    style:
+      type: compact_browser
+      bg_color: "rgba(235, 217, 199, 0.8)"
+      border_color: "#8B7355"
+      text_color: "#3C2F2F"
+      font_family: "'Garamond', serif"
+      font_size: "10px"
+      button_style: botanical
+    features:
+      prev_next_arrows: true
+      dropdown_menu: true
+      save_button: true
+      categories: ["Factory", "User", "Microtonal"]
+
+  # Tab Bar
+  - id: tab_sound
+    type: tab
+    tab_id: main
+    label: "SOUND"
+    position: {x: 20, y: 50}
+    size: {width: 80, height: 24}
+    style:
+      inactive_bg: "rgba(212, 196, 176, 0.5)"
+      active_bg: "#F5E6D3"
+      border_color: "#8B7355"
+      text_color: "#3C2F2F"
+      font_size: "11px"
+      letter_spacing: "1.5px"
+
+  - id: tab_tuning
+    type: tab
+    tab_id: tuning
+    label: "TUNING"
+    position: {x: 100, y: 50}
+    size: {width: 80, height: 24}
+    style:
+      inactive_bg: "rgba(212, 196, 176, 0.5)"
+      active_bg: "#F5E6D3"
+      border_color: "#8B7355"
+      text_color: "#3C2F2F"
+      font_size: "11px"
+      letter_spacing: "1.5px"
+
+  # Waveform Display (MAIN TAB - right side)
+  - id: waveform_display
+    type: waveform
+    tab: main
+    position: {x: 320, y: 100}
+    size: {width: 250, height: 100}
+    data_source: audio_output
+    style:
+      bg_color: "rgba(139, 168, 112, 0.15)"
+      line_color: "#6B8E4E"
+      fill_color: "rgba(107, 142, 35, 0.3)"
+      border_color: "#8B7355"
+      border_width: 1
+      border_radius: 4
+
+  # Keyboard Visualization (TUNING TAB - bottom)
+  - id: keyboard_viz
+    type: keyboard_visualization
+    tab: tuning
+    position: {x: 30, y: 250}
+    size: {width: 340, height: 80}
+    style:
+      octaves: 2
+      start_note: 60  # Middle C
+      white_key_color: "#FAF0E6"
+      black_key_color: "#3C2F2F"
+      mapped_key_color: "#8BA870"
+      unmapped_key_color: "rgba(139, 168, 112, 0.3)"
+      border_color: "#8B7355"
+      show_note_names: true
+      font_size: "7px"
+    data_source: tuning_table  # Shows which notes are mapped
+
+  # Loaded Scale Name (TUNING TAB)
+  - id: scale_name_display
+    type: text_display
+    tab: tuning
+    position: {x: 150, y: 200}
+    size: {width: 200, height: 24}
+    style:
+      bg_color: "rgba(235, 217, 199, 0.5)"
+      border_color: "#8B7355"
+      text_color: "#3C2F2F"
+      font_size: "10px"
+      text_align: center
+    data_source: current_scale_name
+    default_text: "12-TET Standard"
+
+  # Section Dividers
+  - id: divider_header
+    type: line
+    position: {x: 10, y: 45}
+    end_position: {x: 590, y: 45}
+    style:
+      stroke: "#8B7355"
+      stroke_width: 1
+      opacity: 0.5
+
+  - id: divider_tabs
+    type: line
+    position: {x: 10, y: 74}
+    end_position: {x: 590, y: 74}
+    style:
+      stroke: "#8B7355"
+      stroke_width: 1
+      opacity: 0.5
+
+  # Border Frame
+  - id: border_frame
+    type: rectangle
+    position: {x: 0, y: 0}
+    size: {width: 600, height: 400}
+    style:
+      fill: none
+      stroke: "#5C4033"
+      stroke_width: 3
+
+parameter_mappings:
+  - ui_id: mallet_hardness
+    parameter_id: MALLET_HARDNESS
+    normalized_range: [0.0, 1.0]
+    display_format: "{:.0%}"
+
+  - ui_id: bar_material
+    parameter_id: BAR_MATERIAL
+    normalized_range: [0.0, 1.0]
+    display_format: "{:.0%}"
+
+  - ui_id: resonance
+    parameter_id: RESONANCE
+    normalized_range: [0.0, 1.0]
+    display_format: "{:.0%}"
+
+  - ui_id: velocity_curve
+    parameter_id: VEL_CURVE
+    normalized_range: [0.0, 1.0]
+    display_format: "{:.0%}"
+
+  - ui_id: output_gain
+    parameter_id: OUTPUT_GAIN
+    normalized_range: [0.0, 1.0]
+    display_range: [-24.0, 12.0]
+    display_format: "{:.1f} dB"
+
+  - ui_id: tuning_mode
+    parameter_id: TUNING_MODE
+    type: choice
+    choices:
+      - {id: 0, label: "12-TET", ui_element: tuning_12tet}
+      - {id: 1, label: "SCALA", ui_element: tuning_scala}
+      - {id: 2, label: "MTS-ESP", ui_element: tuning_mts}
+
+  - ui_id: reference_pitch
+    parameter_id: REFERENCE_PITCH
+    normalized_range: [0.0, 1.0]
+    display_range: [400.0, 480.0]
+    display_format: "{:.1f} Hz"
+
+non_automatable_state:
+  - id: scala_file_path
+    type: string
+    default: ""
+    persistence: preset
+
+  - id: kbm_file_path
+    type: string
+    default: ""
+    persistence: preset
+
+  - id: current_scale_name
+    type: string
+    default: "12-TET Standard"
+    persistence: preset
+
+preset_system:
+  type: browser_with_save
+  categories:
+    - name: "Factory"
+      readonly: true
+      presets:
+        - "Default Marimba"
+        - "Soft Rosewood"
+        - "Bright Synthetic"
+        - "Mellow Low"
+        - "Articulate High"
+    - name: "Microtonal"
+      readonly: true
+      presets:
+        - "Just Intonation"
+        - "19-TET"
+        - "31-TET"
+        - "Gamelan Pelog"
+        - "Gamelan Slendro"
+        - "Bohlen-Pierce"
+    - name: "User"
+      readonly: false
+      location: "~/Library/Audio/Presets/Ouaricon/MicroMarimba/"
+  features:
+    save: true
+    save_as: true
+    delete_user: true
+    import: true
+    export: true
+
+notes:
+  - "V1 Initial Design"
+  - "Tabbed interface: SOUND tab (controls + waveform), TUNING tab (controls + keyboard viz)"
+  - "Ouaricon Naturalist aesthetic with coral/tree botanical overlay"
+  - "Preset browser with factory, microtonal, and user categories"
+  - "Keyboard visualization shows which notes are mapped in current tuning"
+  - "Scala/KBM file loaders visible only when SCALA mode selected"
+  - "MTS-ESP status indicator visible only when MTS-ESP mode selected"
+  - "Window size: 600x400 (medium)"
