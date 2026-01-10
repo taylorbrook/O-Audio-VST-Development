@@ -596,10 +596,17 @@ void OuariconSaturationModelingAudioProcessor::setStateInformation(const void* d
 
 float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, float intensity, int iterations, float& prevVoltage)
 {
-    // INTENSITY parameter mapping: Series resistance R = 1kΩ / (1.0 + INTENSITY/100.0)
-    // At 0%: R = 1000Ω (minimal saturation)
-    // At 100%: R = 500Ω (maximum saturation)
-    const float R = 1000.0f / (1.0f + intensity / 100.0f);
+    // At 0% intensity, return dry signal (no processing)
+    if (intensity < 0.1f)
+        return input;
+
+    // Dry/wet mix: 0% = dry, 100% = full saturation
+    const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
+    const float dryMix = 1.0f - wetMix;
+
+    // INTENSITY parameter mapping: Series resistance R = 1kΩ / (1.0 + wetMix * 2.0)
+    // More drive at higher intensity
+    const float R = 1000.0f / (1.0f + wetMix * 2.0f);
 
     // Newton-Raphson solver for anti-parallel diode pair
     // Circuit equation: v + R * i_total(v) = input
@@ -644,7 +651,8 @@ float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, 
     // Store voltage for next sample (warm start)
     prevVoltage = v;
 
-    return v;
+    // Mix dry and wet signals based on intensity
+    return (dryMix * input) + (wetMix * v);
 }
 
 // ============================================================================
@@ -653,10 +661,18 @@ float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, 
 
 float OuariconSaturationModelingAudioProcessor::processTransformerSample(float input, float intensity, int channel)
 {
-    // INTENSITY parameter mapping: Input gain = 1.0 + (INTENSITY/100.0) * 5.0
+    // At 0% intensity, return dry signal (no processing)
+    if (intensity < 0.1f)
+        return input;
+
+    // Dry/wet mix: 0% = dry, 100% = full saturation
+    const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
+    const float dryMix = 1.0f - wetMix;
+
+    // INTENSITY parameter mapping: Input gain = 1.0 + wetMix * 5.0
     // At 0%: gain = 1.0 (unity gain, minimal saturation)
     // At 100%: gain = 6.0 (maximum drive into saturation)
-    const float intensityGain = 1.0f + (intensity / 100.0f) * 5.0f;
+    const float intensityGain = 1.0f + wetMix * 5.0f;
 
     // Apply input gain
     float driven = input * intensityGain;
@@ -673,9 +689,10 @@ float OuariconSaturationModelingAudioProcessor::processTransformerSample(float i
     float lfProcessed = transformerLFBumpFilters[channel].processSample(saturated);
 
     // HF sheen filter (8kHz high shelf, +1.0dB)
-    float hfProcessed = transformerHFSheenFilters[channel].processSample(lfProcessed);
+    float wetSignal = transformerHFSheenFilters[channel].processSample(lfProcessed);
 
-    return hfProcessed;
+    // Mix dry and wet signals based on intensity
+    return (dryMix * input) + (wetMix * wetSignal);
 }
 
 // ============================================================================
@@ -684,11 +701,19 @@ float OuariconSaturationModelingAudioProcessor::processTransformerSample(float i
 
 float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage)
 {
-    // INTENSITY parameter mapping: Grid voltage Vg = -2.0 + (INTENSITY/100.0) * 4.0
+    // At 0% intensity, return dry signal (no processing)
+    if (intensity < 0.1f)
+        return input;
+
+    // Dry/wet mix: 0% = dry, 100% = full saturation
+    const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
+    const float dryMix = 1.0f - wetMix;
+
+    // INTENSITY parameter mapping: Grid voltage Vg = -2.0 + wetMix * 4.0
     // At 0%: Vg = -2.0V (cutoff, minimal conduction)
     // At 50%: Vg = 0.0V (neutral bias)
     // At 100%: Vg = +2.0V (maximum drive, heavy saturation)
-    const float Vg = -2.0f + (intensity / 100.0f) * 4.0f;
+    const float Vg = -2.0f + wetMix * 4.0f;
 
     // Input signal maps to grid voltage modulation (AC component)
     // Grid voltage = DC bias (Vg from INTENSITY) + AC signal (input)
@@ -776,12 +801,13 @@ float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, f
     // DC operating point at neutral bias (Vg=0): ~Vsupply/2
     // Output = (Vp - DC_operating_point) scaled to audio range
     const float dcOperatingPoint = TUBE_VSUPPLY * 0.5f;
-    float output = (Vp - dcOperatingPoint) * 0.02f;  // Scale to ±1.0 range
+    float wetSignal = (Vp - dcOperatingPoint) * 0.02f;  // Scale to ±1.0 range
 
     // Apply presence filter (3kHz peak, Q=0.7, +1.5dB)
-    output = tubePresenceFilters[channel].processSample(output);
+    wetSignal = tubePresenceFilters[channel].processSample(wetSignal);
 
-    return output;
+    // Mix dry and wet signals based on intensity
+    return (dryMix * input) + (wetMix * wetSignal);
 }
 
 // ============================================================================
@@ -811,8 +837,16 @@ float OuariconSaturationModelingAudioProcessor::langevinFunction(float x)
 
 float OuariconSaturationModelingAudioProcessor::processMagneticSample(float input, float intensity, int channel)
 {
-    // INTENSITY parameter mapping: Drive amount (0% = subtle, 100% = heavy saturation)
-    const float drive = 1.0f + (intensity / 100.0f) * 3.0f;  // 1.0 to 4.0 range
+    // At 0% intensity, return dry signal (no processing)
+    if (intensity < 0.1f)
+        return input;
+
+    // Dry/wet mix: 0% = dry, 100% = full saturation
+    const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
+    const float dryMix = 1.0f - wetMix;
+
+    // Drive scales with intensity: subtle at low values, heavy at high
+    const float drive = 1.0f + wetMix * 2.0f;  // 1.0 to 3.0 range
 
     // Apply input drive
     float H = input * drive;  // Magnetic field (input signal)
@@ -821,9 +855,9 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     float& M = magneticM[static_cast<size_t>(channel)];
     float& H_prev = magneticHPrev[static_cast<size_t>(channel)];
 
-    // Limit deltaH to prevent initialization transient (first sample issue)
+    // Limit deltaH to prevent initialization transient and reduce noise
     float deltaH = H - H_prev;
-    deltaH = juce::jlimit(-0.5f, 0.5f, deltaH);  // Limit rate of change
+    deltaH = juce::jlimit(-0.3f, 0.3f, deltaH);  // Tighter limit = smoother
 
     // Calculate direction (sign of field change)
     float delta = (deltaH >= 0.0f) ? 1.0f : -1.0f;
@@ -832,7 +866,6 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     const float He = H + MAGNETIC_ALPHA * M;
 
     // Calculate anhysteretic magnetization using Langevin function
-    // Man = Ms * L(He/a) - with normalized parameters, this stays in ±1 range
     const float arg = He / MAGNETIC_A;
     const float Man = MAGNETIC_MS * langevinFunction(arg);
 
@@ -840,7 +873,6 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     float dLdx = 0.0f;
     if (std::abs(arg) < 1e-4f)
     {
-        // Taylor series for small arg: dL/dx ≈ 1/3
         dLdx = 1.0f / 3.0f;
     }
     else
@@ -853,23 +885,22 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     const float dMan_dH = (MAGNETIC_MS / MAGNETIC_A) * dLdx;
 
     // Differential hysteresis equation (Jiles-Atherton)
-    // dM/dH = (Man - M) / (k*delta - alpha*(Man - M)) + c * dMan/dH
     const float denominator = MAGNETIC_K * delta - MAGNETIC_ALPHA * (Man - M);
 
     // Calculate dM/dH with robust handling
     float dM_dH = 0.0f;
-    if (std::abs(denominator) > 0.001f)
+    if (std::abs(denominator) > 0.01f)
     {
         dM_dH = (Man - M) / denominator + MAGNETIC_C * dMan_dH;
     }
     else
     {
-        // Near singularity: use reversible component only
+        // Near singularity: use reversible component only (smoother)
         dM_dH = MAGNETIC_C * dMan_dH;
     }
 
-    // Limit dM_dH to prevent runaway
-    dM_dH = juce::jlimit(-10.0f, 10.0f, dM_dH);
+    // Limit dM_dH to prevent runaway and reduce noise
+    dM_dH = juce::jlimit(-5.0f, 5.0f, dM_dH);
 
     // Update magnetization
     M += dM_dH * deltaH;
@@ -877,7 +908,7 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     // Clamp magnetization to normalized limits
     M = juce::jlimit(-MAGNETIC_MS, MAGNETIC_MS, M);
 
-    // NaN/Inf protection - reset state if corrupted
+    // NaN/Inf protection
     if (!std::isfinite(M))
         M = 0.0f;
 
@@ -888,14 +919,15 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     // Store previous field for next sample
     H_prev = H;
 
-    // Output is magnetization (already normalized since MAGNETIC_MS = 1.0)
-    float output = M;
+    // Wet signal is magnetization
+    float wetSignal = M;
 
-    // Apply frequency response filters (head bump → HF rolloff)
-    output = magneticHeadBumpFilters[static_cast<size_t>(channel)].processSample(output);
-    output = magneticHFRolloffFilters[static_cast<size_t>(channel)].processSample(output);
+    // Apply frequency response filters to wet signal only
+    wetSignal = magneticHeadBumpFilters[static_cast<size_t>(channel)].processSample(wetSignal);
+    wetSignal = magneticHFRolloffFilters[static_cast<size_t>(channel)].processSample(wetSignal);
 
-    return output;
+    // Mix dry and wet signals based on intensity
+    return (dryMix * input) + (wetMix * wetSignal);
 }
 
 // Factory function
