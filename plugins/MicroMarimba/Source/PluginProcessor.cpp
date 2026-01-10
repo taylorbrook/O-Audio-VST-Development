@@ -146,6 +146,17 @@ void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         pendingUiMidi.clear();
     }
 
+    // Extract note-on events for UI notification (pitch circle flash)
+    for (const auto metadata : midiMessages)
+    {
+        const auto msg = metadata.getMessage();
+        if (msg.isNoteOn() && msg.getVelocity() > 0)
+        {
+            lastPlayedNote.store(msg.getNoteNumber());
+            hasNewNote.store(true);
+        }
+    }
+
     // Phase 2.2: Read parameters (atomic, real-time safe)
     auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
     float outputGainDB = outputGainParam->load();

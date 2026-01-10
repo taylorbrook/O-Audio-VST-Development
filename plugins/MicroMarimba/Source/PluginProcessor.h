@@ -64,9 +64,21 @@ private:
     juce::MidiBuffer pendingUiMidi;
     juce::CriticalSection midiLock;
 
+    // Note-on notification for UI (lock-free communication to editor)
+    std::atomic<int> lastPlayedNote { -1 };
+    std::atomic<bool> hasNewNote { false };
+
 public:
     // Called from UI thread to inject MIDI from WebView keyboard
     void addMidiMessage(const juce::MidiMessage& msg);
+
+    // Called from editor Timer to get last played note (returns -1 if none)
+    int popLastPlayedNote()
+    {
+        if (hasNewNote.exchange(false))
+            return lastPlayedNote.load();
+        return -1;
+    }
 
 private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessor)

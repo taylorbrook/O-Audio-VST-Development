@@ -664,14 +664,14 @@
             border: 1px solid #8B7355;
             border-radius: 4px;
             display: flex;
-            overflow: hidden;
+            overflow: visible; /* Allow black keys to render above container */
+            position: relative; /* Positioning context for black keys */
         }
 
         .white-key {
             flex: 1;
             background: #FAF0E6;
             border-right: 1px solid #8B7355;
-            position: relative;
             display: flex;
             flex-direction: column;
             justify-content: flex-end;
@@ -679,7 +679,6 @@
             padding-bottom: 4px;
             transition: background 0.15s, transform 0.1s;
             cursor: pointer;
-            overflow: visible; /* Allow black keys to extend beyond */
             z-index: 1;
         }
 
@@ -691,15 +690,15 @@
             background: rgba(139, 168, 112, 0.4);
         }
 
-        .white-key:hover:not(.playing):not(:has(.black-key:hover)) {
+        .white-key:hover:not(.playing) {
             background: #FFF8DC;
         }
 
-        .white-key.mapped:hover:not(.playing):not(:has(.black-key:hover)) {
+        .white-key.mapped:hover:not(.playing) {
             background: rgba(139, 168, 112, 0.55);
         }
 
-        .white-key:active:not(:has(.black-key:active)), .white-key.playing {
+        .white-key:active, .white-key.playing {
             background: #8BC34A !important; /* Bright green for visibility */
             transform: translateY(2px);
             z-index: 2;
@@ -718,12 +717,19 @@
             background: #3C2F2F;
             border-radius: 0 0 3px 3px;
             top: 0;
-            right: -11px; /* Center on the edge between white keys */
             z-index: 10; /* Higher z-index to ensure clickability */
             transition: background 0.15s, transform 0.1s;
             cursor: pointer;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         }
+
+        /* Black key positions (siblings of white keys, not children) */
+        /* 280px keyboard / 7 white keys = 40px per white key */
+        .black-key#key-cs1 { left: 29px; }   /* C#: between C-D (40 - 11) */
+        .black-key#key-ds1 { left: 69px; }   /* D#: between D-E (80 - 11) */
+        .black-key#key-fs1 { left: 149px; }  /* F#: between F-G (160 - 11) */
+        .black-key#key-gs1 { left: 189px; }  /* G#: between G-A (200 - 11) */
+        .black-key#key-as1 { left: 229px; }  /* A#: between A-B (240 - 11) */
 
         .black-key.mapped {
             background: #4A6B2A;
@@ -741,11 +747,6 @@
             background: #8BC34A !important; /* Bright green for visibility */
             transform: translateY(2px);
             box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
-
-        /* Fix: Prevent black key from moving when parent white key is playing */
-        .white-key.playing .black-key:not(.playing) {
-            transform: translateY(-2px);
         }
 
         .keyboard-help {
@@ -937,29 +938,20 @@
             <!-- BOTTOM: Keyboard Visualization (1 octave) -->
             <div class="keyboard-section">
                 <div class="keyboard-viz" id="keyboard-viz">
-                    <!-- Single Octave: C4-B4 -->
-                    <div class="white-key mapped" style="position: relative;" id="key-c1">
-                        <div class="black-key mapped" id="key-cs1"></div>
-                        <span>C</span>
-                    </div>
-                    <div class="white-key mapped" style="position: relative;" id="key-d1">
-                        <div class="black-key mapped" id="key-ds1"></div>
-                        <span>D</span>
-                    </div>
+                    <!-- Single Octave: C4-B4 - White keys -->
+                    <div class="white-key mapped" id="key-c1"><span>C</span></div>
+                    <div class="white-key mapped" id="key-d1"><span>D</span></div>
                     <div class="white-key mapped" id="key-e1"><span>E</span></div>
-                    <div class="white-key mapped" style="position: relative;" id="key-f1">
-                        <div class="black-key mapped" id="key-fs1"></div>
-                        <span>F</span>
-                    </div>
-                    <div class="white-key mapped" style="position: relative;" id="key-g1">
-                        <div class="black-key mapped" id="key-gs1"></div>
-                        <span>G</span>
-                    </div>
-                    <div class="white-key mapped" style="position: relative;" id="key-a1">
-                        <div class="black-key mapped" id="key-as1"></div>
-                        <span>A</span>
-                    </div>
+                    <div class="white-key mapped" id="key-f1"><span>F</span></div>
+                    <div class="white-key mapped" id="key-g1"><span>G</span></div>
+                    <div class="white-key mapped" id="key-a1"><span>A</span></div>
                     <div class="white-key mapped" id="key-b1"><span>B</span></div>
+                    <!-- Black keys as siblings (positioned absolutely) -->
+                    <div class="black-key mapped" id="key-cs1"></div>
+                    <div class="black-key mapped" id="key-ds1"></div>
+                    <div class="black-key mapped" id="key-fs1"></div>
+                    <div class="black-key mapped" id="key-gs1"></div>
+                    <div class="black-key mapped" id="key-as1"></div>
                 </div>
                 <div class="keyboard-help">Click to play</div>
             </div>
@@ -1459,6 +1451,8 @@
                 }, 150);
             }
         }
+        // Export to window for C++ evaluateJavascript calls (external MIDI)
+        window.flashIntervalLine = flashIntervalLine;
 
         // ====================================================================
         // AUDIO VISUALIZATIONS (Static - no actual audio data from backend)
@@ -1536,64 +1530,17 @@
         }
 
         // Attach handlers to all keyboard keys
-        // Process black keys first to ensure they get priority
-        const blackKeyIds = Object.keys(keyToMidi).filter(id => id.includes('s'));
-        const whiteKeyIds = Object.keys(keyToMidi).filter(id => !id.includes('s'));
-
-        // Black keys - must stop propagation to parent white key
-        blackKeyIds.forEach(keyId => {
+        // Black keys are now siblings of white keys, so no parent/child checks needed
+        Object.keys(keyToMidi).forEach(keyId => {
             const keyEl = document.getElementById(keyId);
             if (!keyEl) return;
 
             keyEl.addEventListener('mousedown', (e) => {
                 e.preventDefault();
-                e.stopPropagation(); // Prevent white key from triggering
                 handleKeyDown(keyId);
             });
 
-            keyEl.addEventListener('mouseup', (e) => {
-                e.stopPropagation();
-                handleKeyUp(keyId);
-            });
-
-            keyEl.addEventListener('mouseleave', (e) => {
-                e.stopPropagation();
-                if (playingKeys.has(keyId)) {
-                    handleKeyUp(keyId);
-                }
-            });
-
-            keyEl.addEventListener('touchstart', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleKeyDown(keyId);
-            });
-
-            keyEl.addEventListener('touchend', (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                handleKeyUp(keyId);
-            });
-        });
-
-        // White keys - check that click is directly on white key, not black key child
-        whiteKeyIds.forEach(keyId => {
-            const keyEl = document.getElementById(keyId);
-            if (!keyEl) return;
-
-            keyEl.addEventListener('mousedown', (e) => {
-                // Only trigger if the click target is the white key itself (not a black key child)
-                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
-                    return; // Black key will handle this
-                }
-                e.preventDefault();
-                handleKeyDown(keyId);
-            });
-
-            keyEl.addEventListener('mouseup', (e) => {
-                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
-                    return;
-                }
+            keyEl.addEventListener('mouseup', () => {
                 handleKeyUp(keyId);
             });
 
@@ -1604,17 +1551,11 @@
             });
 
             keyEl.addEventListener('touchstart', (e) => {
-                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
-                    return;
-                }
                 e.preventDefault();
                 handleKeyDown(keyId);
             });
 
             keyEl.addEventListener('touchend', (e) => {
-                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
-                    return;
-                }
                 e.preventDefault();
                 handleKeyUp(keyId);
             });

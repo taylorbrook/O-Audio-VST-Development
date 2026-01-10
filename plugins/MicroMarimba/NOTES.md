@@ -20,9 +20,9 @@
   - Playable keyboard in tuning tab
   - Dynamic interval list and pitch circle (adapts to any scale size)
 - **2026-01-10 (v1.1.0):** Microtonal UI improvements
-  - Circular scale indicator flashes red when corresponding note is played
+  - Circular scale indicator flashes red for ALL notes (GUI, external MIDI, DAW)
   - A4 reference pitch dial resets to 440 Hz on double-click
-  - Fixed keyboard animation bug (adjacent black key no longer moves with white key)
+  - Fixed keyboard: black keys restructured as siblings for proper click detection
 
 ## Known Issues
 

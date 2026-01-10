@@ -5,13 +5,18 @@ All notable changes to this project will be documented in this file.
 ## [1.1.0] - 2026-01-10
 
 ### Added
-- Circular scale indicator now flashes red when corresponding note is played
+- Circular scale indicator flashes red when ANY note is played (GUI keyboard, external MIDI, or DAW)
+  - C++ Timer polls processor for note-on events and calls WebView via evaluateJavascript
+  - Function exported to window scope for cross-thread communication
 - A4 reference pitch dial resets to 440 Hz on double-click
 
 ### Fixed
 - Keyboard animation bug: adjacent black key no longer depresses when white key is clicked
-  - Root cause: Parent white key `transform: translateY(2px)` moved absolutely-positioned child black key
-  - Solution: Added CSS counter-transform `.white-key.playing .black-key:not(.playing) { transform: translateY(-2px); }`
+  - Root cause: Black keys were children of white keys, inheriting parent transform
+  - Solution: Restructured HTML so black keys are siblings, positioned absolutely
+- Black key click detection: right half of black keys now responds correctly
+  - Root cause: Black keys extended outside parent container, clicks hit adjacent white key
+  - Solution: Black keys as siblings with explicit left positioning (not right: -11px on parent)
 
 ## [1.0.0] - 2026-01-09
 

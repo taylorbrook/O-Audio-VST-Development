@@ -13,7 +13,8 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-class MicroMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor
+class MicroMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                        private juce::Timer
 {
 public:
     explicit MicroMarimbaAudioProcessorEditor(MicroMarimbaAudioProcessor&);
@@ -21,6 +22,10 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+
+private:
+    // Timer callback for polling note-on events from processor
+    void timerCallback() override;
 
 private:
     MicroMarimbaAudioProcessor& processorRef;

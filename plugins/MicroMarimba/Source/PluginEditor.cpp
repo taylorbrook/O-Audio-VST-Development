@@ -84,12 +84,30 @@ MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaA
 
     // Set editor size (from v1 mockup: 600x400)
     setSize(600, 400);
+
+    // Start timer to poll for note-on events (30fps is responsive enough)
+    startTimerHz(30);
 }
 
 MicroMarimbaAudioProcessorEditor::~MicroMarimbaAudioProcessorEditor()
 {
+    // Stop timer before destruction
+    stopTimer();
+
     // Destruction happens in reverse order (attachments → webView → relays)
     // Pattern 11: No manual cleanup needed (unique_ptr handles it)
+}
+
+// Timer callback: Poll processor for note-on events and notify WebView
+void MicroMarimbaAudioProcessorEditor::timerCallback()
+{
+    int note = processorRef.popLastPlayedNote();
+    if (note >= 0)
+    {
+        // Call JavaScript function to flash the interval line
+        juce::String js = "if (typeof flashIntervalLine === 'function') flashIntervalLine(" + juce::String(note) + ");";
+        webView->evaluateJavascript(js, nullptr);
+    }
 }
 
 void MicroMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
