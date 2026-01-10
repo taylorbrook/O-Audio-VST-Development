@@ -812,42 +812,43 @@ float OuariconSaturationModelingAudioProcessor::langevinFunction(float x)
 float OuariconSaturationModelingAudioProcessor::processMagneticSample(float input, float intensity, int channel)
 {
     // INTENSITY parameter mapping: Drive amount (0% = subtle, 100% = heavy saturation)
-    // Map to input scaling: At 0%, minimal drive; at 100%, maximum drive into hysteresis curve
-    const float drive = 1.0f + (intensity / 100.0f) * 4.0f;  // 1.0 to 5.0 range
+    const float drive = 1.0f + (intensity / 100.0f) * 3.0f;  // 1.0 to 4.0 range
 
     // Apply input drive
     float H = input * drive;  // Magnetic field (input signal)
 
     // Read state variables
-    float& M = magneticM[channel];          // Magnetization state
-    float& H_prev = magneticHPrev[channel];  // Previous field
+    float& M = magneticM[static_cast<size_t>(channel)];
+    float& H_prev = magneticHPrev[static_cast<size_t>(channel)];
+
+    // Limit deltaH to prevent initialization transient (first sample issue)
+    float deltaH = H - H_prev;
+    deltaH = juce::jlimit(-0.5f, 0.5f, deltaH);  // Limit rate of change
 
     // Calculate direction (sign of field change)
-    float delta = (H > H_prev) ? 1.0f : -1.0f;
+    float delta = (deltaH >= 0.0f) ? 1.0f : -1.0f;
 
     // Calculate effective field
     const float He = H + MAGNETIC_ALPHA * M;
 
     // Calculate anhysteretic magnetization using Langevin function
-    // Man = Ms * L(He/a)
-    const float Man = MAGNETIC_MS * langevinFunction(He / MAGNETIC_A);
+    // Man = Ms * L(He/a) - with normalized parameters, this stays in ±1 range
+    const float arg = He / MAGNETIC_A;
+    const float Man = MAGNETIC_MS * langevinFunction(arg);
 
-    // Calculate derivative of anhysteretic magnetization
-    // dMan/dH = dMan/dHe * dHe/dH = dMan/dHe * (1 + alpha * dM/dH)
-    // For simplicity, approximate dMan/dH ≈ derivative of Langevin
-    // Langevin derivative: L'(x) = -coth²(x) + 1/x² + 1
-    const float x = He / MAGNETIC_A;
+    // Calculate derivative of Langevin function
     float dLdx = 0.0f;
-    if (std::abs(x) < 1e-6f)
+    if (std::abs(arg) < 1e-4f)
     {
-        // Taylor series derivative for small x: dL/dx ≈ 1/3
+        // Taylor series for small arg: dL/dx ≈ 1/3
         dLdx = 1.0f / 3.0f;
     }
     else
     {
-        const float exp2x = std::exp(juce::jlimit(-30.0f, 30.0f, 2.0f * x));
+        const float clampedArg = juce::jlimit(-15.0f, 15.0f, arg);
+        const float exp2x = std::exp(2.0f * clampedArg);
         const float coth = (exp2x + 1.0f) / (exp2x - 1.0f);
-        dLdx = 1.0f - (coth * coth) + (1.0f / (x * x));
+        dLdx = 1.0f - (coth * coth) + (1.0f / (clampedArg * clampedArg));
     }
     const float dMan_dH = (MAGNETIC_MS / MAGNETIC_A) * dLdx;
 
@@ -855,23 +856,30 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     // dM/dH = (Man - M) / (k*delta - alpha*(Man - M)) + c * dMan/dH
     const float denominator = MAGNETIC_K * delta - MAGNETIC_ALPHA * (Man - M);
 
-    // Prevent division by zero
+    // Calculate dM/dH with robust handling
     float dM_dH = 0.0f;
-    if (std::abs(denominator) > 1e-8f)
+    if (std::abs(denominator) > 0.001f)
     {
         dM_dH = (Man - M) / denominator + MAGNETIC_C * dMan_dH;
     }
     else
     {
-        dM_dH = MAGNETIC_C * dMan_dH;  // Use reversible component only
+        // Near singularity: use reversible component only
+        dM_dH = MAGNETIC_C * dMan_dH;
     }
 
-    // Update magnetization: M += dM/dH * (H - H_prev)
-    const float deltaH = H - H_prev;
+    // Limit dM_dH to prevent runaway
+    dM_dH = juce::jlimit(-10.0f, 10.0f, dM_dH);
+
+    // Update magnetization
     M += dM_dH * deltaH;
 
-    // Clamp magnetization to physical limits [-Ms, Ms]
+    // Clamp magnetization to normalized limits
     M = juce::jlimit(-MAGNETIC_MS, MAGNETIC_MS, M);
+
+    // NaN/Inf protection - reset state if corrupted
+    if (!std::isfinite(M))
+        M = 0.0f;
 
     // Denormal protection
     if (std::abs(M) < 1e-8f)
@@ -880,15 +888,12 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     // Store previous field for next sample
     H_prev = H;
 
-    // Output is magnetization scaled to audio range
-    float output = M / MAGNETIC_MS;  // Normalize to ±1.0 range
+    // Output is magnetization (already normalized since MAGNETIC_MS = 1.0)
+    float output = M;
 
     // Apply frequency response filters (head bump → HF rolloff)
-    // Head bump filter (80Hz peak, Q=0.7, +2.5dB)
-    output = magneticHeadBumpFilters[channel].processSample(output);
-
-    // HF rolloff filter (12kHz lowpass, Q=0.707)
-    output = magneticHFRolloffFilters[channel].processSample(output);
+    output = magneticHeadBumpFilters[static_cast<size_t>(channel)].processSample(output);
+    output = magneticHFRolloffFilters[static_cast<size_t>(channel)].processSample(output);
 
     return output;
 }

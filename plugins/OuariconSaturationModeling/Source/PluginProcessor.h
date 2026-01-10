@@ -105,12 +105,12 @@ private:
     std::vector<float> magneticM;       // Magnetization state
     std::vector<float> magneticHPrev;   // Previous field (for direction detection)
 
-    // MAGNETIC model parameters (fixed, from architecture.md)
-    static constexpr float MAGNETIC_MS = 350000.0f;     // Saturation magnetization
-    static constexpr float MAGNETIC_A = 25.0f;          // Domain wall density
-    static constexpr float MAGNETIC_ALPHA = 1.6e-3f;    // Mean field parameter
-    static constexpr float MAGNETIC_K = 20.0f;          // Pinning coefficient
-    static constexpr float MAGNETIC_C = 0.2f;           // Reversibility
+    // MAGNETIC model parameters - NORMALIZED for audio range (±1.0)
+    static constexpr float MAGNETIC_MS = 1.0f;          // Saturation magnetization (normalized)
+    static constexpr float MAGNETIC_A = 0.4f;           // Domain wall density (controls curve shape)
+    static constexpr float MAGNETIC_ALPHA = 0.01f;      // Mean field parameter (feedback)
+    static constexpr float MAGNETIC_K = 0.2f;           // Pinning coefficient (hysteresis width)
+    static constexpr float MAGNETIC_C = 0.8f;           // Reversibility (higher = less hysteresis)
 
     // Auto-Gain system (Phase 2.4)
     // ------------------------------
