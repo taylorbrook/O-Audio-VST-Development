@@ -683,13 +683,26 @@
     const ATTACK_SPEED = 0.4;
     const DECAY_SPEED = 0.15;
 
-    // Receive meter levels from C++ (will be implemented via timer callback)
-    window.receiveMeterLevels = (inputDB, outputDB) => {
-      const mapDBToAngle = (db) => {
-        const normalized = (db + 20) / 23; // -20dB=0, +3dB=1
-        return -45 + (normalized * 90);
-      };
+    // Map dB to needle angle
+    // Range: -60dB to +6dB mapped to -45° to +45°
+    const mapDBToAngle = (db) => {
+      // Clamp to expected range
+      const clampedDB = Math.max(-60, Math.min(6, db));
+      // Map -60..+6 to -45..+45 degrees
+      const normalized = (clampedDB + 60) / 66; // 0 to 1
+      return -45 + (normalized * 90); // -45 to +45
+    };
 
+    // Listen for meter levels from C++ via JUCE backend events
+    if (window.__JUCE__ && window.__JUCE__.backend) {
+      window.__JUCE__.backend.addEventListener("meterLevels", (data) => {
+        targetInputAngle = mapDBToAngle(data.input);
+        targetOutputAngle = mapDBToAngle(data.output);
+      });
+    }
+
+    // Fallback: Also support direct function call (for evaluateJavascript)
+    window.receiveMeterLevels = (inputDB, outputDB) => {
       targetInputAngle = mapDBToAngle(inputDB);
       targetOutputAngle = mapDBToAngle(outputDB);
     };
