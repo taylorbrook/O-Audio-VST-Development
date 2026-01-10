@@ -38,7 +38,12 @@ public:
     void setResonance(float resonance);
     void setSampleRate(double newSampleRate);
 
+    // Phase 2.3: Set tuning engine reference
+    void setTuningEngine(class TuningEngine* engine) { tuningEngine = engine; }
+
 private:
+    // Phase 2.3: Tuning engine pointer (not owned)
+    class TuningEngine* tuningEngine = nullptr;
     // Phase 2.2: Modal synthesis constants
     static constexpr int NUM_MODES = 8;
 

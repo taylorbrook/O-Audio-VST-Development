@@ -10,6 +10,7 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "TuningEngine.h"
 
 class MicroMarimbaAudioProcessor : public juce::AudioProcessor
 {
@@ -42,12 +43,18 @@ public:
     // Public access to parameters for editor
     juce::AudioProcessorValueTreeState parameters;
 
+    // Phase 2.3: Public access to tuning engine for UI
+    TuningEngine& getTuningEngine() { return tuningEngine; }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
     // DSP Components (Phase 2.1: Basic synthesizer)
     juce::Synthesiser synthesiser;
+
+    // Phase 2.3: Tuning engine
+    TuningEngine tuningEngine;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessor)
 };

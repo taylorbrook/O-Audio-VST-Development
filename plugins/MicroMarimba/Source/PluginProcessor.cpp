@@ -12,6 +12,7 @@
 #include "PluginEditor.h"
 #include "MarimbaSound.h"
 #include "MarimbaVoice.h"
+#include "TuningEngine.h"
 
 juce::AudioProcessorValueTreeState::ParameterLayout MicroMarimbaAudioProcessor::createParameterLayout()
 {
@@ -92,6 +93,15 @@ MicroMarimbaAudioProcessor::MicroMarimbaAudioProcessor()
     {
         synthesiser.addVoice(new MarimbaVoice());
     }
+
+    // Phase 2.3: Pass tuning engine to all voices
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<MarimbaVoice*>(synthesiser.getVoice(i)))
+        {
+            voice->setTuningEngine(&tuningEngine);
+        }
+    }
 }
 
 MicroMarimbaAudioProcessor::~MicroMarimbaAudioProcessor()
@@ -142,6 +152,17 @@ void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
     auto* resonanceParam = parameters.getRawParameterValue("RESONANCE");
     float resonance = resonanceParam->load();
+
+    // Phase 2.3: Read tuning parameters
+    auto* tuningModeParam = parameters.getRawParameterValue("TUNING_MODE");
+    int tuningModeInt = static_cast<int>(tuningModeParam->load());
+
+    auto* referencePitchParam = parameters.getRawParameterValue("REFERENCE_PITCH");
+    float referencePitch = referencePitchParam->load();
+
+    // Update tuning engine (atomic updates, safe from audio thread)
+    tuningEngine.setMode(static_cast<TuningEngine::Mode>(tuningModeInt));
+    tuningEngine.setReferencePitch(static_cast<double>(referencePitch));
 
     // Update all active voices with current parameters
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)

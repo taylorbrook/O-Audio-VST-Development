@@ -8,6 +8,7 @@
 */
 
 #include "MarimbaVoice.h"
+#include "TuningEngine.h"
 #include <cmath>
 
 MarimbaVoice::MarimbaVoice()
@@ -182,7 +183,11 @@ void MarimbaVoice::setSampleRate(double newSampleRate)
 
 double MarimbaVoice::noteToFrequency(int midiNote) const
 {
-    // 12-TET frequency calculation: f = 440 * 2^((n-69)/12)
+    // Phase 2.3: Use tuning engine if available
+    if (tuningEngine)
+        return tuningEngine->getFrequency(midiNote);
+
+    // Fallback to 12-TET if no tuning engine
     return 440.0 * std::pow(2.0, (midiNote - 69) / 12.0);
 }
 
