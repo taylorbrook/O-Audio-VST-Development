@@ -102,6 +102,32 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
     return true;
 }
 
+void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const juce::String& name)
+{
+    // Validate: need at least some intervals
+    if (cents.empty())
+        return;
+
+    // Store scale data
+    scaleIntervals.clear();
+    scaleIntervals.push_back(0.0);  // Always start with unison
+
+    for (size_t i = 0; i < cents.size(); ++i)
+    {
+        scaleIntervals.push_back(cents[i]);
+    }
+
+    scaleDegrees = static_cast<int>(scaleIntervals.size()) - 1;
+    scaleName = name;
+    scalaFilePath = "";  // Not from file
+
+    // Switch to Scala mode to use custom intervals
+    currentMode.store(Mode::Scala);
+
+    // Rebuild frequency table with new scale
+    rebuildFrequencyTable();
+}
+
 juce::String TuningEngine::getActiveTuningName() const
 {
     Mode mode = currentMode.load();

@@ -35,6 +35,23 @@ MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaA
             .withOptionsFrom(*referencePitchRelay)
             .withOptionsFrom(*velCurveRelay)
             .withOptionsFrom(*outputGainRelay)
+            .withNativeFunction("sendMidiNote", [this](const auto& args, auto complete) {
+                complete(sendMidiNote(args));
+            })
+            .withNativeFunction("setTuningIntervals", [this](const auto& args, auto complete) {
+                complete(setTuningIntervals(args));
+            })
+            .withNativeFunction("loadScalaFile", [this](const auto& args, auto complete) {
+                loadScalaFile(args);
+                complete(juce::var("OK"));
+            })
+            .withNativeFunction("loadKBMFile", [this](const auto& args, auto complete) {
+                loadKBMFile(args);
+                complete(juce::var("OK"));
+            })
+            .withNativeFunction("getTuningIntervals", [this](const auto& args, auto complete) {
+                complete(getTuningIntervals(args));
+            })
     );
 
     // 3️⃣ Create attachments LAST (Pattern 12: 3 params required - parameter, relay, nullptr)
@@ -87,6 +104,74 @@ void MicroMarimbaAudioProcessorEditor::resized()
     webView->setBounds(getLocalBounds());
 }
 
+// Native function: Send MIDI note to synthesizer
+// Args: [noteNumber (int), velocity (float 0-1), isNoteOn (bool)]
+juce::var MicroMarimbaAudioProcessorEditor::sendMidiNote(const juce::Array<juce::var>& args)
+{
+    if (args.size() < 3)
+        return juce::var("Error: Expected 3 arguments (noteNumber, velocity, isNoteOn)");
+
+    int noteNumber = static_cast<int>(args[0]);
+    float velocity = static_cast<float>(args[1]);
+    bool isNoteOn = static_cast<bool>(args[2]);
+
+    // Clamp values
+    noteNumber = juce::jlimit(0, 127, noteNumber);
+    velocity = juce::jlimit(0.0f, 1.0f, velocity);
+
+    // Create MIDI message
+    juce::MidiMessage msg;
+    if (isNoteOn && velocity > 0.0f)
+    {
+        msg = juce::MidiMessage::noteOn(1, noteNumber, velocity);
+    }
+    else
+    {
+        msg = juce::MidiMessage::noteOff(1, noteNumber, 0.0f);
+    }
+
+    // Inject into processor's pending MIDI buffer
+    // The processor will pick this up in the next processBlock
+    processorRef.addMidiMessage(msg);
+
+    return juce::var("OK");
+}
+
+// Native function: Set custom tuning intervals
+// Args: [Array of cents values (up to 12), scaleName (string)]
+juce::var MicroMarimbaAudioProcessorEditor::setTuningIntervals(const juce::Array<juce::var>& args)
+{
+    if (args.size() < 1)
+        return juce::var("Error: Expected array of cents values");
+
+    // First argument should be array of cents
+    if (!args[0].isArray())
+        return juce::var("Error: First argument must be array of cents values");
+
+    auto* centsArray = args[0].getArray();
+    if (centsArray == nullptr || centsArray->isEmpty())
+        return juce::var("Error: Cents array is empty");
+
+    // Convert to vector of doubles
+    std::vector<double> cents;
+    for (const auto& val : *centsArray)
+    {
+        cents.push_back(static_cast<double>(val));
+    }
+
+    // Get optional scale name
+    juce::String scaleName = "Custom";
+    if (args.size() > 1 && args[1].isString())
+    {
+        scaleName = args[1].toString();
+    }
+
+    // Send to tuning engine
+    processorRef.getTuningEngine().setCustomIntervals(cents, scaleName);
+
+    return juce::var("OK: Set " + juce::String(cents.size()) + " intervals");
+}
+
 // Pattern 8: Explicit URL mapping (required for WebView resource loading)
 std::optional<juce::WebBrowserComponent::Resource>
 MicroMarimbaAudioProcessorEditor::getResource(const juce::String& url)
@@ -122,7 +207,104 @@ MicroMarimbaAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
+    // Background paper texture
+    if (url == "/images/paper1.jpg") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::paper1_jpg, BinaryData::paper1_jpgSize),
+            juce::String("image/jpeg")
+        };
+    }
+
+    // Botanical tree overlay
+    if (url == "/images/tree_expositionmtho00lamo_0207.png") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::tree_expositionmtho00lamo_0207_png, BinaryData::tree_expositionmtho00lamo_0207_pngSize),
+            juce::String("image/png")
+        };
+    }
+
     // Resource not found
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
+}
+
+// Native function: Open file dialog to load Scala .scl file
+juce::var MicroMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Select Scala File",
+        juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+        "*.scl"
+    );
+
+    auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file.existsAsFile())
+        {
+            bool success = processorRef.getTuningEngine().loadScalaFile(file);
+            if (success)
+            {
+                // Notify JavaScript of the loaded scale name
+                juce::String scaleName = processorRef.getTuningEngine().getActiveTuningName();
+                juce::String js = "if (window.onScalaLoaded) window.onScalaLoaded('" + scaleName + "');";
+                webView->evaluateJavascript(js, nullptr);
+            }
+        }
+    });
+
+    return juce::var("OK");
+}
+
+// Native function: Open file dialog to load Scala .kbm file
+juce::var MicroMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Select Keyboard Mapping File",
+        juce::File::getSpecialLocation(juce::File::userHomeDirectory),
+        "*.kbm"
+    );
+
+    auto chooserFlags = juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles;
+
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file.existsAsFile())
+        {
+            processorRef.getTuningEngine().loadKBMFile(file);
+        }
+    });
+
+    return juce::var("OK");
+}
+
+// Native function: Get current tuning intervals from TuningEngine
+juce::var MicroMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    const auto& intervals = processorRef.getTuningEngine().getIntervals();
+    juce::String name = processorRef.getTuningEngine().getActiveTuningName();
+
+    // Create result object
+    juce::DynamicObject::Ptr result = new juce::DynamicObject();
+
+    // Add intervals array
+    juce::Array<juce::var> intervalsArray;
+    for (const auto& cents : intervals)
+    {
+        intervalsArray.add(cents);
+    }
+    result->setProperty("intervals", intervalsArray);
+    result->setProperty("name", name);
+    result->setProperty("degrees", processorRef.getTuningEngine().getScaleDegrees());
+
+    return juce::var(result.get());
 }

@@ -43,6 +43,13 @@ public:
     bool loadScalaFile(const juce::File& sclFile);
     bool loadKBMFile(const juce::File& kbmFile);
 
+    // Set custom intervals directly from UI (cents values, 12 entries for chromatic)
+    void setCustomIntervals(const std::vector<double>& cents, const juce::String& name = "Custom");
+
+    // Get current intervals for UI display
+    const std::vector<double>& getIntervals() const { return scaleIntervals; }
+    int getScaleDegrees() const { return scaleDegrees; }
+
     // Get active tuning name for UI
     juce::String getActiveTuningName() const;
 

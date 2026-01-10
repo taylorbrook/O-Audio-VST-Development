@@ -67,6 +67,8 @@ juce_add_binary_data(MicroMarimba_UIResources
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/images/paper1.jpg
+        Source/ui/public/images/tree_expositionmtho00lamo_0207.png
 )
 
 target_link_libraries(MicroMarimba

@@ -60,5 +60,14 @@ private:
     // Phase 2.4: Body resonance (convolution)
     BodyResonance bodyResonance;
 
+    // UI keyboard MIDI injection
+    juce::MidiBuffer pendingUiMidi;
+    juce::CriticalSection midiLock;
+
+public:
+    // Called from UI thread to inject MIDI from WebView keyboard
+    void addMidiMessage(const juce::MidiMessage& msg);
+
+private:
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessor)
 };

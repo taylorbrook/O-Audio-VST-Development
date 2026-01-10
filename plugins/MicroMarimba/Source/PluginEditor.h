@@ -53,5 +53,19 @@ private:
     // Helper for resource serving (Pattern 8: Explicit URL mapping)
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
+    // Native function for keyboard MIDI playback
+    juce::var sendMidiNote(const juce::Array<juce::var>& args);
+
+    // Native function for setting custom tuning intervals
+    juce::var setTuningIntervals(const juce::Array<juce::var>& args);
+
+    // Native functions for Scala file loading
+    juce::var loadScalaFile(const juce::Array<juce::var>& args);
+    juce::var loadKBMFile(const juce::Array<juce::var>& args);
+    juce::var getTuningIntervals(const juce::Array<juce::var>& args);
+
+    // File chooser (must be member to stay alive during async operation)
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessorEditor)
 };

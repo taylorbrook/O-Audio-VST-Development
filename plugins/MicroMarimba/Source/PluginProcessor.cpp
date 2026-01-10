@@ -139,6 +139,13 @@ void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     // Clear output buffer (synth generates audio from scratch, no input)
     buffer.clear();
 
+    // Inject any pending MIDI from UI keyboard
+    {
+        const juce::ScopedLock lock(midiLock);
+        midiMessages.addEvents(pendingUiMidi, 0, -1, 0);
+        pendingUiMidi.clear();
+    }
+
     // Phase 2.2: Read parameters (atomic, real-time safe)
     auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
     float outputGainDB = outputGainParam->load();
@@ -211,6 +218,13 @@ void MicroMarimbaAudioProcessor::setStateInformation(const void* data, int sizeI
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
         parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+// UI keyboard MIDI injection (called from UI thread)
+void MicroMarimbaAudioProcessor::addMidiMessage(const juce::MidiMessage& msg)
+{
+    const juce::ScopedLock lock(midiLock);
+    pendingUiMidi.addEvent(msg, 0);
 }
 
 // Factory function

@@ -50,10 +50,29 @@
             width: 600px;
             height: 400px;
             position: relative;
-            background: #F5E6D3;
+            /* Actual paper texture background */
+            background: url('/images/paper1.jpg') center center / cover no-repeat;
             border: 3px solid #5C4033;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             overflow: hidden;
+        }
+
+        /* Botanical Overlay - actual tree image */
+        .botanical-overlay {
+            position: absolute;
+            right: -60px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 420px;
+            opacity: 0.22;
+            pointer-events: none;
+            z-index: 1;
+            transition: right 0.4s ease-out, opacity 0.4s ease-out;
+        }
+
+        .botanical-overlay.tuning-position {
+            right: -120px;
+            opacity: 0.15;
         }
 
         /* Header */
@@ -233,15 +252,24 @@
             height: 55px;
         }
 
+        /* Fixed knob indicator positioning for rotation */
         .knob-indicator {
             position: absolute;
             width: 6px;
             height: 6px;
             background: #3C2F2F;
             border-radius: 50%;
-            top: 8%;
+            /* Position at top center, with rotation point at knob center */
+            top: 5px;
             left: 50%;
-            transform: translateX(-50%);
+            margin-left: -3px; /* Center the 6px dot */
+            /* Transform origin is relative to the indicator - point to knob center */
+            transform-origin: 3px 25px; /* center of dot, distance to knob center */
+            transform: rotate(-135deg); /* Default position */
+        }
+
+        .knob.small .knob-indicator {
+            transform-origin: 3px 22px; /* Slightly smaller for 55px knob */
         }
 
         .knob:hover {
@@ -424,6 +452,119 @@
             gap: 15px;
         }
 
+        /* ====================================================================
+           TUNING TAB STYLES
+           ==================================================================== */
+
+        /* Tuning Visualization Container */
+        .tuning-viz-container {
+            position: absolute;
+            left: 25px;
+            top: 15px;
+            display: flex;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        /* Pitch Circle */
+        .pitch-circle {
+            width: 150px;
+            height: 150px;
+            position: relative;
+        }
+
+        .pitch-circle svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        .pitch-circle-label {
+            position: absolute;
+            bottom: -16px;
+            width: 100%;
+            text-align: center;
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* Interval List */
+        .interval-list {
+            width: 115px;
+            max-height: 280px;
+            background: rgba(235, 217, 199, 0.6);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            overflow-y: auto;
+            padding: 4px 6px;
+            order: -1;
+        }
+
+        .interval-list-header {
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+            padding-bottom: 3px;
+            margin-bottom: 3px;
+            text-align: center;
+        }
+
+        .interval-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 9px;
+            color: #3C2F2F;
+            padding: 1px 0;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.15);
+            height: 16px;
+        }
+
+        .interval-item:last-child {
+            border-bottom: none;
+        }
+
+        .interval-degree {
+            color: #5C4033;
+            font-weight: normal;
+            width: 28px;
+            flex-shrink: 0;
+        }
+
+        .interval-cents {
+            color: #6B8E4E;
+            font-family: monospace;
+            font-size: 8px;
+        }
+
+        .interval-input {
+            width: 55px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid #8B7355;
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 8px;
+            color: #3C2F2F;
+            text-align: right;
+            padding: 0 3px;
+            outline: none;
+        }
+
+        .interval-input:focus {
+            background: #FFF;
+            border-color: #6B8E4E;
+        }
+
+        .interval-input:disabled {
+            background: rgba(200, 200, 200, 0.3);
+            color: #888;
+        }
+
         /* Tuning Controls Panel */
         .tuning-controls-panel {
             position: absolute;
@@ -454,6 +595,15 @@
             gap: 20px;
         }
 
+        .tuning-status-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+            min-height: 60px;
+            margin-top: -10px;
+        }
+
         .scale-name-display {
             width: 180px;
             height: 24px;
@@ -466,10 +616,147 @@
             font-size: 10px;
             color: #3C2F2F;
         }
+
+        .file-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mts-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mts-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: #8B7355;
+        }
+
+        .mts-indicator.connected {
+            background: #6B8E4E;
+            box-shadow: 0 0 6px rgba(107, 142, 35, 0.6);
+        }
+
+        .mts-label {
+            font-size: 9px;
+            color: #3C2F2F;
+        }
+
+        /* Keyboard Visualization */
+        .keyboard-section {
+            position: absolute;
+            bottom: 15px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .keyboard-viz {
+            width: 280px;
+            height: 70px;
+            background: #FAF0E6;
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            display: flex;
+            overflow: hidden;
+        }
+
+        .white-key {
+            flex: 1;
+            background: #FAF0E6;
+            border-right: 1px solid #8B7355;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 4px;
+            transition: background 0.15s, transform 0.1s;
+            cursor: pointer;
+            overflow: visible; /* Allow black keys to extend beyond */
+            z-index: 1;
+        }
+
+        .white-key:last-child {
+            border-right: none;
+        }
+
+        .white-key.mapped {
+            background: rgba(139, 168, 112, 0.4);
+        }
+
+        .white-key:hover:not(.playing):not(:has(.black-key:hover)) {
+            background: #FFF8DC;
+        }
+
+        .white-key.mapped:hover:not(.playing):not(:has(.black-key:hover)) {
+            background: rgba(139, 168, 112, 0.55);
+        }
+
+        .white-key:active:not(:has(.black-key:active)), .white-key.playing {
+            background: #8BC34A !important; /* Bright green for visibility */
+            transform: translateY(2px);
+            z-index: 2;
+        }
+
+        .white-key span {
+            font-size: 7px;
+            color: #3C2F2F;
+            pointer-events: none;
+        }
+
+        .black-key {
+            position: absolute;
+            width: 22px;
+            height: 50px;
+            background: #3C2F2F;
+            border-radius: 0 0 3px 3px;
+            top: 0;
+            right: -11px; /* Center on the edge between white keys */
+            z-index: 10; /* Higher z-index to ensure clickability */
+            transition: background 0.15s, transform 0.1s;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .black-key.mapped {
+            background: #4A6B2A;
+        }
+
+        .black-key:hover {
+            background: #5A3A3A;
+        }
+
+        .black-key.mapped:hover {
+            background: #5A8B3A;
+        }
+
+        .black-key:active, .black-key.playing {
+            background: #8BC34A !important; /* Bright green for visibility */
+            transform: translateY(2px);
+            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
+        }
+
+        .keyboard-help {
+            font-size: 8px;
+            color: #5C4033;
+            text-align: center;
+        }
     </style>
 </head>
 <body>
     <div class="plugin-container">
+        <!-- Botanical Overlay - actual tree image -->
+        <img id="botanical" class="botanical-overlay"
+             src="/images/tree_expositionmtho00lamo_0207.png"
+             alt="Botanical illustration">
+
         <!-- Header -->
         <div class="header">
             <div class="title">Ouaricon Marimba</div>
@@ -576,6 +863,32 @@
 
         <!-- TUNING Tab Content -->
         <div id="tuning-tab" class="tab-content">
+            <!-- LEFT SIDE: Tuning Visualization -->
+            <div class="tuning-viz-container">
+                <!-- Interval List -->
+                <div class="interval-list" id="interval-list">
+                    <div class="interval-list-header">Intervals</div>
+                    <!-- Populated by JS -->
+                </div>
+
+                <!-- Pitch Circle -->
+                <div class="pitch-circle">
+                    <svg viewBox="0 0 150 150" id="pitch-circle-svg">
+                        <!-- Outer circle -->
+                        <circle cx="75" cy="75" r="70" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                        <!-- Inner circle -->
+                        <circle cx="75" cy="75" r="58" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                        <!-- Center dot -->
+                        <circle cx="75" cy="75" r="3" fill="#3C2F2F"/>
+                        <!-- Interval lines (drawn by JS) -->
+                        <g id="interval-lines"></g>
+                        <!-- Degree labels around the circle -->
+                        <g id="degree-labels" font-size="7" fill="#5C4033"></g>
+                    </svg>
+                    <div class="pitch-circle-label">Scale Intervals</div>
+                </div>
+            </div>
+
             <!-- RIGHT SIDE: Tuning Controls -->
             <div class="tuning-controls-panel">
                 <!-- Mode Selection -->
@@ -598,8 +911,52 @@
                     </div>
                 </div>
 
-                <!-- Scale Name Display -->
-                <div class="scale-name-display" id="scale-name">12-TET Standard</div>
+                <!-- Status Section -->
+                <div class="tuning-status-section">
+                    <div class="scale-name-display" id="scale-name">12-TET Standard</div>
+
+                    <!-- Scala File Buttons (shown for SCALA mode) -->
+                    <div class="file-buttons" id="scala-buttons" style="display: none;">
+                        <button class="btn" id="btn-load-scl" style="font-size: 9px;">LOAD .SCL</button>
+                        <button class="btn" id="btn-load-kbm" style="font-size: 9px;">LOAD .KBM</button>
+                    </div>
+
+                    <!-- MTS-ESP Status (shown for MTS mode) -->
+                    <div class="mts-status" id="mts-status" style="display: none;">
+                        <div class="mts-indicator" id="mts-indicator"></div>
+                        <span class="mts-label">MTS-ESP: <span id="mts-status-text">Disconnected</span></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- BOTTOM: Keyboard Visualization (1 octave) -->
+            <div class="keyboard-section">
+                <div class="keyboard-viz" id="keyboard-viz">
+                    <!-- Single Octave: C4-B4 -->
+                    <div class="white-key mapped" style="position: relative;" id="key-c1">
+                        <div class="black-key mapped" id="key-cs1"></div>
+                        <span>C</span>
+                    </div>
+                    <div class="white-key mapped" style="position: relative;" id="key-d1">
+                        <div class="black-key mapped" id="key-ds1"></div>
+                        <span>D</span>
+                    </div>
+                    <div class="white-key mapped" id="key-e1"><span>E</span></div>
+                    <div class="white-key mapped" style="position: relative;" id="key-f1">
+                        <div class="black-key mapped" id="key-fs1"></div>
+                        <span>F</span>
+                    </div>
+                    <div class="white-key mapped" style="position: relative;" id="key-g1">
+                        <div class="black-key mapped" id="key-gs1"></div>
+                        <span>G</span>
+                    </div>
+                    <div class="white-key mapped" style="position: relative;" id="key-a1">
+                        <div class="black-key mapped" id="key-as1"></div>
+                        <span>A</span>
+                    </div>
+                    <div class="white-key mapped" id="key-b1"><span>B</span></div>
+                </div>
+                <div class="keyboard-help">Click to play</div>
             </div>
         </div>
     </div>
@@ -621,14 +978,18 @@
 
         console.log("JUCE backend connected:", window.__JUCE__.backend);
 
-        // Tab switching
+        // ====================================================================
+        // TAB SWITCHING
+        // ====================================================================
         let currentTab = 'main';
+
         document.getElementById('tab-sound').addEventListener('click', () => {
             currentTab = 'main';
             document.getElementById('main-tab').classList.add('active');
             document.getElementById('tuning-tab').classList.remove('active');
             document.getElementById('tab-sound').classList.add('active');
             document.getElementById('tab-tuning').classList.remove('active');
+            document.getElementById('botanical').classList.remove('tuning-position');
         });
 
         document.getElementById('tab-tuning').addEventListener('click', () => {
@@ -637,97 +998,91 @@
             document.getElementById('main-tab').classList.remove('active');
             document.getElementById('tab-tuning').classList.add('active');
             document.getElementById('tab-sound').classList.remove('active');
+            document.getElementById('botanical').classList.add('tuning-position');
         });
+
+        // ====================================================================
+        // HELPER FUNCTIONS
+        // ====================================================================
+
+        // Update knob indicator rotation (fixed rotation)
+        function updateKnobIndicator(indicator, normalizedValue) {
+            // Map 0-1 to -135deg to +135deg (270 degree range)
+            const angle = -135 + (normalizedValue * 270);
+            indicator.style.transform = `rotate(${angle}deg)`;
+        }
+
+        // Create draggable knob behavior
+        function makeKnobDraggable(knobElement, state, onUpdate) {
+            let isDragging = false;
+
+            knobElement.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                state.sliderDragStarted();
+                e.preventDefault();
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    state.sliderDragEnded();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    const currentValue = state.getNormalisedValue();
+                    const newValue = Math.max(0, Math.min(1, currentValue - e.movementY * 0.005));
+                    state.setNormalisedValue(newValue);
+                }
+            });
+
+            // Listen for value changes (from backend OR user interaction)
+            state.valueChangedEvent.addListener(() => {
+                const newValue = state.getNormalisedValue();
+                onUpdate(newValue);
+            });
+
+            // Initialize with current value
+            onUpdate(state.getNormalisedValue());
+        }
 
         // ====================================================================
         // PARAMETER BINDINGS
         // ====================================================================
 
-        // Helper function: Update knob indicator rotation
-        function updateKnobIndicator(indicator, normalizedValue) {
-            const angle = -135 + (normalizedValue * 270);
-            indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-            indicator.style.transformOrigin = 'center 22px';
-        }
-
         // MALLET_HARDNESS
         const malletState = Juce.getSliderState("MALLET_HARDNESS");
-        const malletKnob = document.getElementById("mallet-knob");
         const malletIndicator = document.getElementById("mallet-indicator");
         const malletValue = document.getElementById("mallet-value");
 
-        let malletDragging = false;
-        malletKnob.addEventListener('mousedown', () => malletDragging = true);
-        document.addEventListener('mouseup', () => malletDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if (malletDragging) {
-                const currentValue = malletState.getNormalisedValue();
-                const newValue = Math.max(0, Math.min(1, currentValue - e.movementY * 0.005));
-                malletState.setNormalisedValue(newValue);
-            }
+        makeKnobDraggable(document.getElementById("mallet-knob"), malletState, (value) => {
+            updateKnobIndicator(malletIndicator, value);
+            malletValue.textContent = Math.round(value * 100) + "%";
         });
-
-        malletState.valueChangedEvent.addListener((newValue) => {
-            updateKnobIndicator(malletIndicator, newValue);
-            malletValue.textContent = Math.round(newValue * 100) + "%";
-        });
-
-        updateKnobIndicator(malletIndicator, malletState.getNormalisedValue());
-        malletValue.textContent = Math.round(malletState.getNormalisedValue() * 100) + "%";
 
         // BAR_MATERIAL
         const materialState = Juce.getSliderState("BAR_MATERIAL");
-        const materialKnob = document.getElementById("material-knob");
         const materialIndicator = document.getElementById("material-indicator");
         const materialValue = document.getElementById("material-value");
 
-        let materialDragging = false;
-        materialKnob.addEventListener('mousedown', () => materialDragging = true);
-        document.addEventListener('mouseup', () => materialDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if (materialDragging) {
-                const currentValue = materialState.getNormalisedValue();
-                const newValue = Math.max(0, Math.min(1, currentValue - e.movementY * 0.005));
-                materialState.setNormalisedValue(newValue);
-            }
+        makeKnobDraggable(document.getElementById("material-knob"), materialState, (value) => {
+            updateKnobIndicator(materialIndicator, value);
+            materialValue.textContent = Math.round(value * 100) + "%";
         });
-
-        materialState.valueChangedEvent.addListener((newValue) => {
-            updateKnobIndicator(materialIndicator, newValue);
-            materialValue.textContent = Math.round(newValue * 100) + "%";
-        });
-
-        updateKnobIndicator(materialIndicator, materialState.getNormalisedValue());
-        materialValue.textContent = Math.round(materialState.getNormalisedValue() * 100) + "%";
 
         // RESONANCE
         const resonanceState = Juce.getSliderState("RESONANCE");
-        const resonanceKnob = document.getElementById("resonance-knob");
         const resonanceIndicator = document.getElementById("resonance-indicator");
         const resonanceValue = document.getElementById("resonance-value");
 
-        let resonanceDragging = false;
-        resonanceKnob.addEventListener('mousedown', () => resonanceDragging = true);
-        document.addEventListener('mouseup', () => resonanceDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if (resonanceDragging) {
-                const currentValue = resonanceState.getNormalisedValue();
-                const newValue = Math.max(0, Math.min(1, currentValue - e.movementY * 0.005));
-                resonanceState.setNormalisedValue(newValue);
-            }
+        makeKnobDraggable(document.getElementById("resonance-knob"), resonanceState, (value) => {
+            updateKnobIndicator(resonanceIndicator, value);
+            resonanceValue.textContent = Math.round(value * 100) + "%";
         });
-
-        resonanceState.valueChangedEvent.addListener((newValue) => {
-            updateKnobIndicator(resonanceIndicator, newValue);
-            resonanceValue.textContent = Math.round(newValue * 100) + "%";
-        });
-
-        updateKnobIndicator(resonanceIndicator, resonanceState.getNormalisedValue());
-        resonanceValue.textContent = Math.round(resonanceState.getNormalisedValue() * 100) + "%";
 
         // VEL_CURVE
         const velCurveState = Juce.getSliderState("VEL_CURVE");
-        const velocityKnob = document.getElementById("velocity-knob");
         const velocityIndicator = document.getElementById("velocity-indicator");
         const velocityValue = document.getElementById("velocity-value");
         const velocityCurve = document.getElementById("velocity-curve");
@@ -742,60 +1097,31 @@
             velocityFill.setAttribute('d', fillD);
         }
 
-        let velocityDragging = false;
-        velocityKnob.addEventListener('mousedown', () => velocityDragging = true);
-        document.addEventListener('mouseup', () => velocityDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if (velocityDragging) {
-                const currentValue = velCurveState.getNormalisedValue();
-                const newValue = Math.max(0, Math.min(1, currentValue - e.movementY * 0.005));
-                velCurveState.setNormalisedValue(newValue);
-            }
+        makeKnobDraggable(document.getElementById("velocity-knob"), velCurveState, (value) => {
+            updateKnobIndicator(velocityIndicator, value);
+            velocityValue.textContent = Math.round(value * 100) + "%";
+            updateVelocityCurve(value);
         });
-
-        velCurveState.valueChangedEvent.addListener((newValue) => {
-            updateKnobIndicator(velocityIndicator, newValue);
-            velocityValue.textContent = Math.round(newValue * 100) + "%";
-            updateVelocityCurve(newValue);
-        });
-
-        updateKnobIndicator(velocityIndicator, velCurveState.getNormalisedValue());
-        velocityValue.textContent = Math.round(velCurveState.getNormalisedValue() * 100) + "%";
-        updateVelocityCurve(velCurveState.getNormalisedValue());
 
         // OUTPUT_GAIN
         const outputGainState = Juce.getSliderState("OUTPUT_GAIN");
-        const outputKnob = document.getElementById("output-knob");
         const outputIndicator = document.getElementById("output-indicator");
         const outputValue = document.getElementById("output-value");
 
-        let outputDragging = false;
-        outputKnob.addEventListener('mousedown', () => outputDragging = true);
-        document.addEventListener('mouseup', () => outputDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if (outputDragging) {
-                const currentValue = outputGainState.getNormalisedValue();
-                const newValue = Math.max(0, Math.min(1, currentValue - e.movementY * 0.005));
-                outputGainState.setNormalisedValue(newValue);
-            }
-        });
-
-        outputGainState.valueChangedEvent.addListener((newValue) => {
-            updateKnobIndicator(outputIndicator, newValue);
-            const dbValue = -24.0 + (newValue * 36.0);
+        makeKnobDraggable(document.getElementById("output-knob"), outputGainState, (value) => {
+            updateKnobIndicator(outputIndicator, value);
+            const dbValue = -24.0 + (value * 36.0);
             outputValue.textContent = dbValue.toFixed(1) + " dB";
         });
 
-        updateKnobIndicator(outputIndicator, outputGainState.getNormalisedValue());
-        const dbValue = -24.0 + (outputGainState.getNormalisedValue() * 36.0);
-        outputValue.textContent = dbValue.toFixed(1) + " dB";
-
         // TUNING_MODE (Choice parameter - button group)
-        const tuningModeState = Juce.getComboBoxState("TUNING_MODE");
+        const tuningModeState = Juce.getSliderState("TUNING_MODE");
         const btn12tet = document.getElementById("btn-12tet");
         const btnScala = document.getElementById("btn-scala");
         const btnMts = document.getElementById("btn-mts");
         const scaleName = document.getElementById("scale-name");
+        const scalaButtons = document.getElementById("scala-buttons");
+        const mtsStatus = document.getElementById("mts-status");
 
         function updateTuningModeUI(normalizedValue) {
             const index = Math.round(normalizedValue * 2);
@@ -803,44 +1129,464 @@
             btnScala.classList.toggle('active', index === 1);
             btnMts.classList.toggle('active', index === 2);
 
-            if (index === 0) scaleName.textContent = "12-TET Standard";
-            else if (index === 1) scaleName.textContent = "No scale loaded";
-            else if (index === 2) scaleName.textContent = "Waiting for MTS-ESP...";
+            // Show/hide mode-specific controls
+            scalaButtons.style.display = index === 1 ? 'flex' : 'none';
+            mtsStatus.style.display = index === 2 ? 'flex' : 'none';
+
+            if (index === 0) {
+                // Load 12-TET preset
+                loadScalePreset('12tet');
+            } else if (index === 1) {
+                // Load Just Intonation as default Scala preset
+                loadScalePreset('just');
+            } else if (index === 2) {
+                scaleName.textContent = "MTS-ESP (stub)";
+                // MTS-ESP would override tuning from external source
+            }
+
+            // Update keyboard visualization
+            updateKeyboardViz(index);
         }
 
         btn12tet.addEventListener('click', () => tuningModeState.setNormalisedValue(0.0));
         btnScala.addEventListener('click', () => tuningModeState.setNormalisedValue(0.5));
         btnMts.addEventListener('click', () => tuningModeState.setNormalisedValue(1.0));
 
-        tuningModeState.valueChangedEvent.addListener(updateTuningModeUI);
-        updateTuningModeUI(tuningModeState.getNormalisedValue());
+        tuningModeState.valueChangedEvent.addListener(() => {
+            updateTuningModeUI(tuningModeState.getNormalisedValue());
+        });
+
+        // Scala file loading
+        const loadScalaFileNative = Juce.getNativeFunction("loadScalaFile");
+        const loadKBMFileNative = Juce.getNativeFunction("loadKBMFile");
+
+        document.getElementById('btn-load-scl').addEventListener('click', () => {
+            loadScalaFileNative();
+        });
+
+        document.getElementById('btn-load-kbm').addEventListener('click', () => {
+            loadKBMFileNative();
+        });
+
+        // Get native function to fetch intervals
+        const getTuningIntervalsNative = Juce.getNativeFunction("getTuningIntervals");
+
+        // Callback when Scala file is loaded (called from C++)
+        window.onScalaLoaded = async function(scaleName) {
+            document.getElementById('scale-name').textContent = scaleName;
+            currentScaleName = scaleName;
+
+            // Fetch the loaded intervals from the TuningEngine
+            try {
+                const result = await getTuningIntervalsNative();
+                if (result && result.intervals) {
+                    // Update currentIntervals with ALL loaded intervals (any scale size)
+                    // The intervals array includes unison (0) at index 0
+                    currentIntervals = [];
+                    for (let i = 0; i < result.intervals.length; i++) {
+                        currentIntervals.push(result.intervals[i]);
+                    }
+
+                    // Update UI with dynamic scale size
+                    updateIntervalListUI();
+                    drawPitchCircle();
+                    console.log('Loaded scale with', currentIntervals.length, 'notes:', currentIntervals);
+                }
+            } catch (e) {
+                console.error('Failed to get tuning intervals:', e);
+            }
+        };
 
         // REFERENCE_PITCH
         const refPitchState = Juce.getSliderState("REFERENCE_PITCH");
-        const refPitchKnob = document.getElementById("ref-pitch-knob");
         const refPitchIndicator = document.getElementById("ref-pitch-indicator");
         const refPitchValue = document.getElementById("ref-pitch-value");
 
-        let refPitchDragging = false;
-        refPitchKnob.addEventListener('mousedown', () => refPitchDragging = true);
-        document.addEventListener('mouseup', () => refPitchDragging = false);
-        document.addEventListener('mousemove', (e) => {
-            if (refPitchDragging) {
-                const currentValue = refPitchState.getNormalisedValue();
-                const newValue = Math.max(0, Math.min(1, currentValue - e.movementY * 0.005));
-                refPitchState.setNormalisedValue(newValue);
-            }
-        });
-
-        refPitchState.valueChangedEvent.addListener((newValue) => {
-            updateKnobIndicator(refPitchIndicator, newValue);
-            const hzValue = 400.0 + (newValue * 80.0);
+        makeKnobDraggable(document.getElementById("ref-pitch-knob"), refPitchState, (value) => {
+            updateKnobIndicator(refPitchIndicator, value);
+            const hzValue = 400.0 + (value * 80.0);
             refPitchValue.textContent = hzValue.toFixed(1) + " Hz";
         });
 
-        updateKnobIndicator(refPitchIndicator, refPitchState.getNormalisedValue());
-        const hzValue = 400.0 + (refPitchState.getNormalisedValue() * 80.0);
-        refPitchValue.textContent = hzValue.toFixed(1) + " Hz";
+        // ====================================================================
+        // TUNING VISUALIZATIONS
+        // ====================================================================
+
+        // Get native function for setting tuning
+        const setTuningIntervals = Juce.getNativeFunction("setTuningIntervals");
+
+        // Current editable intervals (dynamic size based on loaded scale)
+        let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+        let currentScaleName = '12-TET Standard';
+
+        // Scale presets (cents from root, including unison at 0)
+        const scalePresets = {
+            '12tet': {
+                name: '12-TET Standard',
+                intervals: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100]
+            },
+            'just': {
+                name: 'Just Intonation',
+                intervals: [0, 112, 204, 316, 386, 498, 590, 702, 814, 884, 996, 1088]
+            },
+            'pythagorean': {
+                name: 'Pythagorean',
+                intervals: [0, 90, 204, 294, 408, 498, 612, 702, 792, 906, 996, 1110]
+            }
+        };
+
+        // Generate degree label for any position
+        function getDegreeLabel(index, total) {
+            if (total === 12) {
+                // Standard chromatic labels
+                return ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][index];
+            }
+            // For other scales, use numbers
+            return String(index + 1);
+        }
+
+        // Parse user input as cents or ratio
+        function parseIntervalInput(value) {
+            value = value.trim();
+            if (!value) return null;
+
+            // Check if it's a ratio (contains /)
+            if (value.includes('/')) {
+                const parts = value.split('/');
+                if (parts.length === 2) {
+                    const num = parseFloat(parts[0]);
+                    const den = parseFloat(parts[1]);
+                    if (!isNaN(num) && !isNaN(den) && den !== 0) {
+                        // Convert ratio to cents: 1200 * log2(ratio)
+                        return 1200 * Math.log2(num / den);
+                    }
+                }
+                return null;
+            }
+
+            // Otherwise treat as cents
+            const cents = parseFloat(value);
+            return isNaN(cents) ? null : cents;
+        }
+
+        // Send current intervals to backend
+        function applyTuning() {
+            // Send intervals (excluding unison at index 0)
+            const intervalsToSend = currentIntervals.slice(1);
+            setTuningIntervals(intervalsToSend, currentScaleName);
+            console.log('Applied tuning:', currentScaleName, intervalsToSend);
+        }
+
+        // Load a preset scale
+        function loadScalePreset(presetKey) {
+            const preset = scalePresets[presetKey];
+            if (!preset) return;
+
+            currentScaleName = preset.name;
+            currentIntervals = [...preset.intervals]; // Copy the full array
+
+            updateIntervalListUI();
+            drawPitchCircle();
+            applyTuning();
+
+            document.getElementById('scale-name').textContent = currentScaleName;
+        }
+
+        function drawPitchCircle() {
+            const linesGroup = document.getElementById('interval-lines');
+            const labelsGroup = document.getElementById('degree-labels');
+
+            // Clear previous
+            linesGroup.innerHTML = '';
+            labelsGroup.innerHTML = '';
+
+            const cx = 75, cy = 75;
+            const innerR = 8;
+            const outerR = 55;
+            const labelR = 65;
+            const total = currentIntervals.length;
+
+            // Adjust font size based on number of notes
+            const fontSize = total > 12 ? 5 : 7;
+
+            currentIntervals.forEach((cents, i) => {
+                // Convert cents to angle (0 cents = top, clockwise)
+                const angle = (cents / 1200) * 360 - 90;
+                const rad = angle * (Math.PI / 180);
+
+                // Calculate line endpoints
+                const x1 = cx + innerR * Math.cos(rad);
+                const y1 = cy + innerR * Math.sin(rad);
+                const x2 = cx + outerR * Math.cos(rad);
+                const y2 = cy + outerR * Math.sin(rad);
+
+                // Draw line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', '#6B8E4E');
+                line.setAttribute('stroke-width', total > 19 ? '1' : '2');
+                line.setAttribute('stroke-linecap', 'round');
+                linesGroup.appendChild(line);
+
+                // Draw label (skip some labels if too many notes)
+                if (total <= 24 || i % 2 === 0) {
+                    const labelX = cx + labelR * Math.cos(rad);
+                    const labelY = cy + labelR * Math.sin(rad);
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', labelX);
+                    text.setAttribute('y', labelY + 2);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('font-size', fontSize);
+                    text.setAttribute('fill', '#3C2F2F');
+                    text.textContent = getDegreeLabel(i, total);
+                    labelsGroup.appendChild(text);
+                }
+            });
+        }
+
+        function updateIntervalListUI() {
+            const list = document.getElementById('interval-list');
+            const total = currentIntervals.length;
+
+            let html = `<div class="interval-list-header">Intervals (${total} notes)</div>`;
+
+            // Show rows for actual number of intervals
+            for (let i = 0; i < total; i++) {
+                const cents = currentIntervals[i] || 0;
+                const isUnison = (i === 0);
+                const displayValue = isUnison ? '0' : cents.toFixed(1);
+                const label = getDegreeLabel(i, total);
+
+                html += `
+                    <div class="interval-item">
+                        <span class="interval-degree">${label}</span>
+                        <input type="text"
+                               class="interval-input"
+                               data-index="${i}"
+                               value="${displayValue}"
+                               ${isUnison ? 'disabled' : ''}
+                               placeholder="${Math.round(i * 1200 / total)}">
+                    </div>
+                `;
+            }
+
+            list.innerHTML = html;
+
+            // Add event listeners to inputs
+            list.querySelectorAll('.interval-input:not([disabled])').forEach(input => {
+                input.addEventListener('change', (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    const parsed = parseIntervalInput(e.target.value);
+
+                    if (parsed !== null) {
+                        currentIntervals[index] = parsed;
+                        e.target.value = parsed.toFixed(1);
+                        currentScaleName = 'Custom';
+                        document.getElementById('scale-name').textContent = currentScaleName;
+                        drawPitchCircle();
+                        applyTuning();
+                    } else {
+                        // Invalid input, revert
+                        e.target.value = (currentIntervals[index] || 0).toFixed(1);
+                    }
+                });
+
+                // Apply on Enter key
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.target.blur();
+                    }
+                });
+            });
+        }
+
+        function updateKeyboardViz(modeIndex) {
+            const allKeys = document.querySelectorAll('.white-key, .black-key');
+
+            // All keys mapped (single octave shows all 12 notes)
+            allKeys.forEach(key => key.classList.add('mapped'));
+        }
+
+        // ====================================================================
+        // AUDIO VISUALIZATIONS (Static - no actual audio data from backend)
+        // ====================================================================
+
+        // Initialize waveform as flat line (static display)
+        function initWaveform() {
+            const path = document.getElementById('waveform-path');
+            const fill = document.getElementById('waveform-fill');
+
+            // Flat horizontal line at center
+            path.setAttribute('d', 'M0,60 L260,60');
+            fill.setAttribute('d', 'M0,60 L260,60 L260,120 L0,120 Z');
+        }
+
+        // Initialize VU meter at rest position (pointing to -20)
+        function initVU() {
+            const needle = document.getElementById('vu-needle');
+            // Rest position: -45 degrees (pointing to -20 on scale)
+            needle.style.transform = 'translateX(-50%) rotate(-45deg)';
+        }
+
+        // Initialize static displays
+        initWaveform();
+        initVU();
+
+        // ====================================================================
+        // PLAYABLE KEYBOARD
+        // ====================================================================
+
+        // Map keyboard key IDs to MIDI note numbers (C4 = 60 = middle C)
+        const keyToMidi = {
+            // Single Octave (C4-B4)
+            'key-c1': 60,  'key-cs1': 61, 'key-d1': 62,  'key-ds1': 63,
+            'key-e1': 64,  'key-f1': 65,  'key-fs1': 66, 'key-g1': 67,
+            'key-gs1': 68, 'key-a1': 69,  'key-as1': 70, 'key-b1': 71
+        };
+
+        // Get native function for sending MIDI
+        const sendMidiNote = Juce.getNativeFunction("sendMidiNote");
+
+        // Track currently playing keys (for proper note-off handling)
+        const playingKeys = new Set();
+
+        // Handle key press (note on)
+        function handleKeyDown(keyId) {
+            const midiNote = keyToMidi[keyId];
+            if (midiNote === undefined) return;
+
+            // Avoid retriggering if already playing
+            if (playingKeys.has(keyId)) return;
+
+            playingKeys.add(keyId);
+            const keyEl = document.getElementById(keyId);
+            if (keyEl) keyEl.classList.add('playing');
+
+            // Send note on (velocity = 0.8)
+            sendMidiNote(midiNote, 0.8, true);
+        }
+
+        // Handle key release (note off)
+        function handleKeyUp(keyId) {
+            const midiNote = keyToMidi[keyId];
+            if (midiNote === undefined) return;
+
+            playingKeys.delete(keyId);
+            const keyEl = document.getElementById(keyId);
+            if (keyEl) keyEl.classList.remove('playing');
+
+            // Send note off
+            sendMidiNote(midiNote, 0.0, false);
+        }
+
+        // Attach handlers to all keyboard keys
+        // Process black keys first to ensure they get priority
+        const blackKeyIds = Object.keys(keyToMidi).filter(id => id.includes('s'));
+        const whiteKeyIds = Object.keys(keyToMidi).filter(id => !id.includes('s'));
+
+        // Black keys - must stop propagation to parent white key
+        blackKeyIds.forEach(keyId => {
+            const keyEl = document.getElementById(keyId);
+            if (!keyEl) return;
+
+            keyEl.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                e.stopPropagation(); // Prevent white key from triggering
+                handleKeyDown(keyId);
+            });
+
+            keyEl.addEventListener('mouseup', (e) => {
+                e.stopPropagation();
+                handleKeyUp(keyId);
+            });
+
+            keyEl.addEventListener('mouseleave', (e) => {
+                e.stopPropagation();
+                if (playingKeys.has(keyId)) {
+                    handleKeyUp(keyId);
+                }
+            });
+
+            keyEl.addEventListener('touchstart', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleKeyDown(keyId);
+            });
+
+            keyEl.addEventListener('touchend', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                handleKeyUp(keyId);
+            });
+        });
+
+        // White keys - check that click is directly on white key, not black key child
+        whiteKeyIds.forEach(keyId => {
+            const keyEl = document.getElementById(keyId);
+            if (!keyEl) return;
+
+            keyEl.addEventListener('mousedown', (e) => {
+                // Only trigger if the click target is the white key itself (not a black key child)
+                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
+                    return; // Black key will handle this
+                }
+                e.preventDefault();
+                handleKeyDown(keyId);
+            });
+
+            keyEl.addEventListener('mouseup', (e) => {
+                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
+                    return;
+                }
+                handleKeyUp(keyId);
+            });
+
+            keyEl.addEventListener('mouseleave', () => {
+                if (playingKeys.has(keyId)) {
+                    handleKeyUp(keyId);
+                }
+            });
+
+            keyEl.addEventListener('touchstart', (e) => {
+                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
+                    return;
+                }
+                e.preventDefault();
+                handleKeyDown(keyId);
+            });
+
+            keyEl.addEventListener('touchend', (e) => {
+                if (e.target !== keyEl && e.target.classList.contains('black-key')) {
+                    return;
+                }
+                e.preventDefault();
+                handleKeyUp(keyId);
+            });
+        });
+
+        // Global mouseup handler to catch releases outside keys
+        document.addEventListener('mouseup', () => {
+            playingKeys.forEach(keyId => handleKeyUp(keyId));
+        });
+
+        console.log("Keyboard MIDI playback enabled");
+
+        // ====================================================================
+        // INITIALIZATION
+        // ====================================================================
+
+        // Initialize interval list UI first
+        updateIntervalListUI();
+        drawPitchCircle();
+
+        // Initialize tuning mode UI (this will load appropriate preset)
+        updateTuningModeUI(tuningModeState.getNormalisedValue());
+
+        // Apply initial tuning to backend
+        applyTuning();
 
         console.log("Ouaricon Marimba UI initialized");
     </script>
