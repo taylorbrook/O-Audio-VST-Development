@@ -13,7 +13,8 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-class OuariconSaturationModelingAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconSaturationModelingAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                                       private juce::Timer
 {
 public:
     explicit OuariconSaturationModelingAudioProcessorEditor(OuariconSaturationModelingAudioProcessor&);
@@ -23,6 +24,8 @@ public:
     void resized() override;
 
 private:
+    // Timer callback for VU meter updates
+    void timerCallback() override;
     OuariconSaturationModelingAudioProcessor& processorRef;
 
     // ⚠️ CRITICAL: MEMBER DECLARATION ORDER (Pattern 11)

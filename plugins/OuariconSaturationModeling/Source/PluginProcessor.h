@@ -12,6 +12,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <cmath>
+#include <atomic>
 
 class OuariconSaturationModelingAudioProcessor : public juce::AudioProcessor
 {
@@ -42,6 +43,10 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState parameters;
+
+    // VU Meter levels (atomic for thread-safe access from editor)
+    std::atomic<float> currentInputLevel { -60.0f };   // dB
+    std::atomic<float> currentOutputLevel { -60.0f };  // dB
 
 private:
     // Parameter layout creation

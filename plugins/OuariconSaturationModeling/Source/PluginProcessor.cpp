@@ -568,6 +568,29 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
             }
         }
     }
+
+    // Update VU meter levels (convert RMS envelope to dB, average channels)
+    float avgInputRMS = 0.0f;
+    float avgOutputRMS = 0.0f;
+    const int numCh = static_cast<int>(inputRMSEnvelope.size());
+    if (numCh > 0)
+    {
+        for (int ch = 0; ch < numCh; ++ch)
+        {
+            avgInputRMS += inputRMSEnvelope[static_cast<size_t>(ch)];
+            avgOutputRMS += outputRMSEnvelope[static_cast<size_t>(ch)];
+        }
+        avgInputRMS /= static_cast<float>(numCh);
+        avgOutputRMS /= static_cast<float>(numCh);
+    }
+
+    // Convert to dB with -60dB floor
+    const float inputDB = (avgInputRMS > 1e-6f) ? 20.0f * std::log10(avgInputRMS) : -60.0f;
+    const float outputDB = (avgOutputRMS > 1e-6f) ? 20.0f * std::log10(avgOutputRMS) : -60.0f;
+
+    // Store atomically for thread-safe access from editor
+    currentInputLevel.store(juce::jlimit(-60.0f, 6.0f, inputDB), std::memory_order_relaxed);
+    currentOutputLevel.store(juce::jlimit(-60.0f, 6.0f, outputDB), std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* OuariconSaturationModelingAudioProcessor::createEditor()
@@ -591,11 +614,13 @@ void OuariconSaturationModelingAudioProcessor::setStateInformation(const void* d
 }
 
 // ============================================================================
-// DIODE Model Implementation (Newton-Raphson Shockley Equation)
+// DIODE Model Implementation (Symmetric Soft Clipping)
 // ============================================================================
 
 float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, float intensity, int iterations, float& prevVoltage)
 {
+    juce::ignoreUnused(iterations, prevVoltage);  // Not needed for simplified model
+
     // At 0% intensity, return dry signal (no processing)
     if (intensity < 0.1f)
         return input;
@@ -604,55 +629,26 @@ float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, 
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
     const float dryMix = 1.0f - wetMix;
 
-    // INTENSITY parameter mapping: Series resistance R = 1kΩ / (1.0 + wetMix * 2.0)
-    // More drive at higher intensity
-    const float R = 1000.0f / (1.0f + wetMix * 2.0f);
+    // Drive increases with intensity: 1.0 to 5.0
+    const float drive = 1.0f + wetMix * 4.0f;
 
-    // Newton-Raphson solver for anti-parallel diode pair
-    // Circuit equation: v + R * i_total(v) = input
-    // Where i_total = i_d1 - i_d2 (anti-parallel configuration)
-    // i_d1 = Is * (exp(v/(n*Vt)) - 1)  (Shockley equation)
-    // i_d2 = Is * (exp(-v/(n*Vt)) - 1)
+    // Apply input drive
+    float x = input * drive;
 
-    // Use previous sample value as initial guess (warm start)
-    float v = prevVoltage;
+    // Anti-parallel diode waveshaper (symmetric soft clipping)
+    // This models the classic TS-style diode clipper sound
+    // Formula: x / (1 + |x|)^n where n controls hardness
+    // n=1.0 is very soft, n=0.5 is harder (more like real diodes)
+    const float hardness = 0.7f;  // Diode-like response
+    float wetSignal = x / std::pow(1.0f + std::abs(x), hardness);
 
-    // Precompute constants
-    const float nVt = DIODE_N * DIODE_VT;
-
-    // Newton-Raphson iterations
-    for (int iter = 0; iter < iterations; ++iter)
-    {
-        // Clamp exponential arguments to prevent overflow
-        // exp(30) ≈ 1e13, exp(-30) ≈ 1e-13 (safe range)
-        float expPos = std::exp(juce::jlimit(-30.0f, 30.0f, v / nVt));
-        float expNeg = std::exp(juce::jlimit(-30.0f, 30.0f, -v / nVt));
-
-        // Anti-parallel diode currents
-        float i_d1 = DIODE_IS * (expPos - 1.0f);
-        float i_d2 = DIODE_IS * (expNeg - 1.0f);
-        float i_total = i_d1 - i_d2;
-
-        // Error function: f(v) = v + R * i_total(v) - input
-        float f = v + R * i_total - input;
-
-        // Derivative: f'(v) = 1 + R * di_total/dv
-        // di_total/dv = (Is/nVt) * (expPos + expNeg)
-        float df = 1.0f + R * (DIODE_IS / nVt) * (expPos + expNeg);
-
-        // Newton-Raphson update: v_new = v - f(v) / f'(v)
-        v -= f / df;
-
-        // Denormal protection
-        if (std::abs(v) < 1e-8f)
-            v = 0.0f;
-    }
-
-    // Store voltage for next sample (warm start)
-    prevVoltage = v;
+    // Add subtle odd harmonics (characteristic of symmetric clipping)
+    // Diodes produce primarily odd harmonics due to symmetric clipping
+    const float x3 = wetSignal * wetSignal * wetSignal;
+    wetSignal = wetSignal * 0.9f + x3 * 0.1f;  // Subtle 3rd harmonic
 
     // Mix dry and wet signals based on intensity
-    return (dryMix * input) + (wetMix * v);
+    return (dryMix * input) + (wetMix * wetSignal);
 }
 
 // ============================================================================
