@@ -631,7 +631,7 @@ float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, 
     const float dryMix = 1.0f - wetMix;
 
     // Drive increases with intensity: 1.0 to 5.0
-    const float drive = 1.0f + wetMix * 4.0f;
+    const float drive = 1.0f + wetMix * 6.0f;  // 1.5x stronger (was 4.0)
 
     // Apply input drive
     float x = input * drive;
@@ -669,7 +669,7 @@ float OuariconSaturationModelingAudioProcessor::processTransformerSample(float i
     // INTENSITY parameter mapping: Input gain = 1.0 + wetMix * 5.0
     // At 0%: gain = 1.0 (unity gain, minimal saturation)
     // At 100%: gain = 6.0 (maximum drive into saturation)
-    const float intensityGain = 1.0f + wetMix * 5.0f;
+    const float intensityGain = 1.0f + wetMix * 7.5f;  // 1.5x stronger (was 5.0)
 
     // Apply input gain
     float driven = input * intensityGain;
@@ -709,7 +709,7 @@ float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, f
     const float dryMix = 1.0f - wetMix;
 
     // Drive increases with intensity: 1.0 to 4.0
-    const float drive = 1.0f + wetMix * 3.0f;
+    const float drive = 1.0f + wetMix * 4.5f;  // 1.5x stronger (was 3.0)
 
     // Apply input drive
     float x = input * drive;
@@ -783,7 +783,7 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
     const float dryMix = 1.0f - wetMix;
 
     // Drive scales with intensity: subtle at low values, heavy at high
-    const float drive = 1.0f + wetMix * 2.0f;  // 1.0 to 3.0 range
+    const float drive = 1.0f + wetMix * 3.0f;  // 1.5x stronger (was 2.0)
 
     // Apply input drive
     float H = input * drive;  // Magnetic field (input signal)
