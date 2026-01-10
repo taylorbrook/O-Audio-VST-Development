@@ -17,6 +17,7 @@ target_sources(MicroMarimba
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/MarimbaVoice.cpp
 )
 
 # Include paths

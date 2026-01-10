@@ -10,6 +10,8 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "MarimbaSound.h"
+#include "MarimbaVoice.h"
 
 juce::AudioProcessorValueTreeState::ParameterLayout MicroMarimbaAudioProcessor::createParameterLayout()
 {
@@ -81,6 +83,15 @@ MicroMarimbaAudioProcessor::MicroMarimbaAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+    // Phase 2.1: Initialize synthesiser with 16 voices
+    // Add a single MarimbaSound (all notes can play this sound)
+    synthesiser.addSound(new MarimbaSound());
+
+    // Add 16 voices for polyphony
+    for (int i = 0; i < 16; ++i)
+    {
+        synthesiser.addVoice(new MarimbaVoice());
+    }
 }
 
 MicroMarimbaAudioProcessor::~MicroMarimbaAudioProcessor()
@@ -89,8 +100,19 @@ MicroMarimbaAudioProcessor::~MicroMarimbaAudioProcessor()
 
 void MicroMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Initialization will be added in Stage 2 (DSP)
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Phase 2.1: Prepare synthesiser
+    synthesiser.setCurrentPlaybackSampleRate(sampleRate);
+
+    // Set sample rate for each voice (needed for envelope timing and oscillator)
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<MarimbaVoice*>(synthesiser.getVoice(i)))
+        {
+            voice->setSampleRate(sampleRate);
+        }
+    }
+
+    juce::ignoreUnused(samplesPerBlock);
 }
 
 void MicroMarimbaAudioProcessor::releaseResources()
@@ -105,14 +127,37 @@ void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     // Clear output buffer (synth generates audio from scratch, no input)
     buffer.clear();
 
-    // MIDI will be processed in Stage 2 when synthesizer is implemented
-    juce::ignoreUnused(midiMessages);
+    // Phase 2.2: Read parameters (atomic, real-time safe)
+    auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
+    float outputGainDB = outputGainParam->load();
 
-    // Parameter access example (for Stage 2 DSP implementation):
-    // auto* malletHardness = parameters.getRawParameterValue("MALLET_HARDNESS");
-    // float hardnessValue = malletHardness->load();  // Atomic read (real-time safe)
+    auto* velCurveParam = parameters.getRawParameterValue("VEL_CURVE");
+    float velCurve = velCurveParam->load();
 
-    // Stage 1: Silent output (DSP implementation happens in Stage 2)
+    auto* malletHardnessParam = parameters.getRawParameterValue("MALLET_HARDNESS");
+    float malletHardness = malletHardnessParam->load();
+
+    auto* barMaterialParam = parameters.getRawParameterValue("BAR_MATERIAL");
+    float barMaterial = barMaterialParam->load();
+
+    auto* resonanceParam = parameters.getRawParameterValue("RESONANCE");
+    float resonance = resonanceParam->load();
+
+    // Update all active voices with current parameters
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<MarimbaVoice*>(synthesiser.getVoice(i)))
+        {
+            voice->setOutputGain(outputGainDB);
+            voice->setVelocityCurve(velCurve);
+            voice->setMalletHardness(malletHardness);
+            voice->setBarMaterial(barMaterial);
+            voice->setResonance(resonance);
+        }
+    }
+
+    // Phase 2.2: Render synthesiser (processes MIDI and generates audio)
+    synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 }
 
 juce::AudioProcessorEditor* MicroMarimbaAudioProcessor::createEditor()

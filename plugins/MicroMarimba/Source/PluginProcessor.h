@@ -46,5 +46,8 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // DSP Components (Phase 2.1: Basic synthesizer)
+    juce::Synthesiser synthesiser;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessor)
 };
