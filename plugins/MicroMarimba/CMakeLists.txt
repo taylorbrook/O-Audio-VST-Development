@@ -61,15 +61,15 @@ target_compile_definitions(MicroMarimba
         JUCE_USE_CURL=0
 )
 
-# WebView UI Resources (will be uncommented by gui-agent when WebView UI is implemented)
-# juce_add_binary_data(MicroMarimba_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-#         Source/ui/public/js/juce/check_native_interop.js
-# )
-#
-# target_link_libraries(MicroMarimba
-#     PRIVATE
-#         MicroMarimba_UIResources
-# )
+# WebView UI Resources
+juce_add_binary_data(MicroMarimba_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+)
+
+target_link_libraries(MicroMarimba
+    PRIVATE
+        MicroMarimba_UIResources
+)
