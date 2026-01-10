@@ -696,11 +696,13 @@ float OuariconSaturationModelingAudioProcessor::processTransformerSample(float i
 }
 
 // ============================================================================
-// TUBE Model Implementation (Koren Triode Equations) - Phase 2.3
+// TUBE Model Implementation (Asymmetric Soft Saturation) - Phase 2.3
 // ============================================================================
 
 float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage)
 {
+    juce::ignoreUnused(iterations, prevPlateVoltage);  // Not needed for simplified model
+
     // At 0% intensity, return dry signal (no processing)
     if (intensity < 0.1f)
         return input;
@@ -709,102 +711,40 @@ float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, f
     const float wetMix = intensity / 100.0f;  // 0.0 to 1.0
     const float dryMix = 1.0f - wetMix;
 
-    // INTENSITY parameter mapping: Grid voltage Vg = -2.0 + wetMix * 4.0
-    // At 0%: Vg = -2.0V (cutoff, minimal conduction)
-    // At 50%: Vg = 0.0V (neutral bias)
-    // At 100%: Vg = +2.0V (maximum drive, heavy saturation)
-    const float Vg = -2.0f + wetMix * 4.0f;
+    // Drive increases with intensity: 1.0 to 4.0
+    const float drive = 1.0f + wetMix * 3.0f;
 
-    // Input signal maps to grid voltage modulation (AC component)
-    // Grid voltage = DC bias (Vg from INTENSITY) + AC signal (input)
-    const float gridVoltage = Vg + input;
+    // Apply input drive
+    float x = input * drive;
 
-    // Newton-Raphson solver for plate voltage (Vp)
-    // Operating point equation: Vp = Vsupply - Ip * Rload
-    // Where Ip is calculated from Koren triode equations
+    // Tube-style asymmetric soft clipping
+    // Tubes clip harder on negative swings (grid cutoff) than positive (saturation)
+    // This creates even harmonics characteristic of tube sound
+    float wetSignal;
 
-    // Use previous sample's plate voltage as initial guess (warm start)
-    float Vp = prevPlateVoltage;
-
-    // Newton-Raphson iterations (4/6/8 based on QUALITY parameter)
-    for (int iter = 0; iter < iterations; ++iter)
+    if (x >= 0.0f)
     {
-        // Koren triode model: Calculate plate current Ip from Vp and Vg
-        // E1 = Vp/Kp * log(1 + exp(Kp * (1/mu + Vg/Vp)))
-        // Ip = (E1^Ex) / Kg1  if E1 > 0, else 0
-
-        // Prevent division by zero and negative arguments
-        if (Vp < 1e-6f)
-            Vp = 1e-6f;
-
-        // Calculate effective voltage E1
-        const float vpOverKp = Vp / TUBE_KP;
-        const float argument = TUBE_KP * ((1.0f / TUBE_MU) + (gridVoltage / Vp));
-
-        // Clamp exponential argument to prevent overflow
-        const float clampedArg = juce::jlimit(-30.0f, 30.0f, argument);
-        const float expTerm = std::exp(clampedArg);
-
-        const float E1 = vpOverKp * std::log(1.0f + expTerm);
-
-        // Calculate plate current
-        float Ip = 0.0f;
-        if (E1 > 0.0f)
-        {
-            Ip = std::pow(E1, TUBE_EX) / TUBE_KG1;
-        }
-
-        // Operating point error function: f(Vp) = Vp - (Vsupply - Ip * Rload)
-        const float f = Vp - (TUBE_VSUPPLY - Ip * TUBE_RLOAD);
-
-        // Calculate derivative numerically (finite difference)
-        // df/dVp = 1 + Rload * dIp/dVp
-        const float delta = 0.01f;  // Small perturbation
-        const float VpPlusDelta = Vp + delta;
-
-        // Recalculate E1 and Ip for perturbed Vp
-        const float vpOverKpDelta = VpPlusDelta / TUBE_KP;
-        const float argumentDelta = TUBE_KP * ((1.0f / TUBE_MU) + (gridVoltage / VpPlusDelta));
-        const float clampedArgDelta = juce::jlimit(-30.0f, 30.0f, argumentDelta);
-        const float expTermDelta = std::exp(clampedArgDelta);
-        const float E1Delta = vpOverKpDelta * std::log(1.0f + expTermDelta);
-
-        float IpDelta = 0.0f;
-        if (E1Delta > 0.0f)
-        {
-            IpDelta = std::pow(E1Delta, TUBE_EX) / TUBE_KG1;
-        }
-
-        // Numerical derivative
-        const float dIp_dVp = (IpDelta - Ip) / delta;
-        const float df = 1.0f + TUBE_RLOAD * dIp_dVp;
-
-        // Prevent division by zero
-        if (std::abs(df) < 1e-8f)
-            break;
-
-        // Newton-Raphson update: Vp_new = Vp - f(Vp) / f'(Vp)
-        Vp -= f / df;
-
-        // Clamp Vp to reasonable range (0 to Vsupply + 20%)
-        Vp = juce::jlimit(0.0f, TUBE_VSUPPLY * 1.2f, Vp);
-
-        // Denormal protection
-        if (std::abs(Vp) < 1e-8f)
-            Vp = 0.0f;
+        // Positive half: Soft saturation (tanh-like but gentler)
+        // Formula: x / (1 + |x|) - softer knee than tanh
+        wetSignal = x / (1.0f + std::abs(x));
+    }
+    else
+    {
+        // Negative half: Harder clipping (grid cutoff behavior)
+        // Formula: tanh(x * 1.5) / 1.5 - clips earlier and harder
+        wetSignal = std::tanh(x * 1.5f) / 1.5f;
     }
 
-    // Store plate voltage for next sample (warm start)
-    prevPlateVoltage = Vp;
+    // Add subtle even harmonic content (tube characteristic)
+    // Second harmonic from asymmetry + gentle third harmonic
+    const float x2 = wetSignal * wetSignal;
+    wetSignal = wetSignal + 0.1f * x2 * (wetSignal > 0 ? 1.0f : -1.0f);
 
-    // Output is deviation from DC operating point (AC component)
-    // DC operating point at neutral bias (Vg=0): ~Vsupply/2
-    // Output = (Vp - DC_operating_point) scaled to audio range
-    const float dcOperatingPoint = TUBE_VSUPPLY * 0.5f;
-    float wetSignal = (Vp - dcOperatingPoint) * 0.02f;  // Scale to ±1.0 range
+    // Normalize output level (asymmetric clipping can reduce average level)
+    wetSignal *= 1.2f;
 
     // Apply presence filter (3kHz peak, Q=0.7, +1.5dB)
-    wetSignal = tubePresenceFilters[channel].processSample(wetSignal);
+    wetSignal = tubePresenceFilters[static_cast<size_t>(channel)].processSample(wetSignal);
 
     // Mix dry and wet signals based on intensity
     return (dryMix * input) + (wetMix * wetSignal);
