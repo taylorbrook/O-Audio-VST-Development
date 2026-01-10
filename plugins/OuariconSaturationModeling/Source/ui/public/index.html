@@ -253,8 +253,8 @@
       z-index: 30;
     }
 
-    .vu-meter.input { left: 55px; top: 170px; }
-    .vu-meter.output { left: 455px; top: 170px; }
+    .vu-meter.input { left: 55px; top: 193px; }
+    .vu-meter.output { left: 455px; top: 193px; }
 
     .vu-face {
       width: 100%;
@@ -328,11 +328,11 @@
     /* V4 REFINEMENT: SNAKE MOVED LEFT (x: 285px, center at ~375px) */
     .snake-overlay {
       position: absolute;
-      left: 285px;  /* V4: Moved LEFT from 350px to 285px */
-      top: 135px;
-      width: 180px;  /* V4: Reduced from 235px to 180px */
-      height: 180px;
-      opacity: 0.3;
+      left: 267px;  /* V4: Adjusted for 120% size */
+      top: 145px;   /* V4: Moved down 10px */
+      width: 216px;  /* V4: Enlarged 120% (180 * 1.2) */
+      height: 216px;
+      opacity: 0.2;
       mix-blend-mode: multiply;
       filter: sepia(0.2);
       pointer-events: none;
@@ -563,8 +563,8 @@
       const degrees = -135 + (normalizedValue * 270); // -135° to +135°
       intensityKnob.style.transform = `rotate(${degrees}deg)`;
 
-      // Update snake opacity (0.15 to 0.5)
-      const opacity = 0.15 + (normalizedValue * 0.35);
+      // Update snake opacity (0.2 to 1.0)
+      const opacity = 0.2 + (normalizedValue * 0.8);
       snakeImage.style.opacity = opacity;
     }
 
