@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "TuningEngine.h"
+#include "BodyResonance.h"
 
 class MicroMarimbaAudioProcessor : public juce::AudioProcessor
 {
@@ -55,6 +56,9 @@ private:
 
     // Phase 2.3: Tuning engine
     TuningEngine tuningEngine;
+
+    // Phase 2.4: Body resonance (convolution)
+    BodyResonance bodyResonance;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessor)
 };

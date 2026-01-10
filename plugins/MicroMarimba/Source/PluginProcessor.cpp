@@ -122,12 +122,14 @@ void MicroMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
         }
     }
 
-    juce::ignoreUnused(samplesPerBlock);
+    // Phase 2.4: Prepare body resonance
+    bodyResonance.prepare(sampleRate, samplesPerBlock);
 }
 
 void MicroMarimbaAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2 (DSP)
+    // Phase 2.4: Reset body resonance
+    bodyResonance.reset();
 }
 
 void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -179,6 +181,16 @@ void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
     // Phase 2.2: Render synthesiser (processes MIDI and generates audio)
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // Phase 2.4: Apply body resonance (after synth rendering)
+    // RESONANCE parameter controls both decay time (in voices) AND body mix
+    // Scale to 0.5 to avoid too much wetness (resonance = 1.0 → 50% wet)
+    bodyResonance.setMix(resonance * 0.5f);
+    bodyResonance.process(buffer);
+
+    // Apply output gain (after all processing)
+    float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);
+    buffer.applyGain(outputGainLinear);
 }
 
 juce::AudioProcessorEditor* MicroMarimbaAudioProcessor::createEditor()

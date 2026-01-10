@@ -19,6 +19,7 @@ target_sources(MicroMarimba
         Source/PluginEditor.cpp
         Source/MarimbaVoice.cpp
         Source/TuningEngine.cpp
+        Source/BodyResonance.cpp
 )
 
 # Include paths
