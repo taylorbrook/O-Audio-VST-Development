@@ -743,6 +743,11 @@
             box-shadow: 0 1px 2px rgba(0,0,0,0.3);
         }
 
+        /* Fix: Prevent black key from moving when parent white key is playing */
+        .white-key.playing .black-key:not(.playing) {
+            transform: translateY(-2px);
+        }
+
         .keyboard-help {
             font-size: 8px;
             color: #5C4033;
@@ -1201,11 +1206,18 @@
         const refPitchState = Juce.getSliderState("REFERENCE_PITCH");
         const refPitchIndicator = document.getElementById("ref-pitch-indicator");
         const refPitchValue = document.getElementById("ref-pitch-value");
+        const refPitchKnob = document.getElementById("ref-pitch-knob");
 
-        makeKnobDraggable(document.getElementById("ref-pitch-knob"), refPitchState, (value) => {
+        makeKnobDraggable(refPitchKnob, refPitchState, (value) => {
             updateKnobIndicator(refPitchIndicator, value);
             const hzValue = 400.0 + (value * 80.0);
             refPitchValue.textContent = hzValue.toFixed(1) + " Hz";
+        });
+
+        // Double-click to reset A4 reference to 440 Hz
+        refPitchKnob.addEventListener('dblclick', () => {
+            // 440 Hz = 400 + (0.5 * 80), so normalized value is 0.5
+            refPitchState.setNormalisedValue(0.5);
         });
 
         // ====================================================================
@@ -1410,6 +1422,44 @@
             allKeys.forEach(key => key.classList.add('mapped'));
         }
 
+        // Flash the corresponding interval line red when a note is played
+        function flashIntervalLine(midiNote) {
+            // Map MIDI note to scale degree (0-11 for 12-tone, or modulo for other scales)
+            // C4 = 60, so we use (midiNote % 12) to get position in octave
+            // Then map to current scale size
+            const noteInOctave = midiNote % 12;
+            const scaleSize = currentIntervals.length;
+
+            // For 12-tone scales, direct mapping. For other scales, proportional mapping
+            let scaleIndex;
+            if (scaleSize === 12) {
+                scaleIndex = noteInOctave;
+            } else {
+                // Proportional mapping for non-12-tone scales
+                scaleIndex = Math.round((noteInOctave / 12) * scaleSize) % scaleSize;
+            }
+
+            // Find the corresponding line in the SVG
+            const linesGroup = document.getElementById('interval-lines');
+            const lines = linesGroup.querySelectorAll('line');
+
+            if (scaleIndex >= 0 && scaleIndex < lines.length) {
+                const line = lines[scaleIndex];
+                const originalColor = line.getAttribute('stroke');
+                const originalWidth = line.getAttribute('stroke-width');
+
+                // Flash red with thicker stroke
+                line.setAttribute('stroke', '#CC0000');
+                line.setAttribute('stroke-width', '4');
+
+                // Reset after 150ms
+                setTimeout(() => {
+                    line.setAttribute('stroke', originalColor);
+                    line.setAttribute('stroke-width', originalWidth);
+                }, 150);
+            }
+        }
+
         // ====================================================================
         // AUDIO VISUALIZATIONS (Static - no actual audio data from backend)
         // ====================================================================
@@ -1464,6 +1514,9 @@
             playingKeys.add(keyId);
             const keyEl = document.getElementById(keyId);
             if (keyEl) keyEl.classList.add('playing');
+
+            // Flash the corresponding interval line on the pitch circle
+            flashIntervalLine(midiNote);
 
             // Send note on (velocity = 0.8)
             sendMidiNote(midiNote, 0.8, true);

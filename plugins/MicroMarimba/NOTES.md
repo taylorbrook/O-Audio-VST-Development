@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.0
+- **Version:** 1.1.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -19,6 +19,10 @@
   - WebView UI with botanical paper aesthetic
   - Playable keyboard in tuning tab
   - Dynamic interval list and pitch circle (adapts to any scale size)
+- **2026-01-10 (v1.1.0):** Microtonal UI improvements
+  - Circular scale indicator flashes red when corresponding note is played
+  - A4 reference pitch dial resets to 440 Hz on double-click
+  - Fixed keyboard animation bug (adjacent black key no longer moves with white key)
 
 ## Known Issues
 
@@ -62,4 +66,4 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - AU (Audio Unit)
 - Standalone
 
-**Last Updated:** 2026-01-09
+**Last Updated:** 2026-01-10
