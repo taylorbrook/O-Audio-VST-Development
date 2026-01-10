@@ -683,29 +683,32 @@
     const ATTACK_SPEED = 0.4;
     const DECAY_SPEED = 0.15;
 
-    // Map dB to needle angle
-    // Range: -60dB to +6dB mapped to -45° to +45°
-    const mapDBToAngle = (db) => {
-      // Clamp to expected range
-      const clampedDB = Math.max(-60, Math.min(6, db));
-      // Map -60..+6 to -45..+45 degrees
-      const normalized = (clampedDB + 60) / 66; // 0 to 1
-      return -45 + (normalized * 90); // -45 to +45
+    // Map dB to needle angle (like TapeAge)
+    // VU meter scale: -20dB to +3dB (matching visual markings)
+    const mapDBToAngle = (dbLevel) => {
+      const minDB = -20;
+      const maxDB = 3;
+
+      // Clamp dB level to scale range
+      const clampedDB = Math.max(minDB, Math.min(maxDB, dbLevel));
+
+      // Normalize to 0-1 range
+      const normalized = (clampedDB - minDB) / (maxDB - minDB);
+
+      // Map to needle angle: -45° (left/low) to +45° (right/high)
+      return -45 + (normalized * 90);
     };
 
-    // Listen for meter levels from C++ via JUCE backend events
+    // Listen for meter levels from C++ via JUCE backend events (like TapeAge)
     if (window.__JUCE__ && window.__JUCE__.backend) {
-      window.__JUCE__.backend.addEventListener("meterLevels", (data) => {
-        targetInputAngle = mapDBToAngle(data.input);
-        targetOutputAngle = mapDBToAngle(data.output);
+      window.__JUCE__.backend.addEventListener("inputLevel", (dbLevel) => {
+        targetInputAngle = mapDBToAngle(dbLevel);
+      });
+
+      window.__JUCE__.backend.addEventListener("outputLevel", (dbLevel) => {
+        targetOutputAngle = mapDBToAngle(dbLevel);
       });
     }
-
-    // Fallback: Also support direct function call (for evaluateJavascript)
-    window.receiveMeterLevels = (inputDB, outputDB) => {
-      targetInputAngle = mapDBToAngle(inputDB);
-      targetOutputAngle = mapDBToAngle(outputDB);
-    };
 
     function animateVUMeters() {
       // Ballistic motion: fast attack, slow decay

@@ -569,28 +569,32 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
         }
     }
 
-    // Update VU meter levels (convert RMS envelope to dB, average channels)
-    float avgInputRMS = 0.0f;
-    float avgOutputRMS = 0.0f;
-    const int numCh = static_cast<int>(inputRMSEnvelope.size());
-    if (numCh > 0)
+    // VU Meter: Calculate peak levels (like TapeAge - using getMagnitude)
+    // Note: Input peak was captured before saturation, output peak is current buffer state
+    // For simplicity, we capture output peak here (after all processing including auto-gain)
+    float outputPeak = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
     {
-        for (int ch = 0; ch < numCh; ++ch)
-        {
-            avgInputRMS += inputRMSEnvelope[static_cast<size_t>(ch)];
-            avgOutputRMS += outputRMSEnvelope[static_cast<size_t>(ch)];
-        }
-        avgInputRMS /= static_cast<float>(numCh);
-        avgOutputRMS /= static_cast<float>(numCh);
+        float channelPeak = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        outputPeak = std::max(outputPeak, channelPeak);
     }
 
-    // Convert to dB with -60dB floor
-    const float inputDB = (avgInputRMS > 1e-6f) ? 20.0f * std::log10(avgInputRMS) : -60.0f;
-    const float outputDB = (avgOutputRMS > 1e-6f) ? 20.0f * std::log10(avgOutputRMS) : -60.0f;
+    // Convert to dB (clamp to -100dB minimum to avoid log(0))
+    float outDb = outputPeak > 0.00001f
+        ? juce::Decibels::gainToDecibels(outputPeak)
+        : -100.0f;
+    outputLevelDB.store(outDb, std::memory_order_relaxed);
 
-    // Store atomically for thread-safe access from editor
-    currentInputLevel.store(juce::jlimit(-60.0f, 6.0f, inputDB), std::memory_order_relaxed);
-    currentOutputLevel.store(juce::jlimit(-60.0f, 6.0f, outputDB), std::memory_order_relaxed);
+    // For input level, use the stored envelope (already calculated earlier)
+    float inputPeak = 0.0f;
+    for (size_t ch = 0; ch < inputRMSEnvelope.size(); ++ch)
+    {
+        inputPeak = std::max(inputPeak, inputRMSEnvelope[ch]);
+    }
+    float inDb = inputPeak > 0.00001f
+        ? juce::Decibels::gainToDecibels(inputPeak)
+        : -100.0f;
+    inputLevelDB.store(inDb, std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* OuariconSaturationModelingAudioProcessor::createEditor()

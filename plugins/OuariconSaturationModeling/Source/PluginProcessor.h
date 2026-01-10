@@ -45,8 +45,9 @@ public:
     juce::AudioProcessorValueTreeState parameters;
 
     // VU Meter levels (atomic for thread-safe access from editor)
-    std::atomic<float> currentInputLevel { -60.0f };   // dB
-    std::atomic<float> currentOutputLevel { -60.0f };  // dB
+    // Uses peak level like TapeAge (getMagnitude), not RMS
+    std::atomic<float> inputLevelDB { -100.0f };   // Peak level in dB
+    std::atomic<float> outputLevelDB { -100.0f };  // Peak level in dB
 
 private:
     // Parameter layout creation

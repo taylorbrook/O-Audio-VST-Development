@@ -53,12 +53,8 @@ OuariconSaturationModelingAudioProcessorEditor::OuariconSaturationModelingAudioP
     // Set editor size (from v4 mockup: 600x450)
     setSize(600, 450);
 
-    // Delay timer start to allow WebView to load (500ms)
-    juce::Component::SafePointer<OuariconSaturationModelingAudioProcessorEditor> safeThis(this);
-    juce::Timer::callAfterDelay(500, [safeThis]() {
-        if (safeThis != nullptr)
-            safeThis->startTimerHz(30);
-    });
+    // Start VU meter timer immediately (30 FPS, like TapeAge)
+    startTimerHz(30);
 }
 
 OuariconSaturationModelingAudioProcessorEditor::~OuariconSaturationModelingAudioProcessorEditor()
@@ -72,16 +68,13 @@ OuariconSaturationModelingAudioProcessorEditor::~OuariconSaturationModelingAudio
 
 void OuariconSaturationModelingAudioProcessorEditor::timerCallback()
 {
-    // Read levels from processor (atomic, thread-safe)
-    const float inputDB = processorRef.currentInputLevel.load(std::memory_order_relaxed);
-    const float outputDB = processorRef.currentOutputLevel.load(std::memory_order_relaxed);
+    // Read peak levels from processor (atomic, thread-safe)
+    const float inputDB = processorRef.inputLevelDB.load(std::memory_order_relaxed);
+    const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
 
-    // Send to WebView via JUCE backend event (preferred method)
-    juce::DynamicObject::Ptr data = new juce::DynamicObject();
-    data->setProperty("input", inputDB);
-    data->setProperty("output", outputDB);
-
-    webView->emitEventIfBrowserIsVisible("meterLevels", juce::var(data.get()));
+    // Send to WebView via JUCE backend events (simple floats, like TapeAge)
+    webView->emitEventIfBrowserIsVisible("inputLevel", inputDB);
+    webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
 
 void OuariconSaturationModelingAudioProcessorEditor::paint(juce::Graphics& g)
