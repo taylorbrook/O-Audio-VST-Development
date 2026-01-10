@@ -721,16 +721,22 @@
       inputNeedle.style.transform = `translateX(-50%) rotate(${currentInputAngle}deg)`;
       outputNeedle.style.transform = `translateX(-50%) rotate(${currentOutputAngle}deg)`;
 
-      // Update needle color based on level
+      // Update needle color: dark green (-20dB) to bright red (+3dB)
       const updateNeedleColor = (needle, angle) => {
-        const normalized = (angle + 45) / 90;
-        if (normalized > 0.9) {
-          needle.style.background = 'linear-gradient(180deg, #ff6666 0%, #ff4444 100%)';
-        } else if (normalized > 0.75) {
-          needle.style.background = 'linear-gradient(180deg, #ffcc66 0%, #ffaa44 100%)';
-        } else {
-          needle.style.background = 'linear-gradient(180deg, #d4a574 0%, #c49564 100%)';
-        }
+        // angle ranges from -45 (low) to +45 (high)
+        const normalized = (angle + 45) / 90; // 0 to 1
+
+        // Interpolate from dark green to bright red
+        // Dark green: rgb(34, 139, 34) = #228B22
+        // Bright red: rgb(255, 50, 50) = #FF3232
+        const r = Math.round(34 + normalized * (255 - 34));
+        const g = Math.round(139 - normalized * (139 - 50));
+        const b = Math.round(34 + normalized * (50 - 34));
+
+        const color = `rgb(${r}, ${g}, ${b})`;
+        const colorDark = `rgb(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, ${Math.round(b * 0.8)})`;
+
+        needle.style.background = `linear-gradient(180deg, ${color} 0%, ${colorDark} 100%)`;
       };
 
       updateNeedleColor(inputNeedle, currentInputAngle);
