@@ -1,0 +1,128 @@
+window:
+  width: 620
+  height: 360
+  resizable: false
+
+controls:
+  # Top Row Controls
+  - id: threshold
+    type: slider
+    position: { x: 30, y: 37 }
+    size: { diameter: 40 }
+    range: [-60.0, 0.0]
+    default: -20.0
+    label: "Threshold"
+    label_position: { x: 15, y: 22 }
+    value_position: { x: 15, y: 82 }
+
+  - id: ratio
+    type: slider
+    position: { x: 110, y: 37 }
+    size: { diameter: 40 }
+    range: [1.0, 20.0]
+    default: 4.0
+    label: "Ratio"
+    label_position: { x: 95, y: 22 }
+    value_position: { x: 95, y: 82 }
+
+  - id: attack_time
+    type: slider
+    position: { x: 190, y: 37 }
+    size: { diameter: 40 }
+    range: [0.1, 100.0]
+    default: 10.0
+    label: "Attack"
+    label_position: { x: 175, y: 22 }
+    value_position: { x: 175, y: 82 }
+
+  - id: release_time
+    type: slider
+    position: { x: 270, y: 37 }
+    size: { diameter: 40 }
+    range: [10.0, 1000.0]
+    default: 100.0
+    label: "Release"
+    label_position: { x: 255, y: 22 }
+    value_position: { x: 255, y: 82 }
+
+  - id: knee
+    type: slider
+    position: { x: 350, y: 37 }
+    size: { diameter: 40 }
+    range: [0.0, 20.0]
+    default: 6.0
+    label: "Knee"
+    label_position: { x: 335, y: 22 }
+    value_position: { x: 335, y: 82 }
+
+  - id: output_gain
+    type: slider
+    position: { x: 430, y: 37 }
+    size: { diameter: 40 }
+    range: [-12.0, 24.0]
+    default: 0.0
+    label: "Output"
+    label_position: { x: 415, y: 22 }
+    value_position: { x: 415, y: 82 }
+
+  - id: auto_gain
+    type: toggle
+    position: { x: 520, y: 37 }
+    size: { width: 70, height: 40 }
+    default: false
+    label: "Auto-Gain"
+    label_position: { x: 505, y: 22 }
+
+  # Visualization panels (bottom row)
+  - id: input_meter
+    type: meter
+    position: { x: 18, y: 105 }
+    size: { width: 18, height: 240 }
+
+  - id: transfer_curve
+    type: visualization
+    position: { x: 46, y: 105 }
+    size: { width: 210, height: 240 }
+
+  - id: envelope_display
+    type: visualization
+    position: { x: 266, y: 105 }
+    size: { width: 308, height: 240 }
+
+  - id: output_meter
+    type: meter
+    position: { x: 584, y: 105 }
+    size: { width: 18, height: 240 }
+
+styling:
+  colors:
+    background: "#F5E6D3"
+    text_primary: "#3C2F2F"
+    text_secondary: "#5C4033"
+    accent: "#6B8E4E"
+    border: "#8B7355"
+  fonts:
+    primary: "Garamond, Times New Roman, serif"
+  images:
+    background: "paper-bg.jpg"
+    overlay: "shell.png"
+
+layout:
+  title: "OUARICONCOMP"
+  title_position: { x: "center", y: 0 }
+  control_rows:
+    - name: "Top Row"
+      y: 37
+      controls: [threshold, ratio, attack_time, release_time, knee, output_gain, auto_gain]
+    - name: "Bottom Row"
+      y: 105
+      controls: [input_meter, transfer_curve, envelope_display, output_meter]
+
+notes: |
+  v7 - Alignment fixes:
+  - Centered labels above each knob/control
+  - Centered value displays below each knob
+  - Auto-gain button and label centered as unit
+  - Used flexbox containers for each control group
+  - Maintained 620x360px fixed dimensions
+  - Preserved all v6 visual elements and aesthetic
