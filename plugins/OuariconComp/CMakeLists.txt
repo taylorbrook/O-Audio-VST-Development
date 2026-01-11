@@ -26,6 +26,7 @@ target_include_directories(OuariconComp
 # Required JUCE modules
 target_link_libraries(OuariconComp
     PRIVATE
+        OuariconComp_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
@@ -48,28 +49,20 @@ target_link_libraries(OuariconComp
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL)
 juce_generate_juce_header(OuariconComp)
 
-# WebView UI Resources (uncommented by gui-agent if WebView UI used)
-# juce_add_binary_data(OuariconComp_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-#         Source/ui/public/js/juce/check_native_interop.js
-# )
-#
-# target_link_libraries(OuariconComp
-#     PRIVATE
-#         OuariconComp_UIResources
-# )
+# WebView UI Resources
+juce_add_binary_data(OuariconComp_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/paper-bg.jpg
+        Source/ui/public/shell.png
+)
 
 # Compile definitions
 target_compile_definitions(OuariconComp
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_CURL=0
 )
-
-# WebView support (uncommented by gui-agent if WebView UI used)
-# target_compile_definitions(OuariconComp
-#     PUBLIC
-#         JUCE_WEB_BROWSER=1
-#         JUCE_USE_CURL=0
-# )

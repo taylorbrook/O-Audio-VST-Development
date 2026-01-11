@@ -1,0 +1,698 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ouaricon Compressor</title>
+
+  <style>
+    /* CRITICAL: WebView constraints */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Native application feel */
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Ouaricon Naturalist styling */
+      background-image: url('paper-bg.jpg');
+      background-size: cover;
+      background-position: center;
+      color: #3C2F2F;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* Container fills entire window */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* Title - CENTERED */
+    .title {
+      position: absolute;
+      top: 0;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #3C2F2F;
+      text-align: center;
+    }
+
+    /* Control group container - FLEXBOX FOR ALIGNMENT */
+    .control-group {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 5px;
+    }
+
+    /* Parameter labels */
+    .param-label {
+      font-size: 11px;
+      color: #3C2F2F;
+      text-align: center;
+      letter-spacing: 0.5px;
+      white-space: nowrap;
+    }
+
+    /* Value displays */
+    .value-display {
+      font-size: 9px;
+      color: #5C4033;
+      text-align: center;
+      font-weight: normal;
+      white-space: nowrap;
+    }
+
+    /* Seed knob container */
+    .knob-container {
+      width: 40px;
+      height: 40px;
+      cursor: pointer;
+      position: relative;
+    }
+
+    /* Seed knob - botanical aesthetic */
+    .seed-knob {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #C9A27B, #8B7355);
+      border: 2px solid #6B5847;
+      position: relative;
+      box-shadow:
+        inset 0 2px 4px rgba(255, 255, 255, 0.3),
+        inset 0 -2px 4px rgba(0, 0, 0, 0.3),
+        0 2px 6px rgba(0, 0, 0, 0.2);
+    }
+
+    /* Seed center dot */
+    .seed-knob::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 8px;
+      height: 8px;
+      background: #4A3728;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+    }
+
+    /* Seed radial lines */
+    .seed-knob::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 90%;
+      height: 90%;
+      transform: translate(-50%, -50%);
+      border-radius: 50%;
+      background:
+        repeating-conic-gradient(
+          from 0deg,
+          transparent 0deg,
+          transparent 15deg,
+          rgba(107, 88, 71, 0.1) 15deg,
+          rgba(107, 88, 71, 0.1) 18deg
+        );
+    }
+
+    /* Knob indicator line */
+    .knob-indicator {
+      position: absolute;
+      top: 8%;
+      left: 50%;
+      width: 2px;
+      height: 40%;
+      background: #3C2F2F;
+      transform-origin: bottom center;
+      transform: translateX(-50%);
+      border-radius: 1px;
+    }
+
+    /* Auto-Gain toggle button */
+    .toggle-button {
+      width: 70px;
+      height: 40px;
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      background: linear-gradient(to bottom, #E8D5BF, #D4C4B0);
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 10px;
+      font-weight: bold;
+      color: #3C2F2F;
+      transition: all 0.15s ease;
+      box-shadow:
+        inset 0 1px 2px rgba(255, 255, 255, 0.5),
+        0 2px 4px rgba(0, 0, 0, 0.2);
+    }
+
+    .toggle-button.active {
+      background: linear-gradient(to bottom, #8BA870, #6B8E4E);
+      border-color: #6B8E4E;
+      color: #FFFFFF;
+      box-shadow:
+        inset 0 2px 4px rgba(0, 0, 0, 0.3),
+        0 1px 2px rgba(0, 0, 0, 0.2);
+    }
+
+    /* LED meter */
+    .led-meter {
+      position: absolute;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 2px;
+      background: rgba(139, 115, 85, 0.1);
+      border: 1px solid #8B7355;
+      padding: 4px;
+      border-radius: 2px;
+    }
+
+    .led-segment {
+      width: 100%;
+      height: 14px;
+      background: #8B7355;
+      border-radius: 1px;
+      transition: background 0.1s ease;
+    }
+
+    .led-segment.active-low {
+      background: #8BA870;
+      box-shadow: 0 0 4px #8BA870;
+    }
+
+    .led-segment.active-mid {
+      background: #6B8E4E;
+      box-shadow: 0 0 4px #6B8E4E;
+    }
+
+    .led-segment.active-high {
+      background: #C9A27B;
+      box-shadow: 0 0 4px #C9A27B;
+    }
+
+    /* Visualization panels */
+    .viz-panel {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.6);
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .viz-label {
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      color: #3C2F2F;
+      background: rgba(245, 230, 211, 0.8);
+      padding: 2px 8px;
+      border-radius: 2px;
+      letter-spacing: 0.5px;
+    }
+
+    /* Transfer curve canvas */
+    #transferCurveCanvas {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+
+    /* Shell background in transfer curve */
+    .shell-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('shell.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0.5;
+      mix-blend-mode: multiply;
+      pointer-events: none;
+    }
+
+    /* Envelope display canvas */
+    #envelopeCanvas {
+      width: 100%;
+      height: 100%;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Title - CENTERED -->
+    <div class="title">Ouaricon Compressor</div>
+
+    <!-- Top Row Controls -->
+    <!-- Threshold -->
+    <div class="control-group" style="left: 10px; top: 22px;">
+      <div class="param-label">Threshold</div>
+      <div class="knob-container" id="threshold-knob" data-param="threshold">
+        <div class="seed-knob">
+          <div class="knob-indicator" id="threshold-indicator"></div>
+        </div>
+      </div>
+      <div class="value-display" id="threshold-value">-20.0 dB</div>
+    </div>
+
+    <!-- Ratio -->
+    <div class="control-group" style="left: 90px; top: 22px;">
+      <div class="param-label">Ratio</div>
+      <div class="knob-container" id="ratio-knob" data-param="ratio">
+        <div class="seed-knob">
+          <div class="knob-indicator" id="ratio-indicator"></div>
+        </div>
+      </div>
+      <div class="value-display" id="ratio-value">4.0:1</div>
+    </div>
+
+    <!-- Attack -->
+    <div class="control-group" style="left: 170px; top: 22px;">
+      <div class="param-label">Attack</div>
+      <div class="knob-container" id="attack-knob" data-param="attack_time">
+        <div class="seed-knob">
+          <div class="knob-indicator" id="attack-indicator"></div>
+        </div>
+      </div>
+      <div class="value-display" id="attack-value">10.0 ms</div>
+    </div>
+
+    <!-- Release -->
+    <div class="control-group" style="left: 250px; top: 22px;">
+      <div class="param-label">Release</div>
+      <div class="knob-container" id="release-knob" data-param="release_time">
+        <div class="seed-knob">
+          <div class="knob-indicator" id="release-indicator"></div>
+        </div>
+      </div>
+      <div class="value-display" id="release-value">100 ms</div>
+    </div>
+
+    <!-- Knee -->
+    <div class="control-group" style="left: 330px; top: 22px;">
+      <div class="param-label">Knee</div>
+      <div class="knob-container" id="knee-knob" data-param="knee">
+        <div class="seed-knob">
+          <div class="knob-indicator" id="knee-indicator"></div>
+        </div>
+      </div>
+      <div class="value-display" id="knee-value">6.0 dB</div>
+    </div>
+
+    <!-- Output -->
+    <div class="control-group" style="left: 410px; top: 22px;">
+      <div class="param-label">Output</div>
+      <div class="knob-container" id="output-knob" data-param="output_gain">
+        <div class="seed-knob">
+          <div class="knob-indicator" id="output-indicator"></div>
+        </div>
+      </div>
+      <div class="value-display" id="output-value">0.0 dB</div>
+    </div>
+
+    <!-- Auto-Gain Toggle -->
+    <div class="control-group" style="left: 485px; top: 22px;">
+      <div class="param-label">Auto-Gain</div>
+      <div class="toggle-button" id="auto-gain-toggle" data-param="auto_gain">OFF</div>
+    </div>
+
+    <!-- Bottom Row - Meters and Visualizations -->
+    <!-- Input Meter (Left) -->
+    <div class="led-meter" id="input-meter" style="left: 18px; top: 105px; width: 18px; height: 240px;">
+      <!-- 14 LED segments -->
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+    </div>
+
+    <!-- Transfer Curve Panel -->
+    <div class="viz-panel" style="left: 46px; top: 105px; width: 210px; height: 240px;">
+      <!-- Shell background -->
+      <div class="shell-background"></div>
+      <canvas id="transferCurveCanvas" width="210" height="240"></canvas>
+      <div class="viz-label">Transfer Curve</div>
+    </div>
+
+    <!-- Envelope Display Panel -->
+    <div class="viz-panel" style="left: 266px; top: 105px; width: 308px; height: 240px;">
+      <canvas id="envelopeCanvas" width="308" height="240"></canvas>
+      <div class="viz-label">Envelope and Gain Reduction</div>
+    </div>
+
+    <!-- Output Meter (Right) -->
+    <div class="led-meter" id="output-meter" style="left: 584px; top: 105px; width: 18px; height: 240px;">
+      <!-- 14 LED segments -->
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+      <div class="led-segment"></div>
+    </div>
+  </div>
+
+  <!-- JUCE WebView Integration -->
+  <script type="module" src="./js/juce/index.js"></script>
+  <script type="module">
+    import { getSliderState, getToggleState } from './js/juce/index.js';
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Parameter state and bindings
+    const params = {
+      threshold: { min: -60.0, max: 0.0, unit: ' dB', format: (v) => v.toFixed(1) },
+      ratio: { min: 1.0, max: 20.0, unit: ':1', format: (v) => v.toFixed(1) },
+      attack_time: { min: 0.1, max: 100.0, unit: ' ms', format: (v) => v.toFixed(1) },
+      release_time: { min: 10.0, max: 1000.0, unit: ' ms', format: (v) => v.toFixed(0) },
+      knee: { min: 0.0, max: 20.0, unit: ' dB', format: (v) => v.toFixed(1) },
+      output_gain: { min: -12.0, max: 24.0, unit: ' dB', format: (v) => (v >= 0 ? '+' : '') + v.toFixed(1) }
+    };
+
+    // Format value for display
+    function formatValue(paramId, normalized) {
+      const param = params[paramId];
+      const value = param.min + normalized * (param.max - param.min);
+      return param.format(value) + param.unit;
+    }
+
+    // Update knob rotation and value display
+    function updateKnob(paramId, normalized) {
+      const rotation = (normalized * 270) - 135; // -135deg to +135deg range
+
+      const indicator = document.getElementById(`${paramId.replace('_', '-')}-indicator`);
+      if (indicator) {
+        indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+      }
+
+      // Update value display
+      const valueDisplay = document.getElementById(`${paramId.replace('_', '-')}-value`);
+      if (valueDisplay) {
+        valueDisplay.textContent = formatValue(paramId, normalized);
+      }
+
+      // Update transfer curve when compression params change
+      if (['threshold', 'ratio', 'knee'].includes(paramId)) {
+        updateTransferCurve();
+      }
+    }
+
+    // Setup knob interactions
+    function setupKnob(knobId, paramId) {
+      const knob = document.getElementById(knobId);
+      const sliderState = getSliderState(paramId);
+
+      if (!sliderState) {
+        console.error(`Failed to get slider state for ${paramId}`);
+        return;
+      }
+
+      // Listen to parameter changes from C++
+      sliderState.valueChangedEvent.addListener(() => {
+        const normalized = sliderState.getNormalisedValue();
+        updateKnob(paramId, normalized);
+      });
+
+      // Mouse drag handler - RELATIVE DRAG (frame-delta)
+      let isDragging = false;
+      let lastY = 0;
+
+      knob.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastY = e.clientY;
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaY = lastY - e.clientY;  // Frame-delta, not total distance
+        const currentNormalized = sliderState.getNormalisedValue();
+        let newNormalized = currentNormalized + (deltaY / 200);  // 200px = full range
+        newNormalized = Math.max(0, Math.min(1, newNormalized));
+
+        sliderState.setNormalisedValue(newNormalized);
+        lastY = e.clientY;  // Update for next frame
+      });
+
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+
+      // Double-click to reset to default
+      knob.addEventListener('dblclick', () => {
+        sliderState.setNormalisedValue(0.5);  // Adjust based on parameter default
+      });
+
+      // Initialize visual state
+      const initialNormalized = sliderState.getNormalisedValue();
+      updateKnob(paramId, initialNormalized);
+    }
+
+    // Setup toggle button
+    function setupToggle() {
+      const toggle = document.getElementById('auto-gain-toggle');
+      const toggleState = getToggleState('auto_gain');
+
+      if (!toggleState) {
+        console.error('Failed to get toggle state for auto_gain');
+        return;
+      }
+
+      // Listen to parameter changes from C++
+      toggleState.valueChangedEvent.addListener(() => {
+        const value = toggleState.getValue();
+        toggle.classList.toggle('active', value);
+        toggle.textContent = value ? 'ON' : 'OFF';
+      });
+
+      // Click handler
+      toggle.addEventListener('click', () => {
+        const currentValue = toggleState.getValue();
+        toggleState.setValue(!currentValue);
+      });
+
+      // Initialize visual state
+      const initialValue = toggleState.getValue();
+      toggle.classList.toggle('active', initialValue);
+      toggle.textContent = initialValue ? 'ON' : 'OFF';
+    }
+
+    // Transfer curve visualization
+    function updateTransferCurve() {
+      const canvas = document.getElementById('transferCurveCanvas');
+      const ctx = canvas.getContext('2d');
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Grid
+      ctx.strokeStyle = 'rgba(139, 115, 85, 0.2)';
+      ctx.lineWidth = 1;
+
+      for (let i = 0; i <= 4; i++) {
+        const x = (canvas.width / 4) * i;
+        const y = (canvas.height / 4) * i;
+
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Get current parameter values
+      const thresholdState = getSliderState('threshold');
+      const ratioState = getSliderState('ratio');
+      const kneeState = getSliderState('knee');
+
+      if (!thresholdState || !ratioState || !kneeState) return;
+
+      const thresholdNorm = thresholdState.getNormalisedValue();
+      const ratioNorm = ratioState.getNormalisedValue();
+      const kneeNorm = kneeState.getNormalisedValue();
+
+      const threshold = -60.0 + thresholdNorm * 60.0;
+      const ratio = 1.0 + ratioNorm * 19.0;
+      const knee = kneeNorm * 20.0;
+
+      // Transfer curve with compression
+      ctx.strokeStyle = '#6B8E4E';
+      ctx.lineWidth = 3.5;
+      ctx.beginPath();
+
+      for (let x = 0; x < canvas.width; x++) {
+        const inputDb = (x / canvas.width) * 60 - 60; // -60 to 0 dB
+        let outputDb;
+
+        if (inputDb < threshold - knee / 2) {
+          // Below knee - no compression
+          outputDb = inputDb;
+        } else if (inputDb > threshold + knee / 2) {
+          // Above knee - full compression
+          outputDb = threshold + (inputDb - threshold) / ratio;
+        } else {
+          // Within knee - soft transition
+          const kneeInput = inputDb - (threshold - knee / 2);
+          const kneeRange = knee;
+          const kneePos = kneeInput / kneeRange;
+          outputDb = inputDb + (kneePos * kneePos) * ((inputDb - threshold) / ratio - (inputDb - threshold));
+        }
+
+        const y = canvas.height - ((outputDb + 60) / 60) * canvas.height;
+
+        if (x === 0) {
+          ctx.moveTo(x, y);
+        } else {
+          ctx.lineTo(x, y);
+        }
+      }
+
+      ctx.stroke();
+    }
+
+    // Envelope display visualization (mock animation)
+    function drawEnvelopeDisplay() {
+      const canvas = document.getElementById('envelopeCanvas');
+      const ctx = canvas.getContext('2d');
+
+      setInterval(() => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        // Top lane - input waveform
+        ctx.strokeStyle = 'rgba(107, 142, 78, 0.5)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+
+        for (let x = 0; x < canvas.width; x++) {
+          const y = canvas.height / 4 + Math.sin(x / 10 + Date.now() / 100) * 20;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Bottom lane - output waveform
+        ctx.strokeStyle = 'rgba(107, 142, 78, 0.7)';
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+
+        for (let x = 0; x < canvas.width; x++) {
+          const y = (canvas.height * 3) / 4 + Math.sin(x / 10 + Date.now() / 100) * 15;
+          if (x === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+        ctx.stroke();
+
+        // Gain reduction indicator
+        const grAmount = Math.abs(Math.sin(Date.now() / 500)) * 30;
+        ctx.fillStyle = 'rgba(201, 162, 123, 0.4)';
+        ctx.fillRect(10, canvas.height / 2 + 30, grAmount * 5, 20);
+
+        ctx.fillStyle = '#3C2F2F';
+        ctx.font = '9px Garamond, serif';
+        ctx.fillText(`GR: -${grAmount.toFixed(1)} dB`, 15, canvas.height / 2 + 55);
+      }, 50);
+    }
+
+    // LED meter animation (mock)
+    function animateMeter(meterId) {
+      const meter = document.getElementById(meterId);
+      const segments = meter.querySelectorAll('.led-segment');
+
+      setInterval(() => {
+        const level = Math.random();
+        segments.forEach((segment, index) => {
+          const segmentThreshold = index / segments.length;
+          segment.classList.remove('active-low', 'active-mid', 'active-high');
+
+          if (level > segmentThreshold) {
+            if (index < segments.length * 0.5) {
+              segment.classList.add('active-low');
+            } else if (index < segments.length * 0.85) {
+              segment.classList.add('active-mid');
+            } else {
+              segment.classList.add('active-high');
+            }
+          }
+        });
+      }, 50);
+    }
+
+    // Initialize on load
+    window.addEventListener('DOMContentLoaded', () => {
+      // Setup parameter controls
+      setupKnob('threshold-knob', 'threshold');
+      setupKnob('ratio-knob', 'ratio');
+      setupKnob('attack-knob', 'attack_time');
+      setupKnob('release-knob', 'release_time');
+      setupKnob('knee-knob', 'knee');
+      setupKnob('output-knob', 'output_gain');
+      setupToggle();
+
+      // Start visualizations
+      updateTransferCurve();
+      drawEnvelopeDisplay();
+      animateMeter('input-meter');
+      animateMeter('output-meter');
+
+      console.log('OuariconComp v8 UI loaded successfully');
+    });
+  </script>
+</body>
+</html>
