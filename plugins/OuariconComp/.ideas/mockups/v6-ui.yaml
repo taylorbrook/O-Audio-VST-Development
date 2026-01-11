@@ -1,0 +1,110 @@
+window:
+  width: 620
+  height: 360
+  resizable: false
+
+controls:
+  - id: threshold
+    type: slider
+    position: { x: 30, y: 37 }
+    size: { diameter: 40 }
+    range: [-60.0, 0.0]
+    default: -20.0
+    label: "Threshold"
+
+  - id: ratio
+    type: slider
+    position: { x: 110, y: 37 }
+    size: { diameter: 40 }
+    range: [1.0, 20.0]
+    default: 4.0
+    label: "Ratio"
+
+  - id: attack_time
+    type: slider
+    position: { x: 190, y: 37 }
+    size: { diameter: 40 }
+    range: [0.1, 100.0]
+    default: 10.0
+    label: "Attack"
+
+  - id: release_time
+    type: slider
+    position: { x: 270, y: 37 }
+    size: { diameter: 40 }
+    range: [10.0, 1000.0]
+    default: 100.0
+    label: "Release"
+
+  - id: knee
+    type: slider
+    position: { x: 350, y: 37 }
+    size: { diameter: 40 }
+    range: [0.0, 20.0]
+    default: 6.0
+    label: "Knee"
+
+  - id: output_gain
+    type: slider
+    position: { x: 430, y: 37 }
+    size: { diameter: 40 }
+    range: [-12.0, 24.0]
+    default: 0.0
+    label: "Output"
+
+  - id: auto_gain
+    type: toggle
+    position: { x: 520, y: 37 }
+    size: { width: 70, height: 40 }
+    default: false
+    label: "Auto-Gain"
+
+visualizations:
+  - id: input_meter
+    type: led_meter
+    position: { x: 18, y: 105 }
+    size: { width: 18, height: 240 }
+    segments: 14
+
+  - id: transfer_curve
+    type: canvas
+    position: { x: 46, y: 105 }
+    size: { width: 210, height: 240 }
+    label: "Transfer Curve"
+    background_image: "shell.png"
+    background_opacity: 0.5
+
+  - id: envelope_display
+    type: canvas
+    position: { x: 266, y: 105 }
+    size: { width: 308, height: 240 }
+    label: "Envelope and Gain Reduction"
+
+  - id: output_meter
+    type: led_meter
+    position: { x: 584, y: 105 }
+    size: { width: 18, height: 240 }
+    segments: 14
+
+styling:
+  colors:
+    background: "#F5E6D3"  # Aged paper
+    foreground: "#3C2F2F"  # Dark brown text
+    accent: "#6B8E4E"      # Botanical green
+    knob_gradient_start: "#C9A27B"
+    knob_gradient_end: "#8B7355"
+    knob_border: "#6B5847"
+    button_active: "#8BA870"
+    led_low: "#8BA870"
+    led_mid: "#6B8E4E"
+    led_high: "#C9A27B"
+  fonts:
+    primary: "Garamond, Times New Roman, serif"
+  background_image: "paper-bg.jpg"
+
+layout:
+  title_position: { x: "center", y: 0 }
+  control_row_1: { y: 22 }  # Top row labels
+  control_row_2: { y: 37 }  # Top row knobs
+  value_row: { y: 82 }      # Value displays
+  viz_row: { y: 105 }       # Bottom visualizations
