@@ -211,18 +211,37 @@ float MarimbaVoice::getModeAmplitude(int modeIndex, float material) const
 {
     // BAR_MATERIAL: 0.0 = dark rosewood (fundamental emphasis)
     //               1.0 = bright synthetic (high modes emphasis)
+    //
+    // v1.5.0: Improved amplitude distribution based on acoustic research
+    // - Strong fundamental (mode 0)
+    // - Strong mode 2 (the tuned double octave - characteristic marimba sound)
+    // - Faster exponential rolloff for higher modes (more natural)
 
-    if (modeIndex == 0)
-        return 1.0f; // Fundamental always present
+    // Base amplitudes derived from marimba spectral analysis
+    // Mode 2 (4x fundamental) is deliberately strong - this is the "marimba character"
+    static constexpr std::array<float, NUM_MODES> BASE_AMPLITUDES = {
+        1.00f,   // Mode 0: Fundamental (strongest)
+        0.65f,   // Mode 1: 4x - tuned double octave (strong - marimba signature)
+        0.25f,   // Mode 2: 9.24x
+        0.12f,   // Mode 3: 16.27x
+        0.06f,   // Mode 4: 24.22x
+        0.03f,   // Mode 5: 33.54x
+        0.015f,  // Mode 6: 42.97x
+        0.008f   // Mode 7: 54x (barely audible, adds shimmer)
+    };
 
-    // Natural amplitude falloff (higher modes quieter)
-    float baseAmp = 1.0f / static_cast<float>(modeIndex + 1);
+    float baseAmp = BASE_AMPLITUDES[static_cast<size_t>(modeIndex)];
 
-    // Material boost: brighter materials have stronger high modes
-    float materialBoost = material * 0.5f;
-    float modeRatio = static_cast<float>(modeIndex) / static_cast<float>(NUM_MODES);
+    // Material adjustment: brighter materials boost higher modes
+    // Dark rosewood (0.0): Use base amplitudes as-is
+    // Bright synthetic (1.0): Boost higher modes by up to 2x
+    if (modeIndex > 1)  // Don't adjust fundamental or mode 2
+    {
+        float materialBoost = 1.0f + material * 1.0f;  // 1.0x to 2.0x
+        baseAmp *= materialBoost;
+    }
 
-    return baseAmp * (1.0f + materialBoost * modeRatio);
+    return baseAmp;
 }
 
 float MarimbaVoice::getDecayTime(int modeIndex, float resonanceParam) const

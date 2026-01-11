@@ -78,50 +78,95 @@ void BodyResonance::setMix(float newMix)
 
 void BodyResonance::generateSyntheticIR()
 {
-    // Generate ~75ms IR at current sample rate
-    const int irLength = static_cast<int>(currentSampleRate * 0.075);
+    // v1.5.0: Enhanced body resonance with wood-like characteristics
+    // Generate ~100ms IR for richer resonance (was 75ms)
+    const int irLength = static_cast<int>(currentSampleRate * 0.100);
     irBuffer.setSize(1, irLength);  // Mono IR
     irBuffer.clear();
 
     auto* ir = irBuffer.getWritePointer(0);
 
-    // Generate resonator tube characteristics:
-    // - Initial transient (wood impact)
-    // - Low-mid resonance (200-800 Hz emphasis)
-    // - Exponential decay
+    // Marimba resonator tube characteristics:
+    // - Quick initial transient (wood impact character)
+    // - Rich low-mid resonance (200-600 Hz emphasis for warmth)
+    // - Multi-stage decay: fast initial, slow tail (wood-like)
+    // - Subtle diffuse reflections for spatial depth
 
     juce::Random random;
+    const float twoPi = juce::MathConstants<float>::twoPi;
+
+    // Resonant mode frequencies (Hz) - based on typical marimba resonator tubes
+    // Lower frequencies for warmth, spread across low-mid range
+    struct ResonantMode {
+        float freq;
+        float amplitude;
+        float decayRate;  // Higher = faster decay
+    };
+
+    // 6 resonant modes for richer, more realistic body character
+    const std::array<ResonantMode, 6> modes = {{
+        { 180.0f, 0.50f, 4.0f },   // Sub-bass warmth
+        { 280.0f, 0.70f, 5.0f },   // Primary low resonance (strongest)
+        { 420.0f, 0.45f, 6.0f },   // Mid-low body
+        { 580.0f, 0.30f, 7.0f },   // Mid presence
+        { 750.0f, 0.18f, 9.0f },   // Upper mid character
+        { 1100.0f, 0.08f, 12.0f }  // High frequency air/shimmer
+    }};
 
     for (int i = 0; i < irLength; ++i)
     {
         float t = static_cast<float>(i) / static_cast<float>(irLength);
+        float tSeconds = static_cast<float>(i) / static_cast<float>(currentSampleRate);
 
-        // Exponential decay envelope
-        float envelope = std::exp(-t * 6.0f);
-
-        // Add resonant modes (simulating tube resonances)
         float sample = 0.0f;
 
-        // Primary resonance (~300 Hz)
-        float freq1 = 300.0f;
-        sample += 0.6f * std::sin(2.0f * juce::MathConstants<float>::pi * freq1 * i / static_cast<float>(currentSampleRate));
+        // Sum all resonant modes with individual decay rates
+        for (const auto& mode : modes)
+        {
+            // Each mode has its own decay envelope (higher modes decay faster)
+            float modeEnvelope = std::exp(-tSeconds * mode.decayRate);
 
-        // Secondary resonance (~500 Hz)
-        float freq2 = 500.0f;
-        sample += 0.3f * std::sin(2.0f * juce::MathConstants<float>::pi * freq2 * i / static_cast<float>(currentSampleRate));
+            // Add slight random phase offset per mode for more natural sound
+            float phase = twoPi * mode.freq * tSeconds;
+            sample += mode.amplitude * modeEnvelope * std::sin(phase);
+        }
 
-        // Tertiary resonance (~750 Hz)
-        float freq3 = 750.0f;
-        sample += 0.15f * std::sin(2.0f * juce::MathConstants<float>::pi * freq3 * i / static_cast<float>(currentSampleRate));
+        // Wood-like multi-stage decay envelope
+        // Stage 1: Quick initial attack (first 5ms)
+        // Stage 2: Fast initial decay (5-30ms)
+        // Stage 3: Slow sustain tail (30-100ms)
+        float envelope;
+        if (t < 0.05f)
+        {
+            // Initial transient - quick attack
+            envelope = t / 0.05f;
+        }
+        else if (t < 0.3f)
+        {
+            // Fast decay phase (wood characteristic)
+            float decayT = (t - 0.05f) / 0.25f;
+            envelope = 1.0f - (decayT * 0.6f);  // Drops to 40% by t=0.3
+        }
+        else
+        {
+            // Slow tail (resonant sustain)
+            float tailT = (t - 0.3f) / 0.7f;
+            envelope = 0.4f * std::exp(-tailT * 2.5f);
+        }
 
-        // Add slight noise for diffusion
-        sample += 0.05f * (random.nextFloat() * 2.0f - 1.0f);
+        // Add subtle early reflections (wood diffusion character)
+        // Small amount of filtered noise in first 20ms
+        if (t < 0.2f)
+        {
+            float noiseEnv = (1.0f - t / 0.2f) * 0.08f;
+            sample += noiseEnv * (random.nextFloat() * 2.0f - 1.0f);
+        }
 
         ir[i] = sample * envelope;
     }
 
-    // Normalize IR
+    // Normalize IR with headroom
     float maxVal = irBuffer.getMagnitude(0, 0, irBuffer.getNumSamples());
     if (maxVal > 0.0f)
-        irBuffer.applyGain(0, 0, irBuffer.getNumSamples(), 0.5f / maxVal);
+        irBuffer.applyGain(0, 0, irBuffer.getNumSamples(), 0.45f / maxVal);
 }

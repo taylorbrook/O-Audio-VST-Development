@@ -48,8 +48,11 @@ private:
     static constexpr int NUM_MODES = 8;
 
     // Modal frequency ratios (inharmonic overtones for marimba timbre)
+    // v1.5.0: Corrected ratios from acoustic research measurements
+    // Mode 2 tuned to 4.0x (double octave) - signature of professional marimbas
+    // Higher modes match measured marimba bar spectra (Euphonics/ISMA2019 research)
     static constexpr std::array<float, NUM_MODES> MODE_RATIOS = {
-        1.00f, 3.93f, 9.24f, 16.65f, 26.3f, 38.2f, 52.4f, 68.9f
+        1.00f, 4.00f, 9.24f, 16.27f, 24.22f, 33.54f, 42.97f, 54.0f
     };
 
     // Modal mode - biquad resonator for each partial

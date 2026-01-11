@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.5.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -63,6 +63,12 @@
   - Added: Export tuning as .scl (Scala) and .kbm (keyboard mapping) files
   - Changed: "SCALA" button renamed to "CUSTOM" for clarity
   - Fixed: Interval table now non-editable in 12-TET mode (was editable but non-functional)
+- **2026-01-11 (v1.5.0):** Physical model realism improvements
+  - Changed: Modal frequency ratios corrected from acoustic research (Euphonics/ISMA2019)
+    - Mode 2 now 4.0x (tuned double octave - professional marimba signature)
+    - Higher modes corrected to measured values: 24.22, 33.54, 42.97, 54.0
+  - Changed: Mode amplitude distribution improved with stronger fundamental + mode 2
+  - Changed: Body resonance IR enhanced with 6 modes (was 3), wood-like decay envelope, 100ms duration
 
 ## Known Issues
 
@@ -93,9 +99,10 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 
 ### DSP Architecture
 - **Modal Resonator Bank:** 8 parallel 2nd-order IIR biquad filters per voice
-  - Mode ratios: 1.00, 3.93, 9.24, 16.65, 26.3, 38.2, 52.4, 68.9 (inharmonic)
+  - Mode ratios: 1.00, 4.00, 9.24, 16.27, 24.22, 33.54, 42.97, 54.0 (v1.5.0: research-corrected)
+  - Mode 2 (4.0x) is the tuned double octave - signature of professional marimbas
 - **Mallet Exciter:** Filtered noise burst (5-20ms) with velocity-dependent brightness
-- **Body Resonance:** juce::dsp::Convolution with short IR
+- **Body Resonance:** juce::dsp::Convolution with 100ms IR (6 resonant modes, wood-like decay)
 - **Tuning Engine:** 12-TET, Scala files, custom intervals with ratio/cents input
 
 ### UI Features

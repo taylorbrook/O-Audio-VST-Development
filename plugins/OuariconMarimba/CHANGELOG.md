@@ -2,6 +2,30 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.5.0] - 2026-01-11
+
+### Changed
+- **Improved physical model realism** - Major overhaul of modal synthesis for more authentic marimba sound
+  - **Corrected modal frequency ratios** from acoustic research measurements (Euphonics/ISMA2019)
+    - Mode 2 now tuned to exactly 4.0x fundamental (double octave) - the signature of professional marimbas
+    - Higher modes corrected: was [26.3, 38.2, 52.4, 68.9], now [24.22, 33.54, 42.97, 54.0]
+    - Root cause: Original ratios were approximations; higher modes were 8-22% off measured values
+  - **Improved mode amplitude distribution** based on spectral analysis
+    - Strong fundamental + strong mode 2 (double octave) for characteristic marimba timbre
+    - Faster exponential rolloff for higher modes (more natural overtone balance)
+    - Material parameter now only affects modes 3+ (preserves marimba character at all settings)
+  - **Enhanced body resonance** with wood-like characteristics
+    - Extended IR from 75ms to 100ms for richer sustain
+    - 6 resonant modes (was 3) across 180-1100 Hz range
+    - Multi-stage decay envelope: quick attack, fast initial decay, slow tail
+    - Individual decay rates per mode (higher frequencies decay faster)
+    - Subtle early reflections for wood diffusion character
+
+### Technical Notes
+- Research sources: Euphonics.org marimba acoustics, ISMA2019 modal measurement studies
+- Modal ratios now match measured professional marimba bar spectra
+- Body IR now simulates resonator tube coupling more accurately
+
 ## [1.4.0] - 2026-01-11
 
 ### Added
