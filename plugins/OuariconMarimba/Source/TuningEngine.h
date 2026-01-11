@@ -60,6 +60,12 @@ public:
     // Check if a scale is loaded
     bool hasScalaLoaded() const { return !scaleIntervals.empty() && scaleDegrees > 0; }
 
+    // v1.4.0: Generate Scala file content from current intervals
+    juce::String generateScalaFileContent() const;
+
+    // v1.4.0: Generate KBM (keyboard mapping) file content
+    juce::String generateKBMFileContent() const;
+
 private:
     std::atomic<Mode> currentMode { Mode::TwelveTET };
     std::atomic<double> referencePitch { 440.0 };

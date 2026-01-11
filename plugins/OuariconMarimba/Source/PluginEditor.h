@@ -69,6 +69,10 @@ private:
     juce::var loadKBMFile(const juce::Array<juce::var>& args);
     juce::var getTuningIntervals(const juce::Array<juce::var>& args);
 
+    // v1.4.0: Native functions for Scala file saving
+    juce::var saveScalaFile(const juce::Array<juce::var>& args);
+    juce::var saveKBMFile(const juce::Array<juce::var>& args);
+
     // Native function for tonic transposition
     juce::var setTonicNote(const juce::Array<juce::var>& args);
 

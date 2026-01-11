@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.4.0] - 2026-01-11
+
+### Added
+- **Export tuning files** - Save current tuning as Scala (.scl) and keyboard mapping (.kbm) files
+  - SAVE .SCL and SAVE .KBM buttons in Custom tuning mode
+  - Remembers last-used export directory for convenience
+  - Standard Scala format compatible with other microtonal software
+
+### Changed
+- Renamed "SCALA" button to "CUSTOM" for clarity (Custom mode allows editing intervals)
+- Interval table is now **non-editable in 12-TET mode**
+  - Root cause: Table was editable but changes had no effect (12-TET ignores custom intervals)
+  - All inputs disabled when 12-TET is selected, editable only in Custom mode
+  - Prevents user confusion about why edits don't affect tuning
+
 ## [1.3.1] - 2026-01-10
 
 ### Added

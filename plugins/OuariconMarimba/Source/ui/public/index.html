@@ -390,6 +390,12 @@
             transform: translateY(-1px);
         }
 
+        /* Smaller buttons for file operations (75% size) */
+        .btn.btn-small {
+            padding: 4px 10px;
+            font-size: 7px;
+        }
+
         .btn.active {
             background: rgba(107, 142, 35, 0.6);
             border-color: #2C3E10;
@@ -1040,7 +1046,7 @@
                 <div class="tuning-mode-section">
                     <div class="tuning-mode-buttons">
                         <button class="btn active" id="btn-12tet">12-TET</button>
-                        <button class="btn" id="btn-scala">SCALA</button>
+                        <button class="btn" id="btn-scala">CUSTOM</button>
                         <button class="btn" id="btn-mts">MTS-ESP</button>
                     </div>
                 </div>
@@ -1060,10 +1066,12 @@
                 <div class="tuning-status-section">
                     <div class="scale-name-display" id="scale-name">12-TET Standard</div>
 
-                    <!-- Scala File Buttons (shown for SCALA mode) -->
+                    <!-- Scala File Buttons (shown for CUSTOM mode) -->
                     <div class="file-buttons" id="scala-buttons" style="display: none;">
-                        <button class="btn" id="btn-load-scl" style="font-size: 9px;">LOAD .SCL</button>
-                        <button class="btn" id="btn-load-kbm" style="font-size: 9px;">LOAD .KBM</button>
+                        <button class="btn btn-small" id="btn-load-scl">LOAD .SCL</button>
+                        <button class="btn btn-small" id="btn-load-kbm">LOAD .KBM</button>
+                        <button class="btn btn-small" id="btn-save-scl">SAVE .SCL</button>
+                        <button class="btn btn-small" id="btn-save-kbm">SAVE .KBM</button>
                     </div>
 
                     <!-- MTS-ESP Status (shown for MTS mode) -->
@@ -1261,6 +1269,7 @@
 
         function updateTuningModeUI(normalizedValue) {
             const index = Math.round(normalizedValue * 2);
+            currentTuningMode = index; // Track current mode for table editing
             btn12tet.classList.toggle('active', index === 0);
             btnScala.classList.toggle('active', index === 1);
             btnMts.classList.toggle('active', index === 2);
@@ -1273,7 +1282,7 @@
                 // Load 12-TET preset
                 loadScalePreset('12tet');
             } else if (index === 1) {
-                // Load Just Intonation as default Scala preset
+                // Load Just Intonation as default Custom preset
                 loadScalePreset('just');
             } else if (index === 2) {
                 scaleName.textContent = "MTS-ESP (stub)";
@@ -1282,6 +1291,9 @@
 
             // Update keyboard visualization
             updateKeyboardViz(index);
+
+            // Refresh interval list to update editable state
+            updateIntervalListUI();
         }
 
         btn12tet.addEventListener('click', () => tuningModeState.setNormalisedValue(0.0));
@@ -1296,12 +1308,26 @@
         const loadScalaFileNative = Juce.getNativeFunction("loadScalaFile");
         const loadKBMFileNative = Juce.getNativeFunction("loadKBMFile");
 
+        // v1.4.0: Scala file saving
+        const saveScalaFileNative = Juce.getNativeFunction("saveScalaFile");
+        const saveKBMFileNative = Juce.getNativeFunction("saveKBMFile");
+
         document.getElementById('btn-load-scl').addEventListener('click', () => {
             loadScalaFileNative();
         });
 
         document.getElementById('btn-load-kbm').addEventListener('click', () => {
             loadKBMFileNative();
+        });
+
+        // v1.4.0: Save .scl file
+        document.getElementById('btn-save-scl').addEventListener('click', () => {
+            saveScalaFileNative();
+        });
+
+        // v1.4.0: Save .kbm file
+        document.getElementById('btn-save-kbm').addEventListener('click', () => {
+            saveKBMFileNative();
         });
 
         // Get native function to fetch intervals
@@ -1365,6 +1391,7 @@
         let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
         let currentScaleName = '12-TET Standard';
         let currentTonic = 0; // 0 = C, 1 = C#, 2 = D, etc.
+        let currentTuningMode = 0; // 0 = 12-TET, 1 = Custom, 2 = MTS-ESP
 
         // Note names for tonic display
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -1518,11 +1545,14 @@
             let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
 
             // Show rows for actual number of intervals
+            // In 12-TET mode (index 0), all inputs are disabled (non-editable)
+            const isEditable = (currentTuningMode === 1); // Only editable in Custom mode
             for (let i = 0; i < total; i++) {
                 const cents = currentIntervals[i] || 0;
                 const isUnison = (i === 0);
                 const displayValue = isUnison ? '0' : cents.toFixed(1);
                 const label = getDegreeLabel(i, total);
+                const isDisabled = isUnison || !isEditable;
 
                 html += `
                     <div class="interval-item">
@@ -1531,7 +1561,7 @@
                                class="interval-input"
                                data-index="${i}"
                                value="${displayValue}"
-                               ${isUnison ? 'disabled' : ''}
+                               ${isDisabled ? 'disabled' : ''}
                                placeholder="${Math.round(i * 1200 / total)}">
                     </div>
                 `;

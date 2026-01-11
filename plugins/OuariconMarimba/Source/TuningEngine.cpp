@@ -317,3 +317,87 @@ bool TuningEngine::parseScalaFile(const juce::File& file, std::vector<double>& i
 
     return true;
 }
+
+// v1.4.0: Generate Scala file content from current intervals
+juce::String TuningEngine::generateScalaFileContent() const
+{
+    juce::String content;
+
+    // Comment line
+    content += "! " + scaleName + ".scl\n";
+    content += "!\n";
+
+    // Scale name/description
+    content += scaleName + "\n";
+
+    // Number of notes (excluding unison, which is implicit)
+    int numNotes = static_cast<int>(scaleIntervals.size()) - 1;
+    if (numNotes < 1)
+        numNotes = 11;  // Default to 12-TET if no intervals
+
+    content += juce::String(numNotes) + "\n";
+    content += "!\n";
+
+    // Output intervals (skip unison at index 0)
+    for (size_t i = 1; i < scaleIntervals.size(); ++i)
+    {
+        // Format cents with 6 decimal places for precision
+        content += juce::String(scaleIntervals[i], 6) + "\n";
+    }
+
+    // If we don't have enough intervals, fill with 12-TET
+    if (scaleIntervals.size() <= 1)
+    {
+        for (int i = 1; i <= 12; ++i)
+        {
+            content += juce::String(i * 100.0, 6) + "\n";
+        }
+    }
+
+    return content;
+}
+
+// v1.4.0: Generate KBM (keyboard mapping) file content
+juce::String TuningEngine::generateKBMFileContent() const
+{
+    juce::String content;
+
+    // Comment line
+    content += "! Keyboard mapping for " + scaleName + "\n";
+    content += "!\n";
+
+    // Size of map (number of entries in mapping, 0 = use scale size)
+    int mapSize = scaleDegrees > 0 ? scaleDegrees : 12;
+    content += juce::String(mapSize) + "\n";
+
+    // First MIDI note to retune (0 = retune all)
+    content += "0\n";
+
+    // Last MIDI note to retune (127 = retune all)
+    content += "127\n";
+
+    // Middle note (usually 60 = C4)
+    int middleNote = 60 + tonicOffset.load();
+    content += juce::String(middleNote) + "\n";
+
+    // Reference note for 1/1 (same as middle for our use)
+    content += juce::String(middleNote) + "\n";
+
+    // Reference frequency (use our A4 reference to calculate tonic frequency)
+    double refPitch = referencePitch.load();
+    // Calculate frequency of the tonic note (middle note)
+    double tonicFreq = refPitch * std::pow(2.0, (middleNote - 69) / 12.0);
+    content += juce::String(tonicFreq, 6) + "\n";
+
+    // Octave degree (scale degree that represents the octave, typically last)
+    content += juce::String(mapSize) + "\n";
+
+    // Linear mapping: each scale degree maps to itself
+    // For a 12-note scale: 0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11
+    for (int i = 0; i < mapSize; ++i)
+    {
+        content += juce::String(i) + "\n";
+    }
+
+    return content;
+}

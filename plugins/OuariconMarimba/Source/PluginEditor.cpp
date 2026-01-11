@@ -52,6 +52,15 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withNativeFunction("getTuningIntervals", [this](const auto& args, auto complete) {
                 complete(getTuningIntervals(args));
             })
+            // v1.4.0: Save Scala/KBM files
+            .withNativeFunction("saveScalaFile", [this](const auto& args, auto complete) {
+                saveScalaFile(args);
+                complete(juce::var("OK"));
+            })
+            .withNativeFunction("saveKBMFile", [this](const auto& args, auto complete) {
+                saveKBMFile(args);
+                complete(juce::var("OK"));
+            })
             .withNativeFunction("setTonicNote", [this](const auto& args, auto complete) {
                 complete(setTonicNote(args));
             })
@@ -637,6 +646,118 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Ar
                     + intervalsJson + ", "
                     + juce::String(tuning.getTonicNote()) + ");";
                 webView->evaluateJavascript(js, nullptr);
+            }
+        }
+    });
+
+    return juce::var("OK");
+}
+
+// ============================================================================
+// v1.4.0: Scala/KBM File Export
+// ============================================================================
+
+// Static storage for last-used export directories (remembered during session)
+static juce::String lastScalaExportPath;
+static juce::String lastKBMExportPath;
+
+// Save current tuning as Scala .scl file
+juce::var OuariconMarimbaAudioProcessorEditor::saveScalaFile(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    // Get last used directory or default to Documents
+    auto lastDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+
+    // Check if we have a stored last directory (session memory)
+    if (lastScalaExportPath.isNotEmpty())
+    {
+        auto storedDir = juce::File(lastScalaExportPath);
+        if (storedDir.isDirectory())
+            lastDir = storedDir;
+    }
+
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Save Scala File",
+        lastDir.getChildFile(processorRef.getTuningEngine().getActiveTuningName() + ".scl"),
+        "*.scl"
+    );
+
+    auto chooserFlags = juce::FileBrowserComponent::saveMode
+                      | juce::FileBrowserComponent::canSelectFiles
+                      | juce::FileBrowserComponent::warnAboutOverwriting;
+
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file != juce::File{})
+        {
+            // Remember directory for next time (within session)
+            lastScalaExportPath = file.getParentDirectory().getFullPathName();
+
+            // Generate Scala file content
+            juce::String content = processorRef.getTuningEngine().generateScalaFileContent();
+
+            // Write to file
+            if (file.replaceWithText(content))
+            {
+                juce::Logger::writeToLog("Saved Scala file: " + file.getFullPathName());
+            }
+            else
+            {
+                juce::Logger::writeToLog("Failed to save Scala file: " + file.getFullPathName());
+            }
+        }
+    });
+
+    return juce::var("OK");
+}
+
+// Save current keyboard mapping as .kbm file
+juce::var OuariconMarimbaAudioProcessorEditor::saveKBMFile(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    // Get last used directory or default to Documents
+    auto lastDir = juce::File::getSpecialLocation(juce::File::userDocumentsDirectory);
+
+    // Check if we have a stored last directory (session memory)
+    if (lastKBMExportPath.isNotEmpty())
+    {
+        auto storedDir = juce::File(lastKBMExportPath);
+        if (storedDir.isDirectory())
+            lastDir = storedDir;
+    }
+
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Save Keyboard Mapping File",
+        lastDir.getChildFile(processorRef.getTuningEngine().getActiveTuningName() + ".kbm"),
+        "*.kbm"
+    );
+
+    auto chooserFlags = juce::FileBrowserComponent::saveMode
+                      | juce::FileBrowserComponent::canSelectFiles
+                      | juce::FileBrowserComponent::warnAboutOverwriting;
+
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file != juce::File{})
+        {
+            // Remember directory for next time (within session)
+            lastKBMExportPath = file.getParentDirectory().getFullPathName();
+
+            // Generate KBM file content
+            juce::String content = processorRef.getTuningEngine().generateKBMFileContent();
+
+            // Write to file
+            if (file.replaceWithText(content))
+            {
+                juce::Logger::writeToLog("Saved KBM file: " + file.getFullPathName());
+            }
+            else
+            {
+                juce::Logger::writeToLog("Failed to save KBM file: " + file.getFullPathName());
             }
         }
     });

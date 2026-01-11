@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.0
+- **Version:** 1.4.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -59,6 +59,10 @@
   - Added: LOAD button for file dialog preset loading
   - Added: Dropdown menu when clicking preset name (instant preset selection)
   - Dropdown shows Factory/User sections with active preset highlighted
+- **2026-01-11 (v1.4.0):** Tuning export + UI fixes
+  - Added: Export tuning as .scl (Scala) and .kbm (keyboard mapping) files
+  - Changed: "SCALA" button renamed to "CUSTOM" for clarity
+  - Fixed: Interval table now non-editable in 12-TET mode (was editable but non-functional)
 
 ## Known Issues
 
@@ -103,4 +107,4 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - AU (Audio Unit)
 - Standalone
 
-**Last Updated:** 2026-01-10
+**Last Updated:** 2026-01-11
