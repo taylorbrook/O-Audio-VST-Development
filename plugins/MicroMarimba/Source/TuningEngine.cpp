@@ -22,13 +22,8 @@ TuningEngine::~TuningEngine()
 
 double TuningEngine::getFrequency(int midiNote) const
 {
-    // Apply tonic transposition: shift MIDI note by tonic offset
-    // When tonic = D (2), pressing C (60) should play D (62) frequency
-    int tonic = tonicOffset.load();
-    int transposedNote = midiNote + tonic;
-
-    // Clamp transposed note to valid range
-    transposedNote = juce::jlimit(0, 127, transposedNote);
+    // Clamp MIDI note to valid range
+    midiNote = juce::jlimit(0, 127, midiNote);
 
     Mode mode = currentMode.load();
 
@@ -37,11 +32,12 @@ double TuningEngine::getFrequency(int midiNote) const
     {
         // TODO: Full MTS-ESP integration in future improvement
         // For now, fall back to frequency table (Scala or 12-TET)
-        return frequencyTable[transposedNote].load();
+        return frequencyTable[midiNote].load();
     }
 
     // Return pre-calculated frequency from table
-    return frequencyTable[transposedNote].load();
+    // Tonic offset is applied during table rebuild (in calculateScala)
+    return frequencyTable[midiNote].load();
 }
 
 void TuningEngine::setMode(Mode mode)
@@ -111,9 +107,14 @@ void TuningEngine::setTonicNote(int tonicIndex)
 {
     // Clamp to valid range (0-11, representing C through B)
     tonicIndex = juce::jlimit(0, 11, tonicIndex);
+
+    if (tonicOffset.load() == tonicIndex)
+        return;
+
     tonicOffset.store(tonicIndex);
 
-    // No need to rebuild frequency table - transposition is applied in getFrequency()
+    // Rebuild frequency table - tonic affects interval calculations in Scala mode
+    rebuildFrequencyTable();
 }
 
 void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const juce::String& name)
@@ -198,10 +199,12 @@ double TuningEngine::calculateScala(int midiNote) const
         return calculate12TET(midiNote);
 
     double refPitch = referencePitch.load();
+    int tonic = tonicOffset.load();
 
-    // Map MIDI note to scale degree
-    // Reference point: MIDI 60 (Middle C) maps to scale degree 0
-    int noteOffset = midiNote - 60;
+    // Map MIDI note to scale degree relative to tonic
+    // Tonic note (e.g., D when tonic=2) maps to scale degree 0
+    int tonicMidi = 60 + tonic;  // MIDI note of the tonic in octave 4
+    int noteOffset = midiNote - tonicMidi;
     int octave = noteOffset / scaleDegrees;
     int degree = noteOffset % scaleDegrees;
 
@@ -212,19 +215,19 @@ double TuningEngine::calculateScala(int midiNote) const
         octave--;
     }
 
-    // Get cents offset for this degree
+    // Get cents offset for this degree (relative to tonic)
     double cents = scaleIntervals[degree];
 
     // Add octaves (using the last interval as octave size)
     double octaveCents = scaleIntervals.back();
     cents += octave * octaveCents;
 
-    // Calculate frequency from middle C
-    // Middle C (60) in 12-TET at reference pitch:
-    double middleCFreq = refPitch * std::pow(2.0, -9.0 / 12.0);  // C4 from A4
+    // Calculate tonic frequency in 12-TET (as the baseline reference)
+    // This ensures the tonic note plays at its standard pitch
+    double tonicFreq = refPitch * std::pow(2.0, (tonicMidi - 69) / 12.0);
 
-    // Apply cents offset: f = f0 * 2^(cents/1200)
-    return middleCFreq * std::pow(2.0, cents / 1200.0);
+    // Apply cents offset from tonic: f = tonicFreq * 2^(cents/1200)
+    return tonicFreq * std::pow(2.0, cents / 1200.0);
 }
 
 bool TuningEngine::parseScalaFile(const juce::File& file, std::vector<double>& intervals, juce::String& name)
