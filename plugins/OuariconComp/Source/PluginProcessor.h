@@ -10,6 +10,7 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 class OuariconCompAudioProcessor : public juce::AudioProcessor
 {
@@ -44,6 +45,19 @@ public:
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // DSP Components (BEFORE APVTS for initialization order)
+    juce::dsp::ProcessSpec spec;
+
+    // Compressor state
+    float envelopeDB = -60.0f;  // Current envelope level in dB
+    float attackCoeff = 0.0f;   // Attack time coefficient
+    float releaseCoeff = 0.0f;  // Release time coefficient
+
+    // DSP Helper Methods
+    float calculateGainReduction(float inputLevelDB, float thresholdDB,
+                                  float ratio, float kneeDB);
+    void updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconCompAudioProcessor)
 };

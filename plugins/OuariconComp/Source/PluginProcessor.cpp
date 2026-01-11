@@ -93,13 +93,24 @@ OuariconCompAudioProcessor::~OuariconCompAudioProcessor()
 
 void OuariconCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // DSP initialization will be added in Stage 2 (DSP)
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Configure DSP spec
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+
+    // Initialize envelope state
+    envelopeDB = -60.0f;
+
+    // Calculate initial coefficients
+    auto* attackParam = parameters.getRawParameterValue("attack_time");
+    auto* releaseParam = parameters.getRawParameterValue("release_time");
+    updateCoefficients(attackParam->load(), releaseParam->load(), sampleRate);
 }
 
 void OuariconCompAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2 (DSP)
+    // Reset envelope state
+    envelopeDB = -60.0f;
 }
 
 void OuariconCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -107,12 +118,82 @@ void OuariconCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    // Parameter access example (for Stage 2 DSP implementation):
-    // auto* thresholdParam = parameters.getRawParameterValue("threshold");
-    // float thresholdValue = thresholdParam->load();  // Atomic read (real-time safe)
+    // Clear unused channels
+    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Pass-through for Stage 1 (DSP implementation happens in Stage 2)
-    // Audio routing is already handled by JUCE
+    // Read parameters (atomic, real-time safe)
+    auto* thresholdParam = parameters.getRawParameterValue("threshold");
+    auto* ratioParam = parameters.getRawParameterValue("ratio");
+    auto* attackParam = parameters.getRawParameterValue("attack_time");
+    auto* releaseParam = parameters.getRawParameterValue("release_time");
+    auto* kneeParam = parameters.getRawParameterValue("knee");
+    auto* outputGainParam = parameters.getRawParameterValue("output_gain");
+    auto* autoGainParam = parameters.getRawParameterValue("auto_gain");
+
+    float thresholdDB = thresholdParam->load();
+    float ratio = ratioParam->load();
+    float attackTimeMs = attackParam->load();
+    float releaseTimeMs = releaseParam->load();
+    float kneeDB = kneeParam->load();
+    float outputGainDB = outputGainParam->load();
+    bool autoGainEnabled = autoGainParam->load() > 0.5f;
+
+    // Update attack/release coefficients (lightweight calculation, real-time safe)
+    updateCoefficients(attackTimeMs, releaseTimeMs, spec.sampleRate);
+
+    // Calculate makeup gain
+    float autoGainDB = 0.0f;
+    if (autoGainEnabled)
+    {
+        autoGainDB = -thresholdDB * (1.0f - 1.0f / ratio);
+    }
+    float totalGainDB = autoGainDB + outputGainDB;
+    float makeupGainLinear = juce::Decibels::decibelsToGain(totalGainDB);
+
+    // Process audio (per-sample loop for accurate envelope following)
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
+
+    for (int sample = 0; sample < numSamples; ++sample)
+    {
+        // Stereo-linked detection: use max of all channels
+        float maxInputLevel = 0.0f;
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = buffer.getWritePointer(channel);
+            float inputLevel = std::abs(channelData[sample]);
+            maxInputLevel = std::max(maxInputLevel, inputLevel);
+        }
+
+        // Convert to dB
+        float inputLevelDB = juce::Decibels::gainToDecibels(maxInputLevel, -60.0f);
+
+        // Envelope follower (attack/release ballistics)
+        if (inputLevelDB > envelopeDB)
+        {
+            // Attack (signal increasing)
+            envelopeDB += (inputLevelDB - envelopeDB) * attackCoeff;
+        }
+        else
+        {
+            // Release (signal decreasing)
+            envelopeDB += (inputLevelDB - envelopeDB) * releaseCoeff;
+        }
+
+        // Calculate gain reduction
+        float gainReductionDB = calculateGainReduction(envelopeDB, thresholdDB, ratio, kneeDB);
+
+        // Convert to linear gain
+        float gainLinear = juce::Decibels::decibelsToGain(-gainReductionDB) * makeupGainLinear;
+
+        // Apply same gain to all channels (stereo-linked)
+        for (int channel = 0; channel < numChannels; ++channel)
+        {
+            auto* channelData = buffer.getWritePointer(channel);
+            channelData[sample] *= gainLinear;
+        }
+    }
 }
 
 juce::AudioProcessorEditor* OuariconCompAudioProcessor::createEditor()
@@ -133,6 +214,39 @@ void OuariconCompAudioProcessor::setStateInformation(const void* data, int sizeI
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
         parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+// DSP Helper Methods
+float OuariconCompAudioProcessor::calculateGainReduction(float inputLevelDB, float thresholdDB,
+                                                          float ratio, float kneeDB)
+{
+    float x = inputLevelDB - thresholdDB;
+
+    if (x < -kneeDB / 2.0f)
+    {
+        // Below knee - no compression
+        return 0.0f;
+    }
+    else if (x > kneeDB / 2.0f)
+    {
+        // Above knee - full compression
+        return x - (x / ratio);
+    }
+    else
+    {
+        // Inside knee - smooth transition (quadratic curve)
+        float kneeFactor = (x + kneeDB / 2.0f) / kneeDB;
+        float fullReduction = x - (x / ratio);
+        return kneeFactor * kneeFactor * fullReduction;
+    }
+}
+
+void OuariconCompAudioProcessor::updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate)
+{
+    // Calculate attack/release coefficients using exponential formula
+    // coeff = 1 - exp(-1 / (timeMs * sampleRate / 1000))
+    attackCoeff = 1.0f - std::exp(-1.0f / (attackTimeMs * static_cast<float>(sampleRate) / 1000.0f));
+    releaseCoeff = 1.0f - std::exp(-1.0f / (releaseTimeMs * static_cast<float>(sampleRate) / 1000.0f));
 }
 
 // Factory function
