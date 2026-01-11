@@ -429,17 +429,28 @@
       return param.format(value) + param.unit;
     }
 
+    // Map parameter IDs to element base names
+    const paramToElementId = {
+      threshold: 'threshold',
+      ratio: 'ratio',
+      attack_time: 'attack',
+      release_time: 'release',
+      knee: 'knee',
+      output_gain: 'output'
+    };
+
     // Update knob rotation and value display
     function updateKnob(paramId, normalized) {
       const rotation = (normalized * 270) - 135; // -135deg to +135deg range
 
-      const indicator = document.getElementById(`${paramId.replace('_', '-')}-indicator`);
+      const elementBase = paramToElementId[paramId] || paramId;
+      const indicator = document.getElementById(`${elementBase}-indicator`);
       if (indicator) {
         indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
       }
 
       // Update value display
-      const valueDisplay = document.getElementById(`${paramId.replace('_', '-')}-value`);
+      const valueDisplay = document.getElementById(`${elementBase}-value`);
       if (valueDisplay) {
         valueDisplay.textContent = formatValue(paramId, normalized);
       }
@@ -607,71 +618,140 @@
       ctx.stroke();
     }
 
-    // Envelope display visualization (mock animation)
+    // Metering state
+    let meterState = {
+      inputLevel: -60,
+      outputLevel: -60,
+      gainReduction: 0,
+      envelope: -60,
+      envelopeHistory: [],  // Rolling history for envelope display
+      grHistory: []         // Rolling history for gain reduction
+    };
+    const HISTORY_SIZE = 300;  // ~10 seconds at 30fps
+
+    // Global function called from C++ via evaluateJavascript
+    window.updateMeters = function(inputLevel, outputLevel, gainReduction, envelope) {
+      meterState.inputLevel = inputLevel;
+      meterState.outputLevel = outputLevel;
+      meterState.gainReduction = gainReduction;
+      meterState.envelope = envelope;
+
+      // Add to history (rolling buffer)
+      meterState.envelopeHistory.push(envelope);
+      meterState.grHistory.push(gainReduction);
+
+      if (meterState.envelopeHistory.length > HISTORY_SIZE) {
+        meterState.envelopeHistory.shift();
+      }
+      if (meterState.grHistory.length > HISTORY_SIZE) {
+        meterState.grHistory.shift();
+      }
+    };
+
+    // Envelope display visualization (real data)
     function drawEnvelopeDisplay() {
       const canvas = document.getElementById('envelopeCanvas');
       const ctx = canvas.getContext('2d');
 
-      setInterval(() => {
+      function draw() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Top lane - input waveform
-        ctx.strokeStyle = 'rgba(107, 142, 78, 0.5)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
+        const history = meterState.envelopeHistory;
+        const grHistory = meterState.grHistory;
 
-        for (let x = 0; x < canvas.width; x++) {
-          const y = canvas.height / 4 + Math.sin(x / 10 + Date.now() / 100) * 20;
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+        // Draw envelope history (top half - green line)
+        if (history.length > 1) {
+          ctx.strokeStyle = '#6B8E4E';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+
+          for (let i = 0; i < history.length; i++) {
+            const x = (i / HISTORY_SIZE) * canvas.width;
+            // Map -60dB to 0dB to canvas height (top half)
+            const normalizedLevel = (history[i] + 60) / 60;
+            const y = (canvas.height / 2) - (normalizedLevel * (canvas.height / 2 - 20));
+
+            if (i === 0) ctx.moveTo(x, y);
+            else ctx.lineTo(x, y);
+          }
+          ctx.stroke();
         }
-        ctx.stroke();
 
-        // Bottom lane - output waveform
-        ctx.strokeStyle = 'rgba(107, 142, 78, 0.7)';
-        ctx.lineWidth = 1.5;
-        ctx.beginPath();
+        // Draw gain reduction histogram (bottom half - amber bars)
+        if (grHistory.length > 0) {
+          ctx.fillStyle = 'rgba(201, 162, 123, 0.6)';
 
-        for (let x = 0; x < canvas.width; x++) {
-          const y = (canvas.height * 3) / 4 + Math.sin(x / 10 + Date.now() / 100) * 15;
-          if (x === 0) ctx.moveTo(x, y);
-          else ctx.lineTo(x, y);
+          const barWidth = canvas.width / HISTORY_SIZE;
+          for (let i = 0; i < grHistory.length; i++) {
+            const x = i * barWidth;
+            // GR is positive in dB, map 0-30dB to bar height
+            const barHeight = (grHistory[i] / 30) * (canvas.height / 2 - 40);
+            const y = canvas.height / 2 + 20;
+
+            ctx.fillRect(x, y, barWidth, barHeight);
+          }
         }
-        ctx.stroke();
 
-        // Gain reduction indicator
-        const grAmount = Math.abs(Math.sin(Date.now() / 500)) * 30;
-        ctx.fillStyle = 'rgba(201, 162, 123, 0.4)';
-        ctx.fillRect(10, canvas.height / 2 + 30, grAmount * 5, 20);
-
+        // Draw current GR value text
         ctx.fillStyle = '#3C2F2F';
+        ctx.font = '11px Garamond, serif';
+        const grText = meterState.gainReduction > 0
+          ? `GR: -${meterState.gainReduction.toFixed(1)} dB`
+          : 'GR: 0.0 dB';
+        ctx.fillText(grText, 10, canvas.height - 25);
+
+        // Draw dividing line
+        ctx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, canvas.height / 2 + 10);
+        ctx.lineTo(canvas.width, canvas.height / 2 + 10);
+        ctx.stroke();
+
+        // Labels
+        ctx.fillStyle = '#5C4033';
         ctx.font = '9px Garamond, serif';
-        ctx.fillText(`GR: -${grAmount.toFixed(1)} dB`, 15, canvas.height / 2 + 55);
-      }, 50);
+        ctx.fillText('Envelope', 10, 15);
+        ctx.fillText('Gain Reduction', 10, canvas.height / 2 + 35);
+
+        requestAnimationFrame(draw);
+      }
+
+      draw();
     }
 
-    // LED meter animation (mock)
-    function animateMeter(meterId) {
+    // Update LED meter with real level data
+    function updateMeterDisplay(meterId, levelDB) {
       const meter = document.getElementById(meterId);
       const segments = meter.querySelectorAll('.led-segment');
 
-      setInterval(() => {
-        const level = Math.random();
-        segments.forEach((segment, index) => {
-          const segmentThreshold = index / segments.length;
-          segment.classList.remove('active-low', 'active-mid', 'active-high');
+      // Map -60dB to 0dB to 0-1 range
+      const normalized = Math.max(0, Math.min(1, (levelDB + 60) / 60));
 
-          if (level > segmentThreshold) {
-            if (index < segments.length * 0.5) {
-              segment.classList.add('active-low');
-            } else if (index < segments.length * 0.85) {
-              segment.classList.add('active-mid');
-            } else {
-              segment.classList.add('active-high');
-            }
+      segments.forEach((segment, index) => {
+        const segmentThreshold = index / segments.length;
+        segment.classList.remove('active-low', 'active-mid', 'active-high');
+
+        if (normalized > segmentThreshold) {
+          if (index < segments.length * 0.5) {
+            segment.classList.add('active-low');
+          } else if (index < segments.length * 0.85) {
+            segment.classList.add('active-mid');
+          } else {
+            segment.classList.add('active-high');
           }
-        });
-      }, 50);
+        }
+      });
+    }
+
+    // Animate meters with real data
+    function startMeterAnimation() {
+      function update() {
+        updateMeterDisplay('input-meter', meterState.inputLevel);
+        updateMeterDisplay('output-meter', meterState.outputLevel);
+        requestAnimationFrame(update);
+      }
+      update();
     }
 
     // Initialize on load
@@ -688,10 +768,9 @@
       // Start visualizations
       updateTransferCurve();
       drawEnvelopeDisplay();
-      animateMeter('input-meter');
-      animateMeter('output-meter');
+      startMeterAnimation();
 
-      console.log('OuariconComp v8 UI loaded successfully');
+      console.log('OuariconComp v1.0.1 UI loaded - real metering enabled');
     });
   </script>
 </body>

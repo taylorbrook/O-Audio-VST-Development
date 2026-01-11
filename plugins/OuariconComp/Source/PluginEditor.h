@@ -15,7 +15,8 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OuariconCompAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconCompAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                         private juce::Timer
 {
 public:
     explicit OuariconCompAudioProcessorEditor(OuariconCompAudioProcessor&);
@@ -25,6 +26,9 @@ public:
     void resized() override;
 
 private:
+    // Timer callback for metering updates
+    void timerCallback() override;
+
     OuariconCompAudioProcessor& processorRef;
 
     //==========================================================================

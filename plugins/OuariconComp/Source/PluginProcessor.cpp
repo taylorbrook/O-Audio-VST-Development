@@ -155,6 +155,11 @@ void OuariconCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     const int numSamples = buffer.getNumSamples();
     const int numChannels = buffer.getNumChannels();
 
+    // Track peak levels for metering
+    float peakInputLevel = 0.0f;
+    float peakOutputLevel = 0.0f;
+    float peakGainReduction = 0.0f;
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
         // Stereo-linked detection: use max of all channels
@@ -166,34 +171,47 @@ void OuariconCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
             maxInputLevel = std::max(maxInputLevel, inputLevel);
         }
 
+        // Track peak input for metering
+        peakInputLevel = std::max(peakInputLevel, maxInputLevel);
+
         // Convert to dB
-        float inputLevelDB = juce::Decibels::gainToDecibels(maxInputLevel, -60.0f);
+        float inputLevelDBLocal = juce::Decibels::gainToDecibels(maxInputLevel, -60.0f);
 
         // Envelope follower (attack/release ballistics)
-        if (inputLevelDB > envelopeDB)
+        if (inputLevelDBLocal > envelopeDB)
         {
             // Attack (signal increasing)
-            envelopeDB += (inputLevelDB - envelopeDB) * attackCoeff;
+            envelopeDB += (inputLevelDBLocal - envelopeDB) * attackCoeff;
         }
         else
         {
             // Release (signal decreasing)
-            envelopeDB += (inputLevelDB - envelopeDB) * releaseCoeff;
+            envelopeDB += (inputLevelDBLocal - envelopeDB) * releaseCoeff;
         }
 
         // Calculate gain reduction
-        float gainReductionDB = calculateGainReduction(envelopeDB, thresholdDB, ratio, kneeDB);
+        float gainReductionDBLocal = calculateGainReduction(envelopeDB, thresholdDB, ratio, kneeDB);
+        peakGainReduction = std::max(peakGainReduction, gainReductionDBLocal);
 
         // Convert to linear gain
-        float gainLinear = juce::Decibels::decibelsToGain(-gainReductionDB) * makeupGainLinear;
+        float gainLinear = juce::Decibels::decibelsToGain(-gainReductionDBLocal) * makeupGainLinear;
 
         // Apply same gain to all channels (stereo-linked)
+        float maxOutputLevel = 0.0f;
         for (int channel = 0; channel < numChannels; ++channel)
         {
             auto* channelData = buffer.getWritePointer(channel);
             channelData[sample] *= gainLinear;
+            maxOutputLevel = std::max(maxOutputLevel, std::abs(channelData[sample]));
         }
+        peakOutputLevel = std::max(peakOutputLevel, maxOutputLevel);
     }
+
+    // Update atomic meter values (thread-safe for UI access)
+    inputLevelDB.store(juce::Decibels::gainToDecibels(peakInputLevel, -60.0f));
+    outputLevelDB.store(juce::Decibels::gainToDecibels(peakOutputLevel, -60.0f));
+    currentGainReductionDB.store(peakGainReduction);
+    currentEnvelopeDB.store(envelopeDB);
 }
 
 juce::AudioProcessorEditor* OuariconCompAudioProcessor::createEditor()
@@ -217,10 +235,10 @@ void OuariconCompAudioProcessor::setStateInformation(const void* data, int sizeI
 }
 
 // DSP Helper Methods
-float OuariconCompAudioProcessor::calculateGainReduction(float inputLevelDB, float thresholdDB,
+float OuariconCompAudioProcessor::calculateGainReduction(float inputLevel, float thresholdDB,
                                                           float ratio, float kneeDB)
 {
-    float x = inputLevelDB - thresholdDB;
+    float x = inputLevel - thresholdDB;
 
     if (x < -kneeDB / 2.0f)
     {

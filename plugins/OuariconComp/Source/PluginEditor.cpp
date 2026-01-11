@@ -72,10 +72,16 @@ OuariconCompAudioProcessorEditor::OuariconCompAudioProcessorEditor(OuariconCompA
 
     // Set window size from mockup dimensions (620x360px)
     setSize(620, 360);
+
+    // Start meter update timer (30fps = ~33ms)
+    startTimerHz(30);
 }
 
 OuariconCompAudioProcessorEditor::~OuariconCompAudioProcessorEditor()
 {
+    // Stop timer before destruction
+    stopTimer();
+
     // Members destroyed in REVERSE order of declaration:
     // 1. Attachments destroyed FIRST (can safely call webView methods)
     // 2. WebView destroyed SECOND (attachments are gone)
@@ -93,6 +99,24 @@ void OuariconCompAudioProcessorEditor::resized()
 {
     // WebView fills entire editor window
     webView->setBounds(getLocalBounds());
+}
+
+//==============================================================================
+void OuariconCompAudioProcessorEditor::timerCallback()
+{
+    // Get meter values from processor (thread-safe atomic reads)
+    float inputLevel = processorRef.getInputLevelDB();
+    float outputLevel = processorRef.getOutputLevelDB();
+    float gainReduction = processorRef.getGainReductionDB();
+    float envelope = processorRef.getEnvelopeDB();
+
+    // Send meter data to WebView via JavaScript
+    juce::String script = juce::String::formatted(
+        "if (typeof updateMeters === 'function') { updateMeters(%f, %f, %f, %f); }",
+        inputLevel, outputLevel, gainReduction, envelope
+    );
+
+    webView->evaluateJavascript(script, nullptr);
 }
 
 //==============================================================================

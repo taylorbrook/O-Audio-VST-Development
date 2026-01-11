@@ -54,8 +54,23 @@ private:
     float attackCoeff = 0.0f;   // Attack time coefficient
     float releaseCoeff = 0.0f;  // Release time coefficient
 
+    // Metering (atomic for thread-safe access from UI)
+    std::atomic<float> inputLevelDB { -60.0f };
+    std::atomic<float> outputLevelDB { -60.0f };
+    std::atomic<float> currentGainReductionDB { 0.0f };
+    std::atomic<float> currentEnvelopeDB { -60.0f };
+
+public:
+    // Meter getters for UI
+    float getInputLevelDB() const { return inputLevelDB.load(); }
+    float getOutputLevelDB() const { return outputLevelDB.load(); }
+    float getGainReductionDB() const { return currentGainReductionDB.load(); }
+    float getEnvelopeDB() const { return currentEnvelopeDB.load(); }
+
+private:
+
     // DSP Helper Methods
-    float calculateGainReduction(float inputLevelDB, float thresholdDB,
+    float calculateGainReduction(float inputLevel, float thresholdDB,
                                   float ratio, float kneeDB);
     void updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate);
 

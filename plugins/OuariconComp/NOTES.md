@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.0
+- **Version:** 1.0.1
 - **Type:** Audio Effect (Compressor)
 
 ## Lifecycle Timeline
 
+- **2026-01-11 (v1.0.1):** Bug fixes - fixed knob animations, real metering for input/output and envelope/GR display
 - **2026-01-11:** Installed to system folders (VST3 + AU)
 - **2026-01-11 (Stage 3):** GUI integration complete - WebView UI with v8 mockup
 - **2026-01-11 (Stage 2):** DSP implementation complete - Custom compressor engine
