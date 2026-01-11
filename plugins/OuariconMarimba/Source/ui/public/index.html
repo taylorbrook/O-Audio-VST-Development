@@ -814,10 +814,10 @@
         <div class="header">
             <div class="title">Ouaricon Marimba</div>
             <div class="preset-browser">
-                <div class="preset-arrow">◀</div>
-                <div class="preset-name">Default Marimba</div>
-                <div class="preset-arrow">▶</div>
-                <div class="preset-save">SAVE</div>
+                <div class="preset-arrow" id="preset-prev" title="Previous preset">◀</div>
+                <div class="preset-name" id="preset-name-display">Default Marimba</div>
+                <div class="preset-arrow" id="preset-next" title="Next preset">▶</div>
+                <div class="preset-save" id="preset-save-btn" title="Save preset">SAVE</div>
             </div>
         </div>
 
@@ -1854,6 +1854,118 @@
         console.log("Keyboard MIDI playback enabled");
 
         // ====================================================================
+        // v1.3.0: PRESET SYSTEM
+        // ====================================================================
+
+        // Get native functions for preset operations
+        const savePresetNative = Juce.getNativeFunction("savePreset");
+        const loadPresetNative = Juce.getNativeFunction("loadPreset");
+        const getPresetListNative = Juce.getNativeFunction("getPresetList");
+        const getCurrentPresetNative = Juce.getNativeFunction("getCurrentPreset");
+        const selectNextPresetNative = Juce.getNativeFunction("selectNextPreset");
+        const selectPreviousPresetNative = Juce.getNativeFunction("selectPreviousPreset");
+
+        // Preset display element
+        const presetNameDisplay = document.getElementById('preset-name-display');
+
+        // Current preset list (cached for navigation)
+        let presetList = [];
+        let currentPresetIndex = 0;
+
+        // Update preset name display
+        function updatePresetDisplay(presetName) {
+            presetNameDisplay.textContent = presetName || 'Default Marimba';
+        }
+
+        // Load preset list from backend
+        async function refreshPresetList() {
+            try {
+                const list = await getPresetListNative();
+                if (Array.isArray(list)) {
+                    presetList = list;
+                    console.log('Preset list loaded:', presetList.length, 'presets');
+                }
+            } catch (e) {
+                console.error('Failed to load preset list:', e);
+            }
+        }
+
+        // Initialize preset display
+        async function initializePresets() {
+            await refreshPresetList();
+
+            // Get current preset name
+            try {
+                const currentName = await getCurrentPresetNative();
+                updatePresetDisplay(currentName);
+
+                // Find index in list
+                currentPresetIndex = presetList.findIndex(p => p.name === currentName);
+                if (currentPresetIndex < 0) currentPresetIndex = 0;
+            } catch (e) {
+                console.error('Failed to get current preset:', e);
+            }
+        }
+
+        // Save button click handler
+        document.getElementById('preset-save-btn').addEventListener('click', async () => {
+            console.log('Save preset clicked');
+            savePresetNative();
+        });
+
+        // Previous preset button
+        document.getElementById('preset-prev').addEventListener('click', async () => {
+            try {
+                const prevName = await selectPreviousPresetNative();
+                console.log('Previous preset:', prevName);
+            } catch (e) {
+                console.error('Failed to select previous preset:', e);
+            }
+        });
+
+        // Next preset button
+        document.getElementById('preset-next').addEventListener('click', async () => {
+            try {
+                const nextName = await selectNextPresetNative();
+                console.log('Next preset:', nextName);
+            } catch (e) {
+                console.error('Failed to select next preset:', e);
+            }
+        });
+
+        // Callback when preset is saved (called from C++)
+        window.onPresetSaved = function(presetName) {
+            console.log('Preset saved:', presetName);
+            updatePresetDisplay(presetName);
+            refreshPresetList();  // Refresh list to include new preset
+        };
+
+        // Callback when preset is loaded (called from C++)
+        // Updates tuning visualization with loaded preset data
+        window.onPresetLoaded = function(presetName, scaleName, intervals, tonic) {
+            console.log('Preset loaded:', presetName, 'Scale:', scaleName);
+
+            // Update preset display
+            updatePresetDisplay(presetName);
+
+            // Update tuning state
+            currentScaleName = scaleName;
+            currentIntervals = intervals || [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+            currentTonic = tonic || 0;
+
+            // Update scale name display
+            document.getElementById('scale-name').textContent = scaleName;
+
+            // Refresh tuning visualizations
+            updateIntervalListUI();
+            drawPitchCircle();
+
+            // Update preset index in list
+            currentPresetIndex = presetList.findIndex(p => p.name === presetName);
+            if (currentPresetIndex < 0) currentPresetIndex = 0;
+        };
+
+        // ====================================================================
         // INITIALIZATION
         // ====================================================================
 
@@ -1867,7 +1979,10 @@
         // Apply initial tuning to backend
         applyTuning();
 
-        console.log("Ouaricon Marimba UI initialized");
+        // v1.3.0: Initialize preset system
+        initializePresets();
+
+        console.log("Ouaricon Marimba UI initialized (v1.3.0 with preset system)");
     </script>
 </body>
 </html>

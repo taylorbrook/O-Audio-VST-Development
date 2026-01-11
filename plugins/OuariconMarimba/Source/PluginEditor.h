@@ -75,6 +75,15 @@ private:
     // v1.2.3: Native function for oscilloscope waveform data
     juce::var getWaveformData(const juce::Array<juce::var>& args);
 
+    // v1.3.0: Native functions for preset system
+    juce::var savePreset(const juce::Array<juce::var>& args);
+    juce::var loadPreset(const juce::Array<juce::var>& args);
+    juce::var getPresetList(const juce::Array<juce::var>& args);
+    juce::var getCurrentPreset(const juce::Array<juce::var>& args);
+    juce::var selectNextPreset(const juce::Array<juce::var>& args);
+    juce::var selectPreviousPreset(const juce::Array<juce::var>& args);
+    juce::var deletePreset(const juce::Array<juce::var>& args);
+
     // File chooser (must be member to stay alive during async operation)
     std::unique_ptr<juce::FileChooser> fileChooser;
 

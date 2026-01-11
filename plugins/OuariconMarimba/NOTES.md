@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.6
+- **Version:** 1.3.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -48,6 +48,13 @@
   - Fixed: Scale interval indicators now highlight ALL held notes (chords)
   - Velocity-based intensity: harder hits = brighter red
   - Lock-free MIDI event queue for proper note-on/note-off tracking
+- **2026-01-10 (v1.3.0):** Preset system
+  - Added: Complete preset save/load system with factory presets
+  - Factory presets: Default Marimba, Bright Marimba, Soft Marimba, Just Intonation, Pythagorean, Quarter-Comma Meantone, Baroque A=415, Concert A=442
+  - User presets stored in ~/Library/Application Support/Ouaricon Marimba/Presets/User/
+  - DAW session state now includes full tuning configuration
+  - Preset browser: ◀ ▶ navigation, SAVE button with file dialog
+  - JSON format for easy editing/sharing
 
 ## Known Issues
 
@@ -61,6 +68,7 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 ### Key Features
 - **Modal Synthesis:** 8 resonant modes per voice with inharmonic overtones (authentic marimba character)
 - **Microtonality:** Native support for Scala files, custom interval editing, and 12-TET
+- **Preset System:** Factory presets + user presets (JSON format), complete patch state including tuning
 - **Body Resonance:** Convolution IR for resonator tube coupling
 - **Voice Management:** 16-24 polyphony with efficient voice stealing
 - **Velocity Response:** Custom curve mapping for expressive performance

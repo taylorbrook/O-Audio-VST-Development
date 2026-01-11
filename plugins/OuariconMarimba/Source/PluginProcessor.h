@@ -12,6 +12,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "TuningEngine.h"
 #include "BodyResonance.h"
+#include "PresetManager.h"
 
 // Lock-free FIFO for waveform visualization
 class WaveformFifo
@@ -125,6 +126,9 @@ public:
     // Phase 2.3: Public access to tuning engine for UI
     TuningEngine& getTuningEngine() { return tuningEngine; }
 
+    // v1.3.0: Public access to preset manager for UI
+    PresetManager& getPresetManager() { return presetManager; }
+
     // v1.2.3: Public access to waveform FIFO for oscilloscope display
     WaveformFifo& getWaveformFifo() { return waveformFifo; }
 
@@ -140,6 +144,9 @@ private:
 
     // Phase 2.3: Tuning engine
     TuningEngine tuningEngine;
+
+    // v1.3.0: Preset manager (must be after parameters and tuningEngine)
+    PresetManager presetManager { parameters, tuningEngine };
 
     // Phase 2.4: Body resonance (convolution)
     BodyResonance bodyResonance;

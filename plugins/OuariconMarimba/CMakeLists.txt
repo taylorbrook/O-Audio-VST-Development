@@ -20,6 +20,7 @@ target_sources(OuariconMarimba
         Source/MarimbaVoice.cpp
         Source/TuningEngine.cpp
         Source/BodyResonance.cpp
+        Source/PresetManager.cpp
 )
 
 # Include paths

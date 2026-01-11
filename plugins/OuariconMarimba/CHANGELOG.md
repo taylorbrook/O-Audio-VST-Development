@@ -2,6 +2,26 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.0] - 2026-01-10
+
+### Added
+- **Preset System** - Save and load complete patch states including tuning
+  - Factory presets: Default Marimba, Bright Marimba, Soft Marimba, Just Intonation, Pythagorean, Quarter-Comma Meantone, Baroque A=415, Concert A=442
+  - User presets saved to `~/Library/Application Support/Ouaricon Marimba/Presets/User/`
+  - JSON format for easy editing and sharing
+  - Preset browser in header: ◀ ▶ navigation, SAVE button with file dialog
+  - Each preset stores: all 7 APVTS parameters, tuning intervals (any scale size), scale name, tonic note
+- **DAW Session State** now includes tuning configuration
+  - Custom tuning intervals persist when saving/reloading DAW projects
+  - Tonic note (transposition) is preserved
+  - Scale name is restored
+- New C++ PresetManager class for save/load/list operations
+- Native functions for WebView: savePreset, loadPreset, getPresetList, getCurrentPreset, selectNextPreset, selectPreviousPreset, deletePreset
+
+### Changed
+- getStateInformation/setStateInformation now serialize complete tuning state (not just APVTS parameters)
+- Preset name display in header updates dynamically when navigating or loading presets
+
 ## [1.2.6] - 2026-01-10
 
 ### Fixed

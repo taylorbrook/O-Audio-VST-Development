@@ -58,6 +58,29 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withNativeFunction("getWaveformData", [this](const auto& args, auto complete) {
                 complete(getWaveformData(args));
             })
+            // v1.3.0: Preset system native functions
+            .withNativeFunction("savePreset", [this](const auto& args, auto complete) {
+                savePreset(args);
+                complete(juce::var("OK"));
+            })
+            .withNativeFunction("loadPreset", [this](const auto& args, auto complete) {
+                complete(loadPreset(args));
+            })
+            .withNativeFunction("getPresetList", [this](const auto& args, auto complete) {
+                complete(getPresetList(args));
+            })
+            .withNativeFunction("getCurrentPreset", [this](const auto& args, auto complete) {
+                complete(getCurrentPreset(args));
+            })
+            .withNativeFunction("selectNextPreset", [this](const auto& args, auto complete) {
+                complete(selectNextPreset(args));
+            })
+            .withNativeFunction("selectPreviousPreset", [this](const auto& args, auto complete) {
+                complete(selectPreviousPreset(args));
+            })
+            .withNativeFunction("deletePreset", [this](const auto& args, auto complete) {
+                complete(deletePreset(args));
+            })
     );
 
     // 3️⃣ Create attachments LAST (Pattern 12: 3 params required - parameter, relay, nullptr)
@@ -404,4 +427,165 @@ juce::var OuariconMarimbaAudioProcessorEditor::getWaveformData(const juce::Array
     }
 
     return result;
+}
+
+// ============================================================================
+// v1.3.0: Preset System Native Functions
+// ============================================================================
+
+// Save preset - opens file dialog to name and save current state
+juce::var OuariconMarimbaAudioProcessorEditor::savePreset(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Save Preset",
+        juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+            .getChildFile("Ouaricon Marimba")
+            .getChildFile("Presets")
+            .getChildFile("User"),
+        "*.json"
+    );
+
+    auto chooserFlags = juce::FileBrowserComponent::saveMode
+                      | juce::FileBrowserComponent::canSelectFiles
+                      | juce::FileBrowserComponent::warnAboutOverwriting;
+
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file != juce::File{})
+        {
+            juce::String presetName = file.getFileNameWithoutExtension();
+            bool success = processorRef.getPresetManager().savePreset(presetName);
+
+            if (success)
+            {
+                // Notify JavaScript of the saved preset
+                juce::String js = "if (window.onPresetSaved) window.onPresetSaved('"
+                    + presetName.replace("'", "\\'") + "');";
+                webView->evaluateJavascript(js, nullptr);
+            }
+        }
+    });
+
+    return juce::var("OK");
+}
+
+// Load a named preset
+juce::var OuariconMarimbaAudioProcessorEditor::loadPreset(const juce::Array<juce::var>& args)
+{
+    if (args.isEmpty())
+        return juce::var("Error: No preset name provided");
+
+    juce::String presetName = args[0].toString();
+    bool success = processorRef.getPresetManager().loadPreset(presetName);
+
+    if (success)
+    {
+        // Update UI with new tuning state
+        auto& tuning = processorRef.getTuningEngine();
+        juce::String scaleName = tuning.getActiveTuningName();
+
+        // Build tuning data object
+        juce::DynamicObject::Ptr tuningData = new juce::DynamicObject();
+        juce::Array<juce::var> intervalsArray;
+        for (const auto& cents : tuning.getIntervals())
+        {
+            intervalsArray.add(cents);
+        }
+        tuningData->setProperty("intervals", intervalsArray);
+        tuningData->setProperty("name", scaleName);
+        tuningData->setProperty("tonic", tuning.getTonicNote());
+
+        // Notify JavaScript to update tuning display
+        juce::String intervalsJson = juce::JSON::toString(intervalsArray);
+        juce::String js = "if (window.onPresetLoaded) window.onPresetLoaded('"
+            + presetName.replace("'", "\\'") + "', '"
+            + scaleName.replace("'", "\\'") + "', "
+            + intervalsJson + ", "
+            + juce::String(tuning.getTonicNote()) + ");";
+        webView->evaluateJavascript(js, nullptr);
+
+        return juce::var("OK");
+    }
+
+    return juce::var("Error: Failed to load preset");
+}
+
+// Get list of available presets
+juce::var OuariconMarimbaAudioProcessorEditor::getPresetList(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    auto& pm = processorRef.getPresetManager();
+    auto presets = pm.getPresetList();
+
+    juce::Array<juce::var> result;
+    for (const auto& name : presets)
+    {
+        juce::DynamicObject::Ptr presetInfo = new juce::DynamicObject();
+        presetInfo->setProperty("name", name);
+        presetInfo->setProperty("isFactory", pm.isFactoryPreset(name));
+        result.add(juce::var(presetInfo.get()));
+    }
+
+    return result;
+}
+
+// Get currently loaded preset name
+juce::var OuariconMarimbaAudioProcessorEditor::getCurrentPreset(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+    return processorRef.getPresetManager().getCurrentPresetName();
+}
+
+// Navigate to next preset
+juce::var OuariconMarimbaAudioProcessorEditor::selectNextPreset(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    auto& pm = processorRef.getPresetManager();
+    juce::String nextPreset = pm.getNextPreset();
+
+    if (pm.loadPreset(nextPreset))
+    {
+        // Trigger full UI update via loadPreset callback
+        juce::Array<juce::var> loadArgs;
+        loadArgs.add(nextPreset);
+        loadPreset(loadArgs);
+    }
+
+    return nextPreset;
+}
+
+// Navigate to previous preset
+juce::var OuariconMarimbaAudioProcessorEditor::selectPreviousPreset(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    auto& pm = processorRef.getPresetManager();
+    juce::String prevPreset = pm.getPreviousPreset();
+
+    if (pm.loadPreset(prevPreset))
+    {
+        // Trigger full UI update via loadPreset callback
+        juce::Array<juce::var> loadArgs;
+        loadArgs.add(prevPreset);
+        loadPreset(loadArgs);
+    }
+
+    return prevPreset;
+}
+
+// Delete a user preset
+juce::var OuariconMarimbaAudioProcessorEditor::deletePreset(const juce::Array<juce::var>& args)
+{
+    if (args.isEmpty())
+        return juce::var("Error: No preset name provided");
+
+    juce::String presetName = args[0].toString();
+    bool success = processorRef.getPresetManager().deletePreset(presetName);
+
+    return success ? juce::var("OK") : juce::var("Error: Cannot delete preset (may be factory preset)");
 }

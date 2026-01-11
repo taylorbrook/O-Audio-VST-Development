@@ -102,6 +102,9 @@ OuariconMarimbaAudioProcessor::OuariconMarimbaAudioProcessor()
             voice->setTuningEngine(&tuningEngine);
         }
     }
+
+    // v1.3.0: Initialize factory presets on first run
+    presetManager.initializeFactoryPresets();
 }
 
 OuariconMarimbaAudioProcessor::~OuariconMarimbaAudioProcessor()
@@ -248,17 +251,19 @@ juce::AudioProcessorEditor* OuariconMarimbaAudioProcessor::createEditor()
 
 void OuariconMarimbaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    // v1.3.0: Use PresetManager to save complete state including tuning
+    auto xml = presetManager.getStateAsXml();
+    if (xml != nullptr)
+        copyXmlToBinary(*xml, destData);
 }
 
 void OuariconMarimbaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
+    // v1.3.0: Use PresetManager to restore complete state including tuning
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+        presetManager.setStateFromXml(xmlState.get());
 }
 
 // UI keyboard MIDI injection (called from UI thread)
