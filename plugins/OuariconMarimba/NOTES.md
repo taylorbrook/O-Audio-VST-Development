@@ -55,6 +55,10 @@
   - DAW session state now includes full tuning configuration
   - Preset browser: ◀ ▶ navigation, SAVE button with file dialog
   - JSON format for easy editing/sharing
+- **2026-01-10 (v1.3.1):** Preset UX improvements
+  - Added: LOAD button for file dialog preset loading
+  - Added: Dropdown menu when clicking preset name (instant preset selection)
+  - Dropdown shows Factory/User sections with active preset highlighted
 
 ## Known Issues
 

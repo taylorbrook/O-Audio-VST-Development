@@ -78,6 +78,7 @@ private:
     // v1.3.0: Native functions for preset system
     juce::var savePreset(const juce::Array<juce::var>& args);
     juce::var loadPreset(const juce::Array<juce::var>& args);
+    juce::var loadPresetFromFile(const juce::Array<juce::var>& args);  // v1.3.1: File dialog load
     juce::var getPresetList(const juce::Array<juce::var>& args);
     juce::var getCurrentPreset(const juce::Array<juce::var>& args);
     juce::var selectNextPreset(const juce::Array<juce::var>& args);

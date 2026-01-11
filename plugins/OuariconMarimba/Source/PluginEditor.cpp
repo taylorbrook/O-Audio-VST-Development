@@ -81,6 +81,11 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withNativeFunction("deletePreset", [this](const auto& args, auto complete) {
                 complete(deletePreset(args));
             })
+            // v1.3.1: Load preset via file dialog
+            .withNativeFunction("loadPresetFromFile", [this](const auto& args, auto complete) {
+                loadPresetFromFile(args);
+                complete(juce::var("OK"));
+            })
     );
 
     // 3️⃣ Create attachments LAST (Pattern 12: 3 params required - parameter, relay, nullptr)
@@ -588,4 +593,53 @@ juce::var OuariconMarimbaAudioProcessorEditor::deletePreset(const juce::Array<ju
     bool success = processorRef.getPresetManager().deletePreset(presetName);
 
     return success ? juce::var("OK") : juce::var("Error: Cannot delete preset (may be factory preset)");
+}
+
+// v1.3.1: Load preset via file dialog (LOAD button)
+juce::var OuariconMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    // Start in User presets folder, but allow navigating to Factory too
+    fileChooser = std::make_unique<juce::FileChooser>(
+        "Load Preset",
+        juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
+            .getChildFile("Ouaricon Marimba")
+            .getChildFile("Presets"),
+        "*.json"
+    );
+
+    auto chooserFlags = juce::FileBrowserComponent::openMode
+                      | juce::FileBrowserComponent::canSelectFiles;
+
+    fileChooser->launchAsync(chooserFlags, [this](const juce::FileChooser& fc)
+    {
+        auto file = fc.getResult();
+        if (file.existsAsFile())
+        {
+            juce::String presetName = file.getFileNameWithoutExtension();
+            bool success = processorRef.getPresetManager().loadPreset(presetName);
+
+            if (success)
+            {
+                // Trigger full UI update
+                auto& tuning = processorRef.getTuningEngine();
+                juce::String scaleName = tuning.getActiveTuningName();
+                juce::Array<juce::var> intervalsArray;
+                for (const auto& cents : tuning.getIntervals())
+                {
+                    intervalsArray.add(cents);
+                }
+                juce::String intervalsJson = juce::JSON::toString(intervalsArray);
+                juce::String js = "if (window.onPresetLoaded) window.onPresetLoaded('"
+                    + presetName.replace("'", "\\'") + "', '"
+                    + scaleName.replace("'", "\\'") + "', "
+                    + intervalsJson + ", "
+                    + juce::String(tuning.getTonicNote()) + ");";
+                webView->evaluateJavascript(js, nullptr);
+            }
+        }
+    });
+
+    return juce::var("OK");
 }

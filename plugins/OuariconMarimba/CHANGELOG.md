@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.3.1] - 2026-01-10
+
+### Added
+- **LOAD button** - Opens file dialog to load preset files directly
+- **Preset dropdown menu** - Click preset name to show dropdown with all presets
+  - Separate sections for Factory and User presets
+  - Currently active preset highlighted
+  - Click to instantly load any preset
+
+### Changed
+- Preset name display now shows dropdown indicator (▼)
+- Improved preset browser UX with direct selection
+
 ## [1.3.0] - 2026-01-10
 
 ### Added

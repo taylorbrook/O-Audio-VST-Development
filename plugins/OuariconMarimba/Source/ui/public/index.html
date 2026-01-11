@@ -129,14 +129,90 @@
             background: rgba(107, 142, 35, 0.4);
         }
 
+        .preset-name-wrapper {
+            position: relative;
+        }
+
         .preset-name {
             font-size: 10px;
             color: #3C2F2F;
             min-width: 120px;
             text-align: center;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: background 0.15s;
         }
 
-        .preset-save {
+        .preset-name:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        .preset-name::after {
+            content: ' ▼';
+            font-size: 7px;
+            opacity: 0.6;
+        }
+
+        /* v1.3.1: Preset dropdown menu */
+        .preset-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 160px;
+            max-height: 200px;
+            overflow-y: auto;
+            background: rgba(245, 230, 211, 0.98);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            margin-top: 4px;
+        }
+
+        .preset-dropdown.show {
+            display: block;
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 12px;
+            font-size: 10px;
+            color: #3C2F2F;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+        }
+
+        .preset-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .preset-dropdown-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .preset-dropdown-item.factory {
+            font-style: italic;
+            opacity: 0.85;
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.25);
+            font-weight: 600;
+        }
+
+        .preset-dropdown-header {
+            padding: 4px 12px;
+            font-size: 8px;
+            color: #8B7355;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+            background: rgba(212, 196, 176, 0.5);
+        }
+
+        .preset-save, .preset-load {
             font-size: 9px;
             color: #3C2F2F;
             background: rgba(139, 168, 112, 0.3);
@@ -144,6 +220,10 @@
             border-radius: 3px;
             padding: 2px 8px;
             cursor: pointer;
+        }
+
+        .preset-save:hover, .preset-load:hover {
+            background: rgba(107, 142, 35, 0.4);
         }
 
         /* Tab Bar */
@@ -815,8 +895,12 @@
             <div class="title">Ouaricon Marimba</div>
             <div class="preset-browser">
                 <div class="preset-arrow" id="preset-prev" title="Previous preset">◀</div>
-                <div class="preset-name" id="preset-name-display">Default Marimba</div>
+                <div class="preset-name-wrapper">
+                    <div class="preset-name" id="preset-name-display">Default Marimba</div>
+                    <div class="preset-dropdown" id="preset-dropdown"></div>
+                </div>
                 <div class="preset-arrow" id="preset-next" title="Next preset">▶</div>
+                <div class="preset-load" id="preset-load-btn" title="Load preset from file">LOAD</div>
                 <div class="preset-save" id="preset-save-btn" title="Save preset">SAVE</div>
             </div>
         </div>
@@ -1854,19 +1938,21 @@
         console.log("Keyboard MIDI playback enabled");
 
         // ====================================================================
-        // v1.3.0: PRESET SYSTEM
+        // v1.3.0: PRESET SYSTEM (v1.3.1: Added LOAD button + dropdown)
         // ====================================================================
 
         // Get native functions for preset operations
         const savePresetNative = Juce.getNativeFunction("savePreset");
         const loadPresetNative = Juce.getNativeFunction("loadPreset");
+        const loadPresetFromFileNative = Juce.getNativeFunction("loadPresetFromFile");  // v1.3.1
         const getPresetListNative = Juce.getNativeFunction("getPresetList");
         const getCurrentPresetNative = Juce.getNativeFunction("getCurrentPreset");
         const selectNextPresetNative = Juce.getNativeFunction("selectNextPreset");
         const selectPreviousPresetNative = Juce.getNativeFunction("selectPreviousPreset");
 
-        // Preset display element
+        // Preset display elements
         const presetNameDisplay = document.getElementById('preset-name-display');
+        const presetDropdown = document.getElementById('preset-dropdown');
 
         // Current preset list (cached for navigation)
         let presetList = [];
@@ -1890,6 +1976,77 @@
             }
         }
 
+        // v1.3.1: Populate and show dropdown menu
+        function showPresetDropdown() {
+            presetDropdown.innerHTML = '';
+
+            // Separate factory and user presets
+            const factoryPresets = presetList.filter(p => p.isFactory);
+            const userPresets = presetList.filter(p => !p.isFactory);
+
+            // Add factory presets section
+            if (factoryPresets.length > 0) {
+                const factoryHeader = document.createElement('div');
+                factoryHeader.className = 'preset-dropdown-header';
+                factoryHeader.textContent = 'Factory';
+                presetDropdown.appendChild(factoryHeader);
+
+                factoryPresets.forEach(preset => {
+                    const item = document.createElement('div');
+                    item.className = 'preset-dropdown-item factory';
+                    if (preset.name === presetNameDisplay.textContent) {
+                        item.classList.add('active');
+                    }
+                    item.textContent = preset.name;
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectPresetFromDropdown(preset.name);
+                    });
+                    presetDropdown.appendChild(item);
+                });
+            }
+
+            // Add user presets section
+            if (userPresets.length > 0) {
+                const userHeader = document.createElement('div');
+                userHeader.className = 'preset-dropdown-header';
+                userHeader.textContent = 'User';
+                presetDropdown.appendChild(userHeader);
+
+                userPresets.forEach(preset => {
+                    const item = document.createElement('div');
+                    item.className = 'preset-dropdown-item';
+                    if (preset.name === presetNameDisplay.textContent) {
+                        item.classList.add('active');
+                    }
+                    item.textContent = preset.name;
+                    item.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        selectPresetFromDropdown(preset.name);
+                    });
+                    presetDropdown.appendChild(item);
+                });
+            }
+
+            presetDropdown.classList.add('show');
+        }
+
+        // v1.3.1: Hide dropdown
+        function hidePresetDropdown() {
+            presetDropdown.classList.remove('show');
+        }
+
+        // v1.3.1: Select preset from dropdown
+        async function selectPresetFromDropdown(presetName) {
+            hidePresetDropdown();
+            try {
+                await loadPresetNative(presetName);
+                console.log('Selected preset:', presetName);
+            } catch (e) {
+                console.error('Failed to load preset:', e);
+            }
+        }
+
         // Initialize preset display
         async function initializePresets() {
             await refreshPresetList();
@@ -1906,6 +2063,30 @@
                 console.error('Failed to get current preset:', e);
             }
         }
+
+        // v1.3.1: Preset name click - toggle dropdown
+        presetNameDisplay.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (presetDropdown.classList.contains('show')) {
+                hidePresetDropdown();
+            } else {
+                await refreshPresetList();  // Refresh list before showing
+                showPresetDropdown();
+            }
+        });
+
+        // v1.3.1: Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
+                hidePresetDropdown();
+            }
+        });
+
+        // v1.3.1: LOAD button click handler - opens file dialog
+        document.getElementById('preset-load-btn').addEventListener('click', async () => {
+            console.log('Load preset clicked');
+            loadPresetFromFileNative();
+        });
 
         // Save button click handler
         document.getElementById('preset-save-btn').addEventListener('click', async () => {
@@ -1948,6 +2129,9 @@
             // Update preset display
             updatePresetDisplay(presetName);
 
+            // Close dropdown if open
+            hidePresetDropdown();
+
             // Update tuning state
             currentScaleName = scaleName;
             currentIntervals = intervals || [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
@@ -1982,7 +2166,7 @@
         // v1.3.0: Initialize preset system
         initializePresets();
 
-        console.log("Ouaricon Marimba UI initialized (v1.3.0 with preset system)");
+        console.log("Ouaricon Marimba UI initialized (v1.3.1 with preset dropdown)");
     </script>
 </body>
 </html>
