@@ -68,8 +68,11 @@ void MarimbaVoice::startNote(int midiNoteNumber, float velocityValue,
 
     // Calculate approximate release time (when modes decay below audible threshold)
     // Use fundamental mode decay time as reference
-    float maxDecayTime = getDecayTime(0, resonance);
+    float maxDecayTime = getDecayTime(0, resonance, overtoneDamping);
     samplesUntilRelease = static_cast<int>(maxDecayTime * sampleRate * 1.5f); // 1.5x for safety
+
+    // v1.6.0: Reset tone filter state for new note
+    toneFilterState = 0.0f;
 }
 
 void MarimbaVoice::stopNote(float /*velocity*/, bool allowTailOff)
@@ -127,6 +130,11 @@ void MarimbaVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         // Apply output gain
         float finalSample = modalSum * outputGain;
 
+        // v1.6.0: Apply tone lowpass filter (one-pole)
+        // y[n] = y[n-1] + coeff * (x[n] - y[n-1])
+        toneFilterState += toneFilterCoeff * (finalSample - toneFilterState);
+        finalSample = toneFilterState;
+
         // Write to all output channels
         for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
         {
@@ -181,6 +189,29 @@ void MarimbaVoice::setSampleRate(double newSampleRate)
     sampleRate = newSampleRate;
 }
 
+// v1.6.0: Strike Position - affects mode amplitude distribution
+void MarimbaVoice::setStrikePosition(float position)
+{
+    strikePosition = juce::jlimit(0.0f, 1.0f, position);
+}
+
+// v1.6.0: Overtone Damping - controls upper mode decay rate
+void MarimbaVoice::setOvertoneDamping(float damping)
+{
+    overtoneDamping = juce::jlimit(0.0f, 1.0f, damping);
+}
+
+// v1.6.0: Tone - post-synthesis brightness control
+void MarimbaVoice::setTone(float toneVal)
+{
+    toneValue = juce::jlimit(0.0f, 1.0f, toneVal);
+    // Calculate lowpass filter coefficient
+    // Maps 0.0 → 2kHz cutoff, 1.0 → 20kHz (essentially bypass)
+    float cutoffHz = 2000.0f + toneValue * 18000.0f;  // 2kHz to 20kHz
+    float omega = juce::MathConstants<float>::twoPi * cutoffHz / static_cast<float>(sampleRate);
+    toneFilterCoeff = omega / (omega + 1.0f);  // One-pole lowpass coefficient
+}
+
 double MarimbaVoice::noteToFrequency(int midiNote) const
 {
     // Phase 2.3: Use tuning engine if available
@@ -207,7 +238,48 @@ float MarimbaVoice::applyVelocityCurve(float rawVelocity) const
     return shapedVelocity * boostMultiplier;
 }
 
-float MarimbaVoice::getModeAmplitude(int modeIndex, float material) const
+// v1.6.0: Strike position multiplier - simulates mallet strike location on bar
+float MarimbaVoice::getStrikePositionMultiplier(int modeIndex, float strikePos) const
+{
+    // Physical model: When striking at a nodal point for a given mode,
+    // that mode is suppressed. Center strikes emphasize even modes (especially fundamental
+    // and mode 1 - the double octave), while edge strikes bring out higher odd modes.
+    //
+    // strikePos: 0.0 = edge, 0.5 = center, 1.0 = other edge (symmetric)
+    //
+    // Simplified nodal model using sine-based modulation:
+    // - Mode 0 (fundamental): always present but slightly reduced at extreme edges
+    // - Mode 1 (4x): strongest at center
+    // - Higher modes: alternate between center/edge preference
+
+    // Normalize to 0-1 range with center at 0.5
+    float centerDist = std::abs(strikePos - 0.5f) * 2.0f;  // 0 at center, 1 at edges
+
+    // Mode-specific response
+    switch (modeIndex)
+    {
+        case 0:  // Fundamental - slightly reduced at edges
+            return 1.0f - centerDist * 0.15f;  // 1.0 at center, 0.85 at edges
+        case 1:  // Double octave (4x) - strongest at center
+            return 1.0f - centerDist * 0.4f;   // 1.0 at center, 0.6 at edges
+        case 2:  // 9.24x - prefers edges slightly
+            return 0.7f + centerDist * 0.3f;   // 0.7 at center, 1.0 at edges
+        case 3:  // 16.27x - prefers center
+            return 1.0f - centerDist * 0.3f;   // 1.0 at center, 0.7 at edges
+        case 4:  // 24.22x - prefers edges
+            return 0.6f + centerDist * 0.4f;   // 0.6 at center, 1.0 at edges
+        case 5:  // 33.54x - prefers center
+            return 1.0f - centerDist * 0.35f;  // 1.0 at center, 0.65 at edges
+        case 6:  // 42.97x - prefers edges
+            return 0.5f + centerDist * 0.5f;   // 0.5 at center, 1.0 at edges
+        case 7:  // 54x - prefers center
+            return 1.0f - centerDist * 0.4f;   // 1.0 at center, 0.6 at edges
+        default:
+            return 1.0f;
+    }
+}
+
+float MarimbaVoice::getModeAmplitude(int modeIndex, float material, float strikePos) const
 {
     // BAR_MATERIAL: 0.0 = dark rosewood (fundamental emphasis)
     //               1.0 = bright synthetic (high modes emphasis)
@@ -241,10 +313,14 @@ float MarimbaVoice::getModeAmplitude(int modeIndex, float material) const
         baseAmp *= materialBoost;
     }
 
+    // v1.6.0: Apply strike position modulation
+    float strikeMultiplier = getStrikePositionMultiplier(modeIndex, strikePos);
+    baseAmp *= strikeMultiplier;
+
     return baseAmp;
 }
 
-float MarimbaVoice::getDecayTime(int modeIndex, float resonanceParam) const
+float MarimbaVoice::getDecayTime(int modeIndex, float resonanceParam, float overtoneD) const
 {
     // RESONANCE: 0.0 = 0.5s decay (short)
     //            1.0 = 5.0s decay (long)
@@ -252,8 +328,16 @@ float MarimbaVoice::getDecayTime(int modeIndex, float resonanceParam) const
     // Base decay time from resonance parameter
     float baseDecay = 0.5f + resonanceParam * 4.5f; // 0.5 to 5.0 seconds
 
+    // v1.6.0: OVERTONE_DAMPING controls how quickly upper modes decay
+    // overtoneD = 0.0: All modes decay similarly (bell-like, shimmer sustain)
+    //             0.5: Natural marimba behavior (default)
+    //             1.0: Upper modes decay very quickly (tight, focused)
+    //
+    // The damping factor per mode ranges from 0.1 (minimal) to 0.5 (aggressive)
+    float dampingPerMode = 0.1f + overtoneD * 0.4f;  // 0.1 to 0.5
+
     // Higher modes decay faster (physical characteristic of marimba bars)
-    float modeFactor = 1.0f / (1.0f + static_cast<float>(modeIndex) * 0.3f);
+    float modeFactor = 1.0f / (1.0f + static_cast<float>(modeIndex) * dampingPerMode);
 
     return baseDecay * modeFactor;
 }
@@ -268,11 +352,11 @@ void MarimbaVoice::calculateModalCoefficients(float baseFreq)
         // Calculate mode frequency from base frequency and ratio
         float modeFreq = baseFreq * MODE_RATIOS[i];
 
-        // Get decay time for this mode
-        float decayTime = getDecayTime(i, resonance);
+        // Get decay time for this mode (v1.6.0: now uses overtoneDamping)
+        float decayTime = getDecayTime(i, resonance, overtoneDamping);
 
-        // Get amplitude for this mode
-        modes[i].amplitude = getModeAmplitude(i, barMaterial);
+        // Get amplitude for this mode (v1.6.0: now uses strikePosition)
+        modes[i].amplitude = getModeAmplitude(i, barMaterial, strikePosition);
 
         // Calculate biquad coefficients
         // θ = 2π * f / fs (normalized frequency)

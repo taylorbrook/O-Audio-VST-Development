@@ -37,6 +37,10 @@ public:
     void setBarMaterial(float material);
     void setResonance(float resonance);
     void setSampleRate(double newSampleRate);
+    // v1.6.0: New timbre parameters
+    void setStrikePosition(float position);
+    void setOvertoneDamping(float damping);
+    void setTone(float toneValue);
 
     // Phase 2.3: Set tuning engine reference
     void setTuningEngine(class TuningEngine* engine) { tuningEngine = engine; }
@@ -143,6 +147,14 @@ private:
     float malletHardness = 0.5f;
     float barMaterial = 0.5f;
     float resonance = 0.6f;
+    // v1.6.0: New timbre parameters
+    float strikePosition = 0.5f;    // 0.0 = edge, 0.5 = center, 1.0 = edge
+    float overtoneDamping = 0.5f;   // Controls upper mode decay rate
+    float toneValue = 0.75f;        // Lowpass filter brightness
+
+    // v1.6.0: Tone lowpass filter state (one-pole)
+    float toneFilterState = 0.0f;
+    float toneFilterCoeff = 1.0f;   // Calculated from toneValue
 
     // Voice state
     bool isActive = false;
@@ -151,7 +163,8 @@ private:
     // Helper functions
     double noteToFrequency(int midiNote) const;
     float applyVelocityCurve(float rawVelocity) const;
-    float getModeAmplitude(int modeIndex, float material) const;
-    float getDecayTime(int modeIndex, float resonanceParam) const;
+    float getModeAmplitude(int modeIndex, float material, float strikePos) const;
+    float getDecayTime(int modeIndex, float resonanceParam, float overtoneD) const;
     void calculateModalCoefficients(float baseFreq);
+    float getStrikePositionMultiplier(int modeIndex, float strikePos) const;  // v1.6.0
 };

@@ -944,6 +944,31 @@
                 <div class="knob-sublabel" id="resonance-value">60%</div>
             </div>
 
+            <!-- v1.6.0: Second Row - Timbre Refinement Knobs -->
+            <div class="knob-container" style="left: 40px; top: 145px;">
+                <div class="knob small" id="strike-knob">
+                    <div class="knob-indicator" id="strike-indicator"></div>
+                </div>
+                <div class="knob-label">STRIKE<br>POSITION</div>
+                <div class="knob-sublabel" id="strike-value">50%</div>
+            </div>
+
+            <div class="knob-container" style="left: 120px; top: 145px;">
+                <div class="knob small" id="damping-knob">
+                    <div class="knob-indicator" id="damping-indicator"></div>
+                </div>
+                <div class="knob-label">OVERTONE<br>DAMPING</div>
+                <div class="knob-sublabel" id="damping-value">50%</div>
+            </div>
+
+            <div class="knob-container" style="left: 200px; top: 145px;">
+                <div class="knob small" id="tone-knob">
+                    <div class="knob-indicator" id="tone-indicator"></div>
+                </div>
+                <div class="knob-label">TONE</div>
+                <div class="knob-sublabel" id="tone-value">75%</div>
+            </div>
+
             <!-- TOP RIGHT: Waveform Display -->
             <div class="waveform-display">
                 <svg viewBox="0 0 260 120" preserveAspectRatio="none">
@@ -1223,6 +1248,57 @@
         makeKnobDraggable(document.getElementById("resonance-knob"), resonanceState, (value) => {
             updateKnobIndicator(resonanceIndicator, value);
             resonanceValue.textContent = Math.round(value * 100) + "%";
+        });
+
+        // v1.6.0: STRIKE_POSITION
+        const strikeState = Juce.getSliderState("STRIKE_POSITION");
+        const strikeIndicator = document.getElementById("strike-indicator");
+        const strikeValue = document.getElementById("strike-value");
+
+        makeKnobDraggable(document.getElementById("strike-knob"), strikeState, (value) => {
+            updateKnobIndicator(strikeIndicator, value);
+            // Show as "Edge" at 0/100%, "Center" at 50%
+            if (value < 0.15 || value > 0.85) {
+                strikeValue.textContent = "Edge";
+            } else if (value > 0.4 && value < 0.6) {
+                strikeValue.textContent = "Center";
+            } else {
+                strikeValue.textContent = Math.round(value * 100) + "%";
+            }
+        });
+
+        // v1.6.0: OVERTONE_DAMPING
+        const dampingState = Juce.getSliderState("OVERTONE_DAMPING");
+        const dampingIndicator = document.getElementById("damping-indicator");
+        const dampingValue = document.getElementById("damping-value");
+
+        makeKnobDraggable(document.getElementById("damping-knob"), dampingState, (value) => {
+            updateKnobIndicator(dampingIndicator, value);
+            // Show descriptive labels at extremes
+            if (value < 0.15) {
+                dampingValue.textContent = "Shimmer";
+            } else if (value > 0.85) {
+                dampingValue.textContent = "Focused";
+            } else {
+                dampingValue.textContent = Math.round(value * 100) + "%";
+            }
+        });
+
+        // v1.6.0: TONE
+        const toneState = Juce.getSliderState("TONE");
+        const toneIndicator = document.getElementById("tone-indicator");
+        const toneValueEl = document.getElementById("tone-value");
+
+        makeKnobDraggable(document.getElementById("tone-knob"), toneState, (value) => {
+            updateKnobIndicator(toneIndicator, value);
+            // Show descriptive labels at extremes
+            if (value < 0.15) {
+                toneValueEl.textContent = "Warm";
+            } else if (value > 0.85) {
+                toneValueEl.textContent = "Bright";
+            } else {
+                toneValueEl.textContent = Math.round(value * 100) + "%";
+            }
         });
 
         // VEL_CURVE

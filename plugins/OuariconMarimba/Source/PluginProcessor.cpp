@@ -42,6 +42,33 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconMarimbaAudioProcesso
         0.6f
     ));
 
+    // v1.6.0: STRIKE_POSITION - Float (0.0 to 1.0)
+    // Simulates mallet strike location: 0.0 = edge, 0.5 = center, 1.0 = edge
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "STRIKE_POSITION", 1 },
+        "Strike Position",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
+    // v1.6.0: OVERTONE_DAMPING - Float (0.0 to 1.0)
+    // Controls how quickly upper modes decay relative to fundamental
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "OVERTONE_DAMPING", 1 },
+        "Overtone Damping",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
+    // v1.6.0: TONE - Float (0.0 to 1.0)
+    // Post-synthesis brightness control via lowpass filter
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "TONE", 1 },
+        "Tone",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.75f
+    ));
+
     // TUNING_MODE - Choice (0-2)
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "TUNING_MODE", 1 },
@@ -189,6 +216,16 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     auto* resonanceParam = parameters.getRawParameterValue("RESONANCE");
     float resonance = resonanceParam->load();
 
+    // v1.6.0: Read new timbre parameters
+    auto* strikePositionParam = parameters.getRawParameterValue("STRIKE_POSITION");
+    float strikePosition = strikePositionParam->load();
+
+    auto* overtoneDampingParam = parameters.getRawParameterValue("OVERTONE_DAMPING");
+    float overtoneDamping = overtoneDampingParam->load();
+
+    auto* toneParam = parameters.getRawParameterValue("TONE");
+    float tone = toneParam->load();
+
     // Phase 2.3: Read tuning parameters
     auto* tuningModeParam = parameters.getRawParameterValue("TUNING_MODE");
     int tuningModeInt = static_cast<int>(tuningModeParam->load());
@@ -210,6 +247,10 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             voice->setMalletHardness(malletHardness);
             voice->setBarMaterial(barMaterial);
             voice->setResonance(resonance);
+            // v1.6.0: New timbre parameters
+            voice->setStrikePosition(strikePosition);
+            voice->setOvertoneDamping(overtoneDamping);
+            voice->setTone(tone);
         }
     }
 

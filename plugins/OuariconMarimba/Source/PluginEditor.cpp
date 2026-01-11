@@ -18,6 +18,11 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
     malletHardnessRelay = std::make_unique<juce::WebSliderRelay>("MALLET_HARDNESS");
     barMaterialRelay = std::make_unique<juce::WebSliderRelay>("BAR_MATERIAL");
     resonanceRelay = std::make_unique<juce::WebSliderRelay>("RESONANCE");
+    // v1.6.0: New timbre parameter relays
+    strikePositionRelay = std::make_unique<juce::WebSliderRelay>("STRIKE_POSITION");
+    overtoneDampingRelay = std::make_unique<juce::WebSliderRelay>("OVERTONE_DAMPING");
+    toneRelay = std::make_unique<juce::WebSliderRelay>("TONE");
+    // Tuning/system relays
     tuningModeRelay = std::make_unique<juce::WebSliderRelay>("TUNING_MODE");
     referencePitchRelay = std::make_unique<juce::WebSliderRelay>("REFERENCE_PITCH");
     velCurveRelay = std::make_unique<juce::WebSliderRelay>("VEL_CURVE");
@@ -31,6 +36,11 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withOptionsFrom(*malletHardnessRelay)
             .withOptionsFrom(*barMaterialRelay)
             .withOptionsFrom(*resonanceRelay)
+            // v1.6.0: New timbre parameter relays
+            .withOptionsFrom(*strikePositionRelay)
+            .withOptionsFrom(*overtoneDampingRelay)
+            .withOptionsFrom(*toneRelay)
+            // Tuning/system relays
             .withOptionsFrom(*tuningModeRelay)
             .withOptionsFrom(*referencePitchRelay)
             .withOptionsFrom(*velCurveRelay)
@@ -106,6 +116,16 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
 
     resonanceAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("RESONANCE"), *resonanceRelay, nullptr);
+
+    // v1.6.0: New timbre parameter attachments
+    strikePositionAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("STRIKE_POSITION"), *strikePositionRelay, nullptr);
+
+    overtoneDampingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("OVERTONE_DAMPING"), *overtoneDampingRelay, nullptr);
+
+    toneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("TONE"), *toneRelay, nullptr);
 
     tuningModeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("TUNING_MODE"), *tuningModeRelay, nullptr);

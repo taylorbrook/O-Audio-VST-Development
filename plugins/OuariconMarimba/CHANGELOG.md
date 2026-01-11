@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.0] - 2026-01-11
+
+### Added
+- **Three new timbre refinement controls** in Sound panel for deeper sound shaping:
+  - **Strike Position** (0-100%, default 50%) - Simulates mallet strike location on the bar
+    - Center strikes emphasize fundamental and double-octave (modes 0 & 1)
+    - Edge strikes bring out higher partials (modes 2-7)
+    - Based on physical nodal point modeling
+  - **Overtone Damping** (0-100%, default 50%) - Controls upper harmonic decay rate
+    - Low (Shimmer): All modes sustain similarly for bell-like overtones
+    - High (Focused): Upper partials decay quickly for tight, woody tone
+    - Adjusts damping factor from 0.1 to 0.5 per mode index
+  - **Tone** (0-100%, default 75%) - Post-synthesis brightness control
+    - One-pole lowpass filter on final output (2kHz–20kHz cutoff)
+    - Shapes sustained sound without affecting attack character
+    - "Warm" label at low values, "Bright" at high values
+
+### Technical Notes
+- New parameters: STRIKE_POSITION, OVERTONE_DAMPING, TONE (all float 0-1)
+- Strike position uses mode-specific amplitude multipliers based on nodal patterns
+- Overtone damping modifies getDecayTime() modeFactor (0.1–0.5 range)
+- Tone filter: toneFilterCoeff = ω/(ω+1) where ω = 2π·fc/fs
+- UI: 3 new small knobs added below existing Sound panel row
+- All parameters integrated with APVTS, preset system, and DAW automation
+
 ## [1.5.0] - 2026-01-11
 
 ### Changed

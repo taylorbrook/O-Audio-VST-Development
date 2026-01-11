@@ -38,6 +38,11 @@ private:
     std::unique_ptr<juce::WebSliderRelay> malletHardnessRelay;
     std::unique_ptr<juce::WebSliderRelay> barMaterialRelay;
     std::unique_ptr<juce::WebSliderRelay> resonanceRelay;
+    // v1.6.0: New timbre parameter relays
+    std::unique_ptr<juce::WebSliderRelay> strikePositionRelay;
+    std::unique_ptr<juce::WebSliderRelay> overtoneDampingRelay;
+    std::unique_ptr<juce::WebSliderRelay> toneRelay;
+    // Tuning/system relays
     std::unique_ptr<juce::WebSliderRelay> tuningModeRelay;
     std::unique_ptr<juce::WebSliderRelay> referencePitchRelay;
     std::unique_ptr<juce::WebSliderRelay> velCurveRelay;
@@ -50,6 +55,11 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> malletHardnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> barMaterialAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> resonanceAttachment;
+    // v1.6.0: New timbre parameter attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> strikePositionAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> overtoneDampingAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> toneAttachment;
+    // Tuning/system attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningModeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> referencePitchAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> velCurveAttachment;
