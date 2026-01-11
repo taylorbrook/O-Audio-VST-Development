@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.2
+- **Version:** 1.2.3
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -33,6 +33,9 @@
   - Tonic sets root (1/1) for interval calculations, not transposition
   - In Just Intonation: intervals calculated from tonic note
   - In 12-TET: no audible effect (equal temperament)
+- **2026-01-10 (v1.2.3):** Oscilloscope + label improvements
+  - Fixed: Waveform display now functions as live oscilloscope
+  - Renamed: "MALLET" → "MALLET HARDNESS", "MATERIAL" → "MATERIAL HARDNESS"
 
 ## Known Issues
 
@@ -68,7 +71,7 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - **Tuning Engine:** 12-TET, Scala files, custom intervals with ratio/cents input
 
 ### UI Features
-- **Sound Tab:** Mallet, Material, Resonance knobs; Velocity curve display; Output level with VU meter; Waveform display
+- **Sound Tab:** Mallet Hardness, Material Hardness, Resonance knobs; Velocity curve display; Output level with VU meter; Live oscilloscope display
 - **Tuning Tab:** Mode selection (12-TET/Scala/MTS-ESP); Reference pitch knob; Scala file loading; Interactive pitch circle; Editable interval list (supports any scale size); Tonic note selector; Playable 1-octave keyboard
 
 ### Formats

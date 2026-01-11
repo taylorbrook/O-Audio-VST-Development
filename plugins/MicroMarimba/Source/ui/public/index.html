@@ -834,7 +834,7 @@
                 <div class="knob" id="mallet-knob">
                     <div class="knob-indicator" id="mallet-indicator"></div>
                 </div>
-                <div class="knob-label">MALLET</div>
+                <div class="knob-label">MALLET<br>HARDNESS</div>
                 <div class="knob-sublabel" id="mallet-value">50%</div>
             </div>
 
@@ -842,7 +842,7 @@
                 <div class="knob" id="material-knob">
                     <div class="knob-indicator" id="material-indicator"></div>
                 </div>
-                <div class="knob-label">MATERIAL</div>
+                <div class="knob-label">MATERIAL<br>HARDNESS</div>
                 <div class="knob-sublabel" id="material-value">50%</div>
             </div>
 
@@ -1560,18 +1560,69 @@
         window.flashIntervalLine = flashIntervalLine;
 
         // ====================================================================
-        // AUDIO VISUALIZATIONS (Static - no actual audio data from backend)
+        // AUDIO VISUALIZATIONS - v1.2.3: Live oscilloscope
         // ====================================================================
 
-        // Initialize waveform as flat line (static display)
-        function initWaveform() {
-            const path = document.getElementById('waveform-path');
-            const fill = document.getElementById('waveform-fill');
+        // Get native function for waveform data
+        const getWaveformDataNative = Juce.getNativeFunction("getWaveformData");
 
-            // Flat horizontal line at center
-            path.setAttribute('d', 'M0,60 L260,60');
-            fill.setAttribute('d', 'M0,60 L260,60 L260,120 L0,120 Z');
+        // Oscilloscope display elements
+        const waveformPath = document.getElementById('waveform-path');
+        const waveformFill = document.getElementById('waveform-fill');
+
+        // Draw waveform from sample data
+        function drawWaveform(samples) {
+            if (!samples || samples.length === 0) return;
+
+            const width = 260;
+            const height = 120;
+            const centerY = height / 2;
+            const amplitude = height / 2 - 5; // Leave margin
+
+            // Build SVG path from samples
+            let pathD = '';
+            const numPoints = samples.length;
+            const xStep = width / (numPoints - 1);
+
+            for (let i = 0; i < numPoints; i++) {
+                const x = i * xStep;
+                const y = centerY - (samples[i] * amplitude);
+                if (i === 0) {
+                    pathD += `M${x.toFixed(1)},${y.toFixed(1)}`;
+                } else {
+                    pathD += ` L${x.toFixed(1)},${y.toFixed(1)}`;
+                }
+            }
+
+            waveformPath.setAttribute('d', pathD);
+
+            // Fill path (close to bottom)
+            const fillD = pathD + ` L${width},${height} L0,${height} Z`;
+            waveformFill.setAttribute('d', fillD);
         }
+
+        // Initialize waveform as flat line
+        function initWaveform() {
+            waveformPath.setAttribute('d', 'M0,60 L260,60');
+            waveformFill.setAttribute('d', 'M0,60 L260,60 L260,120 L0,120 Z');
+        }
+
+        // Poll for waveform data (30fps)
+        let waveformAnimationId = null;
+        async function updateWaveform() {
+            try {
+                const data = await getWaveformDataNative();
+                if (data && Array.isArray(data) && data.length > 0) {
+                    drawWaveform(data);
+                }
+            } catch (e) {
+                // Silently ignore errors (plugin may not be playing)
+            }
+            waveformAnimationId = requestAnimationFrame(updateWaveform);
+        }
+
+        // Start waveform animation
+        updateWaveform();
 
         // Initialize VU meter at rest position (pointing to -20)
         function initVU() {
@@ -1580,7 +1631,7 @@
             needle.style.transform = 'translateX(-50%) rotate(-45deg)';
         }
 
-        // Initialize static displays
+        // Initialize displays
         initWaveform();
         initVU();
 

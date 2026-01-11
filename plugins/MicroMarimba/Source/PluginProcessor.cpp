@@ -209,6 +209,11 @@ void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     // Apply output gain (after all processing)
     float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);
     buffer.applyGain(outputGainLinear);
+
+    // v1.2.3: Write samples to waveform FIFO for oscilloscope display
+    // Use left channel (or mono mix if stereo)
+    const float* readPtr = buffer.getReadPointer(0);
+    waveformFifo.write(readPtr, buffer.getNumSamples());
 }
 
 juce::AudioProcessorEditor* MicroMarimbaAudioProcessor::createEditor()

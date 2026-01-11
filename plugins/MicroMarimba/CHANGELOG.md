@@ -2,6 +2,20 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.3] - 2026-01-10
+
+### Fixed
+- Waveform display in Sound tab now functions as a live oscilloscope
+  - Root cause: Display was static (flat line), no audio data was being sent to WebView
+  - Added lock-free WaveformFifo in PluginProcessor to capture audio samples
+  - Added getWaveformData native function to provide 128-point downsampled waveform
+  - WebView polls at 60fps using requestAnimationFrame for smooth display
+
+### Changed
+- Renamed "MALLET" knob label to "MALLET HARDNESS" for clarity
+- Renamed "MATERIAL" knob label to "MATERIAL HARDNESS" for clarity
+- Adjusted knob positions slightly to accommodate longer labels
+
 ## [1.2.2] - 2026-01-10
 
 ### Fixed

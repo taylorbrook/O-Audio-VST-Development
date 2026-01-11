@@ -55,6 +55,9 @@ MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaA
             .withNativeFunction("setTonicNote", [this](const auto& args, auto complete) {
                 complete(setTonicNote(args));
             })
+            .withNativeFunction("getWaveformData", [this](const auto& args, auto complete) {
+                complete(getWaveformData(args));
+            })
     );
 
     // 3️⃣ Create attachments LAST (Pattern 12: 3 params required - parameter, relay, nullptr)
@@ -344,4 +347,44 @@ juce::var MicroMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<juce:
     processorRef.getTuningEngine().setTonicNote(tonicIndex);
 
     return juce::var("OK: Tonic set to " + juce::String(tonicIndex));
+}
+
+// v1.2.3: Native function to get waveform data for oscilloscope display
+// Returns array of normalized sample values (-1 to 1), downsampled for display
+juce::var MicroMarimbaAudioProcessorEditor::getWaveformData(const juce::Array<juce::var>& args)
+{
+    juce::ignoreUnused(args);
+
+    // Read from FIFO - 512 samples
+    static constexpr int kFifoSize = 512;
+    static constexpr int kDisplayPoints = 128;  // Downsample for smooth SVG
+
+    float samples[kFifoSize];
+    bool hasData = processorRef.getWaveformFifo().read(samples, kFifoSize);
+
+    if (!hasData)
+    {
+        // Return null to indicate no new data
+        return juce::var();
+    }
+
+    // Downsample to display resolution
+    juce::Array<juce::var> result;
+    int samplesPerPoint = kFifoSize / kDisplayPoints;
+
+    for (int i = 0; i < kDisplayPoints; ++i)
+    {
+        // Take max absolute value in each bucket for better visual representation
+        float maxVal = 0.0f;
+        for (int j = 0; j < samplesPerPoint; ++j)
+        {
+            int idx = i * samplesPerPoint + j;
+            float absVal = std::abs(samples[idx]);
+            if (absVal > std::abs(maxVal))
+                maxVal = samples[idx];  // Keep sign for waveform shape
+        }
+        result.add(juce::jlimit(-1.0f, 1.0f, maxVal));
+    }
+
+    return result;
 }

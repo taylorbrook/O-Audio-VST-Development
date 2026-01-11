@@ -13,6 +13,43 @@
 #include "TuningEngine.h"
 #include "BodyResonance.h"
 
+// Lock-free FIFO for waveform visualization
+class WaveformFifo
+{
+public:
+    static constexpr int kBufferSize = 512;  // Samples for one waveform frame
+
+    void write(const float* data, int numSamples)
+    {
+        // Simple overwrite strategy - always keep latest samples
+        for (int i = 0; i < numSamples && i < kBufferSize; ++i)
+        {
+            buffer[(writePos + i) % kBufferSize] = data[i];
+        }
+        writePos = (writePos + numSamples) % kBufferSize;
+        newDataAvailable.store(true);
+    }
+
+    bool read(float* dest, int numSamples)
+    {
+        if (!newDataAvailable.exchange(false))
+            return false;  // No new data
+
+        // Read from the position that gives us the most recent complete buffer
+        int readStart = (writePos - numSamples + kBufferSize) % kBufferSize;
+        for (int i = 0; i < numSamples; ++i)
+        {
+            dest[i] = buffer[(readStart + i) % kBufferSize];
+        }
+        return true;
+    }
+
+private:
+    std::array<std::atomic<float>, kBufferSize> buffer{};
+    std::atomic<int> writePos { 0 };
+    std::atomic<bool> newDataAvailable { false };
+};
+
 class MicroMarimbaAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -47,6 +84,9 @@ public:
     // Phase 2.3: Public access to tuning engine for UI
     TuningEngine& getTuningEngine() { return tuningEngine; }
 
+    // v1.2.3: Public access to waveform FIFO for oscilloscope display
+    WaveformFifo& getWaveformFifo() { return waveformFifo; }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -59,6 +99,9 @@ private:
 
     // Phase 2.4: Body resonance (convolution)
     BodyResonance bodyResonance;
+
+    // v1.2.3: Waveform FIFO for oscilloscope display
+    WaveformFifo waveformFifo;
 
     // UI keyboard MIDI injection
     juce::MidiBuffer pendingUiMidi;
