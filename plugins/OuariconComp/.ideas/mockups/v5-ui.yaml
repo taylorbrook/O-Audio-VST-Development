@@ -1,0 +1,139 @@
+window:
+  width: 620
+  height: 360
+  resizable: false
+
+controls:
+  # Top Row - 7 controls in horizontal layout (height: 90px section)
+  - id: threshold
+    type: slider
+    position: { x: 30, y: 37 }  # Moved UP from v4 (was y: 49) - closer to label
+    size: { width: 40, height: 40 }
+    range: [-60.0, 0.0]
+    default: -20.0
+    label: "Threshold"
+    label_position: { x: 30, y: 22 }
+    value_display: { x: 30, y: 82 }  # NEW - value reading below knob
+
+  - id: ratio
+    type: slider
+    position: { x: 110, y: 37 }  # Moved UP from v4 (was y: 49) - closer to label
+    size: { width: 40, height: 40 }
+    range: [1.0, 20.0]
+    default: 4.0
+    label: "Ratio"
+    label_position: { x: 110, y: 22 }
+    value_display: { x: 110, y: 82 }  # NEW - value reading below knob
+
+  - id: attack_time
+    type: slider
+    position: { x: 190, y: 37 }  # Moved UP from v4 (was y: 49) - closer to label
+    size: { width: 40, height: 40 }
+    range: [0.1, 100.0]
+    default: 10.0
+    label: "Attack"
+    label_position: { x: 190, y: 22 }
+    value_display: { x: 190, y: 82 }  # NEW - value reading below knob
+
+  - id: release_time
+    type: slider
+    position: { x: 270, y: 37 }  # Moved UP from v4 (was y: 49) - closer to label
+    size: { width: 40, height: 40 }
+    range: [10.0, 1000.0]
+    default: 100.0
+    label: "Release"
+    label_position: { x: 270, y: 22 }
+    value_display: { x: 270, y: 82 }  # NEW - value reading below knob
+
+  - id: knee
+    type: slider
+    position: { x: 350, y: 37 }  # Moved UP from v4 (was y: 49) - closer to label
+    size: { width: 40, height: 40 }
+    range: [0.0, 20.0]
+    default: 6.0
+    label: "Knee"
+    label_position: { x: 350, y: 22 }
+    value_display: { x: 350, y: 82 }  # NEW - value reading below knob
+
+  - id: output_gain
+    type: slider
+    position: { x: 430, y: 37 }  # Moved UP from v4 (was y: 49) - closer to label
+    size: { width: 40, height: 40 }
+    range: [-12.0, 24.0]
+    default: 0.0
+    label: "Output"
+    label_position: { x: 430, y: 22 }
+    value_display: { x: 430, y: 82 }  # NEW - value reading below knob
+
+  - id: auto_gain
+    type: toggle
+    position: { x: 520, y: 37 }  # Moved UP from v4 (was y: 49) - aligned with other controls
+    size: { width: 70, height: 40 }
+    default: false
+    label: "Auto-Gain"
+    label_position: { x: 520, y: 22 }
+
+  # Bottom Row - LED meters and visualization panels
+  # Input meter (left side)
+  - id: input_meter
+    type: meter
+    position: { x: 18, y: 105 }
+    size: { width: 18, height: 240 }
+    meter_type: "led_vertical"
+    segment_count: 14
+    colors:
+      inactive: "#8B7355"
+      low: "#8BA870"
+      mid: "#6B8E4E"
+      high: "#C9A27B"
+
+  # Output meter (right side)
+  - id: output_meter
+    type: meter
+    position: { x: 584, y: 105 }
+    size: { width: 18, height: 240 }
+    meter_type: "led_vertical"
+    segment_count: 14
+    colors:
+      inactive: "#8B7355"
+      low: "#8BA870"
+      mid: "#6B8E4E"
+      high: "#C9A27B"
+
+styling:
+  colors:
+    background: "paper-bg.jpg"  # Paper texture background
+    foreground: "#3C2F2F"
+    accent: "#6B8E4E"
+    border: "#8B7355"
+    value_text: "#5C4033"  # NEW - brown text for value readings
+  fonts:
+    primary: "'Garamond', 'Times New Roman', serif"
+    value_size: "9px"  # NEW - small font for value readings
+
+botanical_overlay:
+  image: "shell.png"
+  target_panel: "transfer_curve"
+  opacity: 0.5
+  blend_mode: "multiply"
+
+layout:
+  type: "two_row_with_visualizations"
+  title: "OUARICONCOMP"
+  title_position: { x: 310, y: 0 }  # CENTERED horizontally (620px width / 2 = 310px)
+  title_alignment: "center"  # NEW - center alignment
+  top_row_height: 90
+  bottom_row_height: 270
+  visualization_panels:
+    - name: "Transfer Curve"
+      id: "transfer_curve"
+      position: { x: 46, y: 105 }
+      size: { width: 210, height: 240 }
+      description: "Input vs output dB graph with shell botanical background"
+      shell_overlay: true
+      curve_stroke_width: 3.5
+    - name: "Envelope and Gain Reduction"
+      id: "envelope_display"
+      position: { x: 266, y: 105 }
+      size: { width: 308, height: 240 }
+      description: "Top lane: input waveform, Bottom lane: output waveform with GR indicator"
