@@ -439,6 +439,16 @@
       output_gain: 'output'
     };
 
+    // Default normalized values for double-click reset (matches processor defaults)
+    const paramDefaults = {
+      threshold: ((-20.0) - (-60.0)) / (0.0 - (-60.0)),  // -20 dB default
+      ratio: (2.0 - 1.0) / (20.0 - 1.0),                  // 2:1 default
+      attack_time: (10.0 - 0.1) / (100.0 - 0.1),          // 10 ms default
+      release_time: (100.0 - 10.0) / (1000.0 - 10.0),     // 100 ms default
+      knee: 6.0 / 20.0,                                    // 6 dB default
+      output_gain: (0.0 - (-12.0)) / (24.0 - (-12.0))     // 0 dB default
+    };
+
     // Update knob rotation and value display
     function updateKnob(paramId, normalized) {
       const rotation = (normalized * 270) - 135; // -135deg to +135deg range
@@ -505,7 +515,8 @@
 
       // Double-click to reset to default
       knob.addEventListener('dblclick', () => {
-        sliderState.setNormalisedValue(0.5);  // Adjust based on parameter default
+        const defaultNormalized = paramDefaults[paramId] || 0.5;
+        sliderState.setNormalisedValue(defaultNormalized);
       });
 
       // Initialize visual state

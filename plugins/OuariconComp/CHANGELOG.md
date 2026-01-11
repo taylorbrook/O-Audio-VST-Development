@@ -2,6 +2,13 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.0.2] - 2026-01-11
+
+### Changed
+
+- Default ratio changed from 4:1 to 2:1 for gentler compression out of the box
+- Double-click on any knob now resets to its correct default value (not just 50%)
+
 ## [1.0.1] - 2026-01-11
 
 ### Fixed

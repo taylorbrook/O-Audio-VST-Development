@@ -29,7 +29,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconCompAudioProcessor::
         juce::ParameterID { "ratio", 1 },
         "Ratio",
         juce::NormalisableRange<float>(1.0f, 20.0f, 0.1f),
-        4.0f,
+        2.0f,
         ":1"
     ));
 
