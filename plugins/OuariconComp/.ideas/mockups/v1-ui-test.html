@@ -1,0 +1,718 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OuariconComp UI Mockup v1</title>
+
+  <style>
+    /* CRITICAL: WebView constraints */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Preview frame for browser testing */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* Fixed-size frame matching plugin spec */
+    .plugin-frame {
+      width: 620px;
+      height: 360px;
+      border: 2px solid #444;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Plugin UI fills frame */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+
+      /* Native application feel */
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Ouaricon Naturalist - aged paper background */
+      background: #F5E6D3;
+      color: #3C2F2F;
+    }
+
+    /* Paper texture overlay */
+    .container::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, rgba(139,115,85,0.02) 0px, transparent 1px, transparent 2px, rgba(139,115,85,0.02) 3px),
+        repeating-linear-gradient(90deg, rgba(139,115,85,0.02) 0px, transparent 1px, transparent 2px, rgba(139,115,85,0.02) 3px);
+      pointer-events: none;
+      opacity: 0.4;
+    }
+
+    /* Plugin title */
+    .plugin-title {
+      position: absolute;
+      top: 12px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 16px;
+      font-weight: 300;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      color: #5C4033;
+      text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+      z-index: 5;
+    }
+
+    /* Top row section */
+    .top-row {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 90px;
+      border-bottom: 2px solid rgba(139,115,85,0.3);
+    }
+
+    /* Bottom row section */
+    .bottom-row {
+      position: absolute;
+      top: 90px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      gap: 15px;
+      padding: 15px 30px;
+    }
+
+    /* Visualization panels */
+    .viz-panel {
+      background: rgba(235,217,199,0.5);
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.1);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .transfer-curve {
+      width: 230px;
+      flex-shrink: 0;
+    }
+
+    .dual-envelope {
+      flex: 1;
+    }
+
+    .viz-title {
+      position: absolute;
+      top: 8px;
+      left: 10px;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #5C4033;
+      opacity: 0.7;
+      z-index: 2;
+    }
+
+    /* Transfer curve grid */
+    .transfer-grid {
+      position: absolute;
+      inset: 25px 10px 10px 10px;
+      border-left: 2px solid rgba(92,64,51,0.4);
+      border-bottom: 2px solid rgba(92,64,51,0.4);
+    }
+
+    .transfer-grid::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background-image:
+        repeating-linear-gradient(0deg, transparent 0px, transparent calc(100%/6 - 1px), rgba(92,64,51,0.15) calc(100%/6 - 1px), rgba(92,64,51,0.15) calc(100%/6)),
+        repeating-linear-gradient(90deg, transparent 0px, transparent calc(100%/6 - 1px), rgba(92,64,51,0.15) calc(100%/6 - 1px), rgba(92,64,51,0.15) calc(100%/6));
+    }
+
+    .transfer-curve-line {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 100%;
+    }
+
+    .transfer-curve-line svg {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Dual envelope display */
+    .envelope-display {
+      position: absolute;
+      inset: 25px 10px 10px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .envelope-lane {
+      flex: 1;
+      background: rgba(245,222,179,0.3);
+      border: 1px solid rgba(139,115,85,0.4);
+      border-radius: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .envelope-lane-label {
+      position: absolute;
+      top: 4px;
+      left: 6px;
+      font-size: 8px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #5C4033;
+      opacity: 0.6;
+    }
+
+    .waveform {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: rgba(92,64,51,0.5);
+      font-size: 10px;
+      letter-spacing: 1px;
+    }
+
+    /* Knob styling - Botanical seed cross-section */
+    .knob-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .knob-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #5C4033;
+      text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+    }
+
+    .knob {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      border: 2px solid #8B7355;
+      position: relative;
+      cursor: pointer;
+      transition: transform 0.1s ease;
+
+      /* 10-segment radial pattern */
+      background:
+        radial-gradient(circle, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+        conic-gradient(from 0deg,
+          #F5DEB3 0deg, #F5DEB3 17deg,
+          #8B7355 17deg, #8B7355 18deg,
+          #E8D5B7 18deg, #E8D5B7 35deg,
+          #8B7355 35deg, #8B7355 36deg,
+          #F5DEB3 36deg, #F5DEB3 53deg,
+          #8B7355 53deg, #8B7355 54deg,
+          #E8D5B7 54deg, #E8D5B7 71deg,
+          #8B7355 71deg, #8B7355 72deg,
+          #F5DEB3 72deg, #F5DEB3 89deg,
+          #8B7355 89deg, #8B7355 90deg,
+          #E8D5B7 90deg, #E8D5B7 107deg,
+          #8B7355 107deg, #8B7355 108deg,
+          #F5DEB3 108deg, #F5DEB3 125deg,
+          #8B7355 125deg, #8B7355 126deg,
+          #E8D5B7 126deg, #E8D5B7 143deg,
+          #8B7355 143deg, #8B7355 144deg,
+          #F5DEB3 144deg, #F5DEB3 161deg,
+          #8B7355 161deg, #8B7355 162deg,
+          #E8D5B7 162deg, #E8D5B7 179deg,
+          #8B7355 179deg, #8B7355 180deg,
+          #F5DEB3 180deg, #F5DEB3 197deg,
+          #8B7355 197deg, #8B7355 198deg,
+          #E8D5B7 198deg, #E8D5B7 215deg,
+          #8B7355 215deg, #8B7355 216deg,
+          #F5DEB3 216deg, #F5DEB3 233deg,
+          #8B7355 233deg, #8B7355 234deg,
+          #E8D5B7 234deg, #E8D5B7 251deg,
+          #8B7355 251deg, #8B7355 252deg,
+          #F5DEB3 252deg, #F5DEB3 269deg,
+          #8B7355 269deg, #8B7355 270deg,
+          #E8D5B7 270deg, #E8D5B7 287deg,
+          #8B7355 287deg, #8B7355 288deg,
+          #F5DEB3 288deg, #F5DEB3 305deg,
+          #8B7355 305deg, #8B7355 306deg,
+          #E8D5B7 306deg, #E8D5B7 323deg,
+          #8B7355 323deg, #8B7355 324deg,
+          #F5DEB3 324deg, #F5DEB3 341deg,
+          #8B7355 341deg, #8B7355 342deg,
+          #E8D5B7 342deg, #E8D5B7 359deg,
+          #8B7355 359deg, #8B7355 360deg
+        ),
+        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+
+      box-shadow:
+        inset 1px 1px 3px rgba(0,0,0,0.3),
+        inset -1px -1px 2px rgba(255,248,220,0.5),
+        2px 2px 6px rgba(0,0,0,0.25);
+    }
+
+    .knob:hover {
+      transform: scale(1.05);
+    }
+
+    .knob:active {
+      transform: scale(0.98);
+    }
+
+    .knob-indicator {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 3px;
+      height: 18px;
+      background: #5C4033;
+      transform: translateX(-50%);
+      border-radius: 1px;
+    }
+
+    .knob-value {
+      font-size: 8px;
+      color: #5C4033;
+      margin-top: 2px;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Toggle button styling */
+    .toggle-container {
+      position: absolute;
+    }
+
+    .toggle-button {
+      width: 70px;
+      height: 40px;
+      border-radius: 5px;
+      background: rgba(139,168,112,0.3);
+      border: 2px solid #3C5C1A;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      position: relative;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
+    }
+
+    .toggle-button:hover {
+      background: rgba(139,168,112,0.45);
+      transform: translateY(-1px);
+      box-shadow: 2px 3px 6px rgba(0,0,0,0.3);
+    }
+
+    .toggle-button.active {
+      background: rgba(107,142,78,0.6);
+      border-color: #2C3E10;
+    }
+
+    .toggle-label {
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.8px;
+      color: #2C3E10;
+      font-weight: 500;
+    }
+
+    .toggle-fleuron {
+      position: absolute;
+      top: 3px;
+      right: 5px;
+      font-size: 10px;
+      opacity: 0.3;
+      color: #3C2F2F;
+    }
+
+    /* Botanical overlay */
+    .botanical-overlay {
+      position: absolute;
+      right: -30px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 65%;
+      opacity: 0.35;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Debug monitor */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 150px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="plugin-frame">
+    <div class="container">
+      <!-- Plugin title -->
+      <div class="plugin-title">OuariconComp</div>
+
+      <!-- Top row - Controls -->
+      <div class="top-row">
+        <!-- Threshold knob -->
+        <div class="knob-container" style="left: 30px; top: 25px;">
+          <div class="knob-label">Threshold</div>
+          <div class="knob" id="threshold" data-min="-60" data-max="0" data-default="-20">
+            <div class="knob-indicator"></div>
+          </div>
+          <div class="knob-value" id="threshold-value">-20 dB</div>
+        </div>
+
+        <!-- Ratio knob -->
+        <div class="knob-container" style="left: 110px; top: 25px;">
+          <div class="knob-label">Ratio</div>
+          <div class="knob" id="ratio" data-min="1" data-max="20" data-default="4">
+            <div class="knob-indicator"></div>
+          </div>
+          <div class="knob-value" id="ratio-value">4:1</div>
+        </div>
+
+        <!-- Attack knob -->
+        <div class="knob-container" style="left: 190px; top: 25px;">
+          <div class="knob-label">Attack</div>
+          <div class="knob" id="attack_time" data-min="0.1" data-max="100" data-default="10">
+            <div class="knob-indicator"></div>
+          </div>
+          <div class="knob-value" id="attack_time-value">10 ms</div>
+        </div>
+
+        <!-- Release knob -->
+        <div class="knob-container" style="left: 270px; top: 25px;">
+          <div class="knob-label">Release</div>
+          <div class="knob" id="release_time" data-min="10" data-max="1000" data-default="100">
+            <div class="knob-indicator"></div>
+          </div>
+          <div class="knob-value" id="release_time-value">100 ms</div>
+        </div>
+
+        <!-- Knee knob -->
+        <div class="knob-container" style="left: 350px; top: 25px;">
+          <div class="knob-label">Knee</div>
+          <div class="knob" id="knee" data-min="0" data-max="20" data-default="6">
+            <div class="knob-indicator"></div>
+          </div>
+          <div class="knob-value" id="knee-value">6 dB</div>
+        </div>
+
+        <!-- Output Gain knob -->
+        <div class="knob-container" style="left: 430px; top: 25px;">
+          <div class="knob-label">Output</div>
+          <div class="knob" id="output_gain" data-min="-12" data-max="24" data-default="0">
+            <div class="knob-indicator"></div>
+          </div>
+          <div class="knob-value" id="output_gain-value">0 dB</div>
+        </div>
+
+        <!-- Auto-Gain toggle -->
+        <div class="toggle-container" style="left: 520px; top: 30px;">
+          <div class="knob-label" style="position: absolute; top: -22px; left: 0;">Auto-Gain</div>
+          <div class="toggle-button" id="auto_gain">
+            <span class="toggle-label">Off</span>
+            <span class="toggle-fleuron">❦</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bottom row - Visualizations -->
+      <div class="bottom-row">
+        <!-- Transfer Curve Display -->
+        <div class="viz-panel transfer-curve">
+          <div class="viz-title">Transfer Curve</div>
+          <div class="transfer-grid">
+            <div class="transfer-curve-line">
+              <svg viewBox="0 0 210 215" preserveAspectRatio="none">
+                <path id="curve-path" d="M 0,215 L 0,215"
+                      stroke="#5C4033"
+                      stroke-width="2"
+                      fill="none"
+                      stroke-linecap="round"/>
+              </svg>
+            </div>
+          </div>
+        </div>
+
+        <!-- Dual Envelope Display -->
+        <div class="viz-panel dual-envelope">
+          <div class="viz-title">Envelope Display</div>
+          <div class="envelope-display">
+            <div class="envelope-lane">
+              <div class="envelope-lane-label">Input</div>
+              <div class="waveform">~ ~ ~</div>
+            </div>
+            <div class="envelope-lane">
+              <div class="envelope-lane-label">Output</div>
+              <div class="waveform">~ ~ ~</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botanical overlay - shell image -->
+      <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='250'%3E%3Ctext x='50%25' y='50%25' dominant-baseline='middle' text-anchor='middle' font-family='serif' font-size='14' fill='%238B7355' opacity='0.3'%3EShell Overlay%3C/text%3E%3C/svg%3E"
+           class="botanical-overlay"
+           alt="Shell illustration" />
+    </div>
+  </div>
+
+  <!-- Debug monitor -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // Mock JUCE backend for browser testing
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        getNormalisedValue: () => 0.5,
+        setNormalisedValue: (v) => console.log(`${id} set to ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Update debug monitor
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      document.getElementById('debugValue').textContent = formatValue(paramId, value);
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // Format value based on parameter type
+    function formatValue(paramId, value) {
+      if (paramId === 'ratio') {
+        return `${value.toFixed(1)}:1`;
+      } else if (paramId.includes('time')) {
+        return `${value.toFixed(1)} ms`;
+      } else {
+        return `${value.toFixed(1)} dB`;
+      }
+    }
+
+    // Knob interaction
+    function initKnob(knobId) {
+      const knob = document.getElementById(knobId);
+      const indicator = knob.querySelector('.knob-indicator');
+      const valueDisplay = document.getElementById(knobId + '-value');
+
+      const min = parseFloat(knob.dataset.min);
+      const max = parseFloat(knob.dataset.max);
+      const defaultVal = parseFloat(knob.dataset.default);
+
+      let currentValue = defaultVal;
+      let isDragging = false;
+      let startY = 0;
+      let startValue = 0;
+
+      function updateKnob(value) {
+        currentValue = Math.max(min, Math.min(max, value));
+        const normalized = (currentValue - min) / (max - min);
+        const degrees = -135 + (normalized * 270);
+
+        knob.style.transform = `rotate(${degrees}deg)`;
+
+        // Update value display
+        if (knobId === 'ratio') {
+          valueDisplay.textContent = `${currentValue.toFixed(1)}:1`;
+        } else if (knobId.includes('time')) {
+          valueDisplay.textContent = `${currentValue.toFixed(1)} ms`;
+        } else {
+          valueDisplay.textContent = `${currentValue.toFixed(1)} dB`;
+        }
+
+        updateDebugMonitor(knobId, currentValue, normalized);
+
+        // Update transfer curve if threshold, ratio, or knee changed
+        if (['threshold', 'ratio', 'knee'].includes(knobId)) {
+          updateTransferCurve();
+        }
+      }
+
+      knob.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startY = e.clientY;
+        startValue = currentValue;
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const delta = (startY - e.clientY) * (max - min) / 200;
+        updateKnob(startValue + delta);
+      });
+
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+
+      // Initialize
+      updateKnob(defaultVal);
+    }
+
+    // Toggle button interaction
+    function initToggle(toggleId) {
+      const toggle = document.getElementById(toggleId);
+      const label = toggle.querySelector('.toggle-label');
+      let isActive = false;
+
+      toggle.addEventListener('click', () => {
+        isActive = !isActive;
+        toggle.classList.toggle('active', isActive);
+        label.textContent = isActive ? 'On' : 'Off';
+
+        updateDebugMonitor(toggleId, isActive ? 'ON' : 'OFF', isActive ? 1 : 0);
+      });
+    }
+
+    // Update transfer curve based on current settings
+    function updateTransferCurve() {
+      const threshold = parseFloat(document.getElementById('threshold').dataset.currentValue || -20);
+      const ratio = parseFloat(document.getElementById('ratio').dataset.currentValue || 4);
+      const knee = parseFloat(document.getElementById('knee').dataset.currentValue || 6);
+
+      const path = document.getElementById('curve-path');
+
+      // Simplified transfer curve calculation
+      let pathData = 'M 0,215';
+
+      for (let input = -60; input <= 0; input += 1) {
+        let output;
+        const kneeStart = threshold - knee/2;
+        const kneeEnd = threshold + knee/2;
+
+        if (input < kneeStart) {
+          // Below knee - no compression
+          output = input;
+        } else if (input > kneeEnd) {
+          // Above knee - full compression
+          output = threshold + (input - threshold) / ratio;
+        } else {
+          // In knee region - interpolate
+          const kneeInput = (input - kneeStart) / knee;
+          const kneeGain = kneeInput * kneeInput;
+          output = input + kneeGain * (threshold + (input - threshold) / ratio - input);
+        }
+
+        // Map to SVG coordinates (210x215)
+        const x = ((input + 60) / 60) * 210;
+        const y = 215 - ((output + 60) / 60) * 215;
+
+        pathData += ` L ${x},${y}`;
+      }
+
+      path.setAttribute('d', pathData);
+    }
+
+    // Store current values on knob elements
+    document.querySelectorAll('.knob').forEach(knob => {
+      const updateValue = (val) => {
+        knob.dataset.currentValue = val;
+      };
+
+      const originalUpdate = knob.updateKnob;
+      knob.updateKnob = function(val) {
+        updateValue(val);
+        if (originalUpdate) originalUpdate.call(this, val);
+      };
+    });
+
+    // Initialize all controls
+    document.addEventListener('DOMContentLoaded', () => {
+      initKnob('threshold');
+      initKnob('ratio');
+      initKnob('attack_time');
+      initKnob('release_time');
+      initKnob('knee');
+      initKnob('output_gain');
+      initToggle('auto_gain');
+
+      // Initial transfer curve
+      updateTransferCurve();
+    });
+  </script>
+</body>
+</html>
