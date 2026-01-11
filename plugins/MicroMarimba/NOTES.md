@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.2.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -23,6 +23,9 @@
   - Circular scale indicator flashes red for ALL notes (GUI, external MIDI, DAW)
   - A4 reference pitch dial resets to 440 Hz on double-click
   - Fixed keyboard: black keys restructured as siblings for proper click detection
+- **2026-01-10 (v1.2.0):** Tonic selection + bug fix
+  - Added tonic note selector (click to cycle C→C#→D→...→B→C)
+  - Fixed: UI keyboard no longer causes permanent red indicator lines (race condition)
 
 ## Known Issues
 
@@ -59,7 +62,7 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 
 ### UI Features
 - **Sound Tab:** Mallet, Material, Resonance knobs; Velocity curve display; Output level with VU meter; Waveform display
-- **Tuning Tab:** Mode selection (12-TET/Scala/MTS-ESP); Reference pitch knob; Scala file loading; Interactive pitch circle; Editable interval list (supports any scale size); Playable 1-octave keyboard
+- **Tuning Tab:** Mode selection (12-TET/Scala/MTS-ESP); Reference pitch knob; Scala file loading; Interactive pitch circle; Editable interval list (supports any scale size); Tonic note selector; Playable 1-octave keyboard
 
 ### Formats
 - VST3

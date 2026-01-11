@@ -28,7 +28,7 @@ Ouaricon Plugins:
 |-------------|--------|---------|------|--------------|
 | OuariconTremolo | 📦 Installed | 1.2.1 | Audio Effect (Tremolo) | 2026-01-06 |
 | OuariconSaturationModeling | 📦 Installed | 1.0.0 | Audio Effect (Saturation) | 2026-01-09 |
-| MicroMarimba | 📦 Installed | 1.1.0 | Synth (Physical Model) | 2026-01-10 |
+| MicroMarimba | 📦 Installed | 1.2.0 | Synth (Physical Model) | 2026-01-10 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

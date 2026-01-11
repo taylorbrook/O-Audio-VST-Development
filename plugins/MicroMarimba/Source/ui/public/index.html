@@ -513,6 +513,48 @@
             text-align: center;
         }
 
+        .tonic-selector {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 4px;
+            margin-bottom: 3px;
+            background: rgba(139, 168, 112, 0.2);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .tonic-selector:hover {
+            background: rgba(139, 168, 112, 0.4);
+        }
+
+        .tonic-label {
+            font-size: 7px;
+            color: #5C4033;
+            text-transform: uppercase;
+        }
+
+        .tonic-value {
+            font-size: 9px;
+            font-weight: bold;
+            color: #3C2F2F;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .tonic-arrows {
+            display: flex;
+            gap: 2px;
+        }
+
+        .tonic-arrow {
+            font-size: 8px;
+            color: #3C5C1A;
+            padding: 0 2px;
+        }
+
         .interval-item {
             display: flex;
             justify-content: space-between;
@@ -1222,6 +1264,10 @@
         // Current editable intervals (dynamic size based on loaded scale)
         let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
         let currentScaleName = '12-TET Standard';
+        let currentTonic = 0; // 0 = C, 1 = C#, 2 = D, etc.
+
+        // Note names for tonic display
+        const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
         // Scale presets (cents from root, including unison at 0)
         const scalePresets = {
@@ -1239,11 +1285,12 @@
             }
         };
 
-        // Generate degree label for any position
+        // Generate degree label for any position (with tonic offset)
         function getDegreeLabel(index, total) {
             if (total === 12) {
-                // Standard chromatic labels
-                return ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'][index];
+                // Standard chromatic labels with tonic offset
+                const noteIndex = (index + currentTonic) % 12;
+                return noteNames[noteIndex];
             }
             // For other scales, use numbers
             return String(index + 1);
@@ -1355,7 +1402,19 @@
             const list = document.getElementById('interval-list');
             const total = currentIntervals.length;
 
-            let html = `<div class="interval-list-header">Intervals (${total} notes)</div>`;
+            // Show tonic selector only for 12-tone scales
+            let tonicHtml = '';
+            if (total === 12) {
+                tonicHtml = `
+                    <div class="tonic-selector" id="tonic-selector" title="Click to change tonic note">
+                        <span class="tonic-label">Tonic:</span>
+                        <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
+                        <span class="tonic-arrows">◀▶</span>
+                    </div>
+                `;
+            }
+
+            let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
 
             // Show rows for actual number of intervals
             for (let i = 0; i < total; i++) {
@@ -1404,6 +1463,40 @@
                         e.target.blur();
                     }
                 });
+            });
+
+            // Add tonic selector click handler (only present for 12-tone scales)
+            const tonicSelector = document.getElementById('tonic-selector');
+            if (tonicSelector) {
+                tonicSelector.addEventListener('click', (e) => {
+                    // Cycle through tonics: C -> C# -> D -> ... -> B -> C
+                    currentTonic = (currentTonic + 1) % 12;
+
+                    // Update display
+                    document.getElementById('tonic-display').textContent = noteNames[currentTonic];
+
+                    // Redraw interval list labels and pitch circle
+                    updateIntervalListUI();
+                    drawPitchCircle();
+                    updateKeyboardLabels();
+                });
+            }
+        }
+
+        // Update keyboard key labels to reflect current tonic
+        function updateKeyboardLabels() {
+            const keyIds = ['c1', 'd1', 'e1', 'f1', 'g1', 'a1', 'b1'];
+            const whiteKeyIndices = [0, 2, 4, 5, 7, 9, 11]; // C, D, E, F, G, A, B in chromatic
+
+            keyIds.forEach((id, i) => {
+                const keyEl = document.getElementById('key-' + id);
+                if (keyEl) {
+                    const span = keyEl.querySelector('span');
+                    if (span) {
+                        const noteIndex = (whiteKeyIndices[i] + currentTonic) % 12;
+                        span.textContent = noteNames[noteIndex];
+                    }
+                }
             });
         }
 
@@ -1509,8 +1602,8 @@
             const keyEl = document.getElementById(keyId);
             if (keyEl) keyEl.classList.add('playing');
 
-            // Flash the corresponding interval line on the pitch circle
-            flashIntervalLine(midiNote);
+            // NOTE: Don't call flashIntervalLine here - the C++ timer will handle it
+            // via popLastPlayedNote() to avoid race condition causing permanent red lines
 
             // Send note on (velocity = 0.8)
             sendMidiNote(midiNote, 0.8, true);

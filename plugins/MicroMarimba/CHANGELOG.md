@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.0] - 2026-01-10
+
+### Added
+- Tonic note selection in Tuning tab
+  - Click the "Tonic" selector to cycle through C, C#, D, ... B
+  - Updates interval list labels, pitch circle, and keyboard key labels
+  - Only available for 12-tone scales
+
+### Fixed
+- Scale interval indicator flash bug: UI keyboard no longer causes permanent red lines
+  - Root cause: Race condition when both UI and C++ timer called flashIntervalLine()
+  - The second call captured already-red color as "original", restoring to red after timeout
+  - Solution: Removed direct flashIntervalLine() call from UI keyboard handler
+  - C++ timer now handles all note visualization uniformly (external MIDI + UI keyboard)
+
 ## [1.1.0] - 2026-01-10
 
 ### Added
