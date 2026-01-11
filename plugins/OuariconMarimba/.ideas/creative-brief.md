@@ -69,18 +69,18 @@ Only expose controls that make musical sense for a mallet player:
 - Each mode has: frequency, amplitude, decay rate
 - Fundamental frequency set by tuning system (Scala/KBM or MTS-ESP)
 
-**Marimba Modal Ratios (approximate):**
+**Marimba Modal Ratios (v1.5.0: research-corrected from Euphonics/ISMA2019):**
 ```
 Mode 1 (Fundamental): 1.00
-Mode 2: ~3.93 (slightly flat double octave)
-Mode 3: ~9.24 (varies with bar design)
-Mode 4: ~16.65
-Mode 5: ~26.3
-Mode 6: ~38.2
-Mode 7: ~52.4
-Mode 8: ~68.9
+Mode 2: 4.00 (tuned double octave - professional marimba signature)
+Mode 3: 9.24
+Mode 4: 16.27
+Mode 5: 24.22
+Mode 6: 33.54
+Mode 7: 42.97
+Mode 8: 54.0
 ```
-*Note: Actual ratios will be refined during DSP implementation based on acoustic research*
+*Updated v1.5.0: Ratios corrected based on measured professional marimba bar spectra*
 
 **Body Resonance (Convolution IR):**
 - Short impulse response (~50-100ms) of resonator tube

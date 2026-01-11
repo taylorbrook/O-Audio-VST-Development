@@ -253,7 +253,7 @@ Analyzing creative brief and architecture for complexity tier:
 
 **Tasks:**
 1. Implement modal synthesis class (8 parallel biquad filters per voice)
-2. Calculate modal frequencies: `baseFreq * [1.00, 3.93, 9.24, 16.65, 26.3, 38.2, 52.4, 68.9]`
+2. Calculate modal frequencies: `baseFreq * [1.00, 4.00, 9.24, 16.27, 24.22, 33.54, 42.97, 54.0]` (v1.5.0 research-corrected)
 3. Implement biquad coefficients: `θ = 2π*f/sr`, `r = exp(-1/(decay*sr))`, `g = amp*(1-r)`
 4. Process mallet exciter: Noise burst (5-20ms) shaped by MALLET_HARDNESS
 5. Sum 8 mode outputs per voice

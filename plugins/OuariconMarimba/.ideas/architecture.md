@@ -18,15 +18,15 @@
 - **Parameters Affected:** BAR_MATERIAL, RESONANCE
 - **Configuration:**
   - 8 modes per voice (fundamental + 7 overtones)
-  - Mode ratios (approximate marimba bar harmonics):
+  - Mode ratios (v1.5.0: research-corrected from Euphonics/ISMA2019 measurements):
     - Mode 1 (fundamental): 1.00
-    - Mode 2: 3.93 (slightly flat double octave)
+    - Mode 2: 4.00 (tuned double octave - professional marimba signature)
     - Mode 3: 9.24
-    - Mode 4: 16.65
-    - Mode 5: 26.3
-    - Mode 6: 38.2
-    - Mode 7: 52.4
-    - Mode 8: 68.9
+    - Mode 4: 16.27
+    - Mode 5: 24.22
+    - Mode 6: 33.54
+    - Mode 7: 42.97
+    - Mode 8: 54.0
   - Each mode implemented as 2nd-order IIR filter (biquad)
   - Filter equation: `H(z) = g / (1 - 2r*cos(θ)*z⁻¹ + r²*z⁻²)`
   - Coefficients calculated in `prepareToPlay()` and cached per note
@@ -691,7 +691,7 @@ Stereo Output
 
 **Rationale:**
 - Marimba bars have characteristic inharmonic overtones (not harmonic like strings)
-- Modal ratios (1.00, 3.93, 9.24, etc.) match physical marimba bar modes
+- Modal ratios (1.00, 4.00, 9.24, etc.) match measured marimba bar modes (v1.5.0 research-corrected)
 - Industry standard for mallet instruments (Applied Acoustics Chromaphone, Modartt)
 - Clean separation of mode frequencies allows BAR_MATERIAL parameter to shape spectrum
 - Physical modelling guide Section 1.4 validates modal synthesis for percussion
@@ -977,10 +977,10 @@ Stereo Output
 
 ## Notes
 
-- Modal ratios (1.00, 3.93, 9.24, etc.) are approximate
-  - Creative brief notes: "Actual ratios will be refined during DSP implementation based on acoustic research"
-  - Source: Rossing, "Science of Percussion Instruments" (cited in PM guide)
-  - Refinement strategy: Test perceptually, adjust to match recorded marimba spectrum
+- Modal ratios (1.00, 4.00, 9.24, 16.27, 24.22, 33.54, 42.97, 54.0) - CORRECTED in v1.5.0
+  - Research sources: Euphonics.org marimba acoustics, ISMA2019 modal measurement studies
+  - Mode 2 tuned to exactly 4.0x (double octave) - signature of professional marimbas
+  - Higher modes corrected from approximate values to measured acoustic data
 - Convolution IR to be recorded or licensed:
   - Option 1: Record real marimba resonator tube (highest authenticity)
   - Option 2: License IR from sample library (Spitfire, Cinesamples)
