@@ -83,6 +83,10 @@ private:
         float malletHardness;
         float barMaterial;
         float resonance;
+        // v1.6.0: New timbre parameters
+        float strikePosition;   // 0-1 (0.5 = center)
+        float overtoneDamping;  // 0-1 (0.5 = natural)
+        float tone;             // 0-1 (0.75 = default)
         int tuningMode;  // 0=12TET, 1=Scala, 2=MTS
         float referencePitch;  // Hz
         float velCurve;

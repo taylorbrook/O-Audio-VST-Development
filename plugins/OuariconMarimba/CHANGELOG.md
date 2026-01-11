@@ -2,6 +2,28 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.2] - 2026-01-11
+
+### Changed
+- **UI refinements:**
+  - Velocity knob now same size as other control knobs (small class)
+  - Velocity curve display scaled to 75% (105x75px)
+  - Tone dial verified aligned with Resonance dial above (left: 200px)
+- **Preset system updated:**
+  - Added STRIKE_POSITION, OVERTONE_DAMPING, TONE to preset format
+  - Updated all 10 factory presets with new parameter values
+  - Added 2 new presets: "Pad Marimba" and "Staccato Marimba"
+  - Factory presets now regenerate on plugin load to include new parameters
+
+### Factory Presets (v1.6.2)
+| Preset | Strike | Damping | Tone | Character |
+|--------|--------|---------|------|-----------|
+| Default Marimba | 0.5 | 0.5 | 0.75 | Natural, balanced |
+| Bright Marimba | 0.15 | 0.3 | 0.95 | Edge strike, shimmery |
+| Soft Marimba | 0.5 | 0.6 | 0.5 | Center, warm |
+| Pad Marimba | 0.5 | 0.1 | 0.7 | Long sustain, shimmer |
+| Staccato Marimba | 0.5 | 0.9 | 0.6 | Tight, focused |
+
 ## [1.6.1] - 2026-01-11
 
 ### Changed

@@ -419,13 +419,13 @@
             height: 100%;
         }
 
-        /* Velocity Curve Display */
+        /* Velocity Curve Display - v1.6.2: scaled to 75% */
         .velocity-curve-display {
             position: absolute;
             left: 100px;
             bottom: 25px;
-            width: 140px;
-            height: 100px;
+            width: 105px;
+            height: 75px;
             background: rgba(139, 168, 112, 0.12);
             border: 1px solid #8B7355;
             border-radius: 4px;
@@ -982,18 +982,19 @@
             <!-- BOTTOM LEFT: Velocity Section -->
             <div class="velocity-section">
                 <div class="knob-container" style="position: relative;">
-                    <div class="knob" id="velocity-knob">
+                    <div class="knob small" id="velocity-knob">
                         <div class="knob-indicator" id="velocity-indicator"></div>
                     </div>
                     <div class="knob-label">VELOCITY</div>
                     <div class="knob-sublabel" id="velocity-value">50%</div>
                 </div>
 
+                <!-- v1.6.2: Velocity curve display scaled to 75% -->
                 <div class="velocity-curve-display" style="position: relative; left: 0; bottom: 0;">
                     <span class="title-label">RESPONSE</span>
                     <span class="axis-label y">Out</span>
                     <span class="axis-label x">In</span>
-                    <svg width="140" height="100" viewBox="0 0 140 100" id="curve-svg">
+                    <svg width="105" height="75" viewBox="0 0 140 100" id="curve-svg">
                         <line x1="15" y1="85" x2="125" y2="85" stroke="#8B7355" stroke-width="0.5" opacity="0.5"/>
                         <line x1="15" y1="15" x2="15" y2="85" stroke="#8B7355" stroke-width="0.5" opacity="0.5"/>
                         <path id="velocity-curve" d="M15,85 Q70,50 125,15"

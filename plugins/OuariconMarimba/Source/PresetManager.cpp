@@ -76,7 +76,7 @@ juce::var PresetManager::createPresetJson() const
     preset->setProperty("tuning", juce::var(tuningObj));
 
     // Metadata
-    preset->setProperty("version", "1.3.0");
+    preset->setProperty("version", "1.6.2");
     preset->setProperty("plugin", "Ouaricon Marimba");
 
     return juce::var(preset);
@@ -372,6 +372,7 @@ void PresetManager::setStateFromXml(const juce::XmlElement* xml)
 
 const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPresetData()
 {
+    // v1.6.2: Updated with new timbre parameters (strikePosition, overtoneDamping, tone)
     static const std::vector<FactoryPreset> factoryPresets = {
         // Default Marimba - warm, natural sound with 12-TET
         {
@@ -382,37 +383,80 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.5f,   // mallet hardness
             0.5f,   // bar material
             0.6f,   // resonance
+            0.5f,   // strike position (center)
+            0.5f,   // overtone damping (natural)
+            0.75f,  // tone (default)
             0,      // tuning mode = 12-TET
             440.0f, // reference pitch
             0.5f,   // velocity curve
             0.0f    // output gain (dB)
         },
-        // Bright Marimba - harder mallet, more attack
+        // Bright Marimba - harder mallet, edge strike, bright tone
         {
             "Bright Marimba",
             { 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100 },
             "12-TET Standard",
             0,
-            0.8f,   // harder mallet
-            0.7f,   // brighter material
-            0.5f,   // less resonance
+            0.85f,  // harder mallet
+            0.8f,   // brighter material
+            0.45f,  // less resonance
+            0.15f,  // edge strike (more overtones)
+            0.3f,   // less damping (shimmery)
+            0.95f,  // bright tone
             0,
             440.0f,
             0.6f,   // more dynamic
             0.0f
         },
-        // Soft Marimba - gentle, mellow tone
+        // Soft Marimba - gentle, mellow tone, center strike
         {
             "Soft Marimba",
             { 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100 },
             "12-TET Standard",
             0,
-            0.25f,  // soft mallet
-            0.3f,   // warmer material
-            0.75f,  // more resonance
+            0.2f,   // soft mallet
+            0.25f,  // warmer material
+            0.8f,   // more resonance
+            0.5f,   // center strike (pure fundamental)
+            0.6f,   // moderate damping
+            0.5f,   // warm tone
             0,
             440.0f,
-            0.4f,   // less dynamic
+            0.35f,  // less dynamic
+            0.0f
+        },
+        // Pad Marimba - long sustain, shimmering overtones
+        {
+            "Pad Marimba",
+            { 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100 },
+            "12-TET Standard",
+            0,
+            0.4f,   // medium-soft mallet
+            0.6f,   // moderate material
+            0.95f,  // maximum resonance
+            0.5f,   // center strike
+            0.1f,   // minimal damping (all modes sustain)
+            0.7f,   // balanced tone
+            0,
+            440.0f,
+            0.45f,
+            0.0f
+        },
+        // Staccato Marimba - tight, focused
+        {
+            "Staccato Marimba",
+            { 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100 },
+            "12-TET Standard",
+            0,
+            0.7f,   // harder mallet
+            0.4f,   // moderate material
+            0.15f,  // short resonance
+            0.5f,   // center strike
+            0.9f,   // heavy damping (tight)
+            0.6f,   // slightly warm
+            0,
+            440.0f,
+            0.55f,
             0.0f
         },
         // Just Intonation - pure intervals
@@ -424,6 +468,9 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.5f,
             0.5f,
             0.6f,
+            0.5f,   // center
+            0.5f,   // natural
+            0.75f,  // default
             1,      // tuning mode = Scala
             440.0f,
             0.5f,
@@ -438,6 +485,9 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.5f,
             0.5f,
             0.6f,
+            0.5f,
+            0.5f,
+            0.75f,
             1,
             440.0f,
             0.5f,
@@ -452,6 +502,9 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.5f,
             0.5f,
             0.6f,
+            0.5f,
+            0.5f,
+            0.75f,
             1,
             440.0f,
             0.5f,
@@ -463,9 +516,12 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             { 0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100 },
             "12-TET Standard",
             0,
-            0.4f,   // slightly softer
-            0.4f,
-            0.65f,
+            0.35f,  // slightly softer (gut mallets)
+            0.35f,  // warmer
+            0.7f,   // more resonance
+            0.5f,
+            0.55f,  // slightly more damped
+            0.6f,   // warmer tone
             0,
             415.0f, // Baroque pitch
             0.5f,
@@ -480,6 +536,9 @@ const std::vector<PresetManager::FactoryPreset>& PresetManager::getFactoryPreset
             0.5f,
             0.5f,
             0.6f,
+            0.5f,
+            0.5f,
+            0.75f,
             0,
             442.0f, // European concert pitch
             0.5f,
@@ -499,8 +558,9 @@ void PresetManager::initializeFactoryPresets()
     {
         auto presetFile = factoryDir.getChildFile(preset.name + ".json");
 
-        // Only create if doesn't exist (preserve user modifications to factory preset folder)
-        if (!presetFile.existsAsFile())
+        // v1.6.2: Always regenerate factory presets to include new parameters
+        // This ensures all users get the updated presets with new timbre controls
+        if (true)  // Force regeneration
         {
             auto* presetObj = new juce::DynamicObject();
 
@@ -511,6 +571,10 @@ void PresetManager::initializeFactoryPresets()
             paramsObj->setProperty("MALLET_HARDNESS", preset.malletHardness);
             paramsObj->setProperty("BAR_MATERIAL", preset.barMaterial);
             paramsObj->setProperty("RESONANCE", preset.resonance);
+            // v1.6.0: New timbre parameters
+            paramsObj->setProperty("STRIKE_POSITION", preset.strikePosition);
+            paramsObj->setProperty("OVERTONE_DAMPING", preset.overtoneDamping);
+            paramsObj->setProperty("TONE", preset.tone);
             paramsObj->setProperty("TUNING_MODE", static_cast<float>(preset.tuningMode) / 2.0f);
             // Reference pitch: 400-480 range, normalize
             paramsObj->setProperty("REFERENCE_PITCH", (preset.referencePitch - 400.0f) / 80.0f);
@@ -536,7 +600,7 @@ void PresetManager::initializeFactoryPresets()
             presetObj->setProperty("tuning", juce::var(tuningObj));
 
             // Metadata
-            presetObj->setProperty("version", "1.3.0");
+            presetObj->setProperty("version", "1.6.2");
             presetObj->setProperty("plugin", "Ouaricon Marimba");
             presetObj->setProperty("factory", true);
 
