@@ -69,6 +69,9 @@ private:
     juce::var loadKBMFile(const juce::Array<juce::var>& args);
     juce::var getTuningIntervals(const juce::Array<juce::var>& args);
 
+    // Native function for tonic transposition
+    juce::var setTonicNote(const juce::Array<juce::var>& args);
+
     // File chooser (must be member to stay alive during async operation)
     std::unique_ptr<juce::FileChooser> fileChooser;
 

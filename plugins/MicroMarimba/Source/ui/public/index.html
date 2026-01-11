@@ -522,12 +522,6 @@
             background: rgba(139, 168, 112, 0.2);
             border: 1px solid #8B7355;
             border-radius: 3px;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .tonic-selector:hover {
-            background: rgba(139, 168, 112, 0.4);
         }
 
         .tonic-label {
@@ -550,9 +544,20 @@
         }
 
         .tonic-arrow {
-            font-size: 8px;
+            font-size: 10px;
             color: #3C5C1A;
-            padding: 0 2px;
+            padding: 2px 4px;
+            cursor: pointer;
+            border-radius: 2px;
+            transition: background 0.15s;
+        }
+
+        .tonic-arrow:hover {
+            background: rgba(139, 168, 112, 0.4);
+        }
+
+        .tonic-arrow:active {
+            background: rgba(107, 142, 35, 0.6);
         }
 
         .interval-item {
@@ -1261,6 +1266,9 @@
         // Get native function for setting tuning
         const setTuningIntervals = Juce.getNativeFunction("setTuningIntervals");
 
+        // Get native function for setting tonic (transposition)
+        const setTonicNote = Juce.getNativeFunction("setTonicNote");
+
         // Current editable intervals (dynamic size based on loaded scale)
         let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
         let currentScaleName = '12-TET Standard';
@@ -1406,10 +1414,11 @@
             let tonicHtml = '';
             if (total === 12) {
                 tonicHtml = `
-                    <div class="tonic-selector" id="tonic-selector" title="Click to change tonic note">
+                    <div class="tonic-selector" title="Change tonic note (transposes instrument)">
+                        <span class="tonic-arrow" id="tonic-down" title="Previous note">◀</span>
                         <span class="tonic-label">Tonic:</span>
                         <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
-                        <span class="tonic-arrows">◀▶</span>
+                        <span class="tonic-arrow" id="tonic-up" title="Next note">▶</span>
                     </div>
                 `;
             }
@@ -1465,39 +1474,42 @@
                 });
             });
 
-            // Add tonic selector click handler (only present for 12-tone scales)
-            const tonicSelector = document.getElementById('tonic-selector');
-            if (tonicSelector) {
-                tonicSelector.addEventListener('click', (e) => {
-                    // Cycle through tonics: C -> C# -> D -> ... -> B -> C
+            // Add tonic arrow click handlers (only present for 12-tone scales)
+            const tonicUp = document.getElementById('tonic-up');
+            const tonicDown = document.getElementById('tonic-down');
+
+            if (tonicUp) {
+                tonicUp.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Move up: C -> C# -> D -> ... -> B -> C
                     currentTonic = (currentTonic + 1) % 12;
+                    applyTonicChange();
+                });
+            }
 
-                    // Update display
-                    document.getElementById('tonic-display').textContent = noteNames[currentTonic];
-
-                    // Redraw interval list labels and pitch circle
-                    updateIntervalListUI();
-                    drawPitchCircle();
-                    updateKeyboardLabels();
+            if (tonicDown) {
+                tonicDown.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    // Move down: C -> B -> A# -> ... -> C# -> C
+                    currentTonic = (currentTonic - 1 + 12) % 12;
+                    applyTonicChange();
                 });
             }
         }
 
-        // Update keyboard key labels to reflect current tonic
-        function updateKeyboardLabels() {
-            const keyIds = ['c1', 'd1', 'e1', 'f1', 'g1', 'a1', 'b1'];
-            const whiteKeyIndices = [0, 2, 4, 5, 7, 9, 11]; // C, D, E, F, G, A, B in chromatic
+        // Apply tonic change: update display, interval labels, pitch circle, and send to backend
+        function applyTonicChange() {
+            // Update display
+            document.getElementById('tonic-display').textContent = noteNames[currentTonic];
 
-            keyIds.forEach((id, i) => {
-                const keyEl = document.getElementById('key-' + id);
-                if (keyEl) {
-                    const span = keyEl.querySelector('span');
-                    if (span) {
-                        const noteIndex = (whiteKeyIndices[i] + currentTonic) % 12;
-                        span.textContent = noteNames[noteIndex];
-                    }
-                }
-            });
+            // Redraw interval list labels and pitch circle
+            updateIntervalListUI();
+            drawPitchCircle();
+
+            // Send tonic to backend for transposition
+            setTonicNote(currentTonic);
+
+            console.log('Tonic changed to:', noteNames[currentTonic], '(transposition:', currentTonic, 'semitones)');
         }
 
         function updateKeyboardViz(modeIndex) {

@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.1] - 2026-01-10
+
+### Fixed
+- Tonic selector now has bi-directional navigation
+  - Left arrow (◀) moves down: C → B → A# → ... → C# → C
+  - Right arrow (▶) moves up: C → C# → D → ... → B → C
+- Tonic now properly transposes the instrument
+  - When tonic = D, keyboard's C key plays D frequency (293.66 Hz)
+  - Implemented transposition in TuningEngine.getFrequency()
+- Keyboard always shows C-D-E-F-G-A-B (physical layout, not relabeled)
+
 ## [1.2.0] - 2026-01-10
 
 ### Added

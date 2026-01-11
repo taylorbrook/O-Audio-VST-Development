@@ -46,6 +46,10 @@ public:
     // Set custom intervals directly from UI (cents values, 12 entries for chromatic)
     void setCustomIntervals(const std::vector<double>& cents, const juce::String& name = "Custom");
 
+    // Tonic (transposition) - transposes all notes by this many semitones
+    void setTonicNote(int tonicIndex);  // 0 = C, 1 = C#, 2 = D, etc.
+    int getTonicNote() const { return tonicOffset.load(); }
+
     // Get current intervals for UI display
     const std::vector<double>& getIntervals() const { return scaleIntervals; }
     int getScaleDegrees() const { return scaleDegrees; }
@@ -59,6 +63,7 @@ public:
 private:
     std::atomic<Mode> currentMode { Mode::TwelveTET };
     std::atomic<double> referencePitch { 440.0 };
+    std::atomic<int> tonicOffset { 0 };  // 0 = C, 1 = C#, 2 = D, etc. (transposition in semitones)
 
     // Frequency table (128 MIDI notes)
     // Using array of atomics for lock-free reads from audio thread

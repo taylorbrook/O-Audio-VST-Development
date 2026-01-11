@@ -22,8 +22,13 @@ TuningEngine::~TuningEngine()
 
 double TuningEngine::getFrequency(int midiNote) const
 {
-    // Clamp MIDI note to valid range
-    midiNote = juce::jlimit(0, 127, midiNote);
+    // Apply tonic transposition: shift MIDI note by tonic offset
+    // When tonic = D (2), pressing C (60) should play D (62) frequency
+    int tonic = tonicOffset.load();
+    int transposedNote = midiNote + tonic;
+
+    // Clamp transposed note to valid range
+    transposedNote = juce::jlimit(0, 127, transposedNote);
 
     Mode mode = currentMode.load();
 
@@ -32,11 +37,11 @@ double TuningEngine::getFrequency(int midiNote) const
     {
         // TODO: Full MTS-ESP integration in future improvement
         // For now, fall back to frequency table (Scala or 12-TET)
-        return frequencyTable[midiNote].load();
+        return frequencyTable[transposedNote].load();
     }
 
     // Return pre-calculated frequency from table
-    return frequencyTable[midiNote].load();
+    return frequencyTable[transposedNote].load();
 }
 
 void TuningEngine::setMode(Mode mode)
@@ -100,6 +105,15 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
 
     kbmFilePath = kbmFile.getFullPathName();
     return true;
+}
+
+void TuningEngine::setTonicNote(int tonicIndex)
+{
+    // Clamp to valid range (0-11, representing C through B)
+    tonicIndex = juce::jlimit(0, 11, tonicIndex);
+    tonicOffset.store(tonicIndex);
+
+    // No need to rebuild frequency table - transposition is applied in getFrequency()
 }
 
 void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const juce::String& name)

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -26,6 +26,10 @@
 - **2026-01-10 (v1.2.0):** Tonic selection + bug fix
   - Added tonic note selector (click to cycle C→C#→D→...→B→C)
   - Fixed: UI keyboard no longer causes permanent red indicator lines (race condition)
+- **2026-01-10 (v1.2.1):** Tonic transposition fix
+  - Bi-directional arrows (left=down, right=up)
+  - Tonic now transposes instrument (C key plays tonic frequency)
+  - Keyboard always shows C-D-E-F-G-A-B (physical layout)
 
 ## Known Issues
 

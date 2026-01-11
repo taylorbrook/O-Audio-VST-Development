@@ -52,6 +52,9 @@ MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaA
             .withNativeFunction("getTuningIntervals", [this](const auto& args, auto complete) {
                 complete(getTuningIntervals(args));
             })
+            .withNativeFunction("setTonicNote", [this](const auto& args, auto complete) {
+                complete(setTonicNote(args));
+            })
     );
 
     // 3️⃣ Create attachments LAST (Pattern 12: 3 params required - parameter, relay, nullptr)
@@ -325,4 +328,20 @@ juce::var MicroMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Array
     result->setProperty("degrees", processorRef.getTuningEngine().getScaleDegrees());
 
     return juce::var(result.get());
+}
+
+// Native function: Set tonic note for transposition
+// Args: [tonicIndex (int 0-11, where 0=C, 1=C#, 2=D, etc.)]
+juce::var MicroMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<juce::var>& args)
+{
+    if (args.isEmpty())
+        return juce::var("Error: Expected tonic index (0-11)");
+
+    int tonicIndex = static_cast<int>(args[0]);
+    tonicIndex = juce::jlimit(0, 11, tonicIndex);
+
+    // Set tonic in tuning engine for transposition
+    processorRef.getTuningEngine().setTonicNote(tonicIndex);
+
+    return juce::var("OK: Tonic set to " + juce::String(tonicIndex));
 }
