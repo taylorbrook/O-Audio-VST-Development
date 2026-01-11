@@ -50,6 +50,47 @@ private:
     std::atomic<bool> newDataAvailable { false };
 };
 
+// v1.2.6: MIDI event for polyphonic note tracking (note-on and note-off)
+struct MidiNoteEvent
+{
+    int noteNumber;
+    float velocity;  // 0.0 = note-off, >0.0 = note-on with velocity
+    bool isNoteOn;
+};
+
+// Lock-free queue for MIDI events (for UI visualization)
+class MidiEventQueue
+{
+public:
+    static constexpr int kMaxEvents = 32;  // Max events per timer callback
+
+    void push(const MidiNoteEvent& event)
+    {
+        int nextWrite = (writePos.load() + 1) % kMaxEvents;
+        if (nextWrite != readPos.load())  // Don't overwrite unread events
+        {
+            events[writePos.load()] = event;
+            writePos.store(nextWrite);
+        }
+    }
+
+    bool pop(MidiNoteEvent& event)
+    {
+        int currentRead = readPos.load();
+        if (currentRead == writePos.load())
+            return false;  // Queue empty
+
+        event = events[currentRead];
+        readPos.store((currentRead + 1) % kMaxEvents);
+        return true;
+    }
+
+private:
+    std::array<MidiNoteEvent, kMaxEvents> events{};
+    std::atomic<int> writePos { 0 };
+    std::atomic<int> readPos { 0 };
+};
+
 class OuariconMarimbaAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -110,20 +151,17 @@ private:
     juce::MidiBuffer pendingUiMidi;
     juce::CriticalSection midiLock;
 
-    // Note-on notification for UI (lock-free communication to editor)
-    std::atomic<int> lastPlayedNote { -1 };
-    std::atomic<bool> hasNewNote { false };
+    // v1.2.6: MIDI event queue for polyphonic note visualization
+    MidiEventQueue midiEventQueue;
 
 public:
     // Called from UI thread to inject MIDI from WebView keyboard
     void addMidiMessage(const juce::MidiMessage& msg);
 
-    // Called from editor Timer to get last played note (returns -1 if none)
-    int popLastPlayedNote()
+    // v1.2.6: Pop next MIDI event from queue (returns false if empty)
+    bool popMidiEvent(MidiNoteEvent& event)
     {
-        if (hasNewNote.exchange(false))
-            return lastPlayedNote.load();
-        return -1;
+        return midiEventQueue.pop(event);
     }
 
 private:

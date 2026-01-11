@@ -2,6 +2,17 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.2.6] - 2026-01-10
+
+### Fixed
+- Circular scale interval indicators now highlight polyphonically
+  - Root cause: Only one note was tracked at a time (single atomic variable)
+  - Added lock-free MIDI event queue to track all note-on AND note-off events
+  - All held notes now highlight red simultaneously when playing chords
+  - Velocity-based intensity: harder hits show brighter red (rgb(220,0,0)), softer hits show darker red (rgb(120,40,40))
+  - Proper note-off handling ensures highlights clear when keys are released
+  - Octave stacking support: multiple notes on same scale degree correctly tracked
+
 ## [1.2.5] - 2026-01-10
 
 ### Added

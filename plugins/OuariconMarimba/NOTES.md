@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.5
+- **Version:** 1.2.6
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -44,6 +44,10 @@
   - Ballistic needle motion (fast attack, slow decay)
   - Scale: -60dB to +3dB with full semicircle sweep
   - Dynamic needle color gradient: green (quiet) → red (loud)
+- **2026-01-10 (v1.2.6):** Polyphonic interval highlighting
+  - Fixed: Scale interval indicators now highlight ALL held notes (chords)
+  - Velocity-based intensity: harder hits = brighter red
+  - Lock-free MIDI event queue for proper note-on/note-off tracking
 
 ## Known Issues
 

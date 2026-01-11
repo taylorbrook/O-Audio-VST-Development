@@ -146,14 +146,27 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         pendingUiMidi.clear();
     }
 
-    // Extract note-on events for UI notification (pitch circle flash)
+    // v1.2.6: Extract note-on AND note-off events for polyphonic UI visualization
     for (const auto metadata : midiMessages)
     {
         const auto msg = metadata.getMessage();
         if (msg.isNoteOn() && msg.getVelocity() > 0)
         {
-            lastPlayedNote.store(msg.getNoteNumber());
-            hasNewNote.store(true);
+            // Note-on with velocity (normalized 0-1)
+            midiEventQueue.push({
+                msg.getNoteNumber(),
+                msg.getFloatVelocity(),
+                true
+            });
+        }
+        else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getVelocity() == 0))
+        {
+            // Note-off (velocity 0 note-on is also note-off per MIDI spec)
+            midiEventQueue.push({
+                msg.getNoteNumber(),
+                0.0f,
+                false
+            });
         }
     }
 

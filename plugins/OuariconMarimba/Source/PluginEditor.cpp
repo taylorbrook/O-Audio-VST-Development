@@ -104,16 +104,28 @@ OuariconMarimbaAudioProcessorEditor::~OuariconMarimbaAudioProcessorEditor()
     // Pattern 11: No manual cleanup needed (unique_ptr handles it)
 }
 
-// Timer callback: Poll processor for note-on events and notify WebView
+// Timer callback: Poll processor for MIDI events and notify WebView
 void OuariconMarimbaAudioProcessorEditor::timerCallback()
 {
-    // Note-on flash for pitch circle
-    int note = processorRef.popLastPlayedNote();
-    if (note >= 0)
+    // v1.2.6: Process all queued MIDI events for polyphonic visualization
+    MidiNoteEvent event;
+    while (processorRef.popMidiEvent(event))
     {
-        // Call JavaScript function to flash the interval line
-        juce::String js = "if (typeof flashIntervalLine === 'function') flashIntervalLine(" + juce::String(note) + ");";
-        webView->evaluateJavascript(js, nullptr);
+        if (event.isNoteOn)
+        {
+            // Note-on: activate interval line with velocity-based intensity
+            juce::String js = "if (typeof setNoteActive === 'function') setNoteActive("
+                + juce::String(event.noteNumber) + ", "
+                + juce::String(event.velocity, 3) + ");";
+            webView->evaluateJavascript(js, nullptr);
+        }
+        else
+        {
+            // Note-off: deactivate interval line
+            juce::String js = "if (typeof setNoteInactive === 'function') setNoteInactive("
+                + juce::String(event.noteNumber) + ");";
+            webView->evaluateJavascript(js, nullptr);
+        }
     }
 
     // v1.2.5: VU Meter - emit output level to WebView

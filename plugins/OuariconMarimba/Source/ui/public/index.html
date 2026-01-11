@@ -1527,44 +1527,105 @@
             allKeys.forEach(key => key.classList.add('mapped'));
         }
 
-        // Flash the corresponding interval line red when a note is played
-        function flashIntervalLine(midiNote) {
-            // Map MIDI note to scale degree (0-11 for 12-tone, or modulo for other scales)
-            // C4 = 60, so we use (midiNote % 12) to get position in octave
-            // Then map to current scale size
+        // v1.2.6: Polyphonic note tracking for interval line highlighting
+        // Map: scaleIndex -> { count: number, maxVelocity: number }
+        // count tracks how many notes map to this scale degree (for octave stacking)
+        // maxVelocity tracks the highest velocity for intensity
+        const activeNotes = new Map();
+
+        // Map MIDI note to scale index
+        function midiNoteToScaleIndex(midiNote) {
             const noteInOctave = midiNote % 12;
             const scaleSize = currentIntervals.length;
 
-            // For 12-tone scales, direct mapping. For other scales, proportional mapping
-            let scaleIndex;
             if (scaleSize === 12) {
-                scaleIndex = noteInOctave;
+                return noteInOctave;
             } else {
                 // Proportional mapping for non-12-tone scales
-                scaleIndex = Math.round((noteInOctave / 12) * scaleSize) % scaleSize;
+                return Math.round((noteInOctave / 12) * scaleSize) % scaleSize;
+            }
+        }
+
+        // Calculate red color intensity based on velocity (0-1)
+        // Low velocity: darker red (rgb(120, 40, 40))
+        // High velocity: bright red (rgb(220, 0, 0))
+        function velocityToColor(velocity) {
+            const minR = 120, maxR = 220;
+            const minG = 40, maxG = 0;
+            const minB = 40, maxB = 0;
+
+            const r = Math.round(minR + velocity * (maxR - minR));
+            const g = Math.round(minG + velocity * (maxG - minG));
+            const b = Math.round(minB + velocity * (maxB - minB));
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Activate interval line for a note (note-on)
+        function setNoteActive(midiNote, velocity) {
+            const scaleIndex = midiNoteToScaleIndex(midiNote);
+
+            // Track this note
+            if (activeNotes.has(scaleIndex)) {
+                const entry = activeNotes.get(scaleIndex);
+                entry.count++;
+                entry.maxVelocity = Math.max(entry.maxVelocity, velocity);
+            } else {
+                activeNotes.set(scaleIndex, { count: 1, maxVelocity: velocity });
             }
 
-            // Find the corresponding line in the SVG
+            // Update visual
+            updateIntervalLineVisual(scaleIndex);
+        }
+
+        // Deactivate interval line for a note (note-off)
+        function setNoteInactive(midiNote) {
+            const scaleIndex = midiNoteToScaleIndex(midiNote);
+
+            if (activeNotes.has(scaleIndex)) {
+                const entry = activeNotes.get(scaleIndex);
+                entry.count--;
+
+                if (entry.count <= 0) {
+                    activeNotes.delete(scaleIndex);
+                }
+            }
+
+            // Update visual
+            updateIntervalLineVisual(scaleIndex);
+        }
+
+        // Update the visual appearance of an interval line
+        function updateIntervalLineVisual(scaleIndex) {
             const linesGroup = document.getElementById('interval-lines');
             const lines = linesGroup.querySelectorAll('line');
 
             if (scaleIndex >= 0 && scaleIndex < lines.length) {
                 const line = lines[scaleIndex];
-                const originalColor = line.getAttribute('stroke');
-                const originalWidth = line.getAttribute('stroke-width');
 
-                // Flash red with thicker stroke
-                line.setAttribute('stroke', '#CC0000');
-                line.setAttribute('stroke-width', '4');
-
-                // Reset after 150ms
-                setTimeout(() => {
-                    line.setAttribute('stroke', originalColor);
-                    line.setAttribute('stroke-width', originalWidth);
-                }, 150);
+                if (activeNotes.has(scaleIndex)) {
+                    // Active: red with velocity-based intensity
+                    const entry = activeNotes.get(scaleIndex);
+                    line.setAttribute('stroke', velocityToColor(entry.maxVelocity));
+                    line.setAttribute('stroke-width', '4');
+                } else {
+                    // Inactive: restore original green
+                    const scaleSize = currentIntervals.length;
+                    line.setAttribute('stroke', '#6B8E4E');
+                    line.setAttribute('stroke-width', scaleSize > 19 ? '1' : '2');
+                }
             }
         }
-        // Export to window for C++ evaluateJavascript calls (external MIDI)
+
+        // Export to window for C++ evaluateJavascript calls
+        window.setNoteActive = setNoteActive;
+        window.setNoteInactive = setNoteInactive;
+
+        // Legacy support: flashIntervalLine now maps to setNoteActive with brief timeout
+        function flashIntervalLine(midiNote) {
+            setNoteActive(midiNote, 0.8);
+            setTimeout(() => setNoteInactive(midiNote), 150);
+        }
         window.flashIntervalLine = flashIntervalLine;
 
         // ====================================================================
