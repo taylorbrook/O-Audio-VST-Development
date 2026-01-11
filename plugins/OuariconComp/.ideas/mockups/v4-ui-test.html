@@ -1,0 +1,624 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OuariconComp UI Mockup v4</title>
+
+  <style>
+    /* CRITICAL: WebView constraints */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Test HTML frame setup */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* Fixed-size plugin frame (620x360) */
+    .plugin-frame {
+      width: 620px;
+      height: 360px;
+      border: 2px solid #444;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      overflow: hidden;
+      position: relative;
+      background: #F5E6D3;
+      background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNjAwIiBoZWlnaHQ9IjYwMCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcz4KICAgIDxmaWx0ZXIgaWQ9Im5vaXNlIiB4PSIwIiB5PSIwIj4KICAgICAgPGZlVHVyYnVsZW5jZSB0eXBlPSJmcmFjdGFsTm9pc2UiIGJhc2VGcmVxdWVuY3k9IjAuOSIgbnVtT2N0YXZlcz0iNCIgc3RpdGNoVGlsZXM9InN0aXRjaCIvPgogICAgICA8ZmVDb2xvck1hdHJpeCB0eXBlPSJzYXR1cmF0ZSIgdmFsdWVzPSIwIi8+CiAgICAgIDxmZUNvbXBvbmVudFRyYW5zZmVyPgogICAgICAgIDxmZUZ1bmNBIHR5cGU9ImRpc2NyZXRlIiB0YWJsZVZhbHVlcz0iMCAwLjIgMC40IDAuNiAwLjgiLz4KICAgICAgPC9mZUNvbXBvbmVudFRyYW5zZmVyPgogICAgPC9maWx0ZXI+CiAgPC9kZWZzPgogIDxyZWN0IHdpZHRoPSIxMDAlIiBoZWlnaHQ9IjEwMCUiIGZpbGw9IiNGNUU2RDMiIGZpbHRlcj0idXJsKCNub2lzZSkiIG9wYWNpdHk9IjAuMyIvPgo8L3N2Zz4=');
+    }
+
+    /* Native application feel */
+    .plugin-frame * {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+    }
+
+    /* Container fills plugin frame */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      color: #3C2F2F;
+    }
+
+    /* Title */
+    .title {
+      position: absolute;
+      left: 310px;
+      top: 0px;
+      font-size: 14px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      color: #3C2F2F;
+      text-align: center;
+    }
+
+    /* Control labels */
+    .label {
+      position: absolute;
+      font-size: 11px;
+      color: #3C2F2F;
+      text-align: center;
+      width: 60px;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* Knob styling */
+    .knob {
+      position: absolute;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #E8D5C4 0%, #C9B8A8 100%);
+      border: 2px solid #8B7355;
+      box-shadow:
+        inset -2px -2px 4px rgba(0, 0, 0, 0.2),
+        inset 2px 2px 4px rgba(255, 255, 255, 0.3),
+        0 2px 4px rgba(0, 0, 0, 0.15);
+      transform-origin: center center;
+      cursor: pointer;
+      transition: transform 50ms;
+    }
+
+    .knob:hover {
+      border-color: #6B8E4E;
+    }
+
+    .knob-indicator {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 8px;
+      background: #3C2F2F;
+      border-radius: 1px;
+    }
+
+    /* Toggle button */
+    .toggle {
+      position: absolute;
+      width: 70px;
+      height: 40px;
+      background: #E8D5C4;
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      font-weight: bold;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: all 100ms;
+      text-align: center;
+    }
+
+    .toggle:hover {
+      border-color: #6B8E4E;
+    }
+
+    .toggle.active {
+      background: #6B8E4E;
+      color: #F5E6D3;
+      border-color: #6B8E4E;
+      box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.3);
+    }
+
+    /* LED Meter styling */
+    .meter {
+      position: absolute;
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 2px;
+      border: 1px solid #8B7355;
+      padding: 2px;
+      background: rgba(0, 0, 0, 0.05);
+    }
+
+    .meter-segment {
+      width: 14px;
+      height: 15px;
+      background: #8B7355;
+      border-radius: 1px;
+      opacity: 0.3;
+      transition: opacity 50ms;
+    }
+
+    .meter-segment.active-low {
+      background: #8BA870;
+      opacity: 1;
+    }
+
+    .meter-segment.active-mid {
+      background: #6B8E4E;
+      opacity: 1;
+    }
+
+    .meter-segment.active-high {
+      background: #C9A27B;
+      opacity: 1;
+    }
+
+    /* Visualization panels */
+    .viz-panel {
+      position: absolute;
+      background: rgba(255, 255, 255, 0.6);
+      border: 2px solid #8B7355;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .viz-label {
+      position: absolute;
+      bottom: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 9px;
+      color: #3C2F2F;
+      background: rgba(245, 230, 211, 0.8);
+      padding: 2px 8px;
+      border-radius: 2px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+    }
+
+    /* Transfer curve canvas */
+    #transferCanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Envelope display canvas */
+    #envelopeCanvas {
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Shell overlay */
+    .shell-overlay {
+      position: absolute;
+      inset: 0;
+      background-image: url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMjEwIiBoZWlnaHQ9IjI0MCIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZyBvcGFjaXR5PSIwLjUiPgogICAgPCEtLSBTaW1wbGlmaWVkIHNoZWxsIGNyb3NzLXNlY3Rpb24gc2hhcGUgLS0+CiAgICA8cGF0aCBkPSJNIDEwNSwyMCBDIDEyMCwyMCAxMzUsMzAgMTQ1LDQ1IEwgMTg1LDEyMCBDIDE5MCwxNDAgMTg1LDE2MCAxNzAsMTc1IEwgMTM1LDIxMCBDIDEyMCwyMjAgMTAwLDIyMCA4NSwyMTAgTCA1MCwxNzUgQyAzNSwxNjAgMzAsMTQwIDM1LDEyMCBMIDc1LDQ1IEMgODUsMzAgOTUsMjAgMTA1LDIwIFoiIAogICAgICAgICAgZmlsbD0ibm9uZSIgc3Ryb2tlPSIjOEI3MzU1IiBzdHJva2Utd2lkdGg9IjIiLz4KICAgIDxwYXRoIGQ9Ik0gMTA1LDYwIEMgMTE1LDYwIDEyNSw3MCAxMzAsODUgTCAxNTAsMTIwIEMgMTUzLDEzNSAxNTAsMTUwIDE0MCwxNjAgTCAxMjAsMTgwIEMgMTEwLDE4NSA5NSwxODUgODUsMTgwIEwgNjUsMTYwIEMgNTUsMTUwIDUyLDEzNSA1NSwxMjAgTCA3NSw4NSBDIDgwLDcwIDkwLDYwIDEwNSw2MCBaIiAKICAgICAgICAgIGZpbGw9Im5vbmUiIHN0cm9rZT0iIzhCNzM1NSIgc3Ryb2tlLXdpZHRoPSIxLjUiLz4KICAgIDxwYXRoIGQ9Ik0gMTA1LDQwIEwgMTA1LDkwIE0gNjAsMTIwIEwgMTUwLDEyMCBNIDg1LDE4MCBMIDQ1LDEwMCBNIDEyNSwxODAgTCAxNjUsMTAwIiAKICAgICAgICAgIHN0cm9rZT0iIzhCNzM1NSIgc3Ryb2tlLXdpZHRoPSIxIiBvcGFjaXR5PSIwLjQiLz4KICA8L2c+Cjwvc3ZnPg==');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      pointer-events: none;
+      mix-blend-mode: multiply;
+      opacity: 0.5;
+    }
+
+    /* Debug monitor (test HTML only) */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 150px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Plugin frame (620x360) -->
+  <div class="plugin-frame">
+    <div class="container">
+      <!-- Title -->
+      <div class="title">OUARICONCOMP</div>
+
+      <!-- Top Row Labels (y: 22) -->
+      <div class="label" style="left: 10px; top: 22px;">Threshold</div>
+      <div class="label" style="left: 95px; top: 22px;">Ratio</div>
+      <div class="label" style="left: 175px; top: 22px;">Attack</div>
+      <div class="label" style="left: 255px; top: 22px;">Release</div>
+      <div class="label" style="left: 338px; top: 22px;">Knee</div>
+      <div class="label" style="left: 415px; top: 22px;">Output</div>
+      <div class="label" style="left: 503px; top: 22px;">Auto-Gain</div>
+
+      <!-- Top Row Controls (y: 49) -->
+      <div class="knob" id="threshold" data-param="threshold" data-min="-60" data-max="0" data-value="-20" style="left: 30px; top: 49px;">
+        <div class="knob-indicator"></div>
+      </div>
+
+      <div class="knob" id="ratio" data-param="ratio" data-min="1" data-max="20" data-value="4" style="left: 110px; top: 49px;">
+        <div class="knob-indicator"></div>
+      </div>
+
+      <div class="knob" id="attack_time" data-param="attack_time" data-min="0.1" data-max="100" data-value="10" style="left: 190px; top: 49px;">
+        <div class="knob-indicator"></div>
+      </div>
+
+      <div class="knob" id="release_time" data-param="release_time" data-min="10" data-max="1000" data-value="100" style="left: 270px; top: 49px;">
+        <div class="knob-indicator"></div>
+      </div>
+
+      <div class="knob" id="knee" data-param="knee" data-min="0" data-max="20" data-value="6" style="left: 350px; top: 49px;">
+        <div class="knob-indicator"></div>
+      </div>
+
+      <div class="knob" id="output_gain" data-param="output_gain" data-min="-12" data-max="24" data-value="0" style="left: 430px; top: 49px;">
+        <div class="knob-indicator"></div>
+      </div>
+
+      <div class="toggle" id="auto_gain" data-param="auto_gain" data-value="false" style="left: 520px; top: 49px;">
+        AUTO
+      </div>
+
+      <!-- Bottom Row - Input Meter (x: 18, y: 105) -->
+      <div class="meter" id="input_meter" style="left: 18px; top: 105px; width: 18px; height: 240px;">
+        <!-- 14 segments -->
+      </div>
+
+      <!-- Transfer Curve Panel (x: 46, y: 105, w: 210, h: 240) -->
+      <div class="viz-panel" style="left: 46px; top: 105px; width: 210px; height: 240px;">
+        <div class="shell-overlay"></div>
+        <canvas id="transferCanvas" width="210" height="240"></canvas>
+        <div class="viz-label">Transfer Curve</div>
+      </div>
+
+      <!-- Envelope Display Panel (x: 266, y: 105, w: 308, h: 240) -->
+      <div class="viz-panel" style="left: 266px; top: 105px; width: 308px; height: 240px;">
+        <canvas id="envelopeCanvas" width="308" height="240"></canvas>
+        <div class="viz-label">Envelope and Gain Reduction</div>
+      </div>
+
+      <!-- Bottom Row - Output Meter (x: 584, y: 105) -->
+      <div class="meter" id="output_meter" style="left: 584px; top: 105px; width: 18px; height: 240px;">
+        <!-- 14 segments -->
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug monitor (test HTML only) -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // Mock JUCE backend for browser testing
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        getNormalisedValue: () => 0.5,
+        setNormalisedValue: (v) => console.log(`${id} set to ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Update debug monitor
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      document.getElementById('debugValue').textContent = formatValue(paramId, value);
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // Format value display
+    function formatValue(paramId, value) {
+      if (paramId === 'threshold' || paramId === 'output_gain') {
+        return `${value.toFixed(1)} dB`;
+      } else if (paramId === 'ratio') {
+        return `${value.toFixed(1)}:1`;
+      } else if (paramId === 'attack_time' || paramId === 'release_time') {
+        return `${value.toFixed(1)} ms`;
+      } else if (paramId === 'knee') {
+        return `${value.toFixed(1)} dB`;
+      }
+      return value.toFixed(2);
+    }
+
+    // Knob interaction
+    document.querySelectorAll('.knob').forEach(knob => {
+      const paramId = knob.dataset.param;
+      const min = parseFloat(knob.dataset.min);
+      const max = parseFloat(knob.dataset.max);
+      let value = parseFloat(knob.dataset.value);
+      let isDragging = false;
+      let startY = 0;
+      let startValue = 0;
+
+      // Initialize rotation
+      function updateKnobRotation() {
+        const normalized = (value - min) / (max - min);
+        const degrees = -135 + (normalized * 270);
+        knob.style.transform = `rotate(${degrees}deg)`;
+        updateDebugMonitor(paramId, value, normalized);
+      }
+
+      updateKnobRotation();
+
+      knob.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        startY = e.clientY;
+        startValue = value;
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const delta = startY - e.clientY;
+        const range = max - min;
+        const sensitivity = range / 200;
+        value = Math.max(min, Math.min(max, startValue + (delta * sensitivity)));
+
+        knob.dataset.value = value;
+        updateKnobRotation();
+      });
+
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+    });
+
+    // Toggle button interaction
+    document.querySelectorAll('.toggle').forEach(toggle => {
+      const paramId = toggle.dataset.param;
+      let value = toggle.dataset.value === 'true';
+
+      toggle.addEventListener('click', () => {
+        value = !value;
+        toggle.dataset.value = value;
+        toggle.classList.toggle('active', value);
+        updateDebugMonitor(paramId, value ? 'ON' : 'OFF', value ? 1.0 : 0.0);
+      });
+    });
+
+    // Create meter segments
+    function createMeterSegments(meterId, count) {
+      const meter = document.getElementById(meterId);
+      for (let i = 0; i < count; i++) {
+        const segment = document.createElement('div');
+        segment.className = 'meter-segment';
+        meter.appendChild(segment);
+      }
+    }
+
+    createMeterSegments('input_meter', 14);
+    createMeterSegments('output_meter', 14);
+
+    // Animate meters
+    function animateMeters() {
+      const level = 0.3 + Math.random() * 0.6;
+
+      ['input_meter', 'output_meter'].forEach(meterId => {
+        const segments = document.querySelectorAll(`#${meterId} .meter-segment`);
+        const activeCount = Math.floor(level * segments.length);
+
+        segments.forEach((seg, i) => {
+          if (i < activeCount) {
+            if (i < 8) {
+              seg.className = 'meter-segment active-low';
+            } else if (i < 12) {
+              seg.className = 'meter-segment active-mid';
+            } else {
+              seg.className = 'meter-segment active-high';
+            }
+          } else {
+            seg.className = 'meter-segment';
+          }
+        });
+      });
+
+      setTimeout(animateMeters, 100);
+    }
+
+    animateMeters();
+
+    // Draw transfer curve
+    const transferCanvas = document.getElementById('transferCanvas');
+    const transferCtx = transferCanvas.getContext('2d');
+
+    function drawTransferCurve() {
+      transferCtx.clearRect(0, 0, 210, 240);
+
+      // Grid lines
+      transferCtx.strokeStyle = '#8B735555';
+      transferCtx.lineWidth = 0.5;
+      for (let i = 0; i <= 4; i++) {
+        const x = i * 52.5;
+        const y = i * 60;
+        transferCtx.beginPath();
+        transferCtx.moveTo(x, 0);
+        transferCtx.lineTo(x, 240);
+        transferCtx.stroke();
+        transferCtx.beginPath();
+        transferCtx.moveTo(0, y);
+        transferCtx.lineTo(210, y);
+        transferCtx.stroke();
+      }
+
+      // Unity line (no compression)
+      transferCtx.strokeStyle = '#8B735588';
+      transferCtx.lineWidth = 1;
+      transferCtx.setLineDash([5, 5]);
+      transferCtx.beginPath();
+      transferCtx.moveTo(0, 240);
+      transferCtx.lineTo(210, 0);
+      transferCtx.stroke();
+      transferCtx.setLineDash([]);
+
+      // Transfer curve (compression curve)
+      const threshold = parseFloat(document.getElementById('threshold').dataset.value);
+      const ratio = parseFloat(document.getElementById('ratio').dataset.value);
+      const knee = parseFloat(document.getElementById('knee').dataset.value);
+
+      transferCtx.strokeStyle = '#6B8E4E';
+      transferCtx.lineWidth = 3.5;
+      transferCtx.beginPath();
+
+      for (let x = 0; x <= 210; x++) {
+        const inputDb = (x / 210) * 60 - 60;
+        let outputDb;
+
+        if (inputDb < threshold - knee / 2) {
+          outputDb = inputDb;
+        } else if (inputDb > threshold + knee / 2) {
+          outputDb = threshold + (inputDb - threshold) / ratio;
+        } else {
+          const kneeInput = inputDb - threshold + knee / 2;
+          const kneeFactor = kneeInput / knee;
+          outputDb = inputDb + kneeFactor * kneeFactor * (1 / ratio - 1) * knee / 2;
+        }
+
+        const y = 240 - ((outputDb + 60) / 60 * 240);
+
+        if (x === 0) {
+          transferCtx.moveTo(x, y);
+        } else {
+          transferCtx.lineTo(x, y);
+        }
+      }
+
+      transferCtx.stroke();
+
+      requestAnimationFrame(drawTransferCurve);
+    }
+
+    drawTransferCurve();
+
+    // Draw envelope display
+    const envelopeCanvas = document.getElementById('envelopeCanvas');
+    const envelopeCtx = envelopeCanvas.getContext('2d');
+    let time = 0;
+
+    function drawEnvelopeDisplay() {
+      envelopeCtx.clearRect(0, 0, 308, 240);
+
+      // Draw divider line
+      envelopeCtx.strokeStyle = '#8B7355';
+      envelopeCtx.lineWidth = 1;
+      envelopeCtx.beginPath();
+      envelopeCtx.moveTo(0, 120);
+      envelopeCtx.lineTo(308, 120);
+      envelopeCtx.stroke();
+
+      // Top lane: input waveform
+      envelopeCtx.strokeStyle = '#3C2F2F';
+      envelopeCtx.lineWidth = 1.5;
+      envelopeCtx.beginPath();
+      for (let x = 0; x < 308; x++) {
+        const y = 60 + Math.sin((x + time) * 0.05) * 30 + Math.sin((x + time) * 0.15) * 15;
+        if (x === 0) {
+          envelopeCtx.moveTo(x, y);
+        } else {
+          envelopeCtx.lineTo(x, y);
+        }
+      }
+      envelopeCtx.stroke();
+
+      // Bottom lane: output waveform (with compression)
+      envelopeCtx.strokeStyle = '#6B8E4E';
+      envelopeCtx.lineWidth = 1.5;
+      envelopeCtx.beginPath();
+      for (let x = 0; x < 308; x++) {
+        const inputY = Math.sin((x + time) * 0.05) * 30 + Math.sin((x + time) * 0.15) * 15;
+        const compressed = inputY * 0.7;
+        const y = 180 + compressed;
+        if (x === 0) {
+          envelopeCtx.moveTo(x, y);
+        } else {
+          envelopeCtx.lineTo(x, y);
+        }
+      }
+      envelopeCtx.stroke();
+
+      // Gain reduction indicator (filled area)
+      envelopeCtx.fillStyle = 'rgba(107, 142, 78, 0.2)';
+      envelopeCtx.beginPath();
+      envelopeCtx.moveTo(0, 180);
+      for (let x = 0; x < 308; x++) {
+        const inputY = Math.sin((x + time) * 0.05) * 30 + Math.sin((x + time) * 0.15) * 15;
+        const compressed = inputY * 0.7;
+        const y = 180 + compressed;
+        envelopeCtx.lineTo(x, y);
+      }
+      envelopeCtx.lineTo(308, 180);
+      envelopeCtx.closePath();
+      envelopeCtx.fill();
+
+      time += 2;
+      requestAnimationFrame(drawEnvelopeDisplay);
+    }
+
+    drawEnvelopeDisplay();
+  </script>
+</body>
+</html>
