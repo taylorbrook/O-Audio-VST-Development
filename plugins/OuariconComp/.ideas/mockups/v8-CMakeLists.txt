@@ -1,0 +1,48 @@
+# ==============================================================================
+# OuariconComp - WebView UI Resources and Configuration
+# ==============================================================================
+# This snippet should be APPENDED to plugins/OuariconComp/CMakeLists.txt
+# during Stage 3 (GUI) implementation.
+#
+# Generated from: v8-ui.yaml mockup finalization
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Binary Data: Embed UI resources
+# ------------------------------------------------------------------------------
+juce_add_binary_data(OuariconComp_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/paper-bg.jpg
+        Source/ui/public/shell.png
+)
+
+# ------------------------------------------------------------------------------
+# Link UI resources to plugin
+# ------------------------------------------------------------------------------
+target_link_libraries(OuariconComp
+    PRIVATE
+        OuariconComp_UIResources
+        juce::juce_gui_extra  # REQUIRED for WebBrowserComponent
+)
+
+# ------------------------------------------------------------------------------
+# WebView Configuration
+# ------------------------------------------------------------------------------
+target_compile_definitions(OuariconComp
+    PUBLIC
+        JUCE_WEB_BROWSER=1     # Enable WebView support
+        JUCE_USE_CURL=0        # Disable CURL (not needed for local resources)
+)
+
+# ------------------------------------------------------------------------------
+# Notes for Integration
+# ------------------------------------------------------------------------------
+# 1. Copy v8-ui.html to Source/ui/public/index.html
+# 2. Copy JUCE WebView library to Source/ui/public/js/juce/
+# 3. Copy paper-bg.jpg and shell.png to Source/ui/public/
+# 4. Verify all resource paths in getResource() match BinaryData names
+# 5. Run cmake --build build to regenerate BinaryData headers
+# ==============================================================================
