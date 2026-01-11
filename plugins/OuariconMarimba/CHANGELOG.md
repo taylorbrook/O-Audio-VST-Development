@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.6.1] - 2026-01-11
+
+### Changed
+- **UI refinement:** Made all 6 Sound panel knobs the same size (small) and shifted both rows up to prevent label overlap with lower GUI elements
+- **2x more extreme parameter ranges** for all 6 timbre controls:
+  - **Mallet Hardness:** Duration 2-25ms (was 5-20ms), filter 800Hz-14kHz (was 2-8kHz)
+  - **Bar Material:** Mode boost 0.4x-4.0x (was 1.0x-2.0x) - now can attenuate or strongly boost
+  - **Resonance:** Decay 0.15-10s (was 0.5-5s) - staccato to pad-like sustain
+  - **Strike Position:** Mode multipliers doubled - much stronger edge/center contrast
+  - **Overtone Damping:** Factor 0.02-0.9 (was 0.1-0.5) - from shimmering to very tight
+  - **Tone:** Cutoff 400Hz-20kHz (was 2kHz-20kHz) - much darker low end possible
+
 ## [1.6.0] - 2026-01-11
 
 ### Added

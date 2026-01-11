@@ -49,13 +49,13 @@ void MarimbaVoice::startNote(int midiNoteNumber, float velocityValue,
     // Configure mallet exciter based on MALLET_HARDNESS and velocity
     float scaledVelocity = applyVelocityCurve(velocityValue);
 
-    // Exciter duration: 5ms (soft) to 20ms (hard)
-    float durationMS = 5.0f + malletHardness * 15.0f;
+    // v1.6.1: Exciter duration: 2ms (soft) to 25ms (hard) - 2x more extreme range
+    float durationMS = 2.0f + malletHardness * 23.0f;
     exciter.samplesRemaining = static_cast<int>(durationMS * sampleRate / 1000.0f);
 
-    // Exciter filter coefficient: lower = darker (soft), higher = brighter (hard)
-    // Maps to effective cutoff: ~2kHz (soft) to ~8kHz (hard)
-    exciter.filterCoefficient = 0.1f + malletHardness * 0.5f;
+    // v1.6.1: Exciter filter coefficient: 2x more extreme
+    // Maps to effective cutoff: ~800Hz (soft) to ~14kHz (hard)
+    exciter.filterCoefficient = 0.03f + malletHardness * 0.77f;
 
     // Exciter amplitude scaled by velocity
     exciter.amplitude = scaledVelocity;
@@ -201,13 +201,13 @@ void MarimbaVoice::setOvertoneDamping(float damping)
     overtoneDamping = juce::jlimit(0.0f, 1.0f, damping);
 }
 
-// v1.6.0: Tone - post-synthesis brightness control
+// v1.6.1: Tone - post-synthesis brightness control, 2x more extreme range
 void MarimbaVoice::setTone(float toneVal)
 {
     toneValue = juce::jlimit(0.0f, 1.0f, toneVal);
     // Calculate lowpass filter coefficient
-    // Maps 0.0 → 2kHz cutoff, 1.0 → 20kHz (essentially bypass)
-    float cutoffHz = 2000.0f + toneValue * 18000.0f;  // 2kHz to 20kHz
+    // Maps 0.0 → 400Hz cutoff (very dark), 1.0 → 20kHz (fully open)
+    float cutoffHz = 400.0f + toneValue * 19600.0f;  // 400Hz to 20kHz
     float omega = juce::MathConstants<float>::twoPi * cutoffHz / static_cast<float>(sampleRate);
     toneFilterCoeff = omega / (omega + 1.0f);  // One-pole lowpass coefficient
 }
@@ -255,25 +255,25 @@ float MarimbaVoice::getStrikePositionMultiplier(int modeIndex, float strikePos) 
     // Normalize to 0-1 range with center at 0.5
     float centerDist = std::abs(strikePos - 0.5f) * 2.0f;  // 0 at center, 1 at edges
 
-    // Mode-specific response
+    // v1.6.1: Mode-specific response - 2x more extreme effect
     switch (modeIndex)
     {
-        case 0:  // Fundamental - slightly reduced at edges
-            return 1.0f - centerDist * 0.15f;  // 1.0 at center, 0.85 at edges
-        case 1:  // Double octave (4x) - strongest at center
-            return 1.0f - centerDist * 0.4f;   // 1.0 at center, 0.6 at edges
-        case 2:  // 9.24x - prefers edges slightly
-            return 0.7f + centerDist * 0.3f;   // 0.7 at center, 1.0 at edges
-        case 3:  // 16.27x - prefers center
+        case 0:  // Fundamental - reduced at edges
             return 1.0f - centerDist * 0.3f;   // 1.0 at center, 0.7 at edges
-        case 4:  // 24.22x - prefers edges
-            return 0.6f + centerDist * 0.4f;   // 0.6 at center, 1.0 at edges
-        case 5:  // 33.54x - prefers center
-            return 1.0f - centerDist * 0.35f;  // 1.0 at center, 0.65 at edges
-        case 6:  // 42.97x - prefers edges
-            return 0.5f + centerDist * 0.5f;   // 0.5 at center, 1.0 at edges
-        case 7:  // 54x - prefers center
-            return 1.0f - centerDist * 0.4f;   // 1.0 at center, 0.6 at edges
+        case 1:  // Double octave (4x) - strongly center-focused
+            return 1.0f - centerDist * 0.8f;   // 1.0 at center, 0.2 at edges
+        case 2:  // 9.24x - strongly edge-focused
+            return 0.4f + centerDist * 0.6f;   // 0.4 at center, 1.0 at edges
+        case 3:  // 16.27x - center-focused
+            return 1.0f - centerDist * 0.6f;   // 1.0 at center, 0.4 at edges
+        case 4:  // 24.22x - strongly edge-focused
+            return 0.2f + centerDist * 0.8f;   // 0.2 at center, 1.0 at edges
+        case 5:  // 33.54x - center-focused
+            return 1.0f - centerDist * 0.7f;   // 1.0 at center, 0.3 at edges
+        case 6:  // 42.97x - strongly edge-focused
+            return 0.1f + centerDist * 0.9f;   // 0.1 at center, 1.0 at edges
+        case 7:  // 54x - center-focused
+            return 1.0f - centerDist * 0.8f;   // 1.0 at center, 0.2 at edges
         default:
             return 1.0f;
     }
@@ -304,12 +304,12 @@ float MarimbaVoice::getModeAmplitude(int modeIndex, float material, float strike
 
     float baseAmp = BASE_AMPLITUDES[static_cast<size_t>(modeIndex)];
 
-    // Material adjustment: brighter materials boost higher modes
-    // Dark rosewood (0.0): Use base amplitudes as-is
-    // Bright synthetic (1.0): Boost higher modes by up to 2x
+    // v1.6.1: Material adjustment: 2x more extreme range
+    // Dark rosewood (0.0): Attenuate higher modes to 0.4x
+    // Bright synthetic (1.0): Boost higher modes to 4x
     if (modeIndex > 1)  // Don't adjust fundamental or mode 2
     {
-        float materialBoost = 1.0f + material * 1.0f;  // 1.0x to 2.0x
+        float materialBoost = 0.4f + material * 3.6f;  // 0.4x to 4.0x
         baseAmp *= materialBoost;
     }
 
@@ -322,19 +322,20 @@ float MarimbaVoice::getModeAmplitude(int modeIndex, float material, float strike
 
 float MarimbaVoice::getDecayTime(int modeIndex, float resonanceParam, float overtoneD) const
 {
-    // RESONANCE: 0.0 = 0.5s decay (short)
-    //            1.0 = 5.0s decay (long)
+    // v1.6.1: RESONANCE: 2x more extreme range
+    // 0.0 = 0.15s decay (very short, staccato)
+    // 1.0 = 10.0s decay (very long, pad-like)
 
     // Base decay time from resonance parameter
-    float baseDecay = 0.5f + resonanceParam * 4.5f; // 0.5 to 5.0 seconds
+    float baseDecay = 0.15f + resonanceParam * 9.85f; // 0.15 to 10.0 seconds
 
-    // v1.6.0: OVERTONE_DAMPING controls how quickly upper modes decay
-    // overtoneD = 0.0: All modes decay similarly (bell-like, shimmer sustain)
+    // v1.6.1: OVERTONE_DAMPING: 2x more extreme range
+    // overtoneD = 0.0: All modes sustain almost equally (bell/pad-like shimmer)
     //             0.5: Natural marimba behavior (default)
-    //             1.0: Upper modes decay very quickly (tight, focused)
+    //             1.0: Upper modes decay extremely fast (very tight, dry)
     //
-    // The damping factor per mode ranges from 0.1 (minimal) to 0.5 (aggressive)
-    float dampingPerMode = 0.1f + overtoneD * 0.4f;  // 0.1 to 0.5
+    // The damping factor per mode ranges from 0.02 (minimal) to 0.9 (aggressive)
+    float dampingPerMode = 0.02f + overtoneD * 0.88f;  // 0.02 to 0.9
 
     // Higher modes decay faster (physical characteristic of marimba bars)
     float modeFactor = 1.0f / (1.0f + static_cast<float>(modeIndex) * dampingPerMode);
