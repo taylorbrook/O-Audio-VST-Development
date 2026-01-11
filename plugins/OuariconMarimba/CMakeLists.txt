@@ -1,7 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
-juce_add_plugin(MicroMarimba
+juce_add_plugin(OuariconMarimba
     COMPANY_NAME "Ouaricon Audio"
     PLUGIN_MANUFACTURER_CODE OuAu
     PLUGIN_CODE OuMa
@@ -13,7 +13,7 @@ juce_add_plugin(MicroMarimba
 )
 
 # Source files
-target_sources(MicroMarimba
+target_sources(OuariconMarimba
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
@@ -23,13 +23,13 @@ target_sources(MicroMarimba
 )
 
 # Include paths
-target_include_directories(MicroMarimba
+target_include_directories(OuariconMarimba
     PRIVATE
         Source
 )
 
 # Required JUCE modules
-target_link_libraries(MicroMarimba
+target_link_libraries(OuariconMarimba
     PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices
@@ -51,10 +51,10 @@ target_link_libraries(MicroMarimba
 )
 
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
-juce_generate_juce_header(MicroMarimba)
+juce_generate_juce_header(OuariconMarimba)
 
 # Compile definitions
-target_compile_definitions(MicroMarimba
+target_compile_definitions(OuariconMarimba
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
@@ -62,7 +62,7 @@ target_compile_definitions(MicroMarimba
 )
 
 # WebView UI Resources
-juce_add_binary_data(MicroMarimba_UIResources
+juce_add_binary_data(OuariconMarimba_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
@@ -71,7 +71,7 @@ juce_add_binary_data(MicroMarimba_UIResources
         Source/ui/public/images/tree_expositionmtho00lamo_0207.png
 )
 
-target_link_libraries(MicroMarimba
+target_link_libraries(OuariconMarimba
     PRIVATE
-        MicroMarimba_UIResources
+        OuariconMarimba_UIResources
 )

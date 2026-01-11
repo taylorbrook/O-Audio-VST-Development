@@ -1,6 +1,6 @@
-# Implementation Plan: MicroMarimba
+# Implementation Plan: Ouaricon Marimba
 
-**Plugin:** MicroMarimba
+**Plugin:** Ouaricon Marimba
 **Type:** Synthesizer (IS_SYNTH=TRUE, NEEDS_MIDI_INPUT=TRUE)
 **Generated:** 2026-01-09 by research-planning-agent (Stage 0)
 
@@ -239,7 +239,7 @@ Analyzing creative brief and architecture for complexity tier:
 - MIDI velocity affects amplitude
 - No clicks or pops on note-on/off
 
-**Git commit:** "feat(MicroMarimba): Phase 2.1 - basic synthesizer shell (12-TET, sine wave)"
+**Git commit:** "feat(OuariconMarimba): Phase 2.1 - basic synthesizer shell (12-TET, sine wave)"
 
 **Duration:** 1-2 hours
 
@@ -270,7 +270,7 @@ Analyzing creative brief and architecture for complexity tier:
 - CPU usage <1% per voice (test with 16 voices)
 - Pitch accuracy maintained (A4 = 440 Hz)
 
-**Git commit:** "feat(MicroMarimba): Phase 2.2 - modal synthesis (8 modes, marimba timbre)"
+**Git commit:** "feat(OuariconMarimba): Phase 2.2 - modal synthesis (8 modes, marimba timbre)"
 
 **Duration:** 2-3 hours
 
@@ -309,7 +309,7 @@ Analyzing creative brief and architecture for complexity tier:
 - Atomic updates: Change tuning while playing notes, no glitches or crashes
 - REFERENCE_PITCH: Change from 440 to 432 Hz, verify all pitches shift proportionally
 
-**Git commit:** "feat(MicroMarimba): Phase 2.3 - tuning engine (Scala, MTS-ESP, 12-TET fallback)"
+**Git commit:** "feat(OuariconMarimba): Phase 2.3 - tuning engine (Scala, MTS-ESP, 12-TET fallback)"
 
 **Duration:** 2-3 hours
 
@@ -346,7 +346,7 @@ Analyzing creative brief and architecture for complexity tier:
 - CPU overhead <10% for all voices
 - No artifacts (clicks, pops, distortion)
 
-**Git commit:** "feat(MicroMarimba): Phase 2.4 - body resonance (convolution IR)"
+**Git commit:** "feat(OuariconMarimba): Phase 2.4 - body resonance (convolution IR)"
 
 **Duration:** 1-2 hours
 
@@ -393,7 +393,7 @@ Analyzing creative brief and architecture for complexity tier:
 - Scala file browser opens file dialog
 - Warning appears if Scala file invalid or MTS-ESP disconnected
 
-**Git commit:** "feat(MicroMarimba): Phase 3.1 - parameter controls and tuning mode indicator"
+**Git commit:** "feat(OuariconMarimba): Phase 3.1 - parameter controls and tuning mode indicator"
 
 **Duration:** 2-3 hours
 
@@ -422,7 +422,7 @@ Analyzing creative brief and architecture for complexity tier:
 - Visual theme is cohesive and aesthetically pleasing
 - Preset loading updates all UI controls
 
-**Git commit:** "feat(MicroMarimba): Phase 3.2 - visual polish and feedback"
+**Git commit:** "feat(OuariconMarimba): Phase 3.2 - visual polish and feedback"
 
 **Duration:** 2-3 hours
 
@@ -480,7 +480,7 @@ Analyzing creative brief and architecture for complexity tier:
 
 **Duration:** 4-6 hours
 
-**Git commit:** "feat(MicroMarimba): Stage 4 - testing, optimization, and release prep"
+**Git commit:** "feat(OuariconMarimba): Stage 4 - testing, optimization, and release prep"
 
 ---
 

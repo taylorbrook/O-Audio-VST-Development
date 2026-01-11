@@ -1,8 +1,8 @@
-# MicroMarimba Notes
+# Ouaricon Marimba Notes
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.3
+- **Version:** 1.2.5
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -36,6 +36,14 @@
 - **2026-01-10 (v1.2.3):** Oscilloscope + label improvements
   - Fixed: Waveform display now functions as live oscilloscope
   - Renamed: "MALLET" → "MALLET HARDNESS", "MATERIAL" → "MATERIAL HARDNESS"
+- **2026-01-10 (v1.2.4):** Velocity dynamics enhancement
+  - Changed: +6dB boost at max velocity (vel 1 unchanged, smooth scaling)
+  - Independent of VEL_CURVE parameter - more expressive dynamics
+- **2026-01-10 (v1.2.5):** Live VU meter
+  - Added: VU meter now responds to audio output in real-time
+  - Ballistic needle motion (fast attack, slow decay)
+  - Scale: -60dB to +3dB with full semicircle sweep
+  - Dynamic needle color gradient: green (quiet) → red (loud)
 
 ## Known Issues
 

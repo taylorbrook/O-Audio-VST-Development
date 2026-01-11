@@ -1,6 +1,6 @@
-# MicroMarimba - UI Design Specification v1
+# Ouaricon Marimba - UI Design Specification v1
 # Generated: 2026-01-09
-# Plugin: MicroMarimba
+# Plugin: Ouaricon Marimba
 # Aesthetic: Ouaricon Audio Naturalist (botanical vintage)
 # Type: Synthesizer (Physical Model - Marimba)
 
@@ -593,7 +593,7 @@ preset_system:
         - "Bohlen-Pierce"
     - name: "User"
       readonly: false
-      location: "~/Library/Audio/Presets/Ouaricon/MicroMarimba/"
+      location: "~/Library/Audio/Presets/Ouaricon/Ouaricon Marimba/"
   features:
     save: true
     save_as: true

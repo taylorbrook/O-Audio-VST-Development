@@ -2,7 +2,7 @@
   ==============================================================================
 
     MarimbaSound.h
-    Simple SynthesiserSound subclass for MicroMarimba
+    Simple SynthesiserSound subclass for Ouaricon Marimba
     Indicates that all notes can be played by MarimbaVoice
 
   ==============================================================================

@@ -50,11 +50,11 @@ private:
     std::atomic<bool> newDataAvailable { false };
 };
 
-class MicroMarimbaAudioProcessor : public juce::AudioProcessor
+class OuariconMarimbaAudioProcessor : public juce::AudioProcessor
 {
 public:
-    MicroMarimbaAudioProcessor();
-    ~MicroMarimbaAudioProcessor() override;
+    OuariconMarimbaAudioProcessor();
+    ~OuariconMarimbaAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -86,6 +86,9 @@ public:
 
     // v1.2.3: Public access to waveform FIFO for oscilloscope display
     WaveformFifo& getWaveformFifo() { return waveformFifo; }
+
+    // v1.2.5: VU Meter level (atomic for thread-safe access from editor)
+    std::atomic<float> outputLevelDB { -100.0f };
 
 private:
     // Parameter layout creation
@@ -124,5 +127,5 @@ public:
     }
 
 private:
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconMarimbaAudioProcessor)
 };

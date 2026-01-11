@@ -4,7 +4,7 @@
 #include "PluginProcessor.h"
 
 /**
- * MicroMarimba WebView-based Plugin Editor
+ * OuariconMarimba WebView-based Plugin Editor
  *
  * CRITICAL: Member order prevents release build crashes.
  * Order: Relays → WebView → Attachments
@@ -15,11 +15,11 @@
  * 3. Relays destroyed LAST (safe, nothing using them)
  */
 
-class MicroMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor
 {
 public:
-    MicroMarimbaAudioProcessorEditor(MicroMarimbaAudioProcessor& p);
-    ~MicroMarimbaAudioProcessorEditor() override;
+    OuariconMarimbaAudioProcessorEditor(OuariconMarimbaAudioProcessor& p);
+    ~OuariconMarimbaAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -34,7 +34,7 @@ private:
     );
 
     // Reference to audio processor
-    MicroMarimbaAudioProcessor& audioProcessor;
+    OuariconMarimbaAudioProcessor& audioProcessor;
 
     // ========================================================================
     // ⚠️ CRITICAL MEMBER DECLARATION ORDER ⚠️
@@ -69,5 +69,5 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> velCurveAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconMarimbaAudioProcessorEditor)
 };

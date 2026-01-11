@@ -4,7 +4,7 @@
 // Constructor - CRITICAL: Initialize in correct order
 //==============================================================================
 
-MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaAudioProcessor& p)
+OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(OuariconMarimbaAudioProcessor& p)
     : AudioProcessorEditor(p), audioProcessor(p)
 {
     // ========================================================================
@@ -105,7 +105,7 @@ MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaA
 // Destructor
 //==============================================================================
 
-MicroMarimbaAudioProcessorEditor::~MicroMarimbaAudioProcessorEditor()
+OuariconMarimbaAudioProcessorEditor::~OuariconMarimbaAudioProcessorEditor()
 {
     // Members automatically destroyed in reverse order:
     // 1. Attachments first (stop calling evaluateJavascript)
@@ -117,12 +117,12 @@ MicroMarimbaAudioProcessorEditor::~MicroMarimbaAudioProcessorEditor()
 // AudioProcessorEditor Overrides
 //==============================================================================
 
-void MicroMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
+void OuariconMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
 {
     // WebView fills entire editor, no custom painting needed
 }
 
-void MicroMarimbaAudioProcessorEditor::resized()
+void OuariconMarimbaAudioProcessorEditor::resized()
 {
     // Make WebView fill the entire editor bounds
     webView->setBounds(getLocalBounds());
@@ -132,7 +132,7 @@ void MicroMarimbaAudioProcessorEditor::resized()
 // Resource Provider
 //==============================================================================
 
-std::optional<juce::WebBrowserComponent::Resource> MicroMarimbaAudioProcessorEditor::getResource(
+std::optional<juce::WebBrowserComponent::Resource> OuariconMarimbaAudioProcessorEditor::getResource(
     const juce::String& url
 )
 {

@@ -1,6 +1,26 @@
-# MicroMarimba Changelog
+# Ouaricon Marimba Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [1.2.5] - 2026-01-10
+
+### Added
+- Live VU meter in Sound tab now responds to audio output
+  - Peak level measurement after all processing (synth + body resonance + output gain)
+  - Ballistic needle motion: fast attack (0.5), slow decay (0.08)
+  - Scale: -60dB to +3dB with full semicircle sweep (-90° to +90°)
+  - Dynamic needle color: green (quiet) → red (loud) gradient
+  - 30 FPS update rate via C++ timer and WebView events
+
+## [1.2.4] - 2026-01-10
+
+### Changed
+- Increased dynamic range of velocity response (+6dB at max velocity)
+  - Low velocity (1) remains unchanged
+  - High velocity (127) now +6dB louder than before
+  - Smooth linear scaling in dB between extremes
+  - Independent of VEL_CURVE parameter (applied on top of curve shaping)
+  - Makes the instrument more dynamically expressive
 
 ## [1.2.3] - 2026-01-10
 

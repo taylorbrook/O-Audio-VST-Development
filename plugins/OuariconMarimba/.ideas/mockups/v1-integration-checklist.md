@@ -1,13 +1,13 @@
 # Stage 3 (GUI) Integration Checklist - v1
 
-**Plugin:** MicroMarimba (Ouaricon Marimba)
+**Plugin:** OuariconMarimba (Ouaricon Marimba)
 **Mockup Version:** v1
 **Generated:** 2026-01-09
 **Window Size:** 600 x 400 pixels
 
 ## Overview
 
-This checklist guides the gui-agent through integrating the finalized v1 WebView UI mockup into the MicroMarimba plugin during Stage 3 (GUI) implementation.
+This checklist guides the gui-agent through integrating the finalized v1 WebView UI mockup into the OuariconMarimba plugin during Stage 3 (GUI) implementation.
 
 ## Parameter Summary
 
@@ -25,7 +25,7 @@ This checklist guides the gui-agent through integrating the finalized v1 WebView
 
 ## 1. Copy UI Files
 
-- [ ] Create directory `Source/ui/public/` in MicroMarimba project
+- [ ] Create directory `Source/ui/public/` in OuariconMarimba project
 - [ ] Create directory `Source/ui/public/js/juce/` for JUCE frontend library
 - [ ] Copy `v1-ui.html` to `Source/ui/public/index.html`
 - [ ] Copy JUCE frontend library to `Source/ui/public/js/juce/index.js`
@@ -37,8 +37,8 @@ This checklist guides the gui-agent through integrating the finalized v1 WebView
 ### 2.1 Replace PluginEditor.h
 
 - [ ] Copy content from `v1-PluginEditor.h`
-- [ ] Update class name to `MicroMarimbaAudioProcessorEditor`
-- [ ] Update processor reference to `MicroMarimbaAudioProcessor`
+- [ ] Update class name to `OuariconMarimbaAudioProcessorEditor`
+- [ ] Update processor reference to `OuariconMarimbaAudioProcessor`
 - [ ] Verify member order is correct:
   - [ ] 7 relay declarations (all before webView)
   - [ ] 1 webView declaration (after relays, before attachments)
@@ -50,8 +50,8 @@ This checklist guides the gui-agent through integrating the finalized v1 WebView
 ### 2.2 Replace PluginEditor.cpp
 
 - [ ] Copy content from `v1-PluginEditor.cpp`
-- [ ] Update class name to `MicroMarimbaAudioProcessorEditor`
-- [ ] Update processor reference to `MicroMarimbaAudioProcessor`
+- [ ] Update class name to `OuariconMarimbaAudioProcessorEditor`
+- [ ] Update processor reference to `OuariconMarimbaAudioProcessor`
 - [ ] Verify parameter ID strings match APVTS exactly:
   - [ ] "MALLET_HARDNESS"
   - [ ] "BAR_MATERIAL"
@@ -66,14 +66,14 @@ This checklist guides the gui-agent through integrating the finalized v1 WebView
 
 ## 3. Update CMakeLists.txt
 
-- [ ] Open `plugins/MicroMarimba/CMakeLists.txt`
+- [ ] Open `plugins/OuariconMarimba/CMakeLists.txt`
 - [ ] Locate existing `juce_add_plugin()` declaration
 - [ ] Append content from `v1-CMakeLists.txt` AFTER plugin declaration
 - [ ] Verify `juce_add_binary_data()` includes:
   - [ ] `Source/ui/public/index.html`
   - [ ] `Source/ui/public/js/juce/index.js`
 - [ ] Verify `target_link_libraries()` includes:
-  - [ ] `MicroMarimba_UIResources`
+  - [ ] `OuariconMarimba_UIResources`
   - [ ] `juce::juce_gui_extra`
 - [ ] Verify `target_compile_definitions()` includes:
   - [ ] `JUCE_WEB_BROWSER=1`

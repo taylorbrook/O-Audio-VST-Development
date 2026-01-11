@@ -13,12 +13,12 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-class MicroMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor,
+class OuariconMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor,
                                         private juce::Timer
 {
 public:
-    explicit MicroMarimbaAudioProcessorEditor(MicroMarimbaAudioProcessor&);
-    ~MicroMarimbaAudioProcessorEditor() override;
+    explicit OuariconMarimbaAudioProcessorEditor(OuariconMarimbaAudioProcessor&);
+    ~OuariconMarimbaAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -28,7 +28,7 @@ private:
     void timerCallback() override;
 
 private:
-    MicroMarimbaAudioProcessor& processorRef;
+    OuariconMarimbaAudioProcessor& processorRef;
 
     // ⚠️ CRITICAL: MEMBER DECLARATION ORDER (Pattern 11)
     // Members destroyed in REVERSE order of declaration
@@ -78,5 +78,5 @@ private:
     // File chooser (must be member to stay alive during async operation)
     std::unique_ptr<juce::FileChooser> fileChooser;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(MicroMarimbaAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconMarimbaAudioProcessorEditor)
 };

@@ -1,14 +1,14 @@
 # ============================================================================
-# WebView CMake Configuration Snippet for MicroMarimba
+# WebView CMake Configuration Snippet for OuariconMarimba
 # ============================================================================
-# IMPORTANT: This is a SNIPPET to ADD to MicroMarimba's CMakeLists.txt
+# IMPORTANT: This is a SNIPPET to ADD to OuariconMarimba's CMakeLists.txt
 #
 # ADD this configuration below your existing juce_add_plugin() declaration.
 # ============================================================================
 
 # WebView UI Resources
 # Embed all UI files into plugin binary
-juce_add_binary_data(MicroMarimba_UIResources
+juce_add_binary_data(OuariconMarimba_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
@@ -16,14 +16,14 @@ juce_add_binary_data(MicroMarimba_UIResources
 )
 
 # Link UI resources to plugin
-target_link_libraries(MicroMarimba
+target_link_libraries(OuariconMarimba
     PRIVATE
-        MicroMarimba_UIResources
+        OuariconMarimba_UIResources
         juce::juce_gui_extra  # Required for WebBrowserComponent
 )
 
 # Enable WebView on supported platforms
-target_compile_definitions(MicroMarimba
+target_compile_definitions(OuariconMarimba
     PUBLIC
         JUCE_WEB_BROWSER=1
         JUCE_USE_CURL=0
@@ -39,8 +39,8 @@ elseif(UNIX)
     # Linux uses WebKit2GTK (must be installed on system)
     find_package(PkgConfig REQUIRED)
     pkg_check_modules(WEBKIT2 REQUIRED webkit2gtk-4.0)
-    target_link_libraries(MicroMarimba PRIVATE ${WEBKIT2_LIBRARIES})
-    target_include_directories(MicroMarimba PRIVATE ${WEBKIT2_INCLUDE_DIRS})
+    target_link_libraries(OuariconMarimba PRIVATE ${WEBKIT2_LIBRARIES})
+    target_include_directories(OuariconMarimba PRIVATE ${WEBKIT2_INCLUDE_DIRS})
 endif()
 
 # ============================================================================

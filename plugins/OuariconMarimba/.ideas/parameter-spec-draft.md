@@ -1,4 +1,4 @@
-# MicroMarimba - Parameter Specification (Draft)
+# Ouaricon Marimba - Parameter Specification (Draft)
 
 ## Overview
 

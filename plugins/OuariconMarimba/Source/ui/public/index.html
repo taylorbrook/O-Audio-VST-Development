@@ -901,11 +901,19 @@
 
                 <div class="vu-meter">
                     <svg class="vu-meter-scale" viewBox="0 0 70 35">
-                        <path d="M 10 30 A 25 25 0 0 1 60 30" fill="none" stroke="#8B7355" stroke-width="1"/>
-                        <text x="8" y="28" font-size="5" fill="#3C2F2F">-20</text>
-                        <text x="18" y="18" font-size="5" fill="#3C2F2F">-10</text>
-                        <text x="32" y="12" font-size="5" fill="#3C2F2F">0</text>
-                        <text x="48" y="18" font-size="5" fill="#3C2F2F">+3</text>
+                        <!-- Arc from left (-90°) to right (+90°) -->
+                        <path d="M 5 30 A 30 30 0 0 1 65 30" fill="none" stroke="#8B7355" stroke-width="1"/>
+                        <!-- Labels positioned on arc: angle = -90 + ((dB+60)/63)*180 -->
+                        <!-- -60dB at -90° (leftmost) -->
+                        <text x="8" y="27" font-size="4" fill="#3C2F2F" text-anchor="middle">-60</text>
+                        <!-- -40dB at -32.9° -->
+                        <text x="22" y="9" font-size="4" fill="#3C2F2F" text-anchor="middle">-40</text>
+                        <!-- -20dB at +24.3° -->
+                        <text x="45" y="7" font-size="4" fill="#3C2F2F" text-anchor="middle">-20</text>
+                        <!-- 0dB at +81.4° (very close to right edge) -->
+                        <text x="58" y="24" font-size="5" fill="#3C2F2F" text-anchor="middle">0</text>
+                        <!-- +3dB at +90° (rightmost) -->
+                        <text x="62" y="27" font-size="4" fill="#3C2F2F" text-anchor="middle">+3</text>
                     </svg>
                     <div class="vu-meter-needle" id="vu-needle"></div>
                     <div class="vu-meter-pivot"></div>
@@ -1624,16 +1632,76 @@
         // Start waveform animation
         updateWaveform();
 
-        // Initialize VU meter at rest position (pointing to -20)
-        function initVU() {
-            const needle = document.getElementById('vu-needle');
-            // Rest position: -45 degrees (pointing to -20 on scale)
-            needle.style.transform = 'translateX(-50%) rotate(-45deg)';
+        // ===== VU METER ANIMATION =====
+        // v1.2.5: Live VU meter driven by C++ backend events
+        const vuNeedle = document.getElementById('vu-needle');
+        let currentVUAngle = -90;
+        let targetVUAngle = -90;
+
+        const VU_ATTACK_SPEED = 0.5;   // Fast attack
+        const VU_DECAY_SPEED = 0.08;   // Smooth decay
+        const VU_MIN_ANGLE = -90;      // -60dB position (fully left)
+        const VU_MAX_ANGLE = 90;       // +3dB position (fully right)
+        const VU_SNAP_THRESHOLD = 2.0; // Snap to rest when within 2 degrees
+
+        // Map dB to needle angle
+        // Full sweep: -60dB at -90° to +3dB at +90°
+        function mapDBToAngle(dbLevel) {
+            const minDB = -60;
+            const maxDB = 3;
+
+            // Clamp to range
+            const clampedDB = Math.max(minDB, Math.min(maxDB, dbLevel));
+
+            // Linear mapping: -60dB → -90°, +3dB → +90°
+            const normalized = (clampedDB - minDB) / (maxDB - minDB);
+            return VU_MIN_ANGLE + (normalized * (VU_MAX_ANGLE - VU_MIN_ANGLE));
+        }
+
+        // Update needle color: dark green (quiet) to bright red (loud)
+        function updateNeedleColor(angle) {
+            // Normalize angle from -90..+90 to 0..1
+            const normalized = (angle - VU_MIN_ANGLE) / (VU_MAX_ANGLE - VU_MIN_ANGLE);
+
+            // Interpolate from dark green to bright red
+            // Dark green: rgb(34, 139, 34)
+            // Bright red: rgb(255, 50, 50)
+            const r = Math.round(34 + normalized * (255 - 34));
+            const g = Math.round(139 - normalized * (139 - 50));
+            const b = Math.round(34 + normalized * (50 - 34));
+
+            const color = `rgb(${r}, ${g}, ${b})`;
+            const colorDark = `rgb(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, ${Math.round(b * 0.8)})`;
+
+            vuNeedle.style.background = `linear-gradient(180deg, ${color} 0%, ${colorDark} 100%)`;
+        }
+
+        // Listen for output level from C++ via JUCE backend events
+        if (window.__JUCE__ && window.__JUCE__.backend) {
+            window.__JUCE__.backend.addEventListener("outputLevel", (dbLevel) => {
+                targetVUAngle = mapDBToAngle(dbLevel);
+            });
+        }
+
+        // Animate VU meter with ballistic motion (fast attack, slow decay)
+        function animateVUMeter() {
+            const vuSpeed = currentVUAngle < targetVUAngle ? VU_ATTACK_SPEED : VU_DECAY_SPEED;
+            currentVUAngle += (targetVUAngle - currentVUAngle) * vuSpeed;
+
+            // Snap to rest position when close (prevents endless asymptotic approach)
+            if (targetVUAngle <= VU_MIN_ANGLE && Math.abs(currentVUAngle - VU_MIN_ANGLE) < VU_SNAP_THRESHOLD) {
+                currentVUAngle = VU_MIN_ANGLE;
+            }
+
+            vuNeedle.style.transform = `translateX(-50%) rotate(${currentVUAngle}deg)`;
+            updateNeedleColor(currentVUAngle);
+
+            requestAnimationFrame(animateVUMeter);
         }
 
         // Initialize displays
         initWaveform();
-        initVU();
+        animateVUMeter();
 
         // ====================================================================
         // PLAYABLE KEYBOARD

@@ -1,4 +1,4 @@
-# DSP Architecture: MicroMarimba
+# DSP Architecture: Ouaricon Marimba
 
 **CRITICAL CONTRACT:** This specification is immutable during Stages 1-4 implementation. Stage 1 Planning cannot proceed without this file. Stage 3 (DSP) implements this exact architecture.
 
@@ -256,10 +256,10 @@ Stereo Output
 - APVTS parameters: XML via `AudioProcessorValueTreeState` (automatic)
 - Custom state: ValueTree with structure:
   ```xml
-  <MicroMarimbaState>
+  <OuariconMarimbaState>
     <ScalaFile path="/path/to/scale.scl"/>
     <KBMFile path="/path/to/mapping.kbm"/>
-  </MicroMarimbaState>
+  </OuariconMarimbaState>
   ```
 
 **JUCE classes:**

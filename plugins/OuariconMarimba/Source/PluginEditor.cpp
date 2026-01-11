@@ -11,7 +11,7 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 
-MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaAudioProcessor& p)
+OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(OuariconMarimbaAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
     // 1️⃣ Create relays FIRST (Pattern 11: Order critical for destruction)
@@ -95,7 +95,7 @@ MicroMarimbaAudioProcessorEditor::MicroMarimbaAudioProcessorEditor(MicroMarimbaA
     startTimerHz(30);
 }
 
-MicroMarimbaAudioProcessorEditor::~MicroMarimbaAudioProcessorEditor()
+OuariconMarimbaAudioProcessorEditor::~OuariconMarimbaAudioProcessorEditor()
 {
     // Stop timer before destruction
     stopTimer();
@@ -105,8 +105,9 @@ MicroMarimbaAudioProcessorEditor::~MicroMarimbaAudioProcessorEditor()
 }
 
 // Timer callback: Poll processor for note-on events and notify WebView
-void MicroMarimbaAudioProcessorEditor::timerCallback()
+void OuariconMarimbaAudioProcessorEditor::timerCallback()
 {
+    // Note-on flash for pitch circle
     int note = processorRef.popLastPlayedNote();
     if (note >= 0)
     {
@@ -114,15 +115,19 @@ void MicroMarimbaAudioProcessorEditor::timerCallback()
         juce::String js = "if (typeof flashIntervalLine === 'function') flashIntervalLine(" + juce::String(note) + ");";
         webView->evaluateJavascript(js, nullptr);
     }
+
+    // v1.2.5: VU Meter - emit output level to WebView
+    const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
+    webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
 
-void MicroMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
+void OuariconMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
 {
     // WebView handles all painting
     juce::ignoreUnused(g);
 }
 
-void MicroMarimbaAudioProcessorEditor::resized()
+void OuariconMarimbaAudioProcessorEditor::resized()
 {
     // WebView fills entire editor
     webView->setBounds(getLocalBounds());
@@ -130,7 +135,7 @@ void MicroMarimbaAudioProcessorEditor::resized()
 
 // Native function: Send MIDI note to synthesizer
 // Args: [noteNumber (int), velocity (float 0-1), isNoteOn (bool)]
-juce::var MicroMarimbaAudioProcessorEditor::sendMidiNote(const juce::Array<juce::var>& args)
+juce::var OuariconMarimbaAudioProcessorEditor::sendMidiNote(const juce::Array<juce::var>& args)
 {
     if (args.size() < 3)
         return juce::var("Error: Expected 3 arguments (noteNumber, velocity, isNoteOn)");
@@ -163,7 +168,7 @@ juce::var MicroMarimbaAudioProcessorEditor::sendMidiNote(const juce::Array<juce:
 
 // Native function: Set custom tuning intervals
 // Args: [Array of cents values (up to 12), scaleName (string)]
-juce::var MicroMarimbaAudioProcessorEditor::setTuningIntervals(const juce::Array<juce::var>& args)
+juce::var OuariconMarimbaAudioProcessorEditor::setTuningIntervals(const juce::Array<juce::var>& args)
 {
     if (args.size() < 1)
         return juce::var("Error: Expected array of cents values");
@@ -198,7 +203,7 @@ juce::var MicroMarimbaAudioProcessorEditor::setTuningIntervals(const juce::Array
 
 // Pattern 8: Explicit URL mapping (required for WebView resource loading)
 std::optional<juce::WebBrowserComponent::Resource>
-MicroMarimbaAudioProcessorEditor::getResource(const juce::String& url)
+OuariconMarimbaAudioProcessorEditor::getResource(const juce::String& url)
 {
     // Helper to convert BinaryData to std::vector<std::byte>
     auto makeVector = [](const char* data, int size) {
@@ -253,7 +258,7 @@ MicroMarimbaAudioProcessorEditor::getResource(const juce::String& url)
 }
 
 // Native function: Open file dialog to load Scala .scl file
-juce::var MicroMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<juce::var>& args)
+juce::var OuariconMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -285,7 +290,7 @@ juce::var MicroMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<juce
 }
 
 // Native function: Open file dialog to load Scala .kbm file
-juce::var MicroMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juce::var>& args)
+juce::var OuariconMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -310,7 +315,7 @@ juce::var MicroMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juce::
 }
 
 // Native function: Get current tuning intervals from TuningEngine
-juce::var MicroMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Array<juce::var>& args)
+juce::var OuariconMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -335,7 +340,7 @@ juce::var MicroMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Array
 
 // Native function: Set tonic note for transposition
 // Args: [tonicIndex (int 0-11, where 0=C, 1=C#, 2=D, etc.)]
-juce::var MicroMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<juce::var>& args)
+juce::var OuariconMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<juce::var>& args)
 {
     if (args.isEmpty())
         return juce::var("Error: Expected tonic index (0-11)");
@@ -351,7 +356,7 @@ juce::var MicroMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<juce:
 
 // v1.2.3: Native function to get waveform data for oscilloscope display
 // Returns array of normalized sample values (-1 to 1), downsampled for display
-juce::var MicroMarimbaAudioProcessorEditor::getWaveformData(const juce::Array<juce::var>& args)
+juce::var OuariconMarimbaAudioProcessorEditor::getWaveformData(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 

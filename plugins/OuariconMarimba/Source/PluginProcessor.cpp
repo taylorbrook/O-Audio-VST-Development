@@ -14,7 +14,7 @@
 #include "MarimbaVoice.h"
 #include "TuningEngine.h"
 
-juce::AudioProcessorValueTreeState::ParameterLayout MicroMarimbaAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout OuariconMarimbaAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -79,7 +79,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout MicroMarimbaAudioProcessor::
     return layout;
 }
 
-MicroMarimbaAudioProcessor::MicroMarimbaAudioProcessor()
+OuariconMarimbaAudioProcessor::OuariconMarimbaAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
@@ -104,11 +104,11 @@ MicroMarimbaAudioProcessor::MicroMarimbaAudioProcessor()
     }
 }
 
-MicroMarimbaAudioProcessor::~MicroMarimbaAudioProcessor()
+OuariconMarimbaAudioProcessor::~OuariconMarimbaAudioProcessor()
 {
 }
 
-void MicroMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void OuariconMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     // Phase 2.1: Prepare synthesiser
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
@@ -126,13 +126,13 @@ void MicroMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
     bodyResonance.prepare(sampleRate, samplesPerBlock);
 }
 
-void MicroMarimbaAudioProcessor::releaseResources()
+void OuariconMarimbaAudioProcessor::releaseResources()
 {
     // Phase 2.4: Reset body resonance
     bodyResonance.reset();
 }
 
-void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
@@ -214,21 +214,33 @@ void MicroMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     // Use left channel (or mono mix if stereo)
     const float* readPtr = buffer.getReadPointer(0);
     waveformFifo.write(readPtr, buffer.getNumSamples());
+
+    // v1.2.5: VU Meter - Calculate peak level after all processing
+    float peakLevel = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        float channelPeak = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        peakLevel = std::max(peakLevel, channelPeak);
+    }
+    float levelDB = peakLevel > 0.00001f
+        ? juce::Decibels::gainToDecibels(peakLevel)
+        : -100.0f;
+    outputLevelDB.store(levelDB, std::memory_order_relaxed);
 }
 
-juce::AudioProcessorEditor* MicroMarimbaAudioProcessor::createEditor()
+juce::AudioProcessorEditor* OuariconMarimbaAudioProcessor::createEditor()
 {
-    return new MicroMarimbaAudioProcessorEditor(*this);
+    return new OuariconMarimbaAudioProcessorEditor(*this);
 }
 
-void MicroMarimbaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void OuariconMarimbaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void MicroMarimbaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void OuariconMarimbaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
@@ -237,7 +249,7 @@ void MicroMarimbaAudioProcessor::setStateInformation(const void* data, int sizeI
 }
 
 // UI keyboard MIDI injection (called from UI thread)
-void MicroMarimbaAudioProcessor::addMidiMessage(const juce::MidiMessage& msg)
+void OuariconMarimbaAudioProcessor::addMidiMessage(const juce::MidiMessage& msg)
 {
     const juce::ScopedLock lock(midiLock);
     pendingUiMidi.addEvent(msg, 0);
@@ -246,5 +258,5 @@ void MicroMarimbaAudioProcessor::addMidiMessage(const juce::MidiMessage& msg)
 // Factory function
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new MicroMarimbaAudioProcessor();
+    return new OuariconMarimbaAudioProcessor();
 }

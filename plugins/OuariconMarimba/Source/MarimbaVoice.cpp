@@ -196,7 +196,15 @@ float MarimbaVoice::applyVelocityCurve(float rawVelocity) const
     // VEL_CURVE parameter: 0.0 = linear, 1.0 = exponential
     // Formula: amplitude = velocity^(1 + curve)
     float exponent = 1.0f + velocityCurve;
-    return std::pow(rawVelocity, exponent);
+    float shapedVelocity = std::pow(rawVelocity, exponent);
+
+    // Apply velocity-dependent loudness boost (independent of VEL_CURVE)
+    // Low velocity (1) = 0dB boost, High velocity (127) = +6dB boost
+    // This makes the instrument more dynamically expressive
+    float boostDB = rawVelocity * 6.0f;
+    float boostMultiplier = std::pow(10.0f, boostDB / 20.0f);
+
+    return shapedVelocity * boostMultiplier;
 }
 
 float MarimbaVoice::getModeAmplitude(int modeIndex, float material) const
