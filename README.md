@@ -1,8 +1,8 @@
-#VST building system based upon **[TÂCHES](https://youtube.com/tachesteaches)**
-
-# Plugin Freedom System
+# Claude-assisted VST Development
 
 An AI-assisted JUCE plugin development system that enables conversational creation of professional VST3 and AU audio plugins for macOS. Design and build custom audio processors through natural dialogue with Claude Code—no programming experience required.
+
+#VST building system based upon **[TÂCHES](https://youtube.com/tachesteaches)**
 
 ## Why This Exists
 
