@@ -30,7 +30,7 @@ Ouaricon Plugins:
 | OuariconSaturationModeling | 📦 Installed | 1.0.0 | Audio Effect (Saturation) | 2026-01-09 |
 | Ouaricon Marimba | 📦 Installed | 1.6.2 | Synth (Physical Model) | 2026-01-11 |
 | OuariconComp | 📦 Installed | 1.0.2 | Audio Effect (Compressor) | 2026-01-11 |
-| OuariconAnalogEQ | 💡 Ideated | - | Audio Effect (EQ) | 2026-01-11 |
+| OuariconAnalogEQ | 🚧 Stage 0 | 1.0.0 | Audio Effect (EQ) | 2026-01-11 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
