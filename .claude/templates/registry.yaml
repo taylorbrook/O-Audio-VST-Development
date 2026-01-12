@@ -1,0 +1,173 @@
+# Template Library Registry
+# Index of all reusable patterns for JUCE plugin development
+#
+# Templates are organized into two types:
+# - code-snippets: Exact code blocks with variable substitution
+# - prose-patterns: Conceptual patterns that agents interpret
+#
+# Usage: Subagents query this registry to find relevant templates
+# based on stage, tags, or category.
+
+version: 1.0.0
+last_updated: 2026-01-11
+
+# Schema version for template files
+template_schema: 1.0.0
+
+categories:
+  - name: parameter-binding
+    description: WebView relay and attachment patterns for connecting UI to APVTS
+    stage: 3
+    type: code-snippet
+
+  - name: cmake
+    description: CMakeLists.txt configuration patterns for different plugin types
+    stage: 1
+    type: code-snippet
+
+  - name: webview
+    description: WebView initialization, navigation, and resource loading
+    stage: 3
+    type: code-snippet
+
+  - name: dsp-snippets
+    description: Small DSP code patterns (processBlock skeleton, metering)
+    stage: 2
+    type: code-snippet
+
+  - name: dsp-concepts
+    description: DSP algorithm concepts (LFO, filters, dynamics)
+    stage: 2
+    type: prose-pattern
+
+  - name: architecture
+    description: Code organization, thread safety, initialization order
+    stage: all
+    type: prose-pattern
+
+  - name: ui-interaction
+    description: UI behavior patterns (knob drag, meters, animations)
+    stage: 3
+    type: prose-pattern
+
+# Template entries
+# Each entry points to a YAML file with full template definition
+templates:
+  code-snippets:
+    # Parameter Binding
+    - path: parameter-binding/slider-relay.yaml
+      name: Slider Parameter Binding
+      tags: [webview, slider, relay, juce8]
+      stage: 3
+
+    - path: parameter-binding/toggle-relay.yaml
+      name: Toggle Parameter Binding
+      tags: [webview, toggle, boolean, relay]
+      stage: 3
+
+    - path: parameter-binding/combobox-relay.yaml
+      name: ComboBox Parameter Binding
+      tags: [webview, combobox, choice, relay]
+      stage: 3
+
+    # CMake
+    - path: cmake/webview-plugin.yaml
+      name: WebView Plugin CMake Setup
+      tags: [cmake, webview, vst3, au, juce8]
+      stage: 1
+
+    - path: cmake/synth-plugin.yaml
+      name: Synth/Instrument CMake Setup
+      tags: [cmake, synth, instrument, midi]
+      stage: 1
+
+    # WebView
+    - path: webview/lazy-navigation.yaml
+      name: Lazy WebView Navigation
+      tags: [webview, navigation, initialization, juce8]
+      stage: 3
+
+    - path: webview/resource-provider.yaml
+      name: WebView Resource Provider
+      tags: [webview, resources, binarydata, html]
+      stage: 3
+
+    # DSP Snippets
+    - path: dsp/processblock-skeleton.yaml
+      name: processBlock Skeleton
+      tags: [dsp, processblock, realtime, template]
+      stage: 2
+
+    - path: dsp/atomic-metering.yaml
+      name: Atomic Level Metering
+      tags: [dsp, metering, vu, atomic, thread-safe]
+      stage: 2
+
+  prose-patterns:
+    # DSP Concepts
+    - path: dsp/lfo-modulation.yaml
+      name: LFO Modulation Engine
+      tags: [lfo, modulation, tremolo, vibrato, rate]
+      stage: 2
+      complexity: 2
+
+    - path: dsp/iir-filter-chain.yaml
+      name: IIR Filter Chain
+      tags: [filter, eq, iir, biquad, parametric]
+      stage: 2
+      complexity: 3
+
+    - path: dsp/envelope-follower.yaml
+      name: Envelope Follower
+      tags: [dynamics, compressor, envelope, detector]
+      stage: 2
+      complexity: 2
+
+    - path: dsp/saturation-waveshaper.yaml
+      name: Saturation/Waveshaping
+      tags: [saturation, distortion, warmth, analog]
+      stage: 2
+      complexity: 1
+
+    # Architecture
+    - path: architecture/member-initialization-order.yaml
+      name: Member Initialization Order
+      tags: [webview, relay, attachment, order, crash-prevention]
+      stage: 3
+      complexity: 1
+
+    - path: architecture/thread-safe-communication.yaml
+      name: Thread-Safe UI/Audio Communication
+      tags: [threading, atomic, apvts, realtime]
+      stage: all
+      complexity: 2
+
+    # UI Interaction
+    - path: ui/knob-interaction.yaml
+      name: Rotary Knob Interaction
+      tags: [knob, drag, mouse, relative]
+      stage: 3
+      complexity: 2
+
+    - path: ui/vu-meter-animation.yaml
+      name: VU Meter Animation
+      tags: [vu, meter, animation, ballistics]
+      stage: 3
+      complexity: 2
+
+# How to use this registry:
+#
+# 1. Find templates by tag:
+#    grep -l "webview" templates/code-snippets/**/*.yaml
+#
+# 2. Find templates by stage:
+#    yq '.templates.code-snippets[] | select(.stage == 2)' registry.yaml
+#
+# 3. Load a template:
+#    Read the YAML file at the specified path
+#
+# 4. Apply code snippet:
+#    Substitute ${variable} placeholders with actual values
+#
+# 5. Apply prose pattern:
+#    Agent interprets the concept and implementation notes

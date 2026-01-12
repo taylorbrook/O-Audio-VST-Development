@@ -1,0 +1,156 @@
+# Prose Pattern Template: IIR Filter Chain
+# Conceptual pattern for parametric EQ and filter banks
+
+name: IIR Filter Chain
+category: dsp-concepts
+stage: 2
+version: 1.0.0
+complexity: 3
+tags:
+  - filter
+  - eq
+  - iir
+  - biquad
+  - parametric
+  - peaking
+  - shelf
+
+description: |
+  IIR (Infinite Impulse Response) filters are the foundation of parametric
+  EQ. Each band is typically a biquad filter with frequency, gain, and Q
+  controls. Multiple bands are cascaded in series.
+
+concept: |
+  ## Filter Types
+
+  Common EQ filter types (all implemented as biquads):
+
+  **Peaking/Bell** (parametric EQ band):
+  - Boosts or cuts around a center frequency
+  - Q controls bandwidth
+  - Used for mid-range EQ
+
+  **Low Shelf**:
+  - Boosts or cuts below a frequency
+  - Used for bass adjustment
+
+  **High Shelf**:
+  - Boosts or cuts above a frequency
+  - Used for treble adjustment
+
+  **Low Pass / High Pass**:
+  - Removes frequencies above/below cutoff
+  - Q controls resonance at cutoff
+
+  ## JUCE IIR Filter Setup
+
+  Using juce::dsp::IIR::Filter with ProcessorDuplicator for stereo:
+
+  ```cpp
+  // Type aliases for clarity
+  using IIRFilter = juce::dsp::IIR::Filter<float>;
+  using IIRCoefficients = juce::dsp::IIR::Coefficients<float>;
+
+  // ProcessorDuplicator creates one filter per channel
+  juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients> lowBand;
+  juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients> midBand;
+  juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients> highBand;
+  ```
+
+  ## Coefficient Calculation
+
+  JUCE provides coefficient makers for common filter types:
+
+  ```cpp
+  // Peaking filter (parametric EQ band)
+  *lowBand.state = *IIRCoefficients::makePeakFilter(
+      sampleRate,
+      frequency,  // Center frequency in Hz
+      Q,          // Q factor (0.1 to 10 typical)
+      gain);      // Linear gain (use Decibels::decibelsToGain)
+
+  // Low shelf
+  *lowBand.state = *IIRCoefficients::makeLowShelf(
+      sampleRate, frequency, Q, gain);
+
+  // High shelf
+  *highBand.state = *IIRCoefficients::makeHighShelf(
+      sampleRate, frequency, Q, gain);
+
+  // Low pass (for high-cut)
+  *lpf.state = *IIRCoefficients::makeLowPass(
+      sampleRate, frequency, Q);
+  ```
+
+  ## Processing Chain
+
+  Process filters in series (order matters for phase):
+
+  ```cpp
+  void processBlock(juce::AudioBuffer<float>& buffer, ...)
+  {
+      juce::dsp::AudioBlock<float> block(buffer);
+      juce::dsp::ProcessContextReplacing<float> context(block);
+
+      lowBand.process(context);   // Low shelf or low-mid peak
+      lowMidBand.process(context);
+      highMidBand.process(context);
+      highBand.process(context);  // High shelf or high peak
+  }
+  ```
+
+  ## Parameter Updates
+
+  Update coefficients when parameters change (NOT every sample):
+
+  ```cpp
+  void updateFilters()
+  {
+      float lfFreq = parameters.getRawParameterValue("lf_freq")->load();
+      float lfGain = Decibels::decibelsToGain(
+          parameters.getRawParameterValue("lf_gain")->load());
+
+      *lowBand.state = *IIRCoefficients::makeLowShelf(
+          currentSampleRate, lfFreq, 0.707f, lfGain);
+  }
+  ```
+
+implementation_notes:
+  - Call prepare(spec) on each filter in prepareToPlay
+  - Update coefficients on parameter change, not per-sample
+  - Use bypass flags per band to skip processing when gain is 0dB
+  - Consider smoothing parameter changes to avoid clicks
+  - Q of 0.707 (1/sqrt(2)) gives Butterworth response
+
+parameters:
+  - name: frequency
+    type: float
+    range: [20, 20000]
+    unit: Hz
+    description: Center/corner frequency
+
+  - name: gain
+    type: float
+    range: [-24, 24]
+    unit: dB
+    description: Boost/cut amount
+
+  - name: Q
+    type: float
+    range: [0.1, 10]
+    description: Bandwidth (higher = narrower)
+
+anti_patterns:
+  - Recalculating coefficients every sample (expensive)
+  - Using wrong Q interpretation (JUCE Q vs bandwidth)
+  - Forgetting to call prepare() after sample rate change
+  - Not handling bypass (processing at 0dB wastes CPU)
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+  reference_file: plugins/OuariconAnalogEQ/Source/PluginProcessor.cpp
+  key_insight: |
+    OuariconAnalogEQ uses 4 ProcessorDuplicator<IIR::Filter> for LF,
+    LMF, HMF, HF bands. Each band has frequency, gain, Q, and bypass.
+    Coefficients are updated via a lambda listener on parameter changes.

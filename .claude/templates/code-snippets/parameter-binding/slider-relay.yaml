@@ -1,0 +1,147 @@
+# Code Snippet Template: Slider Parameter Binding
+# Binds a WebView slider to an APVTS parameter using the relay pattern
+
+name: Slider Parameter Binding
+category: parameter-binding
+stage: 3
+version: 1.0.0
+tags:
+  - webview
+  - slider
+  - relay
+  - juce8
+  - parameter
+  - apvts
+
+description: |
+  Binds a WebView slider control to an AudioProcessorValueTreeState parameter
+  using JUCE 8's relay pattern. This enables bidirectional sync between the
+  HTML/JS UI and the audio processor parameters.
+
+  CRITICAL: Member declaration order must be Relay → WebView → Attachment
+  to prevent crashes during destruction.
+
+# Variables that must be substituted when using this template
+variables:
+  param_name:
+    description: Parameter name in camelCase for C++ variables
+    type: string
+    example: lfFreq
+    pattern: "^[a-z][a-zA-Z0-9]*$"
+
+  param_id:
+    description: Parameter ID matching APVTS registration and HTML element
+    type: string
+    example: lf_freq
+    pattern: "^[a-z][a-z0-9_]*$"
+
+# Code blocks with ${variable} placeholders
+code:
+  # Add to PluginEditor.h private section
+  header: |
+    std::unique_ptr<juce::WebSliderRelay> ${param_name}Relay;
+    std::unique_ptr<juce::WebSliderParameterAttachment> ${param_name}Attachment;
+
+  # Add to PluginEditor constructor (after relay creation, before attachment)
+  relay_creation: |
+    ${param_name}Relay = std::make_unique<juce::WebSliderRelay>("${param_id}");
+
+  # Add to WebBrowserComponent::Options chain
+  webview_options: |
+    .withOptionsFrom(*${param_name}Relay)
+
+  # Add to PluginEditor constructor (after webView creation)
+  attachment_creation: |
+    ${param_name}Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("${param_id}"),
+        *${param_name}Relay,
+        nullptr);
+
+  # JavaScript side (in index.html or main.js)
+  javascript: |
+    import { getSliderState } from './js/juce/index.js';
+
+    const ${param_name}State = getSliderState("${param_id}");
+
+    ${param_name}State.valueChangedEvent.addListener(() => {
+        const value = ${param_name}State.getNormalisedValue();
+        update${param_name}Visual(value);
+    });
+
+# Common mistakes to avoid
+anti_patterns:
+  - pattern: "WebSliderParameterAttachment(..., ...)"
+    description: Using 2-parameter constructor
+    fix: JUCE 8 requires 3 parameters - add nullptr for UndoManager
+
+  - pattern: "WebBrowserComponent.*WebSliderRelay"
+    description: Declaring WebView before Relay in header
+    fix: Declaration order must be Relay → WebView → Attachment
+
+  - pattern: "valueChangedEvent.addListener((value) =>"
+    description: Expecting value as callback parameter
+    fix: JUCE doesn't pass values - use getNormalisedValue() inside callback
+
+# Where this pattern was learned from
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconTremolo
+    - OuariconComp
+  reference_file: plugins/OuariconAnalogEQ/Source/PluginEditor.cpp
+  pattern_id: "stage-3-patterns.md #7, #8"
+
+# Usage example showing all pieces together
+usage_example: |
+  // ==================== PluginEditor.h ====================
+  class MyPluginEditor : public juce::AudioProcessorEditor
+  {
+  public:
+      MyPluginEditor(MyProcessor&);
+      ~MyPluginEditor() override;
+
+  private:
+      MyProcessor& processorRef;
+
+      // CRITICAL ORDER: Relays first
+      std::unique_ptr<juce::WebSliderRelay> gainRelay;
+      std::unique_ptr<juce::WebSliderRelay> freqRelay;
+
+      // WebView second
+      std::unique_ptr<juce::WebBrowserComponent> webView;
+
+      // Attachments last
+      std::unique_ptr<juce::WebSliderParameterAttachment> gainAttachment;
+      std::unique_ptr<juce::WebSliderParameterAttachment> freqAttachment;
+  };
+
+  // ==================== PluginEditor.cpp ====================
+  MyPluginEditor::MyPluginEditor(MyProcessor& p)
+      : AudioProcessorEditor(&p), processorRef(p)
+  {
+      // 1. Create relays
+      gainRelay = std::make_unique<juce::WebSliderRelay>("gain");
+      freqRelay = std::make_unique<juce::WebSliderRelay>("frequency");
+
+      // 2. Create WebView with relay options
+      webView = std::make_unique<juce::WebBrowserComponent>(
+          juce::WebBrowserComponent::Options{}
+              .withNativeIntegrationEnabled()
+              .withOptionsFrom(*gainRelay)
+              .withOptionsFrom(*freqRelay)
+              .withResourceProvider([this](auto& url) { return getResource(url); })
+      );
+
+      // 3. Create attachments
+      gainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+          *processorRef.parameters.getParameter("gain"),
+          *gainRelay,
+          nullptr);
+      freqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+          *processorRef.parameters.getParameter("frequency"),
+          *freqRelay,
+          nullptr);
+
+      addAndMakeVisible(*webView);
+      setSize(600, 400);
+  }

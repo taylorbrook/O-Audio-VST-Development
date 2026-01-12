@@ -1,0 +1,134 @@
+# Code Snippet Template: processBlock Skeleton
+# Real-time safe processBlock implementation skeleton
+
+name: processBlock Skeleton
+category: dsp-snippets
+stage: 2
+version: 1.0.0
+tags:
+  - dsp
+  - processblock
+  - realtime
+  - template
+  - effect
+  - skeleton
+
+description: |
+  Template for a real-time safe processBlock implementation. Includes
+  ScopedNoDenormals, edge case handling, and proper buffer access patterns.
+
+variables:
+  # Pattern is consistent, DSP-specific logic added by developer
+
+code:
+  effect_processblock: |
+    void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                        juce::MidiBuffer& midiMessages)
+    {
+        juce::ScopedNoDenormals noDenormals;
+
+        // Edge case: zero-length buffer
+        if (buffer.getNumSamples() == 0)
+            return;
+
+        // Clear any extra output channels
+        auto totalNumInputChannels = getTotalNumInputChannels();
+        auto totalNumOutputChannels = getTotalNumOutputChannels();
+
+        for (auto i = totalNumInputChannels; i < totalNumOutputChannels; ++i)
+            buffer.clear(i, 0, buffer.getNumSamples());
+
+        // Read parameters (atomic, lock-free)
+        float gain = parameters.getRawParameterValue("GAIN")->load();
+
+        // Process audio
+        for (int channel = 0; channel < totalNumInputChannels; ++channel)
+        {
+            auto* channelData = buffer.getWritePointer(channel);
+
+            for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+            {
+                // Your DSP here
+                channelData[sample] *= gain;
+            }
+        }
+
+        // Update metering (atomic write for UI)
+        float peakLevel = buffer.getMagnitude(0, 0, buffer.getNumSamples());
+        outputLevelDB.store(juce::Decibels::gainToDecibels(peakLevel),
+                           std::memory_order_relaxed);
+    }
+
+  synth_processblock: |
+    void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                        juce::MidiBuffer& midiMessages)
+    {
+        juce::ScopedNoDenormals noDenormals;
+
+        // Clear buffer - synths generate audio, not process it
+        buffer.clear();
+
+        // Edge case: zero-length buffer
+        if (buffer.getNumSamples() == 0)
+            return;
+
+        // Read parameters
+        float outputGain = parameters.getRawParameterValue("OUTPUT_GAIN")->load();
+
+        // Render synth voices (example with juce::Synthesiser)
+        synth.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+        // Apply output gain
+        buffer.applyGain(outputGain);
+
+        // Update metering
+        float peakLevel = buffer.getMagnitude(0, 0, buffer.getNumSamples());
+        outputLevelDB.store(juce::Decibels::gainToDecibels(peakLevel),
+                           std::memory_order_relaxed);
+    }
+
+  dsp_module_processblock: |
+    void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer,
+                                        juce::MidiBuffer& midiMessages)
+    {
+        juce::ScopedNoDenormals noDenormals;
+
+        if (buffer.getNumSamples() == 0)
+            return;
+
+        // Wrap buffer in AudioBlock for juce::dsp processing
+        juce::dsp::AudioBlock<float> block(buffer);
+        juce::dsp::ProcessContextReplacing<float> context(block);
+
+        // Process through DSP chain
+        processorChain.process(context);
+
+        // Update metering
+        float peakLevel = buffer.getMagnitude(0, 0, buffer.getNumSamples());
+        outputLevelDB.store(juce::Decibels::gainToDecibels(peakLevel),
+                           std::memory_order_relaxed);
+    }
+
+anti_patterns:
+  - pattern: "new|malloc|std::vector.*processBlock"
+    description: Memory allocation in audio thread
+    fix: Pre-allocate all buffers in prepareToPlay()
+
+  - pattern: "processBlock.*missing.*ScopedNoDenormals"
+    description: Missing ScopedNoDenormals
+    fix: Add juce::ScopedNoDenormals noDenormals; at start of processBlock
+
+  - pattern: "juce::String.*processBlock"
+    description: String operations in audio thread
+    fix: Strings allocate memory - remove from processBlock
+
+  - pattern: "DBG.*processBlock"
+    description: Debug output in audio thread
+    fix: DBG can block - remove or use lock-free logging
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconTremolo
+    - OuariconComp
+  pattern_id: "stage-2-patterns.md #2"

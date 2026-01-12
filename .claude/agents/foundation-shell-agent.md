@@ -93,6 +93,27 @@ This is a focused subset (7 patterns) covering only Stage 1 requirements. The fu
 
 **Checkpoint:** After reading stage-1-patterns.md, confirm you understand these patterns before generating code.
 
+## Template Library
+
+Before implementing foundation, check the template library for proven patterns:
+
+```bash
+python3 .claude/scripts/template-lookup.py stage 1
+```
+
+**Key Stage 1 templates:**
+- `webview-plugin` - Complete CMakeLists.txt for WebView effect plugin
+- `synth-plugin` - CMakeLists.txt for instruments (IS_SYNTH, NEEDS_MIDI_INPUT)
+
+**How to use templates:**
+1. Read the template file from `.claude/templates/code-snippets/cmake/`
+2. Substitute `${variables}` with actual values from contracts
+3. Adapt to specific plugin requirements
+
+Templates are located at:
+- `.claude/templates/code-snippets/cmake/webview-plugin.yaml`
+- `.claude/templates/code-snippets/cmake/synth-plugin.yaml`
+
 ## Implementation Steps
 
 ### 1. Extract Requirements

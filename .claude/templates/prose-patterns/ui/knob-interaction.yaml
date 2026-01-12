@@ -1,0 +1,153 @@
+# Prose Pattern Template: Rotary Knob Interaction
+# JavaScript interaction pattern for WebView rotary knobs
+
+name: Rotary Knob Interaction
+category: ui-interaction
+stage: 3
+version: 1.0.0
+complexity: 2
+tags:
+  - knob
+  - drag
+  - mouse
+  - relative
+  - webview
+  - javascript
+  - rotary
+
+description: |
+  Implements rotary knob drag behavior in WebView UI. Uses relative dragging
+  (movement since last frame) rather than absolute positioning for smooth,
+  professional feel.
+
+concept: |
+  ## Relative vs Absolute Dragging
+
+  **Absolute (wrong):**
+  - Track distance from initial click point
+  - Knob jumps when cursor returns to original position
+  - Feels unnatural, especially with large movements
+
+  **Relative (correct):**
+  - Track movement since LAST frame
+  - Each frame adds small delta to rotation
+  - Smooth, continuous motion regardless of cursor position
+
+  ## The Pattern
+
+  ```javascript
+  let isDragging = false;
+  let lastY = 0;
+  let rotation = 0;  // Current rotation in degrees
+
+  const MIN_ROTATION = -135;  // 7 o'clock
+  const MAX_ROTATION = 135;   // 5 o'clock
+  const SENSITIVITY = 0.5;    // Degrees per pixel
+
+  knob.addEventListener('mousedown', (e) => {
+      isDragging = true;
+      lastY = e.clientY;  // Store CURRENT position
+      e.preventDefault();
+  });
+
+  document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+
+      // Delta since LAST frame, not since mousedown
+      const deltaY = lastY - e.clientY;
+      rotation += deltaY * SENSITIVITY;
+
+      // Clamp to range
+      rotation = Math.max(MIN_ROTATION, Math.min(MAX_ROTATION, rotation));
+
+      // Apply visual rotation
+      knobElement.style.transform = `rotate(${rotation}deg)`;
+
+      // Update parameter (0-1 normalized)
+      const normalized = (rotation - MIN_ROTATION) / (MAX_ROTATION - MIN_ROTATION);
+      sliderState.setNormalisedValue(normalized);
+
+      // KEY: Update lastY for next frame
+      lastY = e.clientY;
+  });
+
+  document.addEventListener('mouseup', () => {
+      isDragging = false;
+  });
+  ```
+
+  ## Touch Support
+
+  For touch devices, use similar pattern with touch events:
+
+  ```javascript
+  knob.addEventListener('touchstart', (e) => {
+      isDragging = true;
+      lastY = e.touches[0].clientY;
+      e.preventDefault();
+  });
+
+  document.addEventListener('touchmove', (e) => {
+      if (!isDragging) return;
+      const deltaY = lastY - e.touches[0].clientY;
+      // ... same logic as mousemove
+      lastY = e.touches[0].clientY;
+  });
+
+  document.addEventListener('touchend', () => {
+      isDragging = false;
+  });
+  ```
+
+  ## Double-Click to Reset
+
+  Professional UX includes reset to default:
+
+  ```javascript
+  knob.addEventListener('dblclick', () => {
+      sliderState.setNormalisedValue(defaultValue);
+      rotation = valueToRotation(defaultValue);
+      updateKnobVisual(rotation);
+  });
+  ```
+
+  ## Syncing with JUCE State
+
+  When JUCE sends parameter updates (e.g., preset load):
+
+  ```javascript
+  sliderState.valueChangedEvent.addListener(() => {
+      const value = sliderState.getNormalisedValue();
+      rotation = MIN_ROTATION + value * (MAX_ROTATION - MIN_ROTATION);
+      knobElement.style.transform = `rotate(${rotation}deg)`;
+  });
+  ```
+
+  Note: valueChangedEvent callback receives NO parameters.
+  Must call getNormalisedValue() inside the callback.
+
+implementation_notes:
+  - Use `lastY` (previous frame), NOT `startY` (initial click)
+  - Attach mousemove/mouseup to document, not knob (catches drag outside)
+  - preventDefault on mousedown to avoid text selection
+  - Sensitivity of 0.5 deg/pixel is a good starting point
+  - Add momentum/inertia for extra polish (optional)
+
+anti_patterns:
+  - pattern: "startY - e.clientY"
+    description: Using start position instead of last frame
+    fix: Use lastY and update it each frame
+
+  - pattern: "knob.addEventListener('mousemove'"
+    description: Attaching mousemove to knob element
+    fix: Attach to document to catch movement outside knob
+
+  - pattern: "valueChangedEvent.addListener((value)"
+    description: Expecting value parameter in callback
+    fix: JUCE doesn't pass values - call getNormalisedValue() inside
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconTremolo
+  pattern_id: "stage-3-patterns.md #11"

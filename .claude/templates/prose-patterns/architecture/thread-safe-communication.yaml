@@ -1,0 +1,138 @@
+# Prose Pattern Template: Thread-Safe UI/Audio Communication
+# Patterns for safe communication between audio and UI threads
+
+name: Thread-Safe UI/Audio Communication
+category: architecture
+stage: all
+version: 1.0.0
+complexity: 2
+tags:
+  - threading
+  - atomic
+  - apvts
+  - realtime
+  - lock-free
+  - audio-thread
+  - ui-thread
+
+description: |
+  Audio plugins run code on two threads that must never block each other:
+  - Audio thread: processBlock(), real-time critical, cannot wait
+  - UI thread: Editor, timers, parameter changes, can wait
+
+  This pattern covers safe communication between them.
+
+concept: |
+  ## The Golden Rule
+
+  **The audio thread must NEVER wait for the UI thread.**
+
+  This means:
+  - No mutexes in processBlock()
+  - No memory allocation in processBlock()
+  - No file I/O in processBlock()
+  - No string operations in processBlock()
+
+  ## APVTS: The Safe Path
+
+  AudioProcessorValueTreeState (APVTS) provides lock-free parameter
+  communication built into JUCE:
+
+  ```cpp
+  // UI Thread: User moves slider
+  parameters.getParameter("gain")->setValueNotifyingHost(0.5f);
+
+  // Audio Thread: Read parameter (lock-free)
+  float gain = parameters.getRawParameterValue("gain")->load();
+  ```
+
+  The atomic floats inside APVTS handle the synchronization.
+
+  ## Atomic Variables: For Custom Data
+
+  For data not covered by APVTS (metering, state flags):
+
+  ```cpp
+  // In Processor header
+  std::atomic<float> outputLevelDB { -100.0f };
+  std::atomic<bool> isPlaying { false };
+
+  // Audio thread writes
+  outputLevelDB.store(newLevel, std::memory_order_relaxed);
+
+  // UI thread reads
+  float level = outputLevelDB.load(std::memory_order_relaxed);
+  ```
+
+  `std::memory_order_relaxed` is sufficient for single values where
+  precise ordering doesn't matter.
+
+  ## Timer-Based Polling
+
+  For UI updates from audio data, poll in a timer:
+
+  ```cpp
+  // In Editor constructor
+  startTimerHz(30);  // 30 Hz is enough for meters
+
+  // In timerCallback()
+  void timerCallback() override
+  {
+      float level = processorRef.outputLevelDB.load();
+      updateMeterDisplay(level);
+  }
+  ```
+
+  This is safer than callbacks because:
+  - Timer runs on UI thread (safe to update UI)
+  - No callback infrastructure needed
+  - Polling rate is controlled and predictable
+
+  ## What NOT To Do
+
+  **Never call processBlock from UI:**
+  ```cpp
+  // WRONG - called from UI thread
+  button.onClick = [this] {
+      processor.processBlock(buffer, midi);  // CRASH or glitch
+  };
+  ```
+
+  **Never use mutex in audio thread:**
+  ```cpp
+  // WRONG - can block audio thread
+  void processBlock(...) {
+      std::lock_guard lock(mutex);  // NEVER DO THIS
+      // ...
+  }
+  ```
+
+  **Never allocate in audio thread:**
+  ```cpp
+  // WRONG - allocation can block
+  void processBlock(...) {
+      std::vector<float> temp(size);  // NEVER DO THIS
+      juce::String msg = "Processing";  // Strings allocate
+  }
+  ```
+
+implementation_notes:
+  - Use APVTS for all parameter communication
+  - Use std::atomic for metering, state flags, simple values
+  - Use lock-free queues (juce::AbstractFifo) for complex data
+  - Pre-allocate all buffers in prepareToPlay()
+  - Timer-based polling is simple and safe for UI updates
+
+anti_patterns:
+  - Mutex/lock in processBlock
+  - Memory allocation in processBlock
+  - Calling processBlock from UI code
+  - Using non-atomic shared variables
+  - String operations in audio thread
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconTremolo
+    - OuariconComp
+  pattern_id: "stage-2-patterns.md #2"

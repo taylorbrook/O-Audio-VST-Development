@@ -1,0 +1,136 @@
+# Prose Pattern Template: Member Initialization Order
+# Critical ordering for WebView components to prevent crashes
+
+name: Member Initialization Order
+category: architecture
+stage: 3
+version: 1.0.0
+complexity: 1
+tags:
+  - webview
+  - relay
+  - attachment
+  - order
+  - crash-prevention
+  - destruction
+  - initialization
+
+description: |
+  WebView components MUST be declared and initialized in a specific order
+  to prevent crashes during destruction. This pattern prevents 90% of
+  release build crashes in WebView-based plugins.
+
+concept: |
+  ## The Problem
+
+  When a plugin editor is destroyed, C++ destroys members in REVERSE
+  declaration order. WebSliderParameterAttachment calls evaluateJavascript()
+  during destruction to notify the WebView of final values.
+
+  If the WebView is destroyed BEFORE the attachments, evaluateJavascript()
+  is called on a null/destroyed WebView → crash.
+
+  ## The Solution
+
+  Declare members in this order:
+
+  ```
+  1. Relays           (destroyed LAST)
+  2. WebView          (destroyed SECOND)
+  3. Attachments      (destroyed FIRST)
+  ```
+
+  This means:
+  - Attachments are destroyed first, while WebView still exists
+  - WebView is destroyed second, while Relays still exist
+  - Relays are destroyed last
+
+  ## Header File Pattern
+
+  ```cpp
+  class PluginEditor : public juce::AudioProcessorEditor
+  {
+  private:
+      PluginProcessor& processorRef;
+
+      // ═══════════════════════════════════════════════════
+      // CRITICAL ORDER: Relays → WebView → Attachments
+      // ═══════════════════════════════════════════════════
+
+      // 1. RELAYS FIRST
+      std::unique_ptr<juce::WebSliderRelay> gainRelay;
+      std::unique_ptr<juce::WebSliderRelay> frequencyRelay;
+      std::unique_ptr<juce::WebToggleButtonRelay> bypassRelay;
+
+      // 2. WEBVIEW SECOND
+      std::unique_ptr<juce::WebBrowserComponent> webView;
+
+      // 3. ATTACHMENTS LAST
+      std::unique_ptr<juce::WebSliderParameterAttachment> gainAttachment;
+      std::unique_ptr<juce::WebSliderParameterAttachment> frequencyAttachment;
+      std::unique_ptr<juce::WebToggleButtonParameterAttachment> bypassAttachment;
+  };
+  ```
+
+  ## Constructor Pattern
+
+  Initialize in declaration order (same order as header):
+
+  ```cpp
+  PluginEditor::PluginEditor(PluginProcessor& p)
+      : AudioProcessorEditor(&p), processorRef(p)
+  {
+      // 1. Create relays
+      gainRelay = std::make_unique<juce::WebSliderRelay>("gain");
+      frequencyRelay = std::make_unique<juce::WebSliderRelay>("frequency");
+      bypassRelay = std::make_unique<juce::WebToggleButtonRelay>("bypass");
+
+      // 2. Create WebView (with relays attached)
+      webView = std::make_unique<juce::WebBrowserComponent>(
+          juce::WebBrowserComponent::Options{}
+              .withNativeIntegrationEnabled()
+              .withOptionsFrom(*gainRelay)
+              .withOptionsFrom(*frequencyRelay)
+              .withOptionsFrom(*bypassRelay)
+              .withResourceProvider([this](auto& url) { return getResource(url); })
+      );
+
+      // 3. Create attachments (AFTER webView)
+      gainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+          *processorRef.parameters.getParameter("gain"), *gainRelay, nullptr);
+      // ... more attachments
+
+      addAndMakeVisible(*webView);
+      setSize(600, 400);
+  }
+  ```
+
+implementation_notes:
+  - Use std::unique_ptr for all WebView-related members
+  - Add comment in header marking the critical order
+  - This applies to ALL relay types (Slider, Toggle, ComboBox)
+  - Same pattern needed for native JUCE attachments (SliderAttachment, etc.)
+
+anti_patterns:
+  - pattern: "WebBrowserComponent.*before.*Relay"
+    description: Declaring WebView before Relays
+    fix: Move Relay declarations before WebView
+
+  - pattern: "Attachment.*before.*WebBrowserComponent"
+    description: Declaring Attachments before WebView
+    fix: Move Attachment declarations after WebView
+
+  - pattern: "raw.*WebBrowserComponent|raw.*Attachment"
+    description: Using raw pointers instead of unique_ptr
+    fix: Use std::unique_ptr for proper destruction order
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconTremolo
+    - OuariconComp
+  pattern_id: "stage-3-patterns.md #7"
+  key_insight: |
+    This was discovered through crashes in release builds that didn't
+    occur in debug. The destruction order is critical because JUCE's
+    attachment destructors call back into the WebView.

@@ -142,6 +142,35 @@ This is a focused subset (14 patterns) covering Stage 3 (GUI/WebView) requiremen
 7. Always install to system folders before testing in DAW
 </required_reading>
 
+<template_library>
+## Template Library
+
+Before implementing GUI, check the template library for proven patterns:
+
+```bash
+python3 .claude/scripts/template-lookup.py stage 3
+```
+
+**Key Stage 3 templates:**
+- `slider-relay` - WebSliderRelay + Attachment binding
+- `toggle-relay` - WebToggleButtonRelay binding
+- `combobox-relay` - WebComboBoxRelay for choice parameters
+- `lazy-navigation` - Deferred WebView initialization
+- `resource-provider` - URL-to-BinaryData mapping
+- `member-initialization-order` - CRITICAL: Relay → WebView → Attachment order
+- `knob-interaction` - Relative drag for rotary controls
+- `vu-meter-animation` - Smooth ballistic meter animation
+
+**How to use templates:**
+1. Read the template file from `.claude/templates/`
+2. For code snippets: substitute `${variables}` with actual values
+3. For prose patterns: interpret the `concept` section and adapt to context
+
+Templates are located at:
+- Code snippets: `.claude/templates/code-snippets/parameter-binding/`, `webview/`
+- Prose patterns: `.claude/templates/prose-patterns/ui/`, `architecture/`
+</template_library>
+
 <workflow>
 ## Implementation Steps
 

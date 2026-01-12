@@ -1,0 +1,145 @@
+# Prose Pattern Template: Envelope Follower
+# Conceptual pattern for dynamics processing envelope detection
+
+name: Envelope Follower
+category: dsp-concepts
+stage: 2
+version: 1.0.0
+complexity: 2
+tags:
+  - dynamics
+  - compressor
+  - envelope
+  - detector
+  - attack
+  - release
+  - rms
+  - peak
+
+description: |
+  An envelope follower tracks the amplitude of an audio signal over time.
+  Used in compressors, limiters, gates, and ducking effects to control
+  gain based on signal level.
+
+concept: |
+  ## Envelope Detection Basics
+
+  The envelope follower smooths the instantaneous signal level using
+  separate attack and release times:
+
+  - **Attack**: How fast the envelope rises when signal increases
+  - **Release**: How fast the envelope falls when signal decreases
+
+  ## Coefficient Calculation
+
+  Convert time constants to per-sample coefficients:
+
+  ```
+  attackCoeff = exp(-1.0 / (attackTime * sampleRate))
+  releaseCoeff = exp(-1.0 / (releaseTime * sampleRate))
+  ```
+
+  Typical ranges:
+  - Attack: 0.1ms to 100ms
+  - Release: 10ms to 1000ms
+
+  ## Per-Sample Envelope Update
+
+  The exponential moving average applies different coefficients based
+  on whether the signal is rising or falling:
+
+  ```cpp
+  float inputLevel = abs(inputSample);  // or RMS, see below
+
+  if (inputLevel > envelope) {
+      // Signal rising - use attack
+      envelope = inputLevel + attackCoeff * (envelope - inputLevel);
+  } else {
+      // Signal falling - use release
+      envelope = inputLevel + releaseCoeff * (envelope - inputLevel);
+  }
+  ```
+
+  ## Peak vs RMS Detection
+
+  **Peak detection** (absolute value):
+  - Faster response
+  - Good for limiting, transient control
+  ```cpp
+  float inputLevel = std::abs(sample);
+  ```
+
+  **RMS detection** (root mean square):
+  - Smoother, more "musical"
+  - Better for compression, leveling
+  ```cpp
+  // Accumulate squared values over window
+  float rmsLevel = std::sqrt(sumOfSquares / windowSize);
+  ```
+
+  ## Gain Calculation (for compressors)
+
+  Once you have the envelope, calculate gain reduction:
+
+  ```cpp
+  float envelopeDB = 20.0f * log10(envelope + 1e-6f);
+
+  if (envelopeDB > thresholdDB) {
+      float overDB = envelopeDB - thresholdDB;
+      float gainReductionDB = overDB * (1.0f - 1.0f / ratio);
+      outputGain = pow(10.0f, -gainReductionDB / 20.0f);
+  } else {
+      outputGain = 1.0f;
+  }
+  ```
+
+implementation_notes:
+  - Pre-calculate coefficients in prepareToPlay, not every sample
+  - Store envelope as instance variable (persists across buffers)
+  - Use very small epsilon (1e-6) to avoid log(0)
+  - For stereo, use max of both channels or link them
+  - Consider lookahead for zero-attack limiting
+
+parameters:
+  - name: attack
+    type: float
+    range: [0.1, 100]
+    unit: ms
+    description: Attack time constant
+
+  - name: release
+    type: float
+    range: [10, 1000]
+    unit: ms
+    description: Release time constant
+
+  - name: threshold
+    type: float
+    range: [-60, 0]
+    unit: dB
+    description: Level above which compression starts
+
+  - name: ratio
+    type: float
+    range: [1, 20]
+    description: Compression ratio (1:1 to 20:1)
+
+realtime_safety:
+  - No allocations - coefficients pre-calculated
+  - No function calls that could block
+  - All calculations are simple arithmetic
+
+anti_patterns:
+  - Calculating coefficients per-sample (expensive)
+  - Using same coefficient for attack and release (unnatural)
+  - Not handling log(0) case (NaN/crash)
+  - Resetting envelope to zero on parameter change (causes click)
+
+provenance:
+  plugins:
+    - OuariconComp
+  reference_file: plugins/OuariconComp/Source/PluginProcessor.cpp
+  key_insight: |
+    OuariconComp uses per-sample envelope following with separate
+    attack/release coefficients. The soft knee is implemented by
+    blending linear and compressed regions over the knee width.

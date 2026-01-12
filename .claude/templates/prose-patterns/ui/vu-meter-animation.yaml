@@ -1,0 +1,166 @@
+# Prose Pattern Template: VU Meter Animation
+# Smooth ballistic animation for VU meters in WebView
+
+name: VU Meter Animation
+category: ui-interaction
+stage: 3
+version: 1.0.0
+complexity: 2
+tags:
+  - vu
+  - meter
+  - animation
+  - ballistics
+  - webview
+  - javascript
+  - level
+
+description: |
+  Implements smooth VU meter animation with attack/release ballistics.
+  Uses requestAnimationFrame for smooth motion and separates data updates
+  from visual animation.
+
+concept: |
+  ## VU Meter Ballistics
+
+  Real VU meters have physical mass and inertia. Digital meters should
+  emulate this with:
+
+  - **Fast attack**: Needle moves quickly toward peaks
+  - **Slow release**: Needle falls slowly when signal drops
+  - **Overshoot**: Optional bounce past target (classic VU behavior)
+
+  ## Two-Phase Approach
+
+  1. **Data phase**: C++ sends level updates at 30Hz
+  2. **Animation phase**: JavaScript interpolates smoothly at 60Hz
+
+  ```javascript
+  // State variables
+  let currentAngle = -45;  // Current visual position (degrees)
+  let targetAngle = -45;   // Target from audio engine (degrees)
+
+  // Ballistics constants
+  const ATTACK_SPEED = 0.4;   // Fast attack (0-1)
+  const RELEASE_SPEED = 0.15; // Slow release (0-1)
+  const MIN_ANGLE = -45;      // Needle at minimum
+  const MAX_ANGLE = 45;       // Needle at maximum
+
+  // Called when C++ sends new level
+  function updateTargetLevel(dbLevel) {
+      // Map dB to angle (-60dB to 0dB → -45° to 45°)
+      const normalized = Math.max(0, Math.min(1, (dbLevel + 60) / 60));
+      targetAngle = MIN_ANGLE + normalized * (MAX_ANGLE - MIN_ANGLE);
+  }
+
+  // Animation loop
+  function animateVUMeter() {
+      // Choose speed based on direction
+      const speed = currentAngle < targetAngle ? ATTACK_SPEED : RELEASE_SPEED;
+
+      // Exponential ease toward target
+      currentAngle += (targetAngle - currentAngle) * speed;
+
+      // Apply to visual element
+      needleElement.style.transform = `rotate(${currentAngle}deg)`;
+
+      // Continue animation
+      requestAnimationFrame(animateVUMeter);
+  }
+
+  // Start animation loop
+  animateVUMeter();
+  ```
+
+  ## Receiving Data from C++
+
+  C++ sends level updates via emitEvent or timer polling:
+
+  ```javascript
+  // Option 1: Event-based (C++ calls emitEventIfBrowserIsVisible)
+  window.__JUCE__.backend.addEventListener('outputLevel', (level) => {
+      updateTargetLevel(level);
+  });
+
+  // Option 2: Native function polling (in your timer)
+  setInterval(() => {
+      const level = window.__JUCE__.backend.getOutputLevel();
+      updateTargetLevel(level);
+  }, 33);  // ~30Hz
+  ```
+
+  ## dB to Visual Mapping
+
+  VU meters typically show -60dB to +3dB range:
+
+  ```javascript
+  function dbToNormalized(db) {
+      const minDB = -60;
+      const maxDB = 3;
+      return Math.max(0, Math.min(1, (db - minDB) / (maxDB - minDB)));
+  }
+  ```
+
+  For log-like visual response (more resolution at higher levels):
+
+  ```javascript
+  function dbToNormalized(db) {
+      // Apply curve for better visual response
+      const linear = (db + 60) / 63;  // -60 to +3 → 0 to 1
+      return Math.pow(Math.max(0, linear), 0.5);  // Square root curve
+  }
+  ```
+
+  ## Peak Hold (Optional)
+
+  Professional meters often hold peak for a moment:
+
+  ```javascript
+  let peakAngle = MIN_ANGLE;
+  let peakHoldTime = 0;
+  const PEAK_HOLD_FRAMES = 60;  // Hold for ~1 second
+
+  function updatePeak() {
+      if (currentAngle > peakAngle) {
+          peakAngle = currentAngle;
+          peakHoldTime = 0;
+      }
+
+      peakHoldTime++;
+      if (peakHoldTime > PEAK_HOLD_FRAMES) {
+          peakAngle -= 1;  // Slow decay
+      }
+
+      peakMarker.style.transform = `rotate(${peakAngle}deg)`;
+  }
+  ```
+
+implementation_notes:
+  - Use requestAnimationFrame, not setInterval for animation
+  - Separate data rate (30Hz from C++) from animation rate (60Hz)
+  - Attack should be faster than release for natural feel
+  - Add small dead zone at minimum to avoid jitter
+  - Consider adding clip indicator for levels > 0dB
+
+anti_patterns:
+  - pattern: "setInterval.*style.transform"
+    description: Using setInterval for animation
+    fix: Use requestAnimationFrame for smooth 60Hz animation
+
+  - pattern: "style.transform = .*dbLevel"
+    description: Directly mapping level to visual without interpolation
+    fix: Use current/target with easing for smooth motion
+
+  - pattern: "ATTACK.*RELEASE.*same value"
+    description: Same attack and release speed
+    fix: Attack should be faster (0.3-0.5) than release (0.1-0.2)
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconComp
+  pattern_id: "stage-3-patterns.md #13"
+  key_insight: |
+    OuariconComp uses requestAnimationFrame with separate attack/release
+    coefficients. The C++ side sends level at 30Hz via atomic float,
+    editor polls in timerCallback and sends to WebView.

@@ -1,0 +1,88 @@
+# Code Snippet Template: Lazy WebView Navigation
+# Deferred WebView navigation to prevent plugin scanner crashes
+
+name: Lazy WebView Navigation
+category: webview
+stage: 3
+version: 1.0.0
+tags:
+  - webview
+  - navigation
+  - initialization
+  - juce8
+  - scanner
+  - crash-prevention
+
+description: |
+  Defers WebView navigation until the editor is fully attached to the
+  component hierarchy. This prevents crashes during plugin scanning
+  when DAWs instantiate plugins without showing the UI.
+
+  This is the RECOMMENDED approach over immediate navigation in constructor.
+
+variables:
+  # No variables needed - pattern is consistent
+
+code:
+  header_addition: |
+    bool hasNavigated = false;
+
+  implementation: |
+    void parentHierarchyChanged() override
+    {
+        if (isShowing() && webView != nullptr && !hasNavigated)
+        {
+            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+            hasNavigated = true;
+        }
+    }
+
+  full_example: |
+    // ============ PluginEditor.h ============
+    class MyPluginEditor : public juce::AudioProcessorEditor
+    {
+    public:
+        MyPluginEditor(MyProcessor&);
+        ~MyPluginEditor() override;
+
+        void parentHierarchyChanged() override;
+
+    private:
+        bool hasNavigated = false;
+        std::unique_ptr<juce::WebBrowserComponent> webView;
+        // ... other members
+    };
+
+    // ============ PluginEditor.cpp ============
+    void MyPluginEditor::parentHierarchyChanged()
+    {
+        // Only navigate when editor becomes visible
+        // AND webView exists AND we haven't navigated yet
+        if (isShowing() && webView != nullptr && !hasNavigated)
+        {
+            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+            hasNavigated = true;
+        }
+    }
+
+anti_patterns:
+  - pattern: "goToURL.*constructor"
+    description: Navigating to URL in constructor
+    fix: Use parentHierarchyChanged() for deferred navigation
+
+  - pattern: "static.*hasNavigated"
+    description: Using static hasNavigated flag
+    fix: Must be instance variable - each editor instance needs its own flag
+
+  - pattern: "!hasNavigated.*goToURL.*hasNavigated = true"
+    description: Missing isShowing() or webView null check
+    fix: Always check isShowing() && webView != nullptr before navigation
+
+provenance:
+  plugins:
+    - OuariconTremolo
+  reference_file: plugins/OuariconTremolo/Source/PluginEditor.cpp
+  key_insight: |
+    OuariconAnalogEQ and OuariconComp navigate immediately in constructor,
+    but OuariconTremolo uses this lazy pattern which is more robust.
+    The lazy approach avoids crashes during plugin scanning.

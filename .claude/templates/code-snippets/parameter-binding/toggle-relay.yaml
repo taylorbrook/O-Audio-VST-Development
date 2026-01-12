@@ -1,0 +1,83 @@
+# Code Snippet Template: Toggle Parameter Binding
+# Binds a WebView toggle/switch to an APVTS boolean parameter
+
+name: Toggle Parameter Binding
+category: parameter-binding
+stage: 3
+version: 1.0.0
+tags:
+  - webview
+  - toggle
+  - boolean
+  - relay
+  - juce8
+  - switch
+
+description: |
+  Binds a WebView toggle button (on/off switch) to an AudioProcessorValueTreeState
+  boolean parameter. Use for bypass switches, mode toggles, enable/disable controls.
+
+variables:
+  param_name:
+    description: Parameter name in camelCase for C++ variables
+    type: string
+    example: bypassOn
+
+  param_id:
+    description: Parameter ID matching APVTS registration and HTML element
+    type: string
+    example: bypass_on
+
+code:
+  header: |
+    std::unique_ptr<juce::WebToggleButtonRelay> ${param_name}Relay;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> ${param_name}Attachment;
+
+  relay_creation: |
+    ${param_name}Relay = std::make_unique<juce::WebToggleButtonRelay>("${param_id}");
+
+  webview_options: |
+    .withOptionsFrom(*${param_name}Relay)
+
+  attachment_creation: |
+    ${param_name}Attachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("${param_id}"),
+        *${param_name}Relay,
+        nullptr);
+
+  javascript: |
+    import { getToggleState } from './js/juce/index.js';
+
+    const ${param_name}State = getToggleState("${param_id}");
+
+    // Toggle on click
+    ${param_name}Element.addEventListener('click', () => {
+        ${param_name}State.setValue(!${param_name}State.getValue());
+    });
+
+    // Update visual on state change
+    ${param_name}State.valueChangedEvent.addListener(() => {
+        const isOn = ${param_name}State.getValue();
+        ${param_name}Element.classList.toggle('active', isOn);
+    });
+
+  apvts_parameter: |
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "${param_id}", 1 },
+        "${param_name}",
+        false));  // default value
+
+anti_patterns:
+  - pattern: "getSliderState.*BYPASS|MODE|ENABLE"
+    description: Using getSliderState for boolean parameters
+    fix: Use getToggleState() for boolean parameters
+
+  - pattern: "WebToggleButtonParameterAttachment(..., ...)"
+    description: Using 2-parameter constructor
+    fix: JUCE 8 requires 3 parameters - add nullptr for UndoManager
+
+provenance:
+  plugins:
+    - OuariconTremolo
+  reference_file: plugins/OuariconTremolo/Source/PluginEditor.cpp
+  pattern_id: "stage-3-patterns.md #12"

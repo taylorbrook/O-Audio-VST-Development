@@ -1,0 +1,179 @@
+# Prose Pattern Template: LFO Modulation Engine
+# Conceptual pattern for implementing low-frequency oscillators
+
+name: LFO Modulation Engine
+category: dsp-concepts
+stage: 2
+version: 1.0.0
+complexity: 2  # 1=simple, 2=moderate, 3=complex
+tags:
+  - lfo
+  - modulation
+  - tremolo
+  - vibrato
+  - chorus
+  - rate
+  - depth
+  - waveform
+
+description: |
+  A phase-accumulator LFO for modulation effects. The LFO generates a
+  continuous waveform that modulates other parameters (amplitude for tremolo,
+  pitch for vibrato, delay time for chorus/flanger).
+
+# The core concept explained in prose (agents interpret this)
+concept: |
+  ## Phase Accumulator Fundamentals
+
+  The LFO works by maintaining a phase value between 0.0 and 1.0 that
+  continuously increments based on the desired frequency:
+
+  ```
+  phaseIncrement = frequency / sampleRate
+  phase += phaseIncrement
+  if (phase >= 1.0) phase -= 1.0
+  ```
+
+  This phase value represents one complete cycle of the waveform. Different
+  waveforms are computed by applying mathematical functions to the phase:
+
+  ## Waveform Calculations
+
+  **Sine** (smooth, musical):
+  ```
+  output = sin(phase * 2.0 * PI)
+  ```
+
+  **Triangle** (linear, softer than sine at extremes):
+  ```
+  output = 4.0 * abs(phase - 0.5) - 1.0
+  ```
+
+  **Square** (abrupt, rhythmic):
+  ```
+  output = phase < 0.5 ? 1.0 : -1.0
+  ```
+
+  **Sawtooth** (rising ramp):
+  ```
+  output = 2.0 * phase - 1.0
+  ```
+
+  **Sample & Hold / Random** (stepped random values):
+  ```
+  if (phase wrapped this sample) {
+      heldValue = randomFloat(-1.0, 1.0)
+  }
+  output = heldValue
+  ```
+
+  ## Tempo Sync
+
+  For tempo-synchronized LFO, calculate frequency from BPM:
+  ```
+  // noteDivision: 1=whole, 2=half, 4=quarter, 8=eighth, etc.
+  frequency = (bpm / 60.0) / noteDivision
+  ```
+
+  For dotted notes, multiply by 1.5. For triplets, multiply by 2/3.
+
+  ## Smoothing
+
+  To prevent zipper noise when parameters change, apply smoothing:
+  ```
+  smoothedOutput = previousOutput + (rawOutput - previousOutput) * smoothingCoeff
+  ```
+  A typical smoothing coefficient is 0.1 to 0.3 for subtle smoothing.
+
+# Practical implementation guidance
+implementation_notes:
+  - Phase MUST be an instance variable, not static (each voice needs its own)
+  - Use AudioParameterChoice for waveform selection
+  - Pre-calculate phaseIncrement in prepareToPlay or when rate changes
+  - For stereo effects, offset the phase by 0.25 (90 degrees) for width
+  - Reset phase to 0 on note-on for retriggered LFOs
+  - Sample & Hold needs a separate random value that persists between samples
+
+# Parameters typically needed for this pattern
+parameters:
+  - name: rate / speed
+    type: float
+    range: [0.1, 20.0]  # Hz, or use tempo sync
+    description: LFO frequency in Hz
+
+  - name: depth / amount
+    type: float
+    range: [0.0, 1.0]
+    description: Modulation intensity (0-100%)
+
+  - name: waveform
+    type: choice
+    options: [Sine, Triangle, Square, Saw, S&H]
+    description: LFO waveshape
+
+  - name: phase offset (optional)
+    type: float
+    range: [0.0, 1.0]
+    description: Starting phase for stereo spread
+
+  - name: tempo sync (optional)
+    type: bool
+    description: Sync to host tempo
+
+# How this pattern connects to the audio
+signal_flow: |
+  ```
+  Rate Parameter ──► Phase Increment Calculation
+                              │
+                              ▼
+  Phase Accumulator ──► Waveform Function ──► Raw LFO Output
+                                                    │
+                                                    ▼
+  Depth Parameter ──────────────────────────► Scaled Output
+                                                    │
+                                                    ▼
+                                        ┌─────────────────────┐
+                                        │ Apply to:           │
+                                        │ • Amplitude (trem)  │
+                                        │ • Pitch (vibrato)   │
+                                        │ • Filter (wah)      │
+                                        │ • Delay time (flang)│
+                                        └─────────────────────┘
+  ```
+
+# Real-time safety requirements
+realtime_safety:
+  - No allocations in the per-sample LFO calculation
+  - No function calls that could block (file I/O, etc.)
+  - Use lookup tables for expensive functions if needed
+  - Pre-calculate constants in prepareToPlay
+
+# Common pitfalls
+anti_patterns:
+  - Using static phase variable (breaks polyphonic/multi-instance)
+  - Calling sin() without considering performance (OK for LFO rates)
+  - Forgetting to smooth rate changes (causes clicks)
+  - Not handling phase wrap correctly (can cause glitches)
+
+# Where this pattern was learned from
+provenance:
+  plugins:
+    - OuariconTremolo
+  reference_file: plugins/OuariconTremolo/Source/PluginProcessor.cpp
+  lines: 150-220
+  key_insight: |
+    OuariconTremolo implements 6 waveforms with smooth transitions.
+    The noise waveform uses sample-and-hold with a separate random
+    generator. Pan sync offsets phase by 0.5 for stereo width.
+
+# When to use this pattern
+use_when:
+  - Building tremolo, vibrato, chorus, flanger, phaser effects
+  - Adding modulation to any parameter (filter cutoff, etc.)
+  - Implementing auto-pan or stereo width effects
+  - Creating rhythmic effects that sync to tempo
+
+# Related patterns
+related_patterns:
+  - envelope-follower.yaml  # For dynamics-driven modulation
+  - saturation-waveshaper.yaml  # Often combined with modulation

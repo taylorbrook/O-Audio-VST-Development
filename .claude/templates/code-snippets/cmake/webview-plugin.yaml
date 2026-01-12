@@ -1,0 +1,142 @@
+# Code Snippet Template: WebView Plugin CMake Setup
+# Complete CMakeLists.txt for a WebView-based audio plugin
+
+name: WebView Plugin CMake Setup
+category: cmake
+stage: 1
+version: 1.0.0
+tags:
+  - cmake
+  - webview
+  - vst3
+  - au
+  - standalone
+  - juce8
+  - effect
+
+description: |
+  Complete CMakeLists.txt configuration for a WebView-based audio effect plugin.
+  Includes proper module ordering, header generation, and binary data setup.
+
+variables:
+  plugin_name:
+    description: Plugin target name (no spaces, used in CMake)
+    example: OuariconTremolo
+
+  product_name:
+    description: Display name (can have spaces)
+    example: "Ouaricon Tremolo"
+
+  plugin_code:
+    description: 4-character plugin code (unique per plugin)
+    example: OuTr
+
+  manufacturer_code:
+    description: 4-character manufacturer code
+    example: OuAu
+
+  company_name:
+    description: Company name for plugin metadata
+    example: "Ouaricon Audio"
+
+code:
+  full_cmake: |
+    # ${plugin_name} - WebView Audio Effect Plugin
+
+    juce_add_plugin(${plugin_name}
+        COMPANY_NAME "${company_name}"
+        PLUGIN_MANUFACTURER_CODE ${manufacturer_code}
+        PLUGIN_CODE ${plugin_code}
+        FORMATS VST3 AU Standalone
+        PRODUCT_NAME "${product_name}"
+        NEEDS_WEB_BROWSER TRUE
+    )
+
+    # Source files
+    target_sources(${plugin_name}
+        PRIVATE
+            Source/PluginProcessor.cpp
+            Source/PluginEditor.cpp
+    )
+
+    # Include directories
+    target_include_directories(${plugin_name}
+        PRIVATE
+            Source
+    )
+
+    # JUCE modules - MUST come before juce_generate_juce_header
+    target_link_libraries(${plugin_name}
+        PRIVATE
+            juce::juce_audio_processors
+            juce::juce_audio_utils
+            juce::juce_gui_extra
+        PUBLIC
+            juce::juce_recommended_config_flags
+            juce::juce_recommended_lto_flags
+            juce::juce_recommended_warning_flags
+    )
+
+    # CRITICAL: Generate header AFTER target_link_libraries
+    juce_generate_juce_header(${plugin_name})
+
+    # Compile definitions
+    target_compile_definitions(${plugin_name}
+        PUBLIC
+            JUCE_WEB_BROWSER=1
+            JUCE_USE_CURL=0
+            JUCE_VST3_CAN_REPLACE_VST2=0
+    )
+
+    # UI Resources (binary data)
+    juce_add_binary_data(${plugin_name}_UIResources
+        SOURCES
+            Source/ui/public/index.html
+            Source/ui/public/js/juce/index.js
+            Source/ui/public/js/juce/check_native_interop.js
+    )
+
+    # Link UI resources
+    target_link_libraries(${plugin_name}
+        PRIVATE
+            ${plugin_name}_UIResources
+    )
+
+  # Individual sections for partial use
+  plugin_declaration: |
+    juce_add_plugin(${plugin_name}
+        COMPANY_NAME "${company_name}"
+        PLUGIN_MANUFACTURER_CODE ${manufacturer_code}
+        PLUGIN_CODE ${plugin_code}
+        FORMATS VST3 AU Standalone
+        PRODUCT_NAME "${product_name}"
+        NEEDS_WEB_BROWSER TRUE
+    )
+
+  binary_data: |
+    juce_add_binary_data(${plugin_name}_UIResources
+        SOURCES
+            Source/ui/public/index.html
+            Source/ui/public/js/juce/index.js
+            Source/ui/public/js/juce/check_native_interop.js
+    )
+
+anti_patterns:
+  - pattern: "NEEDS_WEB_BROWSER.*missing"
+    description: Missing NEEDS_WEB_BROWSER flag
+    fix: Add NEEDS_WEB_BROWSER TRUE to juce_add_plugin for VST3 WebView support
+
+  - pattern: "juce_generate_juce_header.*before.*target_link_libraries"
+    description: Header generation before linking modules
+    fix: juce_generate_juce_header() must come AFTER target_link_libraries()
+
+  - pattern: "check_native_interop.js.*missing"
+    description: Missing check_native_interop.js in binary data
+    fix: Add check_native_interop.js to juce_add_binary_data SOURCES
+
+provenance:
+  plugins:
+    - OuariconTremolo
+    - OuariconAnalogEQ
+    - OuariconComp
+  pattern_id: "stage-1-patterns.md #1, #4"

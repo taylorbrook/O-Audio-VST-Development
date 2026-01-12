@@ -1,0 +1,110 @@
+# Code Snippet Template: Atomic Level Metering
+# Thread-safe metering for VU meters and level displays
+
+name: Atomic Level Metering
+category: dsp-snippets
+stage: 2
+version: 1.0.0
+tags:
+  - dsp
+  - metering
+  - vu
+  - atomic
+  - thread-safe
+  - level
+
+description: |
+  Thread-safe level metering using std::atomic for lock-free communication
+  between audio thread (writes) and UI thread (reads).
+
+variables:
+  meter_name:
+    description: Name for the meter variable
+    example: outputLevel
+
+code:
+  header_declaration: |
+    // Thread-safe level storage (audio thread writes, UI thread reads)
+    std::atomic<float> ${meter_name}DB { -100.0f };
+
+  processblock_update: |
+    // At end of processBlock - calculate and store level
+    float peakLevel = buffer.getMagnitude(0, 0, buffer.getNumSamples());
+    float levelDB = peakLevel > 0.00001f
+        ? juce::Decibels::gainToDecibels(peakLevel)
+        : -100.0f;
+    ${meter_name}DB.store(levelDB, std::memory_order_relaxed);
+
+  editor_timer_callback: |
+    // In PluginEditor - poll at 30Hz for UI updates
+    void timerCallback() override
+    {
+        float currentDB = processorRef.${meter_name}DB.load(std::memory_order_relaxed);
+
+        // Send to WebView
+        if (webView != nullptr)
+        {
+            webView->evaluateJavascript(
+                "updateMeter(" + juce::String(currentDB, 1) + ")");
+        }
+    }
+
+  full_example: |
+    // ============ PluginProcessor.h ============
+    class PluginProcessor : public juce::AudioProcessor
+    {
+    public:
+        // Public for editor access
+        std::atomic<float> outputLevelDB { -100.0f };
+        std::atomic<float> inputLevelDB { -100.0f };
+        std::atomic<float> gainReductionDB { 0.0f };  // For compressors
+
+        // ... rest of class
+    };
+
+    // ============ PluginProcessor.cpp ============
+    void PluginProcessor::processBlock(...)
+    {
+        // ... processing ...
+
+        // Update meters (atomic, lock-free)
+        float outPeak = buffer.getMagnitude(0, 0, buffer.getNumSamples());
+        outputLevelDB.store(
+            outPeak > 0.00001f ? juce::Decibels::gainToDecibels(outPeak) : -100.0f,
+            std::memory_order_relaxed);
+    }
+
+    // ============ PluginEditor.cpp ============
+    PluginEditor::PluginEditor(PluginProcessor& p)
+        : AudioProcessorEditor(&p), processorRef(p)
+    {
+        // ... setup ...
+        startTimerHz(30);  // 30 Hz refresh for meters
+    }
+
+    void PluginEditor::timerCallback()
+    {
+        float outDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
+
+        // Send to WebView
+        webView->emitEventIfBrowserIsVisible("outputLevel", outDB);
+    }
+
+anti_patterns:
+  - pattern: "mutex.*level|lock.*meter"
+    description: Using mutex for meter values
+    fix: Use std::atomic - no locking needed for single values
+
+  - pattern: "float.*level.*=.*getMagnitude"
+    description: Non-atomic float for metering
+    fix: Use std::atomic<float> for thread-safe access
+
+  - pattern: "timerCallback.*100.*Hz"
+    description: Excessively high meter refresh rate
+    fix: 30 Hz is sufficient for VU meters, reduces CPU load
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconComp
+  reference_file: plugins/OuariconAnalogEQ/Source/PluginProcessor.h

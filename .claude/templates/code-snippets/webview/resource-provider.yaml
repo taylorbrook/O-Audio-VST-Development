@@ -1,0 +1,124 @@
+# Code Snippet Template: WebView Resource Provider
+# URL-to-BinaryData mapping for WebView resources
+
+name: WebView Resource Provider
+category: webview
+stage: 3
+version: 1.0.0
+tags:
+  - webview
+  - resources
+  - binarydata
+  - html
+  - javascript
+  - mime
+
+description: |
+  Maps WebView URL requests to BinaryData resources. Uses explicit URL
+  mapping (not generic loops) for reliability and debuggability.
+
+  BinaryData converts paths to C++ identifiers (slashes become underscores,
+  dots become underscores), so explicit mapping bridges this gap.
+
+variables:
+  # Resources are project-specific, pattern is consistent
+
+code:
+  helper_function: |
+    auto makeResource = [](const char* data, int size, const char* mimeType) {
+        return juce::WebBrowserComponent::Resource {
+            std::vector<std::byte>(
+                reinterpret_cast<const std::byte*>(data),
+                reinterpret_cast<const std::byte*>(data) + size
+            ),
+            juce::String(mimeType)
+        };
+    };
+
+  resource_provider: |
+    std::optional<juce::WebBrowserComponent::Resource>
+    getResource(const juce::String& url)
+    {
+        auto makeResource = [](const char* data, int size, const char* mimeType) {
+            return juce::WebBrowserComponent::Resource {
+                std::vector<std::byte>(
+                    reinterpret_cast<const std::byte*>(data),
+                    reinterpret_cast<const std::byte*>(data) + size
+                ),
+                juce::String(mimeType)
+            };
+        };
+
+        // HTML
+        if (url == "/" || url == "/index.html")
+            return makeResource(BinaryData::index_html,
+                               BinaryData::index_htmlSize,
+                               "text/html");
+
+        // JUCE Bridge Library
+        if (url == "/js/juce/index.js")
+            return makeResource(BinaryData::index_js,
+                               BinaryData::index_jsSize,
+                               "text/javascript");
+
+        // Native Interop Check (REQUIRED)
+        if (url == "/js/juce/check_native_interop.js")
+            return makeResource(BinaryData::check_native_interop_js,
+                               BinaryData::check_native_interop_jsSize,
+                               "text/javascript");
+
+        // CSS (if present)
+        if (url == "/css/styles.css")
+            return makeResource(BinaryData::styles_css,
+                               BinaryData::styles_cssSize,
+                               "text/css");
+
+        // Images
+        if (url == "/images/background.jpg")
+            return makeResource(BinaryData::background_jpg,
+                               BinaryData::background_jpgSize,
+                               "image/jpeg");
+
+        if (url == "/images/knob.png")
+            return makeResource(BinaryData::knob_png,
+                               BinaryData::knob_pngSize,
+                               "image/png");
+
+        // 404 for unknown resources
+        DBG("Resource not found: " + url);
+        return std::nullopt;
+    }
+
+  webview_setup: |
+    webView = std::make_unique<juce::WebBrowserComponent>(
+        juce::WebBrowserComponent::Options{}
+            .withNativeIntegrationEnabled()
+            .withResourceProvider([this](const juce::String& url) {
+                return getResource(url);
+            })
+            // ... withOptionsFrom for relays
+    );
+
+anti_patterns:
+  - pattern: "for.*namedResourceList"
+    description: Using generic loop over BinaryData resources
+    fix: Use explicit URL mapping - BinaryData names don't match request URLs
+
+  - pattern: "url.substring(1)"
+    description: Simple path stripping without explicit mapping
+    fix: BinaryData flattens paths (js/juce/index.js → index_js), explicit map needed
+
+  - pattern: "getResource.*missing check_native_interop"
+    description: Not serving check_native_interop.js
+    fix: Add check_native_interop.js mapping - required for platform detection
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+    - OuariconTremolo
+    - OuariconComp
+  pattern_id: "stage-3-patterns.md #5"
+  key_insight: |
+    BinaryData converts Source/ui/public/js/juce/index.js to index_js,
+    but the HTML requests /js/juce/index.js. The explicit mapping
+    bridges this gap and is easy to debug (can log unhandled URLs).

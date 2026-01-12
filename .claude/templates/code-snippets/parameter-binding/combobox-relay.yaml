@@ -1,0 +1,90 @@
+# Code Snippet Template: ComboBox Parameter Binding
+# Binds a WebView dropdown/select to an APVTS choice parameter
+
+name: ComboBox Parameter Binding
+category: parameter-binding
+stage: 3
+version: 1.0.0
+tags:
+  - webview
+  - combobox
+  - choice
+  - dropdown
+  - select
+  - relay
+  - juce8
+
+description: |
+  Binds a WebView dropdown/select element to an AudioProcessorValueTreeState
+  choice parameter. Use for waveform selection, filter types, mode selection.
+
+variables:
+  param_name:
+    description: Parameter name in camelCase for C++ variables
+    type: string
+    example: waveformType
+
+  param_id:
+    description: Parameter ID matching APVTS registration and HTML element
+    type: string
+    example: waveform_type
+
+  choices:
+    description: Array of choice labels
+    type: array
+    example: ["Sine", "Triangle", "Square", "Saw"]
+
+code:
+  header: |
+    std::unique_ptr<juce::WebComboBoxRelay> ${param_name}Relay;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> ${param_name}Attachment;
+
+  relay_creation: |
+    ${param_name}Relay = std::make_unique<juce::WebComboBoxRelay>("${param_id}");
+
+  webview_options: |
+    .withOptionsFrom(*${param_name}Relay)
+
+  attachment_creation: |
+    ${param_name}Attachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.parameters.getParameter("${param_id}"),
+        *${param_name}Relay,
+        nullptr);
+
+  javascript: |
+    import { getComboBoxState } from './js/juce/index.js';
+
+    const ${param_name}State = getComboBoxState("${param_id}");
+
+    // Handle selection change
+    ${param_name}Select.addEventListener('change', (e) => {
+        ${param_name}State.setSelectedItemIndex(e.target.selectedIndex);
+    });
+
+    // Update visual on state change
+    ${param_name}State.valueChangedEvent.addListener(() => {
+        const index = ${param_name}State.getSelectedItemIndex();
+        ${param_name}Select.selectedIndex = index;
+    });
+
+  apvts_parameter: |
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "${param_id}", 1 },
+        "${param_name}",
+        juce::StringArray { ${choices} },
+        0));  // default index
+
+anti_patterns:
+  - pattern: "getSliderState.*TYPE|MODE|WAVEFORM"
+    description: Using getSliderState for choice parameters
+    fix: Use getComboBoxState() for choice parameters
+
+  - pattern: "WebComboBoxParameterAttachment(..., ...)"
+    description: Using 2-parameter constructor
+    fix: JUCE 8 requires 3 parameters - add nullptr for UndoManager
+
+provenance:
+  plugins:
+    - OuariconTremolo
+    - OuariconAnalogEQ
+  reference_file: plugins/OuariconTremolo/Source/PluginEditor.cpp

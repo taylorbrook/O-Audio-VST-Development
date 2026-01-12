@@ -1,0 +1,132 @@
+# Prose Pattern Template: Saturation/Waveshaping
+# Conceptual pattern for analog-style saturation and warmth
+
+name: Saturation/Waveshaping
+category: dsp-concepts
+stage: 2
+version: 1.0.0
+complexity: 1
+tags:
+  - saturation
+  - distortion
+  - warmth
+  - analog
+  - tanh
+  - waveshaper
+
+description: |
+  Waveshaping applies a non-linear transfer function to audio, creating
+  harmonic distortion. Soft saturation (like tape or tubes) compresses
+  peaks gently, adding warmth without harsh clipping.
+
+concept: |
+  ## Transfer Functions
+
+  A waveshaper applies a function to each sample:
+  ```
+  output = transferFunction(input * drive)
+  ```
+
+  Common transfer functions:
+
+  **Soft Clipping (tanh)**:
+  ```cpp
+  output = std::tanh(input * drive);
+  ```
+  - Smooth, tube-like saturation
+  - Asymptotically approaches ±1
+  - Most common for "warmth"
+
+  **Hard Clipping**:
+  ```cpp
+  output = std::clamp(input * drive, -1.0f, 1.0f);
+  ```
+  - Harsh, transistor-like distortion
+  - Abrupt limiting at threshold
+
+  **Soft Knee Clipping**:
+  ```cpp
+  if (std::abs(input) < threshold) {
+      output = input;
+  } else {
+      output = sign(input) * (threshold + (1 - threshold) *
+               tanh((std::abs(input) - threshold) / (1 - threshold)));
+  }
+  ```
+  - Linear below threshold, soft above
+  - More control over onset
+
+  **Polynomial (cubic)**:
+  ```cpp
+  output = input - (input * input * input) / 3.0f;
+  ```
+  - Adds odd harmonics (3rd, 5th, etc.)
+  - Simple, efficient
+
+  ## Gain Compensation
+
+  Saturation changes perceived loudness. Compensate to maintain level:
+
+  ```cpp
+  // For tanh with drive coefficient
+  float driveCompensation = 1.0f / std::tanh(drive);
+  output = std::tanh(input * drive) * driveCompensation;
+  ```
+
+  ## JUCE Implementation
+
+  Using juce::dsp::WaveShaper:
+
+  ```cpp
+  // In class
+  juce::dsp::WaveShaper<float> saturation;
+
+  // In prepareToPlay
+  saturation.functionToUse = [](float x) {
+      return std::tanh(x * 0.5f) * 2.0f;  // 0.5 drive, 2x compensation
+  };
+  saturation.prepare(spec);
+
+  // In processBlock
+  juce::dsp::AudioBlock<float> block(buffer);
+  juce::dsp::ProcessContextReplacing<float> context(block);
+  saturation.process(context);
+  ```
+
+implementation_notes:
+  - Always compensate gain to avoid volume jumps
+  - Pre-filter (high-pass) can reduce mud from low-frequency saturation
+  - Oversampling reduces aliasing from harmonic generation
+  - Blend dry/wet for subtle warmth
+  - Even harmonics (2nd, 4th) sound warmer than odd (3rd, 5th)
+
+parameters:
+  - name: drive
+    type: float
+    range: [0, 1]
+    description: Amount of saturation (0 = clean, 1 = heavy)
+
+  - name: mix
+    type: float
+    range: [0, 1]
+    description: Dry/wet blend
+
+realtime_safety:
+  - std::tanh is generally fast on modern CPUs
+  - For extreme performance, use lookup table or approximation
+  - No allocations needed
+
+anti_patterns:
+  - Not compensating gain (causes volume jump with drive)
+  - Using hard clip for "warmth" (too harsh)
+  - Saturating full spectrum (can get muddy - consider multiband)
+  - Ignoring aliasing at high drive levels (use oversampling)
+
+provenance:
+  plugins:
+    - OuariconAnalogEQ
+  reference_file: plugins/OuariconAnalogEQ/Source/PluginProcessor.cpp
+  key_insight: |
+    OuariconAnalogEQ uses tanh waveshaping with a 0.5 drive coefficient
+    and 2x output compensation to maintain unity gain. The saturation
+    is applied post-EQ for analog-style warmth.

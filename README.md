@@ -86,7 +86,24 @@ Plugins can skip custom UI and ship as "headless" plugins using DAW-provided con
 
 Dual-indexed troubleshooting database (`troubleshooting/`) captures solutions to build failures, runtime issues, GUI problems, and API misuse. The system learns from every problem encountered.
 
-**Required Reading** (`juce8-critical-patterns.md`) automatically prevents repeat mistakes by injecting proven patterns into all subagent contexts.
+**Required Reading** (stage-specific pattern files) automatically prevents repeat mistakes by injecting proven patterns into subagent contexts.
+
+### Template Library
+
+Reusable code snippets and conceptual patterns (`.claude/templates/`) accelerate plugin development:
+
+- **Code snippets**: Copy-paste ready patterns with variable substitution (relay setup, CMake configuration, processBlock skeleton)
+- **Prose patterns**: Conceptual guides that agents interpret (LFO modulation, IIR filter chains, envelope followers)
+
+Browse templates with `/templates` command or let subagents automatically discover relevant patterns for each stage.
+
+**17 templates** across categories:
+- Parameter binding (slider, toggle, combobox relays)
+- CMake setup (WebView effects, synth/instruments)
+- WebView initialization (lazy navigation, resource provider)
+- DSP algorithms (LFO, filters, dynamics, saturation)
+- Architecture (member order, thread safety)
+- UI interaction (knob drag, VU meter animation)
 
 ### Graduated Research Protocol
 
@@ -313,6 +330,9 @@ plugin-freedom-system/
 │   │   ├── ui-finalization-agent/    # UI implementation scaffolding
 │   │   └── troubleshoot-agent/       # Build failures
 │   ├── commands/                     # Slash command prompts
+│   ├── templates/                    # Reusable patterns library
+│   │   ├── code-snippets/            # Copy-paste code with variables
+│   │   └── prose-patterns/           # Conceptual patterns
 │   └── hooks/                        # Validation gates
 ├── scripts/
 │   ├── build-and-install.sh          # 7-phase build pipeline
