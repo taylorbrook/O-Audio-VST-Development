@@ -1,0 +1,740 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ouaricon Digital Delay - UI Mockup v6</title>
+
+  <style>
+    /* ============================================
+       WEBVIEW CONSTRAINTS (CRITICAL)
+       ============================================ */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* ============================================
+       NATIVE APPLICATION FEEL
+       ============================================ */
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+
+      /* Test HTML: Center preview frame in browser */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      min-height: 100%;
+    }
+
+    /* ============================================
+       PLUGIN FRAME (Test HTML Only)
+       ============================================ */
+    .plugin-frame {
+      width: 700px;
+      height: 196px;
+      border: 2px solid #444;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ============================================
+       CONTAINER
+       ============================================ */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #F5E6D3;  /* Fallback color */
+      font-family: Garamond, 'Times New Roman', serif;
+      overflow: hidden;  /* Critical for massive butterfly */
+    }
+
+    /* ============================================
+       BACKGROUND LAYER (Paper texture)
+       ============================================ */
+    .paper-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 700px;
+      height: 196px;
+      background-image: url('img/paper1.jpg');
+      background-size: cover;
+      background-position: center;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ============================================
+       BUTTERFLY OVERLAY (5x MASSIVE - 3500px wide)
+       Centered on head/body, wings extend beyond window
+       ============================================ */
+    .butterfly-overlay {
+      position: absolute;
+      left: -1400px;  /* Centered to show head/body area */
+      top: 46px;
+      width: 3500px;  /* 5x larger (was 700px) */
+      height: 520px;  /* 5x larger (was 104px) */
+      background-image: url('img/butterfly2_Black and white.png');
+      background-size: contain;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0.30;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ============================================
+       PLUGIN TITLE
+       ============================================ */
+    .title {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      width: 700px;
+      height: 22px;
+      text-align: center;
+      font-size: 16px;
+      letter-spacing: 2.5px;
+      color: #3C2F2F;
+      font-weight: normal;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* ============================================
+       CONTROLS CONTAINER
+       ============================================ */
+    .controls-row {
+      position: absolute;
+      top: 50px;
+      left: 20px;
+      width: 630px;  /* Reduced to make room for meter */
+      height: 130px;
+      z-index: 2;
+    }
+
+    /* ============================================
+       KNOB STYLES (10-segment botanical seed)
+       ============================================ */
+    .knob-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .knob-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+      width: 60px;
+    }
+
+    .knob {
+      width: 60px;
+      height: 60px;
+      position: relative;
+      cursor: pointer;
+      transform-origin: center center;
+    }
+
+    .knob-body {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px solid #8B7355;
+      background: conic-gradient(
+        from 0deg,
+        #F5DEB3 0deg 36deg,
+        #E8D5B7 36deg 72deg,
+        #F5DEB3 72deg 108deg,
+        #E8D5B7 108deg 144deg,
+        #F5DEB3 144deg 180deg,
+        #E8D5B7 180deg 216deg,
+        #F5DEB3 216deg 252deg,
+        #E8D5B7 252deg 288deg,
+        #F5DEB3 288deg 324deg,
+        #E8D5B7 324deg 360deg
+      );
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
+      position: relative;
+    }
+
+    .knob-indicator {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 2px;
+      height: 16px;
+      background: #3C2F2F;
+      transform: translateX(-50%);
+    }
+
+    /* VALUE DISPLAYS - NO BOXES (transparent, no border, plain text) */
+    .value-display {
+      margin-top: 4px;
+      width: 60px;
+      height: 18px;
+      background: transparent;  /* NO background */
+      border: none;  /* NO border */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #3C2F2F;
+      padding: 0;
+    }
+
+    /* ============================================
+       TOGGLE BUTTON (SYNC) - ALIGNED WITH KNOB LABELS
+       ============================================ */
+    .toggle-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .toggle-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .toggle {
+      width: 50px;
+      height: 24px;
+      border: 2px solid #3C5C1A;
+      border-radius: 4px;
+      background: rgba(139, 168, 112, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 100ms;
+    }
+
+    .toggle.active {
+      background: rgba(107, 142, 35, 0.6);
+    }
+
+    /* ============================================
+       DROPDOWN (DIVISION) - MOVED DOWN 10PX FROM v5
+       ============================================ */
+    .dropdown-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;  /* Center label and dropdown */
+    }
+
+    .dropdown-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+      width: 70px;  /* Match dropdown width */
+    }
+
+    .dropdown {
+      width: 70px;
+      height: 22px;
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      background: #F5E6D3;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      color: #3C2F2F;
+      padding: 2px 4px;
+      cursor: pointer;
+    }
+
+    .dropdown:hover,
+    .dropdown:focus {
+      border-color: #6B8E4E;
+      outline: none;
+    }
+
+    /* ============================================
+       OUTPUT METER (NEW in v6) - Far right edge
+       ============================================ */
+    .meter-container {
+      position: absolute;
+      top: 25px;  /* Label position */
+      left: 645px;  /* Far right edge (665px from window left, minus 20px container offset) */
+      width: 25px;
+      height: 155px;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .meter-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+      width: 25px;
+    }
+
+    .meter-body {
+      width: 25px;
+      height: 130px;
+      background: #3C2F2F;
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      position: relative;
+      display: flex;
+      justify-content: space-between;
+      padding: 2px;
+      overflow: hidden;
+    }
+
+    .meter-bar {
+      width: 10px;
+      height: 100%;
+      position: relative;
+      background: rgba(60, 47, 47, 0.5);
+      border-radius: 1px;
+    }
+
+    .meter-fill {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      width: 100%;
+      background: linear-gradient(to top, #6B8E4E, #8BAF70);
+      transition: height 100ms;
+    }
+
+    /* Demo state: L bar at 60%, R bar at 50% */
+    #meter-left .meter-fill {
+      height: 60%;
+    }
+
+    #meter-right .meter-fill {
+      height: 50%;
+    }
+
+    /* ============================================
+       CONTROL POSITIONING
+       ============================================ */
+    /* SYNC toggle - aligned with knob labels (y=54) */
+    #sync-container {
+      top: 4px;  /* Label at y=54 (50+4), button at y=70 (50+4+12+4) */
+      left: 10px;
+    }
+
+    /* DIVISION dropdown - MOVED DOWN 10px from v5 (was top: 42px, now 52px) */
+    #division-container {
+      top: 52px;  /* Label at y=102 (50+52), dropdown at y=118 (50+52+12+4) */
+      left: 0;
+    }
+
+    /* TIME knob */
+    #time-container {
+      top: 4px;
+      left: 95px;
+    }
+
+    /* FEEDBACK knob */
+    #feedback-container {
+      top: 4px;
+      left: 190px;
+    }
+
+    /* SPREAD knob */
+    #spread-container {
+      top: 4px;
+      left: 285px;
+    }
+
+    /* MOD knob */
+    #mod-container {
+      top: 4px;
+      left: 380px;
+    }
+
+    /* WET knob */
+    #wet-container {
+      top: 4px;
+      left: 475px;
+    }
+
+    /* DRY knob */
+    #dry-container {
+      top: 4px;
+      left: 570px;
+    }
+
+    /* ============================================
+       DEBUG MONITOR (Test HTML Only)
+       ============================================ */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 180px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Plugin Frame (test HTML only) -->
+  <div class="plugin-frame">
+    <div class="container">
+      <!-- LAYER 0: Paper background texture -->
+      <div class="paper-background"></div>
+
+      <!-- LAYER 1: 5x MASSIVE butterfly overlay (3500px wide, centered on head/body) -->
+      <div class="butterfly-overlay"></div>
+
+      <!-- LAYER 2+: UI Elements -->
+      <!-- Plugin Title -->
+      <div class="title">OUARICON DIGITAL DELAY</div>
+
+      <!-- Controls Row -->
+      <div class="controls-row">
+        <!-- SYNC TOGGLE (aligned with knob labels) -->
+        <div id="sync-container" class="toggle-container">
+          <div class="toggle-label">SYNC</div>
+          <div id="sync" class="toggle" data-param="sync">OFF</div>
+        </div>
+
+        <!-- DIVISION DROPDOWN (MOVED DOWN 10px from v5) -->
+        <div id="division-container" class="dropdown-container">
+          <div class="dropdown-label">DIVISION</div>
+          <select id="division" class="dropdown" data-param="division">
+            <option value="0">1/4</option>
+            <option value="1" selected>1/8</option>
+            <option value="2">1/16</option>
+            <option value="3">1/4D</option>
+            <option value="4">1/8D</option>
+            <option value="5">1/16D</option>
+            <option value="6">1/4T</option>
+            <option value="7">1/8T</option>
+            <option value="8">1/16T</option>
+            <option value="9">1/4(5)</option>
+            <option value="10">1/8(5)</option>
+            <option value="11">1/16(5)</option>
+          </select>
+        </div>
+
+        <!-- TIME KNOB -->
+        <div id="time-container" class="knob-container">
+          <div class="knob-label">TIME</div>
+          <div class="knob" id="time-knob" data-param="time" data-min="1" data-max="2000" data-value="500">
+            <div class="knob-body">
+              <div class="knob-indicator"></div>
+            </div>
+          </div>
+          <div class="value-display" id="time-value">500 ms</div>
+        </div>
+
+        <!-- FEEDBACK KNOB -->
+        <div id="feedback-container" class="knob-container">
+          <div class="knob-label">FEEDBACK</div>
+          <div class="knob" id="feedback-knob" data-param="feedback" data-min="0" data-max="100" data-value="30">
+            <div class="knob-body">
+              <div class="knob-indicator"></div>
+            </div>
+          </div>
+          <div class="value-display" id="feedback-value">30%</div>
+        </div>
+
+        <!-- SPREAD KNOB -->
+        <div id="spread-container" class="knob-container">
+          <div class="knob-label">SPREAD</div>
+          <div class="knob" id="spread-knob" data-param="spread" data-min="0" data-max="100" data-value="0">
+            <div class="knob-body">
+              <div class="knob-indicator"></div>
+            </div>
+          </div>
+          <div class="value-display" id="spread-value">0%</div>
+        </div>
+
+        <!-- MOD KNOB -->
+        <div id="mod-container" class="knob-container">
+          <div class="knob-label">MOD</div>
+          <div class="knob" id="mod-knob" data-param="mod" data-min="0" data-max="100" data-value="0">
+            <div class="knob-body">
+              <div class="knob-indicator"></div>
+            </div>
+          </div>
+          <div class="value-display" id="mod-value">0%</div>
+        </div>
+
+        <!-- WET KNOB -->
+        <div id="wet-container" class="knob-container">
+          <div class="knob-label">WET</div>
+          <div class="knob" id="wet-knob" data-param="wet" data-min="0" data-max="100" data-value="30">
+            <div class="knob-body">
+              <div class="knob-indicator"></div>
+            </div>
+          </div>
+          <div class="value-display" id="wet-value">30%</div>
+        </div>
+
+        <!-- DRY KNOB -->
+        <div id="dry-container" class="knob-container">
+          <div class="knob-label">DRY</div>
+          <div class="knob" id="dry-knob" data-param="dry" data-min="0" data-max="100" data-value="100">
+            <div class="knob-body">
+              <div class="knob-indicator"></div>
+            </div>
+          </div>
+          <div class="value-display" id="dry-value">100%</div>
+        </div>
+      </div>
+
+      <!-- OUTPUT METER (NEW in v6) - Far right edge -->
+      <div class="meter-container">
+        <div class="meter-label">OUT</div>
+        <div class="meter-body">
+          <div class="meter-bar" id="meter-left">
+            <div class="meter-fill"></div>
+          </div>
+          <div class="meter-bar" id="meter-right">
+            <div class="meter-fill"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug Monitor (Test HTML Only) -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // ============================================
+    // MOCK JUCE BACKEND (Test HTML Only)
+    // ============================================
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for slider: ${id}`)
+        },
+        setNormalisedValue: (v) => console.log(`Slider ${id} set to ${v}`)
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for toggle: ${id}`)
+        },
+        setValue: (v) => console.log(`Toggle ${id} set to ${v}`)
+      }),
+      getComboBoxState: (id) => ({
+        selectedId: 1,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for combo: ${id}`)
+        },
+        setSelectedId: (v) => console.log(`Combo ${id} set to ${v}`)
+      })
+    };
+
+    // ============================================
+    // DISABLE CONTEXT MENU (REQUIRED)
+    // ============================================
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // ============================================
+    // DEBUG MONITOR UPDATE
+    // ============================================
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId.toUpperCase();
+      document.getElementById('debugValue').textContent = value;
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // ============================================
+    // KNOB INTERACTION (Drag to adjust)
+    // ============================================
+    document.addEventListener("DOMContentLoaded", () => {
+      const knobs = document.querySelectorAll('.knob');
+
+      knobs.forEach(knob => {
+        let isDragging = false;
+        let startY = 0;
+        let startValue = 0;
+
+        const paramId = knob.dataset.param;
+        const min = parseFloat(knob.dataset.min);
+        const max = parseFloat(knob.dataset.max);
+        let currentValue = parseFloat(knob.dataset.value);
+
+        // Initialize rotation
+        updateKnobRotation(knob, currentValue, min, max);
+
+        knob.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          startY = e.clientY;
+          startValue = currentValue;
+          knob.style.cursor = 'grabbing';
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+
+          const deltaY = startY - e.clientY;
+          const range = max - min;
+          const sensitivity = 0.5;
+          const valueDelta = deltaY * sensitivity;
+
+          currentValue = Math.max(min, Math.min(max, startValue + valueDelta));
+          knob.dataset.value = currentValue;
+
+          updateKnobRotation(knob, currentValue, min, max);
+          updateKnobValue(paramId, currentValue, min, max);
+
+          const normalized = (currentValue - min) / (max - min);
+          updateDebugMonitor(paramId, formatKnobValue(paramId, currentValue), normalized);
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (isDragging) {
+            isDragging = false;
+            knob.style.cursor = 'pointer';
+          }
+        });
+      });
+
+      function updateKnobRotation(knob, value, min, max) {
+        const normalized = (value - min) / (max - min);
+        const degrees = -135 + (normalized * 270);
+        const knobBody = knob.querySelector('.knob-body');
+        knobBody.style.transform = `rotate(${degrees}deg)`;
+      }
+
+      function updateKnobValue(paramId, value, min, max) {
+        const displayElement = document.getElementById(`${paramId}-value`);
+        if (displayElement) {
+          displayElement.textContent = formatKnobValue(paramId, value);
+        }
+      }
+
+      function formatKnobValue(paramId, value) {
+        if (paramId === 'time') {
+          return `${Math.round(value)} ms`;
+        } else {
+          return `${Math.round(value)}%`;
+        }
+      }
+
+      // ============================================
+      // TOGGLE INTERACTION (SYNC)
+      // ============================================
+      const syncToggle = document.getElementById('sync');
+      let syncActive = false;
+
+      syncToggle.addEventListener('click', () => {
+        syncActive = !syncActive;
+        syncToggle.classList.toggle('active', syncActive);
+        syncToggle.textContent = syncActive ? 'ON' : 'OFF';
+
+        const normalized = syncActive ? 1.0 : 0.0;
+        updateDebugMonitor('sync', syncActive ? 'ON' : 'OFF', normalized);
+      });
+
+      // ============================================
+      // DROPDOWN INTERACTION (DIVISION)
+      // ============================================
+      const divisionDropdown = document.getElementById('division');
+
+      divisionDropdown.addEventListener('change', (e) => {
+        const selectedIndex = e.target.selectedIndex;
+        const selectedText = e.target.options[selectedIndex].text;
+        const normalized = selectedIndex / (e.target.options.length - 1);
+
+        updateDebugMonitor('division', selectedText, normalized);
+      });
+
+      // ============================================
+      // METER ANIMATION (Demo - random fluctuation)
+      // ============================================
+      function animateMeter() {
+        const leftBar = document.querySelector('#meter-left .meter-fill');
+        const rightBar = document.querySelector('#meter-right .meter-fill');
+
+        setInterval(() => {
+          const leftLevel = 40 + Math.random() * 40;  // 40-80%
+          const rightLevel = 35 + Math.random() * 40; // 35-75%
+
+          leftBar.style.height = `${leftLevel}%`;
+          rightBar.style.height = `${rightLevel}%`;
+        }, 100);
+      }
+
+      // Start meter animation
+      animateMeter();
+    });
+  </script>
+</body>
+</html>

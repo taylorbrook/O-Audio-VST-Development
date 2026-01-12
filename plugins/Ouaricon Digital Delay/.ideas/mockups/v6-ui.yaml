@@ -1,0 +1,429 @@
+# v6 UI Design Specification
+# Generated: 2026-01-12
+# Plugin: Ouaricon Digital Delay
+# Aesthetic: Ouaricon Audio Naturalist (5x MASSIVE butterfly, paper texture, output meter)
+# Layout: Ultra-compact rack mount style - labels above/values below
+# CHANGES FROM v5:
+#   1. BUTTERFLY 5x LARGER - 3500px wide (was 700px), centered on head/body, wings extend beyond window
+#   2. DIVISION label and dropdown MOVED DOWN 10 pixels from v5 positions
+#   3. NEW OUTPUT METER - thin vertical stereo meter on far right edge
+
+window:
+  width: 700
+  height: 196
+  resizable: false
+
+colors:
+  background: "#F5E6D3"  # Aged paper fallback
+  text: "#3C2F2F"  # Dark brown
+  border: "#8B7355"  # Walnut brown
+  accent_green: "#6B8E4E"  # Toggle active state
+  accent_green_hover: "#8BAF70"  # Hover state
+  meter_green: "#6B8E4E"  # Meter fill color
+  meter_background: "#3C2F2F"  # Dark meter background
+  knob_segment_light: "#F5DEB3"  # Cream
+  knob_segment_dark: "#E8D5B7"  # Slightly darker cream
+  knob_border: "#8B7355"  # Brown border
+
+typography:
+  family: "Garamond, 'Times New Roman', serif"
+  title_size: "16px"
+  title_spacing: "2.5px"
+  label_size: "9px"
+  label_spacing: "0.8px"
+  value_size: "11px"
+
+layout:
+  type: horizontal
+  description: "Ultra-compact rack mount - labels above, values below, output meter on right edge"
+  sections:
+    - id: header
+      description: "Plugin title area (minimal for ultra-compact style)"
+      region: { x: 0, y: 0, width: 700, height: 32 }
+
+    - id: controls_row
+      description: "All controls in single horizontal row with compact vertical spacing"
+      region: { x: 20, y: 50, width: 630, height: 130 }
+
+    - id: output_meter_section
+      description: "Vertical stereo output meter on far right edge"
+      region: { x: 665, y: 40, width: 25, height: 140 }
+
+controls:
+  # SYNC TOGGLE (First control - left side, aligned with knob labels)
+  - id: sync
+    type: toggle
+    label: "SYNC"
+    parameter: "sync"
+    default: false
+    position: { x: 30, y: 70 }
+    size: { width: 50, height: 24 }
+    style: botanical_toggle
+    description: "Enable/disable tempo sync"
+
+  # DIVISION DROPDOWN (Second control - MOVED DOWN 10px from v5)
+  - id: division
+    type: combo
+    label: "DIVISION"
+    parameter: "division"
+    parameter_type: choice
+    choices: ["1/4", "1/8", "1/16", "1/4D", "1/8D", "1/16D", "1/4T", "1/8T", "1/16T", "1/4(5)", "1/8(5)", "1/16(5)"]
+    default: 1  # 1/8
+    position: { x: 20, y: 118 }  # Was y: 108 in v5, now DOWN 10px
+    size: { width: 70, height: 22 }
+    style: botanical_dropdown
+    description: "Note subdivision when synced to tempo"
+
+  # TIME KNOB (Third control)
+  - id: time
+    type: knob
+    label: "TIME"
+    parameter: "time"
+    range: [1.0, 2000.0]
+    unit: "ms"
+    default: 500.0
+    decimals: 0
+    position: { x: 115, y: 70 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Primary delay time control in free mode"
+
+  # FEEDBACK KNOB
+  - id: feedback
+    type: knob
+    label: "FEEDBACK"
+    parameter: "feedback"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    decimals: 0
+    position: { x: 210, y: 70 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Amount of repeats"
+
+  # SPREAD KNOB
+  - id: spread
+    type: knob
+    label: "SPREAD"
+    parameter: "spread"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 0.0
+    decimals: 0
+    position: { x: 305, y: 70 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Stereo width (0=preserve input, 100=wide)"
+
+  # MOD KNOB
+  - id: mod
+    type: knob
+    label: "MOD"
+    parameter: "mod"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 0.0
+    decimals: 0
+    position: { x: 400, y: 70 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Delay time modulation amount"
+
+  # WET KNOB
+  - id: wet
+    type: knob
+    label: "WET"
+    parameter: "wet"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    decimals: 0
+    position: { x: 495, y: 70 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Wet signal level"
+
+  # DRY KNOB
+  - id: dry
+    type: knob
+    label: "DRY"
+    parameter: "dry"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 100.0
+    decimals: 0
+    position: { x: 590, y: 70 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Dry signal level"
+
+# Value displays (below each knob) - NO BOXES (transparent, no border)
+value_displays:
+  - id: time_value
+    for: time
+    position: { x: 115, y: 152 }
+    size: { width: 60, height: 18 }
+    format: "{value} ms"
+    style: value_display_clean
+
+  - id: feedback_value
+    for: feedback
+    position: { x: 210, y: 152 }
+    size: { width: 60, height: 18 }
+    format: "{value}%"
+    style: value_display_clean
+
+  - id: spread_value
+    for: spread
+    position: { x: 305, y: 152 }
+    size: { width: 60, height: 18 }
+    format: "{value}%"
+    style: value_display_clean
+
+  - id: mod_value
+    for: mod
+    position: { x: 400, y: 152 }
+    size: { width: 60, height: 18 }
+    format: "{value}%"
+    style: value_display_clean
+
+  - id: wet_value
+    for: wet
+    position: { x: 495, y: 152 }
+    size: { width: 60, height: 18 }
+    format: "{value}%"
+    style: value_display_clean
+
+  - id: dry_value
+    for: dry
+    position: { x: 590, y: 152 }
+    size: { width: 60, height: 18 }
+    format: "{value}%"
+    style: value_display_clean
+
+# Labels (above each knob and controls)
+labels:
+  - id: sync_label
+    for: sync
+    text: "SYNC"
+    position: { x: 30, y: 54 }
+    size: { width: 50, height: 12 }
+    style: knob_label
+
+  - id: division_label
+    for: division
+    text: "DIVISION"
+    position: { x: 20, y: 102 }  # Was y: 92 in v5, now DOWN 10px
+    size: { width: 70, height: 12 }
+    style: dropdown_label
+
+  - id: time_label
+    for: time
+    text: "TIME"
+    position: { x: 115, y: 54 }
+    size: { width: 60, height: 12 }
+    style: knob_label
+
+  - id: feedback_label
+    for: feedback
+    text: "FEEDBACK"
+    position: { x: 210, y: 54 }
+    size: { width: 60, height: 12 }
+    style: knob_label
+
+  - id: spread_label
+    for: spread
+    text: "SPREAD"
+    position: { x: 305, y: 54 }
+    size: { width: 60, height: 12 }
+    style: knob_label
+
+  - id: mod_label
+    for: mod
+    text: "MOD"
+    position: { x: 400, y: 54 }
+    size: { width: 60, height: 12 }
+    style: knob_label
+
+  - id: wet_label
+    for: wet
+    text: "WET"
+    position: { x: 495, y: 54 }
+    size: { width: 60, height: 12 }
+    style: knob_label
+
+  - id: dry_label
+    for: dry
+    text: "DRY"
+    position: { x: 590, y: 54 }
+    size: { width: 60, height: 12 }
+    style: knob_label
+
+  - id: output_meter_label
+    for: output_meter
+    text: "OUT"
+    position: { x: 665, y: 25 }
+    size: { width: 25, height: 12 }
+    style: meter_label
+
+special_elements:
+  # PLUGIN TITLE
+  - id: title
+    type: text
+    text: "OUARICON DIGITAL DELAY"
+    position: { x: 0, y: 12 }
+    size: { width: 700, height: 22 }
+    align: center
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "16px"
+    letter_spacing: "2.5px"
+    color: "#3C2F2F"
+    layer: decorative
+
+  # BACKGROUND TEXTURE (Bottom layer)
+  - id: paper_background
+    type: image
+    src: "img/paper1.jpg"
+    position: { x: 0, y: 0 }
+    size: { width: 700, height: 196 }
+    opacity: 1.0
+    layer: background
+    description: "Aged paper texture background"
+
+  # 5x MASSIVE BUTTERFLY OVERLAY (3500px wide, centered on head/body)
+  - id: butterfly_overlay
+    type: image
+    src: "img/butterfly2_Black and white.png"
+    position: { x: -1400, y: 46 }  # Centered to show head/body area, wings extend off-screen
+    size: { width: 3500, height: 520 }  # 5x larger (was 700×104, now 3500×520)
+    opacity: 0.30
+    layer: decorative
+    z_index: 1
+    description: "MASSIVE 5x butterfly - dramatic zoomed-in effect, only head/body visible in window"
+
+  # OUTPUT METER (Visual display - stereo L/R bars)
+  - id: output_meter
+    type: stereo_meter
+    position: { x: 665, y: 40 }
+    size: { width: 25, height: 130 }
+    style: botanical_meter
+    layer: decorative
+    description: "Vertical stereo output level meter (L/R bars) - visual display only"
+
+control_styles:
+  botanical_seed:
+    description: "10-segment seed cross-section design"
+    knob_type: conic_gradient
+    segments: 10
+    segment_colors: ["#F5DEB3", "#E8D5B7"]  # Alternating cream tones
+    border_width: 2
+    border_color: "#8B7355"
+    shadow: "inset 0 1px 2px rgba(0,0,0,0.15)"
+    indicator_type: line
+    indicator_color: "#3C2F2F"
+    indicator_width: 2
+    rotation_range: [-135, 135]  # 270 degrees total
+
+  botanical_toggle:
+    description: "Green tint when active"
+    background_inactive: "rgba(139, 168, 112, 0.3)"
+    background_active: "rgba(107, 142, 35, 0.6)"
+    border_width: 2
+    border_color: "#3C5C1A"
+    border_radius: 4
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "9px"
+    letter_spacing: "0.8px"
+
+  botanical_dropdown:
+    description: "Matches toggle style with aged paper background"
+    background: "#F5E6D3"
+    border_width: 2
+    border_color: "#8B7355"
+    border_radius: 4
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "9px"
+    accent_color: "#6B8E4E"  # Green on hover/focus
+
+  value_display_clean:
+    description: "NO BOXES - transparent background, no border, plain text only"
+    background: "transparent"
+    border_width: 0
+    border_color: "transparent"
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "11px"
+    text_align: center
+    padding: 0
+
+  knob_label:
+    description: "Small uppercase labels above knobs"
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "9px"
+    letter_spacing: "0.8px"
+    text_transform: uppercase
+    text_align: center
+
+  dropdown_label:
+    description: "Label centered above dropdown"
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "9px"
+    letter_spacing: "0.8px"
+    text_transform: uppercase
+    text_align: center
+
+  meter_label:
+    description: "Small label for output meter"
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "9px"
+    letter_spacing: "0.8px"
+    text_transform: uppercase
+    text_align: center
+
+  botanical_meter:
+    description: "Vertical stereo meter with botanical green fill"
+    background: "#3C2F2F"  # Dark background
+    border_width: 1
+    border_color: "#8B7355"
+    border_radius: 2
+    fill_color: "#6B8E4E"  # Green fill
+    fill_gradient: "linear-gradient(to top, #6B8E4E, #8BAF70)"
+    bar_gap: 5  # Gap between L and R bars
+    bar_width: 10  # Each bar width
+    orientation: vertical
+    direction: bottom_to_top
+
+spacing:
+  edge_margin: 20  # Minimum from window edges
+  control_gap_horizontal: 35  # Tighter spacing for 6 knobs
+  control_gap_vertical: 14  # Vertical spacing between SYNC and DIVISION
+  label_gap: 4  # Gap between label and knob
+  value_gap: 4  # Gap between knob and value display
+
+notes:
+  - "All positions in pixels from top-left (0,0)"
+  - "Ultra-compact rack mount: 700×196px"
+  - "Layout: SYNC/DIVISION (stacked left) → TIME → FEEDBACK → SPREAD → MOD → WET → DRY (6 knobs) → OUTPUT METER"
+  - "CHANGE 1 (v6): Butterfly MASSIVELY LARGER - 3500px wide (5x from 700px), centered on head/body area"
+  - "  - Butterfly positioned at x=-1400 to center the head/body in window"
+  - "  - Wings extend far beyond window edges (overflow: hidden on container)"
+  - "  - Creates dramatic zoomed-in botanical texture effect"
+  - "CHANGE 2 (v6): DIVISION label and dropdown MOVED DOWN 10px from v5"
+  - "  - Label: y=102 (was y=92 in v5)"
+  - "  - Dropdown: y=118 (was y=108 in v5)"
+  - "CHANGE 3 (v6): NEW OUTPUT METER on far right edge"
+  - "  - Vertical stereo meter (L/R bars)"
+  - "  - Position: x=665, y=40, size: 25×130px"
+  - "  - Two 10px bars with 5px gap, green fill (#6B8E4E)"
+  - "  - Visual display only (not a parameter)"
+  - "  - Label 'OUT' above meter at y=25"
+  - "Butterfly opacity: 30% - semi-transparent dramatic watermark"
+  - "Layer order: paper background (z-index 0) → massive butterfly (z-index 1) → controls (z-index 2+)"
+  - "Controls remain clearly visible and interactive above butterfly"
+  - "Parameter IDs must match C++ exactly (lowercase, snake_case)"
