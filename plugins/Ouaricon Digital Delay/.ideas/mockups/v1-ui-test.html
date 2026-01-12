@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ouaricon Digital Delay - UI Mockup v1</title>
+
+  <style>
+    /* CRITICAL: WebView constraints */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      /* Native application feel */
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Center plugin frame in browser for testing */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      font-family: Garamond, 'Times New Roman', serif;
+    }
+
+    /* Fixed-size plugin frame (matches YAML spec) */
+    .plugin-frame {
+      width: 600px;
+      height: 380px;
+      border: 2px solid #444;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* Plugin container fills frame */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background-color: #F5E6D3;
+    }
+
+    /* Background paper texture */
+    .paper-background {
+      position: absolute;
+      inset: 0;
+      background-image: url('img/paper1.jpg');
+      background-size: cover;
+      background-position: center;
+      z-index: 0;
+      opacity: 1.0;
+    }
+
+    /* Plugin title */
+    .plugin-title {
+      position: absolute;
+      top: 18px;
+      left: 0;
+      width: 600px;
+      text-align: center;
+      font-size: 24px;
+      letter-spacing: 2px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      font-weight: normal;
+      z-index: 10;
+    }
+
+    /* Botanical overlay (butterfly) */
+    .botanical-overlay {
+      position: absolute;
+      left: 420px;
+      top: 140px;
+      width: 150px;
+      height: 200px;
+      background-image: url('img/butterfly2_Black and white.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.35;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Control containers */
+    .control-group {
+      position: absolute;
+      z-index: 5;
+    }
+
+    /* Knob styling - 10-segment botanical seed design */
+    .knob-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .knob {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #F5DEB3 0deg 18deg,
+        #8B7355 18deg 20deg,
+        #E8D5B7 20deg 38deg,
+        #8B7355 38deg 40deg,
+        #F5DEB3 40deg 58deg,
+        #8B7355 58deg 60deg,
+        #E8D5B7 60deg 78deg,
+        #8B7355 78deg 80deg,
+        #F5DEB3 80deg 98deg,
+        #8B7355 98deg 100deg,
+        #E8D5B7 100deg 118deg,
+        #8B7355 118deg 120deg,
+        #F5DEB3 120deg 138deg,
+        #8B7355 138deg 140deg,
+        #E8D5B7 140deg 158deg,
+        #8B7355 158deg 160deg,
+        #F5DEB3 160deg 178deg,
+        #8B7355 178deg 180deg,
+        #E8D5B7 180deg 198deg,
+        #8B7355 198deg 200deg,
+        #F5DEB3 200deg 218deg,
+        #8B7355 218deg 220deg,
+        #E8D5B7 220deg 238deg,
+        #8B7355 238deg 240deg,
+        #F5DEB3 240deg 258deg,
+        #8B7355 258deg 260deg,
+        #E8D5B7 260deg 278deg,
+        #8B7355 278deg 280deg,
+        #F5DEB3 280deg 298deg,
+        #8B7355 298deg 300deg,
+        #E8D5B7 300deg 318deg,
+        #8B7355 318deg 320deg,
+        #F5DEB3 320deg 338deg,
+        #8B7355 338deg 340deg,
+        #E8D5B7 340deg 358deg,
+        #8B7355 358deg 360deg
+      );
+      border: 2px solid #8B7355;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
+      position: relative;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: transform 50ms ease-out;
+    }
+
+    .knob.large {
+      width: 65px;
+      height: 65px;
+    }
+
+    /* Knob indicator line */
+    .knob::before {
+      content: '';
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 16px;
+      background: #3C2F2F;
+      border-radius: 1px;
+    }
+
+    .knob.large::before {
+      height: 18px;
+    }
+
+    /* Knob labels */
+    .knob-label {
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      text-align: center;
+      margin-top: 2px;
+    }
+
+    /* Value display (for time knob) */
+    .value-display {
+      position: absolute;
+      left: 48px;
+      top: 165px;
+      width: 105px;
+      height: 24px;
+      background: #FFFFFF;
+      border: 1px solid #C4B5A0;
+      border-radius: 3px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      color: #3C2F2F;
+      z-index: 5;
+    }
+
+    /* Toggle button styling */
+    .toggle-button {
+      position: absolute;
+      width: 65px;
+      height: 28px;
+      background: rgba(139, 168, 112, 0.3);
+      border: 2px solid #3C5C1A;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      letter-spacing: 1px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 100ms;
+      z-index: 5;
+    }
+
+    .toggle-button.active {
+      background: rgba(107, 142, 35, 0.6);
+    }
+
+    .toggle-button:hover {
+      background: rgba(139, 168, 112, 0.5);
+    }
+
+    .toggle-button.active:hover {
+      background: rgba(107, 142, 35, 0.7);
+    }
+
+    /* Dropdown styling */
+    .dropdown {
+      position: absolute;
+      width: 105px;
+      height: 26px;
+      background: #F5E6D3;
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #3C2F2F;
+      font-family: Garamond, 'Times New Roman', serif;
+      padding: 0 8px;
+      cursor: pointer;
+      z-index: 5;
+      appearance: none;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="12" height="8"><path fill="%233C2F2F" d="M0 0l6 8 6-8z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 8px center;
+      padding-right: 24px;
+    }
+
+    .dropdown:hover,
+    .dropdown:focus {
+      border-color: #6B8E4E;
+      outline: none;
+    }
+
+    .dropdown option {
+      background: #F5E6D3;
+      color: #3C2F2F;
+    }
+
+    /* Debug parameter monitor (bottom-right) */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 150px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+
+    /* Disabled state for division dropdown */
+    .dropdown:disabled {
+      opacity: 0.4;
+      cursor: not-allowed;
+      border-color: #C4B5A0;
+    }
+  </style>
+</head>
+<body>
+  <!-- Fixed plugin frame for browser testing -->
+  <div class="plugin-frame">
+    <div class="container">
+      <!-- Background paper texture -->
+      <div class="paper-background"></div>
+
+      <!-- Botanical overlay (butterfly) -->
+      <div class="botanical-overlay"></div>
+
+      <!-- Plugin title -->
+      <div class="plugin-title">Digital Delay</div>
+
+      <!-- TIME KNOB (Hero control - left side) -->
+      <div class="knob-container" style="left: 68px; top: 90px;">
+        <div class="knob large" id="time-knob" data-param="time" data-min="1" data-max="2000" data-value="500"></div>
+        <div class="knob-label">TIME</div>
+      </div>
+
+      <!-- TIME DISPLAY (shows ms or sync division) -->
+      <div class="value-display" id="time-display">500 ms</div>
+
+      <!-- SYNC TOGGLE -->
+      <div class="toggle-button" id="sync-button" style="left: 68px; top: 200px;">
+        SYNC
+      </div>
+
+      <!-- DIVISION DROPDOWN (disabled by default until sync is on) -->
+      <select class="dropdown" id="division-select" style="left: 48px; top: 245px;" disabled>
+        <option value="0">1/4</option>
+        <option value="1" selected>1/8</option>
+        <option value="2">1/16</option>
+        <option value="3">1/4D</option>
+        <option value="4">1/8D</option>
+        <option value="5">1/16D</option>
+        <option value="6">1/4T</option>
+        <option value="7">1/8T</option>
+        <option value="8">1/16T</option>
+        <option value="9">1/4(5)</option>
+        <option value="10">1/8(5)</option>
+        <option value="11">1/16(5)</option>
+      </select>
+
+      <!-- MAIN CONTROLS ROW (Feedback, Spread, Mod, Mix) -->
+
+      <!-- FEEDBACK -->
+      <div class="knob-container" style="left: 210px; top: 120px;">
+        <div class="knob" id="feedback-knob" data-param="feedback" data-min="0" data-max="100" data-value="30"></div>
+        <div class="knob-label">FEEDBACK</div>
+      </div>
+
+      <!-- SPREAD -->
+      <div class="knob-container" style="left: 295px; top: 120px;">
+        <div class="knob" id="spread-knob" data-param="spread" data-min="0" data-max="100" data-value="0"></div>
+        <div class="knob-label">SPREAD</div>
+      </div>
+
+      <!-- MOD -->
+      <div class="knob-container" style="left: 380px; top: 120px;">
+        <div class="knob" id="mod-knob" data-param="mod" data-min="0" data-max="100" data-value="0"></div>
+        <div class="knob-label">MOD</div>
+      </div>
+
+      <!-- MIX -->
+      <div class="knob-container" style="left: 465px; top: 120px;">
+        <div class="knob" id="mix-knob" data-param="mix" data-min="0" data-max="100" data-value="30"></div>
+        <div class="knob-label">MIX</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug parameter monitor -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // Mock JUCE backend for browser testing
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        getNormalisedValue: () => 0.5,
+        setNormalisedValue: (v) => console.log(`${id} set to ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getComboBoxState: (id) => ({
+        selectedId: 0,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Disable drag behaviors
+    document.addEventListener("dragstart", (e) => {
+      e.preventDefault();
+    });
+
+    // Update debug monitor
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      document.getElementById('debugValue').textContent = formatParamValue(paramId, value);
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // Format parameter value for display
+    function formatParamValue(paramId, value) {
+      switch(paramId) {
+        case 'time':
+          return `${Math.round(value)} ms`;
+        case 'feedback':
+        case 'spread':
+        case 'mod':
+        case 'mix':
+          return `${Math.round(value)}%`;
+        default:
+          return value.toFixed(1);
+      }
+    }
+
+    // Update time display (shows ms or sync division)
+    function updateTimeDisplay(syncEnabled, timeValue, divisionIndex) {
+      const display = document.getElementById('time-display');
+      const divisions = ["1/4", "1/8", "1/16", "1/4D", "1/8D", "1/16D", "1/4T", "1/8T", "1/16T", "1/4(5)", "1/8(5)", "1/16(5)"];
+
+      if (syncEnabled) {
+        display.textContent = divisions[divisionIndex];
+      } else {
+        display.textContent = `${Math.round(timeValue)} ms`;
+      }
+    }
+
+    // Knob drag interaction
+    let activeKnob = null;
+    let startY = 0;
+    let startValue = 0;
+
+    function initKnob(knob) {
+      const min = parseFloat(knob.dataset.min);
+      const max = parseFloat(knob.dataset.max);
+      const value = parseFloat(knob.dataset.value);
+
+      // Set initial rotation
+      updateKnobRotation(knob, value, min, max);
+
+      knob.addEventListener('mousedown', (e) => {
+        activeKnob = knob;
+        startY = e.clientY;
+        startValue = parseFloat(knob.dataset.value);
+        document.body.style.cursor = 'ns-resize';
+        e.preventDefault();
+      });
+    }
+
+    function updateKnobRotation(knob, value, min, max) {
+      const normalized = (value - min) / (max - min);
+      const degrees = -135 + (normalized * 270); // -135° to +135°
+      knob.style.transform = `rotate(${degrees}deg)`;
+
+      // Update debug monitor
+      updateDebugMonitor(knob.dataset.param, value, normalized);
+    }
+
+    document.addEventListener('mousemove', (e) => {
+      if (!activeKnob) return;
+
+      const min = parseFloat(activeKnob.dataset.min);
+      const max = parseFloat(activeKnob.dataset.max);
+      const range = max - min;
+
+      // Vertical drag: up increases, down decreases
+      const deltaY = startY - e.clientY;
+      const sensitivity = 0.5; // pixels per unit
+      const delta = deltaY * sensitivity;
+
+      let newValue = startValue + delta;
+      newValue = Math.max(min, Math.min(max, newValue)); // Clamp
+
+      activeKnob.dataset.value = newValue;
+      updateKnobRotation(activeKnob, newValue, min, max);
+
+      // Special handling for time knob
+      if (activeKnob.dataset.param === 'time') {
+        const syncEnabled = document.getElementById('sync-button').classList.contains('active');
+        const divisionIndex = parseInt(document.getElementById('division-select').value);
+        updateTimeDisplay(syncEnabled, newValue, divisionIndex);
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (activeKnob) {
+        console.log(`${activeKnob.dataset.param}: ${activeKnob.dataset.value}`);
+        activeKnob = null;
+        document.body.style.cursor = 'default';
+      }
+    });
+
+    // Sync toggle button
+    const syncButton = document.getElementById('sync-button');
+    const divisionSelect = document.getElementById('division-select');
+
+    syncButton.addEventListener('click', () => {
+      const isActive = syncButton.classList.toggle('active');
+      divisionSelect.disabled = !isActive;
+
+      console.log(`Sync: ${isActive}`);
+
+      // Update time display
+      const timeKnob = document.getElementById('time-knob');
+      const timeValue = parseFloat(timeKnob.dataset.value);
+      const divisionIndex = parseInt(divisionSelect.value);
+      updateTimeDisplay(isActive, timeValue, divisionIndex);
+
+      // Update debug monitor
+      updateDebugMonitor('sync', isActive ? 1 : 0, isActive ? 1 : 0);
+    });
+
+    // Division dropdown
+    divisionSelect.addEventListener('change', (e) => {
+      const divisionIndex = parseInt(e.target.value);
+      console.log(`Division: ${e.target.options[divisionIndex].text}`);
+
+      // Update time display if sync is enabled
+      const syncEnabled = syncButton.classList.contains('active');
+      if (syncEnabled) {
+        const timeKnob = document.getElementById('time-knob');
+        const timeValue = parseFloat(timeKnob.dataset.value);
+        updateTimeDisplay(syncEnabled, timeValue, divisionIndex);
+      }
+
+      // Update debug monitor
+      updateDebugMonitor('division', divisionIndex, divisionIndex / 11);
+    });
+
+    // Initialize all knobs
+    document.addEventListener('DOMContentLoaded', () => {
+      const knobs = document.querySelectorAll('.knob');
+      knobs.forEach(initKnob);
+
+      // Initialize time display
+      updateTimeDisplay(false, 500, 1);
+
+      console.log('Ouaricon Digital Delay UI loaded');
+      console.log('Drag knobs vertically to adjust values');
+      console.log('Click SYNC to enable tempo sync');
+    });
+  </script>
+</body>
+</html>

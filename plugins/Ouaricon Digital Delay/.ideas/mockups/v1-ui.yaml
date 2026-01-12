@@ -1,0 +1,257 @@
+# v1 UI Design Specification
+# Generated: 2026-01-12
+# Plugin: Ouaricon Digital Delay
+# Aesthetic: Ouaricon Audio Naturalist (botanical overlay, paper texture)
+
+window:
+  width: 600
+  height: 380
+  resizable: false
+
+colors:
+  background: "#F5E6D3"  # Aged paper fallback
+  text: "#3C2F2F"  # Dark brown
+  border: "#8B7355"  # Walnut brown
+  accent_green: "#6B8E4E"  # Toggle active state
+  accent_green_hover: "#8BAF70"  # Hover state
+  knob_segment_light: "#F5DEB3"  # Cream
+  knob_segment_dark: "#E8D5B7"  # Slightly darker cream
+  knob_border: "#8B7355"  # Brown border
+  value_display_bg: "#FFFFFF"  # White background for displays
+  value_display_border: "#C4B5A0"  # Light brown border
+
+typography:
+  family: "Garamond, 'Times New Roman', serif"
+  title_size: "24px"
+  title_spacing: "2px"
+  label_size: "11px"
+  label_spacing: "1px"
+  value_size: "11px"
+
+layout:
+  type: custom
+  sections:
+    - id: header
+      description: "Plugin title area"
+      region: { x: 0, y: 0, width: 600, height: 50 }
+
+    - id: time_section
+      description: "Primary time control (left side)"
+      region: { x: 30, y: 70, width: 140, height: 270 }
+
+    - id: main_controls
+      description: "Feedback, Spread, Mod, Mix (horizontal row)"
+      region: { x: 200, y: 100, width: 370, height: 180 }
+
+    - id: botanical_overlay
+      description: "Decorative butterfly image (right side)"
+      region: { x: 420, y: 140, width: 150, height: 200 }
+
+controls:
+  # TIME KNOB (Hero control - largest)
+  - id: time
+    type: knob
+    label: "TIME"
+    parameter: "time"
+    range: [1.0, 2000.0]
+    unit: "ms"
+    default: 500.0
+    decimals: 0
+    position: { x: 68, y: 90 }
+    size: { diameter: 65 }
+    style: botanical_seed
+    description: "Primary delay time control in free mode"
+
+  # TIME DISPLAY (Shows current value or note division)
+  - id: time_display
+    type: label
+    text: "500 ms"
+    position: { x: 48, y: 165 }
+    size: { width: 105, height: 24 }
+    style: value_display
+    font_size: 14
+    background: "#FFFFFF"
+    border_color: "#C4B5A0"
+    description: "Numeric display showing time value or sync division"
+
+  # SYNC TOGGLE (Below time display)
+  - id: sync
+    type: toggle
+    label: "SYNC"
+    parameter: "sync"
+    default: false
+    position: { x: 68, y: 200 }
+    size: { width: 65, height: 28 }
+    style: botanical_toggle
+    description: "Enable/disable tempo sync"
+
+  # DIVISION DROPDOWN (Only active when Sync is ON)
+  - id: division
+    type: combo
+    label: "DIVISION"
+    parameter: "division"
+    parameter_type: choice
+    choices: ["1/4", "1/8", "1/16", "1/4D", "1/8D", "1/16D", "1/4T", "1/8T", "1/16T", "1/4(5)", "1/8(5)", "1/16(5)"]
+    default: 1  # 1/8
+    position: { x: 48, y: 245 }
+    size: { width: 105, height: 26 }
+    style: botanical_dropdown
+    description: "Note subdivision when synced to tempo"
+
+  # MAIN CONTROL ROW (Right side, horizontal layout)
+
+  # FEEDBACK
+  - id: feedback
+    type: knob
+    label: "FEEDBACK"
+    parameter: "feedback"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    decimals: 0
+    position: { x: 210, y: 120 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Amount of repeats"
+
+  # SPREAD
+  - id: spread
+    type: knob
+    label: "SPREAD"
+    parameter: "spread"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 0.0
+    decimals: 0
+    position: { x: 295, y: 120 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Stereo width (0=preserve input, 100=wide)"
+
+  # MOD
+  - id: mod
+    type: knob
+    label: "MOD"
+    parameter: "mod"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 0.0
+    decimals: 0
+    position: { x: 380, y: 120 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Delay time modulation amount"
+
+  # MIX
+  - id: mix
+    type: knob
+    label: "MIX"
+    parameter: "mix"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    decimals: 0
+    position: { x: 465, y: 120 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Wet/dry balance"
+
+special_elements:
+  # PLUGIN TITLE
+  - id: title
+    type: text
+    text: "DIGITAL DELAY"
+    position: { x: 0, y: 18 }
+    size: { width: 600, height: 32 }
+    align: center
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "24px"
+    letter_spacing: "2px"
+    color: "#3C2F2F"
+    layer: decorative
+
+  # BACKGROUND TEXTURE
+  - id: paper_background
+    type: image
+    src: "img/paper1.jpg"
+    position: { x: 0, y: 0 }
+    size: { width: 600, height: 380 }
+    opacity: 1.0
+    layer: background
+    description: "Aged paper texture background"
+
+  # BOTANICAL OVERLAY
+  - id: butterfly_overlay
+    type: image
+    src: "img/butterfly2_Black and white.png"
+    position: { x: 420, y: 140 }
+    size: { width: 150, height: 200 }
+    opacity: 0.35
+    layer: decorative
+    description: "Botanical butterfly illustration (right side)"
+
+control_styles:
+  botanical_seed:
+    description: "10-segment seed cross-section design"
+    knob_type: conic_gradient
+    segments: 10
+    segment_colors: ["#F5DEB3", "#E8D5B7"]  # Alternating cream tones
+    border_width: 2
+    border_color: "#8B7355"
+    shadow: "inset 0 1px 2px rgba(0,0,0,0.15)"
+    indicator_type: line
+    indicator_color: "#3C2F2F"
+    indicator_width: 2
+    rotation_range: [-135, 135]  # 270 degrees total
+
+  botanical_toggle:
+    description: "Green tint when active"
+    background_inactive: "rgba(139, 168, 112, 0.3)"
+    background_active: "rgba(107, 142, 35, 0.6)"
+    border_width: 2
+    border_color: "#3C5C1A"
+    border_radius: 4
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "11px"
+    letter_spacing: "1px"
+    decoration: "❦"  # Optional fleuron
+    decoration_opacity: 0.3
+
+  botanical_dropdown:
+    description: "Matches toggle style with aged paper background"
+    background: "#F5E6D3"
+    border_width: 2
+    border_color: "#8B7355"
+    border_radius: 4
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "11px"
+    accent_color: "#6B8E4E"  # Green on hover/focus
+
+  value_display:
+    description: "White background with subtle border"
+    background: "#FFFFFF"
+    border_width: 1
+    border_color: "#C4B5A0"
+    border_radius: 3
+    text_color: "#3C2F2F"
+    text_align: center
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "14px"
+    padding: "4px 8px"
+
+spacing:
+  edge_margin: 15  # Minimum from window edges
+  control_gap_horizontal: 25  # Between main knobs
+  control_gap_vertical: 15  # Between stacked controls
+  label_gap: 8  # Label to control
+
+notes:
+  - "All positions in pixels from top-left (0,0)"
+  - "Knob diameters include label height (label below knob)"
+  - "Time knob is hero control (65px), main controls are 60px"
+  - "Botanical overlay positioned to not interfere with controls"
+  - "Background paper texture provides warmth and character"
+  - "Color palette follows Ouaricon Naturalist brand guidelines"
+  - "Parameter IDs must match C++ exactly (lowercase, snake_case)"
