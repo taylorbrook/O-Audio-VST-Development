@@ -59,7 +59,6 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> hfOnRelay;
 
     // Global
-    std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> analogRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays)
@@ -89,7 +88,6 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> hfOnAttachment;
 
     // Global
-    std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> analogAttachment;
 
     // Resource provider for WebView

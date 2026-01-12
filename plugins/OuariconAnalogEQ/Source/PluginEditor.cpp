@@ -48,7 +48,6 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
     hfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("hf_on");
 
     // Global
-    outputGainRelay = std::make_unique<juce::WebSliderRelay>("output_gain");
     analogRelay = std::make_unique<juce::WebToggleButtonRelay>("analog");
 
     // 2️⃣ Create WebView with relay options (depends on relays)
@@ -70,7 +69,6 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
             .withOptionsFrom(*hfFreqRelay)
             .withOptionsFrom(*hfGainRelay)
             .withOptionsFrom(*hfOnRelay)
-            .withOptionsFrom(*outputGainRelay)
             .withOptionsFrom(*analogRelay)
     );
 
@@ -114,8 +112,6 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
         *audioProcessor.parameters.getParameter("hf_on"), *hfOnRelay, nullptr);
 
     // Global
-    outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *audioProcessor.parameters.getParameter("output_gain"), *outputGainRelay, nullptr);
     analogAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.parameters.getParameter("analog"), *analogRelay, nullptr);
 

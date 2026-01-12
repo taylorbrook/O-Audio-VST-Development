@@ -3,14 +3,13 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=920, height=220" />
-  <title>Ouaricon Analog EQ</title>
+  <title>Ouaricon Analog Equalizer</title>
 
   <style>
     /* ====================================================================
        CRITICAL CSS CONSTRAINTS
        ==================================================================== */
 
-    /* Use 100%, NOT 100vh - JUCE WebView requires percentage-based sizing */
     html, body {
       height: 100%;
       margin: 0;
@@ -27,14 +26,11 @@
        ==================================================================== */
 
     body {
-      /* Native feel CSS (REQUIRED) */
       user-select: none;
       -webkit-user-select: none;
       -moz-user-select: none;
       cursor: default;
       overflow: hidden;
-
-      /* Center plugin frame */
       display: flex;
       align-items: center;
       justify-content: center;
@@ -42,7 +38,6 @@
       font-family: Garamond, serif;
     }
 
-    /* Main container - fills viewport */
     .container {
       width: 920px;
       height: 220px;
@@ -50,7 +45,6 @@
       overflow: hidden;
     }
 
-    /* Paper texture background layer */
     .paper-background {
       position: absolute;
       top: 0;
@@ -64,13 +58,12 @@
       pointer-events: none;
     }
 
-    /* Large rotated botanical overlay */
     .botanical-overlay {
       position: absolute;
-      top: -150px;
-      left: 200px;
-      width: 500px;
-      height: 500px;
+      top: -77px;
+      left: 545px;
+      width: 375px;
+      height: 375px;
       background-image: url('/images/flower_ferdinandibauer00baue_0021.png');
       background-size: contain;
       background-repeat: no-repeat;
@@ -82,7 +75,6 @@
       pointer-events: none;
     }
 
-    /* Content layer (controls) */
     .content-layer {
       position: relative;
       width: 100%;
@@ -90,7 +82,6 @@
       z-index: 2;
     }
 
-    /* Header border */
     .header-border {
       position: absolute;
       top: 45px;
@@ -100,12 +91,12 @@
       background: #8B7355;
     }
 
-    /* Title */
     .title {
       position: absolute;
       top: 12px;
-      left: 320px;
-      width: 280px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 400px;
       height: 24px;
       font-family: Garamond, serif;
       font-size: 18px;
@@ -115,15 +106,27 @@
       line-height: 24px;
     }
 
-    /* Band labels */
+    /* Band labels - now clickable toggles */
     .band-label {
       font-family: Garamond, serif;
-      font-size: 10px;
+      font-size: 11px;
       text-align: center;
       letter-spacing: 0.12em;
-      color: #3C2F2F;
+      color: #FFF;
       font-weight: 600;
       position: absolute;
+      background: #6B8E4E;
+      border: 1px solid #3C5C1A;
+      border-radius: 3px;
+      padding: 3px 8px;
+      cursor: pointer;
+      transition: background 100ms, color 100ms;
+    }
+
+    .band-label.inactive {
+      background: #8B7355;
+      border-color: #5C4033;
+      color: #DDD;
     }
 
     .sublabel {
@@ -135,7 +138,27 @@
       position: absolute;
     }
 
-    /* Dual-layer knob container */
+    /* ====================================================================
+       DUAL-LAYER KNOB WITH FREQUENCY NOTCHES
+       ==================================================================== */
+
+    .dual-knob-wrapper {
+      position: absolute;
+      width: 85px;
+      height: 85px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* Frequency notches ring (outside the knob) */
+    .freq-notches {
+      position: absolute;
+      width: 85px;
+      height: 85px;
+      pointer-events: none;
+    }
+
     .dual-knob-container {
       position: absolute;
       width: 65px;
@@ -143,14 +166,20 @@
       cursor: pointer;
     }
 
-    /* Outer ring - frequency control (visual only, interaction handled by container) */
+    /* Outer ring - frequency control with green gradient */
     .knob-outer {
       position: absolute;
       width: 65px;
       height: 65px;
       border-radius: 50%;
-      background: radial-gradient(circle, transparent 70%, #C9A27B 70%, #C9A27B 85%, #8B7355 85%);
-      border: 2px solid #8B7355;
+      background: radial-gradient(circle,
+        transparent 65%,
+        rgba(107, 142, 78, 0.3) 65%,
+        rgba(107, 142, 78, 0.5) 75%,
+        rgba(139, 115, 85, 0.8) 85%,
+        #8B7355 90%
+      );
+      border: 2px solid #6B8E4E;
       transform-origin: center center;
       transition: transform 50ms;
       pointer-events: none;
@@ -159,17 +188,17 @@
     /* Outer ring indicator */
     .knob-outer-indicator {
       position: absolute;
-      top: 3px;
+      top: 2px;
       left: 50%;
       transform: translateX(-50%);
       width: 4px;
-      height: 8px;
-      background: #5C4033;
+      height: 10px;
+      background: #3C5C1A;
       border-radius: 2px;
       pointer-events: none;
     }
 
-    /* Inner dial - gain control with 10-segment seed cross-section */
+    /* Inner dial - gain control */
     .knob-inner {
       position: absolute;
       top: 12px;
@@ -197,7 +226,6 @@
       pointer-events: none;
     }
 
-    /* Pointer indicator on inner dial */
     .knob-pointer {
       position: absolute;
       top: 4px;
@@ -207,30 +235,6 @@
       height: 10px;
       background: #3C2F2F;
       pointer-events: none;
-    }
-
-    /* Standard single-layer knob (output gain) */
-    .standard-knob {
-      position: absolute;
-      width: 55px;
-      height: 55px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, #D4B896, #C9A27B);
-      border: 2px solid #8B7355;
-      cursor: pointer;
-      transform-origin: center center;
-      transition: transform 50ms;
-    }
-
-    .standard-knob .knob-pointer {
-      top: 4px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 2px;
-      height: 14px;
-      background: #3C2F2F;
-      pointer-events: none;
-      position: absolute;
     }
 
     /* Toggle switches */
@@ -275,26 +279,27 @@
 
     .three-way-option {
       flex: 1;
-      padding: 3px 6px;
+      padding: 3px 8px;
       font-family: Garamond, serif;
       font-size: 7px;
-      letter-spacing: 0.08em;
+      letter-spacing: 0.06em;
       color: #FFF;
       cursor: pointer;
       text-align: center;
       background: #8B7355;
       transition: background 100ms;
+      white-space: nowrap;
     }
 
     .three-way-option.active {
       background: #6B8E4E;
     }
 
-    /* VU Meter - Marimba style */
+    /* VU Meter - 80% of 2x size (112px) */
     .vu-meter {
       position: absolute;
-      width: 70px;
-      height: 70px;
+      width: 112px;
+      height: 112px;
       background: rgba(139, 168, 112, 0.2);
       border: 2px solid #3C5C1A;
       border-radius: 50%;
@@ -311,7 +316,7 @@
     .vu-meter-needle {
       position: absolute;
       width: 2px;
-      height: 28px;
+      height: 45px;
       background: #3C5C1A;
       bottom: 50%;
       left: 50%;
@@ -323,29 +328,29 @@
 
     .vu-meter-pivot {
       position: absolute;
-      width: 8px;
-      height: 8px;
+      width: 11px;
+      height: 11px;
       background: #3C2F2F;
       border-radius: 50%;
-      bottom: calc(50% - 4px);
-      left: calc(50% - 4px);
+      bottom: calc(50% - 5.5px);
+      left: calc(50% - 5.5px);
     }
 
     .vu-meter-label {
       position: absolute;
-      bottom: 8px;
+      bottom: 12px;
       width: 100%;
       text-align: center;
-      font-size: 7px;
+      font-size: 10px;
       color: #3C2F2F;
       text-transform: uppercase;
       letter-spacing: 0.5px;
     }
 
-    /* Value tooltip that appears on hover/drag */
+    /* Value tooltip */
     .value-tooltip {
       position: absolute;
-      bottom: -18px;
+      bottom: -20px;
       left: 50%;
       transform: translateX(-50%);
       background: rgba(60, 47, 47, 0.9);
@@ -367,98 +372,151 @@
 </head>
 <body>
   <div class="container">
-    <!-- Background layers -->
     <div class="paper-background"></div>
     <div class="botanical-overlay"></div>
 
-    <!-- Content layer -->
     <div class="content-layer">
-      <!-- Header -->
       <div class="header-border"></div>
-      <div class="title">OUARICON ANALOG EQ</div>
+      <div class="title">OUARICON ANALOG EQUALIZER</div>
 
       <!-- LF BAND -->
-      <div class="band-label" style="top: 55px; left: 45px; width: 65px;">LF</div>
-      <div class="dual-knob-container" style="top: 75px; left: 38px;" data-param-outer="lf_freq" data-param-inner="lf_gain">
-        <div class="knob-outer" id="lf_freq_knob">
-          <div class="knob-outer-indicator"></div>
+      <div class="band-label" id="lf_on" style="top: 52px; left: 90px; width: 85px;">LF SHELF</div>
+      <div class="dual-knob-wrapper" style="top: 75px; left: 90px;">
+        <svg class="freq-notches" viewBox="0 0 85 85">
+          <g stroke="#5C4033" stroke-width="1.5" fill="none">
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(-135, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(0, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
+          </g>
+        </svg>
+        <div class="dual-knob-container" data-param-outer="lf_freq" data-param-inner="lf_gain">
+          <div class="knob-outer" id="lf_freq_knob">
+            <div class="knob-outer-indicator"></div>
+          </div>
+          <div class="knob-inner" id="lf_gain_knob">
+            <div class="knob-pointer"></div>
+          </div>
+          <div class="value-tooltip" id="lf_tooltip">100 Hz / 0 dB</div>
         </div>
-        <div class="knob-inner" id="lf_gain_knob">
-          <div class="knob-pointer"></div>
-        </div>
-        <div class="value-tooltip" id="lf_tooltip">100 Hz / 0 dB</div>
       </div>
-      <div class="sublabel" style="top: 150px; left: 45px; width: 65px;">SHELF</div>
-      <div class="toggle active" id="lf_on" style="top: 170px; left: 53px; width: 32px; height: 16px;">ON</div>
 
       <!-- LMF BAND -->
-      <div class="band-label" style="top: 55px; left: 188px; width: 65px;">LMF</div>
-      <div class="dual-knob-container" style="top: 75px; left: 181px;" data-param-outer="lmf_freq" data-param-inner="lmf_gain">
-        <div class="knob-outer" id="lmf_freq_knob">
-          <div class="knob-outer-indicator"></div>
+      <div class="band-label" id="lmf_on" style="top: 52px; left: 225px; width: 85px;">LMF</div>
+      <div class="dual-knob-wrapper" style="top: 75px; left: 225px;">
+        <svg class="freq-notches" viewBox="0 0 85 85">
+          <g stroke="#5C4033" stroke-width="1.5" fill="none">
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(-135, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(0, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
+          </g>
+        </svg>
+        <div class="dual-knob-container" data-param-outer="lmf_freq" data-param-inner="lmf_gain">
+          <div class="knob-outer" id="lmf_freq_knob">
+            <div class="knob-outer-indicator"></div>
+          </div>
+          <div class="knob-inner" id="lmf_gain_knob">
+            <div class="knob-pointer"></div>
+          </div>
+          <div class="value-tooltip" id="lmf_tooltip">500 Hz / 0 dB</div>
         </div>
-        <div class="knob-inner" id="lmf_gain_knob">
-          <div class="knob-pointer"></div>
-        </div>
-        <div class="value-tooltip" id="lmf_tooltip">500 Hz / 0 dB</div>
       </div>
-      <div class="three-way-toggle" id="lmf_q" style="top: 150px; left: 173px; width: 82px; height: 18px;">
+      <div class="three-way-toggle" id="lmf_q" style="top: 175px; left: 212px; width: 110px; height: 18px;">
         <div class="three-way-option" data-value="0">WIDE</div>
         <div class="three-way-option active" data-value="1">MED</div>
         <div class="three-way-option" data-value="2">TIGHT</div>
       </div>
-      <div class="toggle active" id="lmf_on" style="top: 174px; left: 196px; width: 32px; height: 16px;">ON</div>
 
       <!-- HMF BAND -->
-      <div class="band-label" style="top: 55px; left: 331px; width: 65px;">HMF</div>
-      <div class="dual-knob-container" style="top: 75px; left: 324px;" data-param-outer="hmf_freq" data-param-inner="hmf_gain">
-        <div class="knob-outer" id="hmf_freq_knob">
-          <div class="knob-outer-indicator"></div>
+      <div class="band-label" id="hmf_on" style="top: 52px; left: 360px; width: 85px;">HMF</div>
+      <div class="dual-knob-wrapper" style="top: 75px; left: 360px;">
+        <svg class="freq-notches" viewBox="0 0 85 85">
+          <g stroke="#5C4033" stroke-width="1.5" fill="none">
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(-135, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(0, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
+          </g>
+        </svg>
+        <div class="dual-knob-container" data-param-outer="hmf_freq" data-param-inner="hmf_gain">
+          <div class="knob-outer" id="hmf_freq_knob">
+            <div class="knob-outer-indicator"></div>
+          </div>
+          <div class="knob-inner" id="hmf_gain_knob">
+            <div class="knob-pointer"></div>
+          </div>
+          <div class="value-tooltip" id="hmf_tooltip">2000 Hz / 0 dB</div>
         </div>
-        <div class="knob-inner" id="hmf_gain_knob">
-          <div class="knob-pointer"></div>
-        </div>
-        <div class="value-tooltip" id="hmf_tooltip">2000 Hz / 0 dB</div>
       </div>
-      <div class="three-way-toggle" id="hmf_q" style="top: 150px; left: 316px; width: 82px; height: 18px;">
+      <div class="three-way-toggle" id="hmf_q" style="top: 175px; left: 347px; width: 110px; height: 18px;">
         <div class="three-way-option" data-value="0">WIDE</div>
         <div class="three-way-option active" data-value="1">MED</div>
         <div class="three-way-option" data-value="2">TIGHT</div>
       </div>
-      <div class="toggle active" id="hmf_on" style="top: 174px; left: 339px; width: 32px; height: 16px;">ON</div>
 
       <!-- HF BAND -->
-      <div class="band-label" style="top: 55px; left: 474px; width: 65px;">HF</div>
-      <div class="dual-knob-container" style="top: 75px; left: 467px;" data-param-outer="hf_freq" data-param-inner="hf_gain">
-        <div class="knob-outer" id="hf_freq_knob">
-          <div class="knob-outer-indicator"></div>
+      <div class="band-label" id="hf_on" style="top: 52px; left: 495px; width: 85px;">HF SHELF</div>
+      <div class="dual-knob-wrapper" style="top: 75px; left: 495px;">
+        <svg class="freq-notches" viewBox="0 0 85 85">
+          <g stroke="#5C4033" stroke-width="1.5" fill="none">
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(-135, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(-27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(0, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(27, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(54, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(81, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
+            <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
+          </g>
+        </svg>
+        <div class="dual-knob-container" data-param-outer="hf_freq" data-param-inner="hf_gain">
+          <div class="knob-outer" id="hf_freq_knob">
+            <div class="knob-outer-indicator"></div>
+          </div>
+          <div class="knob-inner" id="hf_gain_knob">
+            <div class="knob-pointer"></div>
+          </div>
+          <div class="value-tooltip" id="hf_tooltip">8000 Hz / 0 dB</div>
         </div>
-        <div class="knob-inner" id="hf_gain_knob">
-          <div class="knob-pointer"></div>
-        </div>
-        <div class="value-tooltip" id="hf_tooltip">8000 Hz / 0 dB</div>
       </div>
-      <div class="sublabel" style="top: 150px; left: 474px; width: 65px;">SHELF</div>
-      <div class="toggle active" id="hf_on" style="top: 170px; left: 482px; width: 32px; height: 16px;">ON</div>
 
-      <!-- GLOBAL CONTROLS -->
-      <div class="band-label" style="top: 55px; left: 602px; width: 55px;">OUT</div>
-      <div class="standard-knob" id="output_gain" style="top: 80px; left: 610px;">
-        <div class="knob-pointer"></div>
-      </div>
-      <div class="toggle toggle-large active" id="analog" style="top: 160px; left: 590px; width: 75px; height: 22px;">ANALOG</div>
+      <!-- ANALOG toggle - centered between HF dial and VU meter -->
+      <div class="toggle toggle-large active" id="analog" style="top: 99px; left: 620px; width: 75px; height: 22px;">ANALOG</div>
 
-      <!-- VU METER - Marimba style -->
-      <div class="vu-meter" style="top: 75px; left: 825px;">
-        <svg class="vu-meter-scale" viewBox="0 0 70 35">
-          <!-- Arc from left (-90) to right (+90) -->
-          <path d="M 5 30 A 30 30 0 0 1 65 30" fill="none" stroke="#8B7355" stroke-width="1"/>
-          <!-- Labels positioned on arc -->
-          <text x="8" y="27" font-size="4" fill="#3C2F2F" text-anchor="middle">-60</text>
-          <text x="22" y="9" font-size="4" fill="#3C2F2F" text-anchor="middle">-40</text>
-          <text x="45" y="7" font-size="4" fill="#3C2F2F" text-anchor="middle">-20</text>
-          <text x="58" y="24" font-size="5" fill="#3C2F2F" text-anchor="middle">0</text>
-          <text x="62" y="27" font-size="4" fill="#3C2F2F" text-anchor="middle">+3</text>
+      <!-- VU METER - Right side, 112px -->
+      <div class="vu-meter" style="top: 54px; left: 758px;">
+        <svg class="vu-meter-scale" viewBox="0 0 112 56">
+          <path d="M 8 48 A 48 48 0 0 1 104 48" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+          <text x="13" y="43" font-size="7" fill="#3C2F2F" text-anchor="middle">-60</text>
+          <text x="35" y="14" font-size="7" fill="#3C2F2F" text-anchor="middle">-40</text>
+          <text x="72" y="11" font-size="7" fill="#3C2F2F" text-anchor="middle">-20</text>
+          <text x="93" y="38" font-size="8" fill="#3C2F2F" text-anchor="middle">0</text>
+          <text x="99" y="43" font-size="7" fill="#3C2F2F" text-anchor="middle">+3</text>
         </svg>
         <div class="vu-meter-needle" id="vu_needle"></div>
         <div class="vu-meter-pivot"></div>
@@ -470,16 +528,26 @@
   <script type="module">
     import { getSliderState, getToggleState, getComboBoxState } from "./js/juce/index.js";
 
-    // Disable context menu (REQUIRED)
     document.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       return false;
     });
 
-    // Verify JUCE backend
     if (!window.__JUCE__) {
       console.error("JUCE backend not available");
     }
+
+    // Default normalized values for "center" position (vertical knob)
+    const DEFAULT_VALUES = {
+      lf_freq: 0.5,
+      lf_gain: 0.5,
+      lmf_freq: 0.5,
+      lmf_gain: 0.5,
+      hmf_freq: 0.5,
+      hmf_gain: 0.5,
+      hf_freq: 0.5,
+      hf_gain: 0.5
+    };
 
     // Parameter ranges for display formatting
     const paramRanges = {
@@ -490,20 +558,16 @@
       hmf_freq: { min: 500, max: 8000, unit: 'Hz', format: v => Math.round(500 + v * 7500) + ' Hz' },
       hmf_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
       hf_freq: { min: 2000, max: 20000, unit: 'Hz', format: v => (2000 + v * 18000 >= 10000 ? ((2000 + v * 18000)/1000).toFixed(1) + 'k' : Math.round(2000 + v * 18000)) + ' Hz' },
-      hf_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-      output_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' }
+      hf_gain: { min: -12, max: 12, unit: 'dB', format: v => ((-12 + v * 24).toFixed(1)) + ' dB' }
     };
 
-    // Update knob rotation
     function updateKnobRotation(element, normalizedValue) {
       const degrees = -135 + (normalizedValue * 270);
       element.style.transform = `rotate(${degrees}deg)`;
     }
 
     // ========================================================================
-    // DUAL-LAYER KNOB - Distance-based detection
-    // Outer ring (>60% from center) = frequency
-    // Inner dial (<60% from center) = gain
+    // DUAL-LAYER KNOB with double-click reset
     // ========================================================================
     function setupDualKnob(container, outerState, innerState, tooltipId, freqParamName, gainParamName) {
       const outerKnob = container.querySelector('.knob-outer');
@@ -512,11 +576,11 @@
 
       let isDragging = false;
       let currentState = null;
-      let isOuterControl = false;
+      let currentParamName = null;
       let lastY = 0;
 
-      const KNOB_RADIUS = 32.5;  // Half of 65px
-      const INNER_THRESHOLD = 0.60;  // 60% of radius = inner zone
+      const KNOB_RADIUS = 32.5;
+      const INNER_THRESHOLD = 0.60;
 
       function updateTooltip() {
         const freqValue = paramRanges[freqParamName].format(outerState.getNormalisedValue());
@@ -529,21 +593,17 @@
         const centerX = rect.left + KNOB_RADIUS;
         const centerY = rect.top + KNOB_RADIUS;
 
-        // Calculate distance from center as fraction of radius
         const dx = e.clientX - centerX;
         const dy = e.clientY - centerY;
         const distance = Math.sqrt(dx * dx + dy * dy);
         const normalizedDistance = distance / KNOB_RADIUS;
 
-        // Determine which control based on distance
         if (normalizedDistance > INNER_THRESHOLD) {
-          // Outer ring - frequency control
           currentState = outerState;
-          isOuterControl = true;
+          currentParamName = freqParamName;
         } else {
-          // Inner dial - gain control
           currentState = innerState;
-          isOuterControl = false;
+          currentParamName = gainParamName;
         }
 
         isDragging = true;
@@ -552,6 +612,25 @@
         currentState.sliderDragStarted();
         e.preventDefault();
       }
+
+      // Double-click to reset to default (vertical position)
+      container.addEventListener('dblclick', (e) => {
+        const rect = container.getBoundingClientRect();
+        const centerX = rect.left + KNOB_RADIUS;
+        const centerY = rect.top + KNOB_RADIUS;
+
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        const normalizedDistance = distance / KNOB_RADIUS;
+
+        if (normalizedDistance > INNER_THRESHOLD) {
+          outerState.setNormalisedValue(DEFAULT_VALUES[freqParamName]);
+        } else {
+          innerState.setNormalisedValue(DEFAULT_VALUES[gainParamName]);
+        }
+        e.preventDefault();
+      });
 
       container.addEventListener('mousedown', handleMouseDown);
 
@@ -569,11 +648,11 @@
           currentState.sliderDragEnded();
           isDragging = false;
           currentState = null;
+          currentParamName = null;
           container.classList.remove('dragging');
         }
       });
 
-      // Listen for changes and update visuals
       outerState.valueChangedEvent.addListener(() => {
         updateKnobRotation(outerKnob, outerState.getNormalisedValue());
         updateTooltip();
@@ -584,48 +663,25 @@
         updateTooltip();
       });
 
-      // Initialize
       updateKnobRotation(outerKnob, outerState.getNormalisedValue());
       updateKnobRotation(innerKnob, innerState.getNormalisedValue());
       updateTooltip();
     }
 
-    // Standard knob interaction
-    function setupStandardKnob(element, state) {
-      let isDragging = false;
-      let lastY = 0;
-
-      element.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        lastY = e.clientY;
-        state.sliderDragStarted();
-        e.preventDefault();
-      });
-
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-        const deltaY = lastY - e.clientY;
-        const currentValue = state.getNormalisedValue();
-        const newValue = Math.max(0, Math.min(1, currentValue + (deltaY * 0.005)));
-        state.setNormalisedValue(newValue);
-        lastY = e.clientY;
-      });
-
-      document.addEventListener('mouseup', () => {
-        if (isDragging) {
-          state.sliderDragEnded();
-          isDragging = false;
-        }
+    // Band label toggle (label acts as on/off button)
+    function setupBandLabelToggle(element, state) {
+      element.addEventListener('click', () => {
+        const currentValue = state.getValue();
+        state.setValue(!currentValue);
       });
 
       state.valueChangedEvent.addListener(() => {
-        updateKnobRotation(element, state.getNormalisedValue());
+        element.classList.toggle('inactive', !state.getValue());
       });
 
-      updateKnobRotation(element, state.getNormalisedValue());
+      element.classList.toggle('inactive', !state.getValue());
     }
 
-    // Toggle interaction
     function setupToggle(element, state) {
       element.addEventListener('click', () => {
         const currentValue = state.getValue();
@@ -639,7 +695,6 @@
       element.classList.toggle('active', state.getValue());
     }
 
-    // Three-way toggle interaction (for ComboBox parameters)
     function setupThreeWayToggle(container, state) {
       const options = container.querySelectorAll('.three-way-option');
 
@@ -656,7 +711,6 @@
         });
       });
 
-      // Initialize
       const index = state.getChoiceIndex();
       options.forEach((opt, i) => {
         opt.classList.toggle('active', i === index);
@@ -664,19 +718,18 @@
     }
 
     // ========================================================================
-    // VU METER - Marimba-style with C++ event-driven animation
+    // VU METER
     // ========================================================================
     const vuNeedle = document.getElementById('vu_needle');
     let currentVUAngle = -90;
     let targetVUAngle = -90;
 
-    const VU_ATTACK_SPEED = 0.5;   // Fast attack
-    const VU_DECAY_SPEED = 0.08;   // Smooth decay
-    const VU_MIN_ANGLE = -90;      // -60dB position (fully left)
-    const VU_MAX_ANGLE = 90;       // +3dB position (fully right)
-    const VU_SNAP_THRESHOLD = 2.0; // Snap to rest when within 2 degrees
+    const VU_ATTACK_SPEED = 0.5;
+    const VU_DECAY_SPEED = 0.08;
+    const VU_MIN_ANGLE = -90;
+    const VU_MAX_ANGLE = 90;
+    const VU_SNAP_THRESHOLD = 2.0;
 
-    // Map dB to needle angle
     function mapDBToAngle(dbLevel) {
       const minDB = -60;
       const maxDB = 3;
@@ -685,31 +738,24 @@
       return VU_MIN_ANGLE + (normalized * (VU_MAX_ANGLE - VU_MIN_ANGLE));
     }
 
-    // Update needle color: dark green (quiet) to bright red (loud)
     function updateNeedleColor(angle) {
       const normalized = (angle - VU_MIN_ANGLE) / (VU_MAX_ANGLE - VU_MIN_ANGLE);
-
-      // Interpolate from dark green to bright red
       const r = Math.round(34 + normalized * (255 - 34));
       const g = Math.round(139 - normalized * (139 - 50));
       const b = Math.round(34 + normalized * (50 - 34));
-
       vuNeedle.style.background = `rgb(${r}, ${g}, ${b})`;
     }
 
-    // Listen for output level from C++ via JUCE backend events
     if (window.__JUCE__ && window.__JUCE__.backend) {
       window.__JUCE__.backend.addEventListener("outputLevel", (dbLevel) => {
         targetVUAngle = mapDBToAngle(dbLevel);
       });
     }
 
-    // Animate VU meter with ballistic motion (fast attack, slow decay)
     function animateVUMeter() {
       const vuSpeed = currentVUAngle < targetVUAngle ? VU_ATTACK_SPEED : VU_DECAY_SPEED;
       currentVUAngle += (targetVUAngle - currentVUAngle) * vuSpeed;
 
-      // Snap to rest position when close
       if (targetVUAngle <= VU_MIN_ANGLE && Math.abs(currentVUAngle - VU_MIN_ANGLE) < VU_SNAP_THRESHOLD) {
         currentVUAngle = VU_MIN_ANGLE;
       }
@@ -721,10 +767,9 @@
     }
 
     // ========================================================================
-    // INITIALIZE ALL CONTROLS
+    // INITIALIZE
     // ========================================================================
 
-    // Get parameter states
     const lfFreqState = getSliderState("lf_freq");
     const lfGainState = getSliderState("lf_gain");
     const lfOnState = getToggleState("lf_on");
@@ -743,10 +788,8 @@
     const hfGainState = getSliderState("hf_gain");
     const hfOnState = getToggleState("hf_on");
 
-    const outputGainState = getSliderState("output_gain");
     const analogState = getToggleState("analog");
 
-    // Setup dual-layer knobs with distance-based detection
     setupDualKnob(
       document.querySelector('[data-param-outer="lf_freq"]'),
       lfFreqState, lfGainState, 'lf_tooltip', 'lf_freq', 'lf_gain'
@@ -764,24 +807,20 @@
       hfFreqState, hfGainState, 'hf_tooltip', 'hf_freq', 'hf_gain'
     );
 
-    // Setup standard knob
-    setupStandardKnob(document.getElementById('output_gain'), outputGainState);
+    // Band labels as toggles
+    setupBandLabelToggle(document.getElementById('lf_on'), lfOnState);
+    setupBandLabelToggle(document.getElementById('lmf_on'), lmfOnState);
+    setupBandLabelToggle(document.getElementById('hmf_on'), hmfOnState);
+    setupBandLabelToggle(document.getElementById('hf_on'), hfOnState);
 
-    // Setup toggles
-    setupToggle(document.getElementById('lf_on'), lfOnState);
-    setupToggle(document.getElementById('lmf_on'), lmfOnState);
-    setupToggle(document.getElementById('hmf_on'), hmfOnState);
-    setupToggle(document.getElementById('hf_on'), hfOnState);
     setupToggle(document.getElementById('analog'), analogState);
 
-    // Setup three-way toggles (Q controls)
     setupThreeWayToggle(document.getElementById('lmf_q'), lmfQState);
     setupThreeWayToggle(document.getElementById('hmf_q'), hmfQState);
 
-    // Start VU meter animation
     animateVUMeter();
 
-    console.log('OuariconAnalogEQ v1.0.3 UI initialized - dual-layer knobs + live VU meter');
+    console.log('OuariconAnalogEQ v1.0.10 UI initialized');
   </script>
 </body>
 </html>

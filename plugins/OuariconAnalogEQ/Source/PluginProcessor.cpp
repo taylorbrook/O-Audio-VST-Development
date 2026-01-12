@@ -190,8 +190,11 @@ void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int sample
     saturation.reset();
     outputGain.reset();
 
-    // Initialize saturation transfer function: tanh(x * 1.5) * 1.1
-    saturation.functionToUse = [](float x) { return std::tanh(x * 1.5f) * 1.1f; };
+    // Initialize saturation transfer function: gentle warmth, gain-neutral
+    // Low drive (0.5x) preserves linear response at typical levels
+    // 2.0x post-gain compensates for tanh compression, keeping overall level stable
+    // Result: subtle harmonic coloration without volume boost
+    saturation.functionToUse = [](float x) { return std::tanh(x * 0.5f) * 2.0f; };
 
     // Update all filter coefficients for current sample rate
     updateFilterCoefficients();

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.3
+- **Version:** 1.0.10
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -21,6 +21,13 @@
 - **2026-01-11 (v1.0.1):** Fixed GUI connectivity - Q parameters now use correct WebComboBoxRelay
 - **2026-01-11 (v1.0.2):** Added missing check_native_interop.js - WebView bridge now functional
 - **2026-01-11 (v1.0.3):** Fixed dual-layer knobs + live VU meter with Marimba-style C++ events
+- **2026-01-11 (v1.0.4):** UI polish - centered knobs, widened Q toggles, output label, vertical defaults, double-click reset, green gradient, frequency notches
+- **2026-01-11 (v1.0.5):** Simplified UI - removed output gain, moved analog under VU, band labels now act as on/off toggles
+- **2026-01-11 (v1.0.6):** UI polish - widened Q toggles, centered labels, resized flower overlay, updated title
+- **2026-01-11 (v1.0.7):** UI refinements - single-line title, removed sublabels, Q toggles down 10px, flower centered, LF/HF SHELF labels
+- **2026-01-11 (v1.0.8):** VU meter 2x size, shifted right; analog button centered between HF dial and VU meter
+- **2026-01-11 (v1.0.9):** VU meter reduced to 80% (112px); analog button moved right 20px
+- **2026-01-11 (v1.0.10):** VU meter left 40px; analog saturation retuned for warmth without gain boost
 
 ## Known Issues
 
@@ -186,5 +193,5 @@ Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Out
 ---
 
 **Last Updated:** 2026-01-11
-**Version:** 1.0.2
+**Version:** 1.0.8
 **Status:** 📦 Installed
