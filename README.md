@@ -396,14 +396,6 @@ Every problem encountered becomes institutional knowledge. The system learns and
 - Basic understanding of audio plugin concepts (parameters, presets, DAW usage)
 - Ability to describe sonic goals and UX preferences
 
-## Contributing
-
-This system is designed for personal use and learning. If you build something interesting with it, share your creative briefs and mockups—the process is the valuable part, not the compiled binaries.
-
-## License
-
-MIT - Use freely, modify as needed, share what you learn.
-
 ## Acknowledgments
 
 Built with:
