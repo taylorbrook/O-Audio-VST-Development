@@ -1,0 +1,793 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>OuariconAnalogEQ UI Mockup v2 - Single Row Layout</title>
+
+  <style>
+    /* CRITICAL WebView constraints */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* Browser test frame setup */
+    body {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+      min-height: 100%;
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      font-family: Garamond, serif;
+    }
+
+    /* Fixed-size plugin frame (matches YAML spec) */
+    .plugin-frame {
+      width: 980px;
+      height: 300px;
+      border: 2px solid #555;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+      overflow: hidden;
+      position: relative;
+      background: #EBD9C7;
+    }
+
+    /* Plugin container fills frame */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #EBD9C7;
+    }
+
+    /* Header section */
+    .header {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 60px;
+      background: linear-gradient(180deg, #E0D3C0 0%, #D4C4B0 100%);
+      border-bottom: 2px solid #8B7355;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .title {
+      font-family: Garamond, serif;
+      font-size: 22px;
+      letter-spacing: 0.15em;
+      color: #3C2F2F;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    /* Main control area */
+    .main-controls {
+      position: absolute;
+      top: 60px;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      padding: 15px 25px;
+      gap: 40px;
+    }
+
+    /* Band section (vertical column for each EQ band) */
+    .band-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .band-label {
+      font-family: Garamond, serif;
+      font-size: 11px;
+      letter-spacing: 0.12em;
+      color: #3C2F2F;
+      font-weight: 600;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+
+    /* Dual-layer knob container */
+    .dual-layer-knob {
+      position: relative;
+      width: 70px;
+      height: 70px;
+      cursor: pointer;
+    }
+
+    /* Outer ring (frequency) */
+    .knob-outer-ring {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: conic-gradient(
+        from 0deg,
+        #F5DEB3 0deg 180deg,
+        #E8D5B7 180deg 360deg
+      );
+      border: 2px solid #8B7355;
+      box-shadow:
+        inset -2px -2px 4px rgba(0,0,0,0.2),
+        inset 2px 2px 4px rgba(255,255,255,0.3);
+    }
+
+    /* Inner knob core (gain) */
+    .knob-core {
+      position: absolute;
+      inset: 18px;
+      border-radius: 50%;
+      background: #FFF8DC;
+      border: 2px solid #C9A27B;
+      box-shadow:
+        inset -1px -1px 3px rgba(0,0,0,0.15),
+        inset 1px 1px 3px rgba(255,255,255,0.4);
+    }
+
+    /* Knob pointer (on core, shows gain) */
+    .knob-pointer {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 2px;
+      height: 14px;
+      background: #3C2F2F;
+      transform: translateX(-50%);
+    }
+
+    /* Frequency indicator dot (on outer ring) */
+    .freq-indicator {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      width: 4px;
+      height: 4px;
+      border-radius: 50%;
+      background: #5C4033;
+      transform: translateX(-50%);
+    }
+
+    /* Rotating layers */
+    .knob-outer-body {
+      position: absolute;
+      inset: 0;
+      transform-origin: center center;
+      transition: transform 50ms ease-out;
+    }
+
+    .knob-inner-body {
+      position: absolute;
+      inset: 18px;
+      transform-origin: center center;
+      transition: transform 50ms ease-out;
+    }
+
+    /* Type sublabel (SHELF, etc.) */
+    .band-sublabel {
+      font-family: Garamond, serif;
+      font-size: 9px;
+      letter-spacing: 0.1em;
+      color: #5C4033;
+      text-transform: uppercase;
+      margin-top: 6px;
+    }
+
+    /* Q toggle (three-way switch) */
+    .q-toggle {
+      display: flex;
+      gap: 2px;
+      background: #D4C4B0;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      padding: 2px;
+      margin-top: 4px;
+    }
+
+    .q-option {
+      padding: 4px 10px;
+      font-family: Garamond, serif;
+      font-size: 8px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      border-radius: 2px;
+      transition: all 100ms;
+      color: #5C4033;
+      background: transparent;
+      text-transform: uppercase;
+    }
+
+    .q-option.active {
+      background: #6B8E4E;
+      color: #FFF8DC;
+    }
+
+    .q-option:hover:not(.active) {
+      background: rgba(107, 142, 78, 0.2);
+    }
+
+    /* ON toggle button */
+    .on-toggle {
+      margin-top: 6px;
+      padding: 4px 12px;
+      font-family: Garamond, serif;
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      transition: all 100ms;
+      text-transform: uppercase;
+    }
+
+    .on-toggle.active {
+      background: #6B8E4E;
+      color: #FFF8DC;
+    }
+
+    .on-toggle:not(.active) {
+      background: #D4C4B0;
+      color: #5C4033;
+    }
+
+    .on-toggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 2px 4px rgba(0,0,0,0.15);
+    }
+
+    /* Global controls section */
+    .global-section {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      margin-left: 60px;
+    }
+
+    /* Standard knob (output) */
+    .standard-knob {
+      position: relative;
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+      margin-top: 8px;
+    }
+
+    .standard-knob-body {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: #C9A27B;
+      border: 2px solid #8B7355;
+      box-shadow:
+        inset -2px -2px 4px rgba(0,0,0,0.2),
+        inset 2px 2px 4px rgba(255,255,255,0.3);
+      transform-origin: center center;
+      transition: transform 50ms ease-out;
+    }
+
+    .standard-knob .knob-pointer {
+      top: 6px;
+      height: 12px;
+    }
+
+    /* Analog toggle (large) */
+    .analog-toggle {
+      margin-top: 16px;
+      padding: 6px 18px;
+      font-family: Garamond, serif;
+      font-size: 10px;
+      letter-spacing: 0.12em;
+      cursor: pointer;
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      transition: all 120ms;
+      text-transform: uppercase;
+      font-weight: 600;
+    }
+
+    .analog-toggle.active {
+      background: #6B8E4E;
+      color: #FFF8DC;
+      box-shadow: 0 0 8px rgba(107, 142, 78, 0.4);
+    }
+
+    .analog-toggle:not(.active) {
+      background: #D4C4B0;
+      color: #5C4033;
+    }
+
+    .analog-toggle:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 3px 6px rgba(0,0,0,0.2);
+    }
+
+    /* Botanical overlay */
+    .botanical-overlay {
+      position: absolute;
+      right: 15px;
+      top: 75px;
+      width: 95px;
+      height: 210px;
+      opacity: 0.2;
+      pointer-events: none;
+      background-image: url('/Users/taylorbrook/Dev/Ouaricon Audio Images/flora/flower_ferdinandibauer00baue_0021.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      z-index: 0;
+    }
+
+    /* Value readout (hover tooltip) */
+    .value-readout {
+      position: absolute;
+      bottom: -24px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: Garamond, serif;
+      font-size: 10px;
+      color: #3C2F2F;
+      white-space: nowrap;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 150ms;
+      background: rgba(235, 217, 199, 0.95);
+      padding: 2px 6px;
+      border-radius: 2px;
+      border: 1px solid #8B7355;
+    }
+
+    .dual-layer-knob:hover .value-readout,
+    .standard-knob:hover .value-readout {
+      opacity: 1;
+    }
+
+    /* Debug parameter monitor */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 150px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Fixed-size plugin frame for browser testing -->
+  <div class="plugin-frame">
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <div class="title">Ouaricon Analog EQ</div>
+      </div>
+
+      <!-- Main control area (single horizontal row) -->
+      <div class="main-controls">
+        <!-- LF Band (Shelf) -->
+        <div class="band-section">
+          <div class="band-label">Low</div>
+          <div class="dual-layer-knob" data-param-freq="lf_freq" data-param-gain="lf_gain">
+            <!-- Outer ring rotates with frequency -->
+            <div class="knob-outer-body">
+              <div class="knob-outer-ring"></div>
+              <div class="freq-indicator"></div>
+            </div>
+            <!-- Inner knob rotates with gain -->
+            <div class="knob-inner-body">
+              <div class="knob-core"></div>
+              <div class="knob-pointer"></div>
+            </div>
+            <div class="value-readout">
+              <div class="freq-display">100 Hz</div>
+              <div class="gain-display">0.0 dB</div>
+            </div>
+          </div>
+          <div class="band-sublabel">Shelf</div>
+          <div class="on-toggle active" data-param="lf_on">ON</div>
+        </div>
+
+        <!-- LMF Band (Bell) -->
+        <div class="band-section">
+          <div class="band-label">L-Mid</div>
+          <div class="dual-layer-knob" data-param-freq="lmf_freq" data-param-gain="lmf_gain">
+            <div class="knob-outer-body">
+              <div class="knob-outer-ring"></div>
+              <div class="freq-indicator"></div>
+            </div>
+            <div class="knob-inner-body">
+              <div class="knob-core"></div>
+              <div class="knob-pointer"></div>
+            </div>
+            <div class="value-readout">
+              <div class="freq-display">500 Hz</div>
+              <div class="gain-display">0.0 dB</div>
+            </div>
+          </div>
+          <div class="q-toggle" data-param="lmf_q">
+            <div class="q-option" data-value="0">Wide</div>
+            <div class="q-option active" data-value="1">Med</div>
+            <div class="q-option" data-value="2">Tight</div>
+          </div>
+          <div class="on-toggle active" data-param="lmf_on">ON</div>
+        </div>
+
+        <!-- HMF Band (Bell) -->
+        <div class="band-section">
+          <div class="band-label">H-Mid</div>
+          <div class="dual-layer-knob" data-param-freq="hmf_freq" data-param-gain="hmf_gain">
+            <div class="knob-outer-body">
+              <div class="knob-outer-ring"></div>
+              <div class="freq-indicator"></div>
+            </div>
+            <div class="knob-inner-body">
+              <div class="knob-core"></div>
+              <div class="knob-pointer"></div>
+            </div>
+            <div class="value-readout">
+              <div class="freq-display">2000 Hz</div>
+              <div class="gain-display">0.0 dB</div>
+            </div>
+          </div>
+          <div class="q-toggle" data-param="hmf_q">
+            <div class="q-option" data-value="0">Wide</div>
+            <div class="q-option active" data-value="1">Med</div>
+            <div class="q-option" data-value="2">Tight</div>
+          </div>
+          <div class="on-toggle active" data-param="hmf_on">ON</div>
+        </div>
+
+        <!-- HF Band (Shelf) -->
+        <div class="band-section">
+          <div class="band-label">High</div>
+          <div class="dual-layer-knob" data-param-freq="hf_freq" data-param-gain="hf_gain">
+            <div class="knob-outer-body">
+              <div class="knob-outer-ring"></div>
+              <div class="freq-indicator"></div>
+            </div>
+            <div class="knob-inner-body">
+              <div class="knob-core"></div>
+              <div class="knob-pointer"></div>
+            </div>
+            <div class="value-readout">
+              <div class="freq-display">8000 Hz</div>
+              <div class="gain-display">0.0 dB</div>
+            </div>
+          </div>
+          <div class="band-sublabel">Shelf</div>
+          <div class="on-toggle active" data-param="hf_on">ON</div>
+        </div>
+
+        <!-- Global Controls -->
+        <div class="global-section">
+          <div class="band-label">Output</div>
+          <div class="standard-knob" data-param="output_gain">
+            <div class="standard-knob-body">
+              <div class="knob-pointer"></div>
+            </div>
+            <div class="value-readout">
+              <div class="gain-display">0.0 dB</div>
+            </div>
+          </div>
+          <div class="analog-toggle active" data-param="analog">Analog</div>
+        </div>
+      </div>
+
+      <!-- Botanical overlay (decorative, non-interactive) -->
+      <div class="botanical-overlay"></div>
+    </div>
+  </div>
+
+  <!-- Debug monitor -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // Mock JUCE backend for browser testing
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        getNormalisedValue: () => 0.5,
+        setNormalisedValue: (v) => console.log(`${id} set to ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getToggleState: (id) => ({
+        value: true,
+        getValue: () => true,
+        setValue: (v) => console.log(`${id} set to ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getComboBoxState: (id) => ({
+        selectedId: 1,
+        getSelectedId: () => 1,
+        setSelectedId: (v) => console.log(`${id} set to option ${v}`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // Disable context menu (REQUIRED for WebView)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Disable drag behaviors
+    document.addEventListener("dragstart", (e) => {
+      e.preventDefault();
+    });
+
+    // Parameter ranges
+    const paramRanges = {
+      lf_freq: { min: 30, max: 500, default: 100 },
+      lf_gain: { min: -12, max: 12, default: 0 },
+      lmf_freq: { min: 100, max: 2000, default: 500 },
+      lmf_gain: { min: -12, max: 12, default: 0 },
+      hmf_freq: { min: 500, max: 8000, default: 2000 },
+      hmf_gain: { min: -12, max: 12, default: 0 },
+      hf_freq: { min: 2000, max: 20000, default: 8000 },
+      hf_gain: { min: -12, max: 12, default: 0 },
+      output_gain: { min: -12, max: 12, default: 0 }
+    };
+
+    // Current parameter values
+    const paramValues = {};
+    Object.keys(paramRanges).forEach(key => {
+      paramValues[key] = paramRanges[key].default;
+    });
+
+    // Format frequency value
+    function formatFreq(hz) {
+      if (hz >= 1000) {
+        return (hz / 1000).toFixed(1) + ' kHz';
+      }
+      return Math.round(hz) + ' Hz';
+    }
+
+    // Format gain value
+    function formatGain(db) {
+      const sign = db >= 0 ? '+' : '';
+      return sign + db.toFixed(1) + ' dB';
+    }
+
+    // Calculate knob rotation (-135° to +135°)
+    function valueToRotation(value, min, max) {
+      const normalized = (value - min) / (max - min);
+      return -135 + (normalized * 270);
+    }
+
+    // Calculate value from rotation
+    function rotationToValue(rotation, min, max) {
+      const normalized = (rotation + 135) / 270;
+      return min + (normalized * (max - min));
+    }
+
+    // Update debug monitor
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      const range = paramRanges[paramId];
+      let displayValue = value;
+      if (paramId.includes('freq')) {
+        displayValue = formatFreq(value);
+      } else if (paramId.includes('gain')) {
+        displayValue = formatGain(value);
+      }
+      document.getElementById('debugValue').textContent = displayValue;
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // Initialize dual-layer knobs
+    document.querySelectorAll('.dual-layer-knob').forEach(knob => {
+      const freqParam = knob.dataset.paramFreq;
+      const gainParam = knob.dataset.paramGain;
+      const outerBody = knob.querySelector('.knob-outer-body');
+      const innerBody = knob.querySelector('.knob-inner-body');
+      const freqDisplay = knob.querySelector('.freq-display');
+      const gainDisplay = knob.querySelector('.gain-display');
+
+      let isDragging = false;
+      let dragLayer = null; // 'outer' or 'inner'
+      let startY = 0;
+      let startRotation = 0;
+
+      // Update visual rotation
+      function updateKnob() {
+        const freqRange = paramRanges[freqParam];
+        const gainRange = paramRanges[gainParam];
+        const freqRotation = valueToRotation(paramValues[freqParam], freqRange.min, freqRange.max);
+        const gainRotation = valueToRotation(paramValues[gainParam], gainRange.min, gainRange.max);
+
+        outerBody.style.transform = `rotate(${freqRotation}deg)`;
+        innerBody.style.transform = `rotate(${gainRotation}deg)`;
+        freqDisplay.textContent = formatFreq(paramValues[freqParam]);
+        gainDisplay.textContent = formatGain(paramValues[gainParam]);
+      }
+
+      // Mouse down - determine which layer
+      knob.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        const rect = knob.getBoundingClientRect();
+        const centerX = rect.left + rect.width / 2;
+        const centerY = rect.top + rect.height / 2;
+        const dx = e.clientX - centerX;
+        const dy = e.clientY - centerY;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+
+        // Inner knob is ~16px radius (34px diameter - borders)
+        dragLayer = distance < 17 ? 'inner' : 'outer';
+        isDragging = true;
+        startY = e.clientY;
+
+        const param = dragLayer === 'outer' ? freqParam : gainParam;
+        const range = paramRanges[param];
+        startRotation = valueToRotation(paramValues[param], range.min, range.max);
+      });
+
+      // Mouse move
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaY = startY - e.clientY; // Inverted: up = increase
+        const rotation = Math.max(-135, Math.min(135, startRotation + deltaY));
+
+        const param = dragLayer === 'outer' ? freqParam : gainParam;
+        const range = paramRanges[param];
+        const value = rotationToValue(rotation, range.min, range.max);
+
+        paramValues[param] = value;
+        updateKnob();
+
+        const normalized = (value - range.min) / (range.max - range.min);
+        updateDebugMonitor(param, value, normalized);
+      });
+
+      // Mouse up
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+        dragLayer = null;
+      });
+
+      // Initialize
+      updateKnob();
+    });
+
+    // Initialize standard knobs (output)
+    document.querySelectorAll('.standard-knob').forEach(knob => {
+      const param = knob.dataset.param;
+      const knobBody = knob.querySelector('.standard-knob-body');
+      const gainDisplay = knob.querySelector('.gain-display');
+
+      let isDragging = false;
+      let startY = 0;
+      let startRotation = 0;
+
+      function updateKnob() {
+        const range = paramRanges[param];
+        const rotation = valueToRotation(paramValues[param], range.min, range.max);
+        knobBody.style.transform = `rotate(${rotation}deg)`;
+        gainDisplay.textContent = formatGain(paramValues[param]);
+      }
+
+      knob.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        isDragging = true;
+        startY = e.clientY;
+        const range = paramRanges[param];
+        startRotation = valueToRotation(paramValues[param], range.min, range.max);
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaY = startY - e.clientY;
+        const rotation = Math.max(-135, Math.min(135, startRotation + deltaY));
+        const range = paramRanges[param];
+        const value = rotationToValue(rotation, range.min, range.max);
+
+        paramValues[param] = value;
+        updateKnob();
+
+        const normalized = (value - range.min) / (range.max - range.min);
+        updateDebugMonitor(param, value, normalized);
+      });
+
+      document.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+
+      updateKnob();
+    });
+
+    // Initialize Q toggles
+    document.querySelectorAll('.q-toggle').forEach(toggle => {
+      const param = toggle.dataset.param;
+      const options = toggle.querySelectorAll('.q-option');
+
+      options.forEach(option => {
+        option.addEventListener('click', () => {
+          options.forEach(opt => opt.classList.remove('active'));
+          option.classList.add('active');
+          const value = parseInt(option.dataset.value);
+          console.log(`${param} set to ${option.textContent} (${value})`);
+          updateDebugMonitor(param, option.textContent, value / 2);
+        });
+      });
+    });
+
+    // Initialize ON toggles
+    document.querySelectorAll('.on-toggle').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        const isActive = toggle.classList.toggle('active');
+        const param = toggle.dataset.param;
+        console.log(`${param} set to ${isActive}`);
+        updateDebugMonitor(param, isActive ? 'ON' : 'OFF', isActive ? 1 : 0);
+      });
+    });
+
+    // Initialize analog toggle
+    document.querySelectorAll('.analog-toggle').forEach(toggle => {
+      toggle.addEventListener('click', () => {
+        const isActive = toggle.classList.toggle('active');
+        const param = toggle.dataset.param;
+        console.log(`${param} set to ${isActive}`);
+        updateDebugMonitor(param, isActive ? 'ON' : 'OFF', isActive ? 1 : 0);
+      });
+    });
+
+    console.log('OuariconAnalogEQ v2 mockup loaded - single horizontal row layout');
+  </script>
+</body>
+</html>
