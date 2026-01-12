@@ -5,6 +5,17 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.1] - 2026-01-12
+
+### Changed
+- Butterfly image shifted up additional 30 pixels (total 70px from v1.0.0)
+- Time dial sync behavior improved with accumulator-based discrete stepping
+  - Smoother stepping through rhythmic divisions when Sync is ON
+  - ~25 pixels of drag = one division step
+- Output meter sensitivity increased significantly
+  - Applied 6x gain boost to RMS signal
+  - Added logarithmic curve for better response to quieter signals
+
 ## [1.1.0] - 2026-01-12
 
 ### Added
