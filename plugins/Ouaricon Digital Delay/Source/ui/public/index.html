@@ -64,7 +64,7 @@
     .butterfly-overlay {
       position: absolute;
       left: calc(50% - 400px);
-      top: -450px;
+      top: -490px;
       width: 800px;
       height: 1280px;
       background-image: url('img/butterfly2_Black and white.png');
@@ -220,45 +220,6 @@
     }
 
     /* ============================================
-       DROPDOWN (DIVISION)
-       ============================================ */
-    .dropdown-container {
-      position: absolute;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-    }
-
-    .dropdown-label {
-      font-size: 9px;
-      letter-spacing: 0.8px;
-      color: #3C2F2F;
-      text-transform: uppercase;
-      margin-bottom: 4px;
-      text-align: center;
-      width: 80px;
-    }
-
-    .dropdown {
-      width: 80px;
-      height: 24px;
-      border: 2px solid #8B7355;
-      border-radius: 4px;
-      background: #F5E6D3;
-      font-family: Garamond, 'Times New Roman', serif;
-      font-size: 9px;
-      color: #3C2F2F;
-      padding: 2px 4px;
-      cursor: pointer;
-    }
-
-    .dropdown:hover,
-    .dropdown:focus {
-      border-color: #6B8E4E;
-      outline: none;
-    }
-
-    /* ============================================
        LED METER (OuariconComp style)
        ============================================ */
     .led-meter-container {
@@ -326,11 +287,6 @@
       left: 10px;
     }
 
-    #division-container {
-      top: 52px;
-      left: -5px;
-    }
-
     #time-container {
       top: 4px;
       left: 95px;
@@ -378,25 +334,6 @@
       <div id="sync-container" class="toggle-container">
         <div class="toggle-label">SYNC</div>
         <div id="sync" class="toggle">OFF</div>
-      </div>
-
-      <!-- DIVISION DROPDOWN -->
-      <div id="division-container" class="dropdown-container">
-        <div class="dropdown-label">DIVISION</div>
-        <select id="division" class="dropdown">
-          <option value="0">1/4</option>
-          <option value="1" selected>1/8</option>
-          <option value="2">1/16</option>
-          <option value="3">1/4D</option>
-          <option value="4">1/8D</option>
-          <option value="5">1/16D</option>
-          <option value="6">1/4T</option>
-          <option value="7">1/8T</option>
-          <option value="8">1/16T</option>
-          <option value="9">1/4(5)</option>
-          <option value="10">1/8(5)</option>
-          <option value="11">1/16(5)</option>
-        </select>
       </div>
 
       <!-- TIME KNOB -->
@@ -480,6 +417,24 @@
     import { getSliderState, getToggleState, getComboBoxState } from './js/juce/index.js';
 
     // ============================================
+    // MUSICAL DIVISIONS TABLE (matches C++ subdivisionFactors)
+    // ============================================
+    const musicalDivisions = [
+      { name: "1/4",    factor: 1.0 },
+      { name: "1/8",    factor: 0.5 },
+      { name: "1/16",   factor: 0.25 },
+      { name: "1/4D",   factor: 1.5 },    // Dotted
+      { name: "1/8D",   factor: 0.75 },
+      { name: "1/16D",  factor: 0.375 },
+      { name: "1/4T",   factor: 0.667 },  // Triplet
+      { name: "1/8T",   factor: 0.333 },
+      { name: "1/16T",  factor: 0.167 },
+      { name: "1/4(5)", factor: 0.8 },    // Quintuplet
+      { name: "1/8(5)", factor: 0.4 },
+      { name: "1/16(5)", factor: 0.2 }
+    ];
+
+    // ============================================
     // DISABLE CONTEXT MENU
     // ============================================
     document.addEventListener("contextmenu", (e) => {
@@ -502,9 +457,9 @@
     }
 
     // ============================================
-    // UPDATE LED METER FROM RMS DATA
+    // UPDATE LED METER FROM RMS DATA (exposed globally for C++ calls)
     // ============================================
-    function updateLEDMeter(rmsLevel) {
+    window.updateLEDMeter = function(rmsLevel) {
       const meterContainer = document.getElementById('led-meter');
       const segments = meterContainer.querySelectorAll('.led-segment');
 
@@ -523,7 +478,7 @@
           }
         }
       });
-    }
+    };
 
     // ============================================
     // KNOB INTERACTION (Relative drag)
@@ -587,13 +542,16 @@
     }
 
     // ============================================
-    // TOGGLE INTERACTION (SYNC)
+    // TOGGLE INTERACTION (SYNC) - triggers time knob display update
     // ============================================
+    let syncState = null;
+    let updateTimeDisplay = null;  // Will be set by setupTimeKnob
+
     function setupToggle() {
       const toggle = document.getElementById('sync');
-      const toggleState = getToggleState('sync');
+      syncState = getToggleState('sync');
 
-      if (!toggleState) {
+      if (!syncState) {
         console.error('Failed to get toggle state for sync');
         return;
       }
@@ -601,41 +559,116 @@
       function updateVisual(value) {
         toggle.classList.toggle('active', value);
         toggle.textContent = value ? 'ON' : 'OFF';
+        // Trigger time knob display update when sync state changes
+        if (updateTimeDisplay) updateTimeDisplay();
       }
 
-      toggleState.valueChangedEvent.addListener(() => {
-        updateVisual(toggleState.getValue());
+      syncState.valueChangedEvent.addListener(() => {
+        updateVisual(syncState.getValue());
       });
-      updateVisual(toggleState.getValue());
+      updateVisual(syncState.getValue());
 
       toggle.addEventListener('click', () => {
-        toggleState.setValue(!toggleState.getValue());
+        syncState.setValue(!syncState.getValue());
       });
     }
 
     // ============================================
-    // DROPDOWN INTERACTION (DIVISION)
+    // TIME KNOB SETUP (special: shows divisions when sync is ON)
     // ============================================
-    function setupDropdown() {
-      const dropdown = document.getElementById('division');
-      const comboState = getComboBoxState('division');
+    function setupTimeKnob() {
+      const knob = document.getElementById('time-knob');
+      const valueDisplay = document.getElementById('time-value');
+      const timeState = getSliderState('time');
+      const divisionState = getComboBoxState('division');
 
-      if (!comboState) {
-        console.error('Failed to get combo state for division');
+      if (!timeState) {
+        console.error('Failed to get slider state for time');
         return;
       }
 
-      function updateVisual(selectedId) {
-        dropdown.selectedIndex = selectedId;
+      let rotation = -135;
+      let lastY = 0;
+      let isDragging = false;
+
+      // Update visual - shows ms OR division name based on sync state
+      function updateVisual() {
+        const isSync = syncState && syncState.getValue();
+
+        if (isSync && divisionState) {
+          // Sync mode: show division name
+          const divIndex = divisionState.getSelectedId();
+          const validIndex = Math.max(0, Math.min(11, divIndex));
+          valueDisplay.textContent = musicalDivisions[validIndex].name;
+
+          // Rotate knob based on division index (0-11 mapped to knob range)
+          const normalized = validIndex / 11;
+          rotation = -135 + (normalized * 270);
+          knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
+        } else {
+          // Free mode: show ms value
+          const normalized = timeState.getNormalisedValue();
+          rotation = -135 + (normalized * 270);
+          knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
+
+          const value = 1.0 + (normalized * (2000.0 - 1.0));
+          valueDisplay.textContent = `${Math.round(value)} ms`;
+        }
       }
 
-      comboState.valueChangedEvent.addListener(() => {
-        updateVisual(comboState.getSelectedId());
-      });
-      updateVisual(comboState.getSelectedId());
+      // Expose update function for sync toggle to call
+      updateTimeDisplay = updateVisual;
 
-      dropdown.addEventListener('change', (e) => {
-        comboState.setSelectedId(parseInt(e.target.value));
+      // Listen for parameter changes
+      timeState.valueChangedEvent.addListener(updateVisual);
+      if (divisionState) {
+        divisionState.valueChangedEvent.addListener(updateVisual);
+      }
+      updateVisual();
+
+      // Mouse interaction (relative drag)
+      knob.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastY = e.clientY;
+        knob.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaY = lastY - e.clientY;
+        const isSync = syncState && syncState.getValue();
+
+        if (isSync && divisionState) {
+          // Sync mode: control division selection (12 steps)
+          const currentDiv = divisionState.getSelectedId();
+          const sensitivity = 0.02;
+          const delta = deltaY * sensitivity;
+
+          let newDiv = currentDiv + (delta > 0.5 ? 1 : (delta < -0.5 ? -1 : 0));
+          newDiv = Math.max(0, Math.min(11, newDiv));
+
+          if (newDiv !== currentDiv) {
+            divisionState.setSelectedId(newDiv);
+          }
+        } else {
+          // Free mode: control time parameter
+          const rotationDelta = deltaY * 0.5;
+          rotation = Math.max(-135, Math.min(135, rotation + rotationDelta));
+
+          const normalized = (rotation + 135) / 270;
+          timeState.setNormalisedValue(normalized);
+        }
+
+        lastY = e.clientY;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          knob.style.cursor = 'pointer';
+        }
       });
     }
 
@@ -645,18 +678,18 @@
     document.addEventListener("DOMContentLoaded", () => {
       setupLEDMeter();
 
-      setupKnob('time', 1.0, 2000.0, 500.0, v => `${Math.round(v)} ms`);
+      // Setup sync toggle first (needed by time knob)
+      setupToggle();
+
+      // Setup time knob with tempo sync support
+      setupTimeKnob();
+
+      // Setup other knobs
       setupKnob('feedback', 0.0, 100.0, 30.0, v => `${Math.round(v)}%`);
       setupKnob('spread', 0.0, 100.0, 0.0, v => `${Math.round(v)}%`);
       setupKnob('mod', 0.0, 100.0, 0.0, v => `${Math.round(v)}%`);
       setupKnob('wet', 0.0, 100.0, 30.0, v => `${Math.round(v)}%`);
       setupKnob('dry', 0.0, 100.0, 100.0, v => `${Math.round(v)}%`);
-
-      setupToggle();
-      setupDropdown();
-
-      // TODO: Set up C++ -> JS messaging for LED meter RMS data
-      // Expected message format: { type: 'rms_update', level: 0.0-1.0 }
     });
   </script>
 </body>

@@ -64,10 +64,16 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
 
     // Load UI from resource provider
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+
+    // Start timer for RMS meter updates (30 Hz)
+    startTimerHz(30);
 }
 
 OuariconDigitalDelayAudioProcessorEditor::~OuariconDigitalDelayAudioProcessorEditor()
 {
+    // Stop timer before destruction
+    stopTimer();
+
     // Destruction order is automatic (reverse of declaration):
     // 1. Attachments destroyed first (safe to call webView methods)
     // 2. WebView destroyed second
@@ -84,6 +90,22 @@ void OuariconDigitalDelayAudioProcessorEditor::resized()
 {
     // Fill entire editor area with WebView
     webView->setBounds(getLocalBounds());
+}
+
+void OuariconDigitalDelayAudioProcessorEditor::timerCallback()
+{
+    // Get RMS levels from processor (average L+R for mono meter)
+    float rmsLeft = processorRef.getRmsLevelLeft();
+    float rmsRight = processorRef.getRmsLevelRight();
+    float rmsLevel = (rmsLeft + rmsRight) * 0.5f;
+
+    // Clamp to 0-1 range
+    rmsLevel = juce::jlimit(0.0f, 1.0f, rmsLevel);
+
+    // Send to WebView via JavaScript evaluation
+    juce::String js = "if (typeof updateLEDMeter === 'function') { updateLEDMeter(" +
+                      juce::String(rmsLevel, 4) + "); }";
+    webView->evaluateJavascript(js, nullptr);
 }
 
 //==============================================================================

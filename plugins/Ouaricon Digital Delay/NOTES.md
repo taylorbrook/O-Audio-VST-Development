@@ -1,8 +1,8 @@
 # Ouaricon Digital Delay Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 0
-- **Version:** N/A (in development)
+- **Current Status:** ✅ Working
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -10,6 +10,8 @@
 
 - **2026-01-12:** Creative brief completed - clean digital delay with stereo spread
 - **2026-01-12 (Stage 0):** Research & Planning complete - Architecture and plan documented (Complexity 2.4)
+- **2026-01-12 (v1.0.0):** Initial release - all DSP and GUI implemented
+- **2026-01-12 (v1.1.0):** UI improvements - functional output meter, tempo-synced time dial, butterfly repositioned
 
 ## Known Issues
 

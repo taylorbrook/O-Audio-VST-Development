@@ -12,7 +12,8 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OuariconDigitalDelayAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconDigitalDelayAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                                  private juce::Timer
 {
 public:
     explicit OuariconDigitalDelayAudioProcessorEditor(OuariconDigitalDelayAudioProcessor&);
@@ -20,6 +21,7 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+    void timerCallback() override;
 
 private:
     OuariconDigitalDelayAudioProcessor& processorRef;

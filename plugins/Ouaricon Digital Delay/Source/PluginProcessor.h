@@ -42,6 +42,10 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    // RMS level getters for output meter (returns 0.0-1.0)
+    float getRmsLevelLeft() const { return rmsLevelLeft.getCurrentValue(); }
+    float getRmsLevelRight() const { return rmsLevelRight.getCurrentValue(); }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
