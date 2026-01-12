@@ -31,7 +31,7 @@ Ouaricon Plugins:
 | Ouaricon Marimba | 📦 Installed | 1.6.2 | Synth (Physical Model) | 2026-01-11 |
 | OuariconComp | 📦 Installed | 1.0.2 | Audio Effect (Compressor) | 2026-01-11 |
 | OuariconAnalogEQ | 📦 Installed | 1.0.10 | Audio Effect (EQ) | 2026-01-11 |
-| Ouaricon Digital Delay | ✅ Working | 1.1.0 | Audio Effect (Delay) | 2026-01-12 |
+| Ouaricon Digital Delay | 📦 Installed | 1.1.0 | Audio Effect (Delay) | 2026-01-12 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

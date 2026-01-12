@@ -1,7 +1,7 @@
 # Ouaricon Digital Delay Notes
 
 ## Status
-- **Current Status:** ✅ Working
+- **Current Status:** 📦 Installed
 - **Version:** 1.1.0
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
