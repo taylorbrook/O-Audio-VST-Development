@@ -1,0 +1,228 @@
+# v2 UI Design Specification
+# Generated: 2026-01-12
+# Plugin: Ouaricon Digital Delay
+# Aesthetic: Ouaricon Audio Naturalist (botanical overlay, paper texture)
+# Layout: Rack mount style - single horizontal row, wider aspect ratio
+
+window:
+  width: 700
+  height: 280
+  resizable: false
+
+colors:
+  background: "#F5E6D3"  # Aged paper fallback
+  text: "#3C2F2F"  # Dark brown
+  border: "#8B7355"  # Walnut brown
+  accent_green: "#6B8E4E"  # Toggle active state
+  accent_green_hover: "#8BAF70"  # Hover state
+  knob_segment_light: "#F5DEB3"  # Cream
+  knob_segment_dark: "#E8D5B7"  # Slightly darker cream
+  knob_border: "#8B7355"  # Brown border
+  value_display_bg: "#FFFFFF"  # White background for displays
+  value_display_border: "#C4B5A0"  # Light brown border
+
+typography:
+  family: "Garamond, 'Times New Roman', serif"
+  title_size: "20px"
+  title_spacing: "3px"
+  label_size: "10px"
+  label_spacing: "0.8px"
+  value_size: "11px"
+
+layout:
+  type: horizontal
+  description: "Rack mount style - all controls in single horizontal row"
+  sections:
+    - id: header
+      description: "Plugin title area (compact for rack style)"
+      region: { x: 0, y: 0, width: 700, height: 40 }
+
+    - id: controls_row
+      description: "All controls in single horizontal row"
+      region: { x: 20, y: 70, width: 660, height: 180 }
+
+controls:
+  # SYNC TOGGLE (First control - left side)
+  - id: sync
+    type: toggle
+    label: "SYNC"
+    parameter: "sync"
+    default: false
+    position: { x: 30, y: 120 }
+    size: { width: 52, height: 26 }
+    style: botanical_toggle
+    description: "Enable/disable tempo sync"
+
+  # DIVISION DROPDOWN (Second control - below SYNC)
+  - id: division
+    type: combo
+    label: "DIVISION"
+    parameter: "division"
+    parameter_type: choice
+    choices: ["1/4", "1/8", "1/16", "1/4D", "1/8D", "1/16D", "1/4T", "1/8T", "1/16T", "1/4(5)", "1/8(5)", "1/16(5)"]
+    default: 1  # 1/8
+    position: { x: 20, y: 160 }
+    size: { width: 72, height: 24 }
+    style: botanical_dropdown
+    description: "Note subdivision when synced to tempo"
+
+  # TIME KNOB (Third control - uniform size with others)
+  - id: time
+    type: knob
+    label: "TIME"
+    parameter: "time"
+    range: [1.0, 2000.0]
+    unit: "ms"
+    default: 500.0
+    decimals: 0
+    position: { x: 115, y: 110 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Primary delay time control in free mode"
+
+  # FEEDBACK KNOB
+  - id: feedback
+    type: knob
+    label: "FEEDBACK"
+    parameter: "feedback"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    decimals: 0
+    position: { x: 225, y: 110 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Amount of repeats"
+
+  # SPREAD KNOB
+  - id: spread
+    type: knob
+    label: "SPREAD"
+    parameter: "spread"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 0.0
+    decimals: 0
+    position: { x: 335, y: 110 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Stereo width (0=preserve input, 100=wide)"
+
+  # MOD KNOB
+  - id: mod
+    type: knob
+    label: "MOD"
+    parameter: "mod"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 0.0
+    decimals: 0
+    position: { x: 445, y: 110 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Delay time modulation amount"
+
+  # MIX KNOB (Rightmost control)
+  - id: mix
+    type: knob
+    label: "MIX"
+    parameter: "mix"
+    range: [0.0, 100.0]
+    unit: "%"
+    default: 30.0
+    decimals: 0
+    position: { x: 555, y: 110 }
+    size: { diameter: 60 }
+    style: botanical_seed
+    description: "Wet/dry balance"
+
+special_elements:
+  # PLUGIN TITLE
+  - id: title
+    type: text
+    text: "OUARICON DIGITAL DELAY"
+    position: { x: 0, y: 15 }
+    size: { width: 700, height: 28 }
+    align: center
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "20px"
+    letter_spacing: "3px"
+    color: "#3C2F2F"
+    layer: decorative
+
+  # BACKGROUND TEXTURE
+  - id: paper_background
+    type: image
+    src: "img/paper1.jpg"
+    position: { x: 0, y: 0 }
+    size: { width: 700, height: 280 }
+    opacity: 1.0
+    layer: background
+    description: "Aged paper texture background"
+
+  # BOTANICAL OVERLAY (Right side, smaller and more subtle)
+  - id: butterfly_overlay
+    type: image
+    src: "img/butterfly2_Black and white.png"
+    position: { x: 570, y: 80 }
+    size: { width: 100, height: 130 }
+    opacity: 0.22
+    layer: decorative
+    description: "Botanical butterfly illustration (right side, subtle)"
+
+control_styles:
+  botanical_seed:
+    description: "10-segment seed cross-section design"
+    knob_type: conic_gradient
+    segments: 10
+    segment_colors: ["#F5DEB3", "#E8D5B7"]  # Alternating cream tones
+    border_width: 2
+    border_color: "#8B7355"
+    shadow: "inset 0 1px 2px rgba(0,0,0,0.15)"
+    indicator_type: line
+    indicator_color: "#3C2F2F"
+    indicator_width: 2
+    rotation_range: [-135, 135]  # 270 degrees total
+
+  botanical_toggle:
+    description: "Green tint when active"
+    background_inactive: "rgba(139, 168, 112, 0.3)"
+    background_active: "rgba(107, 142, 35, 0.6)"
+    border_width: 2
+    border_color: "#3C5C1A"
+    border_radius: 4
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "10px"
+    letter_spacing: "0.8px"
+    decoration: "❦"  # Optional fleuron
+    decoration_opacity: 0.3
+
+  botanical_dropdown:
+    description: "Matches toggle style with aged paper background"
+    background: "#F5E6D3"
+    border_width: 2
+    border_color: "#8B7355"
+    border_radius: 4
+    text_color: "#3C2F2F"
+    font_family: "Garamond, 'Times New Roman', serif"
+    font_size: "10px"
+    accent_color: "#6B8E4E"  # Green on hover/focus
+
+spacing:
+  edge_margin: 20  # Minimum from window edges (rack mount style)
+  control_gap_horizontal: 50  # Generous spacing between knobs
+  control_gap_vertical: 14  # Vertical spacing between SYNC and DIVISION
+  label_gap: 6
+
+notes:
+  - "All positions in pixels from top-left (0,0)"
+  - "Rack mount style: 700×280px (2.5:1 aspect ratio, wider than standard)"
+  - "All knobs uniform 60px diameter (including TIME)"
+  - "Controls layout: SYNC/DIVISION (stacked left) → TIME → FEEDBACK → SPREAD → MOD → MIX (horizontal row)"
+  - "SYNC at x=30, DIVISION below at x=20 (stacked, left of TIME)"
+  - "Knobs: TIME x=115, FEEDBACK x=225, SPREAD x=335, MOD x=445, MIX x=555 (110px spacing)"
+  - "Botanical overlay smaller (100×130px) and more subtle (22% opacity)"
+  - "Title uses full brand name: OUARICON DIGITAL DELAY"
+  - "Color palette follows Ouaricon Naturalist brand guidelines"
+  - "Parameter IDs must match C++ exactly (lowercase, snake_case)"
