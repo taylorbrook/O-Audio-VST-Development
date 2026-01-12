@@ -122,12 +122,18 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
     // Load UI from resource provider
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
+    // Start timer for VU meter updates (30 Hz)
+    startTimerHz(30);
+
     // Set window size from mockup v3 (920×220 compact rack-unit)
     setSize(920, 220);
 }
 
 OuariconAnalogEQAudioProcessorEditor::~OuariconAnalogEQAudioProcessorEditor()
 {
+    // Stop timer before destruction
+    stopTimer();
+
     // Members destroyed in REVERSE order of declaration:
     // 1. Attachments destroyed FIRST (can safely call webView methods)
     // 2. WebView destroyed SECOND (attachments are gone)
@@ -205,4 +211,12 @@ OuariconAnalogEQAudioProcessorEditor::getResource(const juce::String& url)
     // 404 - Resource not found
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
+}
+
+//==============================================================================
+void OuariconAnalogEQAudioProcessorEditor::timerCallback()
+{
+    // VU Meter - emit output level to WebView
+    const float outputDB = audioProcessor.outputLevelDB.load(std::memory_order_relaxed);
+    webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }

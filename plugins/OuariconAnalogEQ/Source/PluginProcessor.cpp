@@ -297,6 +297,18 @@ void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
         saturation.process(context);
 
     outputGain.process(context);
+
+    // VU Meter - Calculate peak level after all processing
+    float peakLevel = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        float channelPeak = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        peakLevel = std::max(peakLevel, channelPeak);
+    }
+    float levelDB = peakLevel > 0.00001f
+        ? juce::Decibels::gainToDecibels(peakLevel)
+        : -100.0f;
+    outputLevelDB.store(levelDB, std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* OuariconAnalogEQAudioProcessor::createEditor()

@@ -1,5 +1,19 @@
 # OuariconAnalogEQ Changelog
 
+## [1.0.3] - 2026-01-11
+
+### Fixed
+- **Dual-layer knobs now functional** - Implemented distance-based hit detection
+  - Outer ring (>60% from center) controls frequency
+  - Inner dial (<60% from center) controls gain
+  - Added outer ring indicator for visual feedback
+  - Added value tooltips showing both freq and gain values
+- **VU meter now responds to actual audio levels** - Marimba-style implementation
+  - C++ PluginProcessor calculates peak output level in processBlock
+  - PluginEditor uses Timer to emit `outputLevel` events to WebView at 30Hz
+  - JavaScript animates needle with ballistic motion (fast attack, slow decay)
+  - Needle color interpolates from green (quiet) to red (loud)
+
 ## [1.0.2] - 2026-01-11
 
 ### Fixed

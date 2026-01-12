@@ -11,7 +11,8 @@
  * UI Mockup: v3 (920×220px compact rack-unit style)
  * Parameters: 16 total (4 bands × 3 params + output + analog)
  */
-class OuariconAnalogEQAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconAnalogEQAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                            private juce::Timer
 {
 public:
     OuariconAnalogEQAudioProcessorEditor(OuariconAnalogEQAudioProcessor&);
@@ -20,6 +21,9 @@ public:
     //==============================================================================
     void paint(juce::Graphics&) override;
     void resized() override;
+
+private:
+    void timerCallback() override;
 
 private:
     // Reference to processor

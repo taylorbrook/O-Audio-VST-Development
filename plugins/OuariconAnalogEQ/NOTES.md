@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.2
+- **Version:** 1.0.3
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -20,6 +20,7 @@
 - **2026-01-11 (v1.0.0):** Initial release - Installed to system folders
 - **2026-01-11 (v1.0.1):** Fixed GUI connectivity - Q parameters now use correct WebComboBoxRelay
 - **2026-01-11 (v1.0.2):** Added missing check_native_interop.js - WebView bridge now functional
+- **2026-01-11 (v1.0.3):** Fixed dual-layer knobs + live VU meter with Marimba-style C++ events
 
 ## Known Issues
 
