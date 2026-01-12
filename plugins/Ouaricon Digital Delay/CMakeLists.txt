@@ -1,30 +1,30 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
-juce_add_plugin(OuariconAnalogEQ
+juce_add_plugin(OuariconDigitalDelay
     COMPANY_NAME "Ouaricon Audio"
     PLUGIN_MANUFACTURER_CODE OuAu
-    PLUGIN_CODE OuAE
+    PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "Ouaricon Analog EQ"
+    PRODUCT_NAME "Ouaricon Digital Delay"
     NEEDS_WEB_BROWSER TRUE
 )
 
 # Source files
-target_sources(OuariconAnalogEQ
+target_sources(OuariconDigitalDelay
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
 )
 
 # Include paths
-target_include_directories(OuariconAnalogEQ
+target_include_directories(OuariconDigitalDelay
     PRIVATE
         Source
 )
 
 # Required JUCE modules
-target_link_libraries(OuariconAnalogEQ
+target_link_libraries(OuariconDigitalDelay
     PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices
@@ -46,27 +46,24 @@ target_link_libraries(OuariconAnalogEQ
 )
 
 # Generate JuceHeader.h (JUCE 8 requirement)
-juce_generate_juce_header(OuariconAnalogEQ)
-
-# WebView UI Resources
-juce_add_binary_data(OuariconAnalogEQ_UIResources
-    SOURCES
-        Source/ui/public/index.html
-        Source/ui/public/js/juce/index.js
-        Source/ui/public/js/juce/check_native_interop.js
-        Source/ui/public/images/paper1.jpg
-        Source/ui/public/images/flower_ferdinandibauer00baue_0021.png
-)
-
-target_link_libraries(OuariconAnalogEQ
-    PRIVATE
-        OuariconAnalogEQ_UIResources
-)
+juce_generate_juce_header(OuariconDigitalDelay)
 
 # Compile definitions
-target_compile_definitions(OuariconAnalogEQ
+target_compile_definitions(OuariconDigitalDelay
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
         JUCE_USE_CURL=0
 )
+
+# WebView UI Resources (uncommented by gui-agent if WebView UI used)
+# juce_add_binary_data(OuariconDigitalDelay_UIResources
+#     SOURCES
+#         Source/ui/public/index.html
+#         Source/ui/public/js/juce/index.js
+# )
+#
+# target_link_libraries(OuariconDigitalDelay
+#     PRIVATE
+#         OuariconDigitalDelay_UIResources
+# )
