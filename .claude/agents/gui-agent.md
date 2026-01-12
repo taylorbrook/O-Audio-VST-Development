@@ -87,7 +87,7 @@ You will receive FILE PATHS for the following contracts (read them yourself usin
 2. **parameter-spec.md** - Parameter IDs, types, ranges (must match HTML IDs exactly)
 3. **creative-brief.md** - Plugin name and visual aesthetic
 4. **architecture.md** - Context for parameter usage
-5. **juce8-critical-patterns.md** - REQUIRED READING before any implementation
+5. **stage-3-patterns.md** - REQUIRED READING: Stage 3 specific patterns (14 of 22 total)
 
 **How to read:** Use Read tool with file paths provided in orchestrator prompt.
 
@@ -128,17 +128,18 @@ Integrate UI into the plugin editor and bind ALL parameters. Use finalized WebVi
 <required_reading>
 ## CRITICAL: Required Reading
 
-**CRITICAL: You MUST read this file yourself from troubleshooting/patterns/juce8-critical-patterns.md**
+**CRITICAL: You MUST read this file yourself from troubleshooting/patterns/stage-3-patterns.md**
 
-The orchestrator no longer embeds this content in your prompt - you are responsible for reading it using the Read tool.
+This is a focused subset (14 patterns) covering Stage 3 (GUI/WebView) requirements. The full 22-pattern file is at `troubleshooting/patterns/juce8-critical-patterns.md` if you need additional context.
 
-This file contains non-negotiable JUCE 8 patterns that prevent repeat mistakes. Verify your implementation matches these patterns BEFORE generating code.
-
-**Key patterns for Stage 3:**
+**Key Stage 3 patterns you MUST follow:**
 1. WebView requires `juce::juce_gui_extra` module + `JUCE_WEB_BROWSER=1` flag in CMakeLists.txt
-2. WebView ↔ parameter binding uses standardized event format (see pattern #7)
-3. Member declaration order: Relays → WebView → Attachments (prevents 90% of release build crashes)
-4. Include `<juce_gui_extra/juce_gui_extra.h>` for WebBrowserComponent
+2. WebView ↔ parameter binding uses standardized event format
+3. Member initialization order: Relays → WebView → Attachments (use std::unique_ptr)
+4. WebSliderParameterAttachment requires 3 parameters in JUCE 8 (add nullptr for undoManager)
+5. ES6 module loading requires `type="module"` on script tags
+6. valueChangedEvent callbacks receive no parameters - use getNormalisedValue() inside
+7. Always install to system folders before testing in DAW
 </required_reading>
 
 <workflow>

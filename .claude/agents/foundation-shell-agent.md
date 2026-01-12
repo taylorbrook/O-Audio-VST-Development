@@ -42,7 +42,7 @@ You will receive FILE PATHS for the following contracts (read them yourself usin
 2. **architecture.md** - Plugin type (effect/instrument), DSP components overview
 3. **plan.md** - Complexity score, implementation strategy
 4. **parameter-spec.md** - CRITICAL: Complete parameter definitions (IDs, types, ranges, defaults)
-5. **juce8-critical-patterns.md** - REQUIRED READING before any implementation
+5. **stage-1-patterns.md** - REQUIRED READING: Stage 1 specific patterns (7 of 22 total)
 6. **branding.json** - REQUIRED: Company branding and developer metadata (`.claude/branding.json`)
 
 **How to read:** Use Read tool with file paths provided in orchestrator prompt.
@@ -78,22 +78,20 @@ Create a complete JUCE plugin foundation with build system AND all parameters fr
 
 ## CRITICAL: Required Reading
 
-**CRITICAL: You MUST read this file yourself from troubleshooting/patterns/juce8-critical-patterns.md**
+**CRITICAL: You MUST read this file yourself from troubleshooting/patterns/stage-1-patterns.md**
 
-The orchestrator no longer embeds this content in your prompt - you are responsible for reading it using the Read tool.
+This is a focused subset (7 patterns) covering only Stage 1 requirements. The full 22-pattern file is at `troubleshooting/patterns/juce8-critical-patterns.md` if you need additional context.
 
-This file contains non-negotiable JUCE 8 patterns that prevent repeat mistakes.
-
-**After reading, verify you understand these patterns:**
+**Key Stage 1 patterns you MUST follow:**
 1. `juce_generate_juce_header()` MUST be called after `target_link_libraries()` in CMakeLists.txt
 2. Prefer individual module headers (`#include <juce_audio_processors/juce_audio_processors.h>`) over `<JuceHeader.h>`
-3. WebView requires `juce::juce_gui_extra` module + `JUCE_WEB_BROWSER=1` flag
-4. Effects need input+output buses, instruments need output-only bus
+3. WebView requires `NEEDS_WEB_BROWSER TRUE` in juce_add_plugin()
+4. Effects need input+output buses, instruments need output-only bus + `IS_SYNTH TRUE`
 5. APVTS manages UI ↔ Audio thread communication (never call processBlock from UI)
 6. Parameter IDs must match between APVTS, UI bindings, and processing code
 7. Use `juce::ParameterID { "id", 1 }` format (not bare string) in JUCE 8
 
-**Checkpoint:** After reading, confirm you understand these patterns. If any are unclear, reference the troubleshooting doc for detailed explanations before generating code.
+**Checkpoint:** After reading stage-1-patterns.md, confirm you understand these patterns before generating code.
 
 ## Implementation Steps
 

@@ -191,12 +191,16 @@ See [references/state-management.md](references/state-management.md) for fallbac
 
 ## Required Reading Injection
 
-All subagents (stages 1-3) receive `troubleshooting/patterns/juce8-critical-patterns.md` to prevent repeat mistakes.
+Each stage receives a focused subset of patterns to reduce context size:
+
+- **Stage 1:** `troubleshooting/patterns/stage-1-patterns.md` (7 patterns - build/config)
+- **Stage 2:** `troubleshooting/patterns/stage-2-patterns.md` (3 patterns - DSP/threading)
+- **Stage 3:** `troubleshooting/patterns/stage-3-patterns.md` (14 patterns - WebView/GUI)
 
 **Implementation:**
-1. Read juce8-critical-patterns.md ONCE at workflow start
-2. Prepend to all subagent prompts with clear separator
-3. Pass to each subagent invocation from memory (no re-reading)
+1. Subagents read their stage-specific patterns file themselves
+2. Full 22-pattern file available at `juce8-critical-patterns.md` for edge cases
+3. No need to pass patterns in orchestrator prompts - agents self-load
 
 ## Reference Files
 
@@ -337,4 +341,4 @@ Common pitfalls to AVOID:
 
 **MEDIUM:**
 - ❌ Not injecting Required Reading to subagents
-- ✓ Always pass juce8-critical-patterns.md to prevent repeat mistakes
+- ✓ Agents read stage-specific patterns (stage-1/2/3-patterns.md) to prevent repeat mistakes

@@ -105,7 +105,7 @@ You are gui-agent implementing Stage 3 for ${pluginName}.
 - architecture.md: plugins/${pluginName}/.ideas/architecture.md
 - plan.md: plugins/${pluginName}/.ideas/plan.md
 - parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
-- Required Reading: troubleshooting/patterns/juce8-critical-patterns.md
+- Required Reading: troubleshooting/patterns/stage-3-patterns.md
 
 **CRITICAL: Read Required Reading BEFORE implementation.**
 
@@ -215,7 +215,7 @@ You are gui-agent implementing Phase ${phase.number} for ${pluginName}.
 - architecture.md: plugins/${pluginName}/.ideas/architecture.md
 - plan.md: plugins/${pluginName}/.ideas/plan.md
 - parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
-- Required Reading: troubleshooting/patterns/juce8-critical-patterns.md
+- Required Reading: troubleshooting/patterns/stage-3-patterns.md
 
 **CRITICAL: Read Required Reading BEFORE implementation.**
 

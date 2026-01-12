@@ -128,7 +128,7 @@ You will receive FILE PATHS for the following contracts (read them yourself usin
 2. **parameter-spec.md** - How parameters affect DSP
 3. **plan.md** - Complexity score, phase breakdown (if complexity ≥3)
 4. **creative-brief.md** - Sonic goals and creative intent
-5. **juce8-critical-patterns.md** - REQUIRED READING before any implementation
+5. **stage-2-patterns.md** - REQUIRED READING: Stage 2 specific patterns (3 of 22 total)
 
 **How to read:** Use Read tool with file paths provided in orchestrator prompt.
 
@@ -144,17 +144,16 @@ Implement audio processing from architecture.md, connecting parameters to DSP co
 <required_reading>
 ## CRITICAL: Required Reading
 
-**CRITICAL: You MUST read this file yourself from troubleshooting/patterns/juce8-critical-patterns.md**
+**CRITICAL: You MUST read this file yourself from troubleshooting/patterns/stage-2-patterns.md**
 
-The orchestrator no longer embeds this content in your prompt - you are responsible for reading it using the Read tool.
+This is a focused subset (3 patterns) covering only Stage 2 (DSP) requirements. The full 22-pattern file is at `troubleshooting/patterns/juce8-critical-patterns.md` if you need additional context.
 
-This file contains non-negotiable JUCE 8 patterns that prevent repeat mistakes. Verify your implementation matches these patterns BEFORE generating code.
-
-**Key patterns for Stage 2:**
+**Key Stage 2 patterns you MUST follow:**
 1. Use individual module headers (`#include <juce_dsp/juce_dsp.h>`, etc.)
 2. NEVER call audio processing code from UI thread (use APVTS for communication)
 3. Effects need input+output buses, instruments need output-only bus
-4. Real-time safety: No memory allocation in processBlock()
+4. Real-time safety: No memory allocation in processBlock(), use ScopedNoDenormals
+5. Modern juce::dsp API: Use ProcessSpec/AudioBlock/ProcessContext (not old API)
 </required_reading>
 
 <complexity_aware>

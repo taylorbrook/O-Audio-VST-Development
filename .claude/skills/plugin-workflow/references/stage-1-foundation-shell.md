@@ -56,7 +56,7 @@ You are foundation-shell-agent implementing Stage 1 for ${pluginName}.
 - plan.md: plugins/${pluginName}/.ideas/plan.md
 - parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
 - branding.json: .claude/branding.json
-- Required Reading: troubleshooting/patterns/juce8-critical-patterns.md
+- Required Reading: troubleshooting/patterns/stage-1-patterns.md
 
 **CRITICAL: Read Required Reading AND branding.json BEFORE implementation.**
 

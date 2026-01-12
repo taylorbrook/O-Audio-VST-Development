@@ -18,25 +18,20 @@ Clear cached validation results to force re-validation.
 **Implementation:**
 
 ```bash
-# Source cache utilities
-source .claude/utils/validation-cache.sh
-
-# Get the argument
 ARG="${1:-}"
+STAGE="${2:-}"
 
 if [ "$ARG" = "--all" ]; then
-    # Clear entire cache
-    rm -f .claude/cache/validation-results.json
-    echo "✓ Entire validation cache cleared"
+    # Clear cache for all plugins
+    for plugin_dir in plugins/*/; do
+        plugin_name=$(basename "$plugin_dir")
+        if [ -d "plugins/$plugin_name/.validation-cache" ]; then
+            python3 .claude/hooks/validators/validation-cache.py clear "$plugin_name"
+        fi
+    done
     echo ""
-    echo "Next validations will run fresh analysis on all content."
-
-elif [ "$ARG" = "--expired" ]; then
-    # Clean expired entries only
-    clean_cache
-    echo "✓ Expired cache entries removed"
-    echo ""
-    echo "Valid cache entries preserved. Run with --all to clear everything."
+    echo "✓ All plugin validation caches cleared"
+    echo "Next validations will run full pluginval tests"
 
 elif [ -n "$ARG" ]; then
     # Clear cache for specific plugin
@@ -51,36 +46,50 @@ elif [ -n "$ARG" ]; then
         exit 1
     fi
 
-    # Clear all cache entries for this plugin (matches any validator)
-    clear_cache ".*:${PLUGIN_NAME}"
-
-    echo "✓ Cache cleared for $PLUGIN_NAME"
+    # Show current status
+    python3 .claude/hooks/validators/validation-cache.py status "$PLUGIN_NAME"
     echo ""
-    echo "Next validations will run fresh analysis:"
-    echo "- contract-checksums (integrity verification)"
-    echo "- build-verification (if applicable)"
+
+    # Clear cache (specific stage or all)
+    if [ -n "$STAGE" ]; then
+        python3 .claude/hooks/validators/validation-cache.py clear "$PLUGIN_NAME" "$STAGE"
+    else
+        python3 .claude/hooks/validators/validation-cache.py clear "$PLUGIN_NAME"
+    fi
+    echo ""
+    echo "Next validation will run full pluginval tests"
 
 else
-    # No arguments - show usage
+    # No arguments - show usage and status
     echo "Clear validation cache to force re-validation"
     echo ""
     echo "Usage:"
-    echo "  /clear-cache [PluginName]  - Clear cache for specific plugin"
-    echo "  /clear-cache --all         - Clear entire cache"
-    echo "  /clear-cache --expired     - Remove only expired entries"
+    echo "  /clear-cache [PluginName]     - Clear all stage caches for a plugin"
+    echo "  /clear-cache [PluginName] 2   - Clear only Stage 2 cache"
+    echo "  /clear-cache --all            - Clear all plugin caches"
     echo ""
-    echo "Examples:"
-    echo "  /clear-cache MyPlugin      - Re-validate MyPlugin from scratch"
-    echo "  /clear-cache --expired     - Clean up old cache entries"
-    echo "  /clear-cache --all         - Force all future validations to run fresh"
+    echo "Current cache status:"
+    for plugin_dir in plugins/*/; do
+        plugin_name=$(basename "$plugin_dir")
+        if [ -d "plugins/$plugin_name/.validation-cache" ]; then
+            python3 .claude/hooks/validators/validation-cache.py status "$plugin_name"
+            echo ""
+        fi
+    done
 fi
 ```
 
-**Cache entry types:**
-- `contract-checksums:[PluginName]` - Contract integrity verification (24h expiry)
-- `build-verification:[PluginName]` - Build success status (6h expiry)
+**Cache structure:**
+Each plugin stores validation results in `plugins/{PluginName}/.validation-cache/`:
+- `stage-1.json` - Foundation validation (smoke test ~10s)
+- `stage-2.json` - DSP validation (functional test ~2-3min)
+- `stage-3.json` - GUI validation (full test ~5-10min)
+
+**Cache is invalidated automatically when:**
+- Source files are modified (hash mismatch)
+- Previous validation failed (must re-run after fix)
 
 **Safety:**
-- Clearing cache only forces re-validation, it doesn't modify any plugin files
+- Clearing cache only forces re-validation, doesn't modify plugin files
 - Cache is automatically rebuilt on next validation
-- Expired entries are automatically cleaned at session start
+- Cached PASS results save significant validation time

@@ -127,6 +127,37 @@ Different stages require different test depths:
 - Flags: `--strictness-level 10`
 - Checks: Full test suite including editor open/close, UI thread safety
 
+### Validation Caching
+
+Before running pluginval, check if a valid cached result exists:
+
+```bash
+# Check cache - exit code 0 = cache hit with PASS, can skip validation
+python3 .claude/hooks/validators/validation-cache.py check "$PLUGIN_NAME" $STAGE_NUMBER
+CACHE_RESULT=$?
+
+if [ $CACHE_RESULT -eq 0 ]; then
+    echo "✓ Validation cache HIT - skipping pluginval (files unchanged)"
+    # Add cached result to JSON report
+    # Skip to semantic validation
+fi
+```
+
+**Cache behavior:**
+- Exit 0: Cache HIT + previous PASS → Skip pluginval, use cached result
+- Exit 1: Cache MISS → Files changed, must run pluginval
+- Exit 2: Cache HIT + previous FAIL → Must re-run after fixes
+
+**After successful validation, store result:**
+```bash
+python3 .claude/hooks/validators/validation-cache.py store "$PLUGIN_NAME" $STAGE_NUMBER "PASS" "All tests PASSED (50/50)"
+```
+
+**On validation failure, store failure:**
+```bash
+python3 .claude/hooks/validators/validation-cache.py store "$PLUGIN_NAME" $STAGE_NUMBER "FAIL" "Failed 3/50 tests"
+```
+
 ### Running Pluginval
 
 **Locate pluginval:**
