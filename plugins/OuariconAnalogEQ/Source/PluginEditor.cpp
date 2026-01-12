@@ -180,6 +180,13 @@ OuariconAnalogEQAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
+    if (url == "/js/juce/check_native_interop.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("application/javascript")
+        };
+    }
+
     if (url == "/images/paper1.jpg") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::paper1_jpg, BinaryData::paper1_jpgSize),

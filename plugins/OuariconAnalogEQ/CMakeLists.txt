@@ -60,6 +60,7 @@ juce_add_binary_data(OuariconAnalogEQ_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/images/paper1.jpg
         Source/ui/public/images/flower_ferdinandibauer00baue_0021.png
 )

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.1
+- **Version:** 1.0.2
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -19,6 +19,7 @@
 - **2026-01-11 (Stage 3):** GUI Integration complete
 - **2026-01-11 (v1.0.0):** Initial release - Installed to system folders
 - **2026-01-11 (v1.0.1):** Fixed GUI connectivity - Q parameters now use correct WebComboBoxRelay
+- **2026-01-11 (v1.0.2):** Added missing check_native_interop.js - WebView bridge now functional
 
 ## Known Issues
 
@@ -184,5 +185,5 @@ Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Out
 ---
 
 **Last Updated:** 2026-01-11
-**Version:** 1.0.1
+**Version:** 1.0.2
 **Status:** 📦 Installed

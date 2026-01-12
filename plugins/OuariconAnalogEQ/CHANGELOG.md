@@ -1,5 +1,13 @@
 # OuariconAnalogEQ Changelog
 
+## [1.0.2] - 2026-01-11
+
+### Fixed
+- **Missing check_native_interop.js** - Added the required JUCE WebView JavaScript bridge file
+  - Root cause: JavaScript module `index.js` imports `check_native_interop.js` which sets up `window.__JUCE__.backend`
+  - Without this file, no C++ ↔ JavaScript communication was possible
+  - Added file to CMakeLists.txt resources and PluginEditor.cpp resource provider
+
 ## [1.0.1] - 2026-01-11
 
 ### Fixed
