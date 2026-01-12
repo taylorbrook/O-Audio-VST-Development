@@ -8,8 +8,9 @@
 
 ## Complexity Factors
 
-- **Parameters:** 7 parameters (7/5 = 1.4 points, capped at 2.0) = 1.4
-  - TIME, SYNC, DIVISION, FEEDBACK, SPREAD, MOD, MIX
+- **Parameters:** 8 parameters (8/5 = 1.6 points, capped at 2.0) = 1.6
+  - TIME, SYNC, DIVISION, FEEDBACK, SPREAD, MOD, WET, DRY
+  - Plus: Output meter (visual display, not a parameter)
 - **Algorithms:** 4 DSP components = 1.0
   - Delay Line Engine (juce::dsp::DelayLine with Lagrange3rd)
   - Stereo Spread Processor (Haas effect)
@@ -82,9 +83,17 @@ Implement all DSP components in a single phase:
    - Mix feedback signal with input
    - Per-channel feedback (no cross-channel)
 
-6. **Dry/wet mixing:**
-   - juce::dsp::DryWetMixer for automatic latency compensation
-   - Spillover support (continue processing when bypassed)
+6. **Wet/dry mixing:**
+   - Separate WET and DRY gain controls (juce::dsp::Gain)
+   - WET: Scales delayed signal (0.0-1.0)
+   - DRY: Scales clean signal (0.0-1.0)
+   - Parallel sum (not crossfade) - both can be 100%
+   - Spillover support (wet processing continues when bypassed)
+
+7. **Output level meter:**
+   - Calculate RMS level after final sum
+   - Send L/R levels to WebView via message passing
+   - Update rate: ~30Hz (batched to avoid UI overhead)
 
 **Test criteria:**
 - [ ] Plugin loads in DAW without crashes
@@ -93,24 +102,27 @@ Implement all DSP components in a single phase:
 - [ ] Feedback creates repeating echoes (0-100% range)
 - [ ] Stereo spread widens image (0-100% range, no ping-pong)
 - [ ] Modulation adds chorus effect (0-100% range)
-- [ ] Mix parameter blends dry/wet (0-100% range)
+- [ ] WET parameter controls delayed signal level (0-100% range)
+- [ ] DRY parameter controls clean signal level (0-100% range)
+- [ ] Output meter displays signal level (L/R bars animate)
 - [ ] Spillover works on bypass (tail continues)
 - [ ] No clicks, pops, or artifacts
 - [ ] Smooth parameter changes (no zipper noise)
 
 **GUI Approach:**
 
-Implement WebView UI in a single phase:
+Implement WebView UI in a single phase (from v7 mockup):
 
 1. **Layout and controls:**
-   - Copy HTML mockup (if exists) or create clean layout
-   - 7 parameters: TIME (knob/slider), SYNC (toggle), DIVISION (dropdown), FEEDBACK (knob), SPREAD (knob), MOD (knob), MIX (knob)
-   - Suggested layout: Top row (TIME/SYNC/DIVISION), middle row (FEEDBACK/SPREAD/MOD), bottom row (MIX)
+   - Use finalized v7 mockup (700×196px ultra-compact rack mount)
+   - 8 parameters: TIME, SYNC, DIVISION, FEEDBACK, SPREAD, MOD, WET, DRY
+   - Layout: Horizontal row (SYNC/DIVISION → TIME → FEEDBACK → SPREAD → MOD → WET → DRY → OUTPUT METER)
+   - Labels above knobs, value displays below (no boxes)
 
 2. **Parameter binding:**
    - JavaScript → C++ relay calls (control changes)
    - C++ → JavaScript parameter updates (host automation)
-   - Use `getSliderState()` for continuous parameters (TIME, FEEDBACK, SPREAD, MOD, MIX)
+   - Use `getSliderState()` for continuous parameters (TIME, FEEDBACK, SPREAD, MOD, WET, DRY)
    - Use `getToggleState()` for SYNC parameter
    - Use `getComboBoxState()` for DIVISION parameter (12 choices)
 
@@ -118,7 +130,18 @@ Implement WebView UI in a single phase:
    - TIME: Display "XXXms" in free mode, subdivision name in sync mode
    - SYNC: ON/OFF indicator
    - DIVISION: Show subdivision name (1/4, 1/8D, 1/4T, etc.)
-   - FEEDBACK/SPREAD/MOD/MIX: Display "%"
+   - FEEDBACK/SPREAD/MOD/WET/DRY: Display "%"
+
+4. **Output meter (visual display):**
+   - 14-segment vertical LED meter (OuariconComp style)
+   - Receives RMS level data from C++ via WebView messaging
+   - Update rate: ~30Hz
+   - Colors: low=#8BA870, mid=#6B8E4E, high=#C9A27B
+
+5. **Visual assets:**
+   - Paper texture background (img/paper1.jpg)
+   - Butterfly overlay at natural size (img/butterfly2_Black and white.png, 30% opacity)
+   - 10-segment botanical seed knobs
 
 **Test criteria:**
 - [ ] All controls visible and styled
@@ -128,6 +151,7 @@ Implement WebView UI in a single phase:
 - [ ] SYNC toggle switches between free/sync modes
 - [ ] DIVISION dropdown shows 12 subdivisions
 - [ ] Value displays show correct units and formatting
+- [ ] Output meter animates with signal level
 - [ ] No UI lag or visual glitches
 
 **Key Considerations:**
@@ -301,7 +325,8 @@ Based on single-pass implementation:
    - FEEDBACK: 0-100% creates repeating echoes
    - SPREAD: 0-100% widens stereo field without ping-pong
    - MOD: 0-100% adds chorus effect
-   - MIX: 0-100% blends dry/wet
+   - WET: 0-100% controls delayed signal level
+   - DRY: 0-100% controls clean signal level
 
 2. Tempo sync works reliably:
    - BPM reading from AudioPlayHead

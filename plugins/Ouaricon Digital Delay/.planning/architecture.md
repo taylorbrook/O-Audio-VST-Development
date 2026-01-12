@@ -68,15 +68,28 @@
   - No filtering in feedback path (transparent repeats)
   - Per-channel feedback (stereo independent)
 
-### Dry/Wet Mixer
-- **JUCE Class:** `juce::dsp::DryWetMixer<float>`
-- **Purpose:** Blend dry and wet signals with latency compensation
-- **Parameters Affected:** MIX (0-100%)
+### Dry/Wet Gain Controls
+- **JUCE Class:** `juce::dsp::Gain<float>` (two instances)
+- **Purpose:** Independent level control for wet and dry signals
+- **Parameters Affected:** WET (0-100%), DRY (0-100%)
 - **Configuration:**
-  - 0%: Fully dry (bypass delay processing)
-  - 100%: Fully wet (only delayed signal)
-  - Latency compensation: Automatic via DryWetMixer
+  - WET: Controls delayed signal level (0.0-1.0 gain)
+  - DRY: Controls clean signal level (0.0-1.0 gain)
+  - Both at 100%: Full parallel blend
+  - WET=100%, DRY=0%: Fully wet (only delayed signal)
+  - WET=0%, DRY=100%: Fully dry (bypass delay)
   - Spillover support: Continue processing when bypassed
+  - More flexible than single MIX parameter
+
+### Output Level Meter
+- **JUCE Class:** Custom implementation (RMS level calculation)
+- **Purpose:** Visual feedback of output signal level
+- **Configuration:**
+  - Calculate RMS level per channel (L/R)
+  - Send to UI via WebView message passing
+  - 14-segment LED display (OuariconComp style)
+  - Update rate: ~30Hz (every ~32ms)
+  - Display only - not a parameter
 
 ---
 
@@ -85,7 +98,7 @@
 ```
 Input (Stereo)
   ↓
-Dry/Wet Mixer (capture dry) ← MIX parameter
+Capture Dry Signal (store for later mixing)
   ↓
 [BRANCH: Free mode OR Sync mode]
   ├─ Free mode: Use TIME parameter (1-2000ms)
@@ -104,7 +117,13 @@ Feedback Mixer ← FEEDBACK parameter
   ├─ Delay output * feedbackGain
   └─ → Back to delay input (additive)
   ↓
-Dry/Wet Mixer (blend) ← MIX parameter
+Wet Gain ← WET parameter
+  ↓
+Dry Gain (from captured signal) ← DRY parameter
+  ↓
+Sum (Wet + Dry)
+  ↓
+Output Level Meter (RMS calculation for UI)
   ↓
 Output (Stereo)
 ```
@@ -114,7 +133,9 @@ Output (Stereo)
 - Stereo spread applied ONLY to right channel (asymmetric widening)
 - Modulation affects output tap position (not feedback loop)
 - Feedback is per-channel (no cross-channel feedback)
-- Spillover: DryWetMixer continues processing after bypass
+- WET and DRY gains applied independently (parallel mixing, not crossfade)
+- Output meter calculates RMS after final sum (reflects actual output level)
+- Spillover: Wet processing continues after bypass (DRY can be muted independently)
 
 ---
 
@@ -123,8 +144,9 @@ Output (Stereo)
 ### State Persistence
 
 **What state is saved:**
-- APVTS parameters: TIME, SYNC, DIVISION, FEEDBACK, SPREAD, MOD, MIX (automatic)
+- APVTS parameters: TIME, SYNC, DIVISION, FEEDBACK, SPREAD, MOD, WET, DRY (automatic)
 - No custom state required (all state is parameter-based)
+- Output meter level is NOT saved (runtime display only)
 
 **Serialization format:**
 - APVTS parameters: Automatic via `AudioProcessorValueTreeState`
@@ -150,7 +172,14 @@ Output (Stereo)
 | FEEDBACK | Float | 0-100% | Feedback Loop | Repeat amount (0.0-0.95 gain) |
 | SPREAD | Float | 0-100% | Stereo Spread Processor | Stereo width (0-15ms offset) |
 | MOD | Float | 0-100% | Delay Time Modulation | LFO depth (0-10ms modulation) |
-| MIX | Float | 0-100% | Dry/Wet Mixer | Wet proportion (0.0-1.0) |
+| WET | Float | 0-100% | Wet Gain | Delayed signal level (0.0-1.0) |
+| DRY | Float | 0-100% | Dry Gain | Clean signal level (0.0-1.0) |
+
+## Visual Elements (Non-Parameter)
+
+| Element ID | Type | DSP Component | Usage |
+|-----------|------|---------------|-------|
+| output_meter | LED Meter | RMS Level Calculator | Stereo output level display (14 segments) |
 
 ---
 

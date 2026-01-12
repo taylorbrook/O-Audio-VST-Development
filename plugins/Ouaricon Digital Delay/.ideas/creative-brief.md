@@ -53,7 +53,7 @@ A clean, versatile digital delay designed for single-instrument effects chains. 
 - Stereo spread useful for width without ping-pong artifacts
 - Versatile across all instrument types
 
-## Parameters (Estimated)
+## Parameters
 
 | Parameter | Range | Description |
 |-----------|-------|-------------|
@@ -63,9 +63,16 @@ A clean, versatile digital delay designed for single-instrument effects chains. 
 | Feedback | 0-100% | Amount of repeats |
 | Spread | 0-100% | Stereo width (0=preserve, 100=wide) |
 | Mod | 0-100% | Subtle delay time modulation |
-| Mix | 0-100% | Wet/dry balance |
+| Wet | 0-100% | Wet (delayed) signal level |
+| Dry | 0-100% | Dry (clean) signal level |
 
-**Total: 7 parameters** - Focused and manageable
+**Total: 8 parameters** - Separate wet/dry for precise control
+
+## Visual Elements
+
+| Element | Type | Description |
+|---------|------|-------------|
+| Output Meter | LED (14-segment) | Stereo output level display (OuariconComp style) |
 
 ## Technical Considerations
 
