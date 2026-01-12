@@ -1,8 +1,8 @@
 # OuariconAnalogEQ Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 0 (Research & Planning Complete)
-- **Version:** 1.0.0 (planned)
+- **Current Status:** 📦 Installed
+- **Version:** 1.0.1
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -14,10 +14,15 @@
 - **2026-01-11 (UI Mockup v3):** Finalized mockup - paper texture + large rotated botanical overlay
 - **2026-01-11 (Parameter Spec):** Finalized 16 parameters (10 float, 2 choice, 5 bool)
 - **2026-01-11 (Stage 0):** Research & Planning complete - Architecture and plan documented (Complexity 4.0)
+- **2026-01-11 (Stage 1):** Foundation + Shell complete
+- **2026-01-11 (Stage 2):** DSP Implementation complete
+- **2026-01-11 (Stage 3):** GUI Integration complete
+- **2026-01-11 (v1.0.0):** Initial release - Installed to system folders
+- **2026-01-11 (v1.0.1):** Fixed GUI connectivity - Q parameters now use correct WebComboBoxRelay
 
 ## Known Issues
 
-None (plugin not yet implemented)
+None
 
 ## Additional Notes
 
@@ -179,5 +184,5 @@ Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Out
 ---
 
 **Last Updated:** 2026-01-11
-**Stage:** 0 (Research & Planning Complete)
-**Ready For:** Stage 1 Implementation
+**Version:** 1.0.1
+**Status:** 📦 Installed

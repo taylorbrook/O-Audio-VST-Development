@@ -33,13 +33,13 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
     // LMF Band
     lmfFreqRelay = std::make_unique<juce::WebSliderRelay>("lmf_freq");
     lmfGainRelay = std::make_unique<juce::WebSliderRelay>("lmf_gain");
-    lmfQRelay = std::make_unique<juce::WebSliderRelay>("lmf_q");
+    lmfQRelay = std::make_unique<juce::WebComboBoxRelay>("lmf_q");
     lmfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("lmf_on");
 
     // HMF Band
     hmfFreqRelay = std::make_unique<juce::WebSliderRelay>("hmf_freq");
     hmfGainRelay = std::make_unique<juce::WebSliderRelay>("hmf_gain");
-    hmfQRelay = std::make_unique<juce::WebSliderRelay>("hmf_q");
+    hmfQRelay = std::make_unique<juce::WebComboBoxRelay>("hmf_q");
     hmfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("hmf_on");
 
     // HF Band
@@ -90,7 +90,7 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
         *audioProcessor.parameters.getParameter("lmf_freq"), *lmfFreqRelay, nullptr);
     lmfGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("lmf_gain"), *lmfGainRelay, nullptr);
-    lmfQAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+    lmfQAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.parameters.getParameter("lmf_q"), *lmfQRelay, nullptr);
     lmfOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.parameters.getParameter("lmf_on"), *lmfOnRelay, nullptr);
@@ -100,7 +100,7 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
         *audioProcessor.parameters.getParameter("hmf_freq"), *hmfFreqRelay, nullptr);
     hmfGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("hmf_gain"), *hmfGainRelay, nullptr);
-    hmfQAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+    hmfQAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.parameters.getParameter("hmf_q"), *hmfQRelay, nullptr);
     hmfOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.parameters.getParameter("hmf_on"), *hmfOnRelay, nullptr);

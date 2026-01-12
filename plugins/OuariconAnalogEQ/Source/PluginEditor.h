@@ -40,13 +40,13 @@ private:
     // LMF Band
     std::unique_ptr<juce::WebSliderRelay> lmfFreqRelay;
     std::unique_ptr<juce::WebSliderRelay> lmfGainRelay;
-    std::unique_ptr<juce::WebSliderRelay> lmfQRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> lmfQRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lmfOnRelay;
 
     // HMF Band
     std::unique_ptr<juce::WebSliderRelay> hmfFreqRelay;
     std::unique_ptr<juce::WebSliderRelay> hmfGainRelay;
-    std::unique_ptr<juce::WebSliderRelay> hmfQRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> hmfQRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> hmfOnRelay;
 
     // HF Band
@@ -70,13 +70,13 @@ private:
     // LMF Band
     std::unique_ptr<juce::WebSliderParameterAttachment> lmfFreqAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lmfGainAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> lmfQAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> lmfQAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lmfOnAttachment;
 
     // HMF Band
     std::unique_ptr<juce::WebSliderParameterAttachment> hmfFreqAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> hmfGainAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> hmfQAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> hmfQAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> hmfOnAttachment;
 
     // HF Band
