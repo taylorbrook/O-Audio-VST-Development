@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.1
+- **Version:** 1.1.2
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -13,6 +13,7 @@
 - **2026-01-12 (v1.0.0):** Initial release - all DSP and GUI implemented
 - **2026-01-12 (v1.1.0):** UI improvements - functional output meter, tempo-synced time dial, butterfly repositioned
 - **2026-01-12 (v1.1.1):** Refinements - butterfly +30px, smoother time dial stepping, increased meter sensitivity
+- **2026-01-12 (v1.1.2):** Time dial sync rewritten following Tremolo pattern - proper snapping to rhythmic divisions
 
 ## Known Issues
 
