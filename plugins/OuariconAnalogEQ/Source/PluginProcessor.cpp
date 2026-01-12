@@ -169,13 +169,38 @@ OuariconAnalogEQAudioProcessor::~OuariconAnalogEQAudioProcessor()
 
 void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Initialization will be added in Stage 3 (DSP)
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Prepare DSP spec
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+
+    // Prepare all DSP components
+    lfFilter.prepare(spec);
+    lmfFilter.prepare(spec);
+    hmfFilter.prepare(spec);
+    hfFilter.prepare(spec);
+    saturation.prepare(spec);
+    outputGain.prepare(spec);
+
+    // Reset components to initial state
+    lfFilter.reset();
+    lmfFilter.reset();
+    hmfFilter.reset();
+    hfFilter.reset();
+    saturation.reset();
+    outputGain.reset();
+
+    // Initialize saturation transfer function: tanh(x * 1.5) * 1.1
+    saturation.functionToUse = [](float x) { return std::tanh(x * 1.5f) * 1.1f; };
+
+    // Update all filter coefficients for current sample rate
+    updateFilterCoefficients();
 }
 
 void OuariconAnalogEQAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 3 (DSP)
+    // Optional: Release resources when plugin not in use
+    // DSP components handle their own cleanup automatically
 }
 
 void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -183,12 +208,95 @@ void OuariconAnalogEQAudioProcessor::processBlock(juce::AudioBuffer<float>& buff
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    // Parameter access example (for Stage 3 DSP implementation):
-    // auto* lfFreqParam = parameters.getRawParameterValue("lf_freq");
-    // float lfFreq = lfFreqParam->load();  // Atomic read (real-time safe)
+    // Clear unused channels
+    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Pass-through for Stage 1 (DSP implementation happens in Stage 3)
-    // Audio routing is already handled by JUCE
+    // Read parameters (atomic, real-time safe)
+    float lfFreq = parameters.getRawParameterValue("lf_freq")->load();
+    float lfGain = parameters.getRawParameterValue("lf_gain")->load();
+    bool lfOn = parameters.getRawParameterValue("lf_on")->load() > 0.5f;
+
+    float lmfFreq = parameters.getRawParameterValue("lmf_freq")->load();
+    float lmfGain = parameters.getRawParameterValue("lmf_gain")->load();
+    int lmfQChoice = static_cast<int>(parameters.getRawParameterValue("lmf_q")->load());
+    bool lmfOn = parameters.getRawParameterValue("lmf_on")->load() > 0.5f;
+
+    float hmfFreq = parameters.getRawParameterValue("hmf_freq")->load();
+    float hmfGain = parameters.getRawParameterValue("hmf_gain")->load();
+    int hmfQChoice = static_cast<int>(parameters.getRawParameterValue("hmf_q")->load());
+    bool hmfOn = parameters.getRawParameterValue("hmf_on")->load() > 0.5f;
+
+    float hfFreq = parameters.getRawParameterValue("hf_freq")->load();
+    float hfGain = parameters.getRawParameterValue("hf_gain")->load();
+    bool hfOn = parameters.getRawParameterValue("hf_on")->load() > 0.5f;
+
+    float outputGainDB = parameters.getRawParameterValue("output_gain")->load();
+    bool analogOn = parameters.getRawParameterValue("analog")->load() > 0.5f;
+
+    // Update filter coefficients if parameters changed
+    bool needsUpdate = false;
+
+    if (lfFreq != previousLfFreq || lfGain != previousLfGain)
+    {
+        float gainFactor = std::pow(10.0f, lfGain / 20.0f);
+        *lfFilter.state = *IIRCoefficients::makeLowShelf(spec.sampleRate, lfFreq, 0.707f, gainFactor);
+        previousLfFreq = lfFreq;
+        previousLfGain = lfGain;
+    }
+
+    if (lmfFreq != previousLmfFreq || lmfGain != previousLmfGain || lmfQChoice != previousLmfQ)
+    {
+        float gainFactor = std::pow(10.0f, lmfGain / 20.0f);
+        float qValue = getQValueFromChoice(lmfQChoice);
+        *lmfFilter.state = *IIRCoefficients::makePeakFilter(spec.sampleRate, lmfFreq, qValue, gainFactor);
+        previousLmfFreq = lmfFreq;
+        previousLmfGain = lmfGain;
+        previousLmfQ = lmfQChoice;
+    }
+
+    if (hmfFreq != previousHmfFreq || hmfGain != previousHmfGain || hmfQChoice != previousHmfQ)
+    {
+        float gainFactor = std::pow(10.0f, hmfGain / 20.0f);
+        float qValue = getQValueFromChoice(hmfQChoice);
+        *hmfFilter.state = *IIRCoefficients::makePeakFilter(spec.sampleRate, hmfFreq, qValue, gainFactor);
+        previousHmfFreq = hmfFreq;
+        previousHmfGain = hmfGain;
+        previousHmfQ = hmfQChoice;
+    }
+
+    if (hfFreq != previousHfFreq || hfGain != previousHfGain)
+    {
+        float gainFactor = std::pow(10.0f, hfGain / 20.0f);
+        *hfFilter.state = *IIRCoefficients::makeHighShelf(spec.sampleRate, hfFreq, 0.707f, gainFactor);
+        previousHfFreq = hfFreq;
+        previousHfGain = hfGain;
+    }
+
+    // Update output gain
+    outputGain.setGainDecibels(outputGainDB);
+
+    // Process audio through DSP chain
+    juce::dsp::AudioBlock<float> block(buffer);
+    juce::dsp::ProcessContextReplacing<float> context(block);
+
+    // Sequential processing: LF → LMF → HMF → HF → Saturation → Output Gain
+    if (lfOn)
+        lfFilter.process(context);
+
+    if (lmfOn)
+        lmfFilter.process(context);
+
+    if (hmfOn)
+        hmfFilter.process(context);
+
+    if (hfOn)
+        hfFilter.process(context);
+
+    if (analogOn)
+        saturation.process(context);
+
+    outputGain.process(context);
 }
 
 juce::AudioProcessorEditor* OuariconAnalogEQAudioProcessor::createEditor()
@@ -209,6 +317,64 @@ void OuariconAnalogEQAudioProcessor::setStateInformation(const void* data, int s
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
         parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+// Helper function to map Q choice parameter to Q value
+float OuariconAnalogEQAudioProcessor::getQValueFromChoice(int choiceIndex)
+{
+    switch (choiceIndex)
+    {
+        case 0: return 0.5f;  // WIDE - broad, gentle curves
+        case 1: return 1.0f;  // MED - balanced, musical curves
+        case 2: return 2.0f;  // TIGHT - focused, surgical curves
+        default: return 1.0f; // Default to MED
+    }
+}
+
+// Helper function to update all filter coefficients
+void OuariconAnalogEQAudioProcessor::updateFilterCoefficients()
+{
+    // Read all parameters
+    float lfFreq = parameters.getRawParameterValue("lf_freq")->load();
+    float lfGain = parameters.getRawParameterValue("lf_gain")->load();
+
+    float lmfFreq = parameters.getRawParameterValue("lmf_freq")->load();
+    float lmfGain = parameters.getRawParameterValue("lmf_gain")->load();
+    int lmfQChoice = static_cast<int>(parameters.getRawParameterValue("lmf_q")->load());
+
+    float hmfFreq = parameters.getRawParameterValue("hmf_freq")->load();
+    float hmfGain = parameters.getRawParameterValue("hmf_gain")->load();
+    int hmfQChoice = static_cast<int>(parameters.getRawParameterValue("hmf_q")->load());
+
+    float hfFreq = parameters.getRawParameterValue("hf_freq")->load();
+    float hfGain = parameters.getRawParameterValue("hf_gain")->load();
+
+    // Update all filter coefficients
+    float lfGainFactor = std::pow(10.0f, lfGain / 20.0f);
+    *lfFilter.state = *IIRCoefficients::makeLowShelf(spec.sampleRate, lfFreq, 0.707f, lfGainFactor);
+
+    float lmfGainFactor = std::pow(10.0f, lmfGain / 20.0f);
+    float lmfQ = getQValueFromChoice(lmfQChoice);
+    *lmfFilter.state = *IIRCoefficients::makePeakFilter(spec.sampleRate, lmfFreq, lmfQ, lmfGainFactor);
+
+    float hmfGainFactor = std::pow(10.0f, hmfGain / 20.0f);
+    float hmfQ = getQValueFromChoice(hmfQChoice);
+    *hmfFilter.state = *IIRCoefficients::makePeakFilter(spec.sampleRate, hmfFreq, hmfQ, hmfGainFactor);
+
+    float hfGainFactor = std::pow(10.0f, hfGain / 20.0f);
+    *hfFilter.state = *IIRCoefficients::makeHighShelf(spec.sampleRate, hfFreq, 0.707f, hfGainFactor);
+
+    // Update previous values
+    previousLfFreq = lfFreq;
+    previousLfGain = lfGain;
+    previousLmfFreq = lmfFreq;
+    previousLmfGain = lmfGain;
+    previousLmfQ = lmfQChoice;
+    previousHmfFreq = hmfFreq;
+    previousHmfGain = hmfGain;
+    previousHmfQ = hmfQChoice;
+    previousHfFreq = hfFreq;
+    previousHfGain = hfGain;
 }
 
 // Factory function
