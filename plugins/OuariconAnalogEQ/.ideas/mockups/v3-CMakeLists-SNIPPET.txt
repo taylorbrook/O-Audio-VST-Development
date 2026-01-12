@@ -1,0 +1,44 @@
+# ============================================================================
+# WebView UI Resources - OuariconAnalogEQ v3
+# ============================================================================
+# This snippet should be appended to the plugin's CMakeLists.txt during Stage 3
+
+# Add UI resources as binary data
+juce_add_binary_data(OuariconAnalogEQ_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/images/paper1.jpg
+        Source/ui/public/images/flower_ferdinandibauer00baue_0021.png
+)
+
+# Link UI resources to plugin target
+target_link_libraries(OuariconAnalogEQ
+    PRIVATE
+        OuariconAnalogEQ_UIResources
+        juce::juce_gui_extra  # Required for WebBrowserComponent
+)
+
+# Enable WebView support
+target_compile_definitions(OuariconAnalogEQ
+    PUBLIC
+        JUCE_WEB_BROWSER=1     # Enable WebBrowserComponent
+        JUCE_USE_CURL=0        # Disable CURL (not needed for local HTML)
+)
+
+# ============================================================================
+# IMPORTANT: juce_add_plugin() must include NEEDS_WEB_BROWSER flag
+# ============================================================================
+#
+# In your juce_add_plugin() call, ensure you have:
+#
+# juce_add_plugin(OuariconAnalogEQ
+#     COMPANY_NAME "Ouaricon Audio"
+#     PLUGIN_MANUFACTURER_CODE OuAu
+#     PLUGIN_CODE OaEq
+#     FORMATS VST3 AU Standalone
+#     PRODUCT_NAME "Ouaricon Analog EQ"
+#     NEEDS_WEB_BROWSER TRUE     # <-- REQUIRED for VST3 WebView support
+# )
+#
+# Without NEEDS_WEB_BROWSER TRUE, VST3 builds successfully but won't load in DAW.

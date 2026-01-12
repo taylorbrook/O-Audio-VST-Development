@@ -1,0 +1,673 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=920, height=220" />
+  <title>Ouaricon Analog EQ</title>
+
+  <style>
+    /* ====================================================================
+       CRITICAL CSS CONSTRAINTS
+       ==================================================================== */
+
+    /* Use 100%, NOT 100vh - JUCE WebView requires percentage-based sizing */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* ====================================================================
+       NATIVE APPLICATION FEEL
+       ==================================================================== */
+
+    body {
+      /* Native feel CSS (REQUIRED) */
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Center plugin frame */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      font-family: Garamond, serif;
+    }
+
+    /* Main container - fills viewport */
+    .container {
+      width: 920px;
+      height: 220px;
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* Paper texture background layer */
+    .paper-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background-image: url('/images/paper1.jpg');
+      background-size: cover;
+      background-position: center;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* Large rotated botanical overlay */
+    .botanical-overlay {
+      position: absolute;
+      top: -150px;
+      left: 200px;
+      width: 500px;
+      height: 500px;
+      background-image: url('/images/flower_ferdinandibauer00baue_0021.png');
+      background-size: contain;
+      background-repeat: no-repeat;
+      background-position: center;
+      opacity: 0.45;
+      transform: rotate(90deg);
+      transform-origin: center center;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* Content layer (controls) */
+    .content-layer {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      z-index: 2;
+    }
+
+    /* Header border */
+    .header-border {
+      position: absolute;
+      top: 45px;
+      left: 0;
+      width: 100%;
+      height: 2px;
+      background: #8B7355;
+    }
+
+    /* Title */
+    .title {
+      position: absolute;
+      top: 12px;
+      left: 320px;
+      width: 280px;
+      height: 24px;
+      font-family: Garamond, serif;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 0.15em;
+      color: #3C2F2F;
+      line-height: 24px;
+    }
+
+    /* Band labels */
+    .band-label {
+      font-family: Garamond, serif;
+      font-size: 10px;
+      text-align: center;
+      letter-spacing: 0.12em;
+      color: #3C2F2F;
+      font-weight: 600;
+      position: absolute;
+    }
+
+    .sublabel {
+      font-family: Garamond, serif;
+      font-size: 8px;
+      text-align: center;
+      letter-spacing: 0.1em;
+      color: #5C4033;
+      position: absolute;
+    }
+
+    /* Dual-layer knob container */
+    .dual-knob-container {
+      position: absolute;
+      width: 65px;
+      height: 65px;
+    }
+
+    /* Outer ring - frequency control (v1 seed style) */
+    .knob-outer {
+      position: absolute;
+      width: 65px;
+      height: 65px;
+      border-radius: 50%;
+      background: radial-gradient(circle, transparent 75%, #C9A27B 75%, #C9A27B 85%, #8B7355 85%);
+      border: 2px solid #8B7355;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: transform 50ms;
+      z-index: 1;
+    }
+
+    /* Inner dial - gain control with 10-segment seed cross-section */
+    .knob-inner {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      width: 45px;
+      height: 45px;
+      border-radius: 50%;
+      background:
+        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%),
+        conic-gradient(from 0deg,
+          #F5DEB3 0deg, #F5DEB3 35deg, #8B7355 35deg, #8B7355 36deg,
+          #E8D5B7 36deg, #E8D5B7 71deg, #8B7355 71deg, #8B7355 72deg,
+          #F5DEB3 72deg, #F5DEB3 107deg, #8B7355 107deg, #8B7355 108deg,
+          #E8D5B7 108deg, #E8D5B7 143deg, #8B7355 143deg, #8B7355 144deg,
+          #F5DEB3 144deg, #F5DEB3 179deg, #8B7355 179deg, #8B7355 180deg,
+          #E8D5B7 180deg, #E8D5B7 215deg, #8B7355 215deg, #8B7355 216deg,
+          #F5DEB3 216deg, #F5DEB3 251deg, #8B7355 251deg, #8B7355 252deg,
+          #E8D5B7 252deg, #E8D5B7 287deg, #8B7355 287deg, #8B7355 288deg,
+          #F5DEB3 288deg, #F5DEB3 323deg, #8B7355 323deg, #8B7355 324deg,
+          #E8D5B7 324deg, #E8D5B7 359deg, #8B7355 359deg, #8B7355 360deg
+        );
+      border: 2px solid #8B7355;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: transform 50ms;
+      z-index: 2;
+    }
+
+    /* Pointer indicator on inner dial */
+    .knob-pointer {
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 12px;
+      background: #3C2F2F;
+      pointer-events: none;
+    }
+
+    /* Standard single-layer knob (output gain) */
+    .standard-knob {
+      position: absolute;
+      width: 55px;
+      height: 55px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #D4B896, #C9A27B);
+      border: 2px solid #8B7355;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: transform 50ms;
+    }
+
+    .standard-knob .knob-pointer {
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 14px;
+      background: #3C2F2F;
+      pointer-events: none;
+      position: absolute;
+    }
+
+    /* Toggle switches */
+    .toggle {
+      position: absolute;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #8B7355;
+      border: 1px solid #5C4033;
+      border-radius: 3px;
+      font-family: Garamond, serif;
+      font-size: 8px;
+      letter-spacing: 0.08em;
+      color: #FFF;
+      cursor: pointer;
+      transition: background 100ms;
+      text-align: center;
+      padding: 2px 4px;
+    }
+
+    .toggle.active {
+      background: #6B8E4E;
+      border-color: #3C5C1A;
+    }
+
+    .toggle-large {
+      font-size: 9px;
+      padding: 4px 8px;
+    }
+
+    /* Three-way Q toggle */
+    .three-way-toggle {
+      position: absolute;
+      display: flex;
+      gap: 1px;
+      background: #8B7355;
+      border: 1px solid #5C4033;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .three-way-option {
+      flex: 1;
+      padding: 3px 6px;
+      font-family: Garamond, serif;
+      font-size: 7px;
+      letter-spacing: 0.08em;
+      color: #FFF;
+      cursor: pointer;
+      text-align: center;
+      background: #8B7355;
+      transition: background 100ms;
+    }
+
+    .three-way-option.active {
+      background: #6B8E4E;
+    }
+
+    /* VU Meter */
+    .vu-meter {
+      position: absolute;
+      width: 70px;
+      height: 70px;
+      background: rgba(139, 168, 112, 0.2);
+      border: 2px solid #3C5C1A;
+      border-radius: 50%;
+    }
+
+    .vu-meter svg {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+    }
+
+    .vu-meter-needle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 2px;
+      height: 25px;
+      background: linear-gradient(180deg, #3C5C1A 0%, #2C4010 100%);
+      transform-origin: bottom center;
+      transform: translate(-50%, -100%) rotate(-45deg);
+      transition: transform 100ms;
+      pointer-events: none;
+    }
+
+    .vu-meter-pivot {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 6px;
+      height: 6px;
+      background: #5C4033;
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      z-index: 10;
+      pointer-events: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Background layers -->
+    <div class="paper-background"></div>
+    <div class="botanical-overlay"></div>
+
+    <!-- Content layer -->
+    <div class="content-layer">
+      <!-- Header -->
+      <div class="header-border"></div>
+      <div class="title">OUARICON ANALOG EQ</div>
+
+      <!-- LF BAND -->
+      <div class="band-label" style="top: 55px; left: 45px; width: 65px;">LF</div>
+      <div class="dual-knob-container" style="top: 75px; left: 38px;" data-param-outer="lf_freq" data-param-inner="lf_gain">
+        <div class="knob-outer" id="lf_freq_knob"></div>
+        <div class="knob-inner" id="lf_gain_knob">
+          <div class="knob-pointer"></div>
+        </div>
+      </div>
+      <div class="sublabel" style="top: 150px; left: 45px; width: 65px;">SHELF</div>
+      <div class="toggle active" id="lf_on" style="top: 170px; left: 53px; width: 32px; height: 16px;">[ON]</div>
+
+      <!-- LMF BAND -->
+      <div class="band-label" style="top: 55px; left: 188px; width: 65px;">LMF</div>
+      <div class="dual-knob-container" style="top: 75px; left: 181px;" data-param-outer="lmf_freq" data-param-inner="lmf_gain">
+        <div class="knob-outer" id="lmf_freq_knob"></div>
+        <div class="knob-inner" id="lmf_gain_knob">
+          <div class="knob-pointer"></div>
+        </div>
+      </div>
+      <div class="three-way-toggle" id="lmf_q" style="top: 150px; left: 173px; width: 82px; height: 18px;">
+        <div class="three-way-option" data-value="0">WIDE</div>
+        <div class="three-way-option active" data-value="1">MED</div>
+        <div class="three-way-option" data-value="2">TIGHT</div>
+      </div>
+      <div class="toggle active" id="lmf_on" style="top: 174px; left: 196px; width: 32px; height: 16px;">[ON]</div>
+
+      <!-- HMF BAND -->
+      <div class="band-label" style="top: 55px; left: 331px; width: 65px;">HMF</div>
+      <div class="dual-knob-container" style="top: 75px; left: 324px;" data-param-outer="hmf_freq" data-param-inner="hmf_gain">
+        <div class="knob-outer" id="hmf_freq_knob"></div>
+        <div class="knob-inner" id="hmf_gain_knob">
+          <div class="knob-pointer"></div>
+        </div>
+      </div>
+      <div class="three-way-toggle" id="hmf_q" style="top: 150px; left: 316px; width: 82px; height: 18px;">
+        <div class="three-way-option" data-value="0">WIDE</div>
+        <div class="three-way-option active" data-value="1">MED</div>
+        <div class="three-way-option" data-value="2">TIGHT</div>
+      </div>
+      <div class="toggle active" id="hmf_on" style="top: 174px; left: 339px; width: 32px; height: 16px;">[ON]</div>
+
+      <!-- HF BAND -->
+      <div class="band-label" style="top: 55px; left: 474px; width: 65px;">HF</div>
+      <div class="dual-knob-container" style="top: 75px; left: 467px;" data-param-outer="hf_freq" data-param-inner="hf_gain">
+        <div class="knob-outer" id="hf_freq_knob"></div>
+        <div class="knob-inner" id="hf_gain_knob">
+          <div class="knob-pointer"></div>
+        </div>
+      </div>
+      <div class="sublabel" style="top: 150px; left: 474px; width: 65px;">SHELF</div>
+      <div class="toggle active" id="hf_on" style="top: 170px; left: 482px; width: 32px; height: 16px;">[ON]</div>
+
+      <!-- GLOBAL CONTROLS -->
+      <div class="band-label" style="top: 55px; left: 602px; width: 55px;">OUT</div>
+      <div class="standard-knob" id="output_gain" style="top: 80px; left: 610px;">
+        <div class="knob-pointer"></div>
+      </div>
+      <div class="toggle toggle-large active" id="analog" style="top: 160px; left: 590px; width: 75px; height: 22px;">[ANALOG]</div>
+
+      <!-- VU METER -->
+      <div class="sublabel" style="top: 160px; left: 815px; width: 70px;">LEVEL</div>
+      <div class="vu-meter" style="top: 75px; left: 825px;">
+        <svg viewBox="0 0 70 70">
+          <path d="M 15 55 A 20 20 0 0 1 55 55" fill="none" stroke="#8B7355" stroke-width="1"/>
+          <text x="12" y="52" font-size="6" fill="#3C2F2F">-20</text>
+          <text x="20" y="38" font-size="6" fill="#3C2F2F">-10</text>
+          <text x="31" y="30" font-size="6" fill="#3C2F2F">0</text>
+          <text x="46" y="38" font-size="6" fill="#3C2F2F">+3</text>
+        </svg>
+        <div class="vu-meter-needle" id="vu_needle"></div>
+        <div class="vu-meter-pivot"></div>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    import { getSliderState, getToggleState, getComboBoxState } from "./js/juce/index.js";
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Verify JUCE backend
+    if (!window.__JUCE__) {
+      console.error("JUCE backend not available");
+    }
+
+    // Parameter ranges
+    const paramRanges = {
+      lf_freq: { min: 30, max: 500, default: 100 },
+      lf_gain: { min: -12, max: 12, default: 0 },
+      lmf_freq: { min: 100, max: 2000, default: 500 },
+      lmf_gain: { min: -12, max: 12, default: 0 },
+      hmf_freq: { min: 500, max: 8000, default: 2000 },
+      hmf_gain: { min: -12, max: 12, default: 0 },
+      hf_freq: { min: 2000, max: 20000, default: 8000 },
+      hf_gain: { min: -12, max: 12, default: 0 },
+      output_gain: { min: -12, max: 12, default: 0 }
+    };
+
+    // Update knob rotation
+    function updateKnobRotation(element, normalizedValue) {
+      const degrees = -135 + (normalizedValue * 270);
+      element.style.transform = `rotate(${degrees}deg)`;
+    }
+
+    // Dual-layer knob interaction
+    function setupDualKnob(container, outerState, innerState) {
+      const outerKnob = container.querySelector('.knob-outer');
+      const innerKnob = container.querySelector('.knob-inner');
+
+      let isDragging = false;
+      let currentState = null;
+      let lastY = 0;
+
+      function handleMouseDown(e, state, isOuter) {
+        isDragging = true;
+        currentState = state;
+        lastY = e.clientY;
+        e.preventDefault();
+        state.sliderDragStarted();
+      }
+
+      outerKnob.addEventListener('mousedown', (e) => handleMouseDown(e, outerState, true));
+      innerKnob.addEventListener('mousedown', (e) => handleMouseDown(e, innerState, false));
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging || !currentState) return;
+        const deltaY = lastY - e.clientY;
+        const currentValue = currentState.getNormalisedValue();
+        const newValue = Math.max(0, Math.min(1, currentValue + (deltaY * 0.005)));
+        currentState.setNormalisedValue(newValue);
+        lastY = e.clientY;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging && currentState) {
+          currentState.sliderDragEnded();
+          isDragging = false;
+          currentState = null;
+        }
+      });
+
+      // Listen for changes
+      outerState.valueChangedEvent.addListener(() => {
+        updateKnobRotation(outerKnob, outerState.getNormalisedValue());
+      });
+
+      innerState.valueChangedEvent.addListener(() => {
+        updateKnobRotation(innerKnob, innerState.getNormalisedValue());
+      });
+
+      // Initialize
+      updateKnobRotation(outerKnob, outerState.getNormalisedValue());
+      updateKnobRotation(innerKnob, innerState.getNormalisedValue());
+    }
+
+    // Standard knob interaction
+    function setupStandardKnob(element, state) {
+      let isDragging = false;
+      let lastY = 0;
+
+      element.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastY = e.clientY;
+        state.sliderDragStarted();
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const deltaY = lastY - e.clientY;
+        const currentValue = state.getNormalisedValue();
+        const newValue = Math.max(0, Math.min(1, currentValue + (deltaY * 0.005)));
+        state.setNormalisedValue(newValue);
+        lastY = e.clientY;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          state.sliderDragEnded();
+          isDragging = false;
+        }
+      });
+
+      state.valueChangedEvent.addListener(() => {
+        updateKnobRotation(element, state.getNormalisedValue());
+      });
+
+      updateKnobRotation(element, state.getNormalisedValue());
+    }
+
+    // Toggle interaction
+    function setupToggle(element, state) {
+      element.addEventListener('click', () => {
+        const currentValue = state.getValue();
+        state.setValue(!currentValue);
+      });
+
+      state.valueChangedEvent.addListener(() => {
+        element.classList.toggle('active', state.getValue());
+      });
+
+      element.classList.toggle('active', state.getValue());
+    }
+
+    // Three-way toggle interaction
+    function setupThreeWayToggle(container, state) {
+      const options = container.querySelectorAll('.three-way-option');
+
+      options.forEach((option, index) => {
+        option.addEventListener('click', () => {
+          const normalizedValue = index / 2.0;  // 0, 0.5, 1.0
+          state.setNormalisedValue(normalizedValue);
+        });
+      });
+
+      state.valueChangedEvent.addListener(() => {
+        const normalized = state.getNormalisedValue();
+        const index = Math.round(normalized * 2);
+        options.forEach((opt, i) => {
+          opt.classList.toggle('active', i === index);
+        });
+      });
+
+      const normalized = state.getNormalisedValue();
+      const index = Math.round(normalized * 2);
+      options.forEach((opt, i) => {
+        opt.classList.toggle('active', i === index);
+      });
+    }
+
+    // VU Meter animation
+    let currentNeedleAngle = -45;
+    let targetNeedleAngle = -45;
+    const VU_ATTACK_SPEED = 0.4;
+    const VU_DECAY_SPEED = 0.15;
+
+    function mapDBToAngle(dbLevel) {
+      const normalized = (dbLevel + 12) / 24;
+      return -45 + (normalized * 90);
+    }
+
+    function updateNeedleColor(angle) {
+      const normalized = (angle + 45) / 90;
+
+      if (normalized > 0.9) {
+        document.getElementById('vu_needle').style.background = 'linear-gradient(180deg, #ff6666 0%, #ff4444 100%)';
+      } else if (normalized > 0.75) {
+        document.getElementById('vu_needle').style.background = 'linear-gradient(180deg, #ffcc66 0%, #ffaa44 100%)';
+      } else {
+        document.getElementById('vu_needle').style.background = 'linear-gradient(180deg, #3C5C1A 0%, #2C4010 100%)';
+      }
+    }
+
+    function animateVUMeter() {
+      const speed = currentNeedleAngle < targetNeedleAngle ? VU_ATTACK_SPEED : VU_DECAY_SPEED;
+      currentNeedleAngle += (targetNeedleAngle - currentNeedleAngle) * speed;
+
+      const vuNeedle = document.getElementById('vu_needle');
+      vuNeedle.style.transform = `translate(-50%, -100%) rotate(${currentNeedleAngle}deg)`;
+      updateNeedleColor(currentNeedleAngle);
+
+      requestAnimationFrame(animateVUMeter);
+    }
+
+    // Initialize all controls
+    const lfFreqState = getSliderState("lf_freq");
+    const lfGainState = getSliderState("lf_gain");
+    const lfOnState = getToggleState("lf_on");
+
+    const lmfFreqState = getSliderState("lmf_freq");
+    const lmfGainState = getSliderState("lmf_gain");
+    const lmfQState = getComboBoxState("lmf_q");
+    const lmfOnState = getToggleState("lmf_on");
+
+    const hmfFreqState = getSliderState("hmf_freq");
+    const hmfGainState = getSliderState("hmf_gain");
+    const hmfQState = getComboBoxState("hmf_q");
+    const hmfOnState = getToggleState("hmf_on");
+
+    const hfFreqState = getSliderState("hf_freq");
+    const hfGainState = getSliderState("hf_gain");
+    const hfOnState = getToggleState("hf_on");
+
+    const outputGainState = getSliderState("output_gain");
+    const analogState = getToggleState("analog");
+
+    // Setup dual-layer knobs
+    setupDualKnob(
+      document.querySelector('[data-param-outer="lf_freq"]'),
+      lfFreqState, lfGainState
+    );
+    setupDualKnob(
+      document.querySelector('[data-param-outer="lmf_freq"]'),
+      lmfFreqState, lmfGainState
+    );
+    setupDualKnob(
+      document.querySelector('[data-param-outer="hmf_freq"]'),
+      hmfFreqState, hmfGainState
+    );
+    setupDualKnob(
+      document.querySelector('[data-param-outer="hf_freq"]'),
+      hfFreqState, hfGainState
+    );
+
+    // Setup standard knob
+    setupStandardKnob(document.getElementById('output_gain'), outputGainState);
+
+    // Setup toggles
+    setupToggle(document.getElementById('lf_on'), lfOnState);
+    setupToggle(document.getElementById('lmf_on'), lmfOnState);
+    setupToggle(document.getElementById('hmf_on'), hmfOnState);
+    setupToggle(document.getElementById('hf_on'), hfOnState);
+    setupToggle(document.getElementById('analog'), analogState);
+
+    // Setup three-way toggles
+    setupThreeWayToggle(document.getElementById('lmf_q'), lmfQState);
+    setupThreeWayToggle(document.getElementById('hmf_q'), hmfQState);
+
+    // VU meter responds to output gain
+    outputGainState.valueChangedEvent.addListener(() => {
+      const normalized = outputGainState.getNormalisedValue();
+      const dbValue = -12 + (normalized * 24);
+      targetNeedleAngle = mapDBToAngle(dbValue);
+    });
+
+    // Start VU meter animation
+    animateVUMeter();
+
+    console.log('OuariconAnalogEQ v3 UI initialized');
+  </script>
+</body>
+</html>
