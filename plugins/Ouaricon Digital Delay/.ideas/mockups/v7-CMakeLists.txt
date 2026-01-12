@@ -1,0 +1,59 @@
+# ============================================================================
+# CMakeLists.txt Snippet - Ouaricon Digital Delay v7 WebView Integration
+# ============================================================================
+#
+# USAGE: Append this snippet to plugins/Ouaricon Digital Delay/CMakeLists.txt
+#        during Stage 3 (GUI) implementation.
+#
+# This configuration:
+# 1. Bundles UI resources (HTML, JS, images) into plugin binary
+# 2. Links WebView module (juce::juce_gui_extra)
+# 3. Enables WebBrowser component with JUCE_WEB_BROWSER=1
+# 4. Declares plugin needs WebView (NEEDS_WEB_BROWSER TRUE)
+#
+# ============================================================================
+
+# WebView UI Resources
+# All files in Source/ui/public/ bundled into binary
+juce_add_binary_data(OuariconDigitalDelay_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/paper1.jpg
+        Source/ui/public/img/butterfly2_Black and white.png
+)
+
+# Link UI resources to plugin target
+target_link_libraries(OuariconDigitalDelay
+    PRIVATE
+        OuariconDigitalDelay_UIResources
+        juce::juce_gui_extra  # REQUIRED for WebBrowserComponent
+)
+
+# Enable WebView and disable CURL (not needed for local resources)
+target_compile_definitions(OuariconDigitalDelay
+    PUBLIC
+        JUCE_WEB_BROWSER=1    # Enable WebBrowserComponent
+        JUCE_USE_CURL=0       # Disable external HTTP requests
+)
+
+# ============================================================================
+# IMPORTANT: Update juce_add_plugin() with NEEDS_WEB_BROWSER
+# ============================================================================
+#
+# Find the juce_add_plugin() call and add:
+#
+#   juce_add_plugin(OuariconDigitalDelay
+#       COMPANY_NAME "Ouaricon Audio"
+#       PLUGIN_MANUFACTURER_CODE Ouar
+#       PLUGIN_CODE OdDl
+#       FORMATS VST3 AU Standalone
+#       PRODUCT_NAME "Ouaricon Digital Delay"
+#       NEEDS_WEB_BROWSER TRUE  # <- ADD THIS LINE
+#       # ... other options
+#   )
+#
+# This is CRITICAL for VST3 format - without it, plugin won't load in DAWs.
+#
+# ============================================================================

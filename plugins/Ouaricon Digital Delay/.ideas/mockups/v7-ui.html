@@ -1,0 +1,663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Ouaricon Digital Delay</title>
+
+  <style>
+    /* ============================================
+       WEBVIEW CONSTRAINTS (CRITICAL)
+       ============================================ */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* ============================================
+       NATIVE APPLICATION FEEL
+       ============================================ */
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+      -webkit-touch-callout: none;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* ============================================
+       CONTAINER
+       ============================================ */
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+      background: #F5E6D3;
+      font-family: Garamond, 'Times New Roman', serif;
+      overflow: hidden;
+    }
+
+    /* ============================================
+       BACKGROUND LAYER (Paper texture)
+       ============================================ */
+    .paper-background {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 700px;
+      height: 196px;
+      background-image: url('img/paper1.jpg');
+      background-size: cover;
+      background-position: center;
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    /* ============================================
+       BUTTERFLY OVERLAY (NATURAL SIZE - 800×1280px)
+       ============================================ */
+    .butterfly-overlay {
+      position: absolute;
+      left: calc(50% - 400px);
+      top: -450px;
+      width: 800px;
+      height: 1280px;
+      background-image: url('img/butterfly2_Black and white.png');
+      background-size: 800px 1280px;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0.30;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ============================================
+       PLUGIN TITLE
+       ============================================ */
+    .title {
+      position: absolute;
+      top: 12px;
+      left: 0;
+      width: 700px;
+      height: 22px;
+      text-align: center;
+      font-size: 16px;
+      letter-spacing: 2.5px;
+      color: #3C2F2F;
+      font-weight: normal;
+      z-index: 2;
+      pointer-events: none;
+    }
+
+    /* ============================================
+       CONTROLS CONTAINER
+       ============================================ */
+    .controls-row {
+      position: absolute;
+      top: 50px;
+      left: 20px;
+      width: 615px;
+      height: 130px;
+      z-index: 2;
+    }
+
+    /* ============================================
+       KNOB STYLES (10-segment botanical seed)
+       ============================================ */
+    .knob-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .knob-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+      width: 60px;
+    }
+
+    .knob {
+      width: 60px;
+      height: 60px;
+      position: relative;
+      cursor: pointer;
+      transform-origin: center center;
+    }
+
+    .knob-body {
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+      border: 2px solid #8B7355;
+      background: conic-gradient(
+        from 0deg,
+        #F5DEB3 0deg 36deg,
+        #E8D5B7 36deg 72deg,
+        #F5DEB3 72deg 108deg,
+        #E8D5B7 108deg 144deg,
+        #F5DEB3 144deg 180deg,
+        #E8D5B7 180deg 216deg,
+        #F5DEB3 216deg 252deg,
+        #E8D5B7 252deg 288deg,
+        #F5DEB3 288deg 324deg,
+        #E8D5B7 324deg 360deg
+      );
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
+      position: relative;
+    }
+
+    .knob-indicator {
+      position: absolute;
+      top: 8px;
+      left: 50%;
+      width: 2px;
+      height: 16px;
+      background: #3C2F2F;
+      transform: translateX(-50%);
+    }
+
+    .value-display {
+      margin-top: 4px;
+      width: 60px;
+      height: 18px;
+      background: transparent;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 11px;
+      color: #3C2F2F;
+      padding: 0;
+    }
+
+    /* ============================================
+       TOGGLE BUTTON (SYNC)
+       ============================================ */
+    .toggle-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .toggle-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+    }
+
+    .toggle {
+      width: 50px;
+      height: 24px;
+      border: 2px solid #3C5C1A;
+      border-radius: 4px;
+      background: rgba(139, 168, 112, 0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 100ms;
+    }
+
+    .toggle.active {
+      background: rgba(107, 142, 35, 0.6);
+    }
+
+    /* ============================================
+       DROPDOWN (DIVISION)
+       ============================================ */
+    .dropdown-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .dropdown-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+      width: 80px;
+    }
+
+    .dropdown {
+      width: 80px;
+      height: 24px;
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      background: #F5E6D3;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      color: #3C2F2F;
+      padding: 2px 4px;
+      cursor: pointer;
+    }
+
+    .dropdown:hover,
+    .dropdown:focus {
+      border-color: #6B8E4E;
+      outline: none;
+    }
+
+    /* ============================================
+       LED METER (OuariconComp style)
+       ============================================ */
+    .led-meter-container {
+      position: absolute;
+      top: 25px;
+      left: 645px;
+      width: 18px;
+      height: 155px;
+      z-index: 2;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+
+    .led-meter-label {
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+      text-align: center;
+      width: 18px;
+    }
+
+    .led-meter {
+      display: flex;
+      flex-direction: column-reverse;
+      gap: 2px;
+      background: rgba(139, 115, 85, 0.1);
+      border: 1px solid #8B7355;
+      padding: 4px;
+      border-radius: 2px;
+      width: 18px;
+      height: 140px;
+    }
+
+    .led-segment {
+      width: 100%;
+      height: 10px;
+      background: #8B7355;
+      border-radius: 1px;
+      transition: background 100ms, box-shadow 100ms;
+    }
+
+    .led-segment.active-low {
+      background: #8BA870;
+      box-shadow: 0 0 4px #8BA870;
+    }
+
+    .led-segment.active-mid {
+      background: #6B8E4E;
+      box-shadow: 0 0 4px #6B8E4E;
+    }
+
+    .led-segment.active-high {
+      background: #C9A27B;
+      box-shadow: 0 0 4px #C9A27B;
+    }
+
+    /* ============================================
+       CONTROL POSITIONING
+       ============================================ */
+    #sync-container {
+      top: 4px;
+      left: 10px;
+    }
+
+    #division-container {
+      top: 52px;
+      left: -5px;
+    }
+
+    #time-container {
+      top: 4px;
+      left: 95px;
+    }
+
+    #feedback-container {
+      top: 4px;
+      left: 175px;
+    }
+
+    #spread-container {
+      top: 4px;
+      left: 255px;
+    }
+
+    #mod-container {
+      top: 4px;
+      left: 335px;
+    }
+
+    #wet-container {
+      top: 4px;
+      left: 415px;
+    }
+
+    #dry-container {
+      top: 4px;
+      left: 495px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- LAYER 0: Paper background -->
+    <div class="paper-background"></div>
+
+    <!-- LAYER 1: Butterfly overlay -->
+    <div class="butterfly-overlay"></div>
+
+    <!-- LAYER 2+: UI Elements -->
+    <div class="title">OUARICON DIGITAL DELAY</div>
+
+    <div class="controls-row">
+      <!-- SYNC TOGGLE -->
+      <div id="sync-container" class="toggle-container">
+        <div class="toggle-label">SYNC</div>
+        <div id="sync" class="toggle">OFF</div>
+      </div>
+
+      <!-- DIVISION DROPDOWN -->
+      <div id="division-container" class="dropdown-container">
+        <div class="dropdown-label">DIVISION</div>
+        <select id="division" class="dropdown">
+          <option value="0">1/4</option>
+          <option value="1" selected>1/8</option>
+          <option value="2">1/16</option>
+          <option value="3">1/4D</option>
+          <option value="4">1/8D</option>
+          <option value="5">1/16D</option>
+          <option value="6">1/4T</option>
+          <option value="7">1/8T</option>
+          <option value="8">1/16T</option>
+          <option value="9">1/4(5)</option>
+          <option value="10">1/8(5)</option>
+          <option value="11">1/16(5)</option>
+        </select>
+      </div>
+
+      <!-- TIME KNOB -->
+      <div id="time-container" class="knob-container">
+        <div class="knob-label">TIME</div>
+        <div class="knob" id="time-knob">
+          <div class="knob-body">
+            <div class="knob-indicator"></div>
+          </div>
+        </div>
+        <div class="value-display" id="time-value">500 ms</div>
+      </div>
+
+      <!-- FEEDBACK KNOB -->
+      <div id="feedback-container" class="knob-container">
+        <div class="knob-label">FEEDBACK</div>
+        <div class="knob" id="feedback-knob">
+          <div class="knob-body">
+            <div class="knob-indicator"></div>
+          </div>
+        </div>
+        <div class="value-display" id="feedback-value">30%</div>
+      </div>
+
+      <!-- SPREAD KNOB -->
+      <div id="spread-container" class="knob-container">
+        <div class="knob-label">SPREAD</div>
+        <div class="knob" id="spread-knob">
+          <div class="knob-body">
+            <div class="knob-indicator"></div>
+          </div>
+        </div>
+        <div class="value-display" id="spread-value">0%</div>
+      </div>
+
+      <!-- MOD KNOB -->
+      <div id="mod-container" class="knob-container">
+        <div class="knob-label">MOD</div>
+        <div class="knob" id="mod-knob">
+          <div class="knob-body">
+            <div class="knob-indicator"></div>
+          </div>
+        </div>
+        <div class="value-display" id="mod-value">0%</div>
+      </div>
+
+      <!-- WET KNOB -->
+      <div id="wet-container" class="knob-container">
+        <div class="knob-label">WET</div>
+        <div class="knob" id="wet-knob">
+          <div class="knob-body">
+            <div class="knob-indicator"></div>
+          </div>
+        </div>
+        <div class="value-display" id="wet-value">30%</div>
+      </div>
+
+      <!-- DRY KNOB -->
+      <div id="dry-container" class="knob-container">
+        <div class="knob-label">DRY</div>
+        <div class="knob" id="dry-knob">
+          <div class="knob-body">
+            <div class="knob-indicator"></div>
+          </div>
+        </div>
+        <div class="value-display" id="dry-value">100%</div>
+      </div>
+    </div>
+
+    <!-- LED METER -->
+    <div class="led-meter-container">
+      <div class="led-meter-label">OUT</div>
+      <div class="led-meter" id="led-meter">
+        <!-- 14 segments, populated by JavaScript -->
+      </div>
+    </div>
+  </div>
+
+  <script type="module" src="js/juce/index.js"></script>
+  <script type="module">
+    import { getSliderState, getToggleState, getComboBoxState } from './js/juce/index.js';
+
+    // ============================================
+    // DISABLE CONTEXT MENU
+    // ============================================
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // ============================================
+    // LED METER SETUP
+    // ============================================
+    function setupLEDMeter() {
+      const meterContainer = document.getElementById('led-meter');
+
+      for (let i = 0; i < 14; i++) {
+        const segment = document.createElement('div');
+        segment.className = 'led-segment';
+        segment.dataset.index = i;
+        meterContainer.appendChild(segment);
+      }
+    }
+
+    // ============================================
+    // UPDATE LED METER FROM RMS DATA
+    // ============================================
+    function updateLEDMeter(rmsLevel) {
+      const meterContainer = document.getElementById('led-meter');
+      const segments = meterContainer.querySelectorAll('.led-segment');
+
+      const level = Math.floor(rmsLevel * 14);
+
+      segments.forEach((segment, index) => {
+        segment.classList.remove('active-low', 'active-mid', 'active-high');
+
+        if (index < level) {
+          if (index < 5) {
+            segment.classList.add('active-low');
+          } else if (index < 10) {
+            segment.classList.add('active-mid');
+          } else {
+            segment.classList.add('active-high');
+          }
+        }
+      });
+    }
+
+    // ============================================
+    // KNOB INTERACTION (Relative drag)
+    // ============================================
+    function setupKnob(paramId, min, max, defaultValue, formatFn) {
+      const knob = document.getElementById(`${paramId}-knob`);
+      const valueDisplay = document.getElementById(`${paramId}-value`);
+      const sliderState = getSliderState(paramId);
+
+      if (!sliderState) {
+        console.error(`Failed to get slider state for ${paramId}`);
+        return;
+      }
+
+      let rotation = -135;
+      let lastY = 0;
+      let isDragging = false;
+
+      // Update visual from normalized value
+      function updateVisual(normalized) {
+        rotation = -135 + (normalized * 270);
+        knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
+
+        const value = min + (normalized * (max - min));
+        valueDisplay.textContent = formatFn(value);
+      }
+
+      // Initialize from current state
+      sliderState.valueChangedEvent.addListener(() => {
+        updateVisual(sliderState.getNormalisedValue());
+      });
+      updateVisual(sliderState.getNormalisedValue());
+
+      // Mouse interaction (relative drag)
+      knob.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        lastY = e.clientY;
+        knob.style.cursor = 'grabbing';
+        e.preventDefault();
+      });
+
+      document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+
+        const deltaY = lastY - e.clientY;
+        const rotationDelta = deltaY * 0.5;
+        rotation = Math.max(-135, Math.min(135, rotation + rotationDelta));
+
+        const normalized = (rotation + 135) / 270;
+        sliderState.setNormalisedValue(normalized);
+
+        lastY = e.clientY;
+      });
+
+      document.addEventListener('mouseup', () => {
+        if (isDragging) {
+          isDragging = false;
+          knob.style.cursor = 'pointer';
+        }
+      });
+    }
+
+    // ============================================
+    // TOGGLE INTERACTION (SYNC)
+    // ============================================
+    function setupToggle() {
+      const toggle = document.getElementById('sync');
+      const toggleState = getToggleState('sync');
+
+      if (!toggleState) {
+        console.error('Failed to get toggle state for sync');
+        return;
+      }
+
+      function updateVisual(value) {
+        toggle.classList.toggle('active', value);
+        toggle.textContent = value ? 'ON' : 'OFF';
+      }
+
+      toggleState.valueChangedEvent.addListener(() => {
+        updateVisual(toggleState.getValue());
+      });
+      updateVisual(toggleState.getValue());
+
+      toggle.addEventListener('click', () => {
+        toggleState.setValue(!toggleState.getValue());
+      });
+    }
+
+    // ============================================
+    // DROPDOWN INTERACTION (DIVISION)
+    // ============================================
+    function setupDropdown() {
+      const dropdown = document.getElementById('division');
+      const comboState = getComboBoxState('division');
+
+      if (!comboState) {
+        console.error('Failed to get combo state for division');
+        return;
+      }
+
+      function updateVisual(selectedId) {
+        dropdown.selectedIndex = selectedId;
+      }
+
+      comboState.valueChangedEvent.addListener(() => {
+        updateVisual(comboState.getSelectedId());
+      });
+      updateVisual(comboState.getSelectedId());
+
+      dropdown.addEventListener('change', (e) => {
+        comboState.setSelectedId(parseInt(e.target.value));
+      });
+    }
+
+    // ============================================
+    // INITIALIZE ALL CONTROLS
+    // ============================================
+    document.addEventListener("DOMContentLoaded", () => {
+      setupLEDMeter();
+
+      setupKnob('time', 1.0, 2000.0, 500.0, v => `${Math.round(v)} ms`);
+      setupKnob('feedback', 0.0, 100.0, 30.0, v => `${Math.round(v)}%`);
+      setupKnob('spread', 0.0, 100.0, 0.0, v => `${Math.round(v)}%`);
+      setupKnob('mod', 0.0, 100.0, 0.0, v => `${Math.round(v)}%`);
+      setupKnob('wet', 0.0, 100.0, 30.0, v => `${Math.round(v)}%`);
+      setupKnob('dry', 0.0, 100.0, 100.0, v => `${Math.round(v)}%`);
+
+      setupToggle();
+      setupDropdown();
+
+      // TODO: Set up C++ -> JS messaging for LED meter RMS data
+      // Expected message format: { type: 'rms_update', level: 0.0-1.0 }
+    });
+  </script>
+</body>
+</html>
