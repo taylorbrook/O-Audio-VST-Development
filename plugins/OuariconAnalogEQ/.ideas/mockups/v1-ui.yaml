@@ -1,0 +1,358 @@
+# v1 UI Design Specification
+# Generated: 2026-01-11
+# Plugin: OuariconAnalogEQ
+# Aesthetic: Ouaricon Audio Naturalist (aged paper, botanical, serif typography)
+
+window:
+  width: 720
+  height: 380
+  resizable: false
+
+colors:
+  # Aged paper palette
+  background: "#EBD9C7"
+  paper_light: "#F5E6D3"
+  walnut_brown: "#8B7355"
+  dark_brown: "#5C4033"
+  text_primary: "#3C2F2F"
+  botanical_green: "#8BA870"
+  green_active: "#6B8E4E"
+  green_border: "#3C5C1A"
+  knob_ring: "#C9A27B"
+  knob_segment_1: "#F5DEB3"
+  knob_segment_2: "#E8D5B7"
+  knob_core: "#FFF8DC"
+
+typography:
+  title_font: "Garamond, serif"
+  label_font: "Garamond, serif"
+  title_size: "24px"
+  label_size: "10px"
+  value_size: "11px"
+  letter_spacing: "0.15em"
+
+layout:
+  type: custom
+  sections:
+    - id: header
+      position: { x: 0, y: 0 }
+      size: { width: 720, height: 50 }
+      background: "#D4C4B0"
+      border: "2px solid #8B7355"
+    - id: main_controls
+      position: { x: 0, y: 50 }
+      size: { width: 580, height: 330 }
+      background: "#EBD9C7"
+    - id: botanical_panel
+      position: { x: 580, y: 50 }
+      size: { width: 140, height: 330 }
+      background: "#F5E6D3"
+      image: "/Users/taylorbrook/Dev/Ouaricon Audio Images/flora/flower_ferdinandibauer00baue_0021.png"
+      image_opacity: 0.35
+
+controls:
+  # Header title (non-interactive display element)
+  - id: title
+    type: label
+    text: "OUARICON ANALOG EQ"
+    position: { x: 220, y: 15 }
+    size: { width: 280, height: 30 }
+    style:
+      font: "Garamond, serif"
+      font_size: "24px"
+      text_align: center
+      letter_spacing: "0.15em"
+      color: "#3C2F2F"
+
+  # LF Band - Low Frequency Shelf (dual-layer knob)
+  - id: lf_freq
+    type: slider
+    label: "LOW"
+    sublabel: "SHELF"
+    parameter: "lf_freq"
+    range: [30.0, 500.0]
+    default: 100.0
+    unit: "Hz"
+    decimals: 0
+    position: { x: 50, y: 90 }
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "outer"  # Outer ring controls frequency
+    linked_control: "lf_gain"
+    style:
+      type: "dual_layer_knob"
+      outer_ring_color: "#C9A27B"
+      segments: ["#F5DEB3", "#E8D5B7"]
+      border_color: "#8B7355"
+      border_width: "2px"
+
+  - id: lf_gain
+    type: slider
+    label: ""
+    parameter: "lf_gain"
+    range: [-12.0, 12.0]
+    default: 0.0
+    unit: "dB"
+    decimals: 1
+    position: { x: 50, y: 90 }  # Same position as lf_freq
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "inner"  # Inner dial controls gain
+    linked_control: "lf_freq"
+    style:
+      type: "dual_layer_knob"
+      core_color: "#FFF8DC"
+      pointer_color: "#3C2F2F"
+
+  - id: lf_on
+    type: toggle
+    label: "ON"
+    parameter: "lf_on"
+    default: true
+    position: { x: 75, y: 235 }
+    size: { width: 35, height: 20 }
+    style:
+      type: "botanical_toggle"
+      color_active: "#6B8E4E"
+      color_inactive: "#8B7355"
+
+  # LMF Band - Low-Mid Bell (dual-layer knob)
+  - id: lmf_freq
+    type: slider
+    label: "L-MID"
+    sublabel: ""
+    parameter: "lmf_freq"
+    range: [100.0, 2000.0]
+    default: 500.0
+    unit: "Hz"
+    decimals: 0
+    position: { x: 205, y: 90 }
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "outer"
+    linked_control: "lmf_gain"
+    style:
+      type: "dual_layer_knob"
+      outer_ring_color: "#C9A27B"
+      segments: ["#F5DEB3", "#E8D5B7"]
+      border_color: "#8B7355"
+      border_width: "2px"
+
+  - id: lmf_gain
+    type: slider
+    label: ""
+    parameter: "lmf_gain"
+    range: [-12.0, 12.0]
+    default: 0.0
+    unit: "dB"
+    decimals: 1
+    position: { x: 205, y: 90 }
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "inner"
+    linked_control: "lmf_freq"
+    style:
+      type: "dual_layer_knob"
+      core_color: "#FFF8DC"
+      pointer_color: "#3C2F2F"
+
+  - id: lmf_q
+    type: combo
+    label: "Q"
+    parameter: "lmf_q"
+    choices: ["WIDE", "MED", "TIGHT"]
+    default: 1  # MED
+    position: { x: 195, y: 205 }
+    size: { width: 105, height: 28 }
+    style:
+      type: "three_way_toggle"
+      font: "Garamond, serif"
+      font_size: "9px"
+      color_active: "#6B8E4E"
+      color_inactive: "#8B7355"
+
+  - id: lmf_on
+    type: toggle
+    label: "ON"
+    parameter: "lmf_on"
+    default: true
+    position: { x: 230, y: 240 }
+    size: { width: 35, height: 20 }
+    style:
+      type: "botanical_toggle"
+      color_active: "#6B8E4E"
+      color_inactive: "#8B7355"
+
+  # HMF Band - High-Mid Bell (dual-layer knob)
+  - id: hmf_freq
+    type: slider
+    label: "H-MID"
+    sublabel: ""
+    parameter: "hmf_freq"
+    range: [500.0, 8000.0]
+    default: 2000.0
+    unit: "Hz"
+    decimals: 0
+    position: { x: 360, y: 90 }
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "outer"
+    linked_control: "hmf_gain"
+    style:
+      type: "dual_layer_knob"
+      outer_ring_color: "#C9A27B"
+      segments: ["#F5DEB3", "#E8D5B7"]
+      border_color: "#8B7355"
+      border_width: "2px"
+
+  - id: hmf_gain
+    type: slider
+    label: ""
+    parameter: "hmf_gain"
+    range: [-12.0, 12.0]
+    default: 0.0
+    unit: "dB"
+    decimals: 1
+    position: { x: 360, y: 90 }
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "inner"
+    linked_control: "hmf_freq"
+    style:
+      type: "dual_layer_knob"
+      core_color: "#FFF8DC"
+      pointer_color: "#3C2F2F"
+
+  - id: hmf_q
+    type: combo
+    label: "Q"
+    parameter: "hmf_q"
+    choices: ["WIDE", "MED", "TIGHT"]
+    default: 1  # MED
+    position: { x: 350, y: 205 }
+    size: { width: 105, height: 28 }
+    style:
+      type: "three_way_toggle"
+      font: "Garamond, serif"
+      font_size: "9px"
+      color_active: "#6B8E4E"
+      color_inactive: "#8B7355"
+
+  - id: hmf_on
+    type: toggle
+    label: "ON"
+    parameter: "hmf_on"
+    default: true
+    position: { x: 385, y: 240 }
+    size: { width: 35, height: 20 }
+    style:
+      type: "botanical_toggle"
+      color_active: "#6B8E4E"
+      color_inactive: "#8B7355"
+
+  # HF Band - High Frequency Shelf (dual-layer knob)
+  - id: hf_freq
+    type: slider
+    label: "HIGH"
+    sublabel: "SHELF"
+    parameter: "hf_freq"
+    range: [2000.0, 20000.0]
+    default: 8000.0
+    unit: "Hz"
+    decimals: 0
+    position: { x: 490, y: 90 }
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "outer"
+    linked_control: "hf_gain"
+    style:
+      type: "dual_layer_knob"
+      outer_ring_color: "#C9A27B"
+      segments: ["#F5DEB3", "#E8D5B7"]
+      border_color: "#8B7355"
+      border_width: "2px"
+
+  - id: hf_gain
+    type: slider
+    label: ""
+    parameter: "hf_gain"
+    range: [-12.0, 12.0]
+    default: 0.0
+    unit: "dB"
+    decimals: 1
+    position: { x: 490, y: 90 }
+    size: { width: 85, height: 85, diameter: 85 }
+    dual_layer: true
+    layer_role: "inner"
+    linked_control: "hf_freq"
+    style:
+      type: "dual_layer_knob"
+      core_color: "#FFF8DC"
+      pointer_color: "#3C2F2F"
+
+  - id: hf_on
+    type: toggle
+    label: "ON"
+    parameter: "hf_on"
+    default: true
+    position: { x: 515, y: 235 }
+    size: { width: 35, height: 20 }
+    style:
+      type: "botanical_toggle"
+      color_active: "#6B8E4E"
+      color_inactive: "#8B7355"
+
+  # Global controls at bottom
+  - id: output_gain
+    type: slider
+    label: "OUTPUT"
+    parameter: "output_gain"
+    range: [-12.0, 12.0]
+    default: 0.0
+    unit: "dB"
+    decimals: 1
+    position: { x: 80, y: 285 }
+    size: { width: 60, height: 60, diameter: 60 }
+    style:
+      type: "standard_knob"
+      color: "#C9A27B"
+      border_color: "#8B7355"
+      border_width: "2px"
+
+  - id: analog
+    type: toggle
+    label: "ANALOG"
+    parameter: "analog"
+    default: true
+    position: { x: 180, y: 300 }
+    size: { width: 80, height: 30 }
+    style:
+      type: "botanical_toggle_large"
+      color_active: "#6B8E4E"
+      color_inactive: "#8B7355"
+      label_style: "uppercase"
+
+special_elements:
+  - id: botanical_overlay
+    type: image
+    src: "/Users/taylorbrook/Dev/Ouaricon Audio Images/flora/flower_ferdinandibauer00baue_0021.png"
+    position: { x: 580, y: 80 }
+    size: { width: 130, height: 250 }
+    opacity: 0.35
+    pointer_events: none
+    fit: contain
+
+  - id: header_border_bottom
+    type: decorative_line
+    position: { x: 0, y: 50 }
+    size: { width: 720, height: 2 }
+    color: "#8B7355"
+    layer: decorative
+
+notes:
+  - Dual-layer knobs are the signature feature - outer ring controls frequency, inner dial controls gain
+  - All positions in pixels from top-left (0,0)
+  - Parameter IDs must match PluginProcessor APVTS exactly
+  - Botanical overlay is non-interactive (pointer-events: none)
+  - Three-way Q toggles are combo boxes styled as physical switches
+  - Ouaricon Naturalist aesthetic: aged paper, botanical imagery, serif typography
