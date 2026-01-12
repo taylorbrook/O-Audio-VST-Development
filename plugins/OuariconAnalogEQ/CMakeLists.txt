@@ -14,6 +14,7 @@ juce_add_plugin(OuariconAnalogEQ
     PLUGIN_CODE OuAE
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "Ouaricon Analog EQ"
+    NEEDS_WEB_BROWSER TRUE
 )
 
 # Source files
@@ -54,27 +55,24 @@ target_link_libraries(OuariconAnalogEQ
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconAnalogEQ)
 
-# WebView UI Resources (uncommented by gui-agent if WebView UI used)
-# juce_add_binary_data(OuariconAnalogEQ_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-# )
-#
-# target_link_libraries(OuariconAnalogEQ
-#     PRIVATE
-#         OuariconAnalogEQ_UIResources
-# )
+# WebView UI Resources
+juce_add_binary_data(OuariconAnalogEQ_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/images/paper1.jpg
+        Source/ui/public/images/flower_ferdinandibauer00baue_0021.png
+)
+
+target_link_libraries(OuariconAnalogEQ
+    PRIVATE
+        OuariconAnalogEQ_UIResources
+)
 
 # Compile definitions
 target_compile_definitions(OuariconAnalogEQ
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_CURL=0
 )
-
-# WebView support (uncommented by gui-agent if WebView UI used)
-# target_compile_definitions(OuariconAnalogEQ
-#     PUBLIC
-#         JUCE_WEB_BROWSER=1
-#         JUCE_USE_CURL=0
-# )
