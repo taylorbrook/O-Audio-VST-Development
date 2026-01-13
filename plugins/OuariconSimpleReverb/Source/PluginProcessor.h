@@ -10,6 +10,7 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include <juce_dsp/juce_dsp.h>
 
 class OuariconSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
@@ -44,6 +45,10 @@ public:
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // DSP Components (declared BEFORE parameters for initialization order)
+    juce::dsp::ProcessSpec spec;
+    juce::dsp::Reverb reverb;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSimpleReverbAudioProcessor)
 };

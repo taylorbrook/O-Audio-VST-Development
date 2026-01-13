@@ -80,13 +80,30 @@ OuariconSimpleReverbAudioProcessor::~OuariconSimpleReverbAudioProcessor()
 
 void OuariconSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Initialization will be added in Stage 2 (DSP)
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Prepare DSP spec
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+
+    // Prepare reverb with Room preset (Phase 2.1: Core Processing)
+    reverb.prepare(spec);
+    reverb.reset();
+
+    // Set initial reverb parameters (Room type preset)
+    juce::dsp::Reverb::Parameters reverbParams;
+    reverbParams.roomSize = 0.5f;      // Room type base
+    reverbParams.damping = 0.5f;       // Room type base
+    reverbParams.width = 1.0f;         // Full stereo
+    reverbParams.wetLevel = 0.25f;     // Default 25% wet
+    reverbParams.dryLevel = 1.0f;      // Default 100% dry
+    reverbParams.freezeMode = 0.0f;    // Disabled
+    reverb.setParameters(reverbParams);
 }
 
 void OuariconSimpleReverbAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2 (DSP)
+    // Optional: Release resources when plugin not in use
+    // JUCE DSP components handle their own cleanup
 }
 
 void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -94,23 +111,55 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    // Parameter access example (for Stage 2 DSP implementation):
-    // auto* typeParam = parameters.getRawParameterValue("TYPE");
-    // auto* characterParam = parameters.getRawParameterValue("CHARACTER");
-    // auto* wetParam = parameters.getRawParameterValue("WET");
-    // auto* dryParam = parameters.getRawParameterValue("DRY");
-    // auto* decayParam = parameters.getRawParameterValue("DECAY");
-    // auto* sizeParam = parameters.getRawParameterValue("SIZE");
+    // Early return for zero-length buffers
+    if (buffer.getNumSamples() == 0)
+        return;
 
-    // float typeValue = typeParam->load();  // Atomic read (real-time safe)
-    // float characterValue = characterParam->load();
-    // float wetValue = wetParam->load();
-    // float dryValue = dryParam->load();
-    // float decayValue = decayParam->load();
-    // float sizeValue = sizeParam->load();
+    // Clear unused output channels
+    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Pass-through for Stage 1 (DSP implementation happens in Stage 2)
-    // Audio routing is already handled by JUCE
+    // Read parameters (atomic, real-time safe)
+    auto* sizeParam = parameters.getRawParameterValue("SIZE");
+    auto* decayParam = parameters.getRawParameterValue("DECAY");
+    auto* wetParam = parameters.getRawParameterValue("WET");
+    auto* dryParam = parameters.getRawParameterValue("DRY");
+
+    float sizeValue = sizeParam->load();      // 0-100%
+    float decayValue = decayParam->load();    // 0.1-10s
+    float wetValue = wetParam->load();        // 0-100%
+    float dryValue = dryParam->load();        // 0-100%
+
+    // Convert parameter values to DSP ranges
+    // SIZE: 0-100% scales roomSize (0.5-1.5x base value of 0.5)
+    float baseRoomSize = 0.5f;  // Room type preset
+    float finalRoomSize = baseRoomSize * (0.5f + (sizeValue / 100.0f) * 0.5f);
+    finalRoomSize = juce::jlimit(0.0f, 1.0f, finalRoomSize);  // Clamp to valid range
+
+    // DECAY: 0.1-10s maps to damping inverse (longer decay = less damping)
+    float finalDamping = 1.0f - (decayValue / 10.0f) * 0.8f;
+    finalDamping = juce::jlimit(0.0f, 1.0f, finalDamping);
+
+    // WET/DRY: Convert 0-100% to 0.0-1.0
+    float wetGain = wetValue / 100.0f;
+    float dryGain = dryValue / 100.0f;
+
+    // Update reverb parameters
+    juce::dsp::Reverb::Parameters reverbParams;
+    reverbParams.roomSize = finalRoomSize;
+    reverbParams.damping = finalDamping;
+    reverbParams.width = 1.0f;         // Full stereo (Room type)
+    reverbParams.wetLevel = wetGain;   // Apply wet gain directly in reverb
+    reverbParams.dryLevel = dryGain;   // Apply dry gain directly in reverb
+    reverbParams.freezeMode = 0.0f;    // Disabled
+    reverb.setParameters(reverbParams);
+
+    // Create AudioBlock for DSP processing
+    juce::dsp::AudioBlock<float> block(buffer);
+    juce::dsp::ProcessContextReplacing<float> context(block);
+
+    // Process reverb (handles dry/wet mixing internally)
+    reverb.process(context);
 }
 
 juce::AudioProcessorEditor* OuariconSimpleReverbAudioProcessor::createEditor()
