@@ -1,8 +1,8 @@
 # OuariconSimpleReverb Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 0
-- **Version:** 1.0.0 (planned)
+- **Current Status:** 📦 Installed
+- **Version:** 1.0.1
 - **Type:** Audio Effect (Reverb)
 - **Complexity:** 4.2 (Complex)
 
@@ -10,10 +10,12 @@
 
 - **2026-01-13:** Creative brief created - lightweight reverb for instrument chains
 - **2026-01-13 (Stage 0):** Research & Planning complete - Architecture and plan documented (Complexity 4.2, Phase-based implementation)
+- **2026-01-13 (v1.0.0):** Initial release - All 3 stages complete, plugin installed
+- **2026-01-13 (v1.0.1):** Bug fixes - Fixed knob interactivity, reverb type switching, title update
 
 ## Known Issues
 
-None (not yet implemented)
+None
 
 ## Additional Notes
 

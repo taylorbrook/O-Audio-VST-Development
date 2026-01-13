@@ -210,7 +210,7 @@
 
         <div class="content">
             <div class="header">
-                <h1 class="title">Simple Reverb</h1>
+                <h1 class="title">Ouaricon Simple Reverb</h1>
             </div>
 
             <!-- Type Dropdown -->
@@ -279,7 +279,7 @@
             </div>
 
             <div class="footer">
-                <p class="version">Ouaricon Audio | v1.0.0</p>
+                <p class="version">Ouaricon Audio | v1.0.1</p>
             </div>
         </div>
     </div>
@@ -314,16 +314,16 @@
                 const state = Juce.getComboBoxState(paramId);
 
                 // Initialize element with current value
-                element.selectedIndex = state.selectedId;
+                element.selectedIndex = state.getChoiceIndex();
 
                 // Update JUCE when element changes
                 element.addEventListener('change', (e) => {
-                    state.selectedId = parseInt(e.target.value);
+                    state.setChoiceIndex(parseInt(e.target.value));
                 });
 
                 // Update element when JUCE changes (automation, preset load)
-                state.valueChangedEvent.addListener((newId) => {
-                    element.selectedIndex = newId;
+                state.valueChangedEvent.addListener(() => {
+                    element.selectedIndex = state.getChoiceIndex();
                 });
 
                 console.log(`Bound ComboBox: ${paramId}`);
@@ -363,7 +363,7 @@
                 };
 
                 // Initialize with current value
-                updateVisuals(state.normalisedValue);
+                updateVisuals(state.getNormalisedValue());
 
                 // Knob mouse interaction
                 let isDragging = false;
@@ -373,7 +373,8 @@
                 knobElement.addEventListener('mousedown', (e) => {
                     isDragging = true;
                     startY = e.clientY;
-                    startValue = state.normalisedValue;
+                    startValue = state.getNormalisedValue();
+                    state.sliderDragStarted();
                     e.preventDefault();
                 });
 
@@ -385,24 +386,27 @@
                     let newValue = startValue + (deltaY * sensitivity);
                     newValue = Math.max(0, Math.min(1, newValue));
 
-                    state.normalisedValue = newValue;
+                    state.setNormalisedValue(newValue);
                     updateVisuals(newValue);
                 });
 
                 document.addEventListener('mouseup', () => {
+                    if (isDragging) {
+                        state.sliderDragEnded();
+                    }
                     isDragging = false;
                 });
 
                 // Update visuals when JUCE changes (automation, preset load)
-                state.valueChangedEvent.addListener((newValue) => {
-                    updateVisuals(newValue);
+                state.valueChangedEvent.addListener(() => {
+                    updateVisuals(state.getNormalisedValue());
                 });
 
                 // Hidden input change (for debugging)
                 input.addEventListener('input', (e) => {
                     const actualValue = parseFloat(e.target.value);
                     const normValue = (actualValue - minValue) / (maxValue - minValue);
-                    state.normalisedValue = normValue;
+                    state.setNormalisedValue(normValue);
                     updateVisuals(normValue);
                 });
 
