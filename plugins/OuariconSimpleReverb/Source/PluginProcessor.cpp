@@ -120,24 +120,52 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         buffer.clear(i, 0, buffer.getNumSamples());
 
     // Read parameters (atomic, real-time safe)
+    auto* typeParam = parameters.getRawParameterValue("TYPE");
     auto* sizeParam = parameters.getRawParameterValue("SIZE");
     auto* decayParam = parameters.getRawParameterValue("DECAY");
     auto* wetParam = parameters.getRawParameterValue("WET");
     auto* dryParam = parameters.getRawParameterValue("DRY");
 
+    int typeValue = static_cast<int>(typeParam->load());  // 0-5 (Booth, Room, Hall, Spring, Plate, Ambient)
     float sizeValue = sizeParam->load();      // 0-100%
     float decayValue = decayParam->load();    // 0.1-10s
     float wetValue = wetParam->load();        // 0-100%
     float dryValue = dryParam->load();        // 0-100%
 
-    // Convert parameter values to DSP ranges
-    // SIZE: 0-100% scales roomSize (0.5-1.5x base value of 0.5)
-    float baseRoomSize = 0.5f;  // Room type preset
-    float finalRoomSize = baseRoomSize * (0.5f + (sizeValue / 100.0f) * 0.5f);
+    // Define six type presets (architecture.md Phase 2.2)
+    // {baseRoomSize, baseDamping, width}
+    struct TypePreset {
+        float baseRoomSize;
+        float baseDamping;
+        float width;
+    };
+
+    const TypePreset typePresets[6] = {
+        {0.15f, 0.85f, 1.0f},  // 0: Booth - tight, intimate
+        {0.50f, 0.50f, 1.0f},  // 1: Room - natural, versatile
+        {0.85f, 0.20f, 1.0f},  // 2: Hall - large concert hall
+        {0.30f, 0.45f, 0.8f},  // 3: Spring - narrower stereo
+        {0.60f, 0.30f, 1.0f},  // 4: Plate - dense, smooth
+        {0.95f, 0.10f, 1.0f}   // 5: Ambient - washy, ethereal
+    };
+
+    // Clamp type to valid range (safety)
+    typeValue = juce::jlimit(0, 5, typeValue);
+
+    // Get base preset values from TYPE parameter
+    float baseRoomSize = typePresets[typeValue].baseRoomSize;
+    float baseDamping = typePresets[typeValue].baseDamping;
+    float width = typePresets[typeValue].width;
+
+    // Apply SIZE scaling to baseRoomSize (0-100% scales 0.5-1.5x base)
+    float sizeNorm = sizeValue / 100.0f;  // 0.0-1.0
+    float finalRoomSize = baseRoomSize * (0.5f + sizeNorm * 0.5f);
     finalRoomSize = juce::jlimit(0.0f, 1.0f, finalRoomSize);  // Clamp to valid range
 
-    // DECAY: 0.1-10s maps to damping inverse (longer decay = less damping)
-    float finalDamping = 1.0f - (decayValue / 10.0f) * 0.8f;
+    // Apply DECAY to damping (longer decay = less damping)
+    // Formula from architecture.md: damping = 1.0 - (decayValue / 10.0) * 0.8
+    // But we start from baseDamping instead of 1.0 to preserve type character
+    float finalDamping = baseDamping * (1.0f - (decayValue / 10.0f) * 0.8f);
     finalDamping = juce::jlimit(0.0f, 1.0f, finalDamping);
 
     // WET/DRY: Convert 0-100% to 0.0-1.0
@@ -148,10 +176,10 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     juce::dsp::Reverb::Parameters reverbParams;
     reverbParams.roomSize = finalRoomSize;
     reverbParams.damping = finalDamping;
-    reverbParams.width = 1.0f;         // Full stereo (Room type)
-    reverbParams.wetLevel = wetGain;   // Apply wet gain directly in reverb
-    reverbParams.dryLevel = dryGain;   // Apply dry gain directly in reverb
-    reverbParams.freezeMode = 0.0f;    // Disabled
+    reverbParams.width = width;           // Type-specific width (0.8 for Spring, 1.0 for others)
+    reverbParams.wetLevel = wetGain;      // Apply wet gain directly in reverb
+    reverbParams.dryLevel = dryGain;      // Apply dry gain directly in reverb
+    reverbParams.freezeMode = 0.0f;       // Disabled
     reverb.setParameters(reverbParams);
 
     // Create AudioBlock for DSP processing
