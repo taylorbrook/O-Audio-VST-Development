@@ -93,6 +93,10 @@
       background: rgba(139, 115, 85, 0.5);
     }
 
+    .preset-name-container {
+      position: relative;
+    }
+
     .preset-name {
       min-width: 70px;
       max-width: 100px;
@@ -107,6 +111,65 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+    }
+
+    .preset-name:hover {
+      background: rgba(255, 248, 220, 0.8);
+    }
+
+    /* Preset Dropdown Menu */
+    .preset-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      min-width: 120px;
+      max-height: 200px;
+      overflow-y: auto;
+      background: #F5E6D3;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      box-shadow: 2px 2px 6px rgba(0,0,0,0.2);
+      z-index: 100;
+      margin-top: 2px;
+    }
+
+    .preset-dropdown.open {
+      display: block;
+    }
+
+    .preset-dropdown-item {
+      padding: 4px 8px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 10px;
+      color: #3C2F2F;
+      cursor: pointer;
+      white-space: nowrap;
+      border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+    }
+
+    .preset-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .preset-dropdown-item:hover {
+      background: rgba(139, 168, 112, 0.3);
+    }
+
+    .preset-dropdown-item.active {
+      background: rgba(139, 168, 112, 0.5);
+      font-weight: bold;
+    }
+
+    .preset-dropdown-header {
+      padding: 3px 8px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      color: #5C4033;
+      font-weight: bold;
+      background: rgba(139, 115, 85, 0.15);
+      border-bottom: 1px solid rgba(139, 115, 85, 0.3);
     }
 
     .preset-action-btn {
@@ -353,7 +416,10 @@
       <div class="title">Ouaricon Compressor</div>
       <div class="preset-bar">
         <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
-        <span class="preset-name" id="preset-name">Default</span>
+        <div class="preset-name-container">
+          <span class="preset-name" id="preset-name" title="Click to browse presets">Default</span>
+          <div class="preset-dropdown" id="preset-dropdown"></div>
+        </div>
         <button class="preset-nav-btn" id="preset-next" title="Next preset">&gt;</button>
         <button class="preset-action-btn" id="preset-load" title="Load preset">Load</button>
         <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
@@ -864,8 +930,11 @@
       setupToggle();
 
       // Initialize Preset Manager
+      const presetNameEl = document.getElementById('preset-name');
+      const presetDropdown = document.getElementById('preset-dropdown');
+
       const presetManager = new PresetManager({
-        displayElement: document.getElementById('preset-name'),
+        displayElement: presetNameEl,
         prevButton: document.getElementById('preset-prev'),
         nextButton: document.getElementById('preset-next'),
         saveButton: document.getElementById('preset-save'),
@@ -873,16 +942,91 @@
         getNativeFunction: getNativeFunction,
         onPresetChanged: (name) => {
           console.log('[PresetManager] Loaded:', name);
+          updateDropdownActive(name);
+        },
+        onPresetListUpdated: (list) => {
+          buildDropdownMenu(list);
         }
       });
       presetManager.initialize();
+
+      // Build dropdown menu from preset list
+      function buildDropdownMenu(presetList) {
+        presetDropdown.innerHTML = '';
+
+        if (presetList.length === 0) {
+          const emptyItem = document.createElement('div');
+          emptyItem.className = 'preset-dropdown-item';
+          emptyItem.textContent = 'No presets';
+          emptyItem.style.fontStyle = 'italic';
+          emptyItem.style.color = '#888';
+          presetDropdown.appendChild(emptyItem);
+          return;
+        }
+
+        // Add header
+        const header = document.createElement('div');
+        header.className = 'preset-dropdown-header';
+        header.textContent = 'Presets';
+        presetDropdown.appendChild(header);
+
+        // Add preset items
+        presetList.forEach(name => {
+          const item = document.createElement('div');
+          item.className = 'preset-dropdown-item';
+          item.textContent = name;
+          item.dataset.preset = name;
+
+          if (name === presetManager.getCurrentPreset()) {
+            item.classList.add('active');
+          }
+
+          item.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            await presetManager.loadPreset(name);
+            closeDropdown();
+          });
+
+          presetDropdown.appendChild(item);
+        });
+      }
+
+      // Update active state in dropdown
+      function updateDropdownActive(currentName) {
+        const items = presetDropdown.querySelectorAll('.preset-dropdown-item');
+        items.forEach(item => {
+          item.classList.toggle('active', item.dataset.preset === currentName);
+        });
+      }
+
+      // Toggle dropdown
+      function toggleDropdown() {
+        presetDropdown.classList.toggle('open');
+      }
+
+      function closeDropdown() {
+        presetDropdown.classList.remove('open');
+      }
+
+      // Click on preset name to toggle dropdown
+      presetNameEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleDropdown();
+      });
+
+      // Close dropdown when clicking outside
+      document.addEventListener('click', (e) => {
+        if (!presetDropdown.contains(e.target) && e.target !== presetNameEl) {
+          closeDropdown();
+        }
+      });
 
       // Start visualizations
       updateTransferCurve();
       drawEnvelopeDisplay();
       startMeterAnimation();
 
-      console.log('OuariconComp v1.1.0 UI loaded - preset manager enabled');
+      console.log('OuariconComp v1.1.1 UI loaded - preset dropdown enabled');
     });
   </script>
 </body>

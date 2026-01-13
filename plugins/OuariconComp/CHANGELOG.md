@@ -2,6 +2,14 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.1.1] - 2026-01-12
+
+### Added
+
+- **Preset dropdown menu**: Click on preset name to show dropdown list of all available presets
+- Factory presets appear in dropdown with visual highlight for current preset
+- Dropdown closes automatically when clicking outside or selecting a preset
+
 ## [1.1.0] - 2026-01-12
 
 ### Added
