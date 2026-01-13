@@ -49,6 +49,11 @@ private:
     // DSP Components (declared BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
     juce::dsp::Reverb reverb;
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> characterFilter;
+
+    // Character filter mode tracking (for state reset on transitions)
+    enum class CharacterMode { Warm, Neutral, Bright };
+    CharacterMode previousMode = CharacterMode::Neutral;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSimpleReverbAudioProcessor)
 };

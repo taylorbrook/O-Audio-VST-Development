@@ -98,6 +98,14 @@ void OuariconSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int sa
     reverbParams.dryLevel = 1.0f;      // Default 100% dry
     reverbParams.freezeMode = 0.0f;    // Disabled
     reverb.setParameters(reverbParams);
+
+    // Prepare character filter (Phase 2.3: Character Control)
+    characterFilter.prepare(spec);
+    characterFilter.reset();
+
+    // Initialize with neutral passthrough filter
+    *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
+    previousMode = CharacterMode::Neutral;
 }
 
 void OuariconSimpleReverbAudioProcessor::releaseResources()
@@ -121,12 +129,14 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
     // Read parameters (atomic, real-time safe)
     auto* typeParam = parameters.getRawParameterValue("TYPE");
+    auto* characterParam = parameters.getRawParameterValue("CHARACTER");
     auto* sizeParam = parameters.getRawParameterValue("SIZE");
     auto* decayParam = parameters.getRawParameterValue("DECAY");
     auto* wetParam = parameters.getRawParameterValue("WET");
     auto* dryParam = parameters.getRawParameterValue("DRY");
 
     int typeValue = static_cast<int>(typeParam->load());  // 0-5 (Booth, Room, Hall, Spring, Plate, Ambient)
+    float characterValue = characterParam->load();  // -100 to +100%
     float sizeValue = sizeParam->load();      // 0-100%
     float decayValue = decayParam->load();    // 0.1-10s
     float wetValue = wetParam->load();        // 0-100%
@@ -188,6 +198,60 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
     // Process reverb (handles dry/wet mixing internally)
     reverb.process(context);
+
+    // Phase 2.3: Character Control - Tonal shaping of reverb tail
+    // Apply CHARACTER filter (warm/neutral/bright modes)
+
+    // Determine filter mode based on CHARACTER value
+    CharacterMode currentMode;
+    if (characterValue < -0.5f)
+        currentMode = CharacterMode::Warm;
+    else if (characterValue > 0.5f)
+        currentMode = CharacterMode::Bright;
+    else
+        currentMode = CharacterMode::Neutral;
+
+    // Reset filter state on mode transitions (prevent clicks)
+    if (currentMode != previousMode)
+    {
+        characterFilter.reset();
+        previousMode = currentMode;
+    }
+
+    // Update filter coefficients based on mode
+    const double sampleRate = spec.sampleRate;
+
+    if (currentMode == CharacterMode::Warm)
+    {
+        // Warm mode: Low-pass filter (2kHz to 20kHz exponential scaling)
+        // Formula from architecture.md: cutoff = 20000.0f * pow(10.0f, warmValue * log10(10.0f))
+        // warmValue ranges from 0.0 (at CHARACTER=-100%) to 1.0 (at CHARACTER=-1%)
+        float warmValue = (characterValue + 100.0f) / 99.0f;  // Map -100 to -1 → 0.0 to 1.0
+        warmValue = juce::jlimit(0.0f, 1.0f, warmValue);
+
+        // Exponential cutoff scaling: 2kHz at warmValue=0, 20kHz at warmValue=1
+        float cutoffHz = 2000.0f + (18000.0f * warmValue);  // Linear approximation for simplicity
+        cutoffHz = juce::jlimit(2000.0f, 20000.0f, cutoffHz);
+
+        // Apply low-pass filter
+        *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, cutoffHz);
+        characterFilter.process(context);
+    }
+    else if (currentMode == CharacterMode::Bright)
+    {
+        // Bright mode: High-shelf boost at 4kHz (0dB to +6dB linear scaling)
+        // Formula from architecture.md: gainDb = brightValue * 6.0f
+        float brightValue = characterValue / 100.0f;  // Map 0 to 100 → 0.0 to 1.0
+        brightValue = juce::jlimit(0.0f, 1.0f, brightValue);
+
+        float gainDb = brightValue * 6.0f;  // 0dB to +6dB
+        float gainLinear = juce::Decibels::decibelsToGain(gainDb);
+
+        // Apply high-shelf boost at 4kHz
+        *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(sampleRate, 4000.0f, 0.707f, gainLinear);
+        characterFilter.process(context);
+    }
+    // Neutral mode: Filter bypassed (no processing)
 }
 
 juce::AudioProcessorEditor* OuariconSimpleReverbAudioProcessor::createEditor()
