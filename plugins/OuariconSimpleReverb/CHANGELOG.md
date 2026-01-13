@@ -6,9 +6,10 @@ All notable changes to OuariconSimpleReverb will be documented in this file.
 
 ### Fixed
 
-- **Knobs not interactable:** WebView JavaScript was using non-existent property `state.normalisedValue` instead of correct methods `getNormalisedValue()` and `setNormalisedValue()`. Knobs now respond to mouse drag interactions.
-- **Reverb type switching had no effect:** WebView JavaScript was using non-existent property `state.selectedId` instead of correct methods `getChoiceIndex()` and `setChoiceIndex()`. Switching between Booth/Room/Hall/Spring/Plate/Ambient now audibly changes the reverb character.
-- **Added proper drag lifecycle:** Added `sliderDragStarted()` and `sliderDragEnded()` calls for proper DAW automation recording.
+- **Missing check_native_interop.js:** Added required JUCE WebView interop file that was missing from resource provider. This was the root cause of all WebView parameter binding failures.
+- **JavaScript rewrite:** Rewrote parameter binding to match working DriveVerb pattern - removed DOMContentLoaded wrapper, use lastY tracking instead of startValue pattern.
+- **Knobs not interactable:** Fixed by adding check_native_interop.js and correcting JS API usage.
+- **Reverb type switching had no effect:** Fixed by proper ComboBox state binding with getChoiceIndex/setChoiceIndex methods.
 
 ### Changed
 

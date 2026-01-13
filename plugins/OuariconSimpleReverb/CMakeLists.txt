@@ -53,6 +53,7 @@ juce_add_binary_data(OuariconSimpleReverb_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/flora.png
 )

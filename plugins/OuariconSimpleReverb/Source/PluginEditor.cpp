@@ -103,7 +103,15 @@ OuariconSimpleReverbAudioProcessorEditor::getResource(const juce::String& url)
     {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::index_js, BinaryData::index_jsSize),
-            juce::String("application/javascript")
+            juce::String("text/javascript")
+        };
+    }
+
+    if (url == "/js/juce/check_native_interop.js")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("text/javascript")
         };
     }
 

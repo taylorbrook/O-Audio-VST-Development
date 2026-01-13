@@ -285,136 +285,255 @@
     </div>
 
     <script type="module">
-        import * as Juce from './js/juce/index.js';
+        // ====================================================================
+        // JUCE FRONTEND LIBRARY IMPORT
+        // ====================================================================
+        import { getSliderState, getComboBoxState } from './js/juce/index.js';
 
-        // Wait for DOM to load
-        document.addEventListener('DOMContentLoaded', () => {
-            console.log('Simple Reverb UI loaded');
+        // Verify JUCE backend is connected
+        if (!window.__JUCE__) {
+            console.error("JUCE backend not available");
+            throw new Error("JUCE backend not connected");
+        }
+        console.log("JUCE backend connected");
 
-            // Bind TYPE choice parameter (ComboBox)
-            bindComboBox('TYPE');
+        // ====================================================================
+        // HELPER FUNCTIONS
+        // ====================================================================
 
-            // Bind float parameters (Sliders)
-            bindKnob('CHARACTER', -100, 100, v => `${v >= 0 ? '+' : ''}${v.toFixed(0)}%`);
-            bindKnob('WET', 0, 100, v => `${v.toFixed(0)}%`);
-            bindKnob('DRY', 0, 100, v => `${v.toFixed(0)}%`);
-            bindKnob('DECAY', 0.1, 10, v => `${v.toFixed(1)}s`);
-            bindKnob('SIZE', 0, 100, v => `${v.toFixed(0)}%`);
+        function updateKnobVisual(knobElement, normValue) {
+            const angle = -135 + (normValue * 270);
+            knobElement.style.transform = `rotate(${angle}deg)`;
+        }
+
+        // ====================================================================
+        // TYPE PARAMETER (ComboBox)
+        // ====================================================================
+
+        const typeState = getComboBoxState("TYPE");
+        const typeElement = document.getElementById("TYPE");
+
+        // Initialize from current state
+        typeElement.selectedIndex = typeState.getChoiceIndex();
+
+        // Update JUCE when dropdown changes
+        typeElement.addEventListener('change', (e) => {
+            const index = parseInt(e.target.value);
+            typeState.setChoiceIndex(index);
         });
 
-        // Bind choice parameter (dropdown)
-        function bindComboBox(paramId) {
-            const element = document.getElementById(paramId);
-            if (!element) {
-                console.error(`Element not found: ${paramId}`);
-                return;
-            }
+        // Update dropdown when JUCE changes (automation, preset load)
+        typeState.valueChangedEvent.addListener(() => {
+            typeElement.selectedIndex = typeState.getChoiceIndex();
+        });
 
-            try {
-                const state = Juce.getComboBoxState(paramId);
+        console.log("Bound ComboBox: TYPE");
 
-                // Initialize element with current value
-                element.selectedIndex = state.getChoiceIndex();
+        // ====================================================================
+        // CHARACTER PARAMETER (-100% to +100%)
+        // ====================================================================
 
-                // Update JUCE when element changes
-                element.addEventListener('change', (e) => {
-                    state.setChoiceIndex(parseInt(e.target.value));
-                });
+        const characterState = getSliderState("CHARACTER");
+        const characterKnob = document.getElementById("CHARACTER-knob");
+        const characterValue = document.getElementById("CHARACTER-value");
 
-                // Update element when JUCE changes (automation, preset load)
-                state.valueChangedEvent.addListener(() => {
-                    element.selectedIndex = state.getChoiceIndex();
-                });
+        let isDraggingCharacter = false;
+        let lastY_character = 0;
 
-                console.log(`Bound ComboBox: ${paramId}`);
-            } catch (error) {
-                console.error(`Error binding ComboBox ${paramId}:`, error);
-            }
+        function updateCharacterDisplay() {
+            const norm = characterState.getNormalisedValue();
+            const actual = -100 + norm * 200;  // -100 to +100
+            characterValue.textContent = `${actual >= 0 ? '+' : ''}${actual.toFixed(0)}%`;
+            updateKnobVisual(characterKnob, norm);
         }
 
-        // Bind float parameter (knob)
-        function bindKnob(paramId, minValue, maxValue, formatFn) {
-            const input = document.getElementById(paramId);
-            const knobElement = document.getElementById(`${paramId}-knob`);
-            const valueDisplay = document.getElementById(`${paramId}-value`);
+        characterKnob.addEventListener("mousedown", (e) => {
+            isDraggingCharacter = true;
+            lastY_character = e.clientY;
+            e.preventDefault();
+        });
 
-            if (!input || !knobElement || !valueDisplay) {
-                console.error(`Elements not found for knob: ${paramId}`);
-                return;
-            }
+        document.addEventListener("mousemove", (e) => {
+            if (!isDraggingCharacter) return;
+            const deltaY = lastY_character - e.clientY;
+            let currentValue = characterState.getNormalisedValue();
+            let newValue = currentValue + (deltaY * 0.005);
+            newValue = Math.max(0, Math.min(1, newValue));
+            characterState.setNormalisedValue(newValue);
+            updateCharacterDisplay();
+            lastY_character = e.clientY;
+        });
 
-            try {
-                const state = Juce.getSliderState(paramId);
+        document.addEventListener("mouseup", () => { isDraggingCharacter = false; });
 
-                // Initialize display
-                const updateVisuals = (normValue) => {
-                    // Denormalize value (0-1 → minValue-maxValue)
-                    const actualValue = minValue + normValue * (maxValue - minValue);
+        characterState.valueChangedEvent.addListener(updateCharacterDisplay);
+        updateCharacterDisplay();
 
-                    // Update value display
-                    valueDisplay.textContent = formatFn(actualValue);
+        // ====================================================================
+        // WET PARAMETER (0% to 100%)
+        // ====================================================================
 
-                    // Update knob rotation (270 degrees range, -135 to +135)
-                    const angle = -135 + (normValue * 270);
-                    knobElement.style.transform = `rotate(${angle}deg)`;
+        const wetState = getSliderState("WET");
+        const wetKnob = document.getElementById("WET-knob");
+        const wetValue = document.getElementById("WET-value");
 
-                    // Update hidden input for tracking
-                    input.value = actualValue;
-                };
+        let isDraggingWet = false;
+        let lastY_wet = 0;
 
-                // Initialize with current value
-                updateVisuals(state.getNormalisedValue());
-
-                // Knob mouse interaction
-                let isDragging = false;
-                let startY = 0;
-                let startValue = 0;
-
-                knobElement.addEventListener('mousedown', (e) => {
-                    isDragging = true;
-                    startY = e.clientY;
-                    startValue = state.getNormalisedValue();
-                    state.sliderDragStarted();
-                    e.preventDefault();
-                });
-
-                document.addEventListener('mousemove', (e) => {
-                    if (!isDragging) return;
-
-                    const deltaY = startY - e.clientY;
-                    const sensitivity = 0.005;
-                    let newValue = startValue + (deltaY * sensitivity);
-                    newValue = Math.max(0, Math.min(1, newValue));
-
-                    state.setNormalisedValue(newValue);
-                    updateVisuals(newValue);
-                });
-
-                document.addEventListener('mouseup', () => {
-                    if (isDragging) {
-                        state.sliderDragEnded();
-                    }
-                    isDragging = false;
-                });
-
-                // Update visuals when JUCE changes (automation, preset load)
-                state.valueChangedEvent.addListener(() => {
-                    updateVisuals(state.getNormalisedValue());
-                });
-
-                // Hidden input change (for debugging)
-                input.addEventListener('input', (e) => {
-                    const actualValue = parseFloat(e.target.value);
-                    const normValue = (actualValue - minValue) / (maxValue - minValue);
-                    state.setNormalisedValue(normValue);
-                    updateVisuals(normValue);
-                });
-
-                console.log(`Bound Knob: ${paramId}`);
-            } catch (error) {
-                console.error(`Error binding knob ${paramId}:`, error);
-            }
+        function updateWetDisplay() {
+            const norm = wetState.getNormalisedValue();
+            const actual = norm * 100;
+            wetValue.textContent = `${actual.toFixed(0)}%`;
+            updateKnobVisual(wetKnob, norm);
         }
+
+        wetKnob.addEventListener("mousedown", (e) => {
+            isDraggingWet = true;
+            lastY_wet = e.clientY;
+            e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isDraggingWet) return;
+            const deltaY = lastY_wet - e.clientY;
+            let currentValue = wetState.getNormalisedValue();
+            let newValue = currentValue + (deltaY * 0.005);
+            newValue = Math.max(0, Math.min(1, newValue));
+            wetState.setNormalisedValue(newValue);
+            updateWetDisplay();
+            lastY_wet = e.clientY;
+        });
+
+        document.addEventListener("mouseup", () => { isDraggingWet = false; });
+
+        wetState.valueChangedEvent.addListener(updateWetDisplay);
+        updateWetDisplay();
+
+        // ====================================================================
+        // DRY PARAMETER (0% to 100%)
+        // ====================================================================
+
+        const dryState = getSliderState("DRY");
+        const dryKnob = document.getElementById("DRY-knob");
+        const dryValue = document.getElementById("DRY-value");
+
+        let isDraggingDry = false;
+        let lastY_dry = 0;
+
+        function updateDryDisplay() {
+            const norm = dryState.getNormalisedValue();
+            const actual = norm * 100;
+            dryValue.textContent = `${actual.toFixed(0)}%`;
+            updateKnobVisual(dryKnob, norm);
+        }
+
+        dryKnob.addEventListener("mousedown", (e) => {
+            isDraggingDry = true;
+            lastY_dry = e.clientY;
+            e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isDraggingDry) return;
+            const deltaY = lastY_dry - e.clientY;
+            let currentValue = dryState.getNormalisedValue();
+            let newValue = currentValue + (deltaY * 0.005);
+            newValue = Math.max(0, Math.min(1, newValue));
+            dryState.setNormalisedValue(newValue);
+            updateDryDisplay();
+            lastY_dry = e.clientY;
+        });
+
+        document.addEventListener("mouseup", () => { isDraggingDry = false; });
+
+        dryState.valueChangedEvent.addListener(updateDryDisplay);
+        updateDryDisplay();
+
+        // ====================================================================
+        // DECAY PARAMETER (0.1s to 10s with skew)
+        // ====================================================================
+
+        const decayState = getSliderState("DECAY");
+        const decayKnob = document.getElementById("DECAY-knob");
+        const decayValue = document.getElementById("DECAY-value");
+
+        let isDraggingDecay = false;
+        let lastY_decay = 0;
+
+        function updateDecayDisplay() {
+            const norm = decayState.getNormalisedValue();
+            // Decay has skew 0.5, range 0.1-10.0
+            const actual = 0.1 + Math.pow(norm, 1/0.5) * (10.0 - 0.1);
+            decayValue.textContent = `${actual.toFixed(1)}s`;
+            updateKnobVisual(decayKnob, norm);
+        }
+
+        decayKnob.addEventListener("mousedown", (e) => {
+            isDraggingDecay = true;
+            lastY_decay = e.clientY;
+            e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isDraggingDecay) return;
+            const deltaY = lastY_decay - e.clientY;
+            let currentValue = decayState.getNormalisedValue();
+            let newValue = currentValue + (deltaY * 0.005);
+            newValue = Math.max(0, Math.min(1, newValue));
+            decayState.setNormalisedValue(newValue);
+            updateDecayDisplay();
+            lastY_decay = e.clientY;
+        });
+
+        document.addEventListener("mouseup", () => { isDraggingDecay = false; });
+
+        decayState.valueChangedEvent.addListener(updateDecayDisplay);
+        updateDecayDisplay();
+
+        // ====================================================================
+        // SIZE PARAMETER (0% to 100%)
+        // ====================================================================
+
+        const sizeState = getSliderState("SIZE");
+        const sizeKnob = document.getElementById("SIZE-knob");
+        const sizeValue = document.getElementById("SIZE-value");
+
+        let isDraggingSize = false;
+        let lastY_size = 0;
+
+        function updateSizeDisplay() {
+            const norm = sizeState.getNormalisedValue();
+            const actual = norm * 100;
+            sizeValue.textContent = `${actual.toFixed(0)}%`;
+            updateKnobVisual(sizeKnob, norm);
+        }
+
+        sizeKnob.addEventListener("mousedown", (e) => {
+            isDraggingSize = true;
+            lastY_size = e.clientY;
+            e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isDraggingSize) return;
+            const deltaY = lastY_size - e.clientY;
+            let currentValue = sizeState.getNormalisedValue();
+            let newValue = currentValue + (deltaY * 0.005);
+            newValue = Math.max(0, Math.min(1, newValue));
+            sizeState.setNormalisedValue(newValue);
+            updateSizeDisplay();
+            lastY_size = e.clientY;
+        });
+
+        document.addEventListener("mouseup", () => { isDraggingSize = false; });
+
+        sizeState.valueChangedEvent.addListener(updateSizeDisplay);
+        updateSizeDisplay();
+
+        // ====================================================================
+        // INITIALIZATION COMPLETE
+        // ====================================================================
+        console.log("Ouaricon Simple Reverb UI initialized");
     </script>
 </body>
 </html>
