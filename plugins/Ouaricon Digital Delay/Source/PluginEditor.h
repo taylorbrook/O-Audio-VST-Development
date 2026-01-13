@@ -22,6 +22,7 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void timerCallback() override;
+    void parentHierarchyChanged() override;
 
 private:
     OuariconDigitalDelayAudioProcessor& processorRef;
@@ -57,6 +58,12 @@ private:
 
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
+
+    // File chooser for preset dialogs (kept alive for async operations)
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
+    // Navigation flag (prevents re-navigation on window reopen)
+    bool hasNavigated = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconDigitalDelayAudioProcessorEditor)
 };

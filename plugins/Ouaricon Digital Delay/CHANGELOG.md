@@ -5,6 +5,30 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - 2026-01-12
+
+### Added
+- Preset Manager integration with save/load functionality
+  - Save presets to `~/Library/Ouaricon Digital Delay/Presets/User/`
+  - Load presets from file or browse available presets
+  - Navigate presets with previous/next buttons
+  - Click preset name to see dropdown of all presets
+- 12 factory presets:
+  - Short Slap, Long Ambient, Stereo Wide, Subtle Doubler
+  - Tape Echo, Eighth Note Sync, Dotted Eighth, Triplet Feel
+  - Swell Pad, Lo-Fi Drift, Clean Repeat, Ping Pong Style
+
+### Changed
+- Header layout restructured: title moved to left, preset bar added on right
+- Preset bar positioned 50px from right edge to avoid output meter label overlap
+- WebView navigation now uses `parentHierarchyChanged` pattern for JUCE 8 stability
+- State serialization now includes preset manager (preserves current preset name in DAW sessions)
+
+### Technical Notes
+- Added `OuariconPresetManager` C++ integration
+- 9 native functions registered for preset operations
+- Preset Manager JavaScript module imported from module system
+
 ## [1.1.3] - 2026-01-12
 
 ### Fixed

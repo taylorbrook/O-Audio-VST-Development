@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.3
+- **Version:** 1.2.0
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -15,6 +15,7 @@
 - **2026-01-12 (v1.1.1):** Refinements - butterfly +30px, smoother time dial stepping, increased meter sensitivity
 - **2026-01-12 (v1.1.2):** Time dial sync rewritten following Tremolo pattern - proper snapping to rhythmic divisions
 - **2026-01-12 (v1.1.3):** Fixed time dial unresponsive in sync mode - corrected JUCE WebComboBoxState API method names
+- **2026-01-12 (v1.2.0):** Preset Manager integrated - save/load presets, header layout updated (title left, preset bar right)
 
 ## Known Issues
 
@@ -136,5 +137,27 @@ Input → Dry/Wet Mixer (capture) → Delay Time Calculation
 - Architecture spec: `.planning/architecture.md`
 - Implementation plan: `.planning/plan.md`
 - Continuation state: `.continue-here.md`
+
+## Preset Management
+
+Presets are stored in:
+- **User presets:** `~/Library/Ouaricon Digital Delay/Presets/User/`
+- **Factory presets:** `~/Library/Ouaricon Digital Delay/Presets/Factory/`
+
+### Factory Presets (12)
+| Preset | Description |
+|--------|-------------|
+| Short Slap | Quick 75ms slap-back delay |
+| Long Ambient | 800ms with high feedback and mod |
+| Stereo Wide | Medium delay with max spread |
+| Subtle Doubler | Very short delay for thickening |
+| Tape Echo | Classic tape-style with warmth |
+| Eighth Note Sync | Tempo-synced 1/8 notes |
+| Dotted Eighth | Classic U2-style dotted 8th |
+| Triplet Feel | Tempo-synced triplets |
+| Swell Pad | Long, wet, high feedback for pads |
+| Lo-Fi Drift | Heavy modulation for lo-fi vibe |
+| Clean Repeat | Clean repeats without modulation |
+| Ping Pong Style | Max spread for wide stereo
 
 **Last Updated:** 2026-01-12

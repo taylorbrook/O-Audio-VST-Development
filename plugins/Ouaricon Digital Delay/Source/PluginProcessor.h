@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "OuariconPresetManager.h"
 
 class OuariconDigitalDelayAudioProcessor : public juce::AudioProcessor
 {
@@ -41,6 +42,9 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState parameters;
+
+    // Preset management
+    OuariconPresetManager presetManager;
 
     // RMS level getters for output meter (returns 0.0-1.0)
     float getRmsLevelLeft() const { return rmsLevelLeft.getCurrentValue(); }

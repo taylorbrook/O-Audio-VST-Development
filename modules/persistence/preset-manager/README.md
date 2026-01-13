@@ -197,13 +197,70 @@ presetManager.initializeFactoryPresets(factoryPresets);
 
 Presets are stored in:
 ```
-~/Library/Application Support/{Plugin Name}/Presets/
+~/Library/{Plugin Name}/Presets/
 ├── Factory/
 │   ├── Default.json
 │   └── Bright.json
 └── User/
     ├── My Sound.json
     └── Lead Patch.json
+```
+
+## Recommended CSS for Preset Dropdown
+
+When implementing a preset dropdown menu, use these styles to ensure it appears above other UI elements:
+
+```css
+/* Preset Bar Container */
+.preset-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    position: relative; /* Required for dropdown positioning */
+}
+
+/* Preset Dropdown Menu */
+.preset-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: rgba(255, 248, 220, 0.98);
+    border: 2px solid #5C4033;
+    border-radius: 4px;
+    box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 9999; /* CRITICAL: Must be above all controls */
+}
+
+.preset-dropdown.show {
+    display: block;
+}
+
+/* CRITICAL: Elevate the PARENT CONTAINER (header, not just preset-bar) when dropdown is open.
+   This escapes the stacking context so dropdown appears above other UI elements. */
+.header:has(.preset-dropdown.show),
+.preset-bar-container:has(.preset-dropdown.show) {
+    z-index: 9999;
+}
+
+.preset-dropdown-item {
+    padding: 6px 10px;
+    cursor: pointer;
+    transition: background 0.15s;
+}
+
+.preset-dropdown-item:hover {
+    background: rgba(139, 168, 112, 0.3);
+}
+
+.preset-dropdown-item.active {
+    background: rgba(107, 142, 35, 0.3);
+    font-weight: bold;
+}
 ```
 
 ## Version History

@@ -64,6 +64,7 @@ juce_add_binary_data(OuariconDigitalDelay_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper1.jpg
         "Source/ui/public/img/butterfly2_Black and white.png"
+        Source/ui/public/modules/preset-manager.js
 )
 
 target_link_libraries(OuariconDigitalDelay

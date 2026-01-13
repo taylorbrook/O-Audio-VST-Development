@@ -77,21 +77,160 @@
     }
 
     /* ============================================
-       PLUGIN TITLE
+       HEADER ROW (Title + Preset Bar)
        ============================================ */
-    .title {
+    .header {
       position: absolute;
-      top: 12px;
-      left: 0;
-      width: 700px;
-      height: 22px;
-      text-align: center;
+      top: 8px;
+      left: 16px;
+      right: 66px; /* 50px extra margin to avoid output meter label */
+      height: 26px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 2;
+    }
+
+    .title {
       font-size: 16px;
       letter-spacing: 2.5px;
       color: #3C2F2F;
       font-weight: normal;
-      z-index: 2;
-      pointer-events: none;
+      white-space: nowrap;
+    }
+
+    /* ============================================
+       PRESET BAR
+       ============================================ */
+    .preset-bar {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: rgba(139, 168, 112, 0.25);
+      border: 2px solid #5C4033;
+      border-radius: 4px;
+      padding: 3px 6px;
+      box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
+      position: relative;
+    }
+
+    .preset-nav-btn {
+      width: 20px;
+      height: 20px;
+      background: rgba(107, 142, 35, 0.4);
+      border: 1px solid #3C5C1A;
+      border-radius: 3px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 12px;
+      font-weight: bold;
+      color: #2C3E10;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+    }
+
+    .preset-nav-btn:hover {
+      background: rgba(107, 142, 35, 0.6);
+      transform: scale(1.05);
+    }
+
+    .preset-name {
+      min-width: 80px;
+      max-width: 120px;
+      text-align: center;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 11px;
+      color: #3C2F2F;
+      padding: 2px 6px;
+      background: rgba(255, 248, 220, 0.5);
+      border-radius: 2px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preset-name:hover {
+      background: rgba(255, 248, 220, 0.8);
+    }
+
+    .preset-action-btn {
+      padding: 2px 6px;
+      background: rgba(107, 142, 35, 0.3);
+      border: 1px solid #3C5C1A;
+      border-radius: 3px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: #2C3E10;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .preset-action-btn:hover {
+      background: rgba(107, 142, 35, 0.5);
+    }
+
+    /* Preset Dropdown Menu */
+    .preset-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: 0;
+      right: 0;
+      margin-top: 4px;
+      background: rgba(255, 248, 220, 0.98);
+      border: 2px solid #5C4033;
+      border-radius: 4px;
+      box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+      max-height: 180px;
+      overflow-y: auto;
+      z-index: 9999; /* Must be above all controls */
+    }
+
+    .preset-dropdown.show {
+      display: block;
+    }
+
+    /* Elevate entire header when dropdown is open (escapes stacking context) */
+    .header:has(.preset-dropdown.show) {
+      z-index: 9999;
+    }
+
+    .preset-dropdown-header {
+      padding: 3px 6px;
+      font-size: 8px;
+      font-weight: bold;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      color: #8B7355;
+      background: rgba(139, 115, 85, 0.1);
+      border-bottom: 1px solid rgba(92, 64, 51, 0.2);
+    }
+
+    .preset-dropdown-item {
+      padding: 4px 8px;
+      font-size: 10px;
+      color: #3C2F2F;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(92, 64, 51, 0.1);
+      transition: background 0.15s;
+    }
+
+    .preset-dropdown-item:hover {
+      background: rgba(139, 168, 112, 0.3);
+    }
+
+    .preset-dropdown-item.active {
+      background: rgba(107, 142, 35, 0.3);
+      font-weight: bold;
+    }
+
+    .preset-dropdown-item.factory {
+      font-style: italic;
     }
 
     /* ============================================
@@ -327,7 +466,17 @@
     <div class="butterfly-overlay"></div>
 
     <!-- LAYER 2+: UI Elements -->
-    <div class="title">OUARICON DIGITAL DELAY</div>
+    <div class="header">
+      <div class="title">OUARICON DIGITAL DELAY</div>
+      <div class="preset-bar">
+        <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
+        <span class="preset-name" id="presetName" title="Click to see all presets">Default</span>
+        <button class="preset-nav-btn" id="nextPreset" title="Next preset">&gt;</button>
+        <button class="preset-action-btn" id="loadPreset" title="Load preset from file">Load</button>
+        <button class="preset-action-btn" id="savePreset" title="Save current settings">Save</button>
+        <div class="preset-dropdown" id="presetDropdown"></div>
+      </div>
+    </div>
 
     <div class="controls-row">
       <!-- SYNC TOGGLE -->
@@ -414,7 +563,8 @@
 
   <script type="module" src="js/juce/index.js"></script>
   <script type="module">
-    import { getSliderState, getToggleState, getComboBoxState } from './js/juce/index.js';
+    import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
+    import { PresetManager } from './modules/preset-manager.js';
 
     // ============================================
     // MUSICAL DIVISIONS TABLE (matches C++ subdivisionFactors)
@@ -745,6 +895,88 @@
       setupKnob('mod', 0.0, 100.0, 0.0, v => `${Math.round(v)}%`);
       setupKnob('wet', 0.0, 100.0, 30.0, v => `${Math.round(v)}%`);
       setupKnob('dry', 0.0, 100.0, 100.0, v => `${Math.round(v)}%`);
+
+      // ============================================
+      // PRESET MANAGER INITIALIZATION
+      // ============================================
+      const presetNameDisplay = document.getElementById('presetName');
+      const presetDropdown = document.getElementById('presetDropdown');
+
+      const presetManager = new PresetManager({
+        displayElement: presetNameDisplay,
+        prevButton: document.getElementById('prevPreset'),
+        nextButton: document.getElementById('nextPreset'),
+        saveButton: document.getElementById('savePreset'),
+        loadButton: document.getElementById('loadPreset'),
+        getNativeFunction: getNativeFunction,
+        onPresetChanged: (name) => {
+          console.log('Preset loaded:', name);
+          hidePresetDropdown();
+        },
+        onPresetListUpdated: (list) => {
+          console.log('Preset list updated:', list.length, 'presets');
+        }
+      });
+      presetManager.initialize();
+
+      // Preset dropdown functionality
+      function showPresetDropdown() {
+        const presets = presetManager.getPresetList();
+        presetDropdown.innerHTML = '';
+
+        if (presets.length === 0) {
+          const empty = document.createElement('div');
+          empty.className = 'preset-dropdown-item';
+          empty.textContent = 'No presets available';
+          empty.style.fontStyle = 'italic';
+          empty.style.color = '#888';
+          presetDropdown.appendChild(empty);
+        } else {
+          // Add Factory section header
+          const factoryHeader = document.createElement('div');
+          factoryHeader.className = 'preset-dropdown-header';
+          factoryHeader.textContent = 'Presets';
+          presetDropdown.appendChild(factoryHeader);
+
+          // Add each preset
+          presets.forEach(presetName => {
+            const item = document.createElement('div');
+            item.className = 'preset-dropdown-item';
+            if (presetName === presetManager.getCurrentPreset()) {
+              item.classList.add('active');
+            }
+            item.textContent = presetName;
+            item.addEventListener('click', (e) => {
+              e.stopPropagation();
+              presetManager.loadPreset(presetName);
+            });
+            presetDropdown.appendChild(item);
+          });
+        }
+
+        presetDropdown.classList.add('show');
+      }
+
+      function hidePresetDropdown() {
+        presetDropdown.classList.remove('show');
+      }
+
+      // Click on preset name to show dropdown
+      presetNameDisplay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (presetDropdown.classList.contains('show')) {
+          hidePresetDropdown();
+        } else {
+          showPresetDropdown();
+        }
+      });
+
+      // Click outside to close dropdown
+      document.addEventListener('click', (e) => {
+        if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
+          hidePresetDropdown();
+        }
+      });
     });
   </script>
 </body>

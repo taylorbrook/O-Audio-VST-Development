@@ -93,6 +93,7 @@ OuariconDigitalDelayAudioProcessor::OuariconDigitalDelayAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "Ouaricon Digital Delay")
 {
 }
 
@@ -350,17 +351,19 @@ juce::AudioProcessorEditor* OuariconDigitalDelayAudioProcessor::createEditor()
 
 void OuariconDigitalDelayAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    // Use preset manager for state serialization (includes APVTS + current preset name)
+    auto xml = presetManager.getStateAsXml();
+    if (xml != nullptr)
+        copyXmlToBinary(*xml, destData);
 }
 
 void OuariconDigitalDelayAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    // Use preset manager for state restoration
+    if (xmlState != nullptr)
+        presetManager.setStateFromXml(xmlState.get());
 }
 
 // Factory function

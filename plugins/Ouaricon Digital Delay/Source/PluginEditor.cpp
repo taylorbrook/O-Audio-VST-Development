@@ -36,6 +36,100 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
             .withOptionsFrom(*dryRelay)
             .withOptionsFrom(*syncRelay)
             .withOptionsFrom(*divisionRelay)
+            // Preset Manager native functions
+            .withNativeFunction("savePreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.savePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Preset",
+                    processorRef.presetManager.getUserPresetsDirectory(),
+                    "*.json"
+                );
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+                        auto file = results.getFirst();
+                        auto presetName = file.getFileNameWithoutExtension();
+                        bool success = processorRef.presetManager.savePreset(presetName);
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? presetName : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
+            .withNativeFunction("loadPreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.loadPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Preset",
+                    processorRef.presetManager.getUserPresetsDirectory(),
+                    "*.json"
+                );
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+                        auto file = results.getFirst();
+                        bool success = processorRef.presetManager.loadPresetFromFile(file);
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
+            .withNativeFunction("getPresetList", [this](auto&, auto complete) {
+                auto list = processorRef.presetManager.getPresetList();
+                juce::Array<juce::var> arr;
+                for (const auto& name : list)
+                    arr.add(name);
+                complete(juce::var(arr));
+            })
+            .withNativeFunction("getCurrentPreset", [this](auto&, auto complete) {
+                complete(processorRef.presetManager.getCurrentPresetName());
+            })
+            .withNativeFunction("selectNextPreset", [this](auto&, auto complete) {
+                complete(processorRef.presetManager.getNextPreset());
+            })
+            .withNativeFunction("selectPreviousPreset", [this](auto&, auto complete) {
+                complete(processorRef.presetManager.getPreviousPreset());
+            })
+            .withNativeFunction("deletePreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.deletePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("isFactoryPreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.isFactoryPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
     ))
     // 3. Create attachments LAST (depend on relays AND webView)
     , timeAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
@@ -62,8 +156,8 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
     // Add WebView to component hierarchy
     addAndMakeVisible(*webView);
 
-    // Load UI from resource provider
-    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    // Note: Navigation happens in parentHierarchyChanged (JUCE 8 requirement)
+    // This prevents crashes during plugin scanning when no window context exists
 
     // Start timer for RMS meter updates (30 Hz)
     startTimerHz(30);
@@ -90,6 +184,17 @@ void OuariconDigitalDelayAudioProcessorEditor::resized()
 {
     // Fill entire editor area with WebView
     webView->setBounds(getLocalBounds());
+}
+
+void OuariconDigitalDelayAudioProcessorEditor::parentHierarchyChanged()
+{
+    // Navigate WebView only after editor is attached to a window (JUCE 8 requirement)
+    // This prevents crashes during plugin scanning when no window context exists
+    if (isShowing() && webView != nullptr && !hasNavigated)
+    {
+        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+        hasNavigated = true;
+    }
 }
 
 void OuariconDigitalDelayAudioProcessorEditor::timerCallback()
@@ -163,6 +268,14 @@ OuariconDigitalDelayAudioProcessorEditor::getResource(const juce::String& url)
             makeVector(BinaryData::butterfly2_Black_and_white_png,
                       BinaryData::butterfly2_Black_and_white_pngSize),
             juce::String("image/png")
+        };
+    }
+
+    // Preset Manager module
+    if (url == "/modules/preset-manager.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
+            juce::String("application/javascript")
         };
     }
 
