@@ -5,6 +5,15 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.3] - 2026-01-12
+
+### Fixed
+- Time dial now responds to dragging when Sync is enabled
+  - Root cause: JavaScript was calling non-existent JUCE WebComboBoxState methods
+  - `getSelectedId()` → `getChoiceIndex()` (JUCE 8 API)
+  - `setSelectedId()` → `setChoiceIndex()` (JUCE 8 API)
+  - All 5 occurrences corrected in index.html
+
 ## [1.1.2] - 2026-01-12
 
 ### Changed

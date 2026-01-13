@@ -607,7 +607,7 @@
       let syncNormalized = 0;
       if (divisionState) {
         try {
-          syncNormalized = divisionState.getSelectedId() / 11;
+          syncNormalized = divisionState.getChoiceIndex() / 11;
         } catch (e) {
           syncNormalized = 0;
         }
@@ -621,7 +621,7 @@
           // SYNC MODE: Show division name, snap knob to division positions
           let divIndex = 0;
           try {
-            divIndex = divisionState.getSelectedId();
+            divIndex = divisionState.getChoiceIndex();
           } catch (e) {
             divIndex = 0;
           }
@@ -674,7 +674,7 @@
         if (isSync && divisionState) {
           // Initialize syncNormalized from current division
           try {
-            syncNormalized = divisionState.getSelectedId() / 11;
+            syncNormalized = divisionState.getChoiceIndex() / 11;
           } catch (err) {
             syncNormalized = 0;
           }
@@ -699,9 +699,9 @@
           // Snap to nearest division (0-11)
           const newDiv = Math.round(syncNormalized * 11);
           try {
-            const currentDiv = divisionState.getSelectedId();
+            const currentDiv = divisionState.getChoiceIndex();
             if (newDiv !== currentDiv) {
-              divisionState.setSelectedId(newDiv);
+              divisionState.setChoiceIndex(newDiv);
             }
           } catch (err) {
             // Division state not available
