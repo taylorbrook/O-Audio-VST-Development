@@ -25,11 +25,20 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
 
+    // Called when editor is attached to window (for WebView navigation)
+    void parentHierarchyChanged() override;
+
 private:
     // Timer callback for metering updates
     void timerCallback() override;
 
     OuariconCompAudioProcessor& processorRef;
+
+    // Navigation guard (FIX: member variable, not static)
+    bool hasNavigated = false;
+
+    // File chooser for preset dialogs (must persist during async operation)
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     //==========================================================================
     // ⚠️ CRITICAL MEMBER DECLARATION ORDER ⚠️

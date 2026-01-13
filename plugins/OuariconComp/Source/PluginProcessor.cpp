@@ -84,6 +84,7 @@ OuariconCompAudioProcessor::OuariconCompAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "OuariconComp")
 {
 }
 
@@ -221,17 +222,18 @@ juce::AudioProcessorEditor* OuariconCompAudioProcessor::createEditor()
 
 void OuariconCompAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    // Use preset manager for complete state (includes current preset name)
+    auto xml = presetManager.getStateAsXml();
+    if (xml != nullptr)
+        copyXmlToBinary(*xml, destData);
 }
 
 void OuariconCompAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (xmlState != nullptr)
+        presetManager.setStateFromXml(xmlState.get());
 }
 
 // DSP Helper Methods

@@ -39,17 +39,94 @@
       position: relative;
     }
 
-    /* Title - CENTERED */
-    .title {
+    /* Header row - Title + Preset Bar */
+    .header {
       position: absolute;
       top: 0;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 10px;
+      right: 80px; /* Leave space for output meter label */
+      height: 22px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      z-index: 10;
+    }
+
+    .title {
       font-size: 16px;
       font-weight: bold;
       letter-spacing: 2px;
       color: #3C2F2F;
+      white-space: nowrap;
+    }
+
+    /* Preset Bar */
+    .preset-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      background: rgba(139, 168, 112, 0.25);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      padding: 2px 4px;
+      box-shadow: 1px 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .preset-nav-btn {
+      width: 18px;
+      height: 16px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 11px;
+      font-weight: bold;
+      color: #3C2F2F;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+
+    .preset-nav-btn:hover {
+      background: rgba(139, 115, 85, 0.5);
+    }
+
+    .preset-name {
+      min-width: 70px;
+      max-width: 100px;
       text-align: center;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 10px;
+      color: #3C2F2F;
+      padding: 1px 4px;
+      background: rgba(255, 248, 220, 0.5);
+      border-radius: 2px;
+      cursor: pointer;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preset-action-btn {
+      width: 32px;
+      height: 16px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 9px;
+      color: #3C2F2F;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+
+    .preset-action-btn:hover {
+      background: rgba(139, 115, 85, 0.5);
     }
 
     /* Control group container - FLEXBOX FOR ALIGNMENT */
@@ -271,8 +348,17 @@
 </head>
 <body>
   <div class="container">
-    <!-- Title - CENTERED -->
-    <div class="title">Ouaricon Compressor</div>
+    <!-- Header Row - Title + Preset Bar -->
+    <div class="header">
+      <div class="title">Ouaricon Compressor</div>
+      <div class="preset-bar">
+        <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
+        <span class="preset-name" id="preset-name">Default</span>
+        <button class="preset-nav-btn" id="preset-next" title="Next preset">&gt;</button>
+        <button class="preset-action-btn" id="preset-load" title="Load preset">Load</button>
+        <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
+      </div>
+    </div>
 
     <!-- Top Row Controls -->
     <!-- Threshold -->
@@ -404,7 +490,8 @@
   <!-- JUCE WebView Integration -->
   <script type="module" src="./js/juce/index.js"></script>
   <script type="module">
-    import { getSliderState, getToggleState } from './js/juce/index.js';
+    import { getSliderState, getToggleState, getNativeFunction } from './js/juce/index.js';
+    import { PresetManager } from './modules/preset-manager.js';
 
     // Disable context menu (REQUIRED)
     document.addEventListener("contextmenu", (e) => {
@@ -776,12 +863,26 @@
       setupKnob('output-knob', 'output_gain');
       setupToggle();
 
+      // Initialize Preset Manager
+      const presetManager = new PresetManager({
+        displayElement: document.getElementById('preset-name'),
+        prevButton: document.getElementById('preset-prev'),
+        nextButton: document.getElementById('preset-next'),
+        saveButton: document.getElementById('preset-save'),
+        loadButton: document.getElementById('preset-load'),
+        getNativeFunction: getNativeFunction,
+        onPresetChanged: (name) => {
+          console.log('[PresetManager] Loaded:', name);
+        }
+      });
+      presetManager.initialize();
+
       // Start visualizations
       updateTransferCurve();
       drawEnvelopeDisplay();
       startMeterAnimation();
 
-      console.log('OuariconComp v1.0.1 UI loaded - real metering enabled');
+      console.log('OuariconComp v1.1.0 UI loaded - preset manager enabled');
     });
   </script>
 </body>

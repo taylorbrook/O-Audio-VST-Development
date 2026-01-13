@@ -57,6 +57,7 @@ juce_add_binary_data(OuariconComp_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/paper-bg.jpg
         Source/ui/public/shell.png
+        Source/ui/public/modules/preset-manager.js
 )
 
 # Compile definitions

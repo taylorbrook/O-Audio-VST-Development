@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "OuariconPresetManager.h"
 
 class OuariconCompAudioProcessor : public juce::AudioProcessor
 {
@@ -41,6 +42,9 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState parameters;
+
+    // Preset management
+    OuariconPresetManager presetManager;
 
 private:
     // Parameter layout creation

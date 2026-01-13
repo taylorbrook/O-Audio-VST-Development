@@ -33,7 +33,7 @@ OuariconCompAudioProcessorEditor::OuariconCompAudioProcessorEditor(OuariconCompA
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("output_gain");
     autoGainRelay = std::make_unique<juce::WebToggleButtonRelay>("auto_gain");
 
-    // 2️⃣ Create WebView with relay options (depends on relays)
+    // 2️⃣ Create WebView with relay options and preset native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
             .withNativeIntegrationEnabled()
@@ -45,8 +45,111 @@ OuariconCompAudioProcessorEditor::OuariconCompAudioProcessorEditor(OuariconCompA
             .withOptionsFrom(*kneeRelay)
             .withOptionsFrom(*outputGainRelay)
             .withOptionsFrom(*autoGainRelay)
+            // Preset Manager native functions
+            .withNativeFunction("savePreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.savePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Preset",
+                    processorRef.presetManager.getUserPresetsDirectory(),
+                    "*.json"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+
+                        auto file = results.getFirst();
+                        auto presetName = file.getFileNameWithoutExtension();
+                        bool success = processorRef.presetManager.savePreset(presetName);
+
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? presetName : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
+            .withNativeFunction("loadPreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.loadPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("getPresetList", [this](auto&, auto complete) {
+                auto list = processorRef.presetManager.getPresetList();
+                juce::Array<juce::var> arr;
+                for (const auto& name : list)
+                    arr.add(name);
+                complete(juce::var(arr));
+            })
+            .withNativeFunction("getCurrentPreset", [this](auto&, auto complete) {
+                complete(processorRef.presetManager.getCurrentPresetName());
+            })
+            .withNativeFunction("selectNextPreset", [this](auto&, auto complete) {
+                auto next = processorRef.presetManager.getNextPreset();
+                complete(next);
+            })
+            .withNativeFunction("selectPreviousPreset", [this](auto&, auto complete) {
+                auto prev = processorRef.presetManager.getPreviousPreset();
+                complete(prev);
+            })
+            .withNativeFunction("deletePreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.deletePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("isFactoryPreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.isFactoryPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Preset",
+                    processorRef.presetManager.getUserPresetsDirectory(),
+                    "*.json"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+
+                        auto file = results.getFirst();
+                        bool success = processorRef.presetManager.loadPresetFromFile(file);
+
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
     );
 
+    // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);
 
     // 3️⃣ Create attachments LAST (depend on relays and webView)
@@ -67,10 +170,8 @@ OuariconCompAudioProcessorEditor::OuariconCompAudioProcessorEditor(OuariconCompA
     autoGainAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.parameters.getParameter("auto_gain"), *autoGainRelay, nullptr);
 
-    // Load UI from resource provider
-    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
-
     // Set window size from mockup dimensions (620x360px)
+    // Navigation happens in parentHierarchyChanged (prevents scanner crashes)
     setSize(620, 360);
 
     // Start meter update timer (30fps = ~33ms)
@@ -99,6 +200,18 @@ void OuariconCompAudioProcessorEditor::resized()
 {
     // WebView fills entire editor window
     webView->setBounds(getLocalBounds());
+}
+
+void OuariconCompAudioProcessorEditor::parentHierarchyChanged()
+{
+    // Navigate WebView only after editor is attached to a window (JUCE 8 requirement)
+    // This prevents crashes during plugin scanning when no window context exists
+    // FIX: Use member variable instead of static to allow GUI reload on reopen
+    if (isShowing() && webView != nullptr && !hasNavigated)
+    {
+        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+        hasNavigated = true;
+    }
 }
 
 //==============================================================================
@@ -170,6 +283,14 @@ OuariconCompAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::shell_png, BinaryData::shell_pngSize),
             juce::String("image/png")
+        };
+    }
+
+    // Preset Manager module
+    if (url == "/modules/preset-manager.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
+            juce::String("text/javascript")
         };
     }
 
