@@ -1,0 +1,252 @@
+# Ouaricon Module Registry
+# Master index of all reusable components for JUCE plugin development
+#
+# Modules are larger-scale than templates - they contain working, tested code
+# that can be imported into plugins via CMake integration.
+#
+# Relationship to Templates:
+# - Templates: Documentation/patterns (copy-paste with adaptation)
+# - Modules: Working code (CMake import with configuration)
+
+version: 1.0.0
+last_updated: 2026-01-12
+schema_version: 1.0.0
+
+# Module categories
+categories:
+  - name: core
+    description: Foundation modules required by most plugins (relay management, resource serving)
+
+  - name: persistence
+    description: State management (presets, session save/restore)
+
+  - name: metering
+    description: Audio level visualization (VU meters, peak indicators)
+
+  - name: tuning
+    description: Pitch and tuning systems (Scala, MTS-ESP)
+
+  - name: modulation
+    description: Modulation sources (LFO, envelope followers)
+
+  - name: synthesis
+    description: Sound generation (oscillators, modal resonators)
+
+  - name: ui
+    description: UI components (keyboards, visualizations, controls)
+
+# Module entries
+modules:
+  # ============================================================================
+  # CORE MODULES
+  # ============================================================================
+
+  - name: webview-relay-manager
+    path: core/webview-relay-manager
+    version: 1.0.0
+    description: |
+      Manages WebSliderRelay and WebToggleButtonRelay lifecycle with correct
+      destruction order. Prevents 90% of release build crashes caused by
+      attachments calling evaluateJavascript() on destroyed WebView.
+    category: core
+    provides:
+      - cpp-header: WebViewRelayManager.h
+    tags: [webview, relay, attachment, juce8, crash-prevention]
+    reuse_score: 10
+    used_by: []
+
+  - name: resource-provider
+    path: core/resource-provider
+    version: 1.0.0
+    description: |
+      Generic resource provider for WebView binary data serving. Maps flattened
+      BinaryData names back to URL paths with correct MIME types.
+    category: core
+    provides:
+      - cpp-header: ResourceProvider.h
+    tags: [webview, resources, binarydata, mime]
+    reuse_score: 9
+    used_by: []
+
+  # ============================================================================
+  # PERSISTENCE MODULES
+  # ============================================================================
+
+  - name: preset-manager
+    path: persistence/preset-manager
+    version: 1.0.0
+    description: |
+      JSON-based preset persistence with factory/user preset separation.
+      Supports APVTS parameter serialization, navigation (next/previous),
+      and DAW session save/restore via XML.
+    category: persistence
+    provides:
+      - cpp-class: OuariconPresetManager
+      - js-module: preset-manager.js
+      - native-functions:
+        - savePreset
+        - loadPreset
+        - getPresetList
+        - deletePreset
+        - selectNextPreset
+        - selectPreviousPreset
+    config:
+      plugin_name:
+        type: string
+        required: true
+        description: Plugin name for directory creation (e.g., "Ouaricon Marimba")
+      preset_extension:
+        type: string
+        default: ".json"
+        description: File extension for preset files
+      include_custom_state:
+        type: boolean
+        default: false
+        description: Whether to call custom save/load hooks
+    dependencies: []
+    tags: [presets, persistence, json, factory, user]
+    reuse_score: 9
+    used_by:
+      - plugin: OuariconMarimba
+        version: 1.0.0
+
+  # ============================================================================
+  # METERING MODULES
+  # ============================================================================
+
+  - name: vu-meter
+    path: metering/vu-meter
+    version: 1.0.0
+    description: |
+      Thread-safe VU metering with atomic float polling (C++) and smooth
+      animated display (JavaScript). Configurable attack/release ballistics,
+      dB range mapping, and optional peak hold.
+    category: metering
+    provides:
+      - cpp-header: VUMeterBridge.h
+      - js-module: vu-meter.js
+    config:
+      poll_rate_hz:
+        type: integer
+        default: 30
+        description: Timer polling rate in Hz
+      attack_speed:
+        type: float
+        default: 0.4
+        description: Attack interpolation speed (0-1)
+      release_speed:
+        type: float
+        default: 0.15
+        description: Release interpolation speed (0-1)
+      min_db:
+        type: float
+        default: -60.0
+        description: Minimum dB level
+      max_db:
+        type: float
+        default: 3.0
+        description: Maximum dB level
+    dependencies: []
+    tags: [vu, meter, levels, animation, atomic]
+    reuse_score: 9
+    used_by:
+      - plugin: OuariconComp
+        version: 1.0.0
+      - plugin: OuariconAnalogEQ
+        version: 1.0.0
+
+  # ============================================================================
+  # TUNING MODULES
+  # ============================================================================
+
+  - name: scala-tuning-engine
+    path: tuning/scala-tuning-engine
+    version: 1.0.0
+    description: |
+      Complete microtonal tuning system supporting 12-TET, custom scales via
+      Scala (.scl/.kbm) files, and MTS-ESP integration (stubbed). Includes
+      thread-safe atomic frequency table for real-time audio, interval editing
+      UI, pitch circle visualization, and tonic transposition.
+    category: tuning
+    provides:
+      - cpp-class: OuariconTuningEngine
+      - js-module: tuning-panel.js
+      - js-module: pitch-circle.js
+      - native-functions:
+        - loadScalaFile
+        - loadKBMFile
+        - saveScalaFile
+        - saveKBMFile
+        - setTuningIntervals
+        - getTuningIntervals
+        - setTonicNote
+    config:
+      default_mode:
+        type: string
+        default: "12tet"
+        description: Default tuning mode on startup
+      reference_pitch_default:
+        type: float
+        default: 440.0
+        description: Default A4 reference pitch (Hz)
+    dependencies: []
+    tags: [tuning, scala, microtuning, mts-esp, frequency, pitch]
+    reuse_score: 8
+    used_by:
+      - plugin: OuariconMarimba
+        version: 1.0.0
+
+  # ============================================================================
+  # UI MODULES
+  # ============================================================================
+
+  - name: playable-keyboard
+    path: ui/playable-keyboard
+    version: 1.0.0
+    description: |
+      Interactive piano keyboard for WebView-based plugins. Supports mouse
+      and touch input, sends MIDI notes via native function, highlights
+      active keys, and integrates with pitch circle visualization.
+    category: ui
+    provides:
+      - js-module: playable-keyboard.js
+      - native-functions:
+        - sendMidiNote
+    config:
+      octaves:
+        type: integer
+        default: 1
+        description: Number of octaves to display (1-5)
+      start_note:
+        type: integer
+        default: 60
+        description: MIDI note number for first key (60 = C4)
+      velocity:
+        type: float
+        default: 0.8
+        description: Default velocity for mouse/touch input
+    dependencies: []
+    tags: [keyboard, midi, piano, touch, interactive]
+    reuse_score: 8
+    used_by:
+      - plugin: OuariconMarimba
+        version: 1.0.0
+
+# ============================================================================
+# HOW TO USE THIS REGISTRY
+# ============================================================================
+#
+# 1. Find modules by category:
+#    yq '.modules[] | select(.category == "persistence")' registry.yaml
+#
+# 2. Find modules by tag:
+#    yq '.modules[] | select(.tags | contains(["webview"]))' registry.yaml
+#
+# 3. Check module version:
+#    yq '.modules[] | select(.name == "preset-manager") | .version' registry.yaml
+#
+# 4. Add module to plugin:
+#    See modules/cmake/OuariconModules.cmake for CMake integration
+#
+# 5. Check which plugins use a module:
+#    yq '.modules[] | select(.name == "vu-meter") | .used_by' registry.yaml

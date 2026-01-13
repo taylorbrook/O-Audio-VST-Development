@@ -1,0 +1,105 @@
+# scala-tuning-engine module
+# Microtonal tuning system with Scala file support
+
+name: scala-tuning-engine
+version: 1.0.0
+description: |
+  Complete microtonal tuning system supporting 12-TET, custom scales via Scala
+  (.scl/.kbm) files, and MTS-ESP integration (stubbed). Includes thread-safe
+  atomic frequency table for real-time audio, interval editing UI, pitch circle
+  visualization, and tonic transposition.
+
+category: tuning
+author: Ouaricon Audio
+
+# What this module provides
+provides:
+  cpp-class: OuariconTuningEngine
+  js-modules:
+    - tuning-panel.js
+    - pitch-circle.js
+  native-functions:
+    - loadScalaFile
+    - loadKBMFile
+    - saveScalaFile
+    - saveKBMFile
+    - setTuningIntervals
+    - getTuningIntervals
+    - setTonicNote
+
+# Configuration schema
+config:
+  default_mode:
+    type: string
+    default: "12tet"
+    enum: ["12tet", "scala", "mtsesp"]
+    description: Default tuning mode on startup
+
+  reference_pitch_min:
+    type: float
+    default: 400.0
+    description: Minimum A4 reference pitch (Hz)
+
+  reference_pitch_max:
+    type: float
+    default: 480.0
+    description: Maximum A4 reference pitch (Hz)
+
+  reference_pitch_default:
+    type: float
+    default: 440.0
+    description: Default A4 reference pitch (Hz)
+
+  show_pitch_circle:
+    type: boolean
+    default: true
+    description: Show circular pitch visualization
+
+  allow_interval_editing:
+    type: boolean
+    default: true
+    description: Allow direct editing of interval values in Custom mode
+
+# Dependencies
+dependencies: []
+
+# JUCE requirements
+requirements:
+  juce_modules:
+    - juce_core
+  cpp_standard: 20
+
+# Source files
+sources:
+  cpp:
+    - OuariconTuningEngine.h
+    - OuariconTuningEngine.cpp
+  js:
+    - tuning-panel.js
+    - pitch-circle.js
+
+# APVTS parameters required
+parameters:
+  - id: TUNING_MODE
+    type: choice
+    choices: ["12-TET", "Custom", "MTS-ESP"]
+    default: 0
+
+  - id: REFERENCE_PITCH
+    type: float
+    range: [400.0, 480.0]
+    default: 440.0
+
+# Tracking
+used_by:
+  - plugin: OuariconMarimba
+    version: 1.0.0
+
+changelog:
+  - version: 1.0.0
+    date: 2026-01-12
+    changes:
+      - Initial extraction from OuariconMarimba
+      - Genericized for multi-plugin use
+      - Added modular JavaScript components
+      - Pitch circle visualization as separate component

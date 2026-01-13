@@ -1,0 +1,70 @@
+# playable-keyboard module
+# Interactive MIDI keyboard for WebView plugins
+
+name: playable-keyboard
+version: 1.0.0
+description: |
+  Interactive piano keyboard for WebView-based plugins. Supports mouse and
+  touch input, sends MIDI notes via native function, highlights active keys,
+  and integrates with pitch circle visualization.
+
+category: ui
+author: Ouaricon Audio
+
+# What this module provides
+provides:
+  js-module: playable-keyboard.js
+  css-styles: keyboard-styles.css
+  native-functions:
+    - sendMidiNote
+
+# Configuration schema
+config:
+  octaves:
+    type: integer
+    default: 1
+    min: 1
+    max: 5
+    description: Number of octaves to display
+
+  start_note:
+    type: integer
+    default: 60
+    description: MIDI note number for first key (60 = C4)
+
+  show_labels:
+    type: boolean
+    default: true
+    description: Show note names on white keys
+
+  velocity:
+    type: float
+    default: 0.8
+    description: Default velocity for mouse/touch input
+
+  highlight_color:
+    type: string
+    default: "#8BC34A"
+    description: Color for active/playing keys
+
+# Dependencies
+dependencies: []
+
+# No C++ component - JavaScript only
+sources:
+  js:
+    - playable-keyboard.js
+
+# Tracking
+used_by:
+  - plugin: OuariconMarimba
+    version: 1.0.0
+
+changelog:
+  - version: 1.0.0
+    date: 2026-01-12
+    changes:
+      - Initial extraction from OuariconMarimba
+      - Configurable octave count and start note
+      - Touch support for mobile/tablet
+      - Integration with pitch circle for note highlighting

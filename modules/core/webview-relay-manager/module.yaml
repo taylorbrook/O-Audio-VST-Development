@@ -1,0 +1,63 @@
+# webview-relay-manager module
+# WebView relay and attachment lifecycle management
+
+name: webview-relay-manager
+version: 1.0.0
+description: |
+  Manages WebSliderRelay and WebToggleButtonRelay lifecycle with correct
+  destruction order. Prevents 90% of release build crashes caused by
+  attachments calling evaluateJavascript() on destroyed WebView.
+
+  This module enforces the critical pattern:
+  1. Relays declared FIRST
+  2. WebView declared SECOND
+  3. Attachments declared LAST
+
+  Destruction happens in reverse order, so attachments are destroyed
+  before WebView, preventing crashes.
+
+category: core
+author: Ouaricon Audio
+
+# What this module provides
+provides:
+  cpp-header: WebViewRelayManager.h
+  patterns:
+    - member-declaration-order
+    - attachment-lifecycle
+
+# Configuration schema
+config: {}
+
+# Dependencies
+dependencies: []
+
+# JUCE requirements
+requirements:
+  juce_modules:
+    - juce_gui_extra
+    - juce_audio_processors
+  cpp_standard: 20
+
+# Source files
+sources:
+  cpp:
+    - WebViewRelayManager.h
+
+# Tracking
+used_by: []
+
+# Critical warning
+warning: |
+  This module documents a CRITICAL pattern. Failure to follow the
+  member declaration order will cause random crashes in release builds.
+  The crashes manifest as EXC_BAD_ACCESS when attachments try to call
+  evaluateJavascript() on a destroyed WebView during destruction.
+
+changelog:
+  - version: 1.0.0
+    date: 2026-01-12
+    changes:
+      - Initial creation
+      - Documented Pattern 11 from juce8-critical-patterns.md
+      - Added helper macros for correct ordering

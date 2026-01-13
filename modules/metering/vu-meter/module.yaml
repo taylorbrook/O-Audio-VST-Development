@@ -1,0 +1,88 @@
+# vu-meter module
+# Thread-safe VU metering for Ouaricon plugins
+
+name: vu-meter
+version: 1.0.0
+description: |
+  Thread-safe VU metering with atomic float polling (C++) and smooth
+  animated display (JavaScript). Configurable attack/release ballistics,
+  dB range mapping, and multiple display styles (LED, needle, bar).
+
+category: metering
+author: Ouaricon Audio
+
+# What this module provides
+provides:
+  cpp-header: VUMeterBridge.h
+  js-module: vu-meter.js
+  display-styles:
+    - led-bar
+    - smooth-bar
+    - needle
+
+# Configuration schema
+config:
+  poll_rate_hz:
+    type: integer
+    default: 30
+    description: Timer polling rate in Hz (recommended 30 for performance)
+
+  attack_speed:
+    type: float
+    default: 0.4
+    description: Attack interpolation speed (0-1, higher = faster response)
+
+  release_speed:
+    type: float
+    default: 0.15
+    description: Release interpolation speed (0-1, higher = faster decay)
+
+  min_db:
+    type: float
+    default: -60.0
+    description: Minimum dB level (silence floor)
+
+  max_db:
+    type: float
+    default: 3.0
+    description: Maximum dB level (headroom)
+
+  peak_hold_ms:
+    type: integer
+    default: 1000
+    description: Peak hold time in milliseconds (0 to disable)
+
+# Dependencies
+dependencies: []
+
+# JUCE requirements
+requirements:
+  juce_modules:
+    - juce_core
+    - juce_audio_basics
+  cpp_standard: 20
+
+# Source files
+sources:
+  cpp:
+    - VUMeterBridge.h
+  js:
+    - vu-meter.js
+
+# Tracking
+used_by:
+  - plugin: OuariconComp
+    version: 1.0.0
+  - plugin: OuariconAnalogEQ
+    version: 1.0.0
+  - plugin: OuariconMarimba
+    version: 1.0.0
+
+changelog:
+  - version: 1.0.0
+    date: 2026-01-12
+    changes:
+      - Initial extraction from OuariconComp
+      - Added LED bar, smooth bar, and needle display styles
+      - Configurable attack/release ballistics
+      - Optional peak hold
