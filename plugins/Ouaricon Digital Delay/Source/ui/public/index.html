@@ -590,7 +590,6 @@
     // ============================================
     function setupTimeKnob() {
       const knob = document.getElementById('time-knob');
-      const knobBody = knob.querySelector('.knob-body');
       const valueDisplay = document.getElementById('time-value');
       const timeState = getSliderState('time');
       const divisionState = getComboBoxState('division');
@@ -600,11 +599,19 @@
         return;
       }
 
-      let isDragging = false;
+      let rotation = -135;
       let lastY = 0;
+      let isDragging = false;
 
       // Track a virtual normalized position for sync mode (0-1 maps to divisions 0-11)
-      let syncNormalized = divisionState ? divisionState.getSelectedId() / 11 : 0;
+      let syncNormalized = 0;
+      if (divisionState) {
+        try {
+          syncNormalized = divisionState.getSelectedId() / 11;
+        } catch (e) {
+          syncNormalized = 0;
+        }
+      }
 
       // Update visual display and knob rotation
       function updateVisual() {
@@ -612,7 +619,12 @@
 
         if (isSync && divisionState) {
           // SYNC MODE: Show division name, snap knob to division positions
-          const divIndex = divisionState.getSelectedId();
+          let divIndex = 0;
+          try {
+            divIndex = divisionState.getSelectedId();
+          } catch (e) {
+            divIndex = 0;
+          }
           const validIndex = Math.max(0, Math.min(11, divIndex));
 
           // Display the division name
@@ -620,16 +632,16 @@
 
           // Snap knob rotation to division position
           const snappedNorm = validIndex / 11;
-          const angle = -135 + (snappedNorm * 270);
-          knobBody.style.transform = `rotate(${angle}deg)`;
+          rotation = -135 + (snappedNorm * 270);
+          knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
 
           // Keep sync normalized in sync with actual division
           syncNormalized = snappedNorm;
         } else {
           // FREE MODE: Show ms value, smooth knob rotation
           const normalized = timeState.getNormalisedValue();
-          const angle = -135 + (normalized * 270);
-          knobBody.style.transform = `rotate(${angle}deg)`;
+          rotation = -135 + (normalized * 270);
+          knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
 
           const value = 1.0 + (normalized * (2000.0 - 1.0));
           valueDisplay.textContent = `${Math.round(value)} ms`;
@@ -640,9 +652,13 @@
       updateTimeDisplay = updateVisual;
 
       // Listen for parameter changes from C++
-      timeState.valueChangedEvent.addListener(updateVisual);
+      timeState.valueChangedEvent.addListener(() => {
+        updateVisual();
+      });
       if (divisionState) {
-        divisionState.valueChangedEvent.addListener(updateVisual);
+        divisionState.valueChangedEvent.addListener(() => {
+          updateVisual();
+        });
       }
 
       // Initial visual update
@@ -657,16 +673,17 @@
         const isSync = syncState && syncState.getValue();
         if (isSync && divisionState) {
           // Initialize syncNormalized from current division
-          syncNormalized = divisionState.getSelectedId() / 11;
-        } else {
-          // Signal drag start to JUCE for undo/redo
-          timeState.sliderDragStarted();
+          try {
+            syncNormalized = divisionState.getSelectedId() / 11;
+          } catch (err) {
+            syncNormalized = 0;
+          }
         }
 
         e.preventDefault();
       });
 
-      // MOUSE MOVE: Handle drag (Pattern #16 from Tremolo: relative frame-delta)
+      // MOUSE MOVE: Handle drag
       document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
 
@@ -675,24 +692,27 @@
 
         if (isSync && divisionState) {
           // SYNC MODE: Drag controls division selection
-          // Use same sensitivity as Tremolo (0.005) for consistent feel
           const sensitivity = 0.005;
           syncNormalized += deltaY * sensitivity;
           syncNormalized = Math.max(0, Math.min(1, syncNormalized));
 
           // Snap to nearest division (0-11)
           const newDiv = Math.round(syncNormalized * 11);
-          const currentDiv = divisionState.getSelectedId();
-
-          if (newDiv !== currentDiv) {
-            divisionState.setSelectedId(newDiv);
+          try {
+            const currentDiv = divisionState.getSelectedId();
+            if (newDiv !== currentDiv) {
+              divisionState.setSelectedId(newDiv);
+            }
+          } catch (err) {
+            // Division state not available
           }
         } else {
           // FREE MODE: Drag controls time parameter (continuous)
-          const currentNorm = timeState.getNormalisedValue();
-          const sensitivity = 0.005;
-          const newNorm = Math.max(0, Math.min(1, currentNorm + (deltaY * sensitivity)));
-          timeState.setNormalisedValue(newNorm);
+          const rotationDelta = deltaY * 0.5;
+          rotation = Math.max(-135, Math.min(135, rotation + rotationDelta));
+
+          const normalized = (rotation + 135) / 270;
+          timeState.setNormalisedValue(normalized);
         }
 
         lastY = e.clientY;
@@ -703,12 +723,6 @@
         if (isDragging) {
           isDragging = false;
           knob.style.cursor = 'pointer';
-
-          const isSync = syncState && syncState.getValue();
-          if (!isSync) {
-            // Signal drag end to JUCE for undo/redo
-            timeState.sliderDragEnded();
-          }
         }
       });
     }
