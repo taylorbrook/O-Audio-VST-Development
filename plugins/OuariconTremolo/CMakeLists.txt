@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Include Ouaricon Module System
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconTremolo
     COMPANY_NAME "Ouaricon Audio"
@@ -7,9 +10,12 @@ juce_add_plugin(OuariconTremolo
     PLUGIN_CODE OuTr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "Ouaricon Tremolo"
-    VERSION 1.2.1
+    VERSION 1.3.0
     NEEDS_WEB_BROWSER TRUE
 )
+
+# Add preset-manager module
+ouaricon_add_module(OuariconTremolo preset-manager)
 
 # Source files
 target_sources(OuariconTremolo
@@ -65,6 +71,7 @@ juce_add_binary_data(OuariconTremolo_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/carrot.png
+        Source/ui/public/modules/preset-manager.js
 )
 
 target_link_libraries(OuariconTremolo

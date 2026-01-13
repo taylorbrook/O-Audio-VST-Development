@@ -26,7 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
-| OuariconTremolo | 📦 Installed | 1.2.1 | Audio Effect (Tremolo) | 2026-01-06 |
+| OuariconTremolo | 📦 Installed | 1.3.0 | Audio Effect (Tremolo) | 2026-01-12 |
 | OuariconSaturationModeling | 📦 Installed | 1.0.0 | Audio Effect (Saturation) | 2026-01-09 |
 | Ouaricon Marimba | 📦 Installed | 1.6.2 | Synth (Physical Model) | 2026-01-11 |
 | OuariconComp | 📦 Installed | 1.0.2 | Audio Effect (Compressor) | 2026-01-11 |

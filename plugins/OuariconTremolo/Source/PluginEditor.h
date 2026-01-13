@@ -51,5 +51,8 @@ private:
     // Resource provider helper
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
+    // File chooser for loading presets (v1.3.0)
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconTremoloAudioProcessorEditor)
 };

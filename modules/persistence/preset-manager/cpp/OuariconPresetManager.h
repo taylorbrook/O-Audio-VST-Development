@@ -93,6 +93,9 @@ public:
     /** Load a preset by name (searches Factory first, then User). */
     bool loadPreset(const juce::String& presetName);
 
+    /** Load a preset from an arbitrary file path (for import). */
+    bool loadPresetFromFile(const juce::File& file);
+
     /** Delete a user preset. Factory presets cannot be deleted. */
     bool deletePreset(const juce::String& presetName);
 
@@ -341,6 +344,28 @@ inline bool OuariconPresetManager::loadPreset(const juce::String& presetName)
         return true;
     }
 
+    return false;
+}
+
+inline bool OuariconPresetManager::loadPresetFromFile(const juce::File& file)
+{
+    if (!file.existsAsFile())
+    {
+        juce::Logger::writeToLog("[PresetManager] File not found: " + file.getFullPathName());
+        return false;
+    }
+
+    auto jsonString = file.loadFileAsString();
+    auto presetData = juce::JSON::parse(jsonString);
+
+    if (applyPresetJson(presetData))
+    {
+        currentPresetName = file.getFileNameWithoutExtension();
+        juce::Logger::writeToLog("[PresetManager] Preset loaded from file: " + file.getFullPathName());
+        return true;
+    }
+
+    juce::Logger::writeToLog("[PresetManager] Failed to parse preset file: " + file.getFullPathName());
     return false;
 }
 

@@ -22,7 +22,7 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
     panSyncRelay = std::make_unique<juce::WebToggleButtonRelay>("panSync");
     tempoSyncRelay = std::make_unique<juce::WebToggleButtonRelay>("tempoSync");
 
-    // 2. Create WebView SECOND with all relay options
+    // 2. Create WebView SECOND with all relay options and preset native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
             .withNativeIntegrationEnabled()
@@ -33,6 +33,116 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
             .withOptionsFrom(*smoothingRelay)
             .withOptionsFrom(*panSyncRelay)
             .withOptionsFrom(*tempoSyncRelay)
+            // Preset Manager native functions
+            .withNativeFunction("savePreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.savePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
+                // Create file chooser for saving preset
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Preset",
+                    processorRef.presetManager.getUserPresetsDirectory(),
+                    "*.json"
+                );
+
+                // Launch async save dialog
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            // User cancelled
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+
+                        auto file = results.getFirst();
+                        auto presetName = file.getFileNameWithoutExtension();
+
+                        // Save using the preset manager
+                        bool success = processorRef.presetManager.savePreset(presetName);
+
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? presetName : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
+            .withNativeFunction("loadPreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.loadPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("getPresetList", [this](auto&, auto complete) {
+                auto list = processorRef.presetManager.getPresetList();
+                juce::Array<juce::var> arr;
+                for (const auto& name : list)
+                    arr.add(name);
+                complete(juce::var(arr));
+            })
+            .withNativeFunction("getCurrentPreset", [this](auto&, auto complete) {
+                complete(processorRef.presetManager.getCurrentPresetName());
+            })
+            .withNativeFunction("selectNextPreset", [this](auto&, auto complete) {
+                auto next = processorRef.presetManager.getNextPreset();
+                complete(next);
+            })
+            .withNativeFunction("selectPreviousPreset", [this](auto&, auto complete) {
+                auto prev = processorRef.presetManager.getPreviousPreset();
+                complete(prev);
+            })
+            .withNativeFunction("deletePreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.deletePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("isFactoryPreset", [this](auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.isFactoryPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
+                // Create file chooser for preset JSON files
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Preset",
+                    processorRef.presetManager.getUserPresetsDirectory(),
+                    "*.json"
+                );
+
+                // Launch async file dialog
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            // User cancelled
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+
+                        auto file = results.getFirst();
+                        bool success = processorRef.presetManager.loadPresetFromFile(file);
+
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
     );
 
     // 3. Create attachments LAST (Pattern #12: 3 parameters - parameter, relay, nullptr)
@@ -134,6 +244,14 @@ OuariconTremoloAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::carrot_png, BinaryData::carrot_pngSize),
             juce::String("image/png")
+        };
+    }
+
+    // Preset Manager module
+    if (url == "/modules/preset-manager.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
+            juce::String("text/javascript")
         };
     }
 

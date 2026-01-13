@@ -10,6 +10,7 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
+#include "OuariconPresetManager.h"
 
 class OuariconTremoloAudioProcessor : public juce::AudioProcessor
 {
@@ -41,6 +42,9 @@ public:
 
     // Public access to parameters for editor
     juce::AudioProcessorValueTreeState parameters;
+
+    // Preset management
+    OuariconPresetManager presetManager;
 
 private:
     // Parameter layout creation

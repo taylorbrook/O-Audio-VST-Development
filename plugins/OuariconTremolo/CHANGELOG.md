@@ -5,6 +5,35 @@ All notable changes to OuariconTremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.3.0] - 2026-01-12
+
+### Added
+
+- **Preset management system** - Full preset save/load functionality using the Ouaricon Module System
+  - **Factory presets**: 5 built-in presets (Default, Slow Pulse, Fast Chop, Auto-Pan, Subtle)
+  - **User presets**: Save custom settings to `~/Library/Application Support/Ouaricon Tremolo/Presets/User/`
+  - **Preset bar UI**: Header now displays current preset name with navigation controls
+    - Previous/Next buttons for cycling through presets
+    - Save button for creating user presets
+    - Click preset name to see all available presets
+  - **DAW session integration**: Preset state automatically saved/restored with DAW projects
+
+### Changed
+
+- **Header layout updated** - Title moved to left side with preset bar on right (matching Ouaricon Marimba style)
+- **State management refactored** - Now uses `OuariconPresetManager` for unified state handling
+
+### Technical Notes
+
+- Integrated `preset-manager` module v1.0.0 from Ouaricon Module System (`modules/persistence/preset-manager/`)
+- CMake integration via `ouaricon_add_module(OuariconTremolo preset-manager)`
+- Added 8 native functions for WebView↔C++ preset communication:
+  - `savePreset`, `loadPreset`, `getPresetList`, `getCurrentPreset`
+  - `selectNextPreset`, `selectPreviousPreset`, `deletePreset`, `isFactoryPreset`
+- Factory presets use normalized parameter values (0-1 range)
+- Presets stored as JSON with APVTS parameter serialization
+- No breaking changes - existing DAW sessions remain compatible
+
 ## [1.2.1] - 2026-01-06
 
 ### Fixed

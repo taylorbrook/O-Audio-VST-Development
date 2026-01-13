@@ -109,6 +109,8 @@ modules:
     used_by:
       - plugin: OuariconMarimba
         version: 1.0.0
+      - plugin: OuariconTremolo
+        version: 1.3.0
 
   # ============================================================================
   # METERING MODULES

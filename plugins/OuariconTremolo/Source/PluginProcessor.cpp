@@ -78,7 +78,43 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "Ouaricon Tremolo")
 {
+    // Initialize factory presets
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        {
+            "Default",
+            {{"SPEED_PARAM", 0.221f}, {"DEPTH_PARAM", 0.75f}, {"WAVEFORM_PARAM", 0.0f},
+             {"SMOOTHING_PARAM", 0.30f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        },
+        {
+            "Slow Pulse",
+            {{"SPEED_PARAM", 0.05f}, {"DEPTH_PARAM", 0.85f}, {"WAVEFORM_PARAM", 0.0f},
+             {"SMOOTHING_PARAM", 0.50f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        },
+        {
+            "Fast Chop",
+            {{"SPEED_PARAM", 0.75f}, {"DEPTH_PARAM", 1.0f}, {"WAVEFORM_PARAM", 0.8f},
+             {"SMOOTHING_PARAM", 0.10f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        },
+        {
+            "Auto-Pan",
+            {{"SPEED_PARAM", 0.30f}, {"DEPTH_PARAM", 0.80f}, {"WAVEFORM_PARAM", 0.0f},
+             {"SMOOTHING_PARAM", 0.40f}, {"PAN_SYNC_PARAM", 1.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        },
+        {
+            "Subtle",
+            {{"SPEED_PARAM", 0.20f}, {"DEPTH_PARAM", 0.35f}, {"WAVEFORM_PARAM", 0.0f},
+             {"SMOOTHING_PARAM", 0.60f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        }
+    };
+
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 OuariconTremoloAudioProcessor::~OuariconTremoloAudioProcessor()
@@ -315,21 +351,18 @@ juce::AudioProcessorEditor* OuariconTremoloAudioProcessor::createEditor()
 }
 
 //==============================================================================
-// State Management (Save/Load)
+// State Management (Save/Load via PresetManager)
 //==============================================================================
 void OuariconTremoloAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void OuariconTremoloAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+        presetManager.setStateFromXml(xml.get());
 }
 
 //==============================================================================

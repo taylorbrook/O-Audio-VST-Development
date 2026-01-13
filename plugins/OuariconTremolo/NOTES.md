@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.4
+- **Version:** 1.3.0
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
@@ -63,6 +63,23 @@
   - Phasor: Added bidirectional polynomial transitions at wrap point (last 2% and first 2% of cycle)
   - Noise: Added smooth interpolation between all quarter-boundary transitions
   - All 6 waveforms now click-free across full speed range (0.1-20 Hz)
+
+- **2026-01-06 (v1.2.0):** UI visual refresh
+  - Redesigned parameter dials with vintage botanical seed aesthetic
+  - CSS conic-gradient seed chamber pattern (citrus cross-section inspired)
+  - Vintage warm color palette (cream, sepia, tan)
+  - Engraved texture overlays for authenticity
+
+- **2026-01-06 (v1.2.1):** Minor UI improvement
+  - Improved dial value readability with bold font weight
+
+- **2026-01-12 (v1.3.0):** Preset management system
+  - Integrated `preset-manager` module from Ouaricon Module System
+  - Added 5 factory presets: Default, Slow Pulse, Fast Chop, Auto-Pan, Subtle
+  - Preset bar UI in header with navigation controls (prev/next/save)
+  - Full JSON preset persistence to ~/Library/Application Support/Ouaricon Tremolo/Presets/
+  - DAW session state save/restore via OuariconPresetManager
+  - 8 native functions for WebView↔C++ preset communication
 
 - **2026-01-04:** Design refinement session
   - **Typography updated**: Changed from Garamond to Baskerville (1757, authentic 18th-century botanical publication typeface)
