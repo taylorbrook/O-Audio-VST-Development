@@ -9,11 +9,57 @@
 */
 
 #include "PluginEditor.h"
+#include "BinaryData.h"
 
 OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEditor(OuariconSimpleReverbAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
-    setSize(600, 400);
+    // 1. Create relays FIRST (with parameter IDs matching HTML and APVTS)
+    typeRelay = std::make_unique<juce::WebComboBoxRelay>("TYPE");
+    characterRelay = std::make_unique<juce::WebSliderRelay>("CHARACTER");
+    wetRelay = std::make_unique<juce::WebSliderRelay>("WET");
+    dryRelay = std::make_unique<juce::WebSliderRelay>("DRY");
+    decayRelay = std::make_unique<juce::WebSliderRelay>("DECAY");
+    sizeRelay = std::make_unique<juce::WebSliderRelay>("SIZE");
+
+    // 2. Create WebView SECOND with all relay options registered
+    webView = std::make_unique<juce::WebBrowserComponent>(
+        juce::WebBrowserComponent::Options{}
+            .withNativeIntegrationEnabled()
+            .withResourceProvider([this](const auto& url) { return getResource(url); })
+            .withOptionsFrom(*typeRelay)
+            .withOptionsFrom(*characterRelay)
+            .withOptionsFrom(*wetRelay)
+            .withOptionsFrom(*dryRelay)
+            .withOptionsFrom(*decayRelay)
+            .withOptionsFrom(*sizeRelay)
+    );
+
+    // 3. Create attachments LAST (connect parameters to relays)
+    typeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.parameters.getParameter("TYPE"), *typeRelay, nullptr);
+
+    characterAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("CHARACTER"), *characterRelay, nullptr);
+
+    wetAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("WET"), *wetRelay, nullptr);
+
+    dryAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("DRY"), *dryRelay, nullptr);
+
+    decayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("DECAY"), *decayRelay, nullptr);
+
+    sizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("SIZE"), *sizeRelay, nullptr);
+
+    // Add WebView to editor and navigate to UI
+    addAndMakeVisible(*webView);
+    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+
+    // Set editor size (from creative brief: 500x350)
+    setSize(500, 350);
 }
 
 OuariconSimpleReverbAudioProcessorEditor::~OuariconSimpleReverbAudioProcessorEditor()
@@ -22,19 +68,62 @@ OuariconSimpleReverbAudioProcessorEditor::~OuariconSimpleReverbAudioProcessorEdi
 
 void OuariconSimpleReverbAudioProcessorEditor::paint(juce::Graphics& g)
 {
-    g.fillAll(getLookAndFeel().findColour(juce::ResizableWindow::backgroundColourId));
-
-    g.setColour(juce::Colours::white);
-    g.setFont(24.0f);
-    g.drawFittedText("Ouaricon Simple Reverb - Stage 1", getLocalBounds(), juce::Justification::centred, 1);
-
-    g.setFont(14.0f);
-    g.drawFittedText("6 parameters implemented",
-                     getLocalBounds().reduced(20).removeFromBottom(30),
-                     juce::Justification::centred, 1);
+    // WebView handles all painting
+    juce::ignoreUnused(g);
 }
 
 void OuariconSimpleReverbAudioProcessorEditor::resized()
 {
-    // Layout will be added in Stage 2 (GUI)
+    // WebView fills entire editor
+    if (webView)
+        webView->setBounds(getLocalBounds());
+}
+
+std::optional<juce::WebBrowserComponent::Resource>
+OuariconSimpleReverbAudioProcessorEditor::getResource(const juce::String& url)
+{
+    // Helper to convert BinaryData to byte vector
+    auto makeVector = [](const char* data, int size) {
+        return std::vector<std::byte>(
+            reinterpret_cast<const std::byte*>(data),
+            reinterpret_cast<const std::byte*>(data) + size
+        );
+    };
+
+    // Route URLs to embedded resources
+    if (url == "/" || url == "/index.html")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::index_html, BinaryData::index_htmlSize),
+            juce::String("text/html")
+        };
+    }
+
+    if (url == "/js/juce/index.js")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::index_js, BinaryData::index_jsSize),
+            juce::String("application/javascript")
+        };
+    }
+
+    if (url == "/img/paper.jpg")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::paper_jpg, BinaryData::paper_jpgSize),
+            juce::String("image/jpeg")
+        };
+    }
+
+    if (url == "/img/flora.png")
+    {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::flora_png, BinaryData::flora_pngSize),
+            juce::String("image/png")
+        };
+    }
+
+    // Resource not found
+    juce::Logger::writeToLog("Resource not found: " + url);
+    return std::nullopt;
 }

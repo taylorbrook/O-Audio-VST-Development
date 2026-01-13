@@ -48,27 +48,24 @@ target_link_libraries(OuariconSimpleReverb
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconSimpleReverb)
 
-# WebView UI Resources (uncommented by gui-agent if WebView UI used)
-# juce_add_binary_data(OuariconSimpleReverb_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-# )
-#
-# target_link_libraries(OuariconSimpleReverb
-#     PRIVATE
-#         OuariconSimpleReverb_UIResources
-# )
+# WebView UI Resources
+juce_add_binary_data(OuariconSimpleReverb_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/img/paper.jpg
+        Source/ui/public/img/flora.png
+)
+
+target_link_libraries(OuariconSimpleReverb
+    PRIVATE
+        OuariconSimpleReverb_UIResources
+)
 
 # Compile definitions
 target_compile_definitions(OuariconSimpleReverb
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_CURL=0
 )
-
-# WebView support (uncommented by gui-agent if WebView UI used)
-# target_compile_definitions(OuariconSimpleReverb
-#     PUBLIC
-#         JUCE_WEB_BROWSER=1
-#         JUCE_USE_CURL=0
-# )
