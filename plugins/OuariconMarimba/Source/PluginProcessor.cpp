@@ -215,37 +215,20 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     }
 
     // Phase 2.2: Read parameters (atomic, real-time safe)
-    auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
-    float outputGainDB = outputGainParam->load();
+    float outputGainDB = parameters.getRawParameterValue("OUTPUT_GAIN")->load();
+    float velCurve = parameters.getRawParameterValue("VEL_CURVE")->load();
+    float malletHardness = parameters.getRawParameterValue("MALLET_HARDNESS")->load();
+    float barMaterial = parameters.getRawParameterValue("BAR_MATERIAL")->load();
+    float resonance = parameters.getRawParameterValue("RESONANCE")->load();
 
-    auto* velCurveParam = parameters.getRawParameterValue("VEL_CURVE");
-    float velCurve = velCurveParam->load();
+    // v1.6.0: Timbre parameters
+    float strikePosition = parameters.getRawParameterValue("STRIKE_POSITION")->load();
+    float overtoneDamping = parameters.getRawParameterValue("OVERTONE_DAMPING")->load();
+    float tone = parameters.getRawParameterValue("TONE")->load();
 
-    auto* malletHardnessParam = parameters.getRawParameterValue("MALLET_HARDNESS");
-    float malletHardness = malletHardnessParam->load();
-
-    auto* barMaterialParam = parameters.getRawParameterValue("BAR_MATERIAL");
-    float barMaterial = barMaterialParam->load();
-
-    auto* resonanceParam = parameters.getRawParameterValue("RESONANCE");
-    float resonance = resonanceParam->load();
-
-    // v1.6.0: Read new timbre parameters
-    auto* strikePositionParam = parameters.getRawParameterValue("STRIKE_POSITION");
-    float strikePosition = strikePositionParam->load();
-
-    auto* overtoneDampingParam = parameters.getRawParameterValue("OVERTONE_DAMPING");
-    float overtoneDamping = overtoneDampingParam->load();
-
-    auto* toneParam = parameters.getRawParameterValue("TONE");
-    float tone = toneParam->load();
-
-    // Phase 2.3: Read tuning parameters
-    auto* tuningModeParam = parameters.getRawParameterValue("TUNING_MODE");
-    int tuningModeInt = static_cast<int>(tuningModeParam->load());
-
-    auto* referencePitchParam = parameters.getRawParameterValue("REFERENCE_PITCH");
-    float referencePitch = referencePitchParam->load();
+    // Phase 2.3: Tuning parameters
+    int tuningModeInt = static_cast<int>(parameters.getRawParameterValue("TUNING_MODE")->load());
+    float referencePitch = parameters.getRawParameterValue("REFERENCE_PITCH")->load();
 
     // Update tuning engine (atomic updates, safe from audio thread)
     tuningEngine.setMode(static_cast<TuningEngine::Mode>(tuningModeInt));

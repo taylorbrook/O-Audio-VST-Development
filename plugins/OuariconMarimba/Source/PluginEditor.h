@@ -155,6 +155,9 @@ private:
     juce::var selectPreviousPreset(const juce::Array<juce::var>& args);
     juce::var deletePreset(const juce::Array<juce::var>& args);
 
+    // Helper: Notify WebView of preset load with tuning state
+    void notifyPresetLoaded(const juce::String& presetName);
+
     // File chooser (must be member to stay alive during async operation)
     std::unique_ptr<juce::FileChooser> fileChooser;
 

@@ -589,6 +589,25 @@ juce::var OuariconMarimbaAudioProcessorEditor::getWaveformData(const juce::Array
 // v1.3.0: Preset System Native Functions
 // ============================================================================
 
+// Helper: Notify WebView of preset load with tuning state
+void OuariconMarimbaAudioProcessorEditor::notifyPresetLoaded(const juce::String& presetName)
+{
+    auto& tuning = processorRef.getTuningEngine();
+    juce::String scaleName = tuning.getActiveTuningName();
+
+    juce::Array<juce::var> intervalsArray;
+    for (const auto& cents : tuning.getIntervals())
+        intervalsArray.add(cents);
+
+    juce::String intervalsJson = juce::JSON::toString(intervalsArray);
+    juce::String js = "if (window.onPresetLoaded) window.onPresetLoaded('"
+        + presetName.replace("'", "\\'") + "', '"
+        + scaleName.replace("'", "\\'") + "', "
+        + intervalsJson + ", "
+        + juce::String(tuning.getTonicNote()) + ");";
+    webView->evaluateJavascript(js, nullptr);
+}
+
 // Save preset - opens file dialog to name and save current state
 juce::var OuariconMarimbaAudioProcessorEditor::savePreset(const juce::Array<juce::var>& args)
 {
@@ -639,30 +658,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadPreset(const juce::Array<juce
 
     if (success)
     {
-        // Update UI with new tuning state
-        auto& tuning = processorRef.getTuningEngine();
-        juce::String scaleName = tuning.getActiveTuningName();
-
-        // Build tuning data object
-        juce::DynamicObject::Ptr tuningData = new juce::DynamicObject();
-        juce::Array<juce::var> intervalsArray;
-        for (const auto& cents : tuning.getIntervals())
-        {
-            intervalsArray.add(cents);
-        }
-        tuningData->setProperty("intervals", intervalsArray);
-        tuningData->setProperty("name", scaleName);
-        tuningData->setProperty("tonic", tuning.getTonicNote());
-
-        // Notify JavaScript to update tuning display
-        juce::String intervalsJson = juce::JSON::toString(intervalsArray);
-        juce::String js = "if (window.onPresetLoaded) window.onPresetLoaded('"
-            + presetName.replace("'", "\\'") + "', '"
-            + scaleName.replace("'", "\\'") + "', "
-            + intervalsJson + ", "
-            + juce::String(tuning.getTonicNote()) + ");";
-        webView->evaluateJavascript(js, nullptr);
-
+        notifyPresetLoaded(presetName);
         return juce::var("OK");
     }
 
@@ -769,26 +765,8 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Ar
         if (file.existsAsFile())
         {
             juce::String presetName = file.getFileNameWithoutExtension();
-            bool success = processorRef.getPresetManager().loadPreset(presetName);
-
-            if (success)
-            {
-                // Trigger full UI update
-                auto& tuning = processorRef.getTuningEngine();
-                juce::String scaleName = tuning.getActiveTuningName();
-                juce::Array<juce::var> intervalsArray;
-                for (const auto& cents : tuning.getIntervals())
-                {
-                    intervalsArray.add(cents);
-                }
-                juce::String intervalsJson = juce::JSON::toString(intervalsArray);
-                juce::String js = "if (window.onPresetLoaded) window.onPresetLoaded('"
-                    + presetName.replace("'", "\\'") + "', '"
-                    + scaleName.replace("'", "\\'") + "', "
-                    + intervalsJson + ", "
-                    + juce::String(tuning.getTonicNote()) + ");";
-                webView->evaluateJavascript(js, nullptr);
-            }
+            if (processorRef.getPresetManager().loadPreset(presetName))
+                notifyPresetLoaded(presetName);
         }
     });
 

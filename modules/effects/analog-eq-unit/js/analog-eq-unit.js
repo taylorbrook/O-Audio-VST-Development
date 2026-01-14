@@ -50,6 +50,10 @@ export class AnalogEQUnitUI {
         this.currentParamName = null;
         this.lastY = 0;
 
+        // Bound event handlers for cleanup
+        this.boundOnDrag = (e) => this.onDrag(e);
+        this.boundEndDrag = () => this.endDrag();
+
         // Knob geometry
         this.KNOB_RADIUS = 30;
         this.INNER_THRESHOLD = 0.60;
@@ -509,8 +513,8 @@ export class AnalogEQUnitUI {
         });
 
         // Global mouse events for drag
-        document.addEventListener('mousemove', (e) => this.onDrag(e));
-        document.addEventListener('mouseup', () => this.endDrag());
+        document.addEventListener('mousemove', this.boundOnDrag);
+        document.addEventListener('mouseup', this.boundEndDrag);
     }
 
     setupDualKnob(band) {
@@ -711,7 +715,7 @@ export class AnalogEQUnitUI {
 
         const updateOptions = () => {
             const index = state.getChoiceIndex();
-            options.forEach((opt, i) => {
+            options.forEach((opt) => {
                 opt.classList.toggle('active', parseInt(opt.dataset.value, 10) === index);
             });
         };
@@ -729,8 +733,8 @@ export class AnalogEQUnitUI {
     }
 
     destroy() {
-        document.removeEventListener('mousemove', (e) => this.onDrag(e));
-        document.removeEventListener('mouseup', () => this.endDrag());
+        document.removeEventListener('mousemove', this.boundOnDrag);
+        document.removeEventListener('mouseup', this.boundEndDrag);
     }
 }
 

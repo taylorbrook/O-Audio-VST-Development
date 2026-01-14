@@ -489,10 +489,10 @@ export class CompressorUnit {
       segments.forEach((segment, index) => {
         segment.classList.remove('active', 'active-high');
 
-        if (index >= activeCount) return;
-
-        const isHighSegment = index >= numSegments - 2;
-        segment.classList.add(isHighSegment ? 'active-high' : 'active');
+        if (index < activeCount) {
+          const isHighSegment = index >= numSegments - 2;
+          segment.classList.add(isHighSegment ? 'active-high' : 'active');
+        }
       });
 
       this.animationId = requestAnimationFrame(update);

@@ -107,7 +107,7 @@ public:
     //==========================================================================
     // Initialization - call from host's prepareToPlay()
     //==========================================================================
-    void prepare(double sampleRate, int samplesPerBlock)
+    void prepare(double sampleRate, int /*samplesPerBlock*/)
     {
         currentSampleRate = sampleRate;
         envelopeDB = -60.0f;
@@ -116,7 +116,7 @@ public:
         updateCoefficients(10.0f, 100.0f);
 
         // Calculate sample-rate-dependent gain smoothing coefficient
-        // This ensures consistent ~5ms smoothing regardless of sample rate
+        // Ensures consistent 10ms smoothing regardless of sample rate
         gainSmoothCoeff = 1.0f - std::exp(-1000.0f / (GAIN_SMOOTH_TIME_MS * static_cast<float>(sampleRate)));
     }
 
