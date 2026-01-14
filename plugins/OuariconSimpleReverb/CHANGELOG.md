@@ -2,6 +2,36 @@
 
 All notable changes to OuariconSimpleReverb will be documented in this file.
 
+## [1.1.0] - 2026-01-13
+
+### Added
+
+- **Type-specific DSP processing:** Each reverb type now has distinct sonic character through dedicated DSP chains:
+  - **Booth:** Very short pre-delay (3ms), minimal early reflections, narrow stereo, high-pass EQ at 150Hz
+  - **Room:** Natural 15ms pre-delay, balanced early reflections, full stereo width, neutral EQ
+  - **Hall:** Long 50ms pre-delay, spacious spread-out reflections, subtle modulation, gentle high roll-off
+  - **Spring:** 20ms pre-delay, all-pass dispersion chain for metallic chirp, 4.5Hz flutter modulation, resonant mid peak at 800Hz
+  - **Plate:** Short 8ms pre-delay, dense early reflections, ring modulation shimmer effect, bright high shelf at 5kHz
+  - **Ambient:** 35ms pre-delay, maximum diffusion, slow 0.4Hz dreamy modulation, softened highs for washy ethereal sound
+
+- **Pre-delay lines:** Type-specific pre-delay times (3-50ms) create distinct spatial separation
+- **Early reflection network:** 4 comb filters per channel with prime-number delay times, scaled per type
+- **All-pass dispersion:** 3-stage all-pass chain for Spring's characteristic metallic chirp
+- **Modulation LFO:** Configurable rate/depth for Spring flutter and Ambient movement
+- **Plate shimmer:** Subtle ring modulation effect for Plate's bright shimmering character
+- **Type-specific EQ:** Each type has tailored frequency shaping (high-pass, shelves, peak filters)
+
+### Fixed
+
+- **Root cause:** All six reverb types previously used identical Freeverb algorithm with only subtle parameter differences. Types are now dramatically different through dedicated DSP processing chains.
+
+### Technical Notes
+
+- Sample-by-sample processing for pre-delay, early reflections, all-pass, and modulation
+- Block processing for main reverb, type EQ, and character filter
+- Tail length updated to 10.0 seconds for proper DAW handling
+- No breaking changes - all parameters remain compatible with v1.0.x presets
+
 ## [1.0.1] - 2026-01-13
 
 ### Fixed

@@ -32,7 +32,7 @@ Ouaricon Plugins:
 | OuariconComp | 📦 Installed | 1.1.1 | Audio Effect (Compressor) | 2026-01-12 |
 | OuariconAnalogEQ | 📦 Installed | 1.0.10 | Audio Effect (EQ) | 2026-01-11 |
 | Ouaricon Digital Delay | 📦 Installed | 1.2.0 | Audio Effect (Delay) | 2026-01-12 |
-| OuariconSimpleReverb | 📦 Installed | 1.0.1 | Audio Effect (Reverb) | 2026-01-13 |
+| OuariconSimpleReverb | 📦 Installed | 1.1.0 | Audio Effect (Reverb) | 2026-01-13 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

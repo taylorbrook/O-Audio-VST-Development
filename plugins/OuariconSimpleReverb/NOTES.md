@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.1
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Reverb)
 - **Complexity:** 4.2 (Complex)
 
@@ -12,6 +12,7 @@
 - **2026-01-13 (Stage 0):** Research & Planning complete - Architecture and plan documented (Complexity 4.2, Phase-based implementation)
 - **2026-01-13 (v1.0.0):** Initial release - All 3 stages complete, plugin installed
 - **2026-01-13 (v1.0.1):** Bug fixes - Fixed knob interactivity, reverb type switching, title update
+- **2026-01-13 (v1.1.0):** Type-specific DSP - Each reverb type now has distinct sonic character through dedicated processing chains (pre-delay, early reflections, all-pass dispersion, modulation, shimmer, type-specific EQ)
 
 ## Known Issues
 
@@ -41,13 +42,29 @@ Lightweight, CPU-efficient reverb designed to add subtle color and realism to in
 - Smooth decay
 - Not a special effect reverb - utility focused
 
-### DSP Architecture
+### DSP Architecture (v1.1.0)
 **Core Components:**
-- **Reverb Engine:** juce::dsp::Reverb (6 type variations)
+- **Reverb Engine:** juce::dsp::Reverb (6 type variations with type-specific presets)
+- **Pre-Delay Lines:** Stereo delay lines (3-50ms per type)
+- **Early Reflections:** 4 comb filters per channel with prime-number delays
+- **All-Pass Dispersion:** 3-stage all-pass chain for Spring metallic chirp
+- **Modulation LFO:** Configurable rate/depth for Spring flutter and Ambient movement
+- **Plate Shimmer:** Ring modulation for bright shimmering character
+- **Type-Specific EQ:** High-pass, shelves, peak filters per type
 - **Character Filter:** juce::dsp::IIR::Filter (warm/bright/neutral)
-- **Dry/Wet Mixer:** juce::dsp::DryWetMixer (independent dry/wet gains)
+- **Dry/Wet Mixer:** Manual mixing (independent dry/wet gains)
 
-**CPU Target:** ~20-30% single core at 48kHz (lightweight)
+**Type-Specific Processing:**
+| Type | Pre-Delay | Early Ref | All-Pass | Modulation | Shimmer | EQ |
+|------|-----------|-----------|----------|------------|---------|-----|
+| Booth | 3ms | Minimal | - | - | - | HP 150Hz |
+| Room | 15ms | Natural | - | - | - | None |
+| Hall | 50ms | Spacious | - | Subtle | - | HS -2dB @3kHz |
+| Spring | 20ms | Minimal | ✓ | 4.5Hz flutter | - | Peak +4dB @800Hz |
+| Plate | 8ms | Dense | - | - | ✓ | HS +3dB @5kHz |
+| Ambient | 35ms | Spread | - | 0.4Hz slow | - | HS -3dB @2.5kHz |
+
+**CPU Target:** ~25-35% single core at 48kHz (moderate)
 
 ### Implementation Plan
 **Strategy:** Phase-based implementation (Complex plugin, score 4.2)
