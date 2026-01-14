@@ -2,6 +2,28 @@
 
 All notable changes to OuariconSimpleReverb will be documented in this file.
 
+## [1.2.0] - 2026-01-13
+
+### Changed
+
+- **Knob design:** Replaced simple gradient knobs with Ouaricon aesthetic botanical seed cross-section style (matching Ouaricon Tremolo)
+- **Type dropdown:** Removed "Type" label, centered text inside dropdown menu
+- **Dial layout:** Moved dial labels above dials, keeping value readings below
+- **Character display:** Now shows "warm" (0-25%), "neutral" (25-75%), "bright" (75-100%) instead of percentage
+- **Background image:** Changed to full-size centered positioning (no scaling/cropping)
+- **Bottom row layout:** Reorganized with Decay and Size dials flanking central VU meter
+
+### Added
+
+- **VU meter:** Small circular level meter (50px) positioned between Decay and Size dials, matches Ouaricon Analog EQ style
+- **Knob indicators:** Triangle-style position indicators on each dial
+
+### Technical Notes
+
+- UI-only changes, no DSP modifications
+- No parameter changes - fully compatible with v1.1.x presets
+- VU meter listens for `outputLevel` events from JUCE backend
+
 ## [1.1.0] - 2026-01-13
 
 ### Added

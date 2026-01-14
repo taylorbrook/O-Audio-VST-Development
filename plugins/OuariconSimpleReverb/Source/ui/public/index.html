@@ -38,9 +38,13 @@
 
         .background {
             position: absolute;
-            width: 100%;
-            height: 100%;
-            object-fit: cover;
+            width: 500px;
+            height: 350px;
+            left: 50%;
+            top: 50%;
+            transform: translate(-50%, -50%);
+            object-fit: none;
+            object-position: center;
         }
 
         .botanical-overlay {
@@ -64,7 +68,7 @@
 
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
         }
 
         .title {
@@ -76,25 +80,11 @@
             text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
         }
 
-        /* Type Selector */
+        /* Type Selector - no label */
         .type-row {
             display: flex;
             justify-content: center;
-            margin-bottom: 20px;
-        }
-
-        .type-control {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .type-label {
-            font-size: 14px;
-            color: #3C2F2F;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+            margin-bottom: 15px;
         }
 
         #TYPE {
@@ -108,10 +98,23 @@
             cursor: pointer;
             box-shadow: 1px 1px 3px rgba(0,0,0,0.15);
             min-width: 120px;
+            text-align: center;
+            text-align-last: center;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235C4033' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 28px;
+        }
+
+        #TYPE option {
+            text-align: center;
         }
 
         #TYPE:hover {
-            background: rgba(139, 168, 112, 0.4);
+            background-color: rgba(139, 168, 112, 0.4);
         }
 
         #TYPE:focus {
@@ -123,17 +126,25 @@
         .knobs-container {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 15px;
-            padding: 10px 30px;
+            gap: 10px;
+            padding: 5px 30px;
             flex: 1;
-            align-items: center;
+            align-items: start;
         }
 
         .knob-control {
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 8px;
+            gap: 4px;
+        }
+
+        .knob-label {
+            font-size: 12px;
+            color: #3C2F2F;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            order: -1;
         }
 
         .knob-wrapper {
@@ -142,40 +153,116 @@
             height: 60px;
         }
 
+        /* Ouaricon Botanical Seed Knob Style */
         .knob {
             width: 100%;
             height: 100%;
             border-radius: 50%;
-            background: radial-gradient(circle at 30% 30%, rgba(139, 168, 112, 0.5), rgba(92, 64, 51, 0.7));
-            border: 3px solid #5C4033;
+            /* Botanical seed cross-section background - vintage cream/sepia palette */
+            background:
+                /* Outer ring - aged paper tone */
+                radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+                /* Seed segments - 10 radial chambers with engraving lines */
+                conic-gradient(from 0deg,
+                    #F5DEB3 0deg, #F5DEB3 18deg,
+                    #8B7355 18deg, #8B7355 19deg,
+                    #E8D5B7 19deg, #E8D5B7 36deg,
+                    #8B7355 36deg, #8B7355 37deg,
+                    #F5DEB3 37deg, #F5DEB3 54deg,
+                    #8B7355 54deg, #8B7355 55deg,
+                    #E8D5B7 55deg, #E8D5B7 72deg,
+                    #8B7355 72deg, #8B7355 73deg,
+                    #F5DEB3 73deg, #F5DEB3 90deg,
+                    #8B7355 90deg, #8B7355 91deg,
+                    #E8D5B7 91deg, #E8D5B7 108deg,
+                    #8B7355 108deg, #8B7355 109deg,
+                    #F5DEB3 109deg, #F5DEB3 126deg,
+                    #8B7355 126deg, #8B7355 127deg,
+                    #E8D5B7 127deg, #E8D5B7 144deg,
+                    #8B7355 144deg, #8B7355 145deg,
+                    #F5DEB3 145deg, #F5DEB3 162deg,
+                    #8B7355 162deg, #8B7355 163deg,
+                    #E8D5B7 163deg, #E8D5B7 180deg,
+                    #8B7355 180deg, #8B7355 181deg,
+                    #F5DEB3 181deg, #F5DEB3 198deg,
+                    #8B7355 198deg, #8B7355 199deg,
+                    #E8D5B7 199deg, #E8D5B7 216deg,
+                    #8B7355 216deg, #8B7355 217deg,
+                    #F5DEB3 217deg, #F5DEB3 234deg,
+                    #8B7355 234deg, #8B7355 235deg,
+                    #E8D5B7 235deg, #E8D5B7 252deg,
+                    #8B7355 252deg, #8B7355 253deg,
+                    #F5DEB3 253deg, #F5DEB3 270deg,
+                    #8B7355 270deg, #8B7355 271deg,
+                    #E8D5B7 271deg, #E8D5B7 288deg,
+                    #8B7355 288deg, #8B7355 289deg,
+                    #F5DEB3 289deg, #F5DEB3 306deg,
+                    #8B7355 306deg, #8B7355 307deg,
+                    #E8D5B7 307deg, #E8D5B7 324deg,
+                    #8B7355 324deg, #8B7355 325deg,
+                    #F5DEB3 325deg, #F5DEB3 342deg,
+                    #8B7355 342deg, #8B7355 343deg,
+                    #E8D5B7 343deg, #E8D5B7 360deg
+                ),
+                /* Inner center - lighter seed core */
+                radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+            border: 2px solid #8B7355;
             box-shadow:
+                /* Engraved depth effect */
                 inset 1px 1px 3px rgba(0,0,0,0.3),
-                2px 2px 6px rgba(0,0,0,0.2);
-            cursor: pointer;
+                inset -1px -1px 2px rgba(255,248,220,0.5),
+                /* Outer shadow for paper depth */
+                2px 2px 6px rgba(0,0,0,0.25);
             position: relative;
-        }
-
-        .knob::before {
-            content: '';
-            position: absolute;
-            width: 4px;
-            height: 20px;
-            background: #3C2F2F;
-            top: 8px;
-            left: 50%;
-            transform: translateX(-50%);
-            border-radius: 2px;
+            cursor: pointer;
+            transition: transform 0.1s;
+            overflow: hidden;
         }
 
         .knob:hover {
-            filter: brightness(1.1);
+            transform: scale(1.05);
         }
 
-        .knob-label {
-            font-size: 12px;
-            color: #3C2F2F;
-            letter-spacing: 1px;
-            text-transform: uppercase;
+        .knob::before {
+            /* Cross-hatching engraving texture overlay */
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                /* Fine radial lines from center (like botanical engraving) */
+                repeating-conic-gradient(from 0deg at 50% 50%,
+                    transparent 0deg,
+                    transparent 2deg,
+                    rgba(139, 115, 85, 0.15) 2deg,
+                    rgba(139, 115, 85, 0.15) 2.5deg,
+                    transparent 2.5deg,
+                    transparent 36deg
+                ),
+                /* Concentric circles for seed texture */
+                repeating-radial-gradient(circle at 50% 50%,
+                    transparent 0px,
+                    transparent 8px,
+                    rgba(139, 115, 85, 0.08) 8px,
+                    rgba(139, 115, 85, 0.08) 9px
+                );
+            pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+
+        .knob-indicator {
+            /* Indicator styled as highlighted seed segment */
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 18px solid #8B6914;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+            opacity: 0.9;
         }
 
         .knob-value {
@@ -189,11 +276,63 @@
             display: none;
         }
 
+        /* Bottom row with VU meter in center */
+        .bottom-row {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 25px;
+            padding: 0 30px;
+            margin-top: 5px;
+        }
+
+        /* VU Meter - Small circular style */
+        .vu-meter {
+            width: 50px;
+            height: 50px;
+            background: rgba(139, 168, 112, 0.2);
+            border: 2px solid #3C5C1A;
+            border-radius: 50%;
+            position: relative;
+            overflow: hidden;
+            margin-top: 15px;
+        }
+
+        .vu-meter-scale {
+            position: absolute;
+            width: 100%;
+            height: 50%;
+            top: 5%;
+        }
+
+        .vu-meter-needle {
+            position: absolute;
+            width: 2px;
+            height: 20px;
+            background: #3C5C1A;
+            bottom: 50%;
+            left: 50%;
+            transform-origin: bottom center;
+            transform: translateX(-50%) rotate(-45deg);
+            border-radius: 1px;
+            transition: transform 0.15s ease-out;
+        }
+
+        .vu-meter-pivot {
+            position: absolute;
+            width: 6px;
+            height: 6px;
+            background: #3C2F2F;
+            border-radius: 50%;
+            bottom: calc(50% - 3px);
+            left: calc(50% - 3px);
+        }
+
         /* Footer */
         .footer {
             text-align: center;
             margin-top: auto;
-            padding-top: 10px;
+            padding-top: 5px;
         }
 
         .version {
@@ -213,73 +352,90 @@
                 <h1 class="title">Ouaricon Simple Reverb</h1>
             </div>
 
-            <!-- Type Dropdown -->
+            <!-- Type Dropdown - no label -->
             <div class="type-row">
-                <div class="type-control">
-                    <label class="type-label" for="TYPE">Type</label>
-                    <select id="TYPE">
-                        <option value="0">Booth</option>
-                        <option value="1" selected>Room</option>
-                        <option value="2">Hall</option>
-                        <option value="3">Spring</option>
-                        <option value="4">Plate</option>
-                        <option value="5">Ambient</option>
-                    </select>
-                </div>
+                <select id="TYPE">
+                    <option value="0">Booth</option>
+                    <option value="1" selected>Room</option>
+                    <option value="2">Hall</option>
+                    <option value="3">Spring</option>
+                    <option value="4">Plate</option>
+                    <option value="5">Ambient</option>
+                </select>
             </div>
 
-            <!-- Knobs Grid (5 knobs: Character, Wet, Dry, Decay, Size) -->
+            <!-- Knobs Grid - Top Row (3 knobs: Character, Wet, Dry) -->
             <div class="knobs-container">
-                <!-- Row 1: Character (bipolar), Wet, Dry -->
                 <div class="knob-control">
-                    <div class="knob-wrapper">
-                        <div class="knob" id="CHARACTER-knob"></div>
-                    </div>
                     <span class="knob-label">Character</span>
-                    <span class="knob-value" id="CHARACTER-value">0%</span>
+                    <div class="knob-wrapper">
+                        <div class="knob" id="CHARACTER-knob">
+                            <div class="knob-indicator" id="CHARACTER-indicator"></div>
+                        </div>
+                    </div>
+                    <span class="knob-value" id="CHARACTER-value">neutral</span>
                     <input type="range" id="CHARACTER" min="-100" max="100" step="0.1" value="0">
                 </div>
 
                 <div class="knob-control">
-                    <div class="knob-wrapper">
-                        <div class="knob" id="WET-knob"></div>
-                    </div>
                     <span class="knob-label">Wet</span>
+                    <div class="knob-wrapper">
+                        <div class="knob" id="WET-knob">
+                            <div class="knob-indicator" id="WET-indicator"></div>
+                        </div>
+                    </div>
                     <span class="knob-value" id="WET-value">25%</span>
                     <input type="range" id="WET" min="0" max="100" step="0.1" value="25">
                 </div>
 
                 <div class="knob-control">
-                    <div class="knob-wrapper">
-                        <div class="knob" id="DRY-knob"></div>
-                    </div>
                     <span class="knob-label">Dry</span>
+                    <div class="knob-wrapper">
+                        <div class="knob" id="DRY-knob">
+                            <div class="knob-indicator" id="DRY-indicator"></div>
+                        </div>
+                    </div>
                     <span class="knob-value" id="DRY-value">100%</span>
                     <input type="range" id="DRY" min="0" max="100" step="0.1" value="100">
                 </div>
+            </div>
 
-                <!-- Row 2: Decay, Size -->
-                <div class="knob-control" style="grid-column: 1">
-                    <div class="knob-wrapper">
-                        <div class="knob" id="DECAY-knob"></div>
-                    </div>
+            <!-- Bottom Row: Decay, VU Meter, Size -->
+            <div class="bottom-row">
+                <div class="knob-control">
                     <span class="knob-label">Decay</span>
+                    <div class="knob-wrapper">
+                        <div class="knob" id="DECAY-knob">
+                            <div class="knob-indicator" id="DECAY-indicator"></div>
+                        </div>
+                    </div>
                     <span class="knob-value" id="DECAY-value">1.5s</span>
                     <input type="range" id="DECAY" min="0.1" max="10" step="0.01" value="1.5">
                 </div>
 
-                <div class="knob-control" style="grid-column: 3">
-                    <div class="knob-wrapper">
-                        <div class="knob" id="SIZE-knob"></div>
-                    </div>
+                <!-- VU Meter -->
+                <div class="vu-meter">
+                    <svg class="vu-meter-scale" viewBox="0 0 50 25">
+                        <path d="M 5 22 A 20 20 0 0 1 45 22" fill="none" stroke="#8B7355" stroke-width="1"/>
+                    </svg>
+                    <div class="vu-meter-needle" id="vu_needle"></div>
+                    <div class="vu-meter-pivot"></div>
+                </div>
+
+                <div class="knob-control">
                     <span class="knob-label">Size</span>
+                    <div class="knob-wrapper">
+                        <div class="knob" id="SIZE-knob">
+                            <div class="knob-indicator" id="SIZE-indicator"></div>
+                        </div>
+                    </div>
                     <span class="knob-value" id="SIZE-value">50%</span>
                     <input type="range" id="SIZE" min="0" max="100" step="0.1" value="50">
                 </div>
             </div>
 
             <div class="footer">
-                <p class="version">Ouaricon Audio | v1.0.1</p>
+                <p class="version">Ouaricon Audio | v1.2.0</p>
             </div>
         </div>
     </div>
@@ -301,10 +457,50 @@
         // HELPER FUNCTIONS
         // ====================================================================
 
-        function updateKnobVisual(knobElement, normValue) {
+        function updateKnobVisual(knobElement, indicatorElement, normValue) {
             const angle = -135 + (normValue * 270);
             knobElement.style.transform = `rotate(${angle}deg)`;
         }
+
+        // ====================================================================
+        // VU METER
+        // ====================================================================
+        const vuNeedle = document.getElementById('vu_needle');
+        let currentVUAngle = -45;
+        let targetVUAngle = -45;
+
+        const VU_ATTACK_SPEED = 0.5;
+        const VU_DECAY_SPEED = 0.08;
+        const VU_MIN_ANGLE = -45;
+        const VU_MAX_ANGLE = 45;
+
+        function mapDBToAngle(dbLevel) {
+            const minDB = -60;
+            const maxDB = 0;
+            const clampedDB = Math.max(minDB, Math.min(maxDB, dbLevel));
+            const normalized = (clampedDB - minDB) / (maxDB - minDB);
+            return VU_MIN_ANGLE + (normalized * (VU_MAX_ANGLE - VU_MIN_ANGLE));
+        }
+
+        if (window.__JUCE__ && window.__JUCE__.backend) {
+            window.__JUCE__.backend.addEventListener("outputLevel", (dbLevel) => {
+                targetVUAngle = mapDBToAngle(dbLevel);
+            });
+        }
+
+        function animateVUMeter() {
+            const vuSpeed = currentVUAngle < targetVUAngle ? VU_ATTACK_SPEED : VU_DECAY_SPEED;
+            currentVUAngle += (targetVUAngle - currentVUAngle) * vuSpeed;
+
+            if (targetVUAngle <= VU_MIN_ANGLE && Math.abs(currentVUAngle - VU_MIN_ANGLE) < 2.0) {
+                currentVUAngle = VU_MIN_ANGLE;
+            }
+
+            vuNeedle.style.transform = `translateX(-50%) rotate(${currentVUAngle}deg)`;
+            requestAnimationFrame(animateVUMeter);
+        }
+
+        animateVUMeter();
 
         // ====================================================================
         // TYPE PARAMETER (ComboBox)
@@ -330,11 +526,12 @@
         console.log("Bound ComboBox: TYPE");
 
         // ====================================================================
-        // CHARACTER PARAMETER (-100% to +100%)
+        // CHARACTER PARAMETER - warm/neutral/bright display
         // ====================================================================
 
         const characterState = getSliderState("CHARACTER");
         const characterKnob = document.getElementById("CHARACTER-knob");
+        const characterIndicator = document.getElementById("CHARACTER-indicator");
         const characterValue = document.getElementById("CHARACTER-value");
 
         let isDraggingCharacter = false;
@@ -342,9 +539,19 @@
 
         function updateCharacterDisplay() {
             const norm = characterState.getNormalisedValue();
-            const actual = -100 + norm * 200;  // -100 to +100
-            characterValue.textContent = `${actual >= 0 ? '+' : ''}${actual.toFixed(0)}%`;
-            updateKnobVisual(characterKnob, norm);
+            const percent = norm * 100;  // 0 to 100
+
+            // Display warm/neutral/bright based on position
+            let displayText;
+            if (percent <= 25) {
+                displayText = "warm";
+            } else if (percent >= 75) {
+                displayText = "bright";
+            } else {
+                displayText = "neutral";
+            }
+            characterValue.textContent = displayText;
+            updateKnobVisual(characterKnob, characterIndicator, norm);
         }
 
         characterKnob.addEventListener("mousedown", (e) => {
@@ -375,6 +582,7 @@
 
         const wetState = getSliderState("WET");
         const wetKnob = document.getElementById("WET-knob");
+        const wetIndicator = document.getElementById("WET-indicator");
         const wetValue = document.getElementById("WET-value");
 
         let isDraggingWet = false;
@@ -384,7 +592,7 @@
             const norm = wetState.getNormalisedValue();
             const actual = norm * 100;
             wetValue.textContent = `${actual.toFixed(0)}%`;
-            updateKnobVisual(wetKnob, norm);
+            updateKnobVisual(wetKnob, wetIndicator, norm);
         }
 
         wetKnob.addEventListener("mousedown", (e) => {
@@ -415,6 +623,7 @@
 
         const dryState = getSliderState("DRY");
         const dryKnob = document.getElementById("DRY-knob");
+        const dryIndicator = document.getElementById("DRY-indicator");
         const dryValue = document.getElementById("DRY-value");
 
         let isDraggingDry = false;
@@ -424,7 +633,7 @@
             const norm = dryState.getNormalisedValue();
             const actual = norm * 100;
             dryValue.textContent = `${actual.toFixed(0)}%`;
-            updateKnobVisual(dryKnob, norm);
+            updateKnobVisual(dryKnob, dryIndicator, norm);
         }
 
         dryKnob.addEventListener("mousedown", (e) => {
@@ -455,6 +664,7 @@
 
         const decayState = getSliderState("DECAY");
         const decayKnob = document.getElementById("DECAY-knob");
+        const decayIndicator = document.getElementById("DECAY-indicator");
         const decayValue = document.getElementById("DECAY-value");
 
         let isDraggingDecay = false;
@@ -465,7 +675,7 @@
             // Decay has skew 0.5, range 0.1-10.0
             const actual = 0.1 + Math.pow(norm, 1/0.5) * (10.0 - 0.1);
             decayValue.textContent = `${actual.toFixed(1)}s`;
-            updateKnobVisual(decayKnob, norm);
+            updateKnobVisual(decayKnob, decayIndicator, norm);
         }
 
         decayKnob.addEventListener("mousedown", (e) => {
@@ -496,6 +706,7 @@
 
         const sizeState = getSliderState("SIZE");
         const sizeKnob = document.getElementById("SIZE-knob");
+        const sizeIndicator = document.getElementById("SIZE-indicator");
         const sizeValue = document.getElementById("SIZE-value");
 
         let isDraggingSize = false;
@@ -505,7 +716,7 @@
             const norm = sizeState.getNormalisedValue();
             const actual = norm * 100;
             sizeValue.textContent = `${actual.toFixed(0)}%`;
-            updateKnobVisual(sizeKnob, norm);
+            updateKnobVisual(sizeKnob, sizeIndicator, norm);
         }
 
         sizeKnob.addEventListener("mousedown", (e) => {
@@ -533,7 +744,7 @@
         // ====================================================================
         // INITIALIZATION COMPLETE
         // ====================================================================
-        console.log("Ouaricon Simple Reverb UI initialized");
+        console.log("Ouaricon Simple Reverb v1.2.0 UI initialized");
     </script>
 </body>
 </html>
