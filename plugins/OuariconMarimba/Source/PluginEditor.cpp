@@ -270,7 +270,7 @@ void OuariconMarimbaAudioProcessorEditor::timerCallback()
     MidiNoteEvent event;
     while (processorRef.popMidiEvent(event))
     {
-        if (event.isNoteOn)
+        if (event.velocity > 0.0f)
         {
             // Note-on: activate interval line with velocity-based intensity
             juce::String js = "if (typeof setNoteActive === 'function') setNoteActive("
@@ -798,10 +798,6 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Ar
 // ============================================================================
 // v1.4.0: Scala/KBM File Export
 // ============================================================================
-
-// Static storage for last-used export directories (remembered during session)
-static juce::String lastScalaExportPath;
-static juce::String lastKBMExportPath;
 
 // Save current tuning as Scala .scl file
 juce::var OuariconMarimbaAudioProcessorEditor::saveScalaFile(const juce::Array<juce::var>& args)

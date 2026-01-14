@@ -29,13 +29,13 @@ export class CompressorUnit {
     this.paramPrefix = options.paramPrefix || 'comp_';
     this.getSliderState = options.getSliderState;
     this.getToggleState = options.getToggleState;
-    this.onGainReductionUpdate = options.onGainReductionUpdate || null;
 
     // State
     this.enabled = true;
     this.autogain = false;
     this.grValue = 0;
     this.animationId = null;
+    this.documentListeners = [];  // Track for cleanup
 
     // Parameter definitions
     this.params = {
@@ -340,83 +340,48 @@ export class CompressorUnit {
   }
 
   /**
-   * Setup bypass toggle on COMP button click
+   * Generic toggle setup - reduces duplication between bypass and autogain
    */
-  setupBypassToggle() {
-    const bypassBtn = this.container.querySelector('.comp-bypass-toggle');
-    const unit = this.container.querySelector('.comp-unit-compact');
+  setupToggle(selector, paramSuffix, stateKey, updateFn) {
+    const btn = this.container.querySelector(selector);
+    const toggleState = this.getToggleState(`${this.paramPrefix}${paramSuffix}`);
 
-    const toggleState = this.getToggleState(`${this.paramPrefix}enabled`);
     if (!toggleState) {
-      console.warn('[CompressorUnit] Could not get toggle state for enabled');
+      console.warn(`[CompressorUnit] Could not get toggle state for ${paramSuffix}`);
       return;
     }
 
-    // Listen to changes from C++
     toggleState.valueChangedEvent.addListener(() => {
-      this.enabled = toggleState.getValue();
-      this.updateBypassVisual();
+      this[stateKey] = toggleState.getValue();
+      updateFn();
     });
 
-    // Click handler
-    bypassBtn.addEventListener('click', () => {
+    btn.addEventListener('click', () => {
       toggleState.setValue(!toggleState.getValue());
     });
 
-    // Initialize
-    this.enabled = toggleState.getValue();
-    this.updateBypassVisual();
+    this[stateKey] = toggleState.getValue();
+    updateFn();
+  }
+
+  setupBypassToggle() {
+    this.setupToggle('.comp-bypass-toggle', 'enabled', 'enabled', () => this.updateBypassVisual());
   }
 
   updateBypassVisual() {
     const bypassBtn = this.container.querySelector('.comp-bypass-toggle');
     const unit = this.container.querySelector('.comp-unit-compact');
-
-    if (this.enabled) {
-      bypassBtn.classList.add('active');
-      unit.classList.remove('bypassed');
-    } else {
-      bypassBtn.classList.remove('active');
-      unit.classList.add('bypassed');
-    }
+    bypassBtn.classList.toggle('active', this.enabled);
+    unit.classList.toggle('bypassed', !this.enabled);
   }
 
-  /**
-   * Setup autogain toggle
-   */
   setupAutogainToggle() {
-    const autogainBtn = this.container.querySelector('.autogain-toggle');
-
-    const toggleState = this.getToggleState(`${this.paramPrefix}autogain`);
-    if (!toggleState) {
-      console.warn('[CompressorUnit] Could not get toggle state for autogain');
-      return;
-    }
-
-    // Listen to changes from C++
-    toggleState.valueChangedEvent.addListener(() => {
-      this.autogain = toggleState.getValue();
-      this.updateAutogainVisual();
-    });
-
-    // Click handler
-    autogainBtn.addEventListener('click', () => {
-      toggleState.setValue(!toggleState.getValue());
-    });
-
-    // Initialize
-    this.autogain = toggleState.getValue();
-    this.updateAutogainVisual();
+    this.setupToggle('.autogain-toggle', 'autogain', 'autogain', () => this.updateAutogainVisual());
   }
 
   updateAutogainVisual() {
     const autogainBtn = this.container.querySelector('.autogain-toggle');
-
-    if (this.autogain) {
-      autogainBtn.classList.add('active');
-    } else {
-      autogainBtn.classList.remove('active');
-    }
+    autogainBtn.classList.toggle('active', this.autogain);
   }
 
   /**
@@ -424,10 +389,28 @@ export class CompressorUnit {
    */
   setupKnobs() {
     const knobParams = ['threshold', 'ratio', 'attack', 'release'];
+    let activeKnob = null;
+    let lastY = 0;
+
+    // Single document-level handlers (more efficient than per-knob)
+    const onMouseMove = (e) => {
+      if (!activeKnob) return;
+      const deltaY = lastY - e.clientY;
+      const currentNormalized = activeKnob.state.getNormalisedValue();
+      const newNormalized = Math.max(0, Math.min(1, currentNormalized + deltaY / 150));
+      activeKnob.state.setNormalisedValue(newNormalized);
+      lastY = e.clientY;
+    };
+
+    const onMouseUp = () => { activeKnob = null; };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+    this.documentListeners.push({ event: 'mousemove', fn: onMouseMove });
+    this.documentListeners.push({ event: 'mouseup', fn: onMouseUp });
 
     knobParams.forEach(paramName => {
-      const knobId = `${this.paramPrefix}${paramName}_knob`;
-      const knob = document.getElementById(knobId);
+      const knob = document.getElementById(`${this.paramPrefix}${paramName}_knob`);
       const sliderState = this.getSliderState(`${this.paramPrefix}${paramName}`);
 
       if (!sliderState) {
@@ -435,45 +418,20 @@ export class CompressorUnit {
         return;
       }
 
-      // Listen to changes from C++
       sliderState.valueChangedEvent.addListener(() => {
-        const normalized = sliderState.getNormalisedValue();
-        this.updateKnobVisual(paramName, normalized);
+        this.updateKnobVisual(paramName, sliderState.getNormalisedValue());
       });
 
-      // Mouse drag handler
-      let isDragging = false;
-      let lastY = 0;
-
       knob.addEventListener('mousedown', (e) => {
-        isDragging = true;
+        activeKnob = { name: paramName, state: sliderState };
         lastY = e.clientY;
         e.preventDefault();
       });
 
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-
-        const deltaY = lastY - e.clientY;
-        const currentNormalized = sliderState.getNormalisedValue();
-        let newNormalized = currentNormalized + (deltaY / 150);
-        newNormalized = Math.max(0, Math.min(1, newNormalized));
-
-        sliderState.setNormalisedValue(newNormalized);
-        lastY = e.clientY;
-      });
-
-      document.addEventListener('mouseup', () => {
-        isDragging = false;
-      });
-
-      // Double-click reset
       knob.addEventListener('dblclick', () => {
-        const defaultNorm = this.defaults[paramName] || 0.5;
-        sliderState.setNormalisedValue(defaultNorm);
+        sliderState.setNormalisedValue(this.defaults[paramName] || 0.5);
       });
 
-      // Initialize visual
       this.updateKnobVisual(paramName, sliderState.getNormalisedValue());
     });
   }
@@ -531,13 +489,10 @@ export class CompressorUnit {
       segments.forEach((segment, index) => {
         segment.classList.remove('active', 'active-high');
 
-        if (index < activeCount) {
-          if (index >= numSegments - 2) {
-            segment.classList.add('active-high');
-          } else {
-            segment.classList.add('active');
-          }
-        }
+        if (index >= activeCount) return;
+
+        const isHighSegment = index >= numSegments - 2;
+        segment.classList.add(isHighSegment ? 'active-high' : 'active');
       });
 
       this.animationId = requestAnimationFrame(update);
@@ -553,6 +508,10 @@ export class CompressorUnit {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
     }
+    this.documentListeners.forEach(({ event, fn }) => {
+      document.removeEventListener(event, fn);
+    });
+    this.documentListeners = [];
   }
 }
 

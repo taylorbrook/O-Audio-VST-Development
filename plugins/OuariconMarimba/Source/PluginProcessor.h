@@ -58,7 +58,6 @@ struct MidiNoteEvent
 {
     int noteNumber;
     float velocity;  // 0.0 = note-off, >0.0 = note-on with velocity
-    bool isNoteOn;
 };
 
 // Lock-free queue for MIDI events (for UI visualization)

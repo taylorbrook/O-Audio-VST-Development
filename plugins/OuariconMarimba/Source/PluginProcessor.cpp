@@ -205,20 +205,12 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         if (msg.isNoteOn() && msg.getVelocity() > 0)
         {
             // Note-on with velocity (normalized 0-1)
-            midiEventQueue.push({
-                msg.getNoteNumber(),
-                msg.getFloatVelocity(),
-                true
-            });
+            midiEventQueue.push({ msg.getNoteNumber(), msg.getFloatVelocity() });
         }
         else if (msg.isNoteOff() || (msg.isNoteOn() && msg.getVelocity() == 0))
         {
             // Note-off (velocity 0 note-on is also note-off per MIDI spec)
-            midiEventQueue.push({
-                msg.getNoteNumber(),
-                0.0f,
-                false
-            });
+            midiEventQueue.push({ msg.getNoteNumber(), 0.0f });
         }
     }
 

@@ -1175,41 +1175,25 @@
         // ====================================================================
         let currentTab = 'main';
 
-        document.getElementById('tab-sound').addEventListener('click', () => {
-            currentTab = 'main';
-            document.getElementById('main-tab').classList.add('active');
-            document.getElementById('tuning-tab').classList.remove('active');
-            document.getElementById('effects-tab').classList.remove('active');
-            document.getElementById('tab-sound').classList.add('active');
-            document.getElementById('tab-tuning').classList.remove('active');
-            document.getElementById('tab-effects').classList.remove('active');
-            document.getElementById('botanical').classList.remove('tuning-position');
-            document.getElementById('botanical').classList.remove('effects-position');
-        });
+        function switchTab(tabName) {
+            const tabs = ['main', 'tuning', 'effects'];
+            const tabButtons = ['tab-sound', 'tab-tuning', 'tab-effects'];
+            const botanicalPositions = { tuning: 'tuning-position', effects: 'effects-position' };
 
-        document.getElementById('tab-tuning').addEventListener('click', () => {
-            currentTab = 'tuning';
-            document.getElementById('tuning-tab').classList.add('active');
-            document.getElementById('main-tab').classList.remove('active');
-            document.getElementById('effects-tab').classList.remove('active');
-            document.getElementById('tab-tuning').classList.add('active');
-            document.getElementById('tab-sound').classList.remove('active');
-            document.getElementById('tab-effects').classList.remove('active');
-            document.getElementById('botanical').classList.remove('effects-position');
-            document.getElementById('botanical').classList.add('tuning-position');
-        });
+            tabs.forEach((t, i) => {
+                document.getElementById(t + '-tab').classList.toggle('active', t === tabName);
+                document.getElementById(tabButtons[i]).classList.toggle('active', t === tabName);
+            });
 
-        document.getElementById('tab-effects').addEventListener('click', () => {
-            currentTab = 'effects';
-            document.getElementById('effects-tab').classList.add('active');
-            document.getElementById('main-tab').classList.remove('active');
-            document.getElementById('tuning-tab').classList.remove('active');
-            document.getElementById('tab-effects').classList.add('active');
-            document.getElementById('tab-sound').classList.remove('active');
-            document.getElementById('tab-tuning').classList.remove('active');
-            document.getElementById('botanical').classList.remove('tuning-position');
-            document.getElementById('botanical').classList.add('effects-position');
-        });
+            const botanical = document.getElementById('botanical');
+            botanical.classList.remove('tuning-position', 'effects-position');
+            if (botanicalPositions[tabName]) botanical.classList.add(botanicalPositions[tabName]);
+            currentTab = tabName;
+        }
+
+        document.getElementById('tab-sound').addEventListener('click', () => switchTab('main'));
+        document.getElementById('tab-tuning').addEventListener('click', () => switchTab('tuning'));
+        document.getElementById('tab-effects').addEventListener('click', () => switchTab('effects'));
 
         // ====================================================================
         // HELPER FUNCTIONS
@@ -2127,23 +2111,18 @@
         function showPresetDropdown() {
             presetDropdown.innerHTML = '';
 
-            // Separate factory and user presets
-            const factoryPresets = presetList.filter(p => p.isFactory);
-            const userPresets = presetList.filter(p => !p.isFactory);
+            function addPresetSection(label, presets, isFactory) {
+                if (presets.length === 0) return;
 
-            // Add factory presets section
-            if (factoryPresets.length > 0) {
-                const factoryHeader = document.createElement('div');
-                factoryHeader.className = 'preset-dropdown-header';
-                factoryHeader.textContent = 'Factory';
-                presetDropdown.appendChild(factoryHeader);
+                const header = document.createElement('div');
+                header.className = 'preset-dropdown-header';
+                header.textContent = label;
+                presetDropdown.appendChild(header);
 
-                factoryPresets.forEach(preset => {
+                presets.forEach(preset => {
                     const item = document.createElement('div');
-                    item.className = 'preset-dropdown-item factory';
-                    if (preset.name === presetNameDisplay.textContent) {
-                        item.classList.add('active');
-                    }
+                    item.className = 'preset-dropdown-item' + (isFactory ? ' factory' : '');
+                    if (preset.name === presetNameDisplay.textContent) item.classList.add('active');
                     item.textContent = preset.name;
                     item.addEventListener('click', (e) => {
                         e.stopPropagation();
@@ -2153,27 +2132,8 @@
                 });
             }
 
-            // Add user presets section
-            if (userPresets.length > 0) {
-                const userHeader = document.createElement('div');
-                userHeader.className = 'preset-dropdown-header';
-                userHeader.textContent = 'User';
-                presetDropdown.appendChild(userHeader);
-
-                userPresets.forEach(preset => {
-                    const item = document.createElement('div');
-                    item.className = 'preset-dropdown-item';
-                    if (preset.name === presetNameDisplay.textContent) {
-                        item.classList.add('active');
-                    }
-                    item.textContent = preset.name;
-                    item.addEventListener('click', (e) => {
-                        e.stopPropagation();
-                        selectPresetFromDropdown(preset.name);
-                    });
-                    presetDropdown.appendChild(item);
-                });
-            }
+            addPresetSection('Factory', presetList.filter(p => p.isFactory), true);
+            addPresetSection('User', presetList.filter(p => !p.isFactory), false);
 
             presetDropdown.classList.add('show');
         }

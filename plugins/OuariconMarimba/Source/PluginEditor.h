@@ -27,7 +27,6 @@ private:
     // Timer callback for polling note-on events from processor
     void timerCallback() override;
 
-private:
     OuariconMarimbaAudioProcessor& processorRef;
 
     // ⚠️ CRITICAL: MEMBER DECLARATION ORDER (Pattern 11)
@@ -158,6 +157,10 @@ private:
 
     // File chooser (must be member to stay alive during async operation)
     std::unique_ptr<juce::FileChooser> fileChooser;
+
+    // Session-remembered export directories
+    juce::String lastScalaExportPath;
+    juce::String lastKBMExportPath;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconMarimbaAudioProcessorEditor)
 };
