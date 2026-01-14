@@ -1,0 +1,89 @@
+name: analog-eq-unit
+version: 1.0.0
+category: effects
+description: |
+  4-band analog-style parametric EQ module with low/high shelves and two mid bells.
+  Includes optional analog saturation for warmth. Designed as an embeddable unit
+  for effects tabs in VST instruments. Same DSP as Ouaricon Analog Equalizer.
+
+  Features signature dual-ring knobs: outer ring controls frequency, inner dial
+  controls gain. Click position detection determines which parameter to adjust.
+
+provides:
+  cpp-class: AnalogEQUnit
+  js-module: analog-eq-unit.js
+  parameters:
+    # LF Shelf Band
+    - lf_freq      # Corner frequency (30-500 Hz)
+    - lf_gain      # Boost/cut (±12 dB)
+    - lf_on        # Band bypass
+    # LMF Bell Band
+    - lmf_freq     # Center frequency (100-2000 Hz)
+    - lmf_gain     # Boost/cut (±12 dB)
+    - lmf_q        # Q selection (WIDE/MED/TIGHT)
+    - lmf_on       # Band bypass
+    # HMF Bell Band
+    - hmf_freq     # Center frequency (500-8000 Hz)
+    - hmf_gain     # Boost/cut (±12 dB)
+    - hmf_q        # Q selection (WIDE/MED/TIGHT)
+    - hmf_on       # Band bypass
+    # HF Shelf Band
+    - hf_freq      # Corner frequency (2000-20000 Hz)
+    - hf_gain      # Boost/cut (±12 dB)
+    - hf_on        # Band bypass
+    # Global
+    - output_gain  # Master output (±12 dB)
+    - analog       # Saturation enable
+
+config:
+  param_prefix:
+    type: string
+    default: "eq_"
+    description: Prefix for parameter IDs to avoid conflicts (e.g., "fx_eq_")
+
+  compact_ui:
+    type: boolean
+    default: true
+    description: Use compact UI layout (fits in effects tab)
+
+  show_output_meter:
+    type: boolean
+    default: false
+    description: Show VU meter (adds width to UI)
+
+  default_analog_on:
+    type: boolean
+    default: true
+    description: Default state for analog saturation
+
+requirements:
+  juce_modules:
+    - juce_core
+    - juce_audio_processors
+    - juce_dsp
+  cpp_standard: 20
+
+sources:
+  cpp:
+    - AnalogEQUnit.h
+  js:
+    - analog-eq-unit.js
+
+tags:
+  - dsp
+  - eq
+  - filter
+  - effects
+  - webview
+
+reuse_score: 9
+
+changelog:
+  - version: 1.0.0
+    date: 2026-01-13
+    changes:
+      - Initial release
+      - 4-band EQ (LF shelf, LMF bell, HMF bell, HF shelf)
+      - Analog saturation circuit
+      - Compact UI for effects tabs
+      - Based on Ouaricon Analog Equalizer DSP

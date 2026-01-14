@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 version: 1.0.0
-last_updated: 2026-01-12
+last_updated: 2026-01-13
 schema_version: 1.0.0
 
 # Module categories
@@ -31,6 +31,9 @@ categories:
 
   - name: synthesis
     description: Sound generation (oscillators, modal resonators)
+
+  - name: effects
+    description: DSP effect modules (EQ, compression, delay, reverb)
 
   - name: ui
     description: UI components (keyboards, visualizations, controls)
@@ -197,6 +200,58 @@ modules:
     used_by:
       - plugin: OuariconMarimba
         version: 1.0.0
+
+  # ============================================================================
+  # EFFECTS MODULES
+  # ============================================================================
+
+  - name: analog-eq-unit
+    path: effects/analog-eq-unit
+    version: 1.0.0
+    description: |
+      4-band analog-style parametric EQ module with low/high shelves and two
+      mid bells. Includes optional analog saturation for warmth. Designed as
+      an embeddable unit for effects tabs in VST instruments. Same DSP as
+      Ouaricon Analog Equalizer. Features signature dual-ring knobs where
+      outer ring controls frequency and inner dial controls gain.
+    category: effects
+    provides:
+      - cpp-class: AnalogEQUnit
+      - js-module: analog-eq-unit.js
+      - parameters:
+        - lf_freq
+        - lf_gain
+        - lf_on
+        - lmf_freq
+        - lmf_gain
+        - lmf_q
+        - lmf_on
+        - hmf_freq
+        - hmf_gain
+        - hmf_q
+        - hmf_on
+        - hf_freq
+        - hf_gain
+        - hf_on
+        - output_gain
+        - analog
+    config:
+      param_prefix:
+        type: string
+        default: "eq_"
+        description: Prefix for parameter IDs to avoid conflicts
+      compact_ui:
+        type: boolean
+        default: true
+        description: Use compact UI layout (fits in effects tab)
+      show_output_meter:
+        type: boolean
+        default: false
+        description: Show VU meter (adds width to UI)
+    dependencies: []
+    tags: [dsp, eq, filter, effects, parametric, analog, saturation, webview]
+    reuse_score: 9
+    used_by: []
 
   # ============================================================================
   # UI MODULES

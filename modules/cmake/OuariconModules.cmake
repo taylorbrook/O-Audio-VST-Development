@@ -31,7 +31,7 @@ function(ouaricon_add_module TARGET_NAME MODULE_NAME)
     cmake_parse_arguments(ARG "" "CONFIG" "" ${ARGN})
 
     # Find module directory by searching categories
-    set(MODULE_CATEGORIES core persistence metering tuning modulation synthesis)
+    set(MODULE_CATEGORIES core persistence metering tuning modulation synthesis effects ui)
     set(MODULE_DIR "")
 
     foreach(CATEGORY ${MODULE_CATEGORIES})
@@ -108,7 +108,7 @@ endfunction()
 function(ouaricon_list_modules)
     message(STATUS "[Ouaricon] Available modules:")
 
-    set(MODULE_CATEGORIES core persistence metering tuning modulation synthesis)
+    set(MODULE_CATEGORIES core persistence metering tuning modulation synthesis effects ui)
 
     foreach(CATEGORY ${MODULE_CATEGORIES})
         set(CATEGORY_DIR "${OUARICON_MODULES_DIR}/${CATEGORY}")
