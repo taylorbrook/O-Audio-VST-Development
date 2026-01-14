@@ -2,11 +2,14 @@
   ==============================================================================
 
     CompressorUnit - Embeddable Dynamics Compressor Module
-    Ouaricon Audio Module System
+    Ouaricon Audio Module System v1.2.1
 
     Compact compressor with 4 essential parameters:
     - Threshold, Ratio, Attack, Release
     Fixed 6dB soft knee for musical response.
+
+    v1.2.1 Changes:
+    - Added gain smoothing to prevent clicks at high gain reduction
 
     Based on Ouaricon Compressor DSP.
 
@@ -27,6 +30,7 @@ public:
 
     // Fixed internal values
     static constexpr float FIXED_KNEE_DB = 6.0f;
+    static constexpr float GAIN_SMOOTH_COEFF = 0.005f;  // Smooth gain changes to prevent clicks
 
     CompressorUnit() = default;
     ~CompressorUnit() = default;
@@ -103,6 +107,8 @@ public:
     void reset()
     {
         envelopeDB = -60.0f;
+        smoothedGainReduction = 0.0f;
+        smoothedGainLinear = 1.0f;  // Unity gain
         gainReductionDB.store(0.0f);
     }
 
@@ -170,23 +176,33 @@ public:
             float gr = calculateGainReduction(envelopeDB, thresholdDB, ratio, FIXED_KNEE_DB);
             peakGainReduction = std::max(peakGainReduction, gr);
 
-            // Convert to linear gain and apply
-            float gainLinear = juce::Decibels::decibelsToGain(-gr);
+            // Convert to linear gain
+            float targetGainLinear = juce::Decibels::decibelsToGain(-gr);
 
+            // Smooth the gain to prevent clicks at high GR
+            smoothedGainLinear += (targetGainLinear - smoothedGainLinear) * GAIN_SMOOTH_COEFF;
+
+            // Apply smoothed gain
             for (int channel = 0; channel < numChannels; ++channel)
             {
                 auto* channelData = buffer.getWritePointer(channel);
-                channelData[sample] *= gainLinear;
+                channelData[sample] *= smoothedGainLinear;
             }
         }
 
         // Update atomic meter value
         gainReductionDB.store(peakGainReduction);
 
-        // Apply autogain (makeup gain = peak gain reduction)
+        // Apply autogain (smoothed, conservative makeup gain)
         if (autogainEnabled && peakGainReduction > 0.0f)
         {
-            float makeupGainLinear = juce::Decibels::decibelsToGain(peakGainReduction);
+            // Smooth the autogain envelope (slower than compression to avoid pumping)
+            const float autogainCoeff = 0.0005f;  // Very slow follower
+            smoothedGainReduction += (peakGainReduction - smoothedGainReduction) * autogainCoeff;
+
+            // Apply only 60% of the smoothed gain reduction to avoid clipping
+            float makeupDB = smoothedGainReduction * 0.6f;
+            float makeupGainLinear = juce::Decibels::decibelsToGain(makeupDB);
             buffer.applyGain(makeupGainLinear);
         }
     }
@@ -201,6 +217,8 @@ private:
     float envelopeDB = -60.0f;
     float attackCoeff = 0.0f;
     float releaseCoeff = 0.0f;
+    float smoothedGainReduction = 0.0f;  // For conservative autogain
+    float smoothedGainLinear = 1.0f;     // Smoothed gain to prevent clicks
 
     std::atomic<float> gainReductionDB { 0.0f };
 

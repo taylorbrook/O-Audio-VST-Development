@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.3] - 2026-01-14
+
+### Fixed
+- **Compressor clicking at high gain reduction** - DSP clicking/popping eliminated
+  - Root cause: Gain was applied sample-by-sample without smoothing
+  - Fix: Added gain coefficient smoothing (`GAIN_SMOOTH_COEFF = 0.005`)
+  - Smoothed gain interpolates toward target to prevent abrupt discontinuities
+
+### Technical Details
+- Compressor module DSP updated to v1.2.1 (`modules/effects/compressor-unit/cpp/`)
+- New member: `smoothedGainLinear` - tracks smoothed gain coefficient
+- Smoothing preserves transient response while eliminating audible artifacts
+
 ## [1.9.2] - 2026-01-14
 
 ### Changed

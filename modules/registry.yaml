@@ -257,7 +257,7 @@ modules:
 
   - name: compressor-unit
     path: effects/compressor-unit
-    version: 1.2.0
+    version: 1.2.1
     description: |
       Compact dynamics compressor module for embedding in VST instruments.
       Same DSP as Ouaricon Compressor with simplified controls: Threshold,
@@ -292,7 +292,7 @@ modules:
     reuse_score: 9
     used_by:
       - plugin: OuariconMarimba
-        version: 1.9.2
+        version: 1.9.3
 
   # ============================================================================
   # UI MODULES

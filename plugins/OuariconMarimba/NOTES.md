@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.2
+- **Version:** 1.9.3
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -106,6 +106,10 @@
   - Changed: Both EQ and Compressor modules 10px shorter, 100px wider
   - Changed: Compressor knobs use canonical 10-segment Ouaricon seed pattern
   - Updated: analog-eq-unit module v1.2.0, compressor-unit module v1.2.0
+- **2026-01-14 (v1.9.3):** Compressor clicking fix
+  - Fixed: Clicking at high gain reduction caused by unsmoothed gain application
+  - Added: Gain coefficient smoothing (GAIN_SMOOTH_COEFF = 0.005)
+  - Updated: compressor-unit DSP to v1.2.1
 
 ## Known Issues
 
