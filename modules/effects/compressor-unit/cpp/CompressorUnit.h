@@ -2,11 +2,17 @@
   ==============================================================================
 
     CompressorUnit - Embeddable Dynamics Compressor Module
-    Ouaricon Audio Module System v1.2.1
+    Ouaricon Audio Module System v1.2.2
 
     Compact compressor with 4 essential parameters:
     - Threshold, Ratio, Attack, Release
     Fixed 6dB soft knee for musical response.
+
+    v1.2.2 Changes:
+    - Fixed clicking at high gain reduction (sample-rate-independent smoothing)
+    - Gain smoothing now in dB domain for perceptually uniform response
+    - Gain changes now respect attack/release settings
+      (attack coeff for gain decrease, release coeff for gain increase)
 
     v1.2.1 Changes:
     - Added gain smoothing to prevent clicks at high gain reduction
@@ -30,7 +36,7 @@ public:
 
     // Fixed internal values
     static constexpr float FIXED_KNEE_DB = 6.0f;
-    static constexpr float GAIN_SMOOTH_COEFF = 0.005f;  // Smooth gain changes to prevent clicks
+    static constexpr float GAIN_SMOOTH_TIME_MS = 5.0f;  // Minimum smoothing time for click prevention
 
     CompressorUnit() = default;
     ~CompressorUnit() = default;
@@ -102,13 +108,17 @@ public:
 
         // Initialize coefficients with defaults
         updateCoefficients(10.0f, 100.0f);
+
+        // Calculate sample-rate-dependent gain smoothing coefficient
+        // This ensures consistent ~5ms smoothing regardless of sample rate
+        gainSmoothCoeff = 1.0f - std::exp(-1000.0f / (GAIN_SMOOTH_TIME_MS * static_cast<float>(sampleRate)));
     }
 
     void reset()
     {
         envelopeDB = -60.0f;
         smoothedGainReduction = 0.0f;
-        smoothedGainLinear = 1.0f;  // Unity gain
+        smoothedGainDB = 0.0f;  // 0 dB = unity gain
         gainReductionDB.store(0.0f);
     }
 
@@ -176,11 +186,30 @@ public:
             float gr = calculateGainReduction(envelopeDB, thresholdDB, ratio, FIXED_KNEE_DB);
             peakGainReduction = std::max(peakGainReduction, gr);
 
-            // Convert to linear gain
-            float targetGainLinear = juce::Decibels::decibelsToGain(-gr);
+            // Target gain in dB (negative = attenuation)
+            float targetGainDB = -gr;
 
-            // Smooth the gain to prevent clicks at high GR
-            smoothedGainLinear += (targetGainLinear - smoothedGainLinear) * GAIN_SMOOTH_COEFF;
+            // v1.2.2: Smooth gain in dB domain with attack/release-aware coefficient
+            // - When gain is DECREASING (more compression): use attack coefficient
+            // - When gain is INCREASING (less compression): use release coefficient
+            // - Always apply minimum smoothing (gainSmoothCoeff) to prevent clicks
+            float smoothCoeff;
+            if (targetGainDB < smoothedGainDB)
+            {
+                // Gain decreasing (compressor engaging) - use attack, but ensure minimum smoothing
+                smoothCoeff = std::min(attackCoeff, gainSmoothCoeff);
+            }
+            else
+            {
+                // Gain increasing (compressor releasing) - use release, but ensure minimum smoothing
+                smoothCoeff = std::min(releaseCoeff, gainSmoothCoeff);
+            }
+
+            // Apply one-pole smoothing in dB domain
+            smoothedGainDB += (targetGainDB - smoothedGainDB) * smoothCoeff;
+
+            // Convert smoothed dB to linear gain
+            float smoothedGainLinear = juce::Decibels::decibelsToGain(smoothedGainDB);
 
             // Apply smoothed gain
             for (int channel = 0; channel < numChannels; ++channel)
@@ -218,7 +247,8 @@ private:
     float attackCoeff = 0.0f;
     float releaseCoeff = 0.0f;
     float smoothedGainReduction = 0.0f;  // For conservative autogain
-    float smoothedGainLinear = 1.0f;     // Smoothed gain to prevent clicks
+    float smoothedGainDB = 0.0f;         // Smoothed gain in dB domain (0 = unity)
+    float gainSmoothCoeff = 0.005f;      // Sample-rate-dependent gain smoothing
 
     std::atomic<float> gainReductionDB { 0.0f };
 

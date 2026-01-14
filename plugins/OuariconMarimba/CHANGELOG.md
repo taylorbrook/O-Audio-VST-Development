@@ -2,6 +2,25 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.4] - 2026-01-14
+
+### Fixed
+- **Compressor clicking fully resolved** - Complete overhaul of gain smoothing DSP
+  - Root cause 1: Smoothing coefficient was sample-rate independent (faster at higher rates)
+  - Root cause 2: Smoothing in linear domain caused non-uniform perceptual response
+  - Root cause 3: Gain smoother ignored attack/release settings
+
+### Technical Details
+- Compressor module DSP updated to v1.2.2 (`modules/effects/compressor-unit/cpp/`)
+- **Sample-rate independent smoothing:** Coefficient now calculated in `prepare()` using:
+  `gainSmoothCoeff = 1 - exp(-1000 / (5ms × sampleRate))` - consistent ~5ms at any rate
+- **dB domain smoothing:** `smoothedGainDB` replaces `smoothedGainLinear` for perceptually
+  uniform response across all gain reduction levels
+- **Attack/release-aware gain changes:**
+  - Gain decreasing (compression engaging) → uses attack coefficient
+  - Gain increasing (compression releasing) → uses release coefficient
+  - Minimum 5ms smoothing always applied to prevent clicks
+
 ## [1.9.3] - 2026-01-14
 
 ### Fixed
