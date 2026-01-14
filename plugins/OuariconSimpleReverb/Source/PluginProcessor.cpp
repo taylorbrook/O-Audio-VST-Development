@@ -207,17 +207,17 @@ OuariconSimpleReverbAudioProcessor::OuariconSimpleReverbAudioProcessor()
 {
     // Initialize factory presets (4 per reverb type = 24 total)
     initializeFactoryPresets();
-    // Initialize early reflection delay lines with default max size
+    // Initialize early reflection delay lines
     for (auto& delay : earlyReflectionsL)
-        delay.setMaximumDelayInSamples(9600);  // ~50ms at 192kHz
+        delay.setMaximumDelayInSamples(kMaxEarlyReflectionSamples);
     for (auto& delay : earlyReflectionsR)
-        delay.setMaximumDelayInSamples(9600);
+        delay.setMaximumDelayInSamples(kMaxEarlyReflectionSamples);
 
     // Initialize all-pass delay lines
     for (auto& delay : allPassL)
-        delay.setMaximumDelayInSamples(960);   // ~5ms at 192kHz
+        delay.setMaximumDelayInSamples(kMaxAllPassSamples);
     for (auto& delay : allPassR)
-        delay.setMaximumDelayInSamples(960);
+        delay.setMaximumDelayInSamples(kMaxAllPassSamples);
 }
 
 OuariconSimpleReverbAudioProcessor::~OuariconSimpleReverbAudioProcessor()
@@ -237,16 +237,11 @@ void OuariconSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int sa
     reverb.prepare(spec);
     reverb.reset();
 
-    // Prepare character filter
-    characterFilter.prepare(spec);
-    characterFilter.reset();
-    *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
+    // Prepare filters using template helper
+    prepareFilterAsAllPass(characterFilter, spec, sampleRate);
     previousMode = CharacterMode::Neutral;
 
-    // Prepare type-specific EQ filter
-    typeEqFilter.prepare(spec);
-    typeEqFilter.reset();
-    *typeEqFilter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
+    prepareFilterAsAllPass(typeEqFilter, spec, sampleRate);
 
     // Prepare user high-pass (low cut) filter
     lpFilter.prepare(spec);
@@ -260,36 +255,20 @@ void OuariconSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int sa
     preDelayL.reset();
     preDelayR.reset();
 
-    // Prepare early reflection delay lines
-    for (auto& delay : earlyReflectionsL) {
-        delay.prepare(spec);
-        delay.reset();
-    }
-    for (auto& delay : earlyReflectionsR) {
-        delay.prepare(spec);
-        delay.reset();
-    }
-
-    // Prepare all-pass filters
-    for (auto& delay : allPassL) {
-        delay.prepare(spec);
-        delay.reset();
-    }
-    for (auto& delay : allPassR) {
-        delay.prepare(spec);
-        delay.reset();
-    }
+    // Prepare delay line containers using template helper
+    prepareDelayContainer(earlyReflectionsL, spec);
+    prepareDelayContainer(earlyReflectionsR, spec);
+    prepareDelayContainer(allPassL, spec);
+    prepareDelayContainer(allPassR, spec);
 
     // Reset all-pass state
-    for (int i = 0; i < numAllPassFilters; ++i) {
-        allPassStateL[i] = 0.0f;
-        allPassStateR[i] = 0.0f;
-    }
+    allPassStateL.fill(0.0f);
+    allPassStateR.fill(0.0f);
 
     // Reset modulation
     lfoPhase = 0.0f;
     shimmerPhase = 0.0f;
-    shimmerFreq = 1500.0f;  // ~1.5kHz for subtle shimmer
+    shimmerFreq = kDefaultShimmerFreq;
 
     // Force type update on first block
     previousType = -1;
@@ -311,23 +290,19 @@ void OuariconSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
     }
 
     // Set early reflection delay times based on type
-    // Base times in ms: 7, 11, 17, 23 (prime numbers for less metallic sound)
-    const float baseDelaysMs[4] = { 7.0f, 11.0f, 17.0f, 23.0f };
-
     for (int i = 0; i < numEarlyReflections; ++i) {
-        float delayMs = baseDelaysMs[i] * preset.earlyReflectionScale;
+        float delayMs = kBaseEarlyDelaysMs[i] * preset.earlyReflectionScale;
         float delaySamples = (delayMs / 1000.0f) * static_cast<float>(currentSampleRate);
 
-        // Slight L/R offset for width
         earlyReflectionsL[i].setDelay(delaySamples);
-        earlyReflectionsR[i].setDelay(delaySamples * 1.07f);  // 7% offset for stereo
+        earlyReflectionsR[i].setDelay(delaySamples * kEarlyReflectionStereoOffset);
     }
 
     // Set all-pass delay times (for Spring)
     for (int i = 0; i < numAllPassFilters; ++i) {
         float delaySamples = (allPassDelayMs[i] / 1000.0f) * static_cast<float>(currentSampleRate);
         allPassL[i].setDelay(delaySamples);
-        allPassR[i].setDelay(delaySamples * 1.05f);  // Slight offset
+        allPassR[i].setDelay(delaySamples * kAllPassStereoOffset);
     }
 
     // Update type-specific EQ
@@ -494,9 +469,9 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             float modDelaySamples = (preset.modDepth / 1000.0f) * static_cast<float>(currentSampleRate);
 
             // Apply subtle pitch modulation by varying gain (simpler than true pitch shift)
-            float modGain = 1.0f + (lfoValue * 0.03f);  // ±3% amplitude modulation
+            float modGain = 1.0f + (lfoValue * kLfoAmplitudeModulation);
             processedL *= modGain;
-            processedR *= (1.0f + (std::sin(lfoPhase + 0.5f) * 0.03f));  // Phase offset for stereo
+            processedR *= (1.0f + (std::sin(lfoPhase + 0.5f) * kLfoAmplitudeModulation));  // Phase offset for stereo
         }
 
         // === 5. Plate Shimmer (if enabled) ===
@@ -507,9 +482,8 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
             // Subtle ring modulation for shimmer effect
             float shimmerMod = std::sin(shimmerPhase);
-            float shimmerAmount = 0.08f;  // 8% shimmer mix
-            processedL += processedL * shimmerMod * shimmerAmount;
-            processedR += processedR * shimmerMod * shimmerAmount;
+            processedL += processedL * shimmerMod * kShimmerMixAmount;
+            processedR += processedR * shimmerMod * kShimmerMixAmount;
         }
 
         // Write to wet buffer for reverb processing
@@ -598,7 +572,7 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     }
     float levelDB = peakLevel > 0.00001f
         ? juce::Decibels::gainToDecibels(peakLevel)
-        : -100.0f;
+        : kVuMeterFloorDB;
     outputLevelDB.store(levelDB, std::memory_order_relaxed);
 }
 

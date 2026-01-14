@@ -18,6 +18,30 @@
 class OuariconSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
 public:
+    // ==================== DSP Constants ====================
+    // These named constants replace magic numbers for clarity and tuneability
+
+    // Delay line sizing (samples at 192kHz)
+    static constexpr int kMaxPreDelaySamples = 19200;       // ~100ms at 192kHz
+    static constexpr int kMaxEarlyReflectionSamples = 9600; // ~50ms at 192kHz
+    static constexpr int kMaxAllPassSamples = 960;          // ~5ms at 192kHz
+
+    // Stereo offsets for spatial separation
+    static constexpr float kEarlyReflectionStereoOffset = 1.07f;  // 7% L/R offset
+    static constexpr float kAllPassStereoOffset = 1.05f;          // 5% L/R offset
+
+    // Modulation amounts
+    static constexpr float kLfoAmplitudeModulation = 0.03f;  // ±3% amplitude modulation
+    static constexpr float kShimmerMixAmount = 0.08f;        // 8% shimmer mix
+    static constexpr float kDefaultShimmerFreq = 1500.0f;    // ~1.5kHz ring modulation
+
+    // Early reflection base times (ms) - prime numbers for natural sound
+    static constexpr std::array<float, 4> kBaseEarlyDelaysMs = { 7.0f, 11.0f, 17.0f, 23.0f };
+
+    // VU meter floor level
+    static constexpr float kVuMeterFloorDB = -100.0f;
+
+
     OuariconSimpleReverbAudioProcessor();
     ~OuariconSimpleReverbAudioProcessor() override;
 
@@ -47,7 +71,7 @@ public:
     OuariconPresetManager presetManager;
 
     // VU Meter - output level for WebView (thread-safe)
-    std::atomic<float> outputLevelDB { -100.0f };
+    std::atomic<float> outputLevelDB { kVuMeterFloorDB };
 
 private:
     // Parameter layout creation
@@ -64,9 +88,9 @@ private:
 
     // === Type-Specific DSP Components (v1.1.0) ===
 
-    // Pre-delay line (max 100ms at 192kHz = 19200 samples)
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayL { 19200 };
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayR { 19200 };
+    // Pre-delay line
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayL { kMaxPreDelaySamples };
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayR { kMaxPreDelaySamples };
 
     // Early reflection comb filters (4 per channel for density)
     static constexpr int numEarlyReflections = 4;
@@ -126,6 +150,22 @@ private:
     void updateTypeSpecificDSP(int typeIndex);
     float processAllPassChain(float input, bool isLeft);
     void initializeFactoryPresets();
+
+    // Template helpers to reduce initialization code duplication
+    template<typename DelayContainer>
+    void prepareDelayContainer(DelayContainer& delays, const juce::dsp::ProcessSpec& spec) {
+        for (auto& delay : delays) {
+            delay.prepare(spec);
+            delay.reset();
+        }
+    }
+
+    template<typename FilterType>
+    void prepareFilterAsAllPass(FilterType& filter, const juce::dsp::ProcessSpec& spec, double sampleRate) {
+        filter.prepare(spec);
+        filter.reset();
+        *filter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
+    }
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSimpleReverbAudioProcessor)
 };

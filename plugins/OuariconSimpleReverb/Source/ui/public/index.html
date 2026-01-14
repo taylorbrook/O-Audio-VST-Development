@@ -712,11 +712,15 @@
                     const displayName = name.includes(' - ') ? name.split(' - ')[1] : name;
                     item.textContent = displayName;
                     item.addEventListener('click', async () => {
-                        await loadPreset(name);
-                        currentPresetName = name;
-                        presetNameEl.textContent = name;
-                        closeDropdown();
-                        renderDropdown();
+                        try {
+                            await loadPreset(name);
+                            currentPresetName = name;
+                            presetNameEl.textContent = name;
+                            closeDropdown();
+                            renderDropdown();
+                        } catch (e) {
+                            console.error('[Presets] Load preset failed:', e);
+                        }
                     });
                     presetDropdown.appendChild(item);
                 }
@@ -750,22 +754,30 @@
         });
 
         presetPrev.addEventListener('click', async () => {
-            const prevName = await selectPreviousPreset();
-            if (prevName) {
-                await loadPreset(prevName);
-                currentPresetName = prevName;
-                presetNameEl.textContent = prevName;
-                renderDropdown();
+            try {
+                const prevName = await selectPreviousPreset();
+                if (prevName) {
+                    await loadPreset(prevName);
+                    currentPresetName = prevName;
+                    presetNameEl.textContent = prevName;
+                    renderDropdown();
+                }
+            } catch (e) {
+                console.error('[Presets] Previous navigation failed:', e);
             }
         });
 
         presetNext.addEventListener('click', async () => {
-            const nextName = await selectNextPreset();
-            if (nextName) {
-                await loadPreset(nextName);
-                currentPresetName = nextName;
-                presetNameEl.textContent = nextName;
-                renderDropdown();
+            try {
+                const nextName = await selectNextPreset();
+                if (nextName) {
+                    await loadPreset(nextName);
+                    currentPresetName = nextName;
+                    presetNameEl.textContent = nextName;
+                    renderDropdown();
+                }
+            } catch (e) {
+                console.error('[Presets] Next navigation failed:', e);
             }
         });
 
@@ -806,9 +818,53 @@
         // HELPER FUNCTIONS
         // ====================================================================
 
-        function updateKnobVisual(knobElement, indicatorElement, normValue) {
+        function updateKnobVisual(knobElement, normValue) {
             const angle = -135 + (normValue * 270);
             knobElement.style.transform = `rotate(${angle}deg)`;
+        }
+
+        const DRAG_SENSITIVITY = 0.005;
+
+        /**
+         * Creates a reusable slider/knob binding for a parameter.
+         * @param {string} id - Parameter ID (e.g., "WET", "DRY")
+         * @param {function} formatter - (normalizedValue) => displayText
+         */
+        function bindSlider(id, formatter) {
+            const state = getSliderState(id);
+            const knob = document.getElementById(`${id}-knob`);
+            const valueEl = document.getElementById(`${id}-value`);
+
+            let isDragging = false;
+            let lastY = 0;
+
+            const updateDisplay = () => {
+                const norm = state.getNormalisedValue();
+                valueEl.textContent = formatter(norm);
+                updateKnobVisual(knob, norm);
+            };
+
+            knob.addEventListener("mousedown", (e) => {
+                isDragging = true;
+                lastY = e.clientY;
+                e.preventDefault();
+            });
+
+            document.addEventListener("mousemove", (e) => {
+                if (!isDragging) return;
+                const deltaY = lastY - e.clientY;
+                const newValue = Math.max(0, Math.min(1, state.getNormalisedValue() + deltaY * DRAG_SENSITIVITY));
+                state.setNormalisedValue(newValue);
+                updateDisplay();
+                lastY = e.clientY;
+            });
+
+            document.addEventListener("mouseup", () => { isDragging = false; });
+
+            state.valueChangedEvent.addListener(updateDisplay);
+            updateDisplay();
+
+            return { state, updateDisplay };
         }
 
         // ====================================================================
@@ -900,283 +956,82 @@
         console.log("Bound ComboBox: TYPE");
 
         // ====================================================================
-        // CHARACTER PARAMETER - warm/neutral/bright display
+        // SLIDER/KNOB PARAMETER BINDINGS
         // ====================================================================
 
-        const characterState = getSliderState("CHARACTER");
-        const characterKnob = document.getElementById("CHARACTER-knob");
-        const characterIndicator = document.getElementById("CHARACTER-indicator");
-        const characterValue = document.getElementById("CHARACTER-value");
-
-        let isDraggingCharacter = false;
-        let lastY_character = 0;
-
-        function updateCharacterDisplay() {
-            const norm = characterState.getNormalisedValue();
-            const percent = norm * 100;  // 0 to 100
-
-            // Display warm/neutral/bright based on position
-            let displayText;
-            if (percent <= 25) {
-                displayText = "warm";
-            } else if (percent >= 75) {
-                displayText = "bright";
-            } else {
-                displayText = "neutral";
-            }
-            characterValue.textContent = displayText;
-            updateKnobVisual(characterKnob, characterIndicator, norm);
-        }
-
-        characterKnob.addEventListener("mousedown", (e) => {
-            isDraggingCharacter = true;
-            lastY_character = e.clientY;
-            e.preventDefault();
+        // CHARACTER: warm/neutral/bright based on position
+        bindSlider("CHARACTER", norm => {
+            const percent = norm * 100;
+            if (percent <= 25) return "warm";
+            if (percent >= 75) return "bright";
+            return "neutral";
         });
 
-        document.addEventListener("mousemove", (e) => {
-            if (!isDraggingCharacter) return;
-            const deltaY = lastY_character - e.clientY;
-            let currentValue = characterState.getNormalisedValue();
-            let newValue = currentValue + (deltaY * 0.005);
-            newValue = Math.max(0, Math.min(1, newValue));
-            characterState.setNormalisedValue(newValue);
-            updateCharacterDisplay();
-            lastY_character = e.clientY;
-        });
+        // WET: 0% to 100%
+        bindSlider("WET", norm => `${(norm * 100).toFixed(0)}%`);
 
-        document.addEventListener("mouseup", () => { isDraggingCharacter = false; });
+        // DRY: 0% to 100%
+        bindSlider("DRY", norm => `${(norm * 100).toFixed(0)}%`);
 
-        characterState.valueChangedEvent.addListener(updateCharacterDisplay);
-        updateCharacterDisplay();
+        // DECAY: 0.5x to 2.0x with skew 1.585 (1.0x at center)
+        bindSlider("DECAY", norm => `${(0.5 + 1.5 * Math.pow(norm, 1.585)).toFixed(1)}x`);
+
+        // SIZE: 0% to 100%
+        bindSlider("SIZE", norm => `${(norm * 100).toFixed(0)}%`);
 
         // ====================================================================
-        // WET PARAMETER (0% to 100%)
+        // LOW CUT FILTER (LPFREQ with LPON toggle)
         // ====================================================================
 
-        const wetState = getSliderState("WET");
-        const wetKnob = document.getElementById("WET-knob");
-        const wetIndicator = document.getElementById("WET-indicator");
-        const wetValue = document.getElementById("WET-value");
+        // Custom binding for LPFREQ with ON/OFF toggle button
+        (function() {
+            const lpfreqState = getSliderState("LPFREQ");
+            const lponState = getSliderState("LPON");
+            const lpfreqKnob = document.getElementById("LPFREQ-knob");
+            const lpfreqValue = document.getElementById("LPFREQ-value");
 
-        let isDraggingWet = false;
-        let lastY_wet = 0;
+            let isDragging = false;
+            let lastY = 0;
 
-        function updateWetDisplay() {
-            const norm = wetState.getNormalisedValue();
-            const actual = norm * 100;
-            wetValue.textContent = `${actual.toFixed(0)}%`;
-            updateKnobVisual(wetKnob, wetIndicator, norm);
-        }
+            const updateDisplay = () => {
+                const isOn = lponState.getNormalisedValue() >= 0.5;
+                const freqNorm = lpfreqState.getNormalisedValue();
 
-        wetKnob.addEventListener("mousedown", (e) => {
-            isDraggingWet = true;
-            lastY_wet = e.clientY;
-            e.preventDefault();
-        });
+                lpfreqKnob.style.opacity = isOn ? "1.0" : "0.5";
+                lpfreqValue.textContent = isOn ? "ON" : "OFF";
+                lpfreqValue.classList.toggle("active", isOn);
+                updateKnobVisual(lpfreqKnob, freqNorm);
+            };
 
-        document.addEventListener("mousemove", (e) => {
-            if (!isDraggingWet) return;
-            const deltaY = lastY_wet - e.clientY;
-            let currentValue = wetState.getNormalisedValue();
-            let newValue = currentValue + (deltaY * 0.005);
-            newValue = Math.max(0, Math.min(1, newValue));
-            wetState.setNormalisedValue(newValue);
-            updateWetDisplay();
-            lastY_wet = e.clientY;
-        });
+            // Toggle on/off by clicking label
+            lpfreqValue.addEventListener("click", (e) => {
+                const isOn = lponState.getNormalisedValue() >= 0.5;
+                lponState.setNormalisedValue(isOn ? 0.0 : 1.0);
+                updateDisplay();
+                e.preventDefault();
+            });
 
-        document.addEventListener("mouseup", () => { isDraggingWet = false; });
+            lpfreqKnob.addEventListener("mousedown", (e) => {
+                isDragging = true;
+                lastY = e.clientY;
+                e.preventDefault();
+            });
 
-        wetState.valueChangedEvent.addListener(updateWetDisplay);
-        updateWetDisplay();
+            document.addEventListener("mousemove", (e) => {
+                if (!isDragging) return;
+                const deltaY = lastY - e.clientY;
+                const newValue = Math.max(0, Math.min(1, lpfreqState.getNormalisedValue() + deltaY * DRAG_SENSITIVITY));
+                lpfreqState.setNormalisedValue(newValue);
+                updateDisplay();
+                lastY = e.clientY;
+            });
 
-        // ====================================================================
-        // DRY PARAMETER (0% to 100%)
-        // ====================================================================
+            document.addEventListener("mouseup", () => { isDragging = false; });
 
-        const dryState = getSliderState("DRY");
-        const dryKnob = document.getElementById("DRY-knob");
-        const dryIndicator = document.getElementById("DRY-indicator");
-        const dryValue = document.getElementById("DRY-value");
-
-        let isDraggingDry = false;
-        let lastY_dry = 0;
-
-        function updateDryDisplay() {
-            const norm = dryState.getNormalisedValue();
-            const actual = norm * 100;
-            dryValue.textContent = `${actual.toFixed(0)}%`;
-            updateKnobVisual(dryKnob, dryIndicator, norm);
-        }
-
-        dryKnob.addEventListener("mousedown", (e) => {
-            isDraggingDry = true;
-            lastY_dry = e.clientY;
-            e.preventDefault();
-        });
-
-        document.addEventListener("mousemove", (e) => {
-            if (!isDraggingDry) return;
-            const deltaY = lastY_dry - e.clientY;
-            let currentValue = dryState.getNormalisedValue();
-            let newValue = currentValue + (deltaY * 0.005);
-            newValue = Math.max(0, Math.min(1, newValue));
-            dryState.setNormalisedValue(newValue);
-            updateDryDisplay();
-            lastY_dry = e.clientY;
-        });
-
-        document.addEventListener("mouseup", () => { isDraggingDry = false; });
-
-        dryState.valueChangedEvent.addListener(updateDryDisplay);
-        updateDryDisplay();
-
-        // ====================================================================
-        // DECAY PARAMETER (0.1s to 10s with skew)
-        // ====================================================================
-
-        const decayState = getSliderState("DECAY");
-        const decayKnob = document.getElementById("DECAY-knob");
-        const decayIndicator = document.getElementById("DECAY-indicator");
-        const decayValue = document.getElementById("DECAY-value");
-
-        let isDraggingDecay = false;
-        let lastY_decay = 0;
-
-        function updateDecayDisplay() {
-            const norm = decayState.getNormalisedValue();
-            // Decay is a multiplier, range 0.5-2.0x with skew 1.585 (1.0 at center)
-            const actual = 0.5 + 1.5 * Math.pow(norm, 1.585);
-            decayValue.textContent = `${actual.toFixed(1)}x`;
-            updateKnobVisual(decayKnob, decayIndicator, norm);
-        }
-
-        decayKnob.addEventListener("mousedown", (e) => {
-            isDraggingDecay = true;
-            lastY_decay = e.clientY;
-            e.preventDefault();
-        });
-
-        document.addEventListener("mousemove", (e) => {
-            if (!isDraggingDecay) return;
-            const deltaY = lastY_decay - e.clientY;
-            let currentValue = decayState.getNormalisedValue();
-            let newValue = currentValue + (deltaY * 0.005);
-            newValue = Math.max(0, Math.min(1, newValue));
-            decayState.setNormalisedValue(newValue);
-            updateDecayDisplay();
-            lastY_decay = e.clientY;
-        });
-
-        document.addEventListener("mouseup", () => { isDraggingDecay = false; });
-
-        decayState.valueChangedEvent.addListener(updateDecayDisplay);
-        updateDecayDisplay();
-
-        // ====================================================================
-        // SIZE PARAMETER (0% to 100%)
-        // ====================================================================
-
-        const sizeState = getSliderState("SIZE");
-        const sizeKnob = document.getElementById("SIZE-knob");
-        const sizeIndicator = document.getElementById("SIZE-indicator");
-        const sizeValue = document.getElementById("SIZE-value");
-
-        let isDraggingSize = false;
-        let lastY_size = 0;
-
-        function updateSizeDisplay() {
-            const norm = sizeState.getNormalisedValue();
-            const actual = norm * 100;
-            sizeValue.textContent = `${actual.toFixed(0)}%`;
-            updateKnobVisual(sizeKnob, sizeIndicator, norm);
-        }
-
-        sizeKnob.addEventListener("mousedown", (e) => {
-            isDraggingSize = true;
-            lastY_size = e.clientY;
-            e.preventDefault();
-        });
-
-        document.addEventListener("mousemove", (e) => {
-            if (!isDraggingSize) return;
-            const deltaY = lastY_size - e.clientY;
-            let currentValue = sizeState.getNormalisedValue();
-            let newValue = currentValue + (deltaY * 0.005);
-            newValue = Math.max(0, Math.min(1, newValue));
-            sizeState.setNormalisedValue(newValue);
-            updateSizeDisplay();
-            lastY_size = e.clientY;
-        });
-
-        document.addEventListener("mouseup", () => { isDraggingSize = false; });
-
-        sizeState.valueChangedEvent.addListener(updateSizeDisplay);
-        updateSizeDisplay();
-
-        // ====================================================================
-        // LOW CUT FILTER PARAMETER (20Hz to 400Hz with toggle button)
-        // ====================================================================
-
-        const lpfreqState = getSliderState("LPFREQ");
-        const lponState = getSliderState("LPON");
-        const lpfreqKnob = document.getElementById("LPFREQ-knob");
-        const lpfreqIndicator = document.getElementById("LPFREQ-indicator");
-        const lpfreqValue = document.getElementById("LPFREQ-value");
-
-        let isDraggingLPFreq = false;
-        let lastY_lpfreq = 0;
-
-        function updateLPFreqDisplay() {
-            const onNorm = lponState.getNormalisedValue();
-            const isOn = onNorm >= 0.5;
-            const freqNorm = lpfreqState.getNormalisedValue();
-            // Range 20-400Hz
-            const freq = 20 + freqNorm * (400 - 20);
-
-            if (isOn) {
-                lpfreqKnob.style.opacity = "1.0";
-                lpfreqValue.textContent = "ON";
-                lpfreqValue.classList.add("active");
-            } else {
-                lpfreqKnob.style.opacity = "0.5";
-                lpfreqValue.textContent = "OFF";
-                lpfreqValue.classList.remove("active");
-            }
-            updateKnobVisual(lpfreqKnob, lpfreqIndicator, freqNorm);
-        }
-
-        // Click on label to toggle on/off
-        lpfreqValue.addEventListener("click", (e) => {
-            const currentOn = lponState.getNormalisedValue() >= 0.5;
-            lponState.setNormalisedValue(currentOn ? 0.0 : 1.0);
-            updateLPFreqDisplay();
-            e.preventDefault();
-        });
-
-        lpfreqKnob.addEventListener("mousedown", (e) => {
-            isDraggingLPFreq = true;
-            lastY_lpfreq = e.clientY;
-            e.preventDefault();
-        });
-
-        document.addEventListener("mousemove", (e) => {
-            if (!isDraggingLPFreq) return;
-            const deltaY = lastY_lpfreq - e.clientY;
-            let currentValue = lpfreqState.getNormalisedValue();
-            let newValue = currentValue + (deltaY * 0.005);
-            newValue = Math.max(0, Math.min(1, newValue));
-            lpfreqState.setNormalisedValue(newValue);
-            updateLPFreqDisplay();
-            lastY_lpfreq = e.clientY;
-        });
-
-        document.addEventListener("mouseup", () => { isDraggingLPFreq = false; });
-
-        lpfreqState.valueChangedEvent.addListener(updateLPFreqDisplay);
-        lponState.valueChangedEvent.addListener(updateLPFreqDisplay);
-        updateLPFreqDisplay();
+            lpfreqState.valueChangedEvent.addListener(updateDisplay);
+            lponState.valueChangedEvent.addListener(updateDisplay);
+            updateDisplay();
+        })();
 
         // ====================================================================
         // INITIALIZATION COMPLETE
