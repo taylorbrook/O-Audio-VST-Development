@@ -2,7 +2,12 @@
  * compressor-unit.js
  * Compact dynamics compressor module UI
  *
- * Ouaricon Audio Module System v1.1.0
+ * Ouaricon Audio Module System v1.2.0
+ *
+ * v1.2.0 Changes:
+ * - Module dimensions: 10px shorter vertically, 100px wider
+ * - Padding adjusted from 8px 10px to 3px 60px
+ * - Knobs updated to canonical 10-segment Ouaricon seed cross-section pattern
  *
  * v1.1.0 Changes:
  * - Compact single-row layout matching EQ module
@@ -15,7 +20,7 @@
  * - Clickable COMP button for bypass toggle
  * - AUTOGAIN button for automatic makeup gain
  * - Vertical GR LED meter
- * - Naturalist aesthetic
+ * - Canonical Ouaricon naturalist aesthetic
  */
 
 export class CompressorUnit {
@@ -115,12 +120,12 @@ export class CompressorUnit {
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
-      /* v1.1.0: Compact single-row layout matching EQ module */
+      /* v1.2.0: Compact single-row layout - wider, shorter */
       .comp-unit-compact {
         background: linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
         border: 1px solid #5C4033;
         border-radius: 6px;
-        padding: 8px 10px;
+        padding: 3px 60px;
         font-family: Garamond, 'Times New Roman', serif;
         color: #E8D5B7;
         user-select: none;
@@ -174,67 +179,59 @@ export class CompressorUnit {
       }
 
       .comp-knob-container {
-        width: 36px;
-        height: 36px;
+        width: 40px;
+        height: 40px;
         cursor: pointer;
         position: relative;
       }
 
+      /* v1.2.0: Canonical 10-segment Ouaricon seed cross-section knob */
       .comp-seed-knob {
         width: 100%;
         height: 100%;
         border-radius: 50%;
-        background: radial-gradient(circle at 30% 30%, #C9A27B, #8B7355);
-        border: 2px solid #6B5847;
+        border: 2px solid #8B7355;
         position: relative;
-        box-shadow:
-          inset 0 2px 3px rgba(255, 255, 255, 0.3),
-          inset 0 -2px 3px rgba(0, 0, 0, 0.3),
-          0 2px 4px rgba(0, 0, 0, 0.2);
-      }
-
-      .comp-seed-knob::before {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 6px;
-        height: 6px;
-        background: #4A3728;
-        border-radius: 50%;
-        transform: translate(-50%, -50%);
-        box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
-      }
-
-      .comp-seed-knob::after {
-        content: '';
-        position: absolute;
-        top: 50%;
-        left: 50%;
-        width: 90%;
-        height: 90%;
-        transform: translate(-50%, -50%);
-        border-radius: 50%;
         background:
-          repeating-conic-gradient(
-            from 0deg,
-            transparent 0deg,
-            transparent 15deg,
-            rgba(107, 88, 71, 0.1) 15deg,
-            rgba(107, 88, 71, 0.1) 18deg
-          );
+          /* Outer ring - aged paper */
+          radial-gradient(circle, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+          /* 10-segment radial pattern (36deg each, 1deg dividers) */
+          conic-gradient(from 0deg,
+            #F5DEB3 0deg, #F5DEB3 35deg, #8B7355 35deg, #8B7355 36deg,
+            #E8D5B7 36deg, #E8D5B7 71deg, #8B7355 71deg, #8B7355 72deg,
+            #F5DEB3 72deg, #F5DEB3 107deg, #8B7355 107deg, #8B7355 108deg,
+            #E8D5B7 108deg, #E8D5B7 143deg, #8B7355 143deg, #8B7355 144deg,
+            #F5DEB3 144deg, #F5DEB3 179deg, #8B7355 179deg, #8B7355 180deg,
+            #E8D5B7 180deg, #E8D5B7 215deg, #8B7355 215deg, #8B7355 216deg,
+            #F5DEB3 216deg, #F5DEB3 251deg, #8B7355 251deg, #8B7355 252deg,
+            #E8D5B7 252deg, #E8D5B7 287deg, #8B7355 287deg, #8B7355 288deg,
+            #F5DEB3 288deg, #F5DEB3 323deg, #8B7355 323deg, #8B7355 324deg,
+            #E8D5B7 324deg, #E8D5B7 359deg, #8B7355 359deg, #8B7355 360deg
+          ),
+          /* Inner center core */
+          radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+        box-shadow:
+          inset 1px 1px 3px rgba(0,0,0,0.3),
+          inset -1px -1px 2px rgba(255,248,220,0.5),
+          2px 2px 6px rgba(0,0,0,0.25);
       }
 
+      .comp-seed-knob:hover {
+        transform: scale(1.03);
+      }
+
+      /* Indicator dot that rotates around the knob */
       .comp-knob-indicator {
         position: absolute;
-        top: 8%;
-        left: 50%;
-        width: 2px;
-        height: 35%;
+        width: 5px;
+        height: 5px;
         background: #3C2F2F;
-        transform-origin: bottom center;
-        transform: translateX(-50%);
-        border-radius: 1px;
+        border-radius: 50%;
+        top: 3px;
+        left: 50%;
+        margin-left: -2.5px;
+        transform-origin: 2.5px 17px;
+        transform: rotate(-135deg);
       }
 
       .comp-label {

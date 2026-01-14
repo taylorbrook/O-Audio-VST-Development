@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.2] - 2026-01-14
+
+### Changed
+- **Effects tab module dimensions** - Both EQ and Compressor modules resized
+  - 10px shorter vertically (padding reduced from 8px to 3px)
+  - 100px wider (horizontal padding increased from 10px to 60px)
+- **Compressor knobs updated** to canonical 10-segment Ouaricon seed cross-section
+  - Pattern now matches EQ inner dial and official Ouaricon naturalist aesthetic
+  - 36° segments with 1° brown dividers (was 17° segments with 20 divisions)
+
+### Technical Details
+- EQ module updated to v1.2.0 (`modules/effects/analog-eq-unit/`)
+- Compressor module updated to v1.2.0 (`modules/effects/compressor-unit/`)
+- CSS padding changed: `.eq-unit-compact` and `.comp-unit-compact` now use `3px 60px`
+
 ## [1.9.1] - 2026-01-14
 
 ### Changed

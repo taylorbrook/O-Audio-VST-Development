@@ -1,6 +1,10 @@
 /**
  * Analog EQ Unit - Compact WebView UI Component with Dual-Ring Knobs
- * Ouaricon Module System v1.1.0
+ * Ouaricon Module System v1.2.0
+ *
+ * v1.2.0 Changes:
+ * - Module dimensions: 10px shorter vertically, 100px wider
+ * - Padding adjusted from 8px 10px to 3px 60px
  *
  * v1.1.0 Changes:
  * - Compact single-row layout (half height)
@@ -159,12 +163,12 @@ export class AnalogEQUnitUI {
         const style = document.createElement('style');
         style.id = 'eq-unit-styles';
         style.textContent = `
-            /* v1.1.0: Compact single-row layout */
+            /* v1.2.0: Compact single-row layout - wider, shorter */
             .eq-unit-compact {
                 background: linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
                 border: 1px solid #5C4033;
                 border-radius: 6px;
-                padding: 8px 10px;
+                padding: 3px 60px;
                 font-family: Garamond, 'Times New Roman', serif;
                 color: #E8D5B7;
                 user-select: none;

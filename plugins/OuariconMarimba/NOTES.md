@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.1
+- **Version:** 1.9.2
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -102,6 +102,10 @@
   - Added: Autogain feature - automatic makeup gain compensation
   - Knobs centered and aligned with EQ bands above
   - 1 new parameter: fx_comp_autogain (bool)
+- **2026-01-14 (v1.9.2):** Effects tab UI refinement
+  - Changed: Both EQ and Compressor modules 10px shorter, 100px wider
+  - Changed: Compressor knobs use canonical 10-segment Ouaricon seed pattern
+  - Updated: analog-eq-unit module v1.2.0, compressor-unit module v1.2.0
 
 ## Known Issues
 

@@ -9,7 +9,7 @@
 # - Modules: Working code (CMake import with configuration)
 
 version: 1.0.0
-last_updated: 2026-01-13
+last_updated: 2026-01-14
 schema_version: 1.0.0
 
 # Module categories
@@ -207,7 +207,7 @@ modules:
 
   - name: analog-eq-unit
     path: effects/analog-eq-unit
-    version: 1.0.0
+    version: 1.2.0
     description: |
       4-band analog-style parametric EQ module with low/high shelves and two
       mid bells. Includes optional analog saturation for warmth. Designed as
@@ -251,7 +251,48 @@ modules:
     dependencies: []
     tags: [dsp, eq, filter, effects, parametric, analog, saturation, webview]
     reuse_score: 9
-    used_by: []
+    used_by:
+      - plugin: OuariconMarimba
+        version: 1.9.2
+
+  - name: compressor-unit
+    path: effects/compressor-unit
+    version: 1.2.0
+    description: |
+      Compact dynamics compressor module for embedding in VST instruments.
+      Same DSP as Ouaricon Compressor with simplified controls: Threshold,
+      Ratio, Attack, Release. Fixed 6dB soft knee for musical response.
+      Features clickable title for bypass toggle, canonical 10-segment seed
+      knobs in Ouaricon naturalist aesthetic, and vertical GR LED strip.
+    category: effects
+    provides:
+      - cpp-class: CompressorUnit
+      - js-module: compressor-unit.js
+      - parameters:
+        - comp_enabled
+        - comp_threshold
+        - comp_ratio
+        - comp_attack
+        - comp_release
+    config:
+      param_prefix:
+        type: string
+        default: "comp_"
+        description: Prefix for parameter IDs to avoid conflicts
+      fixed_knee_db:
+        type: float
+        default: 6.0
+        description: Fixed knee width in dB (not exposed in UI)
+      show_gr_meter:
+        type: boolean
+        default: true
+        description: Show gain reduction LED meter
+    dependencies: []
+    tags: [dsp, dynamics, compressor, effects, webview]
+    reuse_score: 9
+    used_by:
+      - plugin: OuariconMarimba
+        version: 1.9.2
 
   # ============================================================================
   # UI MODULES
