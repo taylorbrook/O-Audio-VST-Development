@@ -4,12 +4,19 @@ A 4-band analog-style parametric EQ module designed for embedding in VST instrum
 
 ## Features
 
+- **EQ Bypass** - Master on/off toggle (doubles as title label, OFF by default)
 - **LF Shelf** (30-500 Hz) - Low frequency boost/cut
 - **LMF Bell** (100-2000 Hz) - Low-mid parametric with variable Q
 - **HMF Bell** (500-8000 Hz) - High-mid parametric with variable Q
 - **HF Shelf** (2000-20000 Hz) - High frequency boost/cut
-- **Analog Saturation** - Subtle `tanh` warmth circuit
-- **Output Gain** - ±12 dB trim
+- **Analog Saturation** - Subtle `tanh` warmth circuit (toggle inline with bands)
+
+### v1.1.0 Layout
+
+Compact single-row design at half height:
+```
+[EQ] | [LF] [LMF] [HMF] [HF] | [ANALOG]
+```
 
 ## Dual-Ring Knob Design
 
@@ -137,8 +144,9 @@ All parameters use a configurable prefix (default: `eq_`).
 | `{prefix}hf_freq` | float | 2000-20000 Hz | 8000 Hz | HF shelf corner frequency |
 | `{prefix}hf_gain` | float | ±12 dB | 0 dB | HF shelf boost/cut |
 | `{prefix}hf_on` | bool | - | true | HF band enable |
-| `{prefix}output_gain` | float | ±12 dB | 0 dB | Master output trim |
+| `{prefix}enabled` | bool | - | false | Master EQ bypass (v1.1.0) |
 | `{prefix}analog` | bool | - | true | Analog saturation enable |
+| `{prefix}output_gain` | float | ±12 dB | 0 dB | Master output trim (DSP only, no UI) |
 
 ## WebView Relay Setup
 
@@ -264,6 +272,14 @@ window.__JUCE__.backend.addEventListener('eqOutputLevel', (level) => {
 ```
 
 ## Version History
+
+### 1.1.0 (2026-01-14)
+- Compact single-row UI layout (half height)
+- EQ bypass toggle as title/label (OFF by default)
+- Moved ANALOG toggle inline with band knobs
+- Removed output knob from UI (DSP parameter retained for compatibility)
+- Smaller dual-ring knobs (46px vs 54px)
+- New parameter: `{prefix}enabled` for master EQ bypass
 
 ### 1.0.0 (2026-01-13)
 - Initial release

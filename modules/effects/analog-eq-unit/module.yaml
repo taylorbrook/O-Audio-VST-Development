@@ -1,11 +1,12 @@
 name: analog-eq-unit
-version: 1.0.0
+version: 1.1.0
 category: effects
 description: |
   4-band analog-style parametric EQ module with low/high shelves and two mid bells.
   Includes optional analog saturation for warmth. Designed as an embeddable unit
   for effects tabs in VST instruments. Same DSP as Ouaricon Analog Equalizer.
 
+  v1.1.0: Compact single-row layout with EQ bypass toggle as title/label.
   Features signature dual-ring knobs: outer ring controls frequency, inner dial
   controls gain. Click position detection determines which parameter to adjust.
 
@@ -32,8 +33,9 @@ provides:
     - hf_gain      # Boost/cut (±12 dB)
     - hf_on        # Band bypass
     # Global
-    - output_gain  # Master output (±12 dB)
+    - enabled      # Master EQ bypass (v1.1.0)
     - analog       # Saturation enable
+    - output_gain  # Master output (±12 dB) - DSP only, removed from UI in v1.1.0
 
 config:
   param_prefix:
@@ -79,6 +81,15 @@ tags:
 reuse_score: 9
 
 changelog:
+  - version: 1.1.0
+    date: 2026-01-14
+    changes:
+      - Compact single-row UI layout (half height)
+      - EQ bypass toggle as title/label (OFF by default)
+      - Moved ANALOG toggle inline with band knobs
+      - Removed output knob from UI (parameter still exists for DSP)
+      - Smaller dual-ring knobs (46px vs 54px)
+      - New parameter - enabled (master EQ bypass)
   - version: 1.0.0
     date: 2026-01-13
     changes:
