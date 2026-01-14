@@ -14,6 +14,7 @@
 #include "BodyResonance.h"
 #include "PresetManager.h"
 #include "AnalogEQUnit.h"
+#include "CompressorUnit.h"
 
 // Lock-free FIFO for waveform visualization
 class WaveformFifo
@@ -136,6 +137,9 @@ public:
     // v1.2.5: VU Meter level (atomic for thread-safe access from editor)
     std::atomic<float> outputLevelDB { -100.0f };
 
+    // v1.9.0: Compressor gain reduction (for GR meter in UI)
+    float getCompressorGainReductionDB() const { return compressorUnit.getGainReductionDB(); }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -154,6 +158,9 @@ private:
 
     // v1.8.0: Analog EQ Unit (effects tab)
     AnalogEQUnit eqUnit;
+
+    // v1.9.0: Compressor Unit (effects tab, after EQ)
+    CompressorUnit compressorUnit;
 
     // v1.2.3: Waveform FIFO for oscilloscope display
     WaveformFifo waveformFifo;

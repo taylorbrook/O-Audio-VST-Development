@@ -28,6 +28,7 @@ target_include_directories(OuariconMarimba
     PRIVATE
         Source
         ${CMAKE_SOURCE_DIR}/modules/effects/analog-eq-unit/cpp
+        ${CMAKE_SOURCE_DIR}/modules/effects/compressor-unit/cpp
 )
 
 # Required JUCE modules
@@ -72,6 +73,7 @@ juce_add_binary_data(OuariconMarimba_UIResources
         Source/ui/public/images/paper1.jpg
         Source/ui/public/images/tree_expositionmtho00lamo_0207.png
         ${CMAKE_SOURCE_DIR}/modules/effects/analog-eq-unit/js/analog-eq-unit.js
+        ${CMAKE_SOURCE_DIR}/modules/effects/compressor-unit/js/compressor-unit.js
 )
 
 target_link_libraries(OuariconMarimba

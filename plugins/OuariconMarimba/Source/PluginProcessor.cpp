@@ -115,6 +115,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconMarimbaAudioProcesso
         false  // Default OFF = bypassed
     ));
 
+    // v1.9.0: Compressor Unit parameters (effects tab, after EQ)
+    CompressorUnit::addParameters(layout, "fx_comp_");
+
     return layout;
 }
 
@@ -170,6 +173,9 @@ void OuariconMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samples
 
     // v1.8.0: Prepare Analog EQ
     eqUnit.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
+
+    // v1.9.0: Prepare Compressor
+    compressorUnit.prepare(sampleRate, samplesPerBlock);
 }
 
 void OuariconMarimbaAudioProcessor::releaseResources()
@@ -283,6 +289,9 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     bool eqEnabled = parameters.getRawParameterValue("fx_eq_enabled")->load() > 0.5f;
     if (eqEnabled)
         eqUnit.process(buffer);
+
+    // v1.9.0: Apply Compressor (after EQ, at end of effects chain)
+    compressorUnit.process(buffer, parameters, "fx_comp_");
 
     // Apply output gain (after all processing)
     float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);

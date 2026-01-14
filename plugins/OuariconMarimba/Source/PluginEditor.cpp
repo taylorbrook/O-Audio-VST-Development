@@ -47,6 +47,13 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
     eqLmfQRelay = std::make_unique<juce::WebComboBoxRelay>("fx_eq_lmf_q");
     eqHmfQRelay = std::make_unique<juce::WebComboBoxRelay>("fx_eq_hmf_q");
 
+    // v1.9.0: Compressor Unit relays
+    compEnabledRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_comp_enabled");
+    compThresholdRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_threshold");
+    compRatioRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_ratio");
+    compAttackRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_attack");
+    compReleaseRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_release");
+
     // 2️⃣ Create WebView with options (Pattern 9: NEEDS_WEB_BROWSER required)
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
@@ -82,6 +89,12 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withOptionsFrom(*eqEnabledRelay)  // v1.8.1
             .withOptionsFrom(*eqLmfQRelay)
             .withOptionsFrom(*eqHmfQRelay)
+            // v1.9.0: Compressor Unit relays
+            .withOptionsFrom(*compEnabledRelay)
+            .withOptionsFrom(*compThresholdRelay)
+            .withOptionsFrom(*compRatioRelay)
+            .withOptionsFrom(*compAttackRelay)
+            .withOptionsFrom(*compReleaseRelay)
             .withNativeFunction("sendMidiNote", [this](const auto& args, auto complete) {
                 complete(sendMidiNote(args));
             })
@@ -212,6 +225,18 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
     eqHmfQAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.parameters.getParameter("fx_eq_hmf_q"), *eqHmfQRelay, nullptr);
 
+    // v1.9.0: Compressor Unit attachments
+    compEnabledAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_comp_enabled"), *compEnabledRelay, nullptr);
+    compThresholdAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_comp_threshold"), *compThresholdRelay, nullptr);
+    compRatioAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_comp_ratio"), *compRatioRelay, nullptr);
+    compAttackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_comp_attack"), *compAttackRelay, nullptr);
+    compReleaseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_comp_release"), *compReleaseRelay, nullptr);
+
     // Add WebView to editor
     addAndMakeVisible(*webView);
 
@@ -261,6 +286,10 @@ void OuariconMarimbaAudioProcessorEditor::timerCallback()
     // v1.2.5: VU Meter - emit output level to WebView
     const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
+
+    // v1.9.0: Compressor GR meter - emit gain reduction to WebView
+    const float compGrDB = processorRef.getCompressorGainReductionDB();
+    webView->emitEventIfBrowserIsVisible("compressorGR", compGrDB);
 }
 
 void OuariconMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
@@ -382,6 +411,14 @@ OuariconMarimbaAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/modules/analog-eq-unit.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::analogequnit_js, BinaryData::analogequnit_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v1.9.0: Compressor Unit JavaScript module
+    if (url == "/modules/compressor-unit.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::compressorunit_js, BinaryData::compressorunit_jsSize),
             juce::String("text/javascript")
         };
     }

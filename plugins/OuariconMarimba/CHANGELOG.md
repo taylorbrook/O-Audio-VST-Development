@@ -2,6 +2,38 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.0] - 2026-01-14
+
+### Added
+- **Compressor Module** in Effects tab - Compact dynamics processor below EQ
+  - **Threshold** (-60 to 0 dB) - Input level where compression starts
+  - **Ratio** (1:1 to 20:1) - Amount of gain reduction applied
+  - **Attack** (0.1-100 ms) - How quickly compression engages
+  - **Release** (10-1000 ms) - How quickly compression releases
+  - **Fixed 6dB soft knee** for musical response
+  - **Clickable title** for bypass toggle (ON by default)
+  - **Vertical GR LED meter** showing real-time gain reduction
+- Naturalist seed-knob aesthetic matching plugin visual design
+- Module uses Ouaricon Module System (`modules/effects/compressor-unit/`)
+
+### Technical Details
+- Compressor processes audio after EQ: Synth → Body Resonance → EQ → **Compressor** → Output Gain
+- 5 new parameters with `fx_comp_` prefix for DAW automation:
+  - `fx_comp_enabled` (bool, default ON)
+  - `fx_comp_threshold` (float, -60 to 0 dB, default -20)
+  - `fx_comp_ratio` (float, 1 to 20, default 2)
+  - `fx_comp_attack` (float, 0.1-100 ms, default 10)
+  - `fx_comp_release` (float, 10-1000 ms, default 100)
+- WebView relays: 4 slider, 1 toggle
+- GR meter updates via `compressorGR` event at 30Hz
+- UI positioned at top: 130px in Effects tab (below EQ at top: 10px)
+
+### Signal Flow
+```
+Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Compressor → Output Gain → Output
+        (if on)    (if on)    (if on)    (if on)    (if on)      (if on)
+```
+
 ## [1.8.1] - 2026-01-14
 
 ### Changed

@@ -70,6 +70,13 @@ private:
     std::unique_ptr<juce::WebComboBoxRelay> eqLmfQRelay;
     std::unique_ptr<juce::WebComboBoxRelay> eqHmfQRelay;
 
+    // v1.9.0: Compressor Unit relays (effects tab)
+    std::unique_ptr<juce::WebToggleButtonRelay> compEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> compThresholdRelay;
+    std::unique_ptr<juce::WebSliderRelay> compRatioRelay;
+    std::unique_ptr<juce::WebSliderRelay> compAttackRelay;
+    std::unique_ptr<juce::WebSliderRelay> compReleaseRelay;
+
     // 2️⃣ WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
@@ -105,6 +112,13 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqEnabledAttachment;  // v1.8.1
     std::unique_ptr<juce::WebComboBoxParameterAttachment> eqLmfQAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> eqHmfQAttachment;
+
+    // v1.9.0: Compressor Unit attachments (effects tab)
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> compEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> compThresholdAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> compRatioAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> compAttackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> compReleaseAttachment;
 
     // Helper for resource serving (Pattern 8: Explicit URL mapping)
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

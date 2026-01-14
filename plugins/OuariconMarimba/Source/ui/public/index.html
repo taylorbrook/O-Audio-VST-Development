@@ -1138,11 +1138,14 @@
 
         <!-- EFFECTS Tab Content -->
         <div id="effects-tab" class="tab-content">
-            <!-- v1.8.0: Analog EQ Module (top 1/4 of tab) -->
+            <!-- v1.8.0: Analog EQ Module (top strip) -->
             <div id="eq-panel" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%);"></div>
 
-            <!-- Future effects modules will go below (remaining 3/4) -->
-            <div id="effects-future" style="position: absolute; top: 120px; left: 0; right: 0; bottom: 0; opacity: 0.3; display: flex; align-items: center; justify-content: center; color: #8B7355; font-size: 12px; letter-spacing: 1px;">
+            <!-- v1.9.0: Compressor Module (below EQ) -->
+            <div id="comp-panel" style="position: absolute; top: 130px; left: 50%; transform: translateX(-50%);"></div>
+
+            <!-- Future effects modules placeholder -->
+            <div id="effects-future" style="position: absolute; top: 240px; left: 0; right: 0; bottom: 0; opacity: 0.3; display: flex; align-items: center; justify-content: center; color: #8B7355; font-size: 12px; letter-spacing: 1px;">
                 <!-- Placeholder for future effects -->
             </div>
         </div>
@@ -1151,6 +1154,7 @@
     <script type="module">
         import * as Juce from "./js/juce/index.js";
         import { AnalogEQUnitUI } from "./modules/analog-eq-unit.js";
+        import { CompressorUnit } from "./modules/compressor-unit.js";
 
         // Disable right-click context menu
         document.addEventListener("contextmenu", (e) => {
@@ -2324,7 +2328,29 @@
         });
         eqUI.initialize();
 
-        console.log("Ouaricon Marimba UI initialized (v1.8.0 with Analog EQ)");
+        // ====================================================================
+        // v1.9.0: COMPRESSOR UNIT (Effects Tab, below EQ)
+        // ====================================================================
+
+        const compUI = new CompressorUnit({
+            container: document.getElementById('comp-panel'),
+            paramPrefix: 'fx_comp_',
+            getSliderState: Juce.getSliderState,
+            getToggleState: Juce.getToggleState
+        });
+        compUI.initialize();
+
+        // Store reference for GR meter updates
+        window.compressorUnitInstance = compUI;
+
+        // Listen for GR meter updates from C++
+        window.__JUCE__.backend.addEventListener("compressorGR", (grDB) => {
+            if (compUI) {
+                compUI.updateGainReduction(grDB);
+            }
+        });
+
+        console.log("Ouaricon Marimba UI initialized (v1.9.0 with Compressor)");
     </script>
 </body>
 </html>

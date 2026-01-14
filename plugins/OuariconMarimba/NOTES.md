@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.8.0
+- **Version:** 1.9.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -86,6 +86,16 @@
   - Signal flow: Synth → Body Resonance → Analog EQ → Output Gain
   - Uses Ouaricon Module System: modules/effects/analog-eq-unit/
   - 16 new automatable parameters (fx_eq_* prefix)
+- **2026-01-14 (v1.9.0):** Compressor Module (second Ouaricon Module integration)
+  - Added: Compact dynamics compressor below EQ in Effects tab
+    - Threshold (-60 to 0 dB), Ratio (1:1 to 20:1)
+    - Attack (0.1-100 ms), Release (10-1000 ms)
+    - Fixed 6dB soft knee for musical response
+    - Clickable title for bypass (ON by default)
+    - Vertical GR LED meter with real-time updates
+  - Signal flow: Synth → Body Resonance → EQ → **Compressor** → Output Gain
+  - Uses Ouaricon Module System: modules/effects/compressor-unit/
+  - 5 new automatable parameters (fx_comp_* prefix)
 
 ## Known Issues
 
@@ -105,7 +115,7 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - **Velocity Response:** Custom curve mapping for expressive performance
 - **WebView UI:** Botanical paper aesthetic with interactive tuning visualization
 
-### Parameters (26 total - v1.8.0)
+### Parameters (31 total - v1.9.0)
 
 **Sound Parameters (10):**
 1. **MALLET_HARDNESS** (Float, 0.0-1.0) - Excitation brightness (soft/dark to hard/bright)
@@ -137,6 +147,13 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 25. **fx_eq_output_gain** (Float, ±12 dB) - EQ master output trim
 26. **fx_eq_analog** (Bool) - Analog saturation enable
 
+**Compressor Parameters (5):**
+27. **fx_comp_enabled** (Bool) - Compressor bypass (ON by default)
+28. **fx_comp_threshold** (Float, -60 to 0 dB) - Compression threshold
+29. **fx_comp_ratio** (Float, 1:1 to 20:1) - Compression ratio
+30. **fx_comp_attack** (Float, 0.1-100 ms) - Attack time
+31. **fx_comp_release** (Float, 10-1000 ms) - Release time
+
 ### DSP Architecture
 - **Modal Resonator Bank:** 8 parallel 2nd-order IIR biquad filters per voice
   - Mode ratios: 1.00, 4.00, 9.24, 16.27, 24.22, 33.54, 42.97, 54.0 (v1.5.0: research-corrected)
@@ -154,4 +171,4 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - AU (Audio Unit)
 - Standalone
 
-**Last Updated:** 2026-01-13
+**Last Updated:** 2026-01-14
