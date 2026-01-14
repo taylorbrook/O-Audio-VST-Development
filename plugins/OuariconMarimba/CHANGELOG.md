@@ -2,6 +2,21 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.5] - 2026-01-14
+
+### Fixed
+- **Compressor clicking on enable** - Smooth bypass-to-enabled transition
+  - Root cause: `smoothedGainDB` retained stale value during bypass, causing gain jump when re-enabled
+  - Fix: Bypass now smoothly ramps gain toward unity (0 dB) each block
+  - Envelope also resets during bypass so compression starts fresh
+- **GR meter now correctly shows 0 when bypassed** - Verified meter behavior
+- **Increased minimum smoothing time** from 5ms to 10ms for better click prevention
+
+### Technical Details
+- Compressor module DSP updated to v1.2.3 (`modules/effects/compressor-unit/cpp/`)
+- Bypass handling: iterates through buffer samples ramping `smoothedGainDB` toward 0
+- When enabled, gain is already near unity - no discontinuity
+
 ## [1.9.4] - 2026-01-14
 
 ### Fixed

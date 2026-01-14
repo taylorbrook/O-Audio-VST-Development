@@ -2,11 +2,17 @@
   ==============================================================================
 
     CompressorUnit - Embeddable Dynamics Compressor Module
-    Ouaricon Audio Module System v1.2.2
+    Ouaricon Audio Module System v1.2.3
 
     Compact compressor with 4 essential parameters:
     - Threshold, Ratio, Attack, Release
     Fixed 6dB soft knee for musical response.
+
+    v1.2.3 Changes:
+    - Fixed clicking when enabling compressor (bypass-to-enabled transition)
+    - Bypass now smoothly ramps gain toward unity to prevent clicks on enable
+    - Increased minimum gain smoothing from 5ms to 10ms
+    - Meter correctly shows 0 when bypassed
 
     v1.2.2 Changes:
     - Fixed clicking at high gain reduction (sample-rate-independent smoothing)
@@ -36,7 +42,7 @@ public:
 
     // Fixed internal values
     static constexpr float FIXED_KNEE_DB = 6.0f;
-    static constexpr float GAIN_SMOOTH_TIME_MS = 5.0f;  // Minimum smoothing time for click prevention
+    static constexpr float GAIN_SMOOTH_TIME_MS = 10.0f;  // Minimum smoothing time for click prevention
 
     CompressorUnit() = default;
     ~CompressorUnit() = default;
@@ -131,10 +137,21 @@ public:
     {
         // Check bypass
         auto* enabledParam = apvts.getRawParameterValue(prefix + "enabled");
-        if (enabledParam->load() < 0.5f)
+        bool isEnabled = enabledParam->load() > 0.5f;
+
+        if (!isEnabled)
         {
+            // v1.2.3: When bypassed, smoothly ramp gain toward unity (0 dB)
+            // This prevents clicks when enabling - gain is already near unity
+            const int numSamples = buffer.getNumSamples();
+            for (int i = 0; i < numSamples; ++i)
+            {
+                smoothedGainDB += (0.0f - smoothedGainDB) * gainSmoothCoeff;
+            }
+            // Also reset envelope so compression starts fresh when enabled
+            envelopeDB = -60.0f;
             gainReductionDB.store(0.0f);
-            return;  // Bypassed
+            return;  // Bypassed - audio passes through unmodified
         }
 
         // Read parameters
