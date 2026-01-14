@@ -59,12 +59,13 @@ private:
     std::unique_ptr<juce::WebSliderRelay> eqHfFreqRelay;
     std::unique_ptr<juce::WebSliderRelay> eqHfGainRelay;
     std::unique_ptr<juce::WebSliderRelay> eqOutputGainRelay;
-    // Toggle relays (band on/off, analog)
+    // Toggle relays (band on/off, analog, enabled)
     std::unique_ptr<juce::WebToggleButtonRelay> eqLfOnRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> eqLmfOnRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> eqHmfOnRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> eqHfOnRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> eqAnalogRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqEnabledRelay;  // v1.8.1: Master EQ bypass
     // ComboBox relays (Q selection)
     std::unique_ptr<juce::WebComboBoxRelay> eqLmfQRelay;
     std::unique_ptr<juce::WebComboBoxRelay> eqHmfQRelay;
@@ -101,6 +102,7 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqHmfOnAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqHfOnAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqAnalogAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqEnabledAttachment;  // v1.8.1
     std::unique_ptr<juce::WebComboBoxParameterAttachment> eqLmfQAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> eqHmfQAttachment;
 

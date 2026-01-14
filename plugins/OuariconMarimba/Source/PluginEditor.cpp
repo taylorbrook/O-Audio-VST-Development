@@ -43,6 +43,7 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
     eqHmfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_hmf_on");
     eqHfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_hf_on");
     eqAnalogRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_analog");
+    eqEnabledRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_enabled");  // v1.8.1
     eqLmfQRelay = std::make_unique<juce::WebComboBoxRelay>("fx_eq_lmf_q");
     eqHmfQRelay = std::make_unique<juce::WebComboBoxRelay>("fx_eq_hmf_q");
 
@@ -78,6 +79,7 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withOptionsFrom(*eqHmfOnRelay)
             .withOptionsFrom(*eqHfOnRelay)
             .withOptionsFrom(*eqAnalogRelay)
+            .withOptionsFrom(*eqEnabledRelay)  // v1.8.1
             .withOptionsFrom(*eqLmfQRelay)
             .withOptionsFrom(*eqHmfQRelay)
             .withNativeFunction("sendMidiNote", [this](const auto& args, auto complete) {
@@ -203,6 +205,8 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
         *processorRef.parameters.getParameter("fx_eq_hf_on"), *eqHfOnRelay, nullptr);
     eqAnalogAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.parameters.getParameter("fx_eq_analog"), *eqAnalogRelay, nullptr);
+    eqEnabledAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_enabled"), *eqEnabledRelay, nullptr);  // v1.8.1
     eqLmfQAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.parameters.getParameter("fx_eq_lmf_q"), *eqLmfQRelay, nullptr);
     eqHmfQAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(

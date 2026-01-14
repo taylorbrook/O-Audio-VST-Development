@@ -2,6 +2,31 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.1] - 2026-01-14
+
+### Changed
+- **Compact EQ module** - Redesigned to half height for better UI space efficiency
+  - Single-row layout: [EQ bypass] | [LF] [LMF] [HMF] [HF] | [ANALOG]
+  - Removed header section and footer (output knob)
+  - Smaller dual-ring knobs (60px → 46px) with proportionally scaled SVG notches
+
+### Added
+- **EQ bypass toggle** - "EQ" button on left side serves as:
+  - Module title/label
+  - Master EQ on/off switch (OFF by default = bypassed)
+  - When OFF, bands and analog toggle are dimmed and non-interactive
+- New parameter: `fx_eq_enabled` (boolean, default OFF)
+
+### Removed
+- Output gain knob from EQ module (DSP parameter still exists for preset compatibility)
+- EQ header section with "ANALOG EQ" title
+
+### Technical Details
+- Analog toggle moved inline with band knobs (right side)
+- EQ module uses `eq-unit-compact` CSS class with `.bypassed` state
+- WebView relay added: `eqEnabledRelay` with attachment to `fx_eq_enabled`
+- DSP: `eqUnit.process()` only called when `fx_eq_enabled` is true
+
 ## [1.8.0] - 2026-01-13
 
 ### Added

@@ -108,6 +108,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconMarimbaAudioProcesso
     for (auto& param : eqParams)
         layout.add(std::move(param));
 
+    // v1.8.1: EQ master bypass (off by default = EQ bypassed)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "fx_eq_enabled", 1 },
+        "EQ Enabled",
+        false  // Default OFF = bypassed
+    ));
+
     return layout;
 }
 
@@ -272,8 +279,10 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     bodyResonance.setMix(resonance * 0.5f);
     bodyResonance.process(buffer);
 
-    // v1.8.0: Apply Analog EQ (effects tab, end of chain before output gain)
-    eqUnit.process(buffer);
+    // v1.8.1: Apply Analog EQ only if enabled (effects tab, end of chain before output gain)
+    bool eqEnabled = parameters.getRawParameterValue("fx_eq_enabled")->load() > 0.5f;
+    if (eqEnabled)
+        eqUnit.process(buffer);
 
     // Apply output gain (after all processing)
     float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);

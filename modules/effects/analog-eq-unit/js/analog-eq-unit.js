@@ -1,6 +1,12 @@
 /**
  * Analog EQ Unit - Compact WebView UI Component with Dual-Ring Knobs
- * Ouaricon Module System v1.0.0
+ * Ouaricon Module System v1.1.0
+ *
+ * v1.1.0 Changes:
+ * - Compact single-row layout (half height)
+ * - EQ button as title/bypass toggle (left side)
+ * - ANALOG toggle inline with bands (right side)
+ * - Removed output knob and footer
  *
  * Features the signature dual-ring knob design:
  * - Outer ring: Frequency control with notches
@@ -49,8 +55,7 @@ export class AnalogEQUnitUI {
             lf_freq: 0.5, lf_gain: 0.5,
             lmf_freq: 0.5, lmf_gain: 0.5,
             hmf_freq: 0.5, hmf_gain: 0.5,
-            hf_freq: 0.5, hf_gain: 0.5,
-            output_gain: 0.5
+            hf_freq: 0.5, hf_gain: 0.5
         };
 
         // Parameter ranges for display
@@ -65,8 +70,7 @@ export class AnalogEQUnitUI {
                 const hz = 2000 + v * 18000;
                 return hz >= 10000 ? (hz/1000).toFixed(1) + 'k' : Math.round(hz) + ' Hz';
             }},
-            hf_gain: { format: v => ((-12 + v * 24).toFixed(1)) + ' dB' },
-            output_gain: { format: v => ((-12 + v * 24).toFixed(1)) + ' dB' }
+            hf_gain: { format: v => ((-12 + v * 24).toFixed(1)) + ' dB' }
         };
     }
 
@@ -84,29 +88,19 @@ export class AnalogEQUnitUI {
     }
 
     render() {
+        // v1.1.0: Compact single-row layout
+        // [EQ toggle] | [LF] [LMF] [HMF] [HF] | [ANALOG toggle]
         this.container.innerHTML = `
-            <div class="eq-unit">
-                <div class="eq-header">
-                    <span class="eq-title">ANALOG EQ</span>
-                    <button class="eq-toggle analog-toggle" data-param="analog">ANALOG</button>
-                </div>
-                <div class="eq-bands">
-                    ${this.renderBand('lf', 'LF SHELF', false)}
-                    ${this.renderBand('lmf', 'LMF', true)}
-                    ${this.renderBand('hmf', 'HMF', true)}
-                    ${this.renderBand('hf', 'HF SHELF', false)}
-                </div>
-                <div class="eq-footer">
-                    <div class="eq-output">
-                        <label>OUTPUT</label>
-                        <div class="output-knob-wrapper">
-                            <div class="output-knob" data-param="output_gain">
-                                <div class="output-knob-indicator"></div>
-                            </div>
-                        </div>
-                        <span class="eq-value" data-display="output_gain">0 dB</span>
+            <div class="eq-unit-compact">
+                <div class="eq-row">
+                    <button class="eq-bypass-toggle" data-param="enabled">EQ</button>
+                    <div class="eq-bands-compact">
+                        ${this.renderBand('lf', 'LF', false)}
+                        ${this.renderBand('lmf', 'LMF', true)}
+                        ${this.renderBand('hmf', 'HMF', true)}
+                        ${this.renderBand('hf', 'HF', false)}
                     </div>
-                    ${this.showMeter ? this.renderMeter() : ''}
+                    <button class="eq-toggle analog-toggle" data-param="analog">ANALOG</button>
                 </div>
             </div>
         `;
@@ -114,9 +108,9 @@ export class AnalogEQUnitUI {
 
     renderBand(id, label, hasQ) {
         return `
-            <div class="eq-band" data-band="${id}">
-                <button class="band-label" data-param="${id}_on">${label}</button>
-                <div class="dual-knob-wrapper">
+            <div class="eq-band-compact" data-band="${id}">
+                <button class="band-label-compact" data-param="${id}_on">${label}</button>
+                <div class="dual-knob-wrapper-compact">
                     ${this.renderFreqNotches()}
                     <div class="dual-knob-container" data-param-outer="${id}_freq" data-param-inner="${id}_gain">
                         <div class="knob-outer" id="${id}_freq_knob">
@@ -129,43 +123,33 @@ export class AnalogEQUnitUI {
                     </div>
                 </div>
                 ${hasQ ? `
-                <div class="three-way-toggle" data-param="${id}_q">
+                <div class="three-way-toggle-compact" data-param="${id}_q">
                     <div class="three-way-option" data-value="0">W</div>
                     <div class="three-way-option active" data-value="1">M</div>
                     <div class="three-way-option" data-value="2">T</div>
                 </div>
-                ` : '<div class="q-spacer"></div>'}
+                ` : '<div class="q-spacer-compact"></div>'}
             </div>
         `;
     }
 
     renderFreqNotches() {
         return `
-            <svg class="freq-notches" viewBox="0 0 70 70">
-                <g stroke="#5C4033" stroke-width="1.2" fill="none">
-                    <line x1="35" y1="4" x2="35" y2="8" transform="rotate(-135, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(-108, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(-81, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(-54, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(-27, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="8" transform="rotate(0, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(27, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(54, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(81, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="7" transform="rotate(108, 35, 35)"/>
-                    <line x1="35" y1="4" x2="35" y2="8" transform="rotate(135, 35, 35)"/>
+            <svg class="freq-notches-compact" viewBox="0 0 60 60">
+                <g stroke="#5C4033" stroke-width="1" fill="none">
+                    <line x1="30" y1="4" x2="30" y2="7" transform="rotate(-135, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(-108, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(-81, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(-54, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(-27, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="7" transform="rotate(0, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(27, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(54, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(81, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="6" transform="rotate(108, 30, 30)"/>
+                    <line x1="30" y1="4" x2="30" y2="7" transform="rotate(135, 30, 30)"/>
                 </g>
             </svg>
-        `;
-    }
-
-    renderMeter() {
-        return `
-            <div class="eq-meter">
-                <div class="vu-meter-needle" id="eq_vu_needle"></div>
-                <div class="vu-meter-pivot"></div>
-                <div class="vu-meter-label">LEVEL</div>
-            </div>
         `;
     }
 
@@ -175,121 +159,135 @@ export class AnalogEQUnitUI {
         const style = document.createElement('style');
         style.id = 'eq-unit-styles';
         style.textContent = `
-            .eq-unit {
+            /* v1.1.0: Compact single-row layout */
+            .eq-unit-compact {
                 background: linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
                 border: 1px solid #5C4033;
                 border-radius: 6px;
-                padding: 10px;
+                padding: 8px 10px;
                 font-family: Garamond, 'Times New Roman', serif;
                 color: #E8D5B7;
                 user-select: none;
-                min-width: 420px;
             }
 
-            .eq-header {
+            .eq-row {
                 display: flex;
-                justify-content: space-between;
                 align-items: center;
-                margin-bottom: 8px;
-                padding-bottom: 6px;
-                border-bottom: 1px solid #5C4033;
+                gap: 10px;
             }
 
-            .eq-title {
+            /* EQ bypass toggle (title + on/off) */
+            .eq-bypass-toggle {
+                background: #8B7355;
+                border: 1px solid #5C4033;
+                border-radius: 3px;
+                padding: 4px 12px;
+                font-family: Garamond, serif;
                 font-size: 11px;
                 font-weight: 600;
                 letter-spacing: 2px;
-                color: #8B7355;
+                color: #DDD;
+                cursor: pointer;
+                transition: all 0.1s ease;
+                min-width: 40px;
             }
 
-            .analog-toggle {
+            .eq-bypass-toggle.active {
                 background: #6B8E4E;
-                border: 1px solid #3C5C1A;
+                border-color: #3C5C1A;
+                color: #FFF;
+            }
+
+            /* Analog toggle (inline with bands) */
+            .analog-toggle {
+                background: #8B7355;
+                border: 1px solid #5C4033;
                 border-radius: 3px;
-                padding: 3px 10px;
+                padding: 4px 8px;
                 font-family: Garamond, serif;
                 font-size: 9px;
                 font-weight: 600;
                 letter-spacing: 1px;
-                color: #FFF;
+                color: #DDD;
                 cursor: pointer;
                 transition: all 0.1s ease;
             }
 
-            .analog-toggle:not(.active) {
-                background: #8B7355;
-                border-color: #5C4033;
-                color: #DDD;
+            .analog-toggle.active {
+                background: #6B8E4E;
+                border-color: #3C5C1A;
+                color: #FFF;
             }
 
-            .eq-bands {
+            /* Bands container */
+            .eq-bands-compact {
                 display: flex;
-                gap: 6px;
-                margin-bottom: 10px;
+                gap: 4px;
+                flex: 1;
+                justify-content: center;
             }
 
-            .eq-band {
-                flex: 1;
+            .eq-band-compact {
                 display: flex;
                 flex-direction: column;
                 align-items: center;
-                gap: 4px;
+                gap: 2px;
             }
 
-            .eq-band.disabled {
+            .eq-band-compact.disabled {
                 opacity: 0.4;
             }
 
-            .band-label {
+            .band-label-compact {
                 background: #6B8E4E;
                 border: 1px solid #3C5C1A;
-                border-radius: 3px;
-                padding: 2px 6px;
+                border-radius: 2px;
+                padding: 1px 5px;
                 font-family: Garamond, serif;
-                font-size: 9px;
+                font-size: 8px;
                 font-weight: 600;
-                letter-spacing: 1px;
+                letter-spacing: 0.5px;
                 color: #FFF;
                 cursor: pointer;
                 transition: all 0.1s ease;
                 white-space: nowrap;
             }
 
-            .band-label.inactive {
+            .band-label-compact.inactive {
                 background: #8B7355;
                 border-color: #5C4033;
                 color: #DDD;
             }
 
-            /* Dual-ring knob wrapper */
-            .dual-knob-wrapper {
+            /* Compact dual-ring knob wrapper */
+            .dual-knob-wrapper-compact {
                 position: relative;
-                width: 70px;
-                height: 70px;
+                width: 60px;
+                height: 60px;
                 display: flex;
                 align-items: center;
                 justify-content: center;
             }
 
-            .freq-notches {
+            .freq-notches-compact {
                 position: absolute;
-                width: 70px;
-                height: 70px;
+                width: 60px;
+                height: 60px;
                 pointer-events: none;
             }
 
             .dual-knob-container {
                 position: absolute;
-                width: 54px;
-                height: 54px;
+                width: 46px;
+                height: 46px;
                 cursor: pointer;
             }
 
             /* Outer ring - frequency */
             .knob-outer {
                 position: absolute;
-                width: 54px;
-                height: 54px;
+                width: 46px;
+                height: 46px;
                 border-radius: 50%;
                 background: radial-gradient(circle,
                     transparent 62%,
@@ -309,7 +307,7 @@ export class AnalogEQUnitUI {
                 left: 50%;
                 transform: translateX(-50%);
                 width: 3px;
-                height: 8px;
+                height: 7px;
                 background: #3C5C1A;
                 border-radius: 1.5px;
                 pointer-events: none;
@@ -318,10 +316,10 @@ export class AnalogEQUnitUI {
             /* Inner dial - gain (seed pattern) */
             .knob-inner {
                 position: absolute;
-                top: 10px;
-                left: 10px;
-                width: 34px;
-                height: 34px;
+                top: 9px;
+                left: 9px;
+                width: 28px;
+                height: 28px;
                 border-radius: 50%;
                 background:
                     radial-gradient(circle, #FFF8DC 0%, #FFF8DC 18%, transparent 18%),
@@ -344,11 +342,11 @@ export class AnalogEQUnitUI {
 
             .knob-pointer {
                 position: absolute;
-                top: 3px;
+                top: 2px;
                 left: 50%;
                 transform: translateX(-50%);
                 width: 2px;
-                height: 8px;
+                height: 7px;
                 background: #3C2F2F;
                 pointer-events: none;
             }
@@ -356,14 +354,14 @@ export class AnalogEQUnitUI {
             /* Value tooltip */
             .value-tooltip {
                 position: absolute;
-                bottom: -18px;
+                bottom: -16px;
                 left: 50%;
                 transform: translateX(-50%);
                 background: rgba(60, 47, 47, 0.95);
                 color: #FFF;
-                padding: 2px 5px;
+                padding: 2px 4px;
                 border-radius: 2px;
-                font-size: 8px;
+                font-size: 7px;
                 white-space: nowrap;
                 pointer-events: none;
                 opacity: 0;
@@ -376,8 +374,8 @@ export class AnalogEQUnitUI {
                 opacity: 1;
             }
 
-            /* Q selector */
-            .three-way-toggle {
+            /* Compact Q selector */
+            .three-way-toggle-compact {
                 display: flex;
                 gap: 1px;
                 background: #5C4033;
@@ -386,126 +384,31 @@ export class AnalogEQUnitUI {
                 overflow: hidden;
             }
 
-            .three-way-option {
-                padding: 2px 6px;
-                font-size: 8px;
+            .three-way-toggle-compact .three-way-option {
+                padding: 1px 4px;
+                font-size: 7px;
                 font-weight: 600;
-                letter-spacing: 0.5px;
+                letter-spacing: 0.3px;
                 color: #DDD;
                 cursor: pointer;
                 background: #8B7355;
                 transition: background 0.1s;
             }
 
-            .three-way-option.active {
+            .three-way-toggle-compact .three-way-option.active {
                 background: #6B8E4E;
                 color: #FFF;
             }
 
-            .q-spacer {
-                height: 18px;
+            .q-spacer-compact {
+                height: 14px;
             }
 
-            /* Footer */
-            .eq-footer {
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                gap: 20px;
-                padding-top: 8px;
-                border-top: 1px solid #5C4033;
-            }
-
-            .eq-output {
-                display: flex;
-                flex-direction: column;
-                align-items: center;
-                gap: 2px;
-            }
-
-            .eq-output label {
-                font-size: 8px;
-                letter-spacing: 1px;
-                color: #8B7355;
-            }
-
-            .output-knob-wrapper {
-                width: 36px;
-                height: 36px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-
-            .output-knob {
-                width: 28px;
-                height: 28px;
-                border-radius: 50%;
-                background: radial-gradient(circle at 30% 30%, #5a5040, #3a3028);
-                border: 2px solid #6B8E4E;
-                position: relative;
-                cursor: pointer;
-            }
-
-            .output-knob-indicator {
-                position: absolute;
-                top: 2px;
-                left: 50%;
-                transform: translateX(-50%);
-                width: 3px;
-                height: 6px;
-                background: #6B8E4E;
-                border-radius: 1.5px;
-            }
-
-            .eq-value {
-                font-size: 9px;
-                color: #E8D5B7;
-                font-variant-numeric: tabular-nums;
-            }
-
-            /* VU Meter */
-            .eq-meter {
-                width: 60px;
-                height: 60px;
-                background: rgba(139, 168, 112, 0.15);
-                border: 2px solid #3C5C1A;
-                border-radius: 50%;
-                position: relative;
-                overflow: hidden;
-            }
-
-            .vu-meter-needle {
-                position: absolute;
-                width: 2px;
-                height: 24px;
-                background: #3C5C1A;
-                bottom: 50%;
-                left: 50%;
-                transform-origin: bottom center;
-                transform: translateX(-50%) rotate(-45deg);
-                border-radius: 1px;
-                transition: transform 0.12s ease-out;
-            }
-
-            .vu-meter-pivot {
-                position: absolute;
-                width: 8px;
-                height: 8px;
-                background: #3C2F2F;
-                border-radius: 50%;
-                bottom: calc(50% - 4px);
-                left: calc(50% - 4px);
-            }
-
-            .vu-meter-label {
-                position: absolute;
-                bottom: 6px;
-                width: 100%;
-                text-align: center;
-                font-size: 7px;
-                color: #3C2F2F;
-                letter-spacing: 0.5px;
+            /* Bypassed state - dim entire module */
+            .eq-unit-compact.bypassed .eq-bands-compact,
+            .eq-unit-compact.bypassed .analog-toggle {
+                opacity: 0.35;
+                pointer-events: none;
             }
         `;
         document.head.appendChild(style);
@@ -514,13 +417,12 @@ export class AnalogEQUnitUI {
     bindParameters() {
         const prefix = this.paramPrefix;
 
-        // Slider parameters
+        // Slider parameters (removed output_gain)
         const sliderParams = [
             'lf_freq', 'lf_gain',
             'lmf_freq', 'lmf_gain',
             'hmf_freq', 'hmf_gain',
-            'hf_freq', 'hf_gain',
-            'output_gain'
+            'hf_freq', 'hf_gain'
         ];
 
         sliderParams.forEach(param => {
@@ -532,8 +434,8 @@ export class AnalogEQUnitUI {
             }
         });
 
-        // Toggle parameters
-        const toggleParams = ['lf_on', 'lmf_on', 'hmf_on', 'hf_on', 'analog'];
+        // Toggle parameters (added 'enabled')
+        const toggleParams = ['lf_on', 'lmf_on', 'hmf_on', 'hf_on', 'analog', 'enabled'];
 
         toggleParams.forEach(param => {
             if (this.getToggleState) {
@@ -563,11 +465,8 @@ export class AnalogEQUnitUI {
             this.setupDualKnob(band);
         });
 
-        // Setup output knob (simple single knob)
-        this.setupOutputKnob();
-
         // Setup band toggles
-        this.container.querySelectorAll('.band-label').forEach(btn => {
+        this.container.querySelectorAll('.band-label-compact').forEach(btn => {
             const param = btn.dataset.param;
             btn.addEventListener('click', () => this.toggleBand(param));
 
@@ -577,6 +476,17 @@ export class AnalogEQUnitUI {
                 this.updateBandToggle(param);
             }
         });
+
+        // Setup EQ bypass toggle (new in v1.1.0)
+        const eqBypassBtn = this.container.querySelector('.eq-bypass-toggle');
+        if (eqBypassBtn) {
+            eqBypassBtn.addEventListener('click', () => this.toggleEnabled());
+            const state = this.toggles['enabled'];
+            if (state) {
+                state.valueChangedEvent.addListener(() => this.updateEnabledToggle());
+                this.updateEnabledToggle();
+            }
+        }
 
         // Setup analog toggle
         const analogBtn = this.container.querySelector('.analog-toggle');
@@ -590,7 +500,7 @@ export class AnalogEQUnitUI {
         }
 
         // Setup Q selectors
-        this.container.querySelectorAll('.three-way-toggle').forEach(toggle => {
+        this.container.querySelectorAll('.three-way-toggle-compact').forEach(toggle => {
             this.setupQToggle(toggle);
         });
 
@@ -691,49 +601,6 @@ export class AnalogEQUnitUI {
         updateTooltip();
     }
 
-    setupOutputKnob() {
-        const knob = this.container.querySelector('.output-knob');
-        if (!knob) return;
-
-        const state = this.sliders['output_gain'];
-        if (!state) return;
-
-        const indicator = knob.querySelector('.output-knob-indicator');
-        const display = this.container.querySelector('[data-display="output_gain"]');
-
-        const updateKnob = () => {
-            const normalizedValue = state.getNormalisedValue();
-            const degrees = -135 + (normalizedValue * 270);
-            knob.style.transform = `rotate(${degrees}deg)`;
-
-            if (display) {
-                display.textContent = this.paramRanges['output_gain'].format(normalizedValue);
-            }
-        };
-
-        knob.addEventListener('mousedown', (e) => {
-            this.isDragging = true;
-            this.currentState = state;
-            this.currentParamName = 'output_gain';
-            this.lastY = e.clientY;
-            this.activeContainer = knob;
-
-            if (state.sliderDragStarted) {
-                state.sliderDragStarted();
-            }
-
-            e.preventDefault();
-        });
-
-        knob.addEventListener('dblclick', (e) => {
-            state.setNormalisedValue(this.DEFAULT_VALUES['output_gain']);
-            e.preventDefault();
-        });
-
-        state.valueChangedEvent.addListener(updateKnob);
-        updateKnob();
-    }
-
     onDrag(e) {
         if (!this.isDragging || !this.currentState) return;
 
@@ -783,6 +650,30 @@ export class AnalogEQUnitUI {
         }
     }
 
+    // v1.1.0: EQ bypass toggle
+    toggleEnabled() {
+        const state = this.toggles['enabled'];
+        if (state) {
+            state.setValue(!state.getValue());
+        }
+    }
+
+    updateEnabledToggle() {
+        const state = this.toggles['enabled'];
+        if (!state) return;
+
+        const isEnabled = state.getValue();
+        const btn = this.container.querySelector('.eq-bypass-toggle');
+        const unit = this.container.querySelector('.eq-unit-compact');
+
+        if (btn) {
+            btn.classList.toggle('active', isEnabled);
+        }
+        if (unit) {
+            unit.classList.toggle('bypassed', !isEnabled);
+        }
+    }
+
     toggleAnalog() {
         const state = this.toggles['analog'];
         if (state) {
@@ -827,26 +718,10 @@ export class AnalogEQUnitUI {
 
     /**
      * Update VU meter (call from timer callback)
+     * Note: VU meter removed in v1.1.0 compact layout
      */
     updateMeter(levelDB) {
-        if (!this.showMeter) return;
-
-        const needle = this.container.querySelector('#eq_vu_needle');
-        if (!needle) return;
-
-        const minDB = -60;
-        const maxDB = 3;
-        const clampedDB = Math.max(minDB, Math.min(maxDB, levelDB));
-        const normalized = (clampedDB - minDB) / (maxDB - minDB);
-        const angle = -90 + (normalized * 180);
-
-        needle.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-
-        // Color based on level
-        const r = Math.round(60 + normalized * 195);
-        const g = Math.round(92 - normalized * 42);
-        const b = Math.round(26);
-        needle.style.background = `rgb(${r}, ${g}, ${b})`;
+        // No-op in compact layout (meter removed)
     }
 
     destroy() {
