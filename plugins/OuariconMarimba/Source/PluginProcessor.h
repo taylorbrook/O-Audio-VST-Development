@@ -13,6 +13,7 @@
 #include "TuningEngine.h"
 #include "BodyResonance.h"
 #include "PresetManager.h"
+#include "AnalogEQUnit.h"
 
 // Lock-free FIFO for waveform visualization
 class WaveformFifo
@@ -150,6 +151,9 @@ private:
 
     // Phase 2.4: Body resonance (convolution)
     BodyResonance bodyResonance;
+
+    // v1.8.0: Analog EQ Unit (effects tab)
+    AnalogEQUnit eqUnit;
 
     // v1.2.3: Waveform FIFO for oscilloscope display
     WaveformFifo waveformFifo;

@@ -27,6 +27,7 @@ target_sources(OuariconMarimba
 target_include_directories(OuariconMarimba
     PRIVATE
         Source
+        ${CMAKE_SOURCE_DIR}/modules/effects/analog-eq-unit/cpp
 )
 
 # Required JUCE modules
@@ -70,6 +71,7 @@ juce_add_binary_data(OuariconMarimba_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/images/paper1.jpg
         Source/ui/public/images/tree_expositionmtho00lamo_0207.png
+        ${CMAKE_SOURCE_DIR}/modules/effects/analog-eq-unit/js/analog-eq-unit.js
 )
 
 target_link_libraries(OuariconMarimba

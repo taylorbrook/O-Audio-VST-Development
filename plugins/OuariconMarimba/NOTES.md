@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.0
+- **Version:** 1.8.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -69,6 +69,23 @@
     - Higher modes corrected to measured values: 24.22, 33.54, 42.97, 54.0
   - Changed: Mode amplitude distribution improved with stronger fundamental + mode 2
   - Changed: Body resonance IR enhanced with 6 modes (was 3), wood-like decay envelope, 100ms duration
+- **2026-01-11 (v1.6.0):** Three new timbre refinement controls (Strike Position, Overtone Damping, Tone)
+- **2026-01-11 (v1.6.1):** UI refinement + doubled parameter ranges for extreme sound shaping
+- **2026-01-11 (v1.6.2):** UI knob sizing fixes, updated factory presets with new parameters
+- **2026-01-13 (v1.7.0):** New EFFECTS tab
+  - Added: Third tab in UI for future effects controls (placeholder)
+  - Added: Parallax tree background shifts further left on Effects tab
+  - Tree progression: Sound (-60px) → Tuning (-120px) → Effects (-180px)
+- **2026-01-13 (v1.8.0):** Analog EQ Module (first Ouaricon Module integration)
+  - Added: 4-band analog-style parametric EQ in Effects tab
+    - LF Shelf (30-500 Hz), LMF Bell (100-2000 Hz), HMF Bell (500-8000 Hz), HF Shelf (2000-20000 Hz)
+    - Variable Q selection (WIDE/MED/TIGHT) for LMF and HMF bands
+    - Analog saturation circuit (toggleable)
+    - Output gain trim (±12 dB)
+  - Added: Dual-ring knob UI (outer=freq, inner=gain)
+  - Signal flow: Synth → Body Resonance → Analog EQ → Output Gain
+  - Uses Ouaricon Module System: modules/effects/analog-eq-unit/
+  - 16 new automatable parameters (fx_eq_* prefix)
 
 ## Known Issues
 
@@ -88,14 +105,37 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - **Velocity Response:** Custom curve mapping for expressive performance
 - **WebView UI:** Botanical paper aesthetic with interactive tuning visualization
 
-### Parameters (7 total)
+### Parameters (26 total - v1.8.0)
+
+**Sound Parameters (10):**
 1. **MALLET_HARDNESS** (Float, 0.0-1.0) - Excitation brightness (soft/dark to hard/bright)
 2. **BAR_MATERIAL** (Float, 0.0-1.0) - Spectral balance (rosewood to synthetic)
 3. **RESONANCE** (Float, 0.0-1.0) - Decay time + body IR mix
-4. **TUNING_MODE** (Choice, 0-2) - 12-TET / Scala / MTS-ESP
-5. **REFERENCE_PITCH** (Float, 400-480 Hz) - A4 reference frequency
-6. **VEL_CURVE** (Float, 0.0-1.0) - Velocity curve (linear to exponential)
-7. **OUTPUT_GAIN** (Float, -24 to +12 dB) - Master output level
+4. **STRIKE_POSITION** (Float, 0.0-1.0) - Mallet strike location (edge to center)
+5. **OVERTONE_DAMPING** (Float, 0.0-1.0) - Upper harmonic decay rate
+6. **TONE** (Float, 0.0-1.0) - Post-synthesis brightness (lowpass filter)
+7. **TUNING_MODE** (Choice, 0-2) - 12-TET / Scala / MTS-ESP
+8. **REFERENCE_PITCH** (Float, 400-480 Hz) - A4 reference frequency
+9. **VEL_CURVE** (Float, 0.0-1.0) - Velocity curve (linear to exponential)
+10. **OUTPUT_GAIN** (Float, -24 to +12 dB) - Master output level
+
+**Analog EQ Parameters (16, prefix: fx_eq_):**
+11. **fx_eq_lf_freq** (Float, 30-500 Hz) - LF shelf corner frequency
+12. **fx_eq_lf_gain** (Float, ±12 dB) - LF shelf boost/cut
+13. **fx_eq_lf_on** (Bool) - LF band enable
+14. **fx_eq_lmf_freq** (Float, 100-2000 Hz) - LMF bell center frequency
+15. **fx_eq_lmf_gain** (Float, ±12 dB) - LMF bell boost/cut
+16. **fx_eq_lmf_q** (Choice, WIDE/MED/TIGHT) - LMF Q factor
+17. **fx_eq_lmf_on** (Bool) - LMF band enable
+18. **fx_eq_hmf_freq** (Float, 500-8000 Hz) - HMF bell center frequency
+19. **fx_eq_hmf_gain** (Float, ±12 dB) - HMF bell boost/cut
+20. **fx_eq_hmf_q** (Choice, WIDE/MED/TIGHT) - HMF Q factor
+21. **fx_eq_hmf_on** (Bool) - HMF band enable
+22. **fx_eq_hf_freq** (Float, 2000-20000 Hz) - HF shelf corner frequency
+23. **fx_eq_hf_gain** (Float, ±12 dB) - HF shelf boost/cut
+24. **fx_eq_hf_on** (Bool) - HF band enable
+25. **fx_eq_output_gain** (Float, ±12 dB) - EQ master output trim
+26. **fx_eq_analog** (Bool) - Analog saturation enable
 
 ### DSP Architecture
 - **Modal Resonator Bank:** 8 parallel 2nd-order IIR biquad filters per voice
@@ -114,4 +154,4 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - AU (Audio Unit)
 - Standalone
 
-**Last Updated:** 2026-01-11
+**Last Updated:** 2026-01-13

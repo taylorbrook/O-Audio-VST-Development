@@ -48,6 +48,27 @@ private:
     std::unique_ptr<juce::WebSliderRelay> velCurveRelay;
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
 
+    // v1.8.0: Analog EQ Unit relays (effects tab)
+    // Slider relays (freq/gain parameters)
+    std::unique_ptr<juce::WebSliderRelay> eqLfFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqLfGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqLmfFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqLmfGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqHmfFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqHmfGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqHfFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqHfGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqOutputGainRelay;
+    // Toggle relays (band on/off, analog)
+    std::unique_ptr<juce::WebToggleButtonRelay> eqLfOnRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqLmfOnRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqHmfOnRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqHfOnRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqAnalogRelay;
+    // ComboBox relays (Q selection)
+    std::unique_ptr<juce::WebComboBoxRelay> eqLmfQRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> eqHmfQRelay;
+
     // 2️⃣ WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
@@ -64,6 +85,24 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> referencePitchAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> velCurveAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
+
+    // v1.8.0: Analog EQ Unit attachments (effects tab)
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqLfFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqLfGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqLmfFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqLmfGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqHmfFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqHmfGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqHfFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqHfGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqOutputGainAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqLfOnAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqLmfOnAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqHmfOnAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqHfOnAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqAnalogAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> eqLmfQAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> eqHmfQAttachment;
 
     // Helper for resource serving (Pattern 8: Explicit URL mapping)
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

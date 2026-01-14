@@ -2,6 +2,50 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.8.0] - 2026-01-13
+
+### Added
+- **Analog EQ Module** in Effects tab - 4-band analog-style parametric EQ
+  - **LF Shelf** (30-500 Hz) - Low frequency boost/cut
+  - **LMF Bell** (100-2000 Hz) - Low-mid parametric with WIDE/MED/TIGHT Q selection
+  - **HMF Bell** (500-8000 Hz) - High-mid parametric with WIDE/MED/TIGHT Q selection
+  - **HF Shelf** (2000-20000 Hz) - High frequency boost/cut
+  - **Analog saturation** circuit for subtle warmth (toggleable)
+  - **Output gain** trim (±12 dB)
+- **Dual-ring knob design** - Outer ring controls frequency, inner dial controls gain
+  - Click position determines which parameter is adjusted
+  - Double-click to reset to center (0 dB gain, center frequency)
+  - Drag vertically to adjust values
+  - Tooltip shows both values on hover
+- Module uses Ouaricon Module System (first effects module integration)
+
+### Technical Details
+- EQ processes audio at end of chain: Synth → Body Resonance → **Analog EQ** → Output Gain
+- 16 new parameters with `fx_eq_` prefix for DAW automation
+- Uses AnalogEQUnit from `modules/effects/analog-eq-unit/`
+- WebView relays: 9 slider, 5 toggle, 2 combobox
+- UI positioned in top 1/4 of Effects tab (80px), leaving room for future modules
+
+### Signal Flow
+```
+Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Output Gain → Output
+        (if on)    (if on)    (if on)    (if on)    (if on)
+```
+
+## [1.7.0] - 2026-01-13
+
+### Added
+- **New EFFECTS tab** - Third tab in the UI for future effects controls
+  - Empty placeholder tab ready for effects implementation
+  - Parallax tree background shifts further left when navigating to Effects tab
+  - Consistent visual transition behavior matching Sound → Tuning navigation
+
+### Technical Details
+- Added `.botanical-overlay.effects-position` CSS class (right: -180px, opacity: 0.12)
+- Added `#effects-tab` content container
+- Updated tab switching JavaScript to handle three-tab navigation
+- Tree parallax progression: Sound (-60px) → Tuning (-120px) → Effects (-180px)
+
 ## [1.6.2] - 2026-01-11
 
 ### Changed

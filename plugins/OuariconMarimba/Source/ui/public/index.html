@@ -75,6 +75,11 @@
             opacity: 0.15;
         }
 
+        .botanical-overlay.effects-position {
+            right: -180px;
+            opacity: 0.12;
+        }
+
         /* Header */
         .header {
             position: absolute;
@@ -915,6 +920,7 @@
         <div class="tab-bar">
             <div class="tab active" id="tab-sound">SOUND</div>
             <div class="tab" id="tab-tuning">TUNING</div>
+            <div class="tab" id="tab-effects">EFFECTS</div>
         </div>
 
         <!-- SOUND Tab Content -->
@@ -1129,10 +1135,22 @@
                 <div class="keyboard-help">Click to play</div>
             </div>
         </div>
+
+        <!-- EFFECTS Tab Content -->
+        <div id="effects-tab" class="tab-content">
+            <!-- v1.8.0: Analog EQ Module (top 1/4 of tab) -->
+            <div id="eq-panel" style="position: absolute; top: 10px; left: 50%; transform: translateX(-50%);"></div>
+
+            <!-- Future effects modules will go below (remaining 3/4) -->
+            <div id="effects-future" style="position: absolute; top: 120px; left: 0; right: 0; bottom: 0; opacity: 0.3; display: flex; align-items: center; justify-content: center; color: #8B7355; font-size: 12px; letter-spacing: 1px;">
+                <!-- Placeholder for future effects -->
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import * as Juce from "./js/juce/index.js";
+        import { AnalogEQUnitUI } from "./modules/analog-eq-unit.js";
 
         // Disable right-click context menu
         document.addEventListener("contextmenu", (e) => {
@@ -1157,18 +1175,36 @@
             currentTab = 'main';
             document.getElementById('main-tab').classList.add('active');
             document.getElementById('tuning-tab').classList.remove('active');
+            document.getElementById('effects-tab').classList.remove('active');
             document.getElementById('tab-sound').classList.add('active');
             document.getElementById('tab-tuning').classList.remove('active');
+            document.getElementById('tab-effects').classList.remove('active');
             document.getElementById('botanical').classList.remove('tuning-position');
+            document.getElementById('botanical').classList.remove('effects-position');
         });
 
         document.getElementById('tab-tuning').addEventListener('click', () => {
             currentTab = 'tuning';
             document.getElementById('tuning-tab').classList.add('active');
             document.getElementById('main-tab').classList.remove('active');
+            document.getElementById('effects-tab').classList.remove('active');
             document.getElementById('tab-tuning').classList.add('active');
             document.getElementById('tab-sound').classList.remove('active');
+            document.getElementById('tab-effects').classList.remove('active');
+            document.getElementById('botanical').classList.remove('effects-position');
             document.getElementById('botanical').classList.add('tuning-position');
+        });
+
+        document.getElementById('tab-effects').addEventListener('click', () => {
+            currentTab = 'effects';
+            document.getElementById('effects-tab').classList.add('active');
+            document.getElementById('main-tab').classList.remove('active');
+            document.getElementById('tuning-tab').classList.remove('active');
+            document.getElementById('tab-effects').classList.add('active');
+            document.getElementById('tab-sound').classList.remove('active');
+            document.getElementById('tab-tuning').classList.remove('active');
+            document.getElementById('botanical').classList.remove('tuning-position');
+            document.getElementById('botanical').classList.add('effects-position');
         });
 
         // ====================================================================
@@ -2273,7 +2309,22 @@
         // v1.3.0: Initialize preset system
         initializePresets();
 
-        console.log("Ouaricon Marimba UI initialized (v1.3.1 with preset dropdown)");
+        // ====================================================================
+        // v1.8.0: ANALOG EQ UNIT (Effects Tab)
+        // ====================================================================
+
+        const eqUI = new AnalogEQUnitUI({
+            container: document.getElementById('eq-panel'),
+            paramPrefix: 'fx_eq_',
+            getSliderState: Juce.getSliderState,
+            getToggleState: Juce.getToggleState,
+            getComboBoxState: Juce.getComboBoxState,
+            showMeter: false,
+            onReady: () => console.log('Analog EQ Unit initialized')
+        });
+        eqUI.initialize();
+
+        console.log("Ouaricon Marimba UI initialized (v1.8.0 with Analog EQ)");
     </script>
 </body>
 </html>

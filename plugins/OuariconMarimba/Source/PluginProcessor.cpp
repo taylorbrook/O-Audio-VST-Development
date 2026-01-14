@@ -103,6 +103,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconMarimbaAudioProcesso
         "dB"
     ));
 
+    // v1.8.0: Analog EQ Unit parameters (effects tab)
+    auto eqParams = AnalogEQUnit::createParameterLayout("fx_eq_");
+    for (auto& param : eqParams)
+        layout.add(std::move(param));
+
     return layout;
 }
 
@@ -110,6 +115,7 @@ OuariconMarimbaAudioProcessor::OuariconMarimbaAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , eqUnit(parameters, "fx_eq_")  // v1.8.0: Initialize EQ with parameter prefix
 {
     // Phase 2.1: Initialize synthesiser with 16 voices
     // Add a single MarimbaSound (all notes can play this sound)
@@ -154,6 +160,9 @@ void OuariconMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samples
 
     // Phase 2.4: Prepare body resonance
     bodyResonance.prepare(sampleRate, samplesPerBlock);
+
+    // v1.8.0: Prepare Analog EQ
+    eqUnit.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
 }
 
 void OuariconMarimbaAudioProcessor::releaseResources()
@@ -262,6 +271,9 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     // Scale to 0.5 to avoid too much wetness (resonance = 1.0 → 50% wet)
     bodyResonance.setMix(resonance * 0.5f);
     bodyResonance.process(buffer);
+
+    // v1.8.0: Apply Analog EQ (effects tab, end of chain before output gain)
+    eqUnit.process(buffer);
 
     // Apply output gain (after all processing)
     float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);

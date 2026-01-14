@@ -28,6 +28,24 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
     velCurveRelay = std::make_unique<juce::WebSliderRelay>("VEL_CURVE");
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("OUTPUT_GAIN");
 
+    // v1.8.0: Analog EQ Unit relays
+    eqLfFreqRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_lf_freq");
+    eqLfGainRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_lf_gain");
+    eqLmfFreqRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_lmf_freq");
+    eqLmfGainRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_lmf_gain");
+    eqHmfFreqRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_hmf_freq");
+    eqHmfGainRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_hmf_gain");
+    eqHfFreqRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_hf_freq");
+    eqHfGainRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_hf_gain");
+    eqOutputGainRelay = std::make_unique<juce::WebSliderRelay>("fx_eq_output_gain");
+    eqLfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_lf_on");
+    eqLmfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_lmf_on");
+    eqHmfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_hmf_on");
+    eqHfOnRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_hf_on");
+    eqAnalogRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_eq_analog");
+    eqLmfQRelay = std::make_unique<juce::WebComboBoxRelay>("fx_eq_lmf_q");
+    eqHmfQRelay = std::make_unique<juce::WebComboBoxRelay>("fx_eq_hmf_q");
+
     // 2️⃣ Create WebView with options (Pattern 9: NEEDS_WEB_BROWSER required)
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
@@ -45,6 +63,23 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withOptionsFrom(*referencePitchRelay)
             .withOptionsFrom(*velCurveRelay)
             .withOptionsFrom(*outputGainRelay)
+            // v1.8.0: Analog EQ Unit relays
+            .withOptionsFrom(*eqLfFreqRelay)
+            .withOptionsFrom(*eqLfGainRelay)
+            .withOptionsFrom(*eqLmfFreqRelay)
+            .withOptionsFrom(*eqLmfGainRelay)
+            .withOptionsFrom(*eqHmfFreqRelay)
+            .withOptionsFrom(*eqHmfGainRelay)
+            .withOptionsFrom(*eqHfFreqRelay)
+            .withOptionsFrom(*eqHfGainRelay)
+            .withOptionsFrom(*eqOutputGainRelay)
+            .withOptionsFrom(*eqLfOnRelay)
+            .withOptionsFrom(*eqLmfOnRelay)
+            .withOptionsFrom(*eqHmfOnRelay)
+            .withOptionsFrom(*eqHfOnRelay)
+            .withOptionsFrom(*eqAnalogRelay)
+            .withOptionsFrom(*eqLmfQRelay)
+            .withOptionsFrom(*eqHmfQRelay)
             .withNativeFunction("sendMidiNote", [this](const auto& args, auto complete) {
                 complete(sendMidiNote(args));
             })
@@ -138,6 +173,40 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
 
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("OUTPUT_GAIN"), *outputGainRelay, nullptr);
+
+    // v1.8.0: Analog EQ Unit attachments
+    eqLfFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_lf_freq"), *eqLfFreqRelay, nullptr);
+    eqLfGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_lf_gain"), *eqLfGainRelay, nullptr);
+    eqLmfFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_lmf_freq"), *eqLmfFreqRelay, nullptr);
+    eqLmfGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_lmf_gain"), *eqLmfGainRelay, nullptr);
+    eqHmfFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_hmf_freq"), *eqHmfFreqRelay, nullptr);
+    eqHmfGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_hmf_gain"), *eqHmfGainRelay, nullptr);
+    eqHfFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_hf_freq"), *eqHfFreqRelay, nullptr);
+    eqHfGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_hf_gain"), *eqHfGainRelay, nullptr);
+    eqOutputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_output_gain"), *eqOutputGainRelay, nullptr);
+    eqLfOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_lf_on"), *eqLfOnRelay, nullptr);
+    eqLmfOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_lmf_on"), *eqLmfOnRelay, nullptr);
+    eqHmfOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_hmf_on"), *eqHmfOnRelay, nullptr);
+    eqHfOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_hf_on"), *eqHfOnRelay, nullptr);
+    eqAnalogAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_analog"), *eqAnalogRelay, nullptr);
+    eqLmfQAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_lmf_q"), *eqLmfQRelay, nullptr);
+    eqHmfQAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_eq_hmf_q"), *eqHmfQRelay, nullptr);
 
     // Add WebView to editor
     addAndMakeVisible(*webView);
@@ -301,6 +370,14 @@ OuariconMarimbaAudioProcessorEditor::getResource(const juce::String& url)
     if (url == "/js/juce/check_native_interop.js") {
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::check_native_interop_js, BinaryData::check_native_interop_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // v1.8.0: Analog EQ Unit JavaScript module
+    if (url == "/modules/analog-eq-unit.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::analogequnit_js, BinaryData::analogequnit_jsSize),
             juce::String("text/javascript")
         };
     }
