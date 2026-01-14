@@ -12,7 +12,8 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OuariconSimpleReverbAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconSimpleReverbAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                                  private juce::Timer
 {
 public:
     explicit OuariconSimpleReverbAudioProcessorEditor(OuariconSimpleReverbAudioProcessor&);
@@ -22,6 +23,8 @@ public:
     void resized() override;
 
 private:
+    void timerCallback() override;
+
     OuariconSimpleReverbAudioProcessor& processorRef;
 
     // CRITICAL: Member declaration order (Pattern #11)

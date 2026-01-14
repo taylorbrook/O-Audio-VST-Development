@@ -44,6 +44,9 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    // VU Meter - output level for WebView (thread-safe)
+    std::atomic<float> outputLevelDB { -100.0f };
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

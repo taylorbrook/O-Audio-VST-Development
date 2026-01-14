@@ -543,6 +543,18 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
             output[sample] = (dry[sample] * dryGain) + (wet[sample] * wetGain);
         }
     }
+
+    // === 10. VU Meter - Calculate peak level after all processing ===
+    float peakLevel = 0.0f;
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        float channelPeak = buffer.getMagnitude(ch, 0, buffer.getNumSamples());
+        peakLevel = std::max(peakLevel, channelPeak);
+    }
+    float levelDB = peakLevel > 0.00001f
+        ? juce::Decibels::gainToDecibels(peakLevel)
+        : -100.0f;
+    outputLevelDB.store(levelDB, std::memory_order_relaxed);
 }
 
 juce::AudioProcessorEditor* OuariconSimpleReverbAudioProcessor::createEditor()

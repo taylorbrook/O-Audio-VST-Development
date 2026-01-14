@@ -60,10 +60,22 @@ OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEdit
 
     // Set editor size (from creative brief: 500x350)
     setSize(500, 350);
+
+    // Start timer for VU meter updates (30 Hz)
+    startTimerHz(30);
 }
 
 OuariconSimpleReverbAudioProcessorEditor::~OuariconSimpleReverbAudioProcessorEditor()
 {
+    stopTimer();
+}
+
+//==============================================================================
+void OuariconSimpleReverbAudioProcessorEditor::timerCallback()
+{
+    // VU Meter - emit output level to WebView
+    const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
+    webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
 
 void OuariconSimpleReverbAudioProcessorEditor::paint(juce::Graphics& g)

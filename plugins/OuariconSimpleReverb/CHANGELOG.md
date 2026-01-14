@@ -2,6 +2,25 @@
 
 All notable changes to OuariconSimpleReverb will be documented in this file.
 
+## [1.2.1] - 2026-01-13
+
+### Changed
+
+- **Dial alignment:** Decay now aligned beneath Character (left column), Size beneath Dry (right column)
+- **VU meter size:** Enlarged from 50px to 75px diameter for better visibility
+- **Layout:** Bottom row now uses 3-column grid matching top row for consistent alignment
+
+### Fixed
+
+- **VU meter functionality:** Connected VU meter to audio output level via C++ backend timer (30Hz updates)
+- **Needle size:** Increased needle height to 30px to match larger meter
+
+### Technical Notes
+
+- Added `outputLevelDB` atomic in PluginProcessor for thread-safe level metering
+- Added Timer inheritance to PluginEditor, emitting "outputLevel" events at 30Hz
+- VU meter responds to actual audio signal with attack/decay smoothing
+
 ## [1.2.0] - 2026-01-13
 
 ### Changed
