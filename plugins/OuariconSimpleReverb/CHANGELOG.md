@@ -2,6 +2,23 @@
 
 All notable changes to OuariconSimpleReverb will be documented in this file.
 
+## [1.4.1] - 2026-01-13
+
+### Added
+
+- **Save button:** Opens system save dialog to save current settings as a user preset
+- **Load button:** Opens system file picker to load a preset from any location
+
+### Changed
+
+- **Title:** Restored "Ouaricon Simple Reverb" with line break after "Ouaricon"
+
+### Technical Notes
+
+- Added `savePresetWithDialog` and `loadPresetFromFile` native functions
+- Uses JUCE FileChooser for async file dialogs
+- Save targets User presets directory, Load can browse anywhere
+
 ## [1.4.0] - 2026-01-13
 
 ### Added

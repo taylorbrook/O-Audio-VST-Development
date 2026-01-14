@@ -75,12 +75,13 @@
         }
 
         .title {
-            font-size: 20px;
+            font-size: 16px;
             color: #3C2F2F;
             letter-spacing: 2px;
             font-weight: normal;
             text-transform: uppercase;
             text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+            line-height: 1.2;
         }
 
         /* Preset Bar */
@@ -173,6 +174,24 @@
             background: rgba(139, 115, 85, 0.15);
             text-transform: uppercase;
             letter-spacing: 1px;
+        }
+
+        .preset-action-btn {
+            background: rgba(92, 64, 51, 0.15);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            padding: 3px 6px;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            color: #5C4033;
+            cursor: pointer;
+            transition: background 0.15s;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-action-btn:hover {
+            background: rgba(139, 168, 112, 0.3);
         }
 
         /* Type Selector - no label */
@@ -488,7 +507,7 @@
 
         <div class="content">
             <div class="header">
-                <h1 class="title">Simple Reverb</h1>
+                <h1 class="title">Ouaricon<br>Simple Reverb</h1>
                 <div class="preset-bar">
                     <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
                     <div class="preset-display" id="preset-display">
@@ -496,6 +515,8 @@
                         <div class="preset-dropdown" id="preset-dropdown"></div>
                     </div>
                     <button class="preset-nav-btn" id="preset-next" title="Next preset">&gt;</button>
+                    <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
+                    <button class="preset-action-btn" id="preset-load" title="Load preset">Load</button>
                 </div>
             </div>
 
@@ -636,6 +657,8 @@
         const presetDisplay = document.getElementById('preset-display');
         const presetPrev = document.getElementById('preset-prev');
         const presetNext = document.getElementById('preset-next');
+        const presetSaveBtn = document.getElementById('preset-save');
+        const presetLoadBtn = document.getElementById('preset-load');
 
         // Native functions
         const loadPreset = getNativeFunction("loadPreset");
@@ -643,6 +666,8 @@
         const getCurrentPreset = getNativeFunction("getCurrentPreset");
         const selectNextPreset = getNativeFunction("selectNextPreset");
         const selectPreviousPreset = getNativeFunction("selectPreviousPreset");
+        const savePresetWithDialog = getNativeFunction("savePresetWithDialog");
+        const loadPresetFromFile = getNativeFunction("loadPresetFromFile");
 
         let currentPresetName = 'Default';
         let presetList = [];
@@ -741,6 +766,36 @@
                 currentPresetName = nextName;
                 presetNameEl.textContent = nextName;
                 renderDropdown();
+            }
+        });
+
+        // Save button - opens system save dialog
+        presetSaveBtn.addEventListener('click', async () => {
+            try {
+                const result = await savePresetWithDialog();
+                if (result && result.success && result.name) {
+                    currentPresetName = result.name;
+                    presetNameEl.textContent = result.name;
+                    await refreshPresets();
+                    console.log('[Presets] Saved:', result.name);
+                }
+            } catch (e) {
+                console.error('[Presets] Save failed:', e);
+            }
+        });
+
+        // Load button - opens system file picker
+        presetLoadBtn.addEventListener('click', async () => {
+            try {
+                const result = await loadPresetFromFile();
+                if (result && result.success && result.name) {
+                    currentPresetName = result.name;
+                    presetNameEl.textContent = result.name;
+                    renderDropdown();
+                    console.log('[Presets] Loaded:', result.name);
+                }
+            } catch (e) {
+                console.error('[Presets] Load failed:', e);
             }
         });
 
@@ -1126,7 +1181,7 @@
         // ====================================================================
         // INITIALIZATION COMPLETE
         // ====================================================================
-        console.log("Ouaricon Simple Reverb v1.4.0 UI initialized");
+        console.log("Ouaricon Simple Reverb v1.4.1 UI initialized");
     </script>
 </body>
 </html>

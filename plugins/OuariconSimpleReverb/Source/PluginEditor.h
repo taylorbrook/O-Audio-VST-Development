@@ -54,5 +54,8 @@ private:
     // Resource provider helper
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
+    // File chooser for save/load dialogs
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSimpleReverbAudioProcessorEditor)
 };

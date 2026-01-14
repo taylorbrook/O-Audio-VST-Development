@@ -80,6 +80,60 @@ OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEdit
                 else
                     complete(false);
             })
+            .withNativeFunction("savePresetWithDialog", [this](const auto&, auto complete) {
+                auto userDir = processorRef.presetManager.getUserPresetsDirectory();
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Preset",
+                    userDir,
+                    "*.json"
+                );
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto file = fc.getResult();
+                        if (file != juce::File{}) {
+                            auto name = file.getFileNameWithoutExtension();
+                            bool success = processorRef.presetManager.savePreset(name);
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", success);
+                            result->setProperty("name", name);
+                            complete(juce::var(result));
+                        } else {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                        }
+                    }
+                );
+            })
+            .withNativeFunction("loadPresetFromFile", [this](const auto&, auto complete) {
+                auto presetsDir = processorRef.presetManager.getPresetsDirectory();
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Preset",
+                    presetsDir,
+                    "*.json"
+                );
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto file = fc.getResult();
+                        if (file.existsAsFile()) {
+                            bool success = processorRef.presetManager.loadPresetFromFile(file);
+                            auto name = file.getFileNameWithoutExtension();
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", success);
+                            result->setProperty("name", success ? name : "");
+                            complete(juce::var(result));
+                        } else {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                        }
+                    }
+                );
+            })
     );
 
     // 3. Create attachments LAST (connect parameters to relays)
