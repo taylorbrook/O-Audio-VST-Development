@@ -35,6 +35,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> dryRelay;
     std::unique_ptr<juce::WebSliderRelay> decayRelay;
     std::unique_ptr<juce::WebSliderRelay> sizeRelay;
+    std::unique_ptr<juce::WebSliderRelay> lpFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> lpOnRelay;
 
     // 2. WebView SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -46,6 +48,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> dryAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> decayAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sizeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lpFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lpOnAttachment;
 
     // Resource provider helper
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

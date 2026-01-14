@@ -49,10 +49,10 @@
 
         .botanical-overlay {
             position: absolute;
-            right: -30px;
+            right: -60px;
             top: 50%;
             transform: translateY(-50%);
-            height: 75%;
+            height: 150%;
             opacity: 0.3;
             pointer-events: none;
         }
@@ -125,9 +125,9 @@
         /* Knobs Grid */
         .knobs-container {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 10px;
-            padding: 5px 30px;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 8px;
+            padding: 5px 20px;
             flex: 1;
             align-items: start;
         }
@@ -151,6 +151,23 @@
             position: relative;
             width: 60px;
             height: 60px;
+        }
+
+        .hz-label {
+            position: absolute;
+            font-size: 8px;
+            color: #5C4033;
+            opacity: 0.7;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .hz-left {
+            left: -14px;
+        }
+
+        .hz-right {
+            right: -18px;
         }
 
         /* Ouaricon Botanical Seed Knob Style */
@@ -271,6 +288,24 @@
             font-variant-numeric: tabular-nums;
         }
 
+        .toggle-btn {
+            padding: 2px 8px;
+            border-radius: 3px;
+            background: rgba(92, 64, 51, 0.1);
+            border: 1px solid #8B7355;
+            transition: all 0.15s ease;
+        }
+
+        .toggle-btn:hover {
+            background: rgba(92, 64, 51, 0.2);
+        }
+
+        .toggle-btn.active {
+            background: rgba(139, 168, 112, 0.4);
+            border-color: #3C5C1A;
+            color: #3C5C1A;
+        }
+
         /* Hidden input for knob interaction */
         input[type="range"] {
             display: none;
@@ -288,45 +323,53 @@
 
         /* VU Meter - Circular style (larger) */
         .vu-meter {
-            width: 75px;
-            height: 75px;
+            width: 80px;
+            height: 80px;
             background: rgba(139, 168, 112, 0.2);
             border: 2px solid #3C5C1A;
             border-radius: 50%;
             position: relative;
             overflow: hidden;
             justify-self: center;
-            margin-top: 8px;
+            margin-top: 4px;
         }
 
         .vu-meter-scale {
             position: absolute;
             width: 100%;
-            height: 50%;
-            top: 5%;
+            height: 100%;
+            top: 0;
         }
 
         .vu-meter-needle {
             position: absolute;
             width: 2px;
-            height: 30px;
-            background: #3C5C1A;
+            height: 32px;
+            background: linear-gradient(to top, #3C5C1A, #3C5C1A);
             bottom: 50%;
             left: 50%;
             transform-origin: bottom center;
-            transform: translateX(-50%) rotate(-45deg);
+            transform: translateX(-50%) rotate(-90deg);
             border-radius: 1px;
-            transition: transform 0.15s ease-out;
+            transition: transform 0.15s ease-out, background 0.15s ease-out;
         }
 
         .vu-meter-pivot {
             position: absolute;
-            width: 8px;
-            height: 8px;
+            width: 10px;
+            height: 10px;
             background: #3C2F2F;
             border-radius: 50%;
-            bottom: calc(50% - 4px);
-            left: calc(50% - 4px);
+            bottom: calc(50% - 5px);
+            left: calc(50% - 5px);
+            z-index: 10;
+        }
+
+        .vu-db-label {
+            position: absolute;
+            font-size: 7px;
+            color: #5C4033;
+            font-family: 'Garamond', serif;
         }
 
         /* Footer */
@@ -365,7 +408,7 @@
                 </select>
             </div>
 
-            <!-- Knobs Grid - Top Row (3 knobs: Character, Wet, Dry) -->
+            <!-- Knobs Grid - Top Row (4 knobs: Character, LP Filter, Wet, Dry) -->
             <div class="knobs-container">
                 <div class="knob-control">
                     <span class="knob-label">Character</span>
@@ -376,6 +419,19 @@
                     </div>
                     <span class="knob-value" id="CHARACTER-value">neutral</span>
                     <input type="range" id="CHARACTER" min="-100" max="100" step="0.1" value="0">
+                </div>
+
+                <div class="knob-control">
+                    <span class="knob-label">Low Cut</span>
+                    <div class="knob-wrapper">
+                        <span class="hz-label hz-left">20</span>
+                        <span class="hz-label hz-right">400</span>
+                        <div class="knob" id="LPFREQ-knob" style="opacity: 0.5;">
+                            <div class="knob-indicator" id="LPFREQ-indicator"></div>
+                        </div>
+                    </div>
+                    <span class="knob-value toggle-btn" id="LPFREQ-value" style="cursor: pointer;">OFF</span>
+                    <input type="range" id="LPFREQ" min="20" max="400" step="1" value="200">
                 </div>
 
                 <div class="knob-control">
@@ -410,15 +466,33 @@
                             <div class="knob-indicator" id="DECAY-indicator"></div>
                         </div>
                     </div>
-                    <span class="knob-value" id="DECAY-value">1.5s</span>
-                    <input type="range" id="DECAY" min="0.1" max="10" step="0.01" value="1.5">
+                    <span class="knob-value" id="DECAY-value">1.0x</span>
+                    <input type="range" id="DECAY" min="0.5" max="2.0" step="0.01" value="1.0">
                 </div>
 
                 <!-- VU Meter (center column) -->
                 <div class="vu-meter">
-                    <svg class="vu-meter-scale" viewBox="0 0 75 38">
-                        <path d="M 8 34 A 30 30 0 0 1 67 34" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                    <svg class="vu-meter-scale" viewBox="0 0 80 80">
+                        <!-- Arc from -90° to 90° -->
+                        <path d="M 5 40 A 35 35 0 0 1 75 40" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                        <!-- Tick marks at -60dB, -30dB, -12dB, -6dB, 0dB -->
+                        <!-- -60dB at -90° -->
+                        <line x1="8" y1="40" x2="14" y2="40" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -30dB at -45° -->
+                        <line x1="14.6" y1="20.4" x2="19.3" y2="24.1" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -12dB at -6° -->
+                        <line x1="36" y1="6" x2="37.5" y2="12" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -6dB at 27° -->
+                        <line x1="55" y1="7.5" x2="53.5" y2="13.4" stroke="#5C4033" stroke-width="1"/>
+                        <!-- 0dB at 90° -->
+                        <line x1="72" y1="40" x2="66" y2="40" stroke="#8B0000" stroke-width="1.5"/>
                     </svg>
+                    <!-- dB Labels -->
+                    <span class="vu-db-label" style="left: 2px; top: 42px;">-60</span>
+                    <span class="vu-db-label" style="left: 8px; top: 16px;">-30</span>
+                    <span class="vu-db-label" style="left: 32px; top: 0px;">-12</span>
+                    <span class="vu-db-label" style="left: 54px; top: 2px;">-6</span>
+                    <span class="vu-db-label" style="right: 2px; top: 42px; color: #8B0000;">0</span>
                     <div class="vu-meter-needle" id="vu_needle"></div>
                     <div class="vu-meter-pivot"></div>
                 </div>
@@ -435,9 +509,6 @@
                 </div>
             </div>
 
-            <div class="footer">
-                <p class="version">Ouaricon Audio | v1.2.1</p>
-            </div>
         </div>
     </div>
 
@@ -464,16 +535,16 @@
         }
 
         // ====================================================================
-        // VU METER
+        // VU METER - Range: -90° to +90°, Color: Green to Red
         // ====================================================================
         const vuNeedle = document.getElementById('vu_needle');
-        let currentVUAngle = -45;
-        let targetVUAngle = -45;
+        let currentVUAngle = -90;
+        let targetVUAngle = -90;
 
         const VU_ATTACK_SPEED = 0.5;
         const VU_DECAY_SPEED = 0.08;
-        const VU_MIN_ANGLE = -45;
-        const VU_MAX_ANGLE = 45;
+        const VU_MIN_ANGLE = -90;
+        const VU_MAX_ANGLE = 90;
 
         function mapDBToAngle(dbLevel) {
             const minDB = -60;
@@ -481,6 +552,26 @@
             const clampedDB = Math.max(minDB, Math.min(maxDB, dbLevel));
             const normalized = (clampedDB - minDB) / (maxDB - minDB);
             return VU_MIN_ANGLE + (normalized * (VU_MAX_ANGLE - VU_MIN_ANGLE));
+        }
+
+        // Map normalized value (0-1) to color gradient (green to yellow to red)
+        function getNeedleColor(normalized) {
+            // Green: #3C5C1A, Yellow: #8B8B00, Red: #8B0000
+            if (normalized < 0.5) {
+                // Green to Yellow (0.0 - 0.5)
+                const t = normalized * 2;
+                const r = Math.round(60 + t * (139 - 60));
+                const g = Math.round(92 + t * (139 - 92));
+                const b = Math.round(26 - t * 26);
+                return `rgb(${r}, ${g}, ${b})`;
+            } else {
+                // Yellow to Red (0.5 - 1.0)
+                const t = (normalized - 0.5) * 2;
+                const r = Math.round(139);
+                const g = Math.round(139 - t * 139);
+                const b = Math.round(0);
+                return `rgb(${r}, ${g}, ${b})`;
+            }
         }
 
         if (window.__JUCE__ && window.__JUCE__.backend) {
@@ -497,7 +588,12 @@
                 currentVUAngle = VU_MIN_ANGLE;
             }
 
+            // Calculate normalized position (0-1) for color
+            const normalized = (currentVUAngle - VU_MIN_ANGLE) / (VU_MAX_ANGLE - VU_MIN_ANGLE);
+            const needleColor = getNeedleColor(normalized);
+
             vuNeedle.style.transform = `translateX(-50%) rotate(${currentVUAngle}deg)`;
+            vuNeedle.style.background = needleColor;
             requestAnimationFrame(animateVUMeter);
         }
 
@@ -673,9 +769,9 @@
 
         function updateDecayDisplay() {
             const norm = decayState.getNormalisedValue();
-            // Decay has skew 0.5, range 0.1-10.0
-            const actual = 0.1 + Math.pow(norm, 1/0.5) * (10.0 - 0.1);
-            decayValue.textContent = `${actual.toFixed(1)}s`;
+            // Decay is a multiplier, range 0.5-2.0x with skew 1.585 (1.0 at center)
+            const actual = 0.5 + 1.5 * Math.pow(norm, 1.585);
+            decayValue.textContent = `${actual.toFixed(1)}x`;
             updateKnobVisual(decayKnob, decayIndicator, norm);
         }
 
@@ -743,9 +839,72 @@
         updateSizeDisplay();
 
         // ====================================================================
+        // LOW CUT FILTER PARAMETER (20Hz to 400Hz with toggle button)
+        // ====================================================================
+
+        const lpfreqState = getSliderState("LPFREQ");
+        const lponState = getSliderState("LPON");
+        const lpfreqKnob = document.getElementById("LPFREQ-knob");
+        const lpfreqIndicator = document.getElementById("LPFREQ-indicator");
+        const lpfreqValue = document.getElementById("LPFREQ-value");
+
+        let isDraggingLPFreq = false;
+        let lastY_lpfreq = 0;
+
+        function updateLPFreqDisplay() {
+            const onNorm = lponState.getNormalisedValue();
+            const isOn = onNorm >= 0.5;
+            const freqNorm = lpfreqState.getNormalisedValue();
+            // Range 20-400Hz
+            const freq = 20 + freqNorm * (400 - 20);
+
+            if (isOn) {
+                lpfreqKnob.style.opacity = "1.0";
+                lpfreqValue.textContent = "ON";
+                lpfreqValue.classList.add("active");
+            } else {
+                lpfreqKnob.style.opacity = "0.5";
+                lpfreqValue.textContent = "OFF";
+                lpfreqValue.classList.remove("active");
+            }
+            updateKnobVisual(lpfreqKnob, lpfreqIndicator, freqNorm);
+        }
+
+        // Click on label to toggle on/off
+        lpfreqValue.addEventListener("click", (e) => {
+            const currentOn = lponState.getNormalisedValue() >= 0.5;
+            lponState.setNormalisedValue(currentOn ? 0.0 : 1.0);
+            updateLPFreqDisplay();
+            e.preventDefault();
+        });
+
+        lpfreqKnob.addEventListener("mousedown", (e) => {
+            isDraggingLPFreq = true;
+            lastY_lpfreq = e.clientY;
+            e.preventDefault();
+        });
+
+        document.addEventListener("mousemove", (e) => {
+            if (!isDraggingLPFreq) return;
+            const deltaY = lastY_lpfreq - e.clientY;
+            let currentValue = lpfreqState.getNormalisedValue();
+            let newValue = currentValue + (deltaY * 0.005);
+            newValue = Math.max(0, Math.min(1, newValue));
+            lpfreqState.setNormalisedValue(newValue);
+            updateLPFreqDisplay();
+            lastY_lpfreq = e.clientY;
+        });
+
+        document.addEventListener("mouseup", () => { isDraggingLPFreq = false; });
+
+        lpfreqState.valueChangedEvent.addListener(updateLPFreqDisplay);
+        lponState.valueChangedEvent.addListener(updateLPFreqDisplay);
+        updateLPFreqDisplay();
+
+        // ====================================================================
         // INITIALIZATION COMPLETE
         // ====================================================================
-        console.log("Ouaricon Simple Reverb v1.2.0 UI initialized");
+        console.log("Ouaricon Simple Reverb v1.3.2 UI initialized");
     </script>
 </body>
 </html>

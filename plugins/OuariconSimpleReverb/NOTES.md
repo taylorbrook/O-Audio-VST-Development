@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.3.2
 - **Type:** Audio Effect (Reverb)
 - **Complexity:** 4.2 (Complex)
 
@@ -13,6 +13,11 @@
 - **2026-01-13 (v1.0.0):** Initial release - All 3 stages complete, plugin installed
 - **2026-01-13 (v1.0.1):** Bug fixes - Fixed knob interactivity, reverb type switching, title update
 - **2026-01-13 (v1.1.0):** Type-specific DSP - Each reverb type now has distinct sonic character through dedicated processing chains (pre-delay, early reflections, all-pass dispersion, modulation, shimmer, type-specific EQ)
+- **2026-01-13 (v1.2.0):** UI overhaul - Botanical seed knob design, VU meter, character display
+- **2026-01-13 (v1.2.1):** VU meter fix - Connected meter to audio output, dial alignment
+- **2026-01-13 (v1.3.0):** LP filter & VU improvements - Added 20-400Hz lowpass filter with toggle, VU meter now -90°/+90° with dB indicators and green-to-red color gradient, flora background 2x larger
+- **2026-01-13 (v1.3.1):** Filter & Decay fixes - Changed LP filter to Low Cut (highpass), toggle is now clickable button, Decay is now 0.5x-2.0x multiplier
+- **2026-01-13 (v1.3.2):** UI polish - Decay centered at 1.0x, Hz indicators on Low Cut, removed footer
 
 ## Known Issues
 
@@ -23,13 +28,15 @@ None
 ### Concept
 Lightweight, CPU-efficient reverb designed to add subtle color and realism to instrument chains. Removes the "in-a-box" feel without dominating the mix.
 
-### Parameters (6 total)
+### Parameters (8 total)
 1. **Type** (Dropdown): Booth, Room, Hall, Spring, Plate, Ambient
 2. **Character** (Knob): Warm ← → Bright
-3. **Wet** (Knob): Reverb signal level
-4. **Dry** (Knob): Original signal level
-5. **Decay** (Knob): Reverb tail length
-6. **Size** (Knob): Virtual room dimensions
+3. **Low Cut** (Knob): High-pass filter cutoff (20-400Hz), cuts bass from reverb
+4. **Wet** (Knob): Reverb signal level
+5. **Dry** (Knob): Original signal level
+6. **Decay** (Knob): Tail length multiplier (0.5x-2.0x)
+7. **Size** (Knob): Virtual room dimensions
+8. **Low Cut On** (Toggle): ON/OFF button below Low Cut knob
 
 ### Design
 - Aesthetic: Ouaricon Naturalist (botanical theme)

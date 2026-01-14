@@ -163,12 +163,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconSimpleReverbAudioPro
         100.0f  // Default: 100%
     ));
 
-    // DECAY - Float (0.1s to 10.0s, logarithmic skew)
+    // DECAY - Float (0.5x to 2.0x multiplier, skew 1.585 puts 1.0 at center)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "DECAY", 1 },
         "Decay",
-        juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.5f),  // Skew 0.5 for logarithmic
-        1.5f  // Default: 1.5s
+        juce::NormalisableRange<float>(0.5f, 2.0f, 0.01f, 1.585f),
+        1.0f  // Default: 1.0x (no change)
     ));
 
     // SIZE - Float (0% to 100%)
@@ -177,6 +177,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconSimpleReverbAudioPro
         "Size",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         50.0f  // Default: 50% (Medium)
+    ));
+
+    // LPFREQ - Lowpass filter cutoff frequency (20Hz to 400Hz)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "LPFREQ", 1 },
+        "LP Filter Freq",
+        juce::NormalisableRange<float>(20.0f, 400.0f, 1.0f),
+        200.0f  // Default: 200Hz
+    ));
+
+    // LPON - Lowpass filter on/off toggle (0 = off, 1 = on)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "LPON", 1 },
+        "LP Filter On",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 1.0f),
+        0.0f  // Default: Off
     ));
 
     return layout;
@@ -228,6 +244,12 @@ void OuariconSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int sa
     typeEqFilter.prepare(spec);
     typeEqFilter.reset();
     *typeEqFilter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
+
+    // Prepare user high-pass (low cut) filter
+    lpFilter.prepare(spec);
+    lpFilter.reset();
+    *lpFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 200.0f);
+    previousLPFreq = -1.0f;
 
     // Prepare pre-delay lines
     preDelayL.prepare(spec);
@@ -367,6 +389,8 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     auto* decayParam = parameters.getRawParameterValue("DECAY");
     auto* wetParam = parameters.getRawParameterValue("WET");
     auto* dryParam = parameters.getRawParameterValue("DRY");
+    auto* lpFreqParam = parameters.getRawParameterValue("LPFREQ");
+    auto* lpOnParam = parameters.getRawParameterValue("LPON");
 
     int typeValue = static_cast<int>(typeParam->load());
     float characterValue = characterParam->load();
@@ -374,6 +398,8 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     float decayValue = decayParam->load();
     float wetValue = wetParam->load();
     float dryValue = dryParam->load();
+    float lpFreqValue = lpFreqParam->load();
+    bool lpFilterOn = lpOnParam->load() >= 0.5f;
 
     typeValue = juce::jlimit(0, 5, typeValue);
 
@@ -387,11 +413,17 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     }
 
     // Calculate reverb parameters
+    // Size affects room size
     float sizeNorm = sizeValue / 100.0f;
     float finalRoomSize = preset.baseRoomSize * (0.5f + sizeNorm * 0.5f);
+
+    // Decay multiplier (0.5x to 2.0x) scales room size and inversely scales damping
+    // Higher decay = larger room + less damping = longer tail
+    finalRoomSize *= decayValue;
     finalRoomSize = juce::jlimit(0.0f, 1.0f, finalRoomSize);
 
-    float finalDamping = preset.baseDamping * (1.0f - (decayValue / 10.0f) * 0.8f);
+    // Damping: lower values = longer decay, so divide by decay multiplier
+    float finalDamping = preset.baseDamping / decayValue;
     finalDamping = juce::jlimit(0.0f, 1.0f, finalDamping);
 
     float wetGain = wetValue / 100.0f;
@@ -531,6 +563,16 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         float gainLinear = juce::Decibels::decibelsToGain(gainDb);
         *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(currentSampleRate, 4000.0f, 0.707f, gainLinear);
         characterFilter.process(wetContext);
+    }
+
+    // === 8.5. User High-Pass / Low Cut Filter (if enabled) ===
+    if (lpFilterOn) {
+        // Update filter coefficients if frequency changed
+        if (std::abs(lpFreqValue - previousLPFreq) > 0.5f) {
+            *lpFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, lpFreqValue);
+            previousLPFreq = lpFreqValue;
+        }
+        lpFilter.process(wetContext);
     }
 
     // === 9. Dry/Wet Mix ===

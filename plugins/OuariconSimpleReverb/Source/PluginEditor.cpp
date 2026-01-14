@@ -21,6 +21,8 @@ OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEdit
     dryRelay = std::make_unique<juce::WebSliderRelay>("DRY");
     decayRelay = std::make_unique<juce::WebSliderRelay>("DECAY");
     sizeRelay = std::make_unique<juce::WebSliderRelay>("SIZE");
+    lpFreqRelay = std::make_unique<juce::WebSliderRelay>("LPFREQ");
+    lpOnRelay = std::make_unique<juce::WebSliderRelay>("LPON");
 
     // 2. Create WebView SECOND with all relay options registered
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -33,6 +35,8 @@ OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEdit
             .withOptionsFrom(*dryRelay)
             .withOptionsFrom(*decayRelay)
             .withOptionsFrom(*sizeRelay)
+            .withOptionsFrom(*lpFreqRelay)
+            .withOptionsFrom(*lpOnRelay)
     );
 
     // 3. Create attachments LAST (connect parameters to relays)
@@ -53,6 +57,12 @@ OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEdit
 
     sizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("SIZE"), *sizeRelay, nullptr);
+
+    lpFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("LPFREQ"), *lpFreqRelay, nullptr);
+
+    lpOnAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("LPON"), *lpOnRelay, nullptr);
 
     // Add WebView to editor and navigate to UI
     addAndMakeVisible(*webView);

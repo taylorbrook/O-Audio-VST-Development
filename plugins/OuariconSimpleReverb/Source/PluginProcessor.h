@@ -88,6 +88,10 @@ private:
     // Type-specific EQ filters
     juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> typeEqFilter;
 
+    // Lowpass filter for wet signal (user-controlled, 20-400Hz)
+    juce::dsp::ProcessorDuplicator<juce::dsp::IIR::Filter<float>, juce::dsp::IIR::Coefficients<float>> lpFilter;
+    float previousLPFreq = -1.0f;
+
     // Shimmer for Plate (octave-up pitch shift approximation via ring modulation)
     float shimmerPhase = 0.0f;
     float shimmerFreq = 0.0f;

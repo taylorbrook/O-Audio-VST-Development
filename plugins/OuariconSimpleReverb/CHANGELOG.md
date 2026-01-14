@@ -2,6 +2,52 @@
 
 All notable changes to OuariconSimpleReverb will be documented in this file.
 
+## [1.3.2] - 2026-01-13
+
+### Changed
+
+- **Decay dial:** Now properly centered at 1.0x (0.5x left, 1.0x center, 2.0x right)
+- **Low Cut dial:** Added Hz indicators (20 / 400) on left and right sides
+- **Footer:** Removed "Ouaricon Audio | v1.3.x" label for cleaner look
+
+## [1.3.1] - 2026-01-13
+
+### Changed
+
+- **Low Cut filter:** Renamed from "LP Filter" to "Low Cut" - now a high-pass filter (cuts low frequencies from reverb)
+- **Filter toggle:** Changed from double-click on knob to clickable OFF/ON button below the dial
+- **Decay control:** Now a multiplier (0.5x to 2.0x) that scales reverb tail length relative to each type's base decay
+  - 0.5x = shorter, tighter reverb
+  - 1.0x = default (unchanged)
+  - 2.0x = longer, more sustained reverb
+
+### Fixed
+
+- **Decay not affecting reverb:** Decay now properly scales both room size and damping for audible difference
+
+## [1.3.0] - 2026-01-13
+
+### Added
+
+- **Lowpass filter:** New LP Filter control (20-400Hz) with on/off toggle applied to wet signal
+  - Double-click knob to toggle on/off
+  - Dragging automatically enables the filter
+  - Useful for creating darker, more muffled reverb tails
+- **VU meter dB indicators:** Added tick marks and labels at -60, -30, -12, -6, and 0 dB
+- **VU meter color gradient:** Needle now transitions from green (quiet) through yellow to red (loud)
+
+### Changed
+
+- **VU meter rotation range:** Expanded from ±45° to ±90° (180° total sweep) for better visual feedback
+- **Flora background:** Increased botanical overlay size from 75% to 150% height (2x larger)
+- **Top row layout:** Now 4 columns to accommodate LP Filter dial (Character, LP Filter, Wet, Dry)
+
+### Technical Notes
+
+- New parameters: LPFREQ (20-400Hz), LPON (toggle)
+- Lowpass filter uses IIR coefficients, updated only when frequency changes
+- VU meter color calculated per-frame based on normalized position
+
 ## [1.2.1] - 2026-01-13
 
 ### Changed
