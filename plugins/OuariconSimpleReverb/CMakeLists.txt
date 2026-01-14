@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Include Ouaricon Module System
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconSimpleReverb
     COMPANY_NAME "Ouaricon Audio"
@@ -48,12 +51,16 @@ target_link_libraries(OuariconSimpleReverb
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconSimpleReverb)
 
+# Add Ouaricon Preset Manager module
+ouaricon_add_module(OuariconSimpleReverb preset-manager)
+
 # WebView UI Resources
 juce_add_binary_data(OuariconSimpleReverb_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/flora.png
 )

@@ -67,17 +67,112 @@
         }
 
         .header {
-            text-align: center;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
             margin-bottom: 15px;
+            position: relative;
         }
 
         .title {
-            font-size: 22px;
+            font-size: 20px;
             color: #3C2F2F;
             letter-spacing: 2px;
             font-weight: normal;
             text-transform: uppercase;
             text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+        }
+
+        /* Preset Bar */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            position: relative;
+        }
+
+        .preset-nav-btn {
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            padding: 3px 8px;
+            font-family: 'Garamond', serif;
+            font-size: 14px;
+            color: #3C2F2F;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .preset-nav-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .preset-display {
+            background: rgba(255, 248, 220, 0.6);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            padding: 3px 10px;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            color: #3C2F2F;
+            min-width: 130px;
+            text-align: center;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .preset-display:hover {
+            background: rgba(255, 248, 220, 0.9);
+        }
+
+        .preset-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 0;
+            right: 0;
+            margin-top: 2px;
+            background: rgba(255, 248, 220, 0.98);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+            box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+            max-height: 200px;
+            overflow-y: auto;
+            z-index: 9999;
+        }
+
+        .preset-dropdown.show {
+            display: block;
+        }
+
+        .header:has(.preset-dropdown.show) {
+            z-index: 9999;
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 10px;
+            cursor: pointer;
+            font-size: 11px;
+            transition: background 0.15s;
+        }
+
+        .preset-dropdown-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.3);
+            font-weight: bold;
+        }
+
+        .preset-category {
+            padding: 4px 10px;
+            font-size: 10px;
+            font-weight: bold;
+            color: #5C4033;
+            background: rgba(139, 115, 85, 0.15);
+            text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         /* Type Selector - no label */
@@ -393,7 +488,15 @@
 
         <div class="content">
             <div class="header">
-                <h1 class="title">Ouaricon Simple Reverb</h1>
+                <h1 class="title">Simple Reverb</h1>
+                <div class="preset-bar">
+                    <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
+                    <div class="preset-display" id="preset-display">
+                        <span id="preset-name">Default</span>
+                        <div class="preset-dropdown" id="preset-dropdown"></div>
+                    </div>
+                    <button class="preset-nav-btn" id="preset-next" title="Next preset">&gt;</button>
+                </div>
             </div>
 
             <!-- Type Dropdown - no label -->
@@ -516,7 +619,7 @@
         // ====================================================================
         // JUCE FRONTEND LIBRARY IMPORT
         // ====================================================================
-        import { getSliderState, getComboBoxState } from './js/juce/index.js';
+        import { getSliderState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
 
         // Verify JUCE backend is connected
         if (!window.__JUCE__) {
@@ -524,6 +627,125 @@
             throw new Error("JUCE backend not connected");
         }
         console.log("JUCE backend connected");
+
+        // ====================================================================
+        // PRESET MANAGER
+        // ====================================================================
+        const presetNameEl = document.getElementById('preset-name');
+        const presetDropdown = document.getElementById('preset-dropdown');
+        const presetDisplay = document.getElementById('preset-display');
+        const presetPrev = document.getElementById('preset-prev');
+        const presetNext = document.getElementById('preset-next');
+
+        // Native functions
+        const loadPreset = getNativeFunction("loadPreset");
+        const getPresetList = getNativeFunction("getPresetList");
+        const getCurrentPreset = getNativeFunction("getCurrentPreset");
+        const selectNextPreset = getNativeFunction("selectNextPreset");
+        const selectPreviousPreset = getNativeFunction("selectPreviousPreset");
+
+        let currentPresetName = 'Default';
+        let presetList = [];
+        let dropdownOpen = false;
+
+        async function refreshPresets() {
+            try {
+                currentPresetName = await getCurrentPreset() || 'Default';
+                presetList = await getPresetList() || [];
+                presetNameEl.textContent = currentPresetName;
+                renderDropdown();
+            } catch (e) {
+                console.error('[Presets] Refresh failed:', e);
+            }
+        }
+
+        function renderDropdown() {
+            presetDropdown.innerHTML = '';
+
+            // Group presets by category (based on name prefix)
+            const categories = {};
+            for (const name of presetList) {
+                const parts = name.split(' - ');
+                const category = parts.length > 1 ? parts[0] : 'User';
+                if (!categories[category]) categories[category] = [];
+                categories[category].push(name);
+            }
+
+            for (const [category, presets] of Object.entries(categories)) {
+                // Category header
+                const header = document.createElement('div');
+                header.className = 'preset-category';
+                header.textContent = category;
+                presetDropdown.appendChild(header);
+
+                // Presets in category
+                for (const name of presets) {
+                    const item = document.createElement('div');
+                    item.className = 'preset-dropdown-item';
+                    if (name === currentPresetName) item.classList.add('active');
+                    // Show just the preset name without category prefix
+                    const displayName = name.includes(' - ') ? name.split(' - ')[1] : name;
+                    item.textContent = displayName;
+                    item.addEventListener('click', async () => {
+                        await loadPreset(name);
+                        currentPresetName = name;
+                        presetNameEl.textContent = name;
+                        closeDropdown();
+                        renderDropdown();
+                    });
+                    presetDropdown.appendChild(item);
+                }
+            }
+        }
+
+        function openDropdown() {
+            presetDropdown.classList.add('show');
+            dropdownOpen = true;
+        }
+
+        function closeDropdown() {
+            presetDropdown.classList.remove('show');
+            dropdownOpen = false;
+        }
+
+        presetDisplay.addEventListener('click', (e) => {
+            if (e.target.closest('.preset-dropdown-item')) return;
+            if (dropdownOpen) {
+                closeDropdown();
+            } else {
+                openDropdown();
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!presetDisplay.contains(e.target)) {
+                closeDropdown();
+            }
+        });
+
+        presetPrev.addEventListener('click', async () => {
+            const prevName = await selectPreviousPreset();
+            if (prevName) {
+                await loadPreset(prevName);
+                currentPresetName = prevName;
+                presetNameEl.textContent = prevName;
+                renderDropdown();
+            }
+        });
+
+        presetNext.addEventListener('click', async () => {
+            const nextName = await selectNextPreset();
+            if (nextName) {
+                await loadPreset(nextName);
+                currentPresetName = nextName;
+                presetNameEl.textContent = nextName;
+                renderDropdown();
+            }
+        });
+
+        // Initialize presets
+        refreshPresets();
 
         // ====================================================================
         // HELPER FUNCTIONS
@@ -904,7 +1126,7 @@
         // ====================================================================
         // INITIALIZATION COMPLETE
         // ====================================================================
-        console.log("Ouaricon Simple Reverb v1.3.2 UI initialized");
+        console.log("Ouaricon Simple Reverb v1.4.0 UI initialized");
     </script>
 </body>
 </html>

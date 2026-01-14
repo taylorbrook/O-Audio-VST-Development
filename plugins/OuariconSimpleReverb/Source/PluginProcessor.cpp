@@ -203,7 +203,10 @@ OuariconSimpleReverbAudioProcessor::OuariconSimpleReverbAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "Ouaricon Simple Reverb")
 {
+    // Initialize factory presets (4 per reverb type = 24 total)
+    initializeFactoryPresets();
     // Initialize early reflection delay lines with default max size
     for (auto& delay : earlyReflectionsL)
         delay.setMaximumDelayInSamples(9600);  // ~50ms at 192kHz
@@ -606,17 +609,130 @@ juce::AudioProcessorEditor* OuariconSimpleReverbAudioProcessor::createEditor()
 
 void OuariconSimpleReverbAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void OuariconSimpleReverbAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
+    if (xmlState != nullptr)
+        presetManager.setStateFromXml(xmlState.get());
+}
 
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+void OuariconSimpleReverbAudioProcessor::initializeFactoryPresets()
+{
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        // === BOOTH PRESETS (4) ===
+        { "Booth - Vocal Booth", {
+            {"TYPE", 0.0f}, {"CHARACTER", 0.5f}, {"WET", 0.20f}, {"DRY", 1.0f},
+            {"DECAY", 0.33f}, {"SIZE", 0.30f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Booth - Drum Close", {
+            {"TYPE", 0.0f}, {"CHARACTER", 0.35f}, {"WET", 0.15f}, {"DRY", 1.0f},
+            {"DECAY", 0.20f}, {"SIZE", 0.20f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
+        }, juce::var() },
+        { "Booth - Tight Room", {
+            {"TYPE", 0.0f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
+            {"DECAY", 0.40f}, {"SIZE", 0.40f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Booth - Whisper", {
+            {"TYPE", 0.0f}, {"CHARACTER", 0.70f}, {"WET", 0.30f}, {"DRY", 1.0f},
+            {"DECAY", 0.25f}, {"SIZE", 0.15f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+
+        // === ROOM PRESETS (4) ===
+        { "Room - Small Room", {
+            {"TYPE", 0.167f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
+            {"DECAY", 0.33f}, {"SIZE", 0.35f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Room - Live Room", {
+            {"TYPE", 0.167f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
+            {"DECAY", 0.50f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Room - Studio A", {
+            {"TYPE", 0.167f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
+            {"DECAY", 0.45f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Room - Jazz Club", {
+            {"TYPE", 0.167f}, {"CHARACTER", 0.40f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"DECAY", 0.55f}, {"SIZE", 0.60f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
+        }, juce::var() },
+
+        // === HALL PRESETS (4) ===
+        { "Hall - Concert Hall", {
+            {"TYPE", 0.333f}, {"CHARACTER", 0.50f}, {"WET", 0.35f}, {"DRY", 1.0f},
+            {"DECAY", 0.60f}, {"SIZE", 0.75f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Hall - Cathedral", {
+            {"TYPE", 0.333f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.85f},
+            {"DECAY", 0.80f}, {"SIZE", 0.90f}, {"LPFREQ", 0.21f}, {"LPON", 1.0f}
+        }, juce::var() },
+        { "Hall - Theater", {
+            {"TYPE", 0.333f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
+            {"DECAY", 0.55f}, {"SIZE", 0.65f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Hall - Ballroom", {
+            {"TYPE", 0.333f}, {"CHARACTER", 0.60f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"DECAY", 0.70f}, {"SIZE", 0.80f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+
+        // === SPRING PRESETS (4) ===
+        { "Spring - Vintage Spring", {
+            {"TYPE", 0.50f}, {"CHARACTER", 0.45f}, {"WET", 0.35f}, {"DRY", 1.0f},
+            {"DECAY", 0.50f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Spring - Surf Guitar", {
+            {"TYPE", 0.50f}, {"CHARACTER", 0.60f}, {"WET", 0.45f}, {"DRY", 1.0f},
+            {"DECAY", 0.55f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Spring - Dub Echo", {
+            {"TYPE", 0.50f}, {"CHARACTER", 0.35f}, {"WET", 0.50f}, {"DRY", 0.90f},
+            {"DECAY", 0.65f}, {"SIZE", 0.60f}, {"LPFREQ", 0.32f}, {"LPON", 1.0f}
+        }, juce::var() },
+        { "Spring - Twang", {
+            {"TYPE", 0.50f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"DECAY", 0.45f}, {"SIZE", 0.45f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+
+        // === PLATE PRESETS (4) ===
+        { "Plate - Studio Plate", {
+            {"TYPE", 0.667f}, {"CHARACTER", 0.55f}, {"WET", 0.30f}, {"DRY", 1.0f},
+            {"DECAY", 0.50f}, {"SIZE", 0.55f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Plate - Shimmer Plate", {
+            {"TYPE", 0.667f}, {"CHARACTER", 0.70f}, {"WET", 0.40f}, {"DRY", 1.0f},
+            {"DECAY", 0.65f}, {"SIZE", 0.70f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Plate - Vocal Plate", {
+            {"TYPE", 0.667f}, {"CHARACTER", 0.50f}, {"WET", 0.25f}, {"DRY", 1.0f},
+            {"DECAY", 0.45f}, {"SIZE", 0.50f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Plate - Lush Plate", {
+            {"TYPE", 0.667f}, {"CHARACTER", 0.45f}, {"WET", 0.45f}, {"DRY", 0.95f},
+            {"DECAY", 0.70f}, {"SIZE", 0.75f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
+        }, juce::var() },
+
+        // === AMBIENT PRESETS (4) ===
+        { "Ambient - Pad Wash", {
+            {"TYPE", 0.833f}, {"CHARACTER", 0.40f}, {"WET", 0.50f}, {"DRY", 0.80f},
+            {"DECAY", 0.75f}, {"SIZE", 0.85f}, {"LPFREQ", 0.26f}, {"LPON", 1.0f}
+        }, juce::var() },
+        { "Ambient - Infinite Drone", {
+            {"TYPE", 0.833f}, {"CHARACTER", 0.35f}, {"WET", 0.60f}, {"DRY", 0.60f},
+            {"DECAY", 1.0f}, {"SIZE", 1.0f}, {"LPFREQ", 0.21f}, {"LPON", 1.0f}
+        }, juce::var() },
+        { "Ambient - Ethereal", {
+            {"TYPE", 0.833f}, {"CHARACTER", 0.55f}, {"WET", 0.55f}, {"DRY", 0.75f},
+            {"DECAY", 0.80f}, {"SIZE", 0.90f}, {"LPFREQ", 0.47f}, {"LPON", 0.0f}
+        }, juce::var() },
+        { "Ambient - Cloud Nine", {
+            {"TYPE", 0.833f}, {"CHARACTER", 0.50f}, {"WET", 0.65f}, {"DRY", 0.70f},
+            {"DECAY", 0.85f}, {"SIZE", 0.95f}, {"LPFREQ", 0.32f}, {"LPON", 1.0f}
+        }, juce::var() }
+    };
+
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 // Factory function

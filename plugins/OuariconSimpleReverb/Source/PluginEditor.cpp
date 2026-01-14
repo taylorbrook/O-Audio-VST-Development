@@ -37,6 +37,49 @@ OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEdit
             .withOptionsFrom(*sizeRelay)
             .withOptionsFrom(*lpFreqRelay)
             .withOptionsFrom(*lpOnRelay)
+            // Preset manager native functions
+            .withNativeFunction("savePreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.savePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("loadPreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.loadPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("getPresetList", [this](const auto&, auto complete) {
+                auto list = processorRef.presetManager.getPresetList();
+                juce::Array<juce::var> arr;
+                for (const auto& name : list)
+                    arr.add(name);
+                complete(juce::var(arr));
+            })
+            .withNativeFunction("getCurrentPreset", [this](const auto&, auto complete) {
+                complete(processorRef.presetManager.getCurrentPresetName());
+            })
+            .withNativeFunction("selectNextPreset", [this](const auto&, auto complete) {
+                auto next = processorRef.presetManager.getNextPreset();
+                complete(next);
+            })
+            .withNativeFunction("selectPreviousPreset", [this](const auto&, auto complete) {
+                auto prev = processorRef.presetManager.getPreviousPreset();
+                complete(prev);
+            })
+            .withNativeFunction("deletePreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.deletePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("isFactoryPreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(processorRef.presetManager.isFactoryPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
     );
 
     // 3. Create attachments LAST (connect parameters to relays)

@@ -2,6 +2,34 @@
 
 All notable changes to OuariconSimpleReverb will be documented in this file.
 
+## [1.4.0] - 2026-01-13
+
+### Added
+
+- **Preset system:** Integrated OuariconPresetManager module for preset persistence
+- **24 factory presets:** 4 presets per reverb type (Booth, Room, Hall, Spring, Plate, Ambient)
+  - **Booth:** Vocal Booth, Drum Close, Tight Room, Whisper
+  - **Room:** Small Room, Live Room, Studio A, Jazz Club
+  - **Hall:** Concert Hall, Cathedral, Theater, Ballroom
+  - **Spring:** Vintage Spring, Surf Guitar, Dub Echo, Twang
+  - **Plate:** Studio Plate, Shimmer Plate, Vocal Plate, Lush Plate
+  - **Ambient:** Pad Wash, Infinite Drone, Ethereal, Cloud Nine
+- **Preset navigation:** Previous/Next buttons for quick preset browsing
+- **Preset dropdown menu:** Click preset name to see categorized list of all presets
+
+### Changed
+
+- **Header layout:** Title shifted left, preset bar positioned on the right
+- **Title:** Shortened from "Ouaricon Simple Reverb" to "Simple Reverb" for space
+
+### Technical Notes
+
+- Uses Ouaricon Module System (`ouaricon_add_module`)
+- Presets stored in `~/Library/Ouaricon Simple Reverb/Presets/`
+- Factory presets in `Factory/` subdirectory, user presets in `User/`
+- Native functions registered: savePreset, loadPreset, getPresetList, getCurrentPreset, selectNextPreset, selectPreviousPreset, deletePreset, isFactoryPreset
+- No parameter changes - fully compatible with v1.3.x sessions
+
 ## [1.3.2] - 2026-01-13
 
 ### Changed

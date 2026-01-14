@@ -13,6 +13,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "OuariconPresetManager.h"
 
 class OuariconSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
@@ -43,6 +44,7 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState parameters;
+    OuariconPresetManager presetManager;
 
     // VU Meter - output level for WebView (thread-safe)
     std::atomic<float> outputLevelDB { -100.0f };
@@ -123,6 +125,7 @@ private:
     // Helper methods
     void updateTypeSpecificDSP(int typeIndex);
     float processAllPassChain(float input, bool isLeft);
+    void initializeFactoryPresets();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSimpleReverbAudioProcessor)
 };
