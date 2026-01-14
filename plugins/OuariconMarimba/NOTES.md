@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.0
+- **Version:** 1.9.1
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -96,6 +96,12 @@
   - Signal flow: Synth → Body Resonance → EQ → **Compressor** → Output Gain
   - Uses Ouaricon Module System: modules/effects/compressor-unit/
   - 5 new automatable parameters (fx_comp_* prefix)
+- **2026-01-14 (v1.9.1):** Compressor UI improvements
+  - Changed: Compact single-row layout matching EQ module style
+  - Added: COMP bypass button (left), AUTO (autogain) button (right)
+  - Added: Autogain feature - automatic makeup gain compensation
+  - Knobs centered and aligned with EQ bands above
+  - 1 new parameter: fx_comp_autogain (bool)
 
 ## Known Issues
 
@@ -115,7 +121,7 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - **Velocity Response:** Custom curve mapping for expressive performance
 - **WebView UI:** Botanical paper aesthetic with interactive tuning visualization
 
-### Parameters (31 total - v1.9.0)
+### Parameters (32 total - v1.9.1)
 
 **Sound Parameters (10):**
 1. **MALLET_HARDNESS** (Float, 0.0-1.0) - Excitation brightness (soft/dark to hard/bright)
@@ -147,12 +153,13 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 25. **fx_eq_output_gain** (Float, ±12 dB) - EQ master output trim
 26. **fx_eq_analog** (Bool) - Analog saturation enable
 
-**Compressor Parameters (5):**
+**Compressor Parameters (6):**
 27. **fx_comp_enabled** (Bool) - Compressor bypass (ON by default)
 28. **fx_comp_threshold** (Float, -60 to 0 dB) - Compression threshold
 29. **fx_comp_ratio** (Float, 1:1 to 20:1) - Compression ratio
 30. **fx_comp_attack** (Float, 0.1-100 ms) - Attack time
 31. **fx_comp_release** (Float, 10-1000 ms) - Release time
+32. **fx_comp_autogain** (Bool) - Automatic makeup gain (OFF by default)
 
 ### DSP Architecture
 - **Modal Resonator Bank:** 8 parallel 2nd-order IIR biquad filters per voice

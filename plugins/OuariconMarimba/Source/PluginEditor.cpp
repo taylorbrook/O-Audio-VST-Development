@@ -53,6 +53,7 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
     compRatioRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_ratio");
     compAttackRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_attack");
     compReleaseRelay = std::make_unique<juce::WebSliderRelay>("fx_comp_release");
+    compAutogainRelay = std::make_unique<juce::WebToggleButtonRelay>("fx_comp_autogain");  // v1.9.1
 
     // 2️⃣ Create WebView with options (Pattern 9: NEEDS_WEB_BROWSER required)
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -95,6 +96,7 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
             .withOptionsFrom(*compRatioRelay)
             .withOptionsFrom(*compAttackRelay)
             .withOptionsFrom(*compReleaseRelay)
+            .withOptionsFrom(*compAutogainRelay)  // v1.9.1
             .withNativeFunction("sendMidiNote", [this](const auto& args, auto complete) {
                 complete(sendMidiNote(args));
             })
@@ -236,6 +238,8 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
         *processorRef.parameters.getParameter("fx_comp_attack"), *compAttackRelay, nullptr);
     compReleaseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("fx_comp_release"), *compReleaseRelay, nullptr);
+    compAutogainAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("fx_comp_autogain"), *compAutogainRelay, nullptr);  // v1.9.1
 
     // Add WebView to editor
     addAndMakeVisible(*webView);

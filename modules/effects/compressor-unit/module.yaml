@@ -1,0 +1,71 @@
+name: compressor-unit
+version: 1.0.0
+category: effects
+description: |
+  Compact dynamics compressor module for embedding in VST instruments.
+  Same DSP as Ouaricon Compressor with simplified controls: Threshold,
+  Ratio, Attack, Release. Fixed 6dB soft knee for musical response.
+
+  Features clickable title for bypass toggle, 4 seed-style knobs in
+  naturalist aesthetic, and vertical GR LED strip. Designed for 400x100px
+  rack-mount strip layout.
+
+provides:
+  cpp-class: CompressorUnit
+  js-module: compressor-unit.js
+  parameters:
+    - comp_enabled    # Master bypass (clickable title)
+    - comp_threshold  # Threshold level (-60 to 0 dB)
+    - comp_ratio      # Compression ratio (1:1 to 20:1)
+    - comp_attack     # Attack time (0.1-100 ms)
+    - comp_release    # Release time (10-1000 ms)
+
+config:
+  param_prefix:
+    type: string
+    default: "comp_"
+    description: Prefix for parameter IDs to avoid conflicts
+
+  fixed_knee_db:
+    type: float
+    default: 6.0
+    description: Fixed knee width in dB (not exposed in UI)
+
+  show_gr_meter:
+    type: boolean
+    default: true
+    description: Show gain reduction LED meter
+
+requirements:
+  juce_modules:
+    - juce_core
+    - juce_audio_processors
+    - juce_dsp
+  cpp_standard: 20
+
+sources:
+  cpp:
+    - CompressorUnit.h
+  js:
+    - compressor-unit.js
+
+tags:
+  - dsp
+  - dynamics
+  - compressor
+  - effects
+  - webview
+
+reuse_score: 9
+
+changelog:
+  - version: 1.0.0
+    date: 2026-01-14
+    changes:
+      - Initial release
+      - Extracted from Ouaricon Compressor DSP
+      - Compact 400x100px rack-mount layout
+      - 4 essential parameters (Threshold, Ratio, Attack, Release)
+      - Clickable title for bypass toggle
+      - Vertical GR LED strip
+      - Naturalist seed-knob aesthetic

@@ -2,6 +2,27 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.1] - 2026-01-14
+
+### Changed
+- **Compressor UI redesigned** - Compact single-row layout matching EQ module
+  - **COMP button** (left) - Title/bypass toggle (green when ON)
+  - **Centered knobs** - 4 knobs aligned with EQ bands above
+  - **AUTO button** (right) - Autogain toggle for automatic makeup gain
+  - **GR meter** (far right) - Vertical LED meter
+- Layout: `[COMP] | [Thresh] [Ratio] [Attack] [Release] | [AUTO] | [GR]`
+
+### Added
+- **Autogain feature** - Automatic makeup gain compensates for compression
+  - When enabled, applies makeup gain equal to peak gain reduction
+  - Maintains perceived loudness while compressing
+- New parameter: `fx_comp_autogain` (boolean, default OFF)
+
+### Technical Details
+- Compressor module now uses same dark background as EQ (`#2a2318`)
+- UI height reduced from 100px to ~80px (compact row)
+- Button styles match EQ module toggles
+
 ## [1.9.0] - 2026-01-14
 
 ### Added

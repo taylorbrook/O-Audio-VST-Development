@@ -76,6 +76,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> compRatioRelay;
     std::unique_ptr<juce::WebSliderRelay> compAttackRelay;
     std::unique_ptr<juce::WebSliderRelay> compReleaseRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> compAutogainRelay;  // v1.9.1
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -119,6 +120,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> compRatioAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> compAttackAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> compReleaseAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> compAutogainAttachment;  // v1.9.1
 
     // Helper for resource serving (Pattern 8: Explicit URL mapping)
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
