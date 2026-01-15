@@ -82,10 +82,13 @@ void TapeDegrader::reset()
     dropoutSamplesRemaining = 0;
     wowFlutterPhaseLeft = 0.0f;
     wowFlutterPhaseRight = 0.0f;
+    lastRolloffAmount = -1.0f;  // Force filter coefficient update on next process
 }
 
 void TapeDegrader::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 {
+    juce::ScopedNoDenormals noDenormals;
+
     if (numSamples == 0 || buffer.getNumChannels() == 0)
         return;
 
@@ -182,7 +185,12 @@ void TapeDegrader::processBlock(juce::AudioBuffer<float>& buffer, int numSamples
     // ========== 4. Rolloff (High-Frequency Attenuation) ==========
     if (rolloffAmount > 0.01f)
     {
-        updateRolloffFilter();
+        // Only update filter coefficients when rolloff amount changes (avoid allocation in audio thread)
+        if (std::abs(rolloffAmount - lastRolloffAmount) > 0.001f)
+        {
+            updateRolloffFilter();
+            lastRolloffAmount = rolloffAmount;
+        }
 
         for (int sample = 0; sample < numSamples; ++sample)
         {

@@ -67,6 +67,7 @@ private:
     // Rolloff lowpass filter
     juce::dsp::IIR::Filter<float> rolloffFilterLeft;
     juce::dsp::IIR::Filter<float> rolloffFilterRight;
+    float lastRolloffAmount = -1.0f;  // Cache to avoid per-block coefficient allocation
 
     // Dropout state
     bool isDroppedOut = false;
