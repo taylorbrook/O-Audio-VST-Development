@@ -65,6 +65,9 @@ private:
     int samplesSinceLastBeat = 0;
     double subdivisionSamples = 0.0;
 
+    // Phase 2.3: Manual trigger edge detection
+    bool previousManualTrigger = false;
+
     // Mix state (per-lane buffers for parallel processing)
     juce::AudioBuffer<float> dryBuffer;
     juce::AudioBuffer<float> lane1Buffer;
@@ -121,6 +124,33 @@ private:
     std::atomic<float>* lane2PatternSteps[16];
     std::atomic<float>* lane3PatternSteps[16];
     std::atomic<float>* lane4PatternSteps[16];
+
+    // Phase 2.3: Cached parameter pointers for trigger modes
+    std::atomic<float>* envelopeEnabledParam = nullptr;
+    std::atomic<float>* sidechainEnabledParam = nullptr;
+    std::atomic<float>* midiEnabledParam = nullptr;
+    std::atomic<float>* manualTriggerParam = nullptr;
+
+    // Phase 2.3: Cached parameter pointers for lane advanced modes
+    std::atomic<float>* lane1PingPongParam = nullptr;
+    std::atomic<float>* lane1ReverseParam = nullptr;
+    std::atomic<float>* lane1FreezeParam = nullptr;
+    std::atomic<float>* lane1ManualTimeParam = nullptr;
+
+    std::atomic<float>* lane2PingPongParam = nullptr;
+    std::atomic<float>* lane2ReverseParam = nullptr;
+    std::atomic<float>* lane2FreezeParam = nullptr;
+    std::atomic<float>* lane2ManualTimeParam = nullptr;
+
+    std::atomic<float>* lane3PingPongParam = nullptr;
+    std::atomic<float>* lane3ReverseParam = nullptr;
+    std::atomic<float>* lane3FreezeParam = nullptr;
+    std::atomic<float>* lane3ManualTimeParam = nullptr;
+
+    std::atomic<float>* lane4PingPongParam = nullptr;
+    std::atomic<float>* lane4ReverseParam = nullptr;
+    std::atomic<float>* lane4FreezeParam = nullptr;
+    std::atomic<float>* lane4ManualTimeParam = nullptr;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

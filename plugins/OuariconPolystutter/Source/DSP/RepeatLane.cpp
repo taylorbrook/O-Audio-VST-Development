@@ -113,8 +113,11 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             else
             {
                 // Read from live delay lines
-                // Handle reverse playback by reading from end to start
-                int readPosition = reverseEnabled ? playbackPosition : (captureLength - playbackPosition);
+                // Forward: oldest to newest (high delay to low delay)
+                // Reverse: newest to oldest (low delay to high delay, but offset by 1 to avoid write position)
+                int readPosition = reverseEnabled
+                    ? (playbackPosition + 1)  // Start at delay=1 (avoid write position at 0)
+                    : (captureLength - playbackPosition);  // Start at oldest sample
                 float delayTime = static_cast<float>(readPosition);
 
                 leftOut = delayLineLeft.popSample(0, delayTime);

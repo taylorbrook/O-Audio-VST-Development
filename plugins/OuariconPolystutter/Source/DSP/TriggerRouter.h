@@ -46,9 +46,13 @@ public:
     void clearFreezeToggle() { freezeToggleRequested = false; }
 
 private:
-    // DSP components
+    // DSP components - Main input envelope followers
     juce::dsp::BallisticsFilter<float> envelopeFollowerLeft;
     juce::dsp::BallisticsFilter<float> envelopeFollowerRight;
+
+    // DSP components - Separate sidechain envelope followers (avoid state corruption)
+    juce::dsp::BallisticsFilter<float> sidechainEnvelopeLeft;
+    juce::dsp::BallisticsFilter<float> sidechainEnvelopeRight;
 
     // State
     double currentSampleRate = 48000.0;
@@ -56,9 +60,12 @@ private:
     bool sidechainEnabled = false;
     bool midiEnabled = false;
 
-    // Envelope follower state
+    // Main envelope follower state
     float envelopeThreshold = 0.1f;  // Linear amplitude threshold
     bool wasAboveThreshold = false;
+
+    // Sidechain envelope follower state (separate to avoid interference)
+    bool sidechainWasAboveThreshold = false;
 
     // MIDI trigger state
     int midiTriggeredLane = -1;  // -1 = no trigger, 0-3 = lane 1-4

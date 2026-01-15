@@ -614,6 +614,33 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
         lane3PatternSteps[step] = parameters.getRawParameterValue("pattern_lane3_step" + juce::String(step + 1));
         lane4PatternSteps[step] = parameters.getRawParameterValue("pattern_lane4_step" + juce::String(step + 1));
     }
+
+    // Cache Phase 2.3 trigger mode parameters
+    envelopeEnabledParam = parameters.getRawParameterValue("envelope_enabled");
+    sidechainEnabledParam = parameters.getRawParameterValue("sidechain_enabled");
+    midiEnabledParam = parameters.getRawParameterValue("midi_enabled");
+    manualTriggerParam = parameters.getRawParameterValue("manual_trigger");
+
+    // Cache Phase 2.3 lane advanced mode parameters
+    lane1PingPongParam = parameters.getRawParameterValue("lane1_pingpong");
+    lane1ReverseParam = parameters.getRawParameterValue("lane1_reverse");
+    lane1FreezeParam = parameters.getRawParameterValue("lane1_freeze");
+    lane1ManualTimeParam = parameters.getRawParameterValue("lane1_manual_time_enabled");
+
+    lane2PingPongParam = parameters.getRawParameterValue("lane2_pingpong");
+    lane2ReverseParam = parameters.getRawParameterValue("lane2_reverse");
+    lane2FreezeParam = parameters.getRawParameterValue("lane2_freeze");
+    lane2ManualTimeParam = parameters.getRawParameterValue("lane2_manual_time_enabled");
+
+    lane3PingPongParam = parameters.getRawParameterValue("lane3_pingpong");
+    lane3ReverseParam = parameters.getRawParameterValue("lane3_reverse");
+    lane3FreezeParam = parameters.getRawParameterValue("lane3_freeze");
+    lane3ManualTimeParam = parameters.getRawParameterValue("lane3_manual_time_enabled");
+
+    lane4PingPongParam = parameters.getRawParameterValue("lane4_pingpong");
+    lane4ReverseParam = parameters.getRawParameterValue("lane4_reverse");
+    lane4FreezeParam = parameters.getRawParameterValue("lane4_freeze");
+    lane4ManualTimeParam = parameters.getRawParameterValue("lane4_manual_time_enabled");
 }
 
 OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
@@ -741,33 +768,33 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     float lane4Probability = lane4ProbabilityParam->load();
     float lane4Swing = lane4SwingParam->load();
 
-    // ========== Read Phase 2.3 Parameters ==========
+    // ========== Read Phase 2.3 Parameters (cached pointers) ==========
     // Global trigger modes
-    bool envelopeEnabled = parameters.getRawParameterValue("envelope_enabled")->load() > 0.5f;
-    bool sidechainEnabled = parameters.getRawParameterValue("sidechain_enabled")->load() > 0.5f;
-    bool midiEnabled = parameters.getRawParameterValue("midi_enabled")->load() > 0.5f;
-    bool manualTrigger = parameters.getRawParameterValue("manual_trigger")->load() > 0.5f;
+    bool envelopeEnabled = envelopeEnabledParam->load() > 0.5f;
+    bool sidechainEnabled = sidechainEnabledParam->load() > 0.5f;
+    bool midiEnabled = midiEnabledParam->load() > 0.5f;
+    bool currentManualTrigger = manualTriggerParam->load() > 0.5f;
 
     // Lane-specific advanced modes
-    bool lane1PingPong = parameters.getRawParameterValue("lane1_pingpong")->load() > 0.5f;
-    bool lane1Reverse = parameters.getRawParameterValue("lane1_reverse")->load() > 0.5f;
-    bool lane1Freeze = parameters.getRawParameterValue("lane1_freeze")->load() > 0.5f;
-    bool lane1ManualTime = parameters.getRawParameterValue("lane1_manual_time_enabled")->load() > 0.5f;
+    bool lane1PingPong = lane1PingPongParam->load() > 0.5f;
+    bool lane1Reverse = lane1ReverseParam->load() > 0.5f;
+    bool lane1Freeze = lane1FreezeParam->load() > 0.5f;
+    bool lane1ManualTime = lane1ManualTimeParam->load() > 0.5f;
 
-    bool lane2PingPong = parameters.getRawParameterValue("lane2_pingpong")->load() > 0.5f;
-    bool lane2Reverse = parameters.getRawParameterValue("lane2_reverse")->load() > 0.5f;
-    bool lane2Freeze = parameters.getRawParameterValue("lane2_freeze")->load() > 0.5f;
-    bool lane2ManualTime = parameters.getRawParameterValue("lane2_manual_time_enabled")->load() > 0.5f;
+    bool lane2PingPong = lane2PingPongParam->load() > 0.5f;
+    bool lane2Reverse = lane2ReverseParam->load() > 0.5f;
+    bool lane2Freeze = lane2FreezeParam->load() > 0.5f;
+    bool lane2ManualTime = lane2ManualTimeParam->load() > 0.5f;
 
-    bool lane3PingPong = parameters.getRawParameterValue("lane3_pingpong")->load() > 0.5f;
-    bool lane3Reverse = parameters.getRawParameterValue("lane3_reverse")->load() > 0.5f;
-    bool lane3Freeze = parameters.getRawParameterValue("lane3_freeze")->load() > 0.5f;
-    bool lane3ManualTime = parameters.getRawParameterValue("lane3_manual_time_enabled")->load() > 0.5f;
+    bool lane3PingPong = lane3PingPongParam->load() > 0.5f;
+    bool lane3Reverse = lane3ReverseParam->load() > 0.5f;
+    bool lane3Freeze = lane3FreezeParam->load() > 0.5f;
+    bool lane3ManualTime = lane3ManualTimeParam->load() > 0.5f;
 
-    bool lane4PingPong = parameters.getRawParameterValue("lane4_pingpong")->load() > 0.5f;
-    bool lane4Reverse = parameters.getRawParameterValue("lane4_reverse")->load() > 0.5f;
-    bool lane4Freeze = parameters.getRawParameterValue("lane4_freeze")->load() > 0.5f;
-    bool lane4ManualTime = parameters.getRawParameterValue("lane4_manual_time_enabled")->load() > 0.5f;
+    bool lane4PingPong = lane4PingPongParam->load() > 0.5f;
+    bool lane4Reverse = lane4ReverseParam->load() > 0.5f;
+    bool lane4Freeze = lane4FreezeParam->load() > 0.5f;
+    bool lane4ManualTime = lane4ManualTimeParam->load() > 0.5f;
 
     // ========== Update Lane Parameters ==========
     if (lane1)
@@ -935,14 +962,15 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         }
     }
 
-    // Handle manual trigger button (momentary)
-    if (manualTrigger)
+    // Handle manual trigger button (rising edge detection - trigger once per press)
+    if (currentManualTrigger && !previousManualTrigger)
     {
         if (lane1 && lane1Enabled) lane1->trigger();
         if (lane2 && lane2Enabled) lane2->trigger();
         if (lane3 && lane3Enabled) lane3->trigger();
         if (lane4 && lane4Enabled) lane4->trigger();
     }
+    previousManualTrigger = currentManualTrigger;
 
     // ========== Get Playhead Position ==========
     auto* playHead = getPlayHead();

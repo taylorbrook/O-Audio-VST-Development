@@ -18,7 +18,7 @@ void TriggerRouter::prepare(const juce::dsp::ProcessSpec& spec)
 {
     currentSampleRate = spec.sampleRate;
 
-    // Prepare envelope followers (1ms attack, 100ms release per architecture spec)
+    // Prepare main input envelope followers (1ms attack, 100ms release per architecture spec)
     envelopeFollowerLeft.prepare(spec);
     envelopeFollowerRight.prepare(spec);
 
@@ -28,6 +28,16 @@ void TriggerRouter::prepare(const juce::dsp::ProcessSpec& spec)
     envelopeFollowerRight.setAttackTime(0.001f);
     envelopeFollowerRight.setReleaseTime(0.100f);
 
+    // Prepare separate sidechain envelope followers (same settings)
+    sidechainEnvelopeLeft.prepare(spec);
+    sidechainEnvelopeRight.prepare(spec);
+
+    sidechainEnvelopeLeft.setAttackTime(0.001f);
+    sidechainEnvelopeLeft.setReleaseTime(0.100f);
+
+    sidechainEnvelopeRight.setAttackTime(0.001f);
+    sidechainEnvelopeRight.setReleaseTime(0.100f);
+
     reset();
 }
 
@@ -35,8 +45,11 @@ void TriggerRouter::reset()
 {
     envelopeFollowerLeft.reset();
     envelopeFollowerRight.reset();
+    sidechainEnvelopeLeft.reset();
+    sidechainEnvelopeRight.reset();
 
     wasAboveThreshold = false;
+    sidechainWasAboveThreshold = false;
     midiTriggeredLane = -1;
     freezeToggleRequested = false;
 }
@@ -130,8 +143,35 @@ bool TriggerRouter::detectEnvelopeTrigger(const juce::AudioBuffer<float>& buffer
 
 bool TriggerRouter::detectSidechainTrigger(const juce::AudioBuffer<float>& buffer, int numSamples)
 {
-    // Same logic as envelope trigger, but applied to sidechain input
-    return detectEnvelopeTrigger(buffer, numSamples);
+    // Uses SEPARATE envelope followers and state to avoid interference with main input detection
+    if (numSamples == 0 || buffer.getNumChannels() == 0)
+        return false;
+
+    bool triggered = false;
+
+    // Process sidechain envelope follower sample-by-sample
+    for (int sample = 0; sample < numSamples; ++sample)
+    {
+        float leftSample = buffer.getSample(0, sample);
+        float rightSample = buffer.getNumChannels() > 1 ? buffer.getSample(1, sample) : leftSample;
+
+        // Process through SIDECHAIN envelope followers (separate from main)
+        float envLeft = sidechainEnvelopeLeft.processSample(0, std::abs(leftSample));
+        float envRight = sidechainEnvelopeRight.processSample(1, std::abs(rightSample));
+
+        // Take maximum of left and right channels
+        float envelopeLevel = juce::jmax(envLeft, envRight);
+
+        // Detect rising edge using SIDECHAIN threshold state
+        if (envelopeLevel > envelopeThreshold && !sidechainWasAboveThreshold)
+        {
+            triggered = true;
+        }
+
+        sidechainWasAboveThreshold = (envelopeLevel > envelopeThreshold);
+    }
+
+    return triggered;
 }
 
 void TriggerRouter::parseMidiMessages(const juce::MidiBuffer& midiMessages)
