@@ -515,229 +515,128 @@
     <button class="autogain-toggle" id="autogainToggle">AUTOGAIN</button>
   </div>
 
-  <!-- JUCE WebView Bridge (Pattern 21: type="module" required) -->
   <script type="module">
     import { getSliderState, getToggleState } from './js/juce/index.js';
 
-    // Disable context menu (REQUIRED)
-    document.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      return false;
-    });
+    // Disable context menu
+    document.addEventListener("contextmenu", (e) => { e.preventDefault(); return false; });
 
-    // ===== PARAMETER BINDING =====
-    // Pattern 12: WebSliderParameterAttachment requires 3 params (parameter, relay, nullptr)
-    // Pattern 15: valueChangedEvent callback has NO parameters - call getNormalisedValue() inside
-
-    // INTENSITY parameter (float 0-100%)
+    // Parameter states
     const intensityState = getSliderState("INTENSITY");
+    const modelState = getSliderState("MODEL");
+    const qualityState = getSliderState("QUALITY");
+    const autogainState = getToggleState("AUTOGAIN");
+
+    // DOM elements
     const intensityKnob = document.getElementById('intensityKnob');
     const snakeImage = document.getElementById('snakeImage');
-
-    // MODEL parameter (choice 0-3)
-    const modelState = getSliderState("MODEL");
     const modelButtons = document.querySelectorAll('.model-button');
-
-    // QUALITY parameter (choice 0-2)
-    const qualityState = getSliderState("QUALITY");
     const qualityButtons = document.querySelectorAll('.quality-button');
-
-    // AUTOGAIN parameter (bool)
-    const autogainState = getToggleState("AUTOGAIN");
     const autogainToggle = document.getElementById('autogainToggle');
-
-    // Snake images mapping
-    const snakeImages = {
-      0: 'img/snake_mobot31753000317195_0068.png', // MAGNETIC
-      1: 'img/snake_mobot31753000317195_0070.png', // TUBE
-      2: 'img/snake_NA_0145.png', // TRANSFORMER
-      3: 'img/snake_snakesaustralia00kref_0145.png' // DIODE
-    };
-
-    // ===== INTENSITY KNOB =====
-    // Pattern 16: Relative drag (frame-delta, not absolute positioning)
-    let isDragging = false;
-    let lastY = 0;
-
-    function updateKnobVisual(normalizedValue) {
-      const degrees = -135 + (normalizedValue * 270); // -135° to +135°
-      intensityKnob.style.transform = `rotate(${degrees}deg)`;
-
-      // Update snake opacity (0.2 to 1.0)
-      const opacity = 0.2 + (normalizedValue * 0.8);
-      snakeImage.style.opacity = opacity;
-    }
-
-    intensityKnob.addEventListener('mousedown', (e) => {
-      isDragging = true;
-      lastY = e.clientY;
-      e.preventDefault();
-    });
-
-    document.addEventListener('mousemove', (e) => {
-      if (!isDragging) return;
-
-      const deltaY = lastY - e.clientY;  // Frame delta, not start delta
-      const currentValue = intensityState.getNormalisedValue();
-      const sensitivity = 0.005;
-      const newValue = Math.max(0, Math.min(1, currentValue + deltaY * sensitivity));
-
-      intensityState.setNormalisedValue(newValue);
-      updateKnobVisual(newValue);
-
-      lastY = e.clientY;  // Update for next frame
-    });
-
-    document.addEventListener('mouseup', () => {
-      isDragging = false;
-    });
-
-    // Listen for parameter changes from C++ (automation, preset load)
-    intensityState.valueChangedEvent.addListener(() => {
-      const value = intensityState.getNormalisedValue();
-      updateKnobVisual(value);
-    });
-
-    // Initialize knob
-    updateKnobVisual(intensityState.getNormalisedValue());
-
-    // ===== MODEL BUTTONS =====
-    function updateModelVisual(modelIndex) {
-      modelButtons.forEach((btn, idx) => {
-        btn.classList.toggle('active', idx === modelIndex);
-      });
-      snakeImage.src = snakeImages[modelIndex];
-    }
-
-    modelButtons.forEach((btn, idx) => {
-      btn.addEventListener('click', () => {
-        const normalizedValue = idx / 3; // 0/3, 1/3, 2/3, 3/3
-        modelState.setNormalisedValue(normalizedValue);
-        updateModelVisual(idx);
-      });
-    });
-
-    modelState.valueChangedEvent.addListener(() => {
-      const value = modelState.getNormalisedValue();
-      const modelIndex = Math.round(value * 3);
-      updateModelVisual(modelIndex);
-    });
-
-    // Initialize model
-    updateModelVisual(Math.round(modelState.getNormalisedValue() * 3));
-
-    // ===== QUALITY BUTTONS =====
-    function updateQualityVisual(qualityIndex) {
-      qualityButtons.forEach((btn, idx) => {
-        btn.classList.toggle('active', idx === qualityIndex);
-      });
-    }
-
-    qualityButtons.forEach((btn, idx) => {
-      btn.addEventListener('click', () => {
-        const normalizedValue = idx / 2; // 0/2, 1/2, 2/2
-        qualityState.setNormalisedValue(normalizedValue);
-        updateQualityVisual(idx);
-      });
-    });
-
-    qualityState.valueChangedEvent.addListener(() => {
-      const value = qualityState.getNormalisedValue();
-      const qualityIndex = Math.round(value * 2);
-      updateQualityVisual(qualityIndex);
-    });
-
-    // Initialize quality
-    updateQualityVisual(Math.round(qualityState.getNormalisedValue() * 2));
-
-    // ===== AUTOGAIN TOGGLE =====
-    // Pattern 19: Use getToggleState for boolean parameters
-    function updateAutogainVisual(enabled) {
-      autogainToggle.classList.toggle('active', enabled);
-    }
-
-    autogainToggle.addEventListener('click', () => {
-      const currentValue = autogainState.getValue();
-      autogainState.setValue(!currentValue);
-      updateAutogainVisual(!currentValue);
-    });
-
-    autogainState.valueChangedEvent.addListener(() => {
-      const value = autogainState.getValue();
-      updateAutogainVisual(value);
-    });
-
-    // Initialize autogain
-    updateAutogainVisual(autogainState.getValue());
-
-    // ===== VU METERS =====
-    // Pattern 20: requestAnimationFrame loop for smooth animation
     const inputNeedle = document.getElementById('inputNeedle');
     const outputNeedle = document.getElementById('outputNeedle');
 
-    let currentInputAngle = -45;
-    let targetInputAngle = -45;
-    let currentOutputAngle = -45;
-    let targetOutputAngle = -45;
+    const snakeImages = [
+      'img/snake_mobot31753000317195_0068.png',
+      'img/snake_mobot31753000317195_0070.png',
+      'img/snake_NA_0145.png',
+      'img/snake_snakesaustralia00kref_0145.png'
+    ];
 
-    const ATTACK_SPEED = 0.4;
-    const DECAY_SPEED = 0.15;
+    // Helper: Setup button group with parameter binding
+    function setupButtonGroup(buttons, state, maxIndex) {
+      const updateVisual = (index) => {
+        buttons.forEach((btn, idx) => btn.classList.toggle('active', idx === index));
+      };
 
-    // Map dB to needle angle (like TapeAge)
-    // VU meter scale: -20dB to +3dB (matching visual markings)
-    const mapDBToAngle = (dbLevel) => {
-      const minDB = -20;
-      const maxDB = 3;
-
-      // Clamp dB level to scale range
-      const clampedDB = Math.max(minDB, Math.min(maxDB, dbLevel));
-
-      // Normalize to 0-1 range
-      const normalized = (clampedDB - minDB) / (maxDB - minDB);
-
-      // Map to needle angle: -45° (left/low) to +45° (right/high)
-      return -45 + (normalized * 90);
-    };
-
-    // Listen for meter levels from C++ via JUCE backend events (like TapeAge)
-    if (window.__JUCE__ && window.__JUCE__.backend) {
-      window.__JUCE__.backend.addEventListener("inputLevel", (dbLevel) => {
-        targetInputAngle = mapDBToAngle(dbLevel);
+      buttons.forEach((btn, idx) => {
+        btn.addEventListener('click', () => {
+          state.setNormalisedValue(idx / maxIndex);
+          updateVisual(idx);
+        });
       });
 
-      window.__JUCE__.backend.addEventListener("outputLevel", (dbLevel) => {
-        targetOutputAngle = mapDBToAngle(dbLevel);
+      state.valueChangedEvent.addListener(() => {
+        updateVisual(Math.round(state.getNormalisedValue() * maxIndex));
       });
+
+      return updateVisual;
+    }
+
+    // Intensity knob (drag interaction)
+    let isDragging = false;
+    let lastY = 0;
+
+    function updateKnobVisual(value) {
+      intensityKnob.style.transform = `rotate(${-135 + value * 270}deg)`;
+      snakeImage.style.opacity = 0.2 + value * 0.8;
+    }
+
+    intensityKnob.addEventListener('mousedown', (e) => { isDragging = true; lastY = e.clientY; e.preventDefault(); });
+    document.addEventListener('mouseup', () => { isDragging = false; });
+    document.addEventListener('mousemove', (e) => {
+      if (!isDragging) return;
+      const delta = (lastY - e.clientY) * 0.005;
+      const newValue = Math.max(0, Math.min(1, intensityState.getNormalisedValue() + delta));
+      intensityState.setNormalisedValue(newValue);
+      // Visual update handled by valueChangedEvent listener for single source of truth
+      lastY = e.clientY;
+    });
+
+    intensityState.valueChangedEvent.addListener(() => updateKnobVisual(intensityState.getNormalisedValue()));
+    updateKnobVisual(intensityState.getNormalisedValue());
+
+    // Model buttons (also updates snake image)
+    const updateModelButtons = setupButtonGroup(modelButtons, modelState, 3);
+    modelState.valueChangedEvent.addListener(() => {
+      const idx = Math.round(modelState.getNormalisedValue() * 3);
+      snakeImage.src = snakeImages[idx];
+    });
+    updateModelButtons(Math.round(modelState.getNormalisedValue() * 3));
+    snakeImage.src = snakeImages[Math.round(modelState.getNormalisedValue() * 3)];
+
+    // Quality buttons
+    setupButtonGroup(qualityButtons, qualityState, 2)(Math.round(qualityState.getNormalisedValue() * 2));
+
+    // Autogain toggle
+    function updateAutogainVisual(enabled) { autogainToggle.classList.toggle('active', enabled); }
+    autogainToggle.addEventListener('click', () => {
+      const newValue = !autogainState.getValue();
+      autogainState.setValue(newValue);
+      updateAutogainVisual(newValue);
+    });
+    autogainState.valueChangedEvent.addListener(() => updateAutogainVisual(autogainState.getValue()));
+    updateAutogainVisual(autogainState.getValue());
+
+    // VU Meters
+    let currentInputAngle = -45, targetInputAngle = -45;
+    let currentOutputAngle = -45, targetOutputAngle = -45;
+    const ATTACK_SPEED = 0.4, DECAY_SPEED = 0.15;
+
+    function mapDBToAngle(db) {
+      const normalized = Math.max(0, Math.min(1, (Math.max(-20, Math.min(3, db)) + 20) / 23));
+      return -45 + normalized * 90;
+    }
+
+    function updateNeedleColor(needle, angle) {
+      const t = (angle + 45) / 90;
+      const r = Math.round(34 + t * 221);
+      const g = Math.round(139 - t * 89);
+      const b = Math.round(34 + t * 16);
+      needle.style.background = `linear-gradient(180deg, rgb(${r},${g},${b}) 0%, rgb(${r*0.8|0},${g*0.8|0},${b*0.8|0}) 100%)`;
+    }
+
+    if (window.__JUCE__?.backend) {
+      window.__JUCE__.backend.addEventListener("inputLevel", (db) => { targetInputAngle = mapDBToAngle(db); });
+      window.__JUCE__.backend.addEventListener("outputLevel", (db) => { targetOutputAngle = mapDBToAngle(db); });
     }
 
     function animateVUMeters() {
-      // Ballistic motion: fast attack, slow decay
-      const inputSpeed = currentInputAngle < targetInputAngle ? ATTACK_SPEED : DECAY_SPEED;
-      const outputSpeed = currentOutputAngle < targetOutputAngle ? ATTACK_SPEED : DECAY_SPEED;
-
-      currentInputAngle += (targetInputAngle - currentInputAngle) * inputSpeed;
-      currentOutputAngle += (targetOutputAngle - currentOutputAngle) * outputSpeed;
+      currentInputAngle += (targetInputAngle - currentInputAngle) * (currentInputAngle < targetInputAngle ? ATTACK_SPEED : DECAY_SPEED);
+      currentOutputAngle += (targetOutputAngle - currentOutputAngle) * (currentOutputAngle < targetOutputAngle ? ATTACK_SPEED : DECAY_SPEED);
 
       inputNeedle.style.transform = `translateX(-50%) rotate(${currentInputAngle}deg)`;
       outputNeedle.style.transform = `translateX(-50%) rotate(${currentOutputAngle}deg)`;
-
-      // Update needle color: dark green (-20dB) to bright red (+3dB)
-      const updateNeedleColor = (needle, angle) => {
-        // angle ranges from -45 (low) to +45 (high)
-        const normalized = (angle + 45) / 90; // 0 to 1
-
-        // Interpolate from dark green to bright red
-        // Dark green: rgb(34, 139, 34) = #228B22
-        // Bright red: rgb(255, 50, 50) = #FF3232
-        const r = Math.round(34 + normalized * (255 - 34));
-        const g = Math.round(139 - normalized * (139 - 50));
-        const b = Math.round(34 + normalized * (50 - 34));
-
-        const color = `rgb(${r}, ${g}, ${b})`;
-        const colorDark = `rgb(${Math.round(r * 0.8)}, ${Math.round(g * 0.8)}, ${Math.round(b * 0.8)})`;
-
-        needle.style.background = `linear-gradient(180deg, ${color} 0%, ${colorDark} 100%)`;
-      };
 
       updateNeedleColor(inputNeedle, currentInputAngle);
       updateNeedleColor(outputNeedle, currentOutputAngle);
@@ -745,10 +644,7 @@
       requestAnimationFrame(animateVUMeters);
     }
 
-    // Start animation loop
     animateVUMeters();
-
-    console.log('Ouaricon Saturation Modeling - UI initialized');
   </script>
 </body>
 </html>

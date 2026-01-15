@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.0
+- **Version:** 1.0.1
 - **Type:** Audio Effect (Saturation)
 
 ## Lifecycle Timeline
@@ -10,6 +10,7 @@
 - **2026-01-09:** Creative brief and UI mockup created
 - **2026-01-09 (Stage 1-3):** Full implementation completed
 - **2026-01-09 (v1.0.0):** First release - VST3 and AU installed
+- **2026-01-14 (v1.0.1):** Fixed snake PNG opacity - now transitions smoothly with knob, no snap-back on release
 
 ## Features
 

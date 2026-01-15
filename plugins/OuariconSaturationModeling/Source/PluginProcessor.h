@@ -53,87 +53,57 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // DSP Components (Phase 2.1: Oversampling + DIODE model)
-    // --------------------------------------------------------
-
-    // Oversampling system (3 quality levels)
-    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingLow;   // No oversampling (factor=1)
-    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingMid;   // 2x oversampling
-    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingHigh;  // 4x oversampling
+    // Oversampling (LOW=none, MID=2x, HIGH=4x)
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingLow;
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingMid;
+    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingHigh;
 
     juce::dsp::ProcessSpec spec;
     int currentQuality = 1;  // Track current quality mode (0=LOW, 1=MID, 2=HIGH)
 
-    // DIODE model state (Newton-Raphson solver)
-    // Per-channel previous voltage (for warm start)
+    // DIODE model state (per-channel previous voltage)
     std::vector<float> diodePrevVoltage;
 
-    // DIODE model parameters (fixed, from architecture.md)
-    static constexpr float DIODE_IS = 2.52e-9f;   // Saturation current (1N914 typical)
-    static constexpr float DIODE_N = 1.752f;      // Ideality factor
-    static constexpr float DIODE_VT = 0.026f;     // Thermal voltage
+    // TRANSFORMER model filters and parameters
+    std::vector<juce::dsp::IIR::Filter<float>> transformerLFBumpFilters;
+    std::vector<juce::dsp::IIR::Filter<float>> transformerHFSheenFilters;
+    static constexpr float TRANSFORMER_CORE_SATURATION = 0.8f;
 
-    // TRANSFORMER model components (Phase 2.2)
-    // -----------------------------------------
-
-    // Frequency response filters (per-channel)
-    std::vector<juce::dsp::IIR::Filter<float>> transformerLFBumpFilters;   // 60Hz peak filter
-    std::vector<juce::dsp::IIR::Filter<float>> transformerHFSheenFilters;  // 8kHz high shelf
-
-    // TRANSFORMER model parameters (fixed, from architecture.md)
-    static constexpr float TRANSFORMER_CORE_SATURATION = 0.8f;  // Saturation threshold
-
-    // TUBE model components (Phase 2.3)
-    // ----------------------------------
-
-    // Frequency response filter (per-channel)
-    std::vector<juce::dsp::IIR::Filter<float>> tubePresenceFilters;  // 3kHz peak filter
-
-    // Per-channel previous plate voltage (for warm start)
+    // TUBE model filters and state
+    std::vector<juce::dsp::IIR::Filter<float>> tubePresenceFilters;
     std::vector<float> tubePrevPlateVoltage;
+    static constexpr float TUBE_VSUPPLY = 250.0f;
 
-    // TUBE model parameters (fixed, from architecture.md)
-    static constexpr float TUBE_MU = 100.0f;       // Amplification factor (12AX7 typical)
-    static constexpr float TUBE_KP = 600.0f;       // Plate coefficient
-    static constexpr float TUBE_EX = 1.4f;         // Plate current exponent
-    static constexpr float TUBE_KG1 = 1060.0f;     // Grid coefficient
-    static constexpr float TUBE_VSUPPLY = 250.0f;  // Plate supply voltage (fixed)
-    static constexpr float TUBE_RLOAD = 100000.0f; // Load resistance (100kΩ)
+    // MAGNETIC model (Jiles-Atherton hysteresis)
+    std::vector<juce::dsp::IIR::Filter<float>> magneticHeadBumpFilters;
+    std::vector<juce::dsp::IIR::Filter<float>> magneticHFRolloffFilters;
+    std::vector<float> magneticM;
+    std::vector<float> magneticHPrev;
+    static constexpr float MAGNETIC_MS = 1.0f;
+    static constexpr float MAGNETIC_A = 0.4f;
+    static constexpr float MAGNETIC_ALPHA = 0.01f;
+    static constexpr float MAGNETIC_K = 0.2f;
+    static constexpr float MAGNETIC_C = 0.8f;
 
-    // MAGNETIC model components (Phase 2.4)
-    // --------------------------------------
+    // Auto-gain RMS envelopes
+    std::vector<float> inputRMSEnvelope;
+    std::vector<float> outputRMSEnvelope;
+    float autoGainCoeff = 0.0f;
 
-    // Frequency response filters (per-channel)
-    std::vector<juce::dsp::IIR::Filter<float>> magneticHeadBumpFilters;   // 80Hz peak filter
-    std::vector<juce::dsp::IIR::Filter<float>> magneticHFRolloffFilters;  // 12kHz lowpass
+    // Processing helpers (consolidated from processBlock)
+    float calculatePeakDB(const juce::AudioBuffer<float>& buffer);
+    void captureInputRMS(const juce::AudioBuffer<float>& buffer);
+    void processSaturationDirect(juce::AudioBuffer<float>& buffer, int model, float intensity, int iterations);
+    void processSaturationBlock(juce::dsp::AudioBlock<float>& block, int model, float intensity, int iterations);
+    float processSample(float input, int model, float intensity, int iterations, int channel);
+    void applyAutoGain(juce::AudioBuffer<float>& buffer, bool enabled);
 
-    // Per-channel state variables (Jiles-Atherton hysteresis)
-    std::vector<float> magneticM;       // Magnetization state
-    std::vector<float> magneticHPrev;   // Previous field (for direction detection)
-
-    // MAGNETIC model parameters - NORMALIZED for audio range (±1.0)
-    static constexpr float MAGNETIC_MS = 1.0f;          // Saturation magnetization (normalized)
-    static constexpr float MAGNETIC_A = 0.4f;           // Domain wall density (controls curve shape)
-    static constexpr float MAGNETIC_ALPHA = 0.01f;      // Mean field parameter (feedback)
-    static constexpr float MAGNETIC_K = 0.2f;           // Pinning coefficient (hysteresis width)
-    static constexpr float MAGNETIC_C = 0.8f;           // Reversibility (higher = less hysteresis)
-
-    // Auto-Gain system (Phase 2.4)
-    // ------------------------------
-
-    // Per-channel RMS envelopes
-    std::vector<float> inputRMSEnvelope;    // Pre-saturation RMS (reference)
-    std::vector<float> outputRMSEnvelope;   // Post-saturation RMS (measured)
-
-    // Auto-gain time constant coefficient (100ms)
-    float autoGainCoeff = 0.0f;  // Calculated in prepareToPlay
-
-    // Helper functions
+    // Saturation model implementations
     float processDiodeSample(float input, float intensity, int iterations, float& prevVoltage);
     float processTransformerSample(float input, float intensity, int channel);
     float processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage);
     float processMagneticSample(float input, float intensity, int channel);
-    float langevinFunction(float x);  // Langevin function with singularity handling
+    float langevinFunction(float x);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSaturationModelingAudioProcessor)
 };
