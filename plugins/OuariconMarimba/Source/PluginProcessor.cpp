@@ -235,11 +235,11 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     tuningEngine.setReferencePitch(static_cast<double>(referencePitch));
 
     // Update all active voices with current parameters
+    // v1.9.8: Output gain removed from voices - now applied once at end of chain
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
         if (auto* voice = dynamic_cast<MarimbaVoice*>(synthesiser.getVoice(i)))
         {
-            voice->setOutputGain(outputGainDB);
             voice->setVelocityCurve(velCurve);
             voice->setMalletHardness(malletHardness);
             voice->setBarMaterial(barMaterial);
@@ -268,7 +268,8 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     // v1.9.0: Apply Compressor (after EQ, at end of effects chain)
     compressorUnit.process(buffer, parameters, "fx_comp_");
 
-    // Apply output gain (after all processing)
+    // v1.9.8: Output gain applied ONCE at end of chain (after EQ & Compressor)
+    // Signal chain: Synth → Body Resonance → EQ (if enabled) → Compressor (if enabled) → Output Gain → VU Meter
     float outputGainLinear = juce::Decibels::decibelsToGain(outputGainDB);
     buffer.applyGain(outputGainLinear);
 

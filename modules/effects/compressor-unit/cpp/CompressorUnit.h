@@ -2,28 +2,14 @@
   ==============================================================================
 
     CompressorUnit - Embeddable Dynamics Compressor Module
-    Ouaricon Audio Module System v1.2.3
+    Ouaricon Audio Module System v1.3.0
 
     Compact compressor with 4 essential parameters:
     - Threshold, Ratio, Attack, Release
     Fixed 6dB soft knee for musical response.
+    3ms look-ahead for click-free transient handling.
 
-    v1.2.3 Changes:
-    - Fixed clicking when enabling compressor (bypass-to-enabled transition)
-    - Bypass now smoothly ramps gain toward unity to prevent clicks on enable
-    - Increased minimum gain smoothing from 5ms to 10ms
-    - Meter correctly shows 0 when bypassed
-
-    v1.2.2 Changes:
-    - Fixed clicking at high gain reduction (sample-rate-independent smoothing)
-    - Gain smoothing now in dB domain for perceptually uniform response
-    - Gain changes now respect attack/release settings
-      (attack coeff for gain decrease, release coeff for gain increase)
-
-    v1.2.1 Changes:
-    - Added gain smoothing to prevent clicks at high gain reduction
-
-    Based on Ouaricon Compressor DSP.
+    See module CHANGELOG for version history.
 
   ==============================================================================
 */
@@ -33,23 +19,20 @@
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
 #include <cmath>
+#include <vector>
 
 class CompressorUnit
 {
 public:
-    // Parameter prefix for APVTS registration
     static constexpr const char* PARAM_PREFIX = "comp_";
-
-    // Fixed internal values
     static constexpr float FIXED_KNEE_DB = 6.0f;
-    static constexpr float GAIN_SMOOTH_TIME_MS = 10.0f;  // Minimum smoothing time for click prevention
+    static constexpr float GAIN_SMOOTH_TIME_MS = 10.0f;
+    static constexpr float MIN_DB = -60.0f;
+    static constexpr float LOOKAHEAD_MS = 3.0f;
 
     CompressorUnit() = default;
     ~CompressorUnit() = default;
 
-    //==========================================================================
-    // Parameter Layout - call from host's createParameterLayout()
-    //==========================================================================
     static void addParameters(juce::AudioProcessorValueTreeState::ParameterLayout& layout,
                               const juce::String& prefix = PARAM_PREFIX)
     {
@@ -104,176 +87,145 @@ public:
         ));
     }
 
-    //==========================================================================
-    // Initialization - call from host's prepareToPlay()
-    //==========================================================================
-    void prepare(double sampleRate, int /*samplesPerBlock*/)
+    void prepare(double sampleRate, int maxBlockSize)
     {
         currentSampleRate = sampleRate;
-        envelopeDB = -60.0f;
-
-        // Initialize coefficients with defaults
+        envelopeDB = MIN_DB;
         updateCoefficients(10.0f, 100.0f);
-
-        // Calculate sample-rate-dependent gain smoothing coefficient
-        // Ensures consistent 10ms smoothing regardless of sample rate
         gainSmoothCoeff = 1.0f - std::exp(-1000.0f / (GAIN_SMOOTH_TIME_MS * static_cast<float>(sampleRate)));
+
+        // Initialize look-ahead delay buffer
+        lookaheadSamples = static_cast<int>(LOOKAHEAD_MS * sampleRate / 1000.0);
+        delayBufferSize = lookaheadSamples + maxBlockSize;
+        delayBufferL.resize(static_cast<size_t>(delayBufferSize), 0.0f);
+        delayBufferR.resize(static_cast<size_t>(delayBufferSize), 0.0f);
+        delayWritePos = 0;
     }
 
     void reset()
     {
-        envelopeDB = -60.0f;
-        smoothedGainReduction = 0.0f;
-        smoothedGainDB = 0.0f;  // 0 dB = unity gain
+        envelopeDB = MIN_DB;
+        smoothedGainDB = 0.0f;
         gainReductionDB.store(0.0f);
+
+        // Clear delay buffers
+        std::fill(delayBufferL.begin(), delayBufferL.end(), 0.0f);
+        std::fill(delayBufferR.begin(), delayBufferR.end(), 0.0f);
+        delayWritePos = 0;
     }
 
-    //==========================================================================
-    // Processing - call from host's processBlock()
-    //==========================================================================
     void process(juce::AudioBuffer<float>& buffer,
                  juce::AudioProcessorValueTreeState& apvts,
                  const juce::String& prefix = PARAM_PREFIX)
     {
-        // Check bypass
         auto* enabledParam = apvts.getRawParameterValue(prefix + "enabled");
-        bool isEnabled = enabledParam->load() > 0.5f;
-
-        if (!isEnabled)
+        if (enabledParam->load() < 0.5f)
         {
-            // v1.2.3: When bypassed, smoothly ramp gain toward unity (0 dB)
-            // This prevents clicks when enabling - gain is already near unity
+            // Bypassed: ramp gain toward unity and pass audio through delay line
             const int numSamples = buffer.getNumSamples();
-            for (int i = 0; i < numSamples; ++i)
+            const int numChannels = buffer.getNumChannels();
+
+            for (int sample = 0; sample < numSamples; ++sample)
             {
                 smoothedGainDB += (0.0f - smoothedGainDB) * gainSmoothCoeff;
+
+                // Write to delay buffer
+                int writeIdx = (delayWritePos + sample) % delayBufferSize;
+                if (numChannels > 0) delayBufferL[static_cast<size_t>(writeIdx)] = buffer.getSample(0, sample);
+                if (numChannels > 1) delayBufferR[static_cast<size_t>(writeIdx)] = buffer.getSample(1, sample);
+
+                // Read from delay buffer (lookahead samples behind)
+                int readIdx = (delayWritePos + sample - lookaheadSamples + delayBufferSize) % delayBufferSize;
+                if (numChannels > 0) buffer.getWritePointer(0)[sample] = delayBufferL[static_cast<size_t>(readIdx)];
+                if (numChannels > 1) buffer.getWritePointer(1)[sample] = delayBufferR[static_cast<size_t>(readIdx)];
             }
-            // Also reset envelope so compression starts fresh when enabled
-            envelopeDB = -60.0f;
+
+            delayWritePos = (delayWritePos + numSamples) % delayBufferSize;
+            envelopeDB = MIN_DB;
             gainReductionDB.store(0.0f);
-            return;  // Bypassed - audio passes through unmodified
+            return;
         }
 
-        // Read parameters
-        auto* thresholdParam = apvts.getRawParameterValue(prefix + "threshold");
-        auto* ratioParam = apvts.getRawParameterValue(prefix + "ratio");
-        auto* attackParam = apvts.getRawParameterValue(prefix + "attack");
-        auto* releaseParam = apvts.getRawParameterValue(prefix + "release");
-        auto* autogainParam = apvts.getRawParameterValue(prefix + "autogain");
+        float thresholdDB = apvts.getRawParameterValue(prefix + "threshold")->load();
+        float ratio = apvts.getRawParameterValue(prefix + "ratio")->load();
+        float attackTimeMs = apvts.getRawParameterValue(prefix + "attack")->load();
+        float releaseTimeMs = apvts.getRawParameterValue(prefix + "release")->load();
+        bool autogainEnabled = apvts.getRawParameterValue(prefix + "autogain")->load() > 0.5f;
 
-        float thresholdDB = thresholdParam->load();
-        float ratio = ratioParam->load();
-        float attackTimeMs = attackParam->load();
-        float releaseTimeMs = releaseParam->load();
-        bool autogainEnabled = autogainParam->load() > 0.5f;
-
-        // Update coefficients
         updateCoefficients(attackTimeMs, releaseTimeMs);
 
-        // Process audio
         const int numSamples = buffer.getNumSamples();
         const int numChannels = buffer.getNumChannels();
-
         float peakGainReduction = 0.0f;
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            // Stereo-linked detection: use max of all channels
-            float maxInputLevel = 0.0f;
-            for (int channel = 0; channel < numChannels; ++channel)
-            {
-                float inputLevel = std::abs(buffer.getSample(channel, sample));
-                maxInputLevel = std::max(maxInputLevel, inputLevel);
-            }
+            // Write current sample to delay buffer
+            int writeIdx = (delayWritePos + sample) % delayBufferSize;
+            float inL = (numChannels > 0) ? buffer.getSample(0, sample) : 0.0f;
+            float inR = (numChannels > 1) ? buffer.getSample(1, sample) : inL;
+            delayBufferL[static_cast<size_t>(writeIdx)] = inL;
+            delayBufferR[static_cast<size_t>(writeIdx)] = inR;
 
-            // Convert to dB
-            float inputLevelDB = juce::Decibels::gainToDecibels(maxInputLevel, -60.0f);
+            // Stereo-linked detection from CURRENT input (look-ahead)
+            float maxInputLevel = std::max(std::abs(inL), std::abs(inR));
+            float inputLevelDB = juce::Decibels::gainToDecibels(maxInputLevel, MIN_DB);
 
             // Envelope follower
-            if (inputLevelDB > envelopeDB)
-            {
-                envelopeDB += (inputLevelDB - envelopeDB) * attackCoeff;
-            }
-            else
-            {
-                envelopeDB += (inputLevelDB - envelopeDB) * releaseCoeff;
-            }
+            float envCoeff = (inputLevelDB > envelopeDB) ? attackCoeff : releaseCoeff;
+            envelopeDB += (inputLevelDB - envelopeDB) * envCoeff;
 
-            // Calculate gain reduction
             float gr = calculateGainReduction(envelopeDB, thresholdDB, ratio, FIXED_KNEE_DB);
             peakGainReduction = std::max(peakGainReduction, gr);
 
-            // Target gain in dB (negative = attenuation)
+            // Smooth gain in dB domain
             float targetGainDB = -gr;
-
-            // v1.2.2: Smooth gain in dB domain with attack/release-aware coefficient
-            // - When gain is DECREASING (more compression): use attack coefficient
-            // - When gain is INCREASING (less compression): use release coefficient
-            // - Always apply minimum smoothing (gainSmoothCoeff) to prevent clicks
-            float smoothCoeff;
-            if (targetGainDB < smoothedGainDB)
-            {
-                // Gain decreasing (compressor engaging) - use attack, but ensure minimum smoothing
-                smoothCoeff = std::min(attackCoeff, gainSmoothCoeff);
-            }
-            else
-            {
-                // Gain increasing (compressor releasing) - use release, but ensure minimum smoothing
-                smoothCoeff = std::min(releaseCoeff, gainSmoothCoeff);
-            }
-
-            // Apply one-pole smoothing in dB domain
+            float smoothCoeff = (targetGainDB < smoothedGainDB)
+                ? std::min(attackCoeff, gainSmoothCoeff)
+                : std::min(releaseCoeff, gainSmoothCoeff);
             smoothedGainDB += (targetGainDB - smoothedGainDB) * smoothCoeff;
 
-            // Convert smoothed dB to linear gain
-            float smoothedGainLinear = juce::Decibels::decibelsToGain(smoothedGainDB);
+            // Read DELAYED audio and apply gain
+            int readIdx = (delayWritePos + sample - lookaheadSamples + delayBufferSize) % delayBufferSize;
+            float delayedL = delayBufferL[static_cast<size_t>(readIdx)];
+            float delayedR = delayBufferR[static_cast<size_t>(readIdx)];
 
-            // Apply smoothed gain
-            for (int channel = 0; channel < numChannels; ++channel)
-            {
-                auto* channelData = buffer.getWritePointer(channel);
-                channelData[sample] *= smoothedGainLinear;
-            }
+            float smoothedGainLinear = juce::Decibels::decibelsToGain(smoothedGainDB);
+            if (numChannels > 0) buffer.getWritePointer(0)[sample] = delayedL * smoothedGainLinear;
+            if (numChannels > 1) buffer.getWritePointer(1)[sample] = delayedR * smoothedGainLinear;
         }
 
-        // Update atomic meter value
+        delayWritePos = (delayWritePos + numSamples) % delayBufferSize;
         gainReductionDB.store(peakGainReduction);
 
-        // Apply autogain (smoothed, conservative makeup gain)
-        if (autogainEnabled && peakGainReduction > 0.0f)
+        // Autogain: theoretical formula matching OuariconComp standalone
+        // autoGainDB = -threshold × (1 - 1/ratio)
+        if (autogainEnabled)
         {
-            // Smooth the autogain envelope (slower than compression to avoid pumping)
-            const float autogainCoeff = 0.0005f;  // Very slow follower
-            smoothedGainReduction += (peakGainReduction - smoothedGainReduction) * autogainCoeff;
-
-            // Apply only 60% of the smoothed gain reduction to avoid clipping
-            float makeupDB = smoothedGainReduction * 0.6f;
-            float makeupGainLinear = juce::Decibels::decibelsToGain(makeupDB);
-            buffer.applyGain(makeupGainLinear);
+            float autoGainDB = -thresholdDB * (1.0f - 1.0f / ratio);
+            buffer.applyGain(juce::Decibels::decibelsToGain(autoGainDB));
         }
     }
 
-    //==========================================================================
-    // Metering - thread-safe access for UI
-    //==========================================================================
     float getGainReductionDB() const { return gainReductionDB.load(); }
 
 private:
     double currentSampleRate = 44100.0;
-    float envelopeDB = -60.0f;
+    float envelopeDB = MIN_DB;
     float attackCoeff = 0.0f;
     float releaseCoeff = 0.0f;
-    float smoothedGainReduction = 0.0f;  // For conservative autogain
-    float smoothedGainDB = 0.0f;         // Smoothed gain in dB domain (0 = unity)
-    float gainSmoothCoeff = 0.005f;      // Sample-rate-dependent gain smoothing
-
+    float smoothedGainDB = 0.0f;
+    float gainSmoothCoeff = 0.005f;
     std::atomic<float> gainReductionDB { 0.0f };
 
-    //==========================================================================
-    // DSP Helpers
-    //==========================================================================
-    float calculateGainReduction(float inputLevel, float thresholdDB,
-                                  float ratio, float kneeDB)
+    // Look-ahead delay buffer
+    std::vector<float> delayBufferL;
+    std::vector<float> delayBufferR;
+    int delayBufferSize = 0;
+    int delayWritePos = 0;
+    int lookaheadSamples = 0;
+
+    float calculateGainReduction(float inputLevel, float thresholdDB, float ratio, float kneeDB)
     {
         float x = inputLevel - thresholdDB;
 

@@ -127,8 +127,8 @@ void MarimbaVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
             modalSum += modeOutput * mode.amplitude;
         }
 
-        // Apply output gain
-        float finalSample = modalSum * outputGain;
+        // v1.9.8: Output gain moved to end of chain (after EQ/Compressor in processor)
+        float finalSample = modalSum;
 
         // v1.6.0: Apply tone lowpass filter (one-pole)
         // y[n] = y[n-1] + coeff * (x[n] - y[n-1])

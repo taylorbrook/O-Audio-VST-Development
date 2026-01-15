@@ -2,6 +2,58 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.8] - 2026-01-14
+
+### Fixed
+- **Output gain and VU meter moved to end of processing chain**
+  - Root cause: Output gain was applied twice - once per-voice during synthesis, then again after effects
+  - Fix: Removed gain application from `MarimbaVoice::renderNextBlock`; now applied only once after EQ/Compressor
+  - VU meter now shows true final output level after all processing
+
+### Changed
+- **Signal chain clarified and documented**:
+  ```
+  Synth → Body Resonance → EQ (if enabled) → Compressor (if enabled) → Output Gain → VU Meter
+  ```
+
+### Technical Details
+- MarimbaVoice.cpp: Removed `* outputGain` from finalSample calculation (line 131)
+- PluginProcessor.cpp: Removed `voice->setOutputGain()` call; gain applied once via `buffer.applyGain()`
+- No change to parameter behavior - output knob works identically, just applied at correct point in chain
+
+## [1.9.7] - 2026-01-14
+
+### Fixed
+- **Compressor attack clicking eliminated** - Added 3ms look-ahead buffer
+  - Root cause: Gain was applied to same sample that triggered detection
+  - Transient leading edge passed through at full level, then suddenly attenuated
+  - Fix: Audio delayed by 3ms; detection runs on current input, gain applied to delayed audio
+  - Gain changes now happen BEFORE transients arrive, eliminating discontinuities
+- **Autogain now matches OuariconComp standalone** - Theoretical formula replaces slow tracking
+  - Root cause: Old autogain used measured GR × 0.6 with extremely slow smoothing (0.0005 coeff)
+  - Fix: Now uses `autoGainDB = -threshold × (1 - 1/ratio)` - same as standalone compressor
+  - Result: Full loudness compensation, instant response
+
+### Technical Details
+- Compressor module updated to v1.3.0 (`modules/effects/compressor-unit/cpp/`)
+- Look-ahead implemented via circular delay buffer (stereo, sized for block + lookahead)
+- Bypass mode also uses delay buffer to maintain consistent latency
+- Autogain formula: at -20dB threshold, 4:1 ratio = 15dB makeup (was ~6dB × slow ramp)
+
+## [1.9.6] - 2026-01-14
+
+### Changed
+- **Compressor module updated** - Synced with module system v1.2.3 cleanup
+  - Added named constants for magic numbers (MIN_DB, AUTOGAIN_COEFF, etc.)
+  - Moved version history from headers to module CHANGELOG
+  - Code condensed and formatting improved (no DSP changes)
+- **Added PLUGIN_VERSION** to CMakeLists.txt for proper version tracking
+
+### Technical Details
+- CompressorUnit.h: Named constants, cleaner code structure
+- compressor-unit.js: Constants for UI values, CSS compacted, template-generated meter segments
+- No functional changes - identical audio behavior to v1.9.5
+
 ## [1.9.5] - 2026-01-14
 
 ### Fixed

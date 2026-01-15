@@ -1,27 +1,16 @@
 /**
- * compressor-unit.js
- * Compact dynamics compressor module UI
- *
+ * compressor-unit.js - Compact dynamics compressor module UI
  * Ouaricon Audio Module System v1.2.0
  *
- * v1.2.0 Changes:
- * - Module dimensions: 10px shorter vertically, 100px wider
- * - Padding adjusted from 8px 10px to 3px 60px
- * - Knobs updated to canonical 10-segment Ouaricon seed cross-section pattern
- *
- * v1.1.0 Changes:
- * - Compact single-row layout matching EQ module
- * - COMP button as title/bypass toggle (left side)
- * - AUTOGAIN toggle (right side, before GR meter)
- * - Centered knobs aligned with EQ bands above
- *
- * Features:
- * - 4 seed-style knobs (Threshold, Ratio, Attack, Release)
- * - Clickable COMP button for bypass toggle
- * - AUTOGAIN button for automatic makeup gain
- * - Vertical GR LED meter
- * - Canonical Ouaricon naturalist aesthetic
+ * See module CHANGELOG for version history.
  */
+
+// Constants
+const DRAG_SENSITIVITY = 150;
+const KNOB_ROTATION_RANGE = 270;
+const KNOB_ROTATION_OFFSET = -135;
+const GR_METER_MAX_DB = 24;
+const GR_METER_SEGMENTS = 8;
 
 export class CompressorUnit {
   constructor(options = {}) {
@@ -30,14 +19,12 @@ export class CompressorUnit {
     this.getSliderState = options.getSliderState;
     this.getToggleState = options.getToggleState;
 
-    // State
     this.enabled = true;
     this.autogain = false;
     this.grValue = 0;
     this.animationId = null;
-    this.documentListeners = [];  // Track for cleanup
+    this.documentListeners = [];
 
-    // Parameter definitions
     this.params = {
       threshold: { min: -60.0, max: 0.0, unit: ' dB', format: (v) => v.toFixed(1) },
       ratio: { min: 1.0, max: 20.0, unit: ':1', format: (v) => v.toFixed(1) },
@@ -45,7 +32,6 @@ export class CompressorUnit {
       release: { min: 10.0, max: 1000.0, unit: ' ms', format: (v) => v.toFixed(0) }
     };
 
-    // Default normalized values for double-click reset
     this.defaults = {
       threshold: ((-20.0) - (-60.0)) / (0.0 - (-60.0)),  // -20 dB
       ratio: (2.0 - 1.0) / (20.0 - 1.0),                  // 2:1
@@ -54,45 +40,28 @@ export class CompressorUnit {
     };
   }
 
-  /**
-   * Generate the HTML for the compressor unit
-   */
   render() {
     if (!this.container) return;
 
-    // v1.1.0: Compact single-row layout matching EQ module
-    // [COMP toggle] | [4 centered knobs] | [AUTOGAIN toggle] | [GR meter]
+    const segments = Array(GR_METER_SEGMENTS).fill('<div class="comp-gr-segment"></div>').join('');
     this.container.innerHTML = `
       <div class="comp-unit-compact">
         <div class="comp-row">
           <button class="comp-bypass-toggle" data-param="enabled">COMP</button>
-
           <div class="comp-knobs-compact">
             ${this.renderKnob('threshold', 'Thresh')}
             ${this.renderKnob('ratio', 'Ratio')}
             ${this.renderKnob('attack', 'Attack')}
             ${this.renderKnob('release', 'Release')}
           </div>
-
           <button class="comp-toggle autogain-toggle" data-param="autogain">AUTO</button>
-
           <div class="comp-meter-compact">
-            <div class="comp-gr-meter" id="${this.paramPrefix}gr_meter">
-              <div class="comp-gr-segment"></div>
-              <div class="comp-gr-segment"></div>
-              <div class="comp-gr-segment"></div>
-              <div class="comp-gr-segment"></div>
-              <div class="comp-gr-segment"></div>
-              <div class="comp-gr-segment"></div>
-              <div class="comp-gr-segment"></div>
-              <div class="comp-gr-segment"></div>
-            </div>
+            <div class="comp-gr-meter" id="${this.paramPrefix}gr_meter">${segments}</div>
             <div class="comp-gr-label">GR</div>
           </div>
         </div>
       </div>
     `;
-
     this.injectStyles();
   }
 
@@ -110,17 +79,24 @@ export class CompressorUnit {
     `;
   }
 
-  /**
-   * Inject scoped CSS styles
-   */
   injectStyles() {
     const styleId = 'compressor-unit-styles';
     if (document.getElementById(styleId)) return;
 
+    // Generate 10-segment conic gradient
+    const segmentDeg = 36, dividerDeg = 1;
+    const colors = ['#F5DEB3', '#E8D5B7'];
+    const divider = '#8B7355';
+    let conicStops = [];
+    for (let i = 0; i < 10; i++) {
+      const start = i * segmentDeg;
+      const end = start + segmentDeg - dividerDeg;
+      conicStops.push(`${colors[i % 2]} ${start}deg, ${colors[i % 2]} ${end}deg, ${divider} ${end}deg, ${divider} ${start + segmentDeg}deg`);
+    }
+
     const style = document.createElement('style');
     style.id = styleId;
     style.textContent = `
-      /* v1.2.0: Compact single-row layout - wider, shorter */
       .comp-unit-compact {
         background: linear-gradient(135deg, #2a2318 0%, #1a1510 100%);
         border: 1px solid #5C4033;
@@ -130,207 +106,60 @@ export class CompressorUnit {
         color: #E8D5B7;
         user-select: none;
       }
-
-      .comp-row {
-        display: flex;
-        align-items: center;
-        gap: 10px;
-      }
-
-      /* COMP bypass toggle (matches EQ toggle style) */
+      .comp-row { display: flex; align-items: center; gap: 10px; }
       .comp-bypass-toggle {
-        background: #8B7355;
-        border: 1px solid #5C4033;
-        border-radius: 3px;
-        padding: 4px 10px;
-        font-family: Garamond, serif;
-        font-size: 11px;
-        font-weight: 600;
-        letter-spacing: 1.5px;
-        color: #DDD;
-        cursor: pointer;
-        transition: all 0.1s ease;
-        min-width: 50px;
+        background: #8B7355; border: 1px solid #5C4033; border-radius: 3px;
+        padding: 4px 10px; font-family: Garamond, serif; font-size: 11px;
+        font-weight: 600; letter-spacing: 1.5px; color: #DDD;
+        cursor: pointer; transition: all 0.1s ease; min-width: 50px;
       }
-
-      .comp-bypass-toggle.active {
-        background: #6B8E4E;
-        border-color: #3C5C1A;
-        color: #FFF;
-      }
-
-      .comp-bypass-toggle:hover {
-        filter: brightness(1.1);
-      }
-
-      /* Knobs container - centered */
-      .comp-knobs-compact {
-        display: flex;
-        gap: 16px;
-        flex: 1;
-        justify-content: center;
-      }
-
-      .comp-knob-group {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-      }
-
-      .comp-knob-container {
-        width: 40px;
-        height: 40px;
-        cursor: pointer;
-        position: relative;
-      }
-
-      /* v1.2.0: Canonical 10-segment Ouaricon seed cross-section knob */
+      .comp-bypass-toggle.active { background: #6B8E4E; border-color: #3C5C1A; color: #FFF; }
+      .comp-bypass-toggle:hover { filter: brightness(1.1); }
+      .comp-knobs-compact { display: flex; gap: 16px; flex: 1; justify-content: center; }
+      .comp-knob-group { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+      .comp-knob-container { width: 40px; height: 40px; cursor: pointer; position: relative; }
       .comp-seed-knob {
-        width: 100%;
-        height: 100%;
-        border-radius: 50%;
-        border: 2px solid #8B7355;
+        width: 100%; height: 100%; border-radius: 50%; border: 2px solid #8B7355;
         position: relative;
         background:
-          /* Outer ring - aged paper */
           radial-gradient(circle, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
-          /* 10-segment radial pattern (36deg each, 1deg dividers) */
-          conic-gradient(from 0deg,
-            #F5DEB3 0deg, #F5DEB3 35deg, #8B7355 35deg, #8B7355 36deg,
-            #E8D5B7 36deg, #E8D5B7 71deg, #8B7355 71deg, #8B7355 72deg,
-            #F5DEB3 72deg, #F5DEB3 107deg, #8B7355 107deg, #8B7355 108deg,
-            #E8D5B7 108deg, #E8D5B7 143deg, #8B7355 143deg, #8B7355 144deg,
-            #F5DEB3 144deg, #F5DEB3 179deg, #8B7355 179deg, #8B7355 180deg,
-            #E8D5B7 180deg, #E8D5B7 215deg, #8B7355 215deg, #8B7355 216deg,
-            #F5DEB3 216deg, #F5DEB3 251deg, #8B7355 251deg, #8B7355 252deg,
-            #E8D5B7 252deg, #E8D5B7 287deg, #8B7355 287deg, #8B7355 288deg,
-            #F5DEB3 288deg, #F5DEB3 323deg, #8B7355 323deg, #8B7355 324deg,
-            #E8D5B7 324deg, #E8D5B7 359deg, #8B7355 359deg, #8B7355 360deg
-          ),
-          /* Inner center core */
+          conic-gradient(from 0deg, ${conicStops.join(', ')}),
           radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
-        box-shadow:
-          inset 1px 1px 3px rgba(0,0,0,0.3),
-          inset -1px -1px 2px rgba(255,248,220,0.5),
-          2px 2px 6px rgba(0,0,0,0.25);
+        box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3), inset -1px -1px 2px rgba(255,248,220,0.5), 2px 2px 6px rgba(0,0,0,0.25);
       }
-
-      .comp-seed-knob:hover {
-        transform: scale(1.03);
-      }
-
-      /* Indicator dot that rotates around the knob */
+      .comp-seed-knob:hover { transform: scale(1.03); }
       .comp-knob-indicator {
-        position: absolute;
-        width: 5px;
-        height: 5px;
-        background: #3C2F2F;
-        border-radius: 50%;
-        top: 3px;
-        left: 50%;
-        margin-left: -2.5px;
-        transform-origin: 2.5px 17px;
-        transform: rotate(-135deg);
+        position: absolute; width: 5px; height: 5px; background: #3C2F2F;
+        border-radius: 50%; top: 3px; left: 50%; transform: translateX(-50%) rotate(${KNOB_ROTATION_OFFSET}deg);
+        transform-origin: center 17px;
       }
-
-      .comp-label {
-        font-size: 9px;
-        color: #A89080;
-        text-align: center;
-        letter-spacing: 0.3px;
-      }
-
-      .comp-value {
-        font-size: 8px;
-        color: #E8D5B7;
-        text-align: center;
-        font-weight: normal;
-        min-width: 45px;
-      }
-
-      /* AUTOGAIN toggle (matches EQ ANALOG toggle style) */
+      .comp-label { font-size: 9px; color: #A89080; text-align: center; letter-spacing: 0.3px; }
+      .comp-value { font-size: 8px; color: #E8D5B7; text-align: center; min-width: 45px; }
       .comp-toggle {
-        background: #5C4033;
-        border: 1px solid #4A3728;
-        border-radius: 3px;
-        padding: 4px 8px;
-        font-family: Garamond, serif;
-        font-size: 9px;
-        font-weight: 600;
-        letter-spacing: 1px;
-        color: #A89080;
-        cursor: pointer;
-        transition: all 0.1s ease;
+        background: #5C4033; border: 1px solid #4A3728; border-radius: 3px;
+        padding: 4px 8px; font-family: Garamond, serif; font-size: 9px;
+        font-weight: 600; letter-spacing: 1px; color: #A89080;
+        cursor: pointer; transition: all 0.1s ease;
       }
-
-      .comp-toggle.active {
-        background: #6B8E4E;
-        border-color: #3C5C1A;
-        color: #FFF;
-      }
-
-      .comp-toggle:hover {
-        filter: brightness(1.1);
-      }
-
-      /* GR Meter */
-      .comp-meter-compact {
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        gap: 2px;
-      }
-
+      .comp-toggle.active { background: #6B8E4E; border-color: #3C5C1A; color: #FFF; }
+      .comp-toggle:hover { filter: brightness(1.1); }
+      .comp-meter-compact { display: flex; flex-direction: column; align-items: center; gap: 2px; }
       .comp-gr-meter {
-        display: flex;
-        flex-direction: column-reverse;
-        gap: 1px;
-        background: rgba(60, 47, 47, 0.3);
-        border: 1px solid #5C4033;
-        padding: 2px;
-        border-radius: 2px;
+        display: flex; flex-direction: column-reverse; gap: 1px;
+        background: rgba(60, 47, 47, 0.3); border: 1px solid #5C4033;
+        padding: 2px; border-radius: 2px;
       }
-
-      .comp-gr-segment {
-        width: 10px;
-        height: 5px;
-        background: #4A3728;
-        border-radius: 1px;
-        transition: background 0.08s ease;
-      }
-
-      .comp-gr-segment.active {
-        background: #C9A27B;
-        box-shadow: 0 0 4px rgba(201, 162, 123, 0.6);
-      }
-
-      .comp-gr-segment.active-high {
-        background: #D4A574;
-        box-shadow: 0 0 6px rgba(212, 165, 116, 0.8);
-      }
-
-      .comp-gr-label {
-        font-size: 7px;
-        color: #A89080;
-        letter-spacing: 0.5px;
-      }
-
-      /* Disabled state (bypassed) */
+      .comp-gr-segment { width: 10px; height: 5px; background: #4A3728; border-radius: 1px; transition: background 0.08s ease; }
+      .comp-gr-segment.active { background: #C9A27B; box-shadow: 0 0 4px rgba(201, 162, 123, 0.6); }
+      .comp-gr-segment.active-high { background: #D4A574; box-shadow: 0 0 6px rgba(212, 165, 116, 0.8); }
+      .comp-gr-label { font-size: 7px; color: #A89080; letter-spacing: 0.5px; }
       .comp-unit-compact.bypassed .comp-knobs-compact,
       .comp-unit-compact.bypassed .autogain-toggle,
-      .comp-unit-compact.bypassed .comp-meter-compact {
-        opacity: 0.4;
-        pointer-events: none;
-      }
+      .comp-unit-compact.bypassed .comp-meter-compact { opacity: 0.4; pointer-events: none; }
     `;
-
     document.head.appendChild(style);
   }
 
-  /**
-   * Initialize parameter bindings with JUCE
-   */
   initialize() {
     this.render();
     this.setupBypassToggle();
@@ -339,9 +168,6 @@ export class CompressorUnit {
     this.startMeterAnimation();
   }
 
-  /**
-   * Generic toggle setup - reduces duplication between bypass and autogain
-   */
   setupToggle(selector, paramSuffix, stateKey, updateFn) {
     const btn = this.container.querySelector(selector);
     const toggleState = this.getToggleState(`${this.paramPrefix}${paramSuffix}`);
@@ -384,20 +210,16 @@ export class CompressorUnit {
     autogainBtn.classList.toggle('active', this.autogain);
   }
 
-  /**
-   * Setup knob interactions
-   */
   setupKnobs() {
     const knobParams = ['threshold', 'ratio', 'attack', 'release'];
     let activeKnob = null;
     let lastY = 0;
 
-    // Single document-level handlers (more efficient than per-knob)
     const onMouseMove = (e) => {
       if (!activeKnob) return;
       const deltaY = lastY - e.clientY;
       const currentNormalized = activeKnob.state.getNormalisedValue();
-      const newNormalized = Math.max(0, Math.min(1, currentNormalized + deltaY / 150));
+      const newNormalized = Math.max(0, Math.min(1, currentNormalized + deltaY / DRAG_SENSITIVITY));
       activeKnob.state.setNormalisedValue(newNormalized);
       lastY = e.clientY;
     };
@@ -436,25 +258,15 @@ export class CompressorUnit {
     });
   }
 
-  /**
-   * Update knob rotation and value display
-   */
   updateKnobVisual(paramName, normalized) {
-    const rotation = (normalized * 270) - 135;
+    const rotation = (normalized * KNOB_ROTATION_RANGE) + KNOB_ROTATION_OFFSET;
     const indicator = document.getElementById(`${this.paramPrefix}${paramName}_indicator`);
-    if (indicator) {
-      indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
-    }
+    if (indicator) indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
 
     const valueDisplay = document.getElementById(`${this.paramPrefix}${paramName}_value`);
-    if (valueDisplay) {
-      valueDisplay.textContent = this.formatValue(paramName, normalized);
-    }
+    if (valueDisplay) valueDisplay.textContent = this.formatValue(paramName, normalized);
   }
 
-  /**
-   * Format parameter value for display
-   */
   formatValue(paramName, normalized) {
     const param = this.params[paramName];
     if (!param) return '';
@@ -463,47 +275,31 @@ export class CompressorUnit {
     return param.format(value) + param.unit;
   }
 
-  /**
-   * Update GR meter from external source
-   * Call this from host plugin's meter polling
-   */
   updateGainReduction(grDB) {
     this.grValue = grDB;
   }
 
-  /**
-   * Start meter animation loop
-   */
   startMeterAnimation() {
     const meter = document.getElementById(`${this.paramPrefix}gr_meter`);
     if (!meter) return;
 
     const segments = meter.querySelectorAll('.comp-gr-segment');
-    const numSegments = segments.length;
 
     const update = () => {
-      // Map 0-24 dB GR to 0-1 range
-      const normalized = Math.min(1, this.grValue / 24);
-      const activeCount = Math.round(normalized * numSegments);
+      const normalized = Math.min(1, this.grValue / GR_METER_MAX_DB);
+      const activeCount = Math.round(normalized * GR_METER_SEGMENTS);
 
       segments.forEach((segment, index) => {
         segment.classList.remove('active', 'active-high');
-
         if (index < activeCount) {
-          const isHighSegment = index >= numSegments - 2;
-          segment.classList.add(isHighSegment ? 'active-high' : 'active');
+          segment.classList.add(index >= GR_METER_SEGMENTS - 2 ? 'active-high' : 'active');
         }
       });
-
       this.animationId = requestAnimationFrame(update);
     };
-
     update();
   }
 
-  /**
-   * Cleanup
-   */
   destroy() {
     if (this.animationId) {
       cancelAnimationFrame(this.animationId);
