@@ -1,0 +1,1098 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ouaricon Polystutter - UI Mockup v1</title>
+
+  <style>
+    /* ===== CRITICAL WEBVIEW CONSTRAINTS ===== */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    /* ===== NATIVE APPLICATION FEEL ===== */
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Center plugin frame in browser */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* ===== PLUGIN FRAME (Test HTML Only) ===== */
+    .plugin-frame {
+      width: 1000px;
+      height: 700px;
+      border: 2px solid #8B7355;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.7);
+      overflow: hidden;
+      position: relative;
+    }
+
+    /* ===== CONTAINER (Production uses width/height 100%) ===== */
+    .container {
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(135deg, #F5E6D3 0%, #EBD9C7 100%);
+      position: relative;
+      overflow: hidden;
+    }
+
+    /* ===== BOTANICAL OVERLAY ===== */
+    .botanical-overlay {
+      position: absolute;
+      right: 30px;
+      top: 50%;
+      transform: translateY(-50%);
+      height: 420px;
+      opacity: 0.35;
+      pointer-events: none;
+      z-index: 0;
+    }
+
+    /* Butterfly/Insect SVG placeholder - using geometric moth design */
+    .botanical-overlay svg {
+      height: 100%;
+      width: auto;
+      filter: sepia(0.4) hue-rotate(-10deg);
+    }
+
+    /* ===== HEADER ===== */
+    .header {
+      position: absolute;
+      top: 15px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 1;
+    }
+
+    .title {
+      font-size: 24px;
+      letter-spacing: 3px;
+      color: #3C2F2F;
+      font-weight: 400;
+      margin: 0;
+      text-transform: uppercase;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: #5C4033;
+      font-weight: 300;
+      margin: 2px 0 0 0;
+      text-transform: capitalize;
+    }
+
+    /* ===== SECTION STYLING ===== */
+    .lane-section {
+      position: absolute;
+      background: rgba(235, 217, 199, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      padding: 8px;
+    }
+
+    .lane-header {
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      font-weight: 600;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+
+    .tape-section {
+      position: absolute;
+      top: 555px;
+      left: 20px;
+      width: 960px;
+      height: 80px;
+      background: rgba(92, 64, 51, 0.15);
+      border: 2px solid #8B7355;
+      border-radius: 6px;
+      padding: 12px;
+    }
+
+    .tape-section::before {
+      content: "TAPE DEGRADATION";
+      position: absolute;
+      top: -10px;
+      left: 20px;
+      background: #F5E6D3;
+      padding: 0 8px;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: #5C4033;
+      font-weight: 600;
+    }
+
+    .global-section {
+      position: absolute;
+      top: 650px;
+      left: 20px;
+      width: 960px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      gap: 20px;
+      padding: 0 10px;
+    }
+
+    /* ===== PATTERN SEQUENCER ===== */
+    .sequencer-container {
+      position: absolute;
+      top: 380px;
+      left: 20px;
+      width: 960px;
+      height: 160px;
+      z-index: 1;
+    }
+
+    .sequencer-toggle {
+      width: 200px;
+      height: 30px;
+      margin: 0 auto 10px auto;
+      background: rgba(139, 168, 112, 0.3);
+      border: 2px solid #3C5C1A;
+      border-radius: 4px;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      font-weight: 600;
+    }
+
+    .sequencer-toggle:hover {
+      background: rgba(107, 142, 35, 0.4);
+    }
+
+    .sequencer-toggle.active {
+      background: rgba(107, 142, 35, 0.6);
+      border-color: #2C3E10;
+    }
+
+    .sequencer-grid {
+      display: none;
+      grid-template-columns: repeat(16, 1fr);
+      grid-template-rows: repeat(4, 1fr);
+      gap: 6px;
+      padding: 10px;
+      background: rgba(235, 217, 199, 0.4);
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      height: 120px;
+    }
+
+    .sequencer-grid.visible {
+      display: grid;
+    }
+
+    .step-button {
+      background: rgba(139, 168, 112, 0.2);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 0.15s;
+      position: relative;
+    }
+
+    .step-button:hover {
+      background: rgba(139, 168, 112, 0.4);
+    }
+
+    .step-button.active {
+      background: rgba(107, 142, 35, 0.7);
+      border-color: #2C3E10;
+    }
+
+    /* ===== KNOB STYLING (Botanical Seed Cross-Section) ===== */
+    .knob-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      z-index: 2;
+    }
+
+    .knob {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      position: relative;
+      cursor: ns-resize;
+
+      /* 10-segment radial seed pattern */
+      background: conic-gradient(
+        from 0deg,
+        #F5DEB3 0deg 36deg,
+        #8B7355 36deg 36.5deg,
+        #E8D5B7 36.5deg 72deg,
+        #8B7355 72deg 72.5deg,
+        #F5DEB3 72.5deg 108deg,
+        #8B7355 108deg 108.5deg,
+        #E8D5B7 108.5deg 144deg,
+        #8B7355 144deg 144.5deg,
+        #F5DEB3 144.5deg 180deg,
+        #8B7355 180deg 180.5deg,
+        #E8D5B7 180.5deg 216deg,
+        #8B7355 216deg 216.5deg,
+        #F5DEB3 216.5deg 252deg,
+        #8B7355 252deg 252.5deg,
+        #E8D5B7 252.5deg 288deg,
+        #8B7355 288deg 288.5deg,
+        #F5DEB3 288.5deg 324deg,
+        #8B7355 324deg 324.5deg,
+        #E8D5B7 324.5deg 360deg
+      );
+
+      border: 2px solid #8B7355;
+      box-shadow:
+        0 2px 4px rgba(0,0,0,0.2),
+        inset 0 1px 2px rgba(255,255,255,0.3);
+
+      transition: transform 0.05s ease-out;
+    }
+
+    .knob::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: 16px;
+      height: 16px;
+      background: radial-gradient(circle, #FFF8DC 0%, #F5DEB3 100%);
+      border-radius: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    }
+
+    .knob::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      width: 2px;
+      height: 12px;
+      background: #5C4033;
+      transform: translateX(-50%);
+      border-radius: 1px;
+    }
+
+    .knob-label {
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      font-weight: 500;
+      text-align: center;
+      max-width: 70px;
+    }
+
+    .knob-value {
+      font-size: 9px;
+      color: #5C4033;
+      text-align: center;
+      font-family: 'Courier New', monospace;
+      min-width: 60px;
+    }
+
+    /* ===== TOGGLE BUTTON STYLING ===== */
+    .toggle-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+      z-index: 2;
+    }
+
+    .toggle {
+      background: rgba(139, 168, 112, 0.3);
+      border: 2px solid #3C5C1A;
+      border-radius: 4px;
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .toggle:hover {
+      background: rgba(107, 142, 35, 0.4);
+    }
+
+    .toggle.active {
+      background: rgba(107, 142, 35, 0.6);
+      border-color: #2C3E10;
+      color: #FFF8DC;
+    }
+
+    .toggle.momentary {
+      border-style: dashed;
+    }
+
+    .toggle-label {
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      font-weight: 500;
+      text-align: center;
+    }
+
+    /* ===== COMBOBOX STYLING ===== */
+    .combo-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      z-index: 2;
+    }
+
+    .combo {
+      background: rgba(235, 217, 199, 0.8);
+      border: 2px solid #8B7355;
+      border-radius: 4px;
+      font-size: 11px;
+      color: #3C2F2F;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      padding: 4px 8px;
+      cursor: pointer;
+      outline: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%235C4033' d='M6 8L2 4h8z'/%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 4px center;
+      padding-right: 24px;
+    }
+
+    .combo:hover {
+      background: rgba(235, 217, 199, 1);
+    }
+
+    .combo-label {
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      font-weight: 500;
+    }
+
+    /* ===== LANE DIVIDERS ===== */
+    .lane-divider {
+      position: absolute;
+      width: 2px;
+      height: 270px;
+      background: linear-gradient(to bottom, transparent 0%, #8B7355 20%, #8B7355 80%, transparent 100%);
+      top: 85px;
+    }
+
+    /* ===== DEBUG MONITOR (Test HTML Only) ===== */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 200px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <!-- Plugin Frame (Test HTML Only) -->
+  <div class="plugin-frame">
+    <div class="container">
+
+      <!-- Botanical Overlay -->
+      <div class="botanical-overlay">
+        <svg viewBox="0 0 200 300" xmlns="http://www.w3.org/2000/svg">
+          <!-- Geometric Moth Design -->
+          <g transform="translate(100, 150)">
+            <!-- Upper Wings -->
+            <ellipse cx="-40" cy="-50" rx="60" ry="40" fill="#8B7355" opacity="0.4" transform="rotate(-20)"/>
+            <ellipse cx="40" cy="-50" rx="60" ry="40" fill="#8B7355" opacity="0.4" transform="rotate(20)"/>
+
+            <!-- Lower Wings -->
+            <ellipse cx="-35" cy="20" rx="45" ry="30" fill="#5C4033" opacity="0.3" transform="rotate(-15)"/>
+            <ellipse cx="35" cy="20" rx="45" ry="30" fill="#5C4033" opacity="0.3" transform="rotate(15)"/>
+
+            <!-- Body -->
+            <ellipse cx="0" cy="0" rx="12" ry="80" fill="#3C2F2F" opacity="0.5"/>
+
+            <!-- Wing Patterns -->
+            <circle cx="-40" cy="-50" r="15" fill="#F5DEB3" opacity="0.6"/>
+            <circle cx="40" cy="-50" r="15" fill="#F5DEB3" opacity="0.6"/>
+            <circle cx="-30" cy="-55" r="8" fill="#FFF8DC" opacity="0.7"/>
+            <circle cx="30" cy="-55" r="8" fill="#FFF8DC" opacity="0.7"/>
+          </g>
+        </svg>
+      </div>
+
+      <!-- Header -->
+      <div class="header">
+        <h1 class="title">POLY REPEATER</h1>
+        <p class="subtitle">Polyrhythmic Beat Repeater</p>
+      </div>
+
+      <!-- Lane Dividers -->
+      <div class="lane-divider" style="left: 258px;"></div>
+      <div class="lane-divider" style="left: 498px;"></div>
+      <div class="lane-divider" style="left: 738px;"></div>
+
+      <!-- Lane 1 Controls -->
+      <div id="lane1" class="lane-section" style="top: 80px; left: 20px; width: 230px; height: 280px;">
+        <div class="lane-header">LANE 1</div>
+
+        <div class="toggle-container" style="top: 15px; left: 90px;">
+          <div id="lane1_enable" class="toggle active" style="width: 50px; height: 20px;">ON</div>
+        </div>
+
+        <div class="combo-container" style="top: 45px; left: 10px;">
+          <label class="combo-label">Division</label>
+          <select id="lane1_subdivision" class="combo" style="width: 60px; height: 24px;">
+            <option value="0">1/4</option>
+            <option value="1" selected>1/8</option>
+            <option value="2">1/16</option>
+            <option value="3">1/32</option>
+            <option value="4">1/8T</option>
+            <option value="5">1/16T</option>
+          </select>
+        </div>
+
+        <div class="toggle-container" style="top: 80px; left: 10px;">
+          <label class="toggle-label" style="font-size: 8px;">Manual</label>
+          <div id="lane1_manual_toggle" class="toggle" style="width: 60px; height: 20px;">OFF</div>
+        </div>
+
+        <div id="lane1_manual_time_container" class="knob-container" style="top: 110px; left: 15px;">
+          <div id="lane1_manual_time" class="knob" data-value="500" data-min="10" data-max="2000"></div>
+          <div class="knob-label">Time</div>
+          <div class="knob-value">500 ms</div>
+        </div>
+
+        <div id="lane1_repeats_container" class="knob-container" style="top: 45px; left: 85px;">
+          <div id="lane1_repeats" class="knob" data-value="4" data-min="1" data-max="16"></div>
+          <div class="knob-label">Repeats</div>
+          <div class="knob-value">4</div>
+        </div>
+
+        <div id="lane1_decay_container" class="knob-container" style="top: 45px; left: 145px;">
+          <div id="lane1_decay" class="knob" data-value="0.7" data-min="0" data-max="1"></div>
+          <div class="knob-label">Decay</div>
+          <div class="knob-value">70%</div>
+        </div>
+
+        <div id="lane1_pitch_container" class="knob-container" style="top: 45px; left: 165px;" hidden>
+          <div id="lane1_pitch" class="knob" data-value="0" data-min="-12" data-max="12"></div>
+          <div class="knob-label">Pitch</div>
+          <div class="knob-value">0 st</div>
+        </div>
+
+        <div id="lane1_filter_container" class="knob-container" style="top: 115px; left: 85px;">
+          <div id="lane1_filter" class="knob" data-value="10000" data-min="20" data-max="20000"></div>
+          <div class="knob-label">Filter</div>
+          <div class="knob-value">10k Hz</div>
+        </div>
+
+        <div id="lane1_probability_container" class="knob-container" style="top: 115px; left: 145px;">
+          <div id="lane1_probability" class="knob" data-value="1.0" data-min="0" data-max="1"></div>
+          <div class="knob-label">Prob</div>
+          <div class="knob-value">100%</div>
+        </div>
+
+        <div id="lane1_volume_container" class="knob-container" style="top: 115px; left: 165px;" hidden>
+          <div id="lane1_volume" class="knob" data-value="0.8" data-min="0" data-max="1"></div>
+          <div class="knob-label">Volume</div>
+          <div class="knob-value">80%</div>
+        </div>
+
+        <div id="lane1_pan_container" class="knob-container" style="top: 185px; left: 85px;">
+          <div id="lane1_pan" class="knob" data-value="0" data-min="-1" data-max="1"></div>
+          <div class="knob-label">Pan</div>
+          <div class="knob-value">C</div>
+        </div>
+
+        <div class="toggle-container" style="top: 190px; left: 145px;">
+          <label class="toggle-label" style="font-size: 7px;">PingPong</label>
+          <div id="lane1_pingpong" class="toggle" style="width: 50px; height: 20px;">OFF</div>
+        </div>
+
+        <div class="toggle-container" style="top: 250px; left: 85px;">
+          <label class="toggle-label" style="font-size: 8px;">Reverse</label>
+          <div id="lane1_reverse" class="toggle" style="width: 50px; height: 20px;">OFF</div>
+        </div>
+
+        <div id="lane1_swing_container" class="knob-container" style="top: 240px; left: 145px;">
+          <div id="lane1_swing" class="knob" data-value="0" data-min="0" data-max="1"></div>
+          <div class="knob-label">Swing</div>
+          <div class="knob-value">0%</div>
+        </div>
+      </div>
+
+      <!-- Lane 2 Controls (duplicate structure, offset) -->
+      <div id="lane2" class="lane-section" style="top: 80px; left: 260px; width: 230px; height: 280px;">
+        <div class="lane-header">LANE 2</div>
+
+        <div class="toggle-container" style="top: 15px; left: 90px;">
+          <div id="lane2_enable" class="toggle active" style="width: 50px; height: 20px;">ON</div>
+        </div>
+
+        <div class="combo-container" style="top: 45px; left: 10px;">
+          <label class="combo-label">Division</label>
+          <select id="lane2_subdivision" class="combo" style="width: 60px; height: 24px;">
+            <option value="0">1/4</option>
+            <option value="1">1/8</option>
+            <option value="2" selected>1/16</option>
+            <option value="3">1/32</option>
+            <option value="4">1/8T</option>
+            <option value="5">1/16T</option>
+          </select>
+        </div>
+
+        <div class="toggle-container" style="top: 80px; left: 10px;">
+          <label class="toggle-label" style="font-size: 8px;">Manual</label>
+          <div id="lane2_manual_toggle" class="toggle" style="width: 60px; height: 20px;">OFF</div>
+        </div>
+
+        <div id="lane2_manual_time_container" class="knob-container" style="top: 110px; left: 15px;">
+          <div id="lane2_manual_time" class="knob" data-value="500" data-min="10" data-max="2000"></div>
+          <div class="knob-label">Time</div>
+          <div class="knob-value">500 ms</div>
+        </div>
+
+        <div id="lane2_repeats_container" class="knob-container" style="top: 45px; left: 85px;">
+          <div id="lane2_repeats" class="knob" data-value="8" data-min="1" data-max="16"></div>
+          <div class="knob-label">Repeats</div>
+          <div class="knob-value">8</div>
+        </div>
+
+        <div id="lane2_decay_container" class="knob-container" style="top: 45px; left: 145px;">
+          <div id="lane2_decay" class="knob" data-value="0.6" data-min="0" data-max="1"></div>
+          <div class="knob-label">Decay</div>
+          <div class="knob-value">60%</div>
+        </div>
+
+        <div id="lane2_filter_container" class="knob-container" style="top: 115px; left: 85px;">
+          <div id="lane2_filter" class="knob" data-value="5000" data-min="20" data-max="20000"></div>
+          <div class="knob-label">Filter</div>
+          <div class="knob-value">5k Hz</div>
+        </div>
+
+        <div id="lane2_probability_container" class="knob-container" style="top: 115px; left: 145px;">
+          <div id="lane2_probability" class="knob" data-value="0.8" data-min="0" data-max="1"></div>
+          <div class="knob-label">Prob</div>
+          <div class="knob-value">80%</div>
+        </div>
+
+        <div id="lane2_pan_container" class="knob-container" style="top: 185px; left: 85px;">
+          <div id="lane2_pan" class="knob" data-value="-0.5" data-min="-1" data-max="1"></div>
+          <div class="knob-label">Pan</div>
+          <div class="knob-value">L50</div>
+        </div>
+
+        <div class="toggle-container" style="top: 190px; left: 145px;">
+          <label class="toggle-label" style="font-size: 7px;">PingPong</label>
+          <div id="lane2_pingpong" class="toggle" style="width: 50px; height: 20px;">OFF</div>
+        </div>
+
+        <div class="toggle-container" style="top: 250px; left: 85px;">
+          <label class="toggle-label" style="font-size: 8px;">Reverse</label>
+          <div id="lane2_reverse" class="toggle" style="width: 50px; height: 20px;">OFF</div>
+        </div>
+
+        <div id="lane2_swing_container" class="knob-container" style="top: 240px; left: 145px;">
+          <div id="lane2_swing" class="knob" data-value="0.3" data-min="0" data-max="1"></div>
+          <div class="knob-label">Swing</div>
+          <div class="knob-value">30%</div>
+        </div>
+      </div>
+
+      <!-- Lane 3 Controls (disabled by default) -->
+      <div id="lane3" class="lane-section" style="top: 80px; left: 500px; width: 230px; height: 280px; opacity: 0.5;">
+        <div class="lane-header">LANE 3</div>
+
+        <div class="toggle-container" style="top: 15px; left: 90px;">
+          <div id="lane3_enable" class="toggle" style="width: 50px; height: 20px;">OFF</div>
+        </div>
+
+        <div class="combo-container" style="top: 45px; left: 10px;">
+          <label class="combo-label">Division</label>
+          <select id="lane3_subdivision" class="combo" style="width: 60px; height: 24px;" disabled>
+            <option value="0">1/4</option>
+            <option value="1">1/8</option>
+            <option value="2">1/16</option>
+            <option value="3" selected>1/32</option>
+            <option value="4">1/8T</option>
+            <option value="5">1/16T</option>
+          </select>
+        </div>
+
+        <div class="knob-container" style="top: 115px; left: 85px;">
+          <div class="knob" data-value="12000" data-min="20" data-max="20000"></div>
+          <div class="knob-label">Filter</div>
+          <div class="knob-value">12k Hz</div>
+        </div>
+
+        <div class="knob-container" style="top: 115px; left: 145px;">
+          <div class="knob" data-value="1.0" data-min="0" data-max="1"></div>
+          <div class="knob-label">Prob</div>
+          <div class="knob-value">100%</div>
+        </div>
+      </div>
+
+      <!-- Lane 4 Controls (disabled by default) -->
+      <div id="lane4" class="lane-section" style="top: 80px; left: 740px; width: 230px; height: 280px; opacity: 0.5;">
+        <div class="lane-header">LANE 4</div>
+
+        <div class="toggle-container" style="top: 15px; left: 90px;">
+          <div id="lane4_enable" class="toggle" style="width: 50px; height: 20px;">OFF</div>
+        </div>
+
+        <div class="combo-container" style="top: 45px; left: 10px;">
+          <label class="combo-label">Division</label>
+          <select id="lane4_subdivision" class="combo" style="width: 60px; height: 24px;" disabled>
+            <option value="0" selected>1/4</option>
+            <option value="1">1/8</option>
+            <option value="2">1/16</option>
+            <option value="3">1/32</option>
+            <option value="4">1/8T</option>
+            <option value="5">1/16T</option>
+          </select>
+        </div>
+
+        <div class="knob-container" style="top: 115px; left: 85px;">
+          <div class="knob" data-value="8000" data-min="20" data-max="20000"></div>
+          <div class="knob-label">Filter</div>
+          <div class="knob-value">8k Hz</div>
+        </div>
+
+        <div class="knob-container" style="top: 115px; left: 145px;">
+          <div class="knob" data-value="0.5" data-min="0" data-max="1"></div>
+          <div class="knob-label">Prob</div>
+          <div class="knob-value">50%</div>
+        </div>
+      </div>
+
+      <!-- Pattern Sequencer -->
+      <div class="sequencer-container">
+        <div id="sequencer_expand" class="sequencer-toggle">
+          PATTERN SEQUENCER <span id="sequencer_arrow">▼</span>
+        </div>
+        <div id="sequencer_grid" class="sequencer-grid">
+          <!-- 16x4 grid generated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Tape Degradation Section -->
+      <div class="tape-section">
+        <div class="knob-container" style="top: 15px; left: 80px;">
+          <div id="tape_saturation" class="knob" data-value="0.2" data-min="0" data-max="1"></div>
+          <div class="knob-label">Saturation</div>
+          <div class="knob-value">20%</div>
+        </div>
+
+        <div class="knob-container" style="top: 15px; left: 200px;">
+          <div id="tape_wow" class="knob" data-value="0.1" data-min="0" data-max="1"></div>
+          <div class="knob-label">Wow</div>
+          <div class="knob-value">10%</div>
+        </div>
+
+        <div class="knob-container" style="top: 15px; left: 320px;">
+          <div id="tape_flutter" class="knob" data-value="0.15" data-min="0" data-max="1"></div>
+          <div class="knob-label">Flutter</div>
+          <div class="knob-value">15%</div>
+        </div>
+
+        <div class="knob-container" style="top: 15px; left: 440px;">
+          <div id="tape_hiss" class="knob" data-value="0.05" data-min="0" data-max="1"></div>
+          <div class="knob-label">Hiss</div>
+          <div class="knob-value">5%</div>
+        </div>
+
+        <div class="knob-container" style="top: 15px; left: 560px;">
+          <div id="tape_hf_rolloff" class="knob" data-value="0.3" data-min="0" data-max="1"></div>
+          <div class="knob-label">HF Rolloff</div>
+          <div class="knob-value">30%</div>
+        </div>
+
+        <div class="knob-container" style="top: 15px; left: 680px;">
+          <div id="tape_dropout" class="knob" data-value="0" data-min="0" data-max="1"></div>
+          <div class="knob-label">Dropout</div>
+          <div class="knob-value">0%</div>
+        </div>
+      </div>
+
+      <!-- Global Controls Section -->
+      <div class="global-section">
+        <div class="knob-container">
+          <div id="mix" class="knob" data-value="0.5" data-min="0" data-max="1" style="width: 55px; height: 55px;"></div>
+          <div class="knob-label">Mix</div>
+          <div class="knob-value">50%</div>
+        </div>
+
+        <div class="knob-container">
+          <div id="master_swing" class="knob" data-value="0" data-min="0" data-max="1"></div>
+          <div class="knob-label">Master Swing</div>
+          <div class="knob-value">0%</div>
+        </div>
+
+        <div class="toggle-container">
+          <div id="freeze_button" class="toggle momentary" style="width: 60px; height: 30px;">FREEZE</div>
+        </div>
+
+        <div class="combo-container">
+          <label class="combo-label">Trigger</label>
+          <select id="trigger_mode" class="combo" style="width: 100px; height: 30px;">
+            <option value="0" selected>Sync</option>
+            <option value="1">Envelope</option>
+            <option value="2">Sidechain</option>
+            <option value="3">Manual</option>
+          </select>
+        </div>
+
+        <div class="knob-container">
+          <div id="env_threshold" class="knob" data-value="-20" data-min="-60" data-max="0"></div>
+          <div class="knob-label">Threshold</div>
+          <div class="knob-value">-20 dB</div>
+        </div>
+
+        <div class="knob-container">
+          <div id="env_attack" class="knob" data-value="10" data-min="0.1" data-max="100"></div>
+          <div class="knob-label">Attack</div>
+          <div class="knob-value">10 ms</div>
+        </div>
+
+        <div class="knob-container">
+          <div id="env_release" class="knob" data-value="100" data-min="10" data-max="1000"></div>
+          <div class="knob-label">Release</div>
+          <div class="knob-value">100 ms</div>
+        </div>
+
+        <div class="toggle-container">
+          <div id="sidechain_enable" class="toggle" style="width: 70px; height: 30px;">SIDECHAIN</div>
+        </div>
+
+        <div class="toggle-container">
+          <div id="midi_enable" class="toggle" style="width: 60px; height: 30px;">MIDI</div>
+        </div>
+
+        <div class="toggle-container">
+          <div id="manual_trigger" class="toggle momentary" style="width: 70px; height: 30px;">TRIGGER</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Debug Monitor (Test HTML Only) -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // ===== MOCK JUCE BACKEND =====
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        getNormalisedValue: () => 0.5,
+        setNormalisedValue: (val) => console.log(`setNormalisedValue(${id}, ${val})`),
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getComboBoxState: (id) => ({
+        selectedId: 0,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // ===== DISABLE CONTEXT MENU (REQUIRED) =====
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // ===== DISABLE DRAG (REQUIRED) =====
+    document.addEventListener("dragstart", (e) => {
+      e.preventDefault();
+    });
+
+    // ===== DEBUG MONITOR UPDATE =====
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      document.getElementById('debugValue').textContent = value;
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // ===== KNOB INTERACTION =====
+    let activeKnob = null;
+    let startY = 0;
+    let startValue = 0;
+
+    document.querySelectorAll('.knob').forEach(knob => {
+      const min = parseFloat(knob.dataset.min);
+      const max = parseFloat(knob.dataset.max);
+      const initialValue = parseFloat(knob.dataset.value);
+
+      // Initialize rotation
+      updateKnobRotation(knob, initialValue, min, max);
+
+      knob.addEventListener('mousedown', (e) => {
+        activeKnob = knob;
+        startY = e.clientY;
+        startValue = parseFloat(knob.dataset.value);
+        e.preventDefault();
+      });
+    });
+
+    document.addEventListener('mousemove', (e) => {
+      if (!activeKnob) return;
+
+      const min = parseFloat(activeKnob.dataset.min);
+      const max = parseFloat(activeKnob.dataset.max);
+      const range = max - min;
+      const sensitivity = range / 200; // 200px mouse travel = full range
+
+      const deltaY = startY - e.clientY; // Inverted (up = increase)
+      let newValue = startValue + (deltaY * sensitivity);
+      newValue = Math.max(min, Math.min(max, newValue));
+
+      activeKnob.dataset.value = newValue;
+      updateKnobRotation(activeKnob, newValue, min, max);
+      updateKnobDisplay(activeKnob, newValue);
+
+      // Update debug monitor
+      const paramId = activeKnob.id;
+      const normalized = (newValue - min) / (max - min);
+      updateDebugMonitor(paramId, formatKnobValue(activeKnob, newValue), normalized);
+
+      console.log('parameterChange', {id: paramId, value: newValue, normalized: normalized});
+    });
+
+    document.addEventListener('mouseup', () => {
+      activeKnob = null;
+    });
+
+    function updateKnobRotation(knob, value, min, max) {
+      const normalized = (value - min) / (max - min);
+      const degrees = -135 + (normalized * 270); // -135° to +135°
+      knob.style.transform = `rotate(${degrees}deg)`;
+    }
+
+    function updateKnobDisplay(knob, value) {
+      const container = knob.closest('.knob-container');
+      if (!container) return;
+
+      const valueDisplay = container.querySelector('.knob-value');
+      if (valueDisplay) {
+        valueDisplay.textContent = formatKnobValue(knob, value);
+      }
+    }
+
+    function formatKnobValue(knob, value) {
+      const id = knob.id;
+
+      // Frequency values
+      if (id.includes('filter') || id.includes('hf_rolloff')) {
+        if (value >= 1000) {
+          return `${(value / 1000).toFixed(1)}k Hz`;
+        }
+        return `${Math.round(value)} Hz`;
+      }
+
+      // Percentage values
+      if (id.includes('decay') || id.includes('probability') || id.includes('mix') ||
+          id.includes('swing') || id.includes('tape_') || id.includes('width')) {
+        return `${Math.round(value * 100)}%`;
+      }
+
+      // Time values
+      if (id.includes('time') || id.includes('attack') || id.includes('release')) {
+        return `${Math.round(value)} ms`;
+      }
+
+      // Threshold
+      if (id.includes('threshold')) {
+        return `${value.toFixed(1)} dB`;
+      }
+
+      // Pan
+      if (id.includes('pan')) {
+        if (Math.abs(value) < 0.05) return 'C';
+        if (value < 0) return `L${Math.round(Math.abs(value) * 100)}`;
+        return `R${Math.round(value * 100)}`;
+      }
+
+      // Pitch
+      if (id.includes('pitch')) {
+        return `${value > 0 ? '+' : ''}${value.toFixed(0)} st`;
+      }
+
+      // Default
+      if (Number.isInteger(value)) {
+        return value.toString();
+      }
+      return value.toFixed(1);
+    }
+
+    // ===== TOGGLE BUTTON INTERACTION =====
+    document.querySelectorAll('.toggle').forEach(toggle => {
+      const isMomentary = toggle.classList.contains('momentary');
+
+      toggle.addEventListener('click', () => {
+        if (isMomentary) {
+          // Momentary toggles flash active
+          toggle.classList.add('active');
+          setTimeout(() => toggle.classList.remove('active'), 200);
+        } else {
+          // Normal toggles stay toggled
+          toggle.classList.toggle('active');
+          const isActive = toggle.classList.contains('active');
+          toggle.textContent = isActive ? 'ON' : 'OFF';
+
+          // Special handling for lane enables
+          if (toggle.id.includes('enable')) {
+            const laneNum = toggle.id.match(/lane(\d)/)[1];
+            const laneSection = document.getElementById(`lane${laneNum}`);
+            laneSection.style.opacity = isActive ? '1' : '0.5';
+
+            // Enable/disable lane controls
+            const laneControls = laneSection.querySelectorAll('select, .knob, .toggle');
+            laneControls.forEach(ctrl => {
+              if (ctrl !== toggle) {
+                ctrl.style.pointerEvents = isActive ? 'auto' : 'none';
+                if (ctrl.tagName === 'SELECT') {
+                  ctrl.disabled = !isActive;
+                }
+              }
+            });
+          }
+        }
+
+        const paramId = toggle.id;
+        const value = toggle.classList.contains('active') ? 1 : 0;
+        updateDebugMonitor(paramId, value === 1 ? 'ON' : 'OFF', value);
+        console.log('parameterChange', {id: paramId, value: value});
+      });
+    });
+
+    // ===== COMBOBOX INTERACTION =====
+    document.querySelectorAll('.combo').forEach(combo => {
+      combo.addEventListener('change', (e) => {
+        const paramId = combo.id;
+        const value = combo.selectedIndex;
+        const text = combo.options[combo.selectedIndex].text;
+
+        updateDebugMonitor(paramId, text, value / (combo.options.length - 1));
+        console.log('parameterChange', {id: paramId, value: value, text: text});
+      });
+    });
+
+    // ===== PATTERN SEQUENCER TOGGLE =====
+    const sequencerToggle = document.getElementById('sequencer_expand');
+    const sequencerGrid = document.getElementById('sequencer_grid');
+    const sequencerArrow = document.getElementById('sequencer_arrow');
+
+    sequencerToggle.addEventListener('click', () => {
+      sequencerToggle.classList.toggle('active');
+      sequencerGrid.classList.toggle('visible');
+      sequencerArrow.textContent = sequencerGrid.classList.contains('visible') ? '▲' : '▼';
+    });
+
+    // Generate sequencer grid (16 steps × 4 lanes)
+    for (let lane = 0; lane < 4; lane++) {
+      for (let step = 0; step < 16; step++) {
+        const stepButton = document.createElement('div');
+        stepButton.className = 'step-button';
+        stepButton.dataset.lane = lane;
+        stepButton.dataset.step = step;
+
+        // Random initial pattern
+        if (lane < 2 && Math.random() > 0.6) {
+          stepButton.classList.add('active');
+        }
+
+        stepButton.addEventListener('click', () => {
+          stepButton.classList.toggle('active');
+          const isActive = stepButton.classList.contains('active');
+          console.log('sequencerStep', {lane: lane, step: step, active: isActive});
+        });
+
+        sequencerGrid.appendChild(stepButton);
+      }
+    }
+
+    // ===== INITIALIZE =====
+    console.log('Ouaricon Polystutter UI loaded');
+    console.log('Total parameters:', document.querySelectorAll('.knob, .toggle, .combo').length);
+  </script>
+</body>
+</html>

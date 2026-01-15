@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OuariconPolystutter UI Mockup v3</title>
+
+  <style>
+    /* CRITICAL: WebView constraints - NO viewport units */
+    html, body {
+      height: 100%;  /* REQUIRED - replaces viewport units */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      /* Native application feel */
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Center the fixed-size plugin frame */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #1a1a1a;
+    }
+
+    /* Fixed-size frame matching plugin spec */
+    .plugin-frame {
+      width: 1000px;
+      height: 750px;
+      border: 2px solid #444;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+      background-image: url('img/paper-background.jpg');
+      background-size: cover;
+      background-position: center;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* Fallback if image doesn't load */
+    .plugin-frame::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, #F5E6D3 0%, #E8D5C0 100%);
+      z-index: -1;
+    }
+
+    .container {
+      width: 100%;
+      height: 100%;
+      position: relative;
+    }
+
+    /* Header */
+    .header {
+      text-align: center;
+      padding: 20px 0 10px;
+    }
+
+    .title {
+      font-size: 24px;
+      font-weight: normal;
+      letter-spacing: 2px;
+      color: #3C2F2F;
+      margin: 0;
+    }
+
+    .subtitle {
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: #8B7355;
+      margin: 5px 0 0;
+      font-weight: normal;
+    }
+
+    /* Botanical overlay */
+    .botanical-overlay {
+      position: absolute;
+      right: -10px;
+      top: 15px;
+      height: 450px;
+      opacity: 0.32;
+      pointer-events: none;
+      z-index: 1;
+    }
+
+    /* Lane sections */
+    .lanes-container {
+      position: absolute;
+      top: 80px;
+      left: 0;
+      right: 0;
+      height: 340px;
+      display: flex;
+      gap: 10px;
+      padding: 0 10px;
+    }
+
+    .lane {
+      flex: 1;
+      position: relative;
+      transition: opacity 0.2s;
+    }
+
+    .lane.disabled {
+      opacity: 0.4;
+    }
+
+    .lane-enabled {
+      position: absolute;
+      top: 15px;
+      left: 0;
+      padding: 4px 12px;
+      background: rgba(139, 115, 85, 0.2);
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .lane-enabled:hover {
+      background: rgba(139, 115, 85, 0.35);
+    }
+
+    .lane-enabled.active {
+      background: rgba(107, 142, 78, 0.4);
+      border-color: #6B8E4E;
+      color: #3C5C1A;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      position: absolute;
+      top: 45px;
+      left: 0;
+      width: 220px;
+      height: 8px;
+      background: rgba(139, 115, 85, 0.15);
+      border: 1px solid rgba(139, 115, 85, 0.3);
+      border-radius: 4px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #6B8E4E 0%, #8BA870 100%);
+      width: 0%;
+      transition: width 0.05s linear;
+    }
+
+    /* Knobs - 3x3 grid */
+    .knob-grid {
+      position: absolute;
+      top: 78px;
+      left: 15px;
+      display: grid;
+      grid-template-columns: repeat(3, 50px);
+      grid-template-rows: repeat(3, 80px);
+      gap: 20px;
+    }
+
+    .knob-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .knob-label {
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      color: #8B7355;
+      text-transform: uppercase;
+    }
+
+    .knob {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 30% 30%, #E8D5C0, #C4A882);
+      border: 2px solid rgba(139, 115, 85, 0.4);
+      position: relative;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: transform 0.05s;
+      box-shadow:
+        inset -2px -2px 4px rgba(0,0,0,0.2),
+        inset 2px 2px 4px rgba(255,255,255,0.3);
+    }
+
+    .knob::after {
+      content: '';
+      position: absolute;
+      top: 6px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 2px;
+      height: 12px;
+      background: #8B7355;
+      border-radius: 1px;
+    }
+
+    .knob-value {
+      font-size: 9px;
+      color: #3C2F2F;
+      font-family: 'Courier New', monospace;
+    }
+
+    /* Combo box (subdivision selector) */
+    .combo-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .combo-box {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: rgba(139, 115, 85, 0.15);
+      border: 1px solid #8B7355;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .combo-box:hover {
+      background: rgba(139, 115, 85, 0.25);
+    }
+
+    /* Toggles row */
+    .toggles-row {
+      position: absolute;
+      top: 315px;
+      left: 5px;
+      display: flex;
+      gap: 5px;
+    }
+
+    .toggle-btn {
+      padding: 4px 8px;
+      background: rgba(139, 115, 85, 0.2);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      font-size: 8px;
+      letter-spacing: 0.5px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .toggle-btn:hover {
+      background: rgba(139, 115, 85, 0.35);
+    }
+
+    .toggle-btn.active {
+      background: rgba(107, 142, 78, 0.4);
+      border-color: #6B8E4E;
+      color: #3C5C1A;
+    }
+
+    /* Pattern Sequencer - ALWAYS VISIBLE */
+    .pattern-sequencer {
+      position: absolute;
+      top: 425px;
+      left: 20px;
+      right: 220px;
+      height: 130px;
+      background: rgba(139, 115, 85, 0.1);
+      border: 1px solid #8B7355;
+      border-radius: 6px;
+      padding: 15px;
+    }
+
+    .pattern-title {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #8B7355;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: 30px repeat(16, 1fr);
+      gap: 4px;
+    }
+
+    .pattern-lane-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 9px;
+      color: #8B7355;
+      font-weight: bold;
+    }
+
+    .step-button {
+      aspect-ratio: 1;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      background: rgba(245, 230, 211, 0.5);
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .step-button:hover {
+      background: rgba(139, 142, 78, 0.3);
+    }
+
+    .step-button.active {
+      background: rgba(107, 142, 78, 0.6);
+      border-color: #3C5C1A;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.2);
+    }
+
+    /* Tape Degradation Section */
+    .tape-section {
+      position: absolute;
+      top: 575px;
+      left: 20px;
+      right: 220px;
+      height: 100px;
+    }
+
+    .tape-title {
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #8B7355;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    .tape-knobs {
+      display: flex;
+      gap: 40px;
+      align-items: flex-start;
+    }
+
+    /* Footer */
+    .footer {
+      position: absolute;
+      bottom: 20px;
+      left: 20px;
+      right: 20px;
+      height: 60px;
+      display: flex;
+      gap: 20px;
+      align-items: center;
+    }
+
+    .footer-toggle {
+      padding: 8px 16px;
+      background: rgba(139, 115, 85, 0.2);
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .footer-toggle:hover {
+      background: rgba(139, 115, 85, 0.35);
+    }
+
+    .footer-toggle.active {
+      background: rgba(107, 142, 78, 0.4);
+      border-color: #6B8E4E;
+      color: #3C5C1A;
+    }
+
+    /* Debug monitor (test HTML only) */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 150px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="plugin-frame">
+    <div class="container">
+      <!-- Header -->
+      <div class="header">
+        <h1 class="title">POLY REPEATER</h1>
+        <p class="subtitle">Polyrhythmic Beat Repeater</p>
+      </div>
+
+      <!-- Botanical overlay -->
+      <img src="img/botanical-bug.png" alt="" class="botanical-overlay">
+
+      <!-- Lanes Container -->
+      <div class="lanes-container">
+        <!-- Lane 1 -->
+        <div class="lane" id="lane1" data-lane="1">
+          <button class="lane-enabled active" data-param="lane1_enabled">LANE 1</button>
+
+          <div class="progress-bar">
+            <div class="progress-fill" id="lane1-progress"></div>
+          </div>
+
+          <div class="knob-grid">
+            <!-- Row 1 -->
+            <div class="combo-container">
+              <div class="knob-label">SUBDIV</div>
+              <div class="combo-box" data-param="lane1_subdivision">1/16</div>
+              <div class="knob-value">—</div>
+            </div>
+
+            <div class="knob-container">
+              <div class="knob-label">REPS</div>
+              <div class="knob" data-param="lane1_repeats" data-min="1" data-max="16" data-value="4"></div>
+              <div class="knob-value">4</div>
+            </div>
+
+            <div class="knob-container">
+              <div class="knob-label">DECAY</div>
+              <div class="knob" data-param="lane1_decay" data-min="0" data-max="100" data-value="90"></div>
+              <div class="knob-value">90%</div>
+            </div>
+
+            <!-- Row 2 -->
+            <div class="knob-container">
+              <div class="knob-label">PITCH</div>
+              <div class="knob" data-param="lane1_pitch" data-min="-12" data-max="12" data-value="0"></div>
+              <div class="knob-value">0st</div>
+            </div>
+
+            <div class="knob-container">
+              <div class="knob-label">FILTR</div>
+              <div class="knob" data-param="lane1_filter" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+
+            <div class="knob-container">
+              <div class="knob-label">PROB</div>
+              <div class="knob" data-param="lane1_probability" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+
+            <!-- Row 3 -->
+            <div class="knob-container">
+              <div class="knob-label">VOL</div>
+              <div class="knob" data-param="lane1_volume" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+
+            <div class="knob-container">
+              <div class="knob-label">PAN</div>
+              <div class="knob" data-param="lane1_pan" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+
+            <div class="knob-container">
+              <div class="knob-label">SWING</div>
+              <div class="knob" data-param="lane1_swing" data-min="0" data-max="100" data-value="0"></div>
+              <div class="knob-value">0%</div>
+            </div>
+          </div>
+
+          <div class="toggles-row">
+            <button class="toggle-btn" data-param="lane1_pingpong">PING</button>
+            <button class="toggle-btn" data-param="lane1_reverse">REV</button>
+            <button class="toggle-btn" data-param="lane1_manual">MAN</button>
+            <button class="toggle-btn" data-param="lane1_freeze">FRZ</button>
+          </div>
+        </div>
+
+        <!-- Lane 2 -->
+        <div class="lane" id="lane2" data-lane="2">
+          <button class="lane-enabled active" data-param="lane2_enabled">LANE 2</button>
+
+          <div class="progress-bar">
+            <div class="progress-fill" id="lane2-progress"></div>
+          </div>
+
+          <div class="knob-grid">
+            <div class="combo-container">
+              <div class="knob-label">SUBDIV</div>
+              <div class="combo-box" data-param="lane2_subdivision">1/8</div>
+              <div class="knob-value">—</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">REPS</div>
+              <div class="knob" data-param="lane2_repeats" data-min="1" data-max="16" data-value="4"></div>
+              <div class="knob-value">4</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">DECAY</div>
+              <div class="knob" data-param="lane2_decay" data-min="0" data-max="100" data-value="90"></div>
+              <div class="knob-value">90%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PITCH</div>
+              <div class="knob" data-param="lane2_pitch" data-min="-12" data-max="12" data-value="0"></div>
+              <div class="knob-value">0st</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">FILTR</div>
+              <div class="knob" data-param="lane2_filter" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PROB</div>
+              <div class="knob" data-param="lane2_probability" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">VOL</div>
+              <div class="knob" data-param="lane2_volume" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PAN</div>
+              <div class="knob" data-param="lane2_pan" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">SWING</div>
+              <div class="knob" data-param="lane2_swing" data-min="0" data-max="100" data-value="0"></div>
+              <div class="knob-value">0%</div>
+            </div>
+          </div>
+
+          <div class="toggles-row">
+            <button class="toggle-btn" data-param="lane2_pingpong">PING</button>
+            <button class="toggle-btn" data-param="lane2_reverse">REV</button>
+            <button class="toggle-btn" data-param="lane2_manual">MAN</button>
+            <button class="toggle-btn" data-param="lane2_freeze">FRZ</button>
+          </div>
+        </div>
+
+        <!-- Lane 3 -->
+        <div class="lane" id="lane3" data-lane="3">
+          <button class="lane-enabled" data-param="lane3_enabled">LANE 3</button>
+
+          <div class="progress-bar">
+            <div class="progress-fill" id="lane3-progress"></div>
+          </div>
+
+          <div class="knob-grid">
+            <div class="combo-container">
+              <div class="knob-label">SUBDIV</div>
+              <div class="combo-box" data-param="lane3_subdivision">1/8T</div>
+              <div class="knob-value">—</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">REPS</div>
+              <div class="knob" data-param="lane3_repeats" data-min="1" data-max="16" data-value="4"></div>
+              <div class="knob-value">4</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">DECAY</div>
+              <div class="knob" data-param="lane3_decay" data-min="0" data-max="100" data-value="90"></div>
+              <div class="knob-value">90%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PITCH</div>
+              <div class="knob" data-param="lane3_pitch" data-min="-12" data-max="12" data-value="0"></div>
+              <div class="knob-value">0st</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">FILTR</div>
+              <div class="knob" data-param="lane3_filter" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PROB</div>
+              <div class="knob" data-param="lane3_probability" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">VOL</div>
+              <div class="knob" data-param="lane3_volume" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PAN</div>
+              <div class="knob" data-param="lane3_pan" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">SWING</div>
+              <div class="knob" data-param="lane3_swing" data-min="0" data-max="100" data-value="0"></div>
+              <div class="knob-value">0%</div>
+            </div>
+          </div>
+
+          <div class="toggles-row">
+            <button class="toggle-btn" data-param="lane3_pingpong">PING</button>
+            <button class="toggle-btn" data-param="lane3_reverse">REV</button>
+            <button class="toggle-btn" data-param="lane3_manual">MAN</button>
+            <button class="toggle-btn" data-param="lane3_freeze">FRZ</button>
+          </div>
+        </div>
+
+        <!-- Lane 4 -->
+        <div class="lane" id="lane4" data-lane="4">
+          <button class="lane-enabled" data-param="lane4_enabled">LANE 4</button>
+
+          <div class="progress-bar">
+            <div class="progress-fill" id="lane4-progress"></div>
+          </div>
+
+          <div class="knob-grid">
+            <div class="combo-container">
+              <div class="knob-label">SUBDIV</div>
+              <div class="combo-box" data-param="lane4_subdivision">1/32</div>
+              <div class="knob-value">—</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">REPS</div>
+              <div class="knob" data-param="lane4_repeats" data-min="1" data-max="16" data-value="4"></div>
+              <div class="knob-value">4</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">DECAY</div>
+              <div class="knob" data-param="lane4_decay" data-min="0" data-max="100" data-value="90"></div>
+              <div class="knob-value">90%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PITCH</div>
+              <div class="knob" data-param="lane4_pitch" data-min="-12" data-max="12" data-value="0"></div>
+              <div class="knob-value">0st</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">FILTR</div>
+              <div class="knob" data-param="lane4_filter" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PROB</div>
+              <div class="knob" data-param="lane4_probability" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">VOL</div>
+              <div class="knob" data-param="lane4_volume" data-min="0" data-max="100" data-value="100"></div>
+              <div class="knob-value">100%</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">PAN</div>
+              <div class="knob" data-param="lane4_pan" data-min="-100" data-max="100" data-value="0"></div>
+              <div class="knob-value">0</div>
+            </div>
+            <div class="knob-container">
+              <div class="knob-label">SWING</div>
+              <div class="knob" data-param="lane4_swing" data-min="0" data-max="100" data-value="0"></div>
+              <div class="knob-value">0%</div>
+            </div>
+          </div>
+
+          <div class="toggles-row">
+            <button class="toggle-btn" data-param="lane4_pingpong">PING</button>
+            <button class="toggle-btn" data-param="lane4_reverse">REV</button>
+            <button class="toggle-btn" data-param="lane4_manual">MAN</button>
+            <button class="toggle-btn" data-param="lane4_freeze">FRZ</button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Pattern Sequencer (ALWAYS VISIBLE) -->
+      <div class="pattern-sequencer">
+        <div class="pattern-title">PATTERN SEQUENCER</div>
+        <div class="pattern-grid" id="pattern-grid">
+          <!-- Generated by JavaScript -->
+        </div>
+      </div>
+
+      <!-- Tape Degradation Section -->
+      <div class="tape-section">
+        <div class="tape-title">TAPE DEGRADATION</div>
+        <div class="tape-knobs">
+          <div class="knob-container">
+            <div class="knob-label">SAT</div>
+            <div class="knob" data-param="tape_saturation" data-min="0" data-max="100" data-value="0"></div>
+            <div class="knob-value">0%</div>
+          </div>
+          <div class="knob-container">
+            <div class="knob-label">WOW</div>
+            <div class="knob" data-param="tape_wow" data-min="0" data-max="100" data-value="0"></div>
+            <div class="knob-value">0%</div>
+          </div>
+          <div class="knob-container">
+            <div class="knob-label">FLUTTER</div>
+            <div class="knob" data-param="tape_flutter" data-min="0" data-max="100" data-value="0"></div>
+            <div class="knob-value">0%</div>
+          </div>
+          <div class="knob-container">
+            <div class="knob-label">HISS</div>
+            <div class="knob" data-param="tape_hiss" data-min="0" data-max="100" data-value="0"></div>
+            <div class="knob-value">0%</div>
+          </div>
+          <div class="knob-container">
+            <div class="knob-label">ROLLOFF</div>
+            <div class="knob" data-param="tape_rolloff" data-min="0" data-max="100" data-value="0"></div>
+            <div class="knob-value">0%</div>
+          </div>
+          <div class="knob-container">
+            <div class="knob-label">DROPOUT</div>
+            <div class="knob" data-param="tape_dropout" data-min="0" data-max="100" data-value="0"></div>
+            <div class="knob-value">0%</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="footer">
+        <button class="footer-toggle" data-param="envelope_enabled">ENV</button>
+        <button class="footer-toggle" data-param="sidechain_enabled">SC</button>
+        <button class="footer-toggle" data-param="midi_enabled">MIDI</button>
+        <button class="footer-toggle" data-param="manual_trigger">TRIG</button>
+      </div>
+
+      <!-- Debug Monitor -->
+      <div class="debug-monitor">
+        <div class="debug-label">PARAMETER MONITOR</div>
+        <div class="debug-param" id="debugParam">—</div>
+        <div class="debug-value" id="debugValue">—</div>
+        <div class="debug-normalized" id="debugNormalized">—</div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Mock JUCE backend for browser testing
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getComboBoxState: (id) => ({
+        selectedId: 0,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Update debug monitor
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      document.getElementById('debugValue').textContent = value;
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+
+    // Initialize pattern sequencer grid
+    function initPatternGrid() {
+      const grid = document.getElementById('pattern-grid');
+      const lanes = ['L1', 'L2', 'L3', 'L4'];
+
+      lanes.forEach((lane, laneIndex) => {
+        // Lane label
+        const label = document.createElement('div');
+        label.className = 'pattern-lane-label';
+        label.textContent = lane;
+        grid.appendChild(label);
+
+        // 16 steps
+        for (let step = 0; step < 16; step++) {
+          const button = document.createElement('button');
+          button.className = 'step-button';
+          button.dataset.lane = laneIndex + 1;
+          button.dataset.step = step + 1;
+          button.dataset.param = `pattern_${lane.toLowerCase()}_step${step + 1}`;
+
+          // Random initial pattern
+          if (Math.random() > 0.5) {
+            button.classList.add('active');
+          }
+
+          button.addEventListener('click', function() {
+            this.classList.toggle('active');
+            const isActive = this.classList.contains('active');
+            console.log(`${this.dataset.param}: ${isActive}`);
+            updateDebugMonitor(this.dataset.param, isActive ? 'ON' : 'OFF', isActive ? 1 : 0);
+          });
+
+          grid.appendChild(button);
+        }
+      });
+    }
+
+    // Knob interaction
+    function initKnobs() {
+      const knobs = document.querySelectorAll('.knob');
+
+      knobs.forEach(knob => {
+        let isDragging = false;
+        let startY = 0;
+        let startValue = parseFloat(knob.dataset.value);
+        const min = parseFloat(knob.dataset.min);
+        const max = parseFloat(knob.dataset.max);
+        const param = knob.dataset.param;
+
+        knob.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          startY = e.clientY;
+          startValue = parseFloat(knob.dataset.value);
+          e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+
+          const deltaY = startY - e.clientY;
+          const range = max - min;
+          const changeAmount = (deltaY / 100) * range;
+          let newValue = startValue + changeAmount;
+
+          // Clamp value
+          newValue = Math.max(min, Math.min(max, newValue));
+
+          // Update value
+          knob.dataset.value = newValue;
+
+          // Update rotation (-135° to +135°)
+          const normalized = (newValue - min) / range;
+          const degrees = -135 + (normalized * 270);
+          knob.style.transform = `rotate(${degrees}deg)`;
+
+          // Update display
+          const valueDisplay = knob.parentElement.querySelector('.knob-value');
+          const unit = param.includes('decay') || param.includes('prob') || param.includes('volume') || param.includes('swing') ? '%' :
+                       param.includes('pitch') ? 'st' : '';
+          valueDisplay.textContent = Math.round(newValue) + unit;
+
+          // Update debug monitor
+          updateDebugMonitor(param, Math.round(newValue) + unit, normalized);
+
+          console.log(`${param}: ${newValue}`);
+        });
+
+        document.addEventListener('mouseup', () => {
+          isDragging = false;
+        });
+
+        // Initialize rotation
+        const normalized = (startValue - min) / (max - min);
+        const degrees = -135 + (normalized * 270);
+        knob.style.transform = `rotate(${degrees}deg)`;
+      });
+    }
+
+    // Toggle buttons
+    function initToggles() {
+      const toggles = document.querySelectorAll('.toggle-btn, .lane-enabled, .footer-toggle');
+
+      toggles.forEach(toggle => {
+        toggle.addEventListener('click', function() {
+          this.classList.toggle('active');
+          const isActive = this.classList.contains('active');
+          const param = this.dataset.param;
+
+          console.log(`${param}: ${isActive}`);
+          updateDebugMonitor(param, isActive ? 'ON' : 'OFF', isActive ? 1 : 0);
+
+          // If lane enabled toggle, dim the entire lane
+          if (param.includes('_enabled')) {
+            const laneNum = param.match(/lane(\d)/)[1];
+            const lane = document.getElementById(`lane${laneNum}`);
+            if (lane) {
+              lane.classList.toggle('disabled', !isActive);
+            }
+          }
+        });
+      });
+    }
+
+    // Combo boxes
+    function initComboBoxes() {
+      const combos = document.querySelectorAll('.combo-box');
+      const subdivOptions = ['1/4', '1/8', '1/16', '1/32', '1/8T', '1/16T'];
+
+      combos.forEach(combo => {
+        let currentIndex = subdivOptions.indexOf(combo.textContent);
+        const param = combo.dataset.param;
+
+        combo.addEventListener('click', function() {
+          currentIndex = (currentIndex + 1) % subdivOptions.length;
+          this.textContent = subdivOptions[currentIndex];
+
+          console.log(`${param}: ${subdivOptions[currentIndex]}`);
+          updateDebugMonitor(param, subdivOptions[currentIndex], currentIndex / subdivOptions.length);
+        });
+      });
+    }
+
+    // Animate progress bars
+    function animateProgressBars() {
+      const lanes = [1, 2, 3, 4];
+
+      lanes.forEach(lane => {
+        const bar = document.getElementById(`lane${lane}-progress`);
+        let progress = 0;
+
+        setInterval(() => {
+          progress = (progress + 1) % 100;
+          bar.style.width = progress + '%';
+        }, 50 + (lane * 10)); // Different speeds per lane
+      });
+    }
+
+    // Initialize all interactions on DOM load
+    document.addEventListener('DOMContentLoaded', () => {
+      initPatternGrid();
+      initKnobs();
+      initToggles();
+      initComboBoxes();
+      animateProgressBars();
+
+      console.log('OuariconPolystutter v3 UI initialized');
+    });
+  </script>
+</body>
+</html>
