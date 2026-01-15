@@ -51,6 +51,7 @@ void RepeatLane::reset()
     isTriggered = false;
     currentRepeat = 0;
     playbackPosition = 0;
+    fractionalPlaybackPosition = 0.0;
     samplesUntilNextRepeat = 0;
     currentGain = 1.0f;
     captureLength = 0;
@@ -93,14 +94,17 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
         float leftOut = 0.0f;
         float rightOut = 0.0f;
 
-        if (playbackPosition < captureLength)
+        // Use fractional position for pitch shifting (supports sub-sample interpolation)
+        int intPosition = static_cast<int>(fractionalPlaybackPosition);
+
+        if (intPosition < captureLength)
         {
             // Determine which buffer to read from (freeze or live capture)
             if (freezeEnabled && freezeBufferReady)
             {
                 // Read from frozen snapshot
                 // Handle reverse playback
-                int readPosition = reverseEnabled ? (captureLength - 1 - playbackPosition) : playbackPosition;
+                int readPosition = reverseEnabled ? (captureLength - 1 - intPosition) : intPosition;
                 readPosition = juce::jlimit(0, captureLength - 1, readPosition);
 
                 if (readPosition < freezeBuffer.getNumSamples())
@@ -112,13 +116,13 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             }
             else
             {
-                // Read from live delay lines
+                // Read from live delay lines with fractional delay for interpolation
                 // Forward: oldest to newest (high delay to low delay)
                 // Reverse: newest to oldest (low delay to high delay, but offset by 1 to avoid write position)
-                int readPosition = reverseEnabled
-                    ? (playbackPosition + 1)  // Start at delay=1 (avoid write position at 0)
-                    : (captureLength - playbackPosition);  // Start at oldest sample
-                float delayTime = static_cast<float>(readPosition);
+                double fracPosition = reverseEnabled
+                    ? (fractionalPlaybackPosition + 1.0)  // Start at delay=1 (avoid write position at 0)
+                    : (captureLength - fractionalPlaybackPosition);  // Start at oldest sample
+                float delayTime = static_cast<float>(fracPosition);
 
                 leftOut = delayLineLeft.popSample(0, delayTime);
                 rightOut = delayLineRight.popSample(0, delayTime);
@@ -128,17 +132,17 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             // Guard against edge case where captureLength < 2*crossfadeSamples
             const int safeCrossfade = juce::jmin(crossfadeSamples, captureLength / 2);
 
-            if (safeCrossfade > 0 && playbackPosition < safeCrossfade)
+            if (safeCrossfade > 0 && intPosition < safeCrossfade)
             {
                 // Fade in at start
-                float fadeInGain = getCrossfadeGain(playbackPosition, safeCrossfade, true);
+                float fadeInGain = getCrossfadeGain(intPosition, safeCrossfade, true);
                 leftOut *= fadeInGain;
                 rightOut *= fadeInGain;
             }
-            else if (safeCrossfade > 0 && playbackPosition > captureLength - safeCrossfade - 1)
+            else if (safeCrossfade > 0 && intPosition > captureLength - safeCrossfade - 1)
             {
                 // Fade out at end (fixed off-by-one: use > instead of >=)
-                int fadePos = playbackPosition - (captureLength - safeCrossfade);
+                int fadePos = intPosition - (captureLength - safeCrossfade);
                 float fadeOutGain = getCrossfadeGain(fadePos, safeCrossfade, false);
                 leftOut *= fadeOutGain;
                 rightOut *= fadeOutGain;
@@ -164,7 +168,11 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             leftOut *= leftGain;
             rightOut *= rightGain;
 
-            playbackPosition++;
+            // Phase 2.4: Advance playback position by pitch ratio
+            // pitchRatio > 1.0 = higher pitch = faster playback
+            // pitchRatio < 1.0 = lower pitch = slower playback
+            fractionalPlaybackPosition += pitchRatio;
+            playbackPosition = static_cast<int>(fractionalPlaybackPosition);
         }
 
         // Write to output buffer
@@ -281,8 +289,9 @@ double RepeatLane::calculateSubdivisionSamples(int subdivIndex, double bpm, doub
 
 void RepeatLane::startNewRepeat()
 {
-    // Reset playback position
+    // Reset playback position (integer and fractional)
     playbackPosition = 0;
+    fractionalPlaybackPosition = 0.0;
 
     // Apply decay to gain
     if (currentRepeat > 0)
@@ -326,6 +335,17 @@ void RepeatLane::setSwing(float swingPercent)
 {
     // Convert 0-100% to 0.0-1.0
     swingAmount = juce::jlimit(0.0f, 1.0f, swingPercent / 100.0f);
+}
+
+void RepeatLane::setPitch(float semitones)
+{
+    // Store semitones and calculate pitch ratio
+    pitchSemitones = juce::jlimit(-12.0f, 12.0f, semitones);
+
+    // Pitch ratio = 2^(semitones/12)
+    // Positive semitones = higher pitch = faster playback
+    // Negative semitones = lower pitch = slower playback
+    pitchRatio = std::pow(2.0f, pitchSemitones / 12.0f);
 }
 
 void RepeatLane::setPatternStep(int stepIndex, bool stepEnabled)

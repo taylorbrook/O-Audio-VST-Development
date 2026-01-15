@@ -566,6 +566,9 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     // Create trigger router (Phase 2.3)
     triggerRouter = std::make_unique<TriggerRouter>();
 
+    // Create tape degrader (Phase 2.4)
+    tapeDegrader = std::make_unique<TapeDegrader>();
+
     // Cache lane 1 parameter pointers (avoid string lookups in processBlock)
     lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
     lane1SubdivParam = parameters.getRawParameterValue("lane1_subdivision");
@@ -641,6 +644,20 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     lane4ReverseParam = parameters.getRawParameterValue("lane4_reverse");
     lane4FreezeParam = parameters.getRawParameterValue("lane4_freeze");
     lane4ManualTimeParam = parameters.getRawParameterValue("lane4_manual_time_enabled");
+
+    // Cache Phase 2.4 pitch parameters
+    lane1PitchParam = parameters.getRawParameterValue("lane1_pitch");
+    lane2PitchParam = parameters.getRawParameterValue("lane2_pitch");
+    lane3PitchParam = parameters.getRawParameterValue("lane3_pitch");
+    lane4PitchParam = parameters.getRawParameterValue("lane4_pitch");
+
+    // Cache Phase 2.4 tape degradation parameters
+    tapeSaturationParam = parameters.getRawParameterValue("tape_saturation");
+    tapeWowParam = parameters.getRawParameterValue("tape_wow");
+    tapeFlutterParam = parameters.getRawParameterValue("tape_flutter");
+    tapeHissParam = parameters.getRawParameterValue("tape_hiss");
+    tapeRolloffParam = parameters.getRawParameterValue("tape_rolloff");
+    tapeDropoutParam = parameters.getRawParameterValue("tape_dropout");
 }
 
 OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
@@ -662,6 +679,9 @@ void OuariconPolystutterAudioProcessor::prepareToPlay(double sampleRate, int sam
 
     // Prepare trigger router (Phase 2.3)
     if (triggerRouter) triggerRouter->prepare(spec);
+
+    // Prepare tape degrader (Phase 2.4)
+    if (tapeDegrader) tapeDegrader->prepare(spec);
 
     // Store max block size for buffer safety checks
     maxBlockSize = samplesPerBlock;
@@ -808,6 +828,9 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane1->setProbability(lane1Probability);
         lane1->setSwing(lane1Swing);
 
+        // Phase 2.4: Pitch shifting
+        lane1->setPitch(lane1PitchParam->load());
+
         // Phase 2.3: Advanced modes
         lane1->setPingPong(lane1PingPong);
         lane1->setReverse(lane1Reverse);
@@ -833,6 +856,9 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane2->setProbability(lane2Probability);
         lane2->setSwing(lane2Swing);
 
+        // Phase 2.4: Pitch shifting
+        lane2->setPitch(lane2PitchParam->load());
+
         // Phase 2.3: Advanced modes
         lane2->setPingPong(lane2PingPong);
         lane2->setReverse(lane2Reverse);
@@ -857,6 +883,9 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane3->setProbability(lane3Probability);
         lane3->setSwing(lane3Swing);
 
+        // Phase 2.4: Pitch shifting
+        lane3->setPitch(lane3PitchParam->load());
+
         // Phase 2.3: Advanced modes
         lane3->setPingPong(lane3PingPong);
         lane3->setReverse(lane3Reverse);
@@ -880,6 +909,9 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane4->setPan(lane4Pan);
         lane4->setProbability(lane4Probability);
         lane4->setSwing(lane4Swing);
+
+        // Phase 2.4: Pitch shifting
+        lane4->setPitch(lane4PitchParam->load());
 
         // Phase 2.3: Advanced modes
         lane4->setPingPong(lane4PingPong);
@@ -1074,6 +1106,21 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         juce::FloatVectorOperations::addWithMultiply(outData, lane2Data, wetPerLane, numSamples);
         juce::FloatVectorOperations::addWithMultiply(outData, lane3Data, wetPerLane, numSamples);
         juce::FloatVectorOperations::addWithMultiply(outData, lane4Data, wetPerLane, numSamples);
+    }
+
+    // ========== Phase 2.4: Tape Degradation Post-Processing ==========
+    if (tapeDegrader)
+    {
+        // Update tape degradation parameters
+        tapeDegrader->setSaturation(tapeSaturationParam->load());
+        tapeDegrader->setWow(tapeWowParam->load());
+        tapeDegrader->setFlutter(tapeFlutterParam->load());
+        tapeDegrader->setHiss(tapeHissParam->load());
+        tapeDegrader->setRolloff(tapeRolloffParam->load());
+        tapeDegrader->setDropout(tapeDropoutParam->load());
+
+        // Process buffer in-place with tape effects
+        tapeDegrader->processBlock(buffer, numSamples);
     }
 }
 

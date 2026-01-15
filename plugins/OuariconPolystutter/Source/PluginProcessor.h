@@ -12,6 +12,7 @@
 #include <JuceHeader.h>
 #include "DSP/RepeatLane.h"
 #include "DSP/TriggerRouter.h"
+#include "DSP/TapeDegrader.h"
 
 class OuariconPolystutterAudioProcessor : public juce::AudioProcessor
 {
@@ -57,6 +58,9 @@ private:
 
     // Phase 2.3: Trigger router for advanced trigger modes
     std::unique_ptr<class TriggerRouter> triggerRouter;
+
+    // Phase 2.4: Tape degradation post-processor
+    std::unique_ptr<class TapeDegrader> tapeDegrader;
 
     // Beat sync state
     double lastPPQPosition = 0.0;
@@ -151,6 +155,20 @@ private:
     std::atomic<float>* lane4ReverseParam = nullptr;
     std::atomic<float>* lane4FreezeParam = nullptr;
     std::atomic<float>* lane4ManualTimeParam = nullptr;
+
+    // Phase 2.4: Cached parameter pointers for pitch
+    std::atomic<float>* lane1PitchParam = nullptr;
+    std::atomic<float>* lane2PitchParam = nullptr;
+    std::atomic<float>* lane3PitchParam = nullptr;
+    std::atomic<float>* lane4PitchParam = nullptr;
+
+    // Phase 2.4: Cached parameter pointers for tape degradation
+    std::atomic<float>* tapeSaturationParam = nullptr;
+    std::atomic<float>* tapeWowParam = nullptr;
+    std::atomic<float>* tapeFlutterParam = nullptr;
+    std::atomic<float>* tapeHissParam = nullptr;
+    std::atomic<float>* tapeRolloffParam = nullptr;
+    std::atomic<float>* tapeDropoutParam = nullptr;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

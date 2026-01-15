@@ -39,6 +39,9 @@ public:
     void setProbability(float probPercent);   // 0 to 100%
     void setSwing(float swingPercent);        // 0 to 100%
 
+    // Phase 2.4: Pitch shifting
+    void setPitch(float pitchSemitones);      // -12 to +12 semitones
+
     // Phase 2.3: Advanced modes
     void setPingPong(bool shouldEnable);
     void setReverse(bool shouldEnable);
@@ -69,6 +72,8 @@ private:
     float panPosition = 0.0f;  // -1.0 to +1.0 (center)
     float probabilityAmount = 1.0f;  // 0.0 to 1.0 (100% = always trigger)
     float swingAmount = 0.0f;  // 0.0 to 1.0 (0% to 100%)
+    float pitchSemitones = 0.0f;  // -12.0 to +12.0 semitones
+    float pitchRatio = 1.0f;  // Cached pitch ratio from semitones
 
     // Phase 2.3: Advanced mode parameters
     bool pingPongEnabled = false;
@@ -85,6 +90,9 @@ private:
     int currentRepeat = 0;
     int samplesUntilNextRepeat = 0;
     float currentGain = 1.0f;
+
+    // Phase 2.4: Pitch shifting state (fractional playback position)
+    double fractionalPlaybackPosition = 0.0;
 
     // Capture buffer (using DelayLine for circular buffer)
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delayLineLeft;
