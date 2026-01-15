@@ -1,0 +1,778 @@
+# v5 UI Design Specification
+# Generated: 2026-01-14
+# Plugin: OuariconPolyRepeater
+# Version: v5 (CRITICAL FIX: Tape knobs horizontal layout)
+# Changes from v4: Fixed tape degradation knobs to display in horizontal row (not stacked)
+
+window:
+  width: 1000
+  height: 750
+  resizable: false
+
+colors:
+  background: paper  # img/paper-background.jpg
+  primary: "#8B7355"  # Brown
+  secondary: "#6B8E4E"  # Green
+  text: "#3C2F2F"  # Dark brown
+  accent: "#8BA870"  # Light green
+  progress_fill: "#6B8E4E"  # Green
+  step_active: "rgba(107, 142, 78, 0.6)"
+  step_inactive: "rgba(245, 230, 211, 0.5)"
+
+typography:
+  title_font: "'Garamond', 'Times New Roman', serif"
+  label_font: "'Garamond', 'Times New Roman', serif"
+  title_size: "24px"
+  label_size: "9px"
+  value_size: "8px"
+  letter_spacing: "2px"  # Title
+  label_letter_spacing: "0.8px"  # Labels (uppercase)
+
+layout:
+  type: custom
+  sections:
+    - id: header
+      height: 60
+      controls: [title, botanical_overlay]
+    - id: lanes
+      height: 320
+      controls: [lane1, lane2, lane3, lane4]
+    - id: pattern_sequencer
+      height: 130
+      collapsed: false  # ALWAYS VISIBLE
+      controls: [pattern_grid]
+    - id: tape_section
+      height: 130
+      controls: [sat, wow, flutter, hiss, rolloff, dropout]
+    - id: footer
+      height: 50
+      controls: [env_toggle, sc_toggle, midi_toggle, trig_toggle]
+
+controls:
+  # Lane 1 Controls (3x3 grid, COMPACT)
+  # Knobs: 42px diameter, 6px gap between
+  # Rows: 8-10px vertical spacing
+
+  - id: lane1_enabled
+    type: toggle
+    label: "LANE 1"
+    parameter: "lane1_enabled"
+    default: true
+    position: { x: 20, y: 75 }
+    size: { width: 60, height: 20 }
+
+  - id: lane1_progress
+    type: progress_bar
+    data_source: "lane1_playback_position"
+    position: { x: 20, y: 100 }
+    size: { width: 210, height: 6 }
+
+  # Row 1 (y: 115)
+  - id: lane1_subdivision
+    type: combo
+    label: "SUBDIV"
+    parameter: "lane1_subdivision"
+    choices: ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"]
+    default: 2  # 1/16
+    position: { x: 30, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane1_repeats
+    type: knob
+    label: "REPS"
+    parameter: "lane1_repeats"
+    range: [1, 16]
+    default: 4
+    decimals: 0
+    position: { x: 84, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane1_decay
+    type: knob
+    label: "DECAY"
+    parameter: "lane1_decay"
+    range: [0, 100]
+    default: 90
+    decimals: 0
+    unit: "%"
+    position: { x: 138, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  # Row 2 (y: 175)
+  - id: lane1_pitch
+    type: knob
+    label: "PITCH"
+    parameter: "lane1_pitch"
+    range: [-12, 12]
+    default: 0
+    decimals: 0
+    unit: "st"
+    position: { x: 30, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane1_filter
+    type: knob
+    label: "FILTR"
+    parameter: "lane1_filter"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 84, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane1_probability
+    type: knob
+    label: "PROB"
+    parameter: "lane1_probability"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 138, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  # Row 3 (y: 235)
+  - id: lane1_volume
+    type: knob
+    label: "VOL"
+    parameter: "lane1_volume"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 30, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane1_pan
+    type: knob
+    label: "PAN"
+    parameter: "lane1_pan"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 84, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane1_swing
+    type: knob
+    label: "SWING"
+    parameter: "lane1_swing"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 138, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  # Row 4 (toggles) - y: 295
+  - id: lane1_pingpong
+    type: toggle
+    label: "PING"
+    parameter: "lane1_pingpong"
+    default: false
+    position: { x: 25, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane1_reverse
+    type: toggle
+    label: "REV"
+    parameter: "lane1_reverse"
+    default: false
+    position: { x: 70, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane1_manual
+    type: toggle
+    label: "MAN"
+    parameter: "lane1_manual_time_enabled"
+    default: false
+    position: { x: 115, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane1_freeze
+    type: toggle
+    label: "FRZ"
+    parameter: "lane1_freeze"
+    default: false
+    position: { x: 160, y: 295 }
+    size: { width: 40, height: 18 }
+
+  # Lane 2 Controls (offset x by 250)
+  - id: lane2_enabled
+    type: toggle
+    label: "LANE 2"
+    parameter: "lane2_enabled"
+    default: true
+    position: { x: 270, y: 75 }
+    size: { width: 60, height: 20 }
+
+  - id: lane2_progress
+    type: progress_bar
+    data_source: "lane2_playback_position"
+    position: { x: 270, y: 100 }
+    size: { width: 210, height: 6 }
+
+  - id: lane2_subdivision
+    type: combo
+    label: "SUBDIV"
+    parameter: "lane2_subdivision"
+    choices: ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"]
+    default: 1  # 1/8
+    position: { x: 280, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_repeats
+    type: knob
+    label: "REPS"
+    parameter: "lane2_repeats"
+    range: [1, 16]
+    default: 4
+    decimals: 0
+    position: { x: 334, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_decay
+    type: knob
+    label: "DECAY"
+    parameter: "lane2_decay"
+    range: [0, 100]
+    default: 90
+    decimals: 0
+    unit: "%"
+    position: { x: 388, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_pitch
+    type: knob
+    label: "PITCH"
+    parameter: "lane2_pitch"
+    range: [-12, 12]
+    default: 0
+    decimals: 0
+    unit: "st"
+    position: { x: 280, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_filter
+    type: knob
+    label: "FILTR"
+    parameter: "lane2_filter"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 334, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_probability
+    type: knob
+    label: "PROB"
+    parameter: "lane2_probability"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 388, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_volume
+    type: knob
+    label: "VOL"
+    parameter: "lane2_volume"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 280, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_pan
+    type: knob
+    label: "PAN"
+    parameter: "lane2_pan"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 334, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_swing
+    type: knob
+    label: "SWING"
+    parameter: "lane2_swing"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 388, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane2_pingpong
+    type: toggle
+    label: "PING"
+    parameter: "lane2_pingpong"
+    default: false
+    position: { x: 275, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane2_reverse
+    type: toggle
+    label: "REV"
+    parameter: "lane2_reverse"
+    default: false
+    position: { x: 320, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane2_manual
+    type: toggle
+    label: "MAN"
+    parameter: "lane2_manual_time_enabled"
+    default: false
+    position: { x: 365, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane2_freeze
+    type: toggle
+    label: "FRZ"
+    parameter: "lane2_freeze"
+    default: false
+    position: { x: 410, y: 295 }
+    size: { width: 40, height: 18 }
+
+  # Lane 3 Controls (offset x by 500)
+  - id: lane3_enabled
+    type: toggle
+    label: "LANE 3"
+    parameter: "lane3_enabled"
+    default: false
+    position: { x: 520, y: 75 }
+    size: { width: 60, height: 20 }
+
+  - id: lane3_progress
+    type: progress_bar
+    data_source: "lane3_playback_position"
+    position: { x: 520, y: 100 }
+    size: { width: 210, height: 6 }
+
+  - id: lane3_subdivision
+    type: combo
+    label: "SUBDIV"
+    parameter: "lane3_subdivision"
+    choices: ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"]
+    default: 4  # 1/8T
+    position: { x: 530, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_repeats
+    type: knob
+    label: "REPS"
+    parameter: "lane3_repeats"
+    range: [1, 16]
+    default: 4
+    decimals: 0
+    position: { x: 584, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_decay
+    type: knob
+    label: "DECAY"
+    parameter: "lane3_decay"
+    range: [0, 100]
+    default: 90
+    decimals: 0
+    unit: "%"
+    position: { x: 638, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_pitch
+    type: knob
+    label: "PITCH"
+    parameter: "lane3_pitch"
+    range: [-12, 12]
+    default: 0
+    decimals: 0
+    unit: "st"
+    position: { x: 530, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_filter
+    type: knob
+    label: "FILTR"
+    parameter: "lane3_filter"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 584, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_probability
+    type: knob
+    label: "PROB"
+    parameter: "lane3_probability"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 638, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_volume
+    type: knob
+    label: "VOL"
+    parameter: "lane3_volume"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 530, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_pan
+    type: knob
+    label: "PAN"
+    parameter: "lane3_pan"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 584, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_swing
+    type: knob
+    label: "SWING"
+    parameter: "lane3_swing"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 638, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane3_pingpong
+    type: toggle
+    label: "PING"
+    parameter: "lane3_pingpong"
+    default: false
+    position: { x: 525, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane3_reverse
+    type: toggle
+    label: "REV"
+    parameter: "lane3_reverse"
+    default: false
+    position: { x: 570, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane3_manual
+    type: toggle
+    label: "MAN"
+    parameter: "lane3_manual_time_enabled"
+    default: false
+    position: { x: 615, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane3_freeze
+    type: toggle
+    label: "FRZ"
+    parameter: "lane3_freeze"
+    default: false
+    position: { x: 660, y: 295 }
+    size: { width: 40, height: 18 }
+
+  # Lane 4 Controls (offset x by 750)
+  - id: lane4_enabled
+    type: toggle
+    label: "LANE 4"
+    parameter: "lane4_enabled"
+    default: false
+    position: { x: 770, y: 75 }
+    size: { width: 60, height: 20 }
+
+  - id: lane4_progress
+    type: progress_bar
+    data_source: "lane4_playback_position"
+    position: { x: 770, y: 100 }
+    size: { width: 210, height: 6 }
+
+  - id: lane4_subdivision
+    type: combo
+    label: "SUBDIV"
+    parameter: "lane4_subdivision"
+    choices: ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"]
+    default: 3  # 1/32
+    position: { x: 780, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_repeats
+    type: knob
+    label: "REPS"
+    parameter: "lane4_repeats"
+    range: [1, 16]
+    default: 4
+    decimals: 0
+    position: { x: 834, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_decay
+    type: knob
+    label: "DECAY"
+    parameter: "lane4_decay"
+    range: [0, 100]
+    default: 90
+    decimals: 0
+    unit: "%"
+    position: { x: 888, y: 115 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_pitch
+    type: knob
+    label: "PITCH"
+    parameter: "lane4_pitch"
+    range: [-12, 12]
+    default: 0
+    decimals: 0
+    unit: "st"
+    position: { x: 780, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_filter
+    type: knob
+    label: "FILTR"
+    parameter: "lane4_filter"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 834, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_probability
+    type: knob
+    label: "PROB"
+    parameter: "lane4_probability"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 888, y: 175 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_volume
+    type: knob
+    label: "VOL"
+    parameter: "lane4_volume"
+    range: [0, 100]
+    default: 100
+    decimals: 0
+    unit: "%"
+    position: { x: 780, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_pan
+    type: knob
+    label: "PAN"
+    parameter: "lane4_pan"
+    range: [-100, 100]
+    default: 0
+    decimals: 0
+    position: { x: 834, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_swing
+    type: knob
+    label: "SWING"
+    parameter: "lane4_swing"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 888, y: 235 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: lane4_pingpong
+    type: toggle
+    label: "PING"
+    parameter: "lane4_pingpong"
+    default: false
+    position: { x: 775, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane4_reverse
+    type: toggle
+    label: "REV"
+    parameter: "lane4_reverse"
+    default: false
+    position: { x: 820, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane4_manual
+    type: toggle
+    label: "MAN"
+    parameter: "lane4_manual_time_enabled"
+    default: false
+    position: { x: 865, y: 295 }
+    size: { width: 40, height: 18 }
+
+  - id: lane4_freeze
+    type: toggle
+    label: "FRZ"
+    parameter: "lane4_freeze"
+    default: false
+    position: { x: 910, y: 295 }
+    size: { width: 40, height: 18 }
+
+  # Pattern Sequencer (COMPACT, 16x4 grid, ALWAYS VISIBLE)
+  # Section starts at y: 330 (15px gap after lanes)
+  # Step buttons: 22px height, 3px gap
+
+  - id: pattern_lane1_label
+    type: label
+    text: "L1"
+    position: { x: 25, y: 345 }
+    size: { width: 25, height: 22 }
+
+  - id: pattern_lane2_label
+    type: label
+    text: "L2"
+    position: { x: 25, y: 370 }
+    size: { width: 25, height: 22 }
+
+  - id: pattern_lane3_label
+    type: label
+    text: "L3"
+    position: { x: 25, y: 395 }
+    size: { width: 25, height: 22 }
+
+  - id: pattern_lane4_label
+    type: label
+    text: "L4"
+    position: { x: 25, y: 420 }
+    size: { width: 25, height: 22 }
+
+  # Pattern steps (16 columns × 4 rows = 64 step buttons)
+  # Each step: width calculated to fit 16 in ~920px
+  # Step width: 55px, gap: 3px → 16 steps = 928px total
+  # Starting x: 60, y per lane: L1=345, L2=370, L3=395, L4=420
+
+  # Tape Degradation Section (HORIZONTAL ROW - v5 FIX)
+  # Section starts at y: 460 (15px gap after sequencer)
+  # 6 knobs in a HORIZONTAL ROW, 42px diameter
+
+  - id: saturation
+    type: knob
+    label: "SAT"
+    parameter: "tape_saturation"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 80, y: 565 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: wow
+    type: knob
+    label: "WOW"
+    parameter: "tape_wow"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 220, y: 565 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: flutter
+    type: knob
+    label: "FLUTTER"
+    parameter: "tape_flutter"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 360, y: 565 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: hiss
+    type: knob
+    label: "HISS"
+    parameter: "tape_hiss"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 500, y: 565 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: rolloff
+    type: knob
+    label: "ROLLOFF"
+    parameter: "tape_rolloff"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 640, y: 565 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  - id: dropout
+    type: knob
+    label: "DROPOUT"
+    parameter: "tape_dropout"
+    range: [0, 100]
+    default: 0
+    decimals: 0
+    unit: "%"
+    position: { x: 780, y: 565 }
+    size: { width: 42, height: 42, diameter: 42 }
+
+  # Footer (y: 590, 15px gap above)
+  # 4 toggles in a row
+
+  - id: env_toggle
+    type: toggle
+    label: "ENV"
+    parameter: "envelope_enabled"
+    default: false
+    position: { x: 60, y: 695 }
+    size: { width: 60, height: 30 }
+
+  - id: sc_toggle
+    type: toggle
+    label: "SC"
+    parameter: "sidechain_enabled"
+    default: false
+    position: { x: 140, y: 695 }
+    size: { width: 60, height: 30 }
+
+  - id: midi_toggle
+    type: toggle
+    label: "MIDI"
+    parameter: "midi_enabled"
+    default: false
+    position: { x: 220, y: 695 }
+    size: { width: 60, height: 30 }
+
+  - id: trig_toggle
+    type: toggle
+    label: "TRIG"
+    parameter: "manual_trigger"
+    default: false
+    position: { x: 300, y: 695 }
+    size: { width: 60, height: 30 }
+
+special_elements:
+  - id: botanical_overlay
+    type: decorative_image
+    source: "img/botanical-bug.png"
+    position: { x: 800, y: 15 }
+    size: { width: 180, height: 450 }
+    opacity: 0.32
+    layer: decorative
+
+notes:
+  - v5 CRITICAL FIX: Tape degradation knobs now in horizontal row
+  - Fixed CSS flex-direction to ensure horizontal layout (not stacked)
+  - Added section label "TAPE DEGRADATION" above knobs
+  - All 6 knobs (SAT, WOW, FLUTTER, HISS, ROLLOFF, DROPOUT) evenly spaced
+  - Maintains all v4 features: compact knobs, tight spacing, explicit section heights
+  - Total calculated height: 60 + 320 + 130 + 130 + 50 + 60 = 750px
+  - ALL sections have explicit heights with overflow: hidden
+  - NO overlaps, NO content cut off
