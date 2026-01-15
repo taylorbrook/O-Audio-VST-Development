@@ -685,10 +685,9 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     const int numSamples = buffer.getNumSamples();
 
     // Safety check: ensure we don't exceed pre-allocated buffer size
-    if (numSamples > maxBlockSize)
-    {
-        return;  // Fallback: pass-through without processing
-    }
+    // Return early = true pass-through (input buffer unchanged)
+    if (numSamples > maxBlockSize || numSamples == 0)
+        return;
 
     // Clear unused channels
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
@@ -812,7 +811,8 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     }
 
     // ========== Get Playhead Position ==========
-    auto posInfo = getPlayHead() ? getPlayHead()->getPosition() : juce::Optional<juce::AudioPlayHead::PositionInfo>();
+    auto* playHead = getPlayHead();
+    auto posInfo = playHead ? playHead->getPosition() : juce::Optional<juce::AudioPlayHead::PositionInfo>();
 
     // Update pattern positions for all lanes
     if (posInfo.hasValue() && posInfo->getPpqPosition().hasValue())
@@ -890,25 +890,28 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     }
 
     // ========== Mix All Lanes ==========
-    // Start with dry signal (70%)
+    // Start with dry signal (70%), wet signal split across 4 lanes (30% / 4 = 7.5% each)
+    constexpr float dryGain = 0.7f;
+    constexpr float wetPerLane = 0.075f;  // 0.3 / 4 = 0.075 (prevents clipping when all lanes active)
+
     for (int channel = 0; channel < numChannels; ++channel)
     {
         auto* outData = buffer.getWritePointer(channel);
         const auto* dryData = dryBuffer.getReadPointer(channel);
 
-        juce::FloatVectorOperations::multiply(outData, dryData, 0.7f, numSamples);
+        juce::FloatVectorOperations::multiply(outData, dryData, dryGain, numSamples);
 
-        // Add lane outputs (30% total wet, split across active lanes)
+        // Add lane outputs (30% total wet, split across 4 lanes)
         const auto* lane1Data = lane1Buffer.getReadPointer(channel);
         const auto* lane2Data = lane2Buffer.getReadPointer(channel);
         const auto* lane3Data = lane3Buffer.getReadPointer(channel);
         const auto* lane4Data = lane4Buffer.getReadPointer(channel);
 
-        // Sum all lanes with equal weighting (0.3 / 4 = 0.075 per lane max)
-        juce::FloatVectorOperations::addWithMultiply(outData, lane1Data, 0.3f, numSamples);
-        juce::FloatVectorOperations::addWithMultiply(outData, lane2Data, 0.3f, numSamples);
-        juce::FloatVectorOperations::addWithMultiply(outData, lane3Data, 0.3f, numSamples);
-        juce::FloatVectorOperations::addWithMultiply(outData, lane4Data, 0.3f, numSamples);
+        // Sum all lanes with equal weighting (total wet = 0.3 max)
+        juce::FloatVectorOperations::addWithMultiply(outData, lane1Data, wetPerLane, numSamples);
+        juce::FloatVectorOperations::addWithMultiply(outData, lane2Data, wetPerLane, numSamples);
+        juce::FloatVectorOperations::addWithMultiply(outData, lane3Data, wetPerLane, numSamples);
+        juce::FloatVectorOperations::addWithMultiply(outData, lane4Data, wetPerLane, numSamples);
     }
 }
 

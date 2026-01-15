@@ -91,6 +91,9 @@ private:
     double patternStartPPQ = 0.0;
     double lastPPQPosition = 0.0;
 
+    // Random generator for probability (member to avoid lock in getSystemRandom)
+    juce::Random randomGenerator;
+
     // Helper functions
     double calculateSubdivisionSamples(int subdivIndex, double bpm, double sampleRate);
     void startNewRepeat();

@@ -150,8 +150,8 @@ void RepeatLane::trigger()
     if (!patternSteps[currentPatternStep])
         return;
 
-    // Check probability gate
-    if (juce::Random::getSystemRandom().nextFloat() >= probabilityAmount)
+    // Check probability gate (use member random to avoid lock in audio thread)
+    if (randomGenerator.nextFloat() >= probabilityAmount)
         return;
 
     // Start new repeat cycle
