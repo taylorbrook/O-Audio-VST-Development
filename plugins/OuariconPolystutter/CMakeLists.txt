@@ -18,6 +18,7 @@ target_sources(OuariconPolystutter
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
         Source/DSP/RepeatLane.cpp
+        Source/DSP/TriggerRouter.cpp
 )
 
 # Include paths

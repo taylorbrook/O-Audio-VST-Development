@@ -39,6 +39,12 @@ public:
     void setProbability(float probPercent);   // 0 to 100%
     void setSwing(float swingPercent);        // 0 to 100%
 
+    // Phase 2.3: Advanced modes
+    void setPingPong(bool shouldEnable);
+    void setReverse(bool shouldEnable);
+    void setFreeze(bool shouldEnable);
+    void setManualTimeEnabled(bool shouldEnable);
+
     // Pattern sequencer
     void setPatternStep(int stepIndex, bool enabled);  // stepIndex: 0-15
     void updatePatternPosition(double ppqPosition, int subdivIndex);
@@ -64,6 +70,12 @@ private:
     float probabilityAmount = 1.0f;  // 0.0 to 1.0 (100% = always trigger)
     float swingAmount = 0.0f;  // 0.0 to 1.0 (0% to 100%)
 
+    // Phase 2.3: Advanced mode parameters
+    bool pingPongEnabled = false;
+    bool reverseEnabled = false;
+    bool freezeEnabled = false;
+    bool manualTimeEnabled = false;
+
     // Timing
     double currentSampleRate = 48000.0;
     double currentBPM = 120.0;
@@ -80,6 +92,10 @@ private:
 
     int captureLength = 0;  // Length of captured audio in samples
     int playbackPosition = 0;
+
+    // Phase 2.3: Freeze buffers (separate snapshots per lane)
+    juce::AudioBuffer<float> freezeBuffer;
+    bool freezeBufferReady = false;
 
     // Crossfade buffer for click-free looping
     int crossfadeSamples = 0;

@@ -29,6 +29,11 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
     delayLineLeft.setMaximumDelayInSamples(maxDelaySamples);
     delayLineRight.setMaximumDelayInSamples(maxDelaySamples);
 
+    // Allocate freeze buffer (5 seconds max, 2 channels)
+    freezeBuffer.setSize(2, maxDelaySamples);
+    freezeBuffer.clear();
+    freezeBufferReady = false;
+
     // Calculate crossfade samples (5ms for click-free looping)
     crossfadeSamples = static_cast<int>(spec.sampleRate * 0.005);
 
@@ -90,12 +95,31 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
         if (playbackPosition < captureLength)
         {
-            // Calculate delay time (how far back to read)
-            float delayTime = static_cast<float>(captureLength - playbackPosition);
+            // Determine which buffer to read from (freeze or live capture)
+            if (freezeEnabled && freezeBufferReady)
+            {
+                // Read from frozen snapshot
+                // Handle reverse playback
+                int readPosition = reverseEnabled ? (captureLength - 1 - playbackPosition) : playbackPosition;
+                readPosition = juce::jlimit(0, captureLength - 1, readPosition);
 
-            // Read from delay lines
-            leftOut = delayLineLeft.popSample(0, delayTime);
-            rightOut = delayLineRight.popSample(0, delayTime);
+                if (readPosition < freezeBuffer.getNumSamples())
+                {
+                    leftOut = freezeBuffer.getSample(0, readPosition);
+                    rightOut = freezeBuffer.getNumChannels() > 1 ?
+                               freezeBuffer.getSample(1, readPosition) : leftOut;
+                }
+            }
+            else
+            {
+                // Read from live delay lines
+                // Handle reverse playback by reading from end to start
+                int readPosition = reverseEnabled ? playbackPosition : (captureLength - playbackPosition);
+                float delayTime = static_cast<float>(readPosition);
+
+                leftOut = delayLineLeft.popSample(0, delayTime);
+                rightOut = delayLineRight.popSample(0, delayTime);
+            }
 
             // Apply crossfade at loop boundaries for click-free looping
             // Guard against edge case where captureLength < 2*crossfadeSamples
@@ -121,9 +145,18 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             leftOut *= currentGain * volumeLevel;
             rightOut *= currentGain * volumeLevel;
 
+            // Calculate pan position (with ping-pong if enabled)
+            float effectivePan = panPosition;
+            if (pingPongEnabled)
+            {
+                // Alternate left/right based on repeat number (even = -0.5, odd = +0.5)
+                float pingPongOffset = (currentRepeat % 2 == 0) ? -0.5f : 0.5f;
+                effectivePan = juce::jlimit(-1.0f, 1.0f, panPosition + pingPongOffset);
+            }
+
             // Apply constant-power pan law
-            float leftGain = std::cos((panPosition + 1.0f) * juce::MathConstants<float>::pi / 4.0f);
-            float rightGain = std::sin((panPosition + 1.0f) * juce::MathConstants<float>::pi / 4.0f);
+            float leftGain = std::cos((effectivePan + 1.0f) * juce::MathConstants<float>::pi / 4.0f);
+            float rightGain = std::sin((effectivePan + 1.0f) * juce::MathConstants<float>::pi / 4.0f);
 
             leftOut *= leftGain;
             rightOut *= rightGain;
@@ -162,6 +195,24 @@ void RepeatLane::trigger()
 
     // Set capture length to subdivision length
     captureLength = static_cast<int>(subdivisionSamples);
+
+    // If freeze is enabled, copy delay line to freeze buffer
+    if (freezeEnabled)
+    {
+        // Copy current delay line contents to freeze buffer
+        // We need to extract samples from the delay line
+        for (int i = 0; i < captureLength && i < freezeBuffer.getNumSamples(); ++i)
+        {
+            float delayTime = static_cast<float>(captureLength - i);
+            float leftSample = delayLineLeft.popSample(0, delayTime);
+            float rightSample = delayLineRight.popSample(0, delayTime);
+
+            freezeBuffer.setSample(0, i, leftSample);
+            if (freezeBuffer.getNumChannels() > 1)
+                freezeBuffer.setSample(1, i, rightSample);
+        }
+        freezeBufferReady = true;
+    }
 
     // Start first repeat immediately (with swing offset if applicable)
     int swingOffset = calculateSwingOffset(0);
@@ -329,4 +380,31 @@ int RepeatLane::calculateSwingOffset(int repeatNumber) const
     double offset = subdivisionSamples * (swingRatio - 0.5);
 
     return static_cast<int>(offset);
+}
+
+// Phase 2.3: Advanced mode setters
+void RepeatLane::setPingPong(bool shouldEnable)
+{
+    pingPongEnabled = shouldEnable;
+}
+
+void RepeatLane::setReverse(bool shouldEnable)
+{
+    reverseEnabled = shouldEnable;
+}
+
+void RepeatLane::setFreeze(bool shouldEnable)
+{
+    freezeEnabled = shouldEnable;
+
+    // Clear freeze buffer when disabled
+    if (!shouldEnable)
+    {
+        freezeBufferReady = false;
+    }
+}
+
+void RepeatLane::setManualTimeEnabled(bool shouldEnable)
+{
+    manualTimeEnabled = shouldEnable;
 }

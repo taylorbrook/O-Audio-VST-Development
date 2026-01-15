@@ -11,6 +11,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "DSP/RepeatLane.h"
+#include "DSP/TriggerRouter.h"
 
 class OuariconPolystutterAudioProcessor : public juce::AudioProcessor
 {
@@ -53,6 +54,9 @@ private:
     std::unique_ptr<class RepeatLane> lane2;
     std::unique_ptr<class RepeatLane> lane3;
     std::unique_ptr<class RepeatLane> lane4;
+
+    // Phase 2.3: Trigger router for advanced trigger modes
+    std::unique_ptr<class TriggerRouter> triggerRouter;
 
     // Beat sync state
     double lastPPQPosition = 0.0;

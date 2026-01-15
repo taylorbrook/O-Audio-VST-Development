@@ -563,6 +563,9 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     lane3 = std::make_unique<RepeatLane>();
     lane4 = std::make_unique<RepeatLane>();
 
+    // Create trigger router (Phase 2.3)
+    triggerRouter = std::make_unique<TriggerRouter>();
+
     // Cache lane 1 parameter pointers (avoid string lookups in processBlock)
     lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
     lane1SubdivParam = parameters.getRawParameterValue("lane1_subdivision");
@@ -630,6 +633,9 @@ void OuariconPolystutterAudioProcessor::prepareToPlay(double sampleRate, int sam
     if (lane3) lane3->prepare(spec);
     if (lane4) lane4->prepare(spec);
 
+    // Prepare trigger router (Phase 2.3)
+    if (triggerRouter) triggerRouter->prepare(spec);
+
     // Store max block size for buffer safety checks
     maxBlockSize = samplesPerBlock;
 
@@ -680,7 +686,6 @@ bool OuariconPolystutterAudioProcessor::isBusesLayoutSupported(const BusesLayout
 void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    juce::ignoreUnused(midiMessages);
 
     const int numSamples = buffer.getNumSamples();
 
@@ -736,6 +741,34 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     float lane4Probability = lane4ProbabilityParam->load();
     float lane4Swing = lane4SwingParam->load();
 
+    // ========== Read Phase 2.3 Parameters ==========
+    // Global trigger modes
+    bool envelopeEnabled = parameters.getRawParameterValue("envelope_enabled")->load() > 0.5f;
+    bool sidechainEnabled = parameters.getRawParameterValue("sidechain_enabled")->load() > 0.5f;
+    bool midiEnabled = parameters.getRawParameterValue("midi_enabled")->load() > 0.5f;
+    bool manualTrigger = parameters.getRawParameterValue("manual_trigger")->load() > 0.5f;
+
+    // Lane-specific advanced modes
+    bool lane1PingPong = parameters.getRawParameterValue("lane1_pingpong")->load() > 0.5f;
+    bool lane1Reverse = parameters.getRawParameterValue("lane1_reverse")->load() > 0.5f;
+    bool lane1Freeze = parameters.getRawParameterValue("lane1_freeze")->load() > 0.5f;
+    bool lane1ManualTime = parameters.getRawParameterValue("lane1_manual_time_enabled")->load() > 0.5f;
+
+    bool lane2PingPong = parameters.getRawParameterValue("lane2_pingpong")->load() > 0.5f;
+    bool lane2Reverse = parameters.getRawParameterValue("lane2_reverse")->load() > 0.5f;
+    bool lane2Freeze = parameters.getRawParameterValue("lane2_freeze")->load() > 0.5f;
+    bool lane2ManualTime = parameters.getRawParameterValue("lane2_manual_time_enabled")->load() > 0.5f;
+
+    bool lane3PingPong = parameters.getRawParameterValue("lane3_pingpong")->load() > 0.5f;
+    bool lane3Reverse = parameters.getRawParameterValue("lane3_reverse")->load() > 0.5f;
+    bool lane3Freeze = parameters.getRawParameterValue("lane3_freeze")->load() > 0.5f;
+    bool lane3ManualTime = parameters.getRawParameterValue("lane3_manual_time_enabled")->load() > 0.5f;
+
+    bool lane4PingPong = parameters.getRawParameterValue("lane4_pingpong")->load() > 0.5f;
+    bool lane4Reverse = parameters.getRawParameterValue("lane4_reverse")->load() > 0.5f;
+    bool lane4Freeze = parameters.getRawParameterValue("lane4_freeze")->load() > 0.5f;
+    bool lane4ManualTime = parameters.getRawParameterValue("lane4_manual_time_enabled")->load() > 0.5f;
+
     // ========== Update Lane Parameters ==========
     if (lane1)
     {
@@ -747,6 +780,12 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane1->setPan(lane1Pan);
         lane1->setProbability(lane1Probability);
         lane1->setSwing(lane1Swing);
+
+        // Phase 2.3: Advanced modes
+        lane1->setPingPong(lane1PingPong);
+        lane1->setReverse(lane1Reverse);
+        lane1->setFreeze(lane1Freeze);
+        lane1->setManualTimeEnabled(lane1ManualTime);
 
         // Update pattern steps
         for (int step = 0; step < 16; ++step)
@@ -767,6 +806,12 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane2->setProbability(lane2Probability);
         lane2->setSwing(lane2Swing);
 
+        // Phase 2.3: Advanced modes
+        lane2->setPingPong(lane2PingPong);
+        lane2->setReverse(lane2Reverse);
+        lane2->setFreeze(lane2Freeze);
+        lane2->setManualTimeEnabled(lane2ManualTime);
+
         for (int step = 0; step < 16; ++step)
         {
             bool stepEnabled = lane2PatternSteps[step]->load() > 0.5f;
@@ -784,6 +829,12 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane3->setPan(lane3Pan);
         lane3->setProbability(lane3Probability);
         lane3->setSwing(lane3Swing);
+
+        // Phase 2.3: Advanced modes
+        lane3->setPingPong(lane3PingPong);
+        lane3->setReverse(lane3Reverse);
+        lane3->setFreeze(lane3Freeze);
+        lane3->setManualTimeEnabled(lane3ManualTime);
 
         for (int step = 0; step < 16; ++step)
         {
@@ -803,11 +854,94 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane4->setProbability(lane4Probability);
         lane4->setSwing(lane4Swing);
 
+        // Phase 2.3: Advanced modes
+        lane4->setPingPong(lane4PingPong);
+        lane4->setReverse(lane4Reverse);
+        lane4->setFreeze(lane4Freeze);
+        lane4->setManualTimeEnabled(lane4ManualTime);
+
         for (int step = 0; step < 16; ++step)
         {
             bool stepEnabled = lane4PatternSteps[step]->load() > 0.5f;
             lane4->setPatternStep(step, stepEnabled);
         }
+    }
+
+    // ========== Phase 2.3: Trigger Router Processing ==========
+    // Get sidechain input buffer (bus index 1)
+    juce::AudioBuffer<float> sidechainBus;
+    juce::AudioBuffer<float>* sidechainBuffer = nullptr;
+    if (sidechainEnabled && getBusCount(true) > 1)
+    {
+        sidechainBus = getBusBuffer(buffer, true, 1);
+        if (sidechainBus.getNumChannels() > 0)
+            sidechainBuffer = &sidechainBus;
+    }
+
+    // Update trigger router modes
+    if (triggerRouter)
+    {
+        triggerRouter->setEnvelopeEnabled(envelopeEnabled);
+        triggerRouter->setSidechainEnabled(sidechainEnabled);
+        triggerRouter->setMidiEnabled(midiEnabled);
+
+        // Process trigger detection
+        bool globalTrigger = triggerRouter->processTriggerDetection(buffer, sidechainBuffer, midiMessages, numSamples);
+
+        // Handle envelope/sidechain triggers (trigger all enabled lanes)
+        if (globalTrigger)
+        {
+            if (lane1 && lane1Enabled) lane1->trigger();
+            if (lane2 && lane2Enabled) lane2->trigger();
+            if (lane3 && lane3Enabled) lane3->trigger();
+            if (lane4 && lane4Enabled) lane4->trigger();
+        }
+
+        // Handle MIDI triggers (per-lane or all lanes)
+        int midiLane = triggerRouter->getMidiTriggeredLane();
+        if (midiLane >= 0)
+        {
+            if (midiLane == 100)  // G3 triggers all lanes
+            {
+                if (lane1 && lane1Enabled) lane1->trigger();
+                if (lane2 && lane2Enabled) lane2->trigger();
+                if (lane3 && lane3Enabled) lane3->trigger();
+                if (lane4 && lane4Enabled) lane4->trigger();
+            }
+            else if (midiLane == 0 && lane1 && lane1Enabled)
+            {
+                lane1->trigger();
+            }
+            else if (midiLane == 1 && lane2 && lane2Enabled)
+            {
+                lane2->trigger();
+            }
+            else if (midiLane == 2 && lane3 && lane3Enabled)
+            {
+                lane3->trigger();
+            }
+            else if (midiLane == 3 && lane4 && lane4Enabled)
+            {
+                lane4->trigger();
+            }
+        }
+
+        // Handle global freeze toggle (MIDI note A3)
+        if (triggerRouter->shouldToggleFreeze())
+        {
+            // Note: MIDI freeze toggle detected - actual parameter control is in UI
+            // This clears the toggle flag to acknowledge the event
+            triggerRouter->clearFreezeToggle();
+        }
+    }
+
+    // Handle manual trigger button (momentary)
+    if (manualTrigger)
+    {
+        if (lane1 && lane1Enabled) lane1->trigger();
+        if (lane2 && lane2Enabled) lane2->trigger();
+        if (lane3 && lane3Enabled) lane3->trigger();
+        if (lane4 && lane4Enabled) lane4->trigger();
     }
 
     // ========== Get Playhead Position ==========
