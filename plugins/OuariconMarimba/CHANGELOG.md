@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.9.9] - 2026-01-14
+
+### Fixed
+- **Effects tab layout: Compressor module no longer overlaps EQ module**
+  - Moved compressor panel from `top: 95px` to `top: 109px`
+  - Now has proper 4px gap between EQ and Compressor modules
+
 ## [1.9.8] - 2026-01-14
 
 ### Fixed

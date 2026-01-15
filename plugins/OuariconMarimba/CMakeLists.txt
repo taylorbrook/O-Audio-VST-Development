@@ -5,7 +5,7 @@ juce_add_plugin(OuariconMarimba
     COMPANY_NAME "Ouaricon Audio"
     PLUGIN_MANUFACTURER_CODE OuAu
     PLUGIN_CODE OuMa
-    PLUGIN_VERSION 1.9.8
+    PLUGIN_VERSION 1.9.9
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "Ouaricon Marimba"
     IS_SYNTH TRUE

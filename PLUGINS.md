@@ -28,7 +28,7 @@ Ouaricon Plugins:
 |-------------|--------|---------|------|--------------|
 | OuariconTremolo | 📦 Installed | 1.3.0 | Audio Effect (Tremolo) | 2026-01-12 |
 | OuariconSaturationModeling | 📦 Installed | 1.0.0 | Audio Effect (Saturation) | 2026-01-09 |
-| Ouaricon Marimba | 📦 Installed | 1.9.8 | Synth (Physical Model) | 2026-01-14 |
+| Ouaricon Marimba | 📦 Installed | 1.9.9 | Synth (Physical Model) | 2026-01-14 |
 | OuariconComp | 📦 Installed | 1.1.1 | Audio Effect (Compressor) | 2026-01-12 |
 | OuariconAnalogEQ | 📦 Installed | 1.0.10 | Audio Effect (EQ) | 2026-01-11 |
 | Ouaricon Digital Delay | 📦 Installed | 1.2.0 | Audio Effect (Delay) | 2026-01-12 |
