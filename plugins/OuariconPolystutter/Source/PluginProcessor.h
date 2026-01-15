@@ -10,6 +10,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include "DSP/RepeatLane.h"
 
 class OuariconPolystutterAudioProcessor : public juce::AudioProcessor
 {
@@ -44,10 +45,32 @@ public:
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
 private:
+    // DSP Components (BEFORE parameters for initialization order)
+    juce::dsp::ProcessSpec spec;
+
+    // Single lane for Phase 2.1
+    std::unique_ptr<class RepeatLane> lane1;
+
+    // Beat sync state
+    double lastPPQPosition = 0.0;
+    double currentBPM = 120.0;
+    bool wasPlaying = false;
+    int samplesSinceLastBeat = 0;
+    double subdivisionSamples = 0.0;
+
+    // Mix state
+    juce::AudioBuffer<float> dryBuffer;
+    juce::AudioBuffer<float> wetBuffer;
+
+    // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Helper functions
+    void updateBeatSync(const juce::Optional<juce::AudioPlayHead::PositionInfo>& posInfo);
+    double getSubdivisionSamples(int subdivIndex, double bpm, double sampleRate);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconPolystutterAudioProcessor)
 };

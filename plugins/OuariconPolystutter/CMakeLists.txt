@@ -17,6 +17,7 @@ target_sources(OuariconPolystutter
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/DSP/RepeatLane.cpp
 )
 
 # Include paths

@@ -557,6 +557,8 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+    // Create lane 1
+    lane1 = std::make_unique<RepeatLane>();
 }
 
 OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
@@ -565,13 +567,34 @@ OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
 
 void OuariconPolystutterAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Initialization will be added in Stage 2 (DSP)
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Prepare DSP spec
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = 2;  // Stereo
+
+    // Prepare lane 1
+    if (lane1)
+        lane1->prepare(spec);
+
+    // Preallocate dry/wet buffers for mixing
+    dryBuffer.setSize(2, samplesPerBlock);
+    wetBuffer.setSize(2, samplesPerBlock);
+
+    // Initialize beat sync state
+    currentBPM = 120.0;
+    lastPPQPosition = 0.0;
+    wasPlaying = false;
+    samplesSinceLastBeat = 0;
+
+    // Calculate initial subdivision samples
+    subdivisionSamples = getSubdivisionSamples(2, currentBPM, sampleRate);  // Default 1/16
 }
 
 void OuariconPolystutterAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2 (DSP)
+    // Release large buffers to save memory
+    dryBuffer.setSize(0, 0);
+    wetBuffer.setSize(0, 0);
 }
 
 bool OuariconPolystutterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -596,12 +619,67 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    // Parameter access example (for Stage 2 DSP implementation):
-    // auto* lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
-    // bool lane1Enabled = lane1EnabledParam->load() > 0.5f;
+    const int numSamples = buffer.getNumSamples();
 
-    // Pass-through for Stage 1 (DSP implementation happens in Stage 2)
-    // Audio routing is already handled by JUCE
+    // Clear unused channels
+    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, numSamples);
+
+    // Read parameters (atomic, real-time safe)
+    auto* lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
+    auto* lane1SubdivParam = parameters.getRawParameterValue("lane1_subdivision");
+    auto* lane1RepeatsParam = parameters.getRawParameterValue("lane1_repeats");
+    auto* lane1DecayParam = parameters.getRawParameterValue("lane1_decay");
+    auto* lane1VolumeParam = parameters.getRawParameterValue("lane1_volume");
+
+    bool lane1Enabled = lane1EnabledParam->load() > 0.5f;
+    int subdivIndex = static_cast<int>(lane1SubdivParam->load());
+    int numRepeats = static_cast<int>(lane1RepeatsParam->load());
+    float decayPercent = lane1DecayParam->load();
+    float volumePercent = lane1VolumeParam->load();
+
+    // Update lane 1 parameters
+    if (lane1)
+    {
+        lane1->setEnabled(lane1Enabled);
+        lane1->setSubdivision(subdivIndex);
+        lane1->setRepeats(numRepeats);
+        lane1->setDecay(decayPercent);
+        lane1->setVolume(volumePercent);
+    }
+
+    // Get playhead position for beat sync
+    auto posInfo = getPlayHead() ? getPlayHead()->getPosition() : juce::Optional<juce::AudioPlayHead::PositionInfo>();
+
+    // Update beat sync and trigger
+    updateBeatSync(posInfo);
+
+    // Store dry signal
+    dryBuffer.makeCopyOf(buffer, true);
+
+    // Process lane 1 (wet signal)
+    wetBuffer.makeCopyOf(dryBuffer, true);
+    if (lane1 && lane1Enabled)
+    {
+        lane1->processBlock(wetBuffer, numSamples);
+    }
+    else
+    {
+        wetBuffer.clear();
+    }
+
+    // Mix dry + wet (50/50 for now, mix parameter will be added later)
+    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    {
+        auto* outData = buffer.getWritePointer(channel);
+        auto* dryData = dryBuffer.getReadPointer(channel);
+        auto* wetData = wetBuffer.getReadPointer(channel);
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            outData[sample] = dryData[sample] * 0.7f + wetData[sample] * 0.3f;
+        }
+    }
 }
 
 juce::AudioProcessorEditor* OuariconPolystutterAudioProcessor::createEditor()
@@ -622,6 +700,111 @@ void OuariconPolystutterAudioProcessor::setStateInformation(const void* data, in
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
         parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+// Helper functions
+void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce::AudioPlayHead::PositionInfo>& posInfo)
+{
+    // Check if we have valid playhead info
+    if (!posInfo.hasValue())
+    {
+        // Offline rendering or no playhead available - use default BPM
+        currentBPM = 120.0;
+
+        // Update lane timing with default BPM
+        if (lane1)
+            lane1->updateTempo(currentBPM, spec.sampleRate);
+
+        return;
+    }
+
+    auto& info = *posInfo;
+
+    // Get BPM (use default if not available)
+    if (info.getBpm().hasValue())
+    {
+        currentBPM = *info.getBpm();
+    }
+    else
+    {
+        currentBPM = 120.0;
+    }
+
+    // Update lane timing
+    if (lane1)
+        lane1->updateTempo(currentBPM, spec.sampleRate);
+
+    // Get PPQ position
+    if (!info.getPpqPosition().hasValue())
+        return;
+
+    double ppqPosition = *info.getPpqPosition();
+
+    // Check if transport is playing
+    bool isPlaying = info.getIsPlaying();
+
+    // Detect subdivision boundaries and trigger
+    if (isPlaying)
+    {
+        // Read subdivision parameter
+        auto* subdivParam = parameters.getRawParameterValue("lane1_subdivision");
+        int subdivIndex = static_cast<int>(subdivParam->load());
+
+        // Calculate subdivision in PPQ units
+        double subdivisionPPQ = 0.0;
+        switch (subdivIndex)
+        {
+            case 0: subdivisionPPQ = 1.0;       // 1/4 note
+                break;
+            case 1: subdivisionPPQ = 0.5;       // 1/8 note
+                break;
+            case 2: subdivisionPPQ = 0.25;      // 1/16 note
+                break;
+            case 3: subdivisionPPQ = 0.125;     // 1/32 note
+                break;
+            case 4: subdivisionPPQ = 1.0 / 3.0; // 1/8T (triplet)
+                break;
+            case 5: subdivisionPPQ = 1.0 / 6.0; // 1/16T (triplet)
+                break;
+        }
+
+        // Check if we crossed a subdivision boundary
+        if (wasPlaying)
+        {
+            // Calculate current and last subdivision positions
+            int currentSubdiv = static_cast<int>(ppqPosition / subdivisionPPQ);
+            int lastSubdiv = static_cast<int>(lastPPQPosition / subdivisionPPQ);
+
+            // Trigger on subdivision boundary
+            if (currentSubdiv > lastSubdiv)
+            {
+                if (lane1)
+                    lane1->trigger();
+            }
+        }
+    }
+
+    // Update state
+    lastPPQPosition = ppqPosition;
+    wasPlaying = isPlaying;
+}
+
+double OuariconPolystutterAudioProcessor::getSubdivisionSamples(int subdivIndex, double bpm, double sampleRate)
+{
+    // Calculate quarter note duration in samples
+    double quarterNoteSamples = (60.0 / bpm) * sampleRate;
+
+    // Calculate subdivision based on index
+    switch (subdivIndex)
+    {
+        case 0: return quarterNoteSamples;        // 1/4
+        case 1: return quarterNoteSamples / 2.0;  // 1/8
+        case 2: return quarterNoteSamples / 4.0;  // 1/16
+        case 3: return quarterNoteSamples / 8.0;  // 1/32
+        case 4: return quarterNoteSamples / 3.0;  // 1/8T (triplet)
+        case 5: return quarterNoteSamples / 6.0;  // 1/16T (triplet)
+        default: return quarterNoteSamples / 4.0; // Default to 1/16
+    }
 }
 
 // Factory function
