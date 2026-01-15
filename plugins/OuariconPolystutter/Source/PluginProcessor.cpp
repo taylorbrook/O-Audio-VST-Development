@@ -559,6 +559,13 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
 {
     // Create lane 1
     lane1 = std::make_unique<RepeatLane>();
+
+    // Cache parameter pointers (avoid string lookups in processBlock)
+    lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
+    lane1SubdivParam = parameters.getRawParameterValue("lane1_subdivision");
+    lane1RepeatsParam = parameters.getRawParameterValue("lane1_repeats");
+    lane1DecayParam = parameters.getRawParameterValue("lane1_decay");
+    lane1VolumeParam = parameters.getRawParameterValue("lane1_volume");
 }
 
 OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
@@ -576,7 +583,10 @@ void OuariconPolystutterAudioProcessor::prepareToPlay(double sampleRate, int sam
     if (lane1)
         lane1->prepare(spec);
 
-    // Preallocate dry/wet buffers for mixing
+    // Store max block size for buffer safety checks
+    maxBlockSize = samplesPerBlock;
+
+    // Preallocate dry/wet buffers for mixing (real-time safe - no allocations in processBlock)
     dryBuffer.setSize(2, samplesPerBlock);
     wetBuffer.setSize(2, samplesPerBlock);
 
@@ -621,17 +631,19 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
 
     const int numSamples = buffer.getNumSamples();
 
+    // Safety check: ensure we don't exceed pre-allocated buffer size
+    // This prevents memory allocation if host sends larger blocks than expected
+    if (numSamples > maxBlockSize)
+    {
+        // Fallback: pass-through without processing (safer than allocating in real-time)
+        return;
+    }
+
     // Clear unused channels
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear(i, 0, numSamples);
 
-    // Read parameters (atomic, real-time safe)
-    auto* lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
-    auto* lane1SubdivParam = parameters.getRawParameterValue("lane1_subdivision");
-    auto* lane1RepeatsParam = parameters.getRawParameterValue("lane1_repeats");
-    auto* lane1DecayParam = parameters.getRawParameterValue("lane1_decay");
-    auto* lane1VolumeParam = parameters.getRawParameterValue("lane1_volume");
-
+    // Read parameters using cached pointers (no string lookups - real-time safe)
     bool lane1Enabled = lane1EnabledParam->load() > 0.5f;
     int subdivIndex = static_cast<int>(lane1SubdivParam->load());
     int numRepeats = static_cast<int>(lane1RepeatsParam->load());
@@ -654,26 +666,39 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     // Update beat sync and trigger
     updateBeatSync(posInfo);
 
-    // Store dry signal
-    dryBuffer.makeCopyOf(buffer, true);
+    // Copy dry signal using SIMD-optimized copy (real-time safe - no allocations)
+    const int numChannels = juce::jmin(buffer.getNumChannels(), dryBuffer.getNumChannels());
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        juce::FloatVectorOperations::copy(dryBuffer.getWritePointer(ch),
+                                          buffer.getReadPointer(ch),
+                                          numSamples);
+    }
+
+    // Copy to wet buffer for processing (real-time safe - no allocations)
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        juce::FloatVectorOperations::copy(wetBuffer.getWritePointer(ch),
+                                          dryBuffer.getReadPointer(ch),
+                                          numSamples);
+    }
 
     // Process lane 1 (wet signal)
-    wetBuffer.makeCopyOf(dryBuffer, true);
     if (lane1 && lane1Enabled)
     {
         lane1->processBlock(wetBuffer, numSamples);
     }
     else
     {
-        wetBuffer.clear();
+        wetBuffer.clear(0, numSamples);
     }
 
-    // Mix dry + wet (50/50 for now, mix parameter will be added later)
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
+    // Mix dry + wet (70/30 for now, mix parameter will be added later)
+    for (int channel = 0; channel < numChannels; ++channel)
     {
         auto* outData = buffer.getWritePointer(channel);
-        auto* dryData = dryBuffer.getReadPointer(channel);
-        auto* wetData = wetBuffer.getReadPointer(channel);
+        const auto* dryData = dryBuffer.getReadPointer(channel);
+        const auto* wetData = wetBuffer.getReadPointer(channel);
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
@@ -720,10 +745,12 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
 
     auto& info = *posInfo;
 
-    // Get BPM (use default if not available)
+    // Get BPM (use default if not available, with validation)
     if (info.getBpm().hasValue())
     {
-        currentBPM = *info.getBpm();
+        double bpm = *info.getBpm();
+        // Validate BPM to prevent division by zero and unreasonable values
+        currentBPM = juce::jlimit(20.0, 999.0, bpm);
     }
     else
     {
@@ -746,9 +773,8 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
     // Detect subdivision boundaries and trigger
     if (isPlaying)
     {
-        // Read subdivision parameter
-        auto* subdivParam = parameters.getRawParameterValue("lane1_subdivision");
-        int subdivIndex = static_cast<int>(subdivParam->load());
+        // Use cached subdivision parameter (no string lookup)
+        int subdivIndex = static_cast<int>(lane1SubdivParam->load());
 
         // Calculate subdivision in PPQ units
         double subdivisionPPQ = 0.0;

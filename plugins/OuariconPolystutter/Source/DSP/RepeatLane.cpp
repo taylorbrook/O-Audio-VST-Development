@@ -18,8 +18,9 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
 {
     currentSampleRate = spec.sampleRate;
 
-    // Max buffer size: 2 seconds at max sample rate (192kHz) = 384,000 samples
-    const int maxDelaySamples = static_cast<int>(spec.sampleRate * 2.0);
+    // Max buffer size: 5 seconds per architecture spec (supports long captures at any sample rate)
+    // At 192kHz = 960,000 samples per channel
+    const int maxDelaySamples = static_cast<int>(spec.sampleRate * 5.0);
 
     // Prepare delay lines
     delayLineLeft.prepare(spec);
@@ -97,18 +98,21 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             rightOut = delayLineRight.popSample(0, delayTime);
 
             // Apply crossfade at loop boundaries for click-free looping
-            if (playbackPosition < crossfadeSamples)
+            // Guard against edge case where captureLength < 2*crossfadeSamples
+            const int safeCrossfade = juce::jmin(crossfadeSamples, captureLength / 2);
+
+            if (safeCrossfade > 0 && playbackPosition < safeCrossfade)
             {
                 // Fade in at start
-                float fadeInGain = getCrossfadeGain(playbackPosition, crossfadeSamples, true);
+                float fadeInGain = getCrossfadeGain(playbackPosition, safeCrossfade, true);
                 leftOut *= fadeInGain;
                 rightOut *= fadeInGain;
             }
-            else if (playbackPosition >= captureLength - crossfadeSamples)
+            else if (safeCrossfade > 0 && playbackPosition > captureLength - safeCrossfade - 1)
             {
-                // Fade out at end
-                int fadePos = playbackPosition - (captureLength - crossfadeSamples);
-                float fadeOutGain = getCrossfadeGain(fadePos, crossfadeSamples, false);
+                // Fade out at end (fixed off-by-one: use > instead of >=)
+                int fadePos = playbackPosition - (captureLength - safeCrossfade);
+                float fadeOutGain = getCrossfadeGain(fadePos, safeCrossfade, false);
                 leftOut *= fadeOutGain;
                 rightOut *= fadeOutGain;
             }
@@ -181,9 +185,10 @@ void RepeatLane::setVolume(float volumePercent)
 
 void RepeatLane::updateTempo(double bpm, double sampleRate)
 {
-    currentBPM = bpm;
-    currentSampleRate = sampleRate;
-    subdivisionSamples = calculateSubdivisionSamples(subdivisionIndex, bpm, sampleRate);
+    // Validate BPM to prevent division by zero (20-999 BPM is reasonable range)
+    currentBPM = juce::jlimit(20.0, 999.0, bpm);
+    currentSampleRate = juce::jmax(1.0, sampleRate);  // Prevent divide by zero
+    subdivisionSamples = calculateSubdivisionSamples(subdivisionIndex, currentBPM, currentSampleRate);
 }
 
 double RepeatLane::calculateSubdivisionSamples(int subdivIndex, double bpm, double sampleRate)

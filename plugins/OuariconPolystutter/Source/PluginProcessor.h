@@ -61,9 +61,17 @@ private:
     // Mix state
     juce::AudioBuffer<float> dryBuffer;
     juce::AudioBuffer<float> wetBuffer;
+    int maxBlockSize = 0;  // Track max block size for buffer safety
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
+
+    // Cached parameter pointers (avoid string lookups in processBlock)
+    std::atomic<float>* lane1EnabledParam = nullptr;
+    std::atomic<float>* lane1SubdivParam = nullptr;
+    std::atomic<float>* lane1RepeatsParam = nullptr;
+    std::atomic<float>* lane1DecayParam = nullptr;
+    std::atomic<float>* lane1VolumeParam = nullptr;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
