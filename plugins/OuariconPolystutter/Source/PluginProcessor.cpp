@@ -557,15 +557,60 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
-    // Create lane 1
+    // Create all 4 lanes
     lane1 = std::make_unique<RepeatLane>();
+    lane2 = std::make_unique<RepeatLane>();
+    lane3 = std::make_unique<RepeatLane>();
+    lane4 = std::make_unique<RepeatLane>();
 
-    // Cache parameter pointers (avoid string lookups in processBlock)
+    // Cache lane 1 parameter pointers (avoid string lookups in processBlock)
     lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
     lane1SubdivParam = parameters.getRawParameterValue("lane1_subdivision");
     lane1RepeatsParam = parameters.getRawParameterValue("lane1_repeats");
     lane1DecayParam = parameters.getRawParameterValue("lane1_decay");
     lane1VolumeParam = parameters.getRawParameterValue("lane1_volume");
+    lane1PanParam = parameters.getRawParameterValue("lane1_pan");
+    lane1ProbabilityParam = parameters.getRawParameterValue("lane1_probability");
+    lane1SwingParam = parameters.getRawParameterValue("lane1_swing");
+
+    // Cache lane 2 parameter pointers
+    lane2EnabledParam = parameters.getRawParameterValue("lane2_enabled");
+    lane2SubdivParam = parameters.getRawParameterValue("lane2_subdivision");
+    lane2RepeatsParam = parameters.getRawParameterValue("lane2_repeats");
+    lane2DecayParam = parameters.getRawParameterValue("lane2_decay");
+    lane2VolumeParam = parameters.getRawParameterValue("lane2_volume");
+    lane2PanParam = parameters.getRawParameterValue("lane2_pan");
+    lane2ProbabilityParam = parameters.getRawParameterValue("lane2_probability");
+    lane2SwingParam = parameters.getRawParameterValue("lane2_swing");
+
+    // Cache lane 3 parameter pointers
+    lane3EnabledParam = parameters.getRawParameterValue("lane3_enabled");
+    lane3SubdivParam = parameters.getRawParameterValue("lane3_subdivision");
+    lane3RepeatsParam = parameters.getRawParameterValue("lane3_repeats");
+    lane3DecayParam = parameters.getRawParameterValue("lane3_decay");
+    lane3VolumeParam = parameters.getRawParameterValue("lane3_volume");
+    lane3PanParam = parameters.getRawParameterValue("lane3_pan");
+    lane3ProbabilityParam = parameters.getRawParameterValue("lane3_probability");
+    lane3SwingParam = parameters.getRawParameterValue("lane3_swing");
+
+    // Cache lane 4 parameter pointers
+    lane4EnabledParam = parameters.getRawParameterValue("lane4_enabled");
+    lane4SubdivParam = parameters.getRawParameterValue("lane4_subdivision");
+    lane4RepeatsParam = parameters.getRawParameterValue("lane4_repeats");
+    lane4DecayParam = parameters.getRawParameterValue("lane4_decay");
+    lane4VolumeParam = parameters.getRawParameterValue("lane4_volume");
+    lane4PanParam = parameters.getRawParameterValue("lane4_pan");
+    lane4ProbabilityParam = parameters.getRawParameterValue("lane4_probability");
+    lane4SwingParam = parameters.getRawParameterValue("lane4_swing");
+
+    // Cache pattern step pointers
+    for (int step = 0; step < 16; ++step)
+    {
+        lane1PatternSteps[step] = parameters.getRawParameterValue("pattern_lane1_step" + juce::String(step + 1));
+        lane2PatternSteps[step] = parameters.getRawParameterValue("pattern_lane2_step" + juce::String(step + 1));
+        lane3PatternSteps[step] = parameters.getRawParameterValue("pattern_lane3_step" + juce::String(step + 1));
+        lane4PatternSteps[step] = parameters.getRawParameterValue("pattern_lane4_step" + juce::String(step + 1));
+    }
 }
 
 OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
@@ -579,16 +624,21 @@ void OuariconPolystutterAudioProcessor::prepareToPlay(double sampleRate, int sam
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = 2;  // Stereo
 
-    // Prepare lane 1
-    if (lane1)
-        lane1->prepare(spec);
+    // Prepare all 4 lanes
+    if (lane1) lane1->prepare(spec);
+    if (lane2) lane2->prepare(spec);
+    if (lane3) lane3->prepare(spec);
+    if (lane4) lane4->prepare(spec);
 
     // Store max block size for buffer safety checks
     maxBlockSize = samplesPerBlock;
 
-    // Preallocate dry/wet buffers for mixing (real-time safe - no allocations in processBlock)
+    // Preallocate buffers for mixing (real-time safe - no allocations in processBlock)
     dryBuffer.setSize(2, samplesPerBlock);
-    wetBuffer.setSize(2, samplesPerBlock);
+    lane1Buffer.setSize(2, samplesPerBlock);
+    lane2Buffer.setSize(2, samplesPerBlock);
+    lane3Buffer.setSize(2, samplesPerBlock);
+    lane4Buffer.setSize(2, samplesPerBlock);
 
     // Initialize beat sync state
     currentBPM = 120.0;
@@ -604,7 +654,10 @@ void OuariconPolystutterAudioProcessor::releaseResources()
 {
     // Release large buffers to save memory
     dryBuffer.setSize(0, 0);
-    wetBuffer.setSize(0, 0);
+    lane1Buffer.setSize(0, 0);
+    lane2Buffer.setSize(0, 0);
+    lane3Buffer.setSize(0, 0);
+    lane4Buffer.setSize(0, 0);
 }
 
 bool OuariconPolystutterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
@@ -632,42 +685,150 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     const int numSamples = buffer.getNumSamples();
 
     // Safety check: ensure we don't exceed pre-allocated buffer size
-    // This prevents memory allocation if host sends larger blocks than expected
     if (numSamples > maxBlockSize)
     {
-        // Fallback: pass-through without processing (safer than allocating in real-time)
-        return;
+        return;  // Fallback: pass-through without processing
     }
 
     // Clear unused channels
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear(i, 0, numSamples);
 
-    // Read parameters using cached pointers (no string lookups - real-time safe)
-    bool lane1Enabled = lane1EnabledParam->load() > 0.5f;
-    int subdivIndex = static_cast<int>(lane1SubdivParam->load());
-    int numRepeats = static_cast<int>(lane1RepeatsParam->load());
-    float decayPercent = lane1DecayParam->load();
-    float volumePercent = lane1VolumeParam->load();
+    const int numChannels = juce::jmin(buffer.getNumChannels(), 2);
 
-    // Update lane 1 parameters
+    // ========== Read Parameters for All Lanes ==========
+    // Lane 1
+    bool lane1Enabled = lane1EnabledParam->load() > 0.5f;
+    int lane1Subdiv = static_cast<int>(lane1SubdivParam->load());
+    int lane1Repeats = static_cast<int>(lane1RepeatsParam->load());
+    float lane1Decay = lane1DecayParam->load();
+    float lane1Volume = lane1VolumeParam->load();
+    float lane1Pan = lane1PanParam->load();
+    float lane1Probability = lane1ProbabilityParam->load();
+    float lane1Swing = lane1SwingParam->load();
+
+    // Lane 2
+    bool lane2Enabled = lane2EnabledParam->load() > 0.5f;
+    int lane2Subdiv = static_cast<int>(lane2SubdivParam->load());
+    int lane2Repeats = static_cast<int>(lane2RepeatsParam->load());
+    float lane2Decay = lane2DecayParam->load();
+    float lane2Volume = lane2VolumeParam->load();
+    float lane2Pan = lane2PanParam->load();
+    float lane2Probability = lane2ProbabilityParam->load();
+    float lane2Swing = lane2SwingParam->load();
+
+    // Lane 3
+    bool lane3Enabled = lane3EnabledParam->load() > 0.5f;
+    int lane3Subdiv = static_cast<int>(lane3SubdivParam->load());
+    int lane3Repeats = static_cast<int>(lane3RepeatsParam->load());
+    float lane3Decay = lane3DecayParam->load();
+    float lane3Volume = lane3VolumeParam->load();
+    float lane3Pan = lane3PanParam->load();
+    float lane3Probability = lane3ProbabilityParam->load();
+    float lane3Swing = lane3SwingParam->load();
+
+    // Lane 4
+    bool lane4Enabled = lane4EnabledParam->load() > 0.5f;
+    int lane4Subdiv = static_cast<int>(lane4SubdivParam->load());
+    int lane4Repeats = static_cast<int>(lane4RepeatsParam->load());
+    float lane4Decay = lane4DecayParam->load();
+    float lane4Volume = lane4VolumeParam->load();
+    float lane4Pan = lane4PanParam->load();
+    float lane4Probability = lane4ProbabilityParam->load();
+    float lane4Swing = lane4SwingParam->load();
+
+    // ========== Update Lane Parameters ==========
     if (lane1)
     {
         lane1->setEnabled(lane1Enabled);
-        lane1->setSubdivision(subdivIndex);
-        lane1->setRepeats(numRepeats);
-        lane1->setDecay(decayPercent);
-        lane1->setVolume(volumePercent);
+        lane1->setSubdivision(lane1Subdiv);
+        lane1->setRepeats(lane1Repeats);
+        lane1->setDecay(lane1Decay);
+        lane1->setVolume(lane1Volume);
+        lane1->setPan(lane1Pan);
+        lane1->setProbability(lane1Probability);
+        lane1->setSwing(lane1Swing);
+
+        // Update pattern steps
+        for (int step = 0; step < 16; ++step)
+        {
+            bool stepEnabled = lane1PatternSteps[step]->load() > 0.5f;
+            lane1->setPatternStep(step, stepEnabled);
+        }
     }
 
-    // Get playhead position for beat sync
+    if (lane2)
+    {
+        lane2->setEnabled(lane2Enabled);
+        lane2->setSubdivision(lane2Subdiv);
+        lane2->setRepeats(lane2Repeats);
+        lane2->setDecay(lane2Decay);
+        lane2->setVolume(lane2Volume);
+        lane2->setPan(lane2Pan);
+        lane2->setProbability(lane2Probability);
+        lane2->setSwing(lane2Swing);
+
+        for (int step = 0; step < 16; ++step)
+        {
+            bool stepEnabled = lane2PatternSteps[step]->load() > 0.5f;
+            lane2->setPatternStep(step, stepEnabled);
+        }
+    }
+
+    if (lane3)
+    {
+        lane3->setEnabled(lane3Enabled);
+        lane3->setSubdivision(lane3Subdiv);
+        lane3->setRepeats(lane3Repeats);
+        lane3->setDecay(lane3Decay);
+        lane3->setVolume(lane3Volume);
+        lane3->setPan(lane3Pan);
+        lane3->setProbability(lane3Probability);
+        lane3->setSwing(lane3Swing);
+
+        for (int step = 0; step < 16; ++step)
+        {
+            bool stepEnabled = lane3PatternSteps[step]->load() > 0.5f;
+            lane3->setPatternStep(step, stepEnabled);
+        }
+    }
+
+    if (lane4)
+    {
+        lane4->setEnabled(lane4Enabled);
+        lane4->setSubdivision(lane4Subdiv);
+        lane4->setRepeats(lane4Repeats);
+        lane4->setDecay(lane4Decay);
+        lane4->setVolume(lane4Volume);
+        lane4->setPan(lane4Pan);
+        lane4->setProbability(lane4Probability);
+        lane4->setSwing(lane4Swing);
+
+        for (int step = 0; step < 16; ++step)
+        {
+            bool stepEnabled = lane4PatternSteps[step]->load() > 0.5f;
+            lane4->setPatternStep(step, stepEnabled);
+        }
+    }
+
+    // ========== Get Playhead Position ==========
     auto posInfo = getPlayHead() ? getPlayHead()->getPosition() : juce::Optional<juce::AudioPlayHead::PositionInfo>();
+
+    // Update pattern positions for all lanes
+    if (posInfo.hasValue() && posInfo->getPpqPosition().hasValue())
+    {
+        double ppqPosition = *posInfo->getPpqPosition();
+
+        if (lane1) lane1->updatePatternPosition(ppqPosition, lane1Subdiv);
+        if (lane2) lane2->updatePatternPosition(ppqPosition, lane2Subdiv);
+        if (lane3) lane3->updatePatternPosition(ppqPosition, lane3Subdiv);
+        if (lane4) lane4->updatePatternPosition(ppqPosition, lane4Subdiv);
+    }
 
     // Update beat sync and trigger
     updateBeatSync(posInfo);
 
-    // Copy dry signal using SIMD-optimized copy (real-time safe - no allocations)
-    const int numChannels = juce::jmin(buffer.getNumChannels(), dryBuffer.getNumChannels());
+    // ========== Copy Dry Signal ==========
     for (int ch = 0; ch < numChannels; ++ch)
     {
         juce::FloatVectorOperations::copy(dryBuffer.getWritePointer(ch),
@@ -675,35 +836,79 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
                                           numSamples);
     }
 
-    // Copy to wet buffer for processing (real-time safe - no allocations)
-    for (int ch = 0; ch < numChannels; ++ch)
-    {
-        juce::FloatVectorOperations::copy(wetBuffer.getWritePointer(ch),
-                                          dryBuffer.getReadPointer(ch),
-                                          numSamples);
-    }
-
-    // Process lane 1 (wet signal)
+    // ========== Process Each Lane Independently ==========
+    // Lane 1
+    lane1Buffer.clear();
     if (lane1 && lane1Enabled)
     {
-        lane1->processBlock(wetBuffer, numSamples);
-    }
-    else
-    {
-        wetBuffer.clear(0, numSamples);
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            juce::FloatVectorOperations::copy(lane1Buffer.getWritePointer(ch),
+                                              dryBuffer.getReadPointer(ch),
+                                              numSamples);
+        }
+        lane1->processBlock(lane1Buffer, numSamples);
     }
 
-    // Mix dry + wet (70/30 for now, mix parameter will be added later)
+    // Lane 2
+    lane2Buffer.clear();
+    if (lane2 && lane2Enabled)
+    {
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            juce::FloatVectorOperations::copy(lane2Buffer.getWritePointer(ch),
+                                              dryBuffer.getReadPointer(ch),
+                                              numSamples);
+        }
+        lane2->processBlock(lane2Buffer, numSamples);
+    }
+
+    // Lane 3
+    lane3Buffer.clear();
+    if (lane3 && lane3Enabled)
+    {
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            juce::FloatVectorOperations::copy(lane3Buffer.getWritePointer(ch),
+                                              dryBuffer.getReadPointer(ch),
+                                              numSamples);
+        }
+        lane3->processBlock(lane3Buffer, numSamples);
+    }
+
+    // Lane 4
+    lane4Buffer.clear();
+    if (lane4 && lane4Enabled)
+    {
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            juce::FloatVectorOperations::copy(lane4Buffer.getWritePointer(ch),
+                                              dryBuffer.getReadPointer(ch),
+                                              numSamples);
+        }
+        lane4->processBlock(lane4Buffer, numSamples);
+    }
+
+    // ========== Mix All Lanes ==========
+    // Start with dry signal (70%)
     for (int channel = 0; channel < numChannels; ++channel)
     {
         auto* outData = buffer.getWritePointer(channel);
         const auto* dryData = dryBuffer.getReadPointer(channel);
-        const auto* wetData = wetBuffer.getReadPointer(channel);
 
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            outData[sample] = dryData[sample] * 0.7f + wetData[sample] * 0.3f;
-        }
+        juce::FloatVectorOperations::multiply(outData, dryData, 0.7f, numSamples);
+
+        // Add lane outputs (30% total wet, split across active lanes)
+        const auto* lane1Data = lane1Buffer.getReadPointer(channel);
+        const auto* lane2Data = lane2Buffer.getReadPointer(channel);
+        const auto* lane3Data = lane3Buffer.getReadPointer(channel);
+        const auto* lane4Data = lane4Buffer.getReadPointer(channel);
+
+        // Sum all lanes with equal weighting (0.3 / 4 = 0.075 per lane max)
+        juce::FloatVectorOperations::addWithMultiply(outData, lane1Data, 0.3f, numSamples);
+        juce::FloatVectorOperations::addWithMultiply(outData, lane2Data, 0.3f, numSamples);
+        juce::FloatVectorOperations::addWithMultiply(outData, lane3Data, 0.3f, numSamples);
+        juce::FloatVectorOperations::addWithMultiply(outData, lane4Data, 0.3f, numSamples);
     }
 }
 
@@ -736,9 +941,11 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
         // Offline rendering or no playhead available - use default BPM
         currentBPM = 120.0;
 
-        // Update lane timing with default BPM
-        if (lane1)
-            lane1->updateTempo(currentBPM, spec.sampleRate);
+        // Update all lane timings with default BPM
+        if (lane1) lane1->updateTempo(currentBPM, spec.sampleRate);
+        if (lane2) lane2->updateTempo(currentBPM, spec.sampleRate);
+        if (lane3) lane3->updateTempo(currentBPM, spec.sampleRate);
+        if (lane4) lane4->updateTempo(currentBPM, spec.sampleRate);
 
         return;
     }
@@ -749,7 +956,6 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
     if (info.getBpm().hasValue())
     {
         double bpm = *info.getBpm();
-        // Validate BPM to prevent division by zero and unreasonable values
         currentBPM = juce::jlimit(20.0, 999.0, bpm);
     }
     else
@@ -757,9 +963,11 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
         currentBPM = 120.0;
     }
 
-    // Update lane timing
-    if (lane1)
-        lane1->updateTempo(currentBPM, spec.sampleRate);
+    // Update all lane timings
+    if (lane1) lane1->updateTempo(currentBPM, spec.sampleRate);
+    if (lane2) lane2->updateTempo(currentBPM, spec.sampleRate);
+    if (lane3) lane3->updateTempo(currentBPM, spec.sampleRate);
+    if (lane4) lane4->updateTempo(currentBPM, spec.sampleRate);
 
     // Get PPQ position
     if (!info.getPpqPosition().hasValue())
@@ -770,42 +978,75 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
     // Check if transport is playing
     bool isPlaying = info.getIsPlaying();
 
-    // Detect subdivision boundaries and trigger
+    // Detect subdivision boundaries and trigger each lane independently
     if (isPlaying)
     {
-        // Use cached subdivision parameter (no string lookup)
-        int subdivIndex = static_cast<int>(lane1SubdivParam->load());
+        // Get subdivision for each lane
+        int lane1Subdiv = static_cast<int>(lane1SubdivParam->load());
+        int lane2Subdiv = static_cast<int>(lane2SubdivParam->load());
+        int lane3Subdiv = static_cast<int>(lane3SubdivParam->load());
+        int lane4Subdiv = static_cast<int>(lane4SubdivParam->load());
 
-        // Calculate subdivision in PPQ units
-        double subdivisionPPQ = 0.0;
-        switch (subdivIndex)
+        // Helper lambda to calculate subdivision PPQ
+        auto getSubdivisionPPQ = [](int subdivIndex) -> double
         {
-            case 0: subdivisionPPQ = 1.0;       // 1/4 note
-                break;
-            case 1: subdivisionPPQ = 0.5;       // 1/8 note
-                break;
-            case 2: subdivisionPPQ = 0.25;      // 1/16 note
-                break;
-            case 3: subdivisionPPQ = 0.125;     // 1/32 note
-                break;
-            case 4: subdivisionPPQ = 1.0 / 3.0; // 1/8T (triplet)
-                break;
-            case 5: subdivisionPPQ = 1.0 / 6.0; // 1/16T (triplet)
-                break;
-        }
+            switch (subdivIndex)
+            {
+                case 0: return 1.0;       // 1/4 note
+                case 1: return 0.5;       // 1/8 note
+                case 2: return 0.25;      // 1/16 note
+                case 3: return 0.125;     // 1/32 note
+                case 4: return 1.0 / 3.0; // 1/8T (triplet)
+                case 5: return 1.0 / 6.0; // 1/16T (triplet)
+                default: return 0.25;     // Default 1/16
+            }
+        };
 
-        // Check if we crossed a subdivision boundary
+        // Check if we crossed a subdivision boundary for each lane
         if (wasPlaying)
         {
-            // Calculate current and last subdivision positions
-            int currentSubdiv = static_cast<int>(ppqPosition / subdivisionPPQ);
-            int lastSubdiv = static_cast<int>(lastPPQPosition / subdivisionPPQ);
-
-            // Trigger on subdivision boundary
-            if (currentSubdiv > lastSubdiv)
+            // Lane 1
+            if (lane1 && lane1EnabledParam->load() > 0.5f)
             {
-                if (lane1)
+                double subdivPPQ = getSubdivisionPPQ(lane1Subdiv);
+                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
+                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
+
+                if (currentSubdiv > lastSubdiv)
                     lane1->trigger();
+            }
+
+            // Lane 2
+            if (lane2 && lane2EnabledParam->load() > 0.5f)
+            {
+                double subdivPPQ = getSubdivisionPPQ(lane2Subdiv);
+                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
+                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
+
+                if (currentSubdiv > lastSubdiv)
+                    lane2->trigger();
+            }
+
+            // Lane 3
+            if (lane3 && lane3EnabledParam->load() > 0.5f)
+            {
+                double subdivPPQ = getSubdivisionPPQ(lane3Subdiv);
+                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
+                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
+
+                if (currentSubdiv > lastSubdiv)
+                    lane3->trigger();
+            }
+
+            // Lane 4
+            if (lane4 && lane4EnabledParam->load() > 0.5f)
+            {
+                double subdivPPQ = getSubdivisionPPQ(lane4Subdiv);
+                int currentSubdiv = static_cast<int>(ppqPosition / subdivPPQ);
+                int lastSubdiv = static_cast<int>(lastPPQPosition / subdivPPQ);
+
+                if (currentSubdiv > lastSubdiv)
+                    lane4->trigger();
             }
         }
     }

@@ -35,6 +35,13 @@ public:
     void setRepeats(int numRepeats);
     void setDecay(float decayPercent);
     void setVolume(float volumePercent);
+    void setPan(float panPosition);           // -100 to +100
+    void setProbability(float probPercent);   // 0 to 100%
+    void setSwing(float swingPercent);        // 0 to 100%
+
+    // Pattern sequencer
+    void setPatternStep(int stepIndex, bool enabled);  // stepIndex: 0-15
+    void updatePatternPosition(double ppqPosition, int subdivIndex);
 
     // Timing
     void updateTempo(double bpm, double sampleRate);
@@ -53,6 +60,9 @@ private:
     int maxRepeats = 4;
     float decayAmount = 0.9f;  // 90%
     float volumeLevel = 1.0f;  // 100%
+    float panPosition = 0.0f;  // -1.0 to +1.0 (center)
+    float probabilityAmount = 1.0f;  // 0.0 to 1.0 (100% = always trigger)
+    float swingAmount = 0.0f;  // 0.0 to 1.0 (0% to 100%)
 
     // Timing
     double currentSampleRate = 48000.0;
@@ -74,10 +84,18 @@ private:
     // Crossfade buffer for click-free looping
     int crossfadeSamples = 0;
 
+    // Pattern sequencer state
+    bool patternSteps[16] = { true, true, true, true, true, true, true, true,
+                              true, true, true, true, true, true, true, true };  // All enabled by default
+    int currentPatternStep = 0;
+    double patternStartPPQ = 0.0;
+    double lastPPQPosition = 0.0;
+
     // Helper functions
     double calculateSubdivisionSamples(int subdivIndex, double bpm, double sampleRate);
     void startNewRepeat();
     float getCrossfadeGain(int sampleIndex, int fadeLength, bool fadeIn);
+    int calculateSwingOffset(int repeatNumber) const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RepeatLane)
 };

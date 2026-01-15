@@ -121,6 +121,13 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             leftOut *= currentGain * volumeLevel;
             rightOut *= currentGain * volumeLevel;
 
+            // Apply constant-power pan law
+            float leftGain = std::cos((panPosition + 1.0f) * juce::MathConstants<float>::pi / 4.0f);
+            float rightGain = std::sin((panPosition + 1.0f) * juce::MathConstants<float>::pi / 4.0f);
+
+            leftOut *= leftGain;
+            rightOut *= rightGain;
+
             playbackPosition++;
         }
 
@@ -139,6 +146,14 @@ void RepeatLane::trigger()
     if (!enabled)
         return;
 
+    // Check pattern sequencer gate
+    if (!patternSteps[currentPatternStep])
+        return;
+
+    // Check probability gate
+    if (juce::Random::getSystemRandom().nextFloat() >= probabilityAmount)
+        return;
+
     // Start new repeat cycle
     isTriggered = true;
     currentRepeat = 0;
@@ -148,8 +163,9 @@ void RepeatLane::trigger()
     // Set capture length to subdivision length
     captureLength = static_cast<int>(subdivisionSamples);
 
-    // Start first repeat immediately
-    samplesUntilNextRepeat = 0;
+    // Start first repeat immediately (with swing offset if applicable)
+    int swingOffset = calculateSwingOffset(0);
+    samplesUntilNextRepeat = swingOffset;
 }
 
 void RepeatLane::setEnabled(bool shouldBeEnabled)
@@ -220,8 +236,9 @@ void RepeatLane::startNewRepeat()
         currentGain *= decayAmount;
     }
 
-    // Set timer for next repeat
-    samplesUntilNextRepeat = static_cast<int>(subdivisionSamples);
+    // Set timer for next repeat (with swing offset)
+    int swingOffset = calculateSwingOffset(currentRepeat);
+    samplesUntilNextRepeat = static_cast<int>(subdivisionSamples) + swingOffset;
 
     // Increment repeat counter
     currentRepeat++;
@@ -237,4 +254,79 @@ float RepeatLane::getCrossfadeGain(int sampleIndex, int fadeLength, bool fadeIn)
 
     // Linear crossfade
     return fadeIn ? ratio : (1.0f - ratio);
+}
+
+void RepeatLane::setPan(float panValue)
+{
+    // Convert -100 to +100 range to -1.0 to +1.0
+    panPosition = juce::jlimit(-1.0f, 1.0f, panValue / 100.0f);
+}
+
+void RepeatLane::setProbability(float probPercent)
+{
+    // Convert 0-100% to 0.0-1.0
+    probabilityAmount = juce::jlimit(0.0f, 1.0f, probPercent / 100.0f);
+}
+
+void RepeatLane::setSwing(float swingPercent)
+{
+    // Convert 0-100% to 0.0-1.0
+    swingAmount = juce::jlimit(0.0f, 1.0f, swingPercent / 100.0f);
+}
+
+void RepeatLane::setPatternStep(int stepIndex, bool stepEnabled)
+{
+    if (stepIndex >= 0 && stepIndex < 16)
+    {
+        patternSteps[stepIndex] = stepEnabled;
+    }
+}
+
+void RepeatLane::updatePatternPosition(double ppqPosition, int subdivIndex)
+{
+    // Calculate subdivision in PPQ units
+    double subdivisionPPQ = 0.0;
+    switch (subdivIndex)
+    {
+        case 0: subdivisionPPQ = 1.0;       // 1/4 note
+            break;
+        case 1: subdivisionPPQ = 0.5;       // 1/8 note
+            break;
+        case 2: subdivisionPPQ = 0.25;      // 1/16 note
+            break;
+        case 3: subdivisionPPQ = 0.125;     // 1/32 note
+            break;
+        case 4: subdivisionPPQ = 1.0 / 3.0; // 1/8T (triplet)
+            break;
+        case 5: subdivisionPPQ = 1.0 / 6.0; // 1/16T (triplet)
+            break;
+        default: subdivisionPPQ = 0.25;     // Default 1/16
+            break;
+    }
+
+    // Calculate current step from PPQ position
+    int newStep = static_cast<int>((ppqPosition - patternStartPPQ) / subdivisionPPQ) % 16;
+
+    // Handle negative modulo (wrap around)
+    if (newStep < 0)
+        newStep += 16;
+
+    // Update current step
+    currentPatternStep = newStep;
+    lastPPQPosition = ppqPosition;
+}
+
+int RepeatLane::calculateSwingOffset(int repeatNumber) const
+{
+    // Swing only applies to even-numbered repeats (0, 2, 4, 6...)
+    if (repeatNumber % 2 != 0)
+        return 0;
+
+    // Swing ratio: 0% = 0.5 (straight), 100% = 0.66 (triplet feel)
+    double swingRatio = 0.5 + (swingAmount * 0.16);
+
+    // Calculate offset in samples
+    double offset = subdivisionSamples * (swingRatio - 0.5);
+
+    return static_cast<int>(offset);
 }

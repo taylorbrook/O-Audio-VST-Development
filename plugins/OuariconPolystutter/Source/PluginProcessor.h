@@ -48,8 +48,11 @@ private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
 
-    // Single lane for Phase 2.1
+    // Four independent lanes for Phase 2.2
     std::unique_ptr<class RepeatLane> lane1;
+    std::unique_ptr<class RepeatLane> lane2;
+    std::unique_ptr<class RepeatLane> lane3;
+    std::unique_ptr<class RepeatLane> lane4;
 
     // Beat sync state
     double lastPPQPosition = 0.0;
@@ -58,20 +61,62 @@ private:
     int samplesSinceLastBeat = 0;
     double subdivisionSamples = 0.0;
 
-    // Mix state
+    // Mix state (per-lane buffers for parallel processing)
     juce::AudioBuffer<float> dryBuffer;
-    juce::AudioBuffer<float> wetBuffer;
+    juce::AudioBuffer<float> lane1Buffer;
+    juce::AudioBuffer<float> lane2Buffer;
+    juce::AudioBuffer<float> lane3Buffer;
+    juce::AudioBuffer<float> lane4Buffer;
     int maxBlockSize = 0;  // Track max block size for buffer safety
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
 
-    // Cached parameter pointers (avoid string lookups in processBlock)
+    // Cached parameter pointers for lane 1 (avoid string lookups in processBlock)
     std::atomic<float>* lane1EnabledParam = nullptr;
     std::atomic<float>* lane1SubdivParam = nullptr;
     std::atomic<float>* lane1RepeatsParam = nullptr;
     std::atomic<float>* lane1DecayParam = nullptr;
     std::atomic<float>* lane1VolumeParam = nullptr;
+    std::atomic<float>* lane1PanParam = nullptr;
+    std::atomic<float>* lane1ProbabilityParam = nullptr;
+    std::atomic<float>* lane1SwingParam = nullptr;
+
+    // Cached parameter pointers for lane 2
+    std::atomic<float>* lane2EnabledParam = nullptr;
+    std::atomic<float>* lane2SubdivParam = nullptr;
+    std::atomic<float>* lane2RepeatsParam = nullptr;
+    std::atomic<float>* lane2DecayParam = nullptr;
+    std::atomic<float>* lane2VolumeParam = nullptr;
+    std::atomic<float>* lane2PanParam = nullptr;
+    std::atomic<float>* lane2ProbabilityParam = nullptr;
+    std::atomic<float>* lane2SwingParam = nullptr;
+
+    // Cached parameter pointers for lane 3
+    std::atomic<float>* lane3EnabledParam = nullptr;
+    std::atomic<float>* lane3SubdivParam = nullptr;
+    std::atomic<float>* lane3RepeatsParam = nullptr;
+    std::atomic<float>* lane3DecayParam = nullptr;
+    std::atomic<float>* lane3VolumeParam = nullptr;
+    std::atomic<float>* lane3PanParam = nullptr;
+    std::atomic<float>* lane3ProbabilityParam = nullptr;
+    std::atomic<float>* lane3SwingParam = nullptr;
+
+    // Cached parameter pointers for lane 4
+    std::atomic<float>* lane4EnabledParam = nullptr;
+    std::atomic<float>* lane4SubdivParam = nullptr;
+    std::atomic<float>* lane4RepeatsParam = nullptr;
+    std::atomic<float>* lane4DecayParam = nullptr;
+    std::atomic<float>* lane4VolumeParam = nullptr;
+    std::atomic<float>* lane4PanParam = nullptr;
+    std::atomic<float>* lane4ProbabilityParam = nullptr;
+    std::atomic<float>* lane4SwingParam = nullptr;
+
+    // Pattern step pointers (cached for performance)
+    std::atomic<float>* lane1PatternSteps[16];
+    std::atomic<float>* lane2PatternSteps[16];
+    std::atomic<float>* lane3PatternSteps[16];
+    std::atomic<float>* lane4PatternSteps[16];
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
