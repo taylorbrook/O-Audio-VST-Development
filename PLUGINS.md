@@ -33,7 +33,7 @@ Ouaricon Plugins:
 | OuariconAnalogEQ | 📦 Installed | 1.0.10 | Audio Effect (EQ) | 2026-01-11 |
 | Ouaricon Digital Delay | 📦 Installed | 1.2.0 | Audio Effect (Delay) | 2026-01-12 |
 | OuariconSimpleReverb | 📦 Installed | 1.4.1 | Audio Effect (Reverb) | 2026-01-13 |
-| OuariconPolystutter | 🚧 Stage 2.1 | - | Audio Effect (Beat Repeater) | 2026-01-15 |
+| OuariconPolystutter | 🚧 Stage 3.1 | - | Audio Effect (Beat Repeater) | 2026-01-15 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

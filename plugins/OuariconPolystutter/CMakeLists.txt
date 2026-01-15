@@ -53,27 +53,27 @@ target_link_libraries(OuariconPolystutter
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OuariconPolystutter)
 
-# WebView UI Resources (commented out - will be uncommented by gui-agent)
-# juce_add_binary_data(OuariconPolystutter_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-# )
-#
-# target_link_libraries(OuariconPolystutter
-#     PRIVATE
-#         OuariconPolystutter_UIResources
-# )
+# Phase 3.1: WebView UI Resources (BinaryData)
+# Embed HTML/CSS/JS/images into plugin binary
+juce_add_binary_data(OuariconPolystutter_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/paper-background.jpg
+        Source/ui/public/img/botanical-bug.png
+)
+
+# Link UIResources to plugin
+target_link_libraries(OuariconPolystutter
+    PRIVATE
+        OuariconPolystutter_UIResources
+)
 
 # Compile definitions
 target_compile_definitions(OuariconPolystutter
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1  # Enable WebView support
+        JUCE_USE_CURL=0     # Disable CURL (not needed for local HTML)
 )
-
-# WebView support (commented out - will be uncommented by gui-agent)
-# target_compile_definitions(OuariconPolystutter
-#     PUBLIC
-#         JUCE_WEB_BROWSER=1
-#         JUCE_USE_CURL=0
-# )
