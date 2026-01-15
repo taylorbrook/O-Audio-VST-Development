@@ -574,6 +574,23 @@ void OuariconPolystutterAudioProcessor::releaseResources()
     // Cleanup will be added in Stage 2 (DSP)
 }
 
+bool OuariconPolystutterAudioProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    // Main output must be stereo
+    if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+
+    // Main input must be stereo
+    if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::stereo())
+        return false;
+
+    // Sidechain input (bus index 1) can be disabled or stereo
+    if (layouts.getNumChannels(true, 1) != 0 && layouts.getNumChannels(true, 1) != 2)
+        return false;
+
+    return true;
+}
+
 void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;

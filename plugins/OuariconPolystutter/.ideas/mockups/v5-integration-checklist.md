@@ -562,7 +562,7 @@ open "build/OuariconPolystutter_artefacts/Release/Standalone/Ouaricon Polystutte
 grep -c "addParameter" Source/PluginProcessor.cpp
 ```
 
-**Expected:** 70 (or 134 if pattern steps counted individually)
+**Expected:** 66 main + 64 pattern = 130 total
 
 **Verify in PluginEditor.h:**
 ```bash

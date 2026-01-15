@@ -18,10 +18,10 @@ Cap at 5.0
 
 #### Parameter Count Score
 
-**Total Parameters:** 134 (70 main + 64 pattern steps)
+**Total Parameters:** 130 (66 main + 64 pattern steps)
 
 ```
-param_score = min(134 / 5, 2.0) = min(26.8, 2.0) = 2.0
+param_score = min(130 / 5, 2.0) = min(26.8, 2.0) = 2.0
 ```
 
 **Capped at maximum:** 2.0
@@ -85,7 +85,7 @@ final_score = min(22.0, 5.0) = 5.0
 ### Complexity Tier: 6 (DEEP RESEARCH)
 
 **Indicators:**
-- 134 parameters (far exceeds Tier 5 threshold)
+- 130 parameters (far exceeds Tier 5 threshold)
 - Real-time analysis (envelope follower, MIDI parsing)
 - Multi-output equivalent (4 independent processing lanes)
 - Complex DSP algorithms (pitch shifting, pattern sequencing, tape simulation)
@@ -95,7 +95,7 @@ final_score = min(22.0, 5.0) = 5.0
 
 **Justification:**
 This is the MOST COMPLEX plugin in the VST-development repository to date. It combines:
-- High parameter count (134, vs typical 10-20)
+- High parameter count (130, vs typical 10-20)
 - Multiple simultaneous processing lanes (4x CPU multiplier)
 - Advanced DSP (pitch shifting, tape degradation, envelope following)
 - Complex timing (tempo sync, pattern sequencing, swing)
@@ -132,7 +132,7 @@ This is the MOST COMPLEX plugin in the VST-development repository to date. It co
 
 ### Stage 1: Foundation + Shell
 
-**Duration:** ~45 minutes (high complexity, 134 parameters)
+**Duration:** ~45 minutes (high complexity, 130 parameters)
 
 **Phases:** Single-pass (Foundation + Shell combined for efficiency)
 
@@ -140,7 +140,7 @@ This is the MOST COMPLEX plugin in the VST-development repository to date. It co
 1. CMakeLists.txt with all module dependencies
 2. PluginProcessor.h/cpp skeleton
 3. PluginEditor.h/cpp skeleton
-4. APVTS with ALL 134 parameters (70 main + 64 pattern steps)
+4. APVTS with ALL 130 parameters (66 main + 64 pattern steps)
 
 **Parameter Categories:**
 - 56 lane parameters (4 lanes × 14 params)
@@ -156,12 +156,12 @@ This is the MOST COMPLEX plugin in the VST-development repository to date. It co
 
 **Test Criteria:**
 - [ ] Plugin loads in DAW without errors
-- [ ] All 134 parameters visible in DAW automation list
+- [ ] All 130 parameters visible in DAW automation list
 - [ ] Parameter changes don't crash plugin
 - [ ] Standalone builds and launches
 - [ ] Passes pluginval basic validation
 
-**Git Commit:** "feat: OuariconPolystutter Stage 1 - foundation + shell (134 parameters)"
+**Git Commit:** "feat: OuariconPolystutter Stage 1 - foundation + shell (130 parameters)"
 
 ---
 
@@ -501,7 +501,7 @@ This is the MOST COMPLEX plugin in the VST-development repository to date. It co
 
 | Component | Complexity | Estimated Time | Risk Level |
 |-----------|-----------|----------------|------------|
-| **Stage 1: Foundation + Shell** | High (134 params) | 45 min | LOW |
+| **Stage 1: Foundation + Shell** | High (130 params) | 45 min | LOW |
 | **Phase 2.1: Single-Lane Engine** | Medium | 90 min | LOW |
 | **Phase 2.2: Multi-Lane + Pattern** | High | 90 min | MEDIUM |
 | **Phase 2.3: Triggers + Modes** | High | 90 min | MEDIUM |
@@ -582,7 +582,7 @@ juce_generate_juce_header(OuariconPolystutter)  # CRITICAL
 6. Global controls (4)
 7. Pattern sequencer (64 steps)
 
-**Total:** 134 parameters
+**Total:** 130 parameters
 
 ---
 
@@ -590,7 +590,7 @@ juce_generate_juce_header(OuariconPolystutter)  # CRITICAL
 
 ### Stage Completion Criteria
 
-**Stage 1:** ✓ Plugin loads, 134 parameters visible
+**Stage 1:** ✓ Plugin loads, 130 parameters visible
 **Stage 2:** ✓ All DSP features work, CPU < 15%
 **Stage 3:** ✓ UI fully interactive, matches mockup
 

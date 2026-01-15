@@ -425,7 +425,7 @@ void processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 ### State Persistence
 
 **APVTS (AudioProcessorValueTreeState):**
-- 70 main parameters + 64 pattern steps = 134 parameters
+- 66 main parameters + 64 pattern steps = 130 parameters
 - Automatically saved/restored by host
 - Thread-safe parameter access
 
@@ -465,7 +465,7 @@ void processBlock(AudioBuffer<float>& buffer, MidiBuffer& midiMessages)
 | | manual_trigger | Bool | On/Off | Off | One-shot trigger (momentary) |
 | **Pattern** | lane[N]_step[M] | Bool | On/Off | All On | 64 steps (4 lanes × 16 steps) |
 
-**Total:** 134 parameters
+**Total:** 130 parameters
 
 ---
 
@@ -1058,7 +1058,7 @@ bool isOfflineRendering = !getPlayHead() || !getPlayHead()->getPosition().has_va
 **End of Architecture Specification**
 
 **Next Steps:**
-1. Proceed to Stage 1: Foundation + Shell (create CMakeLists.txt and APVTS with 134 parameters)
+1. Proceed to Stage 1: Foundation + Shell (create CMakeLists.txt and APVTS with 130 parameters)
 2. Review this architecture during DSP implementation (Stage 2)
 3. Reference parameter mapping during GUI integration (Stage 3)
 

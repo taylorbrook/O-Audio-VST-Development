@@ -29,7 +29,7 @@ void OuariconPolystutterAudioProcessorEditor::paint(juce::Graphics& g)
     g.drawFittedText("Ouaricon Polystutter - Stage 1", getLocalBounds(), juce::Justification::centred, 1);
 
     g.setFont(14.0f);
-    g.drawFittedText("134 parameters implemented (70 main + 64 pattern steps)",
+    g.drawFittedText("130 parameters implemented (66 main + 64 pattern steps)",
                      getLocalBounds().reduced(20).removeFromBottom(30),
                      juce::Justification::centred, 1);
 }
