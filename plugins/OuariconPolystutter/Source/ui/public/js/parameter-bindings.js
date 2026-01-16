@@ -113,7 +113,7 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
   }
 
   // Initialize UI with current value
-  updateKnobUI(knobElement, valueElement, state.normalisedValue, min, max, formatter);
+  updateKnobUI(knobElement, valueElement, state.getNormalisedValue(), min, max, formatter);
 
   // Pattern #11: Relative drag interaction (frame delta, not absolute)
   let isDragging = false;
@@ -137,8 +137,10 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
     const normalizedDelta = deltaY * sensitivity;
 
     // Update normalized value (clamped 0-1)
-    const newValue = Math.max(0, Math.min(1, state.normalisedValue + normalizedDelta));
-    state.normalisedValue = newValue; // CRITICAL: Assignment triggers JUCE update
+    // CRITICAL: Use getNormalisedValue() and setNormalisedValue() - direct property access doesn't emit events
+    const currentValue = state.getNormalisedValue();
+    const newValue = Math.max(0, Math.min(1, currentValue + normalizedDelta));
+    state.setNormalisedValue(newValue); // Method call triggers JUCE backend update
 
     // Update UI immediately for smooth feedback
     updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
@@ -154,7 +156,7 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
   // Pattern #10: valueChangedEvent callback receives NO parameters
   // Use getNormalisedValue() inside callback
   state.valueChangedEvent.addListener(() => {
-    const newValue = state.normalisedValue; // Get value from state, NOT from callback
+    const newValue = state.getNormalisedValue(); // Use method to get normalized value
     updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
   });
 
@@ -204,8 +206,9 @@ function bindToggle(paramId, htmlId = null) {
 
   // User interaction: click toggles state
   toggleElement.addEventListener("click", () => {
-    state.value = !state.value; // CRITICAL: Assignment triggers JUCE update
-    updateToggleUI(toggleElement, state.value);
+    // CRITICAL: Use setValue() to emit event to JUCE backend - direct assignment doesn't work
+    state.setValue(!state.getValue());
+    updateToggleUI(toggleElement, state.getValue());
   });
 
   // JUCE automation: update UI when parameter changes
@@ -252,18 +255,20 @@ function bindComboBox(paramId) {
   const choices = ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"];
 
   // Initialize UI with current value
-  updateComboBoxUI(comboElement, state.selectedId, choices);
+  // CRITICAL: Use getChoiceIndex() instead of non-existent selectedId property
+  updateComboBoxUI(comboElement, state.getChoiceIndex(), choices);
 
   // User interaction: click cycles through choices
   comboElement.addEventListener("click", () => {
-    const nextId = (state.selectedId + 1) % choices.length;
-    state.selectedId = nextId; // CRITICAL: Assignment triggers JUCE update
+    // CRITICAL: Use getChoiceIndex() and setChoiceIndex() to properly communicate with JUCE
+    const nextId = (state.getChoiceIndex() + 1) % choices.length;
+    state.setChoiceIndex(nextId); // Method call triggers JUCE backend update
     updateComboBoxUI(comboElement, nextId, choices);
   });
 
   // JUCE automation: update UI when parameter changes
   state.valueChangedEvent.addListener(() => {
-    updateComboBoxUI(comboElement, state.selectedId, choices);
+    updateComboBoxUI(comboElement, state.getChoiceIndex(), choices);
   });
 
   console.log(`[Phase 3.2] Bound combo box: ${paramId}`);
@@ -319,8 +324,9 @@ function bindPatternStep(laneNum, stepNum) {
 
   // User interaction: click toggles step on/off
   stepButton.addEventListener("click", () => {
-    state.value = !state.value;
-    updateStepButtonUI(stepButton, state.value);
+    // CRITICAL: Use setValue() to emit event to JUCE backend
+    state.setValue(!state.getValue());
+    updateStepButtonUI(stepButton, state.getValue());
   });
 
   // JUCE automation: update UI when parameter changes
