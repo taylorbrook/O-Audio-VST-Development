@@ -24,8 +24,172 @@ public:
 private:
     OuariconPolystutterAudioProcessor& processorRef;
 
-    // Phase 3.1: WebView for static layout rendering (no parameter bindings yet)
+    // ⚠️ CRITICAL: Member declaration order prevents 90% of release build crashes
+    // Members destroyed in REVERSE order of declaration
+    // Order: Relays (no deps) → WebView (depends on relays) → Attachments (depend on both)
+
+    // ========== RELAYS (DECLARE FIRST) ==========
+
+    // Lane 1 Relays (8 sliders + 4 toggles + 1 combo)
+    std::unique_ptr<juce::WebSliderRelay> lane1RepeatsRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1DecayRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1PitchRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1FilterRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1ProbabilityRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1VolumeRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1PanRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1SwingRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane1EnabledRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane1PingpongRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane1ReverseRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane1ManualRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane1FreezeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> lane1SubdivisionRelay;
+
+    // Lane 2 Relays (8 sliders + 4 toggles + 1 combo)
+    std::unique_ptr<juce::WebSliderRelay> lane2RepeatsRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2DecayRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2PitchRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2FilterRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2ProbabilityRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2VolumeRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2PanRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2SwingRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane2EnabledRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane2PingpongRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane2ReverseRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane2ManualRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane2FreezeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> lane2SubdivisionRelay;
+
+    // Lane 3 Relays (8 sliders + 4 toggles + 1 combo)
+    std::unique_ptr<juce::WebSliderRelay> lane3RepeatsRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3DecayRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3PitchRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3FilterRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3ProbabilityRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3VolumeRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3PanRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3SwingRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane3EnabledRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane3PingpongRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane3ReverseRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane3ManualRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane3FreezeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> lane3SubdivisionRelay;
+
+    // Lane 4 Relays (8 sliders + 4 toggles + 1 combo)
+    std::unique_ptr<juce::WebSliderRelay> lane4RepeatsRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4DecayRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4PitchRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4FilterRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4ProbabilityRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4VolumeRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4PanRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4SwingRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane4EnabledRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane4PingpongRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane4ReverseRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane4ManualRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> lane4FreezeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> lane4SubdivisionRelay;
+
+    // Tape Degradation Relays (6 sliders)
+    std::unique_ptr<juce::WebSliderRelay> tapeSaturationRelay;
+    std::unique_ptr<juce::WebSliderRelay> tapeWowRelay;
+    std::unique_ptr<juce::WebSliderRelay> tapeFlutterRelay;
+    std::unique_ptr<juce::WebSliderRelay> tapeHissRelay;
+    std::unique_ptr<juce::WebSliderRelay> tapeRolloffRelay;
+    std::unique_ptr<juce::WebSliderRelay> tapeDropoutRelay;
+
+    // Global Controls (4 toggles)
+    std::unique_ptr<juce::WebToggleButtonRelay> envelopeEnabledRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> sidechainEnabledRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> midiEnabledRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> manualTriggerRelay;
+
+    // ========== WEBVIEW (DECLARE SECOND, depends on relays via withOptionsFrom) ==========
     std::unique_ptr<juce::WebBrowserComponent> webView;
+
+    // ========== ATTACHMENTS (DECLARE LAST, depend on both relays and WebView) ==========
+
+    // Lane 1 Attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1RepeatsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1DecayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1PitchAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1FilterAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1ProbabilityAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1VolumeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1PanAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1SwingAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1EnabledAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1PingpongAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1ReverseAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1ManualAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1FreezeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> lane1SubdivisionAttachment;
+
+    // Lane 2 Attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2RepeatsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2DecayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2PitchAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2FilterAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2ProbabilityAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2VolumeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2PanAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2SwingAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2EnabledAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2PingpongAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2ReverseAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2ManualAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2FreezeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> lane2SubdivisionAttachment;
+
+    // Lane 3 Attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3RepeatsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3DecayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3PitchAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3FilterAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3ProbabilityAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3VolumeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3PanAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3SwingAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3EnabledAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3PingpongAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3ReverseAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3ManualAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3FreezeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> lane3SubdivisionAttachment;
+
+    // Lane 4 Attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4RepeatsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4DecayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4PitchAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4FilterAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4ProbabilityAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4VolumeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4PanAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4SwingAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4EnabledAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4PingpongAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4ReverseAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4ManualAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4FreezeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> lane4SubdivisionAttachment;
+
+    // Tape Degradation Attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> tapeSaturationAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tapeWowAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tapeFlutterAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tapeHissAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tapeRolloffAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tapeDropoutAttachment;
+
+    // Global Controls Attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> envelopeEnabledAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> sidechainEnabledAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> midiEnabledAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> manualTriggerAttachment;
 
     // Resource provider for serving HTML/CSS/JS from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

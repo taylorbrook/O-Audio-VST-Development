@@ -555,7 +555,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withInput("Sidechain", juce::AudioChannelSet::stereo(), false)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
-    , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
     // Create all 4 lanes
     lane1 = std::make_unique<RepeatLane>();
@@ -570,94 +570,94 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     tapeDegrader = std::make_unique<TapeDegrader>();
 
     // Cache lane 1 parameter pointers (avoid string lookups in processBlock)
-    lane1EnabledParam = parameters.getRawParameterValue("lane1_enabled");
-    lane1SubdivParam = parameters.getRawParameterValue("lane1_subdivision");
-    lane1RepeatsParam = parameters.getRawParameterValue("lane1_repeats");
-    lane1DecayParam = parameters.getRawParameterValue("lane1_decay");
-    lane1VolumeParam = parameters.getRawParameterValue("lane1_volume");
-    lane1PanParam = parameters.getRawParameterValue("lane1_pan");
-    lane1ProbabilityParam = parameters.getRawParameterValue("lane1_probability");
-    lane1SwingParam = parameters.getRawParameterValue("lane1_swing");
+    lane1EnabledParam = apvts.getRawParameterValue("lane1_enabled");
+    lane1SubdivParam = apvts.getRawParameterValue("lane1_subdivision");
+    lane1RepeatsParam = apvts.getRawParameterValue("lane1_repeats");
+    lane1DecayParam = apvts.getRawParameterValue("lane1_decay");
+    lane1VolumeParam = apvts.getRawParameterValue("lane1_volume");
+    lane1PanParam = apvts.getRawParameterValue("lane1_pan");
+    lane1ProbabilityParam = apvts.getRawParameterValue("lane1_probability");
+    lane1SwingParam = apvts.getRawParameterValue("lane1_swing");
 
     // Cache lane 2 parameter pointers
-    lane2EnabledParam = parameters.getRawParameterValue("lane2_enabled");
-    lane2SubdivParam = parameters.getRawParameterValue("lane2_subdivision");
-    lane2RepeatsParam = parameters.getRawParameterValue("lane2_repeats");
-    lane2DecayParam = parameters.getRawParameterValue("lane2_decay");
-    lane2VolumeParam = parameters.getRawParameterValue("lane2_volume");
-    lane2PanParam = parameters.getRawParameterValue("lane2_pan");
-    lane2ProbabilityParam = parameters.getRawParameterValue("lane2_probability");
-    lane2SwingParam = parameters.getRawParameterValue("lane2_swing");
+    lane2EnabledParam = apvts.getRawParameterValue("lane2_enabled");
+    lane2SubdivParam = apvts.getRawParameterValue("lane2_subdivision");
+    lane2RepeatsParam = apvts.getRawParameterValue("lane2_repeats");
+    lane2DecayParam = apvts.getRawParameterValue("lane2_decay");
+    lane2VolumeParam = apvts.getRawParameterValue("lane2_volume");
+    lane2PanParam = apvts.getRawParameterValue("lane2_pan");
+    lane2ProbabilityParam = apvts.getRawParameterValue("lane2_probability");
+    lane2SwingParam = apvts.getRawParameterValue("lane2_swing");
 
     // Cache lane 3 parameter pointers
-    lane3EnabledParam = parameters.getRawParameterValue("lane3_enabled");
-    lane3SubdivParam = parameters.getRawParameterValue("lane3_subdivision");
-    lane3RepeatsParam = parameters.getRawParameterValue("lane3_repeats");
-    lane3DecayParam = parameters.getRawParameterValue("lane3_decay");
-    lane3VolumeParam = parameters.getRawParameterValue("lane3_volume");
-    lane3PanParam = parameters.getRawParameterValue("lane3_pan");
-    lane3ProbabilityParam = parameters.getRawParameterValue("lane3_probability");
-    lane3SwingParam = parameters.getRawParameterValue("lane3_swing");
+    lane3EnabledParam = apvts.getRawParameterValue("lane3_enabled");
+    lane3SubdivParam = apvts.getRawParameterValue("lane3_subdivision");
+    lane3RepeatsParam = apvts.getRawParameterValue("lane3_repeats");
+    lane3DecayParam = apvts.getRawParameterValue("lane3_decay");
+    lane3VolumeParam = apvts.getRawParameterValue("lane3_volume");
+    lane3PanParam = apvts.getRawParameterValue("lane3_pan");
+    lane3ProbabilityParam = apvts.getRawParameterValue("lane3_probability");
+    lane3SwingParam = apvts.getRawParameterValue("lane3_swing");
 
     // Cache lane 4 parameter pointers
-    lane4EnabledParam = parameters.getRawParameterValue("lane4_enabled");
-    lane4SubdivParam = parameters.getRawParameterValue("lane4_subdivision");
-    lane4RepeatsParam = parameters.getRawParameterValue("lane4_repeats");
-    lane4DecayParam = parameters.getRawParameterValue("lane4_decay");
-    lane4VolumeParam = parameters.getRawParameterValue("lane4_volume");
-    lane4PanParam = parameters.getRawParameterValue("lane4_pan");
-    lane4ProbabilityParam = parameters.getRawParameterValue("lane4_probability");
-    lane4SwingParam = parameters.getRawParameterValue("lane4_swing");
+    lane4EnabledParam = apvts.getRawParameterValue("lane4_enabled");
+    lane4SubdivParam = apvts.getRawParameterValue("lane4_subdivision");
+    lane4RepeatsParam = apvts.getRawParameterValue("lane4_repeats");
+    lane4DecayParam = apvts.getRawParameterValue("lane4_decay");
+    lane4VolumeParam = apvts.getRawParameterValue("lane4_volume");
+    lane4PanParam = apvts.getRawParameterValue("lane4_pan");
+    lane4ProbabilityParam = apvts.getRawParameterValue("lane4_probability");
+    lane4SwingParam = apvts.getRawParameterValue("lane4_swing");
 
     // Cache pattern step pointers
     for (int step = 0; step < 16; ++step)
     {
-        lane1PatternSteps[step] = parameters.getRawParameterValue("pattern_lane1_step" + juce::String(step + 1));
-        lane2PatternSteps[step] = parameters.getRawParameterValue("pattern_lane2_step" + juce::String(step + 1));
-        lane3PatternSteps[step] = parameters.getRawParameterValue("pattern_lane3_step" + juce::String(step + 1));
-        lane4PatternSteps[step] = parameters.getRawParameterValue("pattern_lane4_step" + juce::String(step + 1));
+        lane1PatternSteps[step] = apvts.getRawParameterValue("pattern_lane1_step" + juce::String(step + 1));
+        lane2PatternSteps[step] = apvts.getRawParameterValue("pattern_lane2_step" + juce::String(step + 1));
+        lane3PatternSteps[step] = apvts.getRawParameterValue("pattern_lane3_step" + juce::String(step + 1));
+        lane4PatternSteps[step] = apvts.getRawParameterValue("pattern_lane4_step" + juce::String(step + 1));
     }
 
-    // Cache Phase 2.3 trigger mode parameters
-    envelopeEnabledParam = parameters.getRawParameterValue("envelope_enabled");
-    sidechainEnabledParam = parameters.getRawParameterValue("sidechain_enabled");
-    midiEnabledParam = parameters.getRawParameterValue("midi_enabled");
-    manualTriggerParam = parameters.getRawParameterValue("manual_trigger");
+    // Cache Phase 2.3 trigger mode apvts
+    envelopeEnabledParam = apvts.getRawParameterValue("envelope_enabled");
+    sidechainEnabledParam = apvts.getRawParameterValue("sidechain_enabled");
+    midiEnabledParam = apvts.getRawParameterValue("midi_enabled");
+    manualTriggerParam = apvts.getRawParameterValue("manual_trigger");
 
-    // Cache Phase 2.3 lane advanced mode parameters
-    lane1PingPongParam = parameters.getRawParameterValue("lane1_pingpong");
-    lane1ReverseParam = parameters.getRawParameterValue("lane1_reverse");
-    lane1FreezeParam = parameters.getRawParameterValue("lane1_freeze");
-    lane1ManualTimeParam = parameters.getRawParameterValue("lane1_manual_time_enabled");
+    // Cache Phase 2.3 lane advanced mode apvts
+    lane1PingPongParam = apvts.getRawParameterValue("lane1_pingpong");
+    lane1ReverseParam = apvts.getRawParameterValue("lane1_reverse");
+    lane1FreezeParam = apvts.getRawParameterValue("lane1_freeze");
+    lane1ManualTimeParam = apvts.getRawParameterValue("lane1_manual_time_enabled");
 
-    lane2PingPongParam = parameters.getRawParameterValue("lane2_pingpong");
-    lane2ReverseParam = parameters.getRawParameterValue("lane2_reverse");
-    lane2FreezeParam = parameters.getRawParameterValue("lane2_freeze");
-    lane2ManualTimeParam = parameters.getRawParameterValue("lane2_manual_time_enabled");
+    lane2PingPongParam = apvts.getRawParameterValue("lane2_pingpong");
+    lane2ReverseParam = apvts.getRawParameterValue("lane2_reverse");
+    lane2FreezeParam = apvts.getRawParameterValue("lane2_freeze");
+    lane2ManualTimeParam = apvts.getRawParameterValue("lane2_manual_time_enabled");
 
-    lane3PingPongParam = parameters.getRawParameterValue("lane3_pingpong");
-    lane3ReverseParam = parameters.getRawParameterValue("lane3_reverse");
-    lane3FreezeParam = parameters.getRawParameterValue("lane3_freeze");
-    lane3ManualTimeParam = parameters.getRawParameterValue("lane3_manual_time_enabled");
+    lane3PingPongParam = apvts.getRawParameterValue("lane3_pingpong");
+    lane3ReverseParam = apvts.getRawParameterValue("lane3_reverse");
+    lane3FreezeParam = apvts.getRawParameterValue("lane3_freeze");
+    lane3ManualTimeParam = apvts.getRawParameterValue("lane3_manual_time_enabled");
 
-    lane4PingPongParam = parameters.getRawParameterValue("lane4_pingpong");
-    lane4ReverseParam = parameters.getRawParameterValue("lane4_reverse");
-    lane4FreezeParam = parameters.getRawParameterValue("lane4_freeze");
-    lane4ManualTimeParam = parameters.getRawParameterValue("lane4_manual_time_enabled");
+    lane4PingPongParam = apvts.getRawParameterValue("lane4_pingpong");
+    lane4ReverseParam = apvts.getRawParameterValue("lane4_reverse");
+    lane4FreezeParam = apvts.getRawParameterValue("lane4_freeze");
+    lane4ManualTimeParam = apvts.getRawParameterValue("lane4_manual_time_enabled");
 
-    // Cache Phase 2.4 pitch parameters
-    lane1PitchParam = parameters.getRawParameterValue("lane1_pitch");
-    lane2PitchParam = parameters.getRawParameterValue("lane2_pitch");
-    lane3PitchParam = parameters.getRawParameterValue("lane3_pitch");
-    lane4PitchParam = parameters.getRawParameterValue("lane4_pitch");
+    // Cache Phase 2.4 pitch apvts
+    lane1PitchParam = apvts.getRawParameterValue("lane1_pitch");
+    lane2PitchParam = apvts.getRawParameterValue("lane2_pitch");
+    lane3PitchParam = apvts.getRawParameterValue("lane3_pitch");
+    lane4PitchParam = apvts.getRawParameterValue("lane4_pitch");
 
-    // Cache Phase 2.4 tape degradation parameters
-    tapeSaturationParam = parameters.getRawParameterValue("tape_saturation");
-    tapeWowParam = parameters.getRawParameterValue("tape_wow");
-    tapeFlutterParam = parameters.getRawParameterValue("tape_flutter");
-    tapeHissParam = parameters.getRawParameterValue("tape_hiss");
-    tapeRolloffParam = parameters.getRawParameterValue("tape_rolloff");
-    tapeDropoutParam = parameters.getRawParameterValue("tape_dropout");
+    // Cache Phase 2.4 tape degradation apvts
+    tapeSaturationParam = apvts.getRawParameterValue("tape_saturation");
+    tapeWowParam = apvts.getRawParameterValue("tape_wow");
+    tapeFlutterParam = apvts.getRawParameterValue("tape_flutter");
+    tapeHissParam = apvts.getRawParameterValue("tape_hiss");
+    tapeRolloffParam = apvts.getRawParameterValue("tape_rolloff");
+    tapeDropoutParam = apvts.getRawParameterValue("tape_dropout");
 }
 
 OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
@@ -1111,7 +1111,7 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     // ========== Phase 2.4: Tape Degradation Post-Processing ==========
     if (tapeDegrader)
     {
-        // Update tape degradation parameters
+        // Update tape degradation apvts
         tapeDegrader->setSaturation(tapeSaturationParam->load());
         tapeDegrader->setWow(tapeWowParam->load());
         tapeDegrader->setFlutter(tapeFlutterParam->load());
@@ -1131,7 +1131,7 @@ juce::AudioProcessorEditor* OuariconPolystutterAudioProcessor::createEditor()
 
 void OuariconPolystutterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
+    auto state = apvts.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -1140,8 +1140,8 @@ void OuariconPolystutterAudioProcessor::setStateInformation(const void* data, in
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (xmlState != nullptr && xmlState->hasTagName(apvts.state.getType()))
+        apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
 // Helper functions

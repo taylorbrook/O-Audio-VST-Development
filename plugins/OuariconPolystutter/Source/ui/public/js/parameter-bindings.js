@@ -1,0 +1,293 @@
+/*
+  ==============================================================================
+
+    OuariconPolystutter - Parameter Bindings (Phase 3.2)
+    JUCE WebView ↔ APVTS synchronization
+
+    CRITICAL: Parameter IDs must match PluginProcessor.cpp APVTS exactly
+
+  ==============================================================================
+*/
+
+import * as Juce from "./juce/index.js";
+
+// ========== INITIALIZATION ==========
+
+document.addEventListener("DOMContentLoaded", () => {
+  console.log("[Phase 3.2] Initializing parameter bindings...");
+  console.log("[Phase 3.2] JUCE backend:", typeof window.__JUCE__ !== "undefined");
+
+  // Bind all parameters (64 total, excluding pattern sequencer)
+  bindAllLaneParameters();
+  bindTapeParameters();
+  bindGlobalToggles();
+
+  console.log("[Phase 3.2] All parameter bindings initialized");
+});
+
+// ========== LANE PARAMETERS (4 lanes × 13 params = 52, excluding subdivision) ==========
+
+function bindAllLaneParameters() {
+  for (let lane = 1; lane <= 4; lane++) {
+    bindLaneParameters(lane);
+  }
+}
+
+function bindLaneParameters(laneNum) {
+  const prefix = `lane${laneNum}`;
+
+  // Knobs (8 sliders)
+  bindKnob(`${prefix}_repeats`, 1, 16, (v) => Math.round(v)); // Int
+  bindKnob(`${prefix}_decay`, 0, 1, (v) => `${Math.round(v * 100)}%`); // Float 0-100%
+  bindKnob(`${prefix}_pitch`, -12, 12, (v) => `${v.toFixed(1)}st`); // Float ±12 semitones
+  bindKnob(`${prefix}_filter`, -100, 100, (v) => Math.round(v)); // Float ±100
+  bindKnob(`${prefix}_probability`, 0, 1, (v) => `${Math.round(v * 100)}%`); // Float 0-100%
+  bindKnob(`${prefix}_volume`, 0, 1, (v) => `${Math.round(v * 100)}%`); // Float 0-100%
+  bindKnob(`${prefix}_pan`, -100, 100, (v) => Math.round(v)); // Float ±100
+  bindKnob(`${prefix}_swing`, 0, 1, (v) => `${Math.round(v * 100)}%`); // Float 0-100%
+
+  // Toggles (5 buttons: enabled, pingpong, reverse, manual, freeze)
+  bindToggle(`${prefix}_enabled`);
+  bindToggle(`${prefix}_pingpong`);
+  bindToggle(`${prefix}_reverse`);
+  bindToggle(`${prefix}_manual_time_enabled`, `${prefix}_manual`); // HTML ID different
+  bindToggle(`${prefix}_freeze`);
+
+  // Subdivision combo box (Choice parameter)
+  bindComboBox(`${prefix}_subdivision`);
+}
+
+// ========== TAPE DEGRADATION PARAMETERS (6 knobs) ==========
+
+function bindTapeParameters() {
+  // CRITICAL: HTML IDs use short names (saturation), but APVTS uses "tape_saturation"
+  bindKnob("tape_saturation", 0, 1, (v) => `${Math.round(v * 100)}%`, "saturation");
+  bindKnob("tape_wow", 0, 1, (v) => `${Math.round(v * 100)}%`, "wow");
+  bindKnob("tape_flutter", 0, 1, (v) => `${Math.round(v * 100)}%`, "flutter");
+  bindKnob("tape_hiss", 0, 1, (v) => `${Math.round(v * 100)}%`, "hiss");
+  bindKnob("tape_rolloff", 0, 1, (v) => `${Math.round(v * 100)}%`, "rolloff");
+  bindKnob("tape_dropout", 0, 1, (v) => `${Math.round(v * 100)}%`, "dropout");
+}
+
+// ========== GLOBAL TOGGLES (4 footer buttons) ==========
+
+function bindGlobalToggles() {
+  bindToggle("envelope_enabled", "env_toggle");
+  bindToggle("sidechain_enabled", "sc_toggle");
+  bindToggle("midi_enabled", "midi_toggle");
+  bindToggle("manual_trigger", "trig_toggle");
+}
+
+// ========== KNOB BINDING (Rotary sliders with relative drag) ==========
+
+/**
+ * Bind rotary knob to JUCE slider parameter
+ * @param {string} paramId - APVTS parameter ID (e.g., "lane1_repeats")
+ * @param {number} min - Parameter minimum value
+ * @param {number} max - Parameter maximum value
+ * @param {function} formatter - Value display formatter (normalized → string)
+ * @param {string} htmlId - HTML element ID (defaults to paramId if different)
+ */
+function bindKnob(paramId, min, max, formatter, htmlId = null) {
+  const elementId = htmlId || paramId;
+  const knobElement = document.getElementById(elementId);
+  const valueElement = document.getElementById(`${elementId}_value`);
+
+  if (!knobElement) {
+    console.error(`[Phase 3.2] Knob element not found: ${elementId}`);
+    return;
+  }
+
+  // Get JUCE slider state for this parameter
+  const state = Juce.getSliderState(paramId);
+  if (!state) {
+    console.error(`[Phase 3.2] JUCE slider state not found: ${paramId}`);
+    return;
+  }
+
+  // Initialize UI with current value
+  updateKnobUI(knobElement, valueElement, state.normalisedValue, min, max, formatter);
+
+  // Pattern #11: Relative drag interaction (frame delta, not absolute)
+  let isDragging = false;
+  let lastY = 0;
+
+  knobElement.addEventListener("mousedown", (e) => {
+    isDragging = true;
+    lastY = e.clientY;
+    knobElement.style.cursor = "grabbing";
+    e.preventDefault(); // Prevent text selection
+  });
+
+  document.addEventListener("mousemove", (e) => {
+    if (!isDragging) return;
+
+    const deltaY = lastY - e.clientY; // Inverted (up = increase)
+    lastY = e.clientY;
+
+    // Sensitivity: 1px drag = 0.005 normalized change (200px for full range)
+    const sensitivity = 0.005;
+    const normalizedDelta = deltaY * sensitivity;
+
+    // Update normalized value (clamped 0-1)
+    const newValue = Math.max(0, Math.min(1, state.normalisedValue + normalizedDelta));
+    state.normalisedValue = newValue; // CRITICAL: Assignment triggers JUCE update
+
+    // Update UI immediately for smooth feedback
+    updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
+  });
+
+  document.addEventListener("mouseup", () => {
+    if (isDragging) {
+      isDragging = false;
+      knobElement.style.cursor = "pointer";
+    }
+  });
+
+  // Pattern #10: valueChangedEvent callback receives NO parameters
+  // Use getNormalisedValue() inside callback
+  state.valueChangedEvent.addListener(() => {
+    const newValue = state.normalisedValue; // Get value from state, NOT from callback
+    updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
+  });
+
+  console.log(`[Phase 3.2] Bound knob: ${paramId} (HTML: ${elementId})`);
+}
+
+/**
+ * Update knob visual rotation and value display
+ */
+function updateKnobUI(knobElement, valueElement, normalized, min, max, formatter) {
+  // Rotation: 0% = -135°, 100% = +135° (270° total range)
+  const degrees = -135 + normalized * 270;
+  knobElement.style.transform = `rotate(${degrees}deg)`;
+
+  // Display value using formatter
+  if (valueElement) {
+    const actualValue = min + normalized * (max - min);
+    valueElement.textContent = formatter(actualValue);
+  }
+}
+
+// ========== TOGGLE BINDING (Boolean buttons) ==========
+
+/**
+ * Bind toggle button to JUCE boolean parameter
+ * @param {string} paramId - APVTS parameter ID (e.g., "lane1_enabled")
+ * @param {string} htmlId - HTML element ID (defaults to paramId if different)
+ */
+function bindToggle(paramId, htmlId = null) {
+  const elementId = htmlId || paramId;
+  const toggleElement = document.getElementById(elementId);
+
+  if (!toggleElement) {
+    console.error(`[Phase 3.2] Toggle element not found: ${elementId}`);
+    return;
+  }
+
+  // Get JUCE toggle state for this parameter
+  const state = Juce.getToggleState(paramId);
+  if (!state) {
+    console.error(`[Phase 3.2] JUCE toggle state not found: ${paramId}`);
+    return;
+  }
+
+  // Initialize UI with current value
+  updateToggleUI(toggleElement, state.value);
+
+  // User interaction: click toggles state
+  toggleElement.addEventListener("click", () => {
+    state.value = !state.value; // CRITICAL: Assignment triggers JUCE update
+    updateToggleUI(toggleElement, state.value);
+  });
+
+  // JUCE automation: update UI when parameter changes
+  state.valueChangedEvent.addListener(() => {
+    updateToggleUI(toggleElement, state.value);
+  });
+
+  console.log(`[Phase 3.2] Bound toggle: ${paramId} (HTML: ${elementId})`);
+}
+
+/**
+ * Update toggle button visual state
+ */
+function updateToggleUI(toggleElement, isActive) {
+  if (isActive) {
+    toggleElement.classList.add("active");
+  } else {
+    toggleElement.classList.remove("active");
+  }
+}
+
+// ========== COMBOBOX BINDING (Choice parameters) ==========
+
+/**
+ * Bind combo box (dropdown) to JUCE choice parameter
+ * @param {string} paramId - APVTS parameter ID (e.g., "lane1_subdivision")
+ */
+function bindComboBox(paramId) {
+  const comboElement = document.getElementById(paramId);
+
+  if (!comboElement) {
+    console.error(`[Phase 3.2] ComboBox element not found: ${paramId}`);
+    return;
+  }
+
+  // Get JUCE combo box state for this parameter
+  const state = Juce.getComboBoxState(paramId);
+  if (!state) {
+    console.error(`[Phase 3.2] JUCE combo state not found: ${paramId}`);
+    return;
+  }
+
+  // Subdivision choices (from parameter-spec.md)
+  const choices = ["1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T"];
+
+  // Initialize UI with current value
+  updateComboBoxUI(comboElement, state.selectedId, choices);
+
+  // User interaction: click cycles through choices
+  comboElement.addEventListener("click", () => {
+    const nextId = (state.selectedId + 1) % choices.length;
+    state.selectedId = nextId; // CRITICAL: Assignment triggers JUCE update
+    updateComboBoxUI(comboElement, nextId, choices);
+  });
+
+  // JUCE automation: update UI when parameter changes
+  state.valueChangedEvent.addListener(() => {
+    updateComboBoxUI(comboElement, state.selectedId, choices);
+  });
+
+  console.log(`[Phase 3.2] Bound combo box: ${paramId}`);
+}
+
+/**
+ * Update combo box display text
+ */
+function updateComboBoxUI(comboElement, selectedId, choices) {
+  comboElement.textContent = choices[selectedId] || "—";
+}
+
+// ========== DEBUG MONITOR (test HTML only, not for production) ==========
+
+// Update debug monitor on any parameter change (if element exists)
+window.addEventListener("load", () => {
+  const debugParam = document.getElementById("debugParam");
+  const debugValue = document.getElementById("debugValue");
+  const debugNormalized = document.getElementById("debugNormalized");
+
+  if (!debugParam) return; // No debug monitor in production build
+
+  // Example: monitor lane1_repeats for testing
+  const testParamId = "lane1_repeats";
+  const state = Juce.getSliderState(testParamId);
+
+  if (state) {
+    state.valueChangedEvent.addListener(() => {
+      debugParam.textContent = testParamId;
+      debugValue.textContent = `Value: ${Math.round(state.normalisedValue * 15 + 1)}`; // 1-16
+      debugNormalized.textContent = `Norm: ${state.normalisedValue.toFixed(3)}`;
+    });
+  }
+});

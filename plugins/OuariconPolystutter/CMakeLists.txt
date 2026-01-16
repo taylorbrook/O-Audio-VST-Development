@@ -53,13 +53,14 @@ target_link_libraries(OuariconPolystutter
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
 juce_generate_juce_header(OuariconPolystutter)
 
-# Phase 3.1: WebView UI Resources (BinaryData)
+# Phase 3.2: WebView UI Resources (BinaryData)
 # Embed HTML/CSS/JS/images into plugin binary
 juce_add_binary_data(OuariconPolystutter_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/js/parameter-bindings.js
         Source/ui/public/img/paper-background.jpg
         Source/ui/public/img/botanical-bug.png
 )

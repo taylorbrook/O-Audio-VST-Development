@@ -833,18 +833,14 @@
     window.Juce = Juce; // Make JUCE available globally for debugging
   </script>
 
+  <!-- Phase 3.2: Parameter Bindings (JUCE ↔ UI sync) -->
+  <script type="module" src="js/parameter-bindings.js"></script>
+
   <script>
     // Disable context menu (REQUIRED for plugin)
     document.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       return false;
-    });
-
-    // Phase 3.1: Static layout only (no parameter bindings)
-    // Interactive behavior will be added in Phase 3.2
-    document.addEventListener("DOMContentLoaded", () => {
-      console.log("[Phase 3.1] Layout loaded - static rendering only");
-      console.log("[Phase 3.1] JUCE backend available:", typeof window.__JUCE__ !== 'undefined');
     });
   </script>
 </body>

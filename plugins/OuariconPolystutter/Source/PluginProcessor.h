@@ -44,7 +44,10 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     // Public access to APVTS for UI binding
-    juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
+    juce::AudioProcessorValueTreeState& getAPVTS() { return apvts; }
+
+    // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
+    juce::AudioProcessorValueTreeState apvts;
 
 private:
     // DSP Components (BEFORE parameters for initialization order)
@@ -79,9 +82,6 @@ private:
     juce::AudioBuffer<float> lane3Buffer;
     juce::AudioBuffer<float> lane4Buffer;
     int maxBlockSize = 0;  // Track max block size for buffer safety
-
-    // APVTS comes AFTER DSP components
-    juce::AudioProcessorValueTreeState parameters;
 
     // Cached parameter pointers for lane 1 (avoid string lookups in processBlock)
     std::atomic<float>* lane1EnabledParam = nullptr;
