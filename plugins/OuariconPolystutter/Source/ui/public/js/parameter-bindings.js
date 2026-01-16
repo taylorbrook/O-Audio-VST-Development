@@ -17,9 +17,10 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[Phase 3.2] Initializing parameter bindings...");
   console.log("[Phase 3.2] JUCE backend:", typeof window.__JUCE__ !== "undefined");
 
-  // Bind all parameters (66 main + 64 pattern steps = 130 total)
+  // Bind all parameters (66 main + 64 pattern steps + 2 mix = 132 total)
   bindAllLaneParameters();
   bindTapeParameters();
+  bindMixParameters();  // v1.1.0: Wet/dry mix knobs
   bindGlobalToggles();
 
   // Phase 3.3: Pattern sequencer step bindings
@@ -76,9 +77,20 @@ function bindTapeParameters() {
   bindKnob("tape_dropout", 0, 1, (v) => `${Math.round(v * 100)}%`, "dropout");
 }
 
-// ========== GLOBAL TOGGLES (4 footer buttons) ==========
+// ========== v1.1.0: WET/DRY MIX PARAMETERS (2 knobs) ==========
+
+function bindMixParameters() {
+  // Dry: 0-100% controls original signal level
+  // Wet: 0-100% controls stutter effect level
+  bindKnob("mix_dry", 0, 100, (v) => `${Math.round(v)}%`);
+  bindKnob("mix_wet", 0, 100, (v) => `${Math.round(v)}%`);
+  console.log("[v1.1.0] Bound wet/dry mix knobs");
+}
+
+// ========== GLOBAL TOGGLES (5 footer buttons - v1.0.2 adds SEQ) ==========
 
 function bindGlobalToggles() {
+  bindToggle("sequencer_enabled", "seq_toggle");  // v1.0.2: Sequencer enable toggle
   bindToggle("envelope_enabled", "env_toggle");
   bindToggle("sidechain_enabled", "sc_toggle");
   bindToggle("midi_enabled", "midi_toggle");

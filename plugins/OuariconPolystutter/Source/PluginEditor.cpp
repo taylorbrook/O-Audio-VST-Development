@@ -88,11 +88,16 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     , tapeRolloffRelay(std::make_unique<juce::WebSliderRelay>("tape_rolloff"))
     , tapeDropoutRelay(std::make_unique<juce::WebSliderRelay>("tape_dropout"))
 
+    // v1.1.0: Wet/dry mix relays
+    , mixDryRelay(std::make_unique<juce::WebSliderRelay>("mix_dry"))
+    , mixWetRelay(std::make_unique<juce::WebSliderRelay>("mix_wet"))
+
     // Global control relays
     , envelopeEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("envelope_enabled"))
     , sidechainEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("sidechain_enabled"))
     , midiEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("midi_enabled"))
     , manualTriggerRelay(std::make_unique<juce::WebToggleButtonRelay>("manual_trigger"))
+    , sequencerEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("sequencer_enabled"))  // v1.0.2
 
     // Phase 3.3: Pattern step relays (64 toggles: 4 lanes × 16 steps)
     , patternLane1Step1Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step1"))
@@ -233,11 +238,15 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
             .withOptionsFrom(*tapeHissRelay)
             .withOptionsFrom(*tapeRolloffRelay)
             .withOptionsFrom(*tapeDropoutRelay)
+            // v1.1.0: Wet/dry mix
+            .withOptionsFrom(*mixDryRelay)
+            .withOptionsFrom(*mixWetRelay)
             // Global controls
             .withOptionsFrom(*envelopeEnabledRelay)
             .withOptionsFrom(*sidechainEnabledRelay)
             .withOptionsFrom(*midiEnabledRelay)
             .withOptionsFrom(*manualTriggerRelay)
+            .withOptionsFrom(*sequencerEnabledRelay)  // v1.0.2
             // Phase 3.3: Pattern step relay registrations (64 toggles)
             .withOptionsFrom(*patternLane1Step1Relay)
             .withOptionsFrom(*patternLane1Step2Relay)
@@ -441,6 +450,12 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     , tapeDropoutAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.apvts.getParameter("tape_dropout"), *tapeDropoutRelay, nullptr))
 
+    // v1.1.0: Wet/dry mix attachments
+    , mixDryAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("mix_dry"), *mixDryRelay, nullptr))
+    , mixWetAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("mix_wet"), *mixWetRelay, nullptr))
+
     // Global control attachments
     , envelopeEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("envelope_enabled"), *envelopeEnabledRelay, nullptr))
@@ -450,6 +465,8 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
         *processorRef.apvts.getParameter("midi_enabled"), *midiEnabledRelay, nullptr))
     , manualTriggerAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("manual_trigger"), *manualTriggerRelay, nullptr))
+    , sequencerEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("sequencer_enabled"), *sequencerEnabledRelay, nullptr))  // v1.0.2
 
     // Phase 3.3: Pattern step attachments (64 toggles)
     , patternLane1Step1Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
@@ -586,8 +603,8 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     // Navigate to UI (served from BinaryData)
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
-    // Fixed window size: 1000×750px (from v5-ui.yaml spec)
-    setSize(1000, 750);
+    // Fixed window size: 1000×830px (v1.1.2: expanded for better lane control spacing)
+    setSize(1000, 830);
 
     DBG("[Phase 3.3] Parameter bindings initialized - 128 relays + 128 attachments (incl. 64 pattern steps)");
 }

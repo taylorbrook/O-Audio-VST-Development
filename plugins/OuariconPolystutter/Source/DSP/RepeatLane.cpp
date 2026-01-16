@@ -20,17 +20,16 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
 
     // Max buffer size: 5 seconds per architecture spec (supports long captures at any sample rate)
     // At 192kHz = 960,000 samples per channel
-    const int maxDelaySamples = static_cast<int>(spec.sampleRate * 5.0);
+    maxCaptureSamples = static_cast<int>(spec.sampleRate * 5.0);
 
-    // Prepare delay lines
-    delayLineLeft.prepare(spec);
-    delayLineRight.prepare(spec);
-
-    delayLineLeft.setMaximumDelayInSamples(maxDelaySamples);
-    delayLineRight.setMaximumDelayInSamples(maxDelaySamples);
+    // v1.1.0: Allocate dedicated capture buffer for non-destructive repeat playback
+    // This fixes the pitch shifting and audio corruption issues caused by using popSample()
+    captureBuffer.setSize(2, maxCaptureSamples);
+    captureBuffer.clear();
+    captureWritePosition = 0;
 
     // Allocate freeze buffer (5 seconds max, 2 channels)
-    freezeBuffer.setSize(2, maxDelaySamples);
+    freezeBuffer.setSize(2, maxCaptureSamples);
     freezeBuffer.clear();
     freezeBufferReady = false;
 
@@ -45,8 +44,9 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
 
 void RepeatLane::reset()
 {
-    delayLineLeft.reset();
-    delayLineRight.reset();
+    // v1.1.0: Reset capture buffer instead of delay lines
+    captureBuffer.clear();
+    captureWritePosition = 0;
 
     isTriggered = false;
     currentRepeat = 0;
@@ -55,6 +55,13 @@ void RepeatLane::reset()
     samplesUntilNextRepeat = 0;
     currentGain = 1.0f;
     captureLength = 0;
+
+    // v1.1.1: Reset global envelope state
+    globalEnvelopeGain = 0.0f;
+    fadeInSamplesRemaining = 0;
+    fadeOutActive = false;
+    fadeOutSamplesRemaining = 0;
+    fadeOutStartGain = 0.0f;
 }
 
 void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
@@ -62,22 +69,65 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
     if (!enabled)
         return;
 
-    // Capture incoming audio to delay buffer (always capture, even when not repeating)
+    // v1.1.0: Capture incoming audio to dedicated capture buffer (circular)
+    // This is non-destructive - we always have the last N samples available
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Stereo capture
         float leftSample = buffer.getSample(0, sample);
         float rightSample = buffer.getNumChannels() > 1 ? buffer.getSample(1, sample) : leftSample;
 
-        // Push samples into delay lines
-        delayLineLeft.pushSample(0, leftSample);
-        delayLineRight.pushSample(0, rightSample);
+        // Write to circular capture buffer
+        captureBuffer.setSample(0, captureWritePosition, leftSample);
+        captureBuffer.setSample(1, captureWritePosition, rightSample);
+
+        // Advance write position (circular)
+        captureWritePosition = (captureWritePosition + 1) % maxCaptureSamples;
     }
 
-    // If not triggered or all repeats finished, output silence (dry signal handled by processor)
+    // v1.1.1: Handle fade-out when repeats are finished
+    // Instead of abruptly clearing, we fade out over crossfadeSamples
     if (!isTriggered || currentRepeat >= maxRepeats)
     {
-        buffer.clear();
+        // Check if we need to start or continue a fade-out
+        if (globalEnvelopeGain > 0.0001f && !fadeOutActive)
+        {
+            // Start fade-out
+            fadeOutActive = true;
+            fadeOutSamplesRemaining = crossfadeSamples;
+            fadeOutStartGain = globalEnvelopeGain;
+        }
+
+        if (fadeOutActive && fadeOutSamplesRemaining > 0)
+        {
+            // Continue fade-out: output fading silence
+            for (int sample = 0; sample < numSamples && fadeOutSamplesRemaining > 0; ++sample)
+            {
+                // Calculate fade-out gain (linear ramp from fadeOutStartGain to 0)
+                float fadeProgress = static_cast<float>(fadeOutSamplesRemaining) / static_cast<float>(crossfadeSamples);
+                float fadeGain = fadeOutStartGain * fadeProgress;
+
+                // Output silence with fade (the buffer already has input signal, we just fade it)
+                buffer.setSample(0, sample, 0.0f);
+                if (buffer.getNumChannels() > 1)
+                    buffer.setSample(1, sample, 0.0f);
+
+                fadeOutSamplesRemaining--;
+                globalEnvelopeGain = fadeGain;
+            }
+
+            // Clear any remaining samples in the buffer after fade completes
+            if (fadeOutSamplesRemaining <= 0)
+            {
+                fadeOutActive = false;
+                globalEnvelopeGain = 0.0f;
+            }
+        }
+        else
+        {
+            // Fade-out complete or not needed, clear buffer
+            buffer.clear();
+            globalEnvelopeGain = 0.0f;
+        }
         return;
     }
 
@@ -90,47 +140,73 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             startNewRepeat();
         }
 
-        // Read from delay buffer at current playback position
+        // Read from capture buffer at current playback position
         float leftOut = 0.0f;
         float rightOut = 0.0f;
 
         // Use fractional position for pitch shifting (supports sub-sample interpolation)
-        int intPosition = static_cast<int>(fractionalPlaybackPosition);
+        double effectivePosition = fractionalPlaybackPosition;
 
-        if (intPosition < captureLength)
+        // Handle pitch-shifted playback length
+        // When pitch ratio != 1.0, the effective capture length changes
+        double effectiveCaptureLength = static_cast<double>(captureLength) / pitchRatio;
+
+        if (effectivePosition < effectiveCaptureLength)
         {
             // Determine which buffer to read from (freeze or live capture)
             if (freezeEnabled && freezeBufferReady)
             {
-                // Read from frozen snapshot
-                // Handle reverse playback
-                int readPosition = reverseEnabled ? (captureLength - 1 - intPosition) : intPosition;
-                readPosition = juce::jlimit(0, captureLength - 1, readPosition);
+                // Read from frozen snapshot with linear interpolation
+                double readPos = reverseEnabled
+                    ? (captureLength - 1.0 - (effectivePosition * pitchRatio))
+                    : (effectivePosition * pitchRatio);
 
-                if (readPosition < freezeBuffer.getNumSamples())
-                {
-                    leftOut = freezeBuffer.getSample(0, readPosition);
-                    rightOut = freezeBuffer.getNumChannels() > 1 ?
-                               freezeBuffer.getSample(1, readPosition) : leftOut;
-                }
+                readPos = juce::jlimit(0.0, static_cast<double>(captureLength - 1), readPos);
+
+                // Linear interpolation for smooth pitch shifting
+                int pos0 = static_cast<int>(readPos);
+                int pos1 = juce::jmin(pos0 + 1, captureLength - 1);
+                float frac = static_cast<float>(readPos - pos0);
+
+                float left0 = freezeBuffer.getSample(0, pos0);
+                float left1 = freezeBuffer.getSample(0, pos1);
+                float right0 = freezeBuffer.getSample(1, pos0);
+                float right1 = freezeBuffer.getSample(1, pos1);
+
+                leftOut = left0 + frac * (left1 - left0);
+                rightOut = right0 + frac * (right1 - right0);
             }
             else
             {
-                // Read from live delay lines with fractional delay for interpolation
-                // Forward: oldest to newest (high delay to low delay)
-                // Reverse: newest to oldest (low delay to high delay, but offset by 1 to avoid write position)
-                double fracPosition = reverseEnabled
-                    ? (fractionalPlaybackPosition + 1.0)  // Start at delay=1 (avoid write position at 0)
-                    : (captureLength - fractionalPlaybackPosition);  // Start at oldest sample
-                float delayTime = static_cast<float>(fracPosition);
+                // v1.1.0: Read from capture buffer NON-DESTRUCTIVELY with interpolation
+                // Calculate read position in the circular buffer
+                // captureStartPosition points to the oldest sample we want to read
+                double readOffset = reverseEnabled
+                    ? (captureLength - 1.0 - (effectivePosition * pitchRatio))
+                    : (effectivePosition * pitchRatio);
 
-                leftOut = delayLineLeft.popSample(0, delayTime);
-                rightOut = delayLineRight.popSample(0, delayTime);
+                readOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), readOffset);
+
+                // Convert to circular buffer position
+                // captureStartPosition is where the capture began
+                int basePos = (captureStartPosition + static_cast<int>(readOffset)) % maxCaptureSamples;
+                int nextPos = (basePos + 1) % maxCaptureSamples;
+                float frac = static_cast<float>(readOffset - static_cast<int>(readOffset));
+
+                // Linear interpolation for smooth pitch shifting
+                float left0 = captureBuffer.getSample(0, basePos);
+                float left1 = captureBuffer.getSample(0, nextPos);
+                float right0 = captureBuffer.getSample(1, basePos);
+                float right1 = captureBuffer.getSample(1, nextPos);
+
+                leftOut = left0 + frac * (left1 - left0);
+                rightOut = right0 + frac * (right1 - right0);
             }
 
             // Apply crossfade at loop boundaries for click-free looping
-            // Guard against edge case where captureLength < 2*crossfadeSamples
-            const int safeCrossfade = juce::jmin(crossfadeSamples, captureLength / 2);
+            int intPosition = static_cast<int>(effectivePosition);
+            int effectiveLength = static_cast<int>(effectiveCaptureLength);
+            const int safeCrossfade = juce::jmin(crossfadeSamples, effectiveLength / 2);
 
             if (safeCrossfade > 0 && intPosition < safeCrossfade)
             {
@@ -139,10 +215,10 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
                 leftOut *= fadeInGain;
                 rightOut *= fadeInGain;
             }
-            else if (safeCrossfade > 0 && intPosition > captureLength - safeCrossfade - 1)
+            else if (safeCrossfade > 0 && intPosition > effectiveLength - safeCrossfade - 1)
             {
-                // Fade out at end (fixed off-by-one: use > instead of >=)
-                int fadePos = intPosition - (captureLength - safeCrossfade);
+                // Fade out at end
+                int fadePos = intPosition - (effectiveLength - safeCrossfade);
                 float fadeOutGain = getCrossfadeGain(fadePos, safeCrossfade, false);
                 leftOut *= fadeOutGain;
                 rightOut *= fadeOutGain;
@@ -168,12 +244,29 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             leftOut *= leftGain;
             rightOut *= rightGain;
 
-            // Phase 2.4: Advance playback position by pitch ratio
-            // pitchRatio > 1.0 = higher pitch = faster playback
-            // pitchRatio < 1.0 = lower pitch = slower playback
-            fractionalPlaybackPosition += pitchRatio;
+            // Advance playback position (pitch ratio affects playback speed)
+            fractionalPlaybackPosition += 1.0;
             playbackPosition = static_cast<int>(fractionalPlaybackPosition);
         }
+
+        // v1.1.1: Apply global envelope for click-free stutter start/end
+        // Handle fade-in during first crossfadeSamples after trigger
+        if (fadeInSamplesRemaining > 0)
+        {
+            // Calculate fade-in progress (0.0 at start, 1.0 at end of fade)
+            float fadeProgress = 1.0f - (static_cast<float>(fadeInSamplesRemaining) / static_cast<float>(crossfadeSamples));
+            globalEnvelopeGain = fadeProgress;
+            fadeInSamplesRemaining--;
+        }
+        else
+        {
+            // Fade-in complete, maintain full gain
+            globalEnvelopeGain = 1.0f;
+        }
+
+        // Apply global envelope to output
+        leftOut *= globalEnvelopeGain;
+        rightOut *= globalEnvelopeGain;
 
         // Write to output buffer
         buffer.setSample(0, sample, leftOut);
@@ -198,29 +291,45 @@ void RepeatLane::trigger()
     if (randomGenerator.nextFloat() >= probabilityAmount)
         return;
 
+    // v1.1.1: If we're currently fading out, cancel it
+    fadeOutActive = false;
+    fadeOutSamplesRemaining = 0;
+
+    // v1.1.1: Start global fade-in for click-free onset
+    // Only reset envelope if we're not already active (avoid clicks on retrigger)
+    if (!isTriggered || currentRepeat >= maxRepeats)
+    {
+        globalEnvelopeGain = 0.0f;
+        fadeInSamplesRemaining = crossfadeSamples;
+    }
+
     // Start new repeat cycle
     isTriggered = true;
     currentRepeat = 0;
     playbackPosition = 0;
+    fractionalPlaybackPosition = 0.0;
     currentGain = 1.0f;
 
-    // Set capture length to subdivision length
-    captureLength = static_cast<int>(subdivisionSamples);
+    // Set capture length to subdivision length (clamped to buffer size)
+    captureLength = juce::jmin(static_cast<int>(subdivisionSamples), maxCaptureSamples);
 
-    // If freeze is enabled, copy delay line to freeze buffer
+    // v1.1.0: Calculate start position in circular buffer
+    // The capture starts at (writePosition - captureLength), wrapping around
+    captureStartPosition = (captureWritePosition - captureLength + maxCaptureSamples) % maxCaptureSamples;
+
+    // If freeze is enabled, copy capture buffer to freeze buffer (linearized)
     if (freezeEnabled)
     {
-        // Copy current delay line contents to freeze buffer
-        // We need to extract samples from the delay line
+        // Copy from circular capture buffer to linear freeze buffer
         for (int i = 0; i < captureLength && i < freezeBuffer.getNumSamples(); ++i)
         {
-            float delayTime = static_cast<float>(captureLength - i);
-            float leftSample = delayLineLeft.popSample(0, delayTime);
-            float rightSample = delayLineRight.popSample(0, delayTime);
+            int srcPos = (captureStartPosition + i) % maxCaptureSamples;
+
+            float leftSample = captureBuffer.getSample(0, srcPos);
+            float rightSample = captureBuffer.getSample(1, srcPos);
 
             freezeBuffer.setSample(0, i, leftSample);
-            if (freezeBuffer.getNumChannels() > 1)
-                freezeBuffer.setSample(1, i, rightSample);
+            freezeBuffer.setSample(1, i, rightSample);
         }
         freezeBufferReady = true;
     }

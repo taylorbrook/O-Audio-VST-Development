@@ -503,6 +503,33 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconPolystutterAudioProc
         false
     ));
 
+    // v1.0.2: Sequencer enable toggle
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "sequencer_enabled", 1 },
+        "Sequencer Enabled",
+        true  // Default: sequencer is ON
+    ));
+
+    // ========================================================================================
+    // v1.1.0: WET/DRY MIX PARAMETERS
+    // ========================================================================================
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "mix_dry", 1 },
+        "Mix Dry",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        50.0f,  // Default: 50% dry
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "mix_wet", 1 },
+        "Mix Wet",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        100.0f,  // Default: 100% wet (full stutter effect)
+        "%"
+    ));
+
     // ========================================================================================
     // PATTERN SEQUENCER PARAMETERS (64 steps: 4 lanes × 16 steps)
     // ========================================================================================
@@ -623,6 +650,13 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     sidechainEnabledParam = apvts.getRawParameterValue("sidechain_enabled");
     midiEnabledParam = apvts.getRawParameterValue("midi_enabled");
     manualTriggerParam = apvts.getRawParameterValue("manual_trigger");
+
+    // v1.0.2: Cache sequencer enable parameter
+    sequencerEnabledParam = apvts.getRawParameterValue("sequencer_enabled");
+
+    // v1.1.0: Cache wet/dry mix parameters
+    mixDryParam = apvts.getRawParameterValue("mix_dry");
+    mixWetParam = apvts.getRawParameterValue("mix_wet");
 
     // Cache Phase 2.3 lane advanced mode apvts
     lane1PingPongParam = apvts.getRawParameterValue("lane1_pingpong");
@@ -795,6 +829,9 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     bool midiEnabled = midiEnabledParam->load() > 0.5f;
     bool currentManualTrigger = manualTriggerParam->load() > 0.5f;
 
+    // v1.0.2: Sequencer enable toggle
+    bool sequencerEnabled = sequencerEnabledParam->load() > 0.5f;
+
     // Lane-specific advanced modes
     bool lane1PingPong = lane1PingPongParam->load() > 0.5f;
     bool lane1Reverse = lane1ReverseParam->load() > 0.5f;
@@ -837,10 +874,11 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         lane1->setFreeze(lane1Freeze);
         lane1->setManualTimeEnabled(lane1ManualTime);
 
-        // Update pattern steps
+        // Update pattern steps (v1.0.2: respect sequencer_enabled toggle)
         for (int step = 0; step < 16; ++step)
         {
-            bool stepEnabled = lane1PatternSteps[step]->load() > 0.5f;
+            // If sequencer disabled, all steps are ON (bypass pattern)
+            bool stepEnabled = sequencerEnabled ? (lane1PatternSteps[step]->load() > 0.5f) : true;
             lane1->setPatternStep(step, stepEnabled);
         }
     }
@@ -867,7 +905,7 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
 
         for (int step = 0; step < 16; ++step)
         {
-            bool stepEnabled = lane2PatternSteps[step]->load() > 0.5f;
+            bool stepEnabled = sequencerEnabled ? (lane2PatternSteps[step]->load() > 0.5f) : true;
             lane2->setPatternStep(step, stepEnabled);
         }
     }
@@ -894,7 +932,7 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
 
         for (int step = 0; step < 16; ++step)
         {
-            bool stepEnabled = lane3PatternSteps[step]->load() > 0.5f;
+            bool stepEnabled = sequencerEnabled ? (lane3PatternSteps[step]->load() > 0.5f) : true;
             lane3->setPatternStep(step, stepEnabled);
         }
     }
@@ -921,7 +959,7 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
 
         for (int step = 0; step < 16; ++step)
         {
-            bool stepEnabled = lane4PatternSteps[step]->load() > 0.5f;
+            bool stepEnabled = sequencerEnabled ? (lane4PatternSteps[step]->load() > 0.5f) : true;
             lane4->setPatternStep(step, stepEnabled);
         }
     }
@@ -1084,24 +1122,38 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     }
 
     // ========== Mix All Lanes ==========
-    // Start with dry signal (70%), wet signal split across 4 lanes (30% / 4 = 7.5% each)
-    constexpr float dryGain = 0.7f;
-    constexpr float wetPerLane = 0.075f;  // 0.3 / 4 = 0.075 (prevents clipping when all lanes active)
+    // v1.1.0: Use wet/dry parameters instead of hardcoded values
+    // Dry: 0-100% controls original signal level
+    // Wet: 0-100% controls stutter effect level (split across active lanes)
+    float dryGain = mixDryParam->load() / 100.0f;
+    float wetGain = mixWetParam->load() / 100.0f;
+
+    // Count active lanes to distribute wet signal properly
+    int activeLanes = 0;
+    if (lane1 && lane1EnabledParam->load() > 0.5f) activeLanes++;
+    if (lane2 && lane2EnabledParam->load() > 0.5f) activeLanes++;
+    if (lane3 && lane3EnabledParam->load() > 0.5f) activeLanes++;
+    if (lane4 && lane4EnabledParam->load() > 0.5f) activeLanes++;
+
+    // Wet gain per lane (distribute evenly to prevent clipping)
+    // If no lanes active, wetPerLane = 0 (avoid division by zero)
+    float wetPerLane = (activeLanes > 0) ? (wetGain / static_cast<float>(activeLanes)) : 0.0f;
 
     for (int channel = 0; channel < numChannels; ++channel)
     {
         auto* outData = buffer.getWritePointer(channel);
         const auto* dryData = dryBuffer.getReadPointer(channel);
 
+        // Apply dry signal
         juce::FloatVectorOperations::multiply(outData, dryData, dryGain, numSamples);
 
-        // Add lane outputs (30% total wet, split across 4 lanes)
+        // Add lane outputs with distributed wet gain
         const auto* lane1Data = lane1Buffer.getReadPointer(channel);
         const auto* lane2Data = lane2Buffer.getReadPointer(channel);
         const auto* lane3Data = lane3Buffer.getReadPointer(channel);
         const auto* lane4Data = lane4Buffer.getReadPointer(channel);
 
-        // Sum all lanes with equal weighting (total wet = 0.3 max)
+        // Sum all lanes (each lane already processed with its enabled state)
         juce::FloatVectorOperations::addWithMultiply(outData, lane1Data, wetPerLane, numSamples);
         juce::FloatVectorOperations::addWithMultiply(outData, lane2Data, wetPerLane, numSamples);
         juce::FloatVectorOperations::addWithMultiply(outData, lane3Data, wetPerLane, numSamples);

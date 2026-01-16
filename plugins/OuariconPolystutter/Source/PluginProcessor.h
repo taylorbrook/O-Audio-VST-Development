@@ -135,6 +135,13 @@ private:
     std::atomic<float>* midiEnabledParam = nullptr;
     std::atomic<float>* manualTriggerParam = nullptr;
 
+    // v1.0.2: Sequencer enable toggle
+    std::atomic<float>* sequencerEnabledParam = nullptr;
+
+    // v1.1.0: Wet/dry mix parameters
+    std::atomic<float>* mixDryParam = nullptr;
+    std::atomic<float>* mixWetParam = nullptr;
+
     // Phase 2.3: Cached parameter pointers for lane advanced modes
     std::atomic<float>* lane1PingPongParam = nullptr;
     std::atomic<float>* lane1ReverseParam = nullptr;

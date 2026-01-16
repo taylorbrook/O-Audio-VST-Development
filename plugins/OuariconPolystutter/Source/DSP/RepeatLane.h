@@ -94,12 +94,14 @@ private:
     // Phase 2.4: Pitch shifting state (fractional playback position)
     double fractionalPlaybackPosition = 0.0;
 
-    // Capture buffer (using DelayLine for circular buffer)
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delayLineLeft;
-    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> delayLineRight;
-
+    // Capture buffer - dedicated buffer for non-destructive repeat playback
+    // v1.1.0: Separated from delay line to fix pitch shifting and audio corruption
+    juce::AudioBuffer<float> captureBuffer;
+    int captureWritePosition = 0;  // Current write position in circular capture
+    int captureStartPosition = 0;  // Position where current capture began (for playback)
     int captureLength = 0;  // Length of captured audio in samples
     int playbackPosition = 0;
+    int maxCaptureSamples = 0;  // Maximum capture buffer size
 
     // Phase 2.3: Freeze buffers (separate snapshots per lane)
     juce::AudioBuffer<float> freezeBuffer;
@@ -107,6 +109,14 @@ private:
 
     // Crossfade buffer for click-free looping
     int crossfadeSamples = 0;
+
+    // v1.1.1: Global envelope for click-free stutter start/end
+    // Prevents clicks when stutter effect triggers or finishes
+    float globalEnvelopeGain = 0.0f;      // Current envelope level (0.0 to 1.0)
+    int fadeInSamplesRemaining = 0;       // Samples left in fade-in phase
+    bool fadeOutActive = false;           // True when fading out after repeats finish
+    int fadeOutSamplesRemaining = 0;      // Samples left in fade-out phase
+    float fadeOutStartGain = 0.0f;        // Gain level when fade-out started
 
     // Pattern sequencer state
     bool patternSteps[16] = { true, true, true, true, true, true, true, true,

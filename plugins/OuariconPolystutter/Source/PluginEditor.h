@@ -102,11 +102,16 @@ private:
     std::unique_ptr<juce::WebSliderRelay> tapeRolloffRelay;
     std::unique_ptr<juce::WebSliderRelay> tapeDropoutRelay;
 
-    // Global Controls (4 toggles)
+    // v1.1.0: Wet/Dry Mix Relays
+    std::unique_ptr<juce::WebSliderRelay> mixDryRelay;
+    std::unique_ptr<juce::WebSliderRelay> mixWetRelay;
+
+    // Global Controls (4 toggles + 1 sequencer enable)
     std::unique_ptr<juce::WebToggleButtonRelay> envelopeEnabledRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> sidechainEnabledRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> midiEnabledRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> manualTriggerRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> sequencerEnabledRelay;  // v1.0.2
 
     // Pattern Sequencer Step Relays (64 toggles: 4 lanes × 16 steps)
     // Lane 1 pattern steps (16 toggles)
@@ -258,11 +263,16 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeRolloffAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeDropoutAttachment;
 
+    // v1.1.0: Wet/Dry Mix Attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> mixDryAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> mixWetAttachment;
+
     // Global Controls Attachments
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> envelopeEnabledAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> sidechainEnabledAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> midiEnabledAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> manualTriggerAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> sequencerEnabledAttachment;  // v1.0.2
 
     // Pattern Sequencer Step Attachments (64 toggles: 4 lanes × 16 steps)
     // Lane 1 pattern steps (16 attachments)

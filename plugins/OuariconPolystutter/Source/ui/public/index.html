@@ -35,7 +35,7 @@
     /* Fixed preview frame matching plugin spec */
     .plugin-frame {
       width: 1000px;   /* FIXED */
-      height: 750px;  /* FIXED */
+      height: 830px;  /* FIXED - v1.1.2: expanded for better lane control spacing */
       border: 2px solid #444;
       box-shadow: 0 10px 40px rgba(0,0,0,0.5);
       overflow: hidden;
@@ -70,18 +70,19 @@
     }
 
     /* Section containers with EXPLICIT HEIGHTS */
+    /* v1.1.2: Expanded lanes-section by 25% (320px → 400px) for better control spacing */
     .lanes-section {
       position: absolute;
       top: 60px;
       left: 0;
       right: 0;
-      height: 320px;
+      height: 400px;  /* v1.1.2: was 320px, now 25% larger */
       overflow: hidden;
     }
 
     .sequencer-section {
       position: absolute;
-      top: 395px;  /* 60 + 320 + 15 gap */
+      top: 475px;  /* v1.1.2: 60 + 400 + 15 gap */
       left: 0;
       right: 0;
       height: 130px;
@@ -95,7 +96,7 @@
     /* TAPE SECTION - v5 CRITICAL FIX: HORIZONTAL LAYOUT */
     .tape-section {
       position: absolute;
-      top: 540px;  /* 60 + 320 + 15 + 130 + 15 gap */
+      top: 620px;  /* v1.1.2: 60 + 400 + 15 + 130 + 15 gap */
       left: 0;
       right: 0;
       height: 130px;
@@ -137,7 +138,7 @@
 
     .footer-section {
       position: absolute;
-      top: 685px;  /* 60 + 320 + 15 + 130 + 15 + 130 + 15 gap */
+      top: 765px;  /* v1.1.2: 60 + 400 + 15 + 130 + 15 + 130 + 15 gap */
       left: 0;
       right: 0;
       height: 50px;
@@ -369,9 +370,47 @@
     .footer-toggles {
       position: absolute;
       top: 10px;
-      left: 60px;
+      right: 60px;  /* v1.1.0: Moved to right side */
       display: flex;
       gap: 20px;
+    }
+
+    /* v1.1.0: Footer wet/dry mix knobs (left side) */
+    .footer-mix-knobs {
+      position: absolute;
+      top: 5px;
+      left: 20px;
+      display: flex;
+      flex-direction: row;
+      gap: 15px;
+    }
+
+    .footer-knob-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+    }
+
+    .footer-knob-container .knob {
+      width: 32px;
+      height: 32px;
+    }
+
+    .footer-knob-container .knob::before {
+      top: 3px;
+      width: 2px;
+      height: 8px;
+    }
+
+    .footer-knob-container .knob-label {
+      font-size: 8px;
+      height: 10px;
+    }
+
+    .footer-knob-container .knob-value {
+      font-size: 7px;
+      height: 10px;
     }
 
     .footer-toggle {
@@ -404,6 +443,14 @@
       pointer-events: none; /* Disable interaction when lane is off */
       filter: grayscale(30%);
       transition: all 300ms ease-out;
+    }
+
+    /* CRITICAL FIX v1.0.2: Lane header must remain clickable to re-enable lane */
+    .lane-container.lane-disabled .lane-header {
+      pointer-events: auto;
+      opacity: 1;
+      filter: none;
+      cursor: pointer;
     }
 
     /* Freeze indicator - pulsing animation */
@@ -479,63 +526,63 @@
 
     <!-- LANES SECTION (320px height) -->
     <div class="lanes-section">
-      <!-- Lane 1 -->
+      <!-- Lane 1 - v1.1.2: Improved spacing (75px row gap, wider column spread) -->
       <div class="lane-container lane1">
         <div class="lane-header active" id="lane1_enabled">LANE 1</div>
         <div class="progress-bar"><div class="progress-fill" id="lane1_progress"></div></div>
 
-        <!-- Row 1 (y: 115 - 75 offset = 40 relative) -->
-        <div class="combo-container" style="left: 10px; top: 55px;">
+        <!-- Row 1: SUBDIV, REPS, DECAY -->
+        <div class="combo-container" style="left: 20px; top: 55px;">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane1_subdivision">1/16</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 55px;">
+        <div class="knob-container" style="left: 95px; top: 55px;">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane1_repeats"></div>
           <div class="knob-value" id="lane1_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 55px;">
+        <div class="knob-container" style="left: 170px; top: 55px;">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane1_decay"></div>
           <div class="knob-value" id="lane1_decay_value">90%</div>
         </div>
 
-        <!-- Row 2 (y: 175 - 75 = 100 relative) -->
-        <div class="knob-container" style="left: 10px; top: 115px;">
+        <!-- Row 2: PITCH, FILTR, PROB -->
+        <div class="knob-container" style="left: 20px; top: 130px;">
           <div class="knob-label">PITCH</div>
           <div class="knob" id="lane1_pitch"></div>
           <div class="knob-value" id="lane1_pitch_value">0st</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 115px;">
+        <div class="knob-container" style="left: 95px; top: 130px;">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane1_filter"></div>
           <div class="knob-value" id="lane1_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 115px;">
+        <div class="knob-container" style="left: 170px; top: 130px;">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane1_probability"></div>
           <div class="knob-value" id="lane1_probability_value">100%</div>
         </div>
 
-        <!-- Row 3 (y: 235 - 75 = 160 relative) -->
-        <div class="knob-container" style="left: 10px; top: 175px;">
+        <!-- Row 3: VOL, PAN, SWING -->
+        <div class="knob-container" style="left: 20px; top: 205px;">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane1_volume"></div>
           <div class="knob-value" id="lane1_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 175px;">
+        <div class="knob-container" style="left: 95px; top: 205px;">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane1_pan"></div>
           <div class="knob-value" id="lane1_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 175px;">
+        <div class="knob-container" style="left: 170px; top: 205px;">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane1_swing"></div>
           <div class="knob-value" id="lane1_swing_value">0%</div>
         </div>
 
-        <!-- Row 4 toggles (y: 295 - 75 = 220 relative) -->
-        <div class="toggle-row" style="left: 5px; top: 235px;">
+        <!-- Row 4: Toggle buttons -->
+        <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane1_pingpong">PING</div>
           <div class="toggle-button" id="lane1_reverse">REV</div>
           <div class="toggle-button" id="lane1_manual">MAN</div>
@@ -543,59 +590,59 @@
         </div>
       </div>
 
-      <!-- Lane 2 (same structure, offset left: 250px) -->
+      <!-- Lane 2 - v1.1.2: Improved spacing -->
       <div class="lane-container lane2">
         <div class="lane-header active" id="lane2_enabled">LANE 2</div>
         <div class="progress-bar"><div class="progress-fill" id="lane2_progress"></div></div>
 
-        <div class="combo-container" style="left: 10px; top: 55px;">
+        <div class="combo-container" style="left: 20px; top: 55px;">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane2_subdivision">1/8</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 55px;">
+        <div class="knob-container" style="left: 95px; top: 55px;">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane2_repeats"></div>
           <div class="knob-value" id="lane2_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 55px;">
+        <div class="knob-container" style="left: 170px; top: 55px;">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane2_decay"></div>
           <div class="knob-value" id="lane2_decay_value">90%</div>
         </div>
 
-        <div class="knob-container" style="left: 10px; top: 115px;">
+        <div class="knob-container" style="left: 20px; top: 130px;">
           <div class="knob-label">PITCH</div>
           <div class="knob" id="lane2_pitch"></div>
           <div class="knob-value" id="lane2_pitch_value">0st</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 115px;">
+        <div class="knob-container" style="left: 95px; top: 130px;">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane2_filter"></div>
           <div class="knob-value" id="lane2_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 115px;">
+        <div class="knob-container" style="left: 170px; top: 130px;">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane2_probability"></div>
           <div class="knob-value" id="lane2_probability_value">100%</div>
         </div>
 
-        <div class="knob-container" style="left: 10px; top: 175px;">
+        <div class="knob-container" style="left: 20px; top: 205px;">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane2_volume"></div>
           <div class="knob-value" id="lane2_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 175px;">
+        <div class="knob-container" style="left: 95px; top: 205px;">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane2_pan"></div>
           <div class="knob-value" id="lane2_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 175px;">
+        <div class="knob-container" style="left: 170px; top: 205px;">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane2_swing"></div>
           <div class="knob-value" id="lane2_swing_value">0%</div>
         </div>
 
-        <div class="toggle-row" style="left: 5px; top: 235px;">
+        <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane2_pingpong">PING</div>
           <div class="toggle-button" id="lane2_reverse">REV</div>
           <div class="toggle-button" id="lane2_manual">MAN</div>
@@ -603,59 +650,59 @@
         </div>
       </div>
 
-      <!-- Lane 3 -->
+      <!-- Lane 3 - v1.1.2: Improved spacing -->
       <div class="lane-container lane3">
         <div class="lane-header" id="lane3_enabled">LANE 3</div>
         <div class="progress-bar"><div class="progress-fill" id="lane3_progress"></div></div>
 
-        <div class="combo-container" style="left: 10px; top: 55px;">
+        <div class="combo-container" style="left: 20px; top: 55px;">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane3_subdivision">1/8T</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 55px;">
+        <div class="knob-container" style="left: 95px; top: 55px;">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane3_repeats"></div>
           <div class="knob-value" id="lane3_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 55px;">
+        <div class="knob-container" style="left: 170px; top: 55px;">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane3_decay"></div>
           <div class="knob-value" id="lane3_decay_value">90%</div>
         </div>
 
-        <div class="knob-container" style="left: 10px; top: 115px;">
+        <div class="knob-container" style="left: 20px; top: 130px;">
           <div class="knob-label">PITCH</div>
           <div class="knob" id="lane3_pitch"></div>
           <div class="knob-value" id="lane3_pitch_value">0st</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 115px;">
+        <div class="knob-container" style="left: 95px; top: 130px;">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane3_filter"></div>
           <div class="knob-value" id="lane3_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 115px;">
+        <div class="knob-container" style="left: 170px; top: 130px;">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane3_probability"></div>
           <div class="knob-value" id="lane3_probability_value">100%</div>
         </div>
 
-        <div class="knob-container" style="left: 10px; top: 175px;">
+        <div class="knob-container" style="left: 20px; top: 205px;">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane3_volume"></div>
           <div class="knob-value" id="lane3_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 175px;">
+        <div class="knob-container" style="left: 95px; top: 205px;">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane3_pan"></div>
           <div class="knob-value" id="lane3_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 175px;">
+        <div class="knob-container" style="left: 170px; top: 205px;">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane3_swing"></div>
           <div class="knob-value" id="lane3_swing_value">0%</div>
         </div>
 
-        <div class="toggle-row" style="left: 5px; top: 235px;">
+        <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane3_pingpong">PING</div>
           <div class="toggle-button" id="lane3_reverse">REV</div>
           <div class="toggle-button" id="lane3_manual">MAN</div>
@@ -663,59 +710,59 @@
         </div>
       </div>
 
-      <!-- Lane 4 -->
+      <!-- Lane 4 - v1.1.2: Improved spacing -->
       <div class="lane-container lane4">
         <div class="lane-header" id="lane4_enabled">LANE 4</div>
         <div class="progress-bar"><div class="progress-fill" id="lane4_progress"></div></div>
 
-        <div class="combo-container" style="left: 10px; top: 55px;">
+        <div class="combo-container" style="left: 20px; top: 55px;">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane4_subdivision">1/32</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 55px;">
+        <div class="knob-container" style="left: 95px; top: 55px;">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane4_repeats"></div>
           <div class="knob-value" id="lane4_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 55px;">
+        <div class="knob-container" style="left: 170px; top: 55px;">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane4_decay"></div>
           <div class="knob-value" id="lane4_decay_value">90%</div>
         </div>
 
-        <div class="knob-container" style="left: 10px; top: 115px;">
+        <div class="knob-container" style="left: 20px; top: 130px;">
           <div class="knob-label">PITCH</div>
           <div class="knob" id="lane4_pitch"></div>
           <div class="knob-value" id="lane4_pitch_value">0st</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 115px;">
+        <div class="knob-container" style="left: 95px; top: 130px;">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane4_filter"></div>
           <div class="knob-value" id="lane4_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 115px;">
+        <div class="knob-container" style="left: 170px; top: 130px;">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane4_probability"></div>
           <div class="knob-value" id="lane4_probability_value">100%</div>
         </div>
 
-        <div class="knob-container" style="left: 10px; top: 175px;">
+        <div class="knob-container" style="left: 20px; top: 205px;">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane4_volume"></div>
           <div class="knob-value" id="lane4_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 64px; top: 175px;">
+        <div class="knob-container" style="left: 95px; top: 205px;">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane4_pan"></div>
           <div class="knob-value" id="lane4_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 118px; top: 175px;">
+        <div class="knob-container" style="left: 170px; top: 205px;">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane4_swing"></div>
           <div class="knob-value" id="lane4_swing_value">0%</div>
         </div>
 
-        <div class="toggle-row" style="left: 5px; top: 235px;">
+        <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane4_pingpong">PING</div>
           <div class="toggle-button" id="lane4_reverse">REV</div>
           <div class="toggle-button" id="lane4_manual">MAN</div>
@@ -841,9 +888,24 @@
       </div>
     </div>
 
-    <!-- FOOTER SECTION (50px height) -->
+    <!-- FOOTER SECTION (50px height) - v1.1.0: Added wet/dry knobs -->
     <div class="footer-section">
+      <!-- v1.1.0: Wet/Dry Mix Knobs (left side) -->
+      <div class="footer-mix-knobs">
+        <div class="footer-knob-container">
+          <div class="knob-label">DRY</div>
+          <div class="knob" id="mix_dry" data-param="mix_dry"></div>
+          <div class="knob-value" id="mix_dry_value">50%</div>
+        </div>
+        <div class="footer-knob-container">
+          <div class="knob-label">WET</div>
+          <div class="knob" id="mix_wet" data-param="mix_wet"></div>
+          <div class="knob-value" id="mix_wet_value">100%</div>
+        </div>
+      </div>
+      <!-- Trigger mode toggles (right side) -->
       <div class="footer-toggles">
+        <div class="footer-toggle active" id="seq_toggle">SEQ</div>
         <div class="footer-toggle" id="env_toggle">ENV</div>
         <div class="footer-toggle" id="sc_toggle">SC</div>
         <div class="footer-toggle" id="midi_toggle">MIDI</div>

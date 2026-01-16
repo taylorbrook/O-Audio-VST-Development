@@ -1,0 +1,47 @@
+Build started at Thu 15 Jan 2026 23:31:31 PST
+Plugin: OuariconPolystutter
+Flags: DRY_RUN=false NO_INSTALL=false VERBOSE=false RECONFIGURE=false
+---
+Phase 1: Pre-flight Validation
+Pre-flight validation: PASS
+Phase 2: Parallel Build
+$ cmake --build build --config Release --target OuariconPolystutter_VST3 --target OuariconPolystutter_AU --parallel
+[0/2] Re-checking globbed directories...
+[1/17] Generating juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData1.cpp, juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData2.cpp, juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData3.cpp, juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData4.cpp, juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData5.cpp, juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData6.cpp, juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData.h
+[2/13] Building CXX object plugins/OuariconPolystutter/CMakeFiles/OuariconPolystutter_UIResources.dir/juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData4.cpp.o
+[3/13] Building CXX object plugins/OuariconPolystutter/CMakeFiles/OuariconPolystutter_UIResources.dir/juce_binarydata_OuariconPolystutter_UIResources/JuceLibraryCode/BinaryData1.cpp.o
+[4/13] Linking CXX static library plugins/OuariconPolystutter/libOuariconPolystutter_UIResources.a
+[5/13] Building CXX object plugins/OuariconPolystutter/CMakeFiles/OuariconPolystutter.dir/Source/DSP/TriggerRouter.cpp.o
+[6/13] Building CXX object plugins/OuariconPolystutter/CMakeFiles/OuariconPolystutter.dir/Source/DSP/RepeatLane.cpp.o
+[7/13] Building CXX object plugins/OuariconPolystutter/CMakeFiles/OuariconPolystutter.dir/Source/DSP/TapeDegrader.cpp.o
+[8/13] Building CXX object plugins/OuariconPolystutter/CMakeFiles/OuariconPolystutter.dir/Source/PluginProcessor.cpp.o
+[9/13] Building CXX object plugins/OuariconPolystutter/CMakeFiles/OuariconPolystutter.dir/Source/PluginEditor.cpp.o
+[10/13] Linking CXX static library "plugins/OuariconPolystutter/OuariconPolystutter_artefacts/Release/libOuaricon Polystutter_SharedCode.a"
+[11/13] Linking CXX CFBundle shared module "plugins/OuariconPolystutter/OuariconPolystutter_artefacts/Release/VST3/Ouaricon Polystutter.vst3/Contents/MacOS/Ouaricon Polystutter"
+/Users/taylorbrook/Dev/VST-development/build/plugins/OuariconPolystutter/OuariconPolystutter_artefacts/Release/VST3/Ouaricon Polystutter.vst3: code has no resources but signature indicates they must be present
+-- Replacing invalid signature with ad-hoc signature
+/Users/taylorbrook/Dev/VST-development/build/plugins/OuariconPolystutter/OuariconPolystutter_artefacts/Release/VST3/Ouaricon Polystutter.vst3: replacing existing signature
+removing moduleinfo.json
+creating /Users/taylorbrook/Dev/VST-development/build/plugins/OuariconPolystutter/OuariconPolystutter_artefacts/Release/VST3/Ouaricon Polystutter.vst3
+[12/13] Linking CXX CFBundle shared module "plugins/OuariconPolystutter/OuariconPolystutter_artefacts/Release/AU/Ouaricon Polystutter.component/Contents/MacOS/Ouaricon Polystutter"
+Build: SUCCESS
+Phase 3: Extract PRODUCT_NAME
+PRODUCT_NAME: Ouaricon Polystutter
+Phase 4: Remove Old Versions
+Removed old VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/Ouaricon Polystutter.vst3
+Removed old AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/Ouaricon Polystutter.component
+Phase 5: Install New Versions
+Installed VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/Ouaricon Polystutter.vst3
+Installed AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/Ouaricon Polystutter.component
+Phase 6: Clear DAW Caches
+Cleared Ableton plugin database
+Cleared AU cache
+Killed AudioComponentRegistrar
+Phase 7: Verification
+
+Verification: PASS
+VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/Ouaricon Polystutter.vst3 (5.0M, 0s old)
+AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/Ouaricon Polystutter.component (4.9M, 0s old)
+
+Build completed at Thu 15 Jan 2026 23:31:49 PST
+Duration: 18s
