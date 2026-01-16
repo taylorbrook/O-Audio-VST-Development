@@ -610,32 +610,18 @@
     // UPDATE LED METER FROM RMS DATA (exposed globally for C++ calls)
     // ============================================
     window.updateLEDMeter = function(rmsLevel) {
-      const meterContainer = document.getElementById('led-meter');
-      const segments = meterContainer.querySelectorAll('.led-segment');
+      const segments = document.getElementById('led-meter').querySelectorAll('.led-segment');
 
-      // Apply gain and logarithmic curve for better sensitivity
-      // Boost the signal (RMS is typically very low, ~0.01-0.3 for normal audio)
-      const boostedLevel = rmsLevel * 6.0;  // 6x gain boost
-
-      // Apply logarithmic curve for better visual response
-      // Maps 0-1 input to 0-1 output with emphasis on lower values
-      const logLevel = boostedLevel > 0 ? (Math.log10(1 + boostedLevel * 9) / Math.log10(10)) : 0;
-
-      // Clamp to 0-1 and convert to segment count
-      const clampedLevel = Math.min(1.0, Math.max(0.0, logLevel));
-      const level = Math.floor(clampedLevel * 14);
+      // Apply gain boost and logarithmic curve for better visual response
+      const boostedLevel = rmsLevel * 6.0;
+      const logLevel = boostedLevel > 0 ? Math.log10(1 + boostedLevel * 9) : 0;
+      const activeCount = Math.floor(Math.min(1.0, Math.max(0.0, logLevel)) * 14);
 
       segments.forEach((segment, index) => {
         segment.classList.remove('active-low', 'active-mid', 'active-high');
-
-        if (index < level) {
-          if (index < 5) {
-            segment.classList.add('active-low');
-          } else if (index < 10) {
-            segment.classList.add('active-mid');
-          } else {
-            segment.classList.add('active-high');
-          }
+        if (index < activeCount) {
+          const levelClass = index < 5 ? 'active-low' : index < 10 ? 'active-mid' : 'active-high';
+          segment.classList.add(levelClass);
         }
       });
     };
@@ -702,10 +688,10 @@
     }
 
     // ============================================
-    // TOGGLE INTERACTION (SYNC) - triggers time knob display update
+    // TOGGLE INTERACTION (SYNC)
     // ============================================
     let syncState = null;
-    let updateTimeDisplay = null;  // Will be set by setupTimeKnob
+    let updateTimeDisplay = null;
 
     function setupToggle() {
       const toggle = document.getElementById('sync');
@@ -716,30 +702,25 @@
         return;
       }
 
-      function updateVisual(value) {
+      const updateVisual = (value) => {
         toggle.classList.toggle('active', value);
         toggle.textContent = value ? 'ON' : 'OFF';
-        // Trigger time knob display update when sync state changes
         if (updateTimeDisplay) updateTimeDisplay();
-      }
+      };
 
-      syncState.valueChangedEvent.addListener(() => {
-        updateVisual(syncState.getValue());
-      });
+      syncState.valueChangedEvent.addListener(() => updateVisual(syncState.getValue()));
       updateVisual(syncState.getValue());
-
-      toggle.addEventListener('click', () => {
-        syncState.setValue(!syncState.getValue());
-      });
+      toggle.addEventListener('click', () => syncState.setValue(!syncState.getValue()));
     }
 
     // ============================================
-    // TIME KNOB SETUP (Pattern from Tremolo: relative drag with tempo sync display)
-    // When sync OFF: controls time in ms (continuous)
-    // When sync ON: controls division selection (snaps to 12 discrete values)
+    // TIME KNOB SETUP
+    // Sync OFF: controls time in ms (continuous)
+    // Sync ON: controls division selection (snaps to 12 discrete values)
     // ============================================
     function setupTimeKnob() {
       const knob = document.getElementById('time-knob');
+      const knobBody = knob.querySelector('.knob-body');
       const valueDisplay = document.getElementById('time-value');
       const timeState = getSliderState('time');
       const divisionState = getComboBoxState('division');
@@ -752,123 +733,69 @@
       let rotation = -135;
       let lastY = 0;
       let isDragging = false;
-
-      // Track a virtual normalized position for sync mode (0-1 maps to divisions 0-11)
       let syncNormalized = 0;
-      if (divisionState) {
-        try {
-          syncNormalized = divisionState.getChoiceIndex() / 11;
-        } catch (e) {
-          syncNormalized = 0;
-        }
-      }
 
-      // Update visual display and knob rotation
-      function updateVisual() {
-        const isSync = syncState && syncState.getValue();
+      const getDivisionIndex = () => {
+        try { return divisionState?.getChoiceIndex() ?? 0; }
+        catch { return 0; }
+      };
+
+      const setRotation = (normalized) => {
+        rotation = -135 + (normalized * 270);
+        knobBody.style.transform = `rotate(${rotation}deg)`;
+      };
+
+      const updateVisual = () => {
+        const isSync = syncState?.getValue();
 
         if (isSync && divisionState) {
-          // SYNC MODE: Show division name, snap knob to division positions
-          let divIndex = 0;
-          try {
-            divIndex = divisionState.getChoiceIndex();
-          } catch (e) {
-            divIndex = 0;
-          }
-          const validIndex = Math.max(0, Math.min(11, divIndex));
-
-          // Display the division name
-          valueDisplay.textContent = musicalDivisions[validIndex].name;
-
-          // Snap knob rotation to division position
-          const snappedNorm = validIndex / 11;
-          rotation = -135 + (snappedNorm * 270);
-          knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
-
-          // Keep sync normalized in sync with actual division
-          syncNormalized = snappedNorm;
+          const divIndex = Math.max(0, Math.min(11, getDivisionIndex()));
+          valueDisplay.textContent = musicalDivisions[divIndex].name;
+          syncNormalized = divIndex / 11;
+          setRotation(syncNormalized);
         } else {
-          // FREE MODE: Show ms value, smooth knob rotation
           const normalized = timeState.getNormalisedValue();
-          rotation = -135 + (normalized * 270);
-          knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
-
-          const value = 1.0 + (normalized * (2000.0 - 1.0));
-          valueDisplay.textContent = `${Math.round(value)} ms`;
+          setRotation(normalized);
+          valueDisplay.textContent = `${Math.round(1.0 + normalized * 1999.0)} ms`;
         }
-      }
+      };
 
-      // Expose for sync toggle to call
       updateTimeDisplay = updateVisual;
 
-      // Listen for parameter changes from C++
-      timeState.valueChangedEvent.addListener(() => {
-        updateVisual();
-      });
-      if (divisionState) {
-        divisionState.valueChangedEvent.addListener(() => {
-          updateVisual();
-        });
-      }
-
-      // Initial visual update
+      timeState.valueChangedEvent.addListener(updateVisual);
+      divisionState?.valueChangedEvent.addListener(updateVisual);
       updateVisual();
 
-      // MOUSE DOWN: Start drag gesture
       knob.addEventListener('mousedown', (e) => {
         isDragging = true;
         lastY = e.clientY;
         knob.style.cursor = 'grabbing';
-
-        const isSync = syncState && syncState.getValue();
-        if (isSync && divisionState) {
-          // Initialize syncNormalized from current division
-          try {
-            syncNormalized = divisionState.getChoiceIndex() / 11;
-          } catch (err) {
-            syncNormalized = 0;
-          }
+        if (syncState?.getValue() && divisionState) {
+          syncNormalized = getDivisionIndex() / 11;
         }
-
         e.preventDefault();
       });
 
-      // MOUSE MOVE: Handle drag
       document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
 
         const deltaY = lastY - e.clientY;
-        const isSync = syncState && syncState.getValue();
+        const isSync = syncState?.getValue();
 
         if (isSync && divisionState) {
-          // SYNC MODE: Drag controls division selection
-          const sensitivity = 0.005;
-          syncNormalized += deltaY * sensitivity;
-          syncNormalized = Math.max(0, Math.min(1, syncNormalized));
-
-          // Snap to nearest division (0-11)
+          syncNormalized = Math.max(0, Math.min(1, syncNormalized + deltaY * 0.005));
           const newDiv = Math.round(syncNormalized * 11);
-          try {
-            const currentDiv = divisionState.getChoiceIndex();
-            if (newDiv !== currentDiv) {
-              divisionState.setChoiceIndex(newDiv);
-            }
-          } catch (err) {
-            // Division state not available
+          if (newDiv !== getDivisionIndex()) {
+            try { divisionState.setChoiceIndex(newDiv); } catch {}
           }
         } else {
-          // FREE MODE: Drag controls time parameter (continuous)
-          const rotationDelta = deltaY * 0.5;
-          rotation = Math.max(-135, Math.min(135, rotation + rotationDelta));
-
-          const normalized = (rotation + 135) / 270;
-          timeState.setNormalisedValue(normalized);
+          rotation = Math.max(-135, Math.min(135, rotation + deltaY * 0.5));
+          timeState.setNormalisedValue((rotation + 135) / 270);
         }
 
         lastY = e.clientY;
       });
 
-      // MOUSE UP: End drag gesture
       document.addEventListener('mouseup', () => {
         if (isDragging) {
           isDragging = false;

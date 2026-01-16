@@ -138,11 +138,19 @@ const meter = new SmoothMeter({
 ```javascript
 import { NeedleMeter } from './modules/vu-meter.js';
 
+// Default: 180° sweep with dynamic green-to-red color
 const meter = new NeedleMeter({
+    container: document.getElementById('vu-dial')
+});
+
+// Custom colors and angles
+const customMeter = new NeedleMeter({
     container: document.getElementById('vu-dial'),
-    minAngle: -45,
-    maxAngle: 45,
-    needleColor: '#2C3E50'
+    minAngle: -90,
+    maxAngle: 90,
+    colorLow: '#00FF00',   // Green at min
+    colorHigh: '#FF0000',  // Red at max
+    // needleColor: '#2C3E50'  // Set this to disable dynamic color
 });
 ```
 
@@ -194,6 +202,16 @@ registerMeterUpdate(
 | colors.inactive | '#8B7355' | Inactive segment color |
 | thresholds.mid | 0.5 | Threshold for mid color |
 | thresholds.high | 0.85 | Threshold for high color |
+
+### NeedleMeter Specific
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| minAngle | -90 | Needle angle at minimum level (degrees) |
+| maxAngle | 90 | Needle angle at maximum level (degrees) |
+| colorLow | '#4CAF50' | Needle color at minimum (green) |
+| colorHigh | '#F44336' | Needle color at maximum (red) |
+| needleColor | null | Static color (disables gradient if set) |
 
 ## Version History
 

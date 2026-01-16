@@ -146,8 +146,6 @@ void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int sa
 
 void OuariconDigitalDelayAudioProcessor::releaseResources()
 {
-    // Optional: Release resources when plugin not in use
-    // Delay lines will be cleaned up automatically
 }
 
 void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -178,25 +176,15 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
 
     if (isSync)
     {
-        // Tempo sync mode: Calculate delay from BPM + subdivision
-        auto* playHead = getPlayHead();
-        if (playHead != nullptr)
+        if (auto* playHead = getPlayHead())
         {
-            auto positionInfo = playHead->getPosition();
-            if (positionInfo.hasValue() && positionInfo->getBpm().hasValue())
+            if (auto positionInfo = playHead->getPosition(); positionInfo.hasValue())
             {
-                double bpm = *positionInfo->getBpm();
-                if (bpm > 0.0)
+                if (auto bpm = positionInfo->getBpm(); bpm.hasValue() && *bpm > 0.0)
                 {
-                    int divisionIndex = static_cast<int>(divisionParam->load());
-                    divisionIndex = juce::jlimit(0, 11, divisionIndex);
-
-                    // Calculate delay time from BPM: (60000ms / bpm) * subdivisionFactor
-                    float subdivisionFactor = subdivisionFactors[divisionIndex];
-                    delayTimeMs = static_cast<float>((60000.0 / bpm) * subdivisionFactor);
-
-                    // Clamp to valid range
-                    delayTimeMs = juce::jlimit(1.0f, 2000.0f, delayTimeMs);
+                    int divisionIndex = juce::jlimit(0, 11, static_cast<int>(divisionParam->load()));
+                    delayTimeMs = juce::jlimit(1.0f, 2000.0f,
+                        static_cast<float>((60000.0 / *bpm) * subdivisionFactors[divisionIndex]));
                 }
             }
         }
@@ -293,31 +281,22 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     }
 
     // Calculate RMS levels for output meter
+    auto calculateRms = [](const float* channel, int samples) {
+        float sumSquares = 0.0f;
+        for (int i = 0; i < samples; ++i)
+            sumSquares += channel[i] * channel[i];
+        return std::sqrt(sumSquares / static_cast<float>(samples));
+    };
+
     if (numChannels >= 1)
     {
-        float sumSquares = 0.0f;
-        auto* leftChannel = buffer.getReadPointer(0);
-        for (int i = 0; i < numSamples; ++i)
-        {
-            float sample = leftChannel[i];
-            sumSquares += sample * sample;
-        }
-        float rms = std::sqrt(sumSquares / static_cast<float>(numSamples));
-        rmsLevelLeft.setTargetValue(rms);
+        rmsLevelLeft.setTargetValue(calculateRms(buffer.getReadPointer(0), numSamples));
         rmsLevelLeft.skip(numSamples);
     }
 
     if (numChannels >= 2)
     {
-        float sumSquares = 0.0f;
-        auto* rightChannel = buffer.getReadPointer(1);
-        for (int i = 0; i < numSamples; ++i)
-        {
-            float sample = rightChannel[i];
-            sumSquares += sample * sample;
-        }
-        float rms = std::sqrt(sumSquares / static_cast<float>(numSamples));
-        rmsLevelRight.setTargetValue(rms);
+        rmsLevelRight.setTargetValue(calculateRms(buffer.getReadPointer(1), numSamples));
         rmsLevelRight.skip(numSamples);
     }
 }

@@ -45,30 +45,23 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
             })
             .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
                 fileChooser = std::make_unique<juce::FileChooser>(
-                    "Save Preset",
-                    processorRef.presetManager.getUserPresetsDirectory(),
-                    "*.json"
-                );
+                    "Save Preset", processorRef.presetManager.getUserPresetsDirectory(), "*.json");
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
                     [this, complete](const juce::FileChooser& fc) {
                         auto results = fc.getResults();
+                        auto* result = new juce::DynamicObject();
                         if (results.isEmpty()) {
-                            auto* result = new juce::DynamicObject();
                             result->setProperty("success", false);
                             result->setProperty("name", "");
-                            complete(juce::var(result));
-                            return;
+                        } else {
+                            auto presetName = results.getFirst().getFileNameWithoutExtension();
+                            bool success = processorRef.presetManager.savePreset(presetName);
+                            result->setProperty("success", success);
+                            result->setProperty("name", success ? presetName : juce::String());
                         }
-                        auto file = results.getFirst();
-                        auto presetName = file.getFileNameWithoutExtension();
-                        bool success = processorRef.presetManager.savePreset(presetName);
-                        auto* result = new juce::DynamicObject();
-                        result->setProperty("success", success);
-                        result->setProperty("name", success ? presetName : juce::String());
                         complete(juce::var(result));
-                    }
-                );
+                    });
             })
             .withNativeFunction("loadPreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)
@@ -78,29 +71,23 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
             })
             .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
                 fileChooser = std::make_unique<juce::FileChooser>(
-                    "Load Preset",
-                    processorRef.presetManager.getUserPresetsDirectory(),
-                    "*.json"
-                );
+                    "Load Preset", processorRef.presetManager.getUserPresetsDirectory(), "*.json");
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
                     [this, complete](const juce::FileChooser& fc) {
                         auto results = fc.getResults();
+                        auto* result = new juce::DynamicObject();
                         if (results.isEmpty()) {
-                            auto* result = new juce::DynamicObject();
                             result->setProperty("success", false);
                             result->setProperty("name", "");
-                            complete(juce::var(result));
-                            return;
+                        } else {
+                            auto file = results.getFirst();
+                            bool success = processorRef.presetManager.loadPresetFromFile(file);
+                            result->setProperty("success", success);
+                            result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
                         }
-                        auto file = results.getFirst();
-                        bool success = processorRef.presetManager.loadPresetFromFile(file);
-                        auto* result = new juce::DynamicObject();
-                        result->setProperty("success", success);
-                        result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
                         complete(juce::var(result));
-                    }
-                );
+                    });
             })
             .withNativeFunction("getPresetList", [this](auto&, auto complete) {
                 auto list = processorRef.presetManager.getPresetList();
@@ -165,13 +152,7 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
 
 OuariconDigitalDelayAudioProcessorEditor::~OuariconDigitalDelayAudioProcessorEditor()
 {
-    // Stop timer before destruction
     stopTimer();
-
-    // Destruction order is automatic (reverse of declaration):
-    // 1. Attachments destroyed first (safe to call webView methods)
-    // 2. WebView destroyed second
-    // 3. Relays destroyed last
 }
 
 void OuariconDigitalDelayAudioProcessorEditor::paint(juce::Graphics& g)

@@ -7,8 +7,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/SessionStart.sh",
-            "timeout": 5000,
-            "description": "Validate development environment at session start"
+            "timeout": 5000
           }
         ]
       }
@@ -20,8 +19,7 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PostToolUse.sh",
-            "timeout": 2000,
-            "description": "Real-time code quality validation for JUCE best practices"
+            "timeout": 2000
           }
         ]
       }
@@ -32,11 +30,13 @@
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PreCompact.sh",
-            "timeout": 10000,
-            "description": "Preserve all contract files before context compaction"
+            "timeout": 10000
           }
         ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "code-review@claude-plugins-official": true
   }
 }

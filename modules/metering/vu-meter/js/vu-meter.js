@@ -312,12 +312,43 @@ export class NeedleMeter extends BaseMeter {
     constructor(options = {}) {
         super(options);
 
-        this.minAngle = options.minAngle || -45;  // degrees
-        this.maxAngle = options.maxAngle || 45;   // degrees
-        this.needleColor = options.needleColor || '#3C2F2F';
+        this.minAngle = options.minAngle || -90;  // degrees
+        this.maxAngle = options.maxAngle || 90;   // degrees
+        this.needleColor = options.needleColor || null; // null = use dynamic color
+        this.colorLow = options.colorLow || '#4CAF50';   // Green
+        this.colorHigh = options.colorHigh || '#F44336'; // Red
 
         this.needleElement = null;
         this.buildDOM();
+    }
+
+    /**
+     * Interpolate between two hex colors.
+     * @param {string} color1 - Start color (hex)
+     * @param {string} color2 - End color (hex)
+     * @param {number} t - Interpolation factor (0-1)
+     * @returns {string} Interpolated color as rgb()
+     */
+    interpolateColor(color1, color2, t) {
+        // Parse hex to RGB
+        const parseHex = (hex) => {
+            const h = hex.replace('#', '');
+            return {
+                r: parseInt(h.substring(0, 2), 16),
+                g: parseInt(h.substring(2, 4), 16),
+                b: parseInt(h.substring(4, 6), 16)
+            };
+        };
+
+        const c1 = parseHex(color1);
+        const c2 = parseHex(color2);
+
+        // Linear interpolation
+        const r = Math.round(c1.r + (c2.r - c1.r) * t);
+        const g = Math.round(c1.g + (c2.g - c1.g) * t);
+        const b = Math.round(c1.b + (c2.b - c1.b) * t);
+
+        return `rgb(${r}, ${g}, ${b})`;
     }
 
     /**
@@ -325,6 +356,8 @@ export class NeedleMeter extends BaseMeter {
      */
     buildDOM() {
         if (!this.container) return;
+
+        const initialColor = this.needleColor || this.colorLow;
 
         // Needle (centered at bottom)
         this.needleElement = document.createElement('div');
@@ -334,11 +367,12 @@ export class NeedleMeter extends BaseMeter {
             left: 50%;
             width: 3px;
             height: 70%;
-            background: ${this.needleColor};
+            background: ${initialColor};
             transform-origin: bottom center;
             transform: translateX(-50%) rotate(${this.minAngle}deg);
             border-radius: 2px;
             box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+            transition: background 0.1s ease;
         `;
         this.container.appendChild(this.needleElement);
     }
@@ -353,6 +387,13 @@ export class NeedleMeter extends BaseMeter {
 
         if (this.needleElement) {
             this.needleElement.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+
+            // Dynamic color: green at min, red at max (unless static color specified)
+            if (!this.needleColor) {
+                const color = this.interpolateColor(this.colorLow, this.colorHigh, normalized);
+                this.needleElement.style.background = color;
+                this.needleElement.style.boxShadow = `0 2px 4px rgba(0, 0, 0, 0.3), 0 0 8px ${color}`;
+            }
         }
     }
 }

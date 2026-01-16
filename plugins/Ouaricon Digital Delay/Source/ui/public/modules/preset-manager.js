@@ -157,10 +157,22 @@ export class PresetManager {
     }
 
     /**
+     * Helper for safe async calls with error handling.
+     */
+    async _safeCall(fn, errorMsg, defaultValue = false) {
+        try {
+            return await fn();
+        } catch (e) {
+            console.error(`[PresetManager] ${errorMsg}:`, e);
+            return defaultValue;
+        }
+    }
+
+    /**
      * Load a preset by name.
      */
     async loadPreset(name) {
-        try {
+        return this._safeCall(async () => {
             const success = await this._loadPreset(name);
             if (success) {
                 this.currentPreset = name;
@@ -168,77 +180,57 @@ export class PresetManager {
                 this.onPresetChanged(name);
             }
             return success;
-        } catch (e) {
-            console.error('[PresetManager] Load failed:', e);
-            return false;
-        }
+        }, 'Load failed');
     }
 
     /**
      * Select the next preset in the list.
      */
     async selectNext() {
-        try {
+        return this._safeCall(async () => {
             const nextName = await this._selectNextPreset();
-            if (nextName) {
-                const success = await this.loadPreset(nextName);
-                return success;
-            }
-        } catch (e) {
-            console.error('[PresetManager] selectNext failed:', e);
-        }
-        return false;
+            return nextName ? this.loadPreset(nextName) : false;
+        }, 'selectNext failed');
     }
 
     /**
      * Select the previous preset in the list.
      */
     async selectPrevious() {
-        try {
+        return this._safeCall(async () => {
             const prevName = await this._selectPreviousPreset();
-            if (prevName) {
-                const success = await this.loadPreset(prevName);
-                return success;
-            }
-        } catch (e) {
-            console.error('[PresetManager] selectPrevious failed:', e);
-        }
-        return false;
+            return prevName ? this.loadPreset(prevName) : false;
+        }, 'selectPrevious failed');
     }
 
     /**
      * Save current state as a preset with given name.
-     * For programmatic saves (e.g., auto-save, overwrite).
      */
     async savePreset(name) {
-        if (!name || name.trim() === '') {
+        if (!name?.trim()) {
             console.warn('[PresetManager] Empty preset name');
             return false;
         }
 
-        try {
-            const success = await this._savePreset(name.trim());
+        return this._safeCall(async () => {
+            const trimmedName = name.trim();
+            const success = await this._savePreset(trimmedName);
             if (success) {
-                this.currentPreset = name.trim();
+                this.currentPreset = trimmedName;
                 await this.refresh();
                 this.onPresetChanged(this.currentPreset);
             }
             return success;
-        } catch (e) {
-            console.error('[PresetManager] Save failed:', e);
-            return false;
-        }
+        }, 'Save failed');
     }
 
     /**
      * Save preset using native system file dialog.
-     * Opens macOS/Windows save dialog in User presets folder.
-     * Returns {success: boolean, name: string}.
      */
     async saveWithDialog() {
-        try {
+        return this._safeCall(async () => {
             const result = await this._savePresetWithDialog();
-            if (result && result.success) {
+            if (result?.success) {
                 this.currentPreset = result.name;
                 this._updateDisplay();
                 await this.refresh();
@@ -246,21 +238,16 @@ export class PresetManager {
                 return result;
             }
             return { success: false, name: '' };
-        } catch (e) {
-            console.error('[PresetManager] saveWithDialog failed:', e);
-            return { success: false, name: '' };
-        }
+        }, 'saveWithDialog failed', { success: false, name: '' });
     }
 
     /**
      * Load a preset from file using native system file dialog.
-     * Opens macOS/Windows open dialog for JSON preset files.
-     * Returns {success: boolean, name: string}.
      */
     async loadFromFile() {
-        try {
+        return this._safeCall(async () => {
             const result = await this._loadPresetFromFile();
-            if (result && result.success) {
+            if (result?.success) {
                 this.currentPreset = result.name || 'Loaded Preset';
                 this._updateDisplay();
                 await this.refresh();
@@ -268,45 +255,29 @@ export class PresetManager {
                 return result;
             }
             return { success: false, name: '' };
-        } catch (e) {
-            console.error('[PresetManager] loadFromFile failed:', e);
-            return { success: false, name: '' };
-        }
+        }, 'loadFromFile failed', { success: false, name: '' });
     }
 
     /**
-     * Delete a preset by name.
-     * Factory presets cannot be deleted.
+     * Delete a preset by name. Factory presets cannot be deleted.
      */
     async deletePreset(name) {
-        try {
-            const isFactory = await this._isFactoryPreset(name);
-            if (isFactory) {
+        return this._safeCall(async () => {
+            if (await this._isFactoryPreset(name)) {
                 console.warn('[PresetManager] Cannot delete factory presets');
                 return false;
             }
-
             const success = await this._deletePreset(name);
-            if (success) {
-                await this.refresh();
-            }
+            if (success) await this.refresh();
             return success;
-        } catch (e) {
-            console.error('[PresetManager] Delete failed:', e);
-            return false;
-        }
+        }, 'Delete failed');
     }
 
     /**
      * Check if a preset is a factory preset (read-only).
      */
     async isFactoryPreset(name) {
-        try {
-            return await this._isFactoryPreset(name);
-        } catch (e) {
-            console.error('[PresetManager] isFactoryPreset failed:', e);
-            return false;
-        }
+        return this._safeCall(() => this._isFactoryPreset(name), 'isFactoryPreset failed');
     }
 
     /**
