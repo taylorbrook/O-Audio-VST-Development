@@ -17,12 +17,19 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[Phase 3.2] Initializing parameter bindings...");
   console.log("[Phase 3.2] JUCE backend:", typeof window.__JUCE__ !== "undefined");
 
-  // Bind all parameters (64 total, excluding pattern sequencer)
+  // Bind all parameters (66 main + 64 pattern steps = 130 total)
   bindAllLaneParameters();
   bindTapeParameters();
   bindGlobalToggles();
 
-  console.log("[Phase 3.2] All parameter bindings initialized");
+  // Phase 3.3: Pattern sequencer step bindings
+  bindPatternSteps();
+
+  // Phase 3.3: Visual state updates
+  setupLaneDimming();
+  setupFreezeIndicators();
+
+  console.log("[Phase 3.3] All parameter bindings initialized (130 total)");
 });
 
 // ========== LANE PARAMETERS (4 lanes × 13 params = 52, excluding subdivision) ==========
@@ -267,6 +274,162 @@ function bindComboBox(paramId) {
  */
 function updateComboBoxUI(comboElement, selectedId, choices) {
   comboElement.textContent = choices[selectedId] || "—";
+}
+
+// ========== PATTERN SEQUENCER STEPS (Phase 3.3) ==========
+
+/**
+ * Bind pattern sequencer step buttons (64 steps: 4 lanes × 16 steps)
+ * Parameters: pattern_lane[N]_step[M] where N=1-4, M=1-16
+ */
+function bindPatternSteps() {
+  for (let lane = 1; lane <= 4; lane++) {
+    for (let step = 1; step <= 16; step++) {
+      bindPatternStep(lane, step);
+    }
+  }
+  console.log("[Phase 3.3] Bound 64 pattern step buttons");
+}
+
+/**
+ * Bind individual pattern step button
+ */
+function bindPatternStep(laneNum, stepNum) {
+  const paramId = `pattern_lane${laneNum}_step${stepNum}`;
+
+  // Find step button by data attributes
+  const stepButton = document.querySelector(
+    `.step-button[data-lane="${laneNum}"][data-step="${stepNum}"]`
+  );
+
+  if (!stepButton) {
+    console.error(`[Phase 3.3] Step button not found: lane ${laneNum} step ${stepNum}`);
+    return;
+  }
+
+  // Get JUCE toggle state for this parameter
+  const state = Juce.getToggleState(paramId);
+  if (!state) {
+    console.error(`[Phase 3.3] JUCE toggle state not found: ${paramId}`);
+    return;
+  }
+
+  // Initialize UI with current value
+  updateStepButtonUI(stepButton, state.value);
+
+  // User interaction: click toggles step on/off
+  stepButton.addEventListener("click", () => {
+    state.value = !state.value;
+    updateStepButtonUI(stepButton, state.value);
+  });
+
+  // JUCE automation: update UI when parameter changes
+  state.valueChangedEvent.addListener(() => {
+    updateStepButtonUI(stepButton, state.value);
+  });
+}
+
+/**
+ * Update step button visual state
+ */
+function updateStepButtonUI(stepButton, isActive) {
+  if (isActive) {
+    stepButton.classList.add("active");
+  } else {
+    stepButton.classList.remove("active");
+  }
+}
+
+// ========== LANE DIMMING (Phase 3.3) ==========
+
+/**
+ * Setup lane dimming when lane is disabled
+ * Watches lane[N]_enabled parameters and dims entire lane section
+ */
+function setupLaneDimming() {
+  for (let lane = 1; lane <= 4; lane++) {
+    setupLaneDimmingForLane(lane);
+  }
+  console.log("[Phase 3.3] Lane dimming handlers installed");
+}
+
+function setupLaneDimmingForLane(laneNum) {
+  const paramId = `lane${laneNum}_enabled`;
+  const laneContainer = document.querySelector(`.lane${laneNum}`);
+
+  if (!laneContainer) {
+    console.warn(`[Phase 3.3] Lane container not found: lane${laneNum}`);
+    return;
+  }
+
+  // Get JUCE toggle state
+  const state = Juce.getToggleState(paramId);
+  if (!state) {
+    console.error(`[Phase 3.3] JUCE toggle state not found: ${paramId}`);
+    return;
+  }
+
+  // Apply initial state
+  applyLaneDimming(laneContainer, state.value);
+
+  // Update on parameter change
+  state.valueChangedEvent.addListener(() => {
+    applyLaneDimming(laneContainer, state.value);
+  });
+}
+
+function applyLaneDimming(laneContainer, isEnabled) {
+  if (isEnabled) {
+    laneContainer.classList.remove("lane-disabled");
+  } else {
+    laneContainer.classList.add("lane-disabled");
+  }
+}
+
+// ========== FREEZE INDICATORS (Phase 3.3) ==========
+
+/**
+ * Setup freeze visual indicators
+ * Watches lane[N]_freeze parameters and shows visual feedback
+ */
+function setupFreezeIndicators() {
+  for (let lane = 1; lane <= 4; lane++) {
+    setupFreezeIndicatorForLane(lane);
+  }
+  console.log("[Phase 3.3] Freeze indicator handlers installed");
+}
+
+function setupFreezeIndicatorForLane(laneNum) {
+  const paramId = `lane${laneNum}_freeze`;
+  const freezeButton = document.getElementById(paramId);
+
+  if (!freezeButton) {
+    console.warn(`[Phase 3.3] Freeze button not found: ${paramId}`);
+    return;
+  }
+
+  // Get JUCE toggle state
+  const state = Juce.getToggleState(paramId);
+  if (!state) {
+    console.error(`[Phase 3.3] JUCE toggle state not found: ${paramId}`);
+    return;
+  }
+
+  // Apply initial state
+  applyFreezeIndicator(freezeButton, state.value);
+
+  // Update on parameter change
+  state.valueChangedEvent.addListener(() => {
+    applyFreezeIndicator(freezeButton, state.value);
+  });
+}
+
+function applyFreezeIndicator(freezeButton, isFrozen) {
+  if (isFrozen) {
+    freezeButton.classList.add("frozen");
+  } else {
+    freezeButton.classList.remove("frozen");
+  }
 }
 
 // ========== DEBUG MONITOR (test HTML only, not for production) ==========

@@ -108,6 +108,79 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> midiEnabledRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> manualTriggerRelay;
 
+    // Pattern Sequencer Step Relays (64 toggles: 4 lanes × 16 steps)
+    // Lane 1 pattern steps (16 toggles)
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step1Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step2Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step3Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step4Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step5Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step6Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step7Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step8Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step9Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step10Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step11Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step12Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step13Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step14Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step15Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane1Step16Relay;
+
+    // Lane 2 pattern steps (16 toggles)
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step1Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step2Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step3Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step4Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step5Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step6Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step7Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step8Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step9Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step10Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step11Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step12Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step13Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step14Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step15Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane2Step16Relay;
+
+    // Lane 3 pattern steps (16 toggles)
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step1Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step2Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step3Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step4Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step5Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step6Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step7Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step8Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step9Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step10Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step11Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step12Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step13Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step14Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step15Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane3Step16Relay;
+
+    // Lane 4 pattern steps (16 toggles)
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step1Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step2Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step3Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step4Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step5Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step6Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step7Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step8Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step9Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step10Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step11Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step12Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step13Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step14Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step15Relay;
+    std::unique_ptr<juce::WebToggleButtonRelay> patternLane4Step16Relay;
+
     // ========== WEBVIEW (DECLARE SECOND, depends on relays via withOptionsFrom) ==========
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
@@ -190,6 +263,79 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> sidechainEnabledAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> midiEnabledAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> manualTriggerAttachment;
+
+    // Pattern Sequencer Step Attachments (64 toggles: 4 lanes × 16 steps)
+    // Lane 1 pattern steps (16 attachments)
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step1Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step2Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step3Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step4Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step5Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step6Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step7Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step8Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step9Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step10Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step11Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step12Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step13Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step14Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step15Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane1Step16Attachment;
+
+    // Lane 2 pattern steps (16 attachments)
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step1Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step2Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step3Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step4Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step5Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step6Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step7Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step8Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step9Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step10Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step11Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step12Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step13Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step14Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step15Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane2Step16Attachment;
+
+    // Lane 3 pattern steps (16 attachments)
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step1Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step2Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step3Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step4Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step5Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step6Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step7Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step8Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step9Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step10Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step11Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step12Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step13Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step14Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step15Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane3Step16Attachment;
+
+    // Lane 4 pattern steps (16 attachments)
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step1Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step2Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step3Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step4Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step5Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step6Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step7Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step8Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step9Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step10Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step11Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step12Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step13Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step14Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step15Attachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> patternLane4Step16Attachment;
 
     // Resource provider for serving HTML/CSS/JS from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

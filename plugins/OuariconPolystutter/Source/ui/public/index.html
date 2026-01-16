@@ -396,6 +396,39 @@
       border-color: #6B8E4E;
     }
 
+    /* ========== PHASE 3.3: ADVANCED UI STATES ========== */
+
+    /* Lane dimming when disabled */
+    .lane-container.lane-disabled {
+      opacity: 0.4;
+      pointer-events: none; /* Disable interaction when lane is off */
+      filter: grayscale(30%);
+      transition: all 300ms ease-out;
+    }
+
+    /* Freeze indicator - pulsing animation */
+    .toggle-button.frozen {
+      animation: freeze-pulse 1.5s ease-in-out infinite;
+      box-shadow: 0 0 8px rgba(107, 142, 78, 0.6);
+    }
+
+    @keyframes freeze-pulse {
+      0%, 100% {
+        background: #6B8E4E;
+        transform: scale(1);
+      }
+      50% {
+        background: #8BA870;
+        transform: scale(1.05);
+      }
+    }
+
+    /* Step button current step highlighting (TODO: requires audio thread communication) */
+    .step-button.current-step {
+      border: 2px solid #FFA500;
+      box-shadow: 0 0 6px rgba(255, 165, 0, 0.7);
+    }
+
     /* Debug monitor (test HTML only) */
     .debug-monitor {
       position: fixed;

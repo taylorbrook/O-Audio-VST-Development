@@ -94,6 +94,72 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     , midiEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("midi_enabled"))
     , manualTriggerRelay(std::make_unique<juce::WebToggleButtonRelay>("manual_trigger"))
 
+    // Phase 3.3: Pattern step relays (64 toggles: 4 lanes × 16 steps)
+    , patternLane1Step1Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step1"))
+    , patternLane1Step2Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step2"))
+    , patternLane1Step3Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step3"))
+    , patternLane1Step4Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step4"))
+    , patternLane1Step5Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step5"))
+    , patternLane1Step6Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step6"))
+    , patternLane1Step7Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step7"))
+    , patternLane1Step8Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step8"))
+    , patternLane1Step9Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step9"))
+    , patternLane1Step10Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step10"))
+    , patternLane1Step11Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step11"))
+    , patternLane1Step12Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step12"))
+    , patternLane1Step13Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step13"))
+    , patternLane1Step14Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step14"))
+    , patternLane1Step15Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step15"))
+    , patternLane1Step16Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane1_step16"))
+    , patternLane2Step1Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step1"))
+    , patternLane2Step2Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step2"))
+    , patternLane2Step3Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step3"))
+    , patternLane2Step4Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step4"))
+    , patternLane2Step5Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step5"))
+    , patternLane2Step6Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step6"))
+    , patternLane2Step7Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step7"))
+    , patternLane2Step8Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step8"))
+    , patternLane2Step9Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step9"))
+    , patternLane2Step10Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step10"))
+    , patternLane2Step11Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step11"))
+    , patternLane2Step12Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step12"))
+    , patternLane2Step13Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step13"))
+    , patternLane2Step14Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step14"))
+    , patternLane2Step15Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step15"))
+    , patternLane2Step16Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane2_step16"))
+    , patternLane3Step1Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step1"))
+    , patternLane3Step2Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step2"))
+    , patternLane3Step3Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step3"))
+    , patternLane3Step4Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step4"))
+    , patternLane3Step5Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step5"))
+    , patternLane3Step6Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step6"))
+    , patternLane3Step7Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step7"))
+    , patternLane3Step8Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step8"))
+    , patternLane3Step9Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step9"))
+    , patternLane3Step10Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step10"))
+    , patternLane3Step11Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step11"))
+    , patternLane3Step12Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step12"))
+    , patternLane3Step13Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step13"))
+    , patternLane3Step14Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step14"))
+    , patternLane3Step15Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step15"))
+    , patternLane3Step16Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane3_step16"))
+    , patternLane4Step1Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step1"))
+    , patternLane4Step2Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step2"))
+    , patternLane4Step3Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step3"))
+    , patternLane4Step4Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step4"))
+    , patternLane4Step5Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step5"))
+    , patternLane4Step6Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step6"))
+    , patternLane4Step7Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step7"))
+    , patternLane4Step8Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step8"))
+    , patternLane4Step9Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step9"))
+    , patternLane4Step10Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step10"))
+    , patternLane4Step11Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step11"))
+    , patternLane4Step12Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step12"))
+    , patternLane4Step13Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step13"))
+    , patternLane4Step14Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step14"))
+    , patternLane4Step15Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step15"))
+    , patternLane4Step16Relay(std::make_unique<juce::WebToggleButtonRelay>("pattern_lane4_step16"))
+
     // Initialize WebView SECOND (depends on relays via withOptionsFrom)
     , webView(std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
@@ -172,6 +238,71 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
             .withOptionsFrom(*sidechainEnabledRelay)
             .withOptionsFrom(*midiEnabledRelay)
             .withOptionsFrom(*manualTriggerRelay)
+            // Phase 3.3: Pattern step relay registrations (64 toggles)
+            .withOptionsFrom(*patternLane1Step1Relay)
+            .withOptionsFrom(*patternLane1Step2Relay)
+            .withOptionsFrom(*patternLane1Step3Relay)
+            .withOptionsFrom(*patternLane1Step4Relay)
+            .withOptionsFrom(*patternLane1Step5Relay)
+            .withOptionsFrom(*patternLane1Step6Relay)
+            .withOptionsFrom(*patternLane1Step7Relay)
+            .withOptionsFrom(*patternLane1Step8Relay)
+            .withOptionsFrom(*patternLane1Step9Relay)
+            .withOptionsFrom(*patternLane1Step10Relay)
+            .withOptionsFrom(*patternLane1Step11Relay)
+            .withOptionsFrom(*patternLane1Step12Relay)
+            .withOptionsFrom(*patternLane1Step13Relay)
+            .withOptionsFrom(*patternLane1Step14Relay)
+            .withOptionsFrom(*patternLane1Step15Relay)
+            .withOptionsFrom(*patternLane1Step16Relay)
+            .withOptionsFrom(*patternLane2Step1Relay)
+            .withOptionsFrom(*patternLane2Step2Relay)
+            .withOptionsFrom(*patternLane2Step3Relay)
+            .withOptionsFrom(*patternLane2Step4Relay)
+            .withOptionsFrom(*patternLane2Step5Relay)
+            .withOptionsFrom(*patternLane2Step6Relay)
+            .withOptionsFrom(*patternLane2Step7Relay)
+            .withOptionsFrom(*patternLane2Step8Relay)
+            .withOptionsFrom(*patternLane2Step9Relay)
+            .withOptionsFrom(*patternLane2Step10Relay)
+            .withOptionsFrom(*patternLane2Step11Relay)
+            .withOptionsFrom(*patternLane2Step12Relay)
+            .withOptionsFrom(*patternLane2Step13Relay)
+            .withOptionsFrom(*patternLane2Step14Relay)
+            .withOptionsFrom(*patternLane2Step15Relay)
+            .withOptionsFrom(*patternLane2Step16Relay)
+            .withOptionsFrom(*patternLane3Step1Relay)
+            .withOptionsFrom(*patternLane3Step2Relay)
+            .withOptionsFrom(*patternLane3Step3Relay)
+            .withOptionsFrom(*patternLane3Step4Relay)
+            .withOptionsFrom(*patternLane3Step5Relay)
+            .withOptionsFrom(*patternLane3Step6Relay)
+            .withOptionsFrom(*patternLane3Step7Relay)
+            .withOptionsFrom(*patternLane3Step8Relay)
+            .withOptionsFrom(*patternLane3Step9Relay)
+            .withOptionsFrom(*patternLane3Step10Relay)
+            .withOptionsFrom(*patternLane3Step11Relay)
+            .withOptionsFrom(*patternLane3Step12Relay)
+            .withOptionsFrom(*patternLane3Step13Relay)
+            .withOptionsFrom(*patternLane3Step14Relay)
+            .withOptionsFrom(*patternLane3Step15Relay)
+            .withOptionsFrom(*patternLane3Step16Relay)
+            .withOptionsFrom(*patternLane4Step1Relay)
+            .withOptionsFrom(*patternLane4Step2Relay)
+            .withOptionsFrom(*patternLane4Step3Relay)
+            .withOptionsFrom(*patternLane4Step4Relay)
+            .withOptionsFrom(*patternLane4Step5Relay)
+            .withOptionsFrom(*patternLane4Step6Relay)
+            .withOptionsFrom(*patternLane4Step7Relay)
+            .withOptionsFrom(*patternLane4Step8Relay)
+            .withOptionsFrom(*patternLane4Step9Relay)
+            .withOptionsFrom(*patternLane4Step10Relay)
+            .withOptionsFrom(*patternLane4Step11Relay)
+            .withOptionsFrom(*patternLane4Step12Relay)
+            .withOptionsFrom(*patternLane4Step13Relay)
+            .withOptionsFrom(*patternLane4Step14Relay)
+            .withOptionsFrom(*patternLane4Step15Relay)
+            .withOptionsFrom(*patternLane4Step16Relay)
     ))
 
     // Initialize attachments LAST (depend on both relays and webView)
@@ -319,6 +450,136 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
         *processorRef.apvts.getParameter("midi_enabled"), *midiEnabledRelay, nullptr))
     , manualTriggerAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("manual_trigger"), *manualTriggerRelay, nullptr))
+
+    // Phase 3.3: Pattern step attachments (64 toggles)
+    , patternLane1Step1Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step1"), *patternLane1Step1Relay, nullptr))
+    , patternLane1Step2Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step2"), *patternLane1Step2Relay, nullptr))
+    , patternLane1Step3Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step3"), *patternLane1Step3Relay, nullptr))
+    , patternLane1Step4Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step4"), *patternLane1Step4Relay, nullptr))
+    , patternLane1Step5Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step5"), *patternLane1Step5Relay, nullptr))
+    , patternLane1Step6Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step6"), *patternLane1Step6Relay, nullptr))
+    , patternLane1Step7Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step7"), *patternLane1Step7Relay, nullptr))
+    , patternLane1Step8Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step8"), *patternLane1Step8Relay, nullptr))
+    , patternLane1Step9Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step9"), *patternLane1Step9Relay, nullptr))
+    , patternLane1Step10Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step10"), *patternLane1Step10Relay, nullptr))
+    , patternLane1Step11Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step11"), *patternLane1Step11Relay, nullptr))
+    , patternLane1Step12Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step12"), *patternLane1Step12Relay, nullptr))
+    , patternLane1Step13Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step13"), *patternLane1Step13Relay, nullptr))
+    , patternLane1Step14Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step14"), *patternLane1Step14Relay, nullptr))
+    , patternLane1Step15Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step15"), *patternLane1Step15Relay, nullptr))
+    , patternLane1Step16Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane1_step16"), *patternLane1Step16Relay, nullptr))
+    , patternLane2Step1Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step1"), *patternLane2Step1Relay, nullptr))
+    , patternLane2Step2Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step2"), *patternLane2Step2Relay, nullptr))
+    , patternLane2Step3Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step3"), *patternLane2Step3Relay, nullptr))
+    , patternLane2Step4Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step4"), *patternLane2Step4Relay, nullptr))
+    , patternLane2Step5Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step5"), *patternLane2Step5Relay, nullptr))
+    , patternLane2Step6Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step6"), *patternLane2Step6Relay, nullptr))
+    , patternLane2Step7Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step7"), *patternLane2Step7Relay, nullptr))
+    , patternLane2Step8Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step8"), *patternLane2Step8Relay, nullptr))
+    , patternLane2Step9Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step9"), *patternLane2Step9Relay, nullptr))
+    , patternLane2Step10Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step10"), *patternLane2Step10Relay, nullptr))
+    , patternLane2Step11Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step11"), *patternLane2Step11Relay, nullptr))
+    , patternLane2Step12Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step12"), *patternLane2Step12Relay, nullptr))
+    , patternLane2Step13Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step13"), *patternLane2Step13Relay, nullptr))
+    , patternLane2Step14Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step14"), *patternLane2Step14Relay, nullptr))
+    , patternLane2Step15Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step15"), *patternLane2Step15Relay, nullptr))
+    , patternLane2Step16Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane2_step16"), *patternLane2Step16Relay, nullptr))
+    , patternLane3Step1Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step1"), *patternLane3Step1Relay, nullptr))
+    , patternLane3Step2Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step2"), *patternLane3Step2Relay, nullptr))
+    , patternLane3Step3Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step3"), *patternLane3Step3Relay, nullptr))
+    , patternLane3Step4Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step4"), *patternLane3Step4Relay, nullptr))
+    , patternLane3Step5Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step5"), *patternLane3Step5Relay, nullptr))
+    , patternLane3Step6Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step6"), *patternLane3Step6Relay, nullptr))
+    , patternLane3Step7Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step7"), *patternLane3Step7Relay, nullptr))
+    , patternLane3Step8Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step8"), *patternLane3Step8Relay, nullptr))
+    , patternLane3Step9Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step9"), *patternLane3Step9Relay, nullptr))
+    , patternLane3Step10Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step10"), *patternLane3Step10Relay, nullptr))
+    , patternLane3Step11Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step11"), *patternLane3Step11Relay, nullptr))
+    , patternLane3Step12Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step12"), *patternLane3Step12Relay, nullptr))
+    , patternLane3Step13Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step13"), *patternLane3Step13Relay, nullptr))
+    , patternLane3Step14Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step14"), *patternLane3Step14Relay, nullptr))
+    , patternLane3Step15Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step15"), *patternLane3Step15Relay, nullptr))
+    , patternLane3Step16Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane3_step16"), *patternLane3Step16Relay, nullptr))
+    , patternLane4Step1Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step1"), *patternLane4Step1Relay, nullptr))
+    , patternLane4Step2Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step2"), *patternLane4Step2Relay, nullptr))
+    , patternLane4Step3Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step3"), *patternLane4Step3Relay, nullptr))
+    , patternLane4Step4Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step4"), *patternLane4Step4Relay, nullptr))
+    , patternLane4Step5Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step5"), *patternLane4Step5Relay, nullptr))
+    , patternLane4Step6Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step6"), *patternLane4Step6Relay, nullptr))
+    , patternLane4Step7Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step7"), *patternLane4Step7Relay, nullptr))
+    , patternLane4Step8Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step8"), *patternLane4Step8Relay, nullptr))
+    , patternLane4Step9Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step9"), *patternLane4Step9Relay, nullptr))
+    , patternLane4Step10Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step10"), *patternLane4Step10Relay, nullptr))
+    , patternLane4Step11Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step11"), *patternLane4Step11Relay, nullptr))
+    , patternLane4Step12Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step12"), *patternLane4Step12Relay, nullptr))
+    , patternLane4Step13Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step13"), *patternLane4Step13Relay, nullptr))
+    , patternLane4Step14Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step14"), *patternLane4Step14Relay, nullptr))
+    , patternLane4Step15Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step15"), *patternLane4Step15Relay, nullptr))
+    , patternLane4Step16Attachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("pattern_lane4_step16"), *patternLane4Step16Relay, nullptr))
 {
     addAndMakeVisible(*webView);
 
@@ -328,7 +589,7 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     // Fixed window size: 1000×750px (from v5-ui.yaml spec)
     setSize(1000, 750);
 
-    DBG("[Phase 3.2] Parameter bindings initialized - 64 relays + 64 attachments");
+    DBG("[Phase 3.3] Parameter bindings initialized - 128 relays + 128 attachments (incl. 64 pattern steps)");
 }
 
 OuariconPolystutterAudioProcessorEditor::~OuariconPolystutterAudioProcessorEditor()
