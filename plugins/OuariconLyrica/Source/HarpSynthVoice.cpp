@@ -78,9 +78,10 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         auto* materialParam = parameters->getRawParameterValue("stringMaterial");
         if (materialParam != nullptr)
         {
-            int materialIndex = static_cast<int>(materialParam->load());
+            int materialIndex = static_cast<int>(materialParam->load() + 0.5f);  // Round to nearest
             MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
             currentMaterial = StringMaterial::fromType(materialType);
+            currentMaterialType = materialType;  // Also update tracking variable
             stringModel.setMaterial(currentMaterial);
         }
 
@@ -286,7 +287,8 @@ void HarpSynthVoice::updateParametersFromAPVTS()
     auto* materialParam = parameters->getRawParameterValue("stringMaterial");
     if (materialParam != nullptr)
     {
-        int materialIndex = static_cast<int>(materialParam->load());
+        float rawValue = materialParam->load();
+        int materialIndex = static_cast<int>(rawValue + 0.5f);  // Round to nearest to avoid float precision issues
         MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
         StringMaterial newMaterial = StringMaterial::fromType(materialType);
 

@@ -18,11 +18,11 @@ StringMaterial StringMaterial::fromType(MaterialType type)
     switch (type)
     {
         case MaterialType::Gut:
-            material.dampingCoeff = 0.40f;
-            material.brightnessCutoff = 3000.0f;
-            material.stiffnessAmount = 0.10f;
+            material.dampingCoeff = 0.50f;           // v1.0.3: More damping for warmer sound
+            material.brightnessCutoff = 2000.0f;     // v1.0.3: Much darker for audible difference
+            material.stiffnessAmount = 0.05f;        // v1.0.3: Lower for softer harmonics
             material.sympatheticCoupling = 0.80f;
-            material.noiseContent = 0.3f;
+            material.noiseContent = 0.2f;
             material.name = "Gut";
             break;
 
@@ -72,11 +72,11 @@ StringMaterial StringMaterial::fromType(MaterialType type)
             break;
 
         case MaterialType::Crystal:
-            material.dampingCoeff = 0.03f;
-            material.brightnessCutoff = 14000.0f;
-            material.stiffnessAmount = 0.50f;
+            material.dampingCoeff = 0.02f;           // v1.0.3: Very long sustain
+            material.brightnessCutoff = 16000.0f;    // v1.0.3: Very bright for audible difference
+            material.stiffnessAmount = 0.70f;        // v1.0.3: High inharmonicity for bell-like sound
             material.sympatheticCoupling = 0.85f;
-            material.noiseContent = 0.1f;
+            material.noiseContent = 0.05f;           // v1.0.3: Minimal attack noise
             material.name = "Crystal";
             break;
 

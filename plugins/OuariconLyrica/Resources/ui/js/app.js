@@ -145,18 +145,20 @@ function bindChoice(paramId) {
         const comboBoxState = Juce.getComboBoxState(paramId);
 
         // Initialize element with current value
-        const initialIndex = comboBoxState.getSelectedItemIndex();
+        // v1.0.3 FIX: Use getChoiceIndex() not getSelectedItemIndex()
+        const initialIndex = comboBoxState.getChoiceIndex();
         element.selectedIndex = initialIndex;
 
         // Update JUCE when element changes (UI → C++)
         element.addEventListener('change', (e) => {
             const index = e.target.selectedIndex;
-            comboBoxState.setSelectedItemIndex(index);
+            // v1.0.3 FIX: Use setChoiceIndex() not setSelectedItemIndex()
+            comboBoxState.setChoiceIndex(index);
         });
 
         // Update element when JUCE changes (C++ → UI, automation, preset load)
         comboBoxState.valueChangedEvent.addListener(() => {
-            const index = comboBoxState.getSelectedItemIndex();
+            const index = comboBoxState.getChoiceIndex();
             element.selectedIndex = index;
         });
 
