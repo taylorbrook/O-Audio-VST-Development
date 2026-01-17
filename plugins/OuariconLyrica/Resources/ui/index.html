@@ -45,18 +45,22 @@
                     </select>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group knob-group">
                     <label for="brightness">Brightness</label>
-                    <input type="range" id="brightness" data-param-id="brightness"
-                           min="0" max="1" step="0.01" value="0.5">
-                    <span class="value-display" id="brightnessValue">50%</span>
+                    <div class="knob-container">
+                        <input type="range" id="brightness" class="knob"
+                               min="0" max="1" step="0.001" value="0.5">
+                        <span class="value-display" id="brightnessValue">50%</span>
+                    </div>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group knob-group">
                     <label for="sustain">Sustain</label>
-                    <input type="range" id="sustain" data-param-id="sustain"
-                           min="0" max="1" step="0.01" value="0.7">
-                    <span class="value-display" id="sustainValue">70%</span>
+                    <div class="knob-container">
+                        <input type="range" id="sustain" class="knob"
+                               min="0" max="1" step="0.001" value="0.7">
+                        <span class="value-display" id="sustainValue">70%</span>
+                    </div>
                 </div>
             </section>
 
@@ -64,18 +68,22 @@
             <section class="control-section body-section">
                 <h2>BODY</h2>
 
-                <div class="control-group">
+                <div class="control-group knob-group">
                     <label for="bodySize">Size</label>
-                    <input type="range" id="bodySize" data-param-id="bodySize"
-                           min="0" max="1" step="0.01" value="0.5">
-                    <span class="value-display" id="bodySizeValue">50%</span>
+                    <div class="knob-container">
+                        <input type="range" id="bodySize" class="knob"
+                               min="0" max="1" step="0.001" value="0.5">
+                        <span class="value-display" id="bodySizeValue">50%</span>
+                    </div>
                 </div>
 
-                <div class="control-group">
+                <div class="control-group knob-group">
                     <label for="bodyResonance">Resonance</label>
-                    <input type="range" id="bodyResonance" data-param-id="bodyResonance"
-                           min="0" max="1" step="0.01" value="0.6">
-                    <span class="value-display" id="bodyResonanceValue">60%</span>
+                    <div class="knob-container">
+                        <input type="range" id="bodyResonance" class="knob"
+                               min="0" max="1" step="0.001" value="0.6">
+                        <span class="value-display" id="bodyResonanceValue">60%</span>
+                    </div>
                 </div>
 
                 <div class="control-group">
@@ -190,15 +198,15 @@
 
                 <div class="control-group">
                     <label for="masterTune">Master Tune</label>
-                    <input type="range" id="masterTune" data-param-id="masterTune"
-                           min="400" max="480" step="0.1" value="440">
+                    <input type="range" id="masterTune"
+                           min="0" max="1" step="0.001" value="0.5">
                     <span class="value-display" id="masterTuneValue">440 Hz</span>
                 </div>
 
                 <div class="control-group">
                     <label for="pitchBendRange">Pitch Bend Range</label>
-                    <input type="range" id="pitchBendRange" data-param-id="pitchBendRange"
-                           min="1" max="48" step="1" value="2">
+                    <input type="range" id="pitchBendRange"
+                           min="0" max="1" step="0.001" value="0.021">
                     <span class="value-display" id="pitchBendRangeValue">±2 st</span>
                 </div>
             </div>
@@ -208,8 +216,8 @@
         <footer class="plugin-footer">
             <div class="meter-group">
                 <label>Master</label>
-                <input type="range" id="masterVolume" data-param-id="masterVolume"
-                       min="-60" max="6" step="0.1" value="0">
+                <input type="range" id="masterVolume"
+                       min="0" max="1" step="0.001" value="0.909">
                 <span class="value-display" id="masterVolumeValue">0.0 dB</span>
             </div>
 

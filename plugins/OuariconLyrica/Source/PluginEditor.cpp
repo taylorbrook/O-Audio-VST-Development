@@ -47,6 +47,12 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             .withResourceProvider([this](const juce::String& url) {
                 return getResource(url);
             })
+            // Phase 3.3: Native function to get voice count
+            // JUCE 8 async callback pattern: (args, complete) -> void
+            .withNativeFunction("getVoiceCount", [this](const juce::Array<juce::var>&,
+                                                         std::function<void(juce::var)> complete) {
+                complete(juce::var(processorRef.getActiveVoiceCount()));
+            })
             // Register all slider relays
             .withOptionsFrom(*masterVolumeRelay)
             .withOptionsFrom(*brightnessRelay)

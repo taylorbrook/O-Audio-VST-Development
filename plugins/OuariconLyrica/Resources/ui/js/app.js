@@ -168,21 +168,43 @@ function bindChoice(paramId) {
 
 /**
  * Initialize real-time meters (voice count, CPU usage)
- * These are updated via custom JUCE events, not APVTS parameters
+ * Uses native function calls to get real-time data from C++
  */
 function initializeMeters() {
-    // Voice count meter
     const voiceCountElement = document.getElementById('voiceCount');
-
-    // CPU usage meter
     const cpuUsageElement = document.getElementById('cpuUsage');
 
-    // Update meters periodically (will be driven by C++ timer in future)
-    setInterval(() => {
-        // Placeholder values - will be replaced with actual JUCE callbacks
-        // voiceCountElement.textContent = `${voiceCount}/16`;
-        // cpuUsageElement.textContent = `${cpuUsage}%`;
-    }, 100);
+    // Get native function for voice count (Phase 3.3)
+    const getVoiceCount = Juce.getNativeFunction('getVoiceCount');
 
-    console.log('Meters initialized (placeholder)');
+    // Update voice count periodically
+    const updateVoiceCount = async () => {
+        try {
+            const count = await getVoiceCount();
+            voiceCountElement.textContent = `${count}/16`;
+        } catch (error) {
+            console.error('Failed to get voice count:', error);
+        }
+    };
+
+    // Initial update
+    updateVoiceCount();
+
+    // Poll every 100ms for voice count updates
+    setInterval(updateVoiceCount, 100);
+
+    // CPU usage placeholder (would need additional native function)
+    // For now, estimate based on voice count (rough approximation)
+    setInterval(() => {
+        const voiceText = voiceCountElement.textContent;
+        const voiceMatch = voiceText.match(/(\d+)\/16/);
+        if (voiceMatch) {
+            const voices = parseInt(voiceMatch[1], 10);
+            // Rough estimate: ~1% CPU per voice at high quality
+            const cpuEstimate = Math.min(100, voices * 1.0);
+            cpuUsageElement.textContent = `~${cpuEstimate.toFixed(0)}%`;
+        }
+    }, 500);
+
+    console.log('Meters initialized with native function');
 }
