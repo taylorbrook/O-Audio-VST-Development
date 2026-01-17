@@ -2,6 +2,23 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.1.3] - 2026-01-17
+
+### Fixed
+
+- **Pitch now stable across all string materials**
+  - Root cause: `calculateFilterGroupDelay()` used a hardcoded `stiffnessDelay = 0.5f` constant, but the stiffness filter is a 4-stage allpass cascade whose group delay varies dramatically with material stiffness. Materials range from 0.05 (Gut/Wire) to 0.70 (Crystal), resulting in ~14x different phase delays. This caused pitch to drift differently per material even after the v1.1.2 fix.
+  - Fix: Replaced fixed constant with dynamic calculation that replicates StiffnessFilter's coefficient computation (frequency scaling + per-stage progressive scaling) and sums the group delay from all 4 allpass stages using the formula `(1 - a) / (1 + a)` samples per stage.
+  - Result: All 8 material types now produce identical fundamental frequency. Stiffness affects only inharmonicity (harmonic stretch), not fundamental pitch.
+  - Files modified: WaveguideString.cpp
+
+### Technical Notes
+
+- Allpass group delay at DC: `τ = (1 - a) / (1 + a)` samples where `a` is the coefficient
+- StiffnessFilter uses 4 stages with coefficients: `stiffness * freqScaling * stageScaling * 0.8`
+- Crystal (0.70) now correctly compensates ~3.2 samples vs Gut (0.05) ~0.2 samples
+- This completes the filter group delay compensation system: brightness (v1.1.1), material cutoffs (v1.1.2), and stiffness allpass (v1.1.3)
+
 ## [1.1.2] - 2026-01-17
 
 ### Fixed
