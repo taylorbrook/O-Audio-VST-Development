@@ -2,12 +2,13 @@
   ==============================================================================
 
     WaveguideString.h
-    Bidirectional Digital Waveguide String Model - Phase 2.2
+    Bidirectional Digital Waveguide String Model - Phase 2.2-2.4
     Ouaricon Audio
     Developer: Taylor Brook
 
     Implements true waveguide synthesis with separate upper/lower rails,
-    bridge filter, nut filter, and loop damping for realistic string behavior.
+    bridge filter, nut filter, loop damping, and stiffness filter for
+    realistic string behavior with piano-like inharmonicity.
 
   ==============================================================================
 */
@@ -15,6 +16,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "PluckExciter.h"
+#include "StiffnessFilter.h"
 
 /**
  * Bidirectional Digital Waveguide String Model
@@ -27,6 +29,7 @@
  * - Bridge Filter: Frequency-dependent reflection at bridge
  * - Nut Filter: Inverted reflection at nut (sign inversion)
  * - Loop Damping: Material-based energy loss per cycle
+ * - Stiffness Filter: Allpass cascade for inharmonicity/dispersion (Phase 2.4)
  */
 class WaveguideString
 {
@@ -90,6 +93,12 @@ public:
      */
     void setTechnique(PlayingTechnique technique);
 
+    /**
+     * Set string stiffness (affects inharmonicity/dispersion)
+     * @param stiffness 0.0 = flexible/harmonic, 1.0 = stiff/piano-like
+     */
+    void setStiffness(float stiffness);
+
 private:
     // Delay lines for bidirectional propagation
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> upperRail;
@@ -99,6 +108,7 @@ private:
     juce::dsp::IIR::Filter<float> bridgeFilter;   // Frequency-dependent reflection
     juce::dsp::IIR::Filter<float> nutFilter;      // Inverted reflection
     juce::dsp::IIR::Filter<float> loopDamping;    // Material-based damping
+    StiffnessFilter stiffnessFilter;              // Inharmonicity/dispersion (Phase 2.4)
 
     // Pluck excitation generator (Phase 2.3)
     PluckExciter exciter;
@@ -115,6 +125,7 @@ private:
     // Parameters
     float dampingAmount = 0.7f;    // Material-based damping
     float brightnessAmount = 0.5f; // Tone brightness
+    float stiffnessAmount = 0.2f;  // String stiffness/inharmonicity (Phase 2.4)
 
     /**
      * Update all filter coefficients based on current parameters

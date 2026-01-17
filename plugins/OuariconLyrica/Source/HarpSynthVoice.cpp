@@ -49,6 +49,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         auto* pluckPositionParam = parameters->getRawParameterValue("pluckPosition");
         auto* fingerHardnessParam = parameters->getRawParameterValue("fingerHardness");
         auto* techniqueParam = parameters->getRawParameterValue("technique");
+        auto* stiffnessParam = parameters->getRawParameterValue("stringStiffness");
 
         if (brightnessParam != nullptr)
             stringModel.setBrightness(brightnessParam->load());
@@ -83,6 +84,10 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             }
             stringModel.setTechnique(technique);
         }
+
+        // Phase 2.4: Set string stiffness (inharmonicity)
+        if (stiffnessParam != nullptr)
+            stringModel.setStiffness(stiffnessParam->load());
     }
 
     // Trigger string model with pluck position and hardness

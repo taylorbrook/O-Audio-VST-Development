@@ -2,7 +2,7 @@
   ==============================================================================
 
     WaveguideString.cpp
-    Bidirectional Digital Waveguide String Model - Phase 2.2
+    Bidirectional Digital Waveguide String Model - Phase 2.2-2.4
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -42,10 +42,12 @@ void WaveguideString::prepare(double sampleRate, int maxBlockSize)
     bridgeFilter.prepare(spec);
     nutFilter.prepare(spec);
     loopDamping.prepare(spec);
+    stiffnessFilter.prepare(sampleRate, maxBlockSize);
 
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
+    stiffnessFilter.reset();
 
     // Prepare pluck exciter
     exciter.prepare(sampleRate, maxBlockSize);
@@ -73,6 +75,10 @@ void WaveguideString::trigger(double frequency, float velocity, float position, 
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
+    stiffnessFilter.reset();
+
+    // Configure stiffness filter for this note
+    stiffnessFilter.setParameters(frequency, stiffnessAmount);
 
     // Trigger pluck exciter
     exciter.trigger(velocity, position, hardness, frequency);
@@ -104,6 +110,10 @@ float WaveguideString::processSample()
     bridgeReflection = loopDamping.processSample(bridgeReflection);
     nutReflection = loopDamping.processSample(nutReflection);
 
+    // Apply stiffness filter (Phase 2.4: creates inharmonicity/dispersion)
+    // This adds frequency-dependent phase shift, making higher harmonics sharp
+    bridgeReflection = stiffnessFilter.processSample(bridgeReflection);
+
     // Inject excitation at pluck position
     // This creates the comb filtering effect based on pluck position
     float excitationToUpper = excitation * pluckPosition;
@@ -134,6 +144,7 @@ void WaveguideString::reset()
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
+    stiffnessFilter.reset();
     exciter.reset();
     currentEnergy = 0.0f;
 }
@@ -158,6 +169,13 @@ void WaveguideString::setPluckPosition(float position)
 void WaveguideString::setTechnique(PlayingTechnique technique)
 {
     exciter.setTechnique(technique);
+}
+
+void WaveguideString::setStiffness(float stiffness)
+{
+    stiffnessAmount = juce::jlimit(0.0f, 1.0f, stiffness);
+    // Update stiffness filter with current frequency and new stiffness
+    stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
 }
 
 void WaveguideString::updateFilters()
