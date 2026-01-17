@@ -36,12 +36,12 @@ void StiffnessFilter::setParameters(double frequency, float stiffness)
 
 float StiffnessFilter::processSample(float input)
 {
-    // Process through all allpass stages in cascade
-    float output = input;
-    for (auto& stage : allpassStages)
-    {
-        output = stage.process(output);
-    }
+    // OPTIMIZED: Unrolled 4-stage allpass cascade (no loop overhead)
+    // Each stage: output = coeff * input + z1; z1 = input - coeff * output
+    float output = allpassStages[0].process(input);
+    output = allpassStages[1].process(output);
+    output = allpassStages[2].process(output);
+    output = allpassStages[3].process(output);
     return output;
 }
 

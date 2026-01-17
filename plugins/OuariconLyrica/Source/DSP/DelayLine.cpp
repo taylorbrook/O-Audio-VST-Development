@@ -55,12 +55,9 @@ float DelayLine::popSample()
 {
     auto* bufferData = buffer.getReadPointer(0);
 
-    // Calculate read position (fractional)
-    float readPosition = static_cast<float>(writePosition) - delayInSamples;
-
-    // Wrap read position if negative
-    while (readPosition < 0.0f)
-        readPosition += static_cast<float>(bufferSize);
+    // OPTIMIZED: Single addition instead of while loop for negative wrap
+    // Since bufferSize is power-of-2, we can add it once and use bitwise AND
+    float readPosition = static_cast<float>(writePosition) - delayInSamples + static_cast<float>(bufferSize);
 
     // Lagrange interpolation for accurate pitch
     return lagrangeInterpolation(bufferData, readPosition);
@@ -78,32 +75,41 @@ float DelayLine::lagrangeInterpolation(const float* bufferData, float readPositi
     int index = static_cast<int>(readPosition);
     float frac = readPosition - static_cast<float>(index);
 
+    // OPTIMIZED: Cache bufferSize mask for reuse
+    const int mask = bufferSize - 1;
+
     // Get 4 surrounding samples for 3rd order interpolation
-    int i0 = (index - 1) & (bufferSize - 1);
-    int i1 = index & (bufferSize - 1);
-    int i2 = (index + 1) & (bufferSize - 1);
-    int i3 = (index + 2) & (bufferSize - 1);
+    float y0 = bufferData[(index - 1) & mask];
+    float y1 = bufferData[index & mask];
+    float y2 = bufferData[(index + 1) & mask];
+    float y3 = bufferData[(index + 2) & mask];
 
-    float y0 = bufferData[i0];
-    float y1 = bufferData[i1];
-    float y2 = bufferData[i2];
-    float y3 = bufferData[i3];
+    // OPTIMIZED: Precompute reciprocals (constants, no division at runtime)
+    constexpr float oneThird = 1.0f / 3.0f;
+    constexpr float oneHalf = 0.5f;
+    constexpr float oneSixth = 1.0f / 6.0f;
 
-    // Lagrange 3rd order polynomial interpolation
-    // https://ccrma.stanford.edu/~jos/pasp/Lagrange_Interpolation.html
+    // Lagrange 3rd order polynomial coefficients
     float c0 = y1;
-    float c1 = y2 - y0 / 3.0f - y1 / 2.0f - y3 / 6.0f;
-    float c2 = y0 / 2.0f - y1 + y2 / 2.0f;
-    float c3 = y3 / 6.0f - y2 / 2.0f + y1 / 2.0f - y0 / 6.0f;
+    float c1 = y2 - y0 * oneThird - y1 * oneHalf - y3 * oneSixth;
+    float c2 = (y0 - y1 - y1 + y2) * oneHalf;
+    float c3 = (y3 - y2 - y2 - y2 + y1 + y1 + y1 - y0) * oneSixth;
 
-    return c0 + c1 * frac + c2 * frac * frac + c3 * frac * frac * frac;
+    // OPTIMIZED: Horner's method for polynomial evaluation
+    // c0 + frac * (c1 + frac * (c2 + frac * c3))
+    return c0 + frac * (c1 + frac * (c2 + frac * c3));
 }
 
 int DelayLine::nextPowerOfTwo(int value)
 {
-    // Find next power of 2
-    int powerOfTwo = 1;
-    while (powerOfTwo < value)
-        powerOfTwo *= 2;
-    return powerOfTwo;
+    // OPTIMIZED: Bit manipulation instead of while loop
+    // Rounds up to next power of 2 in constant time
+    if (value <= 1) return 1;
+    value--;
+    value |= value >> 1;
+    value |= value >> 2;
+    value |= value >> 4;
+    value |= value >> 8;
+    value |= value >> 16;
+    return value + 1;
 }

@@ -60,20 +60,19 @@ void BodyResonance::setBodyParameters(float size, WoodType type, float amount)
 
 float BodyResonance::process(float input)
 {
-    // Process input through all modal filters
-    float resonantOutput = 0.0f;
+    // OPTIMIZED: Unrolled 5-mode filter bank (no loop overhead)
+    // Each mode is a bandpass filter at a body resonance frequency
+    float resonantOutput =
+        bodyModes[0].processSample(input) * modeAmplitudes[0] +
+        bodyModes[1].processSample(input) * modeAmplitudes[1] +
+        bodyModes[2].processSample(input) * modeAmplitudes[2] +
+        bodyModes[3].processSample(input) * modeAmplitudes[3] +
+        bodyModes[4].processSample(input) * modeAmplitudes[4];
 
-    for (int i = 0; i < NUM_MODES; ++i)
-    {
-        float modeOutput = bodyModes[i].processSample(input);
-        resonantOutput += modeOutput * modeAmplitudes[i];
-    }
-
-    // Normalize output (prevent accumulation)
-    resonantOutput *= 0.3f;
-
-    // Mix dry/wet based on bodyAmount
-    return input * (1.0f - bodyAmount) + resonantOutput * bodyAmount;
+    // Normalize and mix dry/wet
+    // OPTIMIZED: Combined multiply (0.3f * bodyAmount) into single operation
+    float dryAmount = 1.0f - bodyAmount;
+    return input * dryAmount + resonantOutput * (0.3f * bodyAmount);
 }
 
 void BodyResonance::reset()
@@ -94,7 +93,7 @@ void BodyResonance::updateFilterCoefficients()
         scaledFreq = juce::jlimit(20.0f, static_cast<float>(currentSampleRate * 0.45), scaledFreq);
 
         // Create bandpass filter coefficients
-        *bodyModes[i].coefficients = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+        bodyModes[i].coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
             currentSampleRate,
             scaledFreq,
             Q,

@@ -17,15 +17,19 @@
 #pragma once
 #include <JuceHeader.h>
 #include "StringMaterial.h"
-#include <map>
+#include <unordered_map>
+#include <vector>
 
 /**
- * Sympathetic Resonance Engine
+ * Sympathetic Resonance Engine (Optimized)
  *
  * Processor-level component that tracks all active voices and computes
  * sympathetic coupling between harmonically related strings. When one
  * string vibrates, nearby harmonic frequencies are excited through
  * acoustic coupling, creating authentic harp shimmer and bloom.
+ *
+ * OPTIMIZATION: Precomputes harmonic coupling matrix on voice registration
+ * to avoid O(n²) calculations per sample. Uses unordered_map for O(1) lookup.
  */
 class SympatheticResonanceEngine
 {
@@ -77,6 +81,8 @@ public:
     void reset();
 
 private:
+    static constexpr int MAX_VOICES = 16;
+
     /**
      * Voice information tracked by the engine
      */
@@ -96,13 +102,32 @@ private:
         {}
     };
 
-    std::map<int, VoiceInfo> activeVoices; // Registry of active voices
-    float intensity;                        // Global intensity parameter
-    double sampleRate;                      // Current sample rate
+    /**
+     * Precomputed coupling between two voices
+     * Computed once on voice registration, used every sample
+     */
+    struct CouplingPair
+    {
+        int otherVoiceId;           // ID of the coupled voice
+        float totalCoupling;        // Precomputed: harmonic * material * intensity scale
+    };
+
+    std::unordered_map<int, VoiceInfo> activeVoices;  // Registry of active voices (O(1) lookup)
+    std::unordered_map<int, std::vector<CouplingPair>> couplingMatrix; // Precomputed couplings per voice
+    std::vector<int> activeVoiceIds;                  // Fast iteration list
+    float intensity;                                   // Global intensity parameter
+    double sampleRate;                                 // Current sample rate
+
+    /**
+     * Rebuild coupling matrix for all active voices
+     * Called on voice registration/unregistration
+     */
+    void rebuildCouplingMatrix();
 
     /**
      * Compute coupling strength between two frequencies
      * Detects harmonic relationships: unison, octave, fifth, third
+     * OPTIMIZED: Avoids log2 in hot path by using ratio-based detection
      *
      * @param freq1 First frequency
      * @param freq2 Second frequency
@@ -112,13 +137,14 @@ private:
 
     /**
      * Check if two frequencies form a harmonic interval
+     * OPTIMIZED: Uses ratio comparison instead of cents calculation
      * @param freq1 First frequency
      * @param freq2 Second frequency
      * @param ratio Target frequency ratio (e.g., 2.0 for octave)
-     * @param tolerance Frequency tolerance in cents
+     * @param toleranceRatio Frequency tolerance as ratio (e.g., 1.006 for ~10 cents)
      * @return Coupling strength (0.0-1.0) based on proximity to exact ratio
      */
-    float checkHarmonicInterval(double freq1, double freq2, double ratio, float tolerance) const;
+    float checkHarmonicIntervalFast(double freq1, double freq2, double ratio, double toleranceRatio) const;
 
     /**
      * Design resonator filter for a given frequency
