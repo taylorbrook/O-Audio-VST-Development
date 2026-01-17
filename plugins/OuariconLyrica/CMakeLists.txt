@@ -21,6 +21,8 @@ target_sources(OuariconLyrica
         Source/HarpSynthVoice.cpp
         Source/DSP/DelayLine.cpp
         Source/DSP/StringVoice.cpp
+        Source/DSP/WaveguideString.cpp
+        Source/DSP/BridgeFilter.cpp
 )
 
 # Include paths

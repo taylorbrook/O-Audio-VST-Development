@@ -42,6 +42,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     {
         auto* brightnessParam = parameters->getRawParameterValue("brightness");
         auto* sustainParam = parameters->getRawParameterValue("sustain");
+        auto* pluckPositionParam = parameters->getRawParameterValue("pluckPosition");
 
         if (brightnessParam != nullptr)
             stringModel.setBrightness(brightnessParam->load());
@@ -52,6 +53,9 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             float damping = 1.0f - sustainParam->load();
             stringModel.setDamping(damping);
         }
+
+        if (pluckPositionParam != nullptr)
+            stringModel.setPluckPosition(pluckPositionParam->load());
     }
 
     // Trigger string model

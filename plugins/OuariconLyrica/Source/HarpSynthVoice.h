@@ -12,7 +12,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "HarpSynthSound.h"
-#include "DSP/StringVoice.h"
+#include "DSP/WaveguideString.h"
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {
@@ -44,8 +44,8 @@ public:
     void setAPVTS(juce::AudioProcessorValueTreeState* apvts);
 
 private:
-    // Physical modeling string (Phase 2.1 - Karplus-Strong)
-    StringVoice stringModel;
+    // Physical modeling string (Phase 2.2 - Bidirectional Waveguide)
+    WaveguideString stringModel;
 
     // APVTS reference for parameter access
     juce::AudioProcessorValueTreeState* parameters = nullptr;
