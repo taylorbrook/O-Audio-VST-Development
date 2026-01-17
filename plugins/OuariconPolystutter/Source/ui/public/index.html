@@ -392,25 +392,26 @@
       gap: 1px;
     }
 
+    /* v1.1.3: Wet/dry knobs now same size as lane knobs (42px) */
     .footer-knob-container .knob {
-      width: 32px;
-      height: 32px;
+      width: 42px;
+      height: 42px;
     }
 
     .footer-knob-container .knob::before {
-      top: 3px;
-      width: 2px;
-      height: 8px;
+      top: 4px;
+      width: 3px;
+      height: 10px;
     }
 
     .footer-knob-container .knob-label {
-      font-size: 8px;
-      height: 10px;
+      font-size: 9px;
+      height: 12px;
     }
 
     .footer-knob-container .knob-value {
-      font-size: 7px;
-      height: 10px;
+      font-size: 10px;  /* Matches lane knob values */
+      height: 14px;
     }
 
     .footer-toggle {
@@ -476,44 +477,6 @@
       box-shadow: 0 0 6px rgba(255, 165, 0, 0.7);
     }
 
-    /* Debug monitor (test HTML only) */
-    .debug-monitor {
-      position: fixed;
-      bottom: 10px;
-      right: 10px;
-      background: rgba(0, 0, 0, 0.85);
-      color: #0f0;
-      font-family: 'Courier New', monospace;
-      font-size: 11px;
-      padding: 8px 12px;
-      border: 1px solid #333;
-      border-radius: 4px;
-      min-width: 150px;
-      pointer-events: none;
-      z-index: 10000;
-    }
-
-    .debug-label {
-      color: #666;
-      font-size: 9px;
-      margin-bottom: 4px;
-      letter-spacing: 1px;
-    }
-
-    .debug-param {
-      font-weight: bold;
-      color: #0f0;
-    }
-
-    .debug-value {
-      color: #fff;
-      margin-top: 2px;
-    }
-
-    .debug-normalized {
-      color: #888;
-      font-size: 10px;
-    }
   </style>
 </head>
 <body>
@@ -912,14 +875,6 @@
         <div class="footer-toggle" id="trig_toggle">TRIG</div>
       </div>
     </div>
-  </div>
-
-  <!-- Debug monitor (test HTML only) -->
-  <div class="debug-monitor">
-    <div class="debug-label">PARAMETER MONITOR</div>
-    <div class="debug-param" id="debugParam">—</div>
-    <div class="debug-value" id="debugValue">—</div>
-    <div class="debug-normalized" id="debugNormalized">—</div>
   </div>
 
   <!-- JUCE WebView Bridge - ES6 Module Import -->
