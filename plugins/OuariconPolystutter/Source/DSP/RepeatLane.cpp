@@ -62,6 +62,9 @@ void RepeatLane::reset()
     fadeOutActive = false;
     fadeOutSamplesRemaining = 0;
     fadeOutStartGain = 0.0f;
+
+    // v1.1.5: Reset deferred capture flag
+    pendingCapture = false;
 }
 
 void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
@@ -82,6 +85,33 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
         // Advance write position (circular)
         captureWritePosition = (captureWritePosition + 1) % maxCaptureSamples;
+    }
+
+    // v1.1.5: Handle deferred capture - calculate position AFTER writing current block
+    // This fixes ENV trigger artifacts by ensuring the transient is included in capture
+    if (pendingCapture)
+    {
+        pendingCapture = false;
+
+        // Now captureWritePosition points to END of current block
+        // Capture the last subdivisionSamples, which now includes the transient
+        captureStartPosition = (captureWritePosition - captureLength + maxCaptureSamples) % maxCaptureSamples;
+
+        // If freeze is enabled, copy capture buffer to freeze buffer (linearized)
+        if (freezeEnabled)
+        {
+            for (int i = 0; i < captureLength && i < freezeBuffer.getNumSamples(); ++i)
+            {
+                int srcPos = (captureStartPosition + i) % maxCaptureSamples;
+
+                float leftSample = captureBuffer.getSample(0, srcPos);
+                float rightSample = captureBuffer.getSample(1, srcPos);
+
+                freezeBuffer.setSample(0, i, leftSample);
+                freezeBuffer.setSample(1, i, rightSample);
+            }
+            freezeBufferReady = true;
+        }
     }
 
     // v1.1.1: Handle fade-out when repeats are finished
@@ -313,26 +343,12 @@ void RepeatLane::trigger()
     // Set capture length to subdivision length (clamped to buffer size)
     captureLength = juce::jmin(static_cast<int>(subdivisionSamples), maxCaptureSamples);
 
-    // v1.1.0: Calculate start position in circular buffer
-    // The capture starts at (writePosition - captureLength), wrapping around
-    captureStartPosition = (captureWritePosition - captureLength + maxCaptureSamples) % maxCaptureSamples;
-
-    // If freeze is enabled, copy capture buffer to freeze buffer (linearized)
-    if (freezeEnabled)
-    {
-        // Copy from circular capture buffer to linear freeze buffer
-        for (int i = 0; i < captureLength && i < freezeBuffer.getNumSamples(); ++i)
-        {
-            int srcPos = (captureStartPosition + i) % maxCaptureSamples;
-
-            float leftSample = captureBuffer.getSample(0, srcPos);
-            float rightSample = captureBuffer.getSample(1, srcPos);
-
-            freezeBuffer.setSample(0, i, leftSample);
-            freezeBuffer.setSample(1, i, rightSample);
-        }
-        freezeBufferReady = true;
-    }
+    // v1.1.5: Use DEFERRED capture calculation for correct ENV trigger timing
+    // When trigger() is called from PluginProcessor BEFORE processBlock(), the capture
+    // buffer doesn't contain the current block yet. Setting pendingCapture = true
+    // defers the captureStartPosition calculation to AFTER the current block is written.
+    // This ensures transients that triggered the effect are actually captured.
+    pendingCapture = true;
 
     // Start first repeat immediately (with swing offset if applicable)
     int swingOffset = calculateSwingOffset(0);

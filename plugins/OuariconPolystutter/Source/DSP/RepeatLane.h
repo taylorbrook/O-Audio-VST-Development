@@ -118,6 +118,12 @@ private:
     int fadeOutSamplesRemaining = 0;      // Samples left in fade-out phase
     float fadeOutStartGain = 0.0f;        // Gain level when fade-out started
 
+    // v1.1.5: Deferred capture for correct ENV trigger timing
+    // When trigger() is called BEFORE processBlock(), the capture buffer doesn't
+    // contain the current block yet. This flag defers capture position calculation
+    // to AFTER the current block is written, ensuring transients are captured.
+    bool pendingCapture = false;
+
     // Pattern sequencer state
     bool patternSteps[16] = { true, true, true, true, true, true, true, true,
                               true, true, true, true, true, true, true, true };  // All enabled by default

@@ -2,6 +2,22 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.1.5] - 2026-01-16
+
+### Fixed
+
+- **Audio artifacts when ENV (envelope follower) triggers on transients**
+  - Root cause: Capture timing mismatch in envelope-triggered mode
+  - When `trigger()` was called before `processBlock()`, `captureStartPosition` was calculated
+    based on the OLD capture buffer contents (from previous blocks)
+  - The current block containing the transient hadn't been written yet
+  - Result: Stutter played back OLD audio that didn't include the triggering transient
+  - Fix: Implemented deferred capture using `pendingCapture` flag
+    - `trigger()` now sets `pendingCapture = true` instead of calculating position immediately
+    - `processBlock()` calculates `captureStartPosition` AFTER writing current block to buffer
+    - This ensures the capture window includes the transient that triggered the effect
+  - Testing: Play audio with sharp transients (drums, plucks) with ENV mode enabled
+
 ## [1.1.4] - 2026-01-16
 
 ### Changed
