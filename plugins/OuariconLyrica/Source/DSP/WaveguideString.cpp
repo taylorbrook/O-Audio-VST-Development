@@ -251,7 +251,15 @@ void WaveguideString::updateFilters()
 float WaveguideString::calculateRailDelay() const
 {
     // Total string delay = sampleRate / frequency
-    // Each rail is half the total length
     float totalDelay = static_cast<float>(currentSampleRate / currentFrequency);
-    return totalDelay * 0.5f;
+
+    // Compensate for filter group delay in the waveguide feedback loop.
+    // The filters (bridgeFilter, nutFilter, loopDamping, stiffnessFilter) add
+    // group delay that effectively lengthens the delay line, lowering pitch.
+    // Without compensation, pitch is ~1 semitone flat.
+    constexpr float filterGroupDelayCompensation = 6.0f;
+    float compensatedDelay = totalDelay - filterGroupDelayCompensation;
+
+    // Each rail is half the total length
+    return compensatedDelay * 0.5f;
 }
