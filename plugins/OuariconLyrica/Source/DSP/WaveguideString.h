@@ -145,10 +145,25 @@ private:
     // Parameters
     float dampingAmount = 0.7f;    // Material-based damping
     float brightnessAmount = 0.5f; // Tone brightness
-    float stiffnessAmount = 0.2f;  // String stiffness/inharmonicity (Phase 2.4)
+    float stiffnessAmount = 0.2f;  // Final computed stiffness (Phase 2.4)
+
+    // Material-aware stiffness system (v1.0.3 fix)
+    float materialStiffness = 0.2f;      // Base stiffness from material
+    float userStiffnessModifier = 0.5f;  // User slider value (0-1, 0.5 = neutral)
 
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;
+
+    /**
+     * Calculate final stiffness from material base and user modifier
+     * User modifier at 0.5 = material value unchanged
+     * User modifier at 0.0 = half material value
+     * User modifier at 1.0 = 1.5x material value
+     */
+    float calculateFinalStiffness() const
+    {
+        return materialStiffness * (0.5f + userStiffnessModifier * 1.0f);
+    }
 
     /**
      * Update all filter coefficients based on current parameters

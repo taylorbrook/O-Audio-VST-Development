@@ -175,8 +175,11 @@ void WaveguideString::setTechnique(PlayingTechnique technique)
 
 void WaveguideString::setStiffness(float stiffness)
 {
-    stiffnessAmount = juce::jlimit(0.0f, 1.0f, stiffness);
-    // Update stiffness filter with current frequency and new stiffness
+    // v1.0.3: User slider now acts as modifier, not overwrite
+    // This preserves material-specific stiffness while allowing user adjustment
+    userStiffnessModifier = juce::jlimit(0.0f, 1.0f, stiffness);
+    stiffnessAmount = calculateFinalStiffness();
+    // Update stiffness filter with current frequency and computed stiffness
     stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
 }
 
@@ -188,9 +191,10 @@ void WaveguideString::setMaterial(const StringMaterial& material)
     // Material's dampingCoeff controls the sustain (inverse relationship)
     dampingAmount = material.dampingCoeff;
 
-    // Material's brightnessCutoff and stiffnessAmount directly map
-    // We'll blend these with user parameters in updateFilters()
-    stiffnessAmount = material.stiffnessAmount;
+    // v1.0.3: Store material's base stiffness, then compute final with user modifier
+    // This ensures different materials produce audibly different inharmonicity
+    materialStiffness = material.stiffnessAmount;
+    stiffnessAmount = calculateFinalStiffness();
 
     // Update pluck exciter with noise content
     exciter.setNoiseAmount(material.noiseContent);
@@ -198,7 +202,7 @@ void WaveguideString::setMaterial(const StringMaterial& material)
     // Update all filters with new material properties
     updateFilters();
 
-    // Update stiffness filter
+    // Update stiffness filter with computed stiffness
     stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
 }
 

@@ -2,6 +2,16 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.0.3] - 2026-01-16
+
+### Fixed
+
+- **String materials now produce audibly different timbres**
+  - Root cause: `WaveguideString::setStiffness()` was completely overwriting the material's stiffness value with the user's slider value, making all materials sound identical in terms of inharmonicity
+  - Each material defines a unique stiffness (Gut=0.10, Crystal=0.50) that creates its characteristic harmonic structure, but this was being discarded
+  - Fix: User's stiffness slider now acts as a modifier (0.5x to 1.5x) rather than an overwrite, preserving material-specific inharmonicity while still allowing user adjustment
+  - Result: Gut strings now sound warm/mellow, Crystal strings sound bright/bell-like, with clear audible distinction between all 8 material types
+
 ## [1.0.2] - 2026-01-16
 
 ### Fixed
