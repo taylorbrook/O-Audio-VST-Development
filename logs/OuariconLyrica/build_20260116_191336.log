@@ -1,0 +1,11 @@
+Build started at Fri 16 Jan 2026 19:13:36 PST
+Plugin: OuariconLyrica
+Flags: DRY_RUN=false NO_INSTALL=false VERBOSE=false RECONFIGURE=false
+---
+Phase 1: Pre-flight Validation
+Pre-flight validation: PASS
+Phase 2: Parallel Build
+$ cmake --build build --config Release --target OuariconLyrica_VST3 --target OuariconLyrica_AU --parallel
+[0/2] Re-checking globbed directories...
+ninja: error: unknown target 'OuariconLyrica_VST3'
+ERROR: Build failed

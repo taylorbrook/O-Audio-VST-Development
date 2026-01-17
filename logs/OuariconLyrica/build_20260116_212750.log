@@ -1,0 +1,39 @@
+Build started at Fri 16 Jan 2026 21:27:50 PST
+Plugin: OuariconLyrica
+Flags: DRY_RUN=false NO_INSTALL=false VERBOSE=false RECONFIGURE=false
+---
+Phase 1: Pre-flight Validation
+Pre-flight validation: PASS
+Phase 2: Parallel Build
+$ cmake --build build --config Release --target OuariconLyrica_VST3 --target OuariconLyrica_AU --parallel
+[0/2] Re-checking globbed directories...
+[1/5] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/WaveguideString.cpp.o
+[2/5] Linking CXX static library plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/libOuariconLyrica_SharedCode.a
+[3/5] Linking CXX CFBundle shared module plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/AU/OuariconLyrica.component/Contents/MacOS/OuariconLyrica
+[4/5] Linking CXX CFBundle shared module plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3/Contents/MacOS/OuariconLyrica
+/Users/taylorbrook/Dev/VST-development/build/plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3: code has no resources but signature indicates they must be present
+-- Replacing invalid signature with ad-hoc signature
+/Users/taylorbrook/Dev/VST-development/build/plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3: replacing existing signature
+removing moduleinfo.json
+creating /Users/taylorbrook/Dev/VST-development/build/plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3
+Build: SUCCESS
+Phase 3: Extract PRODUCT_NAME
+PRODUCT_NAME: OuariconLyrica
+Phase 4: Remove Old Versions
+Removed old VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/OuariconLyrica.vst3
+Removed old AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/OuariconLyrica.component
+Phase 5: Install New Versions
+Installed VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/OuariconLyrica.vst3
+Installed AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/OuariconLyrica.component
+Phase 6: Clear DAW Caches
+Cleared Ableton plugin database
+Cleared AU cache
+Killed AudioComponentRegistrar
+Phase 7: Verification
+
+Verification: PASS
+VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/OuariconLyrica.vst3 (3.7M, 0s old)
+AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/OuariconLyrica.component (3.6M, 0s old)
+
+Build completed at Fri 16 Jan 2026 21:28:05 PST
+Duration: 15s

@@ -1,0 +1,260 @@
+Build started at Fri 16 Jan 2026 19:42:55 PST
+Plugin: OuariconLyrica
+Flags: DRY_RUN=false NO_INSTALL=false VERBOSE=false RECONFIGURE=true
+---
+Phase 1: Pre-flight Validation
+Pre-flight validation: PASS
+Phase 2: Parallel Build
+Removed build directory for reconfiguration
+$ cmake -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+-- The C compiler identification is AppleClang 17.0.0.17000404
+-- The CXX compiler identification is AppleClang 17.0.0.17000404
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Configuring juceaide
+-- Building juceaide
+-- Exporting juceaide
+-- Testing juceaide
+-- Finished setting up juceaide
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconDigitalDelay has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconDigitalDelay', which contains spaces.  Use the BUNDLE_ID
+  option to specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/Ouaricon Digital Delay/CMakeLists.txt:4 (juce_add_plugin)
+
+
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconAnalogEQ has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconAnalogEQ', which contains spaces.  Use the BUNDLE_ID option
+  to specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconAnalogEQ/CMakeLists.txt:4 (juce_add_plugin)
+
+
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconComp has JUCE_BUNDLE_ID 'com.Ouaricon Audio.OuariconComp',
+  which contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconComp/CMakeLists.txt:4 (juce_add_plugin)
+
+
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconLyrica has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconLyrica', which contains spaces.  Use the BUNDLE_ID option to
+  specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconLyrica/CMakeLists.txt:4 (juce_add_plugin)
+
+
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconMarimba has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconMarimba', which contains spaces.  Use the BUNDLE_ID option to
+  specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconMarimba/CMakeLists.txt:4 (juce_add_plugin)
+
+
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconPolystutter has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconPolystutter', which contains spaces.  Use the BUNDLE_ID
+  option to specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconPolystutter/CMakeLists.txt:4 (juce_add_plugin)
+
+
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconSaturationModeling has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconSaturationModeling', which contains spaces.  Use the
+  BUNDLE_ID option to specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconSaturationModeling/CMakeLists.txt:4 (juce_add_plugin)
+
+
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconSimpleReverb has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconSimpleReverb', which contains spaces.  Use the BUNDLE_ID
+  option to specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconSimpleReverb/CMakeLists.txt:7 (juce_add_plugin)
+
+
+-- [Ouaricon] Adding module 'preset-manager' from /Users/taylorbrook/Dev/VST-development/modules/persistence/preset-manager
+-- [Ouaricon]   Added /Users/taylorbrook/Dev/VST-development/plugins/OuariconSimpleReverb C++ sources
+-- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+CMake Warning at /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:1721 (message):
+  Target OuariconTremolo has JUCE_BUNDLE_ID 'com.Ouaricon
+  Audio.OuariconTremolo', which contains spaces.  Use the BUNDLE_ID option to
+  specify a valid ID.
+Call Stack (most recent call first):
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2107 (_juce_set_fallback_properties)
+  /Users/taylorbrook/JUCE/extras/Build/CMake/JUCEUtils.cmake:2190 (_juce_initialise_target)
+  plugins/OuariconTremolo/CMakeLists.txt:7 (juce_add_plugin)
+
+
+-- [Ouaricon] Adding module 'preset-manager' from /Users/taylorbrook/Dev/VST-development/modules/persistence/preset-manager
+-- [Ouaricon]   Added /Users/taylorbrook/Dev/VST-development/plugins/OuariconTremolo C++ sources
+-- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+-- Configuring done (10.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /Users/taylorbrook/Dev/VST-development/build
+$ cmake --build build --config Release --target OuariconLyrica_VST3 --target OuariconLyrica_AU --parallel
+[0/2] Re-checking globbed directories...
+[1/61] Generating OuariconLyrica_artefacts/JuceLibraryCode/JuceHeader.h
+[2/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_audio_processors/juce_audio_processors_ara.cpp.o
+[3/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_audio_processors/juce_audio_processors_lv2_libs.cpp.o
+[4/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_vst3_helper.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/VST3/juce_VST3ManifestHelper.mm.o
+[5/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/PluginEditor.cpp.o
+In file included from /Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/PluginEditor.cpp:11:
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/PluginEditor.h:24:35: warning: private field 'processorRef' is not used [-Wunused-private-field]
+   24 |     OuariconLyricaAudioProcessor& processorRef;
+      |                                   ^
+1 warning generated.
+[6/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/HarpSynthSound.cpp.o
+[7/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/BridgeFilter.cpp.o
+[8/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/StringVoice.cpp.o
+[9/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/PluckExciter.cpp.o
+[10/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_core/juce_core_CompilationTime.cpp.o
+[11/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/SympatheticResonance.cpp.o
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/SympatheticResonance.cpp:201:9: warning: implicit conversion loses floating-point precision: 'double' to 'float' [-Wimplicit-float-conversion]
+  199 |     auto coefficients = juce::dsp::IIR::Coefficients<float>::makeBandPass(
+      |                         ~~~~
+  200 |         sampleRate,
+  201 |         clampedFreq,
+      |         ^~~~~~~~~~~
+1 warning generated.
+[12/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/BodyResonance.cpp.o
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/BodyResonance.cpp:68:38: warning: implicit conversion changes signedness: 'int' to 'size_type' (aka 'unsigned long') [-Wsign-conversion]
+   68 |         float modeOutput = bodyModes[i].processSample(input);
+      |                            ~~~~~~~~~ ^
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/BodyResonance.cpp:69:55: warning: implicit conversion changes signedness: 'int' to 'size_type' (aka 'unsigned long') [-Wsign-conversion]
+   69 |         resonantOutput += modeOutput * modeAmplitudes[i];
+      |                                        ~~~~~~~~~~~~~~ ^
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/BodyResonance.cpp:91:60: warning: implicit conversion changes signedness: 'int' to 'size_type' (aka 'unsigned long') [-Wsign-conversion]
+   91 |         float scaledFreq = scaleFrequency(BASE_FREQUENCIES[i]);
+      |                                           ~~~~~~~~~~~~~~~~ ^
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/BodyResonance.cpp:97:20: warning: implicit conversion changes signedness: 'int' to 'size_type' (aka 'unsigned long') [-Wsign-conversion]
+   97 |         *bodyModes[i].coefficients = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+      |          ~~~~~~~~~ ^
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/BodyResonance.cpp:105:24: warning: implicit conversion changes signedness: 'int' to 'size_type' (aka 'unsigned long') [-Wsign-conversion]
+  105 |         modeAmplitudes[i] = getModeAmplitude(i, currentWoodType);
+      |         ~~~~~~~~~~~~~~ ^
+5 warnings generated.
+[13/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/StringMaterial.cpp.o
+[14/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/DelayLine.cpp.o
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/DelayLine.cpp:37:32: warning: declaration shadows a field of 'DelayLine' [-Wshadow]
+   37 | void DelayLine::setDelay(float delayInSamples)
+      |                                ^
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/DelayLine.h:64:11: note: previous declaration is here
+   64 |     float delayInSamples = 0.0f;
+      |           ^
+1 warning generated.
+[15/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/StiffnessFilter.cpp.o
+/Users/taylorbrook/Dev/VST-development/plugins/OuariconLyrica/Source/DSP/StiffnessFilter.cpp:87:23: warning: implicit conversion changes signedness: 'int' to 'size_type' (aka 'unsigned long') [-Wsign-conversion]
+   87 |         allpassStages[i].coefficient = juce::jlimit(-0.9f, 0.9f, coefficient);
+      |         ~~~~~~~~~~~~~ ^
+1 warning generated.
+[16/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/HarpSynthVoice.cpp.o
+[17/61] Building C object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_graphics/juce_graphics_Sheenbidi.c.o
+[18/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/DSP/WaveguideString.cpp.o
+[19/61] Linking CXX executable plugins/OuariconLyrica/OuariconLyrica_vst3_helper
+[20/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Source/PluginProcessor.cpp.o
+[21/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_data_structures/juce_data_structures.mm.o
+[22/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_events/juce_events.mm.o
+[23/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_audio_devices/juce_audio_devices.mm.o
+[24/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_audio_utils/juce_audio_utils.mm.o
+[25/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_gui_extra/juce_gui_extra.mm.o
+[26/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_audio_basics/juce_audio_basics.mm.o
+[27/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_dsp/juce_dsp.mm.o
+[28/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_audio_processors/juce_audio_processors.mm.o
+[29/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_audio_formats/juce_audio_formats.mm.o
+[30/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_core/juce_core.mm.o
+[31/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_graphics/juce_graphics_Harfbuzz.cpp.o
+[32/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_graphics/juce_graphics.mm.o
+[33/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica.dir/Users/taylorbrook/JUCE/modules/juce_gui_basics/juce_gui_basics.mm.o
+In file included from /Users/taylorbrook/JUCE/modules/juce_gui_basics/juce_gui_basics.mm:35:
+In file included from /Users/taylorbrook/JUCE/modules/juce_gui_basics/juce_gui_basics.cpp:189:
+/Users/taylorbrook/JUCE/modules/juce_gui_basics/native/juce_NSViewComponentPeer_mac.mm:1923:17: warning: enumeration value 'NSEventTypeMouseCancelled' not explicitly handled in switch [-Wswitch-enum]
+ 1923 |         switch ([e type])
+      |                 ^~~~~~~~
+/Users/taylorbrook/JUCE/modules/juce_gui_basics/native/juce_NSViewComponentPeer_mac.mm:1923:17: note: add missing switch cases
+ 1923 |         switch ([e type])
+      |                 ^
+1 warning generated.
+[34/61] Linking CXX static library plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/libOuariconLyrica_SharedCode.a
+[35/61] Generating OuariconLyrica_artefacts/JuceLibraryCode/OuariconLyrica_AU/PkgInfo
+[36/61] Generating OuariconLyrica_artefacts/JuceLibraryCode/OuariconLyrica_VST3/PkgInfo
+[37/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_LV2.mm.o
+[38/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_ARA.cpp.o
+[39/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX_utils.cpp.o
+[40/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Standalone.cpp.o
+[41/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Unity.cpp.o
+[42/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX.mm.o
+[43/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST2.mm.o
+[44/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.mm.o
+[45/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX_utils.cpp.o
+[46/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Standalone.cpp.o
+[47/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_ARA.cpp.o
+[48/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm.o
+[49/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AUv3.mm.o
+[50/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_2.mm.o
+[51/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX.mm.o
+[52/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Unity.cpp.o
+[53/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_LV2.mm.o
+[54/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AUv3.mm.o
+[55/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST2.mm.o
+[56/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_2.mm.o
+[57/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_AU.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm.o
+[58/61] Building CXX object plugins/OuariconLyrica/CMakeFiles/OuariconLyrica_VST3.dir/Users/taylorbrook/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.mm.o
+[59/61] Linking CXX CFBundle shared module plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/AU/OuariconLyrica.component/Contents/MacOS/OuariconLyrica
+[60/61] Linking CXX CFBundle shared module plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3/Contents/MacOS/OuariconLyrica
+/Users/taylorbrook/Dev/VST-development/build/plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3: code has no resources but signature indicates they must be present
+-- Replacing invalid signature with ad-hoc signature
+/Users/taylorbrook/Dev/VST-development/build/plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3: replacing existing signature
+removing moduleinfo.json
+creating /Users/taylorbrook/Dev/VST-development/build/plugins/OuariconLyrica/OuariconLyrica_artefacts/Release/VST3/OuariconLyrica.vst3
+Build: SUCCESS
+Phase 3: Extract PRODUCT_NAME
+PRODUCT_NAME: OuariconLyrica
+Phase 4: Remove Old Versions
+Removed old VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/OuariconLyrica.vst3
+Removed old AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/OuariconLyrica.component
+Phase 5: Install New Versions
+Installed VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/OuariconLyrica.vst3
+Installed AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/OuariconLyrica.component
+Phase 6: Clear DAW Caches
+Cleared Ableton plugin database
+Cleared AU cache
+Killed AudioComponentRegistrar
+Phase 7: Verification
+
+Verification: PASS
+VST3: /Users/taylorbrook/Library/Audio/Plug-Ins/VST3/OuariconLyrica.vst3 (3.6M, 0s old)
+AU: /Users/taylorbrook/Library/Audio/Plug-Ins/Components/OuariconLyrica.component (3.6M, 0s old)
+
+Build completed at Fri 16 Jan 2026 19:43:36 PST
+Duration: 41s

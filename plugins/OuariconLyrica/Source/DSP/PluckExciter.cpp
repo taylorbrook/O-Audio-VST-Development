@@ -212,10 +212,8 @@ void PluckExciter::updatePositionFilter()
     cutoffHz = juce::jlimit(100.0f, 12000.0f, cutoffHz);
 
     // Design one-pole lowpass filter
-    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+    positionFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, cutoffHz);
-
-    *positionFilter.coefficients = *coeffs;
 }
 
 void PluckExciter::updateBrightnessFilter()
@@ -231,10 +229,8 @@ void PluckExciter::updateBrightnessFilter()
     float cutoffHz = juce::jmap(fingerHardness, 0.0f, 1.0f, 800.0f, 12000.0f);
 
     // Design one-pole lowpass filter
-    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+    brightnessFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, cutoffHz);
-
-    *brightnessFilter.coefficients = *coeffs;
 }
 
 void PluckExciter::updateTechniqueFilter()
@@ -245,11 +241,8 @@ void PluckExciter::updateTechniqueFilter()
     {
         case PlayingTechnique::Normal:
             // Neutral filter (wide bandwidth)
-            {
-                auto coeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-                    currentSampleRate, 10000.0f);
-                *techniqueFilter.coefficients = *coeffs;
-            }
+            techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+                currentSampleRate, 10000.0f);
             break;
 
         case PlayingTechnique::Harmonic:
@@ -259,28 +252,21 @@ void PluckExciter::updateTechniqueFilter()
                 centerFreq = juce::jlimit(100.0f, 10000.0f, centerFreq);
                 float Q = 2.0f;  // Moderate bandwidth
 
-                auto coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+                techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
                     currentSampleRate, centerFreq, Q, 3.0f);  // 3x gain at harmonic
-                *techniqueFilter.coefficients = *coeffs;
             }
             break;
 
         case PlayingTechnique::Muted:
             // Heavy lowpass for muted sound
-            {
-                auto coeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-                    currentSampleRate, 600.0f);
-                *techniqueFilter.coefficients = *coeffs;
-            }
+            techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+                currentSampleRate, 600.0f);
             break;
 
         case PlayingTechnique::PresDeLaTable:
             // High-shelf boost for metallic/bright character
-            {
-                auto coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-                    currentSampleRate, 2000.0f, 0.7f, 2.5f);  // Boost highs
-                *techniqueFilter.coefficients = *coeffs;
-            }
+            techniqueFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+                currentSampleRate, 2000.0f, 0.7f, 2.5f);  // Boost highs
             break;
     }
 }

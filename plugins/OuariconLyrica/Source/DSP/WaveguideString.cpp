@@ -108,9 +108,9 @@ float WaveguideString::processSample()
     // The nut end inverts the wave (rigid boundary condition)
     float nutReflection = -nutFilter.processSample(lowerOut);
 
-    // Apply loop damping to reduce overall energy
+    // Apply loop damping once per round-trip (at bridge end only)
+    // Note: Using same filter for both signals corrupts IIR state
     bridgeReflection = loopDamping.processSample(bridgeReflection);
-    nutReflection = loopDamping.processSample(nutReflection);
 
     // Apply stiffness filter (Phase 2.4: creates inharmonicity/dispersion)
     // This adds frequency-dependent phase shift, making higher harmonics sharp
@@ -226,18 +226,16 @@ void WaveguideString::updateFilters()
     float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f); // ±30% from material value
     bridgeCutoffHz = juce::jlimit(500.0f, 20000.0f, bridgeCutoffHz);
 
-    auto bridgeCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+    bridgeFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, bridgeCutoffHz);
-    *bridgeFilter.coefficients = *bridgeCoeffs;
 
     // Nut Filter: Simple reflection with slight damping
     // The nut is typically a harder boundary than the bridge
     float nutCutoffHz = materialBrightness * 1.2f * (0.7f + brightnessAmount * 0.5f);
     nutCutoffHz = juce::jlimit(2000.0f, 20000.0f, nutCutoffHz);
 
-    auto nutCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+    nutFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, nutCutoffHz);
-    *nutFilter.coefficients = *nutCoeffs;
 
     // Loop Damping Filter: Material-based energy loss
     // Material damping coefficient directly controls decay rate
@@ -246,9 +244,8 @@ void WaveguideString::updateFilters()
     float dampingCutoffHz = 500.0f + (1.0f - currentMaterial.dampingCoeff) * 10000.0f; // 500Hz - 10.5kHz
     dampingCutoffHz = juce::jlimit(300.0f, 12000.0f, dampingCutoffHz);
 
-    auto dampingCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+    loopDamping.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, dampingCutoffHz);
-    *loopDamping.coefficients = *dampingCoeffs;
 }
 
 float WaveguideString::calculateRailDelay() const
