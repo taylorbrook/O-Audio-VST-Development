@@ -33,8 +33,8 @@ Ouaricon Plugins:
 | OuariconAnalogEQ | 📦 Installed | 1.0.10 | Audio Effect (EQ) | 2026-01-11 |
 | Ouaricon Digital Delay | 📦 Installed | 1.2.0 | Audio Effect (Delay) | 2026-01-12 |
 | OuariconSimpleReverb | 📦 Installed | 1.4.1 | Audio Effect (Reverb) | 2026-01-13 |
-| OuariconPolystutter | 📦 Installed | 1.1.11 | Audio Effect (Beat Repeater) | 2026-01-17 |
-| OuariconLyrica | 📦 Installed | 1.1.1 | Synth (Physical Modeling Harp) | 2026-01-17 |
+| OuariconPolystutter | 📦 Installed | 1.1.10 | Audio Effect (Beat Repeater) | 2026-01-17 |
+| OuariconLyrica | 📦 Installed | 1.1.2 | Synth (Physical Modeling Harp) | 2026-01-17 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

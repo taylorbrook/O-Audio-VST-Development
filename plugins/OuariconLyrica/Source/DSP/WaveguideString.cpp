@@ -231,6 +231,17 @@ void WaveguideString::setMaterial(const StringMaterial& material)
 
     // Update stiffness filter with computed stiffness
     stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
+
+    // v1.1.2 FIX: Recalculate delay line length to compensate for changed filter group delay
+    // Different materials have different brightnessCutoff and dampingCoeff values,
+    // which change the filter cutoffs and thus the group delay. Without this,
+    // changing materials causes pitch drift (e.g., Gut vs Crystal differs by ~3 samples).
+    if (currentFrequency > 20.0)
+    {
+        float railDelay = calculateRailDelay();
+        upperRail.setDelay(railDelay);
+        lowerRail.setDelay(railDelay);
+    }
 }
 
 void WaveguideString::setFrequency(double frequency)

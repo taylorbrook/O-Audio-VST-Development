@@ -2,6 +2,22 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.1.2] - 2026-01-17
+
+### Fixed
+
+- **String materials no longer affect fundamental pitch**
+  - Root cause: `setMaterial()` was missing delay line compensation that was added in v1.1.1 for brightness. Different materials have vastly different `brightnessCutoff` values (Gut=2000Hz, Crystal=16000Hz) and `dampingCoeff` values, which feed into `calculateFilterGroupDelay()`. Changing materials altered the filter group delay by up to ~3 samples without compensating the delay line length, causing pitch drift.
+  - Fix: Added delay line recalculation to `setMaterial()` using the same pattern as `setBrightness()`. Now when material changes, the delay line length is recomputed to maintain correct pitch.
+  - Result: All 8 material types now produce the same fundamental frequency while retaining their distinct timbral characteristics (damping, brightness, stiffness, noise content).
+  - Files modified: WaveguideString.cpp
+
+### Technical Notes
+
+- This completes the filter group delay compensation system started in v1.1.1
+- Both `setBrightness()` and `setMaterial()` now recalculate delay lines when their parameters change
+- Materials affect timbre via: brightnessCutoff (filter color), dampingCoeff (decay rate), stiffnessAmount (inharmonicity), noiseContent (attack character)
+
 ## [1.1.1] - 2026-01-17
 
 ### Fixed
