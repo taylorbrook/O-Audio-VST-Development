@@ -55,6 +55,12 @@ public:
      */
     TuningEngine* getTuningEngine() { return &tuningEngine; }
 
+    /**
+     * Get number of currently active voices (Phase 2.11)
+     * Returns the count of voices currently playing notes
+     */
+    int getActiveVoiceCount() const;
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;

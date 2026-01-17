@@ -237,6 +237,21 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 }
 
+int OuariconLyricaAudioProcessor::getActiveVoiceCount() const
+{
+    // Phase 2.11: Count actively playing voices
+    int activeCount = 0;
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = synthesiser.getVoice(i))
+        {
+            if (voice->isVoiceActive())
+                ++activeCount;
+        }
+    }
+    return activeCount;
+}
+
 juce::AudioProcessorEditor* OuariconLyricaAudioProcessor::createEditor()
 {
     return new OuariconLyricaAudioProcessorEditor(*this);
