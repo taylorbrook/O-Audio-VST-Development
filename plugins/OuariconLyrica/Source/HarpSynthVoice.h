@@ -12,6 +12,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include "HarpSynthSound.h"
+#include "DSP/StringVoice.h"
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {
@@ -32,16 +33,25 @@ public:
     void renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                         int startSample, int numSamples) override;
 
-private:
-    double currentFrequency = 440.0;
-    double phase = 0.0;
-    double phaseIncrement = 0.0;
-    float currentVelocity = 0.0f;
-    bool isPlaying = false;
+    /**
+     * Prepare voice for playback
+     */
+    void prepare(double sampleRate, int maxBlockSize);
 
-    // Simple ADSR for Stage 1 placeholder
-    juce::ADSR adsr;
-    juce::ADSR::Parameters adsrParams;
+    /**
+     * Set APVTS reference for parameter access
+     */
+    void setAPVTS(juce::AudioProcessorValueTreeState* apvts);
+
+private:
+    // Physical modeling string (Phase 2.1 - Karplus-Strong)
+    StringVoice stringModel;
+
+    // APVTS reference for parameter access
+    juce::AudioProcessorValueTreeState* parameters = nullptr;
+
+    double currentFrequency = 440.0;
+    float currentVelocity = 0.0f;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarpSynthVoice)
 };

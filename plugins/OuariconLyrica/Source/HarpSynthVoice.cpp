@@ -13,12 +13,6 @@
 
 HarpSynthVoice::HarpSynthVoice()
 {
-    // Simple plucked string-like envelope for Stage 1
-    adsrParams.attack = 0.001f;   // Fast attack (pluck)
-    adsrParams.decay = 0.5f;      // Medium decay
-    adsrParams.sustain = 0.3f;    // Low sustain (plucked strings decay)
-    adsrParams.release = 2.0f;    // Long release for harp character
-    adsr.setParameters(adsrParams);
 }
 
 bool HarpSynthVoice::canPlaySound(juce::SynthesiserSound* sound)
@@ -26,75 +20,95 @@ bool HarpSynthVoice::canPlaySound(juce::SynthesiserSound* sound)
     return dynamic_cast<HarpSynthSound*>(sound) != nullptr;
 }
 
+void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
+{
+    stringModel.prepare(sampleRate, maxBlockSize);
+}
+
+void HarpSynthVoice::setAPVTS(juce::AudioProcessorValueTreeState* apvts)
+{
+    parameters = apvts;
+}
+
 void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
                                 juce::SynthesiserSound*,
                                 int /*currentPitchWheelPosition*/)
 {
     currentFrequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
-    phaseIncrement = currentFrequency * 2.0 * juce::MathConstants<double>::pi / getSampleRate();
-    phase = 0.0;
     currentVelocity = velocity;
-    isPlaying = true;
 
-    adsr.noteOn();
+    // Read parameters from APVTS (if available)
+    if (parameters != nullptr)
+    {
+        auto* brightnessParam = parameters->getRawParameterValue("brightness");
+        auto* sustainParam = parameters->getRawParameterValue("sustain");
+
+        if (brightnessParam != nullptr)
+            stringModel.setBrightness(brightnessParam->load());
+
+        if (sustainParam != nullptr)
+        {
+            // Invert sustain to get damping (sustain=1.0 means low damping)
+            float damping = 1.0f - sustainParam->load();
+            stringModel.setDamping(damping);
+        }
+    }
+
+    // Trigger string model
+    stringModel.trigger(currentFrequency, velocity);
 }
 
 void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
 {
     if (allowTailOff)
     {
-        adsr.noteOff();
+        // For plucked strings, we let the natural decay continue
+        // The string model will automatically fade out
     }
     else
     {
+        // Hard stop - reset everything
         clearCurrentNote();
-        adsr.reset();
-        isPlaying = false;
+        stringModel.reset();
     }
 }
 
 void HarpSynthVoice::pitchWheelMoved(int /*newPitchWheelValue*/)
 {
-    // Pitch bend will be implemented in Stage 2
+    // Pitch bend will be implemented in Phase 2.8 (Tuning Engine)
 }
 
 void HarpSynthVoice::controllerMoved(int /*controllerNumber*/, int /*newControllerValue*/)
 {
-    // MIDI CC will be implemented in Stage 2
+    // MIDI CC will be implemented in later phases
 }
 
 void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       int startSample, int numSamples)
 {
-    if (!isPlaying)
+    // Check if voice should still be active
+    if (!stringModel.isActive())
+    {
+        clearCurrentNote();
         return;
+    }
 
+    // Process samples through string model
     while (--numSamples >= 0)
     {
-        // Simple sine wave placeholder for Stage 1
-        // Physical modeling DSP will be implemented in Stage 2
-        auto currentSample = std::sin(phase);
-        phase += phaseIncrement;
+        // Generate one sample from physical model
+        float sample = stringModel.processSample();
 
-        // Keep phase in reasonable range
-        if (phase > juce::MathConstants<double>::twoPi)
-            phase -= juce::MathConstants<double>::twoPi;
-
-        // Apply ADSR envelope
-        auto envelope = adsr.getNextSample();
-        currentSample *= envelope * currentVelocity;
-
-        // Add to output buffer
+        // Add to output buffer (all channels)
         for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
-            outputBuffer.addSample(i, startSample, static_cast<float>(currentSample));
+            outputBuffer.addSample(i, startSample, sample);
 
         ++startSample;
 
-        // Stop if envelope finished
-        if (!adsr.isActive())
+        // Check if voice has decayed to silence
+        if (!stringModel.isActive())
         {
             clearCurrentNote();
-            isPlaying = false;
             break;
         }
     }

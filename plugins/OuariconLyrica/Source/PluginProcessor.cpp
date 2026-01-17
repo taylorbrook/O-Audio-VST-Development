@@ -168,7 +168,11 @@ OuariconLyricaAudioProcessor::OuariconLyricaAudioProcessor()
 {
     // Initialize synthesiser with 16 voices
     for (int i = 0; i < 16; ++i)
-        synthesiser.addVoice(new HarpSynthVoice());
+    {
+        auto* voice = new HarpSynthVoice();
+        voice->setAPVTS(&parameters);
+        synthesiser.addVoice(voice);
+    }
 
     // Add sound that accepts all MIDI notes
     synthesiser.addSound(new HarpSynthSound());
@@ -181,6 +185,15 @@ OuariconLyricaAudioProcessor::~OuariconLyricaAudioProcessor()
 void OuariconLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
+
+    // Prepare all voices
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<HarpSynthVoice*>(synthesiser.getVoice(i)))
+        {
+            voice->prepare(sampleRate, samplesPerBlock);
+        }
+    }
 }
 
 void OuariconLyricaAudioProcessor::releaseResources()

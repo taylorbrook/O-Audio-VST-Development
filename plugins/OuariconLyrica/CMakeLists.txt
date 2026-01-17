@@ -19,6 +19,8 @@ target_sources(OuariconLyrica
         Source/PluginEditor.cpp
         Source/HarpSynthSound.cpp
         Source/HarpSynthVoice.cpp
+        Source/DSP/DelayLine.cpp
+        Source/DSP/StringVoice.cpp
 )
 
 # Include paths
@@ -38,6 +40,7 @@ target_link_libraries(OuariconLyrica
         juce::juce_audio_utils
         juce::juce_core
         juce::juce_data_structures
+        juce::juce_dsp
         juce::juce_events
         juce::juce_graphics
         juce::juce_gui_basics
