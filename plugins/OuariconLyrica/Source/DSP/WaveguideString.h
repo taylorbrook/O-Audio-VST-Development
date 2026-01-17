@@ -220,6 +220,13 @@ private:
     float calculateRailDelay() const;
 
     /**
+     * Calculate total group delay from all filters in the feedback loop (v1.1.1)
+     * This varies with brightness/damping settings and must be compensated
+     * in the delay line length to maintain correct pitch.
+     */
+    float calculateFilterGroupDelay() const;
+
+    /**
      * Energy threshold for considering voice inactive
      */
     static constexpr float ENERGY_THRESHOLD = 0.0001f;

@@ -2,6 +2,21 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.1.1] - 2026-01-17
+
+### Fixed
+
+- **Brightness slider no longer affects pitch**
+  - Root cause: `calculateRailDelay()` used a fixed group delay compensation constant (6.0f samples), but the actual filter group delay varies dynamically with brightness settings. Lower brightness = lower filter cutoffs = higher group delay = lower pitch (up to 1 semitone flat at brightness=0).
+  - Fix: Added `calculateFilterGroupDelay()` method that computes the actual group delay from all filters (bridgeFilter, nutFilter, loopDamping) based on their current cutoff frequencies. The delay line length is now recalculated whenever brightness changes.
+  - Files modified: WaveguideString.h, WaveguideString.cpp
+
+### Technical Notes
+
+- First-order lowpass group delay at DC: `delay_samples = sampleRate / (2 * pi * cutoffHz)`
+- Bridge/nut/damping filters now contribute dynamic compensation instead of fixed 6.0f
+- `setBrightness()` now updates delay line lengths in addition to filter coefficients
+
 ## [1.1.0] - 2026-01-17
 
 ### Added

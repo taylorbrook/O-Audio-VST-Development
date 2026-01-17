@@ -178,6 +178,15 @@ void WaveguideString::setBrightness(float brightness)
 {
     brightnessAmount = juce::jlimit(0.0f, 1.0f, brightness);
     updateFilters();
+
+    // v1.1.1 FIX: Recalculate delay line length to compensate for changed filter group delay
+    // Without this, changing brightness causes pitch bend (up to 1 semitone at brightness=0)
+    if (currentFrequency > 20.0)
+    {
+        float railDelay = calculateRailDelay();
+        upperRail.setDelay(railDelay);
+        lowerRail.setDelay(railDelay);
+    }
 }
 
 void WaveguideString::setPluckPosition(float position)
@@ -279,13 +288,48 @@ float WaveguideString::calculateRailDelay() const
     // Total string delay = sampleRate / frequency
     float totalDelay = static_cast<float>(currentSampleRate / currentFrequency);
 
-    // Compensate for filter group delay in the waveguide feedback loop.
+    // v1.1.1 FIX: Dynamic compensation for filter group delay
     // The filters (bridgeFilter, nutFilter, loopDamping, stiffnessFilter) add
     // group delay that effectively lengthens the delay line, lowering pitch.
-    // Without compensation, pitch is ~1 semitone flat.
-    constexpr float filterGroupDelayCompensation = 6.0f;
-    float compensatedDelay = totalDelay - filterGroupDelayCompensation;
+    // Previously used a fixed constant (6.0f), but actual delay varies with
+    // brightness parameter - causing pitch to bend when brightness changes.
+    float filterGroupDelay = calculateFilterGroupDelay();
+    float compensatedDelay = totalDelay - filterGroupDelay;
 
     // Each rail is half the total length
     return compensatedDelay * 0.5f;
+}
+
+float WaveguideString::calculateFilterGroupDelay() const
+{
+    // v1.1.1: Calculate actual group delay from all filters in the feedback loop
+    // For first-order lowpass at DC: group_delay_samples = sampleRate / (2π * cutoffHz)
+    // This varies with brightness and damping settings.
+
+    float twoPi = juce::MathConstants<float>::twoPi;
+
+    // Bridge filter cutoff (same formula as updateFilters())
+    float materialBrightness = currentMaterial.brightnessCutoff;
+    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f);
+    bridgeCutoffHz = juce::jlimit(500.0f, 20000.0f, bridgeCutoffHz);
+
+    // Nut filter cutoff
+    float nutCutoffHz = materialBrightness * 1.2f * (0.7f + brightnessAmount * 0.5f);
+    nutCutoffHz = juce::jlimit(2000.0f, 20000.0f, nutCutoffHz);
+
+    // Loop damping cutoff
+    float clampedDamping = juce::jlimit(0.0f, 1.0f, dampingAmount);
+    float dampingCutoffHz = 500.0f + (1.0f - clampedDamping) * 10000.0f;
+    dampingCutoffHz = juce::jlimit(300.0f, 12000.0f, dampingCutoffHz);
+
+    // Group delay at DC for each first-order lowpass
+    float bridgeDelay = static_cast<float>(currentSampleRate) / (twoPi * bridgeCutoffHz);
+    float nutDelay = static_cast<float>(currentSampleRate) / (twoPi * nutCutoffHz);
+    float dampingDelay = static_cast<float>(currentSampleRate) / (twoPi * dampingCutoffHz);
+
+    // Stiffness filter contributes additional phase delay (allpass cascade)
+    // Use a small fixed approximation since it's relatively constant
+    float stiffnessDelay = 0.5f;
+
+    return bridgeDelay + nutDelay + dampingDelay + stiffnessDelay;
 }
