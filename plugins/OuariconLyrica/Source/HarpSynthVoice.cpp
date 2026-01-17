@@ -13,6 +13,8 @@
 
 HarpSynthVoice::HarpSynthVoice()
 {
+    // Generate unique voice ID (using pointer address as unique identifier)
+    voiceId = static_cast<int>(reinterpret_cast<intptr_t>(this) & 0xFFFFFF);
 }
 
 bool HarpSynthVoice::canPlaySound(juce::SynthesiserSound* sound)
@@ -29,6 +31,16 @@ void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
 void HarpSynthVoice::setAPVTS(juce::AudioProcessorValueTreeState* apvts)
 {
     parameters = apvts;
+}
+
+void HarpSynthVoice::setSympatheticEngine(SympatheticResonanceEngine* engine)
+{
+    sympatheticEngine = engine;
+}
+
+int HarpSynthVoice::getVoiceId() const
+{
+    return voiceId;
 }
 
 void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
@@ -51,8 +63,8 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         {
             int materialIndex = static_cast<int>(materialParam->load());
             MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
-            StringMaterial material = StringMaterial::fromType(materialType);
-            stringModel.setMaterial(material);
+            currentMaterial = StringMaterial::fromType(materialType);
+            stringModel.setMaterial(currentMaterial);
         }
 
         auto* brightnessParam = parameters->getRawParameterValue("brightness");
@@ -127,6 +139,12 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
 
     // Trigger string model with pluck position and hardness
     stringModel.trigger(currentFrequency, velocity, pluckPosition, fingerHardness);
+
+    // Phase 2.7: Register voice with sympathetic resonance engine
+    if (sympatheticEngine != nullptr)
+    {
+        sympatheticEngine->registerVoice(voiceId, currentFrequency, currentMaterial);
+    }
 }
 
 void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
@@ -135,6 +153,11 @@ void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
     {
         // For plucked strings, we let the natural decay continue
         // The string model will automatically fade out
+        // But we still unregister from sympathetic engine to avoid stale tracking
+        if (sympatheticEngine != nullptr)
+        {
+            sympatheticEngine->unregisterVoice(voiceId);
+        }
     }
     else
     {
@@ -142,6 +165,12 @@ void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
         clearCurrentNote();
         stringModel.reset();
         bodyResonance.reset();
+
+        // Phase 2.7: Unregister from sympathetic engine
+        if (sympatheticEngine != nullptr)
+        {
+            sympatheticEngine->unregisterVoice(voiceId);
+        }
     }
 }
 
@@ -162,6 +191,13 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     if (!stringModel.isActive())
     {
         clearCurrentNote();
+
+        // Phase 2.7: Unregister from sympathetic engine when voice becomes inactive
+        if (sympatheticEngine != nullptr)
+        {
+            sympatheticEngine->unregisterVoice(voiceId);
+        }
+
         return;
     }
 
@@ -172,7 +208,17 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         float stringSample = stringModel.processSample();
 
         // Apply body resonance (Phase 2.6)
-        float sample = bodyResonance.process(stringSample);
+        float bodySample = bodyResonance.process(stringSample);
+
+        // Phase 2.7: Compute sympathetic contribution from other voices
+        float sympatheticContribution = 0.0f;
+        if (sympatheticEngine != nullptr)
+        {
+            sympatheticContribution = sympatheticEngine->computeSympatheticContribution(voiceId, bodySample);
+        }
+
+        // Combine string + body + sympathetic resonance
+        float sample = bodySample + sympatheticContribution;
 
         // Add to output buffer (all channels)
         for (auto i = outputBuffer.getNumChannels(); --i >= 0;)
@@ -184,6 +230,13 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         if (!stringModel.isActive())
         {
             clearCurrentNote();
+
+            // Phase 2.7: Unregister from sympathetic engine
+            if (sympatheticEngine != nullptr)
+            {
+                sympatheticEngine->unregisterVoice(voiceId);
+            }
+
             break;
         }
     }

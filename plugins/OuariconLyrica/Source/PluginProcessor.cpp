@@ -171,6 +171,7 @@ OuariconLyricaAudioProcessor::OuariconLyricaAudioProcessor()
     {
         auto* voice = new HarpSynthVoice();
         voice->setAPVTS(&parameters);
+        voice->setSympatheticEngine(&sympatheticEngine); // Phase 2.7: Connect sympathetic engine
         synthesiser.addVoice(voice);
     }
 
@@ -185,6 +186,9 @@ OuariconLyricaAudioProcessor::~OuariconLyricaAudioProcessor()
 void OuariconLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
+
+    // Phase 2.7: Prepare sympathetic resonance engine
+    sympatheticEngine.prepare(sampleRate, samplesPerBlock);
 
     // Prepare all voices
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -207,6 +211,13 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
     // Clear output buffer
     buffer.clear();
+
+    // Phase 2.7: Update sympathetic resonance intensity from parameter
+    auto* sympatheticParam = parameters.getRawParameterValue("sympatheticAmount");
+    if (sympatheticParam != nullptr)
+    {
+        sympatheticEngine.setIntensity(sympatheticParam->load());
+    }
 
     // Render MIDI to audio via synthesiser
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());

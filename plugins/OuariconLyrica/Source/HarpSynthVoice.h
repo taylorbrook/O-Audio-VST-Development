@@ -15,6 +15,7 @@
 #include "DSP/WaveguideString.h"
 #include "DSP/StringMaterial.h"
 #include "DSP/BodyResonance.h"
+#include "DSP/SympatheticResonance.h"
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {
@@ -45,6 +46,16 @@ public:
      */
     void setAPVTS(juce::AudioProcessorValueTreeState* apvts);
 
+    /**
+     * Set sympathetic resonance engine reference (Phase 2.7)
+     */
+    void setSympatheticEngine(SympatheticResonanceEngine* engine);
+
+    /**
+     * Get unique voice ID for sympathetic resonance tracking
+     */
+    int getVoiceId() const;
+
 private:
     // Physical modeling string (Phase 2.2 - Bidirectional Waveguide)
     WaveguideString stringModel;
@@ -55,8 +66,15 @@ private:
     // APVTS reference for parameter access
     juce::AudioProcessorValueTreeState* parameters = nullptr;
 
+    // Phase 2.7: Sympathetic Resonance Engine (shared, owned by processor)
+    SympatheticResonanceEngine* sympatheticEngine = nullptr;
+
     double currentFrequency = 440.0;
     float currentVelocity = 0.0f;
+    int voiceId = -1; // Unique ID for sympathetic tracking
+
+    // Phase 2.7: Current material (needed for sympathetic registration)
+    StringMaterial currentMaterial;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarpSynthVoice)
 };

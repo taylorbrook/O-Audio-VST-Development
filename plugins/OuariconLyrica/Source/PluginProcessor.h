@@ -12,6 +12,7 @@
 #include <JuceHeader.h>
 #include "HarpSynthSound.h"
 #include "HarpSynthVoice.h"
+#include "DSP/SympatheticResonance.h"
 
 class OuariconLyricaAudioProcessor : public juce::AudioProcessor
 {
@@ -43,9 +44,17 @@ public:
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    /**
+     * Get pointer to sympathetic resonance engine (for voice access)
+     */
+    SympatheticResonanceEngine* getSympatheticEngine() { return &sympatheticEngine; }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
+
+    // Phase 2.7: Sympathetic Resonance Engine (processor-level, shared by all voices)
+    SympatheticResonanceEngine sympatheticEngine;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
