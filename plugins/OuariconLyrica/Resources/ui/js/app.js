@@ -29,8 +29,20 @@ function initializeParameters() {
         document.getElementById('brightnessValue').textContent = `${Math.round(value * 100)}%`;
     });
 
-    bindSlider('sustain', (value) => {
-        document.getElementById('sustainValue').textContent = `${Math.round(value * 100)}%`;
+    bindSlider('timbre', (value) => {
+        document.getElementById('timbreValue').textContent = `${Math.round(value * 100)}%`;
+    });
+
+    // v1.1.0: New decay time parameter (0.1-20s, skewed range)
+    bindSlider('decayTime', (value) => {
+        // Skewed range: value^0.4 maps 0-1 to 0.1-20s
+        // Inverse: normalized = ((actual - 0.1) / 19.9)^(1/0.4)
+        // To display: apply skew to normalized value
+        const skew = 0.4;
+        const minVal = 0.1;
+        const maxVal = 20.0;
+        const actual = minVal + Math.pow(value, 1/skew) * (maxVal - minVal);
+        document.getElementById('decayTimeValue').textContent = `${actual.toFixed(1)} s`;
     });
 
     bindSlider('bodySize', (value) => {

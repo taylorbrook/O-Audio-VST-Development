@@ -39,10 +39,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconLyricaAudioProcessor
     ));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "sustain", 1 },
-        "Sustain",
+        juce::ParameterID { "timbre", 1 },
+        "Timbre",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.7f
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "decayTime", 1 },
+        "Decay Time",
+        juce::NormalisableRange<float>(0.1f, 20.0f, 0.1f, 0.4f),  // Skewed for finer control at low values
+        5.0f,
+        "s"
     ));
 
     // Body Parameters

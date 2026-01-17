@@ -21,7 +21,8 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
     // 1️⃣ CREATE RELAYS (must be created BEFORE WebView)
     masterVolumeRelay = std::make_unique<juce::WebSliderRelay>("masterVolume");
     brightnessRelay = std::make_unique<juce::WebSliderRelay>("brightness");
-    sustainRelay = std::make_unique<juce::WebSliderRelay>("sustain");
+    timbreRelay = std::make_unique<juce::WebSliderRelay>("timbre");           // v1.1.0: renamed from sustain
+    decayTimeRelay = std::make_unique<juce::WebSliderRelay>("decayTime");     // v1.1.0: new parameter
     bodySizeRelay = std::make_unique<juce::WebSliderRelay>("bodySize");
     bodyResonanceRelay = std::make_unique<juce::WebSliderRelay>("bodyResonance");
     sympatheticAmountRelay = std::make_unique<juce::WebSliderRelay>("sympatheticAmount");
@@ -56,7 +57,8 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             // Register all slider relays
             .withOptionsFrom(*masterVolumeRelay)
             .withOptionsFrom(*brightnessRelay)
-            .withOptionsFrom(*sustainRelay)
+            .withOptionsFrom(*timbreRelay)
+            .withOptionsFrom(*decayTimeRelay)
             .withOptionsFrom(*bodySizeRelay)
             .withOptionsFrom(*bodyResonanceRelay)
             .withOptionsFrom(*sympatheticAmountRelay)
@@ -84,8 +86,10 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
         *apvts.getParameter("masterVolume"), *masterVolumeRelay, nullptr);
     brightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("brightness"), *brightnessRelay, nullptr);
-    sustainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("sustain"), *sustainRelay, nullptr);
+    timbreAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("timbre"), *timbreRelay, nullptr);
+    decayTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("decayTime"), *decayTimeRelay, nullptr);
     bodySizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("bodySize"), *bodySizeRelay, nullptr);
     bodyResonanceAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

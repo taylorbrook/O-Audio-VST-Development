@@ -55,11 +55,20 @@
                 </div>
 
                 <div class="control-group knob-group">
-                    <label for="sustain">Sustain</label>
+                    <label for="timbre">Timbre</label>
                     <div class="knob-container">
-                        <input type="range" id="sustain" class="knob"
+                        <input type="range" id="timbre" class="knob"
                                min="0" max="1" step="0.001" value="0.7">
-                        <span class="value-display" id="sustainValue">70%</span>
+                        <span class="value-display" id="timbreValue">70%</span>
+                    </div>
+                </div>
+
+                <div class="control-group knob-group">
+                    <label for="decayTime">Decay Time</label>
+                    <div class="knob-container">
+                        <input type="range" id="decayTime" class="knob"
+                               min="0" max="1" step="0.001" value="0.247">
+                        <span class="value-display" id="decayTimeValue">5.0 s</span>
                     </div>
                 </div>
             </section>

@@ -33,7 +33,8 @@ private:
     // 1️⃣ RELAYS FIRST (no dependencies)
     std::unique_ptr<juce::WebSliderRelay> masterVolumeRelay;
     std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
-    std::unique_ptr<juce::WebSliderRelay> sustainRelay;
+    std::unique_ptr<juce::WebSliderRelay> timbreRelay;        // v1.1.0: renamed from sustain
+    std::unique_ptr<juce::WebSliderRelay> decayTimeRelay;     // v1.1.0: new parameter
     std::unique_ptr<juce::WebSliderRelay> bodySizeRelay;
     std::unique_ptr<juce::WebSliderRelay> bodyResonanceRelay;
     std::unique_ptr<juce::WebSliderRelay> sympatheticAmountRelay;
@@ -58,7 +59,8 @@ private:
     // 3️⃣ ATTACHMENTS LAST (depend on both relays and webView)
     std::unique_ptr<juce::WebSliderParameterAttachment> masterVolumeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> sustainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> timbreAttachment;      // v1.1.0: renamed from sustain
+    std::unique_ptr<juce::WebSliderParameterAttachment> decayTimeAttachment;   // v1.1.0: new parameter
     std::unique_ptr<juce::WebSliderParameterAttachment> bodySizeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bodyResonanceAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticAmountAttachment;

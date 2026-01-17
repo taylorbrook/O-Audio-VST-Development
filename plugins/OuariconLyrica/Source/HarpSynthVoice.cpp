@@ -86,7 +86,8 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         }
 
         auto* brightnessParam = parameters->getRawParameterValue("brightness");
-        auto* sustainParam = parameters->getRawParameterValue("sustain");
+        auto* timbreParam = parameters->getRawParameterValue("timbre");
+        auto* decayTimeParam = parameters->getRawParameterValue("decayTime");
         auto* pluckPositionParam = parameters->getRawParameterValue("pluckPosition");
         auto* fingerHardnessParam = parameters->getRawParameterValue("fingerHardness");
         auto* techniqueParam = parameters->getRawParameterValue("technique");
@@ -95,11 +96,18 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         if (brightnessParam != nullptr)
             stringModel.setBrightness(brightnessParam->load());
 
-        if (sustainParam != nullptr)
+        if (timbreParam != nullptr)
         {
-            // Invert sustain to get damping (sustain=1.0 means low damping)
-            float damping = 1.0f - sustainParam->load();
+            // v1.1.0: Renamed from sustain to timbre - controls tonal damping
+            // Invert so timbre=1.0 means bright (low damping), timbre=0.0 means dark
+            float damping = 1.0f - timbreParam->load();
             stringModel.setDamping(damping);
+        }
+
+        if (decayTimeParam != nullptr)
+        {
+            // v1.1.0: New decay time parameter - controls overall sustain duration
+            stringModel.setDecayTime(decayTimeParam->load());
         }
 
         if (pluckPositionParam != nullptr)
@@ -270,12 +278,19 @@ void HarpSynthVoice::updateParametersFromAPVTS()
     if (brightnessParam != nullptr)
         stringModel.setBrightness(brightnessParam->load());
 
-    // Update sustain/damping
-    auto* sustainParam = parameters->getRawParameterValue("sustain");
-    if (sustainParam != nullptr)
+    // v1.1.0: Update timbre (renamed from sustain - controls tonal damping)
+    auto* timbreParam = parameters->getRawParameterValue("timbre");
+    if (timbreParam != nullptr)
     {
-        float damping = 1.0f - sustainParam->load();
+        float damping = 1.0f - timbreParam->load();
         stringModel.setDamping(damping);
+    }
+
+    // v1.1.0: Update decay time (new parameter - controls overall sustain duration)
+    auto* decayTimeParam = parameters->getRawParameterValue("decayTime");
+    if (decayTimeParam != nullptr)
+    {
+        stringModel.setDecayTime(decayTimeParam->load());
     }
 
     // Update string stiffness

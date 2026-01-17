@@ -72,10 +72,16 @@ public:
     void reset();
 
     /**
-     * Set material-based damping (affects decay time)
-     * @param damping 0.0 = fast decay, 1.0 = long sustain
+     * Set tonal damping (affects high-frequency decay rate / timbre)
+     * @param damping 0.0 = bright, 1.0 = dark/muted
      */
     void setDamping(float damping);
+
+    /**
+     * Set decay time (affects overall sustain duration via feedback coefficient)
+     * @param decayTimeSeconds Time in seconds for signal to decay to -60dB
+     */
+    void setDecayTime(float decayTimeSeconds);
 
     /**
      * Set brightness (affects tone color via bridge filter)
@@ -151,9 +157,13 @@ private:
     float materialStiffness = 0.2f;      // Base stiffness from material
     float userStiffnessModifier = 0.5f;  // User slider value (0-1, 0.5 = neutral)
 
-    // Material-aware damping system (v1.0.4 fix)
+    // Material-aware damping system (v1.0.4 fix, renamed to timbre in v1.1.0)
     float materialDamping = 0.3f;        // Base damping from material
-    float userDampingModifier = 0.5f;    // User sustain slider value (0-1, 0.5 = neutral)
+    float userDampingModifier = 0.5f;    // User timbre slider value (0-1, 0.5 = neutral)
+
+    // Decay time system (v1.1.0) - feedback coefficient for true sustain control
+    float decayTimeSeconds = 5.0f;       // Time to decay to -60dB
+    float feedbackCoefficient = 0.9999f; // Computed from decayTime and frequency
 
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;
@@ -171,14 +181,32 @@ private:
 
     /**
      * Calculate final damping from material base and user modifier (v1.0.4)
-     * userDampingModifier comes from: 1.0 - sustain slider
-     * So sustain=1.0 → modifier=0.0 → less damping (longer decay)
-     *    sustain=0.0 → modifier=1.0 → more damping (shorter decay)
+     * userDampingModifier comes from: 1.0 - timbre slider
+     * So timbre=1.0 → modifier=0.0 → less damping (brighter)
+     *    timbre=0.0 → modifier=1.0 → more damping (darker)
      */
     float calculateFinalDamping() const
     {
         // Modifier range: 0.5x to 1.5x of material damping
         return materialDamping * (0.5f + userDampingModifier);
+    }
+
+    /**
+     * Calculate feedback coefficient from decay time and frequency (v1.1.0)
+     * For a signal to decay to -60dB in T seconds at frequency f:
+     * coefficient = 10^(-3 / (T * f))
+     * This gives the per-sample decay needed for the waveguide loop.
+     */
+    float calculateFeedbackCoefficient() const
+    {
+        // Number of waveguide cycles per second = frequency
+        // Samples per cycle = sampleRate / frequency
+        // Total samples for decay = decayTimeSeconds * sampleRate
+        // Cycles for decay = decayTimeSeconds * frequency
+        // Per-cycle decay = 10^(-3 / cycles) = 10^(-3 / (T * f))
+        float cyclesForDecay = decayTimeSeconds * static_cast<float>(currentFrequency);
+        float perCycleDecay = std::pow(10.0f, -3.0f / cyclesForDecay);
+        return juce::jlimit(0.9f, 0.99999f, perCycleDecay);
     }
 
     /**

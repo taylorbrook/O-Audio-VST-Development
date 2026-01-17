@@ -82,6 +82,9 @@ void WaveguideString::trigger(double frequency, float velocity, float position, 
     // Configure stiffness filter for this note
     stiffnessFilter.setParameters(frequency, stiffnessAmount);
 
+    // v1.1.0: Calculate feedback coefficient for this frequency
+    feedbackCoefficient = calculateFeedbackCoefficient();
+
     // Trigger pluck exciter
     exciter.trigger(velocity, position, hardness, frequency);
 
@@ -115,6 +118,10 @@ float WaveguideString::processSample()
     // Apply stiffness filter (Phase 2.4: creates inharmonicity/dispersion)
     // This adds frequency-dependent phase shift, making higher harmonics sharp
     bridgeReflection = stiffnessFilter.processSample(bridgeReflection);
+
+    // v1.1.0: Apply feedback coefficient for decay time control
+    // This provides uniform energy loss independent of frequency content
+    bridgeReflection *= feedbackCoefficient;
 
     // Inject excitation at pluck position
     // This creates the comb filtering effect based on pluck position
@@ -153,11 +160,18 @@ void WaveguideString::reset()
 
 void WaveguideString::setDamping(float damping)
 {
-    // v1.0.4: Store user's damping value separately, then compute final damping
-    // This preserves material-specific decay while allowing user adjustment
+    // v1.1.0: Renamed from "sustain" to "timbre" - controls tonal damping (brightness)
+    // This preserves material-specific tonal character while allowing user adjustment
     userDampingModifier = juce::jlimit(0.0f, 1.0f, damping);
     dampingAmount = calculateFinalDamping();
     updateFilters();
+}
+
+void WaveguideString::setDecayTime(float decayTimeSeconds_)
+{
+    // v1.1.0: New parameter for true decay time control via feedback coefficient
+    decayTimeSeconds = juce::jlimit(0.1f, 20.0f, decayTimeSeconds_);
+    feedbackCoefficient = calculateFeedbackCoefficient();
 }
 
 void WaveguideString::setBrightness(float brightness)
@@ -223,6 +237,9 @@ void WaveguideString::setFrequency(double frequency)
 
         // Update stiffness filter for new frequency
         stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
+
+        // v1.1.0: Recalculate feedback coefficient (depends on frequency)
+        feedbackCoefficient = calculateFeedbackCoefficient();
     }
 }
 

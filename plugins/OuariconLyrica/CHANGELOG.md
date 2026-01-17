@@ -2,6 +2,30 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.1.0] - 2026-01-17
+
+### Added
+
+- **New "Decay Time" parameter for true sustain duration control**
+  - Range: 0.1s to 20s with skewed control for finer adjustment at lower values
+  - Implementation: Feedback coefficient multiplier applied per waveguide cycle
+  - Formula: `coefficient = 10^(-3 / (decayTime * frequency))` for -60dB decay
+  - This provides uniform energy loss independent of frequency content
+
+### Changed
+
+- **Renamed "Sustain" parameter to "Timbre"**
+  - Root cause: The original "Sustain" parameter actually controlled tonal damping (lowpass filter cutoff in the feedback loop), not decay duration. Users perceived it as affecting attack brightness rather than sustain length.
+  - The parameter now more accurately reflects its function: controlling the brightness/warmth of the string tone
+  - Timbre=0.0 produces darker, warmer tones; Timbre=1.0 produces brighter tones
+  - Internal behavior unchanged (controls `loopDamping` filter cutoff 500Hz-10.5kHz)
+
+### Technical Notes
+
+- Files modified: PluginProcessor.cpp, WaveguideString.h/.cpp, HarpSynthVoice.cpp, index.html, app.js
+- Feedback coefficient recalculated on note trigger and frequency change (pitch bend)
+- Breaking change: "sustain" parameter ID renamed to "timbre" - existing presets/automation will need adjustment
+
 ## [1.0.4] - 2026-01-17
 
 ### Fixed
