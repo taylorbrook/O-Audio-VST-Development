@@ -14,6 +14,7 @@
 #include "HarpSynthSound.h"
 #include "DSP/WaveguideString.h"
 #include "DSP/StringMaterial.h"
+#include "DSP/BodyResonance.h"
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {
@@ -47,6 +48,9 @@ public:
 private:
     // Physical modeling string (Phase 2.2 - Bidirectional Waveguide)
     WaveguideString stringModel;
+
+    // Phase 2.6: Body Resonance (modal synthesis)
+    BodyResonance bodyResonance;
 
     // APVTS reference for parameter access
     juce::AudioProcessorValueTreeState* parameters = nullptr;

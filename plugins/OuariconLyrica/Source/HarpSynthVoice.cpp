@@ -23,6 +23,7 @@ bool HarpSynthVoice::canPlaySound(juce::SynthesiserSound* sound)
 void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
 {
     stringModel.prepare(sampleRate, maxBlockSize);
+    bodyResonance.prepare(sampleRate, maxBlockSize);
 }
 
 void HarpSynthVoice::setAPVTS(juce::AudioProcessorValueTreeState* apvts)
@@ -98,6 +99,30 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         // Phase 2.4: Set string stiffness (inharmonicity)
         if (stiffnessParam != nullptr)
             stringModel.setStiffness(stiffnessParam->load());
+
+        // Phase 2.6: Set body resonance parameters
+        auto* bodySizeParam = parameters->getRawParameterValue("bodySize");
+        auto* bodyResonanceParam = parameters->getRawParameterValue("bodyResonance");
+        auto* woodTypeParam = parameters->getRawParameterValue("woodType");
+
+        if (bodySizeParam != nullptr && bodyResonanceParam != nullptr && woodTypeParam != nullptr)
+        {
+            float bodySize = bodySizeParam->load();
+            float bodyAmount = bodyResonanceParam->load();
+            int woodTypeIndex = static_cast<int>(woodTypeParam->load());
+
+            WoodType woodType;
+            switch (woodTypeIndex)
+            {
+                case 0: woodType = WoodType::Spruce; break;
+                case 1: woodType = WoodType::Maple; break;
+                case 2: woodType = WoodType::Exotic; break;
+                case 3: woodType = WoodType::Synthetic; break;
+                default: woodType = WoodType::Spruce; break;
+            }
+
+            bodyResonance.setBodyParameters(bodySize, woodType, bodyAmount);
+        }
     }
 
     // Trigger string model with pluck position and hardness
@@ -116,6 +141,7 @@ void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
         // Hard stop - reset everything
         clearCurrentNote();
         stringModel.reset();
+        bodyResonance.reset();
     }
 }
 
@@ -139,11 +165,14 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         return;
     }
 
-    // Process samples through string model
+    // Process samples through string model and body resonance
     while (--numSamples >= 0)
     {
-        // Generate one sample from physical model
-        float sample = stringModel.processSample();
+        // Generate one sample from physical model (string)
+        float stringSample = stringModel.processSample();
+
+        // Apply body resonance (Phase 2.6)
+        float sample = bodyResonance.process(stringSample);
 
         // Add to output buffer (all channels)
         for (auto i = outputBuffer.getNumChannels(); --i >= 0;)

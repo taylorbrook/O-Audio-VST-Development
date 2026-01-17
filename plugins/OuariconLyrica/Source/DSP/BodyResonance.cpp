@@ -1,0 +1,177 @@
+/*
+  ==============================================================================
+
+    BodyResonance.cpp
+    OuariconLyrica - Body Resonance Module Implementation
+
+  ==============================================================================
+*/
+
+#include "BodyResonance.h"
+
+BodyResonance::BodyResonance()
+{
+    // Initialize mode amplitudes to default values
+    modeAmplitudes = { 1.0f, 0.8f, 0.6f, 0.4f, 0.3f };
+}
+
+void BodyResonance::prepare(double sampleRate, int maxBlockSize)
+{
+    juce::ignoreUnused(maxBlockSize);
+    currentSampleRate = sampleRate;
+
+    // Prepare all body mode filters
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(maxBlockSize);
+    spec.numChannels = 1; // Mono processing per voice
+
+    for (auto& filter : bodyModes)
+    {
+        filter.prepare(spec);
+        filter.reset();
+    }
+
+    // Initialize filter coefficients
+    updateFilterCoefficients();
+}
+
+void BodyResonance::setBodyParameters(float size, WoodType type, float amount)
+{
+    bool needsUpdate = false;
+
+    if (std::abs(bodySize - size) > 0.001f)
+    {
+        bodySize = juce::jlimit(0.0f, 1.0f, size);
+        needsUpdate = true;
+    }
+
+    if (currentWoodType != type)
+    {
+        currentWoodType = type;
+        needsUpdate = true;
+    }
+
+    bodyAmount = juce::jlimit(0.0f, 1.0f, amount);
+
+    if (needsUpdate)
+        updateFilterCoefficients();
+}
+
+float BodyResonance::process(float input)
+{
+    // Process input through all modal filters
+    float resonantOutput = 0.0f;
+
+    for (int i = 0; i < NUM_MODES; ++i)
+    {
+        float modeOutput = bodyModes[i].processSample(input);
+        resonantOutput += modeOutput * modeAmplitudes[i];
+    }
+
+    // Normalize output (prevent accumulation)
+    resonantOutput *= 0.3f;
+
+    // Mix dry/wet based on bodyAmount
+    return input * (1.0f - bodyAmount) + resonantOutput * bodyAmount;
+}
+
+void BodyResonance::reset()
+{
+    for (auto& filter : bodyModes)
+        filter.reset();
+}
+
+void BodyResonance::updateFilterCoefficients()
+{
+    float Q = getQForWoodType(currentWoodType);
+
+    for (int i = 0; i < NUM_MODES; ++i)
+    {
+        float scaledFreq = scaleFrequency(BASE_FREQUENCIES[i]);
+
+        // Clamp to valid range
+        scaledFreq = juce::jlimit(20.0f, static_cast<float>(currentSampleRate * 0.45), scaledFreq);
+
+        // Create bandpass filter coefficients
+        *bodyModes[i].coefficients = *juce::dsp::IIR::Coefficients<float>::makePeakFilter(
+            currentSampleRate,
+            scaledFreq,
+            Q,
+            1.0f // Unity gain
+        );
+
+        // Update mode amplitude based on wood type
+        modeAmplitudes[i] = getModeAmplitude(i, currentWoodType);
+    }
+}
+
+float BodyResonance::getQForWoodType(WoodType type) const
+{
+    // Q factor controls resonance sharpness
+    // Higher Q = sharper, more resonant peaks
+    // Lower Q = broader, more damped peaks
+
+    switch (type)
+    {
+        case WoodType::Spruce:
+            return 3.0f;  // Traditional, moderate resonance
+
+        case WoodType::Maple:
+            return 2.5f;  // Slightly less resonant, warmer
+
+        case WoodType::Exotic:
+            return 4.0f;  // More resonant, exotic character
+
+        case WoodType::Synthetic:
+            return 5.0f;  // Sharp, defined modes (less natural)
+
+        default:
+            return 3.0f;
+    }
+}
+
+float BodyResonance::getModeAmplitude(int modeIndex, WoodType type) const
+{
+    // Base amplitude decreases with higher modes
+    float baseAmp = 1.0f - (static_cast<float>(modeIndex) * 0.15f);
+
+    // Wood type affects mode emphasis
+    switch (type)
+    {
+        case WoodType::Spruce:
+            // Balanced across all modes
+            return baseAmp;
+
+        case WoodType::Maple:
+            // Emphasize lower modes (warmer)
+            return baseAmp * (modeIndex < 2 ? 1.2f : 0.8f);
+
+        case WoodType::Exotic:
+            // Emphasize mid-range modes (unique character)
+            return baseAmp * (modeIndex == 2 || modeIndex == 3 ? 1.3f : 0.9f);
+
+        case WoodType::Synthetic:
+            // Emphasize higher modes (brighter, artificial)
+            return baseAmp * (modeIndex > 2 ? 1.3f : 0.7f);
+
+        default:
+            return baseAmp;
+    }
+}
+
+float BodyResonance::scaleFrequency(float baseFreq) const
+{
+    // Body size scales from 0.0 (small) to 1.0 (large)
+    // Small body = higher frequencies
+    // Large body = lower frequencies
+
+    // Map bodySize (0.0-1.0) to scaling factor (2.0-0.5)
+    // bodySize = 0.0 → scale = 2.0 (small, high pitch)
+    // bodySize = 0.5 → scale = 1.25 (medium)
+    // bodySize = 1.0 → scale = 0.5 (large, low pitch)
+
+    float scaleFactor = 2.0f - (bodySize * 1.5f);
+
+    return baseFreq * scaleFactor;
+}
