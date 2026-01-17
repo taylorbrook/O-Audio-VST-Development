@@ -64,6 +64,11 @@ private:
     float envelopeThreshold = 0.1f;  // Linear amplitude threshold
     bool wasAboveThreshold = false;
 
+    // v1.1.6: Cooldown timer to prevent rapid-fire triggers
+    // Prevents distortion from triggers firing too rapidly on transient-heavy material
+    int cooldownSamplesRemaining = 0;
+    int cooldownDurationSamples = 0;  // Set in prepare() based on sample rate (~50ms)
+
     // Sidechain envelope follower state (separate to avoid interference)
     bool sidechainWasAboveThreshold = false;
 

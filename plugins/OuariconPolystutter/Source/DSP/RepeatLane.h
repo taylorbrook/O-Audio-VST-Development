@@ -124,6 +124,15 @@ private:
     // to AFTER the current block is written, ensuring transients are captured.
     bool pendingCapture = false;
 
+    // v1.1.6: Retrigger crossfade state
+    // When retriggering during active playback, crossfade from old position to new
+    // to prevent clicks from abrupt audio discontinuities
+    bool retriggerCrossfadeActive = false;
+    int retriggerCrossfadeSamplesRemaining = 0;
+    int oldCaptureStartPosition = 0;
+    double oldFractionalPlaybackPosition = 0.0;
+    float oldCurrentGain = 1.0f;
+
     // Pattern sequencer state
     bool patternSteps[16] = { true, true, true, true, true, true, true, true,
                               true, true, true, true, true, true, true, true };  // All enabled by default

@@ -65,6 +65,13 @@ void RepeatLane::reset()
 
     // v1.1.5: Reset deferred capture flag
     pendingCapture = false;
+
+    // v1.1.6: Reset retrigger crossfade state
+    retriggerCrossfadeActive = false;
+    retriggerCrossfadeSamplesRemaining = 0;
+    oldCaptureStartPosition = 0;
+    oldFractionalPlaybackPosition = 0.0;
+    oldCurrentGain = 1.0f;
 }
 
 void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
@@ -233,6 +240,48 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
                 rightOut = right0 + frac * (right1 - right0);
             }
 
+            // v1.1.6: Handle retrigger crossfade blending
+            // When retriggering during active playback, blend old audio with new
+            if (retriggerCrossfadeActive && retriggerCrossfadeSamplesRemaining > 0)
+            {
+                // Calculate crossfade progress (0.0 = all old, 1.0 = all new)
+                float crossfadeProgress = 1.0f - (static_cast<float>(retriggerCrossfadeSamplesRemaining) / static_cast<float>(crossfadeSamples));
+
+                // Read from old capture position
+                double oldReadOffset = reverseEnabled
+                    ? (captureLength - 1.0 - (oldFractionalPlaybackPosition * pitchRatio))
+                    : (oldFractionalPlaybackPosition * pitchRatio);
+
+                oldReadOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), oldReadOffset);
+
+                int oldBasePos = (oldCaptureStartPosition + static_cast<int>(oldReadOffset)) % maxCaptureSamples;
+                int oldNextPos = (oldBasePos + 1) % maxCaptureSamples;
+                float oldFrac = static_cast<float>(oldReadOffset - static_cast<int>(oldReadOffset));
+
+                float oldLeft0 = captureBuffer.getSample(0, oldBasePos);
+                float oldLeft1 = captureBuffer.getSample(0, oldNextPos);
+                float oldRight0 = captureBuffer.getSample(1, oldBasePos);
+                float oldRight1 = captureBuffer.getSample(1, oldNextPos);
+
+                float oldLeftOut = (oldLeft0 + oldFrac * (oldLeft1 - oldLeft0)) * oldCurrentGain * volumeLevel;
+                float oldRightOut = (oldRight0 + oldFrac * (oldRight1 - oldRight0)) * oldCurrentGain * volumeLevel;
+
+                // Blend old and new audio
+                leftOut = oldLeftOut * (1.0f - crossfadeProgress) + leftOut * crossfadeProgress;
+                rightOut = oldRightOut * (1.0f - crossfadeProgress) + rightOut * crossfadeProgress;
+
+                // Advance old playback position
+                oldFractionalPlaybackPosition += 1.0;
+
+                // Decrement crossfade counter
+                retriggerCrossfadeSamplesRemaining--;
+
+                if (retriggerCrossfadeSamplesRemaining <= 0)
+                {
+                    retriggerCrossfadeActive = false;
+                }
+            }
+
             // Apply crossfade at loop boundaries for click-free looping
             int intPosition = static_cast<int>(effectivePosition);
             int effectiveLength = static_cast<int>(effectiveCaptureLength);
@@ -325,10 +374,20 @@ void RepeatLane::trigger()
     fadeOutActive = false;
     fadeOutSamplesRemaining = 0;
 
-    // v1.1.1: Start global fade-in for click-free onset
-    // Only reset envelope if we're not already active (avoid clicks on retrigger)
-    if (!isTriggered || currentRepeat >= maxRepeats)
+    // v1.1.6: Handle retrigger during active playback
+    // Save old state for crossfade blending to prevent clicks
+    if (isTriggered && currentRepeat < maxRepeats)
     {
+        // We're retriggering during active playback - start crossfade
+        retriggerCrossfadeActive = true;
+        retriggerCrossfadeSamplesRemaining = crossfadeSamples;
+        oldCaptureStartPosition = captureStartPosition;
+        oldFractionalPlaybackPosition = fractionalPlaybackPosition;
+        oldCurrentGain = currentGain;
+    }
+    else
+    {
+        // v1.1.1: Start global fade-in for click-free onset (first trigger or after repeats finished)
         globalEnvelopeGain = 0.0f;
         fadeInSamplesRemaining = crossfadeSamples;
     }

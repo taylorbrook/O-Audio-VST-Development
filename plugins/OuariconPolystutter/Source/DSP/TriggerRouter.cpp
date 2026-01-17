@@ -18,6 +18,10 @@ void TriggerRouter::prepare(const juce::dsp::ProcessSpec& spec)
 {
     currentSampleRate = spec.sampleRate;
 
+    // v1.1.6: Calculate cooldown duration (~50ms to prevent rapid-fire triggers)
+    cooldownDurationSamples = static_cast<int>(spec.sampleRate * 0.05);
+    cooldownSamplesRemaining = 0;
+
     // Prepare main input envelope followers (1ms attack, 100ms release per architecture spec)
     envelopeFollowerLeft.prepare(spec);
     envelopeFollowerRight.prepare(spec);
@@ -52,6 +56,9 @@ void TriggerRouter::reset()
     sidechainWasAboveThreshold = false;
     midiTriggeredLane = -1;
     freezeToggleRequested = false;
+
+    // v1.1.6: Reset cooldown timer
+    cooldownSamplesRemaining = 0;
 }
 
 bool TriggerRouter::processTriggerDetection(const juce::AudioBuffer<float>& mainInput,
@@ -129,10 +136,16 @@ bool TriggerRouter::detectEnvelopeTrigger(const juce::AudioBuffer<float>& buffer
         // Take maximum of left and right channels
         float envelopeLevel = juce::jmax(envLeft, envRight);
 
-        // Detect rising edge (crossing threshold)
-        if (envelopeLevel > envelopeThreshold && !wasAboveThreshold)
+        // v1.1.6: Decrement cooldown timer (per-sample for accuracy)
+        if (cooldownSamplesRemaining > 0)
+            cooldownSamplesRemaining--;
+
+        // Detect rising edge (crossing threshold) - only if cooldown has elapsed
+        if (envelopeLevel > envelopeThreshold && !wasAboveThreshold && cooldownSamplesRemaining == 0)
         {
             triggered = true;
+            // v1.1.6: Start cooldown to prevent rapid-fire triggers
+            cooldownSamplesRemaining = cooldownDurationSamples;
         }
 
         wasAboveThreshold = (envelopeLevel > envelopeThreshold);

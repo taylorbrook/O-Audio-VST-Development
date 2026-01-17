@@ -2,6 +2,22 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.1.6] - 2026-01-16
+
+### Fixed
+
+- **Distortion/artifacts when ENV (envelope follower) trigger mode is enabled**
+  - Root cause 1: No crossfade on retrigger during active playback
+    - When retriggering mid-playback, `playbackPosition` reset to 0 without any envelope
+    - The v1.1.1 fade-in logic was skipped when `isTriggered` was already true
+    - Result: Abrupt audio discontinuity at the trigger point = clicks/distortion
+    - Fix: Save old playback state and crossfade blend old→new audio over 5ms
+  - Root cause 2: No minimum time between envelope triggers
+    - Rapid transients could fire triggers every few milliseconds
+    - This caused constant retriggering = glitchy/distorted sound
+    - Fix: Added 50ms cooldown timer between envelope triggers
+  - Testing: Enable ENV mode with transient-heavy material (drums, percussion)
+
 ## [1.1.5] - 2026-01-16
 
 ### Fixed
