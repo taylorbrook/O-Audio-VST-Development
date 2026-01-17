@@ -80,6 +80,11 @@ void PluckExciter::setTechnique(PlayingTechnique technique)
     updateTechniqueFilter();
 }
 
+void PluckExciter::setNoiseAmount(float amount)
+{
+    noiseAmount = juce::jlimit(0.0f, 1.0f, amount);
+}
+
 float PluckExciter::process()
 {
     if (!isActive())
@@ -283,5 +288,7 @@ void PluckExciter::updateTechniqueFilter()
 float PluckExciter::generateNoise()
 {
     // Generate white noise in range [-1.0, 1.0]
-    return (noiseSource.nextFloat() * 2.0f) - 1.0f;
+    // Scaled by noiseAmount (Phase 2.5 - material-based noise content)
+    float baseNoise = (noiseSource.nextFloat() * 2.0f) - 1.0f;
+    return baseNoise * noiseAmount;
 }

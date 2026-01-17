@@ -2,7 +2,7 @@
   ==============================================================================
 
     WaveguideString.cpp
-    Bidirectional Digital Waveguide String Model - Phase 2.2-2.4
+    Bidirectional Digital Waveguide String Model - Phase 2.2-2.5
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -13,6 +13,8 @@
 
 WaveguideString::WaveguideString()
 {
+    // Initialize with default material (Nylon)
+    currentMaterial = StringMaterial::fromType(MaterialType::Nylon);
 }
 
 WaveguideString::~WaveguideString()
@@ -178,27 +180,56 @@ void WaveguideString::setStiffness(float stiffness)
     stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
 }
 
+void WaveguideString::setMaterial(const StringMaterial& material)
+{
+    currentMaterial = material;
+
+    // Apply material properties to waveguide parameters
+    // Material's dampingCoeff controls the sustain (inverse relationship)
+    dampingAmount = material.dampingCoeff;
+
+    // Material's brightnessCutoff and stiffnessAmount directly map
+    // We'll blend these with user parameters in updateFilters()
+    stiffnessAmount = material.stiffnessAmount;
+
+    // Update pluck exciter with noise content
+    exciter.setNoiseAmount(material.noiseContent);
+
+    // Update all filters with new material properties
+    updateFilters();
+
+    // Update stiffness filter
+    stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
+}
+
 void WaveguideString::updateFilters()
 {
     // Bridge Filter: Frequency-dependent reflection
-    // Brightness controls the cutoff frequency
-    // Higher brightness = higher cutoff = less damping of high frequencies
-    float bridgeCutoffHz = 1000.0f + brightnessAmount * 8000.0f; // 1kHz - 9kHz
+    // Now uses material's brightnessCutoff as base, modulated by brightness parameter
+    float materialBrightness = currentMaterial.brightnessCutoff;
+    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f); // ±30% from material value
+    bridgeCutoffHz = juce::jlimit(500.0f, 20000.0f, bridgeCutoffHz);
+
     auto bridgeCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, bridgeCutoffHz);
     *bridgeFilter.coefficients = *bridgeCoeffs;
 
     // Nut Filter: Simple reflection with slight damping
     // The nut is typically a harder boundary than the bridge
-    float nutCutoffHz = 5000.0f + brightnessAmount * 7000.0f; // 5kHz - 12kHz
+    float nutCutoffHz = materialBrightness * 1.2f * (0.7f + brightnessAmount * 0.5f);
+    nutCutoffHz = juce::jlimit(2000.0f, 20000.0f, nutCutoffHz);
+
     auto nutCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, nutCutoffHz);
     *nutFilter.coefficients = *nutCoeffs;
 
     // Loop Damping Filter: Material-based energy loss
-    // Lower damping = more sustain
-    // Higher damping = faster decay
-    float dampingCutoffHz = 500.0f + (1.0f - dampingAmount) * 10000.0f; // 500Hz - 10.5kHz
+    // Material damping coefficient directly controls decay rate
+    // Lower dampingCoeff (less damping) = more sustain
+    // Higher dampingCoeff (more damping) = faster decay
+    float dampingCutoffHz = 500.0f + (1.0f - currentMaterial.dampingCoeff) * 10000.0f; // 500Hz - 10.5kHz
+    dampingCutoffHz = juce::jlimit(300.0f, 12000.0f, dampingCutoffHz);
+
     auto dampingCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, dampingCutoffHz);
     *loopDamping.coefficients = *dampingCoeffs;

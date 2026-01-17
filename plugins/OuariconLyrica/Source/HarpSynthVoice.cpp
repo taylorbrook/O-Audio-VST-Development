@@ -44,6 +44,16 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     // Read parameters from APVTS (if available)
     if (parameters != nullptr)
     {
+        // Phase 2.5: Read and apply string material
+        auto* materialParam = parameters->getRawParameterValue("stringMaterial");
+        if (materialParam != nullptr)
+        {
+            int materialIndex = static_cast<int>(materialParam->load());
+            MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
+            StringMaterial material = StringMaterial::fromType(materialType);
+            stringModel.setMaterial(material);
+        }
+
         auto* brightnessParam = parameters->getRawParameterValue("brightness");
         auto* sustainParam = parameters->getRawParameterValue("sustain");
         auto* pluckPositionParam = parameters->getRawParameterValue("pluckPosition");

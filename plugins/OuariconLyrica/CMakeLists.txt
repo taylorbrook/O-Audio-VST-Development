@@ -25,6 +25,7 @@ target_sources(OuariconLyrica
         Source/DSP/BridgeFilter.cpp
         Source/DSP/PluckExciter.cpp
         Source/DSP/StiffnessFilter.cpp
+        Source/DSP/StringMaterial.cpp
 )
 
 # Include paths

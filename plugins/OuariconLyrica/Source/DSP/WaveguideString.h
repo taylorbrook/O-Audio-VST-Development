@@ -2,13 +2,14 @@
   ==============================================================================
 
     WaveguideString.h
-    Bidirectional Digital Waveguide String Model - Phase 2.2-2.4
+    Bidirectional Digital Waveguide String Model - Phase 2.2-2.5
     Ouaricon Audio
     Developer: Taylor Brook
 
     Implements true waveguide synthesis with separate upper/lower rails,
-    bridge filter, nut filter, loop damping, and stiffness filter for
-    realistic string behavior with piano-like inharmonicity.
+    bridge filter, nut filter, loop damping, stiffness filter, and
+    material system for realistic string behavior with piano-like
+    inharmonicity and material-specific timbres.
 
   ==============================================================================
 */
@@ -17,6 +18,7 @@
 #include <JuceHeader.h>
 #include "PluckExciter.h"
 #include "StiffnessFilter.h"
+#include "StringMaterial.h"
 
 /**
  * Bidirectional Digital Waveguide String Model
@@ -99,6 +101,18 @@ public:
      */
     void setStiffness(float stiffness);
 
+    /**
+     * Set string material (Phase 2.5)
+     * @param material StringMaterial with physical properties
+     */
+    void setMaterial(const StringMaterial& material);
+
+    /**
+     * Get current material settings
+     * @return Current StringMaterial
+     */
+    const StringMaterial& getMaterial() const { return currentMaterial; }
+
 private:
     // Delay lines for bidirectional propagation
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> upperRail;
@@ -126,6 +140,9 @@ private:
     float dampingAmount = 0.7f;    // Material-based damping
     float brightnessAmount = 0.5f; // Tone brightness
     float stiffnessAmount = 0.2f;  // String stiffness/inharmonicity (Phase 2.4)
+
+    // Material system (Phase 2.5)
+    StringMaterial currentMaterial;
 
     /**
      * Update all filter coefficients based on current parameters

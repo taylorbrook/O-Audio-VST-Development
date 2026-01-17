@@ -13,6 +13,7 @@
 #include <JuceHeader.h>
 #include "HarpSynthSound.h"
 #include "DSP/WaveguideString.h"
+#include "DSP/StringMaterial.h"
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {

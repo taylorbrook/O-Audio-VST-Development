@@ -70,6 +70,12 @@ public:
     void setTechnique(PlayingTechnique technique);
 
     /**
+     * Set noise amount (Phase 2.5 - Material integration)
+     * @param amount Noise content 0.0-1.0 (affects attack transient character)
+     */
+    void setNoiseAmount(float amount);
+
+    /**
      * Process one sample through the exciter
      * @return Excitation sample (returns 0.0 when envelope complete)
      */
@@ -111,6 +117,7 @@ private:
     float pluckVelocity = 0.7f;
     float pluckPosition = 0.5f;
     float fingerHardness = 0.5f;
+    float noiseAmount = 0.5f;  // Material-based noise content (Phase 2.5)
 
     // Noise burst duration control
     int noiseBurstSamples = 0;
