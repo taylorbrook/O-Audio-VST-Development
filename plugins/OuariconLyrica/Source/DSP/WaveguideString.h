@@ -14,6 +14,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include "PluckExciter.h"
 
 /**
  * Bidirectional Digital Waveguide String Model
@@ -44,8 +45,10 @@ public:
      * Trigger string excitation
      * @param frequency Fundamental frequency in Hz
      * @param velocity Note velocity (0.0 - 1.0)
+     * @param position Pluck position (0.0 = nut, 1.0 = bridge)
+     * @param hardness Finger hardness (0.0 = soft, 1.0 = hard)
      */
-    void trigger(double frequency, float velocity);
+    void trigger(double frequency, float velocity, float position, float hardness);
 
     /**
      * Process one sample through the waveguide
@@ -81,6 +84,12 @@ public:
      */
     void setPluckPosition(float position);
 
+    /**
+     * Set playing technique
+     * @param technique Technique to apply (Normal, Harmonic, Muted, PresDeLaTable)
+     */
+    void setTechnique(PlayingTechnique technique);
+
 private:
     // Delay lines for bidirectional propagation
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> upperRail;
@@ -91,13 +100,8 @@ private:
     juce::dsp::IIR::Filter<float> nutFilter;      // Inverted reflection
     juce::dsp::IIR::Filter<float> loopDamping;    // Material-based damping
 
-    // Excitation state
-    juce::Random random;
-    int excitationSamplesRemaining = 0;
-    float excitationAmplitude = 0.0f;
-
-    // Brightness filter (affects excitation spectrum)
-    juce::dsp::IIR::Filter<float> excitationBrightnessFilter;
+    // Pluck excitation generator (Phase 2.3)
+    PluckExciter exciter;
 
     // State
     double currentSampleRate = 44100.0;
@@ -111,11 +115,6 @@ private:
     // Parameters
     float dampingAmount = 0.7f;    // Material-based damping
     float brightnessAmount = 0.5f; // Tone brightness
-
-    /**
-     * Generate noise burst for excitation
-     */
-    float generateExcitation();
 
     /**
      * Update all filter coefficients based on current parameters

@@ -37,12 +37,18 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     currentFrequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
     currentVelocity = velocity;
 
+    // Default pluck parameters
+    float pluckPosition = 0.5f;
+    float fingerHardness = 0.5f;
+
     // Read parameters from APVTS (if available)
     if (parameters != nullptr)
     {
         auto* brightnessParam = parameters->getRawParameterValue("brightness");
         auto* sustainParam = parameters->getRawParameterValue("sustain");
         auto* pluckPositionParam = parameters->getRawParameterValue("pluckPosition");
+        auto* fingerHardnessParam = parameters->getRawParameterValue("fingerHardness");
+        auto* techniqueParam = parameters->getRawParameterValue("technique");
 
         if (brightnessParam != nullptr)
             stringModel.setBrightness(brightnessParam->load());
@@ -55,11 +61,32 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         }
 
         if (pluckPositionParam != nullptr)
-            stringModel.setPluckPosition(pluckPositionParam->load());
+        {
+            pluckPosition = pluckPositionParam->load();
+            stringModel.setPluckPosition(pluckPosition);
+        }
+
+        if (fingerHardnessParam != nullptr)
+            fingerHardness = fingerHardnessParam->load();
+
+        if (techniqueParam != nullptr)
+        {
+            int techniqueIndex = static_cast<int>(techniqueParam->load());
+            PlayingTechnique technique;
+            switch (techniqueIndex)
+            {
+                case 0: technique = PlayingTechnique::Normal; break;
+                case 1: technique = PlayingTechnique::Harmonic; break;
+                case 2: technique = PlayingTechnique::Muted; break;
+                case 3: technique = PlayingTechnique::PresDeLaTable; break;
+                default: technique = PlayingTechnique::Normal; break;
+            }
+            stringModel.setTechnique(technique);
+        }
     }
 
-    // Trigger string model
-    stringModel.trigger(currentFrequency, velocity);
+    // Trigger string model with pluck position and hardness
+    stringModel.trigger(currentFrequency, velocity, pluckPosition, fingerHardness);
 }
 
 void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)

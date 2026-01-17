@@ -23,6 +23,7 @@ target_sources(OuariconLyrica
         Source/DSP/StringVoice.cpp
         Source/DSP/WaveguideString.cpp
         Source/DSP/BridgeFilter.cpp
+        Source/DSP/PluckExciter.cpp
 )
 
 # Include paths

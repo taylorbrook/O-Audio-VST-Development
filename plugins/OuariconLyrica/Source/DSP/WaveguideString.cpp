@@ -42,20 +42,22 @@ void WaveguideString::prepare(double sampleRate, int maxBlockSize)
     bridgeFilter.prepare(spec);
     nutFilter.prepare(spec);
     loopDamping.prepare(spec);
-    excitationBrightnessFilter.prepare(spec);
 
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
-    excitationBrightnessFilter.reset();
+
+    // Prepare pluck exciter
+    exciter.prepare(sampleRate, maxBlockSize);
 
     updateFilters();
     reset();
 }
 
-void WaveguideString::trigger(double frequency, float velocity)
+void WaveguideString::trigger(double frequency, float velocity, float position, float hardness)
 {
     currentFrequency = frequency;
+    pluckPosition = juce::jlimit(0.05f, 0.95f, position);
 
     // Calculate delay for each rail (half of full wavelength)
     float railDelay = calculateRailDelay();
@@ -67,16 +69,13 @@ void WaveguideString::trigger(double frequency, float velocity)
     upperRail.reset();
     lowerRail.reset();
 
-    // Set excitation parameters
-    excitationAmplitude = velocity;
-    // Excitation burst length: one period of oscillation
-    excitationSamplesRemaining = static_cast<int>(currentSampleRate / frequency);
-
     // Reset filters
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
-    excitationBrightnessFilter.reset();
+
+    // Trigger pluck exciter
+    exciter.trigger(velocity, position, hardness, frequency);
 
     // Initialize energy tracking
     currentEnergy = velocity;
@@ -86,8 +85,8 @@ void WaveguideString::trigger(double frequency, float velocity)
 
 float WaveguideString::processSample()
 {
-    // Generate excitation (noise burst during initial attack)
-    float excitation = generateExcitation();
+    // Generate excitation from PluckExciter
+    float excitation = exciter.process();
 
     // Read from both delay lines
     float upperOut = upperRail.popSample(0);
@@ -135,9 +134,7 @@ void WaveguideString::reset()
     bridgeFilter.reset();
     nutFilter.reset();
     loopDamping.reset();
-    excitationBrightnessFilter.reset();
-    excitationSamplesRemaining = 0;
-    excitationAmplitude = 0.0f;
+    exciter.reset();
     currentEnergy = 0.0f;
 }
 
@@ -158,27 +155,9 @@ void WaveguideString::setPluckPosition(float position)
     pluckPosition = juce::jlimit(0.05f, 0.95f, position);
 }
 
-float WaveguideString::generateExcitation()
+void WaveguideString::setTechnique(PlayingTechnique technique)
 {
-    if (excitationSamplesRemaining <= 0)
-        return 0.0f;
-
-    excitationSamplesRemaining--;
-
-    // Generate random noise
-    float noise = random.nextFloat() * 2.0f - 1.0f; // -1.0 to +1.0
-
-    // Scale by velocity
-    noise *= excitationAmplitude;
-
-    // Apply brightness filter to noise
-    float filteredNoise = excitationBrightnessFilter.processSample(noise);
-
-    // Envelope: taper off at end of burst
-    float envelope = static_cast<float>(excitationSamplesRemaining) /
-                     static_cast<float>(std::max(1, excitationSamplesRemaining + 1));
-
-    return filteredNoise * envelope;
+    exciter.setTechnique(technique);
 }
 
 void WaveguideString::updateFilters()
@@ -205,12 +184,6 @@ void WaveguideString::updateFilters()
     auto dampingCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, dampingCutoffHz);
     *loopDamping.coefficients = *dampingCoeffs;
-
-    // Excitation Brightness Filter
-    float excitationCutoffHz = 1000.0f + brightnessAmount * 9000.0f; // 1kHz - 10kHz
-    auto excitationCoeffs = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, excitationCutoffHz);
-    *excitationBrightnessFilter.coefficients = *excitationCoeffs;
 }
 
 float WaveguideString::calculateRailDelay() const
