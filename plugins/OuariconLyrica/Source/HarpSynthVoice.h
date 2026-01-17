@@ -64,6 +64,12 @@ public:
     int getVoiceId() const;
 
 private:
+    /**
+     * Update DSP components from APVTS parameters (called each render block)
+     * Enables real-time parameter modulation during note playback
+     */
+    void updateParametersFromAPVTS();
+
     // Physical modeling string (Phase 2.2 - Bidirectional Waveguide)
     WaveguideString stringModel;
 
@@ -90,6 +96,9 @@ private:
 
     // Phase 2.7: Current material (needed for sympathetic registration)
     StringMaterial currentMaterial;
+
+    // Track current material type to avoid unnecessary DSP updates
+    MaterialType currentMaterialType = MaterialType::Nylon;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarpSynthVoice)
 };

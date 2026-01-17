@@ -259,9 +259,77 @@ void HarpSynthVoice::controllerMoved(int /*controllerNumber*/, int /*newControll
     // MIDI CC will be implemented in later phases
 }
 
+void HarpSynthVoice::updateParametersFromAPVTS()
+{
+    if (parameters == nullptr)
+        return;
+
+    // Update brightness (affects tone color)
+    auto* brightnessParam = parameters->getRawParameterValue("brightness");
+    if (brightnessParam != nullptr)
+        stringModel.setBrightness(brightnessParam->load());
+
+    // Update sustain/damping
+    auto* sustainParam = parameters->getRawParameterValue("sustain");
+    if (sustainParam != nullptr)
+    {
+        float damping = 1.0f - sustainParam->load();
+        stringModel.setDamping(damping);
+    }
+
+    // Update string stiffness
+    auto* stiffnessParam = parameters->getRawParameterValue("stringStiffness");
+    if (stiffnessParam != nullptr)
+        stringModel.setStiffness(stiffnessParam->load());
+
+    // Update string material
+    auto* materialParam = parameters->getRawParameterValue("stringMaterial");
+    if (materialParam != nullptr)
+    {
+        int materialIndex = static_cast<int>(materialParam->load());
+        MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
+        StringMaterial newMaterial = StringMaterial::fromType(materialType);
+
+        // Only update if material changed (avoid unnecessary filter recalculations)
+        if (materialType != currentMaterialType)
+        {
+            currentMaterialType = materialType;
+            currentMaterial = newMaterial;
+            stringModel.setMaterial(currentMaterial);
+        }
+    }
+
+    // Update body resonance parameters
+    auto* bodySizeParam = parameters->getRawParameterValue("bodySize");
+    auto* bodyResonanceParam = parameters->getRawParameterValue("bodyResonance");
+    auto* woodTypeParam = parameters->getRawParameterValue("woodType");
+
+    if (bodySizeParam != nullptr && bodyResonanceParam != nullptr && woodTypeParam != nullptr)
+    {
+        float bodySize = bodySizeParam->load();
+        float bodyAmount = bodyResonanceParam->load();
+        int woodTypeIndex = static_cast<int>(woodTypeParam->load());
+
+        WoodType woodType;
+        switch (woodTypeIndex)
+        {
+            case 0: woodType = WoodType::Spruce; break;
+            case 1: woodType = WoodType::Maple; break;
+            case 2: woodType = WoodType::Exotic; break;
+            case 3: woodType = WoodType::Synthetic; break;
+            default: woodType = WoodType::Spruce; break;
+        }
+
+        bodyResonance.setBodyParameters(bodySize, woodType, bodyAmount);
+    }
+}
+
 void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
                                       int startSample, int numSamples)
 {
+    // Update DSP parameters from APVTS at block boundaries (real-time modulation)
+    updateParametersFromAPVTS();
+
     // Check if voice should still be active
     if (!stringModel.isActive())
     {
