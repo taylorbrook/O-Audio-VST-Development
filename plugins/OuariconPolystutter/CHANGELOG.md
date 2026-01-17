@@ -2,6 +2,40 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.1.4] - 2026-01-16
+
+### Changed
+
+- **Bug image fragmented into 12 scattered pieces across UI**
+  - Original single botanical overlay replaced with 12 randomly-shaped fragments
+  - Each fragment uses CSS clip-path with irregular polygon shapes
+  - Fragments positioned throughout the interface for artistic scattered effect
+  - Slightly reduced opacity (0.25 vs 0.32) for subtler background presence
+
+- **DRY/WET mix knobs repositioned to prevent cut-off**
+  - Footer section moved up 15px (765px → 750px) and expanded (50px → 80px height)
+  - Mix knobs now fully visible within plugin frame
+  - Footer toggles vertically centered in taller footer section
+
+### Added
+
+- **Sequence grid greyed out when SEQ mode inactive**
+  - Pattern sequencer section now dims (40% opacity, 30% grayscale) when SEQ toggle is off
+  - Visual feedback matches lane disable behavior for consistency
+  - Helps users understand when pattern sequencing is bypassed
+
+## [1.1.3] - 2026-01-16
+
+### Changed
+
+- **SUBDIV dial text doubled in size** (8px → 16px) for better readability of subdivision values
+- **Knob readout values increased by 2pt** (8px → 10px) across all lane controls
+- **Wet/Dry knobs enlarged to match lane knobs** (32px → 42px) for visual consistency
+
+### Removed
+
+- **Parameter monitor debug panel** - Development diagnostic removed from production UI
+
 ## [1.1.2] - 2026-01-16
 
 ### Fixed

@@ -29,6 +29,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Phase 3.3: Visual state updates
   setupLaneDimming();
   setupFreezeIndicators();
+  setupSequencerDimming();  // v1.1.4: Grey out sequencer when SEQ toggle is off
 
   console.log("[Phase 3.3] All parameter bindings initialized (130 total)");
 });
@@ -447,6 +448,46 @@ function applyFreezeIndicator(freezeButton, isFrozen) {
     freezeButton.classList.add("frozen");
   } else {
     freezeButton.classList.remove("frozen");
+  }
+}
+
+// ========== v1.1.4: SEQUENCER DIMMING (when SEQ toggle is off) ==========
+
+/**
+ * Setup sequencer section dimming when SEQ toggle is disabled
+ * Watches sequencer_enabled parameter and dims pattern grid
+ */
+function setupSequencerDimming() {
+  const sequencerSection = document.querySelector(".sequencer-section");
+
+  if (!sequencerSection) {
+    console.warn("[v1.1.4] Sequencer section not found");
+    return;
+  }
+
+  // Get JUCE toggle state for sequencer_enabled
+  const state = Juce.getToggleState("sequencer_enabled");
+  if (!state) {
+    console.error("[v1.1.4] JUCE toggle state not found: sequencer_enabled");
+    return;
+  }
+
+  // Apply initial state
+  applySequencerDimming(sequencerSection, state.value);
+
+  // Update on parameter change
+  state.valueChangedEvent.addListener(() => {
+    applySequencerDimming(sequencerSection, state.value);
+  });
+
+  console.log("[v1.1.4] Sequencer dimming handler installed");
+}
+
+function applySequencerDimming(sequencerSection, isEnabled) {
+  if (isEnabled) {
+    sequencerSection.classList.remove("seq-disabled");
+  } else {
+    sequencerSection.classList.add("seq-disabled");
   }
 }
 
