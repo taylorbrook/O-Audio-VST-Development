@@ -966,13 +966,18 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
 
     // ========== Phase 2.3: Trigger Router Processing ==========
     // Get sidechain input buffer (bus index 1)
+    // v1.1.9: Only use sidechain if bus is actually enabled by host (user routed audio to it)
     juce::AudioBuffer<float> sidechainBus;
     juce::AudioBuffer<float>* sidechainBuffer = nullptr;
     if (sidechainEnabled && getBusCount(true) > 1)
     {
-        sidechainBus = getBusBuffer(buffer, true, 1);
-        if (sidechainBus.getNumChannels() > 0)
-            sidechainBuffer = &sidechainBus;
+        auto* scBus = getBus(true, 1);
+        if (scBus != nullptr && scBus->isEnabled())
+        {
+            sidechainBus = getBusBuffer(buffer, true, 1);
+            if (sidechainBus.getNumChannels() > 0)
+                sidechainBuffer = &sidechainBus;
+        }
     }
 
     // Update trigger router modes
@@ -1245,6 +1250,21 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
     // Detect subdivision boundaries and trigger each lane independently
     if (isPlaying)
     {
+        // v1.1.7: Skip beat-sync triggering when alternative trigger modes are active
+        // This prevents conflicts where both beat-sync AND ENV/Sidechain/MIDI trigger simultaneously
+        bool envActive = envelopeEnabledParam->load() > 0.5f;
+        bool sidechainActive = sidechainEnabledParam->load() > 0.5f;
+        bool midiActive = midiEnabledParam->load() > 0.5f;
+
+        if (envActive || sidechainActive || midiActive)
+        {
+            // Alternative trigger mode is active - skip beat-sync triggering
+            // The selected trigger source (ENV/Sidechain/MIDI) handles triggering exclusively
+            lastPPQPosition = ppqPosition;
+            wasPlaying = isPlaying;
+            return;
+        }
+
         // Get subdivision for each lane
         int lane1Subdiv = static_cast<int>(lane1SubdivParam->load());
         int lane2Subdiv = static_cast<int>(lane2SubdivParam->load());

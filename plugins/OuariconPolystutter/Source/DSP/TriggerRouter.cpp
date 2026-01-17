@@ -59,6 +59,9 @@ void TriggerRouter::reset()
 
     // v1.1.6: Reset cooldown timer
     cooldownSamplesRemaining = 0;
+
+    // v1.1.9: Reset sidechain cooldown
+    sidechainCooldownSamplesRemaining = 0;
 }
 
 bool TriggerRouter::processTriggerDetection(const juce::AudioBuffer<float>& mainInput,
@@ -123,6 +126,11 @@ bool TriggerRouter::detectEnvelopeTrigger(const juce::AudioBuffer<float>& buffer
 
     bool triggered = false;
 
+    // v1.1.8: Hysteresis thresholds to prevent threshold bounce retriggering
+    // Trigger fires when crossing ABOVE the main threshold
+    // Re-arm only when dropping BELOW the arm threshold (6dB lower)
+    const float armThreshold = envelopeThreshold * 0.5f;  // -6dB below trigger threshold
+
     // Process envelope follower sample-by-sample for accurate trigger detection
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -140,15 +148,31 @@ bool TriggerRouter::detectEnvelopeTrigger(const juce::AudioBuffer<float>& buffer
         if (cooldownSamplesRemaining > 0)
             cooldownSamplesRemaining--;
 
-        // Detect rising edge (crossing threshold) - only if cooldown has elapsed
-        if (envelopeLevel > envelopeThreshold && !wasAboveThreshold && cooldownSamplesRemaining == 0)
+        // v1.1.8: State machine with hysteresis
+        // Only check for triggers when cooldown has elapsed
+        if (cooldownSamplesRemaining == 0)
         {
-            triggered = true;
-            // v1.1.6: Start cooldown to prevent rapid-fire triggers
-            cooldownSamplesRemaining = cooldownDurationSamples;
+            if (wasAboveThreshold)
+            {
+                // Currently armed as "above threshold" - wait for drop below ARM threshold to re-arm
+                if (envelopeLevel < armThreshold)
+                {
+                    wasAboveThreshold = false;  // Re-armed, ready for next trigger
+                }
+                // Don't trigger while still above arm threshold (prevents retriggering)
+            }
+            else
+            {
+                // Currently armed as "below threshold" - check for rising edge crossing TRIGGER threshold
+                if (envelopeLevel > envelopeThreshold)
+                {
+                    triggered = true;
+                    wasAboveThreshold = true;  // Lock state until we drop below arm threshold
+                    cooldownSamplesRemaining = cooldownDurationSamples;
+                }
+            }
         }
-
-        wasAboveThreshold = (envelopeLevel > envelopeThreshold);
+        // v1.1.8: Do NOT update wasAboveThreshold during cooldown - keep state locked
     }
 
     return triggered;
@@ -161,6 +185,9 @@ bool TriggerRouter::detectSidechainTrigger(const juce::AudioBuffer<float>& buffe
         return false;
 
     bool triggered = false;
+
+    // v1.1.9: Same hysteresis as ENV detection to prevent threshold bounce
+    const float armThreshold = envelopeThreshold * 0.5f;  // -6dB below trigger threshold
 
     // Process sidechain envelope follower sample-by-sample
     for (int sample = 0; sample < numSamples; ++sample)
@@ -175,13 +202,33 @@ bool TriggerRouter::detectSidechainTrigger(const juce::AudioBuffer<float>& buffe
         // Take maximum of left and right channels
         float envelopeLevel = juce::jmax(envLeft, envRight);
 
-        // Detect rising edge using SIDECHAIN threshold state
-        if (envelopeLevel > envelopeThreshold && !sidechainWasAboveThreshold)
-        {
-            triggered = true;
-        }
+        // v1.1.9: Decrement sidechain cooldown timer
+        if (sidechainCooldownSamplesRemaining > 0)
+            sidechainCooldownSamplesRemaining--;
 
-        sidechainWasAboveThreshold = (envelopeLevel > envelopeThreshold);
+        // v1.1.9: State machine with hysteresis (same as ENV detection)
+        if (sidechainCooldownSamplesRemaining == 0)
+        {
+            if (sidechainWasAboveThreshold)
+            {
+                // Wait for drop below arm threshold to re-arm
+                if (envelopeLevel < armThreshold)
+                {
+                    sidechainWasAboveThreshold = false;
+                }
+            }
+            else
+            {
+                // Check for rising edge crossing trigger threshold
+                if (envelopeLevel > envelopeThreshold)
+                {
+                    triggered = true;
+                    sidechainWasAboveThreshold = true;
+                    sidechainCooldownSamplesRemaining = cooldownDurationSamples;
+                }
+            }
+        }
+        // State locked during cooldown
     }
 
     return triggered;

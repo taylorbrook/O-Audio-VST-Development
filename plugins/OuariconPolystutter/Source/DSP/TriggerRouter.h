@@ -72,6 +72,9 @@ private:
     // Sidechain envelope follower state (separate to avoid interference)
     bool sidechainWasAboveThreshold = false;
 
+    // v1.1.9: Separate cooldown for sidechain (same logic as ENV)
+    int sidechainCooldownSamplesRemaining = 0;
+
     // MIDI trigger state
     int midiTriggeredLane = -1;  // -1 = no trigger, 0-3 = lane 1-4
     bool freezeToggleRequested = false;

@@ -153,7 +153,10 @@ void WaveguideString::reset()
 
 void WaveguideString::setDamping(float damping)
 {
-    dampingAmount = juce::jlimit(0.0f, 1.0f, damping);
+    // v1.0.4: Store user's damping value separately, then compute final damping
+    // This preserves material-specific decay while allowing user adjustment
+    userDampingModifier = juce::jlimit(0.0f, 1.0f, damping);
+    dampingAmount = calculateFinalDamping();
     updateFilters();
 }
 
@@ -187,9 +190,10 @@ void WaveguideString::setMaterial(const StringMaterial& material)
 {
     currentMaterial = material;
 
-    // Apply material properties to waveguide parameters
-    // Material's dampingCoeff controls the sustain (inverse relationship)
-    dampingAmount = material.dampingCoeff;
+    // v1.0.4: Store material's base damping, then compute final with user modifier
+    // This preserves material-specific decay while allowing user adjustment via sustain slider
+    materialDamping = material.dampingCoeff;
+    dampingAmount = calculateFinalDamping();
 
     // v1.0.3: Store material's base stiffness, then compute final with user modifier
     // This ensures different materials produce audibly different inharmonicity
@@ -241,11 +245,12 @@ void WaveguideString::updateFilters()
     nutFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
         currentSampleRate, nutCutoffHz);
 
-    // Loop Damping Filter: Material-based energy loss
-    // Material damping coefficient directly controls decay rate
-    // Lower dampingCoeff (less damping) = more sustain
-    // Higher dampingCoeff (more damping) = faster decay
-    float dampingCutoffHz = 500.0f + (1.0f - currentMaterial.dampingCoeff) * 10000.0f; // 500Hz - 10.5kHz
+    // Loop Damping Filter: Material-based energy loss + user sustain control
+    // v1.0.4: dampingAmount is now pre-computed via calculateFinalDamping()
+    // which combines materialDamping with userDampingModifier (0.5x to 1.5x range)
+    // Higher damping = lower cutoff = faster high-freq decay = shorter sustain
+    float clampedDamping = juce::jlimit(0.0f, 1.0f, dampingAmount);
+    float dampingCutoffHz = 500.0f + (1.0f - clampedDamping) * 10000.0f; // 500Hz - 10.5kHz
     dampingCutoffHz = juce::jlimit(300.0f, 12000.0f, dampingCutoffHz);
 
     loopDamping.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(

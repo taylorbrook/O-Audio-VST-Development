@@ -247,31 +247,38 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
                 // Calculate crossfade progress (0.0 = all old, 1.0 = all new)
                 float crossfadeProgress = 1.0f - (static_cast<float>(retriggerCrossfadeSamplesRemaining) / static_cast<float>(crossfadeSamples));
 
-                // Read from old capture position
-                double oldReadOffset = reverseEnabled
-                    ? (captureLength - 1.0 - (oldFractionalPlaybackPosition * pitchRatio))
-                    : (oldFractionalPlaybackPosition * pitchRatio);
+                // Check if old playback position is still valid
+                double oldEffectiveLength = static_cast<double>(captureLength) / pitchRatio;
+                if (oldFractionalPlaybackPosition < oldEffectiveLength)
+                {
+                    // Read from old capture position
+                    double oldReadOffset = reverseEnabled
+                        ? (captureLength - 1.0 - (oldFractionalPlaybackPosition * pitchRatio))
+                        : (oldFractionalPlaybackPosition * pitchRatio);
 
-                oldReadOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), oldReadOffset);
+                    oldReadOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), oldReadOffset);
 
-                int oldBasePos = (oldCaptureStartPosition + static_cast<int>(oldReadOffset)) % maxCaptureSamples;
-                int oldNextPos = (oldBasePos + 1) % maxCaptureSamples;
-                float oldFrac = static_cast<float>(oldReadOffset - static_cast<int>(oldReadOffset));
+                    int oldBasePos = (oldCaptureStartPosition + static_cast<int>(oldReadOffset)) % maxCaptureSamples;
+                    int oldNextPos = (oldBasePos + 1) % maxCaptureSamples;
+                    float oldFrac = static_cast<float>(oldReadOffset - static_cast<int>(oldReadOffset));
 
-                float oldLeft0 = captureBuffer.getSample(0, oldBasePos);
-                float oldLeft1 = captureBuffer.getSample(0, oldNextPos);
-                float oldRight0 = captureBuffer.getSample(1, oldBasePos);
-                float oldRight1 = captureBuffer.getSample(1, oldNextPos);
+                    float oldLeft0 = captureBuffer.getSample(0, oldBasePos);
+                    float oldLeft1 = captureBuffer.getSample(0, oldNextPos);
+                    float oldRight0 = captureBuffer.getSample(1, oldBasePos);
+                    float oldRight1 = captureBuffer.getSample(1, oldNextPos);
 
-                float oldLeftOut = (oldLeft0 + oldFrac * (oldLeft1 - oldLeft0)) * oldCurrentGain * volumeLevel;
-                float oldRightOut = (oldRight0 + oldFrac * (oldRight1 - oldRight0)) * oldCurrentGain * volumeLevel;
+                    // Raw interpolated samples (no gain - gain is applied later to the blended result)
+                    float oldLeftOut = oldLeft0 + oldFrac * (oldLeft1 - oldLeft0);
+                    float oldRightOut = oldRight0 + oldFrac * (oldRight1 - oldRight0);
 
-                // Blend old and new audio
-                leftOut = oldLeftOut * (1.0f - crossfadeProgress) + leftOut * crossfadeProgress;
-                rightOut = oldRightOut * (1.0f - crossfadeProgress) + rightOut * crossfadeProgress;
+                    // Blend old and new audio (both are raw samples, gain applied after blend)
+                    leftOut = oldLeftOut * (1.0f - crossfadeProgress) + leftOut * crossfadeProgress;
+                    rightOut = oldRightOut * (1.0f - crossfadeProgress) + rightOut * crossfadeProgress;
 
-                // Advance old playback position
-                oldFractionalPlaybackPosition += 1.0;
+                    // Advance old playback position
+                    oldFractionalPlaybackPosition += 1.0;
+                }
+                // else: old playback finished, just use new audio (no blend needed)
 
                 // Decrement crossfade counter
                 retriggerCrossfadeSamplesRemaining--;

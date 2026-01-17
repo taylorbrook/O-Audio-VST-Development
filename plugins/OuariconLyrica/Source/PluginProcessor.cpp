@@ -235,6 +235,15 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
     // Render MIDI to audio via synthesiser
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // Apply master volume
+    auto* masterVolumeParam = parameters.getRawParameterValue("masterVolume");
+    if (masterVolumeParam != nullptr)
+    {
+        float volumeDb = masterVolumeParam->load();
+        float gain = juce::Decibels::decibelsToGain(volumeDb);
+        buffer.applyGain(gain);
+    }
 }
 
 int OuariconLyricaAudioProcessor::getActiveVoiceCount() const

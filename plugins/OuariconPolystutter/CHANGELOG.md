@@ -2,6 +2,51 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.1.9] - 2026-01-16
+
+### Fixed
+
+- **Sidechain detection missing hysteresis and cooldown**
+  - Root cause: Sidechain trigger detection had NO cooldown or hysteresis (only ENV was fixed in v1.1.8)
+  - Sidechain could retrigger on every threshold crossing without any protection
+  - Fix: Added same state machine with 6dB hysteresis and 50ms cooldown to sidechain detection
+  - Added separate `sidechainCooldownSamplesRemaining` timer for sidechain
+
+- **Sidechain triggering when no sidechain input is connected**
+  - Root cause: Some DAWs mirror the main input to unconnected sidechain buses
+  - The plugin checked if sidechain bus EXISTS, but not if it's ENABLED by the host
+  - Fix: Added `getBus(true, 1)->isEnabled()` check to verify host actually routed audio to sidechain
+  - Sidechain detection now only runs when user has explicitly connected a sidechain source
+
+## [1.1.8] - 2026-01-16
+
+### Fixed
+
+- **ENV trigger retriggering due to threshold bounce**
+  - Root cause: `wasAboveThreshold` was updated every sample, even during cooldown
+  - With music that has varying dynamics, envelope fluctuates around threshold
+  - When envelope briefly dipped below threshold during cooldown, `wasAboveThreshold` toggled to `false`
+  - After cooldown ended, next sample above threshold caused another trigger
+  - Fix 1: State is now locked during cooldown - `wasAboveThreshold` not updated until cooldown ends
+  - Fix 2: Added 6dB hysteresis - envelope must drop to 50% of threshold (armThreshold) before re-arming
+  - This prevents "threshold bounce" where envelope oscillates around the trigger point
+  - State machine: TRIGGER at threshold → LOCK until below armThreshold → RE-ARM → wait for next trigger
+  - Testing: Play sustained material with ENV mode - should only trigger on distinct transients, not continuously
+
+## [1.1.7] - 2026-01-16
+
+### Fixed
+
+- **Beat-sync triggering conflict with ENV/Sidechain/MIDI modes**
+  - Root cause: `updateBeatSync()` triggered lanes on every DAW subdivision boundary regardless of trigger mode settings
+  - When ENV mode was enabled, both systems called `trigger()` simultaneously:
+    - Envelope follower triggered on amplitude transients
+    - Beat-sync triggered on grid boundaries
+  - This caused double triggering, conflicting capture positions, and audio artifacts
+  - Fix: Added exclusivity check in `updateBeatSync()` - when any alternative trigger mode (ENV, Sidechain, or MIDI) is active, beat-sync triggering is skipped
+  - The selected trigger source now handles triggering exclusively
+  - Testing: Enable ENV mode and verify stutter only triggers on transients, not on beat grid
+
 ## [1.1.6] - 2026-01-16
 
 ### Fixed

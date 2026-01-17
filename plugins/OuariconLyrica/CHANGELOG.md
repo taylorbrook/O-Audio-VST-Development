@@ -2,6 +2,19 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.0.4] - 2026-01-17
+
+### Fixed
+
+- **Master Volume fader now controls output level**
+  - Root cause: `masterVolume` parameter was connected to UI but never applied in `processBlock()`
+  - Fix: Added gain stage after synthesizer rendering that converts dB parameter to linear gain
+
+- **Sustain slider now affects decay time**
+  - Root cause: `setMaterial()` unconditionally overwrote `dampingAmount` with the material's `dampingCoeff`, discarding the user's sustain slider value (same bug pattern as v1.0.3 stiffness fix)
+  - Fix: Added `materialDamping` and `userDampingModifier` member variables with `calculateFinalDamping()` function that combines them using a 0.5x-1.5x modifier range
+  - Result: Sustain=1.0 gives 0.5x material damping (longer decay), sustain=0.0 gives 1.5x material damping (shorter decay), while preserving material-specific characteristics
+
 ## [1.0.3] - 2026-01-16
 
 ### Fixed

@@ -151,6 +151,10 @@ private:
     float materialStiffness = 0.2f;      // Base stiffness from material
     float userStiffnessModifier = 0.5f;  // User slider value (0-1, 0.5 = neutral)
 
+    // Material-aware damping system (v1.0.4 fix)
+    float materialDamping = 0.3f;        // Base damping from material
+    float userDampingModifier = 0.5f;    // User sustain slider value (0-1, 0.5 = neutral)
+
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;
 
@@ -163,6 +167,18 @@ private:
     float calculateFinalStiffness() const
     {
         return materialStiffness * (0.5f + userStiffnessModifier * 1.0f);
+    }
+
+    /**
+     * Calculate final damping from material base and user modifier (v1.0.4)
+     * userDampingModifier comes from: 1.0 - sustain slider
+     * So sustain=1.0 → modifier=0.0 → less damping (longer decay)
+     *    sustain=0.0 → modifier=1.0 → more damping (shorter decay)
+     */
+    float calculateFinalDamping() const
+    {
+        // Modifier range: 0.5x to 1.5x of material damping
+        return materialDamping * (0.5f + userDampingModifier);
     }
 
     /**
