@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OuariconLyrica - Physical Modeling Harp</title>
+    <link rel="stylesheet" href="/css/styles.css">
+
+    <!-- CRITICAL: type="module" required for ES6 imports -->
+    <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+    <div class="plugin-container">
+        <!-- Header Section -->
+        <header class="plugin-header">
+            <h1>OUARICON LYRICA</h1>
+            <div class="preset-selector">
+                <label>Preset:</label>
+                <select id="presetSelector">
+                    <option>Concert Grand Harp</option>
+                    <option>Celtic Folk</option>
+                    <option>Ancient Lyre</option>
+                    <option>Crystal Dreams</option>
+                </select>
+            </div>
+        </header>
+
+        <!-- Main Controls Grid -->
+        <div class="controls-grid">
+            <!-- String Section -->
+            <section class="control-section string-section">
+                <h2>STRING</h2>
+
+                <div class="control-group">
+                    <label for="stringMaterial">Material</label>
+                    <select id="stringMaterial" data-param-id="stringMaterial">
+                        <option value="0">Gut</option>
+                        <option value="1">Nylon</option>
+                        <option value="2">Wire</option>
+                        <option value="3">Carbon</option>
+                        <option value="4">Metal Alloy</option>
+                        <option value="5">Glass</option>
+                        <option value="6">Crystal</option>
+                        <option value="7">Energy</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="brightness">Brightness</label>
+                    <input type="range" id="brightness" data-param-id="brightness"
+                           min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="brightnessValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="sustain">Sustain</label>
+                    <input type="range" id="sustain" data-param-id="sustain"
+                           min="0" max="1" step="0.01" value="0.7">
+                    <span class="value-display" id="sustainValue">70%</span>
+                </div>
+            </section>
+
+            <!-- Body Section -->
+            <section class="control-section body-section">
+                <h2>BODY</h2>
+
+                <div class="control-group">
+                    <label for="bodySize">Size</label>
+                    <input type="range" id="bodySize" data-param-id="bodySize"
+                           min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="bodySizeValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="bodyResonance">Resonance</label>
+                    <input type="range" id="bodyResonance" data-param-id="bodyResonance"
+                           min="0" max="1" step="0.01" value="0.6">
+                    <span class="value-display" id="bodyResonanceValue">60%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="woodType">Wood Type</label>
+                    <select id="woodType" data-param-id="woodType">
+                        <option value="0">Spruce</option>
+                        <option value="1">Maple</option>
+                        <option value="2">Exotic</option>
+                        <option value="3">Synthetic</option>
+                    </select>
+                </div>
+            </section>
+
+            <!-- Sympathetic Resonance Section -->
+            <section class="control-section sympathetic-section">
+                <h2>SYMPATHETIC</h2>
+
+                <div class="control-group">
+                    <label for="sympatheticAmount">Amount</label>
+                    <input type="range" id="sympatheticAmount" data-param-id="sympatheticAmount"
+                           min="0" max="1" step="0.01" value="0.3">
+                    <span class="value-display" id="sympatheticAmountValue">30%</span>
+                </div>
+            </section>
+
+            <!-- Pluck Mechanics Section -->
+            <section class="control-section pluck-section">
+                <h2>PLUCK MECHANICS</h2>
+
+                <div class="control-group">
+                    <label for="pluckPosition">Position</label>
+                    <input type="range" id="pluckPosition" data-param-id="pluckPosition"
+                           min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="pluckPositionValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="fingerHardness">Hardness</label>
+                    <input type="range" id="fingerHardness" data-param-id="fingerHardness"
+                           min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="fingerHardnessValue">50%</span>
+                </div>
+            </section>
+
+            <!-- Expression Section -->
+            <section class="control-section expression-section">
+                <h2>EXPRESSION</h2>
+
+                <div class="control-group">
+                    <label for="technique">Technique</label>
+                    <select id="technique" data-param-id="technique">
+                        <option value="0">Normal</option>
+                        <option value="1">Harmonic</option>
+                        <option value="2">Muted</option>
+                        <option value="3">Près de la table</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="glissandoMode">Glissando Mode</label>
+                    <select id="glissandoMode" data-param-id="glissandoMode">
+                        <option value="0">Off</option>
+                        <option value="1">Free</option>
+                        <option value="2">Scale-Locked</option>
+                    </select>
+                </div>
+
+                <div class="control-group">
+                    <label for="glissandoScale">Glissando Scale</label>
+                    <select id="glissandoScale" data-param-id="glissandoScale">
+                        <option value="0">Major</option>
+                        <option value="1">Minor</option>
+                        <option value="2">Pentatonic</option>
+                        <option value="3">Custom</option>
+                    </select>
+                </div>
+            </section>
+        </div>
+
+        <!-- Advanced Parameters (Collapsible) -->
+        <details class="advanced-section">
+            <summary>Advanced Parameters</summary>
+
+            <div class="advanced-grid">
+                <div class="control-group">
+                    <label for="stringTension">String Tension</label>
+                    <input type="range" id="stringTension" data-param-id="stringTension"
+                           min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="stringTensionValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="stringGauge">String Gauge</label>
+                    <input type="range" id="stringGauge" data-param-id="stringGauge"
+                           min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="stringGaugeValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="stringLength">String Length</label>
+                    <input type="range" id="stringLength" data-param-id="stringLength"
+                           min="0" max="1" step="0.01" value="0.5">
+                    <span class="value-display" id="stringLengthValue">50%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="stringStiffness">String Stiffness</label>
+                    <input type="range" id="stringStiffness" data-param-id="stringStiffness"
+                           min="0" max="1" step="0.01" value="0.2">
+                    <span class="value-display" id="stringStiffnessValue">20%</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="masterTune">Master Tune</label>
+                    <input type="range" id="masterTune" data-param-id="masterTune"
+                           min="400" max="480" step="0.1" value="440">
+                    <span class="value-display" id="masterTuneValue">440 Hz</span>
+                </div>
+
+                <div class="control-group">
+                    <label for="pitchBendRange">Pitch Bend Range</label>
+                    <input type="range" id="pitchBendRange" data-param-id="pitchBendRange"
+                           min="1" max="48" step="1" value="2">
+                    <span class="value-display" id="pitchBendRangeValue">±2 st</span>
+                </div>
+            </div>
+        </details>
+
+        <!-- Footer with Meters -->
+        <footer class="plugin-footer">
+            <div class="meter-group">
+                <label>Master</label>
+                <input type="range" id="masterVolume" data-param-id="masterVolume"
+                       min="-60" max="6" step="0.1" value="0">
+                <span class="value-display" id="masterVolumeValue">0.0 dB</span>
+            </div>
+
+            <div class="voice-meter">
+                <label>Voices:</label>
+                <span id="voiceCount">0/16</span>
+            </div>
+
+            <div class="cpu-meter">
+                <label>CPU:</label>
+                <span id="cpuUsage">0%</span>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

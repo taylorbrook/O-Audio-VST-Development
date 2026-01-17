@@ -63,6 +63,24 @@ target_link_libraries(OuariconLyrica
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL)
 juce_generate_juce_header(OuariconLyrica)
 
+# ═══════════════════════════════════════════════════════════════════
+# Phase 3.1: WebView UI Resources - Embed as BinaryData
+# ═══════════════════════════════════════════════════════════════════
+juce_add_binary_data(OuariconLyricaBinaryData
+    SOURCES
+        Resources/ui/index.html
+        Resources/ui/css/styles.css
+        Resources/ui/js/app.js
+        Resources/ui/js/juce/index.js
+        Resources/ui/js/juce/check_native_interop.js
+)
+
+# Link binary data to plugin
+target_link_libraries(OuariconLyrica
+    PRIVATE
+        OuariconLyricaBinaryData
+)
+
 # Compile definitions
 target_compile_definitions(OuariconLyrica
     PUBLIC
