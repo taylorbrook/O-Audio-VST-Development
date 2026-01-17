@@ -28,6 +28,7 @@ target_sources(OuariconLyrica
         Source/DSP/StringMaterial.cpp
         Source/DSP/BodyResonance.cpp
         Source/DSP/SympatheticResonance.cpp
+        Source/DSP/TuningEngine.cpp
 )
 
 # Include paths

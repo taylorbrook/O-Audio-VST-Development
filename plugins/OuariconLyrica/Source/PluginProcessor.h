@@ -13,6 +13,7 @@
 #include "HarpSynthSound.h"
 #include "HarpSynthVoice.h"
 #include "DSP/SympatheticResonance.h"
+#include "DSP/TuningEngine.h"
 
 class OuariconLyricaAudioProcessor : public juce::AudioProcessor
 {
@@ -49,12 +50,20 @@ public:
      */
     SympatheticResonanceEngine* getSympatheticEngine() { return &sympatheticEngine; }
 
+    /**
+     * Get pointer to tuning engine (for voice access)
+     */
+    TuningEngine* getTuningEngine() { return &tuningEngine; }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
 
     // Phase 2.7: Sympathetic Resonance Engine (processor-level, shared by all voices)
     SympatheticResonanceEngine sympatheticEngine;
+
+    // Phase 2.8: Tuning Engine (processor-level, shared by all voices)
+    TuningEngine tuningEngine;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

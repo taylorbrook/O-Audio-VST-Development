@@ -172,6 +172,7 @@ OuariconLyricaAudioProcessor::OuariconLyricaAudioProcessor()
         auto* voice = new HarpSynthVoice();
         voice->setAPVTS(&parameters);
         voice->setSympatheticEngine(&sympatheticEngine); // Phase 2.7: Connect sympathetic engine
+        voice->setTuningEngine(&tuningEngine); // Phase 2.8: Connect tuning engine
         synthesiser.addVoice(voice);
     }
 
@@ -217,6 +218,19 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     if (sympatheticParam != nullptr)
     {
         sympatheticEngine.setIntensity(sympatheticParam->load());
+    }
+
+    // Phase 2.8: Update tuning engine parameters
+    auto* masterTuneParam = parameters.getRawParameterValue("masterTune");
+    if (masterTuneParam != nullptr)
+    {
+        tuningEngine.setMasterTune(static_cast<double>(masterTuneParam->load()));
+    }
+
+    auto* pitchBendRangeParam = parameters.getRawParameterValue("pitchBendRange");
+    if (pitchBendRangeParam != nullptr)
+    {
+        tuningEngine.setPitchBendRange(pitchBendRangeParam->load());
     }
 
     // Render MIDI to audio via synthesiser

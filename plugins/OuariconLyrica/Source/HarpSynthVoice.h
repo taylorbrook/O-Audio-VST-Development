@@ -16,6 +16,7 @@
 #include "DSP/StringMaterial.h"
 #include "DSP/BodyResonance.h"
 #include "DSP/SympatheticResonance.h"
+#include "DSP/TuningEngine.h"
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {
@@ -52,6 +53,11 @@ public:
     void setSympatheticEngine(SympatheticResonanceEngine* engine);
 
     /**
+     * Set tuning engine reference (Phase 2.8)
+     */
+    void setTuningEngine(TuningEngine* engine);
+
+    /**
      * Get unique voice ID for sympathetic resonance tracking
      */
     int getVoiceId() const;
@@ -69,8 +75,12 @@ private:
     // Phase 2.7: Sympathetic Resonance Engine (shared, owned by processor)
     SympatheticResonanceEngine* sympatheticEngine = nullptr;
 
+    // Phase 2.8: Tuning Engine (shared, owned by processor)
+    TuningEngine* tuningEngine = nullptr;
+
     double currentFrequency = 440.0;
     float currentVelocity = 0.0f;
+    int currentMidiNote = -1; // Current MIDI note number (for pitch bend)
     int voiceId = -1; // Unique ID for sympathetic tracking
 
     // Phase 2.7: Current material (needed for sympathetic registration)

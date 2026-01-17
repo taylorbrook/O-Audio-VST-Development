@@ -202,6 +202,22 @@ void WaveguideString::setMaterial(const StringMaterial& material)
     stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
 }
 
+void WaveguideString::setFrequency(double frequency)
+{
+    if (frequency > 20.0 && frequency < 20000.0)
+    {
+        currentFrequency = frequency;
+
+        // Update delay line lengths for new frequency
+        float railDelay = calculateRailDelay();
+        upperRail.setDelay(railDelay);
+        lowerRail.setDelay(railDelay);
+
+        // Update stiffness filter for new frequency
+        stiffnessFilter.setParameters(currentFrequency, stiffnessAmount);
+    }
+}
+
 void WaveguideString::updateFilters()
 {
     // Bridge Filter: Frequency-dependent reflection

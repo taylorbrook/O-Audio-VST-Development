@@ -38,6 +38,11 @@ void HarpSynthVoice::setSympatheticEngine(SympatheticResonanceEngine* engine)
     sympatheticEngine = engine;
 }
 
+void HarpSynthVoice::setTuningEngine(TuningEngine* engine)
+{
+    tuningEngine = engine;
+}
+
 int HarpSynthVoice::getVoiceId() const
 {
     return voiceId;
@@ -47,8 +52,19 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
                                 juce::SynthesiserSound*,
                                 int /*currentPitchWheelPosition*/)
 {
-    currentFrequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+    currentMidiNote = midiNoteNumber;
     currentVelocity = velocity;
+
+    // Phase 2.8: Use TuningEngine for frequency calculation (if available)
+    if (tuningEngine != nullptr)
+    {
+        currentFrequency = tuningEngine->getFrequency(midiNoteNumber);
+    }
+    else
+    {
+        // Fallback to standard JUCE MIDI to frequency conversion
+        currentFrequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+    }
 
     // Default pluck parameters
     float pluckPosition = 0.5f;
@@ -149,6 +165,12 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
 
 void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
 {
+    // Phase 2.8: Clear pitch bend for this note
+    if (tuningEngine != nullptr && currentMidiNote >= 0)
+    {
+        tuningEngine->clearPitchBend(currentMidiNote);
+    }
+
     if (allowTailOff)
     {
         // For plucked strings, we let the natural decay continue
@@ -174,9 +196,23 @@ void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
     }
 }
 
-void HarpSynthVoice::pitchWheelMoved(int /*newPitchWheelValue*/)
+void HarpSynthVoice::pitchWheelMoved(int newPitchWheelValue)
 {
-    // Pitch bend will be implemented in Phase 2.8 (Tuning Engine)
+    // Phase 2.8: Implement pitch bend via TuningEngine
+    if (tuningEngine != nullptr && currentMidiNote >= 0)
+    {
+        // Convert MIDI pitch wheel (0-16383, center=8192) to normalized bend amount (-1.0 to +1.0)
+        const float normalizedBend = (newPitchWheelValue - 8192.0f) / 8192.0f;
+
+        // Set pitch bend for this note in tuning engine
+        tuningEngine->setPitchBend(currentMidiNote, normalizedBend);
+
+        // Recalculate frequency with pitch bend applied
+        currentFrequency = tuningEngine->getFrequency(currentMidiNote);
+
+        // Update string model frequency in real-time
+        stringModel.setFrequency(currentFrequency);
+    }
 }
 
 void HarpSynthVoice::controllerMoved(int /*controllerNumber*/, int /*newControllerValue*/)

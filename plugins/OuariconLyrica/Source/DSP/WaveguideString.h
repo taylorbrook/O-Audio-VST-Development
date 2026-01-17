@@ -108,6 +108,12 @@ public:
     void setMaterial(const StringMaterial& material);
 
     /**
+     * Update frequency in real-time (for pitch bend)
+     * @param frequency New frequency in Hz
+     */
+    void setFrequency(double frequency);
+
+    /**
      * Get current material settings
      * @return Current StringMaterial
      */
