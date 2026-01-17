@@ -17,6 +17,7 @@
 #include "DSP/BodyResonance.h"
 #include "DSP/SympatheticResonance.h"
 #include "DSP/TuningEngine.h"
+#include "DSP/GlissandoController.h"
 
 class HarpSynthVoice : public juce::SynthesiserVoice
 {
@@ -69,6 +70,9 @@ private:
     // Phase 2.6: Body Resonance (modal synthesis)
     BodyResonance bodyResonance;
 
+    // Phase 2.9: Glissando Controller
+    GlissandoController glissandoController;
+
     // APVTS reference for parameter access
     juce::AudioProcessorValueTreeState* parameters = nullptr;
 
@@ -79,6 +83,7 @@ private:
     TuningEngine* tuningEngine = nullptr;
 
     double currentFrequency = 440.0;
+    double previousFrequency = 440.0; // For glissando start point
     float currentVelocity = 0.0f;
     int currentMidiNote = -1; // Current MIDI note number (for pitch bend)
     int voiceId = -1; // Unique ID for sympathetic tracking

@@ -26,6 +26,7 @@ void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
 {
     stringModel.prepare(sampleRate, maxBlockSize);
     bodyResonance.prepare(sampleRate, maxBlockSize);
+    glissandoController.prepare(sampleRate);
 }
 
 void HarpSynthVoice::setAPVTS(juce::AudioProcessorValueTreeState* apvts)
@@ -151,7 +152,45 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
 
             bodyResonance.setBodyParameters(bodySize, woodType, bodyAmount);
         }
+
+        // Phase 2.9: Configure glissando controller
+        auto* glissandoModeParam = parameters->getRawParameterValue("glissandoMode");
+        if (glissandoModeParam != nullptr)
+        {
+            int glissandoModeIndex = static_cast<int>(glissandoModeParam->load());
+            GlissandoMode glissandoMode;
+            switch (glissandoModeIndex)
+            {
+                case 0: glissandoMode = GlissandoMode::Off; break;
+                case 1: glissandoMode = GlissandoMode::Free; break;
+                case 2: glissandoMode = GlissandoMode::ScaleLocked; break;
+                default: glissandoMode = GlissandoMode::Off; break;
+            }
+
+            glissandoController.setMode(glissandoMode);
+
+            // For scale-locked mode, get scale from tuning engine
+            if (glissandoMode == GlissandoMode::ScaleLocked && tuningEngine != nullptr)
+            {
+                // Get 2 octaves of scale frequencies starting from current note
+                std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(midiNoteNumber - 12, 36);
+                glissandoController.setScale(scaleFreqs);
+
+                // Set glissando speed (default 10 notes per second)
+                // TODO: Could add a parameter for this in future
+                glissandoController.setSpeed(10.0f);
+            }
+
+            // Start glissando from previous frequency to new frequency
+            if (glissandoMode != GlissandoMode::Off)
+            {
+                glissandoController.startGlissando(previousFrequency, currentFrequency);
+            }
+        }
     }
+
+    // Store frequency for next glissando
+    previousFrequency = currentFrequency;
 
     // Trigger string model with pluck position and hardness
     stringModel.trigger(currentFrequency, velocity, pluckPosition, fingerHardness);
@@ -240,6 +279,13 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     // Process samples through string model and body resonance
     while (--numSamples >= 0)
     {
+        // Phase 2.9: Update frequency from glissando controller (if active)
+        if (glissandoController.isActive())
+        {
+            double glissandoFreq = glissandoController.getNextFrequency();
+            stringModel.setFrequency(glissandoFreq);
+        }
+
         // Generate one sample from physical model (string)
         float stringSample = stringModel.processSample();
 
