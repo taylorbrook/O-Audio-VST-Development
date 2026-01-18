@@ -46,6 +46,11 @@ private:
     std::unique_ptr<juce::WebSliderRelay> stringStiffnessRelay;
     std::unique_ptr<juce::WebSliderRelay> masterTuneRelay;
     std::unique_ptr<juce::WebSliderRelay> pitchBendRangeRelay;
+    // v1.4.0: New parameters from v1.3.0
+    std::unique_ptr<juce::WebSliderRelay> attackNoiseRelay;
+    std::unique_ptr<juce::WebSliderRelay> sympatheticQRelay;
+    std::unique_ptr<juce::WebSliderRelay> bodyModeSpreadRelay;
+    std::unique_ptr<juce::WebSliderRelay> bridgeBrightnessRelay;
 
     std::unique_ptr<juce::WebComboBoxRelay> stringMaterialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> woodTypeRelay;
@@ -72,6 +77,11 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> stringStiffnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> masterTuneAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> pitchBendRangeAttachment;
+    // v1.4.0: New parameters from v1.3.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> attackNoiseAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticQAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bodyModeSpreadAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bridgeBrightnessAttachment;
 
     std::unique_ptr<juce::WebComboBoxParameterAttachment> stringMaterialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> woodTypeAttachment;

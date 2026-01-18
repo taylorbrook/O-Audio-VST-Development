@@ -2,6 +2,41 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.4.0] - 2026-01-17
+
+### Added
+
+- **Ouaricon Naturalist aesthetic UI redesign**
+  - New WebView interface with warm earth-tone paper texture background
+  - Coral sea-fan botanical overlay (fern_naturalistsmisc1Geor_0089.png) that shifts right as tabs change
+  - Garamond serif typography with wide letter-spacing for classical elegance
+  - Custom slider styling with cream gradient thumbs and inset paper tracks
+  - Styled dropdown menus for choice parameters
+
+- **4-tab interface structure**
+  - **SOUND tab**: All 20 sound parameters organized into 5 logical sections (Main, String, Body, Excitation, Sympathetic)
+  - **TECHNIQUES tab**: Master Tune, Pitch Bend Range, Glissando Mode/Scale
+  - **TUNING tab**: Placeholder for future microtonal tuning system
+  - **EFFECTS tab**: Placeholder for future EQ and compressor
+
+- **Connected 4 missing WebView relays** from v1.3.0 parameters
+  - attackNoise, sympatheticQ, bodyModeSpread, bridgeBrightness now controllable via UI
+
+### Changed
+
+- **Window size reduced** from 800×600 to 700×450 for more compact layout
+- **UI organization** with grouped sections and clear section headers
+- **All parameters accessible** via sliders (float params) and dropdowns (choice params)
+- **Master Volume** moved to footer with "Ouaricon Audio" branding
+
+### Technical Notes
+
+- Inline CSS and JavaScript for simpler asset management
+- Tab-aware botanical overlay animation (shifts right -30px to -180px per tab)
+- Double-click to reset sliders to default values
+- Voice count polling at 100ms intervals
+- Paper texture (paper1.jpg) and botanical image embedded as BinaryData
+
 ## [1.3.2] - 2026-01-17
 
 ### Changed (Code Quality)

@@ -34,6 +34,11 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
     stringStiffnessRelay = std::make_unique<juce::WebSliderRelay>("stringStiffness");
     masterTuneRelay = std::make_unique<juce::WebSliderRelay>("masterTune");
     pitchBendRangeRelay = std::make_unique<juce::WebSliderRelay>("pitchBendRange");
+    // v1.4.0: New parameters from v1.3.0
+    attackNoiseRelay = std::make_unique<juce::WebSliderRelay>("attackNoise");
+    sympatheticQRelay = std::make_unique<juce::WebSliderRelay>("sympatheticQ");
+    bodyModeSpreadRelay = std::make_unique<juce::WebSliderRelay>("bodyModeSpread");
+    bridgeBrightnessRelay = std::make_unique<juce::WebSliderRelay>("bridgeBrightness");
 
     stringMaterialRelay = std::make_unique<juce::WebComboBoxRelay>("stringMaterial");
     woodTypeRelay = std::make_unique<juce::WebComboBoxRelay>("woodType");
@@ -70,6 +75,11 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             .withOptionsFrom(*stringStiffnessRelay)
             .withOptionsFrom(*masterTuneRelay)
             .withOptionsFrom(*pitchBendRangeRelay)
+            // v1.4.0: New parameters from v1.3.0
+            .withOptionsFrom(*attackNoiseRelay)
+            .withOptionsFrom(*sympatheticQRelay)
+            .withOptionsFrom(*bodyModeSpreadRelay)
+            .withOptionsFrom(*bridgeBrightnessRelay)
             // Register all choice relays
             .withOptionsFrom(*stringMaterialRelay)
             .withOptionsFrom(*woodTypeRelay)
@@ -112,6 +122,15 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
         *apvts.getParameter("masterTune"), *masterTuneRelay, nullptr);
     pitchBendRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("pitchBendRange"), *pitchBendRangeRelay, nullptr);
+    // v1.4.0: New parameters from v1.3.0
+    attackNoiseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("attackNoise"), *attackNoiseRelay, nullptr);
+    sympatheticQAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("sympatheticQ"), *sympatheticQRelay, nullptr);
+    bodyModeSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bodyModeSpread"), *bodyModeSpreadRelay, nullptr);
+    bridgeBrightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bridgeBrightness"), *bridgeBrightnessRelay, nullptr);
 
     stringMaterialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("stringMaterial"), *stringMaterialRelay, nullptr);
@@ -130,8 +149,8 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
     // Navigate to UI (uses resource provider)
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
-    // Set editor size
-    setSize(800, 600);
+    // Set editor size - v1.4.0: Reduced from 800x600 to 700x450
+    setSize(700, 450);
 }
 
 OuariconLyricaAudioProcessorEditor::~OuariconLyricaAudioProcessorEditor()
@@ -200,11 +219,16 @@ OuariconLyricaAudioProcessorEditor::getResource(const juce::String& url)
                            BinaryData::app_jsSize,
                            "text/javascript");
 
-    // CSS
-    if (url == "/css/styles.css")
-        return makeResource(BinaryData::styles_css,
-                           BinaryData::styles_cssSize,
-                           "text/css");
+    // v1.4.0: Images for Naturalist aesthetic
+    if (url == "/images/paper1.jpg")
+        return makeResource(BinaryData::paper1_jpg,
+                           BinaryData::paper1_jpgSize,
+                           "image/jpeg");
+
+    if (url == "/images/fern_naturalistsmisc1Geor_0089.png")
+        return makeResource(BinaryData::fern_naturalistsmisc1Geor_0089_png,
+                           BinaryData::fern_naturalistsmisc1Geor_0089_pngSize,
+                           "image/png");
 
     // 404 for unknown resources
     DBG("Resource not found: " + url);

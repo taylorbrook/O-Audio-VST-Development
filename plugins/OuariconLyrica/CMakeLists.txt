@@ -63,6 +63,7 @@ juce_generate_juce_header(OuariconLyrica)
 # ═══════════════════════════════════════════════════════════════════
 # Phase 3.1: WebView UI Resources - Embed as BinaryData
 # ═══════════════════════════════════════════════════════════════════
+# v1.4.0: Added Ouaricon Naturalist aesthetic images
 juce_add_binary_data(OuariconLyricaBinaryData
     SOURCES
         Resources/ui/index.html
@@ -70,6 +71,8 @@ juce_add_binary_data(OuariconLyricaBinaryData
         Resources/ui/js/app.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
+        Resources/ui/images/paper1.jpg
+        Resources/ui/images/fern_naturalistsmisc1Geor_0089.png
 )
 
 # Link binary data to plugin
