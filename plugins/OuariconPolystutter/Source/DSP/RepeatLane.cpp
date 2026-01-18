@@ -177,10 +177,30 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
     // Process repeats
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Check if we need to start a new repeat
+        // Check if we need to start a new repeat (timer-based)
+        // v1.1.16: Also apply crossfade-aware position wrap for timer-triggered repeats
         if (samplesUntilNextRepeat <= 0 && currentRepeat < maxRepeats)
         {
+            double effectiveCaptureLength = static_cast<double>(captureLength) / pitchRatio;
+            int effectiveLength = static_cast<int>(effectiveCaptureLength);
+            const int safeCrossfade = juce::jmin(crossfadeSamples, effectiveLength / 4);
+
+            // Check if we were in the crossfade zone (position near end of capture)
+            // Save old position BEFORE startNewRepeat() resets it
+            double oldPosition = fractionalPlaybackPosition;
+            bool wasInCrossfadeZone = oldPosition >= (effectiveCaptureLength - safeCrossfade);
+
             startNewRepeat();
+
+            // If we were in the crossfade zone, continue from safeCrossfade offset
+            // to avoid replaying the samples that were already crossfaded
+            if (wasInCrossfadeZone && safeCrossfade > 0)
+            {
+                // Calculate how far past the crossfade start we were
+                double positionInCrossfade = oldPosition - (effectiveCaptureLength - safeCrossfade);
+                fractionalPlaybackPosition = positionInCrossfade;
+                playbackPosition = static_cast<int>(fractionalPlaybackPosition);
+            }
         }
 
         // Read from capture buffer at current playback position
@@ -366,7 +386,9 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
                 rightOut = rightOut * oldWeight + newRightOut * newWeight;
             }
 
-            // Apply gain (decay per repeat)
+            // v1.1.18: Apply gain UNCONDITIONALLY after crossfade logic
+            // This fixes the audio regression from v1.1.17 where gain was applied conditionally
+            // inside the if/else, causing audio loss in certain edge cases
             leftOut *= currentGain * volumeLevel;
             rightOut *= currentGain * volumeLevel;
 
@@ -385,9 +407,30 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
             leftOut *= leftGain;
             rightOut *= rightGain;
+        }
 
-            // Advance playback position (pitch ratio affects playback speed)
-            fractionalPlaybackPosition += 1.0;
+        // v1.1.15: Always advance playback position every sample
+        fractionalPlaybackPosition += 1.0;
+        playbackPosition = static_cast<int>(fractionalPlaybackPosition);
+
+        // v1.1.16: Position-based repeat triggering with crossfade-aware wrap
+        // When position exceeds capture length, start new repeat from crossfade offset
+        // This ensures continuity: crossfade ends at start[safeCrossfade], we continue from there
+        if (fractionalPlaybackPosition >= effectiveCaptureLength && currentRepeat < maxRepeats)
+        {
+            // Calculate the crossfade offset we need to skip
+            // (the crossfade already played positions 0 to safeCrossfade)
+            int effectiveLength = static_cast<int>(effectiveCaptureLength);
+            const int safeCrossfade = juce::jmin(crossfadeSamples, effectiveLength / 4);
+
+            // Calculate wrapped position: continue from where crossfade left off
+            double overshoot = fractionalPlaybackPosition - effectiveCaptureLength;
+            double newPosition = static_cast<double>(safeCrossfade) + overshoot;
+
+            startNewRepeat();
+
+            // Override position to maintain continuity (don't start at 0)
+            fractionalPlaybackPosition = newPosition;
             playbackPosition = static_cast<int>(fractionalPlaybackPosition);
         }
 

@@ -2,16 +2,53 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
-## [1.1.14] - 2026-01-17 (WIP)
+## [1.1.18] - 2026-01-17
+
+### Fixed
+
+- **Critical: Audio regression - only clicks heard, no stutter audio**
+  - Root cause: v1.1.17 moved gain application inside conditional if/else blocks
+  - This caused audio loss in edge cases where neither branch applied gain correctly
+  - Fix: Revert to unconditional gain application AFTER crossfade logic (like v1.1.13)
+  - Overlap-add crossfade from v1.1.14 is preserved for smooth loop boundaries
+  - Gain is now ALWAYS applied to ensure audio output in all code paths
+
+## [1.1.17] - 2026-01-17
+
+### Fixed (REVERTED in v1.1.18)
+
+- **Critical: Gain discontinuity causing clicks at every repeat boundary**
+  - Root cause: Decay was applied in startNewRepeat() AFTER the crossfade completed
+  - Crossfade output was at gain 1.0, but next sample was at gain 0.9 (10% drop = click)
+  - Fix: Apply gain BEFORE blending in crossfade - old audio uses current gain, new audio uses next repeat's gain
+  - Crossfade now smoothly transitions from oldGain to newGain (e.g., 1.0 → 0.9)
+  - After startNewRepeat(), currentGain matches what the crossfade ended with = no discontinuity
+  - **NOTE: This fix was reverted in v1.1.18 as it caused complete audio loss**
+
+## [1.1.16] - 2026-01-17
+
+### Fixed
+
+- **Crossfade position wrap causing sample replay**
+  - After crossfade, continue playback from safeCrossfade offset instead of 0
+  - Applied to both timer-based and position-based repeat triggering
+
+## [1.1.15] - 2026-01-17
+
+### Fixed
+
+- **Timer desynchronization causing audio gaps**
+  - Playback position increment was inside audio-reading block, causing position to freeze at capture end
+  - Fix: Move position increment outside the if block so it always advances every sample
+  - Added position-based repeat triggering as fallback for pitch/swing desync
+
+## [1.1.14] - 2026-01-17
 
 ### Changed
 
-- **Loop boundary overlap-add crossfade (work in progress)**
-  - Attempted fix for remaining audio clicks at loop boundaries
-  - Root cause identified: Previous crossfade was NOT true overlap-add
-  - New approach: Detect when approaching end of capture and blend with loop start
+- **Loop boundary overlap-add crossfade**
+  - Detect when approaching end of capture and blend with loop start
   - Crossfade starts BEFORE hitting boundary (not after)
-  - **Status: Still clicking - needs further investigation**
   - Skips during retrigger crossfade or global fade-in to avoid conflicts
 
 ## [1.1.13] - 2026-01-17
