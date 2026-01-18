@@ -47,8 +47,10 @@ function startKnobTextInput(valueElement, state, min, max, formatter, knobElemen
   } else {
     // Use the actual value, formatted appropriately for input
     const formatted = formatter(currentValue);
-    // Extract number from formatted string (e.g., "50%" -> 50, "0st" -> 0)
-    const match = formatted.match(/-?\d+\.?\d*/);
+    // Convert to string first (formatter may return number or string)
+    const formattedStr = String(formatted);
+    // Extract number from formatted string (e.g., "50%" -> 50, "0st" -> 0, "4" -> 4)
+    const match = formattedStr.match(/-?\d+\.?\d*/);
     displayNumber = match ? match[0] : Math.round(currentValue);
   }
 

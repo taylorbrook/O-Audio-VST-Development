@@ -2,6 +2,16 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.4.1] - 2026-01-18
+
+### Fixed
+
+- **Double-click text input now works on all knob types**
+  - Root cause: Formatter for REPS, FILTER, and PAN returns a number, not a string
+  - Calling `.match()` on a number fails silently, preventing text input from appearing
+  - Fix: Convert formatter output to string before regex matching
+  - Now works correctly on: REPS (1-16), PITCH (-12 to +12st), FILTER (-100 to +100), PAN (-100 to +100)
+
 ## [1.4.0] - 2026-01-18
 
 ### Added
