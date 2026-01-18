@@ -2,6 +2,76 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.1.12] - 2026-01-17
+
+### Fixed
+
+- **Comprehensive crossfade system overhaul for ENV and Sidechain trigger modes**
+  - After 7 previous fix attempts (v1.1.5-v1.1.11), conducted root cause analysis identifying 6 remaining issues
+  - All crossfade-related audio artifacts now addressed with industry-standard techniques
+
+- **Equal-power crossfade curve** (replaces linear)
+  - Linear crossfades cause -6dB dip at 50% blend point, perceived as momentary volume drop
+  - Now uses sine/cosine curves: `sin(t * π/2)` for fade-in, `cos(t * π/2)` for fade-out
+  - Maintains constant perceived loudness throughout the crossfade transition
+
+- **Increased crossfade duration from 5ms to 10ms**
+  - 10ms covers 2+ complete cycles at 200Hz (the low end of bass frequencies)
+  - Provides smoother transitions for low-frequency content while remaining imperceptible
+  - Better masks any remaining discontinuities
+
+- **Eliminated double-fading at trigger start**
+  - Root cause: Both global envelope fade-in AND loop boundary fade-in were applying during first 10ms
+  - This caused double attenuation at stutter onset, making the start sound weak/muffled
+  - Fix: Skip loop boundary crossfade while global fade-in is active
+
+- **Fixed deferred capture during retrigger**
+  - Root cause: During retrigger, capture position was deferred to next processBlock()
+  - But the crossfade needed the NEW capture position immediately to blend properly
+  - During the deferral period, crossfade read from stale/incorrect buffer positions
+  - Fix: Calculate capture position immediately for retriggers (buffer already has audio)
+  - Deferred capture only used for initial triggers (where current block isn't in buffer yet)
+
+- **Fixed old position exhaustion artifacts**
+  - Root cause: When old playback position exceeded capture length during crossfade, it clamped to last sample
+  - Repeating the same sample value creates a DC-like signal that sounds like graininess
+  - Fix: When old position exhausts, its contribution is set to zero instead of clamped
+  - The equal-power crossfade naturally handles this - old weight decreases as new weight increases
+  - Result: Smooth transition to new audio without artifacts from repeating last sample
+
+- **Fixed retrigger + loop boundary crossfade overlap** (additional fix)
+  - Root cause: During retrigger, loop boundary crossfade was NOT being skipped
+  - The skip check only looked at `fadeInSamplesRemaining <= 0`, but retriggers don't reset this
+  - Result: Two crossfades applied simultaneously - retrigger blend + loop boundary fade-in
+  - This caused the "new" audio to be double-attenuated during the first 10ms of retrigger
+  - Fix: Also skip loop boundary crossfade when `retriggerCrossfadeActive` is true
+
+## [1.1.11] - 2026-01-17
+
+### Fixed
+
+- **Sample rate compatibility for ENV and Sidechain trigger modes**
+  - Root cause: Envelope follower channel index mismatch
+  - `envelopeFollowerRight` and `sidechainEnvelopeRight` were using `processSample(1, ...)` (channel 1)
+  - But these are separate mono filter instances - each should use channel 0
+  - Channel 1 had different filter state that wasn't properly updated at some sample rates
+  - This caused inconsistent envelope tracking, leading to clicks/graininess at 48k/96k/192kHz
+  - Fix: Changed right channel filters to use `processSample(0, ...)` like left channel
+  - Tested at: 44.1kHz, 48kHz, 96kHz, 192kHz - all modes now work correctly
+
+## [1.1.10] - 2026-01-17
+
+### Fixed
+
+- **Graininess/distortion when ENV triggers near end of repeat cycle**
+  - Root cause: Retrigger crossfade was cut short when old playback position exceeded capture length
+  - The condition `if (oldFractionalPlaybackPosition < oldEffectiveLength)` skipped the blend
+  - But the crossfade still had samples remaining, causing a sudden jump from ~50% blend to 100% new
+  - This created micro-discontinuities (6 detected in test audio) causing audible graininess
+  - Fix: Clamp old position to valid range instead of skipping the blend
+  - Crossfade now always completes its full 5ms duration regardless of old position
+  - Testing: Play audio with ENV mode - should be smooth without graininess
+
 ## [1.1.9] - 2026-01-16
 
 ### Fixed
