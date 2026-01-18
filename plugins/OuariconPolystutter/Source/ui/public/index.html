@@ -322,6 +322,27 @@
       min-width: 42px;
     }
 
+    /* v1.4.0: Double-click text input for knob values */
+    .knob-value-input {
+      width: 50px;
+      height: 14px;
+      font-size: 10px;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      color: #3C2F2F;
+      background: rgba(255, 255, 255, 0.9);
+      border: 1px solid #6B8E4E;
+      border-radius: 2px;
+      text-align: center;
+      outline: none;
+      padding: 0 2px;
+      box-sizing: border-box;
+    }
+
+    .knob-value-input:focus {
+      border-color: #8BA870;
+      box-shadow: 0 0 3px rgba(107, 142, 78, 0.5);
+    }
+
     /* Combo box (dropdown) */
     .combo-container {
       position: absolute;
@@ -955,11 +976,9 @@
           <div class="knob-value" id="mix_wet_value">100%</div>
         </div>
       </div>
-      <!-- Trigger mode toggles (right side) -->
+      <!-- Trigger mode toggles (right side) - v1.3.0: Removed ENV and SC -->
       <div class="footer-toggles">
         <div class="footer-toggle active" id="seq_toggle">SEQ</div>
-        <div class="footer-toggle" id="env_toggle">ENV</div>
-        <div class="footer-toggle" id="sc_toggle">SC</div>
         <div class="footer-toggle" id="midi_toggle">MIDI</div>
         <div class="footer-toggle" id="trig_toggle">TRIG</div>
       </div>

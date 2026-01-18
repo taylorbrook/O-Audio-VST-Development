@@ -2,6 +2,34 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.4.0] - 2026-01-18
+
+### Added
+
+- **Double-click text input for all knobs**
+  - Double-click on any knob dial or its value readout to enter text input mode
+  - Type raw numbers (e.g., "50" for 50%, "-12" for -12 semitones)
+  - Suffix is added automatically based on parameter type (%, st, etc.)
+  - Enter key or click-away confirms the value
+  - Escape key cancels and reverts to original value
+  - Values are clamped to valid parameter range
+  - Works on all 40 knobs: lane controls (REPS, DECAY, PITCH, FILTR, PROB, VOL, PAN, SWING),
+    tape section (SAT, WOW, FLUTTER, HISS, ROLLOFF, DROPOUT), and footer (DRY, WET)
+  - Excludes SUBDIV which is a combo-box/dropdown, not a dial
+  - CSS styled to match the vintage paper aesthetic
+
+## [1.3.2] - 2026-01-18
+
+### Fixed
+
+- **AU not working in Logic Pro (blank UI, no audio processing)**
+  - Root cause: Missing `VERSION` property in CMakeLists.txt caused AU to report Component Version 1.0.0
+  - When v1.3.0 removed the sidechain bus, Logic's cached configuration (from v1.0.0) still expected sidechain
+  - Logic tried to set up a bus configuration that no longer existed, causing initialization failure
+  - Fix: Added `VERSION 1.3.2` to `juce_add_plugin()` in CMakeLists.txt
+  - The version bump forces Logic to invalidate its AU cache and re-query the current bus configuration
+  - AU now correctly reports stereo-only I/O without sidechain
+
 ## [1.3.1] - 2026-01-17
 
 ### Fixed
@@ -13,10 +41,6 @@ All notable changes to Ouaricon Polystutter will be documented in this file.
   - This crashed the WebToggleButtonParameterAttachment initialization, preventing WebView from loading
   - Fix: Removed orphaned relay declarations, WebView option registrations, and parameter attachments from Editor files
   - Files modified: PluginEditor.h (4 lines removed), PluginEditor.cpp (8 lines removed)
-
-### Known Issues
-
-- **AU version blank UI in Logic Pro** - The AU loads (green checkmark) but shows blank UI and doesn't process audio. Standalone and VST3 work correctly. Use VST3 as workaround. See `.bugs/au-blank-ui-logic.md` for investigation notes.
 
 ## [1.3.0] - 2026-01-17
 

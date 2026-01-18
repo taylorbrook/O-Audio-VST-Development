@@ -6,10 +6,180 @@
 
     CRITICAL: Parameter IDs must match PluginProcessor.cpp APVTS exactly
 
+    v1.4.0: Added double-click text input for knob values
+
   ==============================================================================
 */
 
 import * as Juce from "./juce/index.js";
+
+// ========== v1.4.0: DOUBLE-CLICK TEXT INPUT FOR KNOBS ==========
+
+/**
+ * Active text input state (only one input can be active at a time)
+ */
+let activeTextInput = null;
+
+/**
+ * Start text input mode for a knob
+ * @param {HTMLElement} valueElement - The knob-value element to edit
+ * @param {object} state - JUCE slider state
+ * @param {number} min - Parameter minimum value
+ * @param {number} max - Parameter maximum value
+ * @param {function} formatter - Value display formatter
+ * @param {HTMLElement} knobElement - The knob element (for UI update)
+ */
+function startKnobTextInput(valueElement, state, min, max, formatter, knobElement) {
+  // Cancel any existing input
+  if (activeTextInput) {
+    cancelTextInput();
+  }
+
+  // Get current actual value (not normalized)
+  const currentNormalized = state.getNormalisedValue();
+  const currentValue = min + currentNormalized * (max - min);
+
+  // Extract raw number from displayed value (remove suffix like %, st)
+  let displayNumber;
+  if (formatter === null) {
+    // Integer or raw number - just round
+    displayNumber = Math.round(currentValue);
+  } else {
+    // Use the actual value, formatted appropriately for input
+    const formatted = formatter(currentValue);
+    // Extract number from formatted string (e.g., "50%" -> 50, "0st" -> 0)
+    const match = formatted.match(/-?\d+\.?\d*/);
+    displayNumber = match ? match[0] : Math.round(currentValue);
+  }
+
+  // Store original value for cancel
+  const originalNormalized = currentNormalized;
+
+  // Create input element
+  const input = document.createElement("input");
+  input.type = "text";
+  input.className = "knob-value-input";
+  input.value = displayNumber;
+  input.setAttribute("data-original", originalNormalized);
+
+  // Store context for handlers
+  activeTextInput = {
+    input,
+    valueElement,
+    knobElement,
+    state,
+    min,
+    max,
+    formatter,
+    originalNormalized
+  };
+
+  // Hide value text and show input
+  valueElement.style.display = "none";
+  valueElement.parentNode.insertBefore(input, valueElement.nextSibling);
+
+  // Focus and select all
+  input.focus();
+  input.select();
+
+  // Handle Enter key (confirm)
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      confirmTextInput();
+    } else if (e.key === "Escape") {
+      e.preventDefault();
+      cancelTextInput();
+    }
+  });
+
+  // Handle blur (click away = confirm)
+  input.addEventListener("blur", () => {
+    // Small delay to allow click events to process first
+    setTimeout(() => {
+      if (activeTextInput && activeTextInput.input === input) {
+        confirmTextInput();
+      }
+    }, 10);
+  });
+}
+
+/**
+ * Confirm text input and apply value
+ */
+function confirmTextInput() {
+  if (!activeTextInput) return;
+
+  const { input, valueElement, knobElement, state, min, max, formatter } = activeTextInput;
+
+  // Parse input value
+  const inputText = input.value.trim();
+  let rawValue = parseFloat(inputText);
+
+  if (isNaN(rawValue)) {
+    // Invalid input - cancel instead
+    cancelTextInput();
+    return;
+  }
+
+  // Determine if this is a percentage parameter (0-1 normalized displayed as 0-100%)
+  const isPercentage = (min === 0 && max === 1) || (min === 0 && max === 100);
+
+  // For percentage parameters displayed as 0-100%, user types 0-100
+  if (min === 0 && max === 1) {
+    // User types 50 to mean 50% = 0.5 normalized
+    rawValue = rawValue / 100;
+  }
+
+  // Clamp to valid range
+  const clampedValue = Math.max(min, Math.min(max, rawValue));
+
+  // Convert to normalized (0-1)
+  const normalized = (clampedValue - min) / (max - min);
+
+  // Apply to JUCE
+  state.setNormalisedValue(normalized);
+
+  // Update UI
+  updateKnobUI(knobElement, valueElement, normalized, min, max, formatter);
+
+  // Clean up
+  cleanupTextInput();
+}
+
+/**
+ * Cancel text input and revert to original value
+ */
+function cancelTextInput() {
+  if (!activeTextInput) return;
+
+  const { valueElement, knobElement, state, min, max, formatter, originalNormalized } = activeTextInput;
+
+  // Restore original value display
+  updateKnobUI(knobElement, valueElement, originalNormalized, min, max, formatter);
+
+  // Clean up
+  cleanupTextInput();
+}
+
+/**
+ * Clean up text input state
+ */
+function cleanupTextInput() {
+  if (!activeTextInput) return;
+
+  const { input, valueElement } = activeTextInput;
+
+  // Remove input element
+  if (input.parentNode) {
+    input.parentNode.removeChild(input);
+  }
+
+  // Show value text again
+  valueElement.style.display = "";
+
+  activeTextInput = null;
+}
 
 // ========== INITIALIZATION ==========
 
@@ -17,7 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("[Phase 3.2] Initializing parameter bindings...");
   console.log("[Phase 3.2] JUCE backend:", typeof window.__JUCE__ !== "undefined");
 
-  // Bind all parameters (66 main + 64 pattern steps + 2 mix = 132 total)
+  // Bind all parameters (64 main + 64 pattern steps + 2 mix = 130 total) - v1.3.0: removed 2 (ENV/SC)
   bindAllLaneParameters();
   bindTapeParameters();
   bindMixParameters();  // v1.1.0: Wet/dry mix knobs
@@ -31,7 +201,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupFreezeIndicators();
   setupSequencerDimming();  // v1.1.4: Grey out sequencer when SEQ toggle is off
 
-  console.log("[Phase 3.3] All parameter bindings initialized (130 total)");
+  console.log("[v1.3.0] All parameter bindings initialized (128 total)");
 });
 
 // ========== LANE PARAMETERS (4 lanes × 13 params = 52, excluding subdivision) ==========
@@ -88,12 +258,10 @@ function bindMixParameters() {
   console.log("[v1.1.0] Bound wet/dry mix knobs");
 }
 
-// ========== GLOBAL TOGGLES (5 footer buttons - v1.0.2 adds SEQ) ==========
+// ========== GLOBAL TOGGLES (3 footer buttons - v1.3.0: Removed ENV and SC) ==========
 
 function bindGlobalToggles() {
   bindToggle("sequencer_enabled", "seq_toggle");  // v1.0.2: Sequencer enable toggle
-  bindToggle("envelope_enabled", "env_toggle");
-  bindToggle("sidechain_enabled", "sc_toggle");
   bindToggle("midi_enabled", "midi_toggle");
   bindToggle("manual_trigger", "trig_toggle");
 }
@@ -172,6 +340,18 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
     const newValue = state.getNormalisedValue(); // Use method to get normalized value
     updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
   });
+
+  // v1.4.0: Double-click on knob or value to enter text input mode
+  const handleDoubleClick = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    startKnobTextInput(valueElement, state, min, max, formatter, knobElement);
+  };
+
+  knobElement.addEventListener("dblclick", handleDoubleClick);
+  if (valueElement) {
+    valueElement.addEventListener("dblclick", handleDoubleClick);
+  }
 
   console.log(`[Phase 3.2] Bound knob: ${paramId} (HTML: ${elementId})`);
 }
