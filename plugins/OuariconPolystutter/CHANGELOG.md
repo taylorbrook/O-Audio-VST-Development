@@ -2,6 +2,18 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.1.14] - 2026-01-17 (WIP)
+
+### Changed
+
+- **Loop boundary overlap-add crossfade (work in progress)**
+  - Attempted fix for remaining audio clicks at loop boundaries
+  - Root cause identified: Previous crossfade was NOT true overlap-add
+  - New approach: Detect when approaching end of capture and blend with loop start
+  - Crossfade starts BEFORE hitting boundary (not after)
+  - **Status: Still clicking - needs further investigation**
+  - Skips during retrigger crossfade or global fade-in to avoid conflicts
+
 ## [1.1.13] - 2026-01-17
 
 ### Changed

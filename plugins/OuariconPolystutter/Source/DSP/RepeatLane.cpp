@@ -73,6 +73,11 @@ void RepeatLane::reset()
     oldCaptureStartPosition = 0;
     oldFractionalPlaybackPosition = 0.0;
     oldCurrentGain = 1.0f;
+
+    // v1.1.14: Reset loop boundary crossfade state
+    loopCrossfadeActive = false;
+    loopCrossfadeSamplesRemaining = 0;
+    loopOldPlaybackPosition = 0.0;
 }
 
 void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
@@ -299,32 +304,66 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
                 }
             }
 
-            // Apply crossfade at loop boundaries for click-free looping
-            // v1.1.12: Skip during global fade-in OR retrigger crossfade to avoid double-fading
-            // - Global envelope fade-in was double-fading with loop boundary fade-in
-            // - Retrigger crossfade was ALSO double-fading with loop boundary fade-in
-            //   (retrigger doesn't reset fadeInSamplesRemaining, so check was passing)
-            if (fadeInSamplesRemaining <= 0 && !retriggerCrossfadeActive)
-            {
-                int intPosition = static_cast<int>(effectivePosition);
-                int effectiveLength = static_cast<int>(effectiveCaptureLength);
-                const int safeCrossfade = juce::jmin(crossfadeSamples, effectiveLength / 2);
+            // v1.1.14: Loop boundary overlap-add crossfade
+            // Detect when we're approaching the end of capture and blend with loop start
+            // This starts the crossfade BEFORE we hit the boundary (not after)
+            // Skip if retrigger crossfade is active (to avoid double-crossfading)
+            // Skip during global fade-in (first few ms after trigger)
+            int intPosition = static_cast<int>(effectivePosition);
+            int effectiveLength = static_cast<int>(effectiveCaptureLength);
+            const int safeCrossfade = juce::jmin(crossfadeSamples, effectiveLength / 4);
 
-                if (safeCrossfade > 0 && intPosition < safeCrossfade)
+            // Check if we're in the crossfade zone (last safeCrossfade samples of the loop)
+            // AND we have more repeats to do (otherwise let it fade out naturally)
+            // AND not during retrigger crossfade or global fade-in
+            if (safeCrossfade > 0 && intPosition >= effectiveLength - safeCrossfade &&
+                currentRepeat < maxRepeats && !retriggerCrossfadeActive && fadeInSamplesRemaining <= 0)
+            {
+                // Calculate how far into the crossfade zone we are
+                int crossfadePosition = intPosition - (effectiveLength - safeCrossfade);
+                float crossfadeProgress = static_cast<float>(crossfadePosition) / static_cast<float>(safeCrossfade);
+                crossfadeProgress = juce::jlimit(0.0f, 1.0f, crossfadeProgress);
+
+                // Equal-power crossfade weights
+                // At start of zone: oldWeight=1, newWeight=0
+                // At end of zone: oldWeight=0, newWeight=1
+                float newWeight = std::sin(crossfadeProgress * juce::MathConstants<float>::halfPi);
+                float oldWeight = std::cos(crossfadeProgress * juce::MathConstants<float>::halfPi);
+
+                // Current audio (from near end of loop) is the "old" audio being faded out
+                // We already have it in leftOut/rightOut
+
+                // Read "new" audio from the START of the loop (what we'll crossfade into)
+                float newLeftOut = 0.0f;
+                float newRightOut = 0.0f;
+
+                // Calculate position in the START of the loop (mirrors the crossfade position)
+                double newPosition = static_cast<double>(crossfadePosition);
+
+                if (newPosition < effectiveCaptureLength)
                 {
-                    // Fade in at start
-                    float fadeInGain = getCrossfadeGain(intPosition, safeCrossfade, true);
-                    leftOut *= fadeInGain;
-                    rightOut *= fadeInGain;
+                    double newReadOffset = reverseEnabled
+                        ? (captureLength - 1.0 - (newPosition * pitchRatio))
+                        : (newPosition * pitchRatio);
+
+                    newReadOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), newReadOffset);
+
+                    int newBasePos = (captureStartPosition + static_cast<int>(newReadOffset)) % maxCaptureSamples;
+                    int newNextPos = (newBasePos + 1) % maxCaptureSamples;
+                    float newFrac = static_cast<float>(newReadOffset - static_cast<int>(newReadOffset));
+
+                    float newLeft0 = captureBuffer.getSample(0, newBasePos);
+                    float newLeft1 = captureBuffer.getSample(0, newNextPos);
+                    float newRight0 = captureBuffer.getSample(1, newBasePos);
+                    float newRight1 = captureBuffer.getSample(1, newNextPos);
+
+                    newLeftOut = newLeft0 + newFrac * (newLeft1 - newLeft0);
+                    newRightOut = newRight0 + newFrac * (newRight1 - newRight0);
                 }
-                else if (safeCrossfade > 0 && intPosition > effectiveLength - safeCrossfade - 1)
-                {
-                    // Fade out at end
-                    int fadePos = intPosition - (effectiveLength - safeCrossfade);
-                    float fadeOutGain = getCrossfadeGain(fadePos, safeCrossfade, false);
-                    leftOut *= fadeOutGain;
-                    rightOut *= fadeOutGain;
-                }
+
+                // Blend: old (current position near end) fading out, new (loop start) fading in
+                leftOut = leftOut * oldWeight + newLeftOut * newWeight;
+                rightOut = rightOut * oldWeight + newRightOut * newWeight;
             }
 
             // Apply gain (decay per repeat)
@@ -508,9 +547,18 @@ double RepeatLane::calculateSubdivisionSamples(int subdivIndex, double bpm, doub
 
 void RepeatLane::startNewRepeat()
 {
+    // v1.1.14: Loop boundary overlap-add is now handled in processBlock()
+    // by detecting when we approach the end of the capture and starting
+    // the blend early. This ensures the old position is still valid.
+
     // Reset playback position (integer and fractional)
     playbackPosition = 0;
     fractionalPlaybackPosition = 0.0;
+
+    // Reset loop crossfade state (in case it was active)
+    loopCrossfadeActive = false;
+    loopCrossfadeSamplesRemaining = 0;
+    loopOldPlaybackPosition = 0.0;
 
     // Apply decay to gain
     if (currentRepeat > 0)

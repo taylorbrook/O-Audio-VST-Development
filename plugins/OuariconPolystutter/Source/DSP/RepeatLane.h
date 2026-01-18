@@ -133,6 +133,13 @@ private:
     double oldFractionalPlaybackPosition = 0.0;
     float oldCurrentGain = 1.0f;
 
+    // v1.1.14: Loop boundary overlap-add crossfade
+    // When looping back to start, blend end of old loop with start of new loop
+    // to eliminate clicks at loop boundaries (true overlap-add, not sequential fade)
+    bool loopCrossfadeActive = false;
+    int loopCrossfadeSamplesRemaining = 0;
+    double loopOldPlaybackPosition = 0.0;  // Continues playing from old position (fading out)
+
     // Pattern sequencer state
     bool patternSteps[16] = { true, true, true, true, true, true, true, true,
                               true, true, true, true, true, true, true, true };  // All enabled by default
