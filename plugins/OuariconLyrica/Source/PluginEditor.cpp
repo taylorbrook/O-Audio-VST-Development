@@ -59,6 +59,126 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                                                          std::function<void(juce::var)> complete) {
                 complete(juce::var(processorRef.getActiveVoiceCount()));
             })
+            // v1.5.0: Preset Management Native Functions
+            .withNativeFunction("savePreset", [this](const juce::Array<juce::var>& args,
+                                                      std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                auto name = args[0].toString();
+                auto success = processorRef.getPresetManager().savePreset(name);
+                complete(juce::var(success));
+            })
+            .withNativeFunction("loadPreset", [this](const juce::Array<juce::var>& args,
+                                                      std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                auto name = args[0].toString();
+                auto success = processorRef.getPresetManager().loadPreset(name);
+                complete(juce::var(success));
+            })
+            .withNativeFunction("getPresetList", [this](const juce::Array<juce::var>&,
+                                                         std::function<void(juce::var)> complete) {
+                auto presetList = processorRef.getPresetManager().getPresetList();
+                juce::Array<juce::var> result;
+                for (const auto& presetName : presetList)
+                    result.add(juce::var(presetName));
+                complete(juce::var(result));
+            })
+            .withNativeFunction("getCurrentPreset", [this](const juce::Array<juce::var>&,
+                                                            std::function<void(juce::var)> complete) {
+                complete(juce::var(processorRef.getPresetManager().getCurrentPresetName()));
+            })
+            .withNativeFunction("selectNextPreset", [this](const juce::Array<juce::var>&,
+                                                            std::function<void(juce::var)> complete) {
+                auto& pm = processorRef.getPresetManager();
+                juce::String nextPreset = pm.getNextPreset();
+                if (pm.loadPreset(nextPreset))
+                {
+                    complete(juce::var(nextPreset));
+                }
+                else
+                {
+                    complete(juce::var(pm.getCurrentPresetName()));
+                }
+            })
+            .withNativeFunction("selectPreviousPreset", [this](const juce::Array<juce::var>&,
+                                                                std::function<void(juce::var)> complete) {
+                auto& pm = processorRef.getPresetManager();
+                juce::String prevPreset = pm.getPreviousPreset();
+                if (pm.loadPreset(prevPreset))
+                {
+                    complete(juce::var(prevPreset));
+                }
+                else
+                {
+                    complete(juce::var(pm.getCurrentPresetName()));
+                }
+            })
+            // v1.5.1: File dialog functions for Save/Load buttons
+            .withNativeFunction("savePresetWithDialog", [this](const juce::Array<juce::var>&,
+                                                                std::function<void(juce::var)> complete) {
+                auto& pm = processorRef.getPresetManager();
+                auto userDir = pm.getUserPresetsDirectory();
+                userDir.createDirectory();
+
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Preset",
+                    userDir,
+                    "*.json"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto result = fc.getResult();
+                        if (result == juce::File{})
+                        {
+                            complete(juce::var()); // User cancelled
+                            return;
+                        }
+
+                        auto presetName = result.getFileNameWithoutExtension();
+                        if (processorRef.getPresetManager().savePreset(presetName))
+                        {
+                            complete(juce::var(presetName));
+                        }
+                        else
+                        {
+                            complete(juce::var()); // Save failed
+                        }
+                    }
+                );
+            })
+            .withNativeFunction("loadPresetFromFile", [this](const juce::Array<juce::var>&,
+                                                              std::function<void(juce::var)> complete) {
+                auto& pm = processorRef.getPresetManager();
+                auto presetsDir = pm.getPresetsDirectory();
+
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Preset",
+                    presetsDir,
+                    "*.json"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto result = fc.getResult();
+                        if (result == juce::File{})
+                        {
+                            complete(juce::var()); // User cancelled
+                            return;
+                        }
+
+                        if (processorRef.getPresetManager().loadPresetFromFile(result))
+                        {
+                            complete(juce::var(result.getFileNameWithoutExtension()));
+                        }
+                        else
+                        {
+                            complete(juce::var()); // Load failed
+                        }
+                    }
+                );
+            })
             // Register all slider relays
             .withOptionsFrom(*masterVolumeRelay)
             .withOptionsFrom(*brightnessRelay)

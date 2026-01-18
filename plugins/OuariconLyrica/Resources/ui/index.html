@@ -119,6 +119,149 @@
         }
 
         /* ====================================================================
+           v1.5.0: PRESET BAR - Matching Marimba's working implementation
+           ==================================================================== */
+
+        .preset-browser {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            padding: 4px 10px;
+            height: 28px;
+        }
+
+        .preset-arrow {
+            width: 24px;
+            height: 24px;
+            background: rgba(139, 168, 112, 0.5);
+            border: 2px solid #3C5C1A;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            color: #3C2F2F;
+            font-size: 12px;
+            font-weight: bold;
+        }
+
+        .preset-arrow:hover {
+            background: rgba(107, 142, 35, 0.6);
+            border-color: #2a4a10;
+        }
+
+        .preset-arrow:active {
+            background: rgba(107, 142, 35, 0.8);
+            transform: scale(0.95);
+        }
+
+        .preset-name-wrapper {
+            position: relative;
+        }
+
+        .preset-name {
+            font-size: 10px;
+            color: #3C2F2F;
+            min-width: 120px;
+            text-align: center;
+            cursor: pointer;
+            padding: 2px 6px;
+            border-radius: 3px;
+            transition: background 0.15s;
+        }
+
+        .preset-name:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        .preset-name::after {
+            content: ' \u25BC';
+            font-size: 7px;
+            opacity: 0.6;
+        }
+
+        /* Preset dropdown menu */
+        .preset-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            min-width: 180px;
+            max-height: 240px;
+            overflow-y: auto;
+            background: rgba(245, 230, 211, 0.98);
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            z-index: 1000;
+            margin-top: 4px;
+        }
+
+        .preset-dropdown.show {
+            display: block;
+        }
+
+        .preset-dropdown-header {
+            padding: 4px 12px;
+            font-size: 8px;
+            color: #8B7355;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+            background: rgba(212, 196, 176, 0.5);
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 12px;
+            font-size: 10px;
+            color: #3C2F2F;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+        }
+
+        .preset-dropdown-item:last-child {
+            border-bottom: none;
+        }
+
+        .preset-dropdown-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.25);
+            font-weight: 600;
+        }
+
+        /* v1.5.1: Preset action buttons (Save/Load) */
+        .preset-action-btn {
+            padding: 3px 8px;
+            font-size: 9px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            color: #3C2F2F;
+            background: rgba(212, 196, 176, 0.8);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: background 0.15s, transform 0.1s;
+        }
+
+        .preset-action-btn:hover {
+            background: rgba(139, 168, 112, 0.4);
+            border-color: #6B8E4E;
+        }
+
+        .preset-action-btn:active {
+            transform: scale(0.95);
+            background: rgba(139, 168, 112, 0.6);
+        }
+
+        /* ====================================================================
            TAB BAR
            ==================================================================== */
 
@@ -408,6 +551,17 @@
         <!-- Header -->
         <div class="header">
             <span class="title">Ouaricon Lyrica</span>
+            <!-- v1.5.1: Complete Preset Bar with Save/Load -->
+            <div class="preset-browser">
+                <div class="preset-arrow" id="preset-prev" title="Previous preset">&#9664;</div>
+                <div class="preset-name-wrapper">
+                    <div class="preset-name" id="preset-name-display">Default</div>
+                    <div class="preset-dropdown" id="preset-dropdown"></div>
+                </div>
+                <div class="preset-arrow" id="preset-next" title="Next preset">&#9654;</div>
+                <div class="preset-action-btn" id="preset-save" title="Save preset">Save</div>
+                <div class="preset-action-btn" id="preset-load" title="Load preset">Load</div>
+            </div>
             <span class="voice-display">Voices: <span id="voiceCount">0</span>/16</span>
         </div>
 
@@ -835,6 +989,265 @@
 
         setInterval(updateVoiceCount, 100);
         updateVoiceCount();
+
+        // ====================================================================
+        // v1.5.0: PRESET SYSTEM (matching Marimba's working implementation)
+        // ====================================================================
+
+        console.log('[Presets] Initializing preset system...');
+
+        // Get native functions for preset operations
+        const loadPresetNative = Juce.getNativeFunction("loadPreset");
+        const getPresetListNative = Juce.getNativeFunction("getPresetList");
+        const getCurrentPresetNative = Juce.getNativeFunction("getCurrentPreset");
+        const selectNextPresetNative = Juce.getNativeFunction("selectNextPreset");
+        const selectPreviousPresetNative = Juce.getNativeFunction("selectPreviousPreset");
+        // v1.5.1: File dialog functions
+        const savePresetWithDialogNative = Juce.getNativeFunction("savePresetWithDialog");
+        const loadPresetFromFileNative = Juce.getNativeFunction("loadPresetFromFile");
+
+        console.log('[Presets] Native functions obtained:', {
+            loadPreset: !!loadPresetNative,
+            getPresetList: !!getPresetListNative,
+            getCurrentPreset: !!getCurrentPresetNative,
+            selectNext: !!selectNextPresetNative,
+            selectPrevious: !!selectPreviousPresetNative,
+            saveWithDialog: !!savePresetWithDialogNative,
+            loadFromFile: !!loadPresetFromFileNative
+        });
+
+        // Preset display elements
+        const presetNameDisplay = document.getElementById('preset-name-display');
+        const presetDropdown = document.getElementById('preset-dropdown');
+
+        console.log('[Presets] Elements found:', {
+            nameDisplay: !!presetNameDisplay,
+            dropdown: !!presetDropdown
+        });
+
+        // Current preset list (cached for navigation)
+        let presetList = [];
+        let currentPresetIndex = 0;
+
+        // Update preset name display
+        function updatePresetDisplay(presetName) {
+            presetNameDisplay.textContent = presetName || 'Default';
+        }
+
+        // Load preset list from backend
+        async function refreshPresetList() {
+            try {
+                const list = await getPresetListNative();
+                if (Array.isArray(list)) {
+                    presetList = list;
+                    console.log('[Presets] List loaded:', presetList.length, 'presets');
+                }
+            } catch (e) {
+                console.error('[Presets] Failed to load list:', e);
+            }
+        }
+
+        // Populate and show dropdown menu
+        function showPresetDropdown() {
+            console.log('[Presets] Showing dropdown with', presetList.length, 'presets');
+            presetDropdown.innerHTML = '';
+
+            if (presetList.length === 0) {
+                const emptyItem = document.createElement('div');
+                emptyItem.className = 'preset-dropdown-item';
+                emptyItem.textContent = 'No presets available';
+                emptyItem.style.fontStyle = 'italic';
+                emptyItem.style.opacity = '0.6';
+                presetDropdown.appendChild(emptyItem);
+                presetDropdown.classList.add('show');
+                return;
+            }
+
+            // All presets are factory presets for now
+            const header = document.createElement('div');
+            header.className = 'preset-dropdown-header';
+            header.textContent = 'Factory';
+            presetDropdown.appendChild(header);
+
+            presetList.forEach(presetName => {
+                const item = document.createElement('div');
+                item.className = 'preset-dropdown-item';
+                if (presetName === presetNameDisplay.textContent) item.classList.add('active');
+                item.textContent = presetName;
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectPresetFromDropdown(presetName);
+                });
+                presetDropdown.appendChild(item);
+            });
+
+            presetDropdown.classList.add('show');
+        }
+
+        // Hide dropdown
+        function hidePresetDropdown() {
+            presetDropdown.classList.remove('show');
+        }
+
+        // Select preset from dropdown
+        async function selectPresetFromDropdown(presetName) {
+            hidePresetDropdown();
+            try {
+                await loadPresetNative(presetName);
+                updatePresetDisplay(presetName);
+                console.log('[Presets] Selected:', presetName);
+            } catch (e) {
+                console.error('[Presets] Failed to load:', e);
+            }
+        }
+
+        // Initialize preset display
+        async function initializePresets() {
+            console.log('[Presets] Running initializePresets...');
+            await refreshPresetList();
+
+            // Get current preset name
+            try {
+                const currentName = await getCurrentPresetNative();
+                updatePresetDisplay(currentName);
+                console.log('[Presets] Current preset:', currentName);
+
+                // Find index in list
+                currentPresetIndex = presetList.indexOf(currentName);
+                if (currentPresetIndex < 0) currentPresetIndex = 0;
+            } catch (e) {
+                console.error('[Presets] Failed to get current preset:', e);
+            }
+        }
+
+        // ====================================================================
+        // GLOBAL HANDLERS (for inline onclick fallback)
+        // ====================================================================
+        window.handlePrevPreset = async function() {
+            window.showDebug && window.showDebug('Calling prev...');
+            try {
+                const prevName = await selectPreviousPresetNative();
+                window.lastPresetName = prevName;
+                updatePresetDisplay(prevName);
+                window.showDebug && window.showDebug(prevName || 'No preset');
+            } catch (e) {
+                window.showDebug && window.showDebug('Error: ' + e.message);
+            }
+        };
+
+        window.handleNextPreset = async function() {
+            window.showDebug && window.showDebug('Calling next...');
+            try {
+                const nextName = await selectNextPresetNative();
+                window.lastPresetName = nextName;
+                updatePresetDisplay(nextName);
+                window.showDebug && window.showDebug(nextName || 'No preset');
+            } catch (e) {
+                window.showDebug && window.showDebug('Error: ' + e.message);
+            }
+        };
+
+        window.handlePresetNameClick = async function() {
+            if (presetDropdown.classList.contains('show')) {
+                hidePresetDropdown();
+            } else {
+                window.showDebug && window.showDebug('Loading list...');
+                await refreshPresetList();
+                window.showDebug && window.showDebug(presetList.length + ' presets');
+                showPresetDropdown();
+            }
+        };
+
+        // ====================================================================
+        // ATTACH EVENT LISTENERS
+        // ====================================================================
+        const prevBtn = document.getElementById('preset-prev');
+        const nextBtn = document.getElementById('preset-next');
+
+        if (prevBtn) {
+            prevBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                presetNameDisplay.textContent = '<<';
+                try {
+                    const name = await selectPreviousPresetNative();
+                    updatePresetDisplay(name || 'Default');
+                } catch (err) {
+                    updatePresetDisplay('Error');
+                }
+            });
+        }
+
+        if (nextBtn) {
+            nextBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                presetNameDisplay.textContent = '>>';
+                try {
+                    const name = await selectNextPresetNative();
+                    updatePresetDisplay(name || 'Default');
+                } catch (err) {
+                    updatePresetDisplay('Error');
+                }
+            });
+        }
+
+        presetNameDisplay.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            if (presetDropdown.classList.contains('show')) {
+                hidePresetDropdown();
+            } else {
+                await refreshPresetList();
+                showPresetDropdown();
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
+                hidePresetDropdown();
+            }
+        });
+
+        // v1.5.1: Save/Load button handlers
+        const saveBtn = document.getElementById('preset-save');
+        const loadBtn = document.getElementById('preset-load');
+
+        if (saveBtn) {
+            saveBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                console.log('[Presets] Save button clicked');
+                try {
+                    const savedName = await savePresetWithDialogNative();
+                    if (savedName) {
+                        updatePresetDisplay(savedName);
+                        await refreshPresetList();
+                        console.log('[Presets] Saved as:', savedName);
+                    }
+                } catch (err) {
+                    console.error('[Presets] Save failed:', err);
+                }
+            });
+        }
+
+        if (loadBtn) {
+            loadBtn.addEventListener('click', async (e) => {
+                e.stopPropagation();
+                console.log('[Presets] Load button clicked');
+                try {
+                    const loadedName = await loadPresetFromFileNative();
+                    if (loadedName) {
+                        updatePresetDisplay(loadedName);
+                        await refreshPresetList();
+                        console.log('[Presets] Loaded:', loadedName);
+                    }
+                } catch (err) {
+                    console.error('[Presets] Load failed:', err);
+                }
+            });
+        }
+
+        // Initialize preset system
+        initializePresets();
+        console.log('[Presets] Event listeners attached');
     </script>
 </body>
 </html>

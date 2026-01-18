@@ -2,6 +2,68 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.5.1] - 2026-01-18
+
+### Fixed
+
+- **Preset module now fully functional**
+  - Root cause: Preset bar was missing Save/Load buttons and corresponding native function handlers. The C++ side only registered basic preset functions (loadPreset, getPresetList, getCurrentPreset, selectNext/Previous) but lacked file dialog support for saving/loading preset files.
+  - Fix: Added Save and Load buttons to preset bar HTML with matching CSS styling. Registered `savePresetWithDialog` and `loadPresetFromFile` native functions in PluginEditor.cpp using async FileChooser dialogs. Added JavaScript handlers for button click events.
+  - Result: Users can now save custom presets to `~/Library/OuariconLyrica/Presets/User/` and load presets from any location using native file dialogs.
+
+### Added
+
+- **Save button** - Opens file dialog to save current settings as a user preset
+- **Load button** - Opens file dialog to load any .json preset file
+- `savePresetWithDialog` native function with async FileChooser
+- `loadPresetFromFile` native function with async FileChooser
+
+### Technical Notes
+
+- Files modified: index.html (CSS + HTML + JavaScript), PluginEditor.cpp, PluginEditor.h
+- FileChooser uses async launchAsync() pattern for non-blocking dialogs
+- User presets stored in: `~/Library/OuariconLyrica/Presets/User/`
+- Preset bar styling matches Ouaricon Naturalist aesthetic
+
+## [1.5.0] - 2026-01-17
+
+### Added
+
+- **Preset Management System**
+  - Integrated `OuariconPresetManager` module for save/load/navigate presets
+  - Preset bar in header with prev/next navigation and dropdown browser
+  - Botanical/Naturalist aesthetic styling matching UI design
+  - Category-organized dropdown menu with string material groupings
+
+- **48 Factory Presets** organized by string material (6 presets each):
+  - **Gut**: Ancient Lyre, Fireside Tales, Medieval Court, Warm Classical, Bardic Song, Nostalgic Whisper
+  - **Nylon**: Celtic Dawn, Folk Ballad, Gentle Stream, Morning Dew, Pastoral Scene, Harmonic Dreams
+  - **Wire**: Bright Cascade, Articulate Pluck, Concert Grand, Modern Classic, Silver Strings, Pedal Technique
+  - **Carbon**: Crystal Clear, Precision Touch, Extended Range, Studio Session, Clean Articulation, Harmonic Purity
+  - **Metal Alloy**: Brilliant Sustain, Bell Tones, Orchestral Ring, Shimmering Heights, Warm Metallic, Ethereal Chime
+  - **Glass**: Crystalline Voice, Fragile Beauty, Ice Palace, Winter Bells, Delicate Touch, Harmonic Prism
+  - **Crystal**: Pure Resonance, Mystical Glow, Sacred Space, Singing Bowls, Meditation, Angelic Choir
+  - **Energy**: Quantum Strings, Plasma Resonance, Electric Dreams, Cosmic Harp, Neon Glow, Future Primitive
+
+- **Native Functions for WebView Integration**
+  - `savePreset(name)`, `loadPreset(name)`, `getPresetList()`
+  - `getCurrentPreset()`, `selectNextPreset()`, `selectPreviousPreset()`
+  - `isFactoryPreset(name)` for identifying read-only factory presets
+
+### Changed
+
+- **State serialization** now uses preset manager for consistent preset name preservation
+- **Header layout** updated to accommodate preset bar between title and voice counter
+- **Preset storage location**: `~/Library/OuariconLyrica/Presets/Factory/` and `.../User/`
+
+### Technical Notes
+
+- Factory presets auto-initialize on first plugin load
+- Presets stored as JSON with full parameter state
+- Preset bar persists across all tabs (header-level component)
+- Dropdown menu organized by string material categories
+- CMakeLists.txt updated to include modules/persistence/preset-manager/cpp
+
 ## [1.4.0] - 2026-01-17
 
 ### Added

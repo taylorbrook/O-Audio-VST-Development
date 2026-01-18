@@ -92,5 +92,8 @@ private:
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
+    // v1.5.1: File chooser for preset save/load dialogs
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconLyricaAudioProcessorEditor)
 };
