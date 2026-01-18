@@ -166,6 +166,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconLyricaAudioProcessor
         0.2f
     ));
 
+    // v1.3.0: Advanced Physical Modeling Parameters
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "attackNoise", 1 },
+        "Attack Noise",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f  // Default: Material-typical noise amount
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "sympatheticQ", 1 },
+        "Sympathetic Sharpness",
+        juce::NormalisableRange<float>(0.1f, 20.0f, 0.1f, 0.5f),  // Skewed for finer control at low Q
+        5.0f  // Default: Moderate resonance sharpness
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bodyModeSpread", 1 },
+        "Body Mode Spread",
+        juce::NormalisableRange<float>(-1.0f, 1.0f, 0.01f),
+        0.0f  // Default: No spread (original tuning)
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bridgeBrightness", 1 },
+        "Bridge Brightness",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f  // Default: Neutral bridge reflection
+    ));
+
     return layout;
 }
 
@@ -226,6 +255,13 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     if (sympatheticParam != nullptr)
     {
         sympatheticEngine.setIntensity(sympatheticParam->load());
+    }
+
+    // v1.3.0: Update sympathetic resonance Q (sharpness)
+    auto* sympatheticQParam = parameters.getRawParameterValue("sympatheticQ");
+    if (sympatheticQParam != nullptr)
+    {
+        sympatheticEngine.setResonatorQ(sympatheticQParam->load());
     }
 
     // Phase 2.8: Update tuning engine parameters

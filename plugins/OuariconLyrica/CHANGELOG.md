@@ -2,6 +2,46 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.3.0] - 2026-01-17
+
+### Added
+
+- **Attack Noise Amount** - Independent control of pluck transient noise (0-100%)
+  - Overrides material default noise content for user control
+  - 0% = clean attack, 100% = scratchy/noisy attack
+  - Files modified: WaveguideString.h/.cpp (setAttackNoise passthrough), HarpSynthVoice.cpp, PluginProcessor.cpp
+
+- **Sympathetic Sharpness (Q)** - Controls resonator filter Q for sympathetic resonance
+  - Range: 0.1 (broad/diffuse) to 20.0 (sharp/ringing)
+  - Default: 5.0 (moderate sharpness)
+  - Higher Q = more defined resonant peaks, more "shimmer"
+  - Lower Q = broader resonance, more diffuse coupling
+  - Files modified: SympatheticResonance.h/.cpp (setResonatorQ), PluginProcessor.cpp
+
+- **Body Mode Spread** - Controls detuning/spread of body resonance modal frequencies
+  - Range: -100% to +100% (centered at 0%)
+  - 0% = original uniform scaling (modes at harmonic ratios)
+  - Positive = modes spread apart (wider harmonic series)
+  - Negative = modes compress together (tighter harmonic series)
+  - Mode 2 (600Hz base) is the pivot point; modes 0,1 shift down and 3,4 shift up
+  - Files modified: BodyResonance.h/.cpp (setModeSpread, scaleFrequency), HarpSynthVoice.cpp, PluginProcessor.cpp
+
+- **Bridge Brightness** - Direct control of bridge filter cutoff for waveguide reflection
+  - Range: 0-100% (0% = very dark/damped, 50% = neutral, 100% = very bright)
+  - Provides more direct waveguide control than the general brightness parameter
+  - Affects the first-order lowpass filter at the bridge reflection point
+  - Pitch-compensated via calculateFilterGroupDelay()
+  - Files modified: WaveguideString.h/.cpp (setBridgeBrightness), HarpSynthVoice.cpp, PluginProcessor.cpp
+
+### Technical Notes
+
+- All 4 new parameters support real-time modulation via updateParametersFromAPVTS()
+- Attack Noise uses existing PluckExciter.setNoiseAmount() with passthrough from WaveguideString
+- Sympathetic Q updates all existing resonator filters when changed (setResonatorQ)
+- Body Mode Spread formula: `spreadMultiplier = 1.0 + (spread * modeOffset * 0.15)` where modeOffset is -2 to +2
+- Bridge Brightness formula: `modifier = 0.3 + bridgeBrightness * 1.7` (0.3x to 2.0x range)
+- UI additions: 4 new sliders in appropriate sections (Pluck, Sympathetic, Body, Advanced)
+
 ## [1.2.0] - 2026-01-17
 
 ### Added

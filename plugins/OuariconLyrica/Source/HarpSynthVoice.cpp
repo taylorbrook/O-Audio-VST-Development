@@ -152,10 +152,21 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         if (lengthParam != nullptr)
             stringModel.setLength(lengthParam->load());
 
+        // v1.3.0: Set advanced physical modeling parameters
+        auto* attackNoiseParam = parameters->getRawParameterValue("attackNoise");
+        auto* bridgeBrightnessParam = parameters->getRawParameterValue("bridgeBrightness");
+
+        if (attackNoiseParam != nullptr)
+            stringModel.setAttackNoise(attackNoiseParam->load());
+
+        if (bridgeBrightnessParam != nullptr)
+            stringModel.setBridgeBrightness(bridgeBrightnessParam->load());
+
         // Phase 2.6: Set body resonance parameters
         auto* bodySizeParam = parameters->getRawParameterValue("bodySize");
         auto* bodyResonanceParam = parameters->getRawParameterValue("bodyResonance");
         auto* woodTypeParam = parameters->getRawParameterValue("woodType");
+        auto* bodyModeSpreadParam = parameters->getRawParameterValue("bodyModeSpread");  // v1.3.0
 
         if (bodySizeParam != nullptr && bodyResonanceParam != nullptr && woodTypeParam != nullptr)
         {
@@ -175,6 +186,10 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
 
             bodyResonance.setBodyParameters(bodySize, woodType, bodyAmount);
         }
+
+        // v1.3.0: Set body mode spread
+        if (bodyModeSpreadParam != nullptr)
+            bodyResonance.setModeSpread(bodyModeSpreadParam->load());
 
         // Phase 2.9: Configure glissando controller
         auto* glissandoModeParam = parameters->getRawParameterValue("glissandoMode");
@@ -326,6 +341,16 @@ void HarpSynthVoice::updateParametersFromAPVTS()
     if (lengthParam != nullptr)
         stringModel.setLength(lengthParam->load());
 
+    // v1.3.0: Update advanced physical modeling parameters
+    auto* attackNoiseParam = parameters->getRawParameterValue("attackNoise");
+    auto* bridgeBrightnessParam = parameters->getRawParameterValue("bridgeBrightness");
+
+    if (attackNoiseParam != nullptr)
+        stringModel.setAttackNoise(attackNoiseParam->load());
+
+    if (bridgeBrightnessParam != nullptr)
+        stringModel.setBridgeBrightness(bridgeBrightnessParam->load());
+
     // Update string material
     auto* materialParam = parameters->getRawParameterValue("stringMaterial");
     if (materialParam != nullptr)
@@ -348,6 +373,7 @@ void HarpSynthVoice::updateParametersFromAPVTS()
     auto* bodySizeParam = parameters->getRawParameterValue("bodySize");
     auto* bodyResonanceParam = parameters->getRawParameterValue("bodyResonance");
     auto* woodTypeParam = parameters->getRawParameterValue("woodType");
+    auto* bodyModeSpreadParam = parameters->getRawParameterValue("bodyModeSpread");  // v1.3.0
 
     if (bodySizeParam != nullptr && bodyResonanceParam != nullptr && woodTypeParam != nullptr)
     {
@@ -367,6 +393,10 @@ void HarpSynthVoice::updateParametersFromAPVTS()
 
         bodyResonance.setBodyParameters(bodySize, woodType, bodyAmount);
     }
+
+    // v1.3.0: Update body mode spread
+    if (bodyModeSpreadParam != nullptr)
+        bodyResonance.setModeSpread(bodyModeSpreadParam->load());
 }
 
 void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,

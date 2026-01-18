@@ -90,6 +90,20 @@ public:
     void setBrightness(float brightness);
 
     /**
+     * Set bridge brightness (v1.3.0) - direct control of bridge filter character
+     * @param bridgeBrightness 0.0 = very dark/damped reflection, 1.0 = bright/open reflection
+     * This provides more direct waveguide control than the general brightness parameter
+     */
+    void setBridgeBrightness(float bridgeBrightness);
+
+    /**
+     * Set attack noise amount (v1.3.0) - independent of material noise setting
+     * @param noiseAmount 0.0 = clean attack, 1.0 = noisy/scratchy attack
+     * Overrides the material's default noise content for user control
+     */
+    void setAttackNoise(float noiseAmount);
+
+    /**
      * Set pluck position along string (0.0 = nut, 1.0 = bridge)
      * @param position Normalized position 0.0-1.0
      */
@@ -193,6 +207,7 @@ private:
     float tensionAmount = 0.5f;          // String tension (0=loose, 1=tight) - affects resonance/Q
     float gaugeAmount = 0.5f;            // String gauge (0=thin, 1=thick) - affects mass/damping
     float lengthAmount = 0.5f;           // String length (0=short, 1=long) - affects decay character
+    float bridgeBrightnessAmount = 0.5f; // v1.3.0: Bridge brightness (0=dark, 1=bright) - direct bridge control
 
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;

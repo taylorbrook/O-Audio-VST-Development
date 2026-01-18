@@ -56,6 +56,15 @@ public:
     void setBodyParameters(float size, WoodType type, float amount);
 
     /**
+     * Set mode spread (v1.3.0)
+     * @param spread Mode frequency spread (-1.0 to +1.0)
+     * 0 = original tuning (uniform scaling)
+     * Positive = modes spread apart (wider harmonic series)
+     * Negative = modes compress together (tighter harmonic series)
+     */
+    void setModeSpread(float spread);
+
+    /**
      * Process a single sample through body resonance
      * @param input Input sample
      * @return Output sample with body resonance applied
@@ -86,6 +95,7 @@ private:
     double currentSampleRate = 44100.0;
     float bodyAmount = 0.6f;
     float bodySize = 0.5f;
+    float modeSpread = 0.0f;  // v1.3.0: Mode frequency spread (-1 to +1)
     WoodType currentWoodType = WoodType::Spruce;
 
     /**
@@ -116,9 +126,10 @@ private:
     float getModeAmplitude(int modeIndex, WoodType type) const;
 
     /**
-     * Scale frequency based on body size
+     * Scale frequency based on body size and mode spread (v1.3.0)
      * @param baseFreq Base frequency in Hz
+     * @param modeIndex Index of the mode (0-4) for spread calculation
      * @return Scaled frequency in Hz
      */
-    float scaleFrequency(float baseFreq) const;
+    float scaleFrequency(float baseFreq, int modeIndex) const;
 };

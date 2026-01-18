@@ -189,6 +189,28 @@ void WaveguideString::setBrightness(float brightness)
     }
 }
 
+void WaveguideString::setBridgeBrightness(float bridgeBrightness)
+{
+    // v1.3.0: Direct control of bridge filter brightness
+    // This is separate from general brightness, providing more waveguide-specific control
+    bridgeBrightnessAmount = juce::jlimit(0.0f, 1.0f, bridgeBrightness);
+    updateFilters();
+
+    // Recalculate delay for pitch compensation (bridge filter affects group delay)
+    if (currentFrequency > 20.0)
+    {
+        float railDelay = calculateRailDelay();
+        upperRail.setDelay(railDelay);
+        lowerRail.setDelay(railDelay);
+    }
+}
+
+void WaveguideString::setAttackNoise(float noiseAmount)
+{
+    // v1.3.0: Independent attack noise control (overrides material default)
+    exciter.setNoiseAmount(noiseAmount);
+}
+
 void WaveguideString::setPluckPosition(float position)
 {
     pluckPosition = juce::jlimit(0.05f, 0.95f, position);
@@ -296,13 +318,18 @@ void WaveguideString::updateFilters()
     // Bridge Filter: Frequency-dependent reflection
     // Now uses material's brightnessCutoff as base, modulated by brightness parameter
     // v1.2.0: Also modulated by TENSION - higher tension = brighter reflections
+    // v1.3.0: Also modulated by BRIDGE BRIGHTNESS - direct waveguide bridge control
     float materialBrightness = currentMaterial.brightnessCutoff;
 
     // Tension modifier: tension=0 → 0.5x, tension=0.5 → 1.0x, tension=1.0 → 2.0x
     // This creates a VERY audible effect: low tension = dark/muted, high tension = bright/resonant
     float tensionBrightnessModifier = 0.5f + tensionAmount * 1.5f;
 
-    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier;
+    // v1.3.0: Bridge brightness modifier provides direct bridge filter control
+    // bridgeBrightness=0 → 0.3x (very dark), 0.5 → 1.0x (neutral), 1.0 → 2.0x (very bright)
+    float bridgeBrightnessModifier = 0.3f + bridgeBrightnessAmount * 1.7f;
+
+    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier * bridgeBrightnessModifier;
     bridgeCutoffHz = juce::jlimit(300.0f, 20000.0f, bridgeCutoffHz);
 
     bridgeFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
@@ -365,10 +392,12 @@ float WaveguideString::calculateFilterGroupDelay() const
 
     // Bridge filter cutoff (same formula as updateFilters())
     // v1.2.0: Include tension modifier for accurate pitch compensation
+    // v1.3.0: Include bridge brightness modifier
     float materialBrightness = currentMaterial.brightnessCutoff;
     float tensionBrightnessModifier = 0.5f + tensionAmount * 1.5f;
+    float bridgeBrightnessModifier = 0.3f + bridgeBrightnessAmount * 1.7f;
 
-    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier;
+    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier * bridgeBrightnessModifier;
     bridgeCutoffHz = juce::jlimit(300.0f, 20000.0f, bridgeCutoffHz);
 
     // Nut filter cutoff (with tension modifier)

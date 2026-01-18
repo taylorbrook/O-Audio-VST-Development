@@ -81,6 +81,31 @@ function initializeParameters() {
         document.getElementById('stringStiffnessValue').textContent = `${Math.round(value * 100)}%`;
     });
 
+    // v1.3.0: New advanced physical modeling parameters
+    bindSlider('attackNoise', (value) => {
+        document.getElementById('attackNoiseValue').textContent = `${Math.round(value * 100)}%`;
+    });
+
+    bindSlider('sympatheticQ', (value) => {
+        // Skewed range: 0.1-20.0, skew factor 0.5
+        const skew = 0.5;
+        const minVal = 0.1;
+        const maxVal = 20.0;
+        const actual = minVal + Math.pow(value, 1/skew) * (maxVal - minVal);
+        document.getElementById('sympatheticQValue').textContent = `Q ${actual.toFixed(1)}`;
+    });
+
+    bindSlider('bodyModeSpread', (value) => {
+        // Range: -1.0 to +1.0, centered at 0
+        const spread = (value * 2) - 1;  // Convert 0-1 to -1 to +1
+        const sign = spread >= 0 ? '+' : '';
+        document.getElementById('bodyModeSpreadValue').textContent = `${sign}${Math.round(spread * 100)}%`;
+    });
+
+    bindSlider('bridgeBrightness', (value) => {
+        document.getElementById('bridgeBrightnessValue').textContent = `${Math.round(value * 100)}%`;
+    });
+
     bindSlider('masterTune', (value) => {
         const hz = 400 + (value * 80); // 400-480 Hz
         document.getElementById('masterTuneValue').textContent = `${hz.toFixed(1)} Hz`;

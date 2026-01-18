@@ -43,7 +43,7 @@ void SympatheticResonanceEngine::prepare(double newSampleRate, int /*maxBlockSiz
         spec.numChannels = 1;
 
         voiceInfo.resonatorFilter.prepare(spec);
-        designResonatorFilter(voiceInfo.resonatorFilter, voiceInfo.frequency, 5.0f);
+        designResonatorFilter(voiceInfo.resonatorFilter, voiceInfo.frequency, resonatorQ);
     }
 
     // Rebuild coupling matrix with new sample rate
@@ -68,7 +68,7 @@ void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, co
     spec.numChannels = 1;
 
     voiceInfo.resonatorFilter.prepare(spec);
-    designResonatorFilter(voiceInfo.resonatorFilter, frequency, 5.0f);
+    designResonatorFilter(voiceInfo.resonatorFilter, frequency, resonatorQ);
 
     // Add to active voice list if not already present
     if (std::find(activeVoiceIds.begin(), activeVoiceIds.end(), voiceId) == activeVoiceIds.end())
@@ -105,6 +105,24 @@ void SympatheticResonanceEngine::setIntensity(float newIntensity)
     if (std::abs(intensity - oldIntensity) > 0.01f)
     {
         rebuildCouplingMatrix();
+    }
+}
+
+void SympatheticResonanceEngine::setResonatorQ(float Q)
+{
+    float newQ = juce::jlimit(0.1f, 20.0f, Q);
+
+    // Only update if Q changed significantly
+    if (std::abs(newQ - resonatorQ) < 0.05f)
+        return;
+
+    resonatorQ = newQ;
+
+    // Update all existing resonator filters with new Q
+    for (auto& pair : activeVoices)
+    {
+        auto& voiceInfo = pair.second;
+        designResonatorFilter(voiceInfo.resonatorFilter, voiceInfo.frequency, resonatorQ);
     }
 }
 

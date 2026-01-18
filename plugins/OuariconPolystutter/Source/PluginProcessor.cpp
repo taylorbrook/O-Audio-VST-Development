@@ -991,7 +991,7 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         bool globalTrigger = triggerRouter->processTriggerDetection(buffer, sidechainBuffer, midiMessages, numSamples);
 
         // Handle envelope/sidechain triggers (trigger all enabled lanes)
-        // v1.1.12: Per-lane lockout - ignore triggers while lane is actively repeating
+        // v1.1.13: Per-lane lockout - ignore triggers while lane is actively repeating
         if (globalTrigger)
         {
             if (lane1 && lane1Enabled && !lane1->isRepeating()) lane1->trigger();
@@ -1001,7 +1001,7 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         }
 
         // Handle MIDI triggers (per-lane or all lanes)
-        // v1.1.12: Per-lane lockout - ignore triggers while lane is actively repeating
+        // v1.1.13: Per-lane lockout - ignore triggers while lane is actively repeating
         int midiLane = triggerRouter->getMidiTriggeredLane();
         if (midiLane >= 0)
         {

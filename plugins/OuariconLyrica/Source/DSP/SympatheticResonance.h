@@ -65,6 +65,14 @@ public:
     void setIntensity(float intensity);
 
     /**
+     * Set resonator Q (sharpness) for sympathetic filters (v1.3.0)
+     * @param Q Quality factor (0.1 = broad/diffuse, 20.0 = sharp/ringing)
+     * Higher Q = more defined resonant peaks, more "shimmer"
+     * Lower Q = broader resonance, more diffuse coupling
+     */
+    void setResonatorQ(float Q);
+
+    /**
      * Compute sympathetic contribution for a specific voice
      * Called per-sample during voice rendering to add coupled energy
      * from other harmonically related strings.
@@ -116,6 +124,7 @@ private:
     std::unordered_map<int, std::vector<CouplingPair>> couplingMatrix; // Precomputed couplings per voice
     std::vector<int> activeVoiceIds;                  // Fast iteration list
     float intensity;                                   // Global intensity parameter
+    float resonatorQ = 5.0f;                           // v1.3.0: Resonator Q (sharpness)
     double sampleRate;                                 // Current sample rate
 
     /**

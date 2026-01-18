@@ -58,6 +58,18 @@ void BodyResonance::setBodyParameters(float size, WoodType type, float amount)
         updateFilterCoefficients();
 }
 
+void BodyResonance::setModeSpread(float spread)
+{
+    float newSpread = juce::jlimit(-1.0f, 1.0f, spread);
+
+    // Only update if spread changed significantly
+    if (std::abs(newSpread - modeSpread) < 0.01f)
+        return;
+
+    modeSpread = newSpread;
+    updateFilterCoefficients();
+}
+
 float BodyResonance::process(float input)
 {
     // OPTIMIZED: Unrolled 5-mode filter bank (no loop overhead)
@@ -87,7 +99,7 @@ void BodyResonance::updateFilterCoefficients()
 
     for (int i = 0; i < NUM_MODES; ++i)
     {
-        float scaledFreq = scaleFrequency(BASE_FREQUENCIES[i]);
+        float scaledFreq = scaleFrequency(BASE_FREQUENCIES[i], i);
 
         // Clamp to valid range
         scaledFreq = juce::jlimit(20.0f, static_cast<float>(currentSampleRate * 0.45), scaledFreq);
@@ -185,7 +197,7 @@ float BodyResonance::getModeAmplitude(int modeIndex, WoodType type) const
     }
 }
 
-float BodyResonance::scaleFrequency(float baseFreq) const
+float BodyResonance::scaleFrequency(float baseFreq, int modeIndex) const
 {
     // Body size scales from 0.0 (small) to 1.0 (large)
     // Small body = higher frequencies
@@ -198,5 +210,16 @@ float BodyResonance::scaleFrequency(float baseFreq) const
 
     float scaleFactor = 2.0f - (bodySize * 1.5f);
 
-    return baseFreq * scaleFactor;
+    // v1.3.0: Apply mode spread
+    // modeSpread > 0: Higher modes spread further apart (stretch)
+    // modeSpread < 0: Modes compress together (squish)
+    // modeSpread = 0: Original uniform scaling
+    //
+    // Mode 2 (center mode) is the pivot point - it stays relatively fixed
+    // Modes 0,1 shift down/up and modes 3,4 shift up/down based on spread
+
+    float modeOffset = static_cast<float>(modeIndex) - 2.0f;  // -2, -1, 0, +1, +2
+    float spreadMultiplier = 1.0f + (modeSpread * modeOffset * 0.15f);  // ±30% max at extremes
+
+    return baseFreq * scaleFactor * spreadMultiplier;
 }
