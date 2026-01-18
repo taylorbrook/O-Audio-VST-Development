@@ -2,6 +2,28 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.1.4] - 2026-01-17
+
+### Fixed
+
+- **Body parameters (size, resonance, wood type) now have audible effect**
+  - Root cause: `BodyResonance::updateFilterCoefficients()` created peak filters with unity gain (1.0), which meant the resonant frequencies were not actually boosted. The body size affected filter frequencies and wood type affected Q values, but without gain boosting these differences were inaudible.
+  - Fix: Added `getGainForWoodType()` method that returns appropriate linear gain values based on wood type. Peak filters now boost resonant frequencies by 3.5-8 dB depending on wood type.
+  - Wood type gain values:
+    - Spruce: 1.8x (~5.1 dB) - Traditional, balanced resonance
+    - Maple: 1.5x (~3.5 dB) - Warmer, more subtle body
+    - Exotic: 2.2x (~6.8 dB) - Pronounced, rich resonance
+    - Synthetic: 2.5x (~8.0 dB) - Sharp, defined peaks
+  - Result: Body size now audibly shifts resonant frequencies (small=bright, large=deep), wood type creates distinct tonal characters, and body resonance controls wet/dry blend.
+  - Files modified: BodyResonance.h, BodyResonance.cpp
+
+### Technical Notes
+
+- JUCE's `makePeakFilter()` gain parameter is linear (not dB): 1.0 = unity, 2.0 = +6dB
+- Body resonance uses 5-mode modal synthesis at 300, 400, 600, 900, 1200 Hz (scaled by body size)
+- Q factor still varies by wood type (2.5-5.0) controlling resonance sharpness
+- Mode amplitudes also vary by wood type for additional timbral shaping
+
 ## [1.1.3] - 2026-01-17
 
 ### Fixed

@@ -101,6 +101,13 @@ private:
     float getQForWoodType(WoodType type) const;
 
     /**
+     * Get resonance gain for a specific wood type
+     * @param type Wood type
+     * @return Linear gain for peak filter (> 1.0 for boost)
+     */
+    float getGainForWoodType(WoodType type) const;
+
+    /**
      * Get mode amplitude for a specific mode index and wood type
      * @param modeIndex Mode index (0-4)
      * @param type Wood type

@@ -84,6 +84,7 @@ void BodyResonance::reset()
 void BodyResonance::updateFilterCoefficients()
 {
     float Q = getQForWoodType(currentWoodType);
+    float gain = getGainForWoodType(currentWoodType);
 
     for (int i = 0; i < NUM_MODES; ++i)
     {
@@ -92,12 +93,13 @@ void BodyResonance::updateFilterCoefficients()
         // Clamp to valid range
         scaledFreq = juce::jlimit(20.0f, static_cast<float>(currentSampleRate * 0.45), scaledFreq);
 
-        // Create bandpass filter coefficients
+        // Create bandpass filter coefficients with resonance boost
+        // v1.1.4: Fixed - was using unity gain (1.0) which caused no audible effect
         bodyModes[i].coefficients = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
             currentSampleRate,
             scaledFreq,
             Q,
-            1.0f // Unity gain
+            gain  // Resonance boost based on wood type
         );
 
         // Update mode amplitude based on wood type
@@ -127,6 +129,31 @@ float BodyResonance::getQForWoodType(WoodType type) const
 
         default:
             return 3.0f;
+    }
+}
+
+float BodyResonance::getGainForWoodType(WoodType type) const
+{
+    // v1.1.4: Added resonance gain to make body parameters audible
+    // Gain controls how much the resonant frequencies are boosted
+    // Linear gain values (not dB) for makePeakFilter
+
+    switch (type)
+    {
+        case WoodType::Spruce:
+            return 1.8f;  // ~5.1 dB - Traditional, balanced resonance
+
+        case WoodType::Maple:
+            return 1.5f;  // ~3.5 dB - Warmer, more subtle body
+
+        case WoodType::Exotic:
+            return 2.2f;  // ~6.8 dB - Pronounced, rich resonance
+
+        case WoodType::Synthetic:
+            return 2.5f;  // ~8.0 dB - Sharp, defined peaks
+
+        default:
+            return 1.8f;
     }
 }
 
