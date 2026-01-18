@@ -2,6 +2,52 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.3.1] - 2026-01-17
+
+### Fixed
+
+- **Critical: Plugin broken after v1.3.0 parameter removal**
+  - Symptoms: Blank UI (only title visible), no audio processing
+  - Root cause: PluginEditor.cpp/h still had relays and attachments for removed `envelope_enabled` and `sidechain_enabled` parameters
+  - When the Editor constructor called `apvts.getParameter("envelope_enabled")`, it returned nullptr
+  - This crashed the WebToggleButtonParameterAttachment initialization, preventing WebView from loading
+  - Fix: Removed orphaned relay declarations, WebView option registrations, and parameter attachments from Editor files
+  - Files modified: PluginEditor.h (4 lines removed), PluginEditor.cpp (8 lines removed)
+
+## [1.3.0] - 2026-01-17
+
+### Removed
+
+- **ENV (Envelope Trigger) mode** - Removed due to unresolved audio artifacts
+  - The envelope follower triggering caused graininess and clicks that couldn't be reliably fixed
+  - Users should use beat-sync, manual, or MIDI trigger modes instead
+  - Parameter `envelope_enabled` removed from APVTS
+
+- **SC (Sidechain Trigger) mode** - Removed due to unresolved audio artifacts
+  - Sidechain input triggering had similar issues to ENV mode
+  - Sidechain input bus removed from plugin (simplified to stereo I/O only)
+  - Parameter `sidechain_enabled` removed from APVTS
+
+### Changed
+
+- **TriggerRouter simplified to MIDI-only**
+  - Removed envelope follower DSP components
+  - Removed sidechain envelope follower DSP components
+  - Cleaner, lighter codebase focused on working trigger modes
+
+- **UI footer updated**
+  - ENV and SC toggle buttons removed
+  - Remaining triggers: SEQ, MIDI, TRIG (manual)
+
+- **Total parameters reduced from 130 to 128**
+  - Removed 2 boolean parameters (envelope_enabled, sidechain_enabled)
+
+### Migration Notes
+
+- Existing presets using ENV or SC modes will load with those parameters ignored
+- The plugin is now simpler and more reliable for production use
+- For transient-following behavior, consider using MIDI triggering from a gate plugin
+
 ## [1.2.2] - 2026-01-17
 
 ### Fixed

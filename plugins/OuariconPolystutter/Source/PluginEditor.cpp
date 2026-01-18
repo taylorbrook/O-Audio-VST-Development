@@ -92,9 +92,7 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     , mixDryRelay(std::make_unique<juce::WebSliderRelay>("mix_dry"))
     , mixWetRelay(std::make_unique<juce::WebSliderRelay>("mix_wet"))
 
-    // Global control relays
-    , envelopeEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("envelope_enabled"))
-    , sidechainEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("sidechain_enabled"))
+    // Global control relays - v1.3.1: Removed ENV and SC
     , midiEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("midi_enabled"))
     , manualTriggerRelay(std::make_unique<juce::WebToggleButtonRelay>("manual_trigger"))
     , sequencerEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("sequencer_enabled"))  // v1.0.2
@@ -241,9 +239,7 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
             // v1.1.0: Wet/dry mix
             .withOptionsFrom(*mixDryRelay)
             .withOptionsFrom(*mixWetRelay)
-            // Global controls
-            .withOptionsFrom(*envelopeEnabledRelay)
-            .withOptionsFrom(*sidechainEnabledRelay)
+            // Global controls - v1.3.1: Removed ENV and SC
             .withOptionsFrom(*midiEnabledRelay)
             .withOptionsFrom(*manualTriggerRelay)
             .withOptionsFrom(*sequencerEnabledRelay)  // v1.0.2
@@ -456,11 +452,7 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     , mixWetAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.apvts.getParameter("mix_wet"), *mixWetRelay, nullptr))
 
-    // Global control attachments
-    , envelopeEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *processorRef.apvts.getParameter("envelope_enabled"), *envelopeEnabledRelay, nullptr))
-    , sidechainEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *processorRef.apvts.getParameter("sidechain_enabled"), *sidechainEnabledRelay, nullptr))
+    // Global control attachments - v1.3.1: Removed ENV and SC
     , midiEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("midi_enabled"), *midiEnabledRelay, nullptr))
     , manualTriggerAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(

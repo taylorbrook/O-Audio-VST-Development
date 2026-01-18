@@ -106,9 +106,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> mixDryRelay;
     std::unique_ptr<juce::WebSliderRelay> mixWetRelay;
 
-    // Global Controls (4 toggles + 1 sequencer enable)
-    std::unique_ptr<juce::WebToggleButtonRelay> envelopeEnabledRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> sidechainEnabledRelay;
+    // Global Controls (2 toggles + 1 sequencer enable) - v1.3.1: Removed ENV and SC
     std::unique_ptr<juce::WebToggleButtonRelay> midiEnabledRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> manualTriggerRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> sequencerEnabledRelay;  // v1.0.2
@@ -267,9 +265,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> mixDryAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> mixWetAttachment;
 
-    // Global Controls Attachments
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> envelopeEnabledAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> sidechainEnabledAttachment;
+    // Global Controls Attachments - v1.3.1: Removed ENV and SC
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> midiEnabledAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> manualTriggerAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> sequencerEnabledAttachment;  // v1.0.2
