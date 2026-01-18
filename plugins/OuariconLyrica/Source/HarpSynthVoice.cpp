@@ -138,6 +138,20 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         if (stiffnessParam != nullptr)
             stringModel.setStiffness(stiffnessParam->load());
 
+        // v1.2.0: Set advanced string parameters (tension, gauge, length)
+        auto* tensionParam = parameters->getRawParameterValue("stringTension");
+        auto* gaugeParam = parameters->getRawParameterValue("stringGauge");
+        auto* lengthParam = parameters->getRawParameterValue("stringLength");
+
+        if (tensionParam != nullptr)
+            stringModel.setTension(tensionParam->load());
+
+        if (gaugeParam != nullptr)
+            stringModel.setGauge(gaugeParam->load());
+
+        if (lengthParam != nullptr)
+            stringModel.setLength(lengthParam->load());
+
         // Phase 2.6: Set body resonance parameters
         auto* bodySizeParam = parameters->getRawParameterValue("bodySize");
         auto* bodyResonanceParam = parameters->getRawParameterValue("bodyResonance");
@@ -297,6 +311,20 @@ void HarpSynthVoice::updateParametersFromAPVTS()
     auto* stiffnessParam = parameters->getRawParameterValue("stringStiffness");
     if (stiffnessParam != nullptr)
         stringModel.setStiffness(stiffnessParam->load());
+
+    // v1.2.0: Update advanced string parameters (tension, gauge, length) in real-time
+    auto* tensionParam = parameters->getRawParameterValue("stringTension");
+    auto* gaugeParam = parameters->getRawParameterValue("stringGauge");
+    auto* lengthParam = parameters->getRawParameterValue("stringLength");
+
+    if (tensionParam != nullptr)
+        stringModel.setTension(tensionParam->load());
+
+    if (gaugeParam != nullptr)
+        stringModel.setGauge(gaugeParam->load());
+
+    if (lengthParam != nullptr)
+        stringModel.setLength(lengthParam->load());
 
     // Update string material
     auto* materialParam = parameters->getRawParameterValue("stringMaterial");

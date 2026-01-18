@@ -2,6 +2,43 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.2.0] - 2026-01-17
+
+### Added
+
+- **Advanced string parameters now affect sound (tension, gauge, length)**
+  - Root cause: Parameters were defined in PluginProcessor but never connected to DSP. The UI sliders existed but did nothing - only `stringStiffness` was wired up.
+  - Fix: Added setter methods to WaveguideString (`setTension`, `setGauge`, `setLength`) and connected them in HarpSynthVoice.
+
+### Changed
+
+- **String Tension** (0-100%)
+  - Controls string brightness and resonance via bridge/nut filter cutoff frequencies
+  - Low tension (0%): Dark, muted, loose sound - filter cutoffs reduced by 50%
+  - High tension (100%): Bright, resonant, tight sound - filter cutoffs increased by 2x
+  - Pitch remains stable (filter group delay compensation updated)
+
+- **String Gauge** (0-100%)
+  - Controls damping characteristics simulating string mass/thickness
+  - Low gauge (0%): Thin string, bright, quick attack and decay
+  - High gauge (100%): Thick string, dark, heavier tone with more damping
+  - Affects loop damping filter (200Hz - 14kHz range, expanded from 500Hz - 10.5kHz)
+
+- **String Length** (0-100%)
+  - Controls decay envelope character without changing pitch
+  - Short (0%): Punchy, quick decay (70% of base decay time)
+  - Long (100%): Sustained, diffuse decay (160% of base decay time)
+  - Affects feedback coefficient calculation
+
+### Technical Notes
+
+- Files modified: WaveguideString.h, WaveguideString.cpp, HarpSynthVoice.cpp
+- Tension modifier formula: `0.5 + tension * 1.5` (0.5x to 2.0x brightness)
+- Gauge modifier formula: `0.5 + gauge * 1.5` (0.5x to 2.0x damping)
+- Length modifier formula: `0.7 + length * 0.9` (0.7x to 1.6x decay time)
+- `calculateFilterGroupDelay()` updated to include tension/gauge for pitch stability
+- Real-time modulation supported via `updateParametersFromAPVTS()`
+
 ## [1.1.5] - 2026-01-17
 
 ### Changed

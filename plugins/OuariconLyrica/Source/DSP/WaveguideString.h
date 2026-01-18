@@ -108,6 +108,30 @@ public:
     void setStiffness(float stiffness);
 
     /**
+     * Set string tension (affects brightness and resonance)
+     * @param tension 0.0 = loose/dark, 1.0 = tight/bright/resonant
+     * Higher tension increases bridge filter Q and brightness
+     * Does NOT affect pitch (compensated in delay line)
+     */
+    void setTension(float tension);
+
+    /**
+     * Set string gauge (affects mass and damping characteristics)
+     * @param gauge 0.0 = thin/bright/quick, 1.0 = thick/dark/heavy
+     * Thicker gauge increases damping and slows attack transient
+     * Does NOT affect pitch
+     */
+    void setGauge(float gauge);
+
+    /**
+     * Set string length scaling (affects harmonic decay character)
+     * @param length 0.0 = short/tight decay, 1.0 = long/diffuse decay
+     * Affects feedback characteristics without changing pitch
+     * Does NOT affect pitch (only decay envelope shape)
+     */
+    void setLength(float length);
+
+    /**
      * Set string material (Phase 2.5)
      * @param material StringMaterial with physical properties
      */
@@ -165,6 +189,11 @@ private:
     float decayTimeSeconds = 5.0f;       // Time to decay to -60dB
     float feedbackCoefficient = 0.9999f; // Computed from decayTime and frequency
 
+    // Advanced string parameters (v1.2.0) - timbre modifiers without pitch effect
+    float tensionAmount = 0.5f;          // String tension (0=loose, 1=tight) - affects resonance/Q
+    float gaugeAmount = 0.5f;            // String gauge (0=thin, 1=thick) - affects mass/damping
+    float lengthAmount = 0.5f;           // String length (0=short, 1=long) - affects decay character
+
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;
 
@@ -196,6 +225,7 @@ private:
      * For a signal to decay to -60dB in T seconds at frequency f:
      * coefficient = 10^(-3 / (T * f))
      * This gives the per-sample decay needed for the waveguide loop.
+     * v1.2.0: Length parameter affects decay character - longer strings decay slower
      */
     float calculateFeedbackCoefficient() const
     {
@@ -204,7 +234,14 @@ private:
         // Total samples for decay = decayTimeSeconds * sampleRate
         // Cycles for decay = decayTimeSeconds * frequency
         // Per-cycle decay = 10^(-3 / cycles) = 10^(-3 / (T * f))
-        float cyclesForDecay = decayTimeSeconds * static_cast<float>(currentFrequency);
+
+        // v1.2.0: Length modifier - longer strings (high length) have slower decay
+        // Length=0 → 0.7x decay time (faster), Length=0.5 → 1.0x, Length=1.0 → 1.6x (slower)
+        // This creates audible difference: short strings = punchy/quick, long strings = sustained/diffuse
+        float lengthDecayModifier = 0.7f + lengthAmount * 0.9f;
+
+        float effectiveDecayTime = decayTimeSeconds * lengthDecayModifier;
+        float cyclesForDecay = effectiveDecayTime * static_cast<float>(currentFrequency);
         float perCycleDecay = std::pow(10.0f, -3.0f / cyclesForDecay);
         return juce::jlimit(0.9f, 0.99999f, perCycleDecay);
     }
