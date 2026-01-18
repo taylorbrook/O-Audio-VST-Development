@@ -86,7 +86,9 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
     // v1.1.1: Handle fade-out when repeats are finished
     // Instead of abruptly clearing, we fade out over crossfadeSamples
-    if (!isTriggered || currentRepeat >= maxRepeats)
+    // v1.2.1 FIX: Also check that the current repeat has finished playing (timer expired)
+    // This fixes clicks with reps=1 where fade-out started before the repeat played
+    if (!isTriggered || (currentRepeat >= maxRepeats && samplesUntilNextRepeat <= 0))
     {
         // Check if we need to start or continue a fade-out
         if (globalEnvelopeGain > 0.0001f && !fadeOutActive)

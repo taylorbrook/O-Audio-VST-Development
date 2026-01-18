@@ -2,6 +2,17 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.2.1] - 2026-01-17
+
+### Fixed
+
+- **Clicks when reps=1 (single repeat mode)**
+  - Root cause: Fade-out triggered immediately after `startNewRepeat()` incremented counter
+  - With reps=1, `currentRepeat` became 1 after starting the repeat, triggering `currentRepeat >= maxRepeats`
+  - The single repeat was cut off before it could play
+  - Fix: Added check that repeat timer has expired (`samplesUntilNextRepeat <= 0`) before allowing fade-out
+  - Now the full repeat plays before transitioning to fade-out
+
 ## [1.2.0] - 2026-01-17
 
 ### Changed
