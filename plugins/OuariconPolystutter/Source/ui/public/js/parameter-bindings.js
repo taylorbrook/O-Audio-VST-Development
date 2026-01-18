@@ -203,7 +203,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setupFreezeIndicators();
   setupSequencerDimming();  // v1.1.4: Grey out sequencer when SEQ toggle is off
 
-  console.log("[v1.3.0] All parameter bindings initialized (128 total)");
+  // v1.5.0: Lane progress bar updates (from Timer in PluginEditor)
+  setupLaneProgressListener();
+
+  console.log("[v1.5.0] All parameter bindings initialized (128 params + progress bars)");
 });
 
 // ========== LANE PARAMETERS (4 lanes × 13 params = 52, excluding subdivision) ==========
@@ -695,3 +698,79 @@ window.addEventListener("load", () => {
     });
   }
 });
+
+// ========== v1.5.0: LANE PROGRESS BARS ==========
+
+/**
+ * Setup listener for lane progress events from PluginEditor Timer
+ * Receives JSON payload: {"lane1":{"progress":0.5,"active":true},...}
+ */
+function setupLaneProgressListener() {
+  // Get progress bar fill elements
+  const progressElements = {
+    lane1: document.querySelector("#lane1_progress .progress-fill"),
+    lane2: document.querySelector("#lane2_progress .progress-fill"),
+    lane3: document.querySelector("#lane3_progress .progress-fill"),
+    lane4: document.querySelector("#lane4_progress .progress-fill")
+  };
+
+  // Get progress bar containers for dimming
+  const progressContainers = {
+    lane1: document.getElementById("lane1_progress"),
+    lane2: document.getElementById("lane2_progress"),
+    lane3: document.getElementById("lane3_progress"),
+    lane4: document.getElementById("lane4_progress")
+  };
+
+  // Check if elements exist
+  const missingElements = Object.entries(progressElements)
+    .filter(([, el]) => !el)
+    .map(([name]) => name);
+
+  if (missingElements.length > 0) {
+    console.warn(`[v1.5.0] Progress bar fill elements not found: ${missingElements.join(", ")}`);
+  }
+
+  // Listen for custom event from JUCE
+  // JUCE emitEventIfBrowserIsVisible("laneProgress", ...) calls backend.emitByBackend()
+  // which passes the parsed JSON object directly to listeners (not as event.detail)
+  if (window.__JUCE__ && window.__JUCE__.backend) {
+    window.__JUCE__.backend.addEventListener("laneProgress", (payload) => {
+      try {
+        // payload is the JSON string from C++, parse it
+        const data = typeof payload === "string" ? JSON.parse(payload) : payload;
+
+        // Update each lane's progress bar
+        for (let i = 1; i <= 4; i++) {
+          const laneKey = `lane${i}`;
+          const laneData = data[laneKey];
+          const fillElement = progressElements[laneKey];
+          const container = progressContainers[laneKey];
+
+          if (fillElement && laneData) {
+            // Set width based on progress (0-100%)
+            const widthPercent = Math.round(laneData.progress * 100);
+            fillElement.style.width = `${widthPercent}%`;
+
+            // Apply dimmed state when lane is not actively repeating
+            if (container) {
+              if (laneData.active) {
+                container.classList.remove("progress-inactive");
+                container.classList.add("progress-active");
+              } else {
+                container.classList.remove("progress-active");
+                container.classList.add("progress-inactive");
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("[v1.5.0] Error parsing lane progress data:", e);
+      }
+    });
+
+    console.log("[v1.5.0] Lane progress listener installed");
+  } else {
+    console.warn("[v1.5.0] JUCE backend not available - progress bars will not animate");
+  }
+}

@@ -1,9 +1,20 @@
 # Bug: AU Blank UI in Logic Pro (v1.3.1)
 
-**Status:** Open
+**Status:** FIXED in v1.3.2
 **Severity:** Critical
 **Date:** 2026-01-17
 **Version:** 1.3.1
+**Fixed:** 2026-01-18
+
+## Resolution
+
+**Root Cause:** Missing `VERSION` property in CMakeLists.txt caused AU to report Component Version 1.0.0 instead of the current version. When v1.3.0 removed the sidechain bus, Logic's cached AU configuration (from when the plugin was v1.0.0 with sidechain) was still being used because the AU version hadn't changed.
+
+**Fix:** Added `VERSION 1.3.2` to `juce_add_plugin()` in CMakeLists.txt. The version bump forces Logic to invalidate its AU cache and re-query the current bus configuration.
+
+---
+
+## Original Bug Report
 
 ## Symptoms
 

@@ -33,6 +33,7 @@ target_sources(OuariconLyrica
 target_include_directories(OuariconLyrica
     PRIVATE
         Source
+        ${CMAKE_CURRENT_SOURCE_DIR}/../../modules/persistence/preset-manager/cpp
 )
 
 # Required JUCE modules

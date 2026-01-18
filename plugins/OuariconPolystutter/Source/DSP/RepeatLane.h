@@ -59,6 +59,10 @@ public:
     bool isEnabled() const { return enabled; }
     bool isRepeating() const { return currentRepeat < maxRepeats && isTriggered; }
 
+    // v1.5.0: Progress reporting for UI progress bars
+    // Returns 0.0-1.0 representing playback position within captured segment
+    float getProgress() const;
+
 private:
     // State
     bool enabled = true;

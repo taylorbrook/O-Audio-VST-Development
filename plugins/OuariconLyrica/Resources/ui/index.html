@@ -178,7 +178,7 @@
         }
 
         .preset-name::after {
-            content: ' \u25BC';
+            content: ' \25BC';
             font-size: 7px;
             opacity: 0.6;
         }
@@ -839,6 +839,7 @@
     <script type="module">
         import * as Juce from '/js/juce/index.js';
 
+
         // ====================================================================
         // Tab Switching
         // ====================================================================
@@ -952,6 +953,7 @@
 
         // ====================================================================
         // Parameter Bindings - Dropdowns
+        // v1.5.4: Added try-catch to prevent script crash if comboState binding fails
         // ====================================================================
         const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoMode', 'glissandoScale'];
 
@@ -960,19 +962,24 @@
             if (!select) return;
 
             const comboState = Juce.getComboBoxState(paramId);
+            if (!comboState || !comboState.valueChangedEvent) return;
 
-            // Bind to JUCE
-            comboState.valueChangedEvent.addListener(() => {
+            try {
+                // Bind to JUCE
+                comboState.valueChangedEvent.addListener(() => {
+                    select.value = comboState.getChosenIndex();
+                });
+
+                // User interaction
+                select.addEventListener('change', () => {
+                    comboState.setChosenIndex(parseInt(select.value));
+                });
+
+                // Initialize
                 select.value = comboState.getChosenIndex();
-            });
-
-            // User interaction
-            select.addEventListener('change', () => {
-                comboState.setChosenIndex(parseInt(select.value));
-            });
-
-            // Initialize
-            select.value = comboState.getChosenIndex();
+            } catch (err) {
+                console.warn('[Dropdown] Failed to bind ' + paramId + ':', err);
+            }
         });
 
         // ====================================================================
@@ -990,40 +997,19 @@
         setInterval(updateVoiceCount, 100);
         updateVoiceCount();
 
+
         // ====================================================================
-        // v1.5.0: PRESET SYSTEM (matching Marimba's working implementation)
+        // v1.5.4: PRESET SYSTEM - Fixed: Get native functions at CALL TIME
+        // Root cause: Functions obtained at page load may not be registered yet.
+        // Solution: Use same pattern as getVoiceCount - get AND call in one step.
         // ====================================================================
 
         console.log('[Presets] Initializing preset system...');
-
-        // Get native functions for preset operations
-        const loadPresetNative = Juce.getNativeFunction("loadPreset");
-        const getPresetListNative = Juce.getNativeFunction("getPresetList");
-        const getCurrentPresetNative = Juce.getNativeFunction("getCurrentPreset");
-        const selectNextPresetNative = Juce.getNativeFunction("selectNextPreset");
-        const selectPreviousPresetNative = Juce.getNativeFunction("selectPreviousPreset");
-        // v1.5.1: File dialog functions
-        const savePresetWithDialogNative = Juce.getNativeFunction("savePresetWithDialog");
-        const loadPresetFromFileNative = Juce.getNativeFunction("loadPresetFromFile");
-
-        console.log('[Presets] Native functions obtained:', {
-            loadPreset: !!loadPresetNative,
-            getPresetList: !!getPresetListNative,
-            getCurrentPreset: !!getCurrentPresetNative,
-            selectNext: !!selectNextPresetNative,
-            selectPrevious: !!selectPreviousPresetNative,
-            saveWithDialog: !!savePresetWithDialogNative,
-            loadFromFile: !!loadPresetFromFileNative
-        });
 
         // Preset display elements
         const presetNameDisplay = document.getElementById('preset-name-display');
         const presetDropdown = document.getElementById('preset-dropdown');
 
-        console.log('[Presets] Elements found:', {
-            nameDisplay: !!presetNameDisplay,
-            dropdown: !!presetDropdown
-        });
 
         // Current preset list (cached for navigation)
         let presetList = [];
@@ -1037,7 +1023,7 @@
         // Load preset list from backend
         async function refreshPresetList() {
             try {
-                const list = await getPresetListNative();
+                const list = await Juce.getNativeFunction('getPresetList')();
                 if (Array.isArray(list)) {
                     presetList = list;
                     console.log('[Presets] List loaded:', presetList.length, 'presets');
@@ -1074,9 +1060,16 @@
                 item.className = 'preset-dropdown-item';
                 if (presetName === presetNameDisplay.textContent) item.classList.add('active');
                 item.textContent = presetName;
-                item.addEventListener('click', (e) => {
+                item.addEventListener('click', async (e) => {
                     e.stopPropagation();
-                    selectPresetFromDropdown(presetName);
+                    hidePresetDropdown();
+                    try {
+                        await Juce.getNativeFunction('loadPreset')(presetName);
+                        updatePresetDisplay(presetName);
+                        console.log('[Presets] Selected:', presetName);
+                    } catch (err) {
+                        console.error('[Presets] Failed to load:', err);
+                    }
                 });
                 presetDropdown.appendChild(item);
             });
@@ -1089,107 +1082,50 @@
             presetDropdown.classList.remove('show');
         }
 
-        // Select preset from dropdown
-        async function selectPresetFromDropdown(presetName) {
-            hidePresetDropdown();
-            try {
-                await loadPresetNative(presetName);
-                updatePresetDisplay(presetName);
-                console.log('[Presets] Selected:', presetName);
-            } catch (e) {
-                console.error('[Presets] Failed to load:', e);
-            }
-        }
-
-        // Initialize preset display
+        // Initialize presets (get current preset and list)
         async function initializePresets() {
-            console.log('[Presets] Running initializePresets...');
             await refreshPresetList();
 
-            // Get current preset name
             try {
-                const currentName = await getCurrentPresetNative();
+                const currentName = await Juce.getNativeFunction('getCurrentPreset')();
                 updatePresetDisplay(currentName);
                 console.log('[Presets] Current preset:', currentName);
-
-                // Find index in list
                 currentPresetIndex = presetList.indexOf(currentName);
                 if (currentPresetIndex < 0) currentPresetIndex = 0;
             } catch (e) {
                 console.error('[Presets] Failed to get current preset:', e);
             }
+
+            console.log('[Presets] System initialized');
         }
 
         // ====================================================================
-        // GLOBAL HANDLERS (for inline onclick fallback)
+        // EVENT LISTENERS
         // ====================================================================
-        window.handlePrevPreset = async function() {
-            window.showDebug && window.showDebug('Calling prev...');
+
+        // Previous preset button
+        document.getElementById('preset-prev').addEventListener('click', async (e) => {
+            e.stopPropagation();
             try {
-                const prevName = await selectPreviousPresetNative();
-                window.lastPresetName = prevName;
-                updatePresetDisplay(prevName);
-                window.showDebug && window.showDebug(prevName || 'No preset');
-            } catch (e) {
-                window.showDebug && window.showDebug('Error: ' + e.message);
+                const name = await Juce.getNativeFunction('selectPreviousPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Prev failed:', err);
             }
-        };
+        });
 
-        window.handleNextPreset = async function() {
-            window.showDebug && window.showDebug('Calling next...');
+        // Next preset button
+        document.getElementById('preset-next').addEventListener('click', async (e) => {
+            e.stopPropagation();
             try {
-                const nextName = await selectNextPresetNative();
-                window.lastPresetName = nextName;
-                updatePresetDisplay(nextName);
-                window.showDebug && window.showDebug(nextName || 'No preset');
-            } catch (e) {
-                window.showDebug && window.showDebug('Error: ' + e.message);
+                const name = await Juce.getNativeFunction('selectNextPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Next failed:', err);
             }
-        };
+        });
 
-        window.handlePresetNameClick = async function() {
-            if (presetDropdown.classList.contains('show')) {
-                hidePresetDropdown();
-            } else {
-                window.showDebug && window.showDebug('Loading list...');
-                await refreshPresetList();
-                window.showDebug && window.showDebug(presetList.length + ' presets');
-                showPresetDropdown();
-            }
-        };
-
-        // ====================================================================
-        // ATTACH EVENT LISTENERS
-        // ====================================================================
-        const prevBtn = document.getElementById('preset-prev');
-        const nextBtn = document.getElementById('preset-next');
-
-        if (prevBtn) {
-            prevBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                presetNameDisplay.textContent = '<<';
-                try {
-                    const name = await selectPreviousPresetNative();
-                    updatePresetDisplay(name || 'Default');
-                } catch (err) {
-                    updatePresetDisplay('Error');
-                }
-            });
-        }
-
-        if (nextBtn) {
-            nextBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                presetNameDisplay.textContent = '>>';
-                try {
-                    const name = await selectNextPresetNative();
-                    updatePresetDisplay(name || 'Default');
-                } catch (err) {
-                    updatePresetDisplay('Error');
-                }
-            });
-        }
-
+        // Preset name click - toggle dropdown
         presetNameDisplay.addEventListener('click', async (e) => {
             e.stopPropagation();
             if (presetDropdown.classList.contains('show')) {
@@ -1207,47 +1143,43 @@
             }
         });
 
-        // v1.5.1: Save/Load button handlers
-        const saveBtn = document.getElementById('preset-save');
-        const loadBtn = document.getElementById('preset-load');
-
-        if (saveBtn) {
-            saveBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                console.log('[Presets] Save button clicked');
-                try {
-                    const savedName = await savePresetWithDialogNative();
-                    if (savedName) {
-                        updatePresetDisplay(savedName);
-                        await refreshPresetList();
-                        console.log('[Presets] Saved as:', savedName);
-                    }
-                } catch (err) {
-                    console.error('[Presets] Save failed:', err);
+        // Save button - opens file dialog
+        document.getElementById('preset-save').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const savedName = await Juce.getNativeFunction('savePresetWithDialog')();
+                if (savedName) {
+                    updatePresetDisplay(savedName);
+                    await refreshPresetList();
                 }
-            });
-        }
+            } catch (err) {
+                console.error('[Presets] Save failed:', err);
+            }
+        });
 
-        if (loadBtn) {
-            loadBtn.addEventListener('click', async (e) => {
-                e.stopPropagation();
-                console.log('[Presets] Load button clicked');
-                try {
-                    const loadedName = await loadPresetFromFileNative();
-                    if (loadedName) {
-                        updatePresetDisplay(loadedName);
-                        await refreshPresetList();
-                        console.log('[Presets] Loaded:', loadedName);
-                    }
-                } catch (err) {
-                    console.error('[Presets] Load failed:', err);
+        // Load button - opens file dialog
+        document.getElementById('preset-load').addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const loadedName = await Juce.getNativeFunction('loadPresetFromFile')();
+                if (loadedName) {
+                    updatePresetDisplay(loadedName);
+                    await refreshPresetList();
                 }
-            });
-        }
+            } catch (err) {
+                console.error('[Presets] Load failed:', err);
+            }
+        });
+
+        // Callback when preset is loaded (called from C++ if needed)
+        window.onPresetLoaded = function(presetName) {
+            console.log('[Presets] Preset loaded callback:', presetName);
+            updatePresetDisplay(presetName);
+            hidePresetDropdown();
+        };
 
         // Initialize preset system
         initializePresets();
-        console.log('[Presets] Event listeners attached');
     </script>
 </body>
 </html>

@@ -542,3 +542,24 @@ void RepeatLane::setManualTimeEnabled(bool shouldEnable)
 {
     manualTimeEnabled = shouldEnable;
 }
+
+// v1.5.0: Progress reporting for UI progress bars
+float RepeatLane::getProgress() const
+{
+    // Return 0 if not actively repeating or no valid capture
+    if (!isTriggered || captureLength == 0)
+        return 0.0f;
+
+    // Account for pitch ratio affecting effective capture length
+    // Higher pitch = faster playback = shorter effective length
+    double effectiveCaptureLength = static_cast<double>(captureLength) / pitchRatio;
+
+    if (effectiveCaptureLength <= 0.0)
+        return 0.0f;
+
+    // Calculate progress as position within the effective capture length
+    double progress = fractionalPlaybackPosition / effectiveCaptureLength;
+
+    // Clamp to 0.0-1.0 range
+    return static_cast<float>(juce::jlimit(0.0, 1.0, progress));
+}

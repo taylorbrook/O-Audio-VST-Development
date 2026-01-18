@@ -2,6 +2,56 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.5.4] - 2026-01-18
+
+### Fixed
+
+- **Preset UI buttons now fully functional** (prev/next arrows, dropdown, Save/Load)
+  - Root cause: ComboBox (dropdown) binding code was throwing an uncaught error that crashed the entire JavaScript module before preset event listeners could be attached
+  - The error occurred in `comboState.valueChangedEvent.addListener()` for the stringMaterial dropdown
+  - Fix: Added try-catch around comboBox binding to prevent script crash, allowing preset system to initialize
+  - Also changed preset native function calls to use inline get-and-call pattern for robustness
+  - Files modified: Resources/ui/index.html (JavaScript)
+  - See `.bugs/preset-ui-not-connected.md` for full investigation history
+
+### Technical Notes
+
+- ComboBox binding now wrapped in try-catch to prevent cascade failures
+- Preset functions use inline pattern: `await Juce.getNativeFunction('name')()`
+- This matches the working `getVoiceCount` pattern used elsewhere in the code
+
+## [1.5.3] - 2026-01-18
+
+### Changed
+
+- **Refactored preset JavaScript to match Marimba pattern** (fix attempt #3)
+  - Removed `await` from all `getNativeFunction()` calls
+  - Changed `let` to `const` for function references
+  - Simplified event listener attachment
+  - Added `window.onPresetLoaded` callback for C++ integration
+
+### Known Issues (Resolved in v1.5.4)
+
+- **Preset UI buttons still not functional** - arrows, dropdown, Save/Load don't respond
+  - See `.bugs/preset-ui-not-connected.md` for full investigation notes
+  - Three fix attempts made, none successful
+  - Next step: Add debug output to verify if native functions are being obtained
+
+## [1.5.2] - 2026-01-18
+
+### Fixed
+
+- **CSS dropdown arrow now displays correctly** (was showing "u25BC" as text)
+  - Root cause: CSS unicode escape was using JavaScript syntax `\u25BC` instead of CSS syntax `\25BC`
+  - Fix: Changed `content: ' \u25BC'` to `content: ' \25BC'` in preset-name::after
+
+### Changed
+
+- **Refactored preset system JavaScript to avoid top-level await**
+  - JUCE's WebKit WebView doesn't support top-level await in ES modules
+  - Moved all `getNativeFunction()` calls inside async `initializePresetSystem()` function
+  - Event listeners now check if native functions are ready before calling
+
 ## [1.5.1] - 2026-01-18
 
 ### Fixed

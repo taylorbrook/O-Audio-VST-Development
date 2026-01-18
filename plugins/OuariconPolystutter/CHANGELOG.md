@@ -2,6 +2,23 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.5.0] - 2026-01-18
+
+### Added
+
+- **Lane progress bars now animate during repeat playback**
+  - Each lane's progress bar shows real-time playback position within the captured audio segment
+  - Smooth ~30Hz updates from audio thread to WebView UI via custom event system
+  - Progress is pitch-ratio aware (higher pitch = faster playback = shorter effective length)
+  - Visual states:
+    - **Active**: Green fill animates 0-100% as repeat plays
+    - **Inactive**: Bar dimmed (30% opacity) when lane is not currently repeating
+  - Implementation:
+    - `RepeatLane::getProgress()` calculates 0.0-1.0 position accounting for pitch ratio
+    - `PluginProcessor` stores progress/active state in atomic variables (thread-safe)
+    - `PluginEditor` uses juce::Timer at 30Hz to emit `laneProgress` events to WebView
+    - `parameter-bindings.js` listens for events and updates DOM progress bar widths
+
 ## [1.4.1] - 2026-01-18
 
 ### Fixed

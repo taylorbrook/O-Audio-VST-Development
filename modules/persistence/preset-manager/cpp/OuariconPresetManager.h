@@ -198,9 +198,8 @@ inline OuariconPresetManager::OuariconPresetManager(
     : parameters(apvts)
     , pluginName(name)
 {
-    // Ensure directories exist
-    getFactoryPresetsDirectory().createDirectory();
-    getUserPresetsDirectory().createDirectory();
+    // v1.5.0: Directory creation deferred to first use (lazy initialization)
+    // to avoid file I/O during AU validation
 }
 
 inline juce::File OuariconPresetManager::getPresetsDirectory() const
@@ -302,6 +301,9 @@ inline bool OuariconPresetManager::savePreset(const juce::String& presetName)
         juce::Logger::writeToLog("[PresetManager] Cannot overwrite factory preset: " + presetName);
         return false;
     }
+
+    // Ensure directory exists (lazy creation)
+    getUserPresetsDirectory().createDirectory();
 
     auto presetFile = getUserPresetsDirectory().getChildFile(presetName + ".json");
 

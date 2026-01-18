@@ -14,6 +14,7 @@
 #include "HarpSynthVoice.h"
 #include "DSP/SympatheticResonance.h"
 #include "DSP/TuningEngine.h"
+#include "OuariconPresetManager.h"
 
 class OuariconLyricaAudioProcessor : public juce::AudioProcessor
 {
@@ -62,6 +63,11 @@ public:
      */
     int getActiveVoiceCount() const;
 
+    /**
+     * Get preset manager for UI integration (v1.5.0)
+     */
+    OuariconPresetManager& getPresetManager() { return presetManager; }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
@@ -72,8 +78,14 @@ private:
     // Phase 2.8: Tuning Engine (processor-level, shared by all voices)
     TuningEngine tuningEngine;
 
+    // v1.5.0: Preset Manager
+    OuariconPresetManager presetManager;
+
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // v1.5.0: Factory preset initialization
+    void initializeFactoryPresets();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconLyricaAudioProcessor)
 };

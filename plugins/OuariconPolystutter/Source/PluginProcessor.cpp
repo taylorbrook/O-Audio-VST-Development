@@ -476,20 +476,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconPolystutterAudioProc
     ));
 
     // ========================================================================================
-    // GLOBAL CONTROL PARAMETERS (4)
+    // GLOBAL CONTROL PARAMETERS (2) - v1.3.0: Removed ENV and SC triggers
     // ========================================================================================
-
-    layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { "envelope_enabled", 1 },
-        "Envelope Trigger",
-        false
-    ));
-
-    layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { "sidechain_enabled", 1 },
-        "Sidechain Trigger",
-        false
-    ));
 
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "midi_enabled", 1 },
@@ -580,7 +568,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconPolystutterAudioProc
 OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
-                        .withInput("Sidechain", juce::AudioChannelSet::stereo(), false)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , apvts(*this, nullptr, "Parameters", createParameterLayout())
 {
@@ -645,9 +632,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
         lane4PatternSteps[step] = apvts.getRawParameterValue("pattern_lane4_step" + juce::String(step + 1));
     }
 
-    // Cache Phase 2.3 trigger mode apvts
-    envelopeEnabledParam = apvts.getRawParameterValue("envelope_enabled");
-    sidechainEnabledParam = apvts.getRawParameterValue("sidechain_enabled");
+    // Cache trigger mode apvts (v1.3.0: removed ENV and SC)
     midiEnabledParam = apvts.getRawParameterValue("midi_enabled");
     manualTriggerParam = apvts.getRawParameterValue("manual_trigger");
 
@@ -711,8 +696,8 @@ void OuariconPolystutterAudioProcessor::prepareToPlay(double sampleRate, int sam
     if (lane3) lane3->prepare(spec);
     if (lane4) lane4->prepare(spec);
 
-    // Prepare trigger router (Phase 2.3)
-    if (triggerRouter) triggerRouter->prepare(spec);
+    // Reset trigger router state
+    if (triggerRouter) triggerRouter->reset();
 
     // Prepare tape degrader (Phase 2.4)
     if (tapeDegrader) tapeDegrader->prepare(spec);
@@ -755,10 +740,6 @@ bool OuariconPolystutterAudioProcessor::isBusesLayoutSupported(const BusesLayout
 
     // Main input must be stereo
     if (layouts.getMainInputChannelSet() != juce::AudioChannelSet::stereo())
-        return false;
-
-    // Sidechain input (bus index 1) can be disabled or stereo
-    if (layouts.getNumChannels(true, 1) != 0 && layouts.getNumChannels(true, 1) != 2)
         return false;
 
     return true;
@@ -822,10 +803,7 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     float lane4Probability = lane4ProbabilityParam->load();
     float lane4Swing = lane4SwingParam->load();
 
-    // ========== Read Phase 2.3 Parameters (cached pointers) ==========
-    // Global trigger modes
-    bool envelopeEnabled = envelopeEnabledParam->load() > 0.5f;
-    bool sidechainEnabled = sidechainEnabledParam->load() > 0.5f;
+    // ========== Read Trigger Parameters (v1.3.0: removed ENV and SC) ==========
     bool midiEnabled = midiEnabledParam->load() > 0.5f;
     bool currentManualTrigger = manualTriggerParam->load() > 0.5f;
 
@@ -964,41 +942,13 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         }
     }
 
-    // ========== Phase 2.3: Trigger Router Processing ==========
-    // Get sidechain input buffer (bus index 1)
-    // v1.1.9: Only use sidechain if bus is actually enabled by host (user routed audio to it)
-    juce::AudioBuffer<float> sidechainBus;
-    juce::AudioBuffer<float>* sidechainBuffer = nullptr;
-    if (sidechainEnabled && getBusCount(true) > 1)
-    {
-        auto* scBus = getBus(true, 1);
-        if (scBus != nullptr && scBus->isEnabled())
-        {
-            sidechainBus = getBusBuffer(buffer, true, 1);
-            if (sidechainBus.getNumChannels() > 0)
-                sidechainBuffer = &sidechainBus;
-        }
-    }
-
-    // Update trigger router modes
+    // ========== Trigger Router Processing (v1.3.0: removed ENV and SC) ==========
     if (triggerRouter)
     {
-        triggerRouter->setEnvelopeEnabled(envelopeEnabled);
-        triggerRouter->setSidechainEnabled(sidechainEnabled);
         triggerRouter->setMidiEnabled(midiEnabled);
 
-        // Process trigger detection
-        bool globalTrigger = triggerRouter->processTriggerDetection(buffer, sidechainBuffer, midiMessages, numSamples);
-
-        // Handle envelope/sidechain triggers (trigger all enabled lanes)
-        // v1.1.13: Per-lane lockout - ignore triggers while lane is actively repeating
-        if (globalTrigger)
-        {
-            if (lane1 && lane1Enabled && !lane1->isRepeating()) lane1->trigger();
-            if (lane2 && lane2Enabled && !lane2->isRepeating()) lane2->trigger();
-            if (lane3 && lane3Enabled && !lane3->isRepeating()) lane3->trigger();
-            if (lane4 && lane4Enabled && !lane4->isRepeating()) lane4->trigger();
-        }
+        // Process MIDI trigger detection
+        triggerRouter->processMidiTriggerDetection(midiMessages);
 
         // Handle MIDI triggers (per-lane or all lanes)
         // v1.1.13: Per-lane lockout - ignore triggers while lane is actively repeating
@@ -1181,6 +1131,29 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         // Process buffer in-place with tape effects
         tapeDegrader->processBlock(buffer, numSamples);
     }
+
+    // ========== v1.5.0: Update Lane Progress for UI ==========
+    // Store progress and active state in atomics for thread-safe UI access
+    if (lane1)
+    {
+        lane1Progress.store(lane1->getProgress(), std::memory_order_relaxed);
+        lane1Active.store(lane1->isRepeating(), std::memory_order_relaxed);
+    }
+    if (lane2)
+    {
+        lane2Progress.store(lane2->getProgress(), std::memory_order_relaxed);
+        lane2Active.store(lane2->isRepeating(), std::memory_order_relaxed);
+    }
+    if (lane3)
+    {
+        lane3Progress.store(lane3->getProgress(), std::memory_order_relaxed);
+        lane3Active.store(lane3->isRepeating(), std::memory_order_relaxed);
+    }
+    if (lane4)
+    {
+        lane4Progress.store(lane4->getProgress(), std::memory_order_relaxed);
+        lane4Active.store(lane4->isRepeating(), std::memory_order_relaxed);
+    }
 }
 
 juce::AudioProcessorEditor* OuariconPolystutterAudioProcessor::createEditor()
@@ -1252,16 +1225,13 @@ void OuariconPolystutterAudioProcessor::updateBeatSync(const juce::Optional<juce
     // Detect subdivision boundaries and trigger each lane independently
     if (isPlaying)
     {
-        // v1.1.7: Skip beat-sync triggering when alternative trigger modes are active
-        // This prevents conflicts where both beat-sync AND ENV/Sidechain/MIDI trigger simultaneously
-        bool envActive = envelopeEnabledParam->load() > 0.5f;
-        bool sidechainActive = sidechainEnabledParam->load() > 0.5f;
+        // v1.3.0: Skip beat-sync triggering when MIDI trigger mode is active
+        // This prevents conflicts where both beat-sync AND MIDI trigger simultaneously
         bool midiActive = midiEnabledParam->load() > 0.5f;
 
-        if (envActive || sidechainActive || midiActive)
+        if (midiActive)
         {
-            // Alternative trigger mode is active - skip beat-sync triggering
-            // The selected trigger source (ENV/Sidechain/MIDI) handles triggering exclusively
+            // MIDI trigger mode is active - skip beat-sync triggering
             lastPPQPosition = ppqPosition;
             wasPlaying = isPlaying;
             return;

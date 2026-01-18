@@ -49,6 +49,17 @@ public:
     // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
     juce::AudioProcessorValueTreeState apvts;
 
+    // v1.5.0: Lane progress state for UI progress bars (thread-safe)
+    // Updated in processBlock, read by Editor Timer
+    std::atomic<float> lane1Progress { 0.0f };
+    std::atomic<float> lane2Progress { 0.0f };
+    std::atomic<float> lane3Progress { 0.0f };
+    std::atomic<float> lane4Progress { 0.0f };
+    std::atomic<bool> lane1Active { false };
+    std::atomic<bool> lane2Active { false };
+    std::atomic<bool> lane3Active { false };
+    std::atomic<bool> lane4Active { false };
+
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
@@ -129,9 +140,7 @@ private:
     std::atomic<float>* lane3PatternSteps[16];
     std::atomic<float>* lane4PatternSteps[16];
 
-    // Phase 2.3: Cached parameter pointers for trigger modes
-    std::atomic<float>* envelopeEnabledParam = nullptr;
-    std::atomic<float>* sidechainEnabledParam = nullptr;
+    // Cached trigger mode pointers (v1.3.0: removed ENV and SC)
     std::atomic<float>* midiEnabledParam = nullptr;
     std::atomic<float>* manualTriggerParam = nullptr;
 

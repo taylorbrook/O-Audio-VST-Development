@@ -265,7 +265,22 @@
       height: 100%;
       width: 0%;
       background: #6B8E4E;
-      transition: width 100ms linear;
+      transition: width 33ms linear;  /* v1.5.0: Faster transitions for ~30Hz updates */
+    }
+
+    /* v1.5.0: Progress bar active/inactive states */
+    .progress-bar.progress-active .progress-fill {
+      background: #6B8E4E;  /* Green when active */
+      opacity: 1;
+    }
+
+    .progress-bar.progress-inactive {
+      opacity: 0.3;  /* Dimmed when lane not repeating */
+    }
+
+    .progress-bar.progress-inactive .progress-fill {
+      background: #8B7355;  /* Muted brown when inactive */
+      width: 0% !important;  /* Reset to 0 when inactive */
     }
 
     /* COMPACT knob container */

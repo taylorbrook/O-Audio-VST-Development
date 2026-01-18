@@ -12,7 +12,8 @@
 #include "PluginProcessor.h"
 #include <optional>
 
-class OuariconPolystutterAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconPolystutterAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                                private juce::Timer
 {
 public:
     explicit OuariconPolystutterAudioProcessorEditor(OuariconPolystutterAudioProcessor&);
@@ -20,6 +21,10 @@ public:
 
     void paint(juce::Graphics&) override;
     void resized() override;
+
+private:
+    // v1.5.0: Timer callback for lane progress updates (~30Hz)
+    void timerCallback() override;
 
 private:
     OuariconPolystutterAudioProcessor& processorRef;

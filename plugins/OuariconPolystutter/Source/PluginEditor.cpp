@@ -598,11 +598,16 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     // Fixed window size: 1000×830px (v1.1.2: expanded for better lane control spacing)
     setSize(1000, 830);
 
+    // v1.5.0: Start timer for lane progress updates (~30Hz for smooth animation)
+    startTimerHz(30);
+
     DBG("[Phase 3.3] Parameter bindings initialized - 128 relays + 128 attachments (incl. 64 pattern steps)");
 }
 
 OuariconPolystutterAudioProcessorEditor::~OuariconPolystutterAudioProcessorEditor()
 {
+    // v1.5.0: Stop timer before destruction
+    stopTimer();
 }
 
 void OuariconPolystutterAudioProcessorEditor::paint(juce::Graphics& g)
@@ -681,4 +686,49 @@ OuariconPolystutterAudioProcessorEditor::getResource(const juce::String& url)
     // Resource not found - log for debugging
     DBG("[Phase 3.1] Resource not found: " + url);
     return std::nullopt;
+}
+
+// v1.5.0: Timer callback for lane progress updates
+void OuariconPolystutterAudioProcessorEditor::timerCallback()
+{
+    // Read progress values from processor atomics (thread-safe)
+    float p1 = processorRef.lane1Progress.load(std::memory_order_relaxed);
+    float p2 = processorRef.lane2Progress.load(std::memory_order_relaxed);
+    float p3 = processorRef.lane3Progress.load(std::memory_order_relaxed);
+    float p4 = processorRef.lane4Progress.load(std::memory_order_relaxed);
+
+    bool a1 = processorRef.lane1Active.load(std::memory_order_relaxed);
+    bool a2 = processorRef.lane2Active.load(std::memory_order_relaxed);
+    bool a3 = processorRef.lane3Active.load(std::memory_order_relaxed);
+    bool a4 = processorRef.lane4Active.load(std::memory_order_relaxed);
+
+    // Build payload as DynamicObject for proper JSON serialization
+    auto payload = std::make_unique<juce::DynamicObject>();
+
+    auto lane1 = std::make_unique<juce::DynamicObject>();
+    lane1->setProperty("progress", p1);
+    lane1->setProperty("active", a1);
+    payload->setProperty("lane1", lane1.release());
+
+    auto lane2 = std::make_unique<juce::DynamicObject>();
+    lane2->setProperty("progress", p2);
+    lane2->setProperty("active", a2);
+    payload->setProperty("lane2", lane2.release());
+
+    auto lane3 = std::make_unique<juce::DynamicObject>();
+    lane3->setProperty("progress", p3);
+    lane3->setProperty("active", a3);
+    payload->setProperty("lane3", lane3.release());
+
+    auto lane4 = std::make_unique<juce::DynamicObject>();
+    lane4->setProperty("progress", p4);
+    lane4->setProperty("active", a4);
+    payload->setProperty("lane4", lane4.release());
+
+    // Emit custom event to WebView
+    // Use emitEventIfBrowserIsVisible to avoid unnecessary work when UI is hidden
+    if (webView)
+    {
+        webView->emitEventIfBrowserIsVisible("laneProgress", juce::var(payload.release()));
+    }
 }
