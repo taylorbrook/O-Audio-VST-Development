@@ -14,6 +14,10 @@ All notable changes to Ouaricon Polystutter will be documented in this file.
   - Fix: Removed orphaned relay declarations, WebView option registrations, and parameter attachments from Editor files
   - Files modified: PluginEditor.h (4 lines removed), PluginEditor.cpp (8 lines removed)
 
+### Known Issues
+
+- **AU version blank UI in Logic Pro** - The AU loads (green checkmark) but shows blank UI and doesn't process audio. Standalone and VST3 work correctly. Use VST3 as workaround. See `.bugs/au-blank-ui-logic.md` for investigation notes.
+
 ## [1.3.0] - 2026-01-17
 
 ### Removed
