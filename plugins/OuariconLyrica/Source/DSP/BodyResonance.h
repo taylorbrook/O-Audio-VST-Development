@@ -23,6 +23,13 @@ enum class WoodType
     Synthetic = 3
 };
 
+/** Convert parameter index to WoodType (v1.3.1 simplification) */
+inline WoodType woodTypeFromIndex(int index)
+{
+    index = juce::jlimit(0, 3, index);
+    return static_cast<WoodType>(index);
+}
+
 /**
  * Body Resonance Module
  *

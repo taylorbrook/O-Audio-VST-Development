@@ -262,6 +262,23 @@ private:
     }
 
     /**
+     * v1.3.1: Struct to hold computed filter cutoff frequencies
+     * Used by both updateFilters() and calculateFilterGroupDelay() to avoid duplication
+     */
+    struct FilterCutoffs
+    {
+        float bridgeCutoffHz;
+        float nutCutoffHz;
+        float dampingCutoffHz;
+    };
+
+    /**
+     * v1.3.1: Calculate all filter cutoff frequencies based on current parameters
+     * This centralizes the calculation that was previously duplicated
+     */
+    FilterCutoffs calculateFilterCutoffs() const;
+
+    /**
      * Update all filter coefficients based on current parameters
      */
     void updateFilters();

@@ -9,6 +9,17 @@
 
 #include "BodyResonance.h"
 
+// v1.3.1: Named constants for mix coefficients (previously magic numbers)
+namespace
+{
+    // Maximum dry signal reduction at bodyAmount=1.0
+    // Keeps some dry signal even at maximum body resonance
+    constexpr float MAX_DRY_REDUCTION = 0.6f;
+
+    // Wet signal gain multiplier (v1.1.5: Increased from 0.3 for audible effect)
+    constexpr float WET_GAIN_MULTIPLIER = 0.7f;
+}
+
 BodyResonance::BodyResonance()
 {
     // Initialize mode amplitudes to default values
@@ -81,9 +92,9 @@ float BodyResonance::process(float input)
         bodyModes[3].processSample(input) * modeAmplitudes[3] +
         bodyModes[4].processSample(input) * modeAmplitudes[4];
 
-    // Mix dry/wet - v1.1.5: Increased wet mix from 0.3 to 0.7 for audible effect
-    float dryAmount = 1.0f - (bodyAmount * 0.6f);  // Keep some dry signal even at max
-    return input * dryAmount + resonantOutput * (0.7f * bodyAmount);
+    // Mix dry/wet - v1.1.5: Increased wet mix for audible effect
+    float dryAmount = 1.0f - (bodyAmount * MAX_DRY_REDUCTION);
+    return input * dryAmount + resonantOutput * (WET_GAIN_MULTIPLIER * bodyAmount);
 }
 
 void BodyResonance::reset()

@@ -26,6 +26,13 @@ enum class GlissandoMode
     ScaleLocked = 2   // Step through scale degrees (discrete steps)
 };
 
+/** Convert parameter index to GlissandoMode (v1.3.1 simplification) */
+inline GlissandoMode glissandoModeFromIndex(int index)
+{
+    index = juce::jlimit(0, 2, index);
+    return static_cast<GlissandoMode>(index);
+}
+
 /**
  * GlissandoController: Implements smooth and scale-locked pitch sweeps
  *

@@ -13,16 +13,13 @@ juce_add_plugin(OuariconLyrica
 )
 
 # Source files
+# v1.3.1: Removed unused files (HarpSynthSound.cpp, DelayLine, StringVoice, BridgeFilter)
 target_sources(OuariconLyrica
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
-        Source/HarpSynthSound.cpp
         Source/HarpSynthVoice.cpp
-        Source/DSP/DelayLine.cpp
-        Source/DSP/StringVoice.cpp
         Source/DSP/WaveguideString.cpp
-        Source/DSP/BridgeFilter.cpp
         Source/DSP/PluckExciter.cpp
         Source/DSP/StiffnessFilter.cpp
         Source/DSP/StringMaterial.cpp

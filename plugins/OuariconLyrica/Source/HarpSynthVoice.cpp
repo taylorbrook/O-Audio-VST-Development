@@ -122,16 +122,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         if (techniqueParam != nullptr)
         {
             int techniqueIndex = static_cast<int>(techniqueParam->load());
-            PlayingTechnique technique;
-            switch (techniqueIndex)
-            {
-                case 0: technique = PlayingTechnique::Normal; break;
-                case 1: technique = PlayingTechnique::Harmonic; break;
-                case 2: technique = PlayingTechnique::Muted; break;
-                case 3: technique = PlayingTechnique::PresDeLaTable; break;
-                default: technique = PlayingTechnique::Normal; break;
-            }
-            stringModel.setTechnique(technique);
+            stringModel.setTechnique(techniqueFromIndex(techniqueIndex));
         }
 
         // Phase 2.4: Set string stiffness (inharmonicity)
@@ -173,18 +164,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             float bodySize = bodySizeParam->load();
             float bodyAmount = bodyResonanceParam->load();
             int woodTypeIndex = static_cast<int>(woodTypeParam->load());
-
-            WoodType woodType;
-            switch (woodTypeIndex)
-            {
-                case 0: woodType = WoodType::Spruce; break;
-                case 1: woodType = WoodType::Maple; break;
-                case 2: woodType = WoodType::Exotic; break;
-                case 3: woodType = WoodType::Synthetic; break;
-                default: woodType = WoodType::Spruce; break;
-            }
-
-            bodyResonance.setBodyParameters(bodySize, woodType, bodyAmount);
+            bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
         }
 
         // v1.3.0: Set body mode spread
@@ -196,14 +176,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         if (glissandoModeParam != nullptr)
         {
             int glissandoModeIndex = static_cast<int>(glissandoModeParam->load());
-            GlissandoMode glissandoMode;
-            switch (glissandoModeIndex)
-            {
-                case 0: glissandoMode = GlissandoMode::Off; break;
-                case 1: glissandoMode = GlissandoMode::Free; break;
-                case 2: glissandoMode = GlissandoMode::ScaleLocked; break;
-                default: glissandoMode = GlissandoMode::Off; break;
-            }
+            GlissandoMode glissandoMode = glissandoModeFromIndex(glissandoModeIndex);
 
             glissandoController.setMode(glissandoMode);
 
@@ -380,18 +353,7 @@ void HarpSynthVoice::updateParametersFromAPVTS()
         float bodySize = bodySizeParam->load();
         float bodyAmount = bodyResonanceParam->load();
         int woodTypeIndex = static_cast<int>(woodTypeParam->load());
-
-        WoodType woodType;
-        switch (woodTypeIndex)
-        {
-            case 0: woodType = WoodType::Spruce; break;
-            case 1: woodType = WoodType::Maple; break;
-            case 2: woodType = WoodType::Exotic; break;
-            case 3: woodType = WoodType::Synthetic; break;
-            default: woodType = WoodType::Spruce; break;
-        }
-
-        bodyResonance.setBodyParameters(bodySize, woodType, bodyAmount);
+        bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
     }
 
     // v1.3.0: Update body mode spread

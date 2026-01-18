@@ -25,11 +25,18 @@
  */
 enum class PlayingTechnique
 {
-    Normal,           // Standard pluck
-    Harmonic,         // Touch at node point (filtered harmonic)
-    Muted,            // Heavy damping, short decay
-    PresDeLaTable     // Close to soundboard (metallic/bright)
+    Normal = 0,       // Standard pluck
+    Harmonic = 1,     // Touch at node point (filtered harmonic)
+    Muted = 2,        // Heavy damping, short decay
+    PresDeLaTable = 3 // Close to soundboard (metallic/bright)
 };
+
+/** Convert parameter index to PlayingTechnique (v1.3.1 simplification) */
+inline PlayingTechnique techniqueFromIndex(int index)
+{
+    index = juce::jlimit(0, 3, index);
+    return static_cast<PlayingTechnique>(index);
+}
 
 /**
  * Pluck Excitation Generator

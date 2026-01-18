@@ -313,55 +313,51 @@ void WaveguideString::setFrequency(double frequency)
     }
 }
 
-void WaveguideString::updateFilters()
+WaveguideString::FilterCutoffs WaveguideString::calculateFilterCutoffs() const
 {
+    // v1.3.1: Centralized filter cutoff calculation (was duplicated in updateFilters and calculateFilterGroupDelay)
+    FilterCutoffs cutoffs;
+
     // Bridge Filter: Frequency-dependent reflection
-    // Now uses material's brightnessCutoff as base, modulated by brightness parameter
-    // v1.2.0: Also modulated by TENSION - higher tension = brighter reflections
-    // v1.3.0: Also modulated by BRIDGE BRIGHTNESS - direct waveguide bridge control
+    // Uses material's brightnessCutoff as base, modulated by brightness, tension, and bridge brightness
     float materialBrightness = currentMaterial.brightnessCutoff;
 
     // Tension modifier: tension=0 → 0.5x, tension=0.5 → 1.0x, tension=1.0 → 2.0x
-    // This creates a VERY audible effect: low tension = dark/muted, high tension = bright/resonant
     float tensionBrightnessModifier = 0.5f + tensionAmount * 1.5f;
 
-    // v1.3.0: Bridge brightness modifier provides direct bridge filter control
-    // bridgeBrightness=0 → 0.3x (very dark), 0.5 → 1.0x (neutral), 1.0 → 2.0x (very bright)
+    // Bridge brightness modifier: 0 → 0.3x, 0.5 → 1.0x, 1.0 → 2.0x
     float bridgeBrightnessModifier = 0.3f + bridgeBrightnessAmount * 1.7f;
 
-    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier * bridgeBrightnessModifier;
-    bridgeCutoffHz = juce::jlimit(300.0f, 20000.0f, bridgeCutoffHz);
+    cutoffs.bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier * bridgeBrightnessModifier;
+    cutoffs.bridgeCutoffHz = juce::jlimit(300.0f, 20000.0f, cutoffs.bridgeCutoffHz);
 
-    bridgeFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, bridgeCutoffHz);
+    // Nut Filter: Higher cutoff (harder boundary than bridge)
+    cutoffs.nutCutoffHz = materialBrightness * 1.2f * (0.7f + brightnessAmount * 0.5f) * tensionBrightnessModifier;
+    cutoffs.nutCutoffHz = juce::jlimit(1000.0f, 20000.0f, cutoffs.nutCutoffHz);
 
-    // Nut Filter: Simple reflection with slight damping
-    // The nut is typically a harder boundary than the bridge
-    // v1.2.0: Tension also affects nut filter (higher tension = brighter overall)
-    float nutCutoffHz = materialBrightness * 1.2f * (0.7f + brightnessAmount * 0.5f) * tensionBrightnessModifier;
-    nutCutoffHz = juce::jlimit(1000.0f, 20000.0f, nutCutoffHz);
-
-    nutFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, nutCutoffHz);
-
-    // Loop Damping Filter: Material-based energy loss + user sustain control
-    // v1.0.4: dampingAmount is now pre-computed via calculateFinalDamping()
-    // which combines materialDamping with userDampingModifier (0.5x to 1.5x range)
-    // v1.2.0: GAUGE affects damping - thicker strings (high gauge) have more damping
-    // Gauge modifier: gauge=0 → 0.5x damping, gauge=0.5 → 1.0x, gauge=1.0 → 2.0x
+    // Loop Damping Filter: Material + gauge modifier
     float gaugeDampingModifier = 0.5f + gaugeAmount * 1.5f;
-
-    // Combined damping: material damping * user timbre modifier * gauge modifier
     float effectiveDamping = dampingAmount * gaugeDampingModifier;
     float clampedDamping = juce::jlimit(0.0f, 1.0f, effectiveDamping);
+    cutoffs.dampingCutoffHz = 200.0f + (1.0f - clampedDamping) * 14000.0f;
+    cutoffs.dampingCutoffHz = juce::jlimit(200.0f, 14000.0f, cutoffs.dampingCutoffHz);
 
-    // Higher damping = lower cutoff = faster high-freq decay = shorter sustain
-    // v1.2.0: Expanded range for more dramatic gauge effect (200Hz - 14kHz)
-    float dampingCutoffHz = 200.0f + (1.0f - clampedDamping) * 14000.0f;
-    dampingCutoffHz = juce::jlimit(200.0f, 14000.0f, dampingCutoffHz);
+    return cutoffs;
+}
+
+void WaveguideString::updateFilters()
+{
+    // v1.3.1: Use shared cutoff calculation
+    FilterCutoffs cutoffs = calculateFilterCutoffs();
+
+    bridgeFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+        currentSampleRate, cutoffs.bridgeCutoffHz);
+
+    nutFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+        currentSampleRate, cutoffs.nutCutoffHz);
 
     loopDamping.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, dampingCutoffHz);
+        currentSampleRate, cutoffs.dampingCutoffHz);
 }
 
 float WaveguideString::calculateRailDelay() const
@@ -385,36 +381,17 @@ float WaveguideString::calculateFilterGroupDelay() const
 {
     // v1.1.1: Calculate actual group delay from all filters in the feedback loop
     // For first-order lowpass at DC: group_delay_samples = sampleRate / (2π * cutoffHz)
-    // This varies with brightness and damping settings.
-    // v1.2.0: Also varies with tension and gauge settings.
+    // v1.3.1: Use shared cutoff calculation
 
     float twoPi = juce::MathConstants<float>::twoPi;
 
-    // Bridge filter cutoff (same formula as updateFilters())
-    // v1.2.0: Include tension modifier for accurate pitch compensation
-    // v1.3.0: Include bridge brightness modifier
-    float materialBrightness = currentMaterial.brightnessCutoff;
-    float tensionBrightnessModifier = 0.5f + tensionAmount * 1.5f;
-    float bridgeBrightnessModifier = 0.3f + bridgeBrightnessAmount * 1.7f;
-
-    float bridgeCutoffHz = materialBrightness * (0.5f + brightnessAmount * 0.8f) * tensionBrightnessModifier * bridgeBrightnessModifier;
-    bridgeCutoffHz = juce::jlimit(300.0f, 20000.0f, bridgeCutoffHz);
-
-    // Nut filter cutoff (with tension modifier)
-    float nutCutoffHz = materialBrightness * 1.2f * (0.7f + brightnessAmount * 0.5f) * tensionBrightnessModifier;
-    nutCutoffHz = juce::jlimit(1000.0f, 20000.0f, nutCutoffHz);
-
-    // Loop damping cutoff (with gauge modifier)
-    float gaugeDampingModifier = 0.5f + gaugeAmount * 1.5f;
-    float effectiveDamping = dampingAmount * gaugeDampingModifier;
-    float clampedDamping = juce::jlimit(0.0f, 1.0f, effectiveDamping);
-    float dampingCutoffHz = 200.0f + (1.0f - clampedDamping) * 14000.0f;
-    dampingCutoffHz = juce::jlimit(200.0f, 14000.0f, dampingCutoffHz);
+    // v1.3.1: Get cutoffs from shared calculation (was duplicated)
+    FilterCutoffs cutoffs = calculateFilterCutoffs();
 
     // Group delay at DC for each first-order lowpass
-    float bridgeDelay = static_cast<float>(currentSampleRate) / (twoPi * bridgeCutoffHz);
-    float nutDelay = static_cast<float>(currentSampleRate) / (twoPi * nutCutoffHz);
-    float dampingDelay = static_cast<float>(currentSampleRate) / (twoPi * dampingCutoffHz);
+    float bridgeDelay = static_cast<float>(currentSampleRate) / (twoPi * cutoffs.bridgeCutoffHz);
+    float nutDelay = static_cast<float>(currentSampleRate) / (twoPi * cutoffs.nutCutoffHz);
+    float dampingDelay = static_cast<float>(currentSampleRate) / (twoPi * cutoffs.dampingCutoffHz);
 
     // v1.1.3 FIX: Calculate actual stiffness filter group delay from allpass coefficients
     // Previous versions used a fixed 0.5f which caused pitch drift between materials

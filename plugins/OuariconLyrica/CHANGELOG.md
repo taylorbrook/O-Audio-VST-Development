@@ -2,6 +2,40 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.3.1] - 2026-01-17
+
+### Changed (Code Simplification)
+
+- **Extracted enum conversion helpers** - Replaced 3 duplicate switch statements with inline helper functions
+  - `woodTypeFromIndex()` in BodyResonance.h
+  - `techniqueFromIndex()` in PluckExciter.h
+  - `glissandoModeFromIndex()` in GlissandoController.h
+  - Reduces HarpSynthVoice.cpp by ~40 lines while improving maintainability
+
+- **Centralized filter cutoff calculations** in WaveguideString.cpp
+  - New `FilterCutoffs` struct and `calculateFilterCutoffs()` method
+  - Eliminates duplicate calculation in `updateFilters()` and `calculateFilterGroupDelay()`
+  - Ensures filter cutoffs are always computed consistently
+
+- **Added named constants** in BodyResonance.cpp
+  - `MAX_DRY_REDUCTION` (0.6f) - Maximum dry signal reduction at full body resonance
+  - `WET_GAIN_MULTIPLIER` (0.7f) - Wet signal gain (v1.1.5 value)
+  - Replaces magic numbers with self-documenting constants
+
+### Removed
+
+- **HarpSynthSound.cpp** - Empty file (implementation was header-only)
+- **BridgeFilter.h/.cpp** - Unused (WaveguideString uses juce::dsp::IIR::Filter)
+- **DelayLine.h/.cpp** - Unused (WaveguideString uses juce::dsp::DelayLine)
+- **StringVoice.h/.cpp** - Legacy Phase 2.1 implementation replaced by WaveguideString in Phase 2.2
+
+### Technical Notes
+
+- Pure refactoring release - no functional changes
+- Removed 7 unused files, reducing codebase size
+- CMakeLists.txt updated to reflect file removals
+- Build validates clean with Release configuration
+
 ## [1.3.0] - 2026-01-17
 
 ### Added
