@@ -2,6 +2,22 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.2.2] - 2026-01-17
+
+### Fixed
+
+- **Sticky "reps" knobs on all 4 lanes now respond smoothly**
+  - Root cause: Integer parameters (1-16 range) use discrete steps, but knob sensitivity was too low
+  - Small mouse movements caused JUCE to snap back to nearest integer, creating "sticky" feel
+  - User had to move in opposite direction first to break out of snap zone
+  - Fix: Added delta accumulation for integer knobs in `parameter-bindings.js`
+    - Detects integer parameters automatically (whole number min/max, range ≤20)
+    - Accumulates mouse delta until it crosses a step boundary (1/15 normalized for 1-16 range)
+    - Only sends value to JUCE when step change occurs, preventing snap-back
+    - Prevents visual jitter by not updating UI for sub-step movements
+  - Float knobs (decay, volume, etc.) unchanged - still use continuous behavior
+  - ~13px drag now reliably moves one integer step (vs. previous sticky behavior)
+
 ## [1.2.1] - 2026-01-17
 
 ### Fixed
