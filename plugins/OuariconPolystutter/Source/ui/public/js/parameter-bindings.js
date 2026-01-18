@@ -125,24 +125,16 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
     return;
   }
 
-  // v1.2.2: Detect integer parameters (discrete steps)
-  // Integer params have whole number min/max and small range (e.g., 1-16 for repeats)
-  const isIntegerParam = Number.isInteger(min) && Number.isInteger(max) && (max - min) <= 20;
-  const numSteps = isIntegerParam ? (max - min) : 0;
-  const stepSize = isIntegerParam ? (1.0 / numSteps) : 0;
-
   // Initialize UI with current value
   updateKnobUI(knobElement, valueElement, state.getNormalisedValue(), min, max, formatter);
 
   // Pattern #11: Relative drag interaction (frame delta, not absolute)
   let isDragging = false;
   let lastY = 0;
-  let accumulatedDelta = 0; // v1.2.2: Accumulator for integer params
 
   knobElement.addEventListener("mousedown", (e) => {
     isDragging = true;
     lastY = e.clientY;
-    accumulatedDelta = 0; // Reset accumulator on new drag
     knobElement.style.cursor = "grabbing";
     e.preventDefault(); // Prevent text selection
   });
@@ -157,42 +149,19 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
     const sensitivity = 0.005;
     const normalizedDelta = deltaY * sensitivity;
 
-    if (isIntegerParam) {
-      // v1.2.2: Integer parameter handling - accumulate delta until step boundary crossed
-      accumulatedDelta += normalizedDelta;
+    // Update normalized value (clamped 0-1)
+    // CRITICAL: Use getNormalisedValue() and setNormalisedValue() - direct property access doesn't emit events
+    const currentValue = state.getNormalisedValue();
+    const newValue = Math.max(0, Math.min(1, currentValue + normalizedDelta));
+    state.setNormalisedValue(newValue); // Method call triggers JUCE backend update
 
-      // Check if we've accumulated enough to cross a step boundary
-      if (Math.abs(accumulatedDelta) >= stepSize) {
-        // Calculate how many steps to move
-        const stepsToMove = Math.trunc(accumulatedDelta / stepSize);
-        accumulatedDelta -= stepsToMove * stepSize; // Keep remainder
-
-        // Get current integer value and calculate new value
-        const currentNorm = state.getNormalisedValue();
-        const currentStep = Math.round(currentNorm * numSteps);
-        const newStep = Math.max(0, Math.min(numSteps, currentStep + stepsToMove));
-        const newNorm = newStep / numSteps;
-
-        // Only update if actually changed
-        if (newStep !== currentStep) {
-          state.setNormalisedValue(newNorm);
-          updateKnobUI(knobElement, valueElement, newNorm, min, max, formatter);
-        }
-      }
-      // Don't update UI for sub-step movements - prevents visual jitter
-    } else {
-      // Float parameter - original continuous behavior
-      const currentValue = state.getNormalisedValue();
-      const newValue = Math.max(0, Math.min(1, currentValue + normalizedDelta));
-      state.setNormalisedValue(newValue);
-      updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
-    }
+    // Update UI immediately for smooth feedback
+    updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
   });
 
   document.addEventListener("mouseup", () => {
     if (isDragging) {
       isDragging = false;
-      accumulatedDelta = 0; // Clear accumulator
       knobElement.style.cursor = "pointer";
     }
   });
@@ -204,7 +173,7 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
     updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
   });
 
-  console.log(`[Phase 3.2] Bound knob: ${paramId} (HTML: ${elementId})${isIntegerParam ? ' [INT]' : ''}`);
+  console.log(`[Phase 3.2] Bound knob: ${paramId} (HTML: ${elementId})`);
 }
 
 /**
