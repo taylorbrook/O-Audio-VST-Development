@@ -2,15 +2,15 @@
   ==============================================================================
 
     SympatheticResonance.cpp
-    Sympathetic Resonance Engine - Phase 2.7 (Optimized Phase 2.12)
+    Sympathetic Resonance Engine - Phase 2.7 (Thread-Safe v1.3.2)
     Ouaricon Audio
     Developer: Taylor Brook
 
-    OPTIMIZATION NOTES:
-    - Changed from std::map to std::unordered_map for O(1) voice lookup
-    - Precomputes harmonic coupling matrix on voice registration (not per-sample)
-    - Replaces log2-based cents calculation with fast ratio comparison
-    - Reduces per-sample complexity from O(n²) to O(n) where n = coupled voices only
+    THREAD SAFETY (v1.3.2):
+    - Fixed-size arrays replace dynamic maps (no allocation on audio thread)
+    - Double-buffered coupling matrix for lock-free audio processing
+    - Atomic flags for voice active status
+    - rebuildCouplingMatrix deferred to block boundaries via syncBeforeBlock()
 
   ==============================================================================
 */
@@ -19,10 +19,8 @@
 #include <algorithm>
 
 SympatheticResonanceEngine::SympatheticResonanceEngine()
-    : intensity(0.3f)
-    , sampleRate(44100.0)
 {
-    activeVoiceIds.reserve(MAX_VOICES);
+    // Voice slots are default-initialized with active = false
 }
 
 SympatheticResonanceEngine::~SympatheticResonanceEngine()
@@ -33,67 +31,120 @@ void SympatheticResonanceEngine::prepare(double newSampleRate, int /*maxBlockSiz
 {
     sampleRate = newSampleRate;
 
-    // Reset all existing resonators with new sample rate
-    for (auto& pair : activeVoices)
+    // Reset all voice slots with new sample rate
+    for (auto& slot : voiceSlots)
     {
-        auto& voiceInfo = pair.second;
-        juce::dsp::ProcessSpec spec;
-        spec.sampleRate = sampleRate;
-        spec.maximumBlockSize = 1;
-        spec.numChannels = 1;
+        if (slot.active.load(std::memory_order_relaxed))
+        {
+            juce::dsp::ProcessSpec spec;
+            spec.sampleRate = sampleRate;
+            spec.maximumBlockSize = 1;
+            spec.numChannels = 1;
 
-        voiceInfo.resonatorFilter.prepare(spec);
-        designResonatorFilter(voiceInfo.resonatorFilter, voiceInfo.frequency, resonatorQ);
+            slot.resonatorFilter.prepare(spec);
+            designResonatorFilter(slot.resonatorFilter, slot.frequency, resonatorQ);
+        }
     }
 
-    // Rebuild coupling matrix with new sample rate
-    rebuildCouplingMatrix();
+    // Mark rebuild needed
+    rebuildPending.store(true, std::memory_order_release);
+}
+
+int SympatheticResonanceEngine::findSlotForVoice(int voiceId) const
+{
+    for (int i = 0; i < MAX_VOICES; ++i)
+    {
+        if (voiceSlots[i].active.load(std::memory_order_relaxed) &&
+            voiceSlots[i].voiceId == voiceId)
+        {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int SympatheticResonanceEngine::findInactiveSlot() const
+{
+    for (int i = 0; i < MAX_VOICES; ++i)
+    {
+        if (!voiceSlots[i].active.load(std::memory_order_relaxed))
+        {
+            return i;
+        }
+    }
+    return -1;
 }
 
 void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, const StringMaterial& material)
 {
-    // Insert or get existing entry, then configure in place
-    auto& voiceInfo = activeVoices[voiceId];
-    voiceInfo.frequency = frequency;
-    voiceInfo.materialCoupling = material.sympatheticCoupling;
-    voiceInfo.lastSample = 0.0f;
+    // First check if voice is already registered
+    int existingSlot = findSlotForVoice(voiceId);
+    if (existingSlot >= 0)
+    {
+        // Update existing slot
+        auto& slot = voiceSlots[existingSlot];
+        slot.frequency = frequency;
+        slot.materialCoupling = material.sympatheticCoupling;
+        slot.lastSample = 0.0f;
+        slot.energyDecay = 0.995f + (1.0f - material.dampingCoeff) * 0.0048f;
 
-    // Energy decay based on material damping (less damped = longer resonance)
-    voiceInfo.energyDecay = 0.995f + (1.0f - material.dampingCoeff) * 0.0048f;
+        // Prepare resonator filter
+        juce::dsp::ProcessSpec spec;
+        spec.sampleRate = sampleRate;
+        spec.maximumBlockSize = 1;
+        spec.numChannels = 1;
+        slot.resonatorFilter.prepare(spec);
+        designResonatorFilter(slot.resonatorFilter, frequency, resonatorQ);
+
+        // Mark rebuild needed
+        rebuildPending.store(true, std::memory_order_release);
+        return;
+    }
+
+    // Find an inactive slot
+    int slotIndex = findInactiveSlot();
+    if (slotIndex < 0)
+    {
+        // No available slots - voice limit reached
+        DBG("SympatheticResonanceEngine: No available slots for voice " << voiceId);
+        return;
+    }
+
+    // Configure the slot (before setting active)
+    auto& slot = voiceSlots[slotIndex];
+    slot.voiceId = voiceId;
+    slot.frequency = frequency;
+    slot.materialCoupling = material.sympatheticCoupling;
+    slot.lastSample = 0.0f;
+    slot.energyDecay = 0.995f + (1.0f - material.dampingCoeff) * 0.0048f;
 
     // Prepare resonator filter
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = 1;
     spec.numChannels = 1;
+    slot.resonatorFilter.prepare(spec);
+    designResonatorFilter(slot.resonatorFilter, frequency, resonatorQ);
 
-    voiceInfo.resonatorFilter.prepare(spec);
-    designResonatorFilter(voiceInfo.resonatorFilter, frequency, resonatorQ);
+    // Atomically activate the slot (write barrier ensures all data visible)
+    slot.active.store(true, std::memory_order_release);
 
-    // Add to active voice list if not already present
-    if (std::find(activeVoiceIds.begin(), activeVoiceIds.end(), voiceId) == activeVoiceIds.end())
-    {
-        activeVoiceIds.push_back(voiceId);
-    }
-
-    // OPTIMIZATION: Rebuild coupling matrix with new voice
-    rebuildCouplingMatrix();
+    // Mark rebuild needed (will be processed at next syncBeforeBlock)
+    rebuildPending.store(true, std::memory_order_release);
 }
 
 void SympatheticResonanceEngine::unregisterVoice(int voiceId)
 {
-    activeVoices.erase(voiceId);
-    couplingMatrix.erase(voiceId);
-
-    // Remove from active voice list
-    auto it = std::find(activeVoiceIds.begin(), activeVoiceIds.end(), voiceId);
-    if (it != activeVoiceIds.end())
+    int slotIndex = findSlotForVoice(voiceId);
+    if (slotIndex >= 0)
     {
-        activeVoiceIds.erase(it);
-    }
+        // Atomically deactivate the slot
+        voiceSlots[slotIndex].active.store(false, std::memory_order_release);
+        voiceSlots[slotIndex].voiceId = -1;
 
-    // OPTIMIZATION: Rebuild coupling matrix without this voice
-    rebuildCouplingMatrix();
+        // Mark rebuild needed
+        rebuildPending.store(true, std::memory_order_release);
+    }
 }
 
 void SympatheticResonanceEngine::setIntensity(float newIntensity)
@@ -104,7 +155,7 @@ void SympatheticResonanceEngine::setIntensity(float newIntensity)
     // If intensity changed significantly, rebuild coupling matrix
     if (std::abs(intensity - oldIntensity) > 0.01f)
     {
-        rebuildCouplingMatrix();
+        rebuildPending.store(true, std::memory_order_release);
     }
 }
 
@@ -119,53 +170,79 @@ void SympatheticResonanceEngine::setResonatorQ(float Q)
     resonatorQ = newQ;
 
     // Update all existing resonator filters with new Q
-    for (auto& pair : activeVoices)
+    for (auto& slot : voiceSlots)
     {
-        auto& voiceInfo = pair.second;
-        designResonatorFilter(voiceInfo.resonatorFilter, voiceInfo.frequency, resonatorQ);
+        if (slot.active.load(std::memory_order_relaxed))
+        {
+            designResonatorFilter(slot.resonatorFilter, slot.frequency, resonatorQ);
+        }
     }
+}
+
+void SympatheticResonanceEngine::syncBeforeBlock()
+{
+    // Check if rebuild is needed (acquire to see all prior writes)
+    if (!rebuildPending.load(std::memory_order_acquire))
+        return;
+
+    // Rebuild into the write buffer (opposite of read buffer)
+    rebuildCouplingMatrix();
+
+    // Swap buffers atomically
+    int oldIndex = readBufferIndex.load(std::memory_order_relaxed);
+    readBufferIndex.store(1 - oldIndex, std::memory_order_release);
+
+    // Clear rebuild flag
+    rebuildPending.store(false, std::memory_order_release);
 }
 
 void SympatheticResonanceEngine::rebuildCouplingMatrix()
 {
-    couplingMatrix.clear();
+    // Write to the opposite buffer (not currently being read)
+    int writeIndex = 1 - readBufferIndex.load(std::memory_order_relaxed);
+    CouplingBuffer& writeBuffer = couplingBuffers[writeIndex];
 
-    // For each active voice, precompute its coupling to all other voices
-    for (int voiceId : activeVoiceIds)
+    // Clear all couplings
+    for (auto& slotCouplings : writeBuffer.slotCouplings)
     {
-        auto voiceIt = activeVoices.find(voiceId);
-        if (voiceIt == activeVoices.end())
+        slotCouplings.count = 0;
+    }
+
+    // Build coupling list for each active voice slot
+    for (int i = 0; i < MAX_VOICES; ++i)
+    {
+        if (!voiceSlots[i].active.load(std::memory_order_relaxed))
             continue;
 
-        const auto& currentVoice = voiceIt->second;
-        std::vector<CouplingPair>& couplings = couplingMatrix[voiceId];
-        couplings.clear();
-        couplings.reserve(activeVoiceIds.size());
+        const auto& currentSlot = voiceSlots[i];
+        SlotCouplings& couplings = writeBuffer.slotCouplings[i];
+        couplings.count = 0;
 
-        for (int otherVoiceId : activeVoiceIds)
+        for (int j = 0; j < MAX_VOICES; ++j)
         {
-            if (otherVoiceId == voiceId)
+            if (i == j)
                 continue;
 
-            auto otherIt = activeVoices.find(otherVoiceId);
-            if (otherIt == activeVoices.end())
+            if (!voiceSlots[j].active.load(std::memory_order_relaxed))
                 continue;
 
-            const auto& otherVoice = otherIt->second;
+            const auto& otherSlot = voiceSlots[j];
 
-            // Compute harmonic coupling strength (done ONCE, not per-sample)
-            float harmonicCoupling = computeCouplingStrength(currentVoice.frequency, otherVoice.frequency);
+            // Compute harmonic coupling strength
+            float harmonicCoupling = computeCouplingStrength(currentSlot.frequency, otherSlot.frequency);
 
             if (harmonicCoupling > 0.0f)
             {
                 // Precompute total coupling factor
-                float materialFactor = currentVoice.materialCoupling * otherVoice.materialCoupling;
+                float materialFactor = currentSlot.materialCoupling * otherSlot.materialCoupling;
                 float totalCoupling = harmonicCoupling * materialFactor * intensity * 0.05f;
 
-                CouplingPair pair;
-                pair.otherVoiceId = otherVoiceId;
-                pair.totalCoupling = totalCoupling;
-                couplings.push_back(pair);
+                if (couplings.count < MAX_COUPLINGS_PER_VOICE)
+                {
+                    couplings.couplings[couplings.count].slotIndex = j;
+                    couplings.couplings[couplings.count].totalCoupling = totalCoupling;
+                    couplings.count++;
+                }
             }
         }
     }
@@ -177,34 +254,39 @@ float SympatheticResonanceEngine::computeSympatheticContribution(int voiceId, fl
     if (intensity <= 0.0f)
         return 0.0f;
 
-    // O(1) lookup in unordered_map
-    auto couplingIt = couplingMatrix.find(voiceId);
-    if (couplingIt == couplingMatrix.end())
+    // Find the slot for this voice
+    int slotIndex = findSlotForVoice(voiceId);
+    if (slotIndex < 0)
         return 0.0f;
 
-    const auto& couplings = couplingIt->second;
-    if (couplings.empty())
+    // Read from the current read buffer (acquire to see all writes before buffer swap)
+    int bufferIndex = readBufferIndex.load(std::memory_order_acquire);
+    const SlotCouplings& couplings = couplingBuffers[bufferIndex].slotCouplings[slotIndex];
+
+    if (couplings.count == 0)
         return 0.0f;
 
     float sympatheticSignal = 0.0f;
 
-    // OPTIMIZED: Only iterate through precomputed coupled voices (not all voices)
-    for (const auto& coupling : couplings)
+    // Iterate through precomputed couplings
+    for (int i = 0; i < couplings.count; ++i)
     {
-        auto otherIt = activeVoices.find(coupling.otherVoiceId);
-        if (otherIt == activeVoices.end())
+        const CouplingEntry& entry = couplings.couplings[i];
+
+        // Check if the other voice is still active
+        if (!voiceSlots[entry.slotIndex].active.load(std::memory_order_relaxed))
             continue;
 
-        auto& otherVoice = otherIt->second;
+        auto& otherSlot = voiceSlots[entry.slotIndex];
 
         // Apply energy decay
-        otherVoice.lastSample *= otherVoice.energyDecay;
+        otherSlot.lastSample *= otherSlot.energyDecay;
 
-        // Excite resonator with precomputed coupling (no calculations needed)
-        otherVoice.lastSample += voiceOutput * coupling.totalCoupling;
+        // Excite resonator with precomputed coupling
+        otherSlot.lastSample += voiceOutput * entry.totalCoupling;
 
         // Process through resonator filter
-        float resonatorOutput = otherVoice.resonatorFilter.processSample(otherVoice.lastSample);
+        float resonatorOutput = otherSlot.resonatorFilter.processSample(otherSlot.lastSample);
 
         sympatheticSignal += resonatorOutput;
     }
@@ -220,19 +302,34 @@ float SympatheticResonanceEngine::computeSympatheticContribution(int voiceId, fl
 
 void SympatheticResonanceEngine::reset()
 {
-    activeVoices.clear();
-    couplingMatrix.clear();
-    activeVoiceIds.clear();
+    // Deactivate all voice slots
+    for (auto& slot : voiceSlots)
+    {
+        slot.active.store(false, std::memory_order_relaxed);
+        slot.voiceId = -1;
+        slot.lastSample = 0.0f;
+    }
+
+    // Clear both coupling buffers
+    for (auto& buffer : couplingBuffers)
+    {
+        for (auto& slotCouplings : buffer.slotCouplings)
+        {
+            slotCouplings.count = 0;
+        }
+    }
+
+    rebuildPending.store(false, std::memory_order_relaxed);
 }
 
 float SympatheticResonanceEngine::computeCouplingStrength(double freq1, double freq2) const
 {
     // OPTIMIZED: Use ratio-based tolerances instead of log2 cents calculation
     // Precomputed tolerance ratios (avoiding expensive log2 in hot path):
-    // 10 cents ≈ 2^(10/1200) ≈ 1.00578
-    // 15 cents ≈ 2^(15/1200) ≈ 1.00868
-    // 20 cents ≈ 2^(20/1200) ≈ 1.01159
-    // 25 cents ≈ 2^(25/1200) ≈ 1.01451
+    // 10 cents ~ 2^(10/1200) ~ 1.00578
+    // 15 cents ~ 2^(15/1200) ~ 1.00868
+    // 20 cents ~ 2^(20/1200) ~ 1.01159
+    // 25 cents ~ 2^(25/1200) ~ 1.01451
 
     // Unison (1/1) - strongest coupling
     float unisonCoupling = checkHarmonicIntervalFast(freq1, freq2, 1.0, 1.00578);
@@ -266,7 +363,6 @@ float SympatheticResonanceEngine::computeCouplingStrength(double freq1, double f
 float SympatheticResonanceEngine::checkHarmonicIntervalFast(double freq1, double freq2, double ratio, double toleranceRatio) const
 {
     // OPTIMIZED: Direct ratio comparison instead of log2 cents calculation
-    // This avoids the expensive std::log2 call in the original implementation
 
     double actualRatio = freq2 / freq1;
     double targetRatio = ratio;

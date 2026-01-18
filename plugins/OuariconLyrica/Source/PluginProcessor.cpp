@@ -277,6 +277,9 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
         tuningEngine.setPitchBendRange(pitchBendRangeParam->load());
     }
 
+    // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
+    sympatheticEngine.syncBeforeBlock();
+
     // Render MIDI to audio via synthesiser
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 

@@ -11,6 +11,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <atomic>
 #include "HarpSynthSound.h"
 #include "DSP/WaveguideString.h"
 #include "DSP/StringMaterial.h"
@@ -92,7 +93,10 @@ private:
     double previousFrequency = 440.0; // For glissando start point
     float currentVelocity = 0.0f;
     int currentMidiNote = -1; // Current MIDI note number (for pitch bend)
-    int voiceId = -1; // Unique ID for sympathetic tracking
+    int voiceId = -1; // Unique ID for sympathetic tracking (v1.3.2: generated from atomic counter)
+
+    // v1.3.2: Static atomic counter for guaranteed unique voice IDs
+    static std::atomic<int> nextVoiceId;
 
     // Phase 2.7: Current material (needed for sympathetic registration)
     StringMaterial currentMaterial;

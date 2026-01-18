@@ -135,6 +135,11 @@ float WaveguideString::processSample()
     // Output is sum of both traveling waves
     float output = (upperOut + lowerOut) * 0.5f;
 
+    // v1.3.2: Denormal protection - flush tiny values to zero to prevent CPU spikes
+    // IIR filter state can accumulate denormals during quiet passages
+    if (std::abs(output) < 1e-15f)
+        output = 0.0f;
+
     // Update energy estimate (for voice stealing and activity detection)
     currentEnergy = currentEnergy * energyDecayRate + std::abs(output) * (1.0f - energyDecayRate);
 
@@ -389,9 +394,10 @@ float WaveguideString::calculateFilterGroupDelay() const
     FilterCutoffs cutoffs = calculateFilterCutoffs();
 
     // Group delay at DC for each first-order lowpass
-    float bridgeDelay = static_cast<float>(currentSampleRate) / (twoPi * cutoffs.bridgeCutoffHz);
-    float nutDelay = static_cast<float>(currentSampleRate) / (twoPi * cutoffs.nutCutoffHz);
-    float dampingDelay = static_cast<float>(currentSampleRate) / (twoPi * cutoffs.dampingCutoffHz);
+    // v1.3.2: Added std::max guards for defense-in-depth (cutoffs already clamped to safe minimums)
+    float bridgeDelay = static_cast<float>(currentSampleRate) / (twoPi * std::max(cutoffs.bridgeCutoffHz, 1.0f));
+    float nutDelay = static_cast<float>(currentSampleRate) / (twoPi * std::max(cutoffs.nutCutoffHz, 1.0f));
+    float dampingDelay = static_cast<float>(currentSampleRate) / (twoPi * std::max(cutoffs.dampingCutoffHz, 1.0f));
 
     // v1.1.3 FIX: Calculate actual stiffness filter group delay from allpass coefficients
     // Previous versions used a fixed 0.5f which caused pitch drift between materials

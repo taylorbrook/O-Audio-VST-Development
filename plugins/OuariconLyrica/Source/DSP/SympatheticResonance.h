@@ -2,7 +2,7 @@
   ==============================================================================
 
     SympatheticResonance.h
-    Sympathetic Resonance Engine - Phase 2.7
+    Sympathetic Resonance Engine - Phase 2.7 (Thread-Safe v1.3.2)
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -11,25 +11,31 @@
     (unison, octave, fifth, third), and applies damped coupling based on
     frequency relationships and material properties.
 
+    THREAD SAFETY (v1.3.2):
+    - Uses fixed-size arrays instead of dynamic maps (no allocation on audio thread)
+    - Double-buffered coupling matrix for lock-free reads during audio processing
+    - Atomic flags for voice active status
+    - Coupling matrix rebuilt at block boundaries, not per-voice registration
+
   ==============================================================================
 */
 
 #pragma once
 #include <JuceHeader.h>
 #include "StringMaterial.h"
-#include <unordered_map>
-#include <vector>
+#include <array>
+#include <atomic>
 
 /**
- * Sympathetic Resonance Engine (Optimized)
+ * Sympathetic Resonance Engine (Thread-Safe)
  *
  * Processor-level component that tracks all active voices and computes
  * sympathetic coupling between harmonically related strings. When one
  * string vibrates, nearby harmonic frequencies are excited through
  * acoustic coupling, creating authentic harp shimmer and bloom.
  *
- * OPTIMIZATION: Precomputes harmonic coupling matrix on voice registration
- * to avoid O(n²) calculations per sample. Uses unordered_map for O(1) lookup.
+ * THREAD SAFETY: Uses fixed arrays and double-buffered coupling matrix
+ * for lock-free audio thread access. No dynamic allocation during processing.
  */
 class SympatheticResonanceEngine
 {
@@ -88,48 +94,84 @@ public:
      */
     void reset();
 
+    /**
+     * Synchronize coupling matrix before processing a block
+     * Call this at the START of each processBlock to safely update the read buffer
+     * if any voices have been registered/unregistered since last block.
+     */
+    void syncBeforeBlock();
+
 private:
     static constexpr int MAX_VOICES = 16;
+    static constexpr int MAX_COUPLINGS_PER_VOICE = 15;  // Max couplings = MAX_VOICES - 1
 
     /**
-     * Voice information tracked by the engine
+     * Voice information tracked by the engine (fixed-size slot)
      */
-    struct VoiceInfo
+    struct VoiceSlot
     {
-        double frequency;                           // Fundamental frequency
-        float materialCoupling;                     // Material coupling coefficient (0-1)
-        juce::dsp::IIR::Filter<float> resonatorFilter; // Bandpass filter tuned to frequency
-        float lastSample;                           // Last sample for feedback
-        float energyDecay;                          // Per-sample energy decay factor
-
-        VoiceInfo()
-            : frequency(440.0)
-            , materialCoupling(0.5f)
-            , lastSample(0.0f)
-            , energyDecay(0.9995f)
-        {}
+        std::atomic<bool> active{false};                // Thread-safe active flag
+        int voiceId = -1;                               // External voice ID
+        double frequency = 440.0;                       // Fundamental frequency
+        float materialCoupling = 0.5f;                  // Material coupling coefficient (0-1)
+        juce::dsp::IIR::Filter<float> resonatorFilter;  // Bandpass filter tuned to frequency
+        float lastSample = 0.0f;                        // Last sample for feedback
+        float energyDecay = 0.9995f;                    // Per-sample energy decay factor
     };
 
     /**
      * Precomputed coupling between two voices
      * Computed once on voice registration, used every sample
      */
-    struct CouplingPair
+    struct CouplingEntry
     {
-        int otherVoiceId;           // ID of the coupled voice
-        float totalCoupling;        // Precomputed: harmonic * material * intensity scale
+        int slotIndex = -1;         // Index into voiceSlots array
+        float totalCoupling = 0.0f; // Precomputed: harmonic * material * intensity scale
     };
 
-    std::unordered_map<int, VoiceInfo> activeVoices;  // Registry of active voices (O(1) lookup)
-    std::unordered_map<int, std::vector<CouplingPair>> couplingMatrix; // Precomputed couplings per voice
-    std::vector<int> activeVoiceIds;                  // Fast iteration list
-    float intensity;                                   // Global intensity parameter
-    float resonatorQ = 5.0f;                           // v1.3.0: Resonator Q (sharpness)
-    double sampleRate;                                 // Current sample rate
+    /**
+     * Coupling data for one voice slot (fixed-size)
+     */
+    struct SlotCouplings
+    {
+        std::array<CouplingEntry, MAX_COUPLINGS_PER_VOICE> couplings;
+        int count = 0;  // Number of valid couplings
+    };
 
     /**
-     * Rebuild coupling matrix for all active voices
-     * Called on voice registration/unregistration
+     * Double-buffered coupling matrix for thread-safe access
+     */
+    struct CouplingBuffer
+    {
+        std::array<SlotCouplings, MAX_VOICES> slotCouplings;
+    };
+
+    // Fixed-size voice slot array (no dynamic allocation)
+    std::array<VoiceSlot, MAX_VOICES> voiceSlots;
+
+    // Double-buffered coupling matrices
+    std::array<CouplingBuffer, 2> couplingBuffers;
+    std::atomic<int> readBufferIndex{0};    // Audio thread reads from this buffer
+    std::atomic<bool> rebuildPending{false}; // Flag indicating rebuild needed
+
+    // Parameters
+    float intensity = 0.3f;          // Global intensity parameter
+    float resonatorQ = 5.0f;         // v1.3.0: Resonator Q (sharpness)
+    double sampleRate = 44100.0;     // Current sample rate
+
+    /**
+     * Find slot index for a voice ID, or -1 if not found
+     */
+    int findSlotForVoice(int voiceId) const;
+
+    /**
+     * Find first inactive slot, or -1 if all full
+     */
+    int findInactiveSlot() const;
+
+    /**
+     * Rebuild coupling matrix into the write buffer
+     * Called from syncBeforeBlock when rebuildPending is true
      */
     void rebuildCouplingMatrix();
 
@@ -147,19 +189,11 @@ private:
     /**
      * Check if two frequencies form a harmonic interval
      * OPTIMIZED: Uses ratio comparison instead of cents calculation
-     * @param freq1 First frequency
-     * @param freq2 Second frequency
-     * @param ratio Target frequency ratio (e.g., 2.0 for octave)
-     * @param toleranceRatio Frequency tolerance as ratio (e.g., 1.006 for ~10 cents)
-     * @return Coupling strength (0.0-1.0) based on proximity to exact ratio
      */
     float checkHarmonicIntervalFast(double freq1, double freq2, double ratio, double toleranceRatio) const;
 
     /**
      * Design resonator filter for a given frequency
-     * @param filter Filter to configure
-     * @param frequency Center frequency in Hz
-     * @param Q Quality factor (bandwidth)
      */
     void designResonatorFilter(juce::dsp::IIR::Filter<float>& filter, double frequency, float Q);
 

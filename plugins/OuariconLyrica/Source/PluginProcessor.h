@@ -32,7 +32,8 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    // v1.3.2: Proper tail length for physical modeling (max decay + sympathetic resonance)
+    double getTailLengthSeconds() const override { return 25.0; }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }

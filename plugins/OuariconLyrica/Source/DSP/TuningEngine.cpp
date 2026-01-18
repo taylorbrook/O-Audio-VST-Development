@@ -11,6 +11,9 @@
 
 TuningEngine::TuningEngine()
 {
+    // Initialize all pitch bends to sentinel value (no bend)
+    for (auto& bend : notePitchBends)
+        bend.store(NO_BEND, std::memory_order_relaxed);
 }
 
 void TuningEngine::setMasterTune(double freqHz)
@@ -35,11 +38,12 @@ double TuningEngine::getFrequency(int midiNote, int midiChannel)
     // Calculate base 12-TET frequency
     double baseFreq = calculate12TETFrequency(midiNote);
 
-    // Apply pitch bend if present for this note
-    auto it = notePitchBends.find(midiNote);
-    if (it != notePitchBends.end())
+    // Thread-safe read of pitch bend (lock-free atomic access)
+    // NO_BEND sentinel is 2.0f (outside valid range -1.0 to 1.0)
+    float bendAmount = notePitchBends[static_cast<size_t>(midiNote)].load(std::memory_order_relaxed);
+    if (bendAmount <= 1.0f && bendAmount >= -1.0f)  // Check if within valid range (not sentinel)
     {
-        return applyPitchBend(baseFreq, it->second);
+        return applyPitchBend(baseFreq, bendAmount);
     }
 
     return baseFreq;
@@ -51,17 +55,22 @@ void TuningEngine::setPitchBend(int midiNote, float bendAmount)
     midiNote = juce::jlimit(0, 127, midiNote);
     bendAmount = juce::jlimit(-1.0f, 1.0f, bendAmount);
 
-    notePitchBends[midiNote] = bendAmount;
+    // Thread-safe write (lock-free atomic access)
+    notePitchBends[static_cast<size_t>(midiNote)].store(bendAmount, std::memory_order_relaxed);
 }
 
 void TuningEngine::clearPitchBend(int midiNote)
 {
-    notePitchBends.erase(midiNote);
+    midiNote = juce::jlimit(0, 127, midiNote);
+    // Thread-safe clear (set to sentinel value)
+    notePitchBends[static_cast<size_t>(midiNote)].store(NO_BEND, std::memory_order_relaxed);
 }
 
 void TuningEngine::clearAllPitchBends()
 {
-    notePitchBends.clear();
+    // Thread-safe clear all (set all to sentinel value)
+    for (auto& bend : notePitchBends)
+        bend.store(NO_BEND, std::memory_order_relaxed);
 }
 
 std::vector<double> TuningEngine::getScaleFrequencies(int rootNote, int numNotes)

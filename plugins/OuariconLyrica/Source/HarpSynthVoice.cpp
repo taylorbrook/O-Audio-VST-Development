@@ -11,10 +11,14 @@
 
 #include "HarpSynthVoice.h"
 
+// v1.3.2: Static atomic counter for guaranteed unique voice IDs
+std::atomic<int> HarpSynthVoice::nextVoiceId{0};
+
 HarpSynthVoice::HarpSynthVoice()
 {
-    // Generate unique voice ID (using pointer address as unique identifier)
-    voiceId = static_cast<int>(reinterpret_cast<intptr_t>(this) & 0xFFFFFF);
+    // v1.3.2: Generate unique voice ID using atomic counter (replaces pointer-based ID)
+    // This guarantees uniqueness across all allocator patterns on 64-bit systems
+    voiceId = nextVoiceId.fetch_add(1, std::memory_order_relaxed);
 }
 
 bool HarpSynthVoice::canPlaySound(juce::SynthesiserSound* sound)

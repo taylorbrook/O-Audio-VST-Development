@@ -19,7 +19,8 @@
 #pragma once
 #include <JuceHeader.h>
 #include <vector>
-#include <map>
+#include <array>
+#include <atomic>
 
 /**
  * TuningEngine: Converts MIDI notes to frequencies with tuning flexibility
@@ -114,8 +115,11 @@ private:
     double a4Frequency = 440.0;      // Reference frequency for A4 (MIDI 69)
     float pitchBendRange = 2.0f;     // Pitch bend range in semitones (±2)
 
-    // Per-note pitch bend storage
-    std::map<int, float> notePitchBends;  // midiNote -> bendAmount (-1.0 to +1.0)
+    // Thread-safe per-note pitch bend storage
+    // Uses atomic array for lock-free access from audio thread
+    // Sentinel value NO_BEND (2.0f) indicates no bend applied (valid range is -1.0 to 1.0)
+    static constexpr float NO_BEND = 2.0f;
+    std::array<std::atomic<float>, 128> notePitchBends;
 
     // Future expansion
     bool mtsSynthClientConnected = false;
