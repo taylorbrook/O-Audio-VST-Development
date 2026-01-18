@@ -118,28 +118,6 @@ private:
     int fadeOutSamplesRemaining = 0;      // Samples left in fade-out phase
     float fadeOutStartGain = 0.0f;        // Gain level when fade-out started
 
-    // v1.1.5: Deferred capture for correct ENV trigger timing
-    // When trigger() is called BEFORE processBlock(), the capture buffer doesn't
-    // contain the current block yet. This flag defers capture position calculation
-    // to AFTER the current block is written, ensuring transients are captured.
-    bool pendingCapture = false;
-
-    // v1.1.6: Retrigger crossfade state
-    // When retriggering during active playback, crossfade from old position to new
-    // to prevent clicks from abrupt audio discontinuities
-    bool retriggerCrossfadeActive = false;
-    int retriggerCrossfadeSamplesRemaining = 0;
-    int oldCaptureStartPosition = 0;
-    double oldFractionalPlaybackPosition = 0.0;
-    float oldCurrentGain = 1.0f;
-
-    // v1.1.14: Loop boundary overlap-add crossfade
-    // When looping back to start, blend end of old loop with start of new loop
-    // to eliminate clicks at loop boundaries (true overlap-add, not sequential fade)
-    bool loopCrossfadeActive = false;
-    int loopCrossfadeSamplesRemaining = 0;
-    double loopOldPlaybackPosition = 0.0;  // Continues playing from old position (fading out)
-
     // Pattern sequencer state
     bool patternSteps[16] = { true, true, true, true, true, true, true, true,
                               true, true, true, true, true, true, true, true };  // All enabled by default

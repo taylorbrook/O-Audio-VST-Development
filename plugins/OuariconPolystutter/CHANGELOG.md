@@ -2,6 +2,47 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.2.0] - 2026-01-17
+
+### Changed
+
+- **DSP engine reverted to v1.1.4 stable baseline**
+  - Rationale: Complex crossfade/retrigger logic added in v1.1.5-v1.1.19 to fix ENV/Sidechain artifacts
+    caused regressions in normal beat-sync stutter mode (clicks, audio artifacts)
+  - This version prioritizes stable, click-free beat-sync stutter operation
+  - RepeatLane.cpp reduced from 745 lines to 542 lines (simpler, more reliable)
+
+### Known Issues
+
+- **ENV and Sidechain trigger modes have audio artifacts**
+  - Graininess and clicks when using envelope follower (ENV) triggering
+  - Similar artifacts when using sidechain input triggering
+  - These modes were not fully stable before the v1.1.5+ fixes, which introduced other regressions
+  - Workaround: Use beat-sync, manual, or MIDI trigger modes for clean stutter
+  - Future versions may address ENV/Sidechain with a different approach
+
+### Migration Notes
+
+- Beat-sync mode: Works cleanly (no changes needed)
+- Manual trigger: Works cleanly (no changes needed)
+- MIDI trigger: Works cleanly (no changes needed)
+- ENV trigger: May experience artifacts (consider alternative trigger modes)
+- Sidechain trigger: May experience artifacts (consider alternative trigger modes)
+
+## [1.1.19] - 2026-01-17
+
+### Fixed
+
+- **Clicks at repeat boundaries eliminated**
+  - Root cause: Gain discontinuity when decay is applied in startNewRepeat() after crossfade ends
+  - Crossfade was at currentGain, but first sample after crossfade was at currentGain * decayAmount (~10% drop)
+  - Fix: Added one-pole lowpass gain smoother
+    - `smoothedGain` follows `currentGain` with gradual transitions (~500 samples to settle)
+    - When startNewRepeat() applies decay, smoothedGain transitions smoothly instead of jumping
+    - Uses `smoothedGain` for audio output instead of raw `currentGain`
+  - Preserves v1.1.18's unconditional gain application (no audio loss)
+  - Avoids v1.1.17's conditional gain application that caused audio regression
+
 ## [1.1.18] - 2026-01-17
 
 ### Fixed
