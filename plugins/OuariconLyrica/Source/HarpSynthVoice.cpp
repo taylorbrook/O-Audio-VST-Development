@@ -76,131 +76,78 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     float fingerHardness = 0.5f;
 
     // Read parameters from APVTS (if available)
+    // v1.3.2: Removed per-parameter null checks - APVTS guarantees non-null for registered params
     if (parameters != nullptr)
     {
         // Phase 2.5: Read and apply string material
-        auto* materialParam = parameters->getRawParameterValue("stringMaterial");
-        if (materialParam != nullptr)
-        {
-            int materialIndex = static_cast<int>(materialParam->load() + 0.5f);  // Round to nearest
-            MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
-            currentMaterial = StringMaterial::fromType(materialType);
-            currentMaterialType = materialType;  // Also update tracking variable
-            stringModel.setMaterial(currentMaterial);
-        }
+        int materialIndex = static_cast<int>(parameters->getRawParameterValue("stringMaterial")->load() + 0.5f);
+        MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
+        currentMaterial = StringMaterial::fromType(materialType);
+        currentMaterialType = materialType;
+        stringModel.setMaterial(currentMaterial);
 
-        auto* brightnessParam = parameters->getRawParameterValue("brightness");
-        auto* timbreParam = parameters->getRawParameterValue("timbre");
-        auto* decayTimeParam = parameters->getRawParameterValue("decayTime");
-        auto* pluckPositionParam = parameters->getRawParameterValue("pluckPosition");
-        auto* fingerHardnessParam = parameters->getRawParameterValue("fingerHardness");
-        auto* techniqueParam = parameters->getRawParameterValue("technique");
-        auto* stiffnessParam = parameters->getRawParameterValue("stringStiffness");
+        // Core string parameters
+        stringModel.setBrightness(parameters->getRawParameterValue("brightness")->load());
 
-        if (brightnessParam != nullptr)
-            stringModel.setBrightness(brightnessParam->load());
+        // v1.1.0: Renamed from sustain to timbre - controls tonal damping
+        // Invert so timbre=1.0 means bright (low damping), timbre=0.0 means dark
+        float damping = 1.0f - parameters->getRawParameterValue("timbre")->load();
+        stringModel.setDamping(damping);
 
-        if (timbreParam != nullptr)
-        {
-            // v1.1.0: Renamed from sustain to timbre - controls tonal damping
-            // Invert so timbre=1.0 means bright (low damping), timbre=0.0 means dark
-            float damping = 1.0f - timbreParam->load();
-            stringModel.setDamping(damping);
-        }
+        // v1.1.0: New decay time parameter - controls overall sustain duration
+        stringModel.setDecayTime(parameters->getRawParameterValue("decayTime")->load());
 
-        if (decayTimeParam != nullptr)
-        {
-            // v1.1.0: New decay time parameter - controls overall sustain duration
-            stringModel.setDecayTime(decayTimeParam->load());
-        }
+        pluckPosition = parameters->getRawParameterValue("pluckPosition")->load();
+        stringModel.setPluckPosition(pluckPosition);
 
-        if (pluckPositionParam != nullptr)
-        {
-            pluckPosition = pluckPositionParam->load();
-            stringModel.setPluckPosition(pluckPosition);
-        }
+        fingerHardness = parameters->getRawParameterValue("fingerHardness")->load();
 
-        if (fingerHardnessParam != nullptr)
-            fingerHardness = fingerHardnessParam->load();
-
-        if (techniqueParam != nullptr)
-        {
-            int techniqueIndex = static_cast<int>(techniqueParam->load());
-            stringModel.setTechnique(techniqueFromIndex(techniqueIndex));
-        }
+        int techniqueIndex = static_cast<int>(parameters->getRawParameterValue("technique")->load());
+        stringModel.setTechnique(techniqueFromIndex(techniqueIndex));
 
         // Phase 2.4: Set string stiffness (inharmonicity)
-        if (stiffnessParam != nullptr)
-            stringModel.setStiffness(stiffnessParam->load());
+        stringModel.setStiffness(parameters->getRawParameterValue("stringStiffness")->load());
 
         // v1.2.0: Set advanced string parameters (tension, gauge, length)
-        auto* tensionParam = parameters->getRawParameterValue("stringTension");
-        auto* gaugeParam = parameters->getRawParameterValue("stringGauge");
-        auto* lengthParam = parameters->getRawParameterValue("stringLength");
-
-        if (tensionParam != nullptr)
-            stringModel.setTension(tensionParam->load());
-
-        if (gaugeParam != nullptr)
-            stringModel.setGauge(gaugeParam->load());
-
-        if (lengthParam != nullptr)
-            stringModel.setLength(lengthParam->load());
+        stringModel.setTension(parameters->getRawParameterValue("stringTension")->load());
+        stringModel.setGauge(parameters->getRawParameterValue("stringGauge")->load());
+        stringModel.setLength(parameters->getRawParameterValue("stringLength")->load());
 
         // v1.3.0: Set advanced physical modeling parameters
-        auto* attackNoiseParam = parameters->getRawParameterValue("attackNoise");
-        auto* bridgeBrightnessParam = parameters->getRawParameterValue("bridgeBrightness");
-
-        if (attackNoiseParam != nullptr)
-            stringModel.setAttackNoise(attackNoiseParam->load());
-
-        if (bridgeBrightnessParam != nullptr)
-            stringModel.setBridgeBrightness(bridgeBrightnessParam->load());
+        stringModel.setAttackNoise(parameters->getRawParameterValue("attackNoise")->load());
+        stringModel.setBridgeBrightness(parameters->getRawParameterValue("bridgeBrightness")->load());
 
         // Phase 2.6: Set body resonance parameters
-        auto* bodySizeParam = parameters->getRawParameterValue("bodySize");
-        auto* bodyResonanceParam = parameters->getRawParameterValue("bodyResonance");
-        auto* woodTypeParam = parameters->getRawParameterValue("woodType");
-        auto* bodyModeSpreadParam = parameters->getRawParameterValue("bodyModeSpread");  // v1.3.0
-
-        if (bodySizeParam != nullptr && bodyResonanceParam != nullptr && woodTypeParam != nullptr)
-        {
-            float bodySize = bodySizeParam->load();
-            float bodyAmount = bodyResonanceParam->load();
-            int woodTypeIndex = static_cast<int>(woodTypeParam->load());
-            bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
-        }
+        float bodySize = parameters->getRawParameterValue("bodySize")->load();
+        float bodyAmount = parameters->getRawParameterValue("bodyResonance")->load();
+        int woodTypeIndex = static_cast<int>(parameters->getRawParameterValue("woodType")->load());
+        bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
 
         // v1.3.0: Set body mode spread
-        if (bodyModeSpreadParam != nullptr)
-            bodyResonance.setModeSpread(bodyModeSpreadParam->load());
+        bodyResonance.setModeSpread(parameters->getRawParameterValue("bodyModeSpread")->load());
 
         // Phase 2.9: Configure glissando controller
-        auto* glissandoModeParam = parameters->getRawParameterValue("glissandoMode");
-        if (glissandoModeParam != nullptr)
+        int glissandoModeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoMode")->load());
+        GlissandoMode glissandoMode = glissandoModeFromIndex(glissandoModeIndex);
+
+        glissandoController.setMode(glissandoMode);
+
+        // For scale-locked mode, get scale from tuning engine
+        if (glissandoMode == GlissandoMode::ScaleLocked && tuningEngine != nullptr)
         {
-            int glissandoModeIndex = static_cast<int>(glissandoModeParam->load());
-            GlissandoMode glissandoMode = glissandoModeFromIndex(glissandoModeIndex);
+            // Get 2 octaves of scale frequencies starting from current note
+            std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(midiNoteNumber - 12, 36);
+            glissandoController.setScale(scaleFreqs);
 
-            glissandoController.setMode(glissandoMode);
+            // Set glissando speed (default 10 notes per second)
+            // TODO: Could add a parameter for this in future
+            glissandoController.setSpeed(10.0f);
+        }
 
-            // For scale-locked mode, get scale from tuning engine
-            if (glissandoMode == GlissandoMode::ScaleLocked && tuningEngine != nullptr)
-            {
-                // Get 2 octaves of scale frequencies starting from current note
-                std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(midiNoteNumber - 12, 36);
-                glissandoController.setScale(scaleFreqs);
-
-                // Set glissando speed (default 10 notes per second)
-                // TODO: Could add a parameter for this in future
-                glissandoController.setSpeed(10.0f);
-            }
-
-            // Start glissando from previous frequency to new frequency
-            if (glissandoMode != GlissandoMode::Off)
-            {
-                glissandoController.startGlissando(previousFrequency, currentFrequency);
-            }
+        // Start glissando from previous frequency to new frequency
+        if (glissandoMode != GlissandoMode::Off)
+        {
+            glissandoController.startGlissando(previousFrequency, currentFrequency);
         }
     }
 
@@ -276,93 +223,53 @@ void HarpSynthVoice::controllerMoved(int /*controllerNumber*/, int /*newControll
 
 void HarpSynthVoice::updateParametersFromAPVTS()
 {
+    // v1.3.2: Removed per-parameter null checks - APVTS guarantees non-null for registered params
     if (parameters == nullptr)
         return;
 
     // Update brightness (affects tone color)
-    auto* brightnessParam = parameters->getRawParameterValue("brightness");
-    if (brightnessParam != nullptr)
-        stringModel.setBrightness(brightnessParam->load());
+    stringModel.setBrightness(parameters->getRawParameterValue("brightness")->load());
 
     // v1.1.0: Update timbre (renamed from sustain - controls tonal damping)
-    auto* timbreParam = parameters->getRawParameterValue("timbre");
-    if (timbreParam != nullptr)
-    {
-        float damping = 1.0f - timbreParam->load();
-        stringModel.setDamping(damping);
-    }
+    float damping = 1.0f - parameters->getRawParameterValue("timbre")->load();
+    stringModel.setDamping(damping);
 
     // v1.1.0: Update decay time (new parameter - controls overall sustain duration)
-    auto* decayTimeParam = parameters->getRawParameterValue("decayTime");
-    if (decayTimeParam != nullptr)
-    {
-        stringModel.setDecayTime(decayTimeParam->load());
-    }
+    stringModel.setDecayTime(parameters->getRawParameterValue("decayTime")->load());
 
     // Update string stiffness
-    auto* stiffnessParam = parameters->getRawParameterValue("stringStiffness");
-    if (stiffnessParam != nullptr)
-        stringModel.setStiffness(stiffnessParam->load());
+    stringModel.setStiffness(parameters->getRawParameterValue("stringStiffness")->load());
 
     // v1.2.0: Update advanced string parameters (tension, gauge, length) in real-time
-    auto* tensionParam = parameters->getRawParameterValue("stringTension");
-    auto* gaugeParam = parameters->getRawParameterValue("stringGauge");
-    auto* lengthParam = parameters->getRawParameterValue("stringLength");
-
-    if (tensionParam != nullptr)
-        stringModel.setTension(tensionParam->load());
-
-    if (gaugeParam != nullptr)
-        stringModel.setGauge(gaugeParam->load());
-
-    if (lengthParam != nullptr)
-        stringModel.setLength(lengthParam->load());
+    stringModel.setTension(parameters->getRawParameterValue("stringTension")->load());
+    stringModel.setGauge(parameters->getRawParameterValue("stringGauge")->load());
+    stringModel.setLength(parameters->getRawParameterValue("stringLength")->load());
 
     // v1.3.0: Update advanced physical modeling parameters
-    auto* attackNoiseParam = parameters->getRawParameterValue("attackNoise");
-    auto* bridgeBrightnessParam = parameters->getRawParameterValue("bridgeBrightness");
-
-    if (attackNoiseParam != nullptr)
-        stringModel.setAttackNoise(attackNoiseParam->load());
-
-    if (bridgeBrightnessParam != nullptr)
-        stringModel.setBridgeBrightness(bridgeBrightnessParam->load());
+    stringModel.setAttackNoise(parameters->getRawParameterValue("attackNoise")->load());
+    stringModel.setBridgeBrightness(parameters->getRawParameterValue("bridgeBrightness")->load());
 
     // Update string material
-    auto* materialParam = parameters->getRawParameterValue("stringMaterial");
-    if (materialParam != nullptr)
-    {
-        float rawValue = materialParam->load();
-        int materialIndex = static_cast<int>(rawValue + 0.5f);  // Round to nearest to avoid float precision issues
-        MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
-        StringMaterial newMaterial = StringMaterial::fromType(materialType);
+    float rawValue = parameters->getRawParameterValue("stringMaterial")->load();
+    int materialIndex = static_cast<int>(rawValue + 0.5f);  // Round to nearest to avoid float precision issues
+    MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
 
-        // Only update if material changed (avoid unnecessary filter recalculations)
-        if (materialType != currentMaterialType)
-        {
-            currentMaterialType = materialType;
-            currentMaterial = newMaterial;
-            stringModel.setMaterial(currentMaterial);
-        }
+    // Only update if material changed (avoid unnecessary filter recalculations)
+    if (materialType != currentMaterialType)
+    {
+        currentMaterialType = materialType;
+        currentMaterial = StringMaterial::fromType(materialType);
+        stringModel.setMaterial(currentMaterial);
     }
 
     // Update body resonance parameters
-    auto* bodySizeParam = parameters->getRawParameterValue("bodySize");
-    auto* bodyResonanceParam = parameters->getRawParameterValue("bodyResonance");
-    auto* woodTypeParam = parameters->getRawParameterValue("woodType");
-    auto* bodyModeSpreadParam = parameters->getRawParameterValue("bodyModeSpread");  // v1.3.0
-
-    if (bodySizeParam != nullptr && bodyResonanceParam != nullptr && woodTypeParam != nullptr)
-    {
-        float bodySize = bodySizeParam->load();
-        float bodyAmount = bodyResonanceParam->load();
-        int woodTypeIndex = static_cast<int>(woodTypeParam->load());
-        bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
-    }
+    float bodySize = parameters->getRawParameterValue("bodySize")->load();
+    float bodyAmount = parameters->getRawParameterValue("bodyResonance")->load();
+    int woodTypeIndex = static_cast<int>(parameters->getRawParameterValue("woodType")->load());
+    bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
 
     // v1.3.0: Update body mode spread
-    if (bodyModeSpreadParam != nullptr)
-        bodyResonance.setModeSpread(bodyModeSpreadParam->load());
+    bodyResonance.setModeSpread(parameters->getRawParameterValue("bodyModeSpread")->load());
 }
 
 void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,

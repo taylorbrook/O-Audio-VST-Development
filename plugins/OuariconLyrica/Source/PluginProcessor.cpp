@@ -229,12 +229,11 @@ void OuariconLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     sympatheticEngine.prepare(sampleRate, samplesPerBlock);
 
     // Prepare all voices
+    // v1.3.2: Use static_cast - all voices are HarpSynthVoice (we control voice creation)
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
-        if (auto* voice = dynamic_cast<HarpSynthVoice*>(synthesiser.getVoice(i)))
-        {
-            voice->prepare(sampleRate, samplesPerBlock);
-        }
+        auto* voice = static_cast<HarpSynthVoice*>(synthesiser.getVoice(i));
+        voice->prepare(sampleRate, samplesPerBlock);
     }
 }
 

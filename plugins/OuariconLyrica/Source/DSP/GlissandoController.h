@@ -14,6 +14,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <array>
 #include <vector>
 
 /**
@@ -32,6 +33,9 @@ inline GlissandoMode glissandoModeFromIndex(int index)
     index = juce::jlimit(0, 2, index);
     return static_cast<GlissandoMode>(index);
 }
+
+// v1.3.2: Fixed-size array to avoid audio thread allocation
+constexpr int MAX_SCALE_SIZE = 48;  // 4 octaves of chromatic scale (generous headroom)
 
 /**
  * GlissandoController: Implements smooth and scale-locked pitch sweeps
@@ -118,7 +122,9 @@ private:
     double targetFrequency = 440.0;
 
     // Scale-Locked mode: Discrete steps through scale
-    std::vector<double> scale;           // Scale frequencies from TuningEngine
+    // v1.3.2: Fixed-size array replaces std::vector to avoid audio thread allocation
+    std::array<double, MAX_SCALE_SIZE> scale{};  // Scale frequencies from TuningEngine
+    int scaleSize = 0;                   // Actual number of valid entries in scale
     int currentScaleDegree = 0;          // Current position in scale
     int targetScaleDegree = 0;           // Target position in scale
     float speed = 10.0f;                 // Notes per second

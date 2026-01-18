@@ -2,6 +2,44 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.3.2] - 2026-01-17
+
+### Changed (Code Quality)
+
+- **Removed redundant null checks in HarpSynthVoice.cpp**
+  - Root cause: Every APVTS parameter access checked for null, but APVTS guarantees non-null pointers for registered parameters
+  - Fix: Removed per-parameter null checks while keeping the top-level `parameters != nullptr` guard
+  - Result: Cleaner code, reduced verbosity (~40 lines removed from startNote/updateParametersFromAPVTS)
+  - Files modified: HarpSynthVoice.cpp
+
+- **Replaced dynamic_cast with static_cast in PluginProcessor.cpp**
+  - Root cause: Voice loop used dynamic_cast when type is known at compile time (we control voice creation)
+  - Fix: Use static_cast in prepareToPlay() since all voices are HarpSynthVoice
+  - Result: Slightly more efficient, expresses intent better
+  - Files modified: PluginProcessor.cpp
+
+- **Added named constants in SympatheticResonance.cpp**
+  - Root cause: Hardcoded magic numbers (0.05f, 0.1f, 0.995f, etc.) scattered throughout DSP code
+  - Fix: Added constexpr constants in anonymous namespace:
+    - `ENERGY_DECAY_BASE` (0.995f), `ENERGY_DECAY_MODIFIER` (0.0048f)
+    - `COUPLING_SCALE_FACTOR` (0.05f), `INTENSITY_CHANGE_THRESHOLD` (0.01f), `Q_CHANGE_THRESHOLD` (0.05f)
+    - `SOFT_CLIP_THRESHOLD` (0.1f), `SOFT_CLIP_HEADROOM` (0.05f)
+    - `UNISON_COUPLING` (0.9f), `OCTAVE_COUPLING` (0.7f), `FIFTH_COUPLING` (0.5f), `THIRD_COUPLING` (0.3f)
+  - Result: Self-documenting code, easier to tune DSP behavior
+  - Files modified: SympatheticResonance.cpp
+
+- **Fixed audio thread allocation in GlissandoController**
+  - Root cause: `setScale()` copied std::vector during startNote(), causing allocation on audio thread
+  - Fix: Replaced `std::vector<double> scale` with `std::array<double, MAX_SCALE_SIZE>` (48 elements)
+  - Result: No dynamic allocation on audio thread in scale-locked glissando mode
+  - Files modified: GlissandoController.h, GlissandoController.cpp
+
+### Technical Notes
+
+- Pure code quality release - no functional changes
+- All changes are refactoring/cleanup identified by code review
+- Build validates clean with Release configuration
+
 ## [1.3.1] - 2026-01-17
 
 ### Changed (Code Simplification)

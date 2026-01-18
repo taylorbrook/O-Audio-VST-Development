@@ -18,6 +18,29 @@
 #include "SympatheticResonance.h"
 #include <algorithm>
 
+// v1.3.2: Named constants for DSP thresholds and tuning parameters
+namespace
+{
+    // Energy decay constants
+    constexpr float ENERGY_DECAY_BASE = 0.995f;         // Base decay coefficient
+    constexpr float ENERGY_DECAY_MODIFIER = 0.0048f;    // Material-dependent decay range
+
+    // Coupling matrix constants
+    constexpr float COUPLING_SCALE_FACTOR = 0.05f;      // Global coupling intensity scaling
+    constexpr float INTENSITY_CHANGE_THRESHOLD = 0.01f; // Min change to trigger rebuild
+    constexpr float Q_CHANGE_THRESHOLD = 0.05f;         // Min Q change to update filters
+
+    // Soft clipping constants
+    constexpr float SOFT_CLIP_THRESHOLD = 0.1f;         // Signal level to start soft clipping
+    constexpr float SOFT_CLIP_HEADROOM = 0.05f;         // Extra headroom after tanh
+
+    // Harmonic coupling strengths (relative weights for musical intervals)
+    constexpr float UNISON_COUPLING = 0.9f;             // 1:1 ratio - strongest
+    constexpr float OCTAVE_COUPLING = 0.7f;             // 2:1 ratio
+    constexpr float FIFTH_COUPLING = 0.5f;              // 3:2 ratio
+    constexpr float THIRD_COUPLING = 0.3f;              // 5:4 ratio - weakest
+}
+
 SympatheticResonanceEngine::SympatheticResonanceEngine()
 {
     // Voice slots are default-initialized with active = false
@@ -86,7 +109,7 @@ void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, co
         slot.frequency = frequency;
         slot.materialCoupling = material.sympatheticCoupling;
         slot.lastSample = 0.0f;
-        slot.energyDecay = 0.995f + (1.0f - material.dampingCoeff) * 0.0048f;
+        slot.energyDecay = ENERGY_DECAY_BASE + (1.0f - material.dampingCoeff) * ENERGY_DECAY_MODIFIER;
 
         // Prepare resonator filter
         juce::dsp::ProcessSpec spec;
@@ -116,7 +139,7 @@ void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, co
     slot.frequency = frequency;
     slot.materialCoupling = material.sympatheticCoupling;
     slot.lastSample = 0.0f;
-    slot.energyDecay = 0.995f + (1.0f - material.dampingCoeff) * 0.0048f;
+    slot.energyDecay = ENERGY_DECAY_BASE + (1.0f - material.dampingCoeff) * ENERGY_DECAY_MODIFIER;
 
     // Prepare resonator filter
     juce::dsp::ProcessSpec spec;
@@ -153,7 +176,7 @@ void SympatheticResonanceEngine::setIntensity(float newIntensity)
     intensity = juce::jlimit(0.0f, 1.0f, newIntensity);
 
     // If intensity changed significantly, rebuild coupling matrix
-    if (std::abs(intensity - oldIntensity) > 0.01f)
+    if (std::abs(intensity - oldIntensity) > INTENSITY_CHANGE_THRESHOLD)
     {
         rebuildPending.store(true, std::memory_order_release);
     }
@@ -164,7 +187,7 @@ void SympatheticResonanceEngine::setResonatorQ(float Q)
     float newQ = juce::jlimit(0.1f, 20.0f, Q);
 
     // Only update if Q changed significantly
-    if (std::abs(newQ - resonatorQ) < 0.05f)
+    if (std::abs(newQ - resonatorQ) < Q_CHANGE_THRESHOLD)
         return;
 
     resonatorQ = newQ;
@@ -235,7 +258,7 @@ void SympatheticResonanceEngine::rebuildCouplingMatrix()
             {
                 // Precompute total coupling factor
                 float materialFactor = currentSlot.materialCoupling * otherSlot.materialCoupling;
-                float totalCoupling = harmonicCoupling * materialFactor * intensity * 0.05f;
+                float totalCoupling = harmonicCoupling * materialFactor * intensity * COUPLING_SCALE_FACTOR;
 
                 if (couplings.count < MAX_COUPLINGS_PER_VOICE)
                 {
@@ -292,10 +315,10 @@ float SympatheticResonanceEngine::computeSympatheticContribution(int voiceId, fl
     }
 
     // Soft clipping to prevent buildup
-    if (sympatheticSignal > 0.1f)
-        sympatheticSignal = 0.1f + std::tanh((sympatheticSignal - 0.1f) * 2.0f) * 0.05f;
-    else if (sympatheticSignal < -0.1f)
-        sympatheticSignal = -0.1f + std::tanh((sympatheticSignal + 0.1f) * 2.0f) * 0.05f;
+    if (sympatheticSignal > SOFT_CLIP_THRESHOLD)
+        sympatheticSignal = SOFT_CLIP_THRESHOLD + std::tanh((sympatheticSignal - SOFT_CLIP_THRESHOLD) * 2.0f) * SOFT_CLIP_HEADROOM;
+    else if (sympatheticSignal < -SOFT_CLIP_THRESHOLD)
+        sympatheticSignal = -SOFT_CLIP_THRESHOLD + std::tanh((sympatheticSignal + SOFT_CLIP_THRESHOLD) * 2.0f) * SOFT_CLIP_HEADROOM;
 
     return sympatheticSignal;
 }
@@ -334,28 +357,28 @@ float SympatheticResonanceEngine::computeCouplingStrength(double freq1, double f
     // Unison (1/1) - strongest coupling
     float unisonCoupling = checkHarmonicIntervalFast(freq1, freq2, 1.0, 1.00578);
     if (unisonCoupling > 0.0f)
-        return unisonCoupling * 0.9f;
+        return unisonCoupling * UNISON_COUPLING;
 
     // Octave (1/2, 2/1) - strong coupling
     float octaveDownCoupling = checkHarmonicIntervalFast(freq1, freq2, 0.5, 1.00868);
     float octaveUpCoupling = checkHarmonicIntervalFast(freq1, freq2, 2.0, 1.00868);
     float octaveCoupling = std::max(octaveDownCoupling, octaveUpCoupling);
     if (octaveCoupling > 0.0f)
-        return octaveCoupling * 0.7f;
+        return octaveCoupling * OCTAVE_COUPLING;
 
     // Perfect Fifth (2/3, 3/2) - medium coupling
     float fifthDownCoupling = checkHarmonicIntervalFast(freq1, freq2, 2.0/3.0, 1.01159);
     float fifthUpCoupling = checkHarmonicIntervalFast(freq1, freq2, 3.0/2.0, 1.01159);
     float fifthCoupling = std::max(fifthDownCoupling, fifthUpCoupling);
     if (fifthCoupling > 0.0f)
-        return fifthCoupling * 0.5f;
+        return fifthCoupling * FIFTH_COUPLING;
 
     // Major Third (4/5, 5/4) - weak coupling
     float thirdDownCoupling = checkHarmonicIntervalFast(freq1, freq2, 4.0/5.0, 1.01451);
     float thirdUpCoupling = checkHarmonicIntervalFast(freq1, freq2, 5.0/4.0, 1.01451);
     float thirdCoupling = std::max(thirdDownCoupling, thirdUpCoupling);
     if (thirdCoupling > 0.0f)
-        return thirdCoupling * 0.3f;
+        return thirdCoupling * THIRD_COUPLING;
 
     return 0.0f;
 }

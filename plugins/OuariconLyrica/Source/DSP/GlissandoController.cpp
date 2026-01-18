@@ -46,7 +46,12 @@ void GlissandoController::setMode(GlissandoMode newMode)
 
 void GlissandoController::setScale(const std::vector<double>& scaleFrequencies)
 {
-    scale = scaleFrequencies;
+    // v1.3.2: Copy to fixed-size array instead of vector assignment (no allocation)
+    scaleSize = std::min(static_cast<int>(scaleFrequencies.size()), MAX_SCALE_SIZE);
+    for (int i = 0; i < scaleSize; ++i)
+    {
+        scale[i] = scaleFrequencies[i];
+    }
 }
 
 void GlissandoController::setSpeed(float newSpeed)
@@ -82,7 +87,7 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
     else if (mode == GlissandoMode::ScaleLocked)
     {
         // Scale-Locked mode: Find scale degrees for start and end frequencies
-        if (scale.empty())
+        if (scaleSize == 0)
         {
             // No scale loaded - fall back to direct frequency
             frequencyRamp.setCurrentAndTargetValue(endFreq);
@@ -94,7 +99,7 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
         targetScaleDegree = findClosestScaleDegree(endFreq);
 
         // Set initial frequency
-        if (currentScaleDegree >= 0 && currentScaleDegree < static_cast<int>(scale.size()))
+        if (currentScaleDegree >= 0 && currentScaleDegree < scaleSize)
         {
             currentScaleFrequency = scale[currentScaleDegree];
         }
@@ -149,13 +154,13 @@ void GlissandoController::reset()
 
 int GlissandoController::findClosestScaleDegree(double freq) const
 {
-    if (scale.empty())
+    if (scaleSize == 0)
         return 0;
 
     int closestIndex = 0;
     double smallestDiff = std::abs(scale[0] - freq);
 
-    for (int i = 1; i < static_cast<int>(scale.size()); ++i)
+    for (int i = 1; i < scaleSize; ++i)
     {
         double diff = std::abs(scale[i] - freq);
         if (diff < smallestDiff)
@@ -170,7 +175,7 @@ int GlissandoController::findClosestScaleDegree(double freq) const
 
 void GlissandoController::updateScaleLocked()
 {
-    if (scale.empty() || currentScaleDegree == targetScaleDegree)
+    if (scaleSize == 0 || currentScaleDegree == targetScaleDegree)
     {
         active = false;
         return;
@@ -195,7 +200,7 @@ void GlissandoController::updateScaleLocked()
         }
 
         // Update frequency to new scale degree
-        if (currentScaleDegree >= 0 && currentScaleDegree < static_cast<int>(scale.size()))
+        if (currentScaleDegree >= 0 && currentScaleDegree < scaleSize)
         {
             currentScaleFrequency = scale[currentScaleDegree];
         }
