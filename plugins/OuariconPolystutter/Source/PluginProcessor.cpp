@@ -991,38 +991,40 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
         bool globalTrigger = triggerRouter->processTriggerDetection(buffer, sidechainBuffer, midiMessages, numSamples);
 
         // Handle envelope/sidechain triggers (trigger all enabled lanes)
+        // v1.1.12: Per-lane lockout - ignore triggers while lane is actively repeating
         if (globalTrigger)
         {
-            if (lane1 && lane1Enabled) lane1->trigger();
-            if (lane2 && lane2Enabled) lane2->trigger();
-            if (lane3 && lane3Enabled) lane3->trigger();
-            if (lane4 && lane4Enabled) lane4->trigger();
+            if (lane1 && lane1Enabled && !lane1->isRepeating()) lane1->trigger();
+            if (lane2 && lane2Enabled && !lane2->isRepeating()) lane2->trigger();
+            if (lane3 && lane3Enabled && !lane3->isRepeating()) lane3->trigger();
+            if (lane4 && lane4Enabled && !lane4->isRepeating()) lane4->trigger();
         }
 
         // Handle MIDI triggers (per-lane or all lanes)
+        // v1.1.12: Per-lane lockout - ignore triggers while lane is actively repeating
         int midiLane = triggerRouter->getMidiTriggeredLane();
         if (midiLane >= 0)
         {
             if (midiLane == 100)  // G3 triggers all lanes
             {
-                if (lane1 && lane1Enabled) lane1->trigger();
-                if (lane2 && lane2Enabled) lane2->trigger();
-                if (lane3 && lane3Enabled) lane3->trigger();
-                if (lane4 && lane4Enabled) lane4->trigger();
+                if (lane1 && lane1Enabled && !lane1->isRepeating()) lane1->trigger();
+                if (lane2 && lane2Enabled && !lane2->isRepeating()) lane2->trigger();
+                if (lane3 && lane3Enabled && !lane3->isRepeating()) lane3->trigger();
+                if (lane4 && lane4Enabled && !lane4->isRepeating()) lane4->trigger();
             }
-            else if (midiLane == 0 && lane1 && lane1Enabled)
+            else if (midiLane == 0 && lane1 && lane1Enabled && !lane1->isRepeating())
             {
                 lane1->trigger();
             }
-            else if (midiLane == 1 && lane2 && lane2Enabled)
+            else if (midiLane == 1 && lane2 && lane2Enabled && !lane2->isRepeating())
             {
                 lane2->trigger();
             }
-            else if (midiLane == 2 && lane3 && lane3Enabled)
+            else if (midiLane == 2 && lane3 && lane3Enabled && !lane3->isRepeating())
             {
                 lane3->trigger();
             }
-            else if (midiLane == 3 && lane4 && lane4Enabled)
+            else if (midiLane == 3 && lane4 && lane4Enabled && !lane4->isRepeating())
             {
                 lane4->trigger();
             }

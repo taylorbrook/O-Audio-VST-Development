@@ -138,8 +138,9 @@ bool TriggerRouter::detectEnvelopeTrigger(const juce::AudioBuffer<float>& buffer
         float rightSample = buffer.getNumChannels() > 1 ? buffer.getSample(1, sample) : leftSample;
 
         // Process through envelope followers
+        // v1.1.11: Fixed channel index - each filter uses channel 0 (they're separate mono instances)
         float envLeft = envelopeFollowerLeft.processSample(0, std::abs(leftSample));
-        float envRight = envelopeFollowerRight.processSample(1, std::abs(rightSample));
+        float envRight = envelopeFollowerRight.processSample(0, std::abs(rightSample));
 
         // Take maximum of left and right channels
         float envelopeLevel = juce::jmax(envLeft, envRight);
@@ -196,8 +197,9 @@ bool TriggerRouter::detectSidechainTrigger(const juce::AudioBuffer<float>& buffe
         float rightSample = buffer.getNumChannels() > 1 ? buffer.getSample(1, sample) : leftSample;
 
         // Process through SIDECHAIN envelope followers (separate from main)
+        // v1.1.11: Fixed channel index - each filter uses channel 0 (they're separate mono instances)
         float envLeft = sidechainEnvelopeLeft.processSample(0, std::abs(leftSample));
-        float envRight = sidechainEnvelopeRight.processSample(1, std::abs(rightSample));
+        float envRight = sidechainEnvelopeRight.processSample(0, std::abs(rightSample));
 
         // Take maximum of left and right channels
         float envelopeLevel = juce::jmax(envLeft, envRight);

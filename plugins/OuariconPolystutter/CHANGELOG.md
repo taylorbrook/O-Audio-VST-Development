@@ -2,6 +2,19 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.1.13] - 2026-01-17
+
+### Changed
+
+- **Per-lane trigger lockout for all trigger modes (ENV, Sidechain, MIDI)**
+  - When a lane is triggered, it now ignores subsequent triggers until all its repetitions complete
+  - Lockout is per-lane: Lane 1 being locked doesn't prevent Lane 2 from triggering
+  - Triggers received during lockout are discarded (not queued)
+  - Uses existing `isRepeating()` check: `currentRepeat < maxRepeats && isTriggered`
+  - Lockout releases when last repeat starts playing, allowing natural fade-out
+  - Manual trigger button and beat-sync modes are unaffected (only ENV/Sidechain/MIDI)
+  - Provides more predictable stutter behavior - each trigger completes its full cycle
+
 ## [1.1.12] - 2026-01-17
 
 ### Fixed
