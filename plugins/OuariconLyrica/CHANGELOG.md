@@ -2,6 +2,20 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.1.5] - 2026-01-17
+
+### Changed
+
+- **Increased body resonance intensity for more pronounced effect**
+  - Wet mix increased from 0.3 to 0.7 (more than doubled)
+  - Gain values significantly increased for each wood type:
+    - Spruce: 1.8x → 3.5x (~11 dB boost)
+    - Maple: 1.5x → 2.8x (~9 dB boost)
+    - Exotic: 2.2x → 4.5x (~13 dB boost)
+    - Synthetic: 2.5x → 5.5x (~15 dB boost)
+  - Dry signal now preserved at 40% even at max resonance for blend
+  - Files modified: BodyResonance.cpp
+
 ## [1.1.4] - 2026-01-17
 
 ### Fixed

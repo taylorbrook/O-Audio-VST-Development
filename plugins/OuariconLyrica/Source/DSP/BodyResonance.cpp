@@ -69,10 +69,9 @@ float BodyResonance::process(float input)
         bodyModes[3].processSample(input) * modeAmplitudes[3] +
         bodyModes[4].processSample(input) * modeAmplitudes[4];
 
-    // Normalize and mix dry/wet
-    // OPTIMIZED: Combined multiply (0.3f * bodyAmount) into single operation
-    float dryAmount = 1.0f - bodyAmount;
-    return input * dryAmount + resonantOutput * (0.3f * bodyAmount);
+    // Mix dry/wet - v1.1.5: Increased wet mix from 0.3 to 0.7 for audible effect
+    float dryAmount = 1.0f - (bodyAmount * 0.6f);  // Keep some dry signal even at max
+    return input * dryAmount + resonantOutput * (0.7f * bodyAmount);
 }
 
 void BodyResonance::reset()
@@ -134,26 +133,26 @@ float BodyResonance::getQForWoodType(WoodType type) const
 
 float BodyResonance::getGainForWoodType(WoodType type) const
 {
-    // v1.1.4: Added resonance gain to make body parameters audible
+    // v1.1.5: Increased gain values significantly for audible wood type differences
     // Gain controls how much the resonant frequencies are boosted
     // Linear gain values (not dB) for makePeakFilter
 
     switch (type)
     {
         case WoodType::Spruce:
-            return 1.8f;  // ~5.1 dB - Traditional, balanced resonance
+            return 3.5f;  // ~10.9 dB - Traditional, balanced resonance
 
         case WoodType::Maple:
-            return 1.5f;  // ~3.5 dB - Warmer, more subtle body
+            return 2.8f;  // ~8.9 dB - Warmer, rounder body
 
         case WoodType::Exotic:
-            return 2.2f;  // ~6.8 dB - Pronounced, rich resonance
+            return 4.5f;  // ~13.1 dB - Pronounced, rich resonance
 
         case WoodType::Synthetic:
-            return 2.5f;  // ~8.0 dB - Sharp, defined peaks
+            return 5.5f;  // ~14.8 dB - Sharp, defined peaks
 
         default:
-            return 1.8f;
+            return 3.5f;
     }
 }
 
