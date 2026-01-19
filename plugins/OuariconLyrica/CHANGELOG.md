@@ -2,6 +2,66 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.6.0] - 2026-01-18
+
+### Added
+
+- **Full Tuning Module** with 12-TET and Custom (Scala) tuning support
+  - New TUNING tab replaces placeholder with complete microtonal tuning interface
+  - Two tuning modes: 12-TET (standard equal temperament) and Custom (Scala scales)
+  - Interval list display showing all scale degrees in cents with ratio approximations
+  - Pitch circle visualization showing note positions around the octave
+  - Tonic/root selector (C through B) for scale transposition
+  - Reference pitch (A4 frequency) slider moved from Techniques tab
+  - Pitch bend range slider moved from Techniques tab
+
+- **Scala File Support (.scl)**
+  - Load any standard Scala scale file
+  - Supports both cents and ratio notation (n/d, decimal, integer)
+  - Scale name extracted from file
+  - Save current scale as .scl file
+
+- **Keyboard Mapping File Support (.kbm)**
+  - Load keyboard mapping files to set reference frequency
+  - Save current mapping as .kbm file
+
+- **Preset Scales** (built-in)
+  - 12-TET (Equal Temperament)
+  - Just Intonation
+  - Pythagorean
+  - Quarter-comma Meantone
+  - Arabic 17-TET
+  - Slendro (5-TET)
+
+- **Interactive Keyboard Visualization**
+  - Visual piano keyboard in tuning tab
+  - Click-to-highlight feedback (visual only)
+
+- **Native Functions for WebView**
+  - `getTuningIntervals()` - Get current scale intervals in cents
+  - `setTuningIntervals(intervals, name)` - Set custom scale
+  - `getTuningName()` - Get active tuning name
+  - `setTonicNote(index)` / `getTonicNote()` - Tonic transposition
+  - `loadScalaFile()` / `saveScalaFile()` - .scl file I/O
+  - `loadKBMFile()` / `saveKBMFile()` - .kbm file I/O
+
+### Changed
+
+- **TuningEngine upgraded** with Mode enum, Scala parsing, interval storage
+  - Thread-safe frequency table using atomic operations
+  - Lock-free audio thread access to frequencies
+  - Mutex-protected interval updates on message thread
+- **Techniques tab simplified** - Tuning controls moved to dedicated Tuning tab
+- **tuningMode parameter added** (0=12-TET, 1=Custom)
+
+### Technical Notes
+
+- Files modified: TuningEngine.h/.cpp, PluginProcessor.h/.cpp, PluginEditor.h/.cpp, index.html
+- Frequency calculation: Custom intervals use cents-based formula: `f = c0 * 2^(cents/1200)`
+- Scala parser handles cents (decimal), ratios (n/d), and integer ratios
+- Tonic transposition shifts entire scale by specified semitones
+- Preset scales defined in JavaScript with accurate historical intervals
+
 ## [1.5.4] - 2026-01-18
 
 ### Fixed

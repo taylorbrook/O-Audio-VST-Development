@@ -57,6 +57,8 @@ private:
     std::unique_ptr<juce::WebComboBoxRelay> techniqueRelay;
     std::unique_ptr<juce::WebComboBoxRelay> glissandoModeRelay;
     std::unique_ptr<juce::WebComboBoxRelay> glissandoScaleRelay;
+    // v1.6.0: Tuning mode relay
+    std::unique_ptr<juce::WebComboBoxRelay> tuningModeRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -88,6 +90,8 @@ private:
     std::unique_ptr<juce::WebComboBoxParameterAttachment> techniqueAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoModeAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoScaleAttachment;
+    // v1.6.0: Tuning mode attachment
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> tuningModeAttachment;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

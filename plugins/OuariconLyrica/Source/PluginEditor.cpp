@@ -45,6 +45,8 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
     techniqueRelay = std::make_unique<juce::WebComboBoxRelay>("technique");
     glissandoModeRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoMode");
     glissandoScaleRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoScale");
+    // v1.6.0: Tuning mode relay
+    tuningModeRelay = std::make_unique<juce::WebComboBoxRelay>("tuningMode");
 
     // 2️⃣ CREATE WEBVIEW with all relays registered
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -179,6 +181,170 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                     }
                 );
             })
+            // v1.6.0: Tuning Native Functions
+            .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&,
+                                                              std::function<void(juce::var)> complete) {
+                auto intervals = processorRef.getTuningEngine()->getIntervals();
+                juce::Array<juce::var> result;
+                for (double cents : intervals)
+                    result.add(juce::var(cents));
+                complete(juce::var(result));
+            })
+            .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args,
+                                                              std::function<void(juce::var)> complete) {
+                if (args.size() < 2) { complete(juce::var(false)); return; }
+
+                auto intervalsVar = args[0];
+                auto name = args[1].toString();
+
+                if (!intervalsVar.isArray()) { complete(juce::var(false)); return; }
+
+                std::vector<double> intervals;
+                for (int i = 0; i < intervalsVar.size(); ++i)
+                    intervals.push_back(static_cast<double>(intervalsVar[i]));
+
+                processorRef.getTuningEngine()->setCustomIntervals(intervals, name);
+                complete(juce::var(true));
+            })
+            .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&,
+                                                         std::function<void(juce::var)> complete) {
+                complete(juce::var(processorRef.getTuningEngine()->getActiveTuningName()));
+            })
+            .withNativeFunction("setTonicNote", [this](const juce::Array<juce::var>& args,
+                                                        std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                int tonic = static_cast<int>(args[0]);
+                processorRef.getTuningEngine()->setTonicNote(tonic);
+                complete(juce::var(true));
+            })
+            .withNativeFunction("getTonicNote", [this](const juce::Array<juce::var>&,
+                                                        std::function<void(juce::var)> complete) {
+                complete(juce::var(processorRef.getTuningEngine()->getTonicNote()));
+            })
+            .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&,
+                                                         std::function<void(juce::var)> complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                    "*.scl"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto result = fc.getResult();
+                        if (result == juce::File{})
+                        {
+                            complete(juce::var()); // User cancelled
+                            return;
+                        }
+
+                        if (processorRef.getTuningEngine()->loadScalaFile(result))
+                        {
+                            complete(juce::var(processorRef.getTuningEngine()->getActiveTuningName()));
+                        }
+                        else
+                        {
+                            complete(juce::var()); // Load failed
+                        }
+                    }
+                );
+            })
+            .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&,
+                                                       std::function<void(juce::var)> complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                    "*.kbm"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto result = fc.getResult();
+                        if (result == juce::File{})
+                        {
+                            complete(juce::var()); // User cancelled
+                            return;
+                        }
+
+                        if (processorRef.getTuningEngine()->loadKBMFile(result))
+                        {
+                            complete(juce::var(true));
+                        }
+                        else
+                        {
+                            complete(juce::var()); // Load failed
+                        }
+                    }
+                );
+            })
+            .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&,
+                                                         std::function<void(juce::var)> complete) {
+                auto content = processorRef.getTuningEngine()->generateScalaFileContent();
+                auto name = processorRef.getTuningEngine()->getActiveTuningName();
+
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(name + ".scl"),
+                    "*.scl"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, content, complete](const juce::FileChooser& fc) {
+                        auto result = fc.getResult();
+                        if (result == juce::File{})
+                        {
+                            complete(juce::var()); // User cancelled
+                            return;
+                        }
+
+                        auto file = result.hasFileExtension(".scl") ? result : result.withFileExtension(".scl");
+                        if (file.replaceWithText(content))
+                        {
+                            complete(juce::var(file.getFileName()));
+                        }
+                        else
+                        {
+                            complete(juce::var()); // Save failed
+                        }
+                    }
+                );
+            })
+            .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&,
+                                                       std::function<void(juce::var)> complete) {
+                auto content = processorRef.getTuningEngine()->generateKBMFileContent();
+                auto name = processorRef.getTuningEngine()->getActiveTuningName();
+
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(name + ".kbm"),
+                    "*.kbm"
+                );
+
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, content, complete](const juce::FileChooser& fc) {
+                        auto result = fc.getResult();
+                        if (result == juce::File{})
+                        {
+                            complete(juce::var()); // User cancelled
+                            return;
+                        }
+
+                        auto file = result.hasFileExtension(".kbm") ? result : result.withFileExtension(".kbm");
+                        if (file.replaceWithText(content))
+                        {
+                            complete(juce::var(file.getFileName()));
+                        }
+                        else
+                        {
+                            complete(juce::var()); // Save failed
+                        }
+                    }
+                );
+            })
             // Register all slider relays
             .withOptionsFrom(*masterVolumeRelay)
             .withOptionsFrom(*brightnessRelay)
@@ -206,6 +372,8 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             .withOptionsFrom(*techniqueRelay)
             .withOptionsFrom(*glissandoModeRelay)
             .withOptionsFrom(*glissandoScaleRelay)
+            // v1.6.0: Tuning mode relay
+            .withOptionsFrom(*tuningModeRelay)
     );
 
     // 3️⃣ CREATE ATTACHMENTS (must be created AFTER WebView)
@@ -262,6 +430,9 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
         *apvts.getParameter("glissandoMode"), *glissandoModeRelay, nullptr);
     glissandoScaleAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("glissandoScale"), *glissandoScaleRelay, nullptr);
+    // v1.6.0: Tuning mode attachment
+    tuningModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("tuningMode"), *tuningModeRelay, nullptr);
 
     // 4️⃣ SETUP WEBVIEW
     addAndMakeVisible(*webView);

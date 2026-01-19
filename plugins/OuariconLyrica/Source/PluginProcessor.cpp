@@ -137,6 +137,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconLyricaAudioProcessor
         "st"
     ));
 
+    // v1.6.0: Tuning Mode (12-TET or Custom/Scala)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "tuningMode", 1 },
+        "Tuning Mode",
+        juce::StringArray { "12-TET", "Custom" },
+        0  // Default: 12-TET
+    ));
+
     // Advanced String Parameters
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "stringTension", 1 },
@@ -278,6 +286,14 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     if (pitchBendRangeParam != nullptr)
     {
         tuningEngine.setPitchBendRange(pitchBendRangeParam->load());
+    }
+
+    // v1.6.0: Update tuning mode
+    auto* tuningModeParam = parameters.getRawParameterValue("tuningMode");
+    if (tuningModeParam != nullptr)
+    {
+        int modeInt = static_cast<int>(tuningModeParam->load());
+        tuningEngine.setMode(static_cast<TuningEngine::Mode>(modeInt));
     }
 
     // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
