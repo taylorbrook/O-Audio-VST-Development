@@ -543,150 +543,196 @@
         }
 
         /* ====================================================================
-           v1.6.0: TUNING TAB STYLES
+           v1.7.0: TUNING TAB STYLES - Marimba-style layout
            ==================================================================== */
 
-        .tuning-layout {
+        /* Tuning Visualization Container - Left side */
+        .tuning-viz-container {
+            position: absolute;
+            left: 20px;
+            top: 15px;
+            bottom: 65px;
             display: flex;
-            gap: 15px;
+            flex-direction: row;
+            align-items: flex-start;
+            gap: 12px;
+        }
+
+        /* Pitch Circle */
+        .pitch-circle {
+            width: 150px;
+            height: 150px;
+            position: relative;
+        }
+
+        .pitch-circle svg {
+            width: 100%;
             height: 100%;
         }
 
-        /* Left panel: Interval list + Pitch circle */
-        .tuning-viz-container {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-            min-width: 200px;
+        .pitch-circle-label {
+            position: absolute;
+            bottom: -16px;
+            width: 100%;
+            text-align: center;
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
         }
 
+        /* Interval List */
         .interval-list {
-            flex: 1;
-            background: rgba(245, 230, 211, 0.6);
+            width: 115px;
+            max-height: 280px;
+            background: rgba(235, 217, 199, 0.6);
             border: 1px solid #8B7355;
             border-radius: 4px;
-            padding: 8px;
             overflow-y: auto;
-            font-size: 9px;
+            padding: 4px 6px;
+            order: -1;
         }
 
         .interval-list-header {
             font-size: 8px;
             color: #5C4033;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            padding-bottom: 4px;
-            margin-bottom: 4px;
-            border-bottom: 1px solid rgba(139, 115, 85, 0.3);
+            letter-spacing: 0.5px;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+            padding-bottom: 3px;
+            margin-bottom: 3px;
+            text-align: center;
         }
 
-        .interval-item {
+        .tonic-selector {
             display: flex;
             justify-content: space-between;
-            padding: 3px 4px;
+            align-items: center;
+            padding: 2px 4px;
+            margin-bottom: 3px;
+            background: rgba(139, 168, 112, 0.2);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+        }
+
+        .tonic-label {
+            font-size: 7px;
+            color: #5C4033;
+            text-transform: uppercase;
+        }
+
+        .tonic-value {
+            font-size: 9px;
+            font-weight: bold;
+            color: #3C2F2F;
+            min-width: 20px;
+            text-align: center;
+        }
+
+        .tonic-arrows {
+            display: flex;
+            gap: 2px;
+        }
+
+        .tonic-arrow {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 8px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.6);
+            border: 1px solid rgba(139, 115, 85, 0.5);
             border-radius: 2px;
             cursor: pointer;
             transition: background 0.15s;
         }
 
-        .interval-item:hover {
-            background: rgba(139, 168, 112, 0.2);
+        .tonic-arrow:hover {
+            background: rgba(139, 168, 112, 0.3);
         }
 
-        .interval-item.selected {
-            background: rgba(139, 168, 112, 0.35);
+        .interval-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 3px;
+            border-radius: 2px;
+            margin-bottom: 1px;
+        }
+
+        .interval-item:hover {
+            background: rgba(139, 168, 112, 0.15);
         }
 
         .interval-degree {
             color: #5C4033;
             font-weight: 500;
-            min-width: 20px;
-        }
-
-        .interval-cents {
-            color: #3C2F2F;
-        }
-
-        .interval-ratio {
-            color: #8B7355;
             font-size: 8px;
+            min-width: 18px;
         }
 
-        /* Pitch circle visualization */
-        .pitch-circle-container {
-            height: 120px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background: rgba(245, 230, 211, 0.4);
-            border: 1px solid #8B7355;
-            border-radius: 4px;
+        .interval-input {
+            width: 50px;
+            background: rgba(245, 230, 211, 0.8);
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 2px;
+            font-family: monospace;
+            font-size: 8px;
+            color: #3C2F2F;
+            text-align: right;
+            padding: 0 3px;
+            outline: none;
         }
 
-        .pitch-circle-svg {
-            width: 110px;
-            height: 110px;
+        .interval-input:focus {
+            background: #FFF;
+            border-color: #6B8E4E;
         }
 
-        .pitch-circle-svg circle.ring {
-            fill: none;
-            stroke: #8B7355;
-            stroke-width: 1;
+        .interval-input:disabled {
+            background: rgba(200, 200, 200, 0.3);
+            color: #888;
         }
 
-        .pitch-circle-svg circle.note {
-            fill: rgba(139, 168, 112, 0.6);
-            stroke: #3C5C1A;
-            stroke-width: 1;
-            cursor: pointer;
-            transition: fill 0.15s, r 0.15s;
-        }
-
-        .pitch-circle-svg circle.note:hover {
-            fill: rgba(107, 142, 35, 0.8);
-        }
-
-        .pitch-circle-svg circle.note.tonic {
-            fill: rgba(107, 142, 35, 0.9);
-            stroke-width: 2;
-        }
-
-        .pitch-circle-svg text {
-            font-size: 7px;
-            fill: #3C2F2F;
-            text-anchor: middle;
-            dominant-baseline: middle;
-            pointer-events: none;
-        }
-
-        /* Right panel: Controls */
+        /* Tuning Controls Panel - Right side */
         .tuning-controls-panel {
-            width: 180px;
+            position: absolute;
+            right: 25px;
+            top: 15px;
+            width: 200px;
             display: flex;
             flex-direction: column;
+            gap: 15px;
+        }
+
+        .tuning-mode-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             gap: 10px;
         }
 
         /* Mode buttons */
         .tuning-mode-buttons {
             display: flex;
-            gap: 6px;
+            gap: 10px;
         }
 
         .tuning-mode-btn {
-            flex: 1;
-            padding: 6px 8px;
+            padding: 8px 12px;
             font-family: 'Garamond', 'Times New Roman', serif;
-            font-size: 9px;
+            font-size: 10px;
             text-transform: uppercase;
             letter-spacing: 0.5px;
             color: #5C4033;
             background: rgba(212, 196, 176, 0.8);
             border: 1px solid #8B7355;
-            border-radius: 3px;
+            border-radius: 4px;
             cursor: pointer;
             transition: background 0.15s, color 0.15s, border-color 0.15s;
+            min-width: 55px;
         }
 
         .tuning-mode-btn:hover {
@@ -700,6 +746,62 @@
             font-weight: 500;
         }
 
+        /* A4 Reference Knob */
+        .tuning-ref-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .ref-knob-container {
+            position: relative;
+            width: 60px;
+            height: 60px;
+        }
+
+        .ref-knob {
+            width: 60px;
+            height: 60px;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(255, 248, 220, 0.9) 0%,
+                rgba(245, 222, 179, 0.8) 40%,
+                rgba(212, 196, 176, 0.7) 70%,
+                rgba(139, 115, 85, 0.5) 100%);
+            border: 2px solid #8B7355;
+            border-radius: 50%;
+            cursor: pointer;
+            position: relative;
+            box-shadow: 2px 2px 6px rgba(0,0,0,0.2), inset 1px 1px 3px rgba(255,255,255,0.3);
+        }
+
+        .ref-knob-indicator {
+            position: absolute;
+            top: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 3px;
+            height: 12px;
+            background: #3C2F2F;
+            border-radius: 2px;
+            transform-origin: center 25px;
+        }
+
+        .ref-knob-label {
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+
+        .ref-knob-value {
+            font-size: 10px;
+            color: #3C2F2F;
+            text-align: center;
+            font-weight: 500;
+        }
+
         /* Scale name display */
         .scale-name-display {
             padding: 6px 10px;
@@ -710,9 +812,16 @@
             color: #3C2F2F;
             text-align: center;
             min-height: 24px;
+            width: 100%;
         }
 
         /* File operation buttons */
+        .tuning-file-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
         .tuning-file-buttons {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -741,61 +850,22 @@
             transform: scale(0.97);
         }
 
-        /* Tonic selector */
-        .tonic-section {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .tonic-label {
-            font-size: 8px;
-            color: #5C4033;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .tonic-buttons {
-            display: grid;
-            grid-template-columns: repeat(6, 1fr);
-            gap: 2px;
-        }
-
-        .tonic-btn {
-            padding: 4px 2px;
-            font-family: 'Garamond', 'Times New Roman', serif;
-            font-size: 8px;
-            color: #5C4033;
-            background: rgba(212, 196, 176, 0.6);
-            border: 1px solid rgba(139, 115, 85, 0.5);
-            border-radius: 2px;
-            cursor: pointer;
-            transition: background 0.15s;
-        }
-
-        .tonic-btn:hover {
-            background: rgba(139, 168, 112, 0.3);
-        }
-
-        .tonic-btn.active {
-            background: rgba(139, 168, 112, 0.5);
-            border-color: #3C5C1A;
-            font-weight: 500;
-        }
-
         /* Bottom: Keyboard visualization */
         .keyboard-section {
+            position: absolute;
+            left: 20px;
+            right: 20px;
+            bottom: 8px;
             background: rgba(245, 230, 211, 0.5);
             border: 1px solid #8B7355;
             border-radius: 4px;
-            padding: 8px;
-            margin-top: auto;
+            padding: 6px 10px;
         }
 
         .keyboard-viz {
             display: flex;
             position: relative;
-            height: 55px;
+            height: 50px;
         }
 
         .white-key {
@@ -806,6 +876,17 @@
             cursor: pointer;
             transition: background 0.1s;
             z-index: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 3px;
+        }
+
+        .white-key span {
+            font-size: 8px;
+            color: #5C4033;
+            font-weight: 500;
         }
 
         .white-key:hover {
@@ -816,9 +897,29 @@
             background: linear-gradient(to bottom, rgba(139, 168, 112, 0.4) 0%, rgba(139, 168, 112, 0.2) 100%);
         }
 
+        .white-key.mapped {
+            position: relative;
+        }
+
+        .white-key.mapped::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 15%;
+            right: 15%;
+            height: 0;
+            background: rgba(107, 142, 35, 0.6);
+            border-radius: 0 0 2px 2px;
+            transition: height 0.2s;
+        }
+
+        .white-key.mapped.active::before {
+            height: 40%;
+        }
+
         .black-key {
             position: absolute;
-            width: 10%;
+            width: 9%;
             height: 60%;
             background: linear-gradient(to bottom, #3C2F2F 0%, #5C4033 100%);
             border-radius: 0 0 2px 2px;
@@ -835,34 +936,13 @@
             background: linear-gradient(to bottom, rgba(60, 92, 26, 0.8) 0%, rgba(107, 142, 35, 0.6) 100%);
         }
 
-        /* Preset tunings dropdown */
-        .preset-tunings-section {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .preset-tunings-label {
-            font-size: 8px;
-            color: #5C4033;
+        .keyboard-help {
+            text-align: center;
+            font-size: 7px;
+            color: #8B7355;
+            margin-top: 4px;
             text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .preset-tunings-select {
-            -webkit-appearance: none;
-            appearance: none;
-            padding: 4px 20px 4px 6px;
-            font-family: 'Garamond', 'Times New Roman', serif;
-            font-size: 9px;
-            color: #3C2F2F;
-            background: linear-gradient(to bottom, #FAF0E6 0%, #EBD9C7 100%);
-            border: 1px solid #8B7355;
-            border-radius: 3px;
-            cursor: pointer;
-            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%235C4033'/%3E%3C/svg%3E");
-            background-repeat: no-repeat;
-            background-position: right 5px center;
+            letter-spacing: 0.5px;
         }
     </style>
 </head>
@@ -1108,121 +1188,90 @@
         </div>
 
         <!-- ================================================================
-             TUNING TAB - v1.6.0: Full Implementation
+             TUNING TAB - v1.7.0: Marimba-style Layout
              ================================================================ -->
         <div id="tuning-tab" class="tab-content">
-            <div class="tuning-layout">
-                <!-- LEFT: Visualization -->
-                <div class="tuning-viz-container">
-                    <!-- Interval List -->
-                    <div class="interval-list" id="interval-list">
-                        <div class="interval-list-header">Scale Intervals</div>
-                        <!-- Populated by JavaScript -->
-                    </div>
-
-                    <!-- Pitch Circle -->
-                    <div class="pitch-circle-container">
-                        <svg class="pitch-circle-svg" viewBox="0 0 110 110" id="pitch-circle-svg">
-                            <circle class="ring" cx="55" cy="55" r="45"/>
-                            <!-- Note circles populated by JavaScript -->
-                        </svg>
-                    </div>
+            <!-- LEFT SIDE: Tuning Visualization -->
+            <div class="tuning-viz-container">
+                <!-- Interval List -->
+                <div class="interval-list" id="interval-list">
+                    <div class="interval-list-header">Intervals (12 notes)</div>
+                    <!-- Tonic selector + intervals populated by JS -->
                 </div>
 
-                <!-- CENTER: Reference Pitch + Pitch Bend -->
-                <div class="tuning-viz-container" style="max-width: 160px;">
-                    <div class="section">
-                        <div class="section-header">Reference Pitch</div>
-                        <div class="section-content" style="flex-direction: column;">
-                            <div class="slider-group" style="max-width: 100%;">
-                                <span class="slider-label">A4 Frequency</span>
-                                <div class="slider-wrapper">
-                                    <input type="range" id="masterTune" min="0" max="1" step="0.001" value="0.5">
-                                    <span class="slider-value" id="masterTuneValue">440 Hz</span>
-                                </div>
-                            </div>
-                            <div class="slider-group" style="max-width: 100%;">
-                                <span class="slider-label">Pitch Bend Range</span>
-                                <div class="slider-wrapper">
-                                    <input type="range" id="pitchBendRange" min="0" max="1" step="0.001" value="0.021">
-                                    <span class="slider-value" id="pitchBendRangeValue">±2 st</span>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- Keyboard Visualization -->
-                    <div class="keyboard-section">
-                        <div class="keyboard-viz" id="keyboard-viz">
-                            <!-- White keys -->
-                            <div class="white-key" data-note="60"></div>
-                            <div class="white-key" data-note="62"></div>
-                            <div class="white-key" data-note="64"></div>
-                            <div class="white-key" data-note="65"></div>
-                            <div class="white-key" data-note="67"></div>
-                            <div class="white-key" data-note="69"></div>
-                            <div class="white-key" data-note="71"></div>
-                            <!-- Black keys (positioned absolutely) -->
-                            <div class="black-key" data-note="61" style="left: 11.5%;"></div>
-                            <div class="black-key" data-note="63" style="left: 25.5%;"></div>
-                            <div class="black-key" data-note="66" style="left: 54%;"></div>
-                            <div class="black-key" data-note="68" style="left: 68%;"></div>
-                            <div class="black-key" data-note="70" style="left: 82%;"></div>
-                        </div>
-                    </div>
+                <!-- Pitch Circle -->
+                <div class="pitch-circle">
+                    <svg viewBox="0 0 150 150" id="pitch-circle-svg">
+                        <!-- Outer circle -->
+                        <circle cx="75" cy="75" r="70" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                        <!-- Inner circle -->
+                        <circle cx="75" cy="75" r="58" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                        <!-- Center dot -->
+                        <circle cx="75" cy="75" r="3" fill="#3C2F2F"/>
+                        <!-- Interval lines (drawn by JS) -->
+                        <g id="interval-lines"></g>
+                        <!-- Degree labels around the circle -->
+                        <g id="degree-labels" font-size="7" fill="#5C4033"></g>
+                    </svg>
+                    <div class="pitch-circle-label">Scale Intervals</div>
                 </div>
+            </div>
 
-                <!-- RIGHT: Controls -->
-                <div class="tuning-controls-panel">
-                    <!-- Mode Buttons -->
+            <!-- RIGHT SIDE: Tuning Controls -->
+            <div class="tuning-controls-panel">
+                <!-- Mode Selection -->
+                <div class="tuning-mode-section">
                     <div class="tuning-mode-buttons">
                         <button class="tuning-mode-btn active" id="btn-12tet" data-mode="0">12-TET</button>
                         <button class="tuning-mode-btn" id="btn-custom" data-mode="1">Custom</button>
+                        <button class="tuning-mode-btn" id="btn-mts" data-mode="2">MTS-ESP</button>
                     </div>
+                </div>
 
-                    <!-- Scale Name Display -->
-                    <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
-
-                    <!-- Preset Tunings -->
-                    <div class="preset-tunings-section">
-                        <span class="preset-tunings-label">Preset Scales</span>
-                        <select class="preset-tunings-select" id="preset-tunings">
-                            <option value="12tet">12-TET (Equal)</option>
-                            <option value="just">Just Intonation</option>
-                            <option value="pythagorean">Pythagorean</option>
-                            <option value="meantone">Quarter-comma Meantone</option>
-                            <option value="arabic17">Arabic 17-TET</option>
-                            <option value="slendro">Slendro (5-TET)</option>
-                        </select>
-                    </div>
-
-                    <!-- Tonic Selector -->
-                    <div class="tonic-section">
-                        <span class="tonic-label">Tonic / Root</span>
-                        <div class="tonic-buttons" id="tonic-buttons">
-                            <button class="tonic-btn active" data-tonic="0">C</button>
-                            <button class="tonic-btn" data-tonic="1">C#</button>
-                            <button class="tonic-btn" data-tonic="2">D</button>
-                            <button class="tonic-btn" data-tonic="3">D#</button>
-                            <button class="tonic-btn" data-tonic="4">E</button>
-                            <button class="tonic-btn" data-tonic="5">F</button>
-                            <button class="tonic-btn" data-tonic="6">F#</button>
-                            <button class="tonic-btn" data-tonic="7">G</button>
-                            <button class="tonic-btn" data-tonic="8">G#</button>
-                            <button class="tonic-btn" data-tonic="9">A</button>
-                            <button class="tonic-btn" data-tonic="10">A#</button>
-                            <button class="tonic-btn" data-tonic="11">B</button>
+                <!-- Reference Pitch Knob -->
+                <div class="tuning-ref-section">
+                    <div class="ref-knob-container">
+                        <div class="ref-knob" id="ref-pitch-knob">
+                            <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
                         </div>
                     </div>
+                    <div class="ref-knob-label">A4 REF</div>
+                    <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
+                </div>
 
-                    <!-- File Buttons -->
-                    <div class="tuning-file-buttons" id="scala-buttons">
+                <!-- Scale Name Display -->
+                <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+
+                <!-- File operation buttons -->
+                <div class="tuning-file-section">
+                    <div class="tuning-file-buttons">
                         <button class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
                         <button class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
                         <button class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
                         <button class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
                     </div>
                 </div>
+            </div>
+
+            <!-- BOTTOM: Keyboard Visualization (1 octave) -->
+            <div class="keyboard-section">
+                <div class="keyboard-viz" id="keyboard-viz">
+                    <!-- Single Octave: C4-B4 - White keys -->
+                    <div class="white-key mapped" id="key-c1" data-note="60"><span>C</span></div>
+                    <div class="white-key mapped" id="key-d1" data-note="62"><span>D</span></div>
+                    <div class="white-key mapped" id="key-e1" data-note="64"><span>E</span></div>
+                    <div class="white-key mapped" id="key-f1" data-note="65"><span>F</span></div>
+                    <div class="white-key mapped" id="key-g1" data-note="67"><span>G</span></div>
+                    <div class="white-key mapped" id="key-a1" data-note="69"><span>A</span></div>
+                    <div class="white-key mapped" id="key-b1" data-note="71"><span>B</span></div>
+                    <!-- Black keys as siblings (positioned absolutely) -->
+                    <div class="black-key mapped" id="key-cs1" data-note="61" style="left: 11.5%;"></div>
+                    <div class="black-key mapped" id="key-ds1" data-note="63" style="left: 25.5%;"></div>
+                    <div class="black-key mapped" id="key-fs1" data-note="66" style="left: 54%;"></div>
+                    <div class="black-key mapped" id="key-gs1" data-note="68" style="left: 68%;"></div>
+                    <div class="black-key mapped" id="key-as1" data-note="70" style="left: 82%;"></div>
+                </div>
+                <div class="keyboard-help">Click to play</div>
             </div>
         </div>
 
@@ -1316,18 +1365,9 @@
             { id: 'stringTension', format: v => `${Math.round(v * 100)}%` },
             { id: 'stringGauge', format: v => `${Math.round(v * 100)}%` },
             { id: 'stringLength', format: v => `${Math.round(v * 100)}%` },
-            { id: 'stringStiffness', format: v => `${Math.round(v * 100)}%` },
-            { id: 'masterTune', format: v => {
-                // Range: 415 to 465 Hz
-                const hz = 415 + v * 50;
-                return `${hz.toFixed(0)} Hz`;
-            }},
-            { id: 'pitchBendRange', format: v => {
-                // Range: 1 to 48 semitones
-                const semitones = Math.round(1 + v * 47);
-                return `+/-${semitones} st`;
-            }}
+            { id: 'stringStiffness', format: v => `${Math.round(v * 100)}%` }
         ];
+        // Note: masterTune is controlled by the A4 REF knob in tuning tab (not a slider)
 
         sliderParams.forEach(param => {
             const slider = document.getElementById(param.id);
@@ -1595,135 +1635,171 @@
 
 
         // ====================================================================
-        // v1.6.0: TUNING SYSTEM
+        // v1.7.0: TUNING SYSTEM - Marimba-style layout
         // ====================================================================
 
         console.log('[Tuning] Initializing tuning system...');
-
-        // Preset scale definitions (intervals in cents)
-        const presetScales = {
-            '12tet': {
-                name: '12-TET Standard',
-                intervals: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200]
-            },
-            'just': {
-                name: 'Just Intonation',
-                intervals: [0, 111.73, 203.91, 315.64, 386.31, 498.04, 582.51, 701.96, 813.69, 884.36, 1017.60, 1088.27, 1200]
-            },
-            'pythagorean': {
-                name: 'Pythagorean',
-                intervals: [0, 113.69, 203.91, 294.13, 407.82, 498.04, 611.73, 701.96, 815.64, 905.87, 996.09, 1109.78, 1200]
-            },
-            'meantone': {
-                name: 'Quarter-comma Meantone',
-                intervals: [0, 76.05, 193.16, 310.26, 386.31, 503.42, 579.47, 696.58, 772.63, 889.74, 1006.84, 1082.89, 1200]
-            },
-            'arabic17': {
-                name: 'Arabic 17-TET',
-                intervals: [0, 70.59, 141.18, 211.76, 282.35, 352.94, 423.53, 494.12, 564.71, 635.29, 705.88, 776.47, 847.06, 917.65, 988.24, 1058.82, 1129.41, 1200]
-            },
-            'slendro': {
-                name: 'Slendro (5-TET)',
-                intervals: [0, 240, 480, 720, 960, 1200]
-            }
-        };
 
         // Note names
         const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
         // Current tuning state
-        let currentIntervals = presetScales['12tet'].intervals.slice();
+        let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
         let currentTonic = 0;
-        let currentMode = 0; // 0 = 12-TET, 1 = Custom
+        let currentTuningMode = 0; // 0 = 12-TET, 1 = Custom, 2 = MTS-ESP
 
         // Elements
         const intervalList = document.getElementById('interval-list');
         const pitchCircleSvg = document.getElementById('pitch-circle-svg');
         const scaleNameDisplay = document.getElementById('scale-name-display');
-        const presetTuningsSelect = document.getElementById('preset-tunings');
-        const tonicButtons = document.querySelectorAll('.tonic-btn');
         const modeButtons = document.querySelectorAll('.tuning-mode-btn');
+        const refPitchKnob = document.getElementById('ref-pitch-knob');
+        const refPitchIndicator = document.getElementById('ref-pitch-indicator');
+        const refPitchValue = document.getElementById('ref-pitch-value');
 
-        // Update interval list display
-        function updateIntervalList() {
-            // Keep header, remove rest
-            const header = intervalList.querySelector('.interval-list-header');
-            intervalList.innerHTML = '';
-            if (header) intervalList.appendChild(header);
-            else {
-                const newHeader = document.createElement('div');
-                newHeader.className = 'interval-list-header';
-                newHeader.textContent = 'Scale Intervals';
-                intervalList.appendChild(newHeader);
+        // Get degree label (note name for 12-tone, number otherwise)
+        function getDegreeLabel(index, total) {
+            if (total === 12) {
+                return noteNames[(index + currentTonic) % 12];
             }
+            return String(index);
+        }
 
-            // Add intervals
-            currentIntervals.forEach((cents, index) => {
-                if (index === 0) return; // Skip unison
+        // Update pitch circle with radial lines (Marimba style)
+        function updatePitchCircle() {
+            const linesGroup = document.getElementById('interval-lines');
+            const labelsGroup = document.getElementById('degree-labels');
+            linesGroup.innerHTML = '';
+            labelsGroup.innerHTML = '';
 
-                const item = document.createElement('div');
-                item.className = 'interval-item';
+            const cx = 75, cy = 75;
+            const innerR = 10, outerR = 58, labelR = 64;
+            const total = currentIntervals.length;
+            const fontSize = total > 12 ? 5 : 7;
 
-                const degree = document.createElement('span');
-                degree.className = 'interval-degree';
-                degree.textContent = index;
+            currentIntervals.forEach((cents, i) => {
+                // Angle: 12 o'clock = 0, clockwise
+                const rad = (cents / 1200) * 2 * Math.PI - Math.PI / 2;
+                const x1 = cx + innerR * Math.cos(rad);
+                const y1 = cy + innerR * Math.sin(rad);
+                const x2 = cx + outerR * Math.cos(rad);
+                const y2 = cy + outerR * Math.sin(rad);
 
-                const centsSpan = document.createElement('span');
-                centsSpan.className = 'interval-cents';
-                centsSpan.textContent = cents.toFixed(1) + '¢';
+                // Draw line
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('stroke', '#6B8E4E');
+                line.setAttribute('stroke-width', total > 19 ? '1' : '2');
+                line.setAttribute('stroke-linecap', 'round');
+                linesGroup.appendChild(line);
 
-                // Calculate ratio approximation
-                const ratio = Math.pow(2, cents / 1200);
-                const ratioSpan = document.createElement('span');
-                ratioSpan.className = 'interval-ratio';
-                ratioSpan.textContent = ratio.toFixed(4);
-
-                item.appendChild(degree);
-                item.appendChild(centsSpan);
-                item.appendChild(ratioSpan);
-                intervalList.appendChild(item);
+                // Draw label (skip some labels if too many notes)
+                if (total <= 24 || i % 2 === 0) {
+                    const labelX = cx + labelR * Math.cos(rad);
+                    const labelY = cy + labelR * Math.sin(rad);
+                    const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    text.setAttribute('x', labelX);
+                    text.setAttribute('y', labelY + 2);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('font-size', fontSize);
+                    text.setAttribute('fill', '#3C2F2F');
+                    text.textContent = getDegreeLabel(i, total);
+                    labelsGroup.appendChild(text);
+                }
             });
         }
 
-        // Update pitch circle visualization
-        function updatePitchCircle() {
-            // Clear existing note circles
-            const existingNotes = pitchCircleSvg.querySelectorAll('.note, .note-label');
-            existingNotes.forEach(n => n.remove());
+        // Update interval list UI (with tonic selector for 12-tone scales)
+        function updateIntervalListUI() {
+            const total = currentIntervals.length;
 
-            const cx = 55, cy = 55, r = 40;
-            const numDegrees = currentIntervals.length - 1; // Exclude unison
+            // Show tonic selector only for 12-tone scales
+            let tonicHtml = '';
+            if (total === 12) {
+                tonicHtml = `
+                    <div class="tonic-selector" title="Change tonic note (transposes instrument)">
+                        <span class="tonic-arrow" id="tonic-down" title="Previous note">◀</span>
+                        <span class="tonic-label">Tonic:</span>
+                        <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
+                        <span class="tonic-arrow" id="tonic-up" title="Next note">▶</span>
+                    </div>
+                `;
+            }
 
-            currentIntervals.forEach((cents, index) => {
-                if (index === 0) return; // Skip unison
+            let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
 
-                // Calculate position on circle (12 o'clock = 0 degrees, clockwise)
-                const angle = (cents / 1200) * 2 * Math.PI - Math.PI / 2;
-                const x = cx + r * Math.cos(angle);
-                const y = cy + r * Math.sin(angle);
+            // Show rows for actual number of intervals
+            // In 12-TET mode (index 0), all inputs are disabled (non-editable)
+            const isEditable = (currentTuningMode === 1); // Only editable in Custom mode
+            for (let i = 0; i < total; i++) {
+                const cents = currentIntervals[i] || 0;
+                const isUnison = (i === 0);
+                const displayValue = isUnison ? '0' : cents.toFixed(1);
+                const label = getDegreeLabel(i, total);
+                const isDisabled = isUnison || !isEditable;
 
-                // Create note circle
-                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                circle.setAttribute('class', 'note' + (index === 1 && currentTonic === 0 ? ' tonic' : ''));
-                circle.setAttribute('cx', x);
-                circle.setAttribute('cy', y);
-                circle.setAttribute('r', 5);
-                pitchCircleSvg.appendChild(circle);
+                html += `
+                    <div class="interval-item">
+                        <span class="interval-degree">${label}</span>
+                        <input type="text"
+                               class="interval-input"
+                               data-index="${i}"
+                               value="${displayValue}"
+                               ${isDisabled ? 'disabled' : ''}
+                               placeholder="${Math.round(i * 1200 / total)}">
+                    </div>
+                `;
+            }
 
-                // Add label for 12-note scales
-                if (numDegrees <= 12 && numDegrees >= 5) {
-                    const labelR = r + 12;
-                    const lx = cx + labelR * Math.cos(angle);
-                    const ly = cy + labelR * Math.sin(angle);
+            intervalList.innerHTML = html;
 
-                    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    label.setAttribute('class', 'note-label');
-                    label.setAttribute('x', lx);
-                    label.setAttribute('y', ly);
-                    label.textContent = index <= 12 ? noteNames[(index + currentTonic - 1) % 12] : index;
-                    pitchCircleSvg.appendChild(label);
-                }
+            // Add event listeners to inputs
+            intervalList.querySelectorAll('.interval-input:not([disabled])').forEach(input => {
+                input.addEventListener('change', async (e) => {
+                    const index = parseInt(e.target.dataset.index);
+                    const value = parseFloat(e.target.value);
+                    if (!isNaN(value) && value >= 0 && value <= 1200) {
+                        currentIntervals[index] = value;
+                        updatePitchCircle();
+                        await applyIntervalsToBackend(currentIntervals, 'Custom');
+                    }
+                });
             });
+
+            // Add tonic arrow listeners if 12-tone
+            if (total === 12) {
+                const tonicDown = document.getElementById('tonic-down');
+                const tonicUp = document.getElementById('tonic-up');
+                if (tonicDown) {
+                    tonicDown.addEventListener('click', async () => {
+                        currentTonic = (currentTonic - 1 + 12) % 12;
+                        document.getElementById('tonic-display').textContent = noteNames[currentTonic];
+                        updatePitchCircle();
+                        updateIntervalListUI();
+                        try {
+                            await Juce.getNativeFunction('setTonicNote')(currentTonic);
+                        } catch (e) {
+                            console.error('[Tuning] Failed to set tonic:', e);
+                        }
+                    });
+                }
+                if (tonicUp) {
+                    tonicUp.addEventListener('click', async () => {
+                        currentTonic = (currentTonic + 1) % 12;
+                        document.getElementById('tonic-display').textContent = noteNames[currentTonic];
+                        updatePitchCircle();
+                        updateIntervalListUI();
+                        try {
+                            await Juce.getNativeFunction('setTonicNote')(currentTonic);
+                        } catch (e) {
+                            console.error('[Tuning] Failed to set tonic:', e);
+                        }
+                    });
+                }
+            }
         }
 
         // Apply intervals to backend
@@ -1733,6 +1809,20 @@
                 console.log('[Tuning] Applied intervals:', name);
             } catch (e) {
                 console.error('[Tuning] Failed to apply intervals:', e);
+            }
+        }
+
+        // Load intervals from backend
+        async function loadIntervalsFromBackend() {
+            try {
+                const intervals = await Juce.getNativeFunction('getTuningIntervals')();
+                if (Array.isArray(intervals) && intervals.length > 0) {
+                    currentIntervals = intervals;
+                    updateIntervalListUI();
+                    updatePitchCircle();
+                }
+            } catch (e) {
+                console.warn('[Tuning] Failed to load intervals:', e);
             }
         }
 
@@ -1746,31 +1836,82 @@
             }
         }
 
-        // Load intervals from backend
-        async function loadIntervalsFromBackend() {
-            try {
-                const intervals = await Juce.getNativeFunction('getTuningIntervals')();
-                if (Array.isArray(intervals) && intervals.length > 1) {
-                    currentIntervals = intervals;
-                    updateIntervalList();
-                    updatePitchCircle();
-                }
-            } catch (e) {
-                console.warn('[Tuning] Failed to load intervals:', e);
-            }
+        // ====================================================================
+        // A4 Reference Pitch Knob (draggable)
+        // ====================================================================
+        let knobDragging = false;
+        let knobStartY = 0;
+        let knobStartValue = 0.5;
+
+        // Get masterTune slider state from JUCE
+        const masterTuneState = Juce.getSliderState('masterTune');
+
+        function updateKnobVisual(normalizedValue) {
+            // Range: -135 to +135 degrees (270 degree sweep)
+            const angle = -135 + normalizedValue * 270;
+            refPitchIndicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+            // Display Hz value (415-465 Hz range)
+            const hz = 415 + normalizedValue * 50;
+            refPitchValue.textContent = `${hz.toFixed(1)} Hz`;
         }
 
-        // Tuning mode buttons (bind to JUCE parameter)
+        if (masterTuneState) {
+            // Sync from JUCE
+            masterTuneState.valueChangedEvent.addListener(() => {
+                const val = masterTuneState.getNormalisedValue();
+                updateKnobVisual(val);
+            });
+            updateKnobVisual(masterTuneState.getNormalisedValue());
+        }
+
+        refPitchKnob.addEventListener('mousedown', (e) => {
+            knobDragging = true;
+            knobStartY = e.clientY;
+            knobStartValue = masterTuneState ? masterTuneState.getNormalisedValue() : 0.5;
+            if (masterTuneState) masterTuneState.sliderDragStarted();
+            e.preventDefault();
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!knobDragging) return;
+            const deltaY = knobStartY - e.clientY;
+            const sensitivity = 0.005;
+            let newValue = knobStartValue + deltaY * sensitivity;
+            newValue = Math.max(0, Math.min(1, newValue));
+            if (masterTuneState) {
+                masterTuneState.setNormalisedValue(newValue);
+            }
+            updateKnobVisual(newValue);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (knobDragging) {
+                knobDragging = false;
+                if (masterTuneState) masterTuneState.sliderDragEnded();
+            }
+        });
+
+        // Double-click to reset to 440 Hz (center)
+        refPitchKnob.addEventListener('dblclick', () => {
+            if (masterTuneState) {
+                masterTuneState.setNormalisedValue(0.5);
+            }
+            updateKnobVisual(0.5);
+        });
+
+        // ====================================================================
+        // Tuning Mode Buttons
+        // ====================================================================
         const tuningModeState = Juce.getComboBoxState('tuningMode');
         if (tuningModeState && tuningModeState.valueChangedEvent) {
             tuningModeState.valueChangedEvent.addListener(() => {
-                const mode = tuningModeState.getChosenIndex();
-                currentMode = mode;
+                currentTuningMode = tuningModeState.getChosenIndex();
                 modeButtons.forEach(btn => {
-                    btn.classList.toggle('active', parseInt(btn.dataset.mode) === mode);
+                    btn.classList.toggle('active', parseInt(btn.dataset.mode) === currentTuningMode);
                 });
+                updateIntervalListUI(); // Re-render to update editable state
             });
-            currentMode = tuningModeState.getChosenIndex();
+            currentTuningMode = tuningModeState.getChosenIndex();
         }
 
         modeButtons.forEach(btn => {
@@ -1780,52 +1921,29 @@
                     tuningModeState.setChosenIndex(mode);
                 }
                 modeButtons.forEach(b => b.classList.toggle('active', b === btn));
-                currentMode = mode;
-            });
-        });
+                currentTuningMode = mode;
+                updateIntervalListUI(); // Re-render to update editable state
 
-        // Preset tunings dropdown
-        presetTuningsSelect.addEventListener('change', async () => {
-            const presetKey = presetTuningsSelect.value;
-            const preset = presetScales[presetKey];
-            if (preset) {
-                currentIntervals = preset.intervals.slice();
-                scaleNameDisplay.textContent = preset.name;
-                updateIntervalList();
-                updatePitchCircle();
-                await applyIntervalsToBackend(currentIntervals, preset.name);
-
-                // Switch to Custom mode for non-12TET presets
-                if (presetKey !== '12tet' && tuningModeState) {
-                    tuningModeState.setChosenIndex(1);
-                }
-            }
-        });
-
-        // Tonic buttons
-        tonicButtons.forEach(btn => {
-            btn.addEventListener('click', async () => {
-                const tonic = parseInt(btn.dataset.tonic);
-                currentTonic = tonic;
-                tonicButtons.forEach(b => b.classList.toggle('active', b === btn));
-                updatePitchCircle();
-
-                try {
-                    await Juce.getNativeFunction('setTonicNote')(tonic);
-                } catch (e) {
-                    console.error('[Tuning] Failed to set tonic:', e);
+                // If switching to 12-TET, reset intervals
+                if (mode === 0) {
+                    currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+                    scaleNameDisplay.textContent = '12-TET Standard';
+                    updateIntervalListUI();
+                    updatePitchCircle();
+                    applyIntervalsToBackend(currentIntervals, '12-TET Standard');
                 }
             });
         });
 
-        // File buttons
+        // ====================================================================
+        // File Buttons
+        // ====================================================================
         document.getElementById('btn-load-scl').addEventListener('click', async () => {
             try {
                 const name = await Juce.getNativeFunction('loadScalaFile')();
                 if (name) {
                     scaleNameDisplay.textContent = name;
                     await loadIntervalsFromBackend();
-                    // Switch to Custom mode
                     if (tuningModeState) tuningModeState.setChosenIndex(1);
                 }
             } catch (e) {
@@ -1844,9 +1962,7 @@
         document.getElementById('btn-save-scl').addEventListener('click', async () => {
             try {
                 const filename = await Juce.getNativeFunction('saveScalaFile')();
-                if (filename) {
-                    console.log('[Tuning] Saved:', filename);
-                }
+                if (filename) console.log('[Tuning] Saved:', filename);
             } catch (e) {
                 console.error('[Tuning] Save SCL failed:', e);
             }
@@ -1855,32 +1971,40 @@
         document.getElementById('btn-save-kbm').addEventListener('click', async () => {
             try {
                 const filename = await Juce.getNativeFunction('saveKBMFile')();
-                if (filename) {
-                    console.log('[Tuning] Saved:', filename);
-                }
+                if (filename) console.log('[Tuning] Saved:', filename);
             } catch (e) {
                 console.error('[Tuning] Save KBM failed:', e);
             }
         });
 
-        // Keyboard visualization (visual only - no MIDI output in WebView)
+        // ====================================================================
+        // Keyboard Visualization (click to play)
+        // ====================================================================
         const keyboardViz = document.getElementById('keyboard-viz');
         if (keyboardViz) {
             const keys = keyboardViz.querySelectorAll('.white-key, .black-key');
             keys.forEach(key => {
                 key.addEventListener('mousedown', () => {
                     key.classList.add('pressed');
+                    // Activate scale degree bar for white keys
+                    if (key.classList.contains('white-key')) {
+                        key.classList.add('active');
+                    }
                 });
                 key.addEventListener('mouseup', () => {
                     key.classList.remove('pressed');
+                    key.classList.remove('active');
                 });
                 key.addEventListener('mouseleave', () => {
                     key.classList.remove('pressed');
+                    key.classList.remove('active');
                 });
             });
         }
 
-        // Initialize tuning display
+        // ====================================================================
+        // Initialize Tuning System
+        // ====================================================================
         async function initializeTuning() {
             await loadIntervalsFromBackend();
             await updateScaleNameDisplay();
@@ -1888,18 +2012,15 @@
             try {
                 const tonic = await Juce.getNativeFunction('getTonicNote')();
                 currentTonic = tonic || 0;
-                tonicButtons.forEach(btn => {
-                    btn.classList.toggle('active', parseInt(btn.dataset.tonic) === currentTonic);
-                });
             } catch (e) {
                 // Ignore
             }
 
+            updateIntervalListUI();
             updatePitchCircle();
             console.log('[Tuning] System initialized');
         }
 
-        // Initialize
         initializeTuning();
     </script>
 </body>

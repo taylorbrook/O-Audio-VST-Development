@@ -2,6 +2,51 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.7.0] - 2026-01-18
+
+### Changed
+
+- **Tuning tab UI refactored to match Ouaricon Marimba layout**
+  - Two-column + bottom layout replacing three-column design
+  - Left side: Interval list with embedded tonic selector (◀ TONIC: C ▶)
+  - Center: Large pitch circle visualization with radial interval lines
+  - Right side: Mode buttons (12-TET, CUSTOM, MTS-ESP), A4 REF knob, scale name display
+  - Bottom: Full-width keyboard visualization with "Click to play" label and note labels
+
+- **Interval list redesigned**
+  - Dynamic header showing note count: "Intervals (12 notes)"
+  - Editable cent values in Custom mode (disabled in 12-TET mode)
+  - Tonic selector embedded in list header for 12-tone scales
+  - Compact layout with monospace font for values
+
+- **A4 Reference Pitch changed from slider to rotary knob**
+  - Draggable knob with 270-degree sweep
+  - Visual indicator showing current position
+  - Double-click to reset to 440.0 Hz (center)
+  - Hz value displayed below knob
+
+- **Pitch circle visualization upgraded**
+  - Radial lines from center to each scale degree (Marimba style)
+  - Note labels positioned around circumference
+  - Adapts to any number of scale degrees (5-24+)
+  - Green lines (#6B8E4E) matching Ouaricon aesthetic
+
+- **MTS-ESP mode button added** (placeholder for future implementation)
+
+### Removed
+
+- Preset Scales dropdown (scales now loaded via .SCL files or 12-TET default)
+- Tonic button grid (replaced with inline tonic selector in interval list)
+- Pitch Bend Range from tuning tab (parameter remains functional)
+- Three-column layout in favor of cleaner two-column + bottom design
+
+### Technical Notes
+
+- Files modified: Resources/ui/index.html (CSS + HTML + JavaScript restructure)
+- masterTune parameter now controlled via custom knob code instead of slider binding
+- Keyboard visualization now uses green scale degree bars on white keys
+- CSS uses absolute positioning for tuning panel components (matching Marimba pattern)
+
 ## [1.6.0] - 2026-01-18
 
 ### Added
