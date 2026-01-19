@@ -706,20 +706,21 @@ window.addEventListener("load", () => {
  * Receives JSON payload: {"lane1":{"progress":0.5,"active":true},...}
  */
 function setupLaneProgressListener() {
-  // Get progress bar fill elements
+  // v1.5.1 FIX: The ID is ON the .progress-fill element, not its parent
+  // So #lane1_progress IS the fill element, and its parent is the container
   const progressElements = {
-    lane1: document.querySelector("#lane1_progress .progress-fill"),
-    lane2: document.querySelector("#lane2_progress .progress-fill"),
-    lane3: document.querySelector("#lane3_progress .progress-fill"),
-    lane4: document.querySelector("#lane4_progress .progress-fill")
-  };
-
-  // Get progress bar containers for dimming
-  const progressContainers = {
     lane1: document.getElementById("lane1_progress"),
     lane2: document.getElementById("lane2_progress"),
     lane3: document.getElementById("lane3_progress"),
     lane4: document.getElementById("lane4_progress")
+  };
+
+  // Get progress bar containers (parent of the fill element) for dimming
+  const progressContainers = {
+    lane1: document.getElementById("lane1_progress")?.parentElement,
+    lane2: document.getElementById("lane2_progress")?.parentElement,
+    lane3: document.getElementById("lane3_progress")?.parentElement,
+    lane4: document.getElementById("lane4_progress")?.parentElement
   };
 
   // Check if elements exist

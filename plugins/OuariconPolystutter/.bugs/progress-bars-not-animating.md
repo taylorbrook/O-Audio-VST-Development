@@ -1,9 +1,22 @@
 # Bug: Lane Progress Bars Not Animating
 
-**Version:** 1.5.0 (in development)
+**Version:** 1.5.0
 **Date:** 2026-01-18
-**Status:** OPEN
+**Status:** FIXED in v1.5.1
 **Priority:** Medium
+**Fixed:** 2026-01-18
+
+## Resolution
+
+**Root Cause:** CSS selector mismatch in parameter-bindings.js. The HTML has `id="lane1_progress"` directly on the `.progress-fill` element, but the JavaScript was using `document.querySelector("#lane1_progress .progress-fill")` which looks for a nested `.progress-fill` inside `#lane1_progress`. This returned `null`, so the width was never set.
+
+**Fix:** Updated `setupLaneProgressListener()` in parameter-bindings.js:
+- Use `document.getElementById("lane1_progress")` directly (this IS the fill element)
+- Use `.parentElement` to get the actual `.progress-bar` container for class toggling
+
+---
+
+## Original Bug Report
 
 ## Summary
 

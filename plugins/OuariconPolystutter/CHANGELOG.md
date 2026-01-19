@@ -2,6 +2,18 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.5.1] - 2026-01-18
+
+### Fixed
+
+- **Lane progress bars now actually animate during repeat playback**
+  - Root cause: CSS selector mismatch in parameter-bindings.js
+  - HTML has `id="lane1_progress"` on the `.progress-fill` element itself
+  - JavaScript was looking for `#lane1_progress .progress-fill` (nested), which returned null
+  - Fix: Use `getElementById("lane1_progress")` directly for fill element
+  - Use `.parentElement` to get the container for active/inactive class toggling
+  - Progress bars now correctly show 0-100% animation during each repeat cycle
+
 ## [1.5.0] - 2026-01-18
 
 ### Added
