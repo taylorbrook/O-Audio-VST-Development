@@ -2,6 +2,31 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.7.3] - 2026-01-19
+
+### Fixed
+
+- **Scala/KBM file loading and saving now works**
+  - Root cause: Same as v1.7.2 mode button fix - ES6 module `addEventListener` calls not attaching in JUCE WebView
+  - Fix: Replaced addEventListener with inline `onclick` handlers calling global functions (window.handleLoadSCL, etc.)
+  - All 4 buttons now functional: Load .SCL, Load .KBM, Save .SCL, Save .KBM
+
+- **Interval list editing now works in Custom mode**
+  - Root cause: Same ES6 module addEventListener issue, plus undefined `scalaFileLoaded` variable causing JS error
+  - Fix: Replaced addEventListener with inline `onchange` handlers for interval inputs
+  - Fix: Removed undefined `scalaFileLoaded` variable reference
+  - Intervals can now be edited by changing values and pressing Enter/Tab
+
+- **Tonic arrows now respond to clicks**
+  - Root cause: Same ES6 module addEventListener issue
+  - Fix: Replaced addEventListener with inline `onclick` handlers for tonic up/down arrows
+
+### Technical Notes
+
+- Same fix pattern as v1.7.2: inline event handlers + global functions instead of ES6 module event listeners
+- Global handlers defined in non-module script: handleLoadSCL, handleLoadKBM, handleSaveSCL, handleSaveKBM, handleIntervalChange, handleTonicDown, handleTonicUp
+- Files modified: Resources/ui/index.html
+
 ## [1.7.2] - 2026-01-19
 
 ### Fixed
@@ -13,15 +38,11 @@ All notable changes to OuariconLyrica are documented in this file.
   - Fix: Added `width: fit-content` to CSS, replaced module event listeners with global inline `onclick` handlers, added "MTS-ESP" option to APVTS
   - Files modified: Resources/ui/index.html, PluginProcessor.cpp, TuningEngine.h, TuningEngine.cpp
 
-### Known Issues
-
-- Scala/KBM file loading and saving not working (tracked in .bugs/tuning-tab-issues.md)
-- Interval list editing may not function correctly in Custom mode
-
 ### Technical Notes
 
 - MTS-ESP mode is a placeholder - displays "MTS-ESP (Not Connected)" and uses 12-TET frequencies
 - Button clicks use inline `onclick` handlers calling `window.handleModeClick()` instead of ES6 module event listeners
+- Known Issues from this version fixed in v1.7.3
 
 ## [1.7.1] - 2026-01-19
 

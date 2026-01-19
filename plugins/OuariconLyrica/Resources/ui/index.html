@@ -1259,12 +1259,13 @@
                 <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
 
                 <!-- File operation buttons - v1.7.1: Only show when Custom mode selected -->
+                <!-- v1.7.3: Using inline onclick handlers (same fix as mode buttons) -->
                 <div class="tuning-file-section" id="scala-buttons" style="display: none;">
                     <div class="tuning-file-buttons">
-                        <button class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
-                        <button class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
-                        <button class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
-                        <button class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
+                        <button class="tuning-file-btn" id="btn-load-scl" onclick="window.handleLoadSCL && window.handleLoadSCL()">Load .SCL</button>
+                        <button class="tuning-file-btn" id="btn-load-kbm" onclick="window.handleLoadKBM && window.handleLoadKBM()">Load .KBM</button>
+                        <button class="tuning-file-btn" id="btn-save-scl" onclick="window.handleSaveSCL && window.handleSaveSCL()">Save .SCL</button>
+                        <button class="tuning-file-btn" id="btn-save-kbm" onclick="window.handleSaveKBM && window.handleSaveKBM()">Save .KBM</button>
                     </div>
                 </div>
             </div>
@@ -1314,6 +1315,7 @@
 
     <!-- JUCE Bridge -->
     <!-- v1.7.2: Global click handler for tuning mode buttons -->
+    <!-- v1.7.3: Added global handlers for SCL/KBM file operations -->
     <script>
         // Store current tuning mode globally for module access
         window.currentTuningMode = 0;
@@ -1348,11 +1350,79 @@
                 window.onTuningModeChanged(mode);
             }
         };
+
+        // v1.7.3: JUCE API reference (set by module on load)
+        window.JuceAPI = null;
+
+        // v1.7.3: File operation handlers - defined here (non-module) for immediate availability
+        window.handleLoadSCL = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var name = await window.JuceAPI.getNativeFunction('loadScalaFile')();
+                if (name) {
+                    var el = document.getElementById('scale-name-display');
+                    if (el) el.textContent = name;
+                    if (window.onScalaLoaded) window.onScalaLoaded(name);
+                    console.log('[Tuning] Loaded SCL:', name);
+                }
+            } catch (e) {
+                console.error('[Tuning] Load SCL failed:', e);
+            }
+        };
+
+        window.handleLoadKBM = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var result = await window.JuceAPI.getNativeFunction('loadKBMFile')();
+                if (result) console.log('[Tuning] Loaded KBM file');
+            } catch (e) {
+                console.error('[Tuning] Load KBM failed:', e);
+            }
+        };
+
+        window.handleSaveSCL = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var filename = await window.JuceAPI.getNativeFunction('saveScalaFile')();
+                if (filename) console.log('[Tuning] Saved SCL:', filename);
+            } catch (e) {
+                console.error('[Tuning] Save SCL failed:', e);
+            }
+        };
+
+        window.handleSaveKBM = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var filename = await window.JuceAPI.getNativeFunction('saveKBMFile')();
+                if (filename) console.log('[Tuning] Saved KBM:', filename);
+            } catch (e) {
+                console.error('[Tuning] Save KBM failed:', e);
+            }
+        };
+
+        // v1.7.3: Interval change handler
+        window.handleIntervalChange = function(index, valueStr) {
+            if (window.onIntervalChanged) {
+                window.onIntervalChanged(index, valueStr);
+            }
+        };
+
+        // v1.7.3: Tonic arrow handlers
+        window.handleTonicDown = function() {
+            if (window.onTonicDown) window.onTonicDown();
+        };
+
+        window.handleTonicUp = function() {
+            if (window.onTonicUp) window.onTonicUp();
+        };
     </script>
 
     <script type="module">
         import * as Juce from '/js/juce/index.js';
 
+        // v1.7.3: Expose JUCE API to global handlers (defined in non-module script above)
+        window.JuceAPI = Juce;
+        console.log('[Module] JUCE API exposed to global handlers');
 
         // ====================================================================
         // Tab Switching
@@ -1766,18 +1836,20 @@
         }
 
         // Update interval list UI (with tonic selector for 12-tone scales)
+        // v1.7.3: Using inline onchange handlers instead of addEventListener
         function updateIntervalListUI() {
             const total = currentIntervals.length;
 
             // Show tonic selector only for 12-tone scales
+            // v1.7.3: Using inline onclick for tonic arrows
             let tonicHtml = '';
             if (total === 12) {
                 tonicHtml = `
                     <div class="tonic-selector" title="Change tonic note (transposes instrument)">
-                        <span class="tonic-arrow" id="tonic-down" title="Previous note">◀</span>
+                        <span class="tonic-arrow" id="tonic-down" title="Previous note" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
                         <span class="tonic-label">Tonic:</span>
                         <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
-                        <span class="tonic-arrow" id="tonic-up" title="Next note">▶</span>
+                        <span class="tonic-arrow" id="tonic-up" title="Next note" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
                     </div>
                 `;
             }
@@ -1794,6 +1866,9 @@
                 const label = getDegreeLabel(i, total);
                 const isDisabled = isUnison || !isEditable;
 
+                // v1.7.3: Using inline onchange handler
+                const onchangeAttr = isDisabled ? '' : `onchange="window.handleIntervalChange && window.handleIntervalChange(${i}, this.value)"`;
+
                 html += `
                     <div class="interval-item">
                         <span class="interval-degree">${label}</span>
@@ -1802,58 +1877,53 @@
                                data-index="${i}"
                                value="${displayValue}"
                                ${isDisabled ? 'disabled' : ''}
+                               ${onchangeAttr}
                                placeholder="${Math.round(i * 1200 / total)}">
                     </div>
                 `;
             }
 
             intervalList.innerHTML = html;
-
-            // Add event listeners to inputs
-            intervalList.querySelectorAll('.interval-input:not([disabled])').forEach(input => {
-                input.addEventListener('change', async (e) => {
-                    const index = parseInt(e.target.dataset.index);
-                    const value = parseFloat(e.target.value);
-                    if (!isNaN(value) && value >= 0 && value <= 1200) {
-                        currentIntervals[index] = value;
-                        updatePitchCircle();
-                        await applyIntervalsToBackend(currentIntervals, 'Custom');
-                    }
-                });
-            });
-
-            // Add tonic arrow listeners if 12-tone
-            if (total === 12) {
-                const tonicDown = document.getElementById('tonic-down');
-                const tonicUp = document.getElementById('tonic-up');
-                if (tonicDown) {
-                    tonicDown.addEventListener('click', async () => {
-                        currentTonic = (currentTonic - 1 + 12) % 12;
-                        document.getElementById('tonic-display').textContent = noteNames[currentTonic];
-                        updatePitchCircle();
-                        updateIntervalListUI();
-                        try {
-                            await Juce.getNativeFunction('setTonicNote')(currentTonic);
-                        } catch (e) {
-                            console.error('[Tuning] Failed to set tonic:', e);
-                        }
-                    });
-                }
-                if (tonicUp) {
-                    tonicUp.addEventListener('click', async () => {
-                        currentTonic = (currentTonic + 1) % 12;
-                        document.getElementById('tonic-display').textContent = noteNames[currentTonic];
-                        updatePitchCircle();
-                        updateIntervalListUI();
-                        try {
-                            await Juce.getNativeFunction('setTonicNote')(currentTonic);
-                        } catch (e) {
-                            console.error('[Tuning] Failed to set tonic:', e);
-                        }
-                    });
-                }
-            }
+            // v1.7.3: Tonic arrow and interval handlers use callbacks from non-module script
         }
+
+        // v1.7.3: Callbacks for global handlers (tonic arrows)
+        window.onTonicDown = async () => {
+            currentTonic = (currentTonic - 1 + 12) % 12;
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updatePitchCircle();
+            updateIntervalListUI();
+            try {
+                await Juce.getNativeFunction('setTonicNote')(currentTonic);
+            } catch (e) {
+                console.error('[Tuning] Failed to set tonic:', e);
+            }
+        };
+
+        window.onTonicUp = async () => {
+            currentTonic = (currentTonic + 1) % 12;
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updatePitchCircle();
+            updateIntervalListUI();
+            try {
+                await Juce.getNativeFunction('setTonicNote')(currentTonic);
+            } catch (e) {
+                console.error('[Tuning] Failed to set tonic:', e);
+            }
+        };
+
+        // v1.7.3: Callback for interval input changes
+        window.onIntervalChanged = async (index, valueStr) => {
+            const value = parseFloat(valueStr);
+            if (!isNaN(value) && value >= 0 && value <= 1200) {
+                currentIntervals[index] = value;
+                updatePitchCircle();
+                await applyIntervalsToBackend(currentIntervals, 'Custom');
+                console.log('[Tuning] Interval', index, 'changed to', value);
+            }
+        };
 
         // Apply intervals to backend
         async function applyIntervalsToBackend(intervals, name) {
@@ -2008,47 +2078,16 @@
         };
 
         // ====================================================================
-        // File Buttons
+        // File Buttons - v1.7.3: Callbacks for global handlers
+        // (The actual handlers are in the non-module script above for immediate availability)
         // ====================================================================
-        document.getElementById('btn-load-scl').addEventListener('click', async () => {
-            try {
-                const name = await Juce.getNativeFunction('loadScalaFile')();
-                if (name) {
-                    scaleNameDisplay.textContent = name;
-                    scalaFileLoaded = true;  // v1.7.2: Track that a file was loaded
-                    await loadIntervalsFromBackend();
-                    if (tuningModeState) tuningModeState.setChosenIndex(1);
-                }
-            } catch (e) {
-                console.error('[Tuning] Load SCL failed:', e);
-            }
-        });
-
-        document.getElementById('btn-load-kbm').addEventListener('click', async () => {
-            try {
-                await Juce.getNativeFunction('loadKBMFile')();
-            } catch (e) {
-                console.error('[Tuning] Load KBM failed:', e);
-            }
-        });
-
-        document.getElementById('btn-save-scl').addEventListener('click', async () => {
-            try {
-                const filename = await Juce.getNativeFunction('saveScalaFile')();
-                if (filename) console.log('[Tuning] Saved:', filename);
-            } catch (e) {
-                console.error('[Tuning] Save SCL failed:', e);
-            }
-        });
-
-        document.getElementById('btn-save-kbm').addEventListener('click', async () => {
-            try {
-                const filename = await Juce.getNativeFunction('saveKBMFile')();
-                if (filename) console.log('[Tuning] Saved:', filename);
-            } catch (e) {
-                console.error('[Tuning] Save KBM failed:', e);
-            }
-        });
+        window.onScalaLoaded = async (name) => {
+            // Update UI after .scl file loaded
+            await loadIntervalsFromBackend();
+            if (tuningModeState) tuningModeState.setChosenIndex(1);
+            updateIntervalListUI();
+            updatePitchCircle();
+        };
 
         // ====================================================================
         // Keyboard Visualization (click to play)
