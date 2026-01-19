@@ -34,11 +34,13 @@ class TuningEngine
 public:
     /**
      * Tuning modes supported by the engine
+     * v1.7.2: Added MTSESP mode placeholder
      */
     enum class Mode
     {
         TwelveTET = 0,  // Standard 12-tone equal temperament
-        Scala = 1       // Custom tuning from Scala file
+        Scala = 1,      // Custom tuning from Scala file
+        MTSESP = 2      // MTS-ESP (placeholder - future implementation)
     };
 
     TuningEngine();

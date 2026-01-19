@@ -2,6 +2,27 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.7.2] - 2026-01-19
+
+### Fixed
+
+- **Tuning mode buttons (12-TET, Custom, MTS-ESP) now clickable and functional**
+  - Root cause 1: CSS - `.tuning-viz-container` had no explicit `width`, causing invisible overflow blocking pointer events
+  - Root cause 2: JavaScript - ES6 module `addEventListener` calls not attaching (JUCE WebView quirk with modules)
+  - Root cause 3: APVTS - `tuningMode` parameter only had 2 options but UI showed 3 buttons
+  - Fix: Added `width: fit-content` to CSS, replaced module event listeners with global inline `onclick` handlers, added "MTS-ESP" option to APVTS
+  - Files modified: Resources/ui/index.html, PluginProcessor.cpp, TuningEngine.h, TuningEngine.cpp
+
+### Known Issues
+
+- Scala/KBM file loading and saving not working (tracked in .bugs/tuning-tab-issues.md)
+- Interval list editing may not function correctly in Custom mode
+
+### Technical Notes
+
+- MTS-ESP mode is a placeholder - displays "MTS-ESP (Not Connected)" and uses 12-TET frequencies
+- Button clicks use inline `onclick` handlers calling `window.handleModeClick()` instead of ES6 module event listeners
+
 ## [1.7.1] - 2026-01-19
 
 ### Changed

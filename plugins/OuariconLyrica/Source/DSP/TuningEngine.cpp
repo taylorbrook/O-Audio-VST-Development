@@ -88,8 +88,11 @@ std::vector<double> TuningEngine::getIntervals() const
 
 juce::String TuningEngine::getActiveTuningName() const
 {
-    if (currentMode.load(std::memory_order_relaxed) == Mode::TwelveTET)
+    Mode mode = currentMode.load(std::memory_order_relaxed);
+    if (mode == Mode::TwelveTET)
         return "12-TET Standard";
+    if (mode == Mode::MTSESP)
+        return "MTS-ESP (Not Connected)";  // v1.7.2: Placeholder until MTS-ESP implemented
     return scaleName;
 }
 

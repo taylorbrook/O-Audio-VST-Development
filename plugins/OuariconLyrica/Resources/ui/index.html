@@ -547,11 +547,13 @@
            ==================================================================== */
 
         /* Tuning Visualization Container - Left side */
+        /* v1.7.2: Added width: fit-content to prevent invisible overflow blocking tuning mode buttons */
         .tuning-viz-container {
             position: absolute;
             left: 20px;
             top: 15px;
             bottom: 65px;
+            width: fit-content;
             display: flex;
             flex-direction: row;
             align-items: flex-start;
@@ -1236,9 +1238,9 @@
                 <!-- Mode Selection -->
                 <div class="tuning-mode-section">
                     <div class="tuning-mode-buttons">
-                        <button class="tuning-mode-btn active" id="btn-12tet" data-mode="0">12-TET</button>
-                        <button class="tuning-mode-btn" id="btn-custom" data-mode="1">Custom</button>
-                        <button class="tuning-mode-btn" id="btn-mts" data-mode="2">MTS-ESP</button>
+                        <button class="tuning-mode-btn active" id="btn-12tet" data-mode="0" onclick="window.handleModeClick && window.handleModeClick(0, this)">12-TET</button>
+                        <button class="tuning-mode-btn" id="btn-custom" data-mode="1" onclick="window.handleModeClick && window.handleModeClick(1, this)">Custom</button>
+                        <button class="tuning-mode-btn" id="btn-mts" data-mode="2" onclick="window.handleModeClick && window.handleModeClick(2, this)">MTS-ESP</button>
                     </div>
                 </div>
 
@@ -1311,6 +1313,43 @@
     </div>
 
     <!-- JUCE Bridge -->
+    <!-- v1.7.2: Global click handler for tuning mode buttons -->
+    <script>
+        // Store current tuning mode globally for module access
+        window.currentTuningMode = 0;
+
+        window.handleModeClick = function(mode, btn) {
+            var scaleNameEl = document.getElementById('scale-name-display');
+            var scalaButtonsEl = document.getElementById('scala-buttons');
+            var allBtns = document.querySelectorAll('.tuning-mode-btn');
+
+            // Update global state
+            window.currentTuningMode = mode;
+
+            // Update button highlights
+            allBtns.forEach(function(b) {
+                b.classList.remove('active');
+            });
+            btn.classList.add('active');
+
+            // Update scale name display
+            var names = ['12-TET Standard', 'Custom (Edit intervals below)', 'MTS-ESP (Not Connected)'];
+            if (scaleNameEl) {
+                scaleNameEl.textContent = names[mode];
+            }
+
+            // Show/hide SCL/KBM buttons (only visible in Custom mode)
+            if (scalaButtonsEl) {
+                scalaButtonsEl.style.display = (mode === 1) ? 'flex' : 'none';
+            }
+
+            // Notify the module to sync with JUCE and update UI
+            if (window.onTuningModeChanged) {
+                window.onTuningModeChanged(mode);
+            }
+        };
+    </script>
+
     <script type="module">
         import * as Juce from '/js/juce/index.js';
 
@@ -1939,27 +1978,34 @@
             updateFileButtonsVisibility(currentTuningMode); // v1.7.1: Initialize
         }
 
-        modeButtons.forEach(btn => {
-            btn.addEventListener('click', () => {
-                const mode = parseInt(btn.dataset.mode);
-                if (tuningModeState) {
-                    tuningModeState.setChosenIndex(mode);
-                }
-                modeButtons.forEach(b => b.classList.toggle('active', b === btn));
-                currentTuningMode = mode;
-                updateIntervalListUI(); // Re-render to update editable state
-                updateFileButtonsVisibility(mode); // v1.7.1
+        // v1.7.2: Callback for global click handler - syncs with JUCE and updates UI
+        window.onTuningModeChanged = (mode) => {
+            // Update module state
+            currentTuningMode = mode;
 
-                // If switching to 12-TET, reset intervals
-                if (mode === 0) {
-                    currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
-                    scaleNameDisplay.textContent = '12-TET Standard';
-                    updateIntervalListUI();
-                    updatePitchCircle();
-                    applyIntervalsToBackend(currentIntervals, '12-TET Standard');
+            // Reset to 12-TET intervals for non-custom modes
+            if (mode !== 1) {
+                currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+            }
+
+            // Update interval list and pitch circle
+            updateIntervalListUI();
+            updatePitchCircle();
+
+            // Sync with JUCE backend
+            if (tuningModeState) {
+                try {
+                    tuningModeState.setChosenIndex(mode);
+                } catch (e) {
+                    console.error('[Tuning] Failed to sync mode with JUCE:', e);
                 }
-            });
-        });
+            }
+
+            // For 12-TET, also send intervals to backend
+            if (mode === 0) {
+                applyIntervalsToBackend(currentIntervals, '12-TET Standard');
+            }
+        };
 
         // ====================================================================
         // File Buttons
@@ -1969,6 +2015,7 @@
                 const name = await Juce.getNativeFunction('loadScalaFile')();
                 if (name) {
                     scaleNameDisplay.textContent = name;
+                    scalaFileLoaded = true;  // v1.7.2: Track that a file was loaded
                     await loadIntervalsFromBackend();
                     if (tuningModeState) tuningModeState.setChosenIndex(1);
                 }

@@ -137,11 +137,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconLyricaAudioProcessor
         "st"
     ));
 
-    // v1.6.0: Tuning Mode (12-TET or Custom/Scala)
+    // v1.6.0: Tuning Mode (12-TET, Custom/Scala, or MTS-ESP)
+    // v1.7.2: Added MTS-ESP option to match UI buttons
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "tuningMode", 1 },
         "Tuning Mode",
-        juce::StringArray { "12-TET", "Custom" },
+        juce::StringArray { "12-TET", "Custom", "MTS-ESP" },
         0  // Default: 12-TET
     ));
 
