@@ -2,6 +2,37 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.5.4] - 2026-01-19
+
+### Changed
+
+- **Bug images moved up 20px** for better alignment with lane headers
+
+## [1.5.3] - 2026-01-19
+
+### Changed
+
+- **Bug images repositioned next to lane headers (one per lane)**
+  - Each lane now has its own bug image positioned to the right of the lane button
+  - Reduced size to 70% (56x70px) for better fit in header area
+  - **State-aware opacity**: 100% when lane is active, 50% when lane is disabled
+  - Smooth 300ms opacity transition when toggling lanes
+  - Bug inherits lane state - dims along with other controls when lane is off
+
+## [1.5.2] - 2026-01-18
+
+### Changed
+
+- **Bug images repositioned between lane sections** (superseded by v1.5.3)
+  - Replaced 12 scattered fragments with 3 complete bug/spider images
+  - Each bug now positioned as a visual divider between lanes:
+    - Bug 1: Between Lane 1 and Lane 2 (x: 218px)
+    - Bug 2: Between Lane 2 and Lane 3 (x: 468px)
+    - Bug 3: Between Lane 3 and Lane 4 (x: 718px)
+  - Vertically positioned at row 3 level (VOL/PAN/SWING controls, y: 280px)
+  - Slightly increased opacity (0.32 vs 0.25) for better visibility
+  - Cleaner visual separation between lane sections
+
 ## [1.5.1] - 2026-01-18
 
 ### Fixed

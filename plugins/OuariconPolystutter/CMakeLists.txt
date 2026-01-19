@@ -7,7 +7,7 @@ juce_add_plugin(OuariconPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "Ouaricon Polystutter"
-    VERSION 1.5.1
+    VERSION 1.5.4
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
