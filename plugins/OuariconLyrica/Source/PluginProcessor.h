@@ -68,6 +68,19 @@ public:
      */
     OuariconPresetManager& getPresetManager() { return presetManager; }
 
+    /**
+     * v1.7.4: Trigger note from WebView keyboard visualization
+     * @param midiNote MIDI note number (0-127)
+     * @param velocity Note velocity (0.0-1.0)
+     */
+    void triggerNoteOn(int midiNote, float velocity);
+
+    /**
+     * v1.7.4: Release note from WebView keyboard visualization
+     * @param midiNote MIDI note number (0-127)
+     */
+    void triggerNoteOff(int midiNote);
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;

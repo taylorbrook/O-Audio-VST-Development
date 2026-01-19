@@ -2,6 +2,27 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.7.4] - 2026-01-19
+
+### Fixed
+
+- **Scala file loading now properly affects tuning**
+  - Root cause: `loadScalaFile()` updated intervals but did NOT change tuning mode from 12-TET to Scala. When `rebuildFrequencyTable()` was called, it checked the mode and continued using 12-TET formula, ignoring the loaded custom intervals entirely.
+  - Fix: Added `setMode(Mode::Scala)` call in `loadScalaFile()` after `setCustomIntervals()` to ensure the frequency table is rebuilt with custom intervals.
+  - Files modified: TuningEngine.cpp
+
+- **Tuning tab keyboard now plays actual notes**
+  - Root cause: Keyboard visualization had visual feedback only (CSS classes) - no connection to synthesizer. There were no native functions to trigger MIDI notes from the WebView.
+  - Fix: Added `triggerNoteOn(midiNote, velocity)` and `triggerNoteOff(midiNote)` native functions that call the synthesiser's noteOn/noteOff methods. Keyboard JS now calls these functions on mousedown/mouseup.
+  - Files modified: PluginProcessor.h/.cpp, PluginEditor.cpp, index.html
+
+### Technical Notes
+
+- The tuning engine now has proper mode synchronization: loading .scl files automatically switches to Scala mode
+- Keyboard notes use MIDI channel 1 with velocity 0.8 (moderate)
+- Note-off uses `allowTailOff = true` for natural release
+- Pressed notes are tracked in a Set to prevent duplicate triggers
+
 ## [1.7.3] - 2026-01-19
 
 ### Fixed

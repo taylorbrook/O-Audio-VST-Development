@@ -241,6 +241,11 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
 
                         if (processorRef.getTuningEngine()->loadScalaFile(result))
                         {
+                            // v1.7.4: Also update APVTS parameter so processBlock uses Scala mode
+                            // Without this, processBlock overwrites TuningEngine mode every block
+                            if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
+                                param->setValueNotifyingHost(1.0f / 2.0f); // Index 1 = Custom/Scala (normalized: 1/2 = 0.5)
+
                             complete(juce::var(processorRef.getTuningEngine()->getActiveTuningName()));
                         }
                         else
@@ -344,6 +349,22 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                         }
                     }
                 );
+            })
+            // v1.7.4: Note triggering for WebView keyboard visualization
+            .withNativeFunction("triggerNoteOn", [this](const juce::Array<juce::var>& args,
+                                                         std::function<void(juce::var)> complete) {
+                if (args.size() < 2) { complete(juce::var(false)); return; }
+                int midiNote = static_cast<int>(args[0]);
+                float velocity = static_cast<float>(args[1]);
+                processorRef.triggerNoteOn(midiNote, velocity);
+                complete(juce::var(true));
+            })
+            .withNativeFunction("triggerNoteOff", [this](const juce::Array<juce::var>& args,
+                                                          std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                int midiNote = static_cast<int>(args[0]);
+                processorRef.triggerNoteOff(midiNote);
+                complete(juce::var(true));
             })
             // Register all slider relays
             .withOptionsFrom(*masterVolumeRelay)

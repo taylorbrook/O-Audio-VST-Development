@@ -1288,7 +1288,7 @@
                     <div class="black-key mapped" id="key-gs1" data-note="68"></div>
                     <div class="black-key mapped" id="key-as1" data-note="70"></div>
                 </div>
-                <div class="keyboard-help">Click to play</div>
+                <div class="keyboard-help">Click keys to play notes</div>
             </div>
         </div>
 
@@ -2090,26 +2090,65 @@
         };
 
         // ====================================================================
-        // Keyboard Visualization (click to play)
+        // Keyboard Visualization (click to play) - v1.7.4: Now triggers actual notes!
         // ====================================================================
         const keyboardViz = document.getElementById('keyboard-viz');
         if (keyboardViz) {
             const keys = keyboardViz.querySelectorAll('.white-key, .black-key');
+
+            // Track which notes are currently pressed to avoid duplicate triggers
+            const pressedNotes = new Set();
+
             keys.forEach(key => {
-                key.addEventListener('mousedown', () => {
+                const midiNote = parseInt(key.dataset.note);
+                if (isNaN(midiNote)) return;
+
+                key.addEventListener('mousedown', async (e) => {
+                    e.preventDefault();
                     key.classList.add('pressed');
-                    // Activate scale degree bar for white keys
                     if (key.classList.contains('white-key')) {
                         key.classList.add('active');
                     }
+
+                    // Trigger note if not already pressed
+                    if (!pressedNotes.has(midiNote)) {
+                        pressedNotes.add(midiNote);
+                        try {
+                            await Juce.getNativeFunction('triggerNoteOn')(midiNote, 0.8);
+                        } catch (e) {
+                            console.warn('[Keyboard] Note on failed:', e);
+                        }
+                    }
                 });
-                key.addEventListener('mouseup', () => {
+
+                key.addEventListener('mouseup', async () => {
                     key.classList.remove('pressed');
                     key.classList.remove('active');
+
+                    // Release note
+                    if (pressedNotes.has(midiNote)) {
+                        pressedNotes.delete(midiNote);
+                        try {
+                            await Juce.getNativeFunction('triggerNoteOff')(midiNote);
+                        } catch (e) {
+                            console.warn('[Keyboard] Note off failed:', e);
+                        }
+                    }
                 });
-                key.addEventListener('mouseleave', () => {
+
+                key.addEventListener('mouseleave', async () => {
                     key.classList.remove('pressed');
                     key.classList.remove('active');
+
+                    // Release note if leaving while pressed
+                    if (pressedNotes.has(midiNote)) {
+                        pressedNotes.delete(midiNote);
+                        try {
+                            await Juce.getNativeFunction('triggerNoteOff')(midiNote);
+                        } catch (e) {
+                            console.warn('[Keyboard] Note off failed:', e);
+                        }
+                    }
                 });
             });
         }

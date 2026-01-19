@@ -328,6 +328,26 @@ int OuariconLyricaAudioProcessor::getActiveVoiceCount() const
     return activeCount;
 }
 
+// v1.7.4: Trigger note from WebView keyboard visualization
+void OuariconLyricaAudioProcessor::triggerNoteOn(int midiNote, float velocity)
+{
+    // Clamp values to valid ranges
+    midiNote = juce::jlimit(0, 127, midiNote);
+    velocity = juce::jlimit(0.0f, 1.0f, velocity);
+
+    // Use channel 1 (index 0) for UI-triggered notes
+    synthesiser.noteOn(1, midiNote, velocity);
+}
+
+// v1.7.4: Release note from WebView keyboard visualization
+void OuariconLyricaAudioProcessor::triggerNoteOff(int midiNote)
+{
+    midiNote = juce::jlimit(0, 127, midiNote);
+
+    // allowTailOff = true for natural release
+    synthesiser.noteOff(1, midiNote, 0.0f, true);
+}
+
 juce::AudioProcessorEditor* OuariconLyricaAudioProcessor::createEditor()
 {
     return new OuariconLyricaAudioProcessorEditor(*this);

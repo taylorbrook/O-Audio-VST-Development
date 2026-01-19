@@ -2,6 +2,15 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.1] - 2026-01-19
+
+### Fixed
+
+- **Title moved left to avoid preset bar overlap**
+  - Changed title positioning from centered (`left: 50%`) to left-aligned (`left: 20px`)
+  - Removed `translateX(-50%)` transform that caused horizontal centering
+  - Title now sits at left edge, preset bar remains at right edge with no overlap
+
 ## [1.6.0] - 2026-01-19
 
 ### Added

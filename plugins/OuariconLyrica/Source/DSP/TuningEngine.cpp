@@ -217,6 +217,11 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
 
     // Apply the new tuning
     setCustomIntervals(newIntervals, parsedName.isEmpty() ? sclFile.getFileNameWithoutExtension() : parsedName);
+
+    // v1.7.4: Automatically switch to Scala mode when loading a .scl file
+    // This ensures rebuildFrequencyTable() uses custom intervals instead of 12-TET
+    setMode(Mode::Scala);
+
     DBG("TuningEngine::loadScalaFile() - Loaded '" + scaleName + "' with " + juce::String(scaleDegrees) + " degrees");
     return true;
 }
