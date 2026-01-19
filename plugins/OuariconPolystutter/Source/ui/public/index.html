@@ -89,8 +89,8 @@
 
     .sequencer-section {
       position: absolute;
-      top: 475px;  /* v1.1.2: 60 + 400 + 15 gap */
-      left: 0;
+      top: 375px;  /* v1.5.5: Moved up 100px (was 475px) */
+      left: 70px;  /* v1.5.5: Room for SEQ button on left */
       right: 0;
       height: 130px;
       overflow: hidden;
@@ -103,7 +103,7 @@
     /* TAPE SECTION - v5 CRITICAL FIX: HORIZONTAL LAYOUT */
     .tape-section {
       position: absolute;
-      top: 620px;  /* v1.1.2: 60 + 400 + 15 + 130 + 15 gap */
+      top: 520px;  /* v1.5.5: Moved up 100px (was 620px) */
       left: 0;
       right: 0;
       height: 130px;
@@ -145,7 +145,7 @@
 
     .footer-section {
       position: absolute;
-      top: 750px;  /* v1.1.4: Moved up 15px to accommodate taller mix knobs */
+      top: 650px;  /* v1.5.5: Moved up 100px (was 750px) */
       left: 0;
       right: 0;
       height: 80px;  /* v1.1.4: Expanded from 50px to 80px for knob visibility */
@@ -369,9 +369,17 @@
       overflow: hidden;
     }
 
+    /* v1.5.5: SEQ button to the left of sequencer section */
+    .seq-header {
+      position: absolute;
+      top: 420px;  /* Vertically centered with sequencer */
+      left: 10px;
+      z-index: 10;
+    }
+
     .pattern-grid {
       display: grid;
-      grid-template-columns: 25px repeat(16, 1fr);
+      grid-template-columns: 25px repeat(16, 1fr);  /* Restored to original */
       gap: 3px;
       padding: 5px;
       max-height: 120px;
@@ -416,6 +424,29 @@
       right: 60px;  /* v1.1.0: Moved to right side */
       display: flex;
       gap: 20px;
+    }
+
+    /* v1.5.5: SEQ toggle in header above pattern grid */
+    .seq-toggle-inline {
+      width: 50px;
+      height: 20px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      color: #3C2F2F;
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 100ms;
+    }
+
+    .seq-toggle-inline.active {
+      background: #6B8E4E;
+      color: #f5e6d3;
+      border-color: #6B8E4E;
     }
 
     /* v1.1.0: Footer wet/dry mix knobs (left side) */
@@ -528,12 +559,182 @@
       box-shadow: 0 0 6px rgba(255, 165, 0, 0.7);
     }
 
+    /* v1.6.0: Preset Bar Styles */
+    .preset-bar {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      z-index: 100;
+    }
+
+    .preset-nav-btn {
+      width: 24px;
+      height: 24px;
+      background: rgba(139, 115, 85, 0.7);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      color: #f5e6d3;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.2s ease;
+    }
+
+    .preset-nav-btn:hover {
+      background: #6B8E4E;
+    }
+
+    .preset-dropdown {
+      position: relative;
+    }
+
+    .preset-name-display {
+      min-width: 150px;
+      max-width: 200px;
+      height: 24px;
+      padding: 0 10px;
+      background: rgba(245, 230, 211, 0.8);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      color: #3C2F2F;
+      font-size: 11px;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preset-name-display:hover {
+      border-color: #6B8E4E;
+    }
+
+    .preset-dropdown-arrow {
+      font-size: 8px;
+      margin-left: 8px;
+      flex-shrink: 0;
+    }
+
+    .preset-dropdown-menu {
+      position: absolute;
+      top: 28px;
+      left: 0;
+      right: 0;
+      max-height: 300px;
+      overflow-y: auto;
+      background: #f5e6d3;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+      z-index: 1000;
+      display: none;
+    }
+
+    .preset-dropdown-menu.open {
+      display: block;
+    }
+
+    .preset-dropdown-item {
+      padding: 8px 10px;
+      font-size: 11px;
+      color: #3C2F2F;
+      cursor: pointer;
+      border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .preset-dropdown-item:last-child {
+      border-bottom: none;
+    }
+
+    .preset-dropdown-item:hover {
+      background: rgba(107, 142, 78, 0.2);
+    }
+
+    .preset-dropdown-item.selected {
+      background: rgba(107, 142, 78, 0.3);
+      font-weight: bold;
+    }
+
+    .preset-dropdown-item .factory-badge {
+      font-size: 8px;
+      background: #8B7355;
+      color: #f5e6d3;
+      padding: 1px 4px;
+      border-radius: 2px;
+      text-transform: uppercase;
+    }
+
+    .preset-dropdown-item .delete-btn {
+      font-size: 12px;
+      color: #8B7355;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s ease;
+    }
+
+    .preset-dropdown-item:hover .delete-btn {
+      opacity: 1;
+    }
+
+    .preset-dropdown-item .delete-btn:hover {
+      color: #c44;
+    }
+
+    .preset-action-btn {
+      padding: 4px 10px;
+      height: 24px;
+      background: rgba(139, 115, 85, 0.7);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      color: #f5e6d3;
+      font-size: 9px;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      letter-spacing: 0.5px;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: background 0.2s ease;
+    }
+
+    .preset-action-btn:hover {
+      background: #6B8E4E;
+    }
+
   </style>
 </head>
 <body>
   <div class="plugin-frame">
     <!-- Title -->
     <div class="plugin-title">Ouaricon Polystutter</div>
+
+    <!-- v1.6.0: Preset Bar (top-right header area) -->
+    <div class="preset-bar">
+      <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
+      <div class="preset-dropdown">
+        <div class="preset-name-display" id="preset-name-display">
+          <span id="preset-name-text">Default</span>
+          <span class="preset-dropdown-arrow">▼</span>
+        </div>
+        <div class="preset-dropdown-menu" id="preset-dropdown-menu">
+          <!-- Populated dynamically by JS -->
+        </div>
+      </div>
+      <button class="preset-nav-btn" id="preset-next" title="Next preset">&gt;</button>
+      <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
+      <button class="preset-action-btn" id="preset-load" title="Load preset from file">Load</button>
+    </div>
 
     <!-- LANES SECTION (320px height) -->
     <div class="lanes-section">
@@ -786,11 +987,16 @@
       </div>
     </div>
 
+    <!-- v1.5.5: SEQ toggle outside section (always clickable) -->
+    <div class="seq-header">
+      <div class="seq-toggle-inline active" id="seq_toggle">SEQ</div>
+    </div>
+
     <!-- PATTERN SEQUENCER SECTION (130px height, COMPACT) -->
     <div class="sequencer-section">
       <div class="pattern-container">
         <div class="pattern-grid">
-          <!-- Lane labels -->
+          <!-- Lane labels restored -->
           <div class="lane-label">L1</div>
           <div class="step-button active" data-lane="1" data-step="1"></div>
           <div class="step-button active" data-lane="1" data-step="2"></div>
@@ -918,9 +1124,8 @@
           <div class="knob-value" id="mix_wet_value">100%</div>
         </div>
       </div>
-      <!-- Trigger mode toggles (right side) - v1.3.0: Removed ENV and SC -->
+      <!-- Trigger mode toggles (right side) - v1.5.5: SEQ moved above sequencer -->
       <div class="footer-toggles">
-        <div class="footer-toggle active" id="seq_toggle">SEQ</div>
         <div class="footer-toggle" id="midi_toggle">MIDI</div>
         <div class="footer-toggle" id="trig_toggle">TRIG</div>
       </div>
@@ -935,6 +1140,95 @@
 
   <!-- Phase 3.2: Parameter Bindings (JUCE ↔ UI sync) -->
   <script type="module" src="js/parameter-bindings.js"></script>
+
+  <!-- v1.6.0: Preset Manager Module -->
+  <script type="module">
+    import { PresetManager } from './modules/preset-manager.js';
+    import { getNativeFunction } from './js/juce/index.js';
+
+    // Wait for DOM and JUCE to be ready
+    document.addEventListener('DOMContentLoaded', async () => {
+      // Get UI elements
+      const presetNameText = document.getElementById('preset-name-text');
+      const presetNameDisplay = document.getElementById('preset-name-display');
+      const presetDropdownMenu = document.getElementById('preset-dropdown-menu');
+      const prevButton = document.getElementById('preset-prev');
+      const nextButton = document.getElementById('preset-next');
+      const saveButton = document.getElementById('preset-save');
+      const loadButton = document.getElementById('preset-load');
+
+      // Initialize preset manager
+      const presets = new PresetManager({
+        displayElement: presetNameText,
+        prevButton: prevButton,
+        nextButton: nextButton,
+        saveButton: saveButton,
+        loadButton: loadButton,
+        getNativeFunction: getNativeFunction,
+        onPresetChanged: (name) => {
+          console.log('[PresetManager] Loaded preset:', name);
+          updateDropdownMenu();
+        },
+        onPresetListUpdated: (list) => {
+          console.log('[PresetManager] Preset list updated:', list.length, 'presets');
+          updateDropdownMenu();
+        }
+      });
+
+      // Toggle dropdown menu on click
+      presetNameDisplay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        presetDropdownMenu.classList.toggle('open');
+      });
+
+      // Close dropdown when clicking elsewhere
+      document.addEventListener('click', () => {
+        presetDropdownMenu.classList.remove('open');
+      });
+
+      // Update dropdown menu content
+      async function updateDropdownMenu() {
+        const list = presets.getPresetList();
+        const currentName = presets.getCurrentPreset();
+
+        presetDropdownMenu.innerHTML = '';
+
+        for (const name of list) {
+          const isFactory = await presets.isFactoryPreset(name);
+          const isSelected = name === currentName;
+
+          const item = document.createElement('div');
+          item.className = 'preset-dropdown-item' + (isSelected ? ' selected' : '');
+          item.innerHTML = `
+            <span class="preset-item-name">${name}</span>
+            ${isFactory ? '<span class="factory-badge">Factory</span>' : '<span class="delete-btn" title="Delete preset">×</span>'}
+          `;
+
+          // Load preset on click
+          item.addEventListener('click', async (e) => {
+            if (e.target.classList.contains('delete-btn')) {
+              e.stopPropagation();
+              if (confirm(`Delete preset "${name}"?`)) {
+                await presets.deletePreset(name);
+              }
+              return;
+            }
+            await presets.loadPreset(name);
+            presetDropdownMenu.classList.remove('open');
+          });
+
+          presetDropdownMenu.appendChild(item);
+        }
+      }
+
+      // Initialize
+      await presets.initialize();
+      updateDropdownMenu();
+
+      // Store reference for debugging
+      window.presetManager = presets;
+    });
+  </script>
 
   <script>
     // Disable context menu (REQUIRED for plugin)

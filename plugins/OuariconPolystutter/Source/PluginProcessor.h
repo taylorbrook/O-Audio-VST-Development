@@ -13,6 +13,7 @@
 #include "DSP/RepeatLane.h"
 #include "DSP/TriggerRouter.h"
 #include "DSP/TapeDegrader.h"
+#include "OuariconPresetManager.h"
 
 class OuariconPolystutterAudioProcessor : public juce::AudioProcessor
 {
@@ -48,6 +49,9 @@ public:
 
     // Public APVTS member for direct UI access (standard pattern for JUCE plugins)
     juce::AudioProcessorValueTreeState apvts;
+
+    // v1.6.0: Preset manager for saving/loading presets
+    OuariconPresetManager presetManager;
 
     // v1.5.0: Lane progress state for UI progress bars (thread-safe)
     // Updated in processBlock, read by Editor Timer

@@ -570,6 +570,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , apvts(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(apvts, "Ouaricon Polystutter")
 {
     // Create all 4 lanes
     lane1 = std::make_unique<RepeatLane>();
@@ -677,6 +678,204 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     tapeHissParam = apvts.getRawParameterValue("tape_hiss");
     tapeRolloffParam = apvts.getRawParameterValue("tape_rolloff");
     tapeDropoutParam = apvts.getRawParameterValue("tape_dropout");
+
+    // ========================================================================================
+    // v1.6.0: Initialize Factory Presets (12 presets showcasing different stutter styles)
+    // ========================================================================================
+    // Only initialize if Factory directory is empty (first run)
+    if (presetManager.getFactoryPresetsDirectory().findChildFiles(juce::File::findFiles, false, "*.json").isEmpty())
+    {
+        std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets;
+
+        // Helper to create basic lane parameters (normalized values 0-1 for APVTS)
+        auto makeParams = [](
+            bool l1Enabled, int l1Sub, int l1Reps, float l1Decay, float l1Pitch, float l1Vol, float l1Prob,
+            bool l2Enabled, int l2Sub, int l2Reps, float l2Decay, float l2Pitch, float l2Vol, float l2Prob,
+            bool l3Enabled, int l3Sub, int l3Reps, float l3Decay, float l3Pitch, float l3Vol, float l3Prob,
+            bool l4Enabled, int l4Sub, int l4Reps, float l4Decay, float l4Pitch, float l4Vol, float l4Prob,
+            float tapeSat, float tapeWow, float tapeFlutter, float tapeHiss, float tapeRolloff, float tapeDropout,
+            float mixDry, float mixWet
+        ) -> std::map<juce::String, float> {
+            return {
+                // Lane 1
+                {"lane1_enabled", l1Enabled ? 1.0f : 0.0f},
+                {"lane1_subdivision", l1Sub / 5.0f},  // 0-5 range
+                {"lane1_repeats", (l1Reps - 1) / 15.0f},  // 1-16 -> 0-1
+                {"lane1_decay", l1Decay / 100.0f},
+                {"lane1_pitch", (l1Pitch + 12.0f) / 24.0f},  // -12 to +12 -> 0-1
+                {"lane1_volume", l1Vol / 100.0f},
+                {"lane1_probability", l1Prob / 100.0f},
+                {"lane1_pan", 0.5f}, {"lane1_swing", 0.0f},
+                {"lane1_pingpong", 0.0f}, {"lane1_reverse", 0.0f}, {"lane1_freeze", 0.0f}, {"lane1_manual_time_enabled", 0.0f},
+                // Lane 2
+                {"lane2_enabled", l2Enabled ? 1.0f : 0.0f},
+                {"lane2_subdivision", l2Sub / 5.0f},
+                {"lane2_repeats", (l2Reps - 1) / 15.0f},
+                {"lane2_decay", l2Decay / 100.0f},
+                {"lane2_pitch", (l2Pitch + 12.0f) / 24.0f},
+                {"lane2_volume", l2Vol / 100.0f},
+                {"lane2_probability", l2Prob / 100.0f},
+                {"lane2_pan", 0.5f}, {"lane2_swing", 0.0f},
+                {"lane2_pingpong", 0.0f}, {"lane2_reverse", 0.0f}, {"lane2_freeze", 0.0f}, {"lane2_manual_time_enabled", 0.0f},
+                // Lane 3
+                {"lane3_enabled", l3Enabled ? 1.0f : 0.0f},
+                {"lane3_subdivision", l3Sub / 5.0f},
+                {"lane3_repeats", (l3Reps - 1) / 15.0f},
+                {"lane3_decay", l3Decay / 100.0f},
+                {"lane3_pitch", (l3Pitch + 12.0f) / 24.0f},
+                {"lane3_volume", l3Vol / 100.0f},
+                {"lane3_probability", l3Prob / 100.0f},
+                {"lane3_pan", 0.5f}, {"lane3_swing", 0.0f},
+                {"lane3_pingpong", 0.0f}, {"lane3_reverse", 0.0f}, {"lane3_freeze", 0.0f}, {"lane3_manual_time_enabled", 0.0f},
+                // Lane 4
+                {"lane4_enabled", l4Enabled ? 1.0f : 0.0f},
+                {"lane4_subdivision", l4Sub / 5.0f},
+                {"lane4_repeats", (l4Reps - 1) / 15.0f},
+                {"lane4_decay", l4Decay / 100.0f},
+                {"lane4_pitch", (l4Pitch + 12.0f) / 24.0f},
+                {"lane4_volume", l4Vol / 100.0f},
+                {"lane4_probability", l4Prob / 100.0f},
+                {"lane4_pan", 0.5f}, {"lane4_swing", 0.0f},
+                {"lane4_pingpong", 0.0f}, {"lane4_reverse", 0.0f}, {"lane4_freeze", 0.0f}, {"lane4_manual_time_enabled", 0.0f},
+                // Tape
+                {"tape_saturation", tapeSat / 100.0f},
+                {"tape_wow", tapeWow / 100.0f},
+                {"tape_flutter", tapeFlutter / 100.0f},
+                {"tape_hiss", tapeHiss / 100.0f},
+                {"tape_rolloff", tapeRolloff / 100.0f},
+                {"tape_dropout", tapeDropout / 100.0f},
+                // Mix
+                {"mix_dry", mixDry / 100.0f},
+                {"mix_wet", mixWet / 100.0f},
+                // Global
+                {"sequencer_enabled", 1.0f},
+                {"midi_enabled", 0.0f},
+                {"manual_trigger", 0.0f}
+            };
+        };
+
+        // 1. Classic Stutter - Basic rhythmic 1/16 note stutter
+        factoryPresets.push_back({"Classic Stutter", makeParams(
+            true, 2, 4, 90, 0, 100, 100,   // Lane 1: 1/16, 4 reps
+            false, 1, 4, 90, 0, 100, 100,  // Lane 2-4: off
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            0, 0, 0, 0, 0, 0,              // No tape
+            50, 100                         // 50% dry, 100% wet
+        ), {}});
+
+        // 2. Glitch Machine - Fast chaotic stutters with pitch
+        factoryPresets.push_back({"Glitch Machine", makeParams(
+            true, 3, 8, 85, 5, 100, 80,    // Lane 1: 1/32, 8 reps, +5st
+            true, 2, 6, 80, -3, 90, 70,    // Lane 2: 1/16, 6 reps, -3st
+            true, 3, 10, 75, 7, 85, 60,    // Lane 3: 1/32, 10 reps, +7st
+            false, 0, 4, 90, 0, 100, 100,
+            20, 0, 0, 0, 0, 0,             // Light saturation
+            30, 100
+        ), {}});
+
+        // 3. Tape Echo - Slow repeats with warm tape character
+        factoryPresets.push_back({"Tape Echo", makeParams(
+            true, 0, 3, 70, 0, 100, 100,   // Lane 1: 1/4 notes, 3 reps
+            true, 1, 2, 60, 0, 80, 100,    // Lane 2: 1/8 notes
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            40, 30, 20, 15, 50, 10,        // Heavy tape character
+            60, 80
+        ), {}});
+
+        // 4. Rhythmic Bounce - Synced bounce with stereo ping-pong
+        factoryPresets.push_back({"Rhythmic Bounce", makeParams(
+            true, 1, 4, 85, 0, 100, 100,   // Lane 1: 1/8
+            true, 2, 4, 80, 0, 90, 100,    // Lane 2: 1/16
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            0, 0, 0, 0, 0, 0,
+            40, 100
+        ), {}});
+
+        // 5. Ambient Freeze - Long sustaining frozen moments
+        factoryPresets.push_back({"Ambient Freeze", makeParams(
+            true, 0, 16, 98, 0, 100, 100,  // Lane 1: 1/4, 16 reps, almost no decay
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            20, 40, 30, 10, 30, 0,         // Subtle tape warmth
+            70, 60
+        ), {}});
+
+        // 6. Dub Delay - Classic reggae-style dub stutters
+        factoryPresets.push_back({"Dub Delay", makeParams(
+            true, 1, 3, 65, 0, 100, 100,   // Lane 1: 1/8, 3 reps, good decay
+            true, 0, 2, 55, 0, 70, 100,    // Lane 2: 1/4, 2 reps
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            50, 20, 15, 0, 60, 5,          // Warm dub tape sound
+            50, 90
+        ), {}});
+
+        // 7. Digital Chaos - Multi-lane glitchy madness
+        factoryPresets.push_back({"Digital Chaos", makeParams(
+            true, 3, 12, 90, 3, 100, 90,   // Lane 1: 1/32, 12 reps
+            true, 2, 8, 85, -5, 95, 85,    // Lane 2
+            true, 4, 6, 80, 7, 90, 75,     // Lane 3: triplet
+            true, 3, 10, 75, -7, 85, 70,   // Lane 4
+            30, 0, 0, 0, 0, 0,
+            20, 100
+        ), {}});
+
+        // 8. Lo-Fi Dreams - Heavy tape degradation
+        factoryPresets.push_back({"Lo-Fi Dreams", makeParams(
+            true, 1, 4, 75, 0, 100, 100,   // Lane 1: 1/8
+            true, 2, 3, 70, 0, 85, 90,     // Lane 2: 1/16
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            60, 50, 40, 30, 70, 20,        // Maximum lo-fi character
+            40, 100
+        ), {}});
+
+        // 9. Rising Pitch - Pitch increases with each repeat
+        factoryPresets.push_back({"Rising Pitch", makeParams(
+            true, 2, 8, 95, 12, 100, 100,  // Lane 1: +12st (octave up)
+            true, 2, 6, 90, 7, 90, 100,    // Lane 2: +7st (fifth)
+            true, 2, 4, 85, 5, 80, 100,    // Lane 3: +5st (fourth)
+            false, 0, 4, 90, 0, 100, 100,
+            10, 0, 0, 0, 0, 0,
+            30, 100
+        ), {}});
+
+        // 10. Polyrhythmic - Different subdivisions per lane
+        factoryPresets.push_back({"Polyrhythmic", makeParams(
+            true, 0, 3, 80, 0, 100, 100,   // Lane 1: 1/4
+            true, 1, 4, 75, 0, 90, 100,    // Lane 2: 1/8
+            true, 4, 5, 70, 0, 85, 100,    // Lane 3: 1/8T (triplet)
+            true, 5, 6, 65, 0, 80, 100,    // Lane 4: 1/16T
+            0, 0, 0, 0, 0, 0,
+            30, 100
+        ), {}});
+
+        // 11. Subtle Texture - Low probability, light touch
+        factoryPresets.push_back({"Subtle Texture", makeParams(
+            true, 2, 2, 60, 0, 60, 30,     // Lane 1: Low probability
+            true, 3, 2, 55, 0, 50, 25,     // Lane 2
+            false, 0, 4, 90, 0, 100, 100,
+            false, 0, 4, 90, 0, 100, 100,
+            15, 10, 5, 5, 20, 0,           // Subtle tape color
+            80, 40
+        ), {}});
+
+        // 12. Maximum Destruction - Everything cranked
+        factoryPresets.push_back({"Maximum Destruction", makeParams(
+            true, 3, 16, 100, 12, 100, 100,  // Lane 1: Max everything
+            true, 3, 16, 95, -12, 100, 100,  // Lane 2: Octave down
+            true, 3, 14, 90, 7, 100, 100,    // Lane 3
+            true, 3, 12, 85, -7, 100, 100,   // Lane 4
+            80, 60, 50, 40, 80, 30,          // Heavy tape destruction
+            0, 100                            // 100% wet
+        ), {}});
+
+        presetManager.initializeFactoryPresets(factoryPresets);
+    }
 }
 
 OuariconPolystutterAudioProcessor::~OuariconPolystutterAudioProcessor()
@@ -1163,17 +1362,16 @@ juce::AudioProcessorEditor* OuariconPolystutterAudioProcessor::createEditor()
 
 void OuariconPolystutterAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = apvts.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    // v1.6.0: Use preset manager for state serialization (includes preset name)
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void OuariconPolystutterAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState != nullptr && xmlState->hasTagName(apvts.state.getType()))
-        apvts.replaceState(juce::ValueTree::fromXml(*xmlState));
+    // v1.6.0: Use preset manager for state restoration (includes preset name)
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+        presetManager.setStateFromXml(xml.get());
 }
 
 // Helper functions

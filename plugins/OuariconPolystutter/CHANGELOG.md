@@ -2,6 +2,59 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.0] - 2026-01-19
+
+### Added
+
+- **Full preset system with save/load/navigation**
+  - Preset bar in header area (top-right) with prev/next navigation
+  - Dropdown menu showing all presets with factory/user badges
+  - Save button opens native file dialog in User presets folder
+  - Load button opens native file dialog to import presets
+  - Delete button for user presets (factory presets protected)
+  - Presets save ALL state: 128 parameters + sequencer patterns + lane enables
+  - Presets stored as JSON in `~/Library/Ouaricon Polystutter/Presets/`
+
+- **12 factory presets showcasing different stutter styles**
+  1. Classic Stutter - Basic rhythmic 1/16 note stutter
+  2. Glitch Machine - Fast chaotic stutters with pitch modulation
+  3. Tape Echo - Slow repeats with warm tape character
+  4. Rhythmic Bounce - Synced bounce effect
+  5. Ambient Freeze - Long sustaining frozen moments
+  6. Dub Delay - Classic reggae-style dub stutters
+  7. Digital Chaos - Multi-lane glitchy madness
+  8. Lo-Fi Dreams - Heavy tape degradation
+  9. Rising Pitch - Pitch increases across lanes
+  10. Polyrhythmic - Different subdivisions per lane
+  11. Subtle Texture - Low probability, light effect
+  12. Maximum Destruction - Everything cranked to max
+
+### Technical
+
+- Integrated OuariconPresetManager module from modules/persistence/preset-manager/
+- Added native functions for WebView ↔ C++ preset communication:
+  - savePreset, savePresetWithDialog, loadPreset, loadPresetFromFile
+  - getPresetList, getCurrentPreset, selectNextPreset, selectPreviousPreset
+  - deletePreset, isFactoryPreset
+- Preset state integrated with DAW session save/restore (getStateInformation/setStateInformation)
+- Factory presets initialized on first plugin load
+
+## [1.5.6] - 2026-01-19
+
+### Changed
+
+- **SEQ button repositioned** to left of sequencer section (always visible and clickable)
+- **Sequencer section shifted right** 70px to accommodate SEQ button placement
+- **L1 label restored** in sequencer grid
+
+## [1.5.5] - 2026-01-19
+
+### Changed
+
+- **Sequencer section moved up 100px** for tighter layout
+- **SEQ button relocated** from footer to above sequencer
+- Tape and footer sections adjusted accordingly
+
 ## [1.5.4] - 2026-01-19
 
 ### Changed

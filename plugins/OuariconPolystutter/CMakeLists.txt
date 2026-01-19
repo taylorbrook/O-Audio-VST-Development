@@ -7,7 +7,7 @@ juce_add_plugin(OuariconPolystutter
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "Ouaricon Polystutter"
-    VERSION 1.5.4
+    VERSION 1.6.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
@@ -62,6 +62,7 @@ juce_add_binary_data(OuariconPolystutter_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/js/parameter-bindings.js
+        Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/paper-background.jpg
         Source/ui/public/img/botanical-bug.png
 )
