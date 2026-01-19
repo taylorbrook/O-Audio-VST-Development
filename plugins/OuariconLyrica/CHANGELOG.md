@@ -2,6 +2,27 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.7.1] - 2026-01-19
+
+### Changed
+
+- **Keyboard visualization now compact and centered** (matching Ouaricon Marimba layout)
+  - Fixed width: 280px × 70px (was full-width)
+  - Centered at bottom of tuning tab
+  - Black key positions now use CSS ID selectors for precise pixel placement
+
+- **SCL/KBM file buttons now conditional**
+  - Load .SCL, Load .KBM, Save .SCL, Save .KBM buttons hidden by default
+  - Only visible when Custom tuning mode is selected
+  - Matches Marimba behavior where file operations are context-dependent
+
+### Technical Notes
+
+- Files modified: Resources/ui/index.html
+- Keyboard CSS refactored to use absolute positioning like Marimba
+- Added `updateFileButtonsVisibility()` function to toggle scala-buttons div
+- Black key left positions: 29px, 69px, 149px, 189px, 229px (40px per white key)
+
 ## [1.7.0] - 2026-01-18
 
 ### Changed
