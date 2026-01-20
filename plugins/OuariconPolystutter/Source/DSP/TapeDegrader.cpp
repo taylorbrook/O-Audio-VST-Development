@@ -161,8 +161,8 @@ void TapeDegrader::processBlock(juce::AudioBuffer<float>& buffer, int numSamples
     // ========== 3. Hiss (High-Frequency Noise) ==========
     if (hissAmount > 0.01f)
     {
-        // Calculate hiss level: -60dB to -20dB
-        float hissLevelDB = -60.0f + (hissAmount * 40.0f);
+        // Calculate hiss level: -60dB to -56dB (scaled down 10x - previous range was too loud)
+        float hissLevelDB = -60.0f + (hissAmount * 4.0f);
         float hissLevel = juce::Decibels::decibelsToGain(hissLevelDB);
 
         for (int sample = 0; sample < numSamples; ++sample)

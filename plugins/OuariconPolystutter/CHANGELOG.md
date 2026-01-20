@@ -2,6 +2,16 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.4] - 2026-01-19
+
+### Fixed
+
+- **Hiss level scaled down 10x to usable range**
+  - Previous range: -60dB to -20dB (40dB range) - far too loud
+  - New range: -60dB to -56dB (4dB range) - subtle tape hiss
+  - Root cause: Original scaling made 10% hiss louder than desired 100%
+  - File: `Source/DSP/TapeDegrader.cpp` line 165
+
 ## [1.6.3] - 2026-01-19
 
 ### Changed
