@@ -699,8 +699,8 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     // Navigate to UI (served from BinaryData)
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
-    // Fixed window size: 1000×830px (v1.1.2: expanded for better lane control spacing)
-    setSize(1000, 830);
+    // Fixed window size: 1000×660px (v1.6.3: reduced - footer removed, controls in tape row)
+    setSize(1000, 660);
 
     // v1.5.0: Start timer for lane progress updates (~30Hz for smooth animation)
     startTimerHz(30);

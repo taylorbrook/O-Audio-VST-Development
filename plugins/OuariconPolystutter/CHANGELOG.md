@@ -2,6 +2,16 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.3] - 2026-01-19
+
+### Changed
+
+- **DRY/WET knobs and MIDI/TRIG buttons moved to tape degradation row**
+  - Controls relocated from footer section to right side of tape row
+  - Unified bottom row: tape knobs (left) + mix/trigger controls (right)
+  - Footer section removed entirely
+  - Plugin window height reduced from 830px to 660px (more compact layout)
+
 ## [1.6.2] - 2026-01-19
 
 ### Changed

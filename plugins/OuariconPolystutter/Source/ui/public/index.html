@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ouaricon Polystutter - UI v1.6.2 (TAPE KNOBS COMPACTED LEFT)</title>
+  <title>Ouaricon Polystutter - UI v1.6.3 (UNIFIED BOTTOM ROW)</title>
 
   <style>
     /* CRITICAL: WebView constraints - NO viewport units */
@@ -35,7 +35,7 @@
     /* Fixed preview frame matching plugin spec */
     .plugin-frame {
       width: 1000px;   /* FIXED */
-      height: 830px;  /* FIXED - v1.1.2: expanded for better lane control spacing */
+      height: 660px;  /* v1.6.3: Reduced from 830px - footer removed, controls in tape row */
       border: 2px solid #444;
       box-shadow: 0 10px 40px rgba(0,0,0,0.5);
       overflow: hidden;
@@ -123,13 +123,13 @@
 
     /* CRITICAL FIX: Explicit horizontal flexbox for tape knobs */
     /* v1.6.2: Compacted to left half of UI */
+    /* v1.6.3: Now shares row with DRY/WET and MIDI/TRIG on right */
     .tape-knobs-row {
       display: flex;
       flex-direction: row;  /* HORIZONTAL - prevents stacking */
       justify-content: flex-start;  /* v1.6.2: Left-aligned instead of spread */
       align-items: flex-start;
       gap: 8px;  /* v1.6.2: Tighter gap (was 15px) */
-      width: 500px;  /* v1.6.2: Constrain to left half */
       padding-top: 35px;  /* Space for section label */
       padding-left: 10px;  /* v1.6.2: Small left margin */
     }
@@ -143,13 +143,34 @@
       width: 75px;  /* v1.6.2: Fixed width (was max-width: 100px) */
     }
 
-    .footer-section {
+    /* v1.6.3: Right-side controls in tape row (DRY/WET + MIDI/TRIG) */
+    .tape-right-controls {
       position: absolute;
-      top: 650px;  /* v1.5.5: Moved up 100px (was 750px) */
-      left: 0;
-      right: 0;
-      height: 80px;  /* v1.1.4: Expanded from 50px to 80px for knob visibility */
-      overflow: visible;  /* v1.1.4: Allow knobs to be fully visible */
+      right: 20px;
+      top: 35px;
+      display: flex;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 20px;
+    }
+
+    .tape-mix-knobs {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+    }
+
+    .tape-toggles {
+      display: flex;
+      flex-direction: row;
+      gap: 10px;
+      align-items: center;
+      padding-top: 15px;  /* Vertically center with knobs */
+    }
+
+    /* v1.6.3: Footer section removed - controls moved to tape row */
+    .footer-section {
+      display: none;  /* Hidden - all controls moved to tape section */
     }
 
     /* Lane containers */
@@ -1072,9 +1093,10 @@
       </div>
     </div>
 
-    <!-- TAPE DEGRADATION SECTION (130px height) - v5 CRITICAL FIX -->
+    <!-- TAPE DEGRADATION SECTION - v1.6.3: Now includes DRY/WET and MIDI/TRIG on right -->
     <div class="tape-section">
       <div class="section-label">TAPE DEGRADATION</div>
+      <!-- Left side: Tape knobs -->
       <div class="tape-knobs-row">
         <div class="tape-knob-container">
           <div class="knob-label">SAT</div>
@@ -1107,27 +1129,24 @@
           <div class="knob-value" id="dropout_value">0%</div>
         </div>
       </div>
-    </div>
-
-    <!-- FOOTER SECTION (50px height) - v1.1.0: Added wet/dry knobs -->
-    <div class="footer-section">
-      <!-- v1.1.0: Wet/Dry Mix Knobs (left side) -->
-      <div class="footer-mix-knobs">
-        <div class="footer-knob-container">
-          <div class="knob-label">DRY</div>
-          <div class="knob" id="mix_dry" data-param="mix_dry"></div>
-          <div class="knob-value" id="mix_dry_value">50%</div>
+      <!-- v1.6.3: Right side: DRY/WET knobs + MIDI/TRIG toggles -->
+      <div class="tape-right-controls">
+        <div class="tape-mix-knobs">
+          <div class="tape-knob-container">
+            <div class="knob-label">DRY</div>
+            <div class="knob" id="mix_dry" data-param="mix_dry"></div>
+            <div class="knob-value" id="mix_dry_value">50%</div>
+          </div>
+          <div class="tape-knob-container">
+            <div class="knob-label">WET</div>
+            <div class="knob" id="mix_wet" data-param="mix_wet"></div>
+            <div class="knob-value" id="mix_wet_value">100%</div>
+          </div>
         </div>
-        <div class="footer-knob-container">
-          <div class="knob-label">WET</div>
-          <div class="knob" id="mix_wet" data-param="mix_wet"></div>
-          <div class="knob-value" id="mix_wet_value">100%</div>
+        <div class="tape-toggles">
+          <div class="footer-toggle" id="midi_toggle">MIDI</div>
+          <div class="footer-toggle" id="trig_toggle">TRIG</div>
         </div>
-      </div>
-      <!-- Trigger mode toggles (right side) - v1.5.5: SEQ moved above sequencer -->
-      <div class="footer-toggles">
-        <div class="footer-toggle" id="midi_toggle">MIDI</div>
-        <div class="footer-toggle" id="trig_toggle">TRIG</div>
       </div>
     </div>
   </div>
