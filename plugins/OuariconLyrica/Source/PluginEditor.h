@@ -12,7 +12,8 @@
 #include "PluginProcessor.h"
 #include <JuceHeader.h>
 
-class OuariconLyricaAudioProcessorEditor : public juce::AudioProcessorEditor
+class OuariconLyricaAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                          private juce::Timer
 {
 public:
     explicit OuariconLyricaAudioProcessorEditor(OuariconLyricaAudioProcessor&);
@@ -22,6 +23,9 @@ public:
     void resized() override;
 
 private:
+    // v1.7.9: Timer callback for MIDI event polling (tuning circle visualization)
+    void timerCallback() override;
+
     OuariconLyricaAudioProcessor& processorRef;
 
     // ═══════════════════════════════════════════════════════════════════

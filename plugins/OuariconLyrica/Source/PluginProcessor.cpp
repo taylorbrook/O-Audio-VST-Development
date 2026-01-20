@@ -300,6 +300,20 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
     sympatheticEngine.syncBeforeBlock();
 
+    // v1.7.9: Push MIDI note events to queue for UI visualization (tuning circle flash)
+    for (const auto metadata : midiMessages)
+    {
+        const auto msg = metadata.getMessage();
+        if (msg.isNoteOn())
+        {
+            midiEventQueue.push({ msg.getNoteNumber(), msg.getFloatVelocity() });
+        }
+        else if (msg.isNoteOff())
+        {
+            midiEventQueue.push({ msg.getNoteNumber(), 0.0f });
+        }
+    }
+
     // Render MIDI to audio via synthesiser
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
@@ -337,6 +351,9 @@ void OuariconLyricaAudioProcessor::triggerNoteOn(int midiNote, float velocity)
 
     // Use channel 1 (index 0) for UI-triggered notes
     synthesiser.noteOn(1, midiNote, velocity);
+
+    // v1.7.9: Push to event queue for tuning circle visualization
+    midiEventQueue.push({ midiNote, velocity });
 }
 
 // v1.7.4: Release note from WebView keyboard visualization
@@ -346,6 +363,9 @@ void OuariconLyricaAudioProcessor::triggerNoteOff(int midiNote)
 
     // allowTailOff = true for natural release
     synthesiser.noteOff(1, midiNote, 0.0f, true);
+
+    // v1.7.9: Push to event queue for tuning circle visualization
+    midiEventQueue.push({ midiNote, 0.0f });
 }
 
 juce::AudioProcessorEditor* OuariconLyricaAudioProcessor::createEditor()

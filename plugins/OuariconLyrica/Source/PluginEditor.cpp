@@ -463,10 +463,16 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
 
     // Set editor size - v1.4.0: Reduced from 800x600 to 700x450
     setSize(700, 450);
+
+    // v1.7.9: Start timer for MIDI event polling (tuning circle visualization)
+    startTimer(50);  // 20 Hz polling - fast enough for visual feedback
 }
 
 OuariconLyricaAudioProcessorEditor::~OuariconLyricaAudioProcessorEditor()
 {
+    // v1.7.9: Stop timer before destroying UI components
+    stopTimer();
+
     // Destructor runs in REVERSE order of declaration:
     // 1. Attachments destroyed first (safe - webView still exists)
     // 2. WebView destroyed second (safe - relays still exist)
@@ -484,6 +490,30 @@ void OuariconLyricaAudioProcessorEditor::resized()
     // WebView fills entire editor
     if (webView)
         webView->setBounds(getLocalBounds());
+}
+
+// v1.7.9: Timer callback - poll MIDI events and notify WebView for tuning circle visualization
+void OuariconLyricaAudioProcessorEditor::timerCallback()
+{
+    MidiNoteEvent event;
+    while (processorRef.popMidiEvent(event))
+    {
+        if (event.velocity > 0.0f)
+        {
+            // Note-on: activate interval line with velocity-based intensity
+            juce::String js = "if (typeof setNoteActive === 'function') setNoteActive("
+                + juce::String(event.noteNumber) + ", "
+                + juce::String(event.velocity, 3) + ");";
+            webView->evaluateJavascript(js, nullptr);
+        }
+        else
+        {
+            // Note-off: deactivate interval line
+            juce::String js = "if (typeof setNoteInactive === 'function') setNoteInactive("
+                + juce::String(event.noteNumber) + ");";
+            webView->evaluateJavascript(js, nullptr);
+        }
+    }
 }
 
 std::optional<juce::WebBrowserComponent::Resource>

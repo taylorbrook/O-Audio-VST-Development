@@ -2,26 +2,83 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.7.9] - 2026-01-20
+
+### Added
+
+- **Visual feedback on tuning circle when notes are played**
+  - Interval lines flash red when corresponding notes are triggered via MIDI or UI keyboard
+  - Velocity-based intensity: harder strikes produce brighter red (rgb(220,0,0)), softer strikes darker red (rgb(120,40,40))
+  - Polyphonic tracking: multiple notes on same scale degree stack correctly (octave doubling)
+  - Implementation matches Ouaricon Marimba's note visualization system
+  - Files modified: PluginProcessor.h (MidiEventQueue), PluginProcessor.cpp (event pushing), PluginEditor.h/cpp (Timer polling), index.html (JS visualization)
+
+## [1.7.8] - 2026-01-19
+
+### Fixed
+
+- **Tonic selector now visible on initial load in Tuning tab**
+  - Root cause: TuningEngine initialized with 13 intervals (0-1200 cents including octave), but JavaScript checks for exactly 12 intervals to show the tonic selector
+  - Fix: Changed initialization loop from `i <= 12` to `i < 12`, producing 12 intervals (0, 100, ..., 1100)
+  - Previously required clicking away from 12-TET mode and back to see the tonic control
+  - Files modified: Source/DSP/TuningEngine.cpp
+
+## [1.7.7] - 2026-01-19
+
+### Changed
+
+- **Tuning tab layout restructured**
+  - Keyboard shifted 40px left (total) for full clearance from SCL/KBM buttons
+  - Pitch circle moved to center, positioned above keyboard
+  - Pitch circle enlarged to 125% (188px from 150px)
+  - SVG viewBox and JavaScript coordinates updated for new size
+  - Files modified: Resources/ui/index.html (CSS, HTML, JavaScript)
+
+## [1.7.6] - 2026-01-19
+
+### Fixed
+
+- **Keyboard position fine-tuned for Custom tuning mode**
+  - Increased left offset from 10px to 20px for better clearance from SCL/KBM buttons
+  - Files modified: Resources/ui/index.html (CSS)
+
+## [1.7.5] - 2026-01-19
+
+### Fixed
+
+- **Keyboard no longer overlaps SCL/KBM buttons in Custom tuning mode**
+  - Root cause: Keyboard section was centered at exactly 50%, causing right edge to overlap with file operation buttons when in Custom mode
+  - Fix: Shifted keyboard 10px left using `left: calc(50% - 10px)` instead of `left: 50%`
+  - Files modified: Resources/ui/index.html (CSS)
+
 ## [1.7.4] - 2026-01-19
 
 ### Fixed
 
-- **Scala file loading now properly affects tuning**
-  - Root cause: `loadScalaFile()` updated intervals but did NOT change tuning mode from 12-TET to Scala. When `rebuildFrequencyTable()` was called, it checked the mode and continued using 12-TET formula, ignoring the loaded custom intervals entirely.
-  - Fix: Added `setMode(Mode::Scala)` call in `loadScalaFile()` after `setCustomIntervals()` to ensure the frequency table is rebuilt with custom intervals.
-  - Files modified: TuningEngine.cpp
+- **Tuning system completely non-functional (Critical)**
+  - Root cause: Wrong JUCE 8 API method names in JavaScript - used `getChosenIndex()`/`setChosenIndex()` instead of correct `getChoiceIndex()`/`setChoiceIndex()`. This caused a silent JavaScript error that aborted the entire tuning module initialization, preventing all tuning features from working.
+  - Fix: Replaced all 7 occurrences of wrong method names with correct JUCE 8 WebComboBoxRelay API.
+  - Files modified: Resources/ui/index.html
+
+- **Scala file loading didn't affect tuning (even after JS fix)**
+  - Root cause #1: `loadScalaFile()` updated intervals but did NOT change tuning mode from 12-TET to Scala.
+  - Root cause #2: `processBlock()` reads APVTS tuningMode parameter every block and overrides TuningEngine mode.
+  - Fix: Added `setMode(Mode::Scala)` in TuningEngine.cpp AND update APVTS parameter in native function handler.
+  - Files modified: TuningEngine.cpp, PluginEditor.cpp
 
 - **Tuning tab keyboard now plays actual notes**
-  - Root cause: Keyboard visualization had visual feedback only (CSS classes) - no connection to synthesizer. There were no native functions to trigger MIDI notes from the WebView.
-  - Fix: Added `triggerNoteOn(midiNote, velocity)` and `triggerNoteOff(midiNote)` native functions that call the synthesiser's noteOn/noteOff methods. Keyboard JS now calls these functions on mousedown/mouseup.
+  - Root cause: Keyboard visualization had visual feedback only - no native functions to trigger MIDI.
+  - Fix: Added `triggerNoteOn(midiNote, velocity)` and `triggerNoteOff(midiNote)` native functions.
   - Files modified: PluginProcessor.h/.cpp, PluginEditor.cpp, index.html
 
 ### Technical Notes
 
-- The tuning engine now has proper mode synchronization: loading .scl files automatically switches to Scala mode
+- **JUCE 8 API Reference:** WebComboBoxRelay uses `getChoiceIndex()`/`setChoiceIndex()`, NOT `getChosenIndex()`/`setChosenIndex()`
+- ES6 modules abort silently on uncaught errors - use try-catch with native logging to debug
+- The tuning engine now has proper mode synchronization: loading .scl files automatically switches to Scala mode and updates APVTS
 - Keyboard notes use MIDI channel 1 with velocity 0.8 (moderate)
 - Note-off uses `allowTailOff = true` for natural release
-- Pressed notes are tracked in a Set to prevent duplicate triggers
+- This fix has been documented in the scala-tuning-engine module's "Common Pitfalls" section
 
 ## [1.7.3] - 2026-01-19
 

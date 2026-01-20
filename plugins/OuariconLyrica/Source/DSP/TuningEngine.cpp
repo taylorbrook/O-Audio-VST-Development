@@ -16,9 +16,11 @@ TuningEngine::TuningEngine()
         bend.store(NO_BEND, std::memory_order_relaxed);
 
     // Initialize 12-TET intervals (100 cents per semitone)
-    scaleIntervals.reserve(13);
+    // v1.7.8: Fixed - use 12 intervals (0-1100), not 13 (0-1200)
+    // JavaScript checks total === 12 to show tonic selector
+    scaleIntervals.reserve(12);
     scaleIntervals.push_back(0.0);    // Unison
-    for (int i = 1; i <= 12; ++i)
+    for (int i = 1; i < 12; ++i)
         scaleIntervals.push_back(i * 100.0);
 
     // Build initial frequency table

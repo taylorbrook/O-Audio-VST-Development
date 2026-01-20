@@ -16,6 +16,46 @@
 #include "DSP/TuningEngine.h"
 #include "OuariconPresetManager.h"
 
+// v1.7.9: MIDI event for polyphonic note tracking (visual feedback on tuning circle)
+struct MidiNoteEvent
+{
+    int noteNumber;
+    float velocity;  // 0.0 = note-off, >0.0 = note-on with velocity
+};
+
+// v1.7.9: Lock-free queue for MIDI events (for UI visualization)
+class MidiEventQueue
+{
+public:
+    static constexpr int kMaxEvents = 32;  // Max events per timer callback
+
+    void push(const MidiNoteEvent& event)
+    {
+        int nextWrite = (writePos.load() + 1) % kMaxEvents;
+        if (nextWrite != readPos.load())  // Don't overwrite unread events
+        {
+            events[writePos.load()] = event;
+            writePos.store(nextWrite);
+        }
+    }
+
+    bool pop(MidiNoteEvent& event)
+    {
+        int currentRead = readPos.load();
+        if (currentRead == writePos.load())
+            return false;  // Queue empty
+
+        event = events[currentRead];
+        readPos.store((currentRead + 1) % kMaxEvents);
+        return true;
+    }
+
+private:
+    std::array<MidiNoteEvent, kMaxEvents> events{};
+    std::atomic<int> writePos { 0 };
+    std::atomic<int> readPos { 0 };
+};
+
 class OuariconLyricaAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -81,6 +121,16 @@ public:
      */
     void triggerNoteOff(int midiNote);
 
+    /**
+     * v1.7.9: Pop MIDI event from queue for UI visualization
+     * @param event Output event structure
+     * @return true if event was available, false if queue empty
+     */
+    bool popMidiEvent(MidiNoteEvent& event)
+    {
+        return midiEventQueue.pop(event);
+    }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
@@ -93,6 +143,9 @@ private:
 
     // v1.5.0: Preset Manager
     OuariconPresetManager presetManager;
+
+    // v1.7.9: MIDI event queue for UI visualization (note flash on tuning circle)
+    MidiEventQueue midiEventQueue;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

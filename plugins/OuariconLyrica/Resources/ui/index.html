@@ -560,11 +560,14 @@
             gap: 12px;
         }
 
-        /* Pitch Circle */
+        /* Pitch Circle - v1.7.7: Centered above keyboard, 125% size */
         .pitch-circle {
-            width: 150px;
-            height: 150px;
-            position: relative;
+            position: absolute;
+            width: 188px;
+            height: 188px;
+            left: calc(50% - 40px);
+            transform: translateX(-50%);
+            bottom: 115px;
         }
 
         .pitch-circle svg {
@@ -853,10 +856,11 @@
         }
 
         /* Bottom: Keyboard visualization - v1.7.1: Compact centered like Marimba */
+        /* v1.7.7: Shifted 40px left to avoid overlap with SCL/KBM buttons in Custom mode */
         .keyboard-section {
             position: absolute;
             bottom: 15px;
-            left: 50%;
+            left: calc(50% - 40px);
             transform: translateX(-50%);
             display: flex;
             flex-direction: column;
@@ -1207,30 +1211,29 @@
              TUNING TAB - v1.7.0: Marimba-style Layout
              ================================================================ -->
         <div id="tuning-tab" class="tab-content">
-            <!-- LEFT SIDE: Tuning Visualization -->
+            <!-- LEFT SIDE: Interval List -->
             <div class="tuning-viz-container">
-                <!-- Interval List -->
                 <div class="interval-list" id="interval-list">
                     <div class="interval-list-header">Intervals (12 notes)</div>
                     <!-- Tonic selector + intervals populated by JS -->
                 </div>
+            </div>
 
-                <!-- Pitch Circle -->
-                <div class="pitch-circle">
-                    <svg viewBox="0 0 150 150" id="pitch-circle-svg">
-                        <!-- Outer circle -->
-                        <circle cx="75" cy="75" r="70" fill="none" stroke="#8B7355" stroke-width="1.5"/>
-                        <!-- Inner circle -->
-                        <circle cx="75" cy="75" r="58" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
-                        <!-- Center dot -->
-                        <circle cx="75" cy="75" r="3" fill="#3C2F2F"/>
-                        <!-- Interval lines (drawn by JS) -->
-                        <g id="interval-lines"></g>
-                        <!-- Degree labels around the circle -->
-                        <g id="degree-labels" font-size="7" fill="#5C4033"></g>
-                    </svg>
-                    <div class="pitch-circle-label">Scale Intervals</div>
-                </div>
+            <!-- CENTER: Pitch Circle - v1.7.7: Moved outside container, centered above keyboard -->
+            <div class="pitch-circle">
+                <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                    <!-- Outer circle -->
+                    <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                    <!-- Inner circle -->
+                    <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                    <!-- Center dot -->
+                    <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                    <!-- Interval lines (drawn by JS) -->
+                    <g id="interval-lines"></g>
+                    <!-- Degree labels around the circle -->
+                    <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                </svg>
+                <div class="pitch-circle-label">Scale Intervals</div>
             </div>
 
             <!-- RIGHT SIDE: Tuning Controls -->
@@ -1363,7 +1366,6 @@
                     var el = document.getElementById('scale-name-display');
                     if (el) el.textContent = name;
                     if (window.onScalaLoaded) window.onScalaLoaded(name);
-                    console.log('[Tuning] Loaded SCL:', name);
                 }
             } catch (e) {
                 console.error('[Tuning] Load SCL failed:', e);
@@ -1542,16 +1544,16 @@
             try {
                 // Bind to JUCE
                 comboState.valueChangedEvent.addListener(() => {
-                    select.value = comboState.getChosenIndex();
+                    select.value = comboState.getChoiceIndex();
                 });
 
                 // User interaction
                 select.addEventListener('change', () => {
-                    comboState.setChosenIndex(parseInt(select.value));
+                    comboState.setChoiceIndex(parseInt(select.value));
                 });
 
                 // Initialize
-                select.value = comboState.getChosenIndex();
+                select.value = comboState.getChoiceIndex();
             } catch (err) {
                 console.warn('[Dropdown] Failed to bind ' + paramId + ':', err);
             }
@@ -1571,7 +1573,6 @@
 
         setInterval(updateVoiceCount, 100);
         updateVoiceCount();
-
 
         // ====================================================================
         // v1.5.4: PRESET SYSTEM - Fixed: Get native functions at CALL TIME
@@ -1795,10 +1796,11 @@
             linesGroup.innerHTML = '';
             labelsGroup.innerHTML = '';
 
-            const cx = 75, cy = 75;
-            const innerR = 10, outerR = 58, labelR = 64;
+            // v1.7.7: Updated for 188px circle (125% of original 150px)
+            const cx = 94, cy = 94;
+            const innerR = 13, outerR = 73, labelR = 80;
             const total = currentIntervals.length;
-            const fontSize = total > 12 ? 5 : 7;
+            const fontSize = total > 12 ? 6 : 9;
 
             currentIntervals.forEach((cents, i) => {
                 // Angle: 12 o'clock = 0, clockwise
@@ -1834,6 +1836,103 @@
                 }
             });
         }
+
+        // ====================================================================
+        // v1.7.9: NOTE FLASH VISUALIZATION (Polyphonic tracking for tuning circle)
+        // ====================================================================
+
+        // Map: scaleIndex -> { count: number, maxVelocity: number }
+        // count tracks how many notes map to this scale degree (for octave stacking)
+        // maxVelocity tracks the highest velocity for intensity
+        const activeNotes = new Map();
+
+        // Map MIDI note to scale index
+        function midiNoteToScaleIndex(midiNote) {
+            const noteInOctave = midiNote % 12;
+            const scaleSize = currentIntervals.length;
+
+            if (scaleSize === 12) {
+                return noteInOctave;
+            } else {
+                // Proportional mapping for non-12-tone scales
+                return Math.round((noteInOctave / 12) * scaleSize) % scaleSize;
+            }
+        }
+
+        // Calculate red color intensity based on velocity (0-1)
+        // Low velocity: darker red (rgb(120, 40, 40))
+        // High velocity: bright red (rgb(220, 0, 0))
+        function velocityToColor(velocity) {
+            const minR = 120, maxR = 220;
+            const minG = 40, maxG = 0;
+            const minB = 40, maxB = 0;
+
+            const r = Math.round(minR + velocity * (maxR - minR));
+            const g = Math.round(minG + velocity * (maxG - minG));
+            const b = Math.round(minB + velocity * (maxB - minB));
+
+            return `rgb(${r}, ${g}, ${b})`;
+        }
+
+        // Activate interval line for a note (note-on)
+        function setNoteActive(midiNote, velocity) {
+            const scaleIndex = midiNoteToScaleIndex(midiNote);
+
+            // Track this note
+            if (activeNotes.has(scaleIndex)) {
+                const entry = activeNotes.get(scaleIndex);
+                entry.count++;
+                entry.maxVelocity = Math.max(entry.maxVelocity, velocity);
+            } else {
+                activeNotes.set(scaleIndex, { count: 1, maxVelocity: velocity });
+            }
+
+            // Update visual
+            updateIntervalLineVisual(scaleIndex);
+        }
+
+        // Deactivate interval line for a note (note-off)
+        function setNoteInactive(midiNote) {
+            const scaleIndex = midiNoteToScaleIndex(midiNote);
+
+            if (activeNotes.has(scaleIndex)) {
+                const entry = activeNotes.get(scaleIndex);
+                entry.count--;
+
+                if (entry.count <= 0) {
+                    activeNotes.delete(scaleIndex);
+                }
+            }
+
+            // Update visual
+            updateIntervalLineVisual(scaleIndex);
+        }
+
+        // Update the visual appearance of an interval line
+        function updateIntervalLineVisual(scaleIndex) {
+            const linesGroup = document.getElementById('interval-lines');
+            const lines = linesGroup.querySelectorAll('line');
+
+            if (scaleIndex >= 0 && scaleIndex < lines.length) {
+                const line = lines[scaleIndex];
+
+                if (activeNotes.has(scaleIndex)) {
+                    // Active: red with velocity-based intensity
+                    const entry = activeNotes.get(scaleIndex);
+                    line.setAttribute('stroke', velocityToColor(entry.maxVelocity));
+                    line.setAttribute('stroke-width', '4');
+                } else {
+                    // Inactive: restore original green
+                    const scaleSize = currentIntervals.length;
+                    line.setAttribute('stroke', '#6B8E4E');
+                    line.setAttribute('stroke-width', scaleSize > 19 ? '1' : '2');
+                }
+            }
+        }
+
+        // Export to window for C++ evaluateJavascript calls
+        window.setNoteActive = setNoteActive;
+        window.setNoteInactive = setNoteInactive;
 
         // Update interval list UI (with tonic selector for 12-tone scales)
         // v1.7.3: Using inline onchange handlers instead of addEventListener
@@ -2037,14 +2136,14 @@
 
         if (tuningModeState && tuningModeState.valueChangedEvent) {
             tuningModeState.valueChangedEvent.addListener(() => {
-                currentTuningMode = tuningModeState.getChosenIndex();
+                currentTuningMode = tuningModeState.getChoiceIndex();
                 modeButtons.forEach(btn => {
                     btn.classList.toggle('active', parseInt(btn.dataset.mode) === currentTuningMode);
                 });
                 updateIntervalListUI(); // Re-render to update editable state
                 updateFileButtonsVisibility(currentTuningMode); // v1.7.1
             });
-            currentTuningMode = tuningModeState.getChosenIndex();
+            currentTuningMode = tuningModeState.getChoiceIndex();
             updateFileButtonsVisibility(currentTuningMode); // v1.7.1: Initialize
         }
 
@@ -2065,7 +2164,7 @@
             // Sync with JUCE backend
             if (tuningModeState) {
                 try {
-                    tuningModeState.setChosenIndex(mode);
+                    tuningModeState.setChoiceIndex(mode);
                 } catch (e) {
                     console.error('[Tuning] Failed to sync mode with JUCE:', e);
                 }
@@ -2084,7 +2183,7 @@
         window.onScalaLoaded = async (name) => {
             // Update UI after .scl file loaded
             await loadIntervalsFromBackend();
-            if (tuningModeState) tuningModeState.setChosenIndex(1);
+            if (tuningModeState) tuningModeState.setChoiceIndex(1);
             updateIntervalListUI();
             updatePitchCircle();
         };
@@ -2113,10 +2212,12 @@
                     // Trigger note if not already pressed
                     if (!pressedNotes.has(midiNote)) {
                         pressedNotes.add(midiNote);
+                        console.log('[Keyboard] Triggering note ON:', midiNote);
                         try {
-                            await Juce.getNativeFunction('triggerNoteOn')(midiNote, 0.8);
+                            const result = await Juce.getNativeFunction('triggerNoteOn')(midiNote, 0.8);
+                            console.log('[Keyboard] Note ON result:', result);
                         } catch (e) {
-                            console.warn('[Keyboard] Note on failed:', e);
+                            console.error('[Keyboard] Note on failed:', e);
                         }
                     }
                 });
@@ -2164,12 +2265,11 @@
                 const tonic = await Juce.getNativeFunction('getTonicNote')();
                 currentTonic = tonic || 0;
             } catch (e) {
-                // Ignore
+                // Ignore - use default tonic
             }
 
             updateIntervalListUI();
             updatePitchCircle();
-            console.log('[Tuning] System initialized');
         }
 
         initializeTuning();
