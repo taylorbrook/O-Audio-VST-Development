@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Ouaricon Polystutter - UI Mockup v5 (TAPE KNOBS HORIZONTAL FIX)</title>
+  <title>Ouaricon Polystutter - UI v1.6.2 (TAPE KNOBS COMPACTED LEFT)</title>
 
   <style>
     /* CRITICAL: WebView constraints - NO viewport units */
@@ -113,8 +113,7 @@
     .section-label {
       position: absolute;
       top: 15px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 20px;  /* v1.6.2: Left-aligned with compacted tape knobs */
       font-size: 11px;
       letter-spacing: 1.5px;
       color: #3C2F2F;
@@ -123,14 +122,16 @@
     }
 
     /* CRITICAL FIX: Explicit horizontal flexbox for tape knobs */
+    /* v1.6.2: Compacted to left half of UI */
     .tape-knobs-row {
       display: flex;
       flex-direction: row;  /* HORIZONTAL - prevents stacking */
-      justify-content: space-around;
+      justify-content: flex-start;  /* v1.6.2: Left-aligned instead of spread */
       align-items: flex-start;
-      gap: 15px;
-      width: 100%;
+      gap: 8px;  /* v1.6.2: Tighter gap (was 15px) */
+      width: 500px;  /* v1.6.2: Constrain to left half */
       padding-top: 35px;  /* Space for section label */
+      padding-left: 10px;  /* v1.6.2: Small left margin */
     }
 
     .tape-knob-container {
@@ -138,8 +139,8 @@
       flex-direction: column;
       align-items: center;
       gap: 2px;
-      flex: 1;
-      max-width: 100px;
+      flex: 0 0 auto;  /* v1.6.2: Don't grow/shrink, use natural size */
+      width: 75px;  /* v1.6.2: Fixed width (was max-width: 100px) */
     }
 
     .footer-section {

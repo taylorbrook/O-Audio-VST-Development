@@ -2,6 +2,18 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.2] - 2026-01-19
+
+### Changed
+
+- **Tape degradation controls compacted to left half of UI**
+  - Changed `.tape-knobs-row` from `justify-content: space-around` to `flex-start` (left-aligned)
+  - Reduced gap between knobs from 15px to 8px for tighter spacing
+  - Set explicit width of 500px (left half of 1000px plugin frame)
+  - Changed knob containers from `flex: 1; max-width: 100px` to `flex: 0 0 auto; width: 75px`
+  - "TAPE DEGRADATION" label now left-aligned (was centered)
+  - All 6 knobs (SAT, WOW, FLUTTER, HISS, ROLLOFF, DROPOUT) fit comfortably in left half
+
 ## [1.6.1] - 2026-01-19
 
 ### Fixed
