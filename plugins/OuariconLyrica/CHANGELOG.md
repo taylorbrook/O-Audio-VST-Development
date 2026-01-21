@@ -2,6 +2,102 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.10.0] - 2026-01-21
+
+### Added
+
+- **5 Visualization Modes for Tuning System (Phase 2)**
+  - **Circle** (existing): Radial pitch circle with interval lines
+  - **Polar**: Radial tone wheel where cents value determines radius
+  - **Matrix**: Interval values between all scale degrees
+  - **True Keys**: Real-time intervals between held MIDI notes
+  - **Rotation**: Modal rotation matrix with color-coded intervals
+
+- **View Mode Toggle**
+  - 5 buttons above visualization: Circle, Polar, Matrix, True Keys, Rotation
+  - Seamless switching between visualization types
+  - All modes update in real-time as tuning changes
+
+- **Deviation Display in Interval List**
+  - Shows ±cents deviation from equal temperament
+  - Color-coded: green (pure), orange (sharp), blue (flat)
+  - Helps identify how temperament differs from 12-TET
+
+- **True Keys Held Notes Data**
+  - PluginEditor sends held notes and frequencies to WebView
+  - Real-time interval calculation between any combination of held notes
+  - Shows interval names (m2, M3, P5, etc.) for common intervals
+  - Total span display when 3+ notes held
+
+### Fixed
+
+- **View mode toggle buttons not visible** - CSS positioning conflict caused toggle buttons to render outside visible area. Changed from `bottom: 305px` to `top: 8px` positioning.
+- **Pitch circle positioning conflict** - Removed absolute positioning from `.pitch-circle` that caused it to escape its container. Now uses relative positioning within `.viz-container`.
+
+### Technical Details
+
+- New PluginProcessor method: `getHeldNotesData(std::vector<int>&, std::vector<double>&)`
+- JavaScript visualization functions: `drawPolarWheel()`, `drawIntervalMatrix()`, `updateTrueKeysDisplay()`, `drawModalRotationMatrix()`
+- Global `vizMode` state with `setVizMode()` switching function
+- `updateVisualization()` dispatcher replaces direct `updatePitchCircle()` calls
+- Updated interval list to use new `.interval-row` class with deviation span
+- Files modified: Source/PluginProcessor.h/cpp, Source/PluginEditor.cpp, Resources/ui/index.html
+
+## [1.9.0] - 2026-01-21
+
+### Added
+
+- **Octave Stretch parameter (0.95-1.25)**
+  - Physical modeling enhancement for piano-like stretched tuning
+  - Values > 1.0 create wider octaves in upper register
+  - Values < 1.0 create narrower octaves
+  - Applied to both 12-TET and custom tuning calculations
+  - New APVTS parameter "octaveStretch" with relay/attachment
+  - UI: Horizontal slider in tuning controls panel
+
+- **Built-in Temperament Presets (10 presets)**
+  - Equal 12-TET (default)
+  - Pythagorean
+  - Zarlino (Just Major)
+  - Meantone (1/4 comma)
+  - Werckmeister III
+  - Kirnberger III
+  - Vallotti
+  - Well Tempered
+  - Just Intonation
+  - Bohlen-Pierce (non-octave, 1902¢ tritave)
+  - Custom option shown when user loads .scl file
+  - UI: Dropdown selector above mode buttons
+
+### Technical Details
+
+- New TuningEngine API: `setOctaveStretch()`, `getOctaveStretch()`, `setBuiltInPreset()`, `getBuiltInPreset()`, `getPresetName()`
+- `BuiltInPreset` enum with 11 values (including Custom)
+- Static arrays for preset cent values in TuningEngine.cpp
+- Native functions: `setTemperamentPreset`, `getTemperamentPreset`, `setOctaveStretch`, `getOctaveStretch`
+- Loading .scl file automatically sets preset to Custom
+- Files modified: TuningEngine.h/cpp, PluginProcessor.cpp, PluginEditor.h/cpp, index.html
+
+## [1.8.0] - 2026-01-21
+
+### Added
+
+- **Complete Scala Keyboard Mapping (.kbm) file support**
+  - Full KBM specification parsing: map size, MIDI range, middle/reference notes, octave degree
+  - Keyboard mapping entries with unmapped key support ('x' entries)
+  - `isNoteMapped()` method to query if a MIDI note is mapped in current KBM
+  - `resetKeyboardMapping()` method to restore default linear 12-note mapping
+  - Updated frequency calculation to properly apply keyboard mapping
+  - Enhanced KBM file generation with complete spec output
+  - Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp
+
+### Technical Details
+
+- KBM state variables: mapSize, firstNote, lastNote, middleNote, referenceNote, octaveDegree
+- Pattern-based mapping with proper octave transposition
+- Handles edge cases: notes outside retune range fallback to 12-TET
+- Thread-safe implementation with existing mutex protection
+
 ## [1.7.9] - 2026-01-20
 
 ### Added

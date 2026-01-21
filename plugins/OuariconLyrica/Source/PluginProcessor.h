@@ -23,37 +23,52 @@ struct MidiNoteEvent
     float velocity;  // 0.0 = note-off, >0.0 = note-on with velocity
 };
 
-// v1.7.9: Lock-free queue for MIDI events (for UI visualization)
+// v1.7.10: Thread-safe MPSC queue for MIDI events (for UI visualization)
+// Multiple producers (audio thread + UI thread), single consumer (timer callback)
+// Uses try-lock pattern - drops events if contention, acceptable for visualization
 class MidiEventQueue
 {
 public:
-    static constexpr int kMaxEvents = 32;  // Max events per timer callback
+    static constexpr size_t kMaxEvents = 32;  // Max events per timer callback
 
     void push(const MidiNoteEvent& event)
     {
-        int nextWrite = (writePos.load() + 1) % kMaxEvents;
-        if (nextWrite != readPos.load())  // Don't overwrite unread events
+        // v1.7.10 FIX: Use try-lock pattern to prevent race conditions
+        // For UI visualization, dropping events under contention is acceptable
+        bool expected = false;
+        if (!pushLock.compare_exchange_strong(expected, true, std::memory_order_acquire))
+            return;  // Another thread is pushing, drop this event
+
+        size_t currentWrite = writePos.load(std::memory_order_relaxed);
+        size_t nextWrite = (currentWrite + 1) % kMaxEvents;
+
+        // Check if queue is full
+        if (nextWrite != readPos.load(std::memory_order_acquire))
         {
-            events[writePos.load()] = event;
-            writePos.store(nextWrite);
+            events[currentWrite] = event;
+            writePos.store(nextWrite, std::memory_order_release);
         }
+
+        pushLock.store(false, std::memory_order_release);
     }
 
     bool pop(MidiNoteEvent& event)
     {
-        int currentRead = readPos.load();
-        if (currentRead == writePos.load())
+        // Single consumer - no lock needed
+        size_t currentRead = readPos.load(std::memory_order_relaxed);
+        if (currentRead == writePos.load(std::memory_order_acquire))
             return false;  // Queue empty
 
         event = events[currentRead];
-        readPos.store((currentRead + 1) % kMaxEvents);
+        readPos.store((currentRead + 1) % kMaxEvents, std::memory_order_release);
         return true;
     }
 
 private:
     std::array<MidiNoteEvent, kMaxEvents> events{};
-    std::atomic<int> writePos { 0 };
-    std::atomic<int> readPos { 0 };
+    std::atomic<size_t> writePos { 0 };
+    std::atomic<size_t> readPos { 0 };
+    std::atomic<bool> pushLock { false };  // v1.7.10: Spinlock for push()
 };
 
 class OuariconLyricaAudioProcessor : public juce::AudioProcessor
@@ -130,6 +145,13 @@ public:
     {
         return midiEventQueue.pop(event);
     }
+
+    /**
+     * v1.10.0: Get held notes and their frequencies for True Keys visualization
+     * @param notes Output vector of MIDI note numbers
+     * @param frequencies Output vector of corresponding frequencies
+     */
+    void getHeldNotesData(std::vector<int>& notes, std::vector<double>& frequencies);
 
 private:
     juce::AudioProcessorValueTreeState parameters;

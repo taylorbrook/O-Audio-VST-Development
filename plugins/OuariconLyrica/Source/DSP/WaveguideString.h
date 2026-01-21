@@ -16,6 +16,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <atomic>
 #include "PluckExciter.h"
 #include "StiffnessFilter.h"
 #include "StringMaterial.h"
@@ -212,6 +213,13 @@ private:
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;
 
+    // v1.7.10: Thread-safe filter coefficient updates
+    // Coefficients are computed on parameter-change thread but applied on audio thread
+    std::atomic<bool> filterUpdatePending { false };
+    std::atomic<float> pendingBridgeCutoff { 1000.0f };
+    std::atomic<float> pendingNutCutoff { 2000.0f };
+    std::atomic<float> pendingDampingCutoff { 5000.0f };
+
     /**
      * Calculate final stiffness from material base and user modifier
      * User modifier at 0.5 = material value unchanged
@@ -280,8 +288,15 @@ private:
 
     /**
      * Update all filter coefficients based on current parameters
+     * v1.7.10: Now stores cutoffs atomically for deferred application
      */
     void updateFilters();
+
+    /**
+     * v1.7.10: Apply pending filter coefficient updates on audio thread
+     * Called at start of processSample() to ensure thread-safe updates
+     */
+    void applyPendingFilterUpdates();
 
     /**
      * Calculate delay length for half the string (one rail)

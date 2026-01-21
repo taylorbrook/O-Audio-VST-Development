@@ -146,6 +146,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconLyricaAudioProcessor
         0  // Default: 12-TET
     ));
 
+    // v1.9.0: Octave Stretch (0.95-1.25, physical modeling enhancement)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "octaveStretch", 1 },
+        "Octave Stretch",
+        juce::NormalisableRange<float>(0.95f, 1.25f, 0.01f),
+        1.0f
+    ));
+
+    // v1.9.0: Temperament Preset Selection
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "temperamentPreset", 1 },
+        "Temperament Preset",
+        juce::StringArray {
+            "Equal 12-TET", "Pythagorean", "Zarlino", "Meantone (1/4)",
+            "Werckmeister III", "Kirnberger III", "Vallotti",
+            "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom"
+        },
+        0  // Default: Equal 12-TET
+    ));
+
     // Advanced String Parameters
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "stringTension", 1 },
@@ -297,6 +317,13 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
         tuningEngine.setMode(static_cast<TuningEngine::Mode>(modeInt));
     }
 
+    // v1.9.0: Update octave stretch
+    auto* octaveStretchParam = parameters.getRawParameterValue("octaveStretch");
+    if (octaveStretchParam != nullptr)
+    {
+        tuningEngine.setOctaveStretch(octaveStretchParam->load());
+    }
+
     // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
     sympatheticEngine.syncBeforeBlock();
 
@@ -366,6 +393,27 @@ void OuariconLyricaAudioProcessor::triggerNoteOff(int midiNote)
 
     // v1.7.9: Push to event queue for tuning circle visualization
     midiEventQueue.push({ midiNote, 0.0f });
+}
+
+// v1.10.0: Get held notes and their frequencies for True Keys visualization
+void OuariconLyricaAudioProcessor::getHeldNotesData(std::vector<int>& notes, std::vector<double>& frequencies)
+{
+    notes.clear();
+    frequencies.clear();
+
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = synthesiser.getVoice(i))
+        {
+            if (voice->isVoiceActive())
+            {
+                int midiNote = voice->getCurrentlyPlayingNote();
+                double freq = tuningEngine.getFrequency(midiNote);
+                notes.push_back(midiNote);
+                frequencies.push_back(freq);
+            }
+        }
+    }
 }
 
 juce::AudioProcessorEditor* OuariconLyricaAudioProcessor::createEditor()

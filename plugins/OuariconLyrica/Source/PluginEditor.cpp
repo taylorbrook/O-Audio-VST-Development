@@ -34,6 +34,8 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
     stringStiffnessRelay = std::make_unique<juce::WebSliderRelay>("stringStiffness");
     masterTuneRelay = std::make_unique<juce::WebSliderRelay>("masterTune");
     pitchBendRangeRelay = std::make_unique<juce::WebSliderRelay>("pitchBendRange");
+    // v1.9.0: Octave stretch relay
+    octaveStretchRelay = std::make_unique<juce::WebSliderRelay>("octaveStretch");
     // v1.4.0: New parameters from v1.3.0
     attackNoiseRelay = std::make_unique<juce::WebSliderRelay>("attackNoise");
     sympatheticQRelay = std::make_unique<juce::WebSliderRelay>("sympatheticQ");
@@ -115,21 +117,23 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                 }
             })
             // v1.5.1: File dialog functions for Save/Load buttons
+            // v1.7.10 FIX: Capture shared_ptr in lambda to prevent dangling reference
             .withNativeFunction("savePresetWithDialog", [this](const juce::Array<juce::var>&,
                                                                 std::function<void(juce::var)> complete) {
                 auto& pm = processorRef.getPresetManager();
                 auto userDir = pm.getUserPresetsDirectory();
                 userDir.createDirectory();
 
-                fileChooser = std::make_unique<juce::FileChooser>(
+                auto chooser = std::make_shared<juce::FileChooser>(
                     "Save Preset",
                     userDir,
                     "*.json"
                 );
+                fileChooser = chooser;  // Store reference for potential future use
 
-                fileChooser->launchAsync(
+                chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, chooser, complete](const juce::FileChooser& fc) {
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -154,15 +158,16 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                 auto& pm = processorRef.getPresetManager();
                 auto presetsDir = pm.getPresetsDirectory();
 
-                fileChooser = std::make_unique<juce::FileChooser>(
+                auto chooser = std::make_shared<juce::FileChooser>(
                     "Load Preset",
                     presetsDir,
                     "*.json"
                 );
+                fileChooser = chooser;
 
-                fileChooser->launchAsync(
+                chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, chooser, complete](const juce::FileChooser& fc) {
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -223,15 +228,16 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             })
             .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&,
                                                          std::function<void(juce::var)> complete) {
-                fileChooser = std::make_unique<juce::FileChooser>(
+                auto chooser = std::make_shared<juce::FileChooser>(
                     "Load Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.scl"
                 );
+                fileChooser = chooser;
 
-                fileChooser->launchAsync(
+                chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, chooser, complete](const juce::FileChooser& fc) {
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -257,15 +263,16 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             })
             .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&,
                                                        std::function<void(juce::var)> complete) {
-                fileChooser = std::make_unique<juce::FileChooser>(
+                auto chooser = std::make_shared<juce::FileChooser>(
                     "Load Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
                     "*.kbm"
                 );
+                fileChooser = chooser;
 
-                fileChooser->launchAsync(
+                chooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, chooser, complete](const juce::FileChooser& fc) {
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -289,15 +296,16 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                 auto content = processorRef.getTuningEngine()->generateScalaFileContent();
                 auto name = processorRef.getTuningEngine()->getActiveTuningName();
 
-                fileChooser = std::make_unique<juce::FileChooser>(
+                auto chooser = std::make_shared<juce::FileChooser>(
                     "Save Scala File",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(name + ".scl"),
                     "*.scl"
                 );
+                fileChooser = chooser;
 
-                fileChooser->launchAsync(
+                chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, content, complete](const juce::FileChooser& fc) {
+                    [chooser, content, complete](const juce::FileChooser& fc) {
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -322,15 +330,16 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                 auto content = processorRef.getTuningEngine()->generateKBMFileContent();
                 auto name = processorRef.getTuningEngine()->getActiveTuningName();
 
-                fileChooser = std::make_unique<juce::FileChooser>(
+                auto chooser = std::make_shared<juce::FileChooser>(
                     "Save Keyboard Mapping",
                     juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(name + ".kbm"),
                     "*.kbm"
                 );
+                fileChooser = chooser;
 
-                fileChooser->launchAsync(
+                chooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, content, complete](const juce::FileChooser& fc) {
+                    [chooser, content, complete](const juce::FileChooser& fc) {
                         auto result = fc.getResult();
                         if (result == juce::File{})
                         {
@@ -349,6 +358,61 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                         }
                     }
                 );
+            })
+            // v1.9.0: Temperament Preset Functions
+            .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args,
+                                                                std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                int presetIndex = static_cast<int>(args[0]);
+                processorRef.getTuningEngine()->setBuiltInPreset(
+                    static_cast<TuningEngine::BuiltInPreset>(presetIndex));
+
+                // Update APVTS to keep in sync
+                if (auto* param = processorRef.getAPVTS().getParameter("temperamentPreset"))
+                {
+                    // AudioParameterChoice: normalized value = index / (numItems - 1)
+                    param->setValueNotifyingHost(static_cast<float>(presetIndex) / 10.0f);
+                }
+
+                // Also update tuning mode parameter to Custom for non-12TET presets
+                if (presetIndex > 0 && presetIndex < 10)  // Presets 1-9 are custom temperaments
+                {
+                    if (auto* modeParam = processorRef.getAPVTS().getParameter("tuningMode"))
+                        modeParam->setValueNotifyingHost(1.0f / 2.0f);  // Index 1 = Custom
+                }
+                else if (presetIndex == 0)  // Equal 12-TET
+                {
+                    if (auto* modeParam = processorRef.getAPVTS().getParameter("tuningMode"))
+                        modeParam->setValueNotifyingHost(0.0f);  // Index 0 = 12-TET
+                }
+
+                complete(juce::var(true));
+            })
+            .withNativeFunction("getTemperamentPreset", [this](const juce::Array<juce::var>&,
+                                                                std::function<void(juce::var)> complete) {
+                int presetIndex = static_cast<int>(processorRef.getTuningEngine()->getBuiltInPreset());
+                complete(juce::var(presetIndex));
+            })
+            .withNativeFunction("getOctaveStretch", [this](const juce::Array<juce::var>&,
+                                                           std::function<void(juce::var)> complete) {
+                float stretch = processorRef.getTuningEngine()->getOctaveStretch();
+                complete(juce::var(stretch));
+            })
+            .withNativeFunction("setOctaveStretch", [this](const juce::Array<juce::var>& args,
+                                                           std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                float stretch = static_cast<float>(args[0]);
+                processorRef.getTuningEngine()->setOctaveStretch(stretch);
+
+                // Update APVTS to keep in sync
+                if (auto* param = processorRef.getAPVTS().getParameter("octaveStretch"))
+                {
+                    // Normalize: (value - min) / (max - min) = (stretch - 0.95) / 0.3
+                    float normalized = (stretch - 0.95f) / 0.3f;
+                    param->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, normalized));
+                }
+
+                complete(juce::var(true));
             })
             // v1.7.4: Note triggering for WebView keyboard visualization
             .withNativeFunction("triggerNoteOn", [this](const juce::Array<juce::var>& args,
@@ -382,6 +446,8 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             .withOptionsFrom(*stringStiffnessRelay)
             .withOptionsFrom(*masterTuneRelay)
             .withOptionsFrom(*pitchBendRangeRelay)
+            // v1.9.0: Octave stretch
+            .withOptionsFrom(*octaveStretchRelay)
             // v1.4.0: New parameters from v1.3.0
             .withOptionsFrom(*attackNoiseRelay)
             .withOptionsFrom(*sympatheticQRelay)
@@ -431,6 +497,9 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
         *apvts.getParameter("masterTune"), *masterTuneRelay, nullptr);
     pitchBendRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("pitchBendRange"), *pitchBendRangeRelay, nullptr);
+    // v1.9.0: Octave stretch attachment
+    octaveStretchAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("octaveStretch"), *octaveStretchRelay, nullptr);
     // v1.4.0: New parameters from v1.3.0
     attackNoiseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("attackNoise"), *attackNoiseRelay, nullptr);
@@ -493,8 +562,10 @@ void OuariconLyricaAudioProcessorEditor::resized()
 }
 
 // v1.7.9: Timer callback - poll MIDI events and notify WebView for tuning circle visualization
+// v1.10.0: Also send held notes data for True Keys visualization
 void OuariconLyricaAudioProcessorEditor::timerCallback()
 {
+    // Process MIDI events for pitch circle visualization
     MidiNoteEvent event;
     while (processorRef.popMidiEvent(event))
     {
@@ -514,6 +585,32 @@ void OuariconLyricaAudioProcessorEditor::timerCallback()
             webView->evaluateJavascript(js, nullptr);
         }
     }
+
+    // v1.10.0: Send held notes data for True Keys visualization
+    std::vector<int> heldNotes;
+    std::vector<double> heldFreqs;
+    processorRef.getHeldNotesData(heldNotes, heldFreqs);
+
+    // Build JSON arrays
+    juce::String notesJson = "[";
+    juce::String freqsJson = "[";
+    for (size_t i = 0; i < heldNotes.size(); ++i)
+    {
+        if (i > 0)
+        {
+            notesJson += ",";
+            freqsJson += ",";
+        }
+        notesJson += juce::String(heldNotes[i]);
+        freqsJson += juce::String(heldFreqs[i], 4);
+    }
+    notesJson += "]";
+    freqsJson += "]";
+
+    // Send to WebView
+    juce::String js = "if (typeof window.updateHeldNotes === 'function') window.updateHeldNotes("
+        + notesJson + "," + freqsJson + ");";
+    webView->evaluateJavascript(js, nullptr);
 }
 
 std::optional<juce::WebBrowserComponent::Resource>

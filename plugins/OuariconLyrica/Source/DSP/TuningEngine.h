@@ -2,13 +2,16 @@
   ==============================================================================
 
     TuningEngine.h
-    v1.6.0: Full Tuning Module with 12-TET and Scala Support
+    v1.8.0: Complete Scala KBM Support
 
     Implements:
     - 12-TET base tuning with adjustable A4 reference (masterTune)
     - Per-note pitch bend (±pitchBendRange semitones)
     - Scala file parsing (.scl) for custom tunings
-    - Keyboard mapping file support (.kbm)
+    - Complete keyboard mapping file support (.kbm):
+      * Map size, MIDI range, middle/reference notes
+      * Unmapped key support ('x' entries)
+      * Octave degree for non-octave repeating scales
     - Scale frequency retrieval for glissando
     - Tonic transposition
 
@@ -43,6 +46,25 @@ public:
         MTSESP = 2      // MTS-ESP (placeholder - future implementation)
     };
 
+    /**
+     * Built-in temperament presets (v1.9.0)
+     * These are additive to existing Scala file loading
+     */
+    enum class BuiltInPreset
+    {
+        Equal12TET = 0,
+        Pythagorean,
+        Zarlino,
+        MeantoneQuarter,
+        WerckmeisterIII,
+        KirnbergerIII,
+        Vallotti,
+        WellTempered,
+        JustIntonation,
+        BohlenPierce,
+        Custom  // Set when user loads .scl file
+    };
+
     TuningEngine();
     ~TuningEngine() = default;
 
@@ -66,6 +88,43 @@ public:
      * @param semitones Range ±semitones (typically 2.0 for ±2 semitones)
      */
     void setPitchBendRange(float semitones);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Octave Stretch (v1.9.0)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Set octave stretch for physical modeling
+     * @param stretch Stretch factor (0.95-1.25, default 1.0)
+     *        > 1.0: wider octaves in upper register (piano-like)
+     *        < 1.0: narrower octaves
+     */
+    void setOctaveStretch(float stretch);
+
+    /**
+     * Get current octave stretch factor
+     */
+    float getOctaveStretch() const { return octaveStretch; }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Built-in Presets (v1.9.0)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Set a built-in temperament preset
+     * @param preset The preset to apply
+     */
+    void setBuiltInPreset(BuiltInPreset preset);
+
+    /**
+     * Get current built-in preset
+     */
+    BuiltInPreset getBuiltInPreset() const { return currentPreset; }
+
+    /**
+     * Get display name for current preset
+     */
+    juce::String getPresetName() const;
 
     // ═══════════════════════════════════════════════════════════════════
     // Tuning Mode
@@ -140,6 +199,18 @@ public:
      * @return true if loaded successfully
      */
     bool loadKBMFile(const juce::File& kbmFile);
+
+    /**
+     * Check if a MIDI note is mapped in the current keyboard mapping
+     * @param midiNote MIDI note number (0-127)
+     * @return true if mapped, false if unmapped ('x' in KBM)
+     */
+    bool isNoteMapped(int midiNote) const;
+
+    /**
+     * Reset keyboard mapping to default (linear 12-note mapping)
+     */
+    void resetKeyboardMapping();
 
     /**
      * Generate Scala file content from current intervals
@@ -230,6 +301,10 @@ private:
     // Core tuning parameters
     double a4Frequency = 440.0;
     float pitchBendRange = 2.0f;
+    float octaveStretch = 1.0f;  // v1.9.0: Octave stretch (0.95-1.25)
+
+    // v1.9.0: Built-in preset tracking
+    BuiltInPreset currentPreset = BuiltInPreset::Equal12TET;
 
     // Mode and scale
     std::atomic<Mode> currentMode { Mode::TwelveTET };
@@ -247,6 +322,28 @@ private:
     // Per-note pitch bend storage
     static constexpr float NO_BEND = 2.0f;
     std::array<std::atomic<float>, 128> notePitchBends;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // Keyboard Mapping (KBM) State
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * KBM parameters (complete Scala keyboard mapping support)
+     */
+    int kbmMapSize = 12;          // Pattern repeats every N keys (0 = linear)
+    int kbmFirstNote = 0;         // First MIDI note to retune
+    int kbmLastNote = 127;        // Last MIDI note to retune
+    int kbmMiddleNote = 60;       // MIDI note for scale degree 0
+    int kbmReferenceNote = 69;    // MIDI note for reference frequency
+    int kbmOctaveDegree = 12;     // Scale degree considered formal octave
+
+    /**
+     * Keyboard mapping entries
+     * -1 = unmapped ('x' in KBM file)
+     * >= 0 = scale degree for this position in the pattern
+     */
+    std::vector<int> kbmMapping;
+    bool kbmLoaded = false;
 
     // Future expansion
     bool mtsSynthClientConnected = false;
