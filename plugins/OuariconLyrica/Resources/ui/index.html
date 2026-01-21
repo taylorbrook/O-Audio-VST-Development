@@ -1847,9 +1847,8 @@
         const activeNotes = new Map();
 
         // Map MIDI note to scale index
-        // v1.7.10: Apply tonic offset so highlights are relative to selected tonic, not C
         function midiNoteToScaleIndex(midiNote) {
-            const noteInOctave = ((midiNote % 12) - currentTonic + 12) % 12;
+            const noteInOctave = midiNote % 12;
             const scaleSize = currentIntervals.length;
 
             if (scaleSize === 12) {

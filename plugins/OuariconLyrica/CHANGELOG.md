@@ -2,16 +2,6 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
-## [1.7.10] - 2026-01-21
-
-### Fixed
-
-- **Scale circle highlight now respects tonic selection**
-  - Root cause: `midiNoteToScaleIndex()` calculated pitch class using `midiNote % 12` (absolute, relative to C) without applying the tonic offset. When tonic was set to D and user pressed D key, the circle highlighted E (position 2) instead of the root (position 0).
-  - Fix: Changed calculation to `((midiNote % 12) - currentTonic + 12) % 12` to make highlight positions relative to the selected tonic.
-  - Note: Labels and interval displays already rotated correctly - only the highlight indicator was affected.
-  - Files modified: Resources/ui/index.html
-
 ## [1.7.9] - 2026-01-20
 
 ### Added
