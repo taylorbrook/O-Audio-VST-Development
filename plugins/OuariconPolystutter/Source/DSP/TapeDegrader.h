@@ -56,8 +56,6 @@ private:
     // Wow/Flutter modulation delay line (for pitch modulation)
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> wowFlutterDelayLeft;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> wowFlutterDelayRight;
-    float wowFlutterPhaseLeft = 0.0f;
-    float wowFlutterPhaseRight = 0.0f;
 
     // Hiss noise generator
     juce::Random noiseGenerator;

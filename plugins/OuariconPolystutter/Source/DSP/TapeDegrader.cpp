@@ -80,8 +80,6 @@ void TapeDegrader::reset()
 
     isDroppedOut = false;
     dropoutSamplesRemaining = 0;
-    wowFlutterPhaseLeft = 0.0f;
-    wowFlutterPhaseRight = 0.0f;
     lastRolloffAmount = -1.0f;  // Force filter coefficient update on next process
 }
 
@@ -249,7 +247,7 @@ void TapeDegrader::processBlock(juce::AudioBuffer<float>& buffer, int numSamples
                 // Fade in (last 5ms)
                 else
                 {
-                    int fadeInPos = dropoutFadeSamples - dropoutSamplesRemaining;
+                    int fadeInPos = juce::jmax(0, dropoutFadeSamples - dropoutSamplesRemaining);
                     dropoutGain = static_cast<float>(fadeInPos) / dropoutFadeSamples;
                 }
 

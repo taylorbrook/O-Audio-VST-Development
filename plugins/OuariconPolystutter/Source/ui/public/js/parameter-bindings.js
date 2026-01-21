@@ -306,41 +306,42 @@ function bindKnob(paramId, min, max, formatter, htmlId = null) {
   updateKnobUI(knobElement, valueElement, state.getNormalisedValue(), min, max, formatter);
 
   // Pattern #11: Relative drag interaction (frame delta, not absolute)
-  let isDragging = false;
+  // v1.6.5: Use AbortController to properly clean up document listeners after drag ends
   let lastY = 0;
 
   knobElement.addEventListener("mousedown", (e) => {
-    isDragging = true;
     lastY = e.clientY;
     knobElement.style.cursor = "grabbing";
     e.preventDefault(); // Prevent text selection
-  });
 
-  document.addEventListener("mousemove", (e) => {
-    if (!isDragging) return;
+    // Create AbortController for this drag session
+    const controller = new AbortController();
 
-    const deltaY = lastY - e.clientY; // Inverted (up = increase)
-    lastY = e.clientY;
+    const onMouseMove = (moveEvent) => {
+      const deltaY = lastY - moveEvent.clientY; // Inverted (up = increase)
+      lastY = moveEvent.clientY;
 
-    // Sensitivity: 1px drag = 0.005 normalized change (200px for full range)
-    const sensitivity = 0.005;
-    const normalizedDelta = deltaY * sensitivity;
+      // Sensitivity: 1px drag = 0.005 normalized change (200px for full range)
+      const sensitivity = 0.005;
+      const normalizedDelta = deltaY * sensitivity;
 
-    // Update normalized value (clamped 0-1)
-    // CRITICAL: Use getNormalisedValue() and setNormalisedValue() - direct property access doesn't emit events
-    const currentValue = state.getNormalisedValue();
-    const newValue = Math.max(0, Math.min(1, currentValue + normalizedDelta));
-    state.setNormalisedValue(newValue); // Method call triggers JUCE backend update
+      // Update normalized value (clamped 0-1)
+      // CRITICAL: Use getNormalisedValue() and setNormalisedValue() - direct property access doesn't emit events
+      const currentValue = state.getNormalisedValue();
+      const newValue = Math.max(0, Math.min(1, currentValue + normalizedDelta));
+      state.setNormalisedValue(newValue); // Method call triggers JUCE backend update
 
-    // Update UI immediately for smooth feedback
-    updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
-  });
+      // Update UI immediately for smooth feedback
+      updateKnobUI(knobElement, valueElement, newValue, min, max, formatter);
+    };
 
-  document.addEventListener("mouseup", () => {
-    if (isDragging) {
-      isDragging = false;
+    const onMouseUp = () => {
+      controller.abort(); // Removes both mousemove and mouseup listeners
       knobElement.style.cursor = "pointer";
-    }
+    };
+
+    document.addEventListener("mousemove", onMouseMove, { signal: controller.signal });
+    document.addEventListener("mouseup", onMouseUp, { signal: controller.signal });
   });
 
   // Pattern #10: valueChangedEvent callback receives NO parameters

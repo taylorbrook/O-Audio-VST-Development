@@ -701,7 +701,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             bool l2Enabled, int l2Sub, int l2Reps, float l2Decay, float l2Pitch, float l2Vol, float l2Prob,
             bool l3Enabled, int l3Sub, int l3Reps, float l3Decay, float l3Pitch, float l3Vol, float l3Prob,
             bool l4Enabled, int l4Sub, int l4Reps, float l4Decay, float l4Pitch, float l4Vol, float l4Prob,
-            float tapeSat, float tapeWow, float tapeFlutter, float tapeHiss, float tapeRolloff, float tapeDropout,
+            float tapeSat, float tapeWow, float tapeFlutter, float tapeHiss, float tapeRolloff, float tapeDropout, bool tapeBypass,
             float mixDry, float mixWet
         ) -> std::map<juce::String, float> {
             return {
@@ -752,6 +752,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
                 {"tape_hiss", tapeHiss / 100.0f},
                 {"tape_rolloff", tapeRolloff / 100.0f},
                 {"tape_dropout", tapeDropout / 100.0f},
+                {"tape_bypass", tapeBypass ? 1.0f : 0.0f},
                 // Mix
                 {"mix_dry", mixDry / 100.0f},
                 {"mix_wet", mixWet / 100.0f},
@@ -768,7 +769,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             false, 1, 4, 90, 0, 100, 100,  // Lane 2-4: off
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
-            0, 0, 0, 0, 0, 0,              // No tape
+            0, 0, 0, 0, 0, 0, false,       // No tape, bypass off
             50, 100                         // 50% dry, 100% wet
         ), {}});
 
@@ -778,7 +779,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 2, 6, 80, -3, 90, 70,    // Lane 2: 1/16, 6 reps, -3st
             true, 3, 10, 75, 7, 85, 60,    // Lane 3: 1/32, 10 reps, +7st
             false, 0, 4, 90, 0, 100, 100,
-            20, 0, 0, 0, 0, 0,             // Light saturation
+            20, 0, 0, 0, 0, 0, false,      // Light saturation, bypass off
             30, 100
         ), {}});
 
@@ -788,7 +789,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 1, 2, 60, 0, 80, 100,    // Lane 2: 1/8 notes
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
-            40, 30, 20, 15, 50, 10,        // Heavy tape character
+            40, 30, 20, 15, 50, 10, false, // Heavy tape character, bypass off
             60, 80
         ), {}});
 
@@ -798,7 +799,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 2, 4, 80, 0, 90, 100,    // Lane 2: 1/16
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
-            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, false,       // No tape, bypass off
             40, 100
         ), {}});
 
@@ -808,7 +809,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
-            20, 40, 30, 10, 30, 0,         // Subtle tape warmth
+            20, 40, 30, 10, 30, 0, false,  // Subtle tape warmth, bypass off
             70, 60
         ), {}});
 
@@ -818,7 +819,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 0, 2, 55, 0, 70, 100,    // Lane 2: 1/4, 2 reps
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
-            50, 20, 15, 0, 60, 5,          // Warm dub tape sound
+            50, 20, 15, 0, 60, 5, false,   // Warm dub tape sound, bypass off
             50, 90
         ), {}});
 
@@ -828,7 +829,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 2, 8, 85, -5, 95, 85,    // Lane 2
             true, 4, 6, 80, 7, 90, 75,     // Lane 3: triplet
             true, 3, 10, 75, -7, 85, 70,   // Lane 4
-            30, 0, 0, 0, 0, 0,
+            30, 0, 0, 0, 0, 0, false,      // Light saturation, bypass off
             20, 100
         ), {}});
 
@@ -838,7 +839,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 2, 3, 70, 0, 85, 90,     // Lane 2: 1/16
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
-            60, 50, 40, 30, 70, 20,        // Maximum lo-fi character
+            60, 50, 40, 30, 70, 20, false, // Maximum lo-fi character, bypass off
             40, 100
         ), {}});
 
@@ -848,7 +849,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 2, 6, 90, 7, 90, 100,    // Lane 2: +7st (fifth)
             true, 2, 4, 85, 5, 80, 100,    // Lane 3: +5st (fourth)
             false, 0, 4, 90, 0, 100, 100,
-            10, 0, 0, 0, 0, 0,
+            10, 0, 0, 0, 0, 0, false,      // Light saturation, bypass off
             30, 100
         ), {}});
 
@@ -858,7 +859,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 1, 4, 75, 0, 90, 100,    // Lane 2: 1/8
             true, 4, 5, 70, 0, 85, 100,    // Lane 3: 1/8T (triplet)
             true, 5, 6, 65, 0, 80, 100,    // Lane 4: 1/16T
-            0, 0, 0, 0, 0, 0,
+            0, 0, 0, 0, 0, 0, false,       // No tape, bypass off
             30, 100
         ), {}});
 
@@ -868,7 +869,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 3, 2, 55, 0, 50, 25,     // Lane 2
             false, 0, 4, 90, 0, 100, 100,
             false, 0, 4, 90, 0, 100, 100,
-            15, 10, 5, 5, 20, 0,           // Subtle tape color
+            15, 10, 5, 5, 20, 0, false,    // Subtle tape color, bypass off
             80, 40
         ), {}});
 
@@ -878,7 +879,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
             true, 3, 16, 95, -12, 100, 100,  // Lane 2: Octave down
             true, 3, 14, 90, 7, 100, 100,    // Lane 3
             true, 3, 12, 85, -7, 100, 100,   // Lane 4
-            80, 60, 50, 40, 80, 30,          // Heavy tape destruction
+            80, 60, 50, 40, 80, 30, false,   // Heavy tape destruction, bypass off
             0, 100                            // 100% wet
         ), {}});
 

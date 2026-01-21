@@ -151,7 +151,9 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
         // Handle pitch-shifted playback length
         // When pitch ratio != 1.0, the effective capture length changes
-        double effectiveCaptureLength = static_cast<double>(captureLength) / pitchRatio;
+        // Prevent division by zero for extreme pitch values
+        double safePitchRatio = pitchRatio < 0.001 ? 0.001 : pitchRatio;
+        double effectiveCaptureLength = static_cast<double>(captureLength) / safePitchRatio;
 
         if (effectivePosition < effectiveCaptureLength)
         {
@@ -552,7 +554,9 @@ float RepeatLane::getProgress() const
 
     // Account for pitch ratio affecting effective capture length
     // Higher pitch = faster playback = shorter effective length
-    double effectiveCaptureLength = static_cast<double>(captureLength) / pitchRatio;
+    // Prevent division by zero for extreme pitch values
+    double safePitchRatio = pitchRatio < 0.001 ? 0.001 : pitchRatio;
+    double effectiveCaptureLength = static_cast<double>(captureLength) / safePitchRatio;
 
     if (effectiveCaptureLength <= 0.0)
         return 0.0f;
