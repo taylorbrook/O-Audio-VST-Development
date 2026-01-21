@@ -2,6 +2,18 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.6] - 2026-01-21
+
+### Fixed
+
+- **Tape degradation BYPASS button no longer overlaps dials**
+  - Root cause: BYPASS button was positioned at `top: 45px`, same level as tape knobs
+  - This caused visual overlap with the SAT (saturation) knob
+  - Fix: Moved BYPASS button up to `top: 12px` to align with "TAPE DEGRADATION" section label
+  - Adjusted `left` from 130px to 145px to sit properly after the section text
+  - Button now appears inline with section header: `TAPE DEGRADATION [BYPASS]`
+  - No functional changes, purely visual layout fix
+
 ## [1.6.5] - 2026-01-20
 
 ### Added
