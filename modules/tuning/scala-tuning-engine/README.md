@@ -222,6 +222,79 @@ const state = panel.getState();
 panel.setState(savedState);
 ```
 
+## Common Pitfalls
+
+### 1. Wrong ComboBox API Method Names (Critical)
+
+**Symptom:** Tuning tab appears but intervals don't load, keyboard doesn't play, Scala files don't affect tuning. No visible error - everything just silently fails.
+
+**Root Cause:** JUCE 8 WebComboBoxRelay uses `getChoiceIndex()`/`setChoiceIndex()`, but it's easy to mistakenly use `getChosenIndex()`/`setChosenIndex()`.
+
+```javascript
+// WRONG - will silently crash the module
+const mode = tuningModeState.getChosenIndex();
+tuningModeState.setChosenIndex(1);
+
+// CORRECT - JUCE 8 API
+const mode = tuningModeState.getChoiceIndex();
+tuningModeState.setChoiceIndex(1);
+```
+
+**Why it's dangerous:** ES6 modules abort on uncaught errors with no visible indication. If this error occurs early in the module, everything after it (interval loading, keyboard setup, etc.) never runs.
+
+**Debugging tip:** If native functions aren't being called but other parts of the UI work, add try-catch blocks with native logging to find where the module is aborting:
+
+```javascript
+try {
+    await Juce.getNativeFunction('debugLog')('Checkpoint 1');
+    // ... code ...
+    await Juce.getNativeFunction('debugLog')('Checkpoint 2');
+} catch (e) {
+    await Juce.getNativeFunction('debugLog')('ERROR: ' + e.message);
+}
+```
+
+### 2. APVTS Parameter Override in processBlock
+
+**Symptom:** Loading a Scala file works initially, but tuning reverts to 12-TET on the next audio block.
+
+**Root Cause:** If `processBlock()` reads the APVTS tuning mode parameter and calls `tuningEngine.setMode()` every block, it will override any mode changes made directly to the TuningEngine.
+
+**Solution:** When loading a Scala file via native function, also update the APVTS parameter:
+
+```cpp
+.withNativeFunction("loadScalaFile", [this](auto& args, auto complete) {
+    // ... file chooser code ...
+    if (processorRef.tuning.loadScalaFile(result)) {
+        // CRITICAL: Also update APVTS so processBlock doesn't override
+        if (auto* param = processorRef.getAPVTS().getParameter("TUNING_MODE"))
+            param->setValueNotifyingHost(0.5f); // Index 1 = Custom (normalized)
+
+        complete(juce::var(processorRef.tuning.getActiveTuningName()));
+    }
+});
+```
+
+### 3. Module Script Execution Order
+
+**Symptom:** Global handlers (like `window.handleLoadSCL`) throw "JUCE not ready" errors.
+
+**Root Cause:** Non-module `<script>` blocks run before `<script type="module">` blocks. If global handlers are defined in non-module scripts but rely on the Juce import from the module, they'll fail.
+
+**Solution:** Expose the Juce API to global scope from the module:
+
+```javascript
+// In module script
+import * as Juce from '/js/juce/index.js';
+window.JuceAPI = Juce;  // Expose to global handlers
+
+// In non-module script (runs first, but handlers called later)
+window.handleLoadSCL = async function() {
+    if (!window.JuceAPI) { console.error('JUCE not ready'); return; }
+    await window.JuceAPI.getNativeFunction('loadScalaFile')();
+};
+```
+
 ## Version History
 
 ### 1.0.0 (2026-01-12)
