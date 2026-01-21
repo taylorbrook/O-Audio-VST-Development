@@ -87,6 +87,7 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
     , tapeHissRelay(std::make_unique<juce::WebSliderRelay>("tape_hiss"))
     , tapeRolloffRelay(std::make_unique<juce::WebSliderRelay>("tape_rolloff"))
     , tapeDropoutRelay(std::make_unique<juce::WebSliderRelay>("tape_dropout"))
+    , tapeBypassRelay(std::make_unique<juce::WebToggleButtonRelay>("tape_bypass"))  // v1.6.5
 
     // v1.1.0: Wet/dry mix relays
     , mixDryRelay(std::make_unique<juce::WebSliderRelay>("mix_dry"))
@@ -236,6 +237,7 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
             .withOptionsFrom(*tapeHissRelay)
             .withOptionsFrom(*tapeRolloffRelay)
             .withOptionsFrom(*tapeDropoutRelay)
+            .withOptionsFrom(*tapeBypassRelay)  // v1.6.5
             // v1.1.0: Wet/dry mix
             .withOptionsFrom(*mixDryRelay)
             .withOptionsFrom(*mixWetRelay)
@@ -549,6 +551,8 @@ OuariconPolystutterAudioProcessorEditor::OuariconPolystutterAudioProcessorEditor
         *processorRef.apvts.getParameter("tape_rolloff"), *tapeRolloffRelay, nullptr))
     , tapeDropoutAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.apvts.getParameter("tape_dropout"), *tapeDropoutRelay, nullptr))
+    , tapeBypassAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("tape_bypass"), *tapeBypassRelay, nullptr))  // v1.6.5
 
     // v1.1.0: Wet/dry mix attachments
     , mixDryAttachment(std::make_unique<juce::WebSliderParameterAttachment>(

@@ -189,6 +189,7 @@ private:
     std::atomic<float>* tapeHissParam = nullptr;
     std::atomic<float>* tapeRolloffParam = nullptr;
     std::atomic<float>* tapeDropoutParam = nullptr;
+    std::atomic<float>* tapeBypassParam = nullptr;  // v1.6.5: Tape bypass
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

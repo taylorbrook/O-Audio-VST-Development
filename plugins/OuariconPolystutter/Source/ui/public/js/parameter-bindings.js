@@ -202,6 +202,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupLaneDimming();
   setupFreezeIndicators();
   setupSequencerDimming();  // v1.1.4: Grey out sequencer when SEQ toggle is off
+  setupTapeBypassDimming();  // v1.6.5: Grey out tape knobs when bypass is on
 
   // v1.5.0: Lane progress bar updates (from Timer in PluginEditor)
   setupLaneProgressListener();
@@ -251,6 +252,9 @@ function bindTapeParameters() {
   bindKnob("tape_hiss", 0, 1, (v) => `${Math.round(v * 100)}%`, "hiss");
   bindKnob("tape_rolloff", 0, 1, (v) => `${Math.round(v * 100)}%`, "rolloff");
   bindKnob("tape_dropout", 0, 1, (v) => `${Math.round(v * 100)}%`, "dropout");
+
+  // v1.6.5: Tape bypass toggle
+  bindToggle("tape_bypass");
 }
 
 // ========== v1.1.0: WET/DRY MIX PARAMETERS (2 knobs) ==========
@@ -673,6 +677,46 @@ function applySequencerDimming(sequencerSection, isEnabled) {
     sequencerSection.classList.remove("seq-disabled");
   } else {
     sequencerSection.classList.add("seq-disabled");
+  }
+}
+
+// ========== v1.6.5: TAPE BYPASS DIMMING (when bypass is on) ==========
+
+/**
+ * Setup tape knobs dimming when bypass toggle is enabled
+ * Watches tape_bypass parameter and dims tape knobs row
+ */
+function setupTapeBypassDimming() {
+  const tapeKnobsRow = document.querySelector(".tape-knobs-row");
+
+  if (!tapeKnobsRow) {
+    console.warn("[v1.6.5] Tape knobs row not found");
+    return;
+  }
+
+  // Get JUCE toggle state for tape_bypass
+  const state = Juce.getToggleState("tape_bypass");
+  if (!state) {
+    console.error("[v1.6.5] JUCE toggle state not found: tape_bypass");
+    return;
+  }
+
+  // Apply initial state (bypass ON = dimmed)
+  applyTapeBypassDimming(tapeKnobsRow, state.value);
+
+  // Update on parameter change
+  state.valueChangedEvent.addListener(() => {
+    applyTapeBypassDimming(tapeKnobsRow, state.value);
+  });
+
+  console.log("[v1.6.5] Tape bypass dimming handler installed");
+}
+
+function applyTapeBypassDimming(tapeKnobsRow, isBypassed) {
+  if (isBypassed) {
+    tapeKnobsRow.classList.add("tape-bypassed");
+  } else {
+    tapeKnobsRow.classList.remove("tape-bypassed");
   }
 }
 

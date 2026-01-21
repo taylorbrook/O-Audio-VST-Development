@@ -2,6 +2,18 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.5] - 2026-01-20
+
+### Added
+
+- **Tape degradation bypass toggle**
+  - New BYPASS button positioned left of tape knobs (next to section label)
+  - When enabled, skips all tape degradation processing (saturation, wow, flutter, hiss, rolloff, dropout)
+  - Tape knobs grey out when bypass is active (visual feedback)
+  - Allows A/B comparison between clean and tape-processed signal
+  - Parameter ID: `tape_bypass` (boolean, default: false/off)
+  - Files modified: `PluginProcessor.cpp`, `PluginProcessor.h`, `PluginEditor.cpp`, `PluginEditor.h`, `index.html`, `parameter-bindings.js`
+
 ## [1.6.4] - 2026-01-19
 
 ### Fixed

@@ -99,13 +99,14 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> lane4FreezeRelay;
     std::unique_ptr<juce::WebComboBoxRelay> lane4SubdivisionRelay;
 
-    // Tape Degradation Relays (6 sliders)
+    // Tape Degradation Relays (6 sliders + 1 toggle)
     std::unique_ptr<juce::WebSliderRelay> tapeSaturationRelay;
     std::unique_ptr<juce::WebSliderRelay> tapeWowRelay;
     std::unique_ptr<juce::WebSliderRelay> tapeFlutterRelay;
     std::unique_ptr<juce::WebSliderRelay> tapeHissRelay;
     std::unique_ptr<juce::WebSliderRelay> tapeRolloffRelay;
     std::unique_ptr<juce::WebSliderRelay> tapeDropoutRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> tapeBypassRelay;  // v1.6.5
 
     // v1.1.0: Wet/Dry Mix Relays
     std::unique_ptr<juce::WebSliderRelay> mixDryRelay;
@@ -258,13 +259,14 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4FreezeAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> lane4SubdivisionAttachment;
 
-    // Tape Degradation Attachments
+    // Tape Degradation Attachments (6 sliders + 1 toggle)
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeSaturationAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeWowAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeFlutterAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeHissAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeRolloffAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeDropoutAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> tapeBypassAttachment;  // v1.6.5
 
     // v1.1.0: Wet/Dry Mix Attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> mixDryAttachment;

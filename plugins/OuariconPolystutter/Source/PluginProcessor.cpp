@@ -475,6 +475,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconPolystutterAudioProc
         "%"
     ));
 
+    // v1.6.5: Tape bypass toggle
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "tape_bypass", 1 },
+        "Tape Bypass",
+        false  // Default: tape processing enabled
+    ));
+
     // ========================================================================================
     // GLOBAL CONTROL PARAMETERS (2) - v1.3.0: Removed ENV and SC triggers
     // ========================================================================================
@@ -678,6 +685,7 @@ OuariconPolystutterAudioProcessor::OuariconPolystutterAudioProcessor()
     tapeHissParam = apvts.getRawParameterValue("tape_hiss");
     tapeRolloffParam = apvts.getRawParameterValue("tape_rolloff");
     tapeDropoutParam = apvts.getRawParameterValue("tape_dropout");
+    tapeBypassParam = apvts.getRawParameterValue("tape_bypass");  // v1.6.5
 
     // ========================================================================================
     // v1.6.0: Initialize Factory Presets (12 presets showcasing different stutter styles)
@@ -1317,7 +1325,10 @@ void OuariconPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& b
     }
 
     // ========== Phase 2.4: Tape Degradation Post-Processing ==========
-    if (tapeDegrader)
+    // v1.6.5: Check bypass state before processing
+    const bool tapeBypassEnabled = tapeBypassParam->load() > 0.5f;
+
+    if (tapeDegrader && !tapeBypassEnabled)
     {
         // Update tape degradation apvts
         tapeDegrader->setSaturation(tapeSaturationParam->load());

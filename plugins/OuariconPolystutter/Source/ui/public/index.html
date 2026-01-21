@@ -549,6 +549,22 @@
       transition: all 300ms ease-out;
     }
 
+    /* v1.6.5: Tape bypass toggle positioning (left of tape knobs) */
+    .tape-bypass-toggle {
+      position: absolute;
+      top: 45px;
+      left: 130px;  /* Right of section label */
+      z-index: 10;
+    }
+
+    /* v1.6.5: Tape knobs dimming when bypass is active */
+    .tape-knobs-row.tape-bypassed {
+      opacity: 0.4;
+      pointer-events: none;
+      filter: grayscale(30%);
+      transition: all 300ms ease-out;
+    }
+
     /* CRITICAL FIX v1.0.2: Lane header must remain clickable to re-enable lane */
     .lane-container.lane-disabled .lane-header {
       pointer-events: auto;
@@ -1096,6 +1112,10 @@
     <!-- TAPE DEGRADATION SECTION - v1.6.3: Now includes DRY/WET and MIDI/TRIG on right -->
     <div class="tape-section">
       <div class="section-label">TAPE DEGRADATION</div>
+      <!-- v1.6.5: Bypass toggle left of tape knobs -->
+      <div class="tape-bypass-toggle">
+        <div class="footer-toggle" id="tape_bypass">BYPASS</div>
+      </div>
       <!-- Left side: Tape knobs -->
       <div class="tape-knobs-row">
         <div class="tape-knob-container">
