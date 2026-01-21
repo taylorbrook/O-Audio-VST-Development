@@ -2,6 +2,16 @@
 
 All notable changes to Ouaricon Polystutter will be documented in this file.
 
+## [1.6.7] - 2026-01-21
+
+### Fixed
+
+- **BYPASS button text now properly aligned with "TAPE DEGRADATION" label**
+  - Follow-up to v1.6.6: button was still slightly overlapping and misaligned
+  - Adjusted `top` from 12px to 7px (moves button up so text aligns with label)
+  - Adjusted `left` from 145px to 175px (more horizontal clearance)
+  - Button text now sits inline with section header text
+
 ## [1.6.6] - 2026-01-21
 
 ### Fixed
