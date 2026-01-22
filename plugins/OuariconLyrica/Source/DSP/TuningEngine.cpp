@@ -836,20 +836,26 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
     }
     else
     {
-        // Simple mode: reference note in 12-TET terms
-        refCentsFromC0 = (refNote - tonic) * (period / scaleSize);
+        // v1.11.0: Calculate reference note position using actual scale intervals
+        // This enables proper modal rotation - when tonic changes, intervals rotate
+        // so the selected tonic becomes 0 cents and the pattern shifts accordingly
+        int refAdjusted = refNote - tonic;
+        int refOctaveNum = refAdjusted >= 0 ? refAdjusted / scaleSize : (refAdjusted - scaleSize + 1) / scaleSize;
+        int refScaleDegree = refAdjusted - (refOctaveNum * scaleSize);
+        if (refScaleDegree < 0)
+        {
+            refScaleDegree += scaleSize;
+            refOctaveNum--;
+        }
+        refScaleDegree = juce::jlimit(0, scaleSize, refScaleDegree);
+        refCentsFromC0 = scaleIntervals[static_cast<size_t>(refScaleDegree)] + refOctaveNum * period;
     }
 
-    // Current note's cents from same origin
-    double noteCentsFromC0 = centsOffset;
-
-    // Apply tonic offset (shifts the whole scale on the keyboard)
-    double tonicCents = tonic * 100.0;
-    noteCentsFromC0 += tonicCents;
-    refCentsFromC0 += tonicCents;
+    // Current note's cents from tonic origin
+    double noteCentsFromTonic = centsOffset;
 
     // Calculate frequency relative to reference
-    double centsFromRef = noteCentsFromC0 - refCentsFromC0;
+    double centsFromRef = noteCentsFromTonic - refCentsFromC0;
 
     // v1.9.0: Apply octave stretch
     // For custom tunings, stretch the cents offset from reference

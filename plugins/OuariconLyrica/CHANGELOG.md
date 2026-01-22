@@ -2,6 +2,25 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.11.0] - 2026-01-21
+
+### Changed
+
+- **Tonic Selector Now Performs Modal Rotation**
+  - When tonic changes, the interval pattern rotates so the selected tonic becomes 0 cents
+  - Notes below the tonic wrap around (last interval minus 1200 cents)
+  - Example with intervals [0, 150, 200, ...]:
+    - Tonic C: C=0¢, C#=150¢, D=200¢
+    - Tonic C#: C#=0¢, D=150¢, D#=200¢, C wraps to -50¢
+  - Previously, tonic only shifted pitch without rotating the interval pattern
+
+### Technical Details
+
+- Root cause: `calculateCustomFrequency()` was adding `tonic * 100 cents` as a pitch shift instead of rotating which intervals apply to which MIDI notes
+- Fix: Reference note position now calculated using actual scale intervals with proper degree/octave mapping
+- Removed unnecessary `tonicCents` pitch offset that was overriding the rotation logic
+- Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp
+
 ## [1.10.0] - 2026-01-21
 
 ### Added

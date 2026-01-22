@@ -2,7 +2,7 @@
   ==============================================================================
 
     TuningEngine.h
-    v1.8.0: Complete Scala KBM Support
+    v1.11.0: Tonic Modal Rotation
 
     Implements:
     - 12-TET base tuning with adjustable A4 reference (masterTune)
@@ -168,12 +168,18 @@ public:
     juce::String getActiveTuningName() const;
 
     // ═══════════════════════════════════════════════════════════════════
-    // Tonic (Transposition)
+    // Tonic (Modal Rotation) - v1.11.0
     // ═══════════════════════════════════════════════════════════════════
 
     /**
      * Set the tonic note (0-11, where 0=C, 1=C#, etc.)
-     * This transposes the scale so the root aligns with the selected tonic
+     * v1.11.0: Performs modal rotation - the interval pattern rotates so that
+     * the selected tonic becomes 0 cents. Notes below the tonic wrap around
+     * (last interval minus 1200 cents).
+     *
+     * Example with intervals [0, 150, 200, ...]:
+     *   Tonic C:  C=0¢, C#=150¢, D=200¢
+     *   Tonic C#: C#=0¢, D=150¢, D#=200¢, C=-50¢ (wraps from 1150-1200)
      */
     void setTonicNote(int tonicIndex);
 
