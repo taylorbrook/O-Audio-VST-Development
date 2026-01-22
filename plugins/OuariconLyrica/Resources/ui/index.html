@@ -2286,12 +2286,15 @@
         const activeNotes = new Map();
 
         // Map MIDI note to scale index
+        // v1.11.0: Account for tonic rotation so C always flashes at C position
         function midiNoteToScaleIndex(midiNote) {
             const noteInOctave = midiNote % 12;
             const scaleSize = currentIntervals.length;
 
             if (scaleSize === 12) {
-                return noteInOctave;
+                // Apply tonic offset: MIDI note C with tonic=C# should map to index 11
+                // (where C is displayed), not index 0 (where C# is displayed)
+                return (noteInOctave - currentTonic + 12) % 12;
             } else {
                 // Proportional mapping for non-12-tone scales
                 return Math.round((noteInOctave / 12) * scaleSize) % scaleSize;
@@ -2709,14 +2712,13 @@
             let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
 
             // Show rows for actual number of intervals
-            // In 12-TET mode (index 0), all inputs are disabled (non-editable)
-            const isEditable = (currentTuningMode === 1); // Only editable in Custom mode
+            // v1.11.1: Allow editing in any mode - editing auto-switches to Custom mode via backend
             for (let i = 0; i < total; i++) {
                 const cents = currentIntervals[i] || 0;
                 const isUnison = (i === 0);
                 const displayValue = isUnison ? '0' : cents.toFixed(1);
                 const label = getDegreeLabel(i, total);
-                const isDisabled = isUnison || !isEditable;
+                const isDisabled = isUnison; // Only unison (0 cents) is non-editable
 
                 // v1.10.0: Calculate deviation from equal temperament
                 const equalCents = (i * 1200 / total);
@@ -2777,13 +2779,42 @@
         };
 
         // v1.7.3: Callback for interval input changes
+        // v1.11.1: Now uses setSingleInterval for reliable single-value updates
         window.onIntervalChanged = async (index, valueStr) => {
             const value = parseFloat(valueStr);
             if (!isNaN(value) && value >= 0 && value <= 1200) {
                 currentIntervals[index] = value;
+
+                // v1.11.1: Switch UI to Custom mode when user manually edits intervals
+                if (currentTuningMode !== 1) {
+                    currentTuningMode = 1;
+                    window.currentTuningMode = 1;
+                    // Update mode buttons
+                    document.querySelectorAll('.tuning-mode-btn').forEach(btn => {
+                        btn.classList.toggle('active', parseInt(btn.dataset.mode) === 1);
+                    });
+                    // Update scale name
+                    const scaleNameEl = document.getElementById('scale-name-display');
+                    if (scaleNameEl) scaleNameEl.textContent = 'Custom';
+                }
+
                 updateVisualization();
-                await applyIntervalsToBackend(currentIntervals, 'Custom');
-                console.log('[Tuning] Interval', index, 'changed to', value);
+
+                // v1.11.1: Use setSingleInterval - pass index and cents as two separate calls
+                // First encode as a single number: index * 10000 + cents (cents is 0-1200)
+                const encoded = index * 10000 + Math.round(value);
+                try {
+                    await Juce.getNativeFunction('setSingleIntervalEncoded')(encoded);
+                    console.log('[Tuning] Interval', index, 'changed to', value, '(encoded:', encoded, ')');
+                } catch (e) {
+                    console.error('[Tuning] Failed to set interval:', e);
+                    // Fallback: try the two-arg version
+                    try {
+                        await Juce.getNativeFunction('setSingleInterval')(index, value);
+                    } catch (e2) {
+                        console.error('[Tuning] Fallback also failed:', e2);
+                    }
+                }
             }
         };
 
@@ -2933,9 +2964,13 @@
                 }
             }
 
-            // For 12-TET, also send intervals to backend
+            // v1.11.1: Send intervals to backend for both 12-TET and Custom modes
+            // This ensures C++ scaleIntervals is initialized when switching to Custom
             if (mode === 0) {
                 applyIntervalsToBackend(currentIntervals, '12-TET Standard');
+            } else if (mode === 1) {
+                // When switching to Custom, send current intervals to initialize C++ state
+                applyIntervalsToBackend(currentIntervals, 'Custom');
             }
         };
 

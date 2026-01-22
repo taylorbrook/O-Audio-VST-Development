@@ -218,6 +218,21 @@ void TuningEngine::setMode(Mode mode)
     Mode oldMode = currentMode.load(std::memory_order_relaxed);
     if (oldMode != mode)
     {
+        // v1.11.1: If switching to Scala mode with empty intervals, initialize to 12-TET
+        // This ensures users can edit intervals immediately after clicking "Custom"
+        if (mode == Mode::Scala)
+        {
+            std::lock_guard<std::mutex> lock(intervalMutex);
+            if (scaleIntervals.size() < 2)
+            {
+                scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
+                                  600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
+                scaleDegrees = 12;
+                scaleName = "Custom";
+                scalaFileLoaded = true;
+            }
+        }
+
         currentMode.store(mode, std::memory_order_relaxed);
         rebuildFrequencyTable();
     }
@@ -242,7 +257,39 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
         scalaFileLoaded = true;
     }
 
+    // v1.11.1: Switch to Scala mode AND always rebuild frequency table
+    // setMode() only rebuilds if mode changes, but we need to rebuild every time intervals change
+    currentMode.store(Mode::Scala, std::memory_order_relaxed);
     rebuildFrequencyTable();
+}
+
+void TuningEngine::setSingleInterval(int index, double cents)
+{
+    {
+        std::lock_guard<std::mutex> lock(intervalMutex);
+
+        // v1.11.1: Initialize to 12-TET if intervals are empty (fresh load → Custom case)
+        if (scaleIntervals.size() < 2)
+        {
+            scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
+                              600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
+            scaleDegrees = 12;
+            scaleName = "Custom";
+            scalaFileLoaded = true;
+        }
+
+        // Update the interval at the specified index
+        if (index >= 0 && index < static_cast<int>(scaleIntervals.size()))
+        {
+            scaleIntervals[static_cast<size_t>(index)] = cents;
+        }
+    }
+
+    // Switch to Scala mode and rebuild
+    currentMode.store(Mode::Scala, std::memory_order_relaxed);
+    rebuildFrequencyTable();
+
+    DBG("TuningEngine::setSingleInterval() - Set index " + juce::String(index) + " to " + juce::String(cents) + " cents");
 }
 
 std::vector<double> TuningEngine::getIntervals() const

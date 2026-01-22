@@ -153,6 +153,14 @@ public:
     void setCustomIntervals(const std::vector<double>& cents, const juce::String& name);
 
     /**
+     * Set a single interval by index (v1.11.1)
+     * Initializes to 12-TET if intervals are empty, then updates the specified index
+     * @param index Scale degree index (0 = unison, 1 = first interval, etc.)
+     * @param cents Interval value in cents
+     */
+    void setSingleInterval(int index, double cents);
+
+    /**
      * Get current scale intervals (in cents)
      */
     std::vector<double> getIntervals() const;

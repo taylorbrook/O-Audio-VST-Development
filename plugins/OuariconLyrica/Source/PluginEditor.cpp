@@ -209,6 +209,11 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                     intervals.push_back(static_cast<double>(intervalsVar[i]));
 
                 processorRef.getTuningEngine()->setCustomIntervals(intervals, name);
+
+                // v1.11.1: Also update APVTS tuningMode to Custom (1) so processBlock doesn't override
+                if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
+                    param->setValueNotifyingHost(param->convertTo0to1(1.0f)); // 1 = Custom
+
                 complete(juce::var(true));
             })
             .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&,
@@ -220,6 +225,41 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                 if (args.isEmpty()) { complete(juce::var(false)); return; }
                 int tonic = static_cast<int>(args[0]);
                 processorRef.getTuningEngine()->setTonicNote(tonic);
+                complete(juce::var(true));
+            })
+            // v1.11.1: Set a single interval by index (simpler than passing full array)
+            .withNativeFunction("setSingleInterval", [this](const juce::Array<juce::var>& args,
+                                                             std::function<void(juce::var)> complete) {
+                if (args.size() < 2) { complete(juce::var(false)); return; }
+
+                int index = static_cast<int>(args[0]);
+                double cents = static_cast<double>(args[1]);
+
+                processorRef.getTuningEngine()->setSingleInterval(index, cents);
+
+                // Also update APVTS tuningMode to Custom (1)
+                if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
+                    param->setValueNotifyingHost(param->convertTo0to1(1.0f));
+
+                complete(juce::var(true));
+            })
+            // v1.11.1: Encoded version - single int: index * 10000 + cents
+            .withNativeFunction("setSingleIntervalEncoded", [this](const juce::Array<juce::var>& args,
+                                                                    std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+
+                int encoded = static_cast<int>(args[0]);
+                int index = encoded / 10000;
+                double cents = static_cast<double>(encoded % 10000);
+
+                DBG("setSingleIntervalEncoded: encoded=" + juce::String(encoded) + " index=" + juce::String(index) + " cents=" + juce::String(cents));
+
+                processorRef.getTuningEngine()->setSingleInterval(index, cents);
+
+                // Also update APVTS tuningMode to Custom (1)
+                if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
+                    param->setValueNotifyingHost(param->convertTo0to1(1.0f));
+
                 complete(juce::var(true));
             })
             .withNativeFunction("getTonicNote", [this](const juce::Array<juce::var>&,

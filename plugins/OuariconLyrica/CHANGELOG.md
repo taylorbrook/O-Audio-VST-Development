@@ -2,6 +2,31 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.11.1] - 2026-01-22
+
+### Fixed
+
+- **Editing interval cents in UI now updates tuning**
+  - Typing new cent values in the interval list inputs now correctly changes the tuning
+  - Works in all scenarios: fresh load → Custom, after loading presets, after loading Scala files
+
+### Known Issues
+
+- **GUI keyboard does not reflect custom tuning** - The on-screen keyboard plays notes but doesn't visually indicate microtuning. This will be addressed in a future update.
+
+### Technical Details
+
+- **Root cause 1 (C++):** `setCustomIntervals()` did not call `setMode(Mode::Scala)`, so `rebuildFrequencyTable()` ignored custom intervals
+- **Root cause 2 (JS):** Interval inputs were disabled when `currentTuningMode !== 1` (Custom), preventing any edits
+- **Root cause 3 (C++):** APVTS `tuningMode` parameter wasn't updated, so `processBlock()` would override the mode back to 12-TET
+- **Root cause 4 (C++):** `setMode(Scala)` didn't initialize `scaleIntervals` if empty, so clicking "Custom" left no intervals to edit
+- **Fix 1:** Set mode to Scala AND always call `rebuildFrequencyTable()` in `setCustomIntervals()` (TuningEngine.cpp)
+- **Fix 2:** Made interval inputs always editable (except unison) - editing auto-switches to Custom (index.html)
+- **Fix 3:** Native function `setTuningIntervals` now also sets APVTS `tuningMode` to Custom (PluginEditor.cpp)
+- **Fix 4:** Added `setSingleInterval()` and `setSingleIntervalEncoded()` native functions (TuningEngine.cpp, PluginEditor.cpp)
+- **Fix 5:** JS uses encoded single-int approach to avoid multi-arg native function issues (index.html)
+- Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp, Source/PluginEditor.cpp, Resources/ui/index.html
+
 ## [1.11.0] - 2026-01-21
 
 ### Changed
