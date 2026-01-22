@@ -60,13 +60,14 @@ TuningEngine::TuningEngine()
     for (auto& bend : notePitchBends)
         bend.store(NO_BEND, std::memory_order_relaxed);
 
-    // Initialize 12-TET intervals (100 cents per semitone)
-    // v1.7.8: Fixed - use 12 intervals (0-1100), not 13 (0-1200)
-    // JavaScript checks total === 12 to show tonic selector
-    scaleIntervals.reserve(12);
-    scaleIntervals.push_back(0.0);    // Unison
-    for (int i = 1; i < 12; ++i)
-        scaleIntervals.push_back(i * 100.0);
+    // v1.12.0: Initialize 12-TET intervals WITH period (13 values: 0-1200)
+    // This ensures scaleDegrees = 12 (size - 1), not 11
+    scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
+                      600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
+    scaleDegrees = 12;  // Explicit, not calculated from size
+
+    // v1.12.0: Initialize rotated intervals cache (same as scaleIntervals when tonic=0)
+    rotatedIntervals = scaleIntervals;
 
     // Initialize default keyboard mapping (linear 12-note)
     resetKeyboardMapping();
@@ -128,52 +129,42 @@ void TuningEngine::setBuiltInPreset(BuiltInPreset preset)
         case BuiltInPreset::Equal12TET:
             intervals.assign(PRESET_EQUAL.begin(), PRESET_EQUAL.end());
             name = "Equal 12-TET";
-            setMode(Mode::TwelveTET);
             break;
         case BuiltInPreset::Pythagorean:
             intervals.assign(PRESET_PYTHAGOREAN.begin(), PRESET_PYTHAGOREAN.end());
             name = "Pythagorean";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::Zarlino:
             intervals.assign(PRESET_ZARLINO.begin(), PRESET_ZARLINO.end());
             name = "Zarlino (Just Major)";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::MeantoneQuarter:
             intervals.assign(PRESET_MEANTONE_QUARTER.begin(), PRESET_MEANTONE_QUARTER.end());
             name = "Meantone (1/4 comma)";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::WerckmeisterIII:
             intervals.assign(PRESET_WERCKMEISTER_III.begin(), PRESET_WERCKMEISTER_III.end());
             name = "Werckmeister III";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::KirnbergerIII:
             intervals.assign(PRESET_KIRNBERGER_III.begin(), PRESET_KIRNBERGER_III.end());
             name = "Kirnberger III";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::Vallotti:
             intervals.assign(PRESET_VALLOTTI.begin(), PRESET_VALLOTTI.end());
             name = "Vallotti";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::WellTempered:
             intervals.assign(PRESET_WELL_TEMPERED.begin(), PRESET_WELL_TEMPERED.end());
             name = "Well Tempered";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::JustIntonation:
             intervals.assign(PRESET_JUST_INTONATION.begin(), PRESET_JUST_INTONATION.end());
             name = "Just Intonation";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::BohlenPierce:
             intervals.assign(PRESET_BOHLEN_PIERCE.begin(), PRESET_BOHLEN_PIERCE.end());
             name = "Bohlen-Pierce";
-            setMode(Mode::Scala);
             break;
         case BuiltInPreset::Custom:
             // Already handled above
@@ -187,6 +178,14 @@ void TuningEngine::setBuiltInPreset(BuiltInPreset preset)
         intervals.push_back(1200.0); // Octave
 
     setCustomIntervals(intervals, name);
+
+    // v1.12.0: Set appropriate mode AFTER setCustomIntervals
+    // (setCustomIntervals no longer forces Scala mode)
+    if (preset == BuiltInPreset::Equal12TET)
+        currentMode.store(Mode::TwelveTET, std::memory_order_relaxed);
+    else
+        currentMode.store(Mode::Scala, std::memory_order_relaxed);
+
     DBG("TuningEngine::setBuiltInPreset() - Set to: " + name);
 }
 
@@ -252,14 +251,22 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
         if (scaleIntervals.empty() || scaleIntervals[0] != 0.0)
             scaleIntervals.insert(scaleIntervals.begin(), 0.0);
 
-        scaleDegrees = static_cast<int>(scaleIntervals.size()) - 1; // Exclude unison from count
+        scaleDegrees = static_cast<int>(scaleIntervals.size()) - 1; // Exclude period from count
         scaleName = name;
         scalaFileLoaded = true;
+
+        // v1.12.0: Initialize rotated intervals cache
+        rotatedIntervals = scaleIntervals;
     }
 
-    // v1.11.1: Switch to Scala mode AND always rebuild frequency table
-    // setMode() only rebuilds if mode changes, but we need to rebuild every time intervals change
-    currentMode.store(Mode::Scala, std::memory_order_relaxed);
+    // v1.12.0: Recalculate rotated intervals for current tonic
+    int currentTonic = tonicOffset.load(std::memory_order_relaxed);
+    if (currentTonic != 0)
+        rotateIntervalsForTonic(currentTonic);
+
+    // v1.12.0: Don't set mode here - let caller handle mode switching
+    // This allows setBuiltInPreset to set TwelveTET mode for Equal12TET preset
+    // Always rebuild frequency table when intervals change
     rebuildFrequencyTable();
 }
 
@@ -283,6 +290,19 @@ void TuningEngine::setSingleInterval(int index, double cents)
         {
             scaleIntervals[static_cast<size_t>(index)] = cents;
         }
+    }
+
+    // v1.11.2: Update rotated intervals cache when tonic != 0
+    // Without this, edits to scaleIntervals are ignored because
+    // calculateCustomFrequency() uses rotatedIntervals when tonic is set
+    int currentTonic = tonicOffset.load(std::memory_order_relaxed);
+    if (currentTonic != 0)
+        rotateIntervalsForTonic(currentTonic);
+    else
+    {
+        // When tonic is 0, keep rotatedIntervals in sync with scaleIntervals
+        std::lock_guard<std::mutex> lock(intervalMutex);
+        rotatedIntervals = scaleIntervals;
     }
 
     // Switch to Scala mode and rebuild
@@ -309,8 +329,57 @@ juce::String TuningEngine::getActiveTuningName() const
 }
 
 // ═══════════════════════════════════════════════════════════════════
-// Tonic (Transposition)
+// Tonic (Modal Rotation) - v1.12.0
 // ═══════════════════════════════════════════════════════════════════
+
+void TuningEngine::rotateIntervalsForTonic(int tonic)
+{
+    std::lock_guard<std::mutex> lock(intervalMutex);
+
+    if (scaleIntervals.size() < 2 || tonic == 0)
+    {
+        // No rotation needed - use original intervals
+        rotatedIntervals = scaleIntervals;
+        return;
+    }
+
+    int scaleSize = static_cast<int>(scaleIntervals.size()) - 1;  // Exclude period
+    double period = scaleIntervals.back();  // Usually 1200 cents
+
+    // Ensure tonic is in valid range
+    tonic = tonic % scaleSize;
+    if (tonic < 0) tonic += scaleSize;
+
+    rotatedIntervals.clear();
+    rotatedIntervals.reserve(scaleIntervals.size());
+
+    // Start from 0 (the new tonic)
+    rotatedIntervals.push_back(0.0);
+
+    // Get the offset to subtract (cents value at tonic position in original scale)
+    double tonicCentsOffset = scaleIntervals[static_cast<size_t>(tonic)];
+
+    // Rotate: take intervals starting from tonic, wrapping around
+    for (int i = 1; i < scaleSize; ++i)
+    {
+        int sourceIdx = (tonic + i) % scaleSize;
+        double sourceCents = scaleIntervals[static_cast<size_t>(sourceIdx)];
+
+        // Adjust for wrap-around
+        if (sourceIdx < tonic)
+            sourceCents += period;
+
+        // Subtract tonic offset to make new tonic = 0
+        double rotatedCents = sourceCents - tonicCentsOffset;
+        rotatedIntervals.push_back(rotatedCents);
+    }
+
+    // Add the period
+    rotatedIntervals.push_back(period);
+
+    DBG("TuningEngine::rotateIntervalsForTonic() - Rotated to tonic " + juce::String(tonic)
+        + ", first interval: " + juce::String(rotatedIntervals.size() > 1 ? rotatedIntervals[1] : 0.0, 2) + "¢");
+}
 
 void TuningEngine::setTonicNote(int tonicIndex)
 {
@@ -319,6 +388,10 @@ void TuningEngine::setTonicNote(int tonicIndex)
     if (oldTonic != newTonic)
     {
         tonicOffset.store(newTonic, std::memory_order_relaxed);
+
+        // v1.12.0: Rotate intervals for modal rotation
+        rotateIntervalsForTonic(newTonic);
+
         rebuildFrequencyTable();
     }
 }
@@ -770,14 +843,15 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
         return calculate12TETFrequency(midiNote);
     }
 
-    // Apply tonic offset
+    // v1.12.0: Use rotated intervals when tonic != 0 for true modal rotation
     int tonic = tonicOffset.load(std::memory_order_relaxed);
+    const auto& activeIntervals = (tonic == 0 || rotatedIntervals.empty()) ? scaleIntervals : rotatedIntervals;
 
     // Get octave period (last interval in scale, typically 1200 cents for octave)
-    double period = scaleIntervals.back();
+    double period = activeIntervals.back();
 
     // Get the number of scale degrees (excluding the period)
-    int scaleSize = static_cast<int>(scaleIntervals.size()) - 1;
+    int scaleSize = static_cast<int>(activeIntervals.size()) - 1;
 
     // Determine octave degree for period calculations
     int octaveDegree = kbmLoaded ? kbmOctaveDegree : scaleSize;
@@ -830,7 +904,9 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
     }
     else
     {
-        // Simple linear mapping (no KBM file)
+        // v1.12.0: Simple linear mapping (no KBM file)
+        // Since intervals are pre-rotated, we map MIDI notes directly relative to tonic
+        // MIDI note = tonic becomes scale degree 0
         int adjustedNote = midiNote - tonic;
 
         octaveNumber = adjustedNote >= 0 ? adjustedNote / scaleSize : (adjustedNote - scaleSize + 1) / scaleSize;
@@ -847,8 +923,8 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
     // Ensure scaleDegree is in valid range
     scaleDegree = juce::jlimit(0, scaleSize, scaleDegree);
 
-    // Get cents offset for this scale degree
-    double centsOffset = scaleIntervals[static_cast<size_t>(scaleDegree)];
+    // v1.12.0: Get cents offset from rotated/active intervals
+    double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
 
     // Add octave transposition
     centsOffset += octaveNumber * period;
@@ -879,13 +955,12 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
             if (mapped >= 0) refDegree = mapped;
         }
         refDegree = juce::jlimit(0, scaleSize, refDegree);
-        refCentsFromC0 = scaleIntervals[static_cast<size_t>(refDegree)] + refPatternOctave * period;
+        refCentsFromC0 = activeIntervals[static_cast<size_t>(refDegree)] + refPatternOctave * period;
     }
     else
     {
-        // v1.11.0: Calculate reference note position using actual scale intervals
-        // This enables proper modal rotation - when tonic changes, intervals rotate
-        // so the selected tonic becomes 0 cents and the pattern shifts accordingly
+        // v1.12.0: Calculate reference note position using rotated intervals
+        // Reference note position relative to tonic
         int refAdjusted = refNote - tonic;
         int refOctaveNum = refAdjusted >= 0 ? refAdjusted / scaleSize : (refAdjusted - scaleSize + 1) / scaleSize;
         int refScaleDegree = refAdjusted - (refOctaveNum * scaleSize);
@@ -895,7 +970,7 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
             refOctaveNum--;
         }
         refScaleDegree = juce::jlimit(0, scaleSize, refScaleDegree);
-        refCentsFromC0 = scaleIntervals[static_cast<size_t>(refScaleDegree)] + refOctaveNum * period;
+        refCentsFromC0 = activeIntervals[static_cast<size_t>(refScaleDegree)] + refOctaveNum * period;
     }
 
     // Current note's cents from tonic origin

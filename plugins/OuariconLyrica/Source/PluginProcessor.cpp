@@ -245,6 +245,80 @@ OuariconLyricaAudioProcessor::OuariconLyricaAudioProcessor()
 
     // Add sound that accepts all MIDI notes
     synthesiser.addSound(new HarpSynthSound());
+
+    // v1.12.0: Set up custom state callbacks for tuning persistence
+    presetManager.setCustomStateCallbacks(
+        // Save callback - returns tuning state as JSON
+        [this]() -> juce::var {
+            auto* obj = new juce::DynamicObject();
+
+            // Save intervals
+            auto intervals = tuningEngine.getIntervals();
+            juce::Array<juce::var> intervalsArray;
+            for (double cents : intervals)
+                intervalsArray.add(cents);
+            obj->setProperty("intervals", intervalsArray);
+
+            // Save scale name
+            obj->setProperty("scaleName", tuningEngine.getActiveTuningName());
+
+            // Save tonic
+            obj->setProperty("tonic", tuningEngine.getTonicNote());
+
+            // Save built-in preset index
+            obj->setProperty("presetIndex", static_cast<int>(tuningEngine.getBuiltInPreset()));
+
+            // Save octave stretch
+            obj->setProperty("octaveStretch", tuningEngine.getOctaveStretch());
+
+            DBG("[OuariconLyrica] Saving tuning state: preset=" +
+                juce::String(static_cast<int>(tuningEngine.getBuiltInPreset())) +
+                ", tonic=" + juce::String(tuningEngine.getTonicNote()));
+
+            return juce::var(obj);
+        },
+        // Load callback - restores tuning state from JSON
+        [this](const juce::var& customState) {
+            if (!customState.isObject()) return;
+            auto* obj = customState.getDynamicObject();
+            if (obj == nullptr) return;
+
+            // Restore preset index first (this sets intervals)
+            if (obj->hasProperty("presetIndex"))
+            {
+                int presetIdx = static_cast<int>(obj->getProperty("presetIndex"));
+                tuningEngine.setBuiltInPreset(
+                    static_cast<TuningEngine::BuiltInPreset>(presetIdx));
+            }
+
+            // If custom intervals were saved, restore them
+            if (obj->hasProperty("intervals"))
+            {
+                auto intervalsVar = obj->getProperty("intervals");
+                if (intervalsVar.isArray())
+                {
+                    std::vector<double> intervals;
+                    for (int i = 0; i < intervalsVar.size(); ++i)
+                        intervals.push_back(static_cast<double>(intervalsVar[i]));
+
+                    juce::String name = obj->getProperty("scaleName").toString();
+                    if (name.isEmpty()) name = "Custom";
+                    tuningEngine.setCustomIntervals(intervals, name);
+                }
+            }
+
+            // Restore tonic (do this AFTER setting intervals so rotation works)
+            if (obj->hasProperty("tonic"))
+                tuningEngine.setTonicNote(static_cast<int>(obj->getProperty("tonic")));
+
+            // Restore octave stretch
+            if (obj->hasProperty("octaveStretch"))
+                tuningEngine.setOctaveStretch(static_cast<float>(obj->getProperty("octaveStretch")));
+
+            DBG("[OuariconLyrica] Restored tuning state: tonic=" +
+                juce::String(tuningEngine.getTonicNote()));
+        }
+    );
 }
 
 OuariconLyricaAudioProcessor::~OuariconLyricaAudioProcessor()

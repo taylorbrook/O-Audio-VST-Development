@@ -2,7 +2,7 @@
   ==============================================================================
 
     TuningEngine.h
-    v1.11.0: Tonic Modal Rotation
+    v1.12.0: True Modal Rotation with Interval Persistence
 
     Implements:
     - 12-TET base tuning with adjustable A4 reference (masterTune)
@@ -303,6 +303,14 @@ private:
     void rebuildFrequencyTable();
 
     /**
+     * v1.12.0: Rotate interval pattern for modal rotation
+     * When tonic changes, create a rotated copy of intervals where the
+     * tonic becomes 0 cents and subsequent notes follow the rotated pattern.
+     * @param tonic The tonic offset (0-11)
+     */
+    void rotateIntervalsForTonic(int tonic);
+
+    /**
      * Parse a single Scala pitch line (cents or ratio)
      * @return Interval in cents, or -1.0 on parse error
      */
@@ -328,6 +336,11 @@ private:
 
     // Scale intervals (in cents, starting with 0.0 for unison)
     std::vector<double> scaleIntervals;
+
+    // v1.12.0: Rotated intervals cache for modal rotation
+    // Computed when tonic changes - used by calculateCustomFrequency()
+    std::vector<double> rotatedIntervals;
+
     mutable std::mutex intervalMutex;
 
     // Pre-computed frequency table for lock-free audio access

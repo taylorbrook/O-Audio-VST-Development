@@ -2,6 +2,50 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.12.1] - 2026-01-22
+
+### Fixed
+
+- **Editing interval cents now works when tonic is not C**
+  - Previously, editing interval values in the UI had no effect on sound when a non-C tonic was selected
+  - Root cause: `setSingleInterval()` updated `scaleIntervals` but not `rotatedIntervals` cache
+  - When tonic != 0, `calculateCustomFrequency()` uses `rotatedIntervals`, so edits were ignored
+  - Fix: `setSingleInterval()` now calls `rotateIntervalsForTonic()` to keep caches in sync
+
+### Technical Details
+
+- Compared with OuariconMarimba which uses `setCustomIntervals()` (updates full array) vs OuariconLyrica's `setSingleInterval()` (updates single value)
+- `setCustomIntervals()` already handled rotation correctly; `setSingleInterval()` was missing this logic
+- Files modified: Source/DSP/TuningEngine.cpp
+
+## [1.12.0] - 2026-01-22
+
+### Fixed
+
+- **Modal Rotation Now Correctly Rotates Interval Pattern**
+  - When changing the tonic, the interval pattern now properly rotates so the selected tonic becomes 0 cents
+  - Previously, the tonic change only transposed pitch without rotating the modal pattern
+  - Example: Werckmeister III with tonic D now shows D→D# interval as ~102¢ (rotated), not 90¢
+
+- **Tuning State Now Persists with DAW Sessions**
+  - All tuning settings (intervals, tonic, preset, octave stretch) now save/restore with DAW projects
+  - Previously, tuning state was lost when reopening a project
+
+- **Fixed Interval Count Initialization**
+  - Constructor now properly initializes 12 scale degrees with the 1200¢ period value
+  - Fixes edge cases where `scaleDegrees` could be 11 instead of 12
+
+- **Fixed Mode Confusion in setCustomIntervals**
+  - `setCustomIntervals()` no longer forces Scala mode, letting callers control the mode
+  - Equal 12-TET preset now correctly stays in TwelveTET mode after intervals are set
+
+### Technical Details
+
+- Added `rotatedIntervals` cache and `rotateIntervalsForTonic()` for true modal rotation
+- `calculateCustomFrequency()` now uses pre-rotated intervals when tonic != 0
+- Added custom state callbacks to PresetManager for tuning persistence
+- Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp, Source/PluginProcessor.cpp
+
 ## [1.11.1] - 2026-01-22
 
 ### Fixed
