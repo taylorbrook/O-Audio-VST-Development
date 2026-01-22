@@ -2833,9 +2833,23 @@
             try {
                 const intervals = await Juce.getNativeFunction('getTuningIntervals')();
                 if (Array.isArray(intervals) && intervals.length > 0) {
-                    currentIntervals = intervals;
+                    // v1.12.2: C++ returns N+1 intervals (including period at end)
+                    // For 12-tone scales, we get 13 values [0,100,...,1100,1200]
+                    // UI should display 12 intervals (exclude period)
+                    // Check if last value is the octave/period (1200 for 12-tone, 1902 for Bohlen-Pierce)
+                    if (intervals.length === 13 && Math.abs(intervals[12] - 1200) < 1) {
+                        // Standard 12-tone scale - exclude period for UI display
+                        currentIntervals = intervals.slice(0, 12);
+                    } else if (intervals.length === 14 && Math.abs(intervals[13] - 1902) < 1) {
+                        // Bohlen-Pierce (13-tone) - exclude tritave
+                        currentIntervals = intervals.slice(0, 13);
+                    } else {
+                        // Other scales - use as-is (might need adjustment)
+                        currentIntervals = intervals;
+                    }
                     updateIntervalListUI();
                     updateVisualization();
+                    console.log('[Tuning] Loaded', currentIntervals.length, 'intervals from backend');
                 }
             } catch (e) {
                 console.warn('[Tuning] Failed to load intervals:', e);

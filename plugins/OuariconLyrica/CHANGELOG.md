@@ -2,6 +2,27 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.12.2] - 2026-01-22
+
+### Fixed
+
+- **Tonic selector now visible on fresh plugin load**
+  - Previously, the tonic selector was hidden until user clicked "Custom" then back to "12-TET"
+  - Root cause: C++ returns 13 intervals (including 1200¢ period), but UI expected 12
+  - With 13 intervals, `total === 12` check failed, hiding the tonic selector
+  - Fix: `loadIntervalsFromBackend()` now strips the period from 12-tone scales
+
+- **Interval editing now works on fresh load (no preset selection required)**
+  - Combined with v1.12.1 fix, interval editing now works in all scenarios
+  - The 13-vs-12 interval mismatch was causing index confusion
+
+### Technical Details
+
+- C++ `getIntervals()` returns N+1 values (includes period at end for proper frequency calculation)
+- JS UI should display N values (exclude period - it's not an editable interval)
+- Added detection for 12-tone (1200¢ period) and Bohlen-Pierce (1902¢ tritave)
+- Files modified: Resources/ui/index.html
+
 ## [1.12.1] - 2026-01-22
 
 ### Fixed
