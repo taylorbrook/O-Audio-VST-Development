@@ -77,6 +77,7 @@ private:
     float processLookahead(float input);
     float calculateTransientDuckGain(float fastEnv, float slowEnv);
     float calculateSpectralBlend();
+    float getCompressedEnhance(float rawEnhance);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CleanModeProcessor)
 };

@@ -114,6 +114,15 @@ void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
     // 3. Generate harmonics (with 4x oversampling inside)
     harmonicGenerator.process(monoBuffer);
 
+    // 3.5. Auto-limit ceiling: prevent over-processing
+    // Clamp harmonic output to -2dB to avoid excessive enhancement
+    static constexpr float kMaxHarmonicLevel = 0.8f;  // -2dB ceiling
+    float* wetData = monoBuffer.getWritePointer(0);
+    for (int i = 0; i < numSamples; ++i)
+    {
+        wetData[i] = juce::jlimit(-kMaxHarmonicLevel, kMaxHarmonicLevel, wetData[i]);
+    }
+
     // 4. Sample-by-sample transient ducking and blending
     const float* dry = dryBuffer.getReadPointer(0);
     float* wet = monoBuffer.getWritePointer(0);
@@ -136,7 +145,8 @@ void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
         float spectralBlend = calculateSpectralBlend();
 
         // Final mix: dry + (wet * duck * spectral * enhance)
-        float wetAmount = enhanceAmount * duckGain * spectralBlend;
+        // Use compressed enhance curve for diminishing returns at high values
+        float wetAmount = getCompressedEnhance(enhanceAmount) * duckGain * spectralBlend;
         wet[i] = dry[i] + wet[i] * wetAmount;
     }
 }
@@ -213,6 +223,21 @@ float CleanModeProcessor::calculateSpectralBlend()
 
     float blend = 1.0f - (highBandEnergy * 0.5f);
     return juce::jlimit(0.3f, 1.0f, blend);
+}
+
+//==============================================================================
+float CleanModeProcessor::getCompressedEnhance(float rawEnhance)
+{
+    // Compressed curve: sqrt gives diminishing returns
+    // This makes the enhance knob feel more musical:
+    // - Small movements at low values have moderate effect
+    // - Large movements at high values have smaller incremental effect
+    //
+    // rawEnhance 0.0 -> 0.0
+    // rawEnhance 0.25 -> 0.5
+    // rawEnhance 0.5 -> 0.71
+    // rawEnhance 1.0 -> 1.0
+    return std::sqrt(rawEnhance);
 }
 
 //==============================================================================
