@@ -13,6 +13,8 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "DSP/CrossoverFilter.h"
+#include "DSP/MonoSummer.h"
 
 class OBassAudioProcessor : public juce::AudioProcessor
 {
@@ -44,6 +46,9 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
+    // Public method for mode changes (called from UI/automation)
+    void setLatencyMode(CrossoverFilter::Mode mode);
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -51,12 +56,23 @@ private:
     // DSP spec for processor configuration
     juce::dsp::ProcessSpec spec;
 
-    //==========================================================================
-    // Phase 1 Placeholders (to be implemented in subsequent plans)
-    //==========================================================================
-    // Crossover filter (Plan 01-02)
-    // Mono summer (Plan 01-03)
-    // Intermediate buffers for low/high split (Plan 01-02/03)
+    // DSP Components
+    CrossoverFilter crossover;
+    MonoSummer monoSummer;
+
+    // Intermediate buffers (pre-allocated in prepareToPlay)
+    juce::AudioBuffer<float> lowBandBuffer;   // Stereo low frequencies
+    juce::AudioBuffer<float> highBandBuffer;  // Stereo high frequencies
+    juce::AudioBuffer<float> monoBuffer;      // Mono bass for processing
+
+    // State tracking
+    CrossoverFilter::Mode lastReportedMode = CrossoverFilter::Mode::LowLatency;
+
+    // Helper methods
+    void updateLatencyReport();
+    void recombineBands(juce::AudioBuffer<float>& output,
+                        const juce::AudioBuffer<float>& lowBand,
+                        const juce::AudioBuffer<float>& highBand);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBassAudioProcessor)
 };
