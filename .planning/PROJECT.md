@@ -1,5 +1,16 @@
 # O-Bass (Ouaricon Bass Enhancer)
 
+## Current Milestone: v1.0 Initial Release
+
+**Goal:** Ship a working psychoacoustic bass enhancer with clean/colored modes and minimal WebView UI.
+
+**Target features:**
+- Psychoacoustic enhancement algorithm (research-driven)
+- Clean mode + Colored mode with switch
+- 3-5 control minimal UI
+- VST3/AU/Standalone builds
+- Preset system integration
+
 ## What This Is
 
 A psychoacoustically-informed bass enhancement plugin for the Ouaricon commercial VST suite. O-Bass uses research on human bass perception to create fuller, more present low end that translates across playback systems. Designed for producers and sound designers who want results without endless tweaking.
@@ -71,4 +82,4 @@ Make bass perceptually fuller without introducing artifacts — enhancement that
 | WebView UI | Consistency with Ouaricon suite; enables rich visuals | — Pending |
 
 ---
-*Last updated: 2026-01-22 after initialization*
+*Last updated: 2026-01-22 after milestone v1.0 started*
