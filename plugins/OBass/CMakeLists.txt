@@ -19,6 +19,7 @@ target_sources(OBass
         Source/DSP/MonoSummer.cpp
         Source/DSP/EnvelopeFollower.cpp
         Source/DSP/PitchTracker.cpp
+        Source/DSP/HarmonicGenerator.cpp
 )
 
 # Include paths
