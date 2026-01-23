@@ -15,6 +15,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "DSP/CrossoverFilter.h"
 #include "DSP/MonoSummer.h"
+#include "DSP/CleanModeProcessor.h"
 
 class OBassAudioProcessor : public juce::AudioProcessor
 {
@@ -59,6 +60,7 @@ private:
     // DSP Components
     CrossoverFilter crossover;
     MonoSummer monoSummer;
+    CleanModeProcessor cleanModeProcessor;
 
     // Intermediate buffers (pre-allocated in prepareToPlay)
     juce::AudioBuffer<float> lowBandBuffer;   // Stereo low frequencies
@@ -73,6 +75,7 @@ private:
     void recombineBands(juce::AudioBuffer<float>& output,
                         const juce::AudioBuffer<float>& lowBand,
                         const juce::AudioBuffer<float>& highBand);
+    float calculateHighBandEnergy(const juce::AudioBuffer<float>& highBand);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBassAudioProcessor)
 };
