@@ -2,6 +2,23 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.12.3] - 2026-01-22
+
+### Fixed
+
+- **Tonic selection now affects sounding pitches in 12-TET mode**
+  - Previously, changing the tonic only updated the UI (interval table, circular visualization) but had no effect on actual audio frequencies
+  - Root cause: `calculate12TETFrequency()` ignored the `tonicOffset` entirely - it only calculated standard 12-TET frequencies from A4=440Hz
+  - When mode was `TwelveTET`, `rebuildFrequencyTable()` called `calculate12TETFrequency()` which never consulted the tonic
+  - Fix: `calculate12TETFrequency()` now applies tonic transposition: MIDI note N produces the frequency of note (N - tonic)
+  - Example: With tonic=D (2), pressing C now sounds as B♭ (C transposed down 2 semitones)
+
+### Technical Details
+
+- Modified `calculate12TETFrequency()` to read `tonicOffset` and transpose before frequency calculation
+- This matches behavior of custom tunings (Scala mode) which already handled tonic correctly via `calculateCustomFrequency()`
+- Files modified: Source/DSP/TuningEngine.cpp, Source/DSP/TuningEngine.h
+
 ## [1.12.2] - 2026-01-22
 
 ### Fixed
