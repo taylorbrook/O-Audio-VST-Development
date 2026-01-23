@@ -12,7 +12,7 @@ O-Bass v1.0 delivers a psychoacoustic bass enhancement plugin with Clean and Col
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Core DSP Foundation** - Crossover, mono bass processing, parameter framework, latency management
+- [x] **Phase 1: Core DSP Foundation** - Crossover, mono bass processing, parameter framework, latency management
 - [ ] **Phase 2: Clean Mode** - Psychoacoustic harmonic generation with oversampling
 - [ ] **Phase 3: Colored Mode** - Analog saturation character with mode switching
 - [ ] **Phase 4: Controls & Refinement** - All 4 controls with intensity limiting and parameter tuning
@@ -39,7 +39,7 @@ Plans:
 - [x] 01-03-PLAN.md — Mono summing and stereo expansion
 - [x] 01-04-PLAN.md — Signal path integration and latency reporting
 - [x] 01-05-PLAN.md — Gap closure: RT-safe FIR coefficient bank (eliminates allocations in processBlock)
-- [ ] 01-06-PLAN.md — Gap closure: RT-safe mode switching (atomic flag, dual filter preparation)
+- [x] 01-06-PLAN.md — Gap closure: RT-safe mode switching (atomic flag, dual filter preparation)
 
 ### Phase 2: Clean Mode
 **Goal**: Implement psychoacoustic harmonic generation that creates perceived bass on limited playback systems
@@ -122,7 +122,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core DSP Foundation | 5/6 | Gap closure | - |
+| 1. Core DSP Foundation | 6/6 | ✓ Complete | 2026-01-23 |
 | 2. Clean Mode | 0/? | Not started | - |
 | 3. Colored Mode | 0/? | Not started | - |
 | 4. Controls & Refinement | 0/? | Not started | - |
