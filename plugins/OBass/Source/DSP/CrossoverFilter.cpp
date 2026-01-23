@@ -4,6 +4,10 @@
     CrossoverFilter.cpp
     OBass - Dual-Mode Crossover Filter Implementation
 
+    Approach 3: Deferred Update - Pre-computes FIR coefficient bank at prepare()
+    time. Parameter changes in FIR mode only update pendingFirIndex; filter
+    reload occurs at next prepareToPlay() or mode switch.
+
   ==============================================================================
 */
 
@@ -19,6 +23,10 @@ CrossoverFilter::CrossoverFilter()
     // Set IIR filter types
     iirLowpass.setType(juce::dsp::LinkwitzRileyFilterType::lowpass);
     iirHighpass.setType(juce::dsp::LinkwitzRileyFilterType::highpass);
+
+    // Initialize FIR index tracking (80Hz = index 8)
+    currentFirIndex = 8;
+    pendingFirIndex = 8;
 }
 
 //==============================================================================
@@ -35,8 +43,6 @@ void CrossoverFilter::prepare(const juce::dsp::ProcessSpec& spec)
     // Calculate FIR tap count
     // For 40Hz crossover at 44.1kHz, need ~4096 taps minimum
     // Scale up for higher sample rates to maintain same frequency resolution
-    // Formula: taps = attenuation_dB / (22 * transition_bandwidth / sampleRate)
-    // Using ~4096 as baseline for 44.1kHz, scale proportionally
     firTapCount = static_cast<int>(4096.0 * sampleRate / 44100.0);
 
     // Ensure tap count is odd for symmetric linear-phase filter
@@ -49,14 +55,15 @@ void CrossoverFilter::prepare(const juce::dsp::ProcessSpec& spec)
     // Prepare FIR convolution
     firLowpass.prepare(spec);
 
-    // Generate initial FIR coefficients
-    generateFIRCoefficients();
+    // Pre-compute FIR coefficient bank for all frequencies (40-200Hz at 5Hz steps)
+    precomputeFIRBank();
+
+    // Load filter at pending index (applies any pending changes from previous session)
+    loadFilterAtIndex(pendingFirIndex);
 
     // Reset smoothed cutoff with ~10ms smoothing time
     smoothedCutoff.reset(sampleRate, 0.010);
     smoothedCutoff.setCurrentAndTargetValue(targetCutoffHz);
-
-    needsFilterUpdate = false;
 }
 
 //==============================================================================
@@ -85,8 +92,14 @@ void CrossoverFilter::setMode(Mode newMode)
         }
         else
         {
+            // Switching to HighFidelity mode
             firLowpass.reset();
-            needsFilterUpdate = true;
+
+            // Apply any pending FIR index change (non-RT safe point)
+            if (pendingFirIndex != currentFirIndex && !firCoefficientBank.empty())
+            {
+                loadFilterAtIndex(pendingFirIndex);
+            }
         }
     }
 }
@@ -101,13 +114,15 @@ void CrossoverFilter::setCutoffFrequency(float freqHz)
     {
         targetCutoffHz = freqHz;
 
-        // For IIR mode: use smoothed value (interpolates in process)
+        // IIR mode: use smoothed value (immediate response)
         smoothedCutoff.setTargetValue(freqHz);
 
-        // For FIR mode: regenerate coefficients
+        // FIR mode: store desired index for next prepare() or mode switch
+        // Do NOT reload filter in real-time - fully deferred
         if (currentMode == Mode::HighFidelity)
         {
-            needsFilterUpdate = true;
+            pendingFirIndex = frequencyToIndex(freqHz);
+            // Note: Filter will update on next prepareToPlay() or mode switch
         }
     }
 }
@@ -117,6 +132,10 @@ void CrossoverFilter::process(const juce::AudioBuffer<float>& input,
                                juce::AudioBuffer<float>& lowBand,
                                juce::AudioBuffer<float>& highBand)
 {
+    // REAL-TIME SAFE: No allocations in this function.
+    // FIR coefficients are pre-computed in prepare(), filter changes
+    // are deferred until next prepareToPlay() or mode switch.
+
     const int numSamples = input.getNumSamples();
     const int numChannels = juce::jmin(input.getNumChannels(), 2);
 
@@ -148,12 +167,8 @@ void CrossoverFilter::process(const juce::AudioBuffer<float>& input,
     }
     else
     {
-        // FIR mode: block-based convolution
-        if (needsFilterUpdate)
-        {
-            generateFIRCoefficients();
-            needsFilterUpdate = false;
-        }
+        // FIR mode: block-based convolution with pre-loaded filter
+        // No filter updates here - completely RT-safe
 
         // Copy input to lowBand for in-place convolution processing
         lowBand.makeCopyOf(input);
@@ -202,19 +217,43 @@ void CrossoverFilter::updateIIRFilters()
 }
 
 //==============================================================================
-void CrossoverFilter::generateFIRCoefficients()
+void CrossoverFilter::precomputeFIRBank()
 {
-    // Generate windowed-sinc lowpass coefficients
-    auto coeffs = generateWindowedSincLowpass(targetCutoffHz, firTapCount);
+    // Resize bank to hold all pre-computed filters
+    firCoefficientBank.resize(static_cast<size_t>(kNumPrecomputedFilters));
 
-    // Create mono AudioBuffer from coefficients
+    // Pre-compute coefficients for each frequency (40, 45, 50, ..., 200 Hz)
+    for (int i = 0; i < kNumPrecomputedFilters; ++i)
+    {
+        float freq = kMinFreq + static_cast<float>(i) * kFreqStep;
+        firCoefficientBank[static_cast<size_t>(i)] = generateWindowedSincLowpass(freq, firTapCount);
+    }
+}
+
+//==============================================================================
+int CrossoverFilter::frequencyToIndex(float freqHz) const
+{
+    // Clamp and quantize to nearest pre-computed index
+    freqHz = juce::jlimit(kMinFreq, kMaxFreq, freqHz);
+    int index = static_cast<int>(std::round((freqHz - kMinFreq) / kFreqStep));
+    return juce::jlimit(0, kNumPrecomputedFilters - 1, index);
+}
+
+//==============================================================================
+void CrossoverFilter::loadFilterAtIndex(int index)
+{
+    // This function is ONLY called from prepare() or setMode() - never from RT thread
+    // Allocations here are acceptable (non-RT safe points)
+
+    if (firCoefficientBank.empty() || index < 0 || index >= kNumPrecomputedFilters)
+        return;
+
+    const auto& coeffs = firCoefficientBank[static_cast<size_t>(index)];
+
+    // Create AudioBuffer from pre-computed coefficients
     juce::AudioBuffer<float> irBuffer(1, firTapCount);
     irBuffer.copyFrom(0, 0, coeffs.data(), firTapCount);
 
-    // Load into convolver
-    // Using Stereo::no since we process stereo via AudioBlock
-    // Trim::no to preserve exact filter length
-    // Normalise::no since we already normalized in coefficient generation
     firLowpass.loadImpulseResponse(
         std::move(irBuffer),
         sampleRate,
@@ -222,6 +261,8 @@ void CrossoverFilter::generateFIRCoefficients()
         juce::dsp::Convolution::Trim::no,
         juce::dsp::Convolution::Normalise::no
     );
+
+    currentFirIndex = index;
 }
 
 //==============================================================================
