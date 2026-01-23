@@ -18,6 +18,7 @@ target_sources(OBass
         Source/DSP/CrossoverFilter.cpp
         Source/DSP/MonoSummer.cpp
         Source/DSP/EnvelopeFollower.cpp
+        Source/DSP/PitchTracker.cpp
 )
 
 # Include paths
