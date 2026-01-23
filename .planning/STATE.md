@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 1 of 6 (Core DSP Foundation)
-Plan: 2 of 4 complete (01-01, 01-03)
-Status: In progress (Wave 2 executing)
-Progress: [##........] 20%
+Plan: 3 of 4 complete (01-01, 01-02, 01-03)
+Status: In progress (Wave 2 complete)
+Progress: [###.......] 30%
 
-Last activity: 2026-01-23 — Completed 01-03-PLAN.md (Mono Summing)
+Last activity: 2026-01-23 — Completed 01-02-PLAN.md (Crossover Filter)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 4m 42s
-- Total execution time: 0.16 hours
+- Total plans completed: 3
+- Average duration: 3m 48s
+- Total execution time: 0.19 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01-core-dsp-foundation | 2 | 9m 25s | 4m 42s |
+| 01-core-dsp-foundation | 3 | 11m 25s | 3m 48s |
 
 **Recent Trend:**
-- Last 5 plans: 01-01 (8 min), 01-03 (1m 25s)
-- Trend: Improving velocity
+- Last 5 plans: 01-01 (8 min), 01-03 (1m 25s), 01-02 (2 min)
+- Trend: Fast execution, well-specified plans
 
 *Updated after each plan completion*
 
@@ -46,6 +46,8 @@ Recent decisions affecting current work:
 - **latency_mode:** AudioParameterChoice for clear labeling (Low Latency / High Fidelity)
 - **True bypass:** Returns immediately when enabled, no crossfade
 - **Mono summing:** (L+R)/2 formula with optional balance preservation
+- **IIR crossover:** LinkwitzRileyFilter LR4 24dB/oct with sample-by-sample processing
+- **FIR crossover:** 4096+ taps windowed-sinc with Blackman window
 
 ### Pending Todos
 
@@ -58,5 +60,5 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 01-03-PLAN.md (Mono Summing)
+Stopped at: Completed 01-02-PLAN.md (Crossover Filter)
 Resume file: .planning/phases/01-core-dsp-foundation/01-04-PLAN.md
