@@ -14,6 +14,7 @@
 #pragma once
 #include <juce_dsp/juce_dsp.h>
 #include <juce_audio_basics/juce_audio_basics.h>
+#include <atomic>
 
 class CrossoverFilter {
 public:
@@ -31,7 +32,7 @@ public:
     // Configuration
     void setMode(Mode newMode);
     void setCutoffFrequency(float freqHz);
-    Mode getMode() const { return currentMode; }
+    Mode getMode() const { return activeMode.load(std::memory_order_acquire); }
     float getCutoffFrequency() const { return targetCutoffHz; }
 
     // Lifecycle
@@ -48,7 +49,7 @@ public:
     int getLatencyInSamples() const;
 
 private:
-    Mode currentMode = Mode::LowLatency;
+    std::atomic<Mode> activeMode { Mode::LowLatency };  // RT-safe mode flag
     float targetCutoffHz = 80.0f;
     double sampleRate = 44100.0;
     int blockSize = 512;

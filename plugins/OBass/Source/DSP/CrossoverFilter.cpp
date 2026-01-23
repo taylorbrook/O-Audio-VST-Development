@@ -59,7 +59,9 @@ void CrossoverFilter::prepare(const juce::dsp::ProcessSpec& spec)
     precomputeFIRBank();
 
     // Load filter at pending index (applies any pending changes from previous session)
+    // Both IIR and FIR are always prepared so mode switching is RT-safe
     loadFilterAtIndex(pendingFirIndex);
+    currentFirIndex = pendingFirIndex;  // Sync indices so FIR is at desired frequency
 
     // Reset smoothed cutoff with ~10ms smoothing time
     smoothedCutoff.reset(sampleRate, 0.010);
@@ -78,30 +80,9 @@ void CrossoverFilter::reset()
 //==============================================================================
 void CrossoverFilter::setMode(Mode newMode)
 {
-    if (currentMode != newMode)
-    {
-        currentMode = newMode;
-
-        // Per context decision: instant toggle, no crossfade
-        // Reset filters to avoid state contamination
-        if (newMode == Mode::LowLatency)
-        {
-            iirLowpass.reset();
-            iirHighpass.reset();
-            updateIIRFilters();
-        }
-        else
-        {
-            // Switching to HighFidelity mode
-            firLowpass.reset();
-
-            // Apply any pending FIR index change (non-RT safe point)
-            if (pendingFirIndex != currentFirIndex && !firCoefficientBank.empty())
-            {
-                loadFilterAtIndex(pendingFirIndex);
-            }
-        }
-    }
+    // RT-SAFE: Just flip the atomic flag
+    // Both IIR and FIR filters are always prepared and ready
+    activeMode.store(newMode, std::memory_order_release);
 }
 
 //==============================================================================
@@ -117,12 +98,12 @@ void CrossoverFilter::setCutoffFrequency(float freqHz)
         // IIR mode: use smoothed value (immediate response)
         smoothedCutoff.setTargetValue(freqHz);
 
-        // FIR mode: store desired index for next prepare() or mode switch
+        // FIR mode: store desired index for next prepare()
         // Do NOT reload filter in real-time - fully deferred
-        if (currentMode == Mode::HighFidelity)
+        if (activeMode.load(std::memory_order_acquire) == Mode::HighFidelity)
         {
             pendingFirIndex = frequencyToIndex(freqHz);
-            // Note: Filter will update on next prepareToPlay() or mode switch
+            // Note: Filter will update on next prepareToPlay()
         }
     }
 }
@@ -139,7 +120,7 @@ void CrossoverFilter::process(const juce::AudioBuffer<float>& input,
     const int numSamples = input.getNumSamples();
     const int numChannels = juce::jmin(input.getNumChannels(), 2);
 
-    if (currentMode == Mode::LowLatency)
+    if (activeMode.load(std::memory_order_acquire) == Mode::LowLatency)
     {
         // IIR mode: sample-by-sample processing with smoothed cutoff
         for (int sample = 0; sample < numSamples; ++sample)
@@ -197,7 +178,7 @@ void CrossoverFilter::process(const juce::AudioBuffer<float>& input,
 //==============================================================================
 int CrossoverFilter::getLatencyInSamples() const
 {
-    if (currentMode == Mode::LowLatency)
+    if (activeMode.load(std::memory_order_acquire) == Mode::LowLatency)
     {
         // IIR mode: effectively zero latency
         return 0;
