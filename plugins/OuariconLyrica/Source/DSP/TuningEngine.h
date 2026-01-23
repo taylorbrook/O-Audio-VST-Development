@@ -2,7 +2,7 @@
   ==============================================================================
 
     TuningEngine.h
-    v1.12.3: Tonic transposition now affects sounding pitches in 12-TET mode
+    v1.12.0: True Modal Rotation with Interval Persistence
 
     Implements:
     - 12-TET base tuning with adjustable A4 reference (masterTune)

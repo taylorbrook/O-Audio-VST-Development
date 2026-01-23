@@ -838,16 +838,10 @@ std::vector<double> TuningEngine::getScaleFrequencies(int rootNote, int numNotes
 
 double TuningEngine::calculate12TETFrequency(int midiNote) const
 {
-    // v1.12.3: Apply tonic transposition for 12-TET mode
-    // When tonic != 0, transpose all notes so the selected tonic becomes the "root"
-    // Example: tonic=2 (D), pressing C (60) sounds like Bb (58)
-    int tonic = tonicOffset.load(std::memory_order_relaxed);
-    int transposedNote = midiNote - tonic;
-
     // v1.9.0: Apply octave stretch for physical modeling
     // Stretch > 1.0 = wider octaves in upper register (piano-like)
     // Stretch < 1.0 = narrower octaves
-    const double semitonesFromA4 = static_cast<double>(transposedNote - 69);
+    const double semitonesFromA4 = static_cast<double>(midiNote - 69);
     const double stretchedSemitones = semitonesFromA4 * static_cast<double>(octaveStretch);
     return a4Frequency * std::pow(2.0, stretchedSemitones / 12.0);
 }
