@@ -15,6 +15,7 @@ target_sources(OBass
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/DSP/MonoSummer.cpp
 )
 
 # Include paths
