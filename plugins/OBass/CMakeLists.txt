@@ -17,6 +17,7 @@ target_sources(OBass
         Source/PluginEditor.cpp
         Source/DSP/CrossoverFilter.cpp
         Source/DSP/MonoSummer.cpp
+        Source/DSP/EnvelopeFollower.cpp
 )
 
 # Include paths
