@@ -110,6 +110,7 @@ void OBassAudioProcessor::releaseResources()
 {
     crossover.reset();
     monoSummer.reset();
+    cleanModeProcessor.reset();
 }
 
 void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
