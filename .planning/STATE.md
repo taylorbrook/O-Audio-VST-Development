@@ -5,33 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Make bass perceptually fuller without artifacts - enhancement that sounds natural and translates well.
-**Current focus:** Phase 2 - Clean Mode (harmonic generation in progress)
+**Current focus:** Phase 2 - Clean Mode (orchestrator complete, integration next)
 
 ## Current Position
 
 Phase: 2 of 6 (Clean Mode - Harmonic Generation)
-Plan: 2 of 4 complete (02-01, 02-02)
+Plan: 3 of 4 complete (02-01, 02-02, 02-03)
 Status: In progress
-Progress: [#######...] 70%
+Progress: [########..] 80%
 
-Last activity: 2026-01-23 - Completed 02-02-PLAN.md (HarmonicGenerator with Chebyshev Waveshaping)
+Last activity: 2026-01-23 - Completed 02-03-PLAN.md (CleanModeProcessor orchestrator)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
-- Average duration: 2m 48s
-- Total execution time: 0.37 hours
+- Total plans completed: 9
+- Average duration: 2m 41s
+- Total execution time: 0.40 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-dsp-foundation | 6 | 18m 7s | 3m 1s |
-| 02-clean-mode | 2 | 6m | 3m |
+| 02-clean-mode | 3 | 8m 25s | 2m 48s |
 
 **Recent Trend:**
-- Last 5 plans: 01-05 (2 min), 01-06 (3 min), 02-01 (2 min), 02-02 (4 min)
+- Last 5 plans: 01-06 (3 min), 02-01 (2 min), 02-02 (4 min), 02-03 (2 min)
 - Trend: Fast execution, well-specified plans
 
 *Updated after each plan completion*
@@ -63,6 +63,11 @@ Recent decisions affecting current work:
 - **Harmonic weights:** h2=0.7, h3=0.5, h4=0.3, h5=0.15 (psychoacoustic research)
 - **Output bandpass:** 60-400Hz limits harmonics to useful range
 - **Adaptive harmonics:** <40Hz=5, <80Hz=4, <120Hz=3, else=2
+- **Transient threshold:** 2.0x (fast/slow ratio) with 30% minimum harmonics on attacks
+- **Spectral blend:** Reduces harmonics by 50% max when high band is loud
+- **Lookahead timing:** 2ms delay for High Fidelity mode
+- **Enhance curve:** sqrt(rawEnhance) for diminishing returns
+- **Auto-limit ceiling:** -2dB (0.8) on harmonic output
 
 ### Pending Todos
 
@@ -86,10 +91,19 @@ Plan 02-02 completed:
 - Output bandpass (60-400Hz) for psychoacoustic range
 - Adaptive harmonic count based on fundamental frequency
 
+Plan 02-03 completed:
+- CleanModeProcessor: Orchestrator for complete enhancement pipeline
+- Transient ducking via dual envelope followers (fast 0.5ms/20ms vs slow 5ms/100ms)
+- Spectral-aware blending (reduces harmonics when high band loud)
+- High Fidelity mode with 2ms lookahead delay
+- Compressed enhance curve (sqrt) for musical response
+- Auto-limit ceiling at -2dB
+
 Key files created:
 - `plugins/OBass/Source/DSP/EnvelopeFollower.h/cpp` - Transient detection
 - `plugins/OBass/Source/DSP/PitchTracker.h/cpp` - Bass pitch tracking
 - `plugins/OBass/Source/DSP/HarmonicGenerator.h/cpp` - Chebyshev waveshaping with oversampling
+- `plugins/OBass/Source/DSP/CleanModeProcessor.h/cpp` - Enhancement orchestrator
 
 ## Phase 1 Completion Summary
 
@@ -112,5 +126,5 @@ Key files ready for Phase 2:
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 02-02-PLAN.md (HarmonicGenerator with Chebyshev Waveshaping)
-Resume file: Continue with 02-03-PLAN.md (CleanModeProcessor integration)
+Stopped at: Completed 02-03-PLAN.md (CleanModeProcessor orchestrator)
+Resume file: Continue with 02-04-PLAN.md (Plugin integration)
