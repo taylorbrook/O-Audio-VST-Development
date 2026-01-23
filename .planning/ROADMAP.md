@@ -51,10 +51,13 @@ Plans:
   3. Harmonics translate to perceived bass weight on laptop/phone speakers
   4. Processing uses 4x oversampling to prevent aliasing
   5. Original transient character is preserved (no smearing on attack)
-**Plans**: TBD
+**Plans**: 4 plans in 3 waves
 
 Plans:
-- [ ] 02-01: TBD
+- [ ] 02-01-PLAN.md — Envelope follower and pitch tracker components
+- [ ] 02-02-PLAN.md — Harmonic generator with Chebyshev waveshaping and 4x oversampling
+- [ ] 02-03-PLAN.md — CleanModeProcessor orchestration with transient ducking
+- [ ] 02-04-PLAN.md — Plugin integration and perceptual verification
 
 ### Phase 3: Colored Mode
 **Goal**: Add analog-style saturation character as alternative to transparent Clean mode
@@ -123,7 +126,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Core DSP Foundation | 6/6 | ✓ Complete | 2026-01-23 |
-| 2. Clean Mode | 0/? | Not started | - |
+| 2. Clean Mode | 0/4 | Planned | - |
 | 3. Colored Mode | 0/? | Not started | - |
 | 4. Controls & Refinement | 0/? | Not started | - |
 | 5. WebView UI | 0/? | Not started | - |
