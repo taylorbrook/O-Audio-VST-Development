@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 2 of 6 (Clean Mode - Harmonic Generation)
-Plan: 1 of 4 complete (02-01)
+Plan: 2 of 4 complete (02-01, 02-02)
 Status: In progress
-Progress: [######....] 60% + 1 plan
+Progress: [#######...] 70%
 
-Last activity: 2026-01-23 - Completed 02-01-PLAN.md (Envelope Follower and Pitch Tracker)
+Last activity: 2026-01-23 - Completed 02-02-PLAN.md (HarmonicGenerator with Chebyshev Waveshaping)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 7
-- Average duration: 2m 50s
-- Total execution time: 0.33 hours
+- Total plans completed: 8
+- Average duration: 2m 48s
+- Total execution time: 0.37 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 01-core-dsp-foundation | 6 | 18m 7s | 3m 1s |
-| 02-clean-mode | 1 | 2m | 2m |
+| 02-clean-mode | 2 | 6m | 3m |
 
 **Recent Trend:**
-- Last 5 plans: 01-04 (1m 42s), 01-05 (2 min), 01-06 (3 min), 02-01 (2 min)
+- Last 5 plans: 01-05 (2 min), 01-06 (3 min), 02-01 (2 min), 02-02 (4 min)
 - Trend: Fast execution, well-specified plans
 
 *Updated after each plan completion*
@@ -59,6 +59,10 @@ Recent decisions affecting current work:
 - **Envelope release:** 20ms default for smooth envelope tracking
 - **YIN threshold:** 0.1 (standard, configurable)
 - **Pitch window:** 2 periods at 30Hz, capped at 4096 samples
+- **Chebyshev T2-T5:** Controlled 2nd-5th harmonic generation from sinusoidal input
+- **Harmonic weights:** h2=0.7, h3=0.5, h4=0.3, h5=0.15 (psychoacoustic research)
+- **Output bandpass:** 60-400Hz limits harmonics to useful range
+- **Adaptive harmonics:** <40Hz=5, <80Hz=4, <120Hz=3, else=2
 
 ### Pending Todos
 
@@ -76,9 +80,16 @@ Plan 02-01 completed:
 - EnvelopeFollower: Dual-coefficient attack/release envelope tracking
 - PitchTracker: YIN algorithm for bass frequency detection (30-200Hz)
 
+Plan 02-02 completed:
+- HarmonicGenerator: Chebyshev polynomial waveshaping (T2-T5)
+- 4x oversampling with dual oversamplers (IIR/FIR)
+- Output bandpass (60-400Hz) for psychoacoustic range
+- Adaptive harmonic count based on fundamental frequency
+
 Key files created:
 - `plugins/OBass/Source/DSP/EnvelopeFollower.h/cpp` - Transient detection
 - `plugins/OBass/Source/DSP/PitchTracker.h/cpp` - Bass pitch tracking
+- `plugins/OBass/Source/DSP/HarmonicGenerator.h/cpp` - Chebyshev waveshaping with oversampling
 
 ## Phase 1 Completion Summary
 
@@ -101,5 +112,5 @@ Key files ready for Phase 2:
 ## Session Continuity
 
 Last session: 2026-01-23
-Stopped at: Completed 02-01-PLAN.md (Envelope Follower and Pitch Tracker)
-Resume file: Continue with 02-02-PLAN.md (HarmonicGenerator)
+Stopped at: Completed 02-02-PLAN.md (HarmonicGenerator with Chebyshev Waveshaping)
+Resume file: Continue with 02-03-PLAN.md (CleanModeProcessor integration)
