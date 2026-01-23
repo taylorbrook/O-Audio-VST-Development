@@ -1,0 +1,129 @@
+# Roadmap: O-Bass v1.0
+
+## Overview
+
+O-Bass v1.0 delivers a psychoacoustic bass enhancement plugin with Clean and Colored modes, minimal 4-control WebView UI, and full Ouaricon suite integration. The roadmap progresses from DSP foundation through algorithm implementation, control refinement, UI development, and finally format/preset integration. Each phase delivers a coherent, testable capability that builds on the previous phase.
+
+## Phases
+
+**Phase Numbering:**
+- Integer phases (1, 2, 3): Planned milestone work
+- Decimal phases (2.1, 2.2): Urgent insertions (marked with INSERTED)
+
+Decimal phases appear between their surrounding integers in numeric order.
+
+- [ ] **Phase 1: Core DSP Foundation** - Crossover, mono bass processing, parameter framework, latency management
+- [ ] **Phase 2: Clean Mode** - Psychoacoustic harmonic generation with oversampling
+- [ ] **Phase 3: Colored Mode** - Analog saturation character with mode switching
+- [ ] **Phase 4: Controls & Refinement** - All 4 controls with intensity limiting and parameter tuning
+- [ ] **Phase 5: WebView UI** - Visual interface matching Ouaricon suite language
+- [ ] **Phase 6: Formats & Integration** - VST3/AU/Standalone builds and preset system
+
+## Phase Details
+
+### Phase 1: Core DSP Foundation
+**Goal**: Establish the audio processing architecture that all enhancement algorithms depend on
+**Depends on**: Nothing (first phase)
+**Requirements**: DSP-02, DSP-03, DSP-05
+**Success Criteria** (what must be TRUE):
+  1. Audio passes through plugin with unity gain when enhancement is bypassed
+  2. Crossover filter splits signal at configurable frequency (40-200Hz range)
+  3. Bass frequencies below crossover are summed to mono before processing
+  4. Plugin reports accurate latency to host (under 5ms at 44.1kHz)
+  5. No allocations occur in processBlock (pre-allocated buffers only)
+**Plans**: TBD
+
+Plans:
+- [ ] 01-01: TBD
+
+### Phase 2: Clean Mode
+**Goal**: Implement psychoacoustic harmonic generation that creates perceived bass on limited playback systems
+**Depends on**: Phase 1
+**Requirements**: DSP-01, DSP-04, MODE-01
+**Success Criteria** (what must be TRUE):
+  1. Low-frequency content generates audible harmonics in 100-400Hz range
+  2. Enhancement is transparent with no audible aliasing artifacts
+  3. Harmonics translate to perceived bass weight on laptop/phone speakers
+  4. Processing uses 4x oversampling to prevent aliasing
+  5. Original transient character is preserved (no smearing on attack)
+**Plans**: TBD
+
+Plans:
+- [ ] 02-01: TBD
+
+### Phase 3: Colored Mode
+**Goal**: Add analog-style saturation character as alternative to transparent Clean mode
+**Depends on**: Phase 2
+**Requirements**: MODE-02, MODE-03
+**Success Criteria** (what must be TRUE):
+  1. Colored mode produces audibly warmer character than Clean mode
+  2. Mode switch toggles between Clean and Colored processing paths
+  3. Enhancement intensity behaves consistently across both modes
+  4. No clicks or artifacts when switching modes during playback
+**Plans**: TBD
+
+Plans:
+- [ ] 03-01: TBD
+
+### Phase 4: Controls & Refinement
+**Goal**: All 4 parameters function with musical behavior and auto-limiting to prevent over-processing
+**Depends on**: Phase 3
+**Requirements**: CTRL-01, CTRL-02, CTRL-03, CTRL-04
+**Success Criteria** (what must be TRUE):
+  1. Frequency knob smoothly adjusts crossover from 40Hz to 200Hz
+  2. Enhance knob applies intensity with diminishing returns curve (prevents boomy sound)
+  3. Output knob provides +/- 18dB gain compensation
+  4. Mode toggle switches between Clean and Colored with smooth transition
+  5. Extreme Enhance settings are auto-limited to prevent artifacts
+**Plans**: TBD
+
+Plans:
+- [ ] 04-01: TBD
+
+### Phase 5: WebView UI
+**Goal**: Visual interface that matches Ouaricon suite and exposes all 4 controls
+**Depends on**: Phase 4
+**Requirements**: UI-01, UI-02, UI-03
+**Success Criteria** (what must be TRUE):
+  1. WebView displays 4 controls: Frequency, Enhance, Output, Mode toggle
+  2. UI matches Ouaricon visual language (paper texture, botanical style)
+  3. Knob movements update DSP parameters in real-time without glitches
+  4. Parameter changes from host (automation) reflect in UI immediately
+  5. UI is responsive and renders correctly at default plugin size
+**Plans**: TBD
+
+Plans:
+- [ ] 05-01: TBD
+
+### Phase 6: Formats & Integration
+**Goal**: Plugin builds in all formats with functional preset system
+**Depends on**: Phase 5
+**Requirements**: FMT-01, FMT-02, FMT-03, INT-01
+**Success Criteria** (what must be TRUE):
+  1. Plugin builds and loads as VST3 in compatible DAW (Logic, Ableton, etc.)
+  2. Plugin builds and loads as AU in Logic Pro
+  3. Standalone application launches and processes audio
+  4. OuariconPresetManager loads and saves presets correctly
+  5. Factory presets demonstrate Clean and Colored modes on different source types
+**Plans**: TBD
+
+Plans:
+- [ ] 06-01: TBD
+
+## Progress
+
+**Execution Order:**
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
+
+| Phase | Plans Complete | Status | Completed |
+|-------|----------------|--------|-----------|
+| 1. Core DSP Foundation | 0/? | Not started | - |
+| 2. Clean Mode | 0/? | Not started | - |
+| 3. Colored Mode | 0/? | Not started | - |
+| 4. Controls & Refinement | 0/? | Not started | - |
+| 5. WebView UI | 0/? | Not started | - |
+| 6. Formats & Integration | 0/? | Not started | - |
+
+---
+*Roadmap created: 2026-01-22*
+*Milestone: v1.0 Initial Release*
