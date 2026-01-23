@@ -60,19 +60,38 @@ OBassAudioProcessor::~OBassAudioProcessor()
 
 void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Store DSP spec for use by processors
+    // Configure DSP spec
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
 
-    // Crossover filter preparation will be added in Plan 01-02
-    // Mono summer preparation will be added in Plan 01-03
+    // Pre-allocate intermediate buffers
+    lowBandBuffer.setSize(2, samplesPerBlock);
+    highBandBuffer.setSize(2, samplesPerBlock);
+    monoBuffer.setSize(1, samplesPerBlock);
+
+    // Prepare DSP components
+    crossover.prepare(spec);
+    monoSummer.prepare(samplesPerBlock);
+
+    // Set initial crossover frequency from parameter
+    auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");
+    crossover.setCutoffFrequency(crossoverParam->load());
+
+    // Set initial mode from parameter
+    auto* modeParam = parameters.getRawParameterValue("latency_mode");
+    auto mode = modeParam->load() < 0.5f ? CrossoverFilter::Mode::LowLatency
+                                          : CrossoverFilter::Mode::HighFidelity;
+    crossover.setMode(mode);
+
+    // Report latency to host
+    updateLatencyReport();
 }
 
 void OBassAudioProcessor::releaseResources()
 {
-    // Release crossover filter resources (Plan 01-02)
-    // Release intermediate buffers (Plan 01-03)
+    crossover.reset();
+    monoSummer.reset();
 }
 
 void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -84,20 +103,58 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Check bypass - if true, return immediately (true bypass, no processing)
+    // Read parameters (atomic, real-time safe)
     auto* bypassParam = parameters.getRawParameterValue("bypass");
-    if (bypassParam->load() > 0.5f)
+    auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");
+    auto* modeParam = parameters.getRawParameterValue("latency_mode");
+
+    bool bypassed = bypassParam->load() > 0.5f;
+
+    // TRUE BYPASS: signal passes through unmodified
+    if (bypassed)
         return;
 
-    //==========================================================================
-    // Current: Audio pass-through (unity gain)
-    // Plan 01-02 adds: Crossover filtering (split low/high)
-    // Plan 01-03 adds: Mono summing of bass content
-    // Phase 2 adds: Harmonic generation
-    //==========================================================================
+    // Update crossover frequency (SmoothedValue handles interpolation)
+    crossover.setCutoffFrequency(crossoverParam->load());
 
-    // For now, audio passes through unchanged (unity gain)
-    // No processing required - buffer already contains input audio
+    // Check for mode change (update latency if changed)
+    auto currentMode = modeParam->load() < 0.5f ? CrossoverFilter::Mode::LowLatency
+                                                 : CrossoverFilter::Mode::HighFidelity;
+    if (currentMode != crossover.getMode())
+    {
+        crossover.setMode(currentMode);
+        updateLatencyReport();
+    }
+
+    // Resize intermediate buffers if needed (should be pre-allocated, but defensive)
+    const int numSamples = buffer.getNumSamples();
+    if (lowBandBuffer.getNumSamples() < numSamples)
+    {
+        // This should NOT happen if prepareToPlay was called correctly
+        jassertfalse;
+        lowBandBuffer.setSize(2, numSamples, false, false, true);
+        highBandBuffer.setSize(2, numSamples, false, false, true);
+        monoBuffer.setSize(1, numSamples, false, false, true);
+    }
+
+    // === SIGNAL PATH ===
+
+    // 1. Split into low and high bands
+    crossover.process(buffer, lowBandBuffer, highBandBuffer);
+
+    // 2. Sum low band to mono (capture balance first if needed)
+    // Note: Enhancement processing will go here in Phase 2
+    monoSummer.captureBalance(lowBandBuffer);
+    monoSummer.sumToMono(lowBandBuffer, monoBuffer);
+
+    // 3. [Placeholder for harmonic enhancement - Phase 2]
+    // For now, mono bass passes through unchanged
+
+    // 4. Expand mono back to stereo (into lowBandBuffer)
+    monoSummer.expandToStereo(monoBuffer, lowBandBuffer);
+
+    // 5. Recombine bands into output
+    recombineBands(buffer, lowBandBuffer, highBandBuffer);
 }
 
 juce::AudioProcessorEditor* OBassAudioProcessor::createEditor()
@@ -121,6 +178,45 @@ void OBassAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
     if (xmlState != nullptr)
         if (xmlState->hasTagName(parameters.state.getType()))
             parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+}
+
+//==============================================================================
+// Helper Methods
+//==============================================================================
+
+void OBassAudioProcessor::recombineBands(juce::AudioBuffer<float>& output,
+                                          const juce::AudioBuffer<float>& lowBand,
+                                          const juce::AudioBuffer<float>& highBand)
+{
+    // LR4 crossover sums flat (both bands at -6dB at crossover)
+    // Simply add low + high
+    const int numSamples = output.getNumSamples();
+    const int numChannels = output.getNumChannels();
+
+    for (int ch = 0; ch < numChannels; ++ch)
+    {
+        auto* out = output.getWritePointer(ch);
+        const auto* low = lowBand.getReadPointer(ch);
+        const auto* high = highBand.getReadPointer(ch);
+
+        for (int i = 0; i < numSamples; ++i)
+        {
+            out[i] = low[i] + high[i];
+        }
+    }
+}
+
+void OBassAudioProcessor::updateLatencyReport()
+{
+    int latencySamples = crossover.getLatencyInSamples();
+    setLatencySamples(latencySamples);
+    lastReportedMode = crossover.getMode();
+}
+
+void OBassAudioProcessor::setLatencyMode(CrossoverFilter::Mode mode)
+{
+    crossover.setMode(mode);
+    updateLatencyReport();
 }
 
 // Factory function - creates plugin instance
