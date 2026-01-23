@@ -1804,6 +1804,8 @@
         window.handleIntervalChange = function(index, valueStr) {
             if (window.onIntervalChanged) {
                 window.onIntervalChanged(index, valueStr);
+            } else {
+                console.error('[Tuning] onIntervalChanged not defined');
             }
         };
 
@@ -2748,7 +2750,23 @@
             }
 
             intervalList.innerHTML = html;
-            // v1.7.3: Tonic arrow and interval handlers use callbacks from non-module script
+
+            // v1.12.3: Use event delegation instead of inline handlers (more reliable in WebView)
+            intervalList.querySelectorAll('.interval-input').forEach(input => {
+                if (input.disabled) return;
+                const index = parseInt(input.dataset.index, 10);
+
+                input.addEventListener('change', () => {
+                    window.handleIntervalChange(index, input.value);
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.blur();
+                    }
+                });
+            });
         }
 
         // v1.7.3: Callbacks for global handlers (tonic arrows)
@@ -2789,31 +2807,22 @@
                 if (currentTuningMode !== 1) {
                     currentTuningMode = 1;
                     window.currentTuningMode = 1;
-                    // Update mode buttons
                     document.querySelectorAll('.tuning-mode-btn').forEach(btn => {
                         btn.classList.toggle('active', parseInt(btn.dataset.mode) === 1);
                     });
-                    // Update scale name
                     const scaleNameEl = document.getElementById('scale-name-display');
                     if (scaleNameEl) scaleNameEl.textContent = 'Custom';
                 }
 
                 updateVisualization();
 
-                // v1.11.1: Use setSingleInterval - pass index and cents as two separate calls
-                // First encode as a single number: index * 10000 + cents (cents is 0-1200)
+                // v1.11.1: Encode index and cents as single number: index * 10000 + cents
                 const encoded = index * 10000 + Math.round(value);
                 try {
                     await Juce.getNativeFunction('setSingleIntervalEncoded')(encoded);
-                    console.log('[Tuning] Interval', index, 'changed to', value, '(encoded:', encoded, ')');
+                    console.log('[Tuning] Interval', index, 'changed to', value);
                 } catch (e) {
                     console.error('[Tuning] Failed to set interval:', e);
-                    // Fallback: try the two-arg version
-                    try {
-                        await Juce.getNativeFunction('setSingleInterval')(index, value);
-                    } catch (e2) {
-                        console.error('[Tuning] Fallback also failed:', e2);
-                    }
                 }
             }
         };

@@ -246,19 +246,21 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
             // v1.11.1: Encoded version - single int: index * 10000 + cents
             .withNativeFunction("setSingleIntervalEncoded", [this](const juce::Array<juce::var>& args,
                                                                     std::function<void(juce::var)> complete) {
-                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                if (args.isEmpty()) {
+                    complete(juce::var(false));
+                    return;
+                }
 
                 int encoded = static_cast<int>(args[0]);
                 int index = encoded / 10000;
                 double cents = static_cast<double>(encoded % 10000);
 
-                DBG("setSingleIntervalEncoded: encoded=" + juce::String(encoded) + " index=" + juce::String(index) + " cents=" + juce::String(cents));
-
                 processorRef.getTuningEngine()->setSingleInterval(index, cents);
 
                 // Also update APVTS tuningMode to Custom (1)
+                // For AudioParameterChoice with 3 options, index 1 = normalized 0.5
                 if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
-                    param->setValueNotifyingHost(param->convertTo0to1(1.0f));
+                    param->setValueNotifyingHost(0.5f);
 
                 complete(juce::var(true));
             })

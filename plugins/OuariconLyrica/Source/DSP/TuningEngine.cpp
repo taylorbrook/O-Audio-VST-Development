@@ -272,12 +272,17 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
 
 void TuningEngine::setSingleInterval(int index, double cents)
 {
+    DBG("TuningEngine::setSingleInterval() ENTER - index=" + juce::String(index) + " cents=" + juce::String(cents));
+    DBG("  scaleIntervals.size() = " + juce::String(static_cast<int>(scaleIntervals.size())));
+
     {
         std::lock_guard<std::mutex> lock(intervalMutex);
 
         // v1.11.1: Initialize to 12-TET if intervals are empty (fresh load → Custom case)
-        if (scaleIntervals.size() < 2)
+        // v1.12.3: Also fix if intervals are missing the octave (size=12 instead of 13)
+        if (scaleIntervals.size() < 2 || scaleIntervals.size() == 12)
         {
+            DBG("  Initializing scaleIntervals to 12-TET (was empty or missing octave)");
             scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
                               600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
             scaleDegrees = 12;
@@ -288,7 +293,12 @@ void TuningEngine::setSingleInterval(int index, double cents)
         // Update the interval at the specified index
         if (index >= 0 && index < static_cast<int>(scaleIntervals.size()))
         {
+            DBG("  Setting scaleIntervals[" + juce::String(index) + "] = " + juce::String(cents));
             scaleIntervals[static_cast<size_t>(index)] = cents;
+        }
+        else
+        {
+            DBG("  ERROR: index " + juce::String(index) + " out of range!");
         }
     }
 
@@ -296,20 +306,26 @@ void TuningEngine::setSingleInterval(int index, double cents)
     // Without this, edits to scaleIntervals are ignored because
     // calculateCustomFrequency() uses rotatedIntervals when tonic is set
     int currentTonic = tonicOffset.load(std::memory_order_relaxed);
+    DBG("  currentTonic = " + juce::String(currentTonic));
     if (currentTonic != 0)
+    {
+        DBG("  Calling rotateIntervalsForTonic(" + juce::String(currentTonic) + ")");
         rotateIntervalsForTonic(currentTonic);
+    }
     else
     {
         // When tonic is 0, keep rotatedIntervals in sync with scaleIntervals
+        DBG("  Tonic is 0, copying scaleIntervals to rotatedIntervals");
         std::lock_guard<std::mutex> lock(intervalMutex);
         rotatedIntervals = scaleIntervals;
     }
 
     // Switch to Scala mode and rebuild
+    DBG("  Setting mode to Scala and rebuilding frequency table");
     currentMode.store(Mode::Scala, std::memory_order_relaxed);
     rebuildFrequencyTable();
 
-    DBG("TuningEngine::setSingleInterval() - Set index " + juce::String(index) + " to " + juce::String(cents) + " cents");
+    DBG("TuningEngine::setSingleInterval() EXIT - mode now = " + juce::String(static_cast<int>(currentMode.load())));
 }
 
 std::vector<double> TuningEngine::getIntervals() const
@@ -995,6 +1011,7 @@ double TuningEngine::applyPitchBend(double baseFreq, float bendAmount) const
 void TuningEngine::rebuildFrequencyTable()
 {
     Mode mode = currentMode.load(std::memory_order_relaxed);
+    DBG("rebuildFrequencyTable() - mode=" + juce::String(static_cast<int>(mode)) + " (0=TwelveTET, 1=Scala, 2=MTSESP)");
 
     for (int midiNote = 0; midiNote < 128; ++midiNote)
     {
@@ -1009,4 +1026,9 @@ void TuningEngine::rebuildFrequencyTable()
         }
         frequencyTable[static_cast<size_t>(midiNote)].store(freq, std::memory_order_relaxed);
     }
+
+    // Log a sample of frequencies for verification (middle C octave)
+    DBG("  Sample frequencies: C4(60)=" + juce::String(frequencyTable[60].load(), 2) +
+        " C#4(61)=" + juce::String(frequencyTable[61].load(), 2) +
+        " D4(62)=" + juce::String(frequencyTable[62].load(), 2));
 }
