@@ -19,6 +19,12 @@ class CrossoverFilter {
 public:
     enum class Mode { LowLatency, HighFidelity };
 
+    // FIR coefficient bank constants (Approach 3: Deferred Update)
+    static constexpr float kMinFreq = 40.0f;
+    static constexpr float kMaxFreq = 200.0f;
+    static constexpr float kFreqStep = 5.0f;
+    static constexpr int kNumPrecomputedFilters = 33;  // (200-40)/5 + 1
+
     CrossoverFilter();
     ~CrossoverFilter() = default;
 
@@ -51,17 +57,23 @@ private:
     juce::dsp::LinkwitzRileyFilter<float> iirLowpass;
     juce::dsp::LinkwitzRileyFilter<float> iirHighpass;
 
-    // FIR mode (linear-phase)
+    // FIR mode (linear-phase) - single Convolution, loaded at prepare() time
     juce::dsp::Convolution firLowpass;
     int firTapCount = 0;
 
-    // Smooth frequency changes (avoid clicks)
+    // Pre-computed FIR coefficient bank (allocated once in prepare)
+    std::vector<std::vector<float>> firCoefficientBank;
+    int currentFirIndex { 8 };   // Currently loaded index (80Hz default)
+    int pendingFirIndex { 8 };   // Desired index for next prepare/mode-switch
+
+    // Smooth frequency changes for IIR mode (avoid clicks)
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> smoothedCutoff;
-    bool needsFilterUpdate = false;
 
     // Internal helpers
     void updateIIRFilters();
-    void generateFIRCoefficients();
+    void precomputeFIRBank();
+    int frequencyToIndex(float freqHz) const;
+    void loadFilterAtIndex(int index);
     std::vector<float> generateWindowedSincLowpass(float cutoffHz, int numTaps);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CrossoverFilter)
