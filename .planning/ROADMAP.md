@@ -31,13 +31,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Bass frequencies below crossover are summed to mono before processing
   4. Plugin reports accurate latency to host (under 5ms at 44.1kHz)
   5. No allocations occur in processBlock (pre-allocated buffers only)
-**Plans**: 4 plans in 3 waves
+**Plans**: 5 plans in 4 waves
 
 Plans:
-- [ ] 01-01-PLAN.md — Plugin scaffold with APVTS and pass-through
-- [ ] 01-02-PLAN.md — Dual-mode crossover filter (IIR + FIR)
-- [ ] 01-03-PLAN.md — Mono summing and stereo expansion
-- [ ] 01-04-PLAN.md — Signal path integration and latency reporting
+- [x] 01-01-PLAN.md — Plugin scaffold with APVTS and pass-through
+- [x] 01-02-PLAN.md — Dual-mode crossover filter (IIR + FIR)
+- [x] 01-03-PLAN.md — Mono summing and stereo expansion
+- [x] 01-04-PLAN.md — Signal path integration and latency reporting
+- [ ] 01-05-PLAN.md — Gap closure: RT-safe FIR coefficient bank (eliminates allocations in processBlock)
 
 ### Phase 2: Clean Mode
 **Goal**: Implement psychoacoustic harmonic generation that creates perceived bass on limited playback systems
@@ -120,7 +121,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Core DSP Foundation | 0/4 | Planned | - |
+| 1. Core DSP Foundation | 4/5 | Gap closure | - |
 | 2. Clean Mode | 0/? | Not started | - |
 | 3. Colored Mode | 0/? | Not started | - |
 | 4. Controls & Refinement | 0/? | Not started | - |
