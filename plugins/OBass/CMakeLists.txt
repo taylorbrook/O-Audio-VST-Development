@@ -15,6 +15,7 @@ target_sources(OBass
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/DSP/CrossoverFilter.cpp
         Source/DSP/MonoSummer.cpp
 )
 
@@ -22,6 +23,7 @@ target_sources(OBass
 target_include_directories(OBass
     PRIVATE
         Source
+        Source/DSP
 )
 
 # Required JUCE modules
