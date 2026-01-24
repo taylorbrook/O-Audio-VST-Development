@@ -68,10 +68,11 @@ Plans:
   2. Mode switch toggles between Clean and Colored processing paths
   3. Enhancement intensity behaves consistently across both modes
   4. No clicks or artifacts when switching modes during playback
-**Plans**: TBD
+**Plans**: 2 plans in 2 waves
 
 Plans:
-- [ ] 03-01: TBD
+- [ ] 03-01-PLAN.md — ColoredModeProcessor with asymmetric tanh saturation
+- [ ] 03-02-PLAN.md — Plugin integration with mode switching and crossfade
 
 ### Phase 4: Controls & Refinement
 **Goal**: All 4 parameters function with musical behavior and auto-limiting to prevent over-processing
@@ -127,7 +128,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 |-------|----------------|--------|-----------|
 | 1. Core DSP Foundation | 6/6 | ✓ Complete | 2026-01-23 |
 | 2. Clean Mode | 0/4 | Planned | - |
-| 3. Colored Mode | 0/? | Not started | - |
+| 3. Colored Mode | 0/2 | Planned | - |
 | 4. Controls & Refinement | 0/? | Not started | - |
 | 5. WebView UI | 0/? | Not started | - |
 | 6. Formats & Integration | 0/? | Not started | - |
