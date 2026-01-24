@@ -2987,10 +2987,17 @@
             // Update module state
             currentTuningMode = mode;
 
-            // Reset to 12-TET intervals for non-custom modes
-            if (mode !== 1) {
+            // v1.13.3: For 12-TET mode, reset UI intervals and sync to backend
+            // For Custom mode, load intervals FROM backend (don't overwrite with stale UI data)
+            if (mode === 0) {
+                // Switching to 12-TET: set standard intervals
                 currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+                applyIntervalsToBackend(currentIntervals, '12-TET Standard');
+            } else if (mode === 1) {
+                // Switching to Custom: load current backend intervals (preserve Scala files)
+                await loadIntervalsFromBackend();
             }
+            // Mode 2 (MTS-ESP): no interval changes needed
 
             // Update interval list and visualization
             await updateIntervalListUI();
@@ -3003,15 +3010,6 @@
                 } catch (e) {
                     console.error('[Tuning] Failed to sync mode with JUCE:', e);
                 }
-            }
-
-            // v1.11.1: Send intervals to backend for both 12-TET and Custom modes
-            // This ensures C++ scaleIntervals is initialized when switching to Custom
-            if (mode === 0) {
-                applyIntervalsToBackend(currentIntervals, '12-TET Standard');
-            } else if (mode === 1) {
-                // When switching to Custom, send current intervals to initialize C++ state
-                applyIntervalsToBackend(currentIntervals, 'Custom');
             }
         };
 

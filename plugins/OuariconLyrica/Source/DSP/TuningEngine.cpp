@@ -758,17 +758,20 @@ void TuningEngine::resetKeyboardMapping()
 {
     std::lock_guard<std::mutex> lock(intervalMutex);
 
-    kbmMapSize = 12;
+    // v1.13.0: Use current scale size instead of hardcoded 12
+    int mapSize = (scaleDegrees > 0) ? scaleDegrees : 12;
+
+    kbmMapSize = mapSize;
     kbmFirstNote = 0;
     kbmLastNote = 127;
     kbmMiddleNote = 60;
     kbmReferenceNote = 69;
-    kbmOctaveDegree = 12;
+    kbmOctaveDegree = mapSize;
 
-    // Default linear 12-note mapping
+    // Default linear mapping for current scale size
     kbmMapping.clear();
-    kbmMapping.reserve(12);
-    for (int i = 0; i < 12; ++i)
+    kbmMapping.reserve(static_cast<size_t>(mapSize));
+    for (int i = 0; i < mapSize; ++i)
         kbmMapping.push_back(i);
 
     kbmLoaded = false;
@@ -868,10 +871,7 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
 
     // Get the number of scale degrees (excluding the period)
     int scaleSize = static_cast<int>(activeIntervals.size()) - 1;
-
-    // Determine octave degree for period calculations
-    int octaveDegree = kbmLoaded ? kbmOctaveDegree : scaleSize;
-    if (octaveDegree <= 0) octaveDegree = scaleSize;
+    if (scaleSize <= 0) scaleSize = 12;  // Safety
 
     // Calculate scale degree from MIDI note using keyboard mapping
     int scaleDegree;
@@ -915,47 +915,21 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
             scaleDegree = positionInPattern % scaleSize;
         }
 
-        // Total scale degree including octave transposition
         octaveNumber = patternOctave;
-    }
-    else
-    {
-        // v1.12.0: Simple linear mapping (no KBM file)
-        // Since intervals are pre-rotated, we map MIDI notes directly relative to tonic
-        // MIDI note = tonic becomes scale degree 0
-        int adjustedNote = midiNote - tonic;
 
-        octaveNumber = adjustedNote >= 0 ? adjustedNote / scaleSize : (adjustedNote - scaleSize + 1) / scaleSize;
-        scaleDegree = adjustedNote - (octaveNumber * scaleSize);
+        // Ensure scaleDegree is in valid range
+        scaleDegree = juce::jlimit(0, scaleSize, scaleDegree);
 
-        // Handle negative
-        if (scaleDegree < 0)
-        {
-            scaleDegree += scaleSize;
-            octaveNumber--;
-        }
-    }
+        // Get cents offset from active intervals
+        double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
 
-    // Ensure scaleDegree is in valid range
-    scaleDegree = juce::jlimit(0, scaleSize, scaleDegree);
+        // Add octave transposition
+        centsOffset += octaveNumber * period;
 
-    // v1.12.0: Get cents offset from rotated/active intervals
-    double centsOffset = activeIntervals[static_cast<size_t>(scaleDegree)];
+        // KBM mode: Calculate relative to KBM reference note/frequency
+        double refFreq = a4Frequency;
+        int refNote = kbmReferenceNote;
 
-    // Add octave transposition
-    centsOffset += octaveNumber * period;
-
-    // Calculate reference frequency
-    // KBM: referenceNote at referenceFrequency
-    // Default: MIDI 69 (A4) at a4Frequency
-    double refFreq = a4Frequency;
-    int refNote = kbmLoaded ? kbmReferenceNote : 69;
-
-    // Calculate the cents offset of the reference note in our scale
-    double refCentsFromC0;
-    if (kbmLoaded && !kbmMapping.empty())
-    {
-        int mapSize = kbmMapSize > 0 ? kbmMapSize : static_cast<int>(kbmMapping.size());
         int refOffset = refNote - kbmMiddleNote;
         int refPatternOctave = refOffset >= 0 ? refOffset / mapSize : (refOffset - mapSize + 1) / mapSize;
         int refPosInPattern = refOffset - (refPatternOctave * mapSize);
@@ -971,35 +945,88 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
             if (mapped >= 0) refDegree = mapped;
         }
         refDegree = juce::jlimit(0, scaleSize, refDegree);
-        refCentsFromC0 = activeIntervals[static_cast<size_t>(refDegree)] + refPatternOctave * period;
+        double refCentsFromC0 = activeIntervals[static_cast<size_t>(refDegree)] + refPatternOctave * period;
+
+        double centsFromRef = centsOffset - refCentsFromC0;
+        double stretchedCents = centsFromRef * static_cast<double>(octaveStretch);
+
+        return refFreq * std::pow(2.0, stretchedCents / 1200.0);
     }
     else
     {
-        // v1.12.0: Calculate reference note position using rotated intervals
-        // Reference note position relative to tonic
-        int refAdjusted = refNote - tonic;
-        int refOctaveNum = refAdjusted >= 0 ? refAdjusted / scaleSize : (refAdjusted - scaleSize + 1) / scaleSize;
-        int refScaleDegree = refAdjusted - (refOctaveNum * scaleSize);
-        if (refScaleDegree < 0)
+        // ═══════════════════════════════════════════════════════════════════
+        // v1.13.0 FIX: Linear Mapping for All Scale Sizes
+        // ═══════════════════════════════════════════════════════════════════
+        //
+        // Linear mapping: each MIDI key plays the next scale degree.
+        // Works for ANY scale size (7, 12, 19, 31, etc.)
+        //
+        // Anchor point: MIDI 60 (middle C) + tonic offset
+        //   - Tonic=C (0): MIDI 60 = degree 0
+        //   - Tonic=D (2): MIDI 62 = degree 0
+        //
+        // The scale wraps at scaleSize keys, using the scale's period
+        // (typically 1200¢ for octave-repeating scales, 1902¢ for tritave).
+        //
+        // Example with 19-note scale, tonic=C:
+        //   MIDI 60 = degree 0 (anchor frequency = C4 = 261.63 Hz)
+        //   MIDI 61 = degree 1
+        //   ...
+        //   MIDI 78 = degree 18
+        //   MIDI 79 = degree 0, next scale octave (2× anchor freq if period=1200¢)
+        //
+        // Formula:
+        //   anchorNote = 60 + tonic
+        //   scaleDegree = (midiNote - anchorNote) mod scaleSize
+        //   scaleOctave = floor((midiNote - anchorNote) / scaleSize)
+        //   freq = 12-TET(anchorNote) × 2^((scaleOctave × period + intervals[scaleDegree]) / 1200)
+        // ═══════════════════════════════════════════════════════════════════
+
+        // Linear mapping anchor point: MIDI 60 (middle C) + tonic offset
+        // When tonic = 0 (C), MIDI 60 = degree 0
+        // When tonic = 2 (D), MIDI 62 = degree 0
+        const int anchorNote = 60 + tonic;
+
+        // Calculate position relative to anchor
+        int noteRelativeToAnchor = midiNote - anchorNote;
+
+        // Calculate scale octave and degree using linear mapping
+        // This works for any scale size (7, 12, 19, 31, etc.)
+        int scaleOctave;
+        if (noteRelativeToAnchor >= 0)
         {
-            refScaleDegree += scaleSize;
-            refOctaveNum--;
+            scaleOctave = noteRelativeToAnchor / scaleSize;
+            scaleDegree = noteRelativeToAnchor % scaleSize;
         }
-        refScaleDegree = juce::jlimit(0, scaleSize, refScaleDegree);
-        refCentsFromC0 = activeIntervals[static_cast<size_t>(refScaleDegree)] + refOctaveNum * period;
+        else
+        {
+            // Handle negative positions (notes below anchor)
+            scaleOctave = (noteRelativeToAnchor - scaleSize + 1) / scaleSize;
+            scaleDegree = noteRelativeToAnchor - (scaleOctave * scaleSize);
+        }
+
+        scaleDegree = juce::jlimit(0, scaleSize - 1, scaleDegree);
+
+        // Get interval for this scale degree from ORIGINAL intervals
+        // (tonic transposition is handled by anchor shift, not interval rotation)
+        double intervalCents = scaleIntervals[static_cast<size_t>(scaleDegree)];
+
+        // Get the scale's period (last value in intervals array)
+        // Typically 1200¢ for octave, 1902¢ for tritave (Bohlen-Pierce)
+        double scalePeriod = scaleIntervals.back();
+
+        // Calculate frequency:
+        // 1. Start with 12-TET frequency of anchor note
+        // 2. Add scale octaves (each octave = period cents)
+        // 3. Add scale degree interval
+        double anchorFreq = calculate12TETFrequency(anchorNote);
+        double totalCents = (scaleOctave * scalePeriod) + intervalCents;
+
+        // Apply octave stretch if enabled
+        double stretchedCents = totalCents * static_cast<double>(octaveStretch);
+
+        return anchorFreq * std::pow(2.0, stretchedCents / 1200.0);
     }
-
-    // Current note's cents from tonic origin
-    double noteCentsFromTonic = centsOffset;
-
-    // Calculate frequency relative to reference
-    double centsFromRef = noteCentsFromTonic - refCentsFromC0;
-
-    // v1.9.0: Apply octave stretch
-    // For custom tunings, stretch the cents offset from reference
-    double stretchedCents = centsFromRef * static_cast<double>(octaveStretch);
-
-    return refFreq * std::pow(2.0, stretchedCents / 1200.0);
 }
 
 double TuningEngine::applyPitchBend(double baseFreq, float bendAmount) const

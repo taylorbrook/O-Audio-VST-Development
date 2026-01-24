@@ -169,6 +169,9 @@ private:
     // v1.7.9: MIDI event queue for UI visualization (note flash on tuning circle)
     MidiEventQueue midiEventQueue;
 
+    // v1.13.3: Flag to prevent processBlock from syncing mode during state restoration
+    std::atomic<bool> isRestoringState { false };
+
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 

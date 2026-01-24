@@ -294,6 +294,11 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                             if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
                                 param->setValueNotifyingHost(1.0f / 2.0f); // Index 1 = Custom/Scala (normalized: 1/2 = 0.5)
 
+                            // v1.13.3: Also update temperamentPreset to Custom (10) for state persistence
+                            // Without this, temperamentPreset stays at old value and may cause issues on reload
+                            if (auto* presetParam = processorRef.getAPVTS().getParameter("temperamentPreset"))
+                                presetParam->setValueNotifyingHost(10.0f / 10.0f); // Index 10 = Custom (normalized: 10/10 = 1.0)
+
                             complete(juce::var(processorRef.getTuningEngine()->getActiveTuningName()));
                         }
                         else
@@ -605,8 +610,20 @@ void OuariconLyricaAudioProcessorEditor::resized()
 
 // v1.7.9: Timer callback - poll MIDI events and notify WebView for tuning circle visualization
 // v1.10.0: Also send held notes data for True Keys visualization
+// v1.13.1: Also sync tonic from processor to ensure persistence works
 void OuariconLyricaAudioProcessorEditor::timerCallback()
 {
+    // v1.13.1: Sync tonic from processor to WebView (handles state restoration timing)
+    static int lastSyncedTonic = -1;
+    int currentTonic = processorRef.getTuningEngine()->getTonicNote();
+    if (currentTonic != lastSyncedTonic)
+    {
+        lastSyncedTonic = currentTonic;
+        juce::String js = "if (typeof window.syncTonicFromProcessor === 'function') window.syncTonicFromProcessor("
+            + juce::String(currentTonic) + ");";
+        webView->evaluateJavascript(js, nullptr);
+    }
+
     // Process MIDI events for pitch circle visualization
     MidiNoteEvent event;
     while (processorRef.popMidiEvent(event))
