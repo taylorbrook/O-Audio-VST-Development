@@ -73,26 +73,11 @@ void MonoSummer::expandToStereo(const juce::AudioBuffer<float>& monoInput,
     float* left = stereoOutput.getWritePointer(0);
     float* right = stereoOutput.getWritePointer(1);
 
-    if (stereoMode == StereoMode::Mono || !balanceCaptured)
+    // Simple mono to stereo - same signal to both channels
+    // Avoids balance-matching complexity that could cause artifacts
+    for (int i = 0; i < numSamples; ++i)
     {
-        // Mono mode: same signal to both channels
-        for (int i = 0; i < numSamples; ++i)
-        {
-            left[i] = mono[i];
-            right[i] = mono[i];
-        }
-    }
-    else
-    {
-        // MatchOriginal mode: restore captured balance
-        for (int i = 0; i < numSamples; ++i)
-        {
-            float balance = balanceRatios[static_cast<size_t>(i)];
-            // balance is L/(L+R), so:
-            // L gets balance * 2 * mono (scaled to preserve energy)
-            // R gets (1-balance) * 2 * mono
-            left[i] = mono[i] * balance * 2.0f;
-            right[i] = mono[i] * (1.0f - balance) * 2.0f;
-        }
+        left[i] = mono[i];
+        right[i] = mono[i];
     }
 }

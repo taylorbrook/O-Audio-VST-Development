@@ -75,10 +75,13 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
 
-    // Pre-allocate intermediate buffers
+    // Pre-allocate intermediate buffers and clear them
     lowBandBuffer.setSize(2, samplesPerBlock);
     highBandBuffer.setSize(2, samplesPerBlock);
     monoBuffer.setSize(1, samplesPerBlock);
+    lowBandBuffer.clear();
+    highBandBuffer.clear();
+    monoBuffer.clear();
 
     // Prepare DSP components
     crossover.prepare(spec);
@@ -102,6 +105,11 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
                                                : CleanModeProcessor::Mode::HighFidelity;
     cleanModeProcessor.setMode(cleanMode);
 
+    // Initialize smoothed enhance (20ms ramp time for click-free transitions)
+    smoothedEnhance.reset(sampleRate, 0.020);
+    auto* enhanceParam = parameters.getRawParameterValue("enhance");
+    smoothedEnhance.setCurrentAndTargetValue(enhanceParam->load() / 100.0f);
+
     // Report combined latency to host
     updateLatencyReport();
 }
@@ -118,80 +126,57 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
+
     // Clear unused output channels
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
-        buffer.clear(i, 0, buffer.getNumSamples());
+        buffer.clear(i, 0, numSamples);
 
-    // Read parameters (atomic, real-time safe)
+    // Read parameters
     auto* bypassParam = parameters.getRawParameterValue("bypass");
-    auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");
-    auto* modeParam = parameters.getRawParameterValue("latency_mode");
     auto* enhanceParam = parameters.getRawParameterValue("enhance");
 
     bool bypassed = bypassParam->load() > 0.5f;
-    float enhanceAmount = enhanceParam->load() / 100.0f;  // Convert from % to 0-1
+    float targetEnhance = bypassed ? 0.0f : enhanceParam->load() / 100.0f;
 
-    // TRUE BYPASS: signal passes through unmodified
-    if (bypassed)
-        return;
+    // Smooth the enhance value to avoid clicks on bypass toggle
+    smoothedEnhance.setTargetValue(targetEnhance);
 
-    // Update crossover frequency (SmoothedValue handles interpolation)
-    crossover.setCutoffFrequency(crossoverParam->load());
-
-    // Check for mode change (update latency if changed)
-    auto currentMode = modeParam->load() < 0.5f ? CrossoverFilter::Mode::LowLatency
-                                                 : CrossoverFilter::Mode::HighFidelity;
-    if (currentMode != crossover.getMode())
-    {
-        crossover.setMode(currentMode);
-        updateLatencyReport();
-    }
-
-    // Update Clean Mode processor settings
-    cleanModeProcessor.setEnhanceAmount(enhanceAmount);
-
-    // Mode sync (if latency mode changed, sync Clean Mode)
-    auto cleanMode = currentMode == CrossoverFilter::Mode::LowLatency
-        ? CleanModeProcessor::Mode::LowLatency
-        : CleanModeProcessor::Mode::HighFidelity;
-    if (cleanMode != cleanModeProcessor.getMode())
-    {
-        cleanModeProcessor.setMode(cleanMode);
-        updateLatencyReport();
-    }
-
-    // Resize intermediate buffers if needed (should be pre-allocated, but defensive)
-    const int numSamples = buffer.getNumSamples();
+    // Resize buffers if needed
     if (lowBandBuffer.getNumSamples() < numSamples)
     {
-        // This should NOT happen if prepareToPlay was called correctly
-        jassertfalse;
         lowBandBuffer.setSize(2, numSamples, false, false, true);
         highBandBuffer.setSize(2, numSamples, false, false, true);
+    }
+    if (monoBuffer.getNumSamples() < numSamples)
+    {
         monoBuffer.setSize(1, numSamples, false, false, true);
+        monoBuffer.clear();
     }
 
-    // === SIGNAL PATH ===
+    // Update crossover frequency from parameter
+    auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");
+    crossover.setCutoffFrequency(crossoverParam->load());
 
-    // 1. Split into low and high bands
+    // Split into low and high bands
     crossover.process(buffer, lowBandBuffer, highBandBuffer);
 
-    // 2. Calculate high band energy for spectral-aware blending
-    float highBandEnergy = calculateHighBandEnergy(highBandBuffer);
-    cleanModeProcessor.setHighBandEnergy(highBandEnergy);
-
-    // 3. Sum low band to mono
+    // Sum low band to mono for harmonic processing
     monoSummer.captureBalance(lowBandBuffer);
     monoSummer.sumToMono(lowBandBuffer, monoBuffer);
 
-    // 4. Apply Clean Mode harmonic enhancement
-    if (enhanceAmount > 0.001f)  // Skip processing if enhance is off
-        cleanModeProcessor.process(monoBuffer);
+    // Get smoothed enhance value
+    float smoothedEnhanceValue = smoothedEnhance.skip(numSamples);
 
-    // 5. Expand mono back to stereo
+    // Apply harmonic enhancement to bass
+    cleanModeProcessor.setEnhanceAmount(smoothedEnhanceValue);
+    cleanModeProcessor.process(monoBuffer);
+
+    // Expand back to stereo
     monoSummer.expandToStereo(monoBuffer, lowBandBuffer);
 
-    // 6. Recombine bands into output
+    // Recombine low + high bands
     recombineBands(buffer, lowBandBuffer, highBandBuffer);
 }
 
@@ -248,6 +233,10 @@ void OBassAudioProcessor::updateLatencyReport()
 {
     int latencySamples = crossover.getLatencyInSamples()
                        + cleanModeProcessor.getLatencyInSamples();
+
+    // Safety: cap latency to reasonable maximum (500ms at 48kHz = 24000 samples)
+    latencySamples = juce::jmin(latencySamples, 24000);
+
     setLatencySamples(latencySamples);
     lastReportedMode = crossover.getMode();
 }
@@ -260,10 +249,14 @@ void OBassAudioProcessor::setLatencyMode(CrossoverFilter::Mode mode)
 
 float OBassAudioProcessor::calculateHighBandEnergy(const juce::AudioBuffer<float>& highBand)
 {
-    float sum = 0.0f;
     const int numSamples = highBand.getNumSamples();
     const int numChannels = highBand.getNumChannels();
 
+    // Safety: avoid division by zero
+    if (numSamples == 0 || numChannels == 0)
+        return 0.0f;
+
+    float sum = 0.0f;
     for (int ch = 0; ch < numChannels; ++ch)
     {
         const float* data = highBand.getReadPointer(ch);
@@ -272,7 +265,7 @@ float OBassAudioProcessor::calculateHighBandEnergy(const juce::AudioBuffer<float
     }
 
     // Normalize and convert to 0-1 range (assume typical energy level)
-    return juce::jmin(1.0f, std::sqrt(sum / (numSamples * numChannels)) * 5.0f);
+    return juce::jmin(1.0f, std::sqrt(sum / static_cast<float>(numSamples * numChannels)) * 5.0f);
 }
 
 // Factory function - creates plugin instance

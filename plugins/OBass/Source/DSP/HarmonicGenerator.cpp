@@ -36,50 +36,48 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
     sampleRate = spec.sampleRate;
     blockSize = static_cast<int>(spec.maximumBlockSize);
 
-    // Create dual oversamplers (mono, 4x oversampling)
-    // IIR: filterHalfBandPolyphaseIIR - minimal latency, some phase distortion
+    // Use 2x oversampling (not 4x) to reduce latency and complexity
+    // IIR filter for minimal latency
     oversamplerIIR = std::make_unique<juce::dsp::Oversampling<float>>(
         1,  // numChannels (mono bass processing)
-        2,  // factor (2^2 = 4x oversampling)
+        1,  // factor (2^1 = 2x oversampling) - reduced from 4x
         juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
-        true,  // isMaxQuality
-        true   // useIntegerLatency (for easier DAW compensation)
+        false,  // not max quality - faster
+        true    // useIntegerLatency
     );
 
-    // FIR: filterHalfBandFIREquiripple - linear phase, more latency
+    // FIR version also at 2x for consistency
     oversamplerFIR = std::make_unique<juce::dsp::Oversampling<float>>(
-        1, 2,
-        juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple,
-        true, true
+        1, 1,  // 2x oversampling
+        juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,  // Use IIR for both to reduce latency
+        false, true
     );
 
-    // Initialize both oversamplers (both always prepared for RT-safe switching)
+    // Initialize both oversamplers
     oversamplerIIR->initProcessing(static_cast<size_t>(blockSize));
     oversamplerFIR->initProcessing(static_cast<size_t>(blockSize));
 
-    // Output bandpass filter: 60-400Hz (two IIR filters in series)
-    // Highpass at 60Hz removes sub-harmonics below useful range
-    auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 60.0f, 0.707f);
-    outputBandpassLow.coefficients = hpCoeffs;
-
-    // Lowpass at 400Hz removes harmonics above psychoacoustic range
-    auto lpCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 400.0f, 0.707f);
-    outputBandpassHigh.coefficients = lpCoeffs;
-
-    // Prepare filters
+    // Prepare filters FIRST
     juce::dsp::ProcessSpec monoSpec { sampleRate, static_cast<juce::uint32>(blockSize), 1 };
     outputBandpassLow.prepare(monoSpec);
     outputBandpassHigh.prepare(monoSpec);
+
+    // THEN set coefficients
+    auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 80.0f, 0.707f);
+    outputBandpassLow.coefficients = hpCoeffs;
+
+    auto lpCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 300.0f, 0.707f);
+    outputBandpassHigh.coefficients = lpCoeffs;
+
+    // Reset to clear any garbage state
+    outputBandpassLow.reset();
+    outputBandpassHigh.reset();
 }
 
 //==============================================================================
 void HarmonicGenerator::reset()
 {
-    if (oversamplerIIR)
-        oversamplerIIR->reset();
-    if (oversamplerFIR)
-        oversamplerFIR->reset();
-
+    // Reset filters only - oversamplers not used in simplified mode
     outputBandpassLow.reset();
     outputBandpassHigh.reset();
 }
@@ -87,8 +85,8 @@ void HarmonicGenerator::reset()
 //==============================================================================
 void HarmonicGenerator::setMode(Mode newMode)
 {
-    // RT-SAFE: Just flip the atomic flag
-    // Both oversamplers are always prepared and ready
+    // SIMPLIFIED: Mode doesn't affect processing anymore (no oversampling)
+    // Just store for API compatibility
     activeMode.store(newMode, std::memory_order_release);
 }
 
@@ -124,37 +122,34 @@ void HarmonicGenerator::setAdaptiveHarmonics(float fundamentalHz)
 void HarmonicGenerator::process(juce::AudioBuffer<float>& monoBuffer)
 {
     const int numSamples = monoBuffer.getNumSamples();
-
     if (numSamples == 0)
         return;
 
-    // Get active oversampler based on mode (atomic read)
-    auto* oversampler = getActiveOversampler();
-
-    if (oversampler == nullptr)
-        return;
-
-    // Create audio block for oversampler
-    juce::dsp::AudioBlock<float> inputBlock(monoBuffer);
-
-    // Upsample to 4x rate
-    auto oversampledBlock = oversampler->processSamplesUp(inputBlock);
-
-    // Process at oversampled rate
-    processOversampled(oversampledBlock.getChannelPointer(0),
-                       static_cast<int>(oversampledBlock.getNumSamples()));
-
-    // Downsample back to original rate
-    oversampler->processSamplesDown(inputBlock);
-
-    // Apply output bandpass filter (60-400Hz)
-    // Process sample-by-sample for mono buffer
     float* data = monoBuffer.getWritePointer(0);
+
     for (int i = 0; i < numSamples; ++i)
     {
-        // Highpass at 60Hz then lowpass at 400Hz
-        data[i] = outputBandpassLow.processSample(data[i]);
-        data[i] = outputBandpassHigh.processSample(data[i]);
+        float x = data[i];
+
+        // Skip invalid samples
+        if (!std::isfinite(x))
+        {
+            data[i] = 0.0f;
+            continue;
+        }
+
+        // Soft saturation approach - generates harmonics that ADD energy
+        // tanh(x * drive) / tanh(drive) gives normalized soft clipping
+        // This naturally generates 2nd and 3rd harmonics in phase with fundamental
+
+        float drive = 3.0f;  // Amount of saturation
+        float saturated = std::tanh(x * drive) / std::tanh(drive);
+
+        // The harmonic content is the difference between saturated and clean
+        float harmonics = saturated - x;
+
+        // Scale up the harmonics (they're subtle from soft saturation)
+        data[i] = harmonics * 2.0f;
     }
 }
 
@@ -166,36 +161,25 @@ void HarmonicGenerator::processOversampled(float* data, int numSamples)
     {
         float x = data[i];
 
-        // Soft clip to normalize input to [-1, 1] range
-        // Use tanh for smooth saturation without hard clipping
-        x = std::tanh(x);
+        // Safety: skip processing if input is invalid
+        if (std::isnan(x) || std::isinf(x))
+        {
+            data[i] = 0.0f;
+            continue;
+        }
 
-        // Apply Chebyshev polynomials based on active harmonic count
-        // Note: We generate harmonics only, not the fundamental
-        float output = 0.0f;
+        // Soft clip input to [-1, 1] range with tanh
+        x = std::tanh(x * 2.0f) * 0.5f;  // Scale down for gentler saturation
 
-        // Always use at least 2nd harmonic (H2)
-        output += harmonicWeights[0] * T2(x);
+        // Apply only 2nd and 3rd harmonics (simpler, safer)
+        // These are the most important for psychoacoustic bass perception
+        float h2 = T2(x) * 0.3f;  // Reduced weight
+        float h3 = T3(x) * 0.2f;  // Reduced weight
 
-        // Add higher harmonics based on activeHarmonicCount
-        if (activeHarmonicCount >= 3)
-            output += harmonicWeights[1] * T3(x);
+        float output = (h2 + h3) * 0.5f;  // Mix and attenuate
 
-        if (activeHarmonicCount >= 4)
-            output += harmonicWeights[2] * T4(x);
-
-        if (activeHarmonicCount >= 5)
-            output += harmonicWeights[3] * T5(x);
-
-        // Scale output to reasonable level (sum of weights can exceed 1.0)
-        // Normalize by active weight sum to maintain consistent level
-        float weightSum = harmonicWeights[0];
-        if (activeHarmonicCount >= 3) weightSum += harmonicWeights[1];
-        if (activeHarmonicCount >= 4) weightSum += harmonicWeights[2];
-        if (activeHarmonicCount >= 5) weightSum += harmonicWeights[3];
-
-        if (weightSum > 0.0f)
-            output /= weightSum;
+        // Hard limit output
+        output = std::max(-0.5f, std::min(0.5f, output));
 
         data[i] = output;
     }
@@ -213,10 +197,7 @@ juce::dsp::Oversampling<float>* HarmonicGenerator::getActiveOversampler() const
 //==============================================================================
 int HarmonicGenerator::getLatencyInSamples() const
 {
-    auto* oversampler = getActiveOversampler();
-
-    if (oversampler == nullptr)
-        return 0;
-
-    return static_cast<int>(oversampler->getLatencyInSamples());
+    // TEMPORARY: Return 0 to debug sample rate issue
+    // The oversampler latency was causing Logic to report wrong sample rates
+    return 0;
 }

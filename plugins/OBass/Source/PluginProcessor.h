@@ -70,6 +70,9 @@ private:
     // State tracking
     CrossoverFilter::Mode lastReportedMode = CrossoverFilter::Mode::LowLatency;
 
+    // Smoothed enhance for click-free bypass transitions
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedEnhance;
+
     // Helper methods
     void updateLatencyReport();
     void recombineBands(juce::AudioBuffer<float>& output,

@@ -5,7 +5,7 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Minimal placeholder editor (WebView UI added in Phase 5)
+    Temporary generic editor for DSP testing (WebView UI added in Phase 5)
 
   ==============================================================================
 */
@@ -25,6 +25,9 @@ public:
 
 private:
     OBassAudioProcessor& processorRef;
+
+    // Generic editor for parameter testing (temporary until Phase 5 WebView)
+    std::unique_ptr<juce::GenericAudioProcessorEditor> genericEditor;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBassAudioProcessorEditor)
 };

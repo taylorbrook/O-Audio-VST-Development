@@ -43,7 +43,7 @@ void CleanModeProcessor::prepare(const juce::dsp::ProcessSpec& spec)
 
     // Calculate lookahead: ~2ms for transient detection in High Fidelity mode
     // At 44.1kHz: 0.002 * 44100 = ~88 samples
-    lookaheadSamples = static_cast<int>(sampleRate * 0.002);
+    lookaheadSamples = juce::jmax(1, static_cast<int>(sampleRate * 0.002));
 
     // Allocate lookahead buffer (circular buffer for delay line)
     lookaheadBuffer.setSize(1, lookaheadSamples);
@@ -96,64 +96,42 @@ void CleanModeProcessor::setHighBandEnergy(float energy)
 void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
 {
     const int numSamples = monoBuffer.getNumSamples();
-
     if (numSamples == 0)
         return;
 
-    const float* inputData = monoBuffer.getReadPointer(0);
-
-    // 1. Detect pitch for adaptive harmonics
-    float pitch = pitchTracker.detectPitch(inputData, numSamples);
-    if (pitch > 0.0f)
-        harmonicGenerator.setAdaptiveHarmonics(pitch);
-
-    // 2. Store original for dry/wet mix
+    // Store dry signal
     juce::AudioBuffer<float> dryBuffer;
     dryBuffer.makeCopyOf(monoBuffer);
 
-    // 3. Generate harmonics (with 4x oversampling inside)
-    harmonicGenerator.process(monoBuffer);
+    // For now, harmonics = 0 (HarmonicGenerator is bypassed)
+    // Just test the mixing math
+    harmonicGenerator.process(monoBuffer);  // Currently clears buffer
 
-    // 3.5. Auto-limit ceiling: prevent over-processing
-    // Clamp harmonic output to -2dB to avoid excessive enhancement
-    static constexpr float kMaxHarmonicLevel = 0.8f;  // -2dB ceiling
-    float* wetData = monoBuffer.getWritePointer(0);
-    for (int i = 0; i < numSamples; ++i)
-    {
-        wetData[i] = juce::jlimit(-kMaxHarmonicLevel, kMaxHarmonicLevel, wetData[i]);
-    }
-
-    // 4. Sample-by-sample transient ducking and blending
     const float* dry = dryBuffer.getReadPointer(0);
     float* wet = monoBuffer.getWritePointer(0);
 
+    // ADD harmonics to dry signal (not replace)
+    // enhance controls how much harmonic content is added
     for (int i = 0; i < numSamples; ++i)
     {
-        // Envelope tracking on dry signal
-        // In High Fidelity mode, use lookahead delay for envelope detection
-        float inputSample = (currentMode == Mode::HighFidelity)
-            ? processLookahead(dry[i])
-            : dry[i];
+        float harmonics = wet[i];
+        float original = dry[i];
 
-        float fastEnv = fastEnvelope.process(inputSample);
-        float slowEnv = slowEnvelope.process(inputSample);
+        // Output = dry + (harmonics * enhance)
+        float output = original + harmonics * enhanceAmount;
 
-        // Transient ducking: reduce harmonics on attacks
-        float duckGain = calculateTransientDuckGain(fastEnv, slowEnv);
-
-        // Spectral-aware blend: reduce harmonics when high band is loud
-        float spectralBlend = calculateSpectralBlend();
-
-        // Final mix: dry + (wet * duck * spectral * enhance)
-        // Use compressed enhance curve for diminishing returns at high values
-        float wetAmount = getCompressedEnhance(enhanceAmount) * duckGain * spectralBlend;
-        wet[i] = dry[i] + wet[i] * wetAmount;
+        // Soft limit to prevent clipping
+        wet[i] = std::tanh(output);
     }
 }
 
 //==============================================================================
 float CleanModeProcessor::processLookahead(float input)
 {
+    // Safety: if lookahead not configured, pass through
+    if (lookaheadSamples <= 0 || lookaheadBuffer.getNumSamples() == 0)
+        return input;
+
     // Circular buffer delay line for lookahead
     // Write current sample, read delayed sample
     float* bufferData = lookaheadBuffer.getWritePointer(0);
@@ -243,16 +221,7 @@ float CleanModeProcessor::getCompressedEnhance(float rawEnhance)
 //==============================================================================
 int CleanModeProcessor::getLatencyInSamples() const
 {
-    int harmonicLatency = harmonicGenerator.getLatencyInSamples();
-
-    if (currentMode == Mode::HighFidelity)
-    {
-        // High Fidelity mode adds lookahead latency
-        return harmonicLatency + lookaheadSamples;
-    }
-    else
-    {
-        // Low Latency mode: only harmonic generator latency
-        return harmonicLatency;
-    }
+    // TEMPORARY: Return 0 to debug sample rate issue
+    // We'll add proper latency compensation later once DSP is stable
+    return 0;
 }
