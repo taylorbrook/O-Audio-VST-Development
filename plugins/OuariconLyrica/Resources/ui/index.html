@@ -2289,17 +2289,20 @@
 
         // Map MIDI note to scale index
         // v1.11.0: Account for tonic rotation so C always flashes at C position
+        // v1.13.1: Fix non-12 scales to use linear mapping from anchor point
         function midiNoteToScaleIndex(midiNote) {
-            const noteInOctave = midiNote % 12;
             const scaleSize = currentIntervals.length;
 
             if (scaleSize === 12) {
-                // Apply tonic offset: MIDI note C with tonic=C# should map to index 11
-                // (where C is displayed), not index 0 (where C# is displayed)
+                // 12-TET: pitch class with tonic rotation
+                const noteInOctave = midiNote % 12;
                 return (noteInOctave - currentTonic + 12) % 12;
             } else {
-                // Proportional mapping for non-12-tone scales
-                return Math.round((noteInOctave / 12) * scaleSize) % scaleSize;
+                // Non-12: linear mapping from anchor point (MIDI 60 + tonic)
+                const anchorNote = 60 + currentTonic;
+                let scaleDegree = (midiNote - anchorNote) % scaleSize;
+                if (scaleDegree < 0) scaleDegree += scaleSize;
+                return scaleDegree;
             }
         }
 
@@ -2691,25 +2694,38 @@
             container.innerHTML = html;
         }
 
-        // Update interval list UI (with tonic selector for 12-tone scales)
+        // Update interval list UI (with tonic selector)
         // v1.7.3: Using inline onchange handlers instead of addEventListener
         // v1.10.0: Added deviation display (±cents from equal temperament)
-        function updateIntervalListUI() {
+        // v1.13.0: Show tonic selector for ALL scale sizes (not just 12-tone)
+        // v1.13.1: Always fetch tonic from processor to ensure sync after state restoration
+        async function updateIntervalListUI() {
+            // v1.13.1: Fetch current tonic from processor to stay in sync
+            try {
+                const fetchedTonic = await Juce.getNativeFunction('getTonicNote')();
+                if (typeof fetchedTonic === 'number' && fetchedTonic >= 0 && fetchedTonic <= 11) {
+                    currentTonic = fetchedTonic;
+                }
+            } catch (e) {
+                console.log('[Tuning] Could not fetch tonic, using cached value');
+            }
+
             const total = currentIntervals.length;
 
-            // Show tonic selector only for 12-tone scales
+            // v1.13.0: Show tonic selector for all scale sizes
+            // Tonic transposes by 12-TET semitones (shifts anchor point)
             // v1.7.3: Using inline onclick for tonic arrows
-            let tonicHtml = '';
-            if (total === 12) {
-                tonicHtml = `
-                    <div class="tonic-selector" title="Change tonic note (transposes instrument)">
-                        <span class="tonic-arrow" id="tonic-down" title="Previous note" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
-                        <span class="tonic-label">Tonic:</span>
-                        <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
-                        <span class="tonic-arrow" id="tonic-up" title="Next note" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
-                    </div>
-                `;
-            }
+            const tooltipText = total === 12
+                ? 'Change tonic note (transposes instrument)'
+                : 'Transpose by semitones (shifts scale anchor point)';
+            const tonicHtml = `
+                <div class="tonic-selector" title="${tooltipText}">
+                    <span class="tonic-arrow" id="tonic-down" title="Previous note" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
+                    <span class="tonic-label">Tonic:</span>
+                    <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
+                    <span class="tonic-arrow" id="tonic-up" title="Next note" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
+                </div>
+            `;
 
             let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
 
@@ -2772,28 +2788,30 @@
         // v1.7.3: Callbacks for global handlers (tonic arrows)
         window.onTonicDown = async () => {
             currentTonic = (currentTonic - 1 + 12) % 12;
-            const tonicDisplay = document.getElementById('tonic-display');
-            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
-            updateVisualization();
-            updateIntervalListUI();
+            // v1.13.1: Update processor FIRST, then refresh UI
             try {
                 await Juce.getNativeFunction('setTonicNote')(currentTonic);
             } catch (e) {
                 console.error('[Tuning] Failed to set tonic:', e);
             }
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updateVisualization();
+            await updateIntervalListUI();
         };
 
         window.onTonicUp = async () => {
             currentTonic = (currentTonic + 1) % 12;
-            const tonicDisplay = document.getElementById('tonic-display');
-            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
-            updateVisualization();
-            updateIntervalListUI();
+            // v1.13.1: Update processor FIRST, then refresh UI
             try {
                 await Juce.getNativeFunction('setTonicNote')(currentTonic);
             } catch (e) {
                 console.error('[Tuning] Failed to set tonic:', e);
             }
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updateVisualization();
+            await updateIntervalListUI();
         };
 
         // v1.7.3: Callback for interval input changes
@@ -2856,7 +2874,7 @@
                         // Other scales - use as-is (might need adjustment)
                         currentIntervals = intervals;
                     }
-                    updateIntervalListUI();
+                    await updateIntervalListUI();
                     updateVisualization();
                     console.log('[Tuning] Loaded', currentIntervals.length, 'intervals from backend');
                 }
@@ -2952,12 +2970,12 @@
         }
 
         if (tuningModeState && tuningModeState.valueChangedEvent) {
-            tuningModeState.valueChangedEvent.addListener(() => {
+            tuningModeState.valueChangedEvent.addListener(async () => {
                 currentTuningMode = tuningModeState.getChoiceIndex();
                 modeButtons.forEach(btn => {
                     btn.classList.toggle('active', parseInt(btn.dataset.mode) === currentTuningMode);
                 });
-                updateIntervalListUI(); // Re-render to update editable state
+                await updateIntervalListUI(); // Re-render to update editable state
                 updateFileButtonsVisibility(currentTuningMode); // v1.7.1
             });
             currentTuningMode = tuningModeState.getChoiceIndex();
@@ -2965,7 +2983,7 @@
         }
 
         // v1.7.2: Callback for global click handler - syncs with JUCE and updates UI
-        window.onTuningModeChanged = (mode) => {
+        window.onTuningModeChanged = async (mode) => {
             // Update module state
             currentTuningMode = mode;
 
@@ -2975,7 +2993,7 @@
             }
 
             // Update interval list and visualization
-            updateIntervalListUI();
+            await updateIntervalListUI();
             updateVisualization();
 
             // Sync with JUCE backend
@@ -3005,7 +3023,7 @@
             // Update UI after .scl file loaded
             await loadIntervalsFromBackend();
             if (tuningModeState) tuningModeState.setChoiceIndex(1);
-            updateIntervalListUI();
+            await updateIntervalListUI();
             updateVisualization();
         };
 
@@ -3119,7 +3137,7 @@
                 console.warn('[Tuning] Failed to get octave stretch:', e);
             }
 
-            updateIntervalListUI();
+            await updateIntervalListUI();
             updateVisualization();
         }
 
@@ -3127,8 +3145,19 @@
         window.refreshTuningState = async function() {
             await loadIntervalsFromBackend();
             await updateScaleNameDisplay();
-            updateIntervalListUI();
+            await updateIntervalListUI();
             updateVisualization();
+        };
+
+        // v1.13.1: Sync tonic from processor (called by C++ timer to handle state restoration)
+        window.syncTonicFromProcessor = function(tonic) {
+            if (typeof tonic === 'number' && tonic >= 0 && tonic <= 11 && tonic !== currentTonic) {
+                currentTonic = tonic;
+                const tonicDisplay = document.getElementById('tonic-display');
+                if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+                updateVisualization();
+                console.log('[Tuning] Synced tonic from processor:', tonic);
+            }
         };
 
         initializeTuning();

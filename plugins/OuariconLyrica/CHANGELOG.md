@@ -2,6 +2,88 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.13.2] - 2026-01-23
+
+### Fixed
+
+- **Pitch circle indicator now correctly highlights scale degrees for non-12-note scales**
+  - Previously, playing chromatically on a 19-tone scale showed degrees 0, 2, 3, 5, 7... instead of 0, 1, 2, 3, 4...
+  - Root cause: UI used proportional mapping based on 12-TET pitch classes
+  - Fix: Now uses linear mapping from anchor point (MIDI 60 + tonic), matching DSP behavior
+
+## [1.13.1] - 2026-01-23
+
+### Fixed
+
+- **Tonic selection now persists when saving/reopening DAW projects**
+  - Previously, tonic would reset to C on project reload due to a bug in the CustomState JSON serialization
+  - Workaround: Tonic is now saved directly as an XML attribute, bypassing the CustomState mechanism
+  - Also added timer-based sync from processor to WebView UI to ensure tonic display stays accurate
+
+### Technical Details
+
+- Added `directTonic` XML attribute in `getStateInformation()` / `setStateInformation()`
+- Added `syncTonicFromProcessor()` JavaScript function called from C++ timer
+- The CustomState callback still saves tonic (for preset files), but DAW state now uses the direct XML attribute
+
+## [1.13.0] - 2026-01-23
+
+### Added
+
+- **Linear mapping for non-12-note scales**
+  - Scales with any number of degrees (7, 19, 31, etc.) now play correctly
+  - Each MIDI key plays the next scale degree in sequence
+  - Anchor point: MIDI 60 (middle C) + tonic offset
+  - Scale wraps at scaleSize using the scale's period (works for octave and non-octave scales)
+
+- **Tonic selector now visible for all scale sizes**
+  - Previously hidden for non-12-note scales
+  - Tonic transposes by 12-TET semitones (shifts the anchor point)
+  - Updated tooltip clarifies behavior for non-12 scales
+
+### Fixed
+
+- **19-note (and other non-12) scales now play all degrees**
+  - Previously, playback broke at degree 15-16 due to incorrect octave calculation
+  - Root cause: Code used MIDI note 0 as reference instead of MIDI 60
+  - Fix: Anchor point is now `MIDI 60 + tonic`, with proper linear mapping
+
+### Technical Details
+
+- Rewrote `calculateCustomFrequency()` non-KBM path:
+  - `anchorNote = 60 + tonic`
+  - `scaleDegree = (midiNote - anchorNote) mod scaleSize`
+  - `scaleOctave = floor((midiNote - anchorNote) / scaleSize)`
+  - `freq = 12-TET(anchorNote) × 2^((scaleOctave × period + intervals[scaleDegree]) / 1200)`
+- Updated `resetKeyboardMapping()` to use actual scale size instead of hardcoded 12
+- KBM mode unchanged (takes priority when loaded)
+- Files modified: Source/DSP/TuningEngine.cpp, Source/DSP/TuningEngine.h, Resources/ui/index.html
+
+## [1.12.3] - 2026-01-23
+
+### Fixed
+
+- **Tonic selection now correctly affects sounding pitches**
+  - The tonic note is always at its 12-TET frequency
+  - The interval pattern stays the same but maps to different notes based on tonic
+  - Example with Werckmeister III (intervals: 0, 90, 192, 294, 390...):
+    - Tonic=C: C=0¢, C#=90¢, D=192¢, D#=294¢, E=390¢...
+    - Tonic=D: D=0¢, D#=90¢, E=192¢, F=294¢, F#=390¢...
+  - Scale degree 1 is always 90¢ above the tonic, regardless of which note is the tonic
+  - The True Keys visualization now matches what you hear
+
+### Technical Details
+
+- Root cause #1: `calculateCustomFrequency()` was calculating all frequencies relative to A4=440Hz instead of anchoring the tonic at its 12-TET frequency
+- Root cause #2: The code was using `rotatedIntervals` which mathematically rotated the interval values themselves, instead of keeping the same interval pattern
+- Fix: Rewrote non-KBM code path to:
+  1. Calculate scale degree as `(midiNote - tonic) mod scaleSize`
+  2. Use original `scaleIntervals[scaleDegree]` (not rotated)
+  3. Anchor to 12-TET frequency of the tonic in that octave
+- Formula: `freq = 12-TET(tonic_in_this_octave) * 2^(scaleIntervals[scaleDegree] / 1200)`
+- KBM mode unchanged (uses its own reference note/frequency system)
+- Files modified: Source/DSP/TuningEngine.cpp
+
 ## [1.12.2] - 2026-01-22
 
 ### Fixed
