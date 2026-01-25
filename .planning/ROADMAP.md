@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Colored Mode** - Analog saturation character with mode switching
 - [x] **Phase 4: Controls & Refinement** - All 4 controls with intensity limiting and parameter tuning
 - [x] **Phase 5: WebView UI** - Visual interface matching Ouaricon suite language
-- [ ] **Phase 6: Formats & Integration** - VST3/AU/Standalone builds and preset system
+- [ ] **Phase 6: Formats & Integration** - VST3/AU builds and preset system
 
 ## Phase Details
 
@@ -111,17 +111,18 @@ Plans:
 ### Phase 6: Formats & Integration
 **Goal**: Plugin builds in all formats with functional preset system
 **Depends on**: Phase 5
-**Requirements**: FMT-01, FMT-02, FMT-03, INT-01
+**Requirements**: FMT-01, FMT-02, INT-01
 **Success Criteria** (what must be TRUE):
   1. Plugin builds and loads as VST3 in compatible DAW (Logic, Ableton, etc.)
   2. Plugin builds and loads as AU in Logic Pro
-  3. Standalone application launches and processes audio
-  4. OuariconPresetManager loads and saves presets correctly
-  5. Factory presets demonstrate Clean and Colored modes on different source types
-**Plans**: TBD
+  3. OuariconPresetManager loads and saves presets correctly
+  4. Factory presets demonstrate Clean and Colored modes on different source types
+  5. pluginval passes at strictness 5+, auval passes validation
+**Plans**: 2 plans in 2 waves
 
 Plans:
-- [ ] 06-01: TBD
+- [ ] 06-01-PLAN.md — Preset manager integration and factory preset definitions
+- [ ] 06-02-PLAN.md — Build, validation (pluginval + auval), and human DAW verification
 
 ## Progress
 
@@ -135,7 +136,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 3. Colored Mode | 2/2 | ✓ Complete | 2026-01-25 |
 | 4. Controls & Refinement | 3/3 | ✓ Complete | 2026-01-24 |
 | 5. WebView UI | 3/3 | ✓ Complete | 2026-01-25 |
-| 6. Formats & Integration | 0/? | Not started | - |
+| 6. Formats & Integration | 0/2 | In Progress | - |
 
 ---
 *Roadmap created: 2026-01-22*
