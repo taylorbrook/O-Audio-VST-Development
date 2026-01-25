@@ -6,7 +6,8 @@ juce_add_plugin(OuariconAnalogEQ
     PLUGIN_MANUFACTURER_CODE OuAu
     PLUGIN_CODE OuAE
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "Ouaricon Analog EQ"
+    PRODUCT_NAME "O-AnalogEQ"
+    VERSION 1.1.0
     NEEDS_WEB_BROWSER TRUE
 )
 

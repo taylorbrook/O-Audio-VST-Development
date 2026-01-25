@@ -1,4 +1,14 @@
-# OuariconAnalogEQ Changelog
+# O-AnalogEQ Changelog
+
+## [1.1.0] - 2026-01-24
+
+### Changed
+- **Renamed plugin** - Changed from "OuariconAnalogEQ" to "O-AnalogEQ"
+  - Directory: `plugins/OuariconAnalogEQ/` → `plugins/O-AnalogEQ/`
+  - DAW display name: "Ouaricon Analog EQ" → "O-AnalogEQ"
+  - Binary names: Now `O-AnalogEQ.vst3` and `O-AnalogEQ.component`
+  - Consistent with O-Tremolo and O-DigiDelay naming convention
+- Internal CMake target remains `OuariconAnalogEQ` for preset/session compatibility
 
 ## [1.0.10] - 2026-01-11
 

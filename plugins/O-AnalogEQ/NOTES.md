@@ -1,8 +1,8 @@
-# OuariconAnalogEQ Notes
+# O-AnalogEQ Notes
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.10
+- **Version:** 1.1.0
 - **Type:** Audio Effect (4-Band Parametric/Shelving EQ)
 - **Complexity Score:** 4.0 (Complex - Phase-based implementation)
 
@@ -28,6 +28,7 @@
 - **2026-01-11 (v1.0.8):** VU meter 2x size, shifted right; analog button centered between HF dial and VU meter
 - **2026-01-11 (v1.0.9):** VU meter reduced to 80% (112px); analog button moved right 20px
 - **2026-01-11 (v1.0.10):** VU meter left 40px; analog saturation retuned for warmth without gain boost
+- **2026-01-24 (v1.1.0):** Renamed plugin from OuariconAnalogEQ to O-AnalogEQ
 
 ## Known Issues
 
@@ -176,11 +177,11 @@ Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Out
 
 ### Contract Files
 
-- Creative brief: `plugins/OuariconAnalogEQ/.ideas/creative-brief.md`
-- Parameter spec: `plugins/OuariconAnalogEQ/.ideas/parameter-spec.md`
-- DSP architecture: `plugins/OuariconAnalogEQ/.ideas/architecture.md`
-- Implementation plan: `plugins/OuariconAnalogEQ/.ideas/plan.md`
-- UI mockup: `plugins/OuariconAnalogEQ/.ideas/mockups/v3-ui.yaml`
+- Creative brief: `plugins/O-AnalogEQ/.ideas/creative-brief.md`
+- Parameter spec: `plugins/O-AnalogEQ/.ideas/parameter-spec.md`
+- DSP architecture: `plugins/O-AnalogEQ/.ideas/architecture.md`
+- Implementation plan: `plugins/O-AnalogEQ/.ideas/plan.md`
+- UI mockup: `plugins/O-AnalogEQ/.ideas/mockups/v3-ui.yaml`
 
 ### Next Steps
 
@@ -192,6 +193,6 @@ Input → LF Shelf → LMF Bell → HMF Bell → HF Shelf → Saturation → Out
 
 ---
 
-**Last Updated:** 2026-01-11
-**Version:** 1.0.8
+**Last Updated:** 2026-01-24
+**Version:** 1.1.0
 **Status:** 📦 Installed

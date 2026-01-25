@@ -30,7 +30,7 @@ Ouaricon Plugins:
 | OuariconSaturationModeling | 📦 Installed | 1.0.1 | Audio Effect (Saturation) | 2026-01-14 |
 | Ouaricon Marimba | 📦 Installed | 1.9.9 | Synth (Physical Model) | 2026-01-14 |
 | OuariconComp | 📦 Installed | 1.1.1 | Audio Effect (Compressor) | 2026-01-12 |
-| OuariconAnalogEQ | 📦 Installed | 1.0.10 | Audio Effect (EQ) | 2026-01-11 |
+| O-AnalogEQ | 📦 Installed | 1.1.0 | Audio Effect (EQ) | 2026-01-24 |
 | O-DigiDelay | 📦 Installed | 1.2.1 | Audio Effect (Delay) | 2026-01-24 |
 | OuariconSimpleReverb | 📦 Installed | 1.4.1 | Audio Effect (Reverb) | 2026-01-13 |
 | OuariconPolystutter | 📦 Installed | 1.6.7 | Audio Effect (Beat Repeater) | 2026-01-21 |
