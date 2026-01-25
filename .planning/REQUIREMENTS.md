@@ -75,12 +75,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DSP-04 | Phase 2 | Complete |
 | DSP-05 | Phase 1 | Complete |
 | MODE-01 | Phase 2 | Complete |
-| MODE-02 | Phase 3 | Pending |
-| MODE-03 | Phase 3 | Pending |
-| CTRL-01 | Phase 4 | Pending |
-| CTRL-02 | Phase 4 | Pending |
-| CTRL-03 | Phase 4 | Pending |
-| CTRL-04 | Phase 4 | Pending |
+| MODE-02 | Phase 3 | Complete |
+| MODE-03 | Phase 3 | Complete |
+| CTRL-01 | Phase 4 | Complete |
+| CTRL-02 | Phase 4 | Complete |
+| CTRL-03 | Phase 4 | Complete |
+| CTRL-04 | Phase 4 | Complete |
 | UI-01 | Phase 5 | Pending |
 | UI-02 | Phase 5 | Pending |
 | UI-03 | Phase 5 | Pending |
@@ -96,4 +96,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-24 after Phase 2 completion*
+*Last updated: 2026-01-24 after Phase 4 completion*

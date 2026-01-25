@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Core DSP Foundation** - Crossover, mono bass processing, parameter framework, latency management
 - [x] **Phase 2: Clean Mode** - Psychoacoustic harmonic generation with oversampling
 - [x] **Phase 3: Colored Mode** - Analog saturation character with mode switching
-- [ ] **Phase 4: Controls & Refinement** - All 4 controls with intensity limiting and parameter tuning
+- [x] **Phase 4: Controls & Refinement** - All 4 controls with intensity limiting and parameter tuning
 - [ ] **Phase 5: WebView UI** - Visual interface matching Ouaricon suite language
 - [ ] **Phase 6: Formats & Integration** - VST3/AU/Standalone builds and preset system
 
@@ -87,9 +87,9 @@ Plans:
 **Plans**: 3 plans in 2 waves
 
 Plans:
-- [ ] 04-01-PLAN.md — Intensity tuning (ColoredMode boost, frequency-dependent scaling, bandpass extension)
-- [ ] 04-02-PLAN.md — Output gain control with soft clipping
-- [ ] 04-03-PLAN.md — Limit indicator metering and human verification
+- [x] 04-01-PLAN.md — Intensity tuning (ColoredMode boost, frequency-dependent scaling, bandpass extension)
+- [x] 04-02-PLAN.md — Output gain control with soft clipping
+- [x] 04-03-PLAN.md — Limit indicator metering and human verification
 
 ### Phase 5: WebView UI
 **Goal**: Visual interface that matches Ouaricon suite and exposes all 4 controls
@@ -131,7 +131,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Core DSP Foundation | 6/6 | ✓ Complete | 2026-01-23 |
 | 2. Clean Mode | 4/4 | ✓ Complete | 2026-01-24 |
 | 3. Colored Mode | 2/2 | ✓ Complete | 2026-01-25 |
-| 4. Controls & Refinement | 0/3 | Not started | - |
+| 4. Controls & Refinement | 3/3 | ✓ Complete | 2026-01-24 |
 | 5. WebView UI | 0/? | Not started | - |
 | 6. Formats & Integration | 0/? | Not started | - |
 
