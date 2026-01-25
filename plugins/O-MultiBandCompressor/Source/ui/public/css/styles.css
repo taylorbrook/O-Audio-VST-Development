@@ -276,16 +276,99 @@ body {
     text-transform: uppercase;
 }
 
-.controls-placeholder {
-    text-align: center;
-    color: #5C4033;
-    font-size: 10px;
-    line-height: 1.4;
-    opacity: 0.6;
+/* Band Controls Grid */
+.knob-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 6px;
+    margin: 8px 0;
 }
 
-.controls-placeholder p {
-    margin: 2px 0;
+.knob-control {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+
+.knob {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #FFF8DC, #C9A27B);
+    border: 2px solid #8B7355;
+    outline: none;
+    cursor: pointer;
+    box-shadow:
+        inset 1px 1px 3px rgba(0,0,0,0.2),
+        inset -1px -1px 2px rgba(255,248,220,0.5),
+        2px 2px 4px rgba(0,0,0,0.15);
+    position: relative;
+}
+
+.knob::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0;
+    height: 0;
+}
+
+.knob::-moz-range-thumb {
+    width: 0;
+    height: 0;
+    border: none;
+    background: transparent;
+}
+
+.knob-label {
+    font-size: 8px;
+    color: #3C2F2F;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.knob-value {
+    font-size: 9px;
+    color: #5C4033;
+    font-weight: 600;
+    min-height: 11px;
+}
+
+/* Button Row */
+.button-row {
+    display: flex;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 6px;
+}
+
+.band-button {
+    width: 28px;
+    height: 20px;
+    background: rgba(255,255,255,0.4);
+    border: 2px solid #5C4033;
+    border-radius: 4px;
+    font-size: 9px;
+    color: #3C2F2F;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-transform: uppercase;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+}
+
+.band-button:hover {
+    background: rgba(255,255,255,0.6);
+}
+
+.band-button.active {
+    background: linear-gradient(135deg, #6B8E23, #556B2F);
+    color: white;
+    border-color: #3C5C1A;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.3);
 }
 
 /* Global Controls */
@@ -313,6 +396,94 @@ body {
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.5px;
+}
+
+.control-value {
+    font-size: 10px;
+    color: #5C4033;
+    font-weight: 600;
+    margin-top: 4px;
+}
+
+/* Global Knobs */
+.global-knob {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    background: radial-gradient(circle at 40% 40%, #FFF8DC, #C9A27B);
+    border: 2px solid #8B7355;
+    outline: none;
+    cursor: pointer;
+    box-shadow:
+        inset 1px 1px 3px rgba(0,0,0,0.2),
+        inset -1px -1px 2px rgba(255,248,220,0.5),
+        2px 2px 4px rgba(0,0,0,0.15);
+}
+
+.global-knob::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 0;
+    height: 0;
+}
+
+.global-knob::-moz-range-thumb {
+    width: 0;
+    height: 0;
+    border: none;
+    background: transparent;
+}
+
+/* Toggle Button */
+.toggle-button {
+    width: 60px;
+    height: 30px;
+    background: rgba(139, 168, 112, 0.3);
+    border: 2px solid #5C4033;
+    border-radius: 15px;
+    font-size: 11px;
+    color: #3C2F2F;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    box-shadow: inset 1px 1px 3px rgba(0,0,0,0.15);
+}
+
+.toggle-button:hover {
+    background: rgba(139, 168, 112, 0.4);
+}
+
+.toggle-button.active {
+    background: linear-gradient(135deg, #6B8E23, #556B2F);
+    color: white;
+    border-color: #3C5C1A;
+}
+
+/* Mode Select */
+.mode-select {
+    min-width: 70px;
+    padding: 6px 12px;
+    background: rgba(255,255,255,0.4);
+    border: 2px solid #8B7355;
+    border-radius: 4px;
+    font-size: 11px;
+    color: #3C2F2F;
+    font-weight: 600;
+    font-family: 'Garamond', 'Times New Roman', serif;
+    cursor: pointer;
+    box-shadow: inset 0 1px 2px rgba(0,0,0,0.1);
+    outline: none;
+}
+
+.mode-select:hover {
+    background: rgba(255,255,255,0.5);
+}
+
+.mode-select option {
+    background: #f5f0e6;
+    color: #3C2F2F;
 }
 
 /* Placeholder Controls (Phase 5.1 - visual only) */

@@ -58,12 +58,42 @@
                         <div class="gr-fill" id="grLow"></div>
                         <span class="gr-label">GR</span>
                     </div>
-                    <div class="controls-placeholder">
-                        <p>Phase 5.2</p>
-                        <p>Threshold, Ratio</p>
-                        <p>Attack, Release</p>
-                        <p>Makeup, Knee</p>
-                        <p>Peak/RMS</p>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <input type="range" id="low-threshold" class="knob" min="0" max="1" step="0.001" value="0.667">
+                            <label class="knob-label">Thresh</label>
+                            <span class="knob-value" id="low-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="low-ratio" class="knob" min="0" max="1" step="0.001" value="0.158">
+                            <label class="knob-label">Ratio</label>
+                            <span class="knob-value" id="low-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="low-attack" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Attack</label>
+                            <span class="knob-value" id="low-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="low-release" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Release</label>
+                            <span class="knob-value" id="low-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="low-knee" class="knob" min="0" max="1" step="0.001" value="0.25">
+                            <label class="knob-label">Knee</label>
+                            <span class="knob-value" id="low-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="low-makeup" class="knob" min="0" max="1" step="0.001" value="0.333">
+                            <label class="knob-label">Makeup</label>
+                            <span class="knob-value" id="low-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button class="band-button" id="low-solo">S</button>
+                        <button class="band-button" id="low-bypass">B</button>
+                        <button class="band-button" id="low-sc-listen">SC</button>
                     </div>
                 </div>
             </div>
@@ -79,12 +109,42 @@
                         <div class="gr-fill" id="grLomid"></div>
                         <span class="gr-label">GR</span>
                     </div>
-                    <div class="controls-placeholder">
-                        <p>Phase 5.2</p>
-                        <p>Threshold, Ratio</p>
-                        <p>Attack, Release</p>
-                        <p>Makeup, Knee</p>
-                        <p>Peak/RMS</p>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <input type="range" id="lomid-threshold" class="knob" min="0" max="1" step="0.001" value="0.667">
+                            <label class="knob-label">Thresh</label>
+                            <span class="knob-value" id="lomid-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="lomid-ratio" class="knob" min="0" max="1" step="0.001" value="0.158">
+                            <label class="knob-label">Ratio</label>
+                            <span class="knob-value" id="lomid-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="lomid-attack" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Attack</label>
+                            <span class="knob-value" id="lomid-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="lomid-release" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Release</label>
+                            <span class="knob-value" id="lomid-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="lomid-knee" class="knob" min="0" max="1" step="0.001" value="0.25">
+                            <label class="knob-label">Knee</label>
+                            <span class="knob-value" id="lomid-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="lomid-makeup" class="knob" min="0" max="1" step="0.001" value="0.333">
+                            <label class="knob-label">Makeup</label>
+                            <span class="knob-value" id="lomid-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button class="band-button" id="lomid-solo">S</button>
+                        <button class="band-button" id="lomid-bypass">B</button>
+                        <button class="band-button" id="lomid-sc-listen">SC</button>
                     </div>
                 </div>
             </div>
@@ -100,12 +160,42 @@
                         <div class="gr-fill" id="grHimid"></div>
                         <span class="gr-label">GR</span>
                     </div>
-                    <div class="controls-placeholder">
-                        <p>Phase 5.2</p>
-                        <p>Threshold, Ratio</p>
-                        <p>Attack, Release</p>
-                        <p>Makeup, Knee</p>
-                        <p>Peak/RMS</p>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <input type="range" id="himid-threshold" class="knob" min="0" max="1" step="0.001" value="0.667">
+                            <label class="knob-label">Thresh</label>
+                            <span class="knob-value" id="himid-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="himid-ratio" class="knob" min="0" max="1" step="0.001" value="0.158">
+                            <label class="knob-label">Ratio</label>
+                            <span class="knob-value" id="himid-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="himid-attack" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Attack</label>
+                            <span class="knob-value" id="himid-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="himid-release" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Release</label>
+                            <span class="knob-value" id="himid-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="himid-knee" class="knob" min="0" max="1" step="0.001" value="0.25">
+                            <label class="knob-label">Knee</label>
+                            <span class="knob-value" id="himid-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="himid-makeup" class="knob" min="0" max="1" step="0.001" value="0.333">
+                            <label class="knob-label">Makeup</label>
+                            <span class="knob-value" id="himid-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button class="band-button" id="himid-solo">S</button>
+                        <button class="band-button" id="himid-bypass">B</button>
+                        <button class="band-button" id="himid-sc-listen">SC</button>
                     </div>
                 </div>
             </div>
@@ -121,12 +211,42 @@
                         <div class="gr-fill" id="grHigh"></div>
                         <span class="gr-label">GR</span>
                     </div>
-                    <div class="controls-placeholder">
-                        <p>Phase 5.2</p>
-                        <p>Threshold, Ratio</p>
-                        <p>Attack, Release</p>
-                        <p>Makeup, Knee</p>
-                        <p>Peak/RMS</p>
+                    <div class="knob-grid">
+                        <div class="knob-control">
+                            <input type="range" id="high-threshold" class="knob" min="0" max="1" step="0.001" value="0.667">
+                            <label class="knob-label">Thresh</label>
+                            <span class="knob-value" id="high-threshold-value">-20 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="high-ratio" class="knob" min="0" max="1" step="0.001" value="0.158">
+                            <label class="knob-label">Ratio</label>
+                            <span class="knob-value" id="high-ratio-value">4:1</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="high-attack" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Attack</label>
+                            <span class="knob-value" id="high-attack-value">10 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="high-release" class="knob" min="0" max="1" step="0.001" value="0.3">
+                            <label class="knob-label">Release</label>
+                            <span class="knob-value" id="high-release-value">100 ms</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="high-knee" class="knob" min="0" max="1" step="0.001" value="0.25">
+                            <label class="knob-label">Knee</label>
+                            <span class="knob-value" id="high-knee-value">6 dB</span>
+                        </div>
+                        <div class="knob-control">
+                            <input type="range" id="high-makeup" class="knob" min="0" max="1" step="0.001" value="0.333">
+                            <label class="knob-label">Makeup</label>
+                            <span class="knob-value" id="high-makeup-value">0 dB</span>
+                        </div>
+                    </div>
+                    <div class="button-row">
+                        <button class="band-button" id="high-solo">S</button>
+                        <button class="band-button" id="high-bypass">B</button>
+                        <button class="band-button" id="high-sc-listen">SC</button>
                     </div>
                 </div>
             </div>
@@ -136,41 +256,35 @@
         <footer class="global-controls">
             <div class="control-group">
                 <label class="control-label">Input</label>
-                <div class="knob-placeholder">
-                    <div class="placeholder-circle"></div>
-                    <div class="placeholder-text">0 dB</div>
-                </div>
+                <input type="range" id="input-gain" class="global-knob" min="0" max="1" step="0.001" value="0.5">
+                <span class="control-value" id="input-gain-value">0 dB</span>
             </div>
 
             <div class="control-group">
                 <label class="control-label">Mix</label>
-                <div class="knob-placeholder">
-                    <div class="placeholder-circle"></div>
-                    <div class="placeholder-text">100%</div>
-                </div>
+                <input type="range" id="mix" class="global-knob" min="0" max="1" step="0.001" value="1.0">
+                <span class="control-value" id="mix-value">100%</span>
             </div>
 
             <div class="control-group">
                 <label class="control-label">Auto-MU</label>
-                <div class="toggle-placeholder">
-                    <div class="placeholder-switch"></div>
-                    <div class="placeholder-text">Off</div>
-                </div>
+                <button class="toggle-button" id="auto-makeup">Off</button>
             </div>
 
             <div class="control-group">
                 <label class="control-label">M/S Mode</label>
-                <div class="select-placeholder">
-                    <div class="placeholder-select">Off</div>
-                </div>
+                <select id="ms-mode" class="mode-select">
+                    <option value="0">Off</option>
+                    <option value="1">Mid</option>
+                    <option value="2">Side</option>
+                    <option value="3">Both</option>
+                </select>
             </div>
 
             <div class="control-group">
                 <label class="control-label">Output</label>
-                <div class="knob-placeholder">
-                    <div class="placeholder-circle"></div>
-                    <div class="placeholder-text">0 dB</div>
-                </div>
+                <input type="range" id="output-gain" class="global-knob" min="0" max="1" step="0.001" value="0.5">
+                <span class="control-value" id="output-gain-value">0 dB</span>
             </div>
         </footer>
     </div>

@@ -2,29 +2,279 @@
   ==============================================================================
 
     O-MultiBandCompressor - UI Application Logic
-    Phase 5.1: Layout and visualization placeholders only
+    Phase 5.2: Full parameter binding implementation (56 parameters)
 
   ==============================================================================
 */
 
-console.log('O-MultiBandCompressor UI initializing (Phase 5.1)...');
+console.log('O-MultiBandCompressor UI initializing (Phase 5.2)...');
 
-// Wait for DOM to load
-document.addEventListener('DOMContentLoaded', () => {
-    console.log('DOM loaded');
-    console.log('JUCE backend:', window.__JUCE__?.backend);
+// Parameter binding state
+const parameterStates = {};
 
-    // Initialize spectrum canvas placeholder
+// Wait for JUCE backend to connect
+if (window.__JUCE__?.backend) {
+    window.__JUCE__.backend.addEventListener('backendConnected', initializeUI);
+} else {
+    // Fallback for testing outside JUCE
+    document.addEventListener('DOMContentLoaded', () => {
+        console.warn('Running outside JUCE - parameter binding disabled');
+        initializeSpectrumPlaceholder();
+    });
+}
+
+function initializeUI() {
+    console.log('JUCE backend connected - initializing parameter bindings');
+
+    // Initialize all parameter bindings
+    bindGlobalParameters();
+    bindBandParameters('LOW', 'low');
+    bindBandParameters('LOMID', 'lomid');
+    bindBandParameters('HIMID', 'himid');
+    bindBandParameters('HIGH', 'high');
+
+    // Initialize spectrum placeholder
     initializeSpectrumPlaceholder();
 
-    // Initialize meter animations (placeholder)
-    initializeMeterPlaceholders();
+    console.log('Phase 5.2 UI initialized - 56 parameters bound');
+}
 
-    console.log('Phase 5.1 UI initialized');
-    console.log('Parameter binding will be added in Phase 5.2');
-});
+// ========== GLOBAL PARAMETERS (8) ==========
 
-// Spectrum analyzer placeholder with grid
+function bindGlobalParameters() {
+    // Input Gain: -24 to +24 dB
+    bindSlider('input-gain', 'INPUT_GAIN', (norm) => {
+        const db = norm * 48.0 - 24.0;
+        return db.toFixed(1) + ' dB';
+    });
+
+    // Output Gain: -24 to +24 dB
+    bindSlider('output-gain', 'OUTPUT_GAIN', (norm) => {
+        const db = norm * 48.0 - 24.0;
+        return db.toFixed(1) + ' dB';
+    });
+
+    // Mix: 0-100%
+    bindSlider('mix', 'MIX', (norm) => {
+        const pct = norm * 100.0;
+        return pct.toFixed(0) + '%';
+    });
+
+    // Auto-Makeup: bool
+    bindToggle('auto-makeup', 'AUTO_MAKEUP');
+
+    // M/S Mode: choice
+    bindComboBox('ms-mode', 'MS_MODE');
+
+    // Crossover frequencies (not visible in UI yet - Phase 5.3)
+    // Still need to bind for APVTS sync
+    if (window.__JUCE__?.initialisers?.getSliderState) {
+        parameterStates['XOVER1'] = window.__JUCE__.initialisers.getSliderState('XOVER1');
+        parameterStates['XOVER2'] = window.__JUCE__.initialisers.getSliderState('XOVER2');
+        parameterStates['XOVER3'] = window.__JUCE__.initialisers.getSliderState('XOVER3');
+    }
+}
+
+// ========== PER-BAND PARAMETERS (12 × 4 = 48) ==========
+
+function bindBandParameters(bandPrefix, bandId) {
+    // Threshold: -60 to 0 dB
+    bindSlider(`${bandId}-threshold`, `${bandPrefix}_THRESHOLD`, (norm) => {
+        const db = norm * 60.0 - 60.0;
+        return db.toFixed(1) + ' dB';
+    });
+
+    // Ratio: 1:1 to 20:1
+    bindSlider(`${bandId}-ratio`, `${bandPrefix}_RATIO`, (norm) => {
+        const ratio = 1.0 + norm * 19.0;
+        return ratio.toFixed(1) + ':1';
+    });
+
+    // Attack: 0.1 to 200 ms (logarithmic)
+    bindSlider(`${bandId}-attack`, `${bandPrefix}_ATTACK`, (norm) => {
+        const ms = Math.pow(10, norm * (Math.log10(200) - Math.log10(0.1)) + Math.log10(0.1));
+        return ms.toFixed(1) + ' ms';
+    });
+
+    // Release: 10 to 2000 ms (logarithmic)
+    bindSlider(`${bandId}-release`, `${bandPrefix}_RELEASE`, (norm) => {
+        const ms = Math.pow(10, norm * (Math.log10(2000) - Math.log10(10)) + Math.log10(10));
+        return ms.toFixed(0) + ' ms';
+    });
+
+    // Knee: 0 to 24 dB
+    bindSlider(`${bandId}-knee`, `${bandPrefix}_KNEE`, (norm) => {
+        const db = norm * 24.0;
+        return db.toFixed(1) + ' dB';
+    });
+
+    // Makeup: -12 to +24 dB
+    bindSlider(`${bandId}-makeup`, `${bandPrefix}_MAKEUP`, (norm) => {
+        const db = norm * 36.0 - 12.0;
+        return db.toFixed(1) + ' dB';
+    });
+
+    // Peak/RMS: 0-100% (not visible in UI yet - simplified)
+    if (window.__JUCE__?.initialisers?.getSliderState) {
+        parameterStates[`${bandPrefix}_PEAK_RMS`] = window.__JUCE__.initialisers.getSliderState(`${bandPrefix}_PEAK_RMS`);
+    }
+
+    // Solo, Bypass, SC Listen: bool
+    bindToggle(`${bandId}-solo`, `${bandPrefix}_SOLO`);
+    bindToggle(`${bandId}-bypass`, `${bandPrefix}_BYPASS`);
+    bindToggle(`${bandId}-sc-listen`, `${bandPrefix}_SC_LISTEN`);
+
+    // SC HPF/LPF (not visible in UI yet - Phase 5.3)
+    if (window.__JUCE__?.initialisers?.getSliderState) {
+        parameterStates[`${bandPrefix}_SC_HPF`] = window.__JUCE__.initialisers.getSliderState(`${bandPrefix}_SC_HPF`);
+        parameterStates[`${bandPrefix}_SC_LPF`] = window.__JUCE__.initialisers.getSliderState(`${bandPrefix}_SC_LPF`);
+    }
+}
+
+// ========== BINDING HELPERS ==========
+
+function bindSlider(elementId, parameterId, formatValue) {
+    const element = document.getElementById(elementId);
+    const valueDisplay = document.getElementById(`${elementId}-value`);
+
+    if (!element) {
+        console.warn(`Slider element not found: ${elementId}`);
+        return;
+    }
+
+    if (!window.__JUCE__?.initialisers?.getSliderState) {
+        console.warn('JUCE slider state API not available');
+        return;
+    }
+
+    // Get slider state from JUCE
+    const sliderState = window.__JUCE__.initialisers.getSliderState(parameterId);
+    parameterStates[parameterId] = sliderState;
+
+    // Initialize element with current value
+    const initialNorm = sliderState.getNormalisedValue();
+    element.value = initialNorm;
+    if (valueDisplay && formatValue) {
+        valueDisplay.textContent = formatValue(initialNorm);
+    }
+
+    // Update parameter when UI changes
+    element.addEventListener('input', (e) => {
+        const norm = parseFloat(e.target.value);
+        sliderState.setNormalisedValue(norm);
+
+        if (valueDisplay && formatValue) {
+            valueDisplay.textContent = formatValue(norm);
+        }
+    });
+
+    // Update UI when parameter changes (automation, preset load)
+    sliderState.valueChangedEvent.addListener(() => {
+        const norm = sliderState.getNormalisedValue();
+        element.value = norm;
+
+        if (valueDisplay && formatValue) {
+            valueDisplay.textContent = formatValue(norm);
+        }
+    });
+
+    console.log(`Bound slider: ${parameterId} → #${elementId}`);
+}
+
+function bindToggle(elementId, parameterId) {
+    const element = document.getElementById(elementId);
+
+    if (!element) {
+        console.warn(`Toggle element not found: ${elementId}`);
+        return;
+    }
+
+    if (!window.__JUCE__?.initialisers?.getToggleState) {
+        console.warn('JUCE toggle state API not available');
+        return;
+    }
+
+    // Get toggle state from JUCE
+    const toggleState = window.__JUCE__.initialisers.getToggleState(parameterId);
+    parameterStates[parameterId] = toggleState;
+
+    // Initialize element with current state
+    const initialValue = toggleState.getValue();
+    if (initialValue) {
+        element.classList.add('active');
+        element.textContent = 'On';
+    } else {
+        element.classList.remove('active');
+        element.textContent = 'Off';
+    }
+
+    // Update parameter when button clicked
+    element.addEventListener('click', () => {
+        const newValue = !toggleState.getValue();
+        toggleState.setValue(newValue);
+
+        if (newValue) {
+            element.classList.add('active');
+            element.textContent = 'On';
+        } else {
+            element.classList.remove('active');
+            element.textContent = 'Off';
+        }
+    });
+
+    // Update UI when parameter changes (automation, preset load)
+    toggleState.valueChangedEvent.addListener(() => {
+        const value = toggleState.getValue();
+        if (value) {
+            element.classList.add('active');
+            element.textContent = 'On';
+        } else {
+            element.classList.remove('active');
+            element.textContent = 'Off';
+        }
+    });
+
+    console.log(`Bound toggle: ${parameterId} → #${elementId}`);
+}
+
+function bindComboBox(elementId, parameterId) {
+    const element = document.getElementById(elementId);
+
+    if (!element) {
+        console.warn(`ComboBox element not found: ${elementId}`);
+        return;
+    }
+
+    if (!window.__JUCE__?.initialisers?.getComboBoxState) {
+        console.warn('JUCE combobox state API not available');
+        return;
+    }
+
+    // Get combobox state from JUCE
+    const comboState = window.__JUCE__.initialisers.getComboBoxState(parameterId);
+    parameterStates[parameterId] = comboState;
+
+    // Initialize element with current value
+    const initialId = comboState.getSelectedId();
+    element.selectedIndex = initialId;
+
+    // Update parameter when selection changes
+    element.addEventListener('change', (e) => {
+        const selectedId = parseInt(e.target.selectedIndex);
+        comboState.setSelectedId(selectedId);
+    });
+
+    // Update UI when parameter changes (automation, preset load)
+    comboState.valueChangedEvent.addListener(() => {
+        const selectedId = comboState.getSelectedId();
+        element.selectedIndex = selectedId;
+    });
+
+    console.log(`Bound combobox: ${parameterId} → #${elementId}`);
+}
+
+// ========== SPECTRUM ANALYZER PLACEHOLDER ==========
+
 function initializeSpectrumPlaceholder() {
     const canvas = document.getElementById('spectrum-canvas');
     if (!canvas) return;
@@ -65,7 +315,7 @@ function initializeSpectrumPlaceholder() {
     ctx.beginPath();
 
     for (let x = 0; x < width; x++) {
-        // Simulate frequency response curve (higher in mids)
+        // Simulate frequency response curve
         const freq = Math.pow(x / width, 1.5);
         const lowBump = Math.sin(freq * Math.PI * 2) * 0.2;
         const midBump = Math.sin(freq * Math.PI * 4) * 0.3;
@@ -86,46 +336,3 @@ function initializeSpectrumPlaceholder() {
     ctx.fillText('Spectrum Analyzer', width / 2, height / 2 - 10);
     ctx.fillText('(Phase 5.3)', width / 2, height / 2 + 10);
 }
-
-// Meter placeholder animations
-function initializeMeterPlaceholders() {
-    const inputMeter = document.getElementById('inputMeterFill');
-    const outputMeter = document.getElementById('outputMeterFill');
-    const grMeters = [
-        document.getElementById('grLow'),
-        document.getElementById('grLomid'),
-        document.getElementById('grHimid'),
-        document.getElementById('grHigh')
-    ];
-
-    // Simulate random meter activity (placeholder for real metering in Phase 5.3)
-    function updateMeters() {
-        // Input/output meters (vertical)
-        const inputLevel = 20 + Math.random() * 60;
-        const outputLevel = 20 + Math.random() * 60;
-
-        if (inputMeter) inputMeter.style.height = `${inputLevel}%`;
-        if (outputMeter) outputMeter.style.height = `${outputLevel}%`;
-
-        // GR meters (horizontal)
-        grMeters.forEach((meter, i) => {
-            if (meter) {
-                const grAmount = Math.random() * 40; // 0-40% gain reduction
-                meter.style.width = `${grAmount}%`;
-            }
-        });
-
-        requestAnimationFrame(updateMeters);
-    }
-
-    // Start animation (just for visual testing, will be replaced with real data)
-    // Comment out for production - this is just to show the UI is working
-    // updateMeters();
-
-    console.log('Meter placeholders initialized (not animating yet - Phase 5.3)');
-}
-
-// Crossover line dragging (Phase 5.2 - implement later)
-// For now, just log that they exist
-const crossoverLines = document.querySelectorAll('.crossover-line');
-console.log(`Found ${crossoverLines.length} crossover lines (dragging in Phase 5.2)`);
