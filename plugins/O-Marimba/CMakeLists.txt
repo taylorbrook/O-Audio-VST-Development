@@ -1,20 +1,20 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
-juce_add_plugin(OuariconMarimba
+juce_add_plugin(OMarimba
     COMPANY_NAME "Ouaricon Audio"
     PLUGIN_MANUFACTURER_CODE OuAu
     PLUGIN_CODE OuMa
-    PLUGIN_VERSION 1.9.9
+    PLUGIN_VERSION 1.10.0
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "Ouaricon Marimba"
+    PRODUCT_NAME "O-Marimba"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
 )
 
 # Source files
-target_sources(OuariconMarimba
+target_sources(OMarimba
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
@@ -25,7 +25,7 @@ target_sources(OuariconMarimba
 )
 
 # Include paths
-target_include_directories(OuariconMarimba
+target_include_directories(OMarimba
     PRIVATE
         Source
         ${CMAKE_SOURCE_DIR}/modules/effects/analog-eq-unit/cpp
@@ -33,7 +33,7 @@ target_include_directories(OuariconMarimba
 )
 
 # Required JUCE modules
-target_link_libraries(OuariconMarimba
+target_link_libraries(OMarimba
     PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices
@@ -55,10 +55,10 @@ target_link_libraries(OuariconMarimba
 )
 
 # Generate JuceHeader.h (JUCE 8 requirement - MUST be after target_link_libraries)
-juce_generate_juce_header(OuariconMarimba)
+juce_generate_juce_header(OMarimba)
 
 # Compile definitions
-target_compile_definitions(OuariconMarimba
+target_compile_definitions(OMarimba
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
@@ -66,7 +66,7 @@ target_compile_definitions(OuariconMarimba
 )
 
 # WebView UI Resources
-juce_add_binary_data(OuariconMarimba_UIResources
+juce_add_binary_data(OMarimba_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
@@ -77,7 +77,7 @@ juce_add_binary_data(OuariconMarimba_UIResources
         ${CMAKE_SOURCE_DIR}/modules/effects/compressor-unit/js/compressor-unit.js
 )
 
-target_link_libraries(OuariconMarimba
+target_link_libraries(OMarimba
     PRIVATE
-        OuariconMarimba_UIResources
+        OMarimba_UIResources
 )

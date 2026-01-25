@@ -16,10 +16,10 @@
 class TuningEngine;
 
 /**
- * Manages preset save/load operations for Ouaricon Marimba.
+ * Manages preset save/load operations for O-Marimba.
  *
  * Presets are stored as JSON files in:
- *   ~/Library/Application Support/Ouaricon Marimba/Presets/
+ *   ~/Library/Application Support/O-Marimba/Presets/
  *
  * Each preset contains:
  *   - All APVTS parameters

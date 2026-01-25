@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    Ouaricon Marimba - Editor Implementation
+    O-Marimba - Editor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -11,7 +11,7 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 
-OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(OuariconMarimbaAudioProcessor& p)
+OMarimbaAudioProcessorEditor::OMarimbaAudioProcessorEditor(OMarimbaAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
     // 1️⃣ Create relays FIRST (Pattern 11: Order critical for destruction)
@@ -254,7 +254,7 @@ OuariconMarimbaAudioProcessorEditor::OuariconMarimbaAudioProcessorEditor(Ouarico
     startTimerHz(30);
 }
 
-OuariconMarimbaAudioProcessorEditor::~OuariconMarimbaAudioProcessorEditor()
+OMarimbaAudioProcessorEditor::~OMarimbaAudioProcessorEditor()
 {
     // Stop timer before destruction
     stopTimer();
@@ -264,7 +264,7 @@ OuariconMarimbaAudioProcessorEditor::~OuariconMarimbaAudioProcessorEditor()
 }
 
 // Timer callback: Poll processor for MIDI events and notify WebView
-void OuariconMarimbaAudioProcessorEditor::timerCallback()
+void OMarimbaAudioProcessorEditor::timerCallback()
 {
     // v1.2.6: Process all queued MIDI events for polyphonic visualization
     MidiNoteEvent event;
@@ -296,13 +296,13 @@ void OuariconMarimbaAudioProcessorEditor::timerCallback()
     webView->emitEventIfBrowserIsVisible("compressorGR", compGrDB);
 }
 
-void OuariconMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
+void OMarimbaAudioProcessorEditor::paint(juce::Graphics& g)
 {
     // WebView handles all painting
     juce::ignoreUnused(g);
 }
 
-void OuariconMarimbaAudioProcessorEditor::resized()
+void OMarimbaAudioProcessorEditor::resized()
 {
     // WebView fills entire editor
     webView->setBounds(getLocalBounds());
@@ -310,7 +310,7 @@ void OuariconMarimbaAudioProcessorEditor::resized()
 
 // Native function: Send MIDI note to synthesizer
 // Args: [noteNumber (int), velocity (float 0-1), isNoteOn (bool)]
-juce::var OuariconMarimbaAudioProcessorEditor::sendMidiNote(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::sendMidiNote(const juce::Array<juce::var>& args)
 {
     if (args.size() < 3)
         return juce::var("Error: Expected 3 arguments (noteNumber, velocity, isNoteOn)");
@@ -343,7 +343,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::sendMidiNote(const juce::Array<ju
 
 // Native function: Set custom tuning intervals
 // Args: [Array of cents values (up to 12), scaleName (string)]
-juce::var OuariconMarimbaAudioProcessorEditor::setTuningIntervals(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::setTuningIntervals(const juce::Array<juce::var>& args)
 {
     if (args.size() < 1)
         return juce::var("Error: Expected array of cents values");
@@ -378,7 +378,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::setTuningIntervals(const juce::Ar
 
 // Pattern 8: Explicit URL mapping (required for WebView resource loading)
 std::optional<juce::WebBrowserComponent::Resource>
-OuariconMarimbaAudioProcessorEditor::getResource(const juce::String& url)
+OMarimbaAudioProcessorEditor::getResource(const juce::String& url)
 {
     // Helper to convert BinaryData to std::vector<std::byte>
     auto makeVector = [](const char* data, int size) {
@@ -449,7 +449,7 @@ OuariconMarimbaAudioProcessorEditor::getResource(const juce::String& url)
 }
 
 // Native function: Open file dialog to load Scala .scl file
-juce::var OuariconMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -481,7 +481,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadScalaFile(const juce::Array<j
 }
 
 // Native function: Open file dialog to load Scala .kbm file
-juce::var OuariconMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -506,7 +506,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadKBMFile(const juce::Array<juc
 }
 
 // Native function: Get current tuning intervals from TuningEngine
-juce::var OuariconMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -531,7 +531,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::getTuningIntervals(const juce::Ar
 
 // Native function: Set tonic note for transposition
 // Args: [tonicIndex (int 0-11, where 0=C, 1=C#, 2=D, etc.)]
-juce::var OuariconMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<juce::var>& args)
 {
     if (args.isEmpty())
         return juce::var("Error: Expected tonic index (0-11)");
@@ -547,7 +547,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::setTonicNote(const juce::Array<ju
 
 // v1.2.3: Native function to get waveform data for oscilloscope display
 // Returns array of normalized sample values (-1 to 1), downsampled for display
-juce::var OuariconMarimbaAudioProcessorEditor::getWaveformData(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::getWaveformData(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -590,7 +590,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::getWaveformData(const juce::Array
 // ============================================================================
 
 // Helper: Notify WebView of preset load with tuning state
-void OuariconMarimbaAudioProcessorEditor::notifyPresetLoaded(const juce::String& presetName)
+void OMarimbaAudioProcessorEditor::notifyPresetLoaded(const juce::String& presetName)
 {
     auto& tuning = processorRef.getTuningEngine();
     juce::String scaleName = tuning.getActiveTuningName();
@@ -609,14 +609,14 @@ void OuariconMarimbaAudioProcessorEditor::notifyPresetLoaded(const juce::String&
 }
 
 // Save preset - opens file dialog to name and save current state
-juce::var OuariconMarimbaAudioProcessorEditor::savePreset(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::savePreset(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
     fileChooser = std::make_unique<juce::FileChooser>(
         "Save Preset",
         juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-            .getChildFile("Ouaricon Marimba")
+            .getChildFile("O-Marimba")
             .getChildFile("Presets")
             .getChildFile("User"),
         "*.json"
@@ -648,7 +648,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::savePreset(const juce::Array<juce
 }
 
 // Load a named preset
-juce::var OuariconMarimbaAudioProcessorEditor::loadPreset(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::loadPreset(const juce::Array<juce::var>& args)
 {
     if (args.isEmpty())
         return juce::var("Error: No preset name provided");
@@ -666,7 +666,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadPreset(const juce::Array<juce
 }
 
 // Get list of available presets
-juce::var OuariconMarimbaAudioProcessorEditor::getPresetList(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::getPresetList(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -686,14 +686,14 @@ juce::var OuariconMarimbaAudioProcessorEditor::getPresetList(const juce::Array<j
 }
 
 // Get currently loaded preset name
-juce::var OuariconMarimbaAudioProcessorEditor::getCurrentPreset(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::getCurrentPreset(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
     return processorRef.getPresetManager().getCurrentPresetName();
 }
 
 // Navigate to next preset
-juce::var OuariconMarimbaAudioProcessorEditor::selectNextPreset(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::selectNextPreset(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -712,7 +712,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::selectNextPreset(const juce::Arra
 }
 
 // Navigate to previous preset
-juce::var OuariconMarimbaAudioProcessorEditor::selectPreviousPreset(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::selectPreviousPreset(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -731,7 +731,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::selectPreviousPreset(const juce::
 }
 
 // Delete a user preset
-juce::var OuariconMarimbaAudioProcessorEditor::deletePreset(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::deletePreset(const juce::Array<juce::var>& args)
 {
     if (args.isEmpty())
         return juce::var("Error: No preset name provided");
@@ -743,7 +743,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::deletePreset(const juce::Array<ju
 }
 
 // v1.3.1: Load preset via file dialog (LOAD button)
-juce::var OuariconMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -751,7 +751,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Ar
     fileChooser = std::make_unique<juce::FileChooser>(
         "Load Preset",
         juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-            .getChildFile("Ouaricon Marimba")
+            .getChildFile("O-Marimba")
             .getChildFile("Presets"),
         "*.json"
     );
@@ -778,7 +778,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::loadPresetFromFile(const juce::Ar
 // ============================================================================
 
 // Save current tuning as Scala .scl file
-juce::var OuariconMarimbaAudioProcessorEditor::saveScalaFile(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::saveScalaFile(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 
@@ -830,7 +830,7 @@ juce::var OuariconMarimbaAudioProcessorEditor::saveScalaFile(const juce::Array<j
 }
 
 // Save current keyboard mapping as .kbm file
-juce::var OuariconMarimbaAudioProcessorEditor::saveKBMFile(const juce::Array<juce::var>& args)
+juce::var OMarimbaAudioProcessorEditor::saveKBMFile(const juce::Array<juce::var>& args)
 {
     juce::ignoreUnused(args);
 

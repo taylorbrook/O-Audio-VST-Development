@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    Ouaricon Marimba - Editor
+    O-Marimba - Editor
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -13,12 +13,12 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-class OuariconMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor,
+class OMarimbaAudioProcessorEditor : public juce::AudioProcessorEditor,
                                         private juce::Timer
 {
 public:
-    explicit OuariconMarimbaAudioProcessorEditor(OuariconMarimbaAudioProcessor&);
-    ~OuariconMarimbaAudioProcessorEditor() override;
+    explicit OMarimbaAudioProcessorEditor(OMarimbaAudioProcessor&);
+    ~OMarimbaAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -27,7 +27,7 @@ private:
     // Timer callback for polling note-on events from processor
     void timerCallback() override;
 
-    OuariconMarimbaAudioProcessor& processorRef;
+    OMarimbaAudioProcessor& processorRef;
 
     // ⚠️ CRITICAL: MEMBER DECLARATION ORDER (Pattern 11)
     // Members destroyed in REVERSE order of declaration
@@ -165,5 +165,5 @@ private:
     juce::String lastScalaExportPath;
     juce::String lastKBMExportPath;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconMarimbaAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OMarimbaAudioProcessorEditor)
 };

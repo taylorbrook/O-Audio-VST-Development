@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    Ouaricon Marimba - Audio Processor
+    O-Marimba - Audio Processor
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -93,11 +93,11 @@ private:
     std::atomic<int> readPos { 0 };
 };
 
-class OuariconMarimbaAudioProcessor : public juce::AudioProcessor
+class OMarimbaAudioProcessor : public juce::AudioProcessor
 {
 public:
-    OuariconMarimbaAudioProcessor();
-    ~OuariconMarimbaAudioProcessor() override;
+    OMarimbaAudioProcessor();
+    ~OMarimbaAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -106,7 +106,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "Ouaricon Marimba"; }
+    const juce::String getName() const override { return "O-Marimba"; }
     bool acceptsMidi() const override { return true; }  // Synth accepts MIDI
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -182,5 +182,5 @@ public:
     }
 
 private:
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconMarimbaAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OMarimbaAudioProcessor)
 };

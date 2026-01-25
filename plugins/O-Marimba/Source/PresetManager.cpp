@@ -22,7 +22,7 @@ PresetManager::PresetManager(juce::AudioProcessorValueTreeState& apvts, TuningEn
 juce::File PresetManager::getPresetsDirectory() const
 {
     return juce::File::getSpecialLocation(juce::File::userApplicationDataDirectory)
-        .getChildFile("Ouaricon Marimba")
+        .getChildFile("O-Marimba")
         .getChildFile("Presets");
 }
 
@@ -77,7 +77,7 @@ juce::var PresetManager::createPresetJson() const
 
     // Metadata
     preset->setProperty("version", "1.6.2");
-    preset->setProperty("plugin", "Ouaricon Marimba");
+    preset->setProperty("plugin", "O-Marimba");
 
     return juce::var(preset);
 }
@@ -601,7 +601,7 @@ void PresetManager::initializeFactoryPresets()
 
             // Metadata
             presetObj->setProperty("version", "1.6.2");
-            presetObj->setProperty("plugin", "Ouaricon Marimba");
+            presetObj->setProperty("plugin", "O-Marimba");
             presetObj->setProperty("factory", true);
 
             auto jsonString = juce::JSON::toString(juce::var(presetObj), true);

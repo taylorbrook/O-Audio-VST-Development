@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    Ouaricon Marimba - Audio Processor Implementation
+    O-Marimba - Audio Processor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -14,7 +14,7 @@
 #include "MarimbaVoice.h"
 #include "TuningEngine.h"
 
-juce::AudioProcessorValueTreeState::ParameterLayout OuariconMarimbaAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout OMarimbaAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -121,7 +121,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconMarimbaAudioProcesso
     return layout;
 }
 
-OuariconMarimbaAudioProcessor::OuariconMarimbaAudioProcessor()
+OMarimbaAudioProcessor::OMarimbaAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
@@ -150,11 +150,11 @@ OuariconMarimbaAudioProcessor::OuariconMarimbaAudioProcessor()
     presetManager.initializeFactoryPresets();
 }
 
-OuariconMarimbaAudioProcessor::~OuariconMarimbaAudioProcessor()
+OMarimbaAudioProcessor::~OMarimbaAudioProcessor()
 {
 }
 
-void OuariconMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void OMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     // Phase 2.1: Prepare synthesiser
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
@@ -178,13 +178,13 @@ void OuariconMarimbaAudioProcessor::prepareToPlay(double sampleRate, int samples
     compressorUnit.prepare(sampleRate, samplesPerBlock);
 }
 
-void OuariconMarimbaAudioProcessor::releaseResources()
+void OMarimbaAudioProcessor::releaseResources()
 {
     // Phase 2.4: Reset body resonance
     bodyResonance.reset();
 }
 
-void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void OMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
 
@@ -291,12 +291,12 @@ void OuariconMarimbaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     outputLevelDB.store(levelDB, std::memory_order_relaxed);
 }
 
-juce::AudioProcessorEditor* OuariconMarimbaAudioProcessor::createEditor()
+juce::AudioProcessorEditor* OMarimbaAudioProcessor::createEditor()
 {
-    return new OuariconMarimbaAudioProcessorEditor(*this);
+    return new OMarimbaAudioProcessorEditor(*this);
 }
 
-void OuariconMarimbaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void OMarimbaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     // v1.3.0: Use PresetManager to save complete state including tuning
     auto xml = presetManager.getStateAsXml();
@@ -304,7 +304,7 @@ void OuariconMarimbaAudioProcessor::getStateInformation(juce::MemoryBlock& destD
         copyXmlToBinary(*xml, destData);
 }
 
-void OuariconMarimbaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void OMarimbaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     // v1.3.0: Use PresetManager to restore complete state including tuning
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
@@ -314,7 +314,7 @@ void OuariconMarimbaAudioProcessor::setStateInformation(const void* data, int si
 }
 
 // UI keyboard MIDI injection (called from UI thread)
-void OuariconMarimbaAudioProcessor::addMidiMessage(const juce::MidiMessage& msg)
+void OMarimbaAudioProcessor::addMidiMessage(const juce::MidiMessage& msg)
 {
     const juce::ScopedLock lock(midiLock);
     pendingUiMidi.addEvent(msg, 0);
@@ -323,5 +323,5 @@ void OuariconMarimbaAudioProcessor::addMidiMessage(const juce::MidiMessage& msg)
 // Factory function
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new OuariconMarimbaAudioProcessor();
+    return new OMarimbaAudioProcessor();
 }

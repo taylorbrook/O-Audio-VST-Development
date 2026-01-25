@@ -1,6 +1,20 @@
-# Ouaricon Marimba Changelog
+# O-Marimba Changelog
 
 All notable changes to this project will be documented in this file.
+
+## [1.10.0] - 2026-01-25
+
+### Changed
+- **Renamed plugin from "Ouaricon Marimba" to "O-Marimba"**
+  - Plugin display name changed to "O-Marimba"
+  - Folder renamed from `OuariconMarimba` to `O-Marimba`
+  - CMake target renamed from `OuariconMarimba` to `OMarimba`
+  - Class names updated: `OMarimbaAudioProcessor`, `OMarimbaAudioProcessorEditor`
+  - Preset folder path updated to `~/Library/Application Support/O-Marimba/Presets/`
+
+### Migration Notes
+- Existing DAW sessions using "Ouaricon Marimba" will need to re-load the plugin manually
+- User presets stored in the old location (`~/Library/Application Support/Ouaricon Marimba/`) can be copied to the new location
 
 ## [1.9.9] - 2026-01-14
 

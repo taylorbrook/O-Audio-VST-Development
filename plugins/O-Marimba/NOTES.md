@@ -1,14 +1,14 @@
-# Ouaricon Marimba Notes
+# O-Marimba Notes
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.9.3
+- **Version:** 1.10.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
 ## Installation Locations
-- **VST3:** `~/Library/Audio/Plug-Ins/VST3/Ouaricon Marimba.vst3`
-- **AU:** `~/Library/Audio/Plug-Ins/Components/Ouaricon Marimba.component`
+- **VST3:** `~/Library/Audio/Plug-Ins/VST3/O-Marimba.vst3`
+- **AU:** `~/Library/Audio/Plug-Ins/Components/O-Marimba.component`
 
 ## Lifecycle Timeline
 
@@ -51,7 +51,7 @@
 - **2026-01-10 (v1.3.0):** Preset system
   - Added: Complete preset save/load system with factory presets
   - Factory presets: Default Marimba, Bright Marimba, Soft Marimba, Just Intonation, Pythagorean, Quarter-Comma Meantone, Baroque A=415, Concert A=442
-  - User presets stored in ~/Library/Application Support/Ouaricon Marimba/Presets/User/
+  - User presets stored in ~/Library/Application Support/O-Marimba/Presets/User/
   - DAW session state now includes full tuning configuration
   - Preset browser: ◀ ▶ navigation, SAVE button with file dialog
   - JSON format for easy editing/sharing
@@ -110,6 +110,9 @@
   - Fixed: Clicking at high gain reduction caused by unsmoothed gain application
   - Added: Gain coefficient smoothing (GAIN_SMOOTH_COEFF = 0.005)
   - Updated: compressor-unit DSP to v1.2.1
+- **2026-01-25 (v1.10.0):** Renamed plugin from "Ouaricon Marimba" to "O-Marimba"
+  - Changed: Plugin display name, folder name, class names, preset paths
+  - Note: DAW sessions using old name will need to re-load the plugin
 
 ## Known Issues
 
@@ -186,4 +189,4 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - AU (Audio Unit)
 - Standalone
 
-**Last Updated:** 2026-01-14
+**Last Updated:** 2026-01-25
