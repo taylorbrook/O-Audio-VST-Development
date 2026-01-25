@@ -70,6 +70,10 @@ public:
                          const float* peakRmsBlends,
                          const bool* bypasses,
                          const bool* solos,
+                         const float* scHPFs,
+                         const float* scLPFs,
+                         const bool* scListens,
+                         bool autoMakeupEnabled,
                          std::atomic<float>* const* gainReductionMeters)
     {
         const int numSamples = buffer.getNumSamples();
@@ -111,7 +115,7 @@ public:
             }
             else
             {
-                // Process compressor on this band
+                // Process compressor on this band with sidechain filtering
                 compressors[band].processStereo(
                     bandBuffers[band],
                     thresholds[band],
@@ -120,6 +124,10 @@ public:
                     makeups[band],
                     peakRmsBlends[band],
                     bypasses[band],
+                    scHPFs[band],
+                    scLPFs[band],
+                    scListens[band],
+                    autoMakeupEnabled,
                     *gainReductionMeters[band]
                 );
             }

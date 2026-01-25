@@ -229,10 +229,15 @@ void OMultiBandCompressorAudioProcessor::prepareToPlay(double sampleRate, int sa
     inputGain.prepare(spec);
     outputGain.prepare(spec);
 
+    // Prepare dry/wet mixer
+    dryWetMixer.prepare(spec);
+    dryWetMixer.setMixingRule(juce::dsp::DryWetMixingRule::linear);
+
     // Reset components to initial state
     multibandProcessor.reset();
     inputGain.reset();
     outputGain.reset();
+    dryWetMixer.reset();
 }
 
 void OMultiBandCompressorAudioProcessor::releaseResources()
@@ -262,6 +267,15 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
     float outputGainDB = outputGainParam->load();
 
+    auto* mixParam = parameters.getRawParameterValue("MIX");
+    float mixPercent = mixParam->load();
+
+    auto* autoMakeupParam = parameters.getRawParameterValue("AUTO_MAKEUP");
+    bool autoMakeupEnabled = autoMakeupParam->load() > 0.5f;
+
+    auto* msModeParam = parameters.getRawParameterValue("MS_MODE");
+    int msMode = static_cast<int>(msModeParam->load());
+
     // Crossover frequencies
     auto* xover1Param = parameters.getRawParameterValue("XOVER1");
     float xover1 = xover1Param->load();
@@ -284,6 +298,9 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     float peakRmsBlends[4];
     bool bypasses[4];
     bool solos[4];
+    float scHPFs[4];
+    float scLPFs[4];
+    bool scListens[4];
 
     for (int band = 0; band < 4; ++band)
     {
@@ -298,6 +315,9 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         peakRmsBlends[band] = parameters.getRawParameterValue(prefix + "_PEAK_RMS")->load();
         bypasses[band] = parameters.getRawParameterValue(prefix + "_BYPASS")->load() > 0.5f;
         solos[band] = parameters.getRawParameterValue(prefix + "_SOLO")->load() > 0.5f;
+        scHPFs[band] = parameters.getRawParameterValue(prefix + "_SC_HPF")->load();
+        scLPFs[band] = parameters.getRawParameterValue(prefix + "_SC_LPF")->load();
+        scListens[band] = parameters.getRawParameterValue(prefix + "_SC_LISTEN")->load() > 0.5f;
     }
 
     // ===== Process Audio =====
@@ -307,6 +327,35 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     juce::dsp::AudioBlock<float> inputBlock(buffer);
     juce::dsp::ProcessContextReplacing<float> inputContext(inputBlock);
     inputGain.process(inputContext);
+
+    // Set dry/wet mix ratio (0-100% to 0.0-1.0)
+    dryWetMixer.setWetMixProportion(mixPercent / 100.0f);
+
+    // Capture dry signal for parallel compression
+    juce::dsp::AudioBlock<float> dryWetBlock(buffer);
+    dryWetMixer.pushDrySamples(dryWetBlock);
+
+    // M/S Encoding (if enabled)
+    const int numChannels = buffer.getNumChannels();
+    const int numSamples = buffer.getNumSamples();
+
+    if (msMode > 0 && numChannels == 2)
+    {
+        // Encode L/R to M/S (power-preserving)
+        const float sqrtHalf = 0.70710678f; // 1/sqrt(2)
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float left = buffer.getSample(0, sample);
+            float right = buffer.getSample(1, sample);
+
+            float mid = (left + right) * sqrtHalf;
+            float side = (left - right) * sqrtHalf;
+
+            buffer.setSample(0, sample, mid);
+            buffer.setSample(1, sample, side);
+        }
+    }
 
     // Update crossover frequencies
     multibandProcessor.updateCrossoverFrequencies(xover1, xover2, xover3);
@@ -323,18 +372,115 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         &highBandGainReduction
     };
 
-    // Process multiband compression (crossover + 4 compressors + summation)
-    multibandProcessor.processMultiband(
-        buffer,
-        thresholds,
-        ratios,
-        knees,
-        makeups,
-        peakRmsBlends,
-        bypasses,
-        solos,
-        grMeters
-    );
+    // Process based on M/S mode
+    if (msMode == 0 || numChannels != 2)
+    {
+        // Mode 0: Off - Process L/R independently (standard stereo)
+        multibandProcessor.processMultiband(
+            buffer,
+            thresholds,
+            ratios,
+            knees,
+            makeups,
+            peakRmsBlends,
+            bypasses,
+            solos,
+            scHPFs,
+            scLPFs,
+            scListens,
+            autoMakeupEnabled,
+            grMeters
+        );
+    }
+    else if (msMode == 1)
+    {
+        // Mode 1: Mid - Compress only mid (channel 0), side passes through
+        juce::AudioBuffer<float> midBuffer(1, numSamples);
+        midBuffer.copyFrom(0, 0, buffer, 0, 0, numSamples);
+
+        multibandProcessor.processMultiband(
+            midBuffer,
+            thresholds,
+            ratios,
+            knees,
+            makeups,
+            peakRmsBlends,
+            bypasses,
+            solos,
+            scHPFs,
+            scLPFs,
+            scListens,
+            autoMakeupEnabled,
+            grMeters
+        );
+
+        buffer.copyFrom(0, 0, midBuffer, 0, 0, numSamples);
+    }
+    else if (msMode == 2)
+    {
+        // Mode 2: Side - Compress only side (channel 1), mid passes through
+        juce::AudioBuffer<float> sideBuffer(1, numSamples);
+        sideBuffer.copyFrom(0, 0, buffer, 1, 0, numSamples);
+
+        multibandProcessor.processMultiband(
+            sideBuffer,
+            thresholds,
+            ratios,
+            knees,
+            makeups,
+            peakRmsBlends,
+            bypasses,
+            solos,
+            scHPFs,
+            scLPFs,
+            scListens,
+            autoMakeupEnabled,
+            grMeters
+        );
+
+        buffer.copyFrom(1, 0, sideBuffer, 0, 0, numSamples);
+    }
+    else if (msMode == 3)
+    {
+        // Mode 3: Both - Independent compression for mid AND side
+        multibandProcessor.processMultiband(
+            buffer,
+            thresholds,
+            ratios,
+            knees,
+            makeups,
+            peakRmsBlends,
+            bypasses,
+            solos,
+            scHPFs,
+            scLPFs,
+            scListens,
+            autoMakeupEnabled,
+            grMeters
+        );
+    }
+
+    // M/S Decoding (if enabled)
+    if (msMode > 0 && numChannels == 2)
+    {
+        // Decode M/S back to L/R (power-preserving)
+        const float sqrtHalf = 0.70710678f; // 1/sqrt(2)
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float mid = buffer.getSample(0, sample);
+            float side = buffer.getSample(1, sample);
+
+            float left = (mid + side) * sqrtHalf;
+            float right = (mid - side) * sqrtHalf;
+
+            buffer.setSample(0, sample, left);
+            buffer.setSample(1, sample, right);
+        }
+    }
+
+    // Mix wet (processed) with dry signal
+    dryWetMixer.mixWetSamples(dryWetBlock);
 
     // Apply output gain
     outputGain.setGainDecibels(outputGainDB);

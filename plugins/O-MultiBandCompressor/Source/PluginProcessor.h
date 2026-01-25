@@ -61,6 +61,9 @@ private:
     juce::dsp::Gain<float> inputGain;
     juce::dsp::Gain<float> outputGain;
 
+    // Phase 4.3: Dry/wet mixer for parallel compression
+    juce::dsp::DryWetMixer<float> dryWetMixer;
+
     // Gain reduction metering (atomic for thread-safe UI access)
     std::atomic<float> lowBandGainReduction { 0.0f };
     std::atomic<float> loMidBandGainReduction { 0.0f };
