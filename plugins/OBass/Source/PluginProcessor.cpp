@@ -53,6 +53,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBassAudioProcessor::createP
         "%"
     ));
 
+    // enhanceMode - Clean vs Colored processing character
+    // 0 = Clean (transparent, odd harmonics), 1 = Colored (warm, even harmonics)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "enhanceMode", 1 },
+        "Enhance Mode",
+        juce::StringArray { "Clean", "Colored" },
+        0  // Default to Clean
+    ));
+
     return layout;
 }
 
@@ -79,9 +88,11 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     lowBandBuffer.setSize(2, samplesPerBlock);
     highBandBuffer.setSize(2, samplesPerBlock);
     monoBuffer.setSize(1, samplesPerBlock);
+    coloredBuffer.setSize(1, samplesPerBlock);  // Same size as monoBuffer
     lowBandBuffer.clear();
     highBandBuffer.clear();
     monoBuffer.clear();
+    coloredBuffer.clear();
 
     // Prepare DSP components
     crossover.prepare(spec);
@@ -105,10 +116,23 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
                                                : CleanModeProcessor::Mode::HighFidelity;
     cleanModeProcessor.setMode(cleanMode);
 
+    // Prepare Colored Mode processor
+    coloredModeProcessor.prepare(spec);
+
+    // Set initial Colored Mode from latency_mode parameter
+    auto coloredMode = modeParam->load() < 0.5f ? ColoredModeProcessor::Mode::LowLatency
+                                                 : ColoredModeProcessor::Mode::HighFidelity;
+    coloredModeProcessor.setMode(coloredMode);
+
     // Initialize smoothed enhance (20ms ramp time for click-free transitions)
     smoothedEnhance.reset(sampleRate, 0.020);
     auto* enhanceParam = parameters.getRawParameterValue("enhance");
     smoothedEnhance.setCurrentAndTargetValue(enhanceParam->load() / 100.0f);
+
+    // Initialize mode crossfade (20ms ramp for click-free mode switching)
+    modeCrossfade.reset(sampleRate, 0.020);
+    auto* enhanceModeParam = parameters.getRawParameterValue("enhanceMode");
+    modeCrossfade.setCurrentAndTargetValue(enhanceModeParam->load());  // 0.0 = Clean, 1.0 = Colored
 
     // Report combined latency to host
     updateLatencyReport();
@@ -119,6 +143,7 @@ void OBassAudioProcessor::releaseResources()
     crossover.reset();
     monoSummer.reset();
     cleanModeProcessor.reset();
+    coloredModeProcessor.reset();
 }
 
 void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
