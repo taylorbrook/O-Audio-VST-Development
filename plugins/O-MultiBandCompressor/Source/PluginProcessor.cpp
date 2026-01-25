@@ -217,13 +217,27 @@ OMultiBandCompressorAudioProcessor::~OMultiBandCompressorAudioProcessor()
 
 void OMultiBandCompressorAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // DSP initialization will be added in Stage 2
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Prepare DSP spec
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+
+    // Prepare LOW band compressor
+    lowBandCompressor.prepare(sampleRate, samplesPerBlock);
+
+    // Prepare gain stages
+    inputGain.prepare(spec);
+    outputGain.prepare(spec);
+
+    // Reset components to initial state
+    lowBandCompressor.reset();
+    inputGain.reset();
+    outputGain.reset();
 }
 
 void OMultiBandCompressorAudioProcessor::releaseResources()
 {
-    // DSP cleanup will be added in Stage 2
+    // Release resources when plugin not in use
 }
 
 void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -231,12 +245,69 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
-    // Parameter access example (for Stage 2 DSP implementation):
-    // auto* inputGainParam = parameters.getRawParameterValue("INPUT_GAIN");
-    // float inputGainValue = inputGainParam->load();  // Atomic read (real-time safe)
+    // Clear unused channels
+    for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
+        buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Pass-through for Stage 1 (DSP implementation happens in Stage 2)
-    // Audio routing is already handled by JUCE
+    // Early exit on empty buffer
+    if (buffer.getNumSamples() == 0)
+        return;
+
+    // ===== Read Parameters (atomic, real-time safe) =====
+
+    // Global parameters
+    auto* inputGainParam = parameters.getRawParameterValue("INPUT_GAIN");
+    float inputGainDB = inputGainParam->load();
+
+    auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
+    float outputGainDB = outputGainParam->load();
+
+    // LOW band compressor parameters (Phase 4.1: single-band only)
+    auto* thresholdParam = parameters.getRawParameterValue("LOW_THRESHOLD");
+    float threshold = thresholdParam->load();
+
+    auto* ratioParam = parameters.getRawParameterValue("LOW_RATIO");
+    float ratio = ratioParam->load();
+
+    auto* attackParam = parameters.getRawParameterValue("LOW_ATTACK");
+    float attack = attackParam->load();
+
+    auto* releaseParam = parameters.getRawParameterValue("LOW_RELEASE");
+    float release = releaseParam->load();
+
+    auto* kneeParam = parameters.getRawParameterValue("LOW_KNEE");
+    float knee = kneeParam->load();
+
+    auto* makeupParam = parameters.getRawParameterValue("LOW_MAKEUP");
+    float makeup = makeupParam->load();
+
+    auto* peakRmsParam = parameters.getRawParameterValue("LOW_PEAK_RMS");
+    float peakRms = peakRmsParam->load();
+
+    auto* bypassParam = parameters.getRawParameterValue("LOW_BYPASS");
+    bool bypass = bypassParam->load() > 0.5f;
+
+    // ===== Process Audio =====
+
+    // Apply input gain
+    inputGain.setGainDecibels(inputGainDB);
+    juce::dsp::AudioBlock<float> inputBlock(buffer);
+    juce::dsp::ProcessContextReplacing<float> inputContext(inputBlock);
+    inputGain.process(inputContext);
+
+    // Update compressor parameters
+    lowBandCompressor.setAttackTime(attack);
+    lowBandCompressor.setReleaseTime(release);
+
+    // Process compressor (stereo-linked)
+    lowBandCompressor.processStereo(buffer, threshold, ratio, knee, makeup,
+                                   peakRms, bypass, lowBandGainReduction);
+
+    // Apply output gain
+    outputGain.setGainDecibels(outputGainDB);
+    juce::dsp::AudioBlock<float> outputBlock(buffer);
+    juce::dsp::ProcessContextReplacing<float> outputContext(outputBlock);
+    outputGain.process(outputContext);
 }
 
 juce::AudioProcessorEditor* OMultiBandCompressorAudioProcessor::createEditor()

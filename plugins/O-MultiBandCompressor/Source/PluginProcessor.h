@@ -11,6 +11,8 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include <atomic>
+#include "DSP/Compressor.h"
 
 class OMultiBandCompressorAudioProcessor : public juce::AudioProcessor
 {
@@ -42,7 +44,24 @@ public:
 
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
 
+    // Access to gain reduction meter for UI
+    float getLowBandGainReduction() const { return lowBandGainReduction.load(std::memory_order_relaxed); }
+
 private:
+    // DSP Components (BEFORE parameters for initialization order)
+    juce::dsp::ProcessSpec spec;
+
+    // Phase 4.1: Single-band compressor (LOW band only)
+    Compressor lowBandCompressor;
+
+    // Gain stages
+    juce::dsp::Gain<float> inputGain;
+    juce::dsp::Gain<float> outputGain;
+
+    // Gain reduction metering (atomic for thread-safe UI access)
+    std::atomic<float> lowBandGainReduction { 0.0f };
+
+    // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
 
     // Parameter layout creation
