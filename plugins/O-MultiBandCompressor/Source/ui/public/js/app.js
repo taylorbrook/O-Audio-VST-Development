@@ -4,27 +4,23 @@
     O-MultiBandCompressor - UI Application Logic
     Phase 5.2: Full parameter binding implementation (56 parameters)
 
+    Fixed: Import JUCE module and use correct API
+
   ==============================================================================
 */
 
-console.log('O-MultiBandCompressor UI initializing (Phase 5.2)...');
+import * as Juce from './juce/index.js';
+
+console.log('O-MultiBandCompressor UI initializing...');
 
 // Parameter binding state
 const parameterStates = {};
 
-// Wait for JUCE backend to connect
-if (window.__JUCE__?.backend) {
-    window.__JUCE__.backend.addEventListener('backendConnected', initializeUI);
-} else {
-    // Fallback for testing outside JUCE
-    document.addEventListener('DOMContentLoaded', () => {
-        console.warn('Running outside JUCE - parameter binding disabled');
-        initializeSpectrumPlaceholder();
-    });
-}
+// Initialize immediately (JUCE module handles backend connection internally)
+initializeUI();
 
 function initializeUI() {
-    console.log('JUCE backend connected - initializing parameter bindings');
+    console.log('Initializing parameter bindings');
 
     // Initialize all parameter bindings
     bindGlobalParameters();
@@ -36,7 +32,7 @@ function initializeUI() {
     // Initialize spectrum placeholder
     initializeSpectrumPlaceholder();
 
-    console.log('Phase 5.2 UI initialized - 56 parameters bound');
+    console.log('UI initialized - 56 parameters bound');
 }
 
 // ========== GLOBAL PARAMETERS (8) ==========
@@ -66,12 +62,13 @@ function bindGlobalParameters() {
     // M/S Mode: choice
     bindComboBox('ms-mode', 'MS_MODE');
 
-    // Crossover frequencies (not visible in UI yet - Phase 5.3)
-    // Still need to bind for APVTS sync
-    if (window.__JUCE__?.initialisers?.getSliderState) {
-        parameterStates['XOVER1'] = window.__JUCE__.initialisers.getSliderState('XOVER1');
-        parameterStates['XOVER2'] = window.__JUCE__.initialisers.getSliderState('XOVER2');
-        parameterStates['XOVER3'] = window.__JUCE__.initialisers.getSliderState('XOVER3');
+    // Crossover frequencies (bind for APVTS sync even if not visible)
+    try {
+        parameterStates['XOVER1'] = Juce.getSliderState('XOVER1');
+        parameterStates['XOVER2'] = Juce.getSliderState('XOVER2');
+        parameterStates['XOVER3'] = Juce.getSliderState('XOVER3');
+    } catch (e) {
+        console.warn('Could not bind crossover parameters:', e);
     }
 }
 
@@ -114,9 +111,11 @@ function bindBandParameters(bandPrefix, bandId) {
         return db.toFixed(1) + ' dB';
     });
 
-    // Peak/RMS: 0-100% (not visible in UI yet - simplified)
-    if (window.__JUCE__?.initialisers?.getSliderState) {
-        parameterStates[`${bandPrefix}_PEAK_RMS`] = window.__JUCE__.initialisers.getSliderState(`${bandPrefix}_PEAK_RMS`);
+    // Peak/RMS: bind for APVTS sync
+    try {
+        parameterStates[`${bandPrefix}_PEAK_RMS`] = Juce.getSliderState(`${bandPrefix}_PEAK_RMS`);
+    } catch (e) {
+        console.warn(`Could not bind ${bandPrefix}_PEAK_RMS:`, e);
     }
 
     // Solo, Bypass, SC Listen: bool
@@ -124,10 +123,12 @@ function bindBandParameters(bandPrefix, bandId) {
     bindToggle(`${bandId}-bypass`, `${bandPrefix}_BYPASS`);
     bindToggle(`${bandId}-sc-listen`, `${bandPrefix}_SC_LISTEN`);
 
-    // SC HPF/LPF (not visible in UI yet - Phase 5.3)
-    if (window.__JUCE__?.initialisers?.getSliderState) {
-        parameterStates[`${bandPrefix}_SC_HPF`] = window.__JUCE__.initialisers.getSliderState(`${bandPrefix}_SC_HPF`);
-        parameterStates[`${bandPrefix}_SC_LPF`] = window.__JUCE__.initialisers.getSliderState(`${bandPrefix}_SC_LPF`);
+    // SC HPF/LPF: bind for APVTS sync
+    try {
+        parameterStates[`${bandPrefix}_SC_HPF`] = Juce.getSliderState(`${bandPrefix}_SC_HPF`);
+        parameterStates[`${bandPrefix}_SC_LPF`] = Juce.getSliderState(`${bandPrefix}_SC_LPF`);
+    } catch (e) {
+        console.warn(`Could not bind ${bandPrefix} sidechain filters:`, e);
     }
 }
 
@@ -142,43 +143,51 @@ function bindSlider(elementId, parameterId, formatValue) {
         return;
     }
 
-    if (!window.__JUCE__?.initialisers?.getSliderState) {
-        console.warn('JUCE slider state API not available');
-        return;
-    }
+    try {
+        // Get slider state from JUCE module
+        const sliderState = Juce.getSliderState(parameterId);
+        parameterStates[parameterId] = sliderState;
 
-    // Get slider state from JUCE
-    const sliderState = window.__JUCE__.initialisers.getSliderState(parameterId);
-    parameterStates[parameterId] = sliderState;
-
-    // Initialize element with current value
-    const initialNorm = sliderState.getNormalisedValue();
-    element.value = initialNorm;
-    if (valueDisplay && formatValue) {
-        valueDisplay.textContent = formatValue(initialNorm);
-    }
-
-    // Update parameter when UI changes
-    element.addEventListener('input', (e) => {
-        const norm = parseFloat(e.target.value);
-        sliderState.setNormalisedValue(norm);
-
+        // Initialize element with current value
+        const initialNorm = sliderState.getNormalisedValue();
+        element.value = initialNorm;
         if (valueDisplay && formatValue) {
-            valueDisplay.textContent = formatValue(norm);
+            valueDisplay.textContent = formatValue(initialNorm);
         }
-    });
 
-    // Update UI when parameter changes (automation, preset load)
-    sliderState.valueChangedEvent.addListener(() => {
-        const norm = sliderState.getNormalisedValue();
-        element.value = norm;
+        // Update parameter when UI changes
+        element.addEventListener('input', (e) => {
+            const norm = parseFloat(e.target.value);
+            sliderState.setNormalisedValue(norm);
 
-        if (valueDisplay && formatValue) {
-            valueDisplay.textContent = formatValue(norm);
-        }
-    });
+            if (valueDisplay && formatValue) {
+                valueDisplay.textContent = formatValue(norm);
+            }
+        });
 
-    console.log(`Bound slider: ${parameterId} → #${elementId}`);
+        // Notify JUCE when drag starts/ends
+        element.addEventListener('mousedown', () => {
+            sliderState.sliderDragStarted();
+        });
+
+        element.addEventListener('mouseup', () => {
+            sliderState.sliderDragEnded();
+        });
+
+        // Update UI when parameter changes (automation, preset load)
+        sliderState.valueChangedEvent.addListener(() => {
+            const norm = sliderState.getNormalisedValue();
+            element.value = norm;
+
+            if (valueDisplay && formatValue) {
+                valueDisplay.textContent = formatValue(norm);
+            }
+        });
+
+        console.log(`Bound slider: ${parameterId} → #${elementId}`);
+    } catch (e) {
+        console.error(`Failed to bind slider ${parameterId}:`, e);
+    }
 }
 
 function bindToggle(elementId, parameterId) {
@@ -189,52 +198,42 @@ function bindToggle(elementId, parameterId) {
         return;
     }
 
-    if (!window.__JUCE__?.initialisers?.getToggleState) {
-        console.warn('JUCE toggle state API not available');
-        return;
+    try {
+        // Get toggle state from JUCE module
+        const toggleState = Juce.getToggleState(parameterId);
+        parameterStates[parameterId] = toggleState;
+
+        // Initialize element with current state
+        const initialValue = toggleState.getValue();
+        updateToggleUI(element, initialValue);
+
+        // Update parameter when button clicked
+        element.addEventListener('click', () => {
+            const newValue = !toggleState.getValue();
+            toggleState.setValue(newValue);
+            updateToggleUI(element, newValue);
+        });
+
+        // Update UI when parameter changes (automation, preset load)
+        toggleState.valueChangedEvent.addListener(() => {
+            const value = toggleState.getValue();
+            updateToggleUI(element, value);
+        });
+
+        console.log(`Bound toggle: ${parameterId} → #${elementId}`);
+    } catch (e) {
+        console.error(`Failed to bind toggle ${parameterId}:`, e);
     }
+}
 
-    // Get toggle state from JUCE
-    const toggleState = window.__JUCE__.initialisers.getToggleState(parameterId);
-    parameterStates[parameterId] = toggleState;
-
-    // Initialize element with current state
-    const initialValue = toggleState.getValue();
-    if (initialValue) {
+function updateToggleUI(element, value) {
+    if (value) {
         element.classList.add('active');
         element.textContent = 'On';
     } else {
         element.classList.remove('active');
         element.textContent = 'Off';
     }
-
-    // Update parameter when button clicked
-    element.addEventListener('click', () => {
-        const newValue = !toggleState.getValue();
-        toggleState.setValue(newValue);
-
-        if (newValue) {
-            element.classList.add('active');
-            element.textContent = 'On';
-        } else {
-            element.classList.remove('active');
-            element.textContent = 'Off';
-        }
-    });
-
-    // Update UI when parameter changes (automation, preset load)
-    toggleState.valueChangedEvent.addListener(() => {
-        const value = toggleState.getValue();
-        if (value) {
-            element.classList.add('active');
-            element.textContent = 'On';
-        } else {
-            element.classList.remove('active');
-            element.textContent = 'Off';
-        }
-    });
-
-    console.log(`Bound toggle: ${parameterId} → #${elementId}`);
 }
 
 function bindComboBox(elementId, parameterId) {
@@ -245,32 +244,31 @@ function bindComboBox(elementId, parameterId) {
         return;
     }
 
-    if (!window.__JUCE__?.initialisers?.getComboBoxState) {
-        console.warn('JUCE combobox state API not available');
-        return;
+    try {
+        // Get combobox state from JUCE module
+        const comboState = Juce.getComboBoxState(parameterId);
+        parameterStates[parameterId] = comboState;
+
+        // Initialize element with current value
+        const initialIndex = comboState.getChoiceIndex();
+        element.selectedIndex = initialIndex;
+
+        // Update parameter when selection changes
+        element.addEventListener('change', (e) => {
+            const selectedIndex = e.target.selectedIndex;
+            comboState.setChoiceIndex(selectedIndex);
+        });
+
+        // Update UI when parameter changes (automation, preset load)
+        comboState.valueChangedEvent.addListener(() => {
+            const selectedIndex = comboState.getChoiceIndex();
+            element.selectedIndex = selectedIndex;
+        });
+
+        console.log(`Bound combobox: ${parameterId} → #${elementId}`);
+    } catch (e) {
+        console.error(`Failed to bind combobox ${parameterId}:`, e);
     }
-
-    // Get combobox state from JUCE
-    const comboState = window.__JUCE__.initialisers.getComboBoxState(parameterId);
-    parameterStates[parameterId] = comboState;
-
-    // Initialize element with current value
-    const initialId = comboState.getSelectedId();
-    element.selectedIndex = initialId;
-
-    // Update parameter when selection changes
-    element.addEventListener('change', (e) => {
-        const selectedId = parseInt(e.target.selectedIndex);
-        comboState.setSelectedId(selectedId);
-    });
-
-    // Update UI when parameter changes (automation, preset load)
-    comboState.valueChangedEvent.addListener(() => {
-        const selectedId = comboState.getSelectedId();
-        element.selectedIndex = selectedId;
-    });
-
-    console.log(`Bound combobox: ${parameterId} → #${elementId}`);
 }
 
 // ========== SPECTRUM ANALYZER PLACEHOLDER ==========
