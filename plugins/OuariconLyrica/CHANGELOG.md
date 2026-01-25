@@ -2,6 +2,31 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.15.0] - 2026-01-24
+
+### Added
+
+- **Factory Tuning Library** - 24 embedded tunings with categorized browser UI (Phase 3.2)
+  - **Historical** (5): Young 1799, Neidhardt III, Kellner Bach, Bach/Lehman, Valotti
+  - **Just Intonation** (4): Ptolemy Intense Diatonic, 5-Limit JI, 7-Limit JI, Partch 43-Tone
+  - **Equal Divisions** (6): 17-EDO, 19-EDO, 22-EDO, 31-EDO, 41-EDO, 53-EDO
+  - **Non-Octave** (4): Bohlen-Pierce (Equal), Carlos Alpha, Carlos Beta, Carlos Gamma
+  - **World** (5): Arabic 24-TET, Turkish Makam, Indian 22-Shruti, Gamelan Slendro, Gamelan Pelog
+  - Collapsible "Tuning Library" panel below the Generator section
+  - Category dropdown filter (All, Historical, Just, EDO, Non-Octave, World)
+  - Scrollable list with tuning name, category, note count, and description on hover
+  - Click to instantly load any tuning
+
+### Technical Details
+
+- New files: `Source/DSP/EmbeddedTunings.h`, `Source/DSP/EmbeddedTunings.cpp`
+- New native functions: `getEmbeddedTuningList`, `loadEmbeddedTuning`, `getEmbeddedTuningCategories`
+- EmbeddedTuning struct: id, name, category, description, intervals (vector), period
+- Static initialization pattern with `initializeTunings()` for lazy loading
+- Loading a library tuning sets mode to Custom/Scala and updates APVTS parameters
+- Non-octave tunings (Bohlen-Pierce, Carlos) include custom period values
+- Files modified: CMakeLists.txt, PluginEditor.cpp, index.html (CSS + JS + HTML)
+
 ## [1.14.0] - 2026-01-24
 
 ### Added

@@ -15,6 +15,7 @@ juce_add_plugin(OuariconLyrica
 # Source files
 # v1.3.1: Removed unused files (HarpSynthSound.cpp, DelayLine, StringVoice, BridgeFilter)
 # v1.14.0: Added ScaleGenerator for EDO/Harmonic/Rank-2 scale generation
+# v1.15.0: Added EmbeddedTunings for factory tuning library
 target_sources(OuariconLyrica
     PRIVATE
         Source/PluginProcessor.cpp
@@ -29,6 +30,7 @@ target_sources(OuariconLyrica
         Source/DSP/TuningEngine.cpp
         Source/DSP/GlissandoController.cpp
         Source/DSP/ScaleGenerator.cpp
+        Source/DSP/EmbeddedTunings.cpp
 )
 
 # Include paths

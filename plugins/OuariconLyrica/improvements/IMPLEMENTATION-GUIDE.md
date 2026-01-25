@@ -20,75 +20,67 @@
 | Task | Status | Version |
 |------|--------|---------|
 | 3.1 Scale Generators | ✅ COMPLETE | v1.14.0 |
-| 3.2 Factory Tuning Library | 🔜 NEXT | - |
-| 3.3 HTML Export | ⏳ Pending | - |
+| 3.2 Factory Tuning Library | ✅ COMPLETE | v1.15.0 |
+| 3.3 HTML Export | 🔜 NEXT | - |
 | 3.4 Add Scale Degree UI | ⏳ Pending | - |
 
 ---
 
-## Next Session: 3.2 Factory Tuning Library
+## Completed: 3.2 Factory Tuning Library (v1.15.0) ✅
+
+> **Implemented 2026-01-24** - 24 embedded tunings with categorized browser UI.
+
+**Files created:**
+- `Source/DSP/EmbeddedTunings.h` - Tuning definitions and category structure
+- `Source/DSP/EmbeddedTunings.cpp` - Static tuning data (24 tunings)
+
+**Files modified:**
+- `CMakeLists.txt` - Added EmbeddedTunings.cpp
+- `Source/PluginEditor.cpp` - Added native functions
+- `Resources/ui/index.html` - Added library browser panel
+
+**Native functions added:** `getEmbeddedTuningList`, `loadEmbeddedTuning`, `getEmbeddedTuningCategories`
+
+---
+
+## Next Session: 3.3 HTML Export
 
 ### Goal
-Embed 20+ tunings with categorized browser UI. Users can instantly load common historical, just, EDO, and world tunings without external Scala files.
+Add ability to export current tuning as a formatted HTML document for documentation/sharing.
 
 ### Implementation Plan
 
-**New files to create:**
-- `Source/DSP/EmbeddedTunings.h` - Tuning definitions and category structure
-- `Source/DSP/EmbeddedTunings.cpp` - Static tuning data (cents arrays)
+**New file to create:**
+- `Source/DSP/TuningExporter.h/.cpp` - Export utilities
 
 **Files to modify:**
-- `CMakeLists.txt` - Add EmbeddedTunings.cpp
-- `Source/PluginEditor.cpp` - Add native functions: `getEmbeddedTuningList`, `loadEmbeddedTuning`
-- `Resources/ui/index.html` - Add library browser panel (collapsible, with category filter)
+- `CMakeLists.txt` - Add TuningExporter.cpp
+- `Source/PluginEditor.cpp` - Add native function: `exportTuningHTML`
+- `Resources/ui/index.html` - Add "Export HTML" button in Custom mode
 
-### Tuning Categories (20+ total)
+### Export Content
 
-| Category | Tunings |
-|----------|---------|
-| **Historical** | Young 1799, Neidhardt, Kellner, Bach/Lehman |
-| **Just Intonation** | Ptolemy Intense Diatonic, 5-limit JI, 7-limit JI, Partch 43-tone |
-| **Equal Divisions** | 17-EDO, 19-EDO, 22-EDO, 31-EDO, 41-EDO, 53-EDO |
-| **Non-Octave** | Bohlen-Pierce, Carlos Alpha, Carlos Beta, Carlos Gamma |
-| **World** | Arabic 24-TET, Turkish Makam, Indian 22-Shruti, Gamelan Slendro, Gamelan Pelog |
+HTML document should include:
+- Scale name and description
+- Number of notes, period
+- Interval table (degree, cents, ratio approximation, deviation from ET)
+- Visual pitch circle SVG
+- Generation metadata (date, source)
 
-### Data Structure
-
-```cpp
-struct EmbeddedTuning {
-    const char* id;           // "historical/young1799"
-    const char* name;         // "Young 1799"
-    const char* category;     // "Historical"
-    const char* description;  // Brief description
-    std::vector<double> intervals;  // Cents from unison
-};
-```
-
-### UI Design
-
-Add collapsible "Tuning Library" section below the Generator section:
-- Category dropdown filter (All, Historical, Just, EDO, Non-Octave, World)
-- Scrollable list of tuning names
-- Click to load instantly
-- Shows description on hover/selection
-
-### Native Functions
+### Native Function
 
 ```cpp
-// Get list of all tunings (returns JSON array of {id, name, category, description})
-"getEmbeddedTuningList"
-
-// Load a specific tuning by ID
-"loadEmbeddedTuning" (id) → applies to TuningEngine
+// Generate HTML string for current tuning
+"exportTuningHTML" () → returns HTML string, opens save dialog
 ```
 
 ### Resume Instructions
 
 1. Read this file for context
-2. Read `Source/DSP/ScaleGenerator.h` for pattern reference
-3. Create EmbeddedTunings.h/.cpp with static tuning data
-4. Add native functions following the pattern in PluginEditor.cpp (search for "generateEDO")
-5. Add UI below the generator section in index.html
+2. Read `Source/DSP/EmbeddedTunings.h` for pattern reference (similar static utility class)
+3. Create TuningExporter.h/.cpp with HTML generation logic
+4. Add native function in PluginEditor.cpp
+5. Add Export button in index.html (near Save .SCL button)
 
 ---
 

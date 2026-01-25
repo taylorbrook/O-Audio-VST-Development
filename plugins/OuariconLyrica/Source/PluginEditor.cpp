@@ -11,6 +11,7 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 #include "DSP/ScaleGenerator.h"
+#include "DSP/EmbeddedTunings.h"
 
 OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconLyricaAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
@@ -556,6 +557,75 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                 }
 
                 complete(juce::var(true));
+            })
+            // v1.15.0: Embedded Tuning Library Functions
+            .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&,
+                                                            std::function<void(juce::var)> complete) {
+                // Build JSON array of all tunings
+                const auto& tunings = EmbeddedTunings::getAllTunings();
+                juce::String json = "[";
+                bool first = true;
+                for (const auto& tuning : tunings)
+                {
+                    if (!first) json += ",";
+                    first = false;
+                    json += "{";
+                    json += "\"id\":\"" + juce::String(tuning.id) + "\",";
+                    json += "\"name\":\"" + juce::String(tuning.name) + "\",";
+                    json += "\"category\":\"" + juce::String(tuning.category) + "\",";
+                    json += "\"description\":\"" + juce::String(tuning.description) + "\",";
+                    json += "\"noteCount\":" + juce::String(static_cast<int>(tuning.intervals.size())) + ",";
+                    json += "\"period\":" + juce::String(tuning.period, 1);
+                    json += "}";
+                }
+                json += "]";
+                complete(juce::var(json));
+            })
+            .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args,
+                                                              std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+
+                juce::String tuningId = args[0].toString();
+                const auto* tuning = EmbeddedTunings::getTuningById(tuningId.toStdString());
+
+                if (tuning == nullptr)
+                {
+                    complete(juce::var(false));
+                    return;
+                }
+
+                // Apply to TuningEngine
+                processorRef.getTuningEngine()->setCustomIntervals(tuning->intervals, tuning->name);
+                processorRef.getTuningEngine()->setMode(TuningEngine::Mode::Scala);
+
+                // Mark as custom preset (since this is a loaded tuning, not a built-in preset)
+                processorRef.getTuningEngine()->setBuiltInPreset(TuningEngine::BuiltInPreset::Custom);
+
+                // Update APVTS tuning mode to Custom (1)
+                if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
+                {
+                    param->setValueNotifyingHost(0.5f);  // Custom = index 1 out of 3
+                }
+
+                // Update temperament preset to Custom (10)
+                if (auto* presetParam = processorRef.getAPVTS().getParameter("temperamentPreset"))
+                {
+                    presetParam->setValueNotifyingHost(1.0f);  // Index 10 = Custom
+                }
+
+                complete(juce::var(true));
+            })
+            .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&,
+                                                                   std::function<void(juce::var)> complete) {
+                auto categories = EmbeddedTunings::getCategories();
+                juce::String json = "[";
+                for (size_t i = 0; i < categories.size(); ++i)
+                {
+                    if (i > 0) json += ",";
+                    json += "\"" + juce::String(categories[i]) + "\"";
+                }
+                json += "]";
+                complete(juce::var(json));
             })
             // v1.7.4: Note triggering for WebView keyboard visualization
             .withNativeFunction("triggerNoteOn", [this](const juce::Array<juce::var>& args,
