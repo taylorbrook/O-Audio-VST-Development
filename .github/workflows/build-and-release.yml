@@ -1,0 +1,322 @@
+# GitHub Actions Workflow for Cross-Platform Plugin Builds
+#
+# Triggers on tags matching: *-v* (e.g., OuariconTremolo-v1.4.0)
+# Builds: macOS (Universal), Windows, Linux
+# Creates: GitHub Release with all artifacts
+
+name: Build and Release
+
+on:
+  push:
+    tags:
+      - '*-v*'  # Matches: PluginName-vX.Y.Z
+
+env:
+  JUCE_VERSION: '8.0.4'
+  BUILD_TYPE: Release
+
+jobs:
+  # ============================================
+  # Parse tag to extract plugin name and version
+  # ============================================
+  parse-tag:
+    runs-on: ubuntu-latest
+    outputs:
+      plugin_name: ${{ steps.parse.outputs.plugin_name }}
+      version: ${{ steps.parse.outputs.version }}
+    steps:
+      - name: Parse tag
+        id: parse
+        run: |
+          TAG="${GITHUB_REF#refs/tags/}"
+          # Extract plugin name (everything before -v)
+          PLUGIN_NAME="${TAG%-v*}"
+          # Extract version (everything after -v)
+          VERSION="${TAG##*-v}"
+          echo "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Parsed: Plugin=$PLUGIN_NAME, Version=$VERSION"
+
+  # ============================================
+  # macOS Build (Universal Binary: Intel + ARM)
+  # ============================================
+  build-macos:
+    needs: parse-tag
+    runs-on: macos-14  # Apple Silicon runner
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup JUCE
+        run: |
+          # Download and extract JUCE
+          curl -L "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-osx.zip" -o juce.zip
+          unzip -q juce.zip
+          # JUCE extracts to JUCE/ directory
+
+      - name: Patch CMakeLists for CI
+        run: |
+          # Replace hardcoded JUCE path with relative path for CI
+          sed -i '' 's|add_subdirectory(/Users/taylorbrook/JUCE JUCE)|add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/JUCE JUCE)|' CMakeLists.txt
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
+            -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+
+      - name: Build Plugin
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          cmake --build build --target "${PLUGIN}_VST3" "${PLUGIN}_AU" --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+
+      - name: Package Artifacts
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          VERSION="${{ needs.parse-tag.outputs.version }}"
+
+          # Find artefacts directory (handle spaces in plugin names)
+          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+
+          # Find product name from CMakeLists.txt
+          PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/')
+          echo "Product Name: $PRODUCT_NAME"
+
+          mkdir -p dist
+
+          # Copy VST3 and AU (handle product names with spaces)
+          if [ -d "${ARTEFACTS_BASE}/VST3" ]; then
+            cp -R "${ARTEFACTS_BASE}/VST3/"*.vst3 dist/ || true
+          fi
+          if [ -d "${ARTEFACTS_BASE}/AU" ]; then
+            cp -R "${ARTEFACTS_BASE}/AU/"*.component dist/ || true
+          fi
+
+          # List what we packaged
+          echo "Packaged artifacts:"
+          ls -la dist/
+
+          # Create tarball
+          cd dist
+          tar -czf "../${PLUGIN}-${VERSION}-macos.tar.gz" .
+          cd ..
+          echo "Created: ${PLUGIN}-${VERSION}-macos.tar.gz"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: macos-build
+          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-macos.tar.gz
+
+  # ============================================
+  # Windows Build
+  # ============================================
+  build-windows:
+    needs: parse-tag
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup JUCE
+        run: |
+          # Download and extract JUCE
+          Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-windows.zip" -OutFile juce.zip
+          Expand-Archive -Path juce.zip -DestinationPath .
+          # JUCE extracts to JUCE/ directory
+
+      - name: Patch CMakeLists for CI
+        run: |
+          # Replace hardcoded JUCE path with relative path for CI
+          (Get-Content CMakeLists.txt) -replace 'add_subdirectory\(/Users/taylorbrook/JUCE JUCE\)', 'add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/JUCE JUCE)' | Set-Content CMakeLists.txt
+
+      - name: Configure CMake
+        run: |
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build Plugin
+        run: |
+          $PLUGIN = "${{ needs.parse-tag.outputs.plugin_name }}"
+          cmake --build build --target "${PLUGIN}_VST3" --config ${{ env.BUILD_TYPE }}
+
+      - name: Package Artifacts
+        run: |
+          $PLUGIN = "${{ needs.parse-tag.outputs.plugin_name }}"
+          $VERSION = "${{ needs.parse-tag.outputs.version }}"
+          $ARTEFACTS = "build\plugins\$PLUGIN\${PLUGIN}_artefacts\${{ env.BUILD_TYPE }}"
+
+          New-Item -ItemType Directory -Force -Path dist
+
+          # Copy VST3
+          if (Test-Path "$ARTEFACTS\VST3") {
+            Copy-Item -Recurse "$ARTEFACTS\VST3\*" dist\
+          }
+
+          # List packaged artifacts
+          Write-Host "Packaged artifacts:"
+          Get-ChildItem dist
+
+          # Create ZIP
+          Compress-Archive -Path dist\* -DestinationPath "$PLUGIN-$VERSION-windows.zip"
+          Write-Host "Created: $PLUGIN-$VERSION-windows.zip"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-build
+          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-windows.zip
+
+  # ============================================
+  # Linux Build
+  # ============================================
+  build-linux:
+    needs: parse-tag
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Install Dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libasound2-dev \
+            libjack-jackd2-dev \
+            ladspa-sdk \
+            libcurl4-openssl-dev \
+            libfreetype6-dev \
+            libx11-dev \
+            libxcomposite-dev \
+            libxcursor-dev \
+            libxext-dev \
+            libxinerama-dev \
+            libxrandr-dev \
+            libxrender-dev \
+            libwebkit2gtk-4.0-dev \
+            libglu1-mesa-dev \
+            mesa-common-dev
+
+      - name: Setup JUCE
+        run: |
+          # Download and extract JUCE
+          curl -L "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-linux.zip" -o juce.zip
+          unzip -q juce.zip
+          # JUCE extracts to JUCE/ directory
+
+      - name: Patch CMakeLists for CI
+        run: |
+          # Replace hardcoded JUCE path with relative path for CI
+          sed -i 's|add_subdirectory(/Users/taylorbrook/JUCE JUCE)|add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/JUCE JUCE)|' CMakeLists.txt
+
+      - name: Configure CMake
+        run: |
+          cmake -B build \
+            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
+
+      - name: Build Plugin
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          cmake --build build --target "${PLUGIN}_VST3" --config ${{ env.BUILD_TYPE }} -j$(nproc)
+
+      - name: Package Artifacts
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          VERSION="${{ needs.parse-tag.outputs.version }}"
+          ARTEFACTS="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+
+          mkdir -p dist
+
+          # Copy VST3
+          if [ -d "${ARTEFACTS}/VST3" ]; then
+            cp -R "${ARTEFACTS}/VST3/"*.vst3 dist/ || true
+          fi
+
+          # List packaged artifacts
+          echo "Packaged artifacts:"
+          ls -la dist/
+
+          # Create tarball
+          cd dist
+          tar -czf "../${PLUGIN}-${VERSION}-linux.tar.gz" .
+          cd ..
+          echo "Created: ${PLUGIN}-${VERSION}-linux.tar.gz"
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-build
+          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-linux.tar.gz
+
+  # ============================================
+  # Create GitHub Release
+  # ============================================
+  create-release:
+    needs: [parse-tag, build-macos, build-windows, build-linux]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download All Artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Extract Release Notes
+        id: release_notes
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          VERSION="${{ needs.parse-tag.outputs.version }}"
+          CHANGELOG="plugins/${PLUGIN}/CHANGELOG.md"
+
+          if [ -f "$CHANGELOG" ]; then
+            # Extract section for this version
+            # Looks for ## [VERSION] and captures until next ## [
+            NOTES=$(awk "/^## \[${VERSION}\]/{flag=1; next} /^## \[/{flag=0} flag" "$CHANGELOG")
+
+            if [ -z "$NOTES" ]; then
+              NOTES="Release ${PLUGIN} v${VERSION}"
+            fi
+          else
+            NOTES="Release ${PLUGIN} v${VERSION}"
+          fi
+
+          # Write to file for multiline support
+          echo "$NOTES" > release_notes.md
+
+          # Debug output
+          echo "Release notes:"
+          cat release_notes.md
+
+      - name: Get Product Name
+        id: product_name
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/' || echo "$PLUGIN")
+          echo "name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
+          echo "Product name: $PRODUCT_NAME"
+
+      - name: List Artifacts
+        run: |
+          echo "Downloaded artifacts:"
+          find artifacts -type f
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "${{ steps.product_name.outputs.name }} v${{ needs.parse-tag.outputs.version }}"
+          body_path: release_notes.md
+          files: |
+            artifacts/macos-build/*
+            artifacts/windows-build/*
+            artifacts/linux-build/*
+          draft: false
+          prerelease: false
