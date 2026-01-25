@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Make bass perceptually fuller without artifacts - enhancement that sounds natural and translates well.
-**Current focus:** Phase 4 In Progress - Controls & Refinement
+**Current focus:** Phase 4 Complete - Controls & Refinement
 
 ## Current Position
 
-Phase: 4 of 6 (Controls & Refinement)
-Plan: 1 of 2 complete
-Status: In Progress
-Progress: [######=---] 65%
+Phase: 4 of 6 (Controls & Refinement - COMPLETE)
+Plan: 2 of 2 complete
+Status: Phase Complete
+Progress: [#######---] 70%
 
-Last activity: 2026-01-25 - Completed 04-01-PLAN.md (Bass Enhancement Intensity Tuning)
+Last activity: 2026-01-25 - Completed 04-02-PLAN.md (Output Gain Control)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
-- Average duration: 2m 55s
-- Total execution time: 0.63 hours
+- Total plans completed: 14
+- Average duration: 2m 58s
+- Total execution time: 0.69 hours
 
 **By Phase:**
 
@@ -30,10 +30,10 @@ Last activity: 2026-01-25 - Completed 04-01-PLAN.md (Bass Enhancement Intensity 
 | 01-core-dsp-foundation | 6 | 18m 7s | 3m 1s |
 | 02-clean-mode | 4 | 13m 25s | 3m 21s |
 | 03-colored-mode | 2 | 8m | 4m |
-| 04-controls-refinement | 1 | 3m 47s | 3m 47s |
+| 04-controls-refinement | 2 | 7m 47s | 3m 54s |
 
 **Recent Trend:**
-- Last 5 plans: 02-04 (5 min), 03-01 (3 min), 03-02 (5 min), 04-01 (3m 47s)
+- Last 5 plans: 03-01 (3 min), 03-02 (5 min), 04-01 (3m 47s), 04-02 (4 min)
 - Trend: Consistent fast execution
 
 *Updated after each plan completion*
@@ -80,6 +80,10 @@ Recent decisions affecting current work:
 - **Mode crossfade:** 20ms SmoothedValue for click-free transitions
 - **Dual-path processing:** Both processors run during crossfade, output blended per-sample
 - **Intensity scaling:** 1.0 + sqrt(1 - normalized) * 0.7 (40Hz->1.7x, 200Hz->1.0x)
+- **Output parameter:** -18dB to +18dB range, 0dB default
+- **Output smoothing:** Multiplicative SmoothedValue for perceptually linear dB transitions
+- **Output soft clip:** 0.95 threshold (~-0.5dB), defense-in-depth distinct from processor limiting
+- **Limit indicator:** Atomic float with 100ms smoothed decay for UI feedback
 
 ### Pending Todos
 
@@ -87,14 +91,15 @@ None.
 
 ### Blockers/Concerns
 
-**Human listening test needed for 04-01 tuning:**
+**Human listening test needed for Phase 4 tuning:**
 - Verify Colored mode intensity matches Clean mode at 50% Enhance
 - Verify low crossover (40-80Hz) produces stronger enhancement than high (200Hz)
+- Verify output gain adjustment is click-free
 - Check for new artifacts (clicks, distortion, DC offset)
 
-## Phase 4 Progress
+## Phase 4 Completion Summary
 
-**Controls & Refinement - IN PROGRESS**
+**Controls & Refinement - COMPLETE**
 
 Plan 04-01 completed (Intensity Tuning):
 - ColoredModeProcessor drive range increased to 2.0-6.0
@@ -103,14 +108,17 @@ Plan 04-01 completed (Intensity Tuning):
 - Frequency-dependent intensity scaling (1.7x at 40Hz, 1.0x at 200Hz)
 - HarmonicGenerator bandpass lowered to 40Hz
 
+Plan 04-02 completed (Output Gain Control):
+- Output parameter (-18dB to +18dB) added to APVTS
+- SmoothedValue (Multiplicative) for click-free gain transitions
+- Tanh soft clipper at 0.95 for defense-in-depth limiting
+- Limit indicator for UI feedback (atomic + smoothed)
+
 Key files modified:
+- `plugins/OBass/Source/PluginProcessor.h/cpp` - Output gain and limit indicator
 - `plugins/OBass/Source/DSP/ColoredModeProcessor.h/cpp` - Enhanced saturation
 - `plugins/OBass/Source/DSP/CleanModeProcessor.h/cpp` - Intensity scaling
 - `plugins/OBass/Source/DSP/HarmonicGenerator.cpp` - Lower bandpass
-- `plugins/OBass/Source/PluginProcessor.cpp` - Intensity calculation
-
-Plan 04-02 pending:
-- Output Mix control (dry/wet blend)
 
 ## Phase 3 Completion Summary
 
@@ -202,5 +210,5 @@ Key files ready for Phase 2:
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 04-01-PLAN.md
-Resume file: Ready for 04-02-PLAN.md (Output Mix control)
+Stopped at: Completed 04-02-PLAN.md (Output Gain Control)
+Resume file: Ready for Phase 5 (UI Polish) or Phase 6 (Testing)
