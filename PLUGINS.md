@@ -34,7 +34,7 @@ Ouaricon Plugins:
 | O-DigiDelay | 📦 Installed | 1.2.1 | Audio Effect (Delay) | 2026-01-24 |
 | O-SimpleReverb | 📦 Installed | 1.5.0 | Audio Effect (Reverb) | 2026-01-24 |
 | O-Polystutter | 📦 Installed | 1.6.8 | Audio Effect (Beat Repeater) | 2026-01-24 |
-| OuariconLyrica | 📦 Installed | 1.16.0 | Synth (Physical Modeling Harp) | 2026-01-24 |
+| O-Lyrica | 📦 Installed | 1.17.0 | Synth (Physical Modeling Harp) | 2026-01-25 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
