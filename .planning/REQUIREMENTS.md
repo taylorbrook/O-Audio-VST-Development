@@ -81,9 +81,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CTRL-02 | Phase 4 | Complete |
 | CTRL-03 | Phase 4 | Complete |
 | CTRL-04 | Phase 4 | Complete |
-| UI-01 | Phase 5 | Pending |
-| UI-02 | Phase 5 | Pending |
-| UI-03 | Phase 5 | Pending |
+| UI-01 | Phase 5 | Complete |
+| UI-02 | Phase 5 | Complete |
+| UI-03 | Phase 5 | Complete |
 | FMT-01 | Phase 6 | Pending |
 | FMT-02 | Phase 6 | Pending |
 | FMT-03 | Phase 6 | Pending |
@@ -96,4 +96,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-24 after Phase 4 completion*
+*Last updated: 2026-01-25 after Phase 5 completion*
