@@ -63,7 +63,7 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
     outputBandpassHigh.prepare(monoSpec);
 
     // THEN set coefficients
-    auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 80.0f, 0.707f);
+    auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 40.0f, 0.707f);
     outputBandpassLow.coefficients = hpCoeffs;
 
     auto lpCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 300.0f, 0.707f);
