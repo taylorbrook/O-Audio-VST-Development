@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconComp - Editor Implementation
+    O-Comp - Editor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -14,7 +14,7 @@
 #include "BinaryData.h"
 
 //==============================================================================
-OuariconCompAudioProcessorEditor::OuariconCompAudioProcessorEditor(OuariconCompAudioProcessor& p)
+OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
     //==========================================================================
@@ -178,7 +178,7 @@ OuariconCompAudioProcessorEditor::OuariconCompAudioProcessorEditor(OuariconCompA
     startTimerHz(30);
 }
 
-OuariconCompAudioProcessorEditor::~OuariconCompAudioProcessorEditor()
+OCompAudioProcessorEditor::~OCompAudioProcessorEditor()
 {
     // Stop timer before destruction
     stopTimer();
@@ -190,19 +190,19 @@ OuariconCompAudioProcessorEditor::~OuariconCompAudioProcessorEditor()
 }
 
 //==============================================================================
-void OuariconCompAudioProcessorEditor::paint(juce::Graphics& g)
+void OCompAudioProcessorEditor::paint(juce::Graphics& g)
 {
     // WebView handles all rendering
     g.fillAll(juce::Colours::black);
 }
 
-void OuariconCompAudioProcessorEditor::resized()
+void OCompAudioProcessorEditor::resized()
 {
     // WebView fills entire editor window
     webView->setBounds(getLocalBounds());
 }
 
-void OuariconCompAudioProcessorEditor::parentHierarchyChanged()
+void OCompAudioProcessorEditor::parentHierarchyChanged()
 {
     // Navigate WebView only after editor is attached to a window (JUCE 8 requirement)
     // This prevents crashes during plugin scanning when no window context exists
@@ -215,7 +215,7 @@ void OuariconCompAudioProcessorEditor::parentHierarchyChanged()
 }
 
 //==============================================================================
-void OuariconCompAudioProcessorEditor::timerCallback()
+void OCompAudioProcessorEditor::timerCallback()
 {
     // Get meter values from processor (thread-safe atomic reads)
     float inputLevel = processorRef.getInputLevelDB();
@@ -234,7 +234,7 @@ void OuariconCompAudioProcessorEditor::timerCallback()
 
 //==============================================================================
 std::optional<juce::WebBrowserComponent::Resource>
-OuariconCompAudioProcessorEditor::getResource(const juce::String& url)
+OCompAudioProcessorEditor::getResource(const juce::String& url)
 {
     // Helper to convert BinaryData to byte vector
     auto makeVector = [](const char* data, int size) {

@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconComp - Audio Processor
+    O-Comp - Audio Processor
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -13,11 +13,11 @@
 #include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
 
-class OuariconCompAudioProcessor : public juce::AudioProcessor
+class OCompAudioProcessor : public juce::AudioProcessor
 {
 public:
-    OuariconCompAudioProcessor();
-    ~OuariconCompAudioProcessor() override;
+    OCompAudioProcessor();
+    ~OCompAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -26,7 +26,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "OuariconComp"; }
+    const juce::String getName() const override { return "O-Comp"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -78,5 +78,5 @@ private:
                                   float ratio, float kneeDB);
     void updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconCompAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OCompAudioProcessor)
 };

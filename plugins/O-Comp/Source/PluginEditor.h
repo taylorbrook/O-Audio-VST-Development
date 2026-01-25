@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconComp - Editor
+    O-Comp - Editor
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -15,12 +15,12 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OuariconCompAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                         private juce::Timer
+class OCompAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                  private juce::Timer
 {
 public:
-    explicit OuariconCompAudioProcessorEditor(OuariconCompAudioProcessor&);
-    ~OuariconCompAudioProcessorEditor() override;
+    explicit OCompAudioProcessorEditor(OCompAudioProcessor&);
+    ~OCompAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -32,7 +32,7 @@ private:
     // Timer callback for metering updates
     void timerCallback() override;
 
-    OuariconCompAudioProcessor& processorRef;
+    OCompAudioProcessor& processorRef;
 
     // Navigation guard (FIX: member variable, not static)
     bool hasNavigated = false;
@@ -73,5 +73,5 @@ private:
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconCompAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OCompAudioProcessorEditor)
 };

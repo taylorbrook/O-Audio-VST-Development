@@ -1,6 +1,21 @@
-# OuariconComp Changelog
+# O-Comp Changelog
 
 All notable changes to this plugin will be documented in this file.
+
+## [1.2.0] - 2026-01-24
+
+### Changed
+
+- **Renamed plugin** from "OuariconComp" to "O-Comp"
+  - Short name "O-Comp" now appears in DAW, file system, and plugin identifiers
+  - Full name "Ouaricon Compressor" remains in the UI header
+  - Source folder renamed from `plugins/OuariconComp/` to `plugins/O-Comp/`
+  - Preset folder changed from `~/Library/OuariconComp/Presets/` to `~/Library/O-Comp/Presets/`
+
+### Migration Notes
+
+- Existing presets need to be moved manually from `~/Library/OuariconComp/Presets/` to `~/Library/O-Comp/Presets/`
+- DAW sessions using "OuariconComp" will need to re-add the plugin as "O-Comp"
 
 ## [1.1.1] - 2026-01-12
 

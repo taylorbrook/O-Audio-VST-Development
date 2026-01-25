@@ -1,12 +1,15 @@
-# OuariconComp Notes
+# O-Comp Notes
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.2
+- **Version:** 1.2.0
 - **Type:** Audio Effect (Compressor)
 
 ## Lifecycle Timeline
 
+- **2026-01-24 (v1.2.0):** Renamed from OuariconComp to O-Comp
+- **2026-01-12 (v1.1.1):** Added preset dropdown menu
+- **2026-01-12 (v1.1.0):** Preset Manager integration, 8 factory presets
 - **2026-01-11 (v1.0.2):** Changed default ratio to 2:1, fixed double-click reset for all knobs
 - **2026-01-11 (v1.0.1):** Bug fixes - fixed knob animations, real metering for input/output and envelope/GR display
 - **2026-01-11:** Installed to system folders (VST3 + AU)
@@ -23,6 +26,10 @@
 
 **Description:**
 Transparent, clean, utilitarian compressor with variable soft-knee. Feed-forward design for predictability. Zero-latency (no lookahead buffer).
+
+**Names:**
+- Short name: O-Comp (DAW, file system, plugin identifiers)
+- Full name: Ouaricon Compressor (UI display)
 
 **Parameters (7 total):**
 1. Threshold (-60 to 0 dB, default -20 dB)
@@ -49,7 +56,10 @@ Transparent, clean, utilitarian compressor with variable soft-knee. Feed-forward
 - Envelope and gain reduction display
 
 **Installation Locations:**
-- VST3: `~/Library/Audio/Plug-Ins/VST3/OuariconComp.vst3`
-- AU: `~/Library/Audio/Plug-Ins/Components/OuariconComp.component`
+- VST3: `~/Library/Audio/Plug-Ins/VST3/O-Comp.vst3`
+- AU: `~/Library/Audio/Plug-Ins/Components/O-Comp.component`
+
+**Presets:**
+- Location: `~/Library/O-Comp/Presets/`
 
 **Formats:** VST3, AU, Standalone

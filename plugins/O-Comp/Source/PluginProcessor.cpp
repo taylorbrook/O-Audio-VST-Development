@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconComp - Audio Processor Implementation
+    O-Comp - Audio Processor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -11,7 +11,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-juce::AudioProcessorValueTreeState::ParameterLayout OuariconCompAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout OCompAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -79,20 +79,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconCompAudioProcessor::
     return layout;
 }
 
-OuariconCompAudioProcessor::OuariconCompAudioProcessor()
+OCompAudioProcessor::OCompAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
-    , presetManager(parameters, "OuariconComp")
+    , presetManager(parameters, "O-Comp")
 {
 }
 
-OuariconCompAudioProcessor::~OuariconCompAudioProcessor()
+OCompAudioProcessor::~OCompAudioProcessor()
 {
 }
 
-void OuariconCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     // Configure DSP spec
     spec.sampleRate = sampleRate;
@@ -108,13 +108,13 @@ void OuariconCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPer
     updateCoefficients(attackParam->load(), releaseParam->load(), sampleRate);
 }
 
-void OuariconCompAudioProcessor::releaseResources()
+void OCompAudioProcessor::releaseResources()
 {
     // Reset envelope state
     envelopeDB = -60.0f;
 }
 
-void OuariconCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
@@ -215,12 +215,12 @@ void OuariconCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     currentEnvelopeDB.store(envelopeDB);
 }
 
-juce::AudioProcessorEditor* OuariconCompAudioProcessor::createEditor()
+juce::AudioProcessorEditor* OCompAudioProcessor::createEditor()
 {
-    return new OuariconCompAudioProcessorEditor(*this);
+    return new OCompAudioProcessorEditor(*this);
 }
 
-void OuariconCompAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void OCompAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     // Use preset manager for complete state (includes current preset name)
     auto xml = presetManager.getStateAsXml();
@@ -228,7 +228,7 @@ void OuariconCompAudioProcessor::getStateInformation(juce::MemoryBlock& destData
         copyXmlToBinary(*xml, destData);
 }
 
-void OuariconCompAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void OCompAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
@@ -237,7 +237,7 @@ void OuariconCompAudioProcessor::setStateInformation(const void* data, int sizeI
 }
 
 // DSP Helper Methods
-float OuariconCompAudioProcessor::calculateGainReduction(float inputLevel, float thresholdDB,
+float OCompAudioProcessor::calculateGainReduction(float inputLevel, float thresholdDB,
                                                           float ratio, float kneeDB)
 {
     float x = inputLevel - thresholdDB;
@@ -261,7 +261,7 @@ float OuariconCompAudioProcessor::calculateGainReduction(float inputLevel, float
     }
 }
 
-void OuariconCompAudioProcessor::updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate)
+void OCompAudioProcessor::updateCoefficients(float attackTimeMs, float releaseTimeMs, double sampleRate)
 {
     // Calculate attack/release coefficients using exponential formula
     // coeff = 1 - exp(-1 / (timeMs * sampleRate / 1000))
@@ -272,5 +272,5 @@ void OuariconCompAudioProcessor::updateCoefficients(float attackTimeMs, float re
 // Factory function
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new OuariconCompAudioProcessor();
+    return new OCompAudioProcessor();
 }

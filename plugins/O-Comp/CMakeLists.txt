@@ -1,32 +1,32 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
-juce_add_plugin(OuariconComp
+juce_add_plugin(O-Comp
     COMPANY_NAME "Ouaricon Audio"
     PLUGIN_MANUFACTURER_CODE OuAu
     PLUGIN_CODE OuCp
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "OuariconComp"
+    PRODUCT_NAME "O-Comp"
     NEEDS_WEB_BROWSER TRUE
 )
 
 # Source files
-target_sources(OuariconComp
+target_sources(O-Comp
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
 )
 
 # Include paths
-target_include_directories(OuariconComp
+target_include_directories(O-Comp
     PRIVATE
         Source
 )
 
 # Required JUCE modules
-target_link_libraries(OuariconComp
+target_link_libraries(O-Comp
     PRIVATE
-        OuariconComp_UIResources
+        O-Comp_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
@@ -47,10 +47,10 @@ target_link_libraries(OuariconComp
 )
 
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL)
-juce_generate_juce_header(OuariconComp)
+juce_generate_juce_header(O-Comp)
 
 # WebView UI Resources
-juce_add_binary_data(OuariconComp_UIResources
+juce_add_binary_data(O-Comp_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
@@ -61,7 +61,7 @@ juce_add_binary_data(OuariconComp_UIResources
 )
 
 # Compile definitions
-target_compile_definitions(OuariconComp
+target_compile_definitions(O-Comp
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
