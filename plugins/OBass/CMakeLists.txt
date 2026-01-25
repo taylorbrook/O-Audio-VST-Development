@@ -63,3 +63,18 @@ target_compile_definitions(OBass
         JUCE_WEB_BROWSER=1
         JUCE_USE_CURL=0
 )
+
+# WebView UI Resources
+juce_add_binary_data(OBass_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/img/paper.jpg
+        Source/ui/public/img/botanical.png
+)
+
+target_link_libraries(OBass
+    PRIVATE
+        OBass_UIResources
+)
