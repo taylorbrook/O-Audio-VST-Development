@@ -1,15 +1,16 @@
 # O-MultiBandCompressor Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 0 (Research & Planning Complete)
-- **Version:** 1.0.0 (planned)
+- **Current Status:** 🚧 Stage 1 (Foundation Complete)
+- **Version:** 1.0.0 (in development)
 - **Type:** Audio Effect (Dynamics Processor - Multiband Compressor)
-- **Complexity:** 5.0 (Maximum complexity - 57 parameters, 10 DSP components)
+- **Complexity:** 5.0 (Maximum complexity - 56 parameters, 10 DSP components)
 
 ## Lifecycle Timeline
 
 - **2026-01-25 (Ideation):** Creative brief created - 4-band multiband compressor with Linkwitz-Riley crossovers, M/S processing, sidechain filtering, and real-time FFT visualization
 - **2026-01-25 (Stage 0):** Research & Planning complete - Architecture and plan documented (Complexity 5.0, phased implementation)
+- **2026-01-25 (Stage 1):** Foundation complete - Build system operational, 56 parameters implemented in APVTS
 
 ## Known Issues
 
@@ -30,14 +31,32 @@ Professional 4-band multiband compressor designed for mixing and mastering workf
 - **Parallel compression:** Global dry/wet mix (New York compression technique)
 - **Visualization:** Real-time FFT spectrum analyzer with band overlays and per-band GR meters
 
-### Parameters (57 total)
-**Global (9 parameters):**
-- Input Gain, Output Gain, Mix (Dry/Wet), Auto-Makeup, M/S Mode
-- Crossover 1 (20-500Hz), Crossover 2 (200-5kHz), Crossover 3 (2-16kHz)
+### Parameters (56 total)
+**Global (8 parameters):**
+- INPUT_GAIN (-24 to +24 dB)
+- OUTPUT_GAIN (-24 to +24 dB)
+- MIX (0-100%)
+- AUTO_MAKEUP (bool)
+- MS_MODE (choice: Off/Mid/Side/Both)
+- XOVER1 (20-500Hz, logarithmic)
+- XOVER2 (200-5kHz, logarithmic)
+- XOVER3 (2-16kHz, logarithmic)
 
 **Per-Band (12 parameters × 4 bands = 48 parameters):**
-- Threshold, Ratio, Attack, Release, Knee, Makeup Gain, Peak/RMS Blend
-- Solo, Bypass, SC HPF, SC LPF, SC Listen
+- [BAND]_THRESHOLD (-60 to 0 dB)
+- [BAND]_RATIO (1:1 to 20:1)
+- [BAND]_ATTACK (0.1 to 200 ms)
+- [BAND]_RELEASE (10 to 2000 ms)
+- [BAND]_KNEE (0 to 24 dB)
+- [BAND]_MAKEUP (-12 to +24 dB)
+- [BAND]_PEAK_RMS (0-100%)
+- [BAND]_SOLO (bool)
+- [BAND]_BYPASS (bool)
+- [BAND]_SC_HPF (0-2000 Hz, 0=off)
+- [BAND]_SC_LPF (0-20000 Hz, 0=off)
+- [BAND]_SC_LISTEN (bool)
+
+**Band Prefixes:** LOW, LOMID, HIMID, HIGH
 
 ### DSP Architecture
 - **Crossover:** Cascaded 2nd order Butterworth filters (Linkwitz-Riley 4th order)
@@ -82,7 +101,15 @@ Professional 4-band multiband compressor designed for mixing and mastering workf
 - Architecture: `plugins/O-MultiBandCompressor/.contracts/architecture.md`
 - Implementation Plan: `plugins/O-MultiBandCompressor/.contracts/plan.md`
 
+### Build Artifacts
+- **Source Files:**
+  - `plugins/O-MultiBandCompressor/CMakeLists.txt`
+  - `plugins/O-MultiBandCompressor/Source/PluginProcessor.{h,cpp}`
+  - `plugins/O-MultiBandCompressor/Source/PluginEditor.{h,cpp}`
+- **Build Location:** `build/plugins/O-MultiBandCompressor/`
+- **Installed Formats:** Not yet installed (Stage 1 - foundation only)
+
 ---
 
 *Last updated: 2026-01-25*
-*Next: Stage 1 (Foundation + Shell) - Run `/implement O-MultiBandCompressor`*
+*Next: Phase 4.1 (DSP) - Single-band compressor foundation*
