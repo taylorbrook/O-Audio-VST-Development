@@ -2,6 +2,29 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.16.0] - 2026-01-24
+
+### Added
+
+- **HTML Export** - Export current tuning as formatted HTML documentation (Phase 3.3)
+  - Generates complete, standalone HTML document with professional styling
+  - **Scale metadata**: Name, note count, period, A4 reference frequency, octave stretch
+  - **Visual pitch circle**: SVG visualization showing interval positions vs equal temperament
+  - **Interval table**: Degree, cents, ratio approximation (from 50+ common ratios), ET deviation
+  - **Color-coded deviations**: Green (pure), orange (sharp), blue (flat)
+  - **Generation metadata**: Date/time stamp and Ouaricon branding
+  - Print-friendly CSS with clean margins and no shadows
+  - Export button appears in Custom mode file buttons section
+
+### Technical Details
+
+- New files: `Source/DSP/TuningExporter.h`, `Source/DSP/TuningExporter.cpp`
+- New native function: `exportTuningHTML` - generates HTML and opens save dialog
+- TuningExporter static class with methods: `toHTML()`, `generatePitchCircleSVG()`, `approximateRatio()`, `calculateETDeviation()`
+- Ratio approximation database includes 50+ common musical ratios (just intonation, Pythagorean, ET)
+- SVG pitch circle shows both ET reference lines (faint) and actual interval positions
+- Files modified: CMakeLists.txt, PluginEditor.cpp, index.html (CSS + JS + HTML)
+
 ## [1.15.0] - 2026-01-24
 
 ### Added

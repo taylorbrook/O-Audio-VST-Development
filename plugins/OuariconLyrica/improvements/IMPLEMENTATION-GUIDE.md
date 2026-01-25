@@ -21,8 +21,8 @@
 |------|--------|---------|-----------|
 | 3.1 Scale Generators | ✅ COMPLETE | v1.14.0 | 2026-01-24 |
 | 3.2 Factory Tuning Library | ✅ COMPLETE | v1.15.0 | 2026-01-24 |
-| 3.3 HTML Export | 🔜 NEXT | - | - |
-| 3.4 Add Scale Degree UI | ⏳ Pending | - | - |
+| 3.3 HTML Export | ✅ COMPLETE | v1.16.0 | 2026-01-24 |
+| 3.4 Add Scale Degree UI | 🔜 NEXT | - | - |
 
 ---
 
@@ -43,44 +43,32 @@
 
 ---
 
-## Next Session: 3.3 HTML Export
+## Completed: 3.3 HTML Export (v1.16.0) ✅
 
-### Goal
-Add ability to export current tuning as a formatted HTML document for documentation/sharing.
+> **Implemented 2026-01-24** - Export current tuning as formatted HTML documentation.
 
-### Implementation Plan
+**Files created:**
+- `Source/DSP/TuningExporter.h` - Export class declaration with static methods
+- `Source/DSP/TuningExporter.cpp` - HTML generation, SVG pitch circle, ratio approximation
 
-**New file to create:**
-- `Source/DSP/TuningExporter.h/.cpp` - Export utilities
+**Files modified:**
+- `CMakeLists.txt` - Added TuningExporter.cpp
+- `Source/PluginEditor.cpp` - Added `exportTuningHTML` native function
+- `Resources/ui/index.html` - Added "Export HTML" button, handler, and CSS
 
-**Files to modify:**
-- `CMakeLists.txt` - Add TuningExporter.cpp
-- `Source/PluginEditor.cpp` - Add native function: `exportTuningHTML`
-- `Resources/ui/index.html` - Add "Export HTML" button in Custom mode
+**Native function added:** `exportTuningHTML` - generates HTML and opens save dialog
 
-### Export Content
+**Export includes:**
+- Scale metadata (name, note count, period, A4 reference, octave stretch)
+- SVG pitch circle visualization with ET reference lines
+- Interval table (degree, cents, ratio approximation, ET deviation)
+- Color-coded deviations: green=pure, orange=sharp, blue=flat
+- 50+ common ratio approximations (just intonation, Pythagorean, ET)
+- Print-friendly CSS, generation timestamp, Ouaricon branding
 
-HTML document should include:
-- Scale name and description
-- Number of notes, period
-- Interval table (degree, cents, ratio approximation, deviation from ET)
-- Visual pitch circle SVG
-- Generation metadata (date, source)
+---
 
-### Native Function
-
-```cpp
-// Generate HTML string for current tuning
-"exportTuningHTML" () → returns HTML string, opens save dialog
-```
-
-### Resume Instructions
-
-1. Read this file for context
-2. Read `Source/DSP/EmbeddedTunings.h` for pattern reference (similar static utility class)
-3. Create TuningExporter.h/.cpp with HTML generation logic
-4. Add native function in PluginEditor.cpp
-5. Add Export button in index.html (near Save .SCL button)
+## Next Session: 3.4 Add Scale Degree UI
 
 ---
 
@@ -93,6 +81,7 @@ HTML document should include:
 | `Source/DSP/TuningEngine.cpp` | Tuning implementation |
 | `Source/DSP/ScaleGenerator.h/.cpp` | EDO/Harmonic/Rank-2 generators (v1.14.0) |
 | `Source/DSP/EmbeddedTunings.h/.cpp` | 24 factory tunings (v1.15.0) |
+| `Source/DSP/TuningExporter.h/.cpp` | HTML export with SVG pitch circle (v1.16.0) |
 | `Source/PluginProcessor.h/.cpp` | Parameter definitions |
 | `Source/PluginEditor.cpp` | WebView setup, native functions |
 | `Resources/ui/index.html` | All UI (HTML/CSS/JS in single file) |

@@ -853,6 +853,18 @@
             transform: scale(0.97);
         }
 
+        /* v1.16.0: Export HTML button styling */
+        .tuning-export-btn {
+            grid-column: span 2;
+            background: rgba(139, 115, 85, 0.15);
+            border-color: #6b5a42;
+            color: #5c4033;
+        }
+
+        .tuning-export-btn:hover {
+            background: rgba(139, 115, 85, 0.3);
+        }
+
         /* v1.14.0: Scale Generator Section */
         .generator-section {
             margin-top: 8px;
@@ -1913,12 +1925,14 @@
 
                 <!-- File operation buttons - v1.7.1: Only show when Custom mode selected -->
                 <!-- v1.7.3: Using inline onclick handlers (same fix as mode buttons) -->
+                <!-- v1.16.0: Added Export HTML button -->
                 <div class="tuning-file-section" id="scala-buttons" style="display: none;">
                     <div class="tuning-file-buttons">
                         <button class="tuning-file-btn" id="btn-load-scl" onclick="window.handleLoadSCL && window.handleLoadSCL()">Load .SCL</button>
                         <button class="tuning-file-btn" id="btn-load-kbm" onclick="window.handleLoadKBM && window.handleLoadKBM()">Load .KBM</button>
                         <button class="tuning-file-btn" id="btn-save-scl" onclick="window.handleSaveSCL && window.handleSaveSCL()">Save .SCL</button>
                         <button class="tuning-file-btn" id="btn-save-kbm" onclick="window.handleSaveKBM && window.handleSaveKBM()">Save .KBM</button>
+                        <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" onclick="window.handleExportHTML && window.handleExportHTML()">Export HTML</button>
                     </div>
                 </div>
 
@@ -2101,6 +2115,19 @@
                 if (filename) console.log('[Tuning] Saved KBM:', filename);
             } catch (e) {
                 console.error('[Tuning] Save KBM failed:', e);
+            }
+        };
+
+        // v1.16.0: Export tuning as HTML documentation
+        window.handleExportHTML = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var filename = await window.JuceAPI.getNativeFunction('exportTuningHTML')();
+                if (filename) {
+                    console.log('[Tuning] Exported HTML:', filename);
+                }
+            } catch (e) {
+                console.error('[Tuning] Export HTML failed:', e);
             }
         };
 

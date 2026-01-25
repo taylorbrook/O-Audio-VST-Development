@@ -12,6 +12,7 @@
 #include "BinaryData.h"
 #include "DSP/ScaleGenerator.h"
 #include "DSP/EmbeddedTunings.h"
+#include "DSP/TuningExporter.h"
 
 OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconLyricaAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
@@ -626,6 +627,43 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                 }
                 json += "]";
                 complete(juce::var(json));
+            })
+            // v1.16.0: HTML Export for Tuning Documentation
+            .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&,
+                                                           std::function<void(juce::var)> complete) {
+                // Generate HTML content
+                auto htmlContent = TuningExporter::toHTML(*processorRef.getTuningEngine());
+                auto scaleName = processorRef.getTuningEngine()->getActiveTuningName();
+
+                // Open save dialog
+                auto chooser = std::make_shared<juce::FileChooser>(
+                    "Export Tuning as HTML",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory).getChildFile(scaleName + ".html"),
+                    "*.html"
+                );
+                fileChooser = chooser;
+
+                chooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [chooser, htmlContent, complete](const juce::FileChooser& fc) {
+                        auto result = fc.getResult();
+                        if (result == juce::File{})
+                        {
+                            complete(juce::var()); // User cancelled
+                            return;
+                        }
+
+                        auto file = result.hasFileExtension(".html") ? result : result.withFileExtension(".html");
+                        if (file.replaceWithText(htmlContent))
+                        {
+                            complete(juce::var(file.getFileName()));
+                        }
+                        else
+                        {
+                            complete(juce::var()); // Save failed
+                        }
+                    }
+                );
             })
             // v1.7.4: Note triggering for WebView keyboard visualization
             .withNativeFunction("triggerNoteOn", [this](const juce::Array<juce::var>& args,
