@@ -179,6 +179,11 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         monoBuffer.setSize(1, numSamples, false, false, true);
         monoBuffer.clear();
     }
+    if (coloredBuffer.getNumSamples() < numSamples)
+    {
+        coloredBuffer.setSize(1, numSamples, false, false, true);
+        coloredBuffer.clear();
+    }
 
     // Update crossover frequency from parameter
     auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");
@@ -191,12 +196,40 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     monoSummer.captureBalance(lowBandBuffer);
     monoSummer.sumToMono(lowBandBuffer, monoBuffer);
 
-    // Get smoothed enhance value
+    // Read mode parameter and update crossfade target
+    auto* modeParam = parameters.getRawParameterValue("enhanceMode");
+    float modeValue = modeParam->load();
+    modeCrossfade.setTargetValue(modeValue);  // 0.0 = Clean, 1.0 = Colored
+
+    // Get smoothed enhance value (for both processors)
     float smoothedEnhanceValue = smoothedEnhance.skip(numSamples);
 
-    // Apply harmonic enhancement to bass
+    // Set enhance amount on both processors
     cleanModeProcessor.setEnhanceAmount(smoothedEnhanceValue);
-    cleanModeProcessor.process(monoBuffer);
+    coloredModeProcessor.setEnhanceAmount(smoothedEnhanceValue);
+
+    // Calculate high-band energy for spectral blending
+    float highEnergy = calculateHighBandEnergy(highBandBuffer);
+    cleanModeProcessor.setHighBandEnergy(highEnergy);
+    // Note: ColoredModeProcessor doesn't have setHighBandEnergy - asymmetric saturation
+    // doesn't need it as the character is inherently warm regardless of context
+
+    // Copy mono buffer for colored processing (parallel path)
+    coloredBuffer.makeCopyOf(monoBuffer);
+
+    // Process both paths
+    cleanModeProcessor.process(monoBuffer);      // Clean result in monoBuffer
+    coloredModeProcessor.process(coloredBuffer); // Colored result in coloredBuffer
+
+    // Crossfade between paths (per-sample for smooth transition)
+    float* cleanData = monoBuffer.getWritePointer(0);
+    const float* coloredData = coloredBuffer.getReadPointer(0);
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float blend = modeCrossfade.getNextValue();
+        cleanData[i] = cleanData[i] * (1.0f - blend) + coloredData[i] * blend;
+    }
 
     // Expand back to stereo
     monoSummer.expandToStereo(monoBuffer, lowBandBuffer);
