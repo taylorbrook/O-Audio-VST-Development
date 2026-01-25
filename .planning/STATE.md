@@ -5,23 +5,23 @@
 See: .planning/PROJECT.md (updated 2026-01-22)
 
 **Core value:** Make bass perceptually fuller without artifacts - enhancement that sounds natural and translates well.
-**Current focus:** Phase 3 COMPLETE - Ready for Phase 4 (Controls & Refinement)
+**Current focus:** Phase 4 In Progress - Controls & Refinement
 
 ## Current Position
 
-Phase: 3 of 6 (Colored Mode - COMPLETE)
-Plan: 2 of 2 complete
-Status: Phase Complete
-Progress: [######----] 60%
+Phase: 4 of 6 (Controls & Refinement)
+Plan: 1 of 2 complete
+Status: In Progress
+Progress: [######=---] 65%
 
-Last activity: 2026-01-25 - Completed 03-02-PLAN.md (Mode switching integration)
+Last activity: 2026-01-25 - Completed 04-01-PLAN.md (Bass Enhancement Intensity Tuning)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
-- Average duration: 2m 50s
-- Total execution time: 0.57 hours
+- Total plans completed: 13
+- Average duration: 2m 55s
+- Total execution time: 0.63 hours
 
 **By Phase:**
 
@@ -30,10 +30,11 @@ Last activity: 2026-01-25 - Completed 03-02-PLAN.md (Mode switching integration)
 | 01-core-dsp-foundation | 6 | 18m 7s | 3m 1s |
 | 02-clean-mode | 4 | 13m 25s | 3m 21s |
 | 03-colored-mode | 2 | 8m | 4m |
+| 04-controls-refinement | 1 | 3m 47s | 3m 47s |
 
 **Recent Trend:**
-- Last 5 plans: 02-03 (2 min), 02-04 (5 min), 03-01 (3 min), 03-02 (5 min)
-- Trend: Fast execution, well-specified plans
+- Last 5 plans: 02-04 (5 min), 03-01 (3 min), 03-02 (5 min), 04-01 (3m 47s)
+- Trend: Consistent fast execution
 
 *Updated after each plan completion*
 
@@ -62,7 +63,7 @@ Recent decisions affecting current work:
 - **Pitch window:** 2 periods at 30Hz, capped at 4096 samples
 - **Chebyshev T2-T5:** Controlled 2nd-5th harmonic generation from sinusoidal input
 - **Harmonic weights:** h2=0.7, h3=0.5, h4=0.3, h5=0.15 (psychoacoustic research)
-- **Output bandpass:** 60-400Hz limits harmonics to useful range
+- **Output bandpass:** 40-400Hz limits harmonics to useful range (updated from 60Hz)
 - **Adaptive harmonics:** <40Hz=5, <80Hz=4, <120Hz=3, else=2
 - **Transient threshold:** 2.0x (fast/slow ratio) with 30% minimum harmonics on attacks
 - **Spectral blend:** Reduces harmonics by 50% max when high band is loud
@@ -72,11 +73,13 @@ Recent decisions affecting current work:
 - **Enhance parameter:** 0-100% range with 0.1% resolution, default 50%
 - **High band energy:** RMS * 5.0 clamped to 0-1 for spectral feedback
 - **Processing skip:** When enhance < 0.001, skip CleanModeProcessor for CPU efficiency
-- **Colored Mode bias:** 0.2 for moderate even harmonics without mud
-- **Colored Mode drive:** 1.0-4.0 range mapped linearly from enhance 0-100%
+- **Colored Mode bias:** 0.3 for stronger even harmonics (updated from 0.2)
+- **Colored Mode drive:** 2.0-6.0 range (updated from 1.0-4.0)
+- **Colored Mode T4:** Explicit 4th harmonic at 15% level
 - **DC correction:** saturated - tanh(drive * bias) removes DC offset
 - **Mode crossfade:** 20ms SmoothedValue for click-free transitions
 - **Dual-path processing:** Both processors run during crossfade, output blended per-sample
+- **Intensity scaling:** 1.0 + sqrt(1 - normalized) * 0.7 (40Hz->1.7x, 200Hz->1.0x)
 
 ### Pending Todos
 
@@ -84,11 +87,30 @@ None.
 
 ### Blockers/Concerns
 
-**Phase 4 Intensity Tuning (from 03-02 human verification):**
-- Colored mode is more subtle than Clean (should be comparable or warmer)
-- Both modes need more prominent processing at low crossover frequencies
-- Effect only noticeable at crossover ~200Hz, needs work at lower frequencies
-- Recommended adjustments: increase drive range, review harmonic weights, check bandpass
+**Human listening test needed for 04-01 tuning:**
+- Verify Colored mode intensity matches Clean mode at 50% Enhance
+- Verify low crossover (40-80Hz) produces stronger enhancement than high (200Hz)
+- Check for new artifacts (clicks, distortion, DC offset)
+
+## Phase 4 Progress
+
+**Controls & Refinement - IN PROGRESS**
+
+Plan 04-01 completed (Intensity Tuning):
+- ColoredModeProcessor drive range increased to 2.0-6.0
+- Bias increased to 0.3 for stronger even harmonics
+- Added T4 4th harmonic (15% scaled by enhance)
+- Frequency-dependent intensity scaling (1.7x at 40Hz, 1.0x at 200Hz)
+- HarmonicGenerator bandpass lowered to 40Hz
+
+Key files modified:
+- `plugins/OBass/Source/DSP/ColoredModeProcessor.h/cpp` - Enhanced saturation
+- `plugins/OBass/Source/DSP/CleanModeProcessor.h/cpp` - Intensity scaling
+- `plugins/OBass/Source/DSP/HarmonicGenerator.cpp` - Lower bandpass
+- `plugins/OBass/Source/PluginProcessor.cpp` - Intensity calculation
+
+Plan 04-02 pending:
+- Output Mix control (dry/wet blend)
 
 ## Phase 3 Completion Summary
 
@@ -180,5 +202,5 @@ Key files ready for Phase 2:
 ## Session Continuity
 
 Last session: 2026-01-25
-Stopped at: Completed 03-02-PLAN.md (Phase 3 complete)
-Resume file: Ready for Phase 4 planning (Controls & Refinement)
+Stopped at: Completed 04-01-PLAN.md
+Resume file: Ready for 04-02-PLAN.md (Output Mix control)
