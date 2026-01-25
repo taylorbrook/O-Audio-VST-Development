@@ -93,7 +93,7 @@ OuariconDigitalDelayAudioProcessor::OuariconDigitalDelayAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
-    , presetManager(parameters, "Ouaricon Digital Delay")
+    , presetManager(parameters, "O-DigiDelay")
 {
 }
 

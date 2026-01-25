@@ -1,15 +1,29 @@
-# Ouaricon Digital Delay Changelog
+# O-DigiDelay Changelog
 
 All notable changes to this plugin will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.1] - 2026-01-24
+
+### Changed
+- Renamed plugin from "Ouaricon Digital Delay" to "O-DigiDelay" across:
+  - DAW display name and window title
+  - Binary files (O-DigiDelay.vst3, O-DigiDelay.component)
+  - Source folder (plugins/O-DigiDelay/)
+  - Preset folder path (~\~/Library/O-DigiDelay/)
+- Plugin codes (OuDD) unchanged for session compatibility
+
+### Migration Notes
+- Existing presets migrated from `~/Library/Ouaricon Digital Delay/` to `~/Library/O-DigiDelay/`
+- DAW sessions will recognize plugin (same plugin code OuDD)
+
 ## [1.2.0] - 2026-01-12
 
 ### Added
 - Preset Manager integration with save/load functionality
-  - Save presets to `~/Library/Ouaricon Digital Delay/Presets/User/`
+  - Save presets to `~/Library/O-DigiDelay/Presets/User/`
   - Load presets from file or browse available presets
   - Navigate presets with previous/next buttons
   - Click preset name to see dropdown of all presets

@@ -1,8 +1,8 @@
-# Ouaricon Digital Delay Notes
+# O-DigiDelay Notes
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.2.1
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -16,6 +16,7 @@
 - **2026-01-12 (v1.1.2):** Time dial sync rewritten following Tremolo pattern - proper snapping to rhythmic divisions
 - **2026-01-12 (v1.1.3):** Fixed time dial unresponsive in sync mode - corrected JUCE WebComboBoxState API method names
 - **2026-01-12 (v1.2.0):** Preset Manager integrated - save/load presets, header layout updated (title left, preset bar right)
+- **2026-01-24 (v1.2.1):** Renamed from "Ouaricon Digital Delay" to "O-DigiDelay" (DAW display, binaries, folder, presets)
 
 ## Known Issues
 
@@ -141,8 +142,8 @@ Input → Dry/Wet Mixer (capture) → Delay Time Calculation
 ## Preset Management
 
 Presets are stored in:
-- **User presets:** `~/Library/Ouaricon Digital Delay/Presets/User/`
-- **Factory presets:** `~/Library/Ouaricon Digital Delay/Presets/Factory/`
+- **User presets:** `~/Library/O-DigiDelay/Presets/User/`
+- **Factory presets:** `~/Library/O-DigiDelay/Presets/Factory/`
 
 ### Factory Presets (12)
 | Preset | Description |
@@ -160,4 +161,4 @@ Presets are stored in:
 | Clean Repeat | Clean repeats without modulation |
 | Ping Pong Style | Max spread for wide stereo
 
-**Last Updated:** 2026-01-12
+**Last Updated:** 2026-01-24

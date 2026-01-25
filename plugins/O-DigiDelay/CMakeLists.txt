@@ -6,7 +6,8 @@ juce_add_plugin(OuariconDigitalDelay
     PLUGIN_MANUFACTURER_CODE OuAu
     PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "Ouaricon Digital Delay"
+    PRODUCT_NAME "O-DigiDelay"
+    VERSION 1.2.1
     NEEDS_WEB_BROWSER TRUE
 )
 
