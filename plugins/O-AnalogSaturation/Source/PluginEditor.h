@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconSaturationModeling - Editor
+    O-AnalogSaturation - Editor
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -13,19 +13,19 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
-class OuariconSaturationModelingAudioProcessorEditor : public juce::AudioProcessorEditor,
-                                                       private juce::Timer
+class OAnalogSaturationAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                               private juce::Timer
 {
 public:
-    explicit OuariconSaturationModelingAudioProcessorEditor(OuariconSaturationModelingAudioProcessor&);
-    ~OuariconSaturationModelingAudioProcessorEditor() override;
+    explicit OAnalogSaturationAudioProcessorEditor(OAnalogSaturationAudioProcessor&);
+    ~OAnalogSaturationAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
 
 private:
     void timerCallback() override;
-    OuariconSaturationModelingAudioProcessor& processorRef;
+    OAnalogSaturationAudioProcessor& processorRef;
 
     // Member declaration order matters for destruction safety:
     // Relays first, then WebView, then Attachments (destroyed in reverse)
@@ -43,5 +43,5 @@ private:
 
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSaturationModelingAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OAnalogSaturationAudioProcessorEditor)
 };

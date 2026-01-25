@@ -1,30 +1,30 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
-juce_add_plugin(OuariconSaturationModeling
+juce_add_plugin(O-AnalogSaturation
     COMPANY_NAME "Ouaricon Audio"
     PLUGIN_MANUFACTURER_CODE OuAu
-    PLUGIN_CODE OsSM
+    PLUGIN_CODE OaSa
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "Ouaricon Saturation Modeling"
+    PRODUCT_NAME "O-AnalogSaturation"
     NEEDS_WEB_BROWSER TRUE
 )
 
 # Source files
-target_sources(OuariconSaturationModeling
+target_sources(O-AnalogSaturation
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
 )
 
 # Include paths
-target_include_directories(OuariconSaturationModeling
+target_include_directories(O-AnalogSaturation
     PRIVATE
         Source
 )
 
 # Required JUCE modules
-target_link_libraries(OuariconSaturationModeling
+target_link_libraries(O-AnalogSaturation
     PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices
@@ -46,10 +46,10 @@ target_link_libraries(OuariconSaturationModeling
 )
 
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL: must come after target_link_libraries)
-juce_generate_juce_header(OuariconSaturationModeling)
+juce_generate_juce_header(O-AnalogSaturation)
 
 # WebView UI Resources (Pattern 3: Binary data for embedded HTML/CSS/JS/images)
-juce_add_binary_data(OuariconSaturationModeling_UIResources
+juce_add_binary_data(O-AnalogSaturation_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
@@ -61,13 +61,13 @@ juce_add_binary_data(OuariconSaturationModeling_UIResources
         Source/ui/public/img/snake_snakesaustralia00kref_0145.png
 )
 
-target_link_libraries(OuariconSaturationModeling
+target_link_libraries(O-AnalogSaturation
     PRIVATE
-        OuariconSaturationModeling_UIResources
+        O-AnalogSaturation_UIResources
 )
 
 # Compile definitions
-target_compile_definitions(OuariconSaturationModeling
+target_compile_definitions(O-AnalogSaturation
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1  # Pattern 3: Enable WebView

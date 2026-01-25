@@ -1,8 +1,8 @@
-# Ouaricon Saturation Modeling Notes
+# O-AnalogSaturation Notes
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.1
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Saturation)
 
 ## Lifecycle Timeline
@@ -11,6 +11,7 @@
 - **2026-01-09 (Stage 1-3):** Full implementation completed
 - **2026-01-09 (v1.0.0):** First release - VST3 and AU installed
 - **2026-01-14 (v1.0.1):** Fixed snake PNG opacity - now transitions smoothly with knob, no snap-back on release
+- **2026-01-24 (v1.1.0):** Renamed from OuariconSaturationModeling to O-AnalogSaturation
 
 ## Features
 
@@ -38,9 +39,10 @@ None
 
 ## Installation Locations
 
-- **AU:** `~/Library/Audio/Plug-Ins/Components/Ouaricon Saturation Modeling.component`
-- **VST3:** `~/Library/Audio/Plug-Ins/VST3/Ouaricon Saturation Modeling.vst3`
+- **AU:** `~/Library/Audio/Plug-Ins/Components/O-AnalogSaturation.component`
+- **VST3:** `~/Library/Audio/Plug-Ins/VST3/O-AnalogSaturation.vst3`
 
-## Git Tag
+## Git Tags
 
-`v1.0.0-OuariconSaturationModeling`
+- `v1.0.0-OuariconSaturationModeling` - Original release
+- `v1.1.0-O-AnalogSaturation` - Renamed release

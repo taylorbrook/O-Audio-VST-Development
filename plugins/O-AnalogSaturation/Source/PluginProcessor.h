@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconSaturationModeling - Audio Processor
+    O-AnalogSaturation - Audio Processor
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -14,11 +14,11 @@
 #include <cmath>
 #include <atomic>
 
-class OuariconSaturationModelingAudioProcessor : public juce::AudioProcessor
+class OAnalogSaturationAudioProcessor : public juce::AudioProcessor
 {
 public:
-    OuariconSaturationModelingAudioProcessor();
-    ~OuariconSaturationModelingAudioProcessor() override;
+    OAnalogSaturationAudioProcessor();
+    ~OAnalogSaturationAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -27,7 +27,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "Ouaricon Saturation Modeling"; }
+    const juce::String getName() const override { return "O-AnalogSaturation"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -105,5 +105,5 @@ private:
     float processMagneticSample(float input, float intensity, int channel);
     float langevinFunction(float x);
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSaturationModelingAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OAnalogSaturationAudioProcessor)
 };

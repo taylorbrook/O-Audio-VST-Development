@@ -27,7 +27,7 @@ Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
 | O-Tremolo | 📦 Installed | 1.3.1 | Audio Effect (Tremolo) | 2026-01-24 |
-| OuariconSaturationModeling | 📦 Installed | 1.0.1 | Audio Effect (Saturation) | 2026-01-14 |
+| O-AnalogSaturation | 📦 Installed | 1.1.0 | Audio Effect (Saturation) | 2026-01-24 |
 | Ouaricon Marimba | 📦 Installed | 1.9.9 | Synth (Physical Model) | 2026-01-14 |
 | O-Comp | 📦 Installed | 1.2.0 | Audio Effect (Compressor) | 2026-01-24 |
 | O-AnalogEQ | 📦 Installed | 1.1.0 | Audio Effect (EQ) | 2026-01-24 |

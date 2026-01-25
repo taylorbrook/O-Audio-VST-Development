@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconSaturationModeling - Audio Processor Implementation
+    O-AnalogSaturation - Audio Processor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -11,7 +11,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 
-juce::AudioProcessorValueTreeState::ParameterLayout OuariconSaturationModelingAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout OAnalogSaturationAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -50,7 +50,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconSaturationModelingAu
     return layout;
 }
 
-OuariconSaturationModelingAudioProcessor::OuariconSaturationModelingAudioProcessor()
+OAnalogSaturationAudioProcessor::OAnalogSaturationAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
@@ -58,11 +58,11 @@ OuariconSaturationModelingAudioProcessor::OuariconSaturationModelingAudioProcess
 {
 }
 
-OuariconSaturationModelingAudioProcessor::~OuariconSaturationModelingAudioProcessor()
+OAnalogSaturationAudioProcessor::~OAnalogSaturationAudioProcessor()
 {
 }
 
-void OuariconSaturationModelingAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     // Prepare DSP spec
     spec.sampleRate = sampleRate;
@@ -184,7 +184,7 @@ void OuariconSaturationModelingAudioProcessor::prepareToPlay(double sampleRate, 
     setLatencySamples(latency);
 }
 
-void OuariconSaturationModelingAudioProcessor::releaseResources()
+void OAnalogSaturationAudioProcessor::releaseResources()
 {
     // Reset oversampling systems
     if (oversamplingMid)
@@ -219,7 +219,7 @@ void OuariconSaturationModelingAudioProcessor::releaseResources()
     std::fill(outputRMSEnvelope.begin(), outputRMSEnvelope.end(), 0.0f);
 }
 
-void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
@@ -290,19 +290,19 @@ void OuariconSaturationModelingAudioProcessor::processBlock(juce::AudioBuffer<fl
     outputLevelDB.store(calculatePeakDB(buffer), std::memory_order_relaxed);
 }
 
-juce::AudioProcessorEditor* OuariconSaturationModelingAudioProcessor::createEditor()
+juce::AudioProcessorEditor* OAnalogSaturationAudioProcessor::createEditor()
 {
-    return new OuariconSaturationModelingAudioProcessorEditor(*this);
+    return new OAnalogSaturationAudioProcessorEditor(*this);
 }
 
-void OuariconSaturationModelingAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void OAnalogSaturationAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
 
-void OuariconSaturationModelingAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void OAnalogSaturationAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
@@ -314,7 +314,7 @@ void OuariconSaturationModelingAudioProcessor::setStateInformation(const void* d
 // Helper Methods for processBlock
 // ============================================================================
 
-float OuariconSaturationModelingAudioProcessor::calculatePeakDB(const juce::AudioBuffer<float>& buffer)
+float OAnalogSaturationAudioProcessor::calculatePeakDB(const juce::AudioBuffer<float>& buffer)
 {
     float peak = 0.0f;
     for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
@@ -324,7 +324,7 @@ float OuariconSaturationModelingAudioProcessor::calculatePeakDB(const juce::Audi
     return (peak > 0.00001f) ? juce::Decibels::gainToDecibels(peak) : -100.0f;
 }
 
-void OuariconSaturationModelingAudioProcessor::captureInputRMS(const juce::AudioBuffer<float>& buffer)
+void OAnalogSaturationAudioProcessor::captureInputRMS(const juce::AudioBuffer<float>& buffer)
 {
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
@@ -347,7 +347,7 @@ void OuariconSaturationModelingAudioProcessor::captureInputRMS(const juce::Audio
     }
 }
 
-void OuariconSaturationModelingAudioProcessor::processSaturationDirect(
+void OAnalogSaturationAudioProcessor::processSaturationDirect(
     juce::AudioBuffer<float>& buffer, int model, float intensity, int iterations)
 {
     const int numChannels = buffer.getNumChannels();
@@ -364,7 +364,7 @@ void OuariconSaturationModelingAudioProcessor::processSaturationDirect(
     }
 }
 
-void OuariconSaturationModelingAudioProcessor::processSaturationBlock(
+void OAnalogSaturationAudioProcessor::processSaturationBlock(
     juce::dsp::AudioBlock<float>& block, int model, float intensity, int iterations)
 {
     const int numChannels = static_cast<int>(block.getNumChannels());
@@ -381,7 +381,7 @@ void OuariconSaturationModelingAudioProcessor::processSaturationBlock(
     }
 }
 
-float OuariconSaturationModelingAudioProcessor::processSample(
+float OAnalogSaturationAudioProcessor::processSample(
     float input, int model, float intensity, int iterations, int channel)
 {
     switch (model)
@@ -394,7 +394,7 @@ float OuariconSaturationModelingAudioProcessor::processSample(
     }
 }
 
-void OuariconSaturationModelingAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& buffer, bool enabled)
+void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& buffer, bool enabled)
 {
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
@@ -434,7 +434,7 @@ void OuariconSaturationModelingAudioProcessor::applyAutoGain(juce::AudioBuffer<f
 // DIODE Model Implementation (Symmetric Soft Clipping)
 // ============================================================================
 
-float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, float intensity, int iterations, float& prevVoltage)
+float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float intensity, int iterations, float& prevVoltage)
 {
     juce::ignoreUnused(iterations, prevVoltage);  // Not needed for simplified model
 
@@ -472,7 +472,7 @@ float OuariconSaturationModelingAudioProcessor::processDiodeSample(float input, 
 // TRANSFORMER Model Implementation (Phase 2.2)
 // ============================================================================
 
-float OuariconSaturationModelingAudioProcessor::processTransformerSample(float input, float intensity, int channel)
+float OAnalogSaturationAudioProcessor::processTransformerSample(float input, float intensity, int channel)
 {
     // At 0% intensity, return dry signal (no processing)
     if (intensity < 0.1f)
@@ -512,7 +512,7 @@ float OuariconSaturationModelingAudioProcessor::processTransformerSample(float i
 // TUBE Model Implementation (Asymmetric Soft Saturation) - Phase 2.3
 // ============================================================================
 
-float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage)
+float OAnalogSaturationAudioProcessor::processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage)
 {
     juce::ignoreUnused(iterations, prevPlateVoltage);  // Not needed for simplified model
 
@@ -567,7 +567,7 @@ float OuariconSaturationModelingAudioProcessor::processTubeSample(float input, f
 // MAGNETIC Model Implementation (Jiles-Atherton Hysteresis) - Phase 2.4
 // ============================================================================
 
-float OuariconSaturationModelingAudioProcessor::langevinFunction(float x)
+float OAnalogSaturationAudioProcessor::langevinFunction(float x)
 {
     // Langevin function: L(x) = coth(x) - 1/x
     // For |x| < 1e-6, use Taylor series to avoid singularity: L(x) ≈ x/3 - x³/45
@@ -588,7 +588,7 @@ float OuariconSaturationModelingAudioProcessor::langevinFunction(float x)
     }
 }
 
-float OuariconSaturationModelingAudioProcessor::processMagneticSample(float input, float intensity, int channel)
+float OAnalogSaturationAudioProcessor::processMagneticSample(float input, float intensity, int channel)
 {
     // At 0% intensity, return dry signal (no processing)
     if (intensity < 0.1f)
@@ -686,5 +686,5 @@ float OuariconSaturationModelingAudioProcessor::processMagneticSample(float inpu
 // Factory function
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new OuariconSaturationModelingAudioProcessor();
+    return new OAnalogSaturationAudioProcessor();
 }

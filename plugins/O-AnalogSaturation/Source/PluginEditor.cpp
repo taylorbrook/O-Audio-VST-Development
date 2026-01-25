@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OuariconSaturationModeling - Editor Implementation
+    O-AnalogSaturation - Editor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -11,7 +11,7 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 
-OuariconSaturationModelingAudioProcessorEditor::OuariconSaturationModelingAudioProcessorEditor(OuariconSaturationModelingAudioProcessor& p)
+OAnalogSaturationAudioProcessorEditor::OAnalogSaturationAudioProcessorEditor(OAnalogSaturationAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
     // Create relays (must be before WebView)
@@ -48,12 +48,12 @@ OuariconSaturationModelingAudioProcessorEditor::OuariconSaturationModelingAudioP
     startTimerHz(30);
 }
 
-OuariconSaturationModelingAudioProcessorEditor::~OuariconSaturationModelingAudioProcessorEditor()
+OAnalogSaturationAudioProcessorEditor::~OAnalogSaturationAudioProcessorEditor()
 {
     stopTimer();
 }
 
-void OuariconSaturationModelingAudioProcessorEditor::timerCallback()
+void OAnalogSaturationAudioProcessorEditor::timerCallback()
 {
     const float inputDB = processorRef.inputLevelDB.load(std::memory_order_relaxed);
     const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
@@ -62,18 +62,18 @@ void OuariconSaturationModelingAudioProcessorEditor::timerCallback()
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
 
-void OuariconSaturationModelingAudioProcessorEditor::paint(juce::Graphics& g)
+void OAnalogSaturationAudioProcessorEditor::paint(juce::Graphics& g)
 {
     juce::ignoreUnused(g);
 }
 
-void OuariconSaturationModelingAudioProcessorEditor::resized()
+void OAnalogSaturationAudioProcessorEditor::resized()
 {
     webView->setBounds(getLocalBounds());
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
-OuariconSaturationModelingAudioProcessorEditor::getResource(const juce::String& url)
+OAnalogSaturationAudioProcessorEditor::getResource(const juce::String& url)
 {
     auto makeResource = [](const char* data, int size, const char* mimeType) {
         return juce::WebBrowserComponent::Resource {

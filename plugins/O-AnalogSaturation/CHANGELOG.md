@@ -1,6 +1,16 @@
 # Changelog
 
-All notable changes to OuariconSaturationModeling will be documented in this file.
+All notable changes to O-AnalogSaturation will be documented in this file.
+
+## [1.1.0] - 2026-01-24
+
+### Changed
+- Renamed plugin from "OuariconSaturationModeling" to "O-AnalogSaturation"
+- Updated class names: `OuariconSaturationModelingAudioProcessor` → `OAnalogSaturationAudioProcessor`
+- New plugin code: OaSa (was OsSM)
+- Consistent branding with O-series plugins (O-Tremolo, O-Comp, O-AnalogEQ, O-DigiDelay)
+
+**Note:** Parameter IDs unchanged - existing presets and automation compatible.
 
 ## [1.0.1] - 2026-01-14
 
