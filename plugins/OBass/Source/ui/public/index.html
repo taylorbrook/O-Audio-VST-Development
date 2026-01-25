@@ -1,0 +1,630 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Bass</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        html, body {
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #2a2a2a;
+            font-family: 'Garamond', 'Times New Roman', serif;
+        }
+
+        .plugin-container {
+            width: 500px;
+            height: 450px;
+            position: relative;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            border: 3px solid #5C4033;
+            overflow: hidden;
+        }
+
+        .background {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .botanical-overlay {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 70%;
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .content {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .title {
+            font-size: 28px;
+            color: #3C2F2F;
+            letter-spacing: 3px;
+            font-weight: normal;
+            text-transform: uppercase;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+        }
+
+        .limit-indicator {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            background: rgba(139, 168, 112, 0.25);
+            border: 2px solid #5C4033;
+            border-radius: 4px;
+        }
+
+        .limit-label {
+            font-size: 11px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .limit-led {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 40% 40%, #4a4a4a, #2a2a2a);
+            border: 1px solid #3C2F2F;
+            box-shadow: inset 0 1px 2px rgba(0,0,0,0.5);
+            transition: all 0.1s;
+        }
+
+        .limit-led.active {
+            background: radial-gradient(circle at 40% 40%, #ff6b3d, #cc3300);
+            box-shadow:
+                inset 0 1px 2px rgba(255,255,255,0.3),
+                0 0 8px rgba(255, 100, 50, 0.6);
+        }
+
+        .controls-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 20px;
+            flex: 1;
+            max-width: 360px;
+            margin: 0 auto;
+        }
+
+        .control-cell {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+        }
+
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .knob {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            background:
+                radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
+                conic-gradient(from 0deg,
+                    #F5DEB3 0deg, #F5DEB3 18deg,
+                    #8B7355 18deg, #8B7355 19deg,
+                    #E8D5B7 19deg, #E8D5B7 36deg,
+                    #8B7355 36deg, #8B7355 37deg,
+                    #F5DEB3 37deg, #F5DEB3 54deg,
+                    #8B7355 54deg, #8B7355 55deg,
+                    #E8D5B7 55deg, #E8D5B7 72deg,
+                    #8B7355 72deg, #8B7355 73deg,
+                    #F5DEB3 73deg, #F5DEB3 90deg,
+                    #8B7355 90deg, #8B7355 91deg,
+                    #E8D5B7 91deg, #E8D5B7 108deg,
+                    #8B7355 108deg, #8B7355 109deg,
+                    #F5DEB3 109deg, #F5DEB3 126deg,
+                    #8B7355 126deg, #8B7355 127deg,
+                    #E8D5B7 127deg, #E8D5B7 144deg,
+                    #8B7355 144deg, #8B7355 145deg,
+                    #F5DEB3 145deg, #F5DEB3 162deg,
+                    #8B7355 162deg, #8B7355 163deg,
+                    #E8D5B7 163deg, #E8D5B7 180deg,
+                    #8B7355 180deg, #8B7355 181deg,
+                    #F5DEB3 181deg, #F5DEB3 198deg,
+                    #8B7355 198deg, #8B7355 199deg,
+                    #E8D5B7 199deg, #E8D5B7 216deg,
+                    #8B7355 216deg, #8B7355 217deg,
+                    #F5DEB3 217deg, #F5DEB3 234deg,
+                    #8B7355 234deg, #8B7355 235deg,
+                    #E8D5B7 235deg, #E8D5B7 252deg,
+                    #8B7355 252deg, #8B7355 253deg,
+                    #F5DEB3 253deg, #F5DEB3 270deg,
+                    #8B7355 270deg, #8B7355 271deg,
+                    #E8D5B7 271deg, #E8D5B7 288deg,
+                    #8B7355 288deg, #8B7355 289deg,
+                    #F5DEB3 289deg, #F5DEB3 306deg,
+                    #8B7355 306deg, #8B7355 307deg,
+                    #E8D5B7 307deg, #E8D5B7 324deg,
+                    #8B7355 324deg, #8B7355 325deg,
+                    #F5DEB3 325deg, #F5DEB3 342deg,
+                    #8B7355 342deg, #8B7355 343deg,
+                    #E8D5B7 343deg, #E8D5B7 360deg
+                ),
+                radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+            border: 2px solid #8B7355;
+            box-shadow:
+                inset 1px 1px 3px rgba(0,0,0,0.3),
+                inset -1px -1px 2px rgba(255,248,220,0.5),
+                2px 2px 6px rgba(0,0,0,0.25);
+            position: relative;
+            cursor: pointer;
+            transition: transform 0.1s;
+            overflow: hidden;
+        }
+
+        .knob:hover {
+            transform: scale(1.05);
+        }
+
+        .knob::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            background-image:
+                repeating-conic-gradient(from 0deg at 50% 50%,
+                    transparent 0deg,
+                    transparent 2deg,
+                    rgba(139, 115, 85, 0.15) 2deg,
+                    rgba(139, 115, 85, 0.15) 2.5deg,
+                    transparent 2.5deg,
+                    transparent 36deg
+                ),
+                repeating-radial-gradient(circle at 50% 50%,
+                    transparent 0px,
+                    transparent 8px,
+                    rgba(139, 115, 85, 0.08) 8px,
+                    rgba(139, 115, 85, 0.08) 9px
+                );
+            pointer-events: none;
+            mix-blend-mode: multiply;
+        }
+
+        .knob-indicator {
+            position: absolute;
+            top: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 0;
+            height: 0;
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 24px solid #8B6914;
+            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
+            opacity: 0.9;
+        }
+
+        .knob-label {
+            font-size: 12px;
+            color: #3C2F2F;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .knob-value {
+            font-size: 13px;
+            color: #5C4033;
+            font-weight: bold;
+            min-width: 60px;
+            text-align: center;
+        }
+
+        .mode-toggle-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .mode-label {
+            font-size: 12px;
+            color: #3C2F2F;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .mode-toggle {
+            position: relative;
+            width: 120px;
+            height: 40px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 2px solid #5C4033;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: all 0.2s;
+            box-shadow:
+                inset 2px 2px 4px rgba(0,0,0,0.15),
+                1px 1px 3px rgba(0,0,0,0.1);
+        }
+
+        .mode-toggle:hover {
+            background: rgba(139, 168, 112, 0.4);
+        }
+
+        .mode-toggle.colored {
+            background: rgba(180, 130, 90, 0.4);
+            border-color: #6B4423;
+        }
+
+        .mode-toggle::before {
+            content: '';
+            position: absolute;
+            top: 4px;
+            left: 4px;
+            width: 28px;
+            height: 28px;
+            background: radial-gradient(circle at 40% 40%, #6B8E23, #3C5C1A);
+            border-radius: 50%;
+            border: 2px solid #2C3E10;
+            box-shadow:
+                0 2px 4px rgba(0,0,0,0.3),
+                inset 0 1px 2px rgba(255,255,255,0.2);
+            transition: all 0.2s ease-out;
+        }
+
+        .mode-toggle.colored::before {
+            left: calc(100% - 32px);
+            background: radial-gradient(circle at 40% 40%, #B87333, #8B4513);
+            border-color: #5C3317;
+        }
+
+        .mode-text {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 10px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: opacity 0.2s;
+        }
+
+        .mode-text.clean {
+            left: 42px;
+            color: #2C3E10;
+        }
+
+        .mode-text.colored-text {
+            right: 12px;
+            color: #5C3317;
+            opacity: 0.5;
+        }
+
+        .mode-toggle.colored .mode-text.clean {
+            opacity: 0.5;
+        }
+
+        .mode-toggle.colored .mode-text.colored-text {
+            opacity: 1;
+        }
+
+        .mode-value {
+            font-size: 11px;
+            color: #5C4033;
+            font-weight: bold;
+            margin-top: 2px;
+        }
+    </style>
+</head>
+<body>
+    <div class="plugin-container">
+        <img src="img/paper.jpg" alt="Background" class="background">
+        <img src="img/botanical.png" alt="Botanical" class="botanical-overlay">
+
+        <div class="content">
+            <div class="header">
+                <h1 class="title">O-Bass</h1>
+                <div class="limit-indicator">
+                    <span class="limit-label">Limit</span>
+                    <div class="limit-led" id="limitLed"></div>
+                </div>
+            </div>
+
+            <div class="controls-grid">
+                <!-- Top Left: Frequency -->
+                <div class="control-cell">
+                    <div class="knob-container">
+                        <div class="knob-label">Frequency</div>
+                        <div class="knob" id="frequencyKnob">
+                            <div class="knob-indicator" id="frequencyIndicator"></div>
+                        </div>
+                        <div class="knob-value" id="frequencyValue">80 Hz</div>
+                    </div>
+                </div>
+
+                <!-- Top Right: Enhance -->
+                <div class="control-cell">
+                    <div class="knob-container">
+                        <div class="knob-label">Enhance</div>
+                        <div class="knob" id="enhanceKnob">
+                            <div class="knob-indicator" id="enhanceIndicator"></div>
+                        </div>
+                        <div class="knob-value" id="enhanceValue">50%</div>
+                    </div>
+                </div>
+
+                <!-- Bottom Left: Output -->
+                <div class="control-cell">
+                    <div class="knob-container">
+                        <div class="knob-label">Output</div>
+                        <div class="knob" id="outputKnob">
+                            <div class="knob-indicator" id="outputIndicator"></div>
+                        </div>
+                        <div class="knob-value" id="outputValue">0 dB</div>
+                    </div>
+                </div>
+
+                <!-- Bottom Right: Mode -->
+                <div class="control-cell">
+                    <div class="mode-toggle-container">
+                        <div class="mode-label">Mode</div>
+                        <div class="mode-toggle" id="modeToggle">
+                            <span class="mode-text clean">Clean</span>
+                            <span class="mode-text colored-text">Warm</span>
+                        </div>
+                        <div class="mode-value" id="modeValue">Clean</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JUCE WebView Bridge -->
+    <script type="module" src="js/juce/check_native_interop.js"></script>
+    <script type="module">
+        import { getSliderState, getToggleState, getNativeFunction } from './js/juce/index.js';
+
+        // Parameter states
+        let frequencyState, enhanceState, outputState, modeState;
+        let getLimitIndicator;
+
+        // Parameter ranges from PluginProcessor.cpp
+        const FREQ_MIN = 40;
+        const FREQ_MAX = 200;
+        const FREQ_SKEW = 0.5;
+        const OUTPUT_MIN = -18;
+        const OUTPUT_MAX = 18;
+
+        // Value formatting functions
+        function formatFrequency(normValue) {
+            // Apply skew: exponential mapping with 0.5 skew
+            const skewed = Math.pow(normValue, 1 / FREQ_SKEW);
+            const freq = FREQ_MIN + skewed * (FREQ_MAX - FREQ_MIN);
+            return Math.round(freq) + ' Hz';
+        }
+
+        function formatEnhance(normValue) {
+            return Math.round(normValue * 100) + '%';
+        }
+
+        function formatOutput(normValue) {
+            const db = OUTPUT_MIN + normValue * (OUTPUT_MAX - OUTPUT_MIN);
+            if (db >= 0) {
+                return '+' + db.toFixed(1) + ' dB';
+            } else {
+                return db.toFixed(1) + ' dB';
+            }
+        }
+
+        // Wait for DOM load
+        document.addEventListener('DOMContentLoaded', () => {
+            console.log('O-Bass UI initializing...');
+            console.log('JUCE backend:', window.__JUCE__?.backend);
+
+            // Initialize parameter states
+            frequencyState = getSliderState('crossover_freq');
+            enhanceState = getSliderState('enhance');
+            outputState = getSliderState('output');
+            modeState = getToggleState('mode');
+
+            // Get limit indicator native function
+            getLimitIndicator = getNativeFunction('getLimitIndicator');
+
+            // Setup knobs
+            setupKnob('frequency', frequencyState, formatFrequency, getFrequencyDefault());
+            setupKnob('enhance', enhanceState, formatEnhance, 0.5);
+            setupKnob('output', outputState, formatOutput, 0.5);
+
+            // Setup mode toggle
+            setupModeToggle();
+
+            // Start limit indicator polling
+            startLimitPolling();
+        });
+
+        // Get default frequency as normalized value (80Hz is default)
+        function getFrequencyDefault() {
+            // 80Hz with 0.5 skew: norm = ((80 - 40) / (200 - 40))^0.5
+            const scaled = (80 - FREQ_MIN) / (FREQ_MAX - FREQ_MIN);
+            return Math.pow(scaled, FREQ_SKEW);
+        }
+
+        // Knob setup with frame-delta drag (Pattern #16)
+        function setupKnob(paramId, state, formatFn, defaultNorm) {
+            if (!state) {
+                console.error(`Failed to get slider state for ${paramId}`);
+                return;
+            }
+
+            const knob = document.getElementById(`${paramId}Knob`);
+            const indicator = document.getElementById(`${paramId}Indicator`);
+            const valueDisplay = document.getElementById(`${paramId}Value`);
+
+            let isDragging = false;
+            let lastY = 0;
+
+            // Update visual from normalized value
+            function updateVisual() {
+                const normValue = state.getNormalisedValue();
+
+                // Rotate indicator (-140 to +140 degrees)
+                const angle = -140 + (normValue * 280);
+                indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+                indicator.style.transformOrigin = 'center 35px';
+
+                // Update value display
+                valueDisplay.textContent = formatFn(normValue);
+            }
+
+            // JUCE -> UI: Listen for parameter changes (Pattern #15)
+            state.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // UI -> JUCE: Mouse drag (frame-delta, Pattern #16)
+            knob.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                lastY = e.clientY;
+                state.sliderDragStarted();
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const deltaY = lastY - e.clientY;
+                const currentNorm = state.getNormalisedValue();
+                const sensitivity = 0.005;
+                const newNorm = Math.max(0, Math.min(1, currentNorm + (deltaY * sensitivity)));
+
+                state.setNormalisedValue(newNorm);
+                lastY = e.clientY;
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    state.sliderDragEnded();
+                    isDragging = false;
+                }
+            });
+
+            // Double-click to reset to default
+            knob.addEventListener('dblclick', () => {
+                state.sliderDragStarted();
+                state.setNormalisedValue(defaultNorm);
+                state.sliderDragEnded();
+            });
+
+            // Initial update
+            updateVisual();
+        }
+
+        // Mode toggle setup (Pattern #19)
+        function setupModeToggle() {
+            if (!modeState) {
+                console.error('Failed to get mode toggle state');
+                return;
+            }
+
+            const toggle = document.getElementById('modeToggle');
+            const valueDisplay = document.getElementById('modeValue');
+
+            // Update visual from state
+            function updateVisual() {
+                const isColored = modeState.getValue();
+
+                if (isColored) {
+                    toggle.classList.add('colored');
+                    valueDisplay.textContent = 'Colored';
+                } else {
+                    toggle.classList.remove('colored');
+                    valueDisplay.textContent = 'Clean';
+                }
+            }
+
+            // JUCE -> UI: Listen for parameter changes
+            modeState.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            // UI -> JUCE: Click to toggle
+            toggle.addEventListener('click', () => {
+                const currentValue = modeState.getValue();
+                modeState.setValue(!currentValue);
+            });
+
+            // Initial update
+            updateVisual();
+        }
+
+        // Limit indicator polling with requestAnimationFrame
+        function startLimitPolling() {
+            const limitLed = document.getElementById('limitLed');
+            let lastLimitValue = 0;
+
+            async function pollLimit() {
+                try {
+                    const limitValue = await getLimitIndicator();
+
+                    // Only update DOM if value changed significantly
+                    if (Math.abs(limitValue - lastLimitValue) > 0.01) {
+                        if (limitValue > 0.1) {
+                            limitLed.classList.add('active');
+                            // Adjust brightness based on limit intensity
+                            const intensity = Math.min(1, limitValue);
+                            limitLed.style.opacity = 0.5 + intensity * 0.5;
+                        } else {
+                            limitLed.classList.remove('active');
+                            limitLed.style.opacity = 1;
+                        }
+                        lastLimitValue = limitValue;
+                    }
+                } catch (e) {
+                    // Native function not available (running in browser preview)
+                    console.debug('Limit indicator not available:', e);
+                }
+
+                requestAnimationFrame(pollLimit);
+            }
+
+            pollLimit();
+        }
+    </script>
+</body>
+</html>
