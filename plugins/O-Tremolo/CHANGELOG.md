@@ -1,9 +1,27 @@
 # Changelog
 
-All notable changes to OuariconTremolo will be documented in this file.
+All notable changes to O-Tremolo will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+
+## [1.3.1] - 2026-01-24
+
+### Changed
+
+- **Renamed plugin from "Ouaricon Tremolo" to "O-Tremolo"** - Affects all user-facing identifiers:
+  - DAW display name now shows "O-Tremolo"
+  - Binary files renamed: `O-Tremolo.vst3`, `O-Tremolo.component`
+  - Preset folder moved to `~/Library/Application Support/O-Tremolo/Presets/`
+  - Source folder renamed from `plugins/OuariconTremolo/` to `plugins/O-Tremolo/`
+  - Plugin window title updated
+
+### Technical Notes
+
+- CMake PRODUCT_NAME changed from "Ouaricon Tremolo" to "O-Tremolo"
+- Internal CMake target remains `OuariconTremolo` for build system compatibility
+- Plugin codes unchanged (OuTr) - maintains DAW session compatibility
+- No breaking changes - existing sessions will continue to work
 
 ## [1.3.0] - 2026-01-12
 

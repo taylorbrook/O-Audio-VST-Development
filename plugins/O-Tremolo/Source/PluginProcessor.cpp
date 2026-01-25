@@ -78,7 +78,7 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
-    , presetManager(parameters, "Ouaricon Tremolo")
+    , presetManager(parameters, "O-Tremolo")
 {
     // Initialize factory presets
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
