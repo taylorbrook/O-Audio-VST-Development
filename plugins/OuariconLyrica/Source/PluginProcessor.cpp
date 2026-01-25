@@ -146,6 +146,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconLyricaAudioProcessor
         0  // Default: 12-TET
     ));
 
+    // v1.9.0: Octave Stretch (0.95-1.25, physical modeling enhancement)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "octaveStretch", 1 },
+        "Octave Stretch",
+        juce::NormalisableRange<float>(0.95f, 1.25f, 0.01f),
+        1.0f
+    ));
+
+    // v1.9.0: Temperament Preset Selection
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "temperamentPreset", 1 },
+        "Temperament Preset",
+        juce::StringArray {
+            "Equal 12-TET", "Pythagorean", "Zarlino", "Meantone (1/4)",
+            "Werckmeister III", "Kirnberger III", "Vallotti",
+            "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom"
+        },
+        0  // Default: Equal 12-TET
+    ));
+
     // Advanced String Parameters
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "stringTension", 1 },
@@ -225,6 +245,176 @@ OuariconLyricaAudioProcessor::OuariconLyricaAudioProcessor()
 
     // Add sound that accepts all MIDI notes
     synthesiser.addSound(new HarpSynthSound());
+
+    // v1.12.0: Set up custom state callbacks for tuning persistence
+    presetManager.setCustomStateCallbacks(
+        // Save callback - returns tuning state as JSON
+        [this]() -> juce::var {
+            DBG("[CustomState SAVE] Creating tuning state object...");
+
+            auto* obj = new juce::DynamicObject();
+
+            // Save intervals
+            auto intervals = tuningEngine.getIntervals();
+            juce::Array<juce::var> intervalsArray;
+            for (double cents : intervals)
+                intervalsArray.add(cents);
+            obj->setProperty("intervals", intervalsArray);
+
+            DBG("[CustomState SAVE] Intervals: " + juce::String(static_cast<int>(intervals.size())) + " values");
+            if (intervals.size() >= 2)
+            {
+                DBG("[CustomState SAVE]   C# = " + juce::String(intervals[1], 2) + " cents (12-TET would be 100.00)");
+                // Log if this looks like a non-12TET tuning
+                if (std::abs(intervals[1] - 100.0) > 0.5)
+                    DBG("[CustomState SAVE]   >>> This is NOT 12-TET - appears to be a Scala file <<<");
+            }
+
+            // Save scale name
+            juce::String scaleName = tuningEngine.getActiveTuningName();
+            obj->setProperty("scaleName", scaleName);
+            DBG("[CustomState SAVE] Scale name: " + scaleName);
+
+            // Save tonic (note: also saved directly to XML as workaround for CustomState bug)
+            int tonic = tuningEngine.getTonicNote();
+            obj->setProperty("tonic", juce::var(tonic));
+
+            // Save built-in preset index
+            int presetIdx = static_cast<int>(tuningEngine.getBuiltInPreset());
+            obj->setProperty("presetIndex", presetIdx);
+
+            // Save octave stretch
+            float stretch = tuningEngine.getOctaveStretch();
+            obj->setProperty("octaveStretch", stretch);
+            DBG("[CustomState SAVE] Octave stretch: " + juce::String(stretch, 3));
+
+            // Save tuning mode explicitly
+            int mode = static_cast<int>(tuningEngine.getMode());
+            obj->setProperty("tuningMode", mode);
+
+            return juce::var(obj);
+        },
+        // Load callback - restores tuning state from JSON
+        [this](const juce::var& customState) {
+            DBG("[CustomState LOAD] Restoring tuning state...");
+
+            if (!customState.isObject())
+            {
+                DBG("[CustomState LOAD] ERROR: customState is not an object!");
+                return;
+            }
+
+            auto* obj = customState.getDynamicObject();
+            if (obj == nullptr)
+            {
+                DBG("[CustomState LOAD] ERROR: getDynamicObject() returned nullptr!");
+                return;
+            }
+
+            // Log what properties are available
+            DBG("[CustomState LOAD] Properties found:");
+            for (auto& prop : obj->getProperties())
+                DBG("  - " + prop.name.toString());
+
+            // Restore preset index first (this sets intervals for built-in presets)
+            if (obj->hasProperty("presetIndex"))
+            {
+                int presetIdx = static_cast<int>(obj->getProperty("presetIndex"));
+                DBG("[CustomState LOAD] Restoring preset index: " + juce::String(presetIdx));
+                tuningEngine.setBuiltInPreset(
+                    static_cast<TuningEngine::BuiltInPreset>(presetIdx));
+            }
+
+            // If custom intervals were saved, restore them (overrides preset)
+            if (obj->hasProperty("intervals"))
+            {
+                auto intervalsVar = obj->getProperty("intervals");
+                DBG("[CustomState LOAD] intervals property type: " + juce::String(intervalsVar.isArray() ? "ARRAY" : intervalsVar.isObject() ? "OBJECT" : "OTHER"));
+                DBG("[CustomState LOAD] intervals toString: " + intervalsVar.toString().substring(0, 100));
+
+                if (intervalsVar.isArray())
+                {
+                    std::vector<double> intervals;
+                    for (int i = 0; i < intervalsVar.size(); ++i)
+                        intervals.push_back(static_cast<double>(intervalsVar[i]));
+
+                    DBG("[CustomState LOAD] Restoring " + juce::String(static_cast<int>(intervals.size())) + " intervals");
+                    if (intervals.size() >= 2)
+                        DBG("[CustomState LOAD]   C# = " + juce::String(intervals[1], 2) + " cents (12-TET would be 100.00)");
+
+                    juce::String name = obj->getProperty("scaleName").toString();
+                    if (name.isEmpty()) name = "Custom";
+                    DBG("[CustomState LOAD] Scale name: " + name);
+
+                    tuningEngine.setCustomIntervals(intervals, name);
+
+                    // Verify intervals were actually set
+                    auto verifyIntervals = tuningEngine.getIntervals();
+                    DBG("[CustomState LOAD] After setCustomIntervals, engine has " + juce::String(static_cast<int>(verifyIntervals.size())) + " intervals");
+                    if (verifyIntervals.size() >= 2)
+                        DBG("[CustomState LOAD]   Verified C# = " + juce::String(verifyIntervals[1], 2) + " cents");
+                }
+                else
+                {
+                    DBG("[CustomState LOAD] WARNING: intervals is not an array! Type info above.");
+                }
+            }
+            else
+            {
+                DBG("[CustomState LOAD] WARNING: No intervals property found!");
+            }
+
+            // Restore tuning mode
+            if (obj->hasProperty("tuningMode"))
+            {
+                int mode = static_cast<int>(obj->getProperty("tuningMode"));
+                DBG("[CustomState LOAD] Restoring tuning mode: " + juce::String(mode));
+                tuningEngine.setMode(static_cast<TuningEngine::Mode>(mode));
+
+                // v1.13.3: Also update APVTS parameter to prevent processBlock from resetting
+                // tuningMode is a 3-choice param, so normalized value = mode / 2.0
+                if (auto* tuningModeParam = parameters.getParameter("tuningMode"))
+                    tuningModeParam->setValueNotifyingHost(static_cast<float>(mode) / 2.0f);
+            }
+
+            // Restore tonic (do this AFTER setting intervals so rotation works)
+            if (obj->hasProperty("tonic"))
+            {
+                auto tonicVar = obj->getProperty("tonic");
+                DBG("[CustomState LOAD] Tonic property type: " + juce::String(tonicVar.isInt() ? "int" : tonicVar.isDouble() ? "double" : "other"));
+                DBG("[CustomState LOAD] Tonic property raw value: " + tonicVar.toString());
+
+                int tonic = static_cast<int>(tonicVar);
+                DBG("[CustomState LOAD] Restoring tonic: " + juce::String(tonic));
+                tuningEngine.setTonicNote(tonic);
+
+                // Verify it was actually set
+                int verifyTonic = tuningEngine.getTonicNote();
+                DBG("[CustomState LOAD] Verified tonic after set: " + juce::String(verifyTonic));
+            }
+            else
+            {
+                DBG("[CustomState LOAD] WARNING: No tonic property found!");
+            }
+
+            // Restore octave stretch
+            if (obj->hasProperty("octaveStretch"))
+            {
+                float stretch = static_cast<float>(obj->getProperty("octaveStretch"));
+                DBG("[CustomState LOAD] Restoring octave stretch: " + juce::String(stretch, 3));
+                tuningEngine.setOctaveStretch(stretch);
+            }
+
+            // Verify final state
+            auto finalIntervals = tuningEngine.getIntervals();
+            DBG("[CustomState LOAD] Final state:");
+            DBG("  - Mode: " + juce::String(static_cast<int>(tuningEngine.getMode())));
+            DBG("  - Tonic: " + juce::String(tuningEngine.getTonicNote()));
+            DBG("  - Intervals: " + juce::String(static_cast<int>(finalIntervals.size())));
+            if (finalIntervals.size() >= 2)
+                DBG("  - C# = " + juce::String(finalIntervals[1], 2) + " cents");
+        }
+    );
 }
 
 OuariconLyricaAudioProcessor::~OuariconLyricaAudioProcessor()
@@ -290,11 +480,22 @@ void OuariconLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     }
 
     // v1.6.0: Update tuning mode
-    auto* tuningModeParam = parameters.getRawParameterValue("tuningMode");
-    if (tuningModeParam != nullptr)
+    // v1.13.3: Skip mode sync during state restoration to prevent race condition
+    if (!isRestoringState.load(std::memory_order_acquire))
     {
-        int modeInt = static_cast<int>(tuningModeParam->load());
-        tuningEngine.setMode(static_cast<TuningEngine::Mode>(modeInt));
+        auto* tuningModeParam = parameters.getRawParameterValue("tuningMode");
+        if (tuningModeParam != nullptr)
+        {
+            int modeInt = static_cast<int>(tuningModeParam->load());
+            tuningEngine.setMode(static_cast<TuningEngine::Mode>(modeInt));
+        }
+    }
+
+    // v1.9.0: Update octave stretch
+    auto* octaveStretchParam = parameters.getRawParameterValue("octaveStretch");
+    if (octaveStretchParam != nullptr)
+    {
+        tuningEngine.setOctaveStretch(octaveStretchParam->load());
     }
 
     // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
@@ -368,6 +569,27 @@ void OuariconLyricaAudioProcessor::triggerNoteOff(int midiNote)
     midiEventQueue.push({ midiNote, 0.0f });
 }
 
+// v1.10.0: Get held notes and their frequencies for True Keys visualization
+void OuariconLyricaAudioProcessor::getHeldNotesData(std::vector<int>& notes, std::vector<double>& frequencies)
+{
+    notes.clear();
+    frequencies.clear();
+
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = synthesiser.getVoice(i))
+        {
+            if (voice->isVoiceActive())
+            {
+                int midiNote = voice->getCurrentlyPlayingNote();
+                double freq = tuningEngine.getFrequency(midiNote);
+                notes.push_back(midiNote);
+                frequencies.push_back(freq);
+            }
+        }
+    }
+}
+
 juce::AudioProcessorEditor* OuariconLyricaAudioProcessor::createEditor()
 {
     return new OuariconLyricaAudioProcessorEditor(*this);
@@ -375,19 +597,38 @@ juce::AudioProcessorEditor* OuariconLyricaAudioProcessor::createEditor()
 
 void OuariconLyricaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    // v1.5.0: Use preset manager for state serialization (includes preset name)
+    // v1.5.0: Use preset manager for state serialization
     auto xml = presetManager.getStateAsXml();
     if (xml != nullptr)
+    {
+        // v1.13.1: Save tonic directly to XML (workaround for CustomState serialization bug)
+        xml->setAttribute("directTonic", tuningEngine.getTonicNote());
         copyXmlToBinary(*xml, destData);
+    }
 }
 
 void OuariconLyricaAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
+    // v1.13.3: Set flag to prevent processBlock from interfering during restoration
+    isRestoringState.store(true, std::memory_order_release);
+
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
-    // v1.5.0: Use preset manager for state deserialization
     if (xmlState != nullptr)
+    {
+        // v1.5.0: Use preset manager for state deserialization
         presetManager.setStateFromXml(xmlState.get());
+
+        // v1.13.1: Restore tonic directly from XML (workaround for CustomState serialization bug)
+        if (xmlState->hasAttribute("directTonic"))
+        {
+            int savedTonic = xmlState->getIntAttribute("directTonic", 0);
+            tuningEngine.setTonicNote(savedTonic);
+        }
+    }
+
+    // v1.13.3: Clear restoration flag
+    isRestoringState.store(false, std::memory_order_release);
 }
 
 // v1.5.0: Initialize factory presets (48 presets organized by string material)

@@ -7,8 +7,9 @@ Complete microtonal tuning system with Scala file support for Ouaricon plugins.
 - **Three Tuning Modes**: 12-TET, Custom (Scala), MTS-ESP (stubbed)
 - **Scala File Support**: Load/save .scl and .kbm files
 - **Thread-Safe**: Atomic frequency table for real-time audio
-- **Tonic Transposition**: Shift scale root to any note
-- **Dynamic Scale Sizes**: Support for any number of notes per octave
+- **Linear Mapping for Any Scale Size**: Works with 7, 12, 19, 31, or any number of notes
+- **Non-Octave Scale Support**: Bohlen-Pierce (tritave), Carlos Alpha/Beta/Gamma, etc.
+- **Tonic Transposition**: Shift anchor by 12-TET semitones (works for all scales)
 - **Visual Components**: Pitch circle, interval list, tonic selector
 
 ## Installation
@@ -295,7 +296,102 @@ window.handleLoadSCL = async function() {
 };
 ```
 
+## Linear Mapping for Non-12-Note Scales (v1.13.0)
+
+This module supports **any scale size** (7, 12, 19, 31, etc.) with proper linear keyboard mapping.
+
+### Key Principle
+
+Each MIDI key plays the next scale degree in sequence. The scale wraps at `scaleSize` keys.
+
+### Anchor Point
+
+The anchor point is `MIDI 60 (middle C) + tonic offset`:
+- Tonic = C: MIDI 60 = degree 0
+- Tonic = D: MIDI 62 = degree 0
+
+### Example: 19-Note Scale with Tonic = C
+
+```
+MIDI 60 = degree 0  (anchor freq = C4 = 261.63 Hz)
+MIDI 61 = degree 1
+MIDI 62 = degree 2
+...
+MIDI 78 = degree 18
+MIDI 79 = degree 0  (next scale octave, 2× freq of MIDI 60)
+```
+
+### Example: 19-Note Scale with Tonic = D
+
+```
+MIDI 62 = degree 0  (anchor freq = D4 = 293.66 Hz)
+MIDI 63 = degree 1
+...
+MIDI 80 = degree 18
+MIDI 81 = degree 0  (next scale octave)
+```
+
+### Algorithm
+
+```cpp
+anchorNote = 60 + tonic
+scaleDegree = (midiNote - anchorNote) mod scaleSize
+scaleOctave = floor((midiNote - anchorNote) / scaleSize)
+frequency = 12TET(anchorNote) × 2^((scaleOctave × period + intervals[scaleDegree]) / 1200)
+```
+
+### Non-Octave Scales
+
+The algorithm works for non-octave scales too (e.g., Bohlen-Pierce with 1902¢ tritave):
+- Scale wraps every `scaleSize` keys
+- Each wrap multiplies frequency by `2^(period/1200)`
+- For Bohlen-Pierce: 13 keys = 3× frequency (tritave)
+
+### Tonic Selection
+
+Tonic transposes by 12-TET semitones:
+- **Tonic = C**: MIDI 60 is degree 0 at C4 frequency
+- **Tonic = D**: MIDI 62 is degree 0 at D4 frequency
+
+The interval **pattern** stays the same - tonic just shifts where it starts on the keyboard.
+
+### Common Mistake (DON'T DO THIS)
+
+Using MIDI note 0 as the reference point causes non-12 scales to break:
+
+```cpp
+// WRONG - uses MIDI 0 as reference
+int degree = (midiNote - tonic) % scaleSize;  // Breaks for non-12 scales!
+```
+
+This causes the scale to jump at unexpected points (e.g., at MIDI 76 for 19-note scales).
+
+### Correct Implementation
+
+The `calculateScala()` method correctly uses `MIDI 60 + tonic` as the anchor:
+
+```cpp
+const int anchorNote = 60 + tonic;
+int noteRelativeToAnchor = midiNote - anchorNote;
+// ... proper modulo and octave calculation
+```
+
+See `OuariconLyrica/improvements/non-12-scale-linear-mapping.md` for full details.
+
 ## Version History
+
+### 1.13.0 (2026-01-23)
+- **Linear mapping for non-12-note scales** - works for 7, 19, 31, or any scale size
+- Anchor point changed from MIDI 0 to `MIDI 60 + tonic` for correct behavior
+- Tonic transposition now works for all scale sizes (12-TET semitone shift)
+- Non-octave scales (Bohlen-Pierce, etc.) now work correctly
+- Updated documentation with non-12-scale examples
+- Algorithm verified against OuariconLyrica v1.13.0
+
+### 1.1.0 (2026-01-23)
+- Added comprehensive tonic selection documentation
+- Verified algorithm against OuariconLyrica v1.12.3
+- Added inline comments explaining the tonic anchoring algorithm
 
 ### 1.0.0 (2026-01-12)
 - Initial extraction from OuariconMarimba

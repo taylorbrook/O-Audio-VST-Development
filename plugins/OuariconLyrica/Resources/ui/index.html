@@ -561,13 +561,11 @@
         }
 
         /* Pitch Circle - v1.7.7: Centered above keyboard, 125% size */
+        /* Updated v1.10.0: Now inside viz-container, use relative positioning */
         .pitch-circle {
-            position: absolute;
+            position: relative;
             width: 188px;
             height: 188px;
-            left: calc(50% - 40px);
-            transform: translateX(-50%);
-            bottom: 115px;
         }
 
         .pitch-circle svg {
@@ -855,6 +853,240 @@
             transform: scale(0.97);
         }
 
+        /* v1.16.0: Export HTML button styling */
+        .tuning-export-btn {
+            grid-column: span 2;
+            background: rgba(139, 115, 85, 0.15);
+            border-color: #6b5a42;
+            color: #5c4033;
+        }
+
+        .tuning-export-btn:hover {
+            background: rgba(139, 115, 85, 0.3);
+        }
+
+        /* v1.14.0: Scale Generator Section */
+        .generator-section {
+            margin-top: 8px;
+            border-top: 1px solid rgba(139, 115, 85, 0.3);
+            padding-top: 8px;
+        }
+
+        .generator-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .generator-header-text {
+            font-size: 9px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .generator-toggle {
+            font-size: 10px;
+            color: #8B7355;
+            transition: transform 0.2s;
+        }
+
+        .generator-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .generator-content {
+            display: none;
+            padding-top: 8px;
+        }
+
+        .generator-content.expanded {
+            display: block;
+        }
+
+        .generator-type-row {
+            margin-bottom: 8px;
+        }
+
+        .generator-type-select {
+            width: 100%;
+            padding: 5px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(245, 230, 211, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .generator-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .gen-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gen-row label {
+            font-size: 9px;
+            color: #5C4033;
+            flex-shrink: 0;
+        }
+
+        .gen-row input[type="number"] {
+            width: 70px;
+            padding: 4px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(255, 248, 220, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            text-align: right;
+        }
+
+        .gen-row input[type="number"]:focus {
+            outline: none;
+            border-color: #6B8E4E;
+        }
+
+        .generator-btn {
+            width: 100%;
+            padding: 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #3C2F2F;
+            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
+            border: 1px solid #6B8E4E;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .generator-btn:hover {
+            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9));
+        }
+
+        .generator-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* v1.9.0: Temperament Preset Dropdown */
+        .tuning-preset-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .tuning-preset-label {
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            text-align: center;
+        }
+
+        .tuning-preset-select {
+            width: 100%;
+            padding: 6px 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(245, 230, 211, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .tuning-preset-select:focus {
+            border-color: #6B8E4E;
+        }
+
+        .tuning-preset-select:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        /* v1.9.0: Octave Stretch Slider */
+        .octave-stretch-section {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            width: 100%;
+        }
+
+        .octave-stretch-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .octave-stretch-label {
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            min-width: 40px;
+        }
+
+        .octave-stretch-slider {
+            flex: 1;
+            height: 6px;
+            -webkit-appearance: none;
+            appearance: none;
+            background: rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .octave-stretch-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(255, 248, 220, 0.9) 0%,
+                rgba(212, 196, 176, 0.8) 70%,
+                rgba(139, 115, 85, 0.6) 100%);
+            border: 1px solid #8B7355;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .octave-stretch-slider::-moz-range-thumb {
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle at 35% 35%,
+                rgba(255, 248, 220, 0.9) 0%,
+                rgba(212, 196, 176, 0.8) 70%,
+                rgba(139, 115, 85, 0.6) 100%);
+            border: 1px solid #8B7355;
+            border-radius: 50%;
+            cursor: pointer;
+        }
+
+        .octave-stretch-value {
+            font-size: 9px;
+            font-family: monospace;
+            color: #3C2F2F;
+            min-width: 32px;
+            text-align: right;
+        }
+
         /* Bottom: Keyboard visualization - v1.7.1: Compact centered like Marimba */
         /* v1.7.7: Shifted 40px left to avoid overlap with SCL/KBM buttons in Custom mode */
         .keyboard-section {
@@ -963,6 +1195,373 @@
             font-size: 8px;
             color: #5C4033;
             text-align: center;
+        }
+
+        /* ====================================================================
+           v1.10.0: VISUALIZATION MODE STYLES - Phase 2
+           ==================================================================== */
+
+        /* Viz mode toggle buttons */
+        .viz-mode-toggle {
+            position: absolute;
+            left: calc(50% - 40px);
+            transform: translateX(-50%);
+            top: 8px;
+            display: flex;
+            gap: 4px;
+            z-index: 20;
+        }
+
+        .viz-btn {
+            padding: 4px 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+        }
+
+        .viz-btn:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .viz-btn.active {
+            background: rgba(139, 168, 112, 0.5);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            font-weight: 500;
+        }
+
+        /* Visualization container (replaces pitch-circle for multi-mode) */
+        .viz-container {
+            position: absolute;
+            width: 220px;
+            height: 210px;
+            left: calc(50% - 40px);
+            transform: translateX(-50%);
+            bottom: 100px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Hidden class for inactive visualizations */
+        .viz-view {
+            display: none;
+            width: 100%;
+            height: 100%;
+        }
+        .viz-view.active {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Polar wheel canvas */
+        #polar-canvas {
+            width: 180px;
+            height: 180px;
+        }
+
+        /* Matrix visualization */
+        .matrix-view {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            padding: 4px;
+        }
+
+        .matrix-table {
+            border-collapse: collapse;
+            font-size: 8px;
+            width: 100%;
+        }
+
+        .matrix-table th, .matrix-table td {
+            padding: 2px 3px;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            text-align: center;
+            min-width: 22px;
+        }
+
+        .matrix-table th {
+            background: rgba(139, 115, 85, 0.25);
+            font-weight: 600;
+            color: #3C2F2F;
+        }
+
+        .matrix-cell {
+            font-family: monospace;
+            font-size: 7px;
+        }
+
+        /* True Keys visualization */
+        .truekeys-view {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+        }
+
+        .tk-hint {
+            font-size: 11px;
+            color: #5C4033;
+            opacity: 0.7;
+            text-align: center;
+        }
+
+        .tk-grid {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            width: 100%;
+            max-height: 160px;
+            overflow-y: auto;
+        }
+
+        .tk-interval {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 6px 10px;
+            background: rgba(235, 217, 199, 0.6);
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 4px;
+        }
+
+        .tk-interval span:first-child {
+            font-size: 10px;
+            color: #3C2F2F;
+            font-weight: 500;
+        }
+
+        .tk-cents {
+            font-family: monospace;
+            font-size: 11px;
+            color: #3C5C1A;
+            font-weight: 600;
+        }
+
+        /* Modal Rotation Matrix */
+        .rotation-view {
+            width: 100%;
+            height: 100%;
+            overflow: auto;
+            padding: 2px;
+        }
+
+        .rotation-table {
+            border-collapse: collapse;
+            font-size: 7px;
+            width: 100%;
+        }
+
+        .rotation-table th, .rotation-table td {
+            padding: 1px 2px;
+            border: 1px solid rgba(139, 115, 85, 0.25);
+            text-align: center;
+            min-width: 18px;
+        }
+
+        .rotation-table th {
+            background: rgba(139, 115, 85, 0.2);
+            font-weight: 500;
+            color: #3C2F2F;
+        }
+
+        .mode-name {
+            background: rgba(139, 115, 85, 0.3) !important;
+            font-weight: bold;
+            font-size: 8px;
+        }
+
+        .int-cell {
+            font-family: monospace;
+            font-size: 7px;
+        }
+
+        .int-cell.small { background: rgba(33, 150, 243, 0.35); }
+        .int-cell.medium { background: rgba(76, 175, 80, 0.35); }
+        .int-cell.large { background: rgba(255, 152, 0, 0.35); }
+
+        /* Deviation display in interval list */
+        .interval-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 2px 3px;
+            border-radius: 2px;
+            margin-bottom: 1px;
+        }
+
+        .interval-row:hover {
+            background: rgba(139, 168, 112, 0.15);
+        }
+
+        .note-name {
+            color: #5C4033;
+            font-weight: 500;
+            font-size: 8px;
+            min-width: 18px;
+        }
+
+        .cents-value {
+            font-family: monospace;
+            font-size: 8px;
+            color: #3C2F2F;
+        }
+
+        .deviation {
+            font-family: monospace;
+            font-size: 7px;
+            opacity: 0.8;
+            min-width: 32px;
+            text-align: right;
+        }
+
+        .deviation.pure { color: #4CAF50; }
+        .deviation.sharp { color: #FF9800; }
+        .deviation.flat { color: #2196F3; }
+
+        /* v1.15.0: Tuning Library Section */
+        .library-section {
+            margin-top: 8px;
+            border-top: 1px solid rgba(139, 115, 85, 0.3);
+            padding-top: 8px;
+        }
+
+        .library-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .library-header-text {
+            font-size: 9px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .library-toggle {
+            font-size: 10px;
+            color: #8B7355;
+            transition: transform 0.2s;
+        }
+
+        .library-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .library-content {
+            display: none;
+            padding-top: 8px;
+        }
+
+        .library-content.expanded {
+            display: block;
+        }
+
+        .library-filter {
+            margin-bottom: 8px;
+        }
+
+        .library-filter-select {
+            width: 100%;
+            padding: 5px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(245, 230, 211, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .library-filter-select:focus {
+            border-color: #6B8E4E;
+        }
+
+        .library-list {
+            max-height: 150px;
+            overflow-y: auto;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+            background: rgba(245, 230, 211, 0.5);
+        }
+
+        .library-item {
+            padding: 6px 8px;
+            cursor: pointer;
+            border-bottom: 1px solid rgba(139, 115, 85, 0.15);
+            transition: background 0.15s;
+        }
+
+        .library-item:last-child {
+            border-bottom: none;
+        }
+
+        .library-item:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        .library-item.selected {
+            background: rgba(139, 168, 112, 0.35);
+        }
+
+        .library-item-name {
+            font-size: 10px;
+            color: #3C2F2F;
+            font-weight: 500;
+        }
+
+        .library-item-info {
+            font-size: 8px;
+            color: #8B7355;
+            margin-top: 2px;
+        }
+
+        .library-item-desc {
+            font-size: 8px;
+            color: #5C4033;
+            font-style: italic;
+            margin-top: 2px;
+            display: none;
+        }
+
+        .library-item:hover .library-item-desc {
+            display: block;
+        }
+
+        /* Scrollbar styling for library list */
+        .library-list::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .library-list::-webkit-scrollbar-track {
+            background: rgba(139, 115, 85, 0.1);
+            border-radius: 3px;
+        }
+
+        .library-list::-webkit-scrollbar-thumb {
+            background: rgba(139, 115, 85, 0.4);
+            border-radius: 3px;
+        }
+
+        .library-list::-webkit-scrollbar-thumb:hover {
+            background: rgba(139, 115, 85, 0.6);
         }
     </style>
 </head>
@@ -1219,25 +1818,77 @@
                 </div>
             </div>
 
-            <!-- CENTER: Pitch Circle - v1.7.7: Moved outside container, centered above keyboard -->
-            <div class="pitch-circle">
-                <svg viewBox="0 0 188 188" id="pitch-circle-svg">
-                    <!-- Outer circle -->
-                    <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
-                    <!-- Inner circle -->
-                    <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
-                    <!-- Center dot -->
-                    <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
-                    <!-- Interval lines (drawn by JS) -->
-                    <g id="interval-lines"></g>
-                    <!-- Degree labels around the circle -->
-                    <g id="degree-labels" font-size="9" fill="#5C4033"></g>
-                </svg>
-                <div class="pitch-circle-label">Scale Intervals</div>
+            <!-- v1.10.0: Visualization Mode Toggle -->
+            <div class="viz-mode-toggle">
+                <button class="viz-btn active" data-mode="circle" onclick="window.setVizMode && window.setVizMode('circle')">Circle</button>
+                <button class="viz-btn" data-mode="polar" onclick="window.setVizMode && window.setVizMode('polar')">Polar</button>
+                <button class="viz-btn" data-mode="matrix" onclick="window.setVizMode && window.setVizMode('matrix')">Matrix</button>
+                <button class="viz-btn" data-mode="truekeys" onclick="window.setVizMode && window.setVizMode('truekeys')">True Keys</button>
+                <button class="viz-btn" data-mode="rotation" onclick="window.setVizMode && window.setVizMode('rotation')">Rotation</button>
+            </div>
+
+            <!-- CENTER: Visualization Container - v1.10.0: Multi-mode support -->
+            <div class="viz-container" id="viz-container">
+                <!-- Circle View (default) -->
+                <div class="viz-view active" id="circle-view">
+                    <div class="pitch-circle">
+                        <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                            <!-- Outer circle -->
+                            <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                            <!-- Inner circle -->
+                            <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                            <!-- Center dot -->
+                            <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                            <!-- Interval lines (drawn by JS) -->
+                            <g id="interval-lines"></g>
+                            <!-- Degree labels around the circle -->
+                            <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                        </svg>
+                        <div class="pitch-circle-label">Scale Intervals</div>
+                    </div>
+                </div>
+
+                <!-- Polar/Radial View -->
+                <div class="viz-view" id="polar-view">
+                    <canvas id="polar-canvas" width="180" height="180"></canvas>
+                </div>
+
+                <!-- Matrix View -->
+                <div class="viz-view matrix-view" id="matrix-view">
+                    <!-- Generated by JS -->
+                </div>
+
+                <!-- True Keys View -->
+                <div class="viz-view truekeys-view" id="truekeys-view">
+                    <div class="tk-hint">Hold 2+ notes to see intervals</div>
+                </div>
+
+                <!-- Modal Rotation View -->
+                <div class="viz-view rotation-view" id="rotation-view">
+                    <!-- Generated by JS -->
+                </div>
             </div>
 
             <!-- RIGHT SIDE: Tuning Controls -->
             <div class="tuning-controls-panel">
+                <!-- v1.9.0: Temperament Preset Dropdown -->
+                <div class="tuning-preset-section">
+                    <label class="tuning-preset-label">Temperament</label>
+                    <select id="temperament-preset" class="tuning-preset-select" onchange="window.handlePresetChange && window.handlePresetChange(this.value)">
+                        <option value="0">Equal 12-TET</option>
+                        <option value="1">Pythagorean</option>
+                        <option value="2">Zarlino</option>
+                        <option value="3">Meantone (1/4 comma)</option>
+                        <option value="4">Werckmeister III</option>
+                        <option value="5">Kirnberger III</option>
+                        <option value="6">Vallotti</option>
+                        <option value="7">Well Tempered</option>
+                        <option value="8">Just Intonation</option>
+                        <option value="9">Bohlen-Pierce</option>
+                        <option value="10" id="custom-preset-option" style="display:none">Custom</option>
+                    </select>
+                </div>
+
                 <!-- Mode Selection -->
                 <div class="tuning-mode-section">
                     <div class="tuning-mode-buttons">
@@ -1261,14 +1912,79 @@
                 <!-- Scale Name Display -->
                 <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
 
+                <!-- v1.9.0: Octave Stretch Slider -->
+                <div class="octave-stretch-section">
+                    <div class="octave-stretch-row">
+                        <span class="octave-stretch-label">Stretch</span>
+                        <input type="range" id="octave-stretch" class="octave-stretch-slider"
+                               min="0.95" max="1.25" step="0.01" value="1.0"
+                               oninput="window.handleOctaveStretchChange && window.handleOctaveStretchChange(this.value)">
+                        <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
+                    </div>
+                </div>
+
                 <!-- File operation buttons - v1.7.1: Only show when Custom mode selected -->
                 <!-- v1.7.3: Using inline onclick handlers (same fix as mode buttons) -->
+                <!-- v1.16.0: Added Export HTML button -->
                 <div class="tuning-file-section" id="scala-buttons" style="display: none;">
                     <div class="tuning-file-buttons">
                         <button class="tuning-file-btn" id="btn-load-scl" onclick="window.handleLoadSCL && window.handleLoadSCL()">Load .SCL</button>
                         <button class="tuning-file-btn" id="btn-load-kbm" onclick="window.handleLoadKBM && window.handleLoadKBM()">Load .KBM</button>
                         <button class="tuning-file-btn" id="btn-save-scl" onclick="window.handleSaveSCL && window.handleSaveSCL()">Save .SCL</button>
                         <button class="tuning-file-btn" id="btn-save-kbm" onclick="window.handleSaveKBM && window.handleSaveKBM()">Save .KBM</button>
+                        <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" onclick="window.handleExportHTML && window.handleExportHTML()">Export HTML</button>
+                    </div>
+                </div>
+
+                <!-- v1.14.0: Scale Generator Section -->
+                <div class="generator-section" id="generator-section">
+                    <div class="generator-header" onclick="window.toggleGenerator && window.toggleGenerator()">
+                        <span class="generator-header-text">Generate Scale</span>
+                        <span class="generator-toggle" id="generator-toggle">▼</span>
+                    </div>
+                    <div class="generator-content" id="generator-content">
+                        <div class="generator-type-row">
+                            <select id="generator-type" class="generator-type-select" onchange="window.handleGeneratorTypeChange && window.handleGeneratorTypeChange(this.value)">
+                                <option value="edo">EDO (Equal Division)</option>
+                                <option value="harmonic">Harmonic Series</option>
+                                <option value="rank2">Rank-2 Temperament</option>
+                            </select>
+                        </div>
+                        <div class="generator-inputs" id="generator-inputs">
+                            <!-- EDO inputs (default) -->
+                            <div class="gen-row">
+                                <label>Divisions</label>
+                                <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                            </div>
+                            <div class="gen-row">
+                                <label>Period (¢)</label>
+                                <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                            </div>
+                        </div>
+                        <button class="generator-btn" onclick="window.handleGenerate && window.handleGenerate()">Generate</button>
+                    </div>
+                </div>
+
+                <!-- v1.15.0: Tuning Library Section -->
+                <div class="library-section" id="library-section">
+                    <div class="library-header" onclick="window.toggleLibrary && window.toggleLibrary()">
+                        <span class="library-header-text">Tuning Library</span>
+                        <span class="library-toggle" id="library-toggle">▼</span>
+                    </div>
+                    <div class="library-content" id="library-content">
+                        <div class="library-filter">
+                            <select id="library-filter" class="library-filter-select" onchange="window.handleLibraryFilter && window.handleLibraryFilter(this.value)">
+                                <option value="all">All Categories</option>
+                                <option value="Historical">Historical</option>
+                                <option value="Just Intonation">Just Intonation</option>
+                                <option value="Equal Divisions">Equal Divisions</option>
+                                <option value="Non-Octave">Non-Octave</option>
+                                <option value="World">World</option>
+                            </select>
+                        </div>
+                        <div class="library-list" id="library-list">
+                            <!-- Populated by JavaScript -->
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1402,10 +2118,25 @@
             }
         };
 
+        // v1.16.0: Export tuning as HTML documentation
+        window.handleExportHTML = async function() {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                var filename = await window.JuceAPI.getNativeFunction('exportTuningHTML')();
+                if (filename) {
+                    console.log('[Tuning] Exported HTML:', filename);
+                }
+            } catch (e) {
+                console.error('[Tuning] Export HTML failed:', e);
+            }
+        };
+
         // v1.7.3: Interval change handler
         window.handleIntervalChange = function(index, valueStr) {
             if (window.onIntervalChanged) {
                 window.onIntervalChanged(index, valueStr);
+            } else {
+                console.error('[Tuning] onIntervalChanged not defined');
             }
         };
 
@@ -1416,6 +2147,287 @@
 
         window.handleTonicUp = function() {
             if (window.onTonicUp) window.onTonicUp();
+        };
+
+        // v1.9.0: Temperament preset change handler
+        window.handlePresetChange = async function(value) {
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            var index = parseInt(value);
+            try {
+                await window.JuceAPI.getNativeFunction('setTemperamentPreset')(index);
+                console.log('[Tuning] Set preset:', index);
+                // Refresh tuning display
+                if (window.refreshTuningState) {
+                    window.refreshTuningState();
+                }
+            } catch (e) {
+                console.error('[Tuning] Set preset failed:', e);
+            }
+        };
+
+        // v1.9.0: Octave stretch change handler
+        window.handleOctaveStretchChange = async function(value) {
+            var stretch = parseFloat(value);
+            var valueEl = document.getElementById('octave-stretch-value');
+            if (valueEl) valueEl.textContent = stretch.toFixed(2);
+
+            if (!window.JuceAPI) { console.error('[Tuning] JUCE not ready'); return; }
+            try {
+                await window.JuceAPI.getNativeFunction('setOctaveStretch')(stretch);
+            } catch (e) {
+                console.error('[Tuning] Set octave stretch failed:', e);
+            }
+        };
+
+        // v1.9.0: When .scl file loaded, show Custom option and select it
+        window.onScalaLoaded = function(filename) {
+            var customOption = document.getElementById('custom-preset-option');
+            if (customOption) {
+                customOption.style.display = 'block';
+                customOption.textContent = 'Custom (' + filename + ')';
+            }
+            var presetSelect = document.getElementById('temperament-preset');
+            if (presetSelect) presetSelect.value = '10';
+        };
+
+        // v1.14.0: Scale Generator handlers
+        window.generatorType = 'edo';
+
+        window.toggleGenerator = function() {
+            var content = document.getElementById('generator-content');
+            var toggle = document.getElementById('generator-toggle');
+            if (content && toggle) {
+                content.classList.toggle('expanded');
+                toggle.classList.toggle('expanded');
+            }
+        };
+
+        window.handleGeneratorTypeChange = function(type) {
+            window.generatorType = type;
+            var inputsDiv = document.getElementById('generator-inputs');
+            if (!inputsDiv) return;
+
+            switch (type) {
+                case 'edo':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Divisions</label>
+                            <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                        </div>
+                        <div class="gen-row">
+                            <label>Period (¢)</label>
+                            <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                        </div>
+                    `;
+                    break;
+                case 'harmonic':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Start Harmonic</label>
+                            <input type="number" id="gen-start" value="8" min="1" max="32">
+                        </div>
+                        <div class="gen-row">
+                            <label>End Harmonic</label>
+                            <input type="number" id="gen-end" value="16" min="2" max="64">
+                        </div>
+                    `;
+                    break;
+                case 'rank2':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Generator (¢)</label>
+                            <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">
+                        </div>
+                        <div class="gen-row">
+                            <label>Period (¢)</label>
+                            <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">
+                        </div>
+                        <div class="gen-row">
+                            <label>Notes</label>
+                            <input type="number" id="gen-count" value="12" min="3" max="31">
+                        </div>
+                    `;
+                    break;
+            }
+        };
+
+        window.handleGenerate = async function() {
+            if (!window.JuceAPI) {
+                console.error('[Generator] JUCE not ready');
+                return;
+            }
+
+            try {
+                var intervalsJson, scaleName;
+
+                switch (window.generatorType) {
+                    case 'edo': {
+                        var divisions = parseInt(document.getElementById('gen-divisions').value);
+                        var period = parseFloat(document.getElementById('gen-period').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateEDO')(divisions, period);
+                        scaleName = divisions + '-EDO';
+                        if (Math.abs(period - 1200) > 0.1) {
+                            scaleName += ' (' + period.toFixed(0) + '¢)';
+                        }
+                        console.log('[Generator] Generated EDO:', divisions, 'divisions, period:', period);
+                        break;
+                    }
+                    case 'harmonic': {
+                        var start = parseInt(document.getElementById('gen-start').value);
+                        var end = parseInt(document.getElementById('gen-end').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateHarmonicSeries')(start, end);
+                        scaleName = 'Harmonics ' + start + '-' + end;
+                        console.log('[Generator] Generated Harmonic Series:', start, 'to', end);
+                        break;
+                    }
+                    case 'rank2': {
+                        var generator = parseFloat(document.getElementById('gen-generator').value);
+                        var period = parseFloat(document.getElementById('gen-r2-period').value);
+                        var count = parseInt(document.getElementById('gen-count').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateRank2')(generator, period, count);
+                        scaleName = 'Rank-2 (' + generator.toFixed(1) + '¢, ' + count + ' notes)';
+                        console.log('[Generator] Generated Rank-2:', generator, '¢ gen,', count, 'notes');
+                        break;
+                    }
+                }
+
+                // Apply the generated scale
+                var success = await window.JuceAPI.getNativeFunction('applyGeneratedScale')(intervalsJson, scaleName);
+                if (success) {
+                    console.log('[Generator] Applied scale:', scaleName);
+
+                    // Switch to Custom mode in UI
+                    var customBtn = document.getElementById('btn-custom');
+                    if (customBtn) {
+                        window.handleModeClick(1, customBtn);
+                    }
+
+                    // Show Custom option in preset dropdown
+                    var customOption = document.getElementById('custom-preset-option');
+                    if (customOption) {
+                        customOption.style.display = 'block';
+                        customOption.textContent = 'Custom (' + scaleName + ')';
+                    }
+                    var presetSelect = document.getElementById('temperament-preset');
+                    if (presetSelect) presetSelect.value = '10';
+
+                    // Refresh tuning display
+                    if (window.refreshTuningState) {
+                        window.refreshTuningState();
+                    }
+                } else {
+                    console.error('[Generator] Failed to apply scale');
+                }
+            } catch (e) {
+                console.error('[Generator] Generate failed:', e);
+            }
+        };
+
+        // v1.15.0: Tuning Library handlers
+        window.embeddedTunings = [];
+        window.libraryFilter = 'all';
+
+        window.toggleLibrary = function() {
+            var content = document.getElementById('library-content');
+            var toggle = document.getElementById('library-toggle');
+            if (content && toggle) {
+                content.classList.toggle('expanded');
+                toggle.classList.toggle('expanded');
+                // Load tunings on first expand
+                if (content.classList.contains('expanded') && window.embeddedTunings.length === 0) {
+                    window.loadEmbeddedTunings();
+                }
+            }
+        };
+
+        window.loadEmbeddedTunings = async function() {
+            if (!window.JuceAPI) {
+                console.error('[Library] JUCE not ready');
+                return;
+            }
+            try {
+                var jsonStr = await window.JuceAPI.getNativeFunction('getEmbeddedTuningList')();
+                window.embeddedTunings = JSON.parse(jsonStr);
+                console.log('[Library] Loaded', window.embeddedTunings.length, 'embedded tunings');
+                window.renderLibraryList();
+            } catch (e) {
+                console.error('[Library] Failed to load tunings:', e);
+            }
+        };
+
+        window.handleLibraryFilter = function(category) {
+            window.libraryFilter = category;
+            window.renderLibraryList();
+        };
+
+        window.renderLibraryList = function() {
+            var listEl = document.getElementById('library-list');
+            if (!listEl) return;
+
+            var filtered = window.embeddedTunings;
+            if (window.libraryFilter !== 'all') {
+                filtered = window.embeddedTunings.filter(function(t) {
+                    return t.category === window.libraryFilter;
+                });
+            }
+
+            var html = '';
+            filtered.forEach(function(tuning) {
+                var periodNote = tuning.period !== 1200 ? ' (' + tuning.period.toFixed(0) + '¢ period)' : '';
+                html += '<div class="library-item" data-id="' + tuning.id + '" onclick="window.handleLoadEmbeddedTuning(\'' + tuning.id + '\')">';
+                html += '<div class="library-item-name">' + tuning.name + '</div>';
+                html += '<div class="library-item-info">' + tuning.category + ' • ' + tuning.noteCount + ' notes' + periodNote + '</div>';
+                html += '<div class="library-item-desc">' + tuning.description + '</div>';
+                html += '</div>';
+            });
+
+            listEl.innerHTML = html;
+        };
+
+        window.handleLoadEmbeddedTuning = async function(tuningId) {
+            if (!window.JuceAPI) {
+                console.error('[Library] JUCE not ready');
+                return;
+            }
+            try {
+                var success = await window.JuceAPI.getNativeFunction('loadEmbeddedTuning')(tuningId);
+                if (success) {
+                    console.log('[Library] Loaded tuning:', tuningId);
+
+                    // Find the tuning to get name
+                    var tuning = window.embeddedTunings.find(function(t) { return t.id === tuningId; });
+
+                    // Update visual selection
+                    var items = document.querySelectorAll('.library-item');
+                    items.forEach(function(item) {
+                        item.classList.toggle('selected', item.dataset.id === tuningId);
+                    });
+
+                    // Switch to Custom mode in UI
+                    var customBtn = document.getElementById('btn-custom');
+                    if (customBtn) {
+                        window.handleModeClick(1, customBtn);
+                    }
+
+                    // Show Custom option in preset dropdown
+                    var customOption = document.getElementById('custom-preset-option');
+                    if (customOption && tuning) {
+                        customOption.style.display = 'block';
+                        customOption.textContent = 'Custom (' + tuning.name + ')';
+                    }
+                    var presetSelect = document.getElementById('temperament-preset');
+                    if (presetSelect) presetSelect.value = '10';
+
+                    // Refresh tuning display
+                    if (window.refreshTuningState) {
+                        window.refreshTuningState();
+                    }
+                } else {
+                    console.error('[Library] Failed to load tuning:', tuningId);
+                }
+            } catch (e) {
+                console.error('[Library] Load failed:', e);
+            }
         };
     </script>
 
@@ -1847,15 +2859,21 @@
         const activeNotes = new Map();
 
         // Map MIDI note to scale index
+        // v1.11.0: Account for tonic rotation so C always flashes at C position
+        // v1.13.1: Fix non-12 scales to use linear mapping from anchor point
         function midiNoteToScaleIndex(midiNote) {
-            const noteInOctave = midiNote % 12;
             const scaleSize = currentIntervals.length;
 
             if (scaleSize === 12) {
-                return noteInOctave;
+                // 12-TET: pitch class with tonic rotation
+                const noteInOctave = midiNote % 12;
+                return (noteInOctave - currentTonic + 12) % 12;
             } else {
-                // Proportional mapping for non-12-tone scales
-                return Math.round((noteInOctave / 12) * scaleSize) % scaleSize;
+                // Non-12: linear mapping from anchor point (MIDI 60 + tonic)
+                const anchorNote = 60 + currentTonic;
+                let scaleDegree = (midiNote - anchorNote) % scaleSize;
+                if (scaleDegree < 0) scaleDegree += scaleSize;
+                return scaleDegree;
             }
         }
 
@@ -1934,93 +2952,467 @@
         window.setNoteActive = setNoteActive;
         window.setNoteInactive = setNoteInactive;
 
-        // Update interval list UI (with tonic selector for 12-tone scales)
-        // v1.7.3: Using inline onchange handlers instead of addEventListener
-        function updateIntervalListUI() {
+        // ====================================================================
+        // v1.10.0: VISUALIZATION MODE SWITCHING
+        // ====================================================================
+
+        let vizMode = 'circle';
+        let heldNotes = [];   // MIDI note numbers currently held
+        let heldFreqs = [];   // Corresponding frequencies
+
+        // Switch visualization mode
+        function setVizMode(mode) {
+            vizMode = mode;
+
+            // Update button highlights
+            document.querySelectorAll('.viz-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.mode === mode);
+            });
+
+            // Show/hide visualization views
+            document.querySelectorAll('.viz-view').forEach(view => {
+                view.classList.remove('active');
+            });
+            const viewId = mode + '-view';
+            const targetView = document.getElementById(viewId);
+            if (targetView) targetView.classList.add('active');
+
+            // Update the visualization
+            updateVisualization();
+        }
+
+        // Main visualization update dispatcher
+        function updateVisualization() {
+            switch (vizMode) {
+                case 'circle':
+                    updatePitchCircle();
+                    break;
+                case 'polar':
+                    drawPolarWheel();
+                    break;
+                case 'matrix':
+                    drawIntervalMatrix();
+                    break;
+                case 'truekeys':
+                    updateTrueKeysDisplay();
+                    break;
+                case 'rotation':
+                    drawModalRotationMatrix();
+                    break;
+            }
+        }
+
+        // Export setVizMode to window for onclick handlers
+        window.setVizMode = setVizMode;
+
+        // ====================================================================
+        // v1.10.0: POLAR/RADIAL TONE WHEEL
+        // ====================================================================
+
+        function drawPolarWheel() {
+            const canvas = document.getElementById('polar-canvas');
+            if (!canvas) return;
+            const ctx = canvas.getContext('2d');
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            const maxR = Math.min(cx, cy) - 15;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Background circle
+            ctx.fillStyle = 'rgba(235, 217, 199, 0.4)';
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Reference circles (200, 400, 600, 800, 1000, 1200 cents)
+            ctx.strokeStyle = 'rgba(139, 115, 85, 0.25)';
+            ctx.lineWidth = 0.5;
+            for (let c = 200; c <= 1200; c += 200) {
+                ctx.beginPath();
+                ctx.arc(cx, cy, (c / 1200) * maxR, 0, Math.PI * 2);
+                ctx.stroke();
+            }
+
+            // Outer rim
+            ctx.strokeStyle = '#8B7355';
+            ctx.lineWidth = 1.5;
+            ctx.beginPath();
+            ctx.arc(cx, cy, maxR, 0, Math.PI * 2);
+            ctx.stroke();
+
+            // Center dot
+            ctx.fillStyle = '#3C2F2F';
+            ctx.beginPath();
+            ctx.arc(cx, cy, 3, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Scale degree nodes
+            const total = currentIntervals.length;
+            for (let i = 0; i < total; i++) {
+                // Angle: position around the wheel (evenly spaced by index)
+                const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
+                // Radius: based on cents value (further = higher pitch)
+                const cents = currentIntervals[i];
+                const r = (cents / 1200) * maxR;
+                const x = cx + Math.cos(angle) * r;
+                const y = cy + Math.sin(angle) * r;
+
+                // Check if this scale degree has an active note
+                const isActive = activeNotes.has(i);
+
+                // Draw node
+                ctx.fillStyle = isActive ? '#FFD700' : '#6B8E4E';
+                ctx.beginPath();
+                ctx.arc(x, y, isActive ? 8 : 6, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Node border
+                ctx.strokeStyle = isActive ? '#B8860B' : '#3C2F2F';
+                ctx.lineWidth = isActive ? 2 : 1;
+                ctx.stroke();
+
+                // Label (position just outside the node)
+                const labelR = r + 14;
+                const labelX = cx + Math.cos(angle) * labelR;
+                const labelY = cy + Math.sin(angle) * labelR;
+
+                ctx.fillStyle = '#3C2F2F';
+                ctx.font = total > 12 ? '8px Garamond' : '10px Garamond';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(getDegreeLabel(i, total), labelX, labelY);
+            }
+        }
+
+        // ====================================================================
+        // v1.10.0: INTERVAL MATRIX
+        // ====================================================================
+
+        function drawIntervalMatrix() {
+            const container = document.getElementById('matrix-view');
+            if (!container) return;
+
             const total = currentIntervals.length;
 
-            // Show tonic selector only for 12-tone scales
-            // v1.7.3: Using inline onclick for tonic arrows
-            let tonicHtml = '';
-            if (total === 12) {
-                tonicHtml = `
-                    <div class="tonic-selector" title="Change tonic note (transposes instrument)">
-                        <span class="tonic-arrow" id="tonic-down" title="Previous note" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
-                        <span class="tonic-label">Tonic:</span>
-                        <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
-                        <span class="tonic-arrow" id="tonic-up" title="Next note" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
+            let html = '<table class="matrix-table"><tr><th></th>';
+            // Header row with note names
+            for (let i = 0; i < total; i++) {
+                html += `<th>${getDegreeLabel(i, total)}</th>`;
+            }
+            html += '</tr>';
+
+            // Data rows - interval from row note to column note
+            for (let from = 0; from < total; from++) {
+                html += `<tr><th>${getDegreeLabel(from, total)}</th>`;
+                for (let to = 0; to < total; to++) {
+                    let interval = currentIntervals[to] - currentIntervals[from];
+                    if (interval < 0) interval += 1200;
+
+                    // Color coding based on interval type
+                    let cellClass = 'matrix-cell';
+                    if (interval === 0) cellClass += ' pure';
+                    else if (Math.abs(interval - 700) < 20) cellClass += ' medium'; // ~P5
+                    else if (Math.abs(interval - 500) < 20) cellClass += ' medium'; // ~P4
+                    else if (Math.abs(interval - 400) < 20) cellClass += ' small';  // ~M3
+
+                    html += `<td class="${cellClass}" title="${interval.toFixed(1)}¢">${Math.round(interval)}</td>`;
+                }
+                html += '</tr>';
+            }
+            html += '</table>';
+
+            container.innerHTML = html;
+        }
+
+        // ====================================================================
+        // v1.10.0: TRUE KEYS - Real-time intervals between held notes
+        // ====================================================================
+
+        // Called from C++ timerCallback with held note data
+        window.updateHeldNotes = function(notes, freqs) {
+            heldNotes = notes || [];
+            heldFreqs = freqs || [];
+            if (vizMode === 'truekeys') updateTrueKeysDisplay();
+        };
+
+        function midiToNoteName(midi) {
+            const names = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+            return names[midi % 12] + Math.floor(midi / 12 - 1);
+        }
+
+        function updateTrueKeysDisplay() {
+            const container = document.getElementById('truekeys-view');
+            if (!container) return;
+
+            if (heldNotes.length < 2) {
+                container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+                return;
+            }
+
+            let html = '<div class="tk-grid">';
+
+            // Sort notes by pitch for consistent display
+            const sortedIndices = heldNotes
+                .map((note, i) => ({ note, freq: heldFreqs[i], i }))
+                .sort((a, b) => a.note - b.note);
+
+            // Calculate interval between each pair of adjacent notes
+            for (let i = 0; i < sortedIndices.length - 1; i++) {
+                const lower = sortedIndices[i];
+                const upper = sortedIndices[i + 1];
+                const cents = 1200 * Math.log2(upper.freq / lower.freq);
+
+                // Identify common interval names
+                let intervalName = '';
+                if (Math.abs(cents - 100) < 15) intervalName = '(m2)';
+                else if (Math.abs(cents - 200) < 15) intervalName = '(M2)';
+                else if (Math.abs(cents - 300) < 15) intervalName = '(m3)';
+                else if (Math.abs(cents - 400) < 15) intervalName = '(M3)';
+                else if (Math.abs(cents - 500) < 15) intervalName = '(P4)';
+                else if (Math.abs(cents - 600) < 15) intervalName = '(TT)';
+                else if (Math.abs(cents - 700) < 15) intervalName = '(P5)';
+                else if (Math.abs(cents - 800) < 15) intervalName = '(m6)';
+                else if (Math.abs(cents - 900) < 15) intervalName = '(M6)';
+                else if (Math.abs(cents - 1000) < 15) intervalName = '(m7)';
+                else if (Math.abs(cents - 1100) < 15) intervalName = '(M7)';
+                else if (Math.abs(cents - 1200) < 15) intervalName = '(P8)';
+
+                html += `
+                    <div class="tk-interval">
+                        <span>${midiToNoteName(lower.note)} → ${midiToNoteName(upper.note)} ${intervalName}</span>
+                        <span class="tk-cents">${cents.toFixed(1)}¢</span>
                     </div>
                 `;
             }
 
+            // Also show total span (lowest to highest)
+            if (sortedIndices.length > 2) {
+                const lowest = sortedIndices[0];
+                const highest = sortedIndices[sortedIndices.length - 1];
+                const totalCents = 1200 * Math.log2(highest.freq / lowest.freq);
+                html += `
+                    <div class="tk-interval" style="border-color: #6B8E4E; margin-top: 6px;">
+                        <span><strong>Total span</strong></span>
+                        <span class="tk-cents">${totalCents.toFixed(1)}¢</span>
+                    </div>
+                `;
+            }
+
+            html += '</div>';
+            container.innerHTML = html;
+        }
+
+        // ====================================================================
+        // v1.10.0: MODAL ROTATION MATRIX
+        // ====================================================================
+
+        function drawModalRotationMatrix() {
+            const container = document.getElementById('rotation-view');
+            if (!container) return;
+
+            const total = currentIntervals.length;
+
+            let html = '<table class="rotation-table"><tr><th>Mode</th>';
+            // Header: degree numbers 1 through total
+            for (let i = 1; i <= total; i++) {
+                html += `<th>${i}</th>`;
+            }
+            html += '</tr>';
+
+            // Each row is a mode starting on a different scale degree
+            for (let start = 0; start < total; start++) {
+                html += `<tr><td class="mode-name">${getDegreeLabel(start, total)}</td>`;
+
+                let prevCents = currentIntervals[start];
+
+                for (let step = 0; step < total; step++) {
+                    const deg = (start + step) % total;
+                    let cents = currentIntervals[deg];
+
+                    // Handle wrap-around for degrees < start
+                    if (deg < start) cents += 1200;
+
+                    // Calculate interval from previous note in this mode
+                    let interval;
+                    if (step === 0) {
+                        interval = 0;
+                    } else {
+                        const prevDeg = (start + step - 1) % total;
+                        let prevCentsVal = currentIntervals[prevDeg];
+                        if (prevDeg < start) prevCentsVal += 1200;
+                        interval = cents - prevCentsVal;
+                    }
+
+                    // Color code by interval size
+                    let cls = 'int-cell';
+                    if (step === 0) {
+                        cls += ''; // Unison, no special color
+                    } else if (interval < 100) {
+                        cls += ' small';  // Semitone or smaller (blue)
+                    } else if (interval < 250) {
+                        cls += ' medium'; // Whole tone (green)
+                    } else {
+                        cls += ' large';  // Minor third or larger (orange)
+                    }
+
+                    html += `<td class="${cls}" title="${interval.toFixed(1)}¢">${step === 0 ? '-' : Math.round(interval)}</td>`;
+                }
+                html += '</tr>';
+            }
+
+            html += '</table>';
+            container.innerHTML = html;
+        }
+
+        // Update interval list UI (with tonic selector)
+        // v1.7.3: Using inline onchange handlers instead of addEventListener
+        // v1.10.0: Added deviation display (±cents from equal temperament)
+        // v1.13.0: Show tonic selector for ALL scale sizes (not just 12-tone)
+        // v1.13.1: Always fetch tonic from processor to ensure sync after state restoration
+        async function updateIntervalListUI() {
+            // v1.13.1: Fetch current tonic from processor to stay in sync
+            try {
+                const fetchedTonic = await Juce.getNativeFunction('getTonicNote')();
+                if (typeof fetchedTonic === 'number' && fetchedTonic >= 0 && fetchedTonic <= 11) {
+                    currentTonic = fetchedTonic;
+                }
+            } catch (e) {
+                console.log('[Tuning] Could not fetch tonic, using cached value');
+            }
+
+            const total = currentIntervals.length;
+
+            // v1.13.0: Show tonic selector for all scale sizes
+            // Tonic transposes by 12-TET semitones (shifts anchor point)
+            // v1.7.3: Using inline onclick for tonic arrows
+            const tooltipText = total === 12
+                ? 'Change tonic note (transposes instrument)'
+                : 'Transpose by semitones (shifts scale anchor point)';
+            const tonicHtml = `
+                <div class="tonic-selector" title="${tooltipText}">
+                    <span class="tonic-arrow" id="tonic-down" title="Previous note" onclick="window.handleTonicDown && window.handleTonicDown()">◀</span>
+                    <span class="tonic-label">Tonic:</span>
+                    <span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span>
+                    <span class="tonic-arrow" id="tonic-up" title="Next note" onclick="window.handleTonicUp && window.handleTonicUp()">▶</span>
+                </div>
+            `;
+
             let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
 
             // Show rows for actual number of intervals
-            // In 12-TET mode (index 0), all inputs are disabled (non-editable)
-            const isEditable = (currentTuningMode === 1); // Only editable in Custom mode
+            // v1.11.1: Allow editing in any mode - editing auto-switches to Custom mode via backend
             for (let i = 0; i < total; i++) {
                 const cents = currentIntervals[i] || 0;
                 const isUnison = (i === 0);
                 const displayValue = isUnison ? '0' : cents.toFixed(1);
                 const label = getDegreeLabel(i, total);
-                const isDisabled = isUnison || !isEditable;
+                const isDisabled = isUnison; // Only unison (0 cents) is non-editable
+
+                // v1.10.0: Calculate deviation from equal temperament
+                const equalCents = (i * 1200 / total);
+                const deviation = cents - equalCents;
+                const devSign = deviation >= 0 ? '+' : '';
+                const devClass = Math.abs(deviation) < 1 ? 'pure' : (deviation > 0 ? 'sharp' : 'flat');
 
                 // v1.7.3: Using inline onchange handler
                 const onchangeAttr = isDisabled ? '' : `onchange="window.handleIntervalChange && window.handleIntervalChange(${i}, this.value)"`;
 
+                // v1.10.0: Show deviation only if not in 12-TET mode (mode 0) or if there's actual deviation
+                const showDeviation = (currentTuningMode !== 0 || Math.abs(deviation) >= 0.5);
+
                 html += `
-                    <div class="interval-item">
-                        <span class="interval-degree">${label}</span>
+                    <div class="interval-row">
+                        <span class="note-name">${label}</span>
                         <input type="text"
                                class="interval-input"
                                data-index="${i}"
                                value="${displayValue}"
                                ${isDisabled ? 'disabled' : ''}
                                ${onchangeAttr}
-                               placeholder="${Math.round(i * 1200 / total)}">
+                               placeholder="${Math.round(equalCents)}">
+                        ${showDeviation ? `<span class="deviation ${devClass}" title="Deviation from equal temperament">${devSign}${deviation.toFixed(1)}</span>` : '<span class="deviation"></span>'}
                     </div>
                 `;
             }
 
             intervalList.innerHTML = html;
-            // v1.7.3: Tonic arrow and interval handlers use callbacks from non-module script
+
+            // v1.12.3: Use event delegation instead of inline handlers (more reliable in WebView)
+            intervalList.querySelectorAll('.interval-input').forEach(input => {
+                if (input.disabled) return;
+                const index = parseInt(input.dataset.index, 10);
+
+                input.addEventListener('change', () => {
+                    window.handleIntervalChange(index, input.value);
+                });
+
+                input.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        input.blur();
+                    }
+                });
+            });
         }
 
         // v1.7.3: Callbacks for global handlers (tonic arrows)
         window.onTonicDown = async () => {
             currentTonic = (currentTonic - 1 + 12) % 12;
-            const tonicDisplay = document.getElementById('tonic-display');
-            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
-            updatePitchCircle();
-            updateIntervalListUI();
+            // v1.13.1: Update processor FIRST, then refresh UI
             try {
                 await Juce.getNativeFunction('setTonicNote')(currentTonic);
             } catch (e) {
                 console.error('[Tuning] Failed to set tonic:', e);
             }
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updateVisualization();
+            await updateIntervalListUI();
         };
 
         window.onTonicUp = async () => {
             currentTonic = (currentTonic + 1) % 12;
-            const tonicDisplay = document.getElementById('tonic-display');
-            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
-            updatePitchCircle();
-            updateIntervalListUI();
+            // v1.13.1: Update processor FIRST, then refresh UI
             try {
                 await Juce.getNativeFunction('setTonicNote')(currentTonic);
             } catch (e) {
                 console.error('[Tuning] Failed to set tonic:', e);
             }
+            const tonicDisplay = document.getElementById('tonic-display');
+            if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+            updateVisualization();
+            await updateIntervalListUI();
         };
 
         // v1.7.3: Callback for interval input changes
+        // v1.11.1: Now uses setSingleInterval for reliable single-value updates
         window.onIntervalChanged = async (index, valueStr) => {
             const value = parseFloat(valueStr);
             if (!isNaN(value) && value >= 0 && value <= 1200) {
                 currentIntervals[index] = value;
-                updatePitchCircle();
-                await applyIntervalsToBackend(currentIntervals, 'Custom');
-                console.log('[Tuning] Interval', index, 'changed to', value);
+
+                // v1.11.1: Switch UI to Custom mode when user manually edits intervals
+                if (currentTuningMode !== 1) {
+                    currentTuningMode = 1;
+                    window.currentTuningMode = 1;
+                    document.querySelectorAll('.tuning-mode-btn').forEach(btn => {
+                        btn.classList.toggle('active', parseInt(btn.dataset.mode) === 1);
+                    });
+                    const scaleNameEl = document.getElementById('scale-name-display');
+                    if (scaleNameEl) scaleNameEl.textContent = 'Custom';
+                }
+
+                updateVisualization();
+
+                // v1.11.1: Encode index and cents as single number: index * 10000 + cents
+                const encoded = index * 10000 + Math.round(value);
+                try {
+                    await Juce.getNativeFunction('setSingleIntervalEncoded')(encoded);
+                    console.log('[Tuning] Interval', index, 'changed to', value);
+                } catch (e) {
+                    console.error('[Tuning] Failed to set interval:', e);
+                }
             }
         };
 
@@ -2039,9 +3431,23 @@
             try {
                 const intervals = await Juce.getNativeFunction('getTuningIntervals')();
                 if (Array.isArray(intervals) && intervals.length > 0) {
-                    currentIntervals = intervals;
-                    updateIntervalListUI();
-                    updatePitchCircle();
+                    // v1.12.2: C++ returns N+1 intervals (including period at end)
+                    // For 12-tone scales, we get 13 values [0,100,...,1100,1200]
+                    // UI should display 12 intervals (exclude period)
+                    // Check if last value is the octave/period (1200 for 12-tone, 1902 for Bohlen-Pierce)
+                    if (intervals.length === 13 && Math.abs(intervals[12] - 1200) < 1) {
+                        // Standard 12-tone scale - exclude period for UI display
+                        currentIntervals = intervals.slice(0, 12);
+                    } else if (intervals.length === 14 && Math.abs(intervals[13] - 1902) < 1) {
+                        // Bohlen-Pierce (13-tone) - exclude tritave
+                        currentIntervals = intervals.slice(0, 13);
+                    } else {
+                        // Other scales - use as-is (might need adjustment)
+                        currentIntervals = intervals;
+                    }
+                    await updateIntervalListUI();
+                    updateVisualization();
+                    console.log('[Tuning] Loaded', currentIntervals.length, 'intervals from backend');
                 }
             } catch (e) {
                 console.warn('[Tuning] Failed to load intervals:', e);
@@ -2135,12 +3541,12 @@
         }
 
         if (tuningModeState && tuningModeState.valueChangedEvent) {
-            tuningModeState.valueChangedEvent.addListener(() => {
+            tuningModeState.valueChangedEvent.addListener(async () => {
                 currentTuningMode = tuningModeState.getChoiceIndex();
                 modeButtons.forEach(btn => {
                     btn.classList.toggle('active', parseInt(btn.dataset.mode) === currentTuningMode);
                 });
-                updateIntervalListUI(); // Re-render to update editable state
+                await updateIntervalListUI(); // Re-render to update editable state
                 updateFileButtonsVisibility(currentTuningMode); // v1.7.1
             });
             currentTuningMode = tuningModeState.getChoiceIndex();
@@ -2148,18 +3554,25 @@
         }
 
         // v1.7.2: Callback for global click handler - syncs with JUCE and updates UI
-        window.onTuningModeChanged = (mode) => {
+        window.onTuningModeChanged = async (mode) => {
             // Update module state
             currentTuningMode = mode;
 
-            // Reset to 12-TET intervals for non-custom modes
-            if (mode !== 1) {
+            // v1.13.3: For 12-TET mode, reset UI intervals and sync to backend
+            // For Custom mode, load intervals FROM backend (don't overwrite with stale UI data)
+            if (mode === 0) {
+                // Switching to 12-TET: set standard intervals
                 currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+                applyIntervalsToBackend(currentIntervals, '12-TET Standard');
+            } else if (mode === 1) {
+                // Switching to Custom: load current backend intervals (preserve Scala files)
+                await loadIntervalsFromBackend();
             }
+            // Mode 2 (MTS-ESP): no interval changes needed
 
-            // Update interval list and pitch circle
-            updateIntervalListUI();
-            updatePitchCircle();
+            // Update interval list and visualization
+            await updateIntervalListUI();
+            updateVisualization();
 
             // Sync with JUCE backend
             if (tuningModeState) {
@@ -2168,11 +3581,6 @@
                 } catch (e) {
                     console.error('[Tuning] Failed to sync mode with JUCE:', e);
                 }
-            }
-
-            // For 12-TET, also send intervals to backend
-            if (mode === 0) {
-                applyIntervalsToBackend(currentIntervals, '12-TET Standard');
             }
         };
 
@@ -2184,8 +3592,8 @@
             // Update UI after .scl file loaded
             await loadIntervalsFromBackend();
             if (tuningModeState) tuningModeState.setChoiceIndex(1);
-            updateIntervalListUI();
-            updatePitchCircle();
+            await updateIntervalListUI();
+            updateVisualization();
         };
 
         // ====================================================================
@@ -2268,9 +3676,58 @@
                 // Ignore - use default tonic
             }
 
-            updateIntervalListUI();
-            updatePitchCircle();
+            // v1.9.0: Load current preset and octave stretch
+            try {
+                const presetIndex = await Juce.getNativeFunction('getTemperamentPreset')();
+                const presetSelect = document.getElementById('temperament-preset');
+                if (presetSelect && presetIndex !== undefined) {
+                    // Show custom option if preset is Custom (10)
+                    if (presetIndex === 10) {
+                        const customOption = document.getElementById('custom-preset-option');
+                        if (customOption) customOption.style.display = 'block';
+                    }
+                    presetSelect.value = String(presetIndex);
+                }
+            } catch (e) {
+                console.warn('[Tuning] Failed to get preset:', e);
+            }
+
+            try {
+                const stretch = await Juce.getNativeFunction('getOctaveStretch')();
+                const stretchSlider = document.getElementById('octave-stretch');
+                const stretchValue = document.getElementById('octave-stretch-value');
+                if (stretchSlider && stretch !== undefined) {
+                    stretchSlider.value = stretch;
+                }
+                if (stretchValue && stretch !== undefined) {
+                    stretchValue.textContent = stretch.toFixed(2);
+                }
+            } catch (e) {
+                console.warn('[Tuning] Failed to get octave stretch:', e);
+            }
+
+            await updateIntervalListUI();
+            updateVisualization();
         }
+
+        // v1.9.0: Global function for refreshing tuning state after preset change
+        window.refreshTuningState = async function() {
+            await loadIntervalsFromBackend();
+            await updateScaleNameDisplay();
+            await updateIntervalListUI();
+            updateVisualization();
+        };
+
+        // v1.13.1: Sync tonic from processor (called by C++ timer to handle state restoration)
+        window.syncTonicFromProcessor = function(tonic) {
+            if (typeof tonic === 'number' && tonic >= 0 && tonic <= 11 && tonic !== currentTonic) {
+                currentTonic = tonic;
+                const tonicDisplay = document.getElementById('tonic-display');
+                if (tonicDisplay) tonicDisplay.textContent = noteNames[currentTonic];
+                updateVisualization();
+                console.log('[Tuning] Synced tonic from processor:', tonic);
+            }
+        };
 
         initializeTuning();
     </script>

@@ -96,6 +96,9 @@ void WaveguideString::trigger(double frequency, float velocity, float position, 
 
 float WaveguideString::processSample()
 {
+    // v1.7.10: Apply any pending filter updates (thread-safe)
+    applyPendingFilterUpdates();
+
     // Generate excitation from PluckExciter
     float excitation = exciter.process();
 
@@ -355,14 +358,33 @@ void WaveguideString::updateFilters()
     // v1.3.1: Use shared cutoff calculation
     FilterCutoffs cutoffs = calculateFilterCutoffs();
 
-    bridgeFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, cutoffs.bridgeCutoffHz);
+    // v1.7.10 FIX: Thread-safe coefficient updates
+    // Store cutoffs atomically for deferred application on audio thread
+    // This prevents data races when parameters change from message thread
+    // while processSample() is running on audio thread
+    pendingBridgeCutoff.store(cutoffs.bridgeCutoffHz, std::memory_order_relaxed);
+    pendingNutCutoff.store(cutoffs.nutCutoffHz, std::memory_order_relaxed);
+    pendingDampingCutoff.store(cutoffs.dampingCutoffHz, std::memory_order_relaxed);
+    filterUpdatePending.store(true, std::memory_order_release);
+}
 
-    nutFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, cutoffs.nutCutoffHz);
+void WaveguideString::applyPendingFilterUpdates()
+{
+    // v1.7.10: Apply filter coefficient updates on audio thread
+    // Only called from processSample() - safe to modify filter state
+    if (filterUpdatePending.load(std::memory_order_acquire))
+    {
+        bridgeFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+            currentSampleRate, pendingBridgeCutoff.load(std::memory_order_relaxed));
 
-    loopDamping.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, cutoffs.dampingCutoffHz);
+        nutFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+            currentSampleRate, pendingNutCutoff.load(std::memory_order_relaxed));
+
+        loopDamping.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
+            currentSampleRate, pendingDampingCutoff.load(std::memory_order_relaxed));
+
+        filterUpdatePending.store(false, std::memory_order_relaxed);
+    }
 }
 
 float WaveguideString::calculateRailDelay() const

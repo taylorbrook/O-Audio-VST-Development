@@ -50,6 +50,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> stringStiffnessRelay;
     std::unique_ptr<juce::WebSliderRelay> masterTuneRelay;
     std::unique_ptr<juce::WebSliderRelay> pitchBendRangeRelay;
+    // v1.9.0: Octave stretch
+    std::unique_ptr<juce::WebSliderRelay> octaveStretchRelay;
     // v1.4.0: New parameters from v1.3.0
     std::unique_ptr<juce::WebSliderRelay> attackNoiseRelay;
     std::unique_ptr<juce::WebSliderRelay> sympatheticQRelay;
@@ -83,6 +85,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> stringStiffnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> masterTuneAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> pitchBendRangeAttachment;
+    // v1.9.0: Octave stretch attachment
+    std::unique_ptr<juce::WebSliderParameterAttachment> octaveStretchAttachment;
     // v1.4.0: New parameters from v1.3.0
     std::unique_ptr<juce::WebSliderParameterAttachment> attackNoiseAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sympatheticQAttachment;
@@ -100,8 +104,10 @@ private:
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
-    // v1.5.1: File chooser for preset save/load dialogs
-    std::unique_ptr<juce::FileChooser> fileChooser;
+    // v1.7.10: File chooser for preset save/load dialogs
+    // Uses shared_ptr so async callbacks keep FileChooser alive even if user
+    // triggers another dialog before the first one completes
+    std::shared_ptr<juce::FileChooser> fileChooser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconLyricaAudioProcessorEditor)
 };

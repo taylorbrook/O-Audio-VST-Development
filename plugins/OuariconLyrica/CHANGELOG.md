@@ -2,6 +2,360 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.16.0] - 2026-01-24
+
+### Added
+
+- **HTML Export** - Export current tuning as formatted HTML documentation (Phase 3.3)
+  - Generates complete, standalone HTML document with professional styling
+  - **Scale metadata**: Name, note count, period, A4 reference frequency, octave stretch
+  - **Visual pitch circle**: SVG visualization showing interval positions vs equal temperament
+  - **Interval table**: Degree, cents, ratio approximation (from 50+ common ratios), ET deviation
+  - **Color-coded deviations**: Green (pure), orange (sharp), blue (flat)
+  - **Generation metadata**: Date/time stamp and Ouaricon branding
+  - Print-friendly CSS with clean margins and no shadows
+  - Export button appears in Custom mode file buttons section
+
+### Technical Details
+
+- New files: `Source/DSP/TuningExporter.h`, `Source/DSP/TuningExporter.cpp`
+- New native function: `exportTuningHTML` - generates HTML and opens save dialog
+- TuningExporter static class with methods: `toHTML()`, `generatePitchCircleSVG()`, `approximateRatio()`, `calculateETDeviation()`
+- Ratio approximation database includes 50+ common musical ratios (just intonation, Pythagorean, ET)
+- SVG pitch circle shows both ET reference lines (faint) and actual interval positions
+- Files modified: CMakeLists.txt, PluginEditor.cpp, index.html (CSS + JS + HTML)
+
+## [1.15.0] - 2026-01-24
+
+### Added
+
+- **Factory Tuning Library** - 24 embedded tunings with categorized browser UI (Phase 3.2)
+  - **Historical** (5): Young 1799, Neidhardt III, Kellner Bach, Bach/Lehman, Valotti
+  - **Just Intonation** (4): Ptolemy Intense Diatonic, 5-Limit JI, 7-Limit JI, Partch 43-Tone
+  - **Equal Divisions** (6): 17-EDO, 19-EDO, 22-EDO, 31-EDO, 41-EDO, 53-EDO
+  - **Non-Octave** (4): Bohlen-Pierce (Equal), Carlos Alpha, Carlos Beta, Carlos Gamma
+  - **World** (5): Arabic 24-TET, Turkish Makam, Indian 22-Shruti, Gamelan Slendro, Gamelan Pelog
+  - Collapsible "Tuning Library" panel below the Generator section
+  - Category dropdown filter (All, Historical, Just, EDO, Non-Octave, World)
+  - Scrollable list with tuning name, category, note count, and description on hover
+  - Click to instantly load any tuning
+
+### Technical Details
+
+- New files: `Source/DSP/EmbeddedTunings.h`, `Source/DSP/EmbeddedTunings.cpp`
+- New native functions: `getEmbeddedTuningList`, `loadEmbeddedTuning`, `getEmbeddedTuningCategories`
+- EmbeddedTuning struct: id, name, category, description, intervals (vector), period
+- Static initialization pattern with `initializeTunings()` for lazy loading
+- Loading a library tuning sets mode to Custom/Scala and updates APVTS parameters
+- Non-octave tunings (Bohlen-Pierce, Carlos) include custom period values
+- Files modified: CMakeLists.txt, PluginEditor.cpp, index.html (CSS + JS + HTML)
+
+## [1.14.0] - 2026-01-24
+
+### Added
+
+- **Scale Generators** - Create custom tunings mathematically without loading Scala files
+  - **EDO (Equal Division of Octave)**: Generate 5-53 equal divisions of any period (default 1200¢)
+  - **Harmonic Series**: Build scales from consecutive harmonics (e.g., 8-16 for octave-based just intonation)
+  - **Rank-2 Temperament**: Stack a generator interval to create meantone-like tunings
+  - Collapsible "Generate Scale" panel in Tuning tab (below file buttons)
+  - Generated scales automatically apply and switch to Custom mode
+
+### Technical Details
+
+- New files: `Source/DSP/ScaleGenerator.h`, `Source/DSP/ScaleGenerator.cpp`
+- New native functions: `generateEDO`, `generateHarmonicSeries`, `generateRank2`, `applyGeneratedScale`
+- ScaleGenerator uses modular design - intervals returned as vectors, applied via existing `setCustomIntervals()`
+- All generators clamp inputs to safe ranges and remove near-duplicate cents values (0.1¢ tolerance)
+- Files modified: CMakeLists.txt, PluginEditor.cpp, index.html (CSS + JS + HTML)
+
+## [1.13.2] - 2026-01-23
+
+### Fixed
+
+- **Pitch circle indicator now correctly highlights scale degrees for non-12-note scales**
+  - Previously, playing chromatically on a 19-tone scale showed degrees 0, 2, 3, 5, 7... instead of 0, 1, 2, 3, 4...
+  - Root cause: UI used proportional mapping based on 12-TET pitch classes
+  - Fix: Now uses linear mapping from anchor point (MIDI 60 + tonic), matching DSP behavior
+
+## [1.13.1] - 2026-01-23
+
+### Fixed
+
+- **Tonic selection now persists when saving/reopening DAW projects**
+  - Previously, tonic would reset to C on project reload due to a bug in the CustomState JSON serialization
+  - Workaround: Tonic is now saved directly as an XML attribute, bypassing the CustomState mechanism
+  - Also added timer-based sync from processor to WebView UI to ensure tonic display stays accurate
+
+### Technical Details
+
+- Added `directTonic` XML attribute in `getStateInformation()` / `setStateInformation()`
+- Added `syncTonicFromProcessor()` JavaScript function called from C++ timer
+- The CustomState callback still saves tonic (for preset files), but DAW state now uses the direct XML attribute
+
+## [1.13.0] - 2026-01-23
+
+### Added
+
+- **Linear mapping for non-12-note scales**
+  - Scales with any number of degrees (7, 19, 31, etc.) now play correctly
+  - Each MIDI key plays the next scale degree in sequence
+  - Anchor point: MIDI 60 (middle C) + tonic offset
+  - Scale wraps at scaleSize using the scale's period (works for octave and non-octave scales)
+
+- **Tonic selector now visible for all scale sizes**
+  - Previously hidden for non-12-note scales
+  - Tonic transposes by 12-TET semitones (shifts the anchor point)
+  - Updated tooltip clarifies behavior for non-12 scales
+
+### Fixed
+
+- **19-note (and other non-12) scales now play all degrees**
+  - Previously, playback broke at degree 15-16 due to incorrect octave calculation
+  - Root cause: Code used MIDI note 0 as reference instead of MIDI 60
+  - Fix: Anchor point is now `MIDI 60 + tonic`, with proper linear mapping
+
+### Technical Details
+
+- Rewrote `calculateCustomFrequency()` non-KBM path:
+  - `anchorNote = 60 + tonic`
+  - `scaleDegree = (midiNote - anchorNote) mod scaleSize`
+  - `scaleOctave = floor((midiNote - anchorNote) / scaleSize)`
+  - `freq = 12-TET(anchorNote) × 2^((scaleOctave × period + intervals[scaleDegree]) / 1200)`
+- Updated `resetKeyboardMapping()` to use actual scale size instead of hardcoded 12
+- KBM mode unchanged (takes priority when loaded)
+- Files modified: Source/DSP/TuningEngine.cpp, Source/DSP/TuningEngine.h, Resources/ui/index.html
+
+## [1.12.3] - 2026-01-23
+
+### Fixed
+
+- **Tonic selection now correctly affects sounding pitches**
+  - The tonic note is always at its 12-TET frequency
+  - The interval pattern stays the same but maps to different notes based on tonic
+  - Example with Werckmeister III (intervals: 0, 90, 192, 294, 390...):
+    - Tonic=C: C=0¢, C#=90¢, D=192¢, D#=294¢, E=390¢...
+    - Tonic=D: D=0¢, D#=90¢, E=192¢, F=294¢, F#=390¢...
+  - Scale degree 1 is always 90¢ above the tonic, regardless of which note is the tonic
+  - The True Keys visualization now matches what you hear
+
+### Technical Details
+
+- Root cause #1: `calculateCustomFrequency()` was calculating all frequencies relative to A4=440Hz instead of anchoring the tonic at its 12-TET frequency
+- Root cause #2: The code was using `rotatedIntervals` which mathematically rotated the interval values themselves, instead of keeping the same interval pattern
+- Fix: Rewrote non-KBM code path to:
+  1. Calculate scale degree as `(midiNote - tonic) mod scaleSize`
+  2. Use original `scaleIntervals[scaleDegree]` (not rotated)
+  3. Anchor to 12-TET frequency of the tonic in that octave
+- Formula: `freq = 12-TET(tonic_in_this_octave) * 2^(scaleIntervals[scaleDegree] / 1200)`
+- KBM mode unchanged (uses its own reference note/frequency system)
+- Files modified: Source/DSP/TuningEngine.cpp
+
+## [1.12.2] - 2026-01-22
+
+### Fixed
+
+- **Tonic selector now visible on fresh plugin load**
+  - Previously, the tonic selector was hidden until user clicked "Custom" then back to "12-TET"
+  - Root cause: C++ returns 13 intervals (including 1200¢ period), but UI expected 12
+  - With 13 intervals, `total === 12` check failed, hiding the tonic selector
+  - Fix: `loadIntervalsFromBackend()` now strips the period from 12-tone scales
+
+- **Interval editing now works on fresh load (no preset selection required)**
+  - Combined with v1.12.1 fix, interval editing now works in all scenarios
+  - The 13-vs-12 interval mismatch was causing index confusion
+
+### Technical Details
+
+- C++ `getIntervals()` returns N+1 values (includes period at end for proper frequency calculation)
+- JS UI should display N values (exclude period - it's not an editable interval)
+- Added detection for 12-tone (1200¢ period) and Bohlen-Pierce (1902¢ tritave)
+- Files modified: Resources/ui/index.html
+
+## [1.12.1] - 2026-01-22
+
+### Fixed
+
+- **Editing interval cents now works when tonic is not C**
+  - Previously, editing interval values in the UI had no effect on sound when a non-C tonic was selected
+  - Root cause: `setSingleInterval()` updated `scaleIntervals` but not `rotatedIntervals` cache
+  - When tonic != 0, `calculateCustomFrequency()` uses `rotatedIntervals`, so edits were ignored
+  - Fix: `setSingleInterval()` now calls `rotateIntervalsForTonic()` to keep caches in sync
+
+### Technical Details
+
+- Compared with OuariconMarimba which uses `setCustomIntervals()` (updates full array) vs OuariconLyrica's `setSingleInterval()` (updates single value)
+- `setCustomIntervals()` already handled rotation correctly; `setSingleInterval()` was missing this logic
+- Files modified: Source/DSP/TuningEngine.cpp
+
+## [1.12.0] - 2026-01-22
+
+### Fixed
+
+- **Modal Rotation Now Correctly Rotates Interval Pattern**
+  - When changing the tonic, the interval pattern now properly rotates so the selected tonic becomes 0 cents
+  - Previously, the tonic change only transposed pitch without rotating the modal pattern
+  - Example: Werckmeister III with tonic D now shows D→D# interval as ~102¢ (rotated), not 90¢
+
+- **Tuning State Now Persists with DAW Sessions**
+  - All tuning settings (intervals, tonic, preset, octave stretch) now save/restore with DAW projects
+  - Previously, tuning state was lost when reopening a project
+
+- **Fixed Interval Count Initialization**
+  - Constructor now properly initializes 12 scale degrees with the 1200¢ period value
+  - Fixes edge cases where `scaleDegrees` could be 11 instead of 12
+
+- **Fixed Mode Confusion in setCustomIntervals**
+  - `setCustomIntervals()` no longer forces Scala mode, letting callers control the mode
+  - Equal 12-TET preset now correctly stays in TwelveTET mode after intervals are set
+
+### Technical Details
+
+- Added `rotatedIntervals` cache and `rotateIntervalsForTonic()` for true modal rotation
+- `calculateCustomFrequency()` now uses pre-rotated intervals when tonic != 0
+- Added custom state callbacks to PresetManager for tuning persistence
+- Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp, Source/PluginProcessor.cpp
+
+## [1.11.1] - 2026-01-22
+
+### Fixed
+
+- **Editing interval cents in UI now updates tuning**
+  - Typing new cent values in the interval list inputs now correctly changes the tuning
+  - Works in all scenarios: fresh load → Custom, after loading presets, after loading Scala files
+
+### Known Issues
+
+- **GUI keyboard does not reflect custom tuning** - The on-screen keyboard plays notes but doesn't visually indicate microtuning. This will be addressed in a future update.
+
+### Technical Details
+
+- **Root cause 1 (C++):** `setCustomIntervals()` did not call `setMode(Mode::Scala)`, so `rebuildFrequencyTable()` ignored custom intervals
+- **Root cause 2 (JS):** Interval inputs were disabled when `currentTuningMode !== 1` (Custom), preventing any edits
+- **Root cause 3 (C++):** APVTS `tuningMode` parameter wasn't updated, so `processBlock()` would override the mode back to 12-TET
+- **Root cause 4 (C++):** `setMode(Scala)` didn't initialize `scaleIntervals` if empty, so clicking "Custom" left no intervals to edit
+- **Fix 1:** Set mode to Scala AND always call `rebuildFrequencyTable()` in `setCustomIntervals()` (TuningEngine.cpp)
+- **Fix 2:** Made interval inputs always editable (except unison) - editing auto-switches to Custom (index.html)
+- **Fix 3:** Native function `setTuningIntervals` now also sets APVTS `tuningMode` to Custom (PluginEditor.cpp)
+- **Fix 4:** Added `setSingleInterval()` and `setSingleIntervalEncoded()` native functions (TuningEngine.cpp, PluginEditor.cpp)
+- **Fix 5:** JS uses encoded single-int approach to avoid multi-arg native function issues (index.html)
+- Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp, Source/PluginEditor.cpp, Resources/ui/index.html
+
+## [1.11.0] - 2026-01-21
+
+### Changed
+
+- **Tonic Selector Now Performs Modal Rotation**
+  - When tonic changes, the interval pattern rotates so the selected tonic becomes 0 cents
+  - Notes below the tonic wrap around (last interval minus 1200 cents)
+  - Example with intervals [0, 150, 200, ...]:
+    - Tonic C: C=0¢, C#=150¢, D=200¢
+    - Tonic C#: C#=0¢, D=150¢, D#=200¢, C wraps to -50¢
+  - Previously, tonic only shifted pitch without rotating the interval pattern
+
+### Technical Details
+
+- Root cause: `calculateCustomFrequency()` was adding `tonic * 100 cents` as a pitch shift instead of rotating which intervals apply to which MIDI notes
+- Fix: Reference note position now calculated using actual scale intervals with proper degree/octave mapping
+- Removed unnecessary `tonicCents` pitch offset that was overriding the rotation logic
+- Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp
+
+## [1.10.0] - 2026-01-21
+
+### Added
+
+- **5 Visualization Modes for Tuning System (Phase 2)**
+  - **Circle** (existing): Radial pitch circle with interval lines
+  - **Polar**: Radial tone wheel where cents value determines radius
+  - **Matrix**: Interval values between all scale degrees
+  - **True Keys**: Real-time intervals between held MIDI notes
+  - **Rotation**: Modal rotation matrix with color-coded intervals
+
+- **View Mode Toggle**
+  - 5 buttons above visualization: Circle, Polar, Matrix, True Keys, Rotation
+  - Seamless switching between visualization types
+  - All modes update in real-time as tuning changes
+
+- **Deviation Display in Interval List**
+  - Shows ±cents deviation from equal temperament
+  - Color-coded: green (pure), orange (sharp), blue (flat)
+  - Helps identify how temperament differs from 12-TET
+
+- **True Keys Held Notes Data**
+  - PluginEditor sends held notes and frequencies to WebView
+  - Real-time interval calculation between any combination of held notes
+  - Shows interval names (m2, M3, P5, etc.) for common intervals
+  - Total span display when 3+ notes held
+
+### Fixed
+
+- **View mode toggle buttons not visible** - CSS positioning conflict caused toggle buttons to render outside visible area. Changed from `bottom: 305px` to `top: 8px` positioning.
+- **Pitch circle positioning conflict** - Removed absolute positioning from `.pitch-circle` that caused it to escape its container. Now uses relative positioning within `.viz-container`.
+
+### Technical Details
+
+- New PluginProcessor method: `getHeldNotesData(std::vector<int>&, std::vector<double>&)`
+- JavaScript visualization functions: `drawPolarWheel()`, `drawIntervalMatrix()`, `updateTrueKeysDisplay()`, `drawModalRotationMatrix()`
+- Global `vizMode` state with `setVizMode()` switching function
+- `updateVisualization()` dispatcher replaces direct `updatePitchCircle()` calls
+- Updated interval list to use new `.interval-row` class with deviation span
+- Files modified: Source/PluginProcessor.h/cpp, Source/PluginEditor.cpp, Resources/ui/index.html
+
+## [1.9.0] - 2026-01-21
+
+### Added
+
+- **Octave Stretch parameter (0.95-1.25)**
+  - Physical modeling enhancement for piano-like stretched tuning
+  - Values > 1.0 create wider octaves in upper register
+  - Values < 1.0 create narrower octaves
+  - Applied to both 12-TET and custom tuning calculations
+  - New APVTS parameter "octaveStretch" with relay/attachment
+  - UI: Horizontal slider in tuning controls panel
+
+- **Built-in Temperament Presets (10 presets)**
+  - Equal 12-TET (default)
+  - Pythagorean
+  - Zarlino (Just Major)
+  - Meantone (1/4 comma)
+  - Werckmeister III
+  - Kirnberger III
+  - Vallotti
+  - Well Tempered
+  - Just Intonation
+  - Bohlen-Pierce (non-octave, 1902¢ tritave)
+  - Custom option shown when user loads .scl file
+  - UI: Dropdown selector above mode buttons
+
+### Technical Details
+
+- New TuningEngine API: `setOctaveStretch()`, `getOctaveStretch()`, `setBuiltInPreset()`, `getBuiltInPreset()`, `getPresetName()`
+- `BuiltInPreset` enum with 11 values (including Custom)
+- Static arrays for preset cent values in TuningEngine.cpp
+- Native functions: `setTemperamentPreset`, `getTemperamentPreset`, `setOctaveStretch`, `getOctaveStretch`
+- Loading .scl file automatically sets preset to Custom
+- Files modified: TuningEngine.h/cpp, PluginProcessor.cpp, PluginEditor.h/cpp, index.html
+
+## [1.8.0] - 2026-01-21
+
+### Added
+
+- **Complete Scala Keyboard Mapping (.kbm) file support**
+  - Full KBM specification parsing: map size, MIDI range, middle/reference notes, octave degree
+  - Keyboard mapping entries with unmapped key support ('x' entries)
+  - `isNoteMapped()` method to query if a MIDI note is mapped in current KBM
+  - `resetKeyboardMapping()` method to restore default linear 12-note mapping
+  - Updated frequency calculation to properly apply keyboard mapping
+  - Enhanced KBM file generation with complete spec output
+  - Files modified: Source/DSP/TuningEngine.h, Source/DSP/TuningEngine.cpp
+
+### Technical Details
+
+- KBM state variables: mapSize, firstNote, lastNote, middleNote, referenceNote, octaveDegree
+- Pattern-based mapping with proper octave transposition
+- Handles edge cases: notes outside retune range fallback to 12-TET
+- Thread-safe implementation with existing mutex protection
+
 ## [1.7.9] - 2026-01-20
 
 ### Added
