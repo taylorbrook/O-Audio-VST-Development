@@ -84,10 +84,12 @@ Plans:
   3. Output knob provides +/- 18dB gain compensation
   4. Mode toggle switches between Clean and Colored with smooth transition
   5. Extreme Enhance settings are auto-limited to prevent artifacts
-**Plans**: TBD
+**Plans**: 3 plans in 2 waves
 
 Plans:
-- [ ] 04-01: TBD
+- [ ] 04-01-PLAN.md — Intensity tuning (ColoredMode boost, frequency-dependent scaling, bandpass extension)
+- [ ] 04-02-PLAN.md — Output gain control with soft clipping
+- [ ] 04-03-PLAN.md — Limit indicator metering and human verification
 
 ### Phase 5: WebView UI
 **Goal**: Visual interface that matches Ouaricon suite and exposes all 4 controls
@@ -129,7 +131,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 1. Core DSP Foundation | 6/6 | ✓ Complete | 2026-01-23 |
 | 2. Clean Mode | 4/4 | ✓ Complete | 2026-01-24 |
 | 3. Colored Mode | 2/2 | ✓ Complete | 2026-01-25 |
-| 4. Controls & Refinement | 0/? | Not started | - |
+| 4. Controls & Refinement | 0/3 | Not started | - |
 | 5. WebView UI | 0/? | Not started | - |
 | 6. Formats & Integration | 0/? | Not started | - |
 
