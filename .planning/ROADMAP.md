@@ -101,10 +101,12 @@ Plans:
   3. Knob movements update DSP parameters in real-time without glitches
   4. Parameter changes from host (automation) reflect in UI immediately
   5. UI is responsive and renders correctly at default plugin size
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 05-01: TBD
+- [ ] 05-01-PLAN.md — UI assets, HTML/CSS/JS interface, CMake BinaryData
+- [ ] 05-02-PLAN.md — PluginEditor WebView implementation with parameter binding
+- [ ] 05-03-PLAN.md — Build verification and human UI approval
 
 ### Phase 6: Formats & Integration
 **Goal**: Plugin builds in all formats with functional preset system
@@ -132,7 +134,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 2. Clean Mode | 4/4 | ✓ Complete | 2026-01-24 |
 | 3. Colored Mode | 2/2 | ✓ Complete | 2026-01-25 |
 | 4. Controls & Refinement | 3/3 | ✓ Complete | 2026-01-24 |
-| 5. WebView UI | 0/? | Not started | - |
+| 5. WebView UI | 0/3 | In progress | - |
 | 6. Formats & Integration | 0/? | Not started | - |
 
 ---
