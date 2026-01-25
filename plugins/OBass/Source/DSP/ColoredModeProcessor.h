@@ -42,6 +42,7 @@ public:
     void setMode(Mode mode);
     Mode getMode() const;
     void setEnhanceAmount(float amount);  // 0.0 - 1.0
+    void setIntensityScale(float scale);  // 1.0 - 2.0, for frequency-dependent boost
 
     // Processing
     void process(juce::AudioBuffer<float>& monoBuffer);
@@ -56,6 +57,7 @@ private:
     // State
     Mode currentMode = Mode::LowLatency;
     float enhanceAmount = 0.5f;
+    float intensityScale = 1.0f;  // Frequency-dependent intensity multiplier
     double sampleRate = 44100.0;
 
     // Saturation parameters

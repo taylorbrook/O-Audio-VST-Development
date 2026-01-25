@@ -93,6 +93,12 @@ void CleanModeProcessor::setHighBandEnergy(float energy)
 }
 
 //==============================================================================
+void CleanModeProcessor::setIntensityScale(float scale)
+{
+    intensityScale = juce::jlimit(1.0f, 2.0f, scale);
+}
+
+//==============================================================================
 void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
 {
     const int numSamples = monoBuffer.getNumSamples();
@@ -110,15 +116,19 @@ void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
     const float* dry = dryBuffer.getReadPointer(0);
     float* wet = monoBuffer.getWritePointer(0);
 
+    // Apply intensity scale for frequency-dependent boost
+    // Lower crossover frequencies get stronger enhancement
+    float scaledEnhance = enhanceAmount * intensityScale;
+
     // ADD harmonics to dry signal (not replace)
-    // enhance controls how much harmonic content is added
+    // scaledEnhance controls how much harmonic content is added
     for (int i = 0; i < numSamples; ++i)
     {
         float harmonics = wet[i];
         float original = dry[i];
 
-        // Output = dry + (harmonics * enhance)
-        float output = original + harmonics * enhanceAmount;
+        // Output = dry + (harmonics * scaledEnhance)
+        float output = original + harmonics * scaledEnhance;
 
         // Soft limit to prevent clipping
         wet[i] = std::tanh(output);

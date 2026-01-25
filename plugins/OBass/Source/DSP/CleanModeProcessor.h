@@ -47,6 +47,7 @@ public:
     Mode getMode() const;
     void setEnhanceAmount(float amount);  // 0.0 - 1.0
     void setHighBandEnergy(float energy); // For spectral-aware blending
+    void setIntensityScale(float scale);  // 1.0 - 2.0, for frequency-dependent boost
 
     // Processing
     void process(juce::AudioBuffer<float>& monoBuffer);
@@ -70,6 +71,7 @@ private:
     Mode currentMode = Mode::LowLatency;
     float enhanceAmount = 0.5f;
     float highBandEnergy = 0.0f;
+    float intensityScale = 1.0f;  // Frequency-dependent intensity multiplier
     double sampleRate = 44100.0;
     int maxBlockSize = 512;
 

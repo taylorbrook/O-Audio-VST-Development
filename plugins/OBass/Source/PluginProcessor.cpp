@@ -187,7 +187,19 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
     // Update crossover frequency from parameter
     auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");
-    crossover.setCutoffFrequency(crossoverParam->load());
+    float crossoverHz = crossoverParam->load();
+    crossover.setCutoffFrequency(crossoverHz);
+
+    // Calculate frequency-dependent intensity scale
+    // Lower crossover frequencies need more enhancement for psychoacoustic perception
+    // 40Hz -> scale 1.7 (strong boost for sub-bass)
+    // 200Hz -> scale 1.0 (no boost, upper bass is more audible)
+    float normalized = juce::jlimit(0.0f, 1.0f, (crossoverHz - 40.0f) / 160.0f);
+    float intensityScale = 1.0f + std::sqrt(1.0f - normalized) * 0.7f;
+
+    // Apply intensity scale to both processors
+    cleanModeProcessor.setIntensityScale(intensityScale);
+    coloredModeProcessor.setIntensityScale(intensityScale);
 
     // Split into low and high bands
     crossover.process(buffer, lowBandBuffer, highBandBuffer);
