@@ -2,6 +2,25 @@
 
 All notable changes to OuariconLyrica are documented in this file.
 
+## [1.14.0] - 2026-01-24
+
+### Added
+
+- **Scale Generators** - Create custom tunings mathematically without loading Scala files
+  - **EDO (Equal Division of Octave)**: Generate 5-53 equal divisions of any period (default 1200¢)
+  - **Harmonic Series**: Build scales from consecutive harmonics (e.g., 8-16 for octave-based just intonation)
+  - **Rank-2 Temperament**: Stack a generator interval to create meantone-like tunings
+  - Collapsible "Generate Scale" panel in Tuning tab (below file buttons)
+  - Generated scales automatically apply and switch to Custom mode
+
+### Technical Details
+
+- New files: `Source/DSP/ScaleGenerator.h`, `Source/DSP/ScaleGenerator.cpp`
+- New native functions: `generateEDO`, `generateHarmonicSeries`, `generateRank2`, `applyGeneratedScale`
+- ScaleGenerator uses modular design - intervals returned as vectors, applied via existing `setCustomIntervals()`
+- All generators clamp inputs to safe ranges and remove near-duplicate cents values (0.1¢ tolerance)
+- Files modified: CMakeLists.txt, PluginEditor.cpp, index.html (CSS + JS + HTML)
+
 ## [1.13.2] - 2026-01-23
 
 ### Fixed

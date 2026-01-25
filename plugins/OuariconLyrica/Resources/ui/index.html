@@ -853,6 +853,125 @@
             transform: scale(0.97);
         }
 
+        /* v1.14.0: Scale Generator Section */
+        .generator-section {
+            margin-top: 8px;
+            border-top: 1px solid rgba(139, 115, 85, 0.3);
+            padding-top: 8px;
+        }
+
+        .generator-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            padding: 4px 0;
+            user-select: none;
+        }
+
+        .generator-header-text {
+            font-size: 9px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .generator-toggle {
+            font-size: 10px;
+            color: #8B7355;
+            transition: transform 0.2s;
+        }
+
+        .generator-toggle.expanded {
+            transform: rotate(180deg);
+        }
+
+        .generator-content {
+            display: none;
+            padding-top: 8px;
+        }
+
+        .generator-content.expanded {
+            display: block;
+        }
+
+        .generator-type-row {
+            margin-bottom: 8px;
+        }
+
+        .generator-type-select {
+            width: 100%;
+            padding: 5px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(245, 230, 211, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .generator-inputs {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .gen-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .gen-row label {
+            font-size: 9px;
+            color: #5C4033;
+            flex-shrink: 0;
+        }
+
+        .gen-row input[type="number"] {
+            width: 70px;
+            padding: 4px 6px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            background: rgba(255, 248, 220, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            text-align: right;
+        }
+
+        .gen-row input[type="number"]:focus {
+            outline: none;
+            border-color: #6B8E4E;
+        }
+
+        .generator-btn {
+            width: 100%;
+            padding: 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #3C2F2F;
+            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
+            border: 1px solid #6B8E4E;
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .generator-btn:hover {
+            background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9));
+        }
+
+        .generator-btn:active {
+            transform: scale(0.97);
+        }
+
         /* v1.9.0: Temperament Preset Dropdown */
         .tuning-preset-section {
             display: flex;
@@ -1669,6 +1788,35 @@
                         <button class="tuning-file-btn" id="btn-save-kbm" onclick="window.handleSaveKBM && window.handleSaveKBM()">Save .KBM</button>
                     </div>
                 </div>
+
+                <!-- v1.14.0: Scale Generator Section -->
+                <div class="generator-section" id="generator-section">
+                    <div class="generator-header" onclick="window.toggleGenerator && window.toggleGenerator()">
+                        <span class="generator-header-text">Generate Scale</span>
+                        <span class="generator-toggle" id="generator-toggle">▼</span>
+                    </div>
+                    <div class="generator-content" id="generator-content">
+                        <div class="generator-type-row">
+                            <select id="generator-type" class="generator-type-select" onchange="window.handleGeneratorTypeChange && window.handleGeneratorTypeChange(this.value)">
+                                <option value="edo">EDO (Equal Division)</option>
+                                <option value="harmonic">Harmonic Series</option>
+                                <option value="rank2">Rank-2 Temperament</option>
+                            </select>
+                        </div>
+                        <div class="generator-inputs" id="generator-inputs">
+                            <!-- EDO inputs (default) -->
+                            <div class="gen-row">
+                                <label>Divisions</label>
+                                <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                            </div>
+                            <div class="gen-row">
+                                <label>Period (¢)</label>
+                                <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                            </div>
+                        </div>
+                        <button class="generator-btn" onclick="window.handleGenerate && window.handleGenerate()">Generate</button>
+                    </div>
+                </div>
             </div>
 
             <!-- BOTTOM: Keyboard Visualization (1 octave) - v1.7.1: Compact centered -->
@@ -1857,6 +2005,139 @@
             }
             var presetSelect = document.getElementById('temperament-preset');
             if (presetSelect) presetSelect.value = '10';
+        };
+
+        // v1.14.0: Scale Generator handlers
+        window.generatorType = 'edo';
+
+        window.toggleGenerator = function() {
+            var content = document.getElementById('generator-content');
+            var toggle = document.getElementById('generator-toggle');
+            if (content && toggle) {
+                content.classList.toggle('expanded');
+                toggle.classList.toggle('expanded');
+            }
+        };
+
+        window.handleGeneratorTypeChange = function(type) {
+            window.generatorType = type;
+            var inputsDiv = document.getElementById('generator-inputs');
+            if (!inputsDiv) return;
+
+            switch (type) {
+                case 'edo':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Divisions</label>
+                            <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                        </div>
+                        <div class="gen-row">
+                            <label>Period (¢)</label>
+                            <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                        </div>
+                    `;
+                    break;
+                case 'harmonic':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Start Harmonic</label>
+                            <input type="number" id="gen-start" value="8" min="1" max="32">
+                        </div>
+                        <div class="gen-row">
+                            <label>End Harmonic</label>
+                            <input type="number" id="gen-end" value="16" min="2" max="64">
+                        </div>
+                    `;
+                    break;
+                case 'rank2':
+                    inputsDiv.innerHTML = `
+                        <div class="gen-row">
+                            <label>Generator (¢)</label>
+                            <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">
+                        </div>
+                        <div class="gen-row">
+                            <label>Period (¢)</label>
+                            <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">
+                        </div>
+                        <div class="gen-row">
+                            <label>Notes</label>
+                            <input type="number" id="gen-count" value="12" min="3" max="31">
+                        </div>
+                    `;
+                    break;
+            }
+        };
+
+        window.handleGenerate = async function() {
+            if (!window.JuceAPI) {
+                console.error('[Generator] JUCE not ready');
+                return;
+            }
+
+            try {
+                var intervalsJson, scaleName;
+
+                switch (window.generatorType) {
+                    case 'edo': {
+                        var divisions = parseInt(document.getElementById('gen-divisions').value);
+                        var period = parseFloat(document.getElementById('gen-period').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateEDO')(divisions, period);
+                        scaleName = divisions + '-EDO';
+                        if (Math.abs(period - 1200) > 0.1) {
+                            scaleName += ' (' + period.toFixed(0) + '¢)';
+                        }
+                        console.log('[Generator] Generated EDO:', divisions, 'divisions, period:', period);
+                        break;
+                    }
+                    case 'harmonic': {
+                        var start = parseInt(document.getElementById('gen-start').value);
+                        var end = parseInt(document.getElementById('gen-end').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateHarmonicSeries')(start, end);
+                        scaleName = 'Harmonics ' + start + '-' + end;
+                        console.log('[Generator] Generated Harmonic Series:', start, 'to', end);
+                        break;
+                    }
+                    case 'rank2': {
+                        var generator = parseFloat(document.getElementById('gen-generator').value);
+                        var period = parseFloat(document.getElementById('gen-r2-period').value);
+                        var count = parseInt(document.getElementById('gen-count').value);
+                        intervalsJson = await window.JuceAPI.getNativeFunction('generateRank2')(generator, period, count);
+                        scaleName = 'Rank-2 (' + generator.toFixed(1) + '¢, ' + count + ' notes)';
+                        console.log('[Generator] Generated Rank-2:', generator, '¢ gen,', count, 'notes');
+                        break;
+                    }
+                }
+
+                // Apply the generated scale
+                var success = await window.JuceAPI.getNativeFunction('applyGeneratedScale')(intervalsJson, scaleName);
+                if (success) {
+                    console.log('[Generator] Applied scale:', scaleName);
+
+                    // Switch to Custom mode in UI
+                    var customBtn = document.getElementById('btn-custom');
+                    if (customBtn) {
+                        window.handleModeClick(1, customBtn);
+                    }
+
+                    // Show Custom option in preset dropdown
+                    var customOption = document.getElementById('custom-preset-option');
+                    if (customOption) {
+                        customOption.style.display = 'block';
+                        customOption.textContent = 'Custom (' + scaleName + ')';
+                    }
+                    var presetSelect = document.getElementById('temperament-preset');
+                    if (presetSelect) presetSelect.value = '10';
+
+                    // Refresh tuning display
+                    if (window.refreshTuningState) {
+                        window.refreshTuningState();
+                    }
+                } else {
+                    console.error('[Generator] Failed to apply scale');
+                }
+            } catch (e) {
+                console.error('[Generator] Generate failed:', e);
+            }
         };
     </script>
 

@@ -562,7 +562,16 @@ function getIntervalClass(cents) {
 **Estimated Complexity:** High
 **Dependencies:** Phase 1 and 2 complete
 
-### 3.1 MTS-ESP Client Implementation
+> **🔄 REVISED SCOPE (2026-01-24):**
+> - 3.1 MTS-ESP → ⏸️ DEFERRED (will implement in future version)
+> - 3.2 Scale Generators → ✅ COMPLETE (v1.14.0)
+> - 3.3 Factory Library → 🔜 NEXT
+> - 3.4 Export → ⏳ Pending (SCL/KBM already exist, only HTML needed)
+> - NEW: Add Scale Degree UI → ⏳ Pending
+>
+> See `IMPLEMENTATION-GUIDE.md` for current task tracking.
+
+### 3.1 MTS-ESP Client Implementation (DEFERRED)
 
 **Rationale:** MTS-ESP is the modern standard for centralized microtuning control. Completing the placeholder allows OuariconLyrica to participate in microtuned sessions with other instruments.
 

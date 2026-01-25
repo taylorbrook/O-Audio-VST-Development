@@ -2,18 +2,23 @@
   ==============================================================================
 
     TuningEngine.h
-    v1.12.0: True Modal Rotation with Interval Persistence
+    v1.13.0: Linear Mapping for Non-12-Note Scales
 
     Implements:
     - 12-TET base tuning with adjustable A4 reference (masterTune)
     - Per-note pitch bend (±pitchBendRange semitones)
     - Scala file parsing (.scl) for custom tunings
-    - Complete keyboard mapping file support (.kbm):
-      * Map size, MIDI range, middle/reference notes
-      * Unmapped key support ('x' entries)
-      * Octave degree for non-octave repeating scales
-    - Scale frequency retrieval for glissando
-    - Tonic transposition
+    - Complete keyboard mapping file support (.kbm)
+    - Built-in temperament presets (Werckmeister III, Pythagorean, etc.)
+    - Octave stretch for physical modeling
+    - Linear mapping for any scale size (7, 12, 19, 31, etc.):
+      * Each MIDI key plays the next scale degree
+      * Anchor point: MIDI 60 + tonic offset
+      * Scale wraps at scaleSize using the scale's period
+      * Works for octave-repeating and non-octave scales
+    - Tonic selection as 12-TET semitone transposition:
+      * Tonic shifts the anchor point (not interval rotation)
+      * See improvements/non-12-scale-linear-mapping.md for details
 
   ==============================================================================
 */
@@ -176,18 +181,24 @@ public:
     juce::String getActiveTuningName() const;
 
     // ═══════════════════════════════════════════════════════════════════
-    // Tonic (Modal Rotation) - v1.11.0
+    // Tonic Selection - v1.12.3
     // ═══════════════════════════════════════════════════════════════════
 
     /**
      * Set the tonic note (0-11, where 0=C, 1=C#, etc.)
-     * v1.11.0: Performs modal rotation - the interval pattern rotates so that
-     * the selected tonic becomes 0 cents. Notes below the tonic wrap around
-     * (last interval minus 1200 cents).
      *
-     * Example with intervals [0, 150, 200, ...]:
-     *   Tonic C:  C=0¢, C#=150¢, D=200¢
-     *   Tonic C#: C#=0¢, D=150¢, D#=200¢, C=-50¢ (wraps from 1150-1200)
+     * v1.13.0 BEHAVIOR (linear mapping):
+     * - Tonic shifts the anchor point by 12-TET semitones
+     * - Anchor = MIDI 60 + tonic (e.g., tonic=D means MIDI 62 = degree 0)
+     * - Works for ANY scale size (7, 12, 19, 31, etc.)
+     *
+     * Example with 19-note scale:
+     *   Tonic=C: MIDI 60 = degree 0 at C4 frequency (261.63 Hz)
+     *   Tonic=D: MIDI 62 = degree 0 at D4 frequency (293.66 Hz)
+     *
+     * The interval pattern is unchanged - tonic just shifts where it starts.
+     *
+     * See: improvements/non-12-scale-linear-mapping.md for implementation details.
      */
     void setTonicNote(int tonicIndex);
 

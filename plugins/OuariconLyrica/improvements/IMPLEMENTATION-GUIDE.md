@@ -2,7 +2,7 @@
 
 **Purpose:** Standalone reference for implementing each phase with fresh context.
 **Full Research:** See `tuning-system-overhaul.md` in this directory.
-**Current Version:** v1.9.0 → Target: v2.0.0
+**Current Version:** v1.14.0 → Target: v2.0.0
 
 ---
 
@@ -12,8 +12,83 @@
 |-------|--------|---------|-----------|
 | Phase 1: DSP Foundation | ✅ COMPLETE | v1.9.0 | 2026-01-21 |
 | Phase 2: UI Visualization | ✅ COMPLETE | v1.10.0 | 2026-01-21 |
-| Phase 3: Advanced Features | ⏳ Pending | v1.11.0 | - |
+| Phase 3: Advanced Features | 🔄 IN PROGRESS | v1.14.0 | - |
 | Phase 4: Professional Polish | ⏳ Pending | v2.0.0 | - |
+
+### Phase 3 Sub-tasks
+
+| Task | Status | Version |
+|------|--------|---------|
+| 3.1 Scale Generators | ✅ COMPLETE | v1.14.0 |
+| 3.2 Factory Tuning Library | 🔜 NEXT | - |
+| 3.3 HTML Export | ⏳ Pending | - |
+| 3.4 Add Scale Degree UI | ⏳ Pending | - |
+
+---
+
+## Next Session: 3.2 Factory Tuning Library
+
+### Goal
+Embed 20+ tunings with categorized browser UI. Users can instantly load common historical, just, EDO, and world tunings without external Scala files.
+
+### Implementation Plan
+
+**New files to create:**
+- `Source/DSP/EmbeddedTunings.h` - Tuning definitions and category structure
+- `Source/DSP/EmbeddedTunings.cpp` - Static tuning data (cents arrays)
+
+**Files to modify:**
+- `CMakeLists.txt` - Add EmbeddedTunings.cpp
+- `Source/PluginEditor.cpp` - Add native functions: `getEmbeddedTuningList`, `loadEmbeddedTuning`
+- `Resources/ui/index.html` - Add library browser panel (collapsible, with category filter)
+
+### Tuning Categories (20+ total)
+
+| Category | Tunings |
+|----------|---------|
+| **Historical** | Young 1799, Neidhardt, Kellner, Bach/Lehman |
+| **Just Intonation** | Ptolemy Intense Diatonic, 5-limit JI, 7-limit JI, Partch 43-tone |
+| **Equal Divisions** | 17-EDO, 19-EDO, 22-EDO, 31-EDO, 41-EDO, 53-EDO |
+| **Non-Octave** | Bohlen-Pierce, Carlos Alpha, Carlos Beta, Carlos Gamma |
+| **World** | Arabic 24-TET, Turkish Makam, Indian 22-Shruti, Gamelan Slendro, Gamelan Pelog |
+
+### Data Structure
+
+```cpp
+struct EmbeddedTuning {
+    const char* id;           // "historical/young1799"
+    const char* name;         // "Young 1799"
+    const char* category;     // "Historical"
+    const char* description;  // Brief description
+    std::vector<double> intervals;  // Cents from unison
+};
+```
+
+### UI Design
+
+Add collapsible "Tuning Library" section below the Generator section:
+- Category dropdown filter (All, Historical, Just, EDO, Non-Octave, World)
+- Scrollable list of tuning names
+- Click to load instantly
+- Shows description on hover/selection
+
+### Native Functions
+
+```cpp
+// Get list of all tunings (returns JSON array of {id, name, category, description})
+"getEmbeddedTuningList"
+
+// Load a specific tuning by ID
+"loadEmbeddedTuning" (id) → applies to TuningEngine
+```
+
+### Resume Instructions
+
+1. Read this file for context
+2. Read `Source/DSP/ScaleGenerator.h` for pattern reference
+3. Create EmbeddedTunings.h/.cpp with static tuning data
+4. Add native functions following the pattern in PluginEditor.cpp (search for "generateEDO")
+5. Add UI below the generator section in index.html
 
 ---
 

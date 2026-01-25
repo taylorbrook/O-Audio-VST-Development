@@ -3,9 +3,16 @@
 
     OuariconTuningEngine.h
     Ouaricon Module System - Microtonal Tuning
+    v1.13.0: Linear Mapping for Non-12-Note Scales
 
     Provides flexible tuning with priority fallback: MTS-ESP > Scala > 12-TET
     Thread-safe atomic frequency table for real-time audio access.
+
+    Key Features:
+    - Linear mapping for ANY scale size (7, 12, 19, 31, etc.)
+    - Each MIDI key plays the next scale degree
+    - Anchor point: MIDI 60 + tonic offset
+    - Works for octave-repeating and non-octave scales (Bohlen-Pierce, etc.)
 
   ==============================================================================
 */
@@ -139,12 +146,30 @@ public:
                             const juce::String& name = "Custom");
 
     //==========================================================================
-    // Tonic (Transposition)
+    // Tonic Selection
     //==========================================================================
 
     /**
-     * Set tonic note for transposition.
-     * Shifts the scale root to the specified note.
+     * Set tonic note for scale mapping.
+     *
+     * BEHAVIOR (v1.13.0 - Linear Mapping):
+     * - Tonic shifts the anchor point by 12-TET semitones
+     * - Anchor = MIDI 60 + tonic (e.g., tonic=D means MIDI 62 = degree 0)
+     * - Works for ANY scale size (7, 12, 19, 31, etc.)
+     *
+     * Example with 19-note scale:
+     *   Tonic=C: MIDI 60 = degree 0 at C4 frequency (261.63 Hz)
+     *   Tonic=D: MIDI 62 = degree 0 at D4 frequency (293.66 Hz)
+     *
+     * Example with Werckmeister III (12-note):
+     *   Tonic=C: C=0¢, C#=90¢, D=192¢...
+     *   Tonic=D: D=0¢, D#=90¢, E=192¢...
+     *
+     * Formula:
+     *   anchorNote = 60 + tonic
+     *   scaleDegree = (midiNote - anchorNote) mod scaleSize
+     *   scaleOctave = floor((midiNote - anchorNote) / scaleSize)
+     *   frequency = 12TET(anchorNote) × 2^((scaleOctave × period + intervals[scaleDegree]) / 1200)
      *
      * @param tonicIndex  0 = C, 1 = C#, 2 = D, ... 11 = B
      */
@@ -373,30 +398,82 @@ inline double OuariconTuningEngine::calculate12TET(int midiNote) const
 
 inline double OuariconTuningEngine::calculateScala(int midiNote) const
 {
+    // ═══════════════════════════════════════════════════════════════════════
+    // v1.13.0: Linear Mapping for All Scale Sizes
+    // ═══════════════════════════════════════════════════════════════════════
+    //
+    // Linear mapping: each MIDI key plays the next scale degree.
+    // Works for ANY scale size (7, 12, 19, 31, etc.)
+    //
+    // Anchor point: MIDI 60 (middle C) + tonic offset
+    //   - Tonic=C (0): MIDI 60 = degree 0
+    //   - Tonic=D (2): MIDI 62 = degree 0
+    //
+    // The scale wraps at scaleSize keys, using the scale's period
+    // (typically 1200¢ for octave-repeating scales, 1902¢ for tritave).
+    //
+    // Example with 19-note scale, tonic=C:
+    //   MIDI 60 = degree 0 (anchor frequency = C4 = 261.63 Hz)
+    //   MIDI 61 = degree 1
+    //   ...
+    //   MIDI 78 = degree 18
+    //   MIDI 79 = degree 0, next scale octave (2× anchor freq if period=1200¢)
+    //
+    // Formula:
+    //   anchorNote = 60 + tonic
+    //   scaleDegree = (midiNote - anchorNote) mod scaleSize
+    //   scaleOctave = floor((midiNote - anchorNote) / scaleSize)
+    //   freq = 12-TET(anchorNote) × 2^((scaleOctave × period + intervals[scaleDegree]) / 1200)
+    //
+    // See: OuariconLyrica improvements/non-12-scale-linear-mapping.md
+    // ═══════════════════════════════════════════════════════════════════════
+
     if (!hasScalaLoaded())
         return calculate12TET(midiNote);
 
     double refPitch = referencePitch.load();
     int tonic = tonicOffset.load();
 
-    // Map MIDI note to scale degree relative to tonic
-    int tonicMidi = 60 + tonic;
-    int noteOffset = midiNote - tonicMidi;
-    int octave = noteOffset / scaleDegrees;
-    int degree = noteOffset % scaleDegrees;
+    // Linear mapping anchor point: MIDI 60 (middle C) + tonic offset
+    const int anchorNote = 60 + tonic;
 
-    if (degree < 0)
+    // Calculate position relative to anchor
+    int noteRelativeToAnchor = midiNote - anchorNote;
+
+    // Calculate scale octave and degree using linear mapping
+    int scaleOctave;
+    int degree;
+
+    if (noteRelativeToAnchor >= 0)
     {
-        degree += scaleDegrees;
-        octave--;
+        scaleOctave = noteRelativeToAnchor / scaleDegrees;
+        degree = noteRelativeToAnchor % scaleDegrees;
+    }
+    else
+    {
+        // Handle negative positions (notes below anchor)
+        scaleOctave = (noteRelativeToAnchor - scaleDegrees + 1) / scaleDegrees;
+        degree = noteRelativeToAnchor - (scaleOctave * scaleDegrees);
     }
 
-    double cents = scaleIntervals[degree];
-    double octaveCents = scaleIntervals.back();
-    cents += octave * octaveCents;
+    // Clamp degree to valid range
+    degree = juce::jlimit(0, scaleDegrees - 1, degree);
 
-    double tonicFreq = refPitch * std::pow(2.0, (tonicMidi - 69) / 12.0);
-    return tonicFreq * std::pow(2.0, cents / 1200.0);
+    // Get interval from ORIGINAL intervals (not rotated!)
+    double intervalCents = scaleIntervals[static_cast<size_t>(degree)];
+
+    // Get the scale's period (last value in intervals array)
+    // Typically 1200¢ for octave, 1902¢ for tritave (Bohlen-Pierce)
+    double scalePeriod = scaleIntervals.back();
+
+    // Calculate frequency:
+    // 1. Start with 12-TET frequency of anchor note
+    // 2. Add scale octaves (each octave = period cents)
+    // 3. Add scale degree interval
+    double anchorFreq = refPitch * std::pow(2.0, (anchorNote - 69) / 12.0);
+    double totalCents = (scaleOctave * scalePeriod) + intervalCents;
+
+    return anchorFreq * std::pow(2.0, totalCents / 1200.0);
 }
 
 inline bool OuariconTuningEngine::parseScalaFile(const juce::File& file,

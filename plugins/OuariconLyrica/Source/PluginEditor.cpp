@@ -10,6 +10,7 @@
 
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#include "DSP/ScaleGenerator.h"
 
 OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconLyricaAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
@@ -457,6 +458,101 @@ OuariconLyricaAudioProcessorEditor::OuariconLyricaAudioProcessorEditor(OuariconL
                     // Normalize: (value - min) / (max - min) = (stretch - 0.95) / 0.3
                     float normalized = (stretch - 0.95f) / 0.3f;
                     param->setValueNotifyingHost(juce::jlimit(0.0f, 1.0f, normalized));
+                }
+
+                complete(juce::var(true));
+            })
+            // v1.14.0: Scale Generator Functions
+            .withNativeFunction("generateEDO", [](const juce::Array<juce::var>& args,
+                                                       std::function<void(juce::var)> complete) {
+                if (args.size() < 2) { complete(juce::var("[]")); return; }
+                int divisions = static_cast<int>(args[0]);
+                double period = static_cast<double>(args[1]);
+
+                auto intervals = ScaleGenerator::generateEDO(divisions, period);
+
+                // Convert to JSON array string
+                juce::String json = "[";
+                for (size_t i = 0; i < intervals.size(); ++i)
+                {
+                    if (i > 0) json += ",";
+                    json += juce::String(intervals[i], 6);
+                }
+                json += "]";
+                complete(juce::var(json));
+            })
+            .withNativeFunction("generateHarmonicSeries", [](const juce::Array<juce::var>& args,
+                                                                  std::function<void(juce::var)> complete) {
+                if (args.size() < 2) { complete(juce::var("[]")); return; }
+                int startHarmonic = static_cast<int>(args[0]);
+                int endHarmonic = static_cast<int>(args[1]);
+
+                auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
+
+                // Convert to JSON array string
+                juce::String json = "[";
+                for (size_t i = 0; i < intervals.size(); ++i)
+                {
+                    if (i > 0) json += ",";
+                    json += juce::String(intervals[i], 6);
+                }
+                json += "]";
+                complete(juce::var(json));
+            })
+            .withNativeFunction("generateRank2", [](const juce::Array<juce::var>& args,
+                                                         std::function<void(juce::var)> complete) {
+                if (args.size() < 3) { complete(juce::var("[]")); return; }
+                double generator = static_cast<double>(args[0]);
+                double period = static_cast<double>(args[1]);
+                int count = static_cast<int>(args[2]);
+
+                auto intervals = ScaleGenerator::generateRank2(generator, period, count);
+
+                // Convert to JSON array string
+                juce::String json = "[";
+                for (size_t i = 0; i < intervals.size(); ++i)
+                {
+                    if (i > 0) json += ",";
+                    json += juce::String(intervals[i], 6);
+                }
+                json += "]";
+                complete(juce::var(json));
+            })
+            .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args,
+                                                               std::function<void(juce::var)> complete) {
+                if (args.size() < 2) { complete(juce::var(false)); return; }
+
+                juce::String jsonIntervals = args[0].toString();
+                juce::String scaleName = args[1].toString();
+
+                // Parse JSON array of intervals
+                std::vector<double> intervals;
+                juce::var parsed;
+                if (juce::JSON::parse(jsonIntervals, parsed).wasOk() && parsed.isArray())
+                {
+                    for (int i = 0; i < parsed.size(); ++i)
+                    {
+                        intervals.push_back(static_cast<double>(parsed[i]));
+                    }
+                }
+
+                if (intervals.empty())
+                {
+                    complete(juce::var(false));
+                    return;
+                }
+
+                // Apply to TuningEngine
+                processorRef.getTuningEngine()->setCustomIntervals(intervals, scaleName);
+                processorRef.getTuningEngine()->setMode(TuningEngine::Mode::Scala);
+
+                // Mark as custom preset
+                processorRef.getTuningEngine()->setBuiltInPreset(TuningEngine::BuiltInPreset::Custom);
+
+                // Update APVTS tuning mode to Custom (1)
+                if (auto* param = processorRef.getAPVTS().getParameter("tuningMode"))
+                {
+                    param->setValueNotifyingHost(0.5f);  // Custom = index 1 out of 3
                 }
 
                 complete(juce::var(true));

@@ -1,8 +1,11 @@
 # Bug: Tonic Selection Does Not Affect Sounding Pitches
 
-**Status:** In Progress
+**Status:** ✅ RESOLVED
 **Created:** 2026-01-22
+**Resolved:** 2026-01-23
+**Fixed in:** v1.12.3
 **Priority:** High
+**Reference:** See `improvements/tonic-rotation-reference.md` for reusable implementation guide
 
 ## Problem Description
 
@@ -22,70 +25,90 @@ The interval PATTERN rotates with the tonic:
 - Tonic C: C→C#=90¢, C#→D=102¢, D→D#=102¢...
 - Tonic D: D→D#=90¢ (first interval now starts from D), D#→E=102¢...
 
-## What Was Tried
+## Root Cause
+
+The `calculateCustomFrequency()` function was calculating all frequencies relative to A4=440Hz, even when the tonic changed. The rotated intervals were being used, but the reference point stayed at A4, so the tonic note was not at its 12-TET pitch.
+
+The non-KBM code path was trying to:
+1. Calculate the note's scale degree and cents offset
+2. Calculate a reference point (A4) and its cents offset
+3. Find the difference and apply it to A4=440Hz
+
+This approach was fundamentally wrong because when the tonic rotates, the intervals change their relationship to A4, but the formula still expected A4 to be the stable reference.
+
+## Solution
+
+Rewrote the non-KBM code path in `calculateCustomFrequency()` with two key changes:
+
+1. **Anchor tonic at 12-TET frequency** - The tonic note is always at its equal temperament pitch
+2. **Use original intervals, not rotated** - The interval pattern stays the same, just maps to different notes
+
+```cpp
+// v1.12.3 FIX: Tonic Frequency Anchoring
+// The tonic note is ALWAYS at its 12-TET frequency.
+// The interval pattern stays the same, just starting from the tonic.
+//
+// Example with Werckmeister III (intervals: 0, 90, 192, 294, 390, ...):
+//   Tonic=C: C=0¢, C#=90¢, D=192¢, D#=294¢, E=390¢...
+//   Tonic=D: D=0¢, D#=90¢, E=192¢, F=294¢, F#=390¢...
+
+// Calculate scale degree relative to tonic
+int noteRelativeToTonic = midiNote - tonic;
+
+// Calculate which octave of the scale we're in and the scale degree
+int octaveNumber = noteRelativeToTonic >= 0
+    ? noteRelativeToTonic / scaleSize
+    : (noteRelativeToTonic - scaleSize + 1) / scaleSize;
+int scaleDegree = noteRelativeToTonic - (octaveNumber * scaleSize);
+
+// Get the interval for this scale degree from the ORIGINAL intervals
+// (not rotated - the same interval pattern applies regardless of tonic)
+double intervalCents = scaleIntervals[scaleDegree];
+
+// Calculate the MIDI note number of the tonic in this scale octave
+int tonicMidiInThisOctave = tonic + (octaveNumber * scaleSize);
+
+// Get the 12-TET frequency of the tonic in this octave - THIS IS THE ANCHOR
+double tonicFreq = calculate12TETFrequency(tonicMidiInThisOctave);
+
+// Calculate final frequency: tonic's 12-TET freq + interval offset in cents
+return tonicFreq * std::pow(2.0, intervalCents / 1200.0);
+```
+
+## Test Case
+
+1. Load OuariconLyrica
+2. Go to Tuning tab
+3. Select "Werckmeister III" preset
+4. Set tonic to C, play D4 → should be ~292.3 Hz (192 cents above 12-TET C4)
+5. Set tonic to D, play D4 → should be ~293.66 Hz (12-TET D4 - the tonic is pure)
+6. With tonic D, play E4 → should be 192 cents above D4 (rotated interval)
+7. Use True Keys visualization to verify intervals match the displayed pattern
+
+## Files Modified
+
+- `Source/DSP/TuningEngine.cpp` - rewrote non-KBM code path in `calculateCustomFrequency()`
+
+## What Was Tried (Historical)
 
 ### Attempt 1: Transposition in calculate12TETFrequency (WRONG)
 - Added `int transposedNote = midiNote - tonic` to transpose all notes
 - Result: This was transposition, not modal rotation
 - Reverted: commit e717fc0
 
-### Attempt 2: Tonic-anchored calculation in calculateCustomFrequency
-- Modified the non-KBM path to:
-  1. Calculate 12-TET frequency of the tonic: `tonic12TET = a4Frequency * 2^((60+tonic-69)/12)`
-  2. Calculate note's position relative to tonic in octave 5
-  3. Get cents from rotated intervals
-  4. Return `tonic12TET * 2^(cents/1200)`
-- Result: Did not work (user reported no change)
-- Code is still in place (not reverted)
+### Attempt 2: Reference-based calculation (WRONG)
+- Tried to calculate relative to A4=440Hz with adjusted reference cents
+- Result: Formula was fundamentally flawed - couldn't anchor tonic correctly
+- Root cause identified: the A4 reference approach doesn't work for tonic rotation
 
-## Technical Details
+### Attempt 3: Tonic-anchored + rotated intervals (PARTIAL - v1.12.3 first try)
+- Anchor each scale octave to the 12-TET frequency of the tonic
+- Still used `rotatedIntervals` which mathematically rotated the interval VALUES
+- Result: Tonic was correctly at 12-TET, but intervals were wrong (e.g., D#=102¢ instead of 90¢)
 
-### Key Files
-- `Source/DSP/TuningEngine.cpp` - frequency calculation
-- `Source/DSP/TuningEngine.h` - class definition
-- `Resources/ui/index.html` - UI (correctly shows rotated intervals)
-
-### Key Functions
-- `calculateCustomFrequency()` - calculates frequency for custom tunings (Scala mode)
-- `calculate12TETFrequency()` - calculates frequency for 12-TET mode
-- `rotateIntervalsForTonic()` - rotates interval pattern when tonic changes
-- `setTonicNote()` - called when user changes tonic, triggers rotation and rebuild
-- `rebuildFrequencyTable()` - rebuilds the 128-note frequency lookup table
-
-### Current Code Flow
-1. User changes tonic via UI → calls `setTonicNote()`
-2. `setTonicNote()` stores tonic, calls `rotateIntervalsForTonic()`, then `rebuildFrequencyTable()`
-3. `rebuildFrequencyTable()` checks mode:
-   - Mode::TwelveTET → calls `calculate12TETFrequency()` (ignores tonic - 12-TET has equal intervals)
-   - Mode::Scala → calls `calculateCustomFrequency()` (should use rotated intervals)
-
-### Suspected Issues to Investigate
-1. Is the mode correctly set to Scala when using Werckmeister III preset?
-2. Are the rotated intervals being used in the calculation?
-3. Is `rebuildFrequencyTable()` actually being called when tonic changes?
-4. Is the frequency table being read correctly by the audio engine?
-5. Are voices using stale frequency values?
-
-### Debug Steps for Next Session
-1. Add DBG() output in `setTonicNote()` to verify it's called
-2. Add DBG() output in `rebuildFrequencyTable()` to verify mode and sample frequencies
-3. Add DBG() output in `calculateCustomFrequency()` to see actual calculation values
-4. Verify that `currentMode` is Scala (1) not TwelveTET (0) when preset is Werckmeister III
-5. Check if voices are caching frequencies and not updating
-
-## Test Case
-
-1. Load OuariconLyrica
-2. Go to Tuning tab
-3. Select "Werckmeister III" preset (or any non-12TET preset)
-4. Set tonic to C, play D4 → note the pitch
-5. Set tonic to D, play D4 → pitch should be noticeably higher (~1.4 Hz difference)
-6. With tonic D, play E4 → should be 192 cents above D (not 390 cents above C)
-
-## Related Files
-- `plugins/OuariconLyrica/improvements/tuning-system-overhaul.md` - full tuning system plan
-- `plugins/OuariconLyrica/improvements/IMPLEMENTATION-GUIDE.md` - implementation reference
-
-## Version Info
-- Current version: 1.12.2 (PLUGINS.md not updated since fix didn't work)
-- Attempted fix would be: 1.12.4
+### Attempt 4: Tonic-anchored + original intervals (CORRECT - v1.12.3 final)
+- Anchor each scale octave to the 12-TET frequency of the tonic
+- Use original `scaleIntervals` directly (not rotated)
+- The scale degree calculation `(midiNote - tonic) mod scaleSize` handles the "rotation"
+- Formula: `12-TET(tonic_in_this_octave) * 2^(scaleIntervals[scale_degree] / 1200)`
+- Result: Works correctly - tonic at 12-TET, interval pattern preserved and mapped to correct notes
