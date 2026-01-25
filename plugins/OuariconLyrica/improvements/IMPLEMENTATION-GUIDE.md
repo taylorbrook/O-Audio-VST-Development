@@ -2,7 +2,7 @@
 
 **Purpose:** Standalone reference for implementing each phase with fresh context.
 **Full Research:** See `tuning-system-overhaul.md` in this directory.
-**Current Version:** v1.14.0 → Target: v2.0.0
+**Current Version:** v1.15.0 → Target: v2.0.0
 
 ---
 
@@ -12,17 +12,17 @@
 |-------|--------|---------|-----------|
 | Phase 1: DSP Foundation | ✅ COMPLETE | v1.9.0 | 2026-01-21 |
 | Phase 2: UI Visualization | ✅ COMPLETE | v1.10.0 | 2026-01-21 |
-| Phase 3: Advanced Features | 🔄 IN PROGRESS | v1.14.0 | - |
+| Phase 3: Advanced Features | 🔄 IN PROGRESS | v1.15.0 | - |
 | Phase 4: Professional Polish | ⏳ Pending | v2.0.0 | - |
 
 ### Phase 3 Sub-tasks
 
-| Task | Status | Version |
-|------|--------|---------|
-| 3.1 Scale Generators | ✅ COMPLETE | v1.14.0 |
-| 3.2 Factory Tuning Library | ✅ COMPLETE | v1.15.0 |
-| 3.3 HTML Export | 🔜 NEXT | - |
-| 3.4 Add Scale Degree UI | ⏳ Pending | - |
+| Task | Status | Version | Completed |
+|------|--------|---------|-----------|
+| 3.1 Scale Generators | ✅ COMPLETE | v1.14.0 | 2026-01-24 |
+| 3.2 Factory Tuning Library | ✅ COMPLETE | v1.15.0 | 2026-01-24 |
+| 3.3 HTML Export | 🔜 NEXT | - | - |
+| 3.4 Add Scale Degree UI | ⏳ Pending | - | - |
 
 ---
 
@@ -91,19 +91,23 @@ HTML document should include:
 |------|---------|
 | `Source/DSP/TuningEngine.h` | Tuning API definitions |
 | `Source/DSP/TuningEngine.cpp` | Tuning implementation |
-| `Source/PluginProcessor.h/.cpp` | Parameter definitions, native functions |
-| `Source/PluginEditor.cpp` | WebView setup, timer callback for MIDI |
+| `Source/DSP/ScaleGenerator.h/.cpp` | EDO/Harmonic/Rank-2 generators (v1.14.0) |
+| `Source/DSP/EmbeddedTunings.h/.cpp` | 24 factory tunings (v1.15.0) |
+| `Source/PluginProcessor.h/.cpp` | Parameter definitions |
+| `Source/PluginEditor.cpp` | WebView setup, native functions |
 | `Resources/ui/index.html` | All UI (HTML/CSS/JS in single file) |
 
-### Current TuningEngine Capabilities (v1.9.0)
+### Current Tuning Capabilities (v1.15.0)
 - Modes: `TwelveTET`, `Scala`, `MTSESP` (placeholder)
 - Scala .scl/.kbm loading: ✅ Complete
 - Master tune (A4): 400-480 Hz
 - Tonic transposition: 0-11
 - Per-note pitch bend: ✅ Complete
 - Frequency table: Pre-computed, lock-free audio access
-- **Octave Stretch:** 0.95-1.25, applied to both 12-TET and custom tunings (v1.9.0)
-- **Built-in Presets:** 10 temperaments + Custom option (v1.9.0)
+- **Octave Stretch:** 0.95-1.25 (v1.9.0)
+- **Built-in Presets:** 10 temperaments + Custom (v1.9.0)
+- **Scale Generators:** EDO, Harmonic Series, Rank-2 (v1.14.0)
+- **Factory Library:** 24 tunings in 5 categories (v1.15.0)
 
 ---
 
