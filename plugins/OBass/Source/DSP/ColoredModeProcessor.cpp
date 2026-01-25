@@ -77,13 +77,13 @@ void ColoredModeProcessor::setEnhanceAmount(float amount)
 {
     enhanceAmount = juce::jlimit(0.0f, 1.0f, amount);
 
-    // Map enhance 0-1 to drive 1.0-4.0
-    // drive = 1.0 + enhance * 3.0
+    // Map enhance 0-1 to drive 2.0-6.0
+    // drive = 2.0 + enhance * 4.0
     //
-    // enhance 0.0 -> drive 1.0 (subtle warmth)
-    // enhance 0.5 -> drive 2.5 (moderate saturation)
-    // enhance 1.0 -> drive 4.0 (heavy coloration)
-    drive = 1.0f + enhanceAmount * 3.0f;
+    // enhance 0.0 -> drive 2.0 (noticeable warmth)
+    // enhance 0.5 -> drive 4.0 (strong saturation)
+    // enhance 1.0 -> drive 6.0 (heavy coloration)
+    drive = 2.0f + enhanceAmount * 4.0f;
 }
 
 //==============================================================================
@@ -115,6 +115,15 @@ void ColoredModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
 
         // Apply asymmetric saturation
         float saturated = asymmetricTanh(input, drive, bias);
+
+        // Add 4th harmonic for richer even spectrum (Chebyshev T4)
+        // T4(x) = 8x^4 - 8x^2 + 1
+        // Normalize input with tanh to keep in [-1, 1] range
+        float x = std::tanh(input * 0.5f);
+        float x2 = x * x;
+        float h4 = (8.0f * x2 * x2 - 8.0f * x2 + 1.0f) * 0.15f * enhanceAmount;
+
+        saturated += h4;
 
         // Mix dry and wet based on enhance amount
         // At low enhance, mostly dry with subtle saturation

@@ -59,8 +59,8 @@ private:
     double sampleRate = 44100.0;
 
     // Saturation parameters
-    float drive = 2.5f;         // 1.0 - 4.0 range based on enhance
-    static constexpr float bias = 0.2f;  // DC bias for even harmonics
+    float drive = 4.0f;         // 2.0 - 6.0 range based on enhance
+    static constexpr float bias = 0.3f;  // DC bias for even harmonics (stronger)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ColoredModeProcessor)
 };
