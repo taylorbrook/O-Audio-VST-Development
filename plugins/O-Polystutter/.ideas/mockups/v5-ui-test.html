@@ -1,0 +1,934 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Ouaricon Polystutter - UI Mockup v5 (TAPE KNOBS HORIZONTAL FIX)</title>
+
+  <style>
+    /* CRITICAL: WebView constraints - NO viewport units */
+    html, body {
+      height: 100%;  /* REQUIRED */
+      margin: 0;
+      padding: 0;
+    }
+
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+
+    body {
+      /* Native application feel */
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+
+      /* Centering for browser test */
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    /* Fixed preview frame matching plugin spec */
+    .plugin-frame {
+      width: 1000px;   /* FIXED */
+      height: 750px;  /* FIXED */
+      border: 2px solid #444;
+      box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+      overflow: hidden;
+      position: relative;
+      background: url('img/paper-background.jpg') center/cover;
+      background-color: #f5e6d3;  /* Fallback if image not found */
+    }
+
+    /* Title */
+    .plugin-title {
+      position: absolute;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 24px;
+      letter-spacing: 2px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      font-weight: normal;
+    }
+
+    /* Botanical overlay (right side, decorative) */
+    .botanical-overlay {
+      position: absolute;
+      top: 15px;
+      right: 20px;
+      width: 180px;
+      height: 450px;
+      background: url('img/botanical-bug.png') center/contain no-repeat;
+      opacity: 0.32;
+      pointer-events: none;
+    }
+
+    /* Section containers with EXPLICIT HEIGHTS */
+    .lanes-section {
+      position: absolute;
+      top: 60px;
+      left: 0;
+      right: 0;
+      height: 320px;
+      overflow: hidden;
+    }
+
+    .sequencer-section {
+      position: absolute;
+      top: 395px;  /* 60 + 320 + 15 gap */
+      left: 0;
+      right: 0;
+      height: 130px;
+      overflow: hidden;
+      background: rgba(245, 230, 211, 0.3);
+      padding: 8px;
+      border-top: 1px solid rgba(107, 142, 78, 0.3);
+      border-bottom: 1px solid rgba(107, 142, 78, 0.3);
+    }
+
+    /* TAPE SECTION - v5 CRITICAL FIX: HORIZONTAL LAYOUT */
+    .tape-section {
+      position: absolute;
+      top: 540px;  /* 60 + 320 + 15 + 130 + 15 gap */
+      left: 0;
+      right: 0;
+      height: 130px;
+      overflow: hidden;
+      padding: 10px 20px;
+    }
+
+    .section-label {
+      position: absolute;
+      top: 15px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-size: 11px;
+      letter-spacing: 1.5px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+      font-weight: normal;
+    }
+
+    /* CRITICAL FIX: Explicit horizontal flexbox for tape knobs */
+    .tape-knobs-row {
+      display: flex;
+      flex-direction: row;  /* HORIZONTAL - prevents stacking */
+      justify-content: space-around;
+      align-items: flex-start;
+      gap: 15px;
+      width: 100%;
+      padding-top: 35px;  /* Space for section label */
+    }
+
+    .tape-knob-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+      flex: 1;
+      max-width: 100px;
+    }
+
+    .footer-section {
+      position: absolute;
+      top: 685px;  /* 60 + 320 + 15 + 130 + 15 + 130 + 15 gap */
+      left: 0;
+      right: 0;
+      height: 50px;
+      overflow: hidden;
+    }
+
+    /* Lane containers */
+    .lane-container {
+      position: absolute;
+      top: 0;
+      width: 250px;
+      height: 100%;
+    }
+
+    .lane-container.lane1 { left: 0; }
+    .lane-container.lane2 { left: 250px; }
+    .lane-container.lane3 { left: 500px; }
+    .lane-container.lane4 { left: 750px; }
+
+    /* Lane header */
+    .lane-header {
+      position: absolute;
+      top: 15px;
+      left: 20px;
+      width: 60px;
+      height: 20px;
+      background: #8B7355;
+      color: #f5e6d3;
+      text-align: center;
+      line-height: 20px;
+      font-size: 9px;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      border-radius: 2px;
+    }
+
+    .lane-header.active {
+      background: #6B8E4E;
+    }
+
+    /* Progress bar */
+    .progress-bar {
+      position: absolute;
+      top: 40px;
+      left: 20px;
+      width: 210px;
+      height: 6px;
+      background: rgba(0, 0, 0, 0.1);
+      border-radius: 3px;
+      overflow: hidden;
+    }
+
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: #6B8E4E;
+      transition: width 100ms linear;
+    }
+
+    /* COMPACT knob container */
+    .knob-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;  /* Tight spacing */
+    }
+
+    .knob-label {
+      font-size: 9px;
+      color: #3C2F2F;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      text-align: center;
+      height: 12px;
+    }
+
+    .knob {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #8B7355 0%, #6B5D4F 100%);
+      border: 2px solid #5a4a3a;
+      position: relative;
+      cursor: pointer;
+      transform-origin: center center;
+      transition: transform 50ms;
+    }
+
+    .knob::before {
+      content: '';
+      position: absolute;
+      top: 4px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 3px;
+      height: 10px;
+      background: #f5e6d3;
+      border-radius: 2px;
+    }
+
+    .knob:hover {
+      filter: brightness(1.1);
+    }
+
+    .knob-value {
+      font-size: 8px;
+      color: #3C2F2F;
+      text-align: center;
+      height: 12px;
+      min-width: 42px;
+    }
+
+    /* Combo box (dropdown) */
+    .combo-container {
+      position: absolute;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 2px;
+    }
+
+    .combo-label {
+      font-size: 9px;
+      color: #3C2F2F;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      height: 12px;
+    }
+
+    .combo-box {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: #8BA870;
+      border: 2px solid #6B8E4E;
+      color: #f5e6d3;
+      font-size: 8px;
+      text-align: center;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: 'Garamond', 'Times New Roman', serif;
+    }
+
+    .combo-box:hover {
+      background: #9CB880;
+    }
+
+    /* Toggle buttons (COMPACT) */
+    .toggle-row {
+      position: absolute;
+      display: flex;
+      gap: 5px;
+    }
+
+    .toggle-button {
+      width: 40px;
+      height: 18px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      color: #3C2F2F;
+      font-size: 8px;
+      letter-spacing: 0.5px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 100ms;
+    }
+
+    .toggle-button.active {
+      background: #6B8E4E;
+      color: #f5e6d3;
+      border-color: #6B8E4E;
+    }
+
+    /* Pattern Sequencer (COMPACT) */
+    .pattern-container {
+      width: 100%;
+      height: 100%;
+      max-height: 130px;
+      overflow: hidden;
+    }
+
+    .pattern-grid {
+      display: grid;
+      grid-template-columns: 25px repeat(16, 1fr);
+      gap: 3px;
+      padding: 5px;
+      max-height: 120px;
+    }
+
+    .lane-label {
+      font-size: 9px;
+      color: #3C2F2F;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 22px;
+      line-height: 22px;
+    }
+
+    .step-button {
+      width: 100%;
+      height: 22px;  /* FIXED small height */
+      min-height: 22px;
+      max-height: 22px;
+      background: rgba(245, 230, 211, 0.5);
+      border: 1px solid rgba(107, 142, 78, 0.3);
+      border-radius: 2px;
+      cursor: pointer;
+      transition: all 80ms;
+    }
+
+    .step-button.active {
+      background: rgba(107, 142, 78, 0.6);
+      border-color: #6B8E4E;
+    }
+
+    .step-button:hover {
+      background: rgba(107, 142, 78, 0.4);
+    }
+
+    /* Footer toggles (horizontal row) */
+    .footer-toggles {
+      position: absolute;
+      top: 10px;
+      left: 60px;
+      display: flex;
+      gap: 20px;
+    }
+
+    .footer-toggle {
+      width: 60px;
+      height: 30px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      color: #3C2F2F;
+      font-size: 10px;
+      letter-spacing: 0.8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 100ms;
+    }
+
+    .footer-toggle.active {
+      background: #6B8E4E;
+      color: #f5e6d3;
+      border-color: #6B8E4E;
+    }
+
+    /* Debug monitor (test HTML only) */
+    .debug-monitor {
+      position: fixed;
+      bottom: 10px;
+      right: 10px;
+      background: rgba(0, 0, 0, 0.85);
+      color: #0f0;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      padding: 8px 12px;
+      border: 1px solid #333;
+      border-radius: 4px;
+      min-width: 150px;
+      pointer-events: none;
+      z-index: 10000;
+    }
+
+    .debug-label {
+      color: #666;
+      font-size: 9px;
+      margin-bottom: 4px;
+      letter-spacing: 1px;
+    }
+
+    .debug-param {
+      font-weight: bold;
+      color: #0f0;
+    }
+
+    .debug-value {
+      color: #fff;
+      margin-top: 2px;
+    }
+
+    .debug-normalized {
+      color: #888;
+      font-size: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="plugin-frame">
+    <!-- Title -->
+    <div class="plugin-title">Ouaricon Polystutter</div>
+
+    <!-- Botanical overlay (decorative) -->
+    <div class="botanical-overlay"></div>
+
+    <!-- LANES SECTION (320px height) -->
+    <div class="lanes-section">
+      <!-- Lane 1 -->
+      <div class="lane-container lane1">
+        <div class="lane-header active" id="lane1_enabled">LANE 1</div>
+        <div class="progress-bar"><div class="progress-fill" id="lane1_progress"></div></div>
+
+        <!-- Row 1 (y: 115 - 75 offset = 40 relative) -->
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label">SUBDIV</div>
+          <div class="combo-box" id="lane1_subdivision">1/16</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 55px;">
+          <div class="knob-label">REPS</div>
+          <div class="knob" id="lane1_repeats"></div>
+          <div class="knob-value" id="lane1_repeats_value">4</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 55px;">
+          <div class="knob-label">DECAY</div>
+          <div class="knob" id="lane1_decay"></div>
+          <div class="knob-value" id="lane1_decay_value">90%</div>
+        </div>
+
+        <!-- Row 2 (y: 175 - 75 = 100 relative) -->
+        <div class="knob-container" style="left: 10px; top: 115px;">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane1_pitch"></div>
+          <div class="knob-value" id="lane1_pitch_value">0st</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 115px;">
+          <div class="knob-label">FILTR</div>
+          <div class="knob" id="lane1_filter"></div>
+          <div class="knob-value" id="lane1_filter_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 115px;">
+          <div class="knob-label">PROB</div>
+          <div class="knob" id="lane1_probability"></div>
+          <div class="knob-value" id="lane1_probability_value">100%</div>
+        </div>
+
+        <!-- Row 3 (y: 235 - 75 = 160 relative) -->
+        <div class="knob-container" style="left: 10px; top: 175px;">
+          <div class="knob-label">VOL</div>
+          <div class="knob" id="lane1_volume"></div>
+          <div class="knob-value" id="lane1_volume_value">100%</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 175px;">
+          <div class="knob-label">PAN</div>
+          <div class="knob" id="lane1_pan"></div>
+          <div class="knob-value" id="lane1_pan_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 175px;">
+          <div class="knob-label">SWING</div>
+          <div class="knob" id="lane1_swing"></div>
+          <div class="knob-value" id="lane1_swing_value">0%</div>
+        </div>
+
+        <!-- Row 4 toggles (y: 295 - 75 = 220 relative) -->
+        <div class="toggle-row" style="left: 5px; top: 235px;">
+          <div class="toggle-button" id="lane1_pingpong">PING</div>
+          <div class="toggle-button" id="lane1_reverse">REV</div>
+          <div class="toggle-button" id="lane1_manual">MAN</div>
+          <div class="toggle-button" id="lane1_freeze">FRZ</div>
+        </div>
+      </div>
+
+      <!-- Lane 2 (same structure, offset left: 250px) -->
+      <div class="lane-container lane2">
+        <div class="lane-header active" id="lane2_enabled">LANE 2</div>
+        <div class="progress-bar"><div class="progress-fill" id="lane2_progress"></div></div>
+
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label">SUBDIV</div>
+          <div class="combo-box" id="lane2_subdivision">1/8</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 55px;">
+          <div class="knob-label">REPS</div>
+          <div class="knob" id="lane2_repeats"></div>
+          <div class="knob-value" id="lane2_repeats_value">4</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 55px;">
+          <div class="knob-label">DECAY</div>
+          <div class="knob" id="lane2_decay"></div>
+          <div class="knob-value" id="lane2_decay_value">90%</div>
+        </div>
+
+        <div class="knob-container" style="left: 10px; top: 115px;">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane2_pitch"></div>
+          <div class="knob-value" id="lane2_pitch_value">0st</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 115px;">
+          <div class="knob-label">FILTR</div>
+          <div class="knob" id="lane2_filter"></div>
+          <div class="knob-value" id="lane2_filter_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 115px;">
+          <div class="knob-label">PROB</div>
+          <div class="knob" id="lane2_probability"></div>
+          <div class="knob-value" id="lane2_probability_value">100%</div>
+        </div>
+
+        <div class="knob-container" style="left: 10px; top: 175px;">
+          <div class="knob-label">VOL</div>
+          <div class="knob" id="lane2_volume"></div>
+          <div class="knob-value" id="lane2_volume_value">100%</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 175px;">
+          <div class="knob-label">PAN</div>
+          <div class="knob" id="lane2_pan"></div>
+          <div class="knob-value" id="lane2_pan_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 175px;">
+          <div class="knob-label">SWING</div>
+          <div class="knob" id="lane2_swing"></div>
+          <div class="knob-value" id="lane2_swing_value">0%</div>
+        </div>
+
+        <div class="toggle-row" style="left: 5px; top: 235px;">
+          <div class="toggle-button" id="lane2_pingpong">PING</div>
+          <div class="toggle-button" id="lane2_reverse">REV</div>
+          <div class="toggle-button" id="lane2_manual">MAN</div>
+          <div class="toggle-button" id="lane2_freeze">FRZ</div>
+        </div>
+      </div>
+
+      <!-- Lane 3 -->
+      <div class="lane-container lane3">
+        <div class="lane-header" id="lane3_enabled">LANE 3</div>
+        <div class="progress-bar"><div class="progress-fill" id="lane3_progress"></div></div>
+
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label">SUBDIV</div>
+          <div class="combo-box" id="lane3_subdivision">1/8T</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 55px;">
+          <div class="knob-label">REPS</div>
+          <div class="knob" id="lane3_repeats"></div>
+          <div class="knob-value" id="lane3_repeats_value">4</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 55px;">
+          <div class="knob-label">DECAY</div>
+          <div class="knob" id="lane3_decay"></div>
+          <div class="knob-value" id="lane3_decay_value">90%</div>
+        </div>
+
+        <div class="knob-container" style="left: 10px; top: 115px;">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane3_pitch"></div>
+          <div class="knob-value" id="lane3_pitch_value">0st</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 115px;">
+          <div class="knob-label">FILTR</div>
+          <div class="knob" id="lane3_filter"></div>
+          <div class="knob-value" id="lane3_filter_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 115px;">
+          <div class="knob-label">PROB</div>
+          <div class="knob" id="lane3_probability"></div>
+          <div class="knob-value" id="lane3_probability_value">100%</div>
+        </div>
+
+        <div class="knob-container" style="left: 10px; top: 175px;">
+          <div class="knob-label">VOL</div>
+          <div class="knob" id="lane3_volume"></div>
+          <div class="knob-value" id="lane3_volume_value">100%</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 175px;">
+          <div class="knob-label">PAN</div>
+          <div class="knob" id="lane3_pan"></div>
+          <div class="knob-value" id="lane3_pan_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 175px;">
+          <div class="knob-label">SWING</div>
+          <div class="knob" id="lane3_swing"></div>
+          <div class="knob-value" id="lane3_swing_value">0%</div>
+        </div>
+
+        <div class="toggle-row" style="left: 5px; top: 235px;">
+          <div class="toggle-button" id="lane3_pingpong">PING</div>
+          <div class="toggle-button" id="lane3_reverse">REV</div>
+          <div class="toggle-button" id="lane3_manual">MAN</div>
+          <div class="toggle-button" id="lane3_freeze">FRZ</div>
+        </div>
+      </div>
+
+      <!-- Lane 4 -->
+      <div class="lane-container lane4">
+        <div class="lane-header" id="lane4_enabled">LANE 4</div>
+        <div class="progress-bar"><div class="progress-fill" id="lane4_progress"></div></div>
+
+        <div class="combo-container" style="left: 10px; top: 55px;">
+          <div class="combo-label">SUBDIV</div>
+          <div class="combo-box" id="lane4_subdivision">1/32</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 55px;">
+          <div class="knob-label">REPS</div>
+          <div class="knob" id="lane4_repeats"></div>
+          <div class="knob-value" id="lane4_repeats_value">4</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 55px;">
+          <div class="knob-label">DECAY</div>
+          <div class="knob" id="lane4_decay"></div>
+          <div class="knob-value" id="lane4_decay_value">90%</div>
+        </div>
+
+        <div class="knob-container" style="left: 10px; top: 115px;">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane4_pitch"></div>
+          <div class="knob-value" id="lane4_pitch_value">0st</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 115px;">
+          <div class="knob-label">FILTR</div>
+          <div class="knob" id="lane4_filter"></div>
+          <div class="knob-value" id="lane4_filter_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 115px;">
+          <div class="knob-label">PROB</div>
+          <div class="knob" id="lane4_probability"></div>
+          <div class="knob-value" id="lane4_probability_value">100%</div>
+        </div>
+
+        <div class="knob-container" style="left: 10px; top: 175px;">
+          <div class="knob-label">VOL</div>
+          <div class="knob" id="lane4_volume"></div>
+          <div class="knob-value" id="lane4_volume_value">100%</div>
+        </div>
+        <div class="knob-container" style="left: 64px; top: 175px;">
+          <div class="knob-label">PAN</div>
+          <div class="knob" id="lane4_pan"></div>
+          <div class="knob-value" id="lane4_pan_value">0</div>
+        </div>
+        <div class="knob-container" style="left: 118px; top: 175px;">
+          <div class="knob-label">SWING</div>
+          <div class="knob" id="lane4_swing"></div>
+          <div class="knob-value" id="lane4_swing_value">0%</div>
+        </div>
+
+        <div class="toggle-row" style="left: 5px; top: 235px;">
+          <div class="toggle-button" id="lane4_pingpong">PING</div>
+          <div class="toggle-button" id="lane4_reverse">REV</div>
+          <div class="toggle-button" id="lane4_manual">MAN</div>
+          <div class="toggle-button" id="lane4_freeze">FRZ</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PATTERN SEQUENCER SECTION (130px height, COMPACT) -->
+    <div class="sequencer-section">
+      <div class="pattern-container">
+        <div class="pattern-grid">
+          <!-- Lane labels -->
+          <div class="lane-label">L1</div>
+          <div class="step-button active" data-lane="1" data-step="1"></div>
+          <div class="step-button active" data-lane="1" data-step="2"></div>
+          <div class="step-button active" data-lane="1" data-step="3"></div>
+          <div class="step-button active" data-lane="1" data-step="4"></div>
+          <div class="step-button active" data-lane="1" data-step="5"></div>
+          <div class="step-button active" data-lane="1" data-step="6"></div>
+          <div class="step-button active" data-lane="1" data-step="7"></div>
+          <div class="step-button active" data-lane="1" data-step="8"></div>
+          <div class="step-button active" data-lane="1" data-step="9"></div>
+          <div class="step-button active" data-lane="1" data-step="10"></div>
+          <div class="step-button active" data-lane="1" data-step="11"></div>
+          <div class="step-button active" data-lane="1" data-step="12"></div>
+          <div class="step-button active" data-lane="1" data-step="13"></div>
+          <div class="step-button active" data-lane="1" data-step="14"></div>
+          <div class="step-button active" data-lane="1" data-step="15"></div>
+          <div class="step-button active" data-lane="1" data-step="16"></div>
+
+          <div class="lane-label">L2</div>
+          <div class="step-button active" data-lane="2" data-step="1"></div>
+          <div class="step-button active" data-lane="2" data-step="2"></div>
+          <div class="step-button active" data-lane="2" data-step="3"></div>
+          <div class="step-button active" data-lane="2" data-step="4"></div>
+          <div class="step-button active" data-lane="2" data-step="5"></div>
+          <div class="step-button active" data-lane="2" data-step="6"></div>
+          <div class="step-button active" data-lane="2" data-step="7"></div>
+          <div class="step-button active" data-lane="2" data-step="8"></div>
+          <div class="step-button active" data-lane="2" data-step="9"></div>
+          <div class="step-button active" data-lane="2" data-step="10"></div>
+          <div class="step-button active" data-lane="2" data-step="11"></div>
+          <div class="step-button active" data-lane="2" data-step="12"></div>
+          <div class="step-button active" data-lane="2" data-step="13"></div>
+          <div class="step-button active" data-lane="2" data-step="14"></div>
+          <div class="step-button active" data-lane="2" data-step="15"></div>
+          <div class="step-button active" data-lane="2" data-step="16"></div>
+
+          <div class="lane-label">L3</div>
+          <div class="step-button active" data-lane="3" data-step="1"></div>
+          <div class="step-button active" data-lane="3" data-step="2"></div>
+          <div class="step-button active" data-lane="3" data-step="3"></div>
+          <div class="step-button active" data-lane="3" data-step="4"></div>
+          <div class="step-button active" data-lane="3" data-step="5"></div>
+          <div class="step-button active" data-lane="3" data-step="6"></div>
+          <div class="step-button active" data-lane="3" data-step="7"></div>
+          <div class="step-button active" data-lane="3" data-step="8"></div>
+          <div class="step-button active" data-lane="3" data-step="9"></div>
+          <div class="step-button active" data-lane="3" data-step="10"></div>
+          <div class="step-button active" data-lane="3" data-step="11"></div>
+          <div class="step-button active" data-lane="3" data-step="12"></div>
+          <div class="step-button active" data-lane="3" data-step="13"></div>
+          <div class="step-button active" data-lane="3" data-step="14"></div>
+          <div class="step-button active" data-lane="3" data-step="15"></div>
+          <div class="step-button active" data-lane="3" data-step="16"></div>
+
+          <div class="lane-label">L4</div>
+          <div class="step-button active" data-lane="4" data-step="1"></div>
+          <div class="step-button active" data-lane="4" data-step="2"></div>
+          <div class="step-button active" data-lane="4" data-step="3"></div>
+          <div class="step-button active" data-lane="4" data-step="4"></div>
+          <div class="step-button active" data-lane="4" data-step="5"></div>
+          <div class="step-button active" data-lane="4" data-step="6"></div>
+          <div class="step-button active" data-lane="4" data-step="7"></div>
+          <div class="step-button active" data-lane="4" data-step="8"></div>
+          <div class="step-button active" data-lane="4" data-step="9"></div>
+          <div class="step-button active" data-lane="4" data-step="10"></div>
+          <div class="step-button active" data-lane="4" data-step="11"></div>
+          <div class="step-button active" data-lane="4" data-step="12"></div>
+          <div class="step-button active" data-lane="4" data-step="13"></div>
+          <div class="step-button active" data-lane="4" data-step="14"></div>
+          <div class="step-button active" data-lane="4" data-step="15"></div>
+          <div class="step-button active" data-lane="4" data-step="16"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAPE DEGRADATION SECTION (130px height) - v5 CRITICAL FIX -->
+    <div class="tape-section">
+      <div class="section-label">TAPE DEGRADATION</div>
+      <div class="tape-knobs-row">
+        <div class="tape-knob-container">
+          <div class="knob-label">SAT</div>
+          <div class="knob" id="saturation" data-param="saturation"></div>
+          <div class="knob-value" id="saturation_value">0%</div>
+        </div>
+        <div class="tape-knob-container">
+          <div class="knob-label">WOW</div>
+          <div class="knob" id="wow" data-param="wow"></div>
+          <div class="knob-value" id="wow_value">0%</div>
+        </div>
+        <div class="tape-knob-container">
+          <div class="knob-label">FLUTTER</div>
+          <div class="knob" id="flutter" data-param="flutter"></div>
+          <div class="knob-value" id="flutter_value">0%</div>
+        </div>
+        <div class="tape-knob-container">
+          <div class="knob-label">HISS</div>
+          <div class="knob" id="hiss" data-param="hiss"></div>
+          <div class="knob-value" id="hiss_value">0%</div>
+        </div>
+        <div class="tape-knob-container">
+          <div class="knob-label">ROLLOFF</div>
+          <div class="knob" id="rolloff" data-param="rolloff"></div>
+          <div class="knob-value" id="rolloff_value">0%</div>
+        </div>
+        <div class="tape-knob-container">
+          <div class="knob-label">DROPOUT</div>
+          <div class="knob" id="dropout" data-param="dropout"></div>
+          <div class="knob-value" id="dropout_value">0%</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- FOOTER SECTION (50px height) -->
+    <div class="footer-section">
+      <div class="footer-toggles">
+        <div class="footer-toggle" id="env_toggle">ENV</div>
+        <div class="footer-toggle" id="sc_toggle">SC</div>
+        <div class="footer-toggle" id="midi_toggle">MIDI</div>
+        <div class="footer-toggle" id="trig_toggle">TRIG</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Debug monitor (test HTML only) -->
+  <div class="debug-monitor">
+    <div class="debug-label">PARAMETER MONITOR</div>
+    <div class="debug-param" id="debugParam">—</div>
+    <div class="debug-value" id="debugValue">—</div>
+    <div class="debug-normalized" id="debugNormalized">—</div>
+  </div>
+
+  <script>
+    // Mock JUCE backend for browser testing
+    window.Juce = {
+      getSliderState: (id) => ({
+        normalisedValue: 0.5,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        },
+        setNormalisedValue: (v) => console.log(`${id} set to ${v}`)
+      }),
+      getToggleState: (id) => ({
+        value: false,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      }),
+      getComboBoxState: (id) => ({
+        selectedId: 0,
+        valueChangedEvent: {
+          addListener: (fn) => console.log(`Listener added for ${id}`)
+        }
+      })
+    };
+
+    // Disable context menu (REQUIRED)
+    document.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      return false;
+    });
+
+    // Interactive knob behavior
+    document.addEventListener("DOMContentLoaded", () => {
+      // Knob rotation
+      const knobs = document.querySelectorAll('.knob');
+      knobs.forEach(knob => {
+        let isDragging = false;
+        let startY = 0;
+        let startRotation = -135;
+
+        knob.addEventListener('mousedown', (e) => {
+          isDragging = true;
+          startY = e.clientY;
+          document.body.style.cursor = 'ns-resize';
+        });
+
+        document.addEventListener('mousemove', (e) => {
+          if (!isDragging) return;
+
+          const deltaY = startY - e.clientY;
+          const rotation = Math.max(-135, Math.min(135, startRotation + deltaY));
+          knob.style.transform = `rotate(${rotation}deg)`;
+
+          // Update debug monitor
+          const paramId = knob.id;
+          const normalized = (rotation + 135) / 270;
+          updateDebugMonitor(paramId, `${Math.round(normalized * 100)}%`, normalized);
+        });
+
+        document.addEventListener('mouseup', () => {
+          if (isDragging) {
+            startRotation = parseFloat(knob.style.transform.replace(/[^-\d.]/g, '')) || -135;
+            isDragging = false;
+            document.body.style.cursor = 'default';
+          }
+        });
+      });
+
+      // Toggle buttons
+      const toggles = document.querySelectorAll('.toggle-button, .footer-toggle, .lane-header');
+      toggles.forEach(toggle => {
+        toggle.addEventListener('click', () => {
+          toggle.classList.toggle('active');
+          updateDebugMonitor(toggle.id, toggle.classList.contains('active') ? 'ON' : 'OFF', toggle.classList.contains('active') ? 1 : 0);
+        });
+      });
+
+      // Step buttons
+      const steps = document.querySelectorAll('.step-button');
+      steps.forEach(step => {
+        step.addEventListener('click', () => {
+          step.classList.toggle('active');
+          const lane = step.dataset.lane;
+          const stepNum = step.dataset.step;
+          updateDebugMonitor(`L${lane}_S${stepNum}`, step.classList.contains('active') ? 'ON' : 'OFF', step.classList.contains('active') ? 1 : 0);
+        });
+      });
+
+      // Progress bar animation (demo)
+      let progress = 0;
+      setInterval(() => {
+        progress = (progress + 2) % 100;
+        document.querySelectorAll('.progress-fill').forEach(fill => {
+          fill.style.width = progress + '%';
+        });
+      }, 100);
+    });
+
+    function updateDebugMonitor(paramId, value, normalizedValue) {
+      document.getElementById('debugParam').textContent = paramId;
+      document.getElementById('debugValue').textContent = value;
+      document.getElementById('debugNormalized').textContent = `${(normalizedValue * 100).toFixed(1)}%`;
+    }
+  </script>
+</body>
+</html>
