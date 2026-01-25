@@ -1,11 +1,11 @@
 /*
   ==============================================================================
 
-    OuariconSimpleReverb - Audio Processor Implementation
+    O-SimpleReverb - Audio Processor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.1.0 - Type-specific DSP for meaningful reverb differentiation
+    v1.5.0 - Renamed from OuariconSimpleReverb
 
     Each reverb type now has distinct sonic character:
     - Booth: Tight, immediate, minimal reflections
@@ -22,7 +22,7 @@
 #include "PluginEditor.h"
 
 // Define the type presets with distinct DSP characteristics
-const OuariconSimpleReverbAudioProcessor::TypePreset OuariconSimpleReverbAudioProcessor::typePresets[6] = {
+const OSimpleReverbAudioProcessor::TypePreset OSimpleReverbAudioProcessor::typePresets[6] = {
     // 0: Booth - tight, intimate, minimal reflections
     {
         0.15f,      // baseRoomSize
@@ -127,7 +127,7 @@ const OuariconSimpleReverbAudioProcessor::TypePreset OuariconSimpleReverbAudioPr
     }
 };
 
-juce::AudioProcessorValueTreeState::ParameterLayout OuariconSimpleReverbAudioProcessor::createParameterLayout()
+juce::AudioProcessorValueTreeState::ParameterLayout OSimpleReverbAudioProcessor::createParameterLayout()
 {
     juce::AudioProcessorValueTreeState::ParameterLayout layout;
 
@@ -198,12 +198,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OuariconSimpleReverbAudioPro
     return layout;
 }
 
-OuariconSimpleReverbAudioProcessor::OuariconSimpleReverbAudioProcessor()
+OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
-    , presetManager(parameters, "Ouaricon Simple Reverb")
+    , presetManager(parameters, "O-SimpleReverb")
 {
     // Initialize factory presets (4 per reverb type = 24 total)
     initializeFactoryPresets();
@@ -220,11 +220,11 @@ OuariconSimpleReverbAudioProcessor::OuariconSimpleReverbAudioProcessor()
         delay.setMaximumDelayInSamples(kMaxAllPassSamples);
 }
 
-OuariconSimpleReverbAudioProcessor::~OuariconSimpleReverbAudioProcessor()
+OSimpleReverbAudioProcessor::~OSimpleReverbAudioProcessor()
 {
 }
 
-void OuariconSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
+void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
 
@@ -274,11 +274,11 @@ void OuariconSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int sa
     previousType = -1;
 }
 
-void OuariconSimpleReverbAudioProcessor::releaseResources()
+void OSimpleReverbAudioProcessor::releaseResources()
 {
 }
 
-void OuariconSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
+void OSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
 {
     const auto& preset = typePresets[typeIndex];
 
@@ -332,7 +332,7 @@ void OuariconSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
     }
 }
 
-float OuariconSimpleReverbAudioProcessor::processAllPassChain(float input, bool isLeft)
+float OSimpleReverbAudioProcessor::processAllPassChain(float input, bool isLeft)
 {
     float output = input;
     auto& states = isLeft ? allPassStateL : allPassStateR;
@@ -348,7 +348,7 @@ float OuariconSimpleReverbAudioProcessor::processAllPassChain(float input, bool 
     return output;
 }
 
-void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
@@ -576,25 +576,25 @@ void OuariconSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     outputLevelDB.store(levelDB, std::memory_order_relaxed);
 }
 
-juce::AudioProcessorEditor* OuariconSimpleReverbAudioProcessor::createEditor()
+juce::AudioProcessorEditor* OSimpleReverbAudioProcessor::createEditor()
 {
-    return new OuariconSimpleReverbAudioProcessorEditor(*this);
+    return new OSimpleReverbAudioProcessorEditor(*this);
 }
 
-void OuariconSimpleReverbAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
+void OSimpleReverbAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     if (auto xml = presetManager.getStateAsXml())
         copyXmlToBinary(*xml, destData);
 }
 
-void OuariconSimpleReverbAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
+void OSimpleReverbAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
     if (xmlState != nullptr)
         presetManager.setStateFromXml(xmlState.get());
 }
 
-void OuariconSimpleReverbAudioProcessor::initializeFactoryPresets()
+void OSimpleReverbAudioProcessor::initializeFactoryPresets()
 {
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         // === BOOTH PRESETS (4) ===
@@ -712,5 +712,5 @@ void OuariconSimpleReverbAudioProcessor::initializeFactoryPresets()
 // Factory function
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {
-    return new OuariconSimpleReverbAudioProcessor();
+    return new OSimpleReverbAudioProcessor();
 }

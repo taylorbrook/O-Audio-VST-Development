@@ -1,6 +1,28 @@
 # Changelog
 
-All notable changes to OuariconSimpleReverb will be documented in this file.
+All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
+
+## [1.5.0] - 2026-01-24
+
+### Changed
+
+- **Plugin renamed:** OuariconSimpleReverb → O-SimpleReverb
+- **Display name:** Now shows "O-SimpleReverb" in DAWs and plugin lists
+- **Preset location:** Migrated from `~/Library/Ouaricon Simple Reverb/` to `~/Library/O-SimpleReverb/`
+- **UI header:** Updated title display
+
+### Technical Notes
+
+- Folder renamed from `plugins/OuariconSimpleReverb` to `plugins/O-SimpleReverb`
+- CMake target renamed to O-SimpleReverb
+- Class names updated: OSimpleReverbAudioProcessor, OSimpleReverbAudioProcessorEditor
+- Plugin code (OuSr) preserved for parameter compatibility
+- Existing presets will be migrated automatically
+
+### Migration Notes
+
+- DAW sessions using the old plugin name will need to reload the plugin
+- User presets will be migrated from old location to new location
 
 ## [1.4.1] - 2026-01-13
 

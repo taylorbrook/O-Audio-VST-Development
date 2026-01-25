@@ -11,6 +11,7 @@
 */
 
 #pragma once
+#include <atomic>
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "DSP/CrossoverFilter.h"
@@ -51,6 +52,9 @@ public:
     // Public method for mode changes (called from UI/automation)
     void setLatencyMode(CrossoverFilter::Mode mode);
 
+    // Limit indicator for UI - returns 0.0 (no limiting) to 1.0 (heavy limiting)
+    float getLimitIndicator() const { return limitIndicator.load(); }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -78,6 +82,13 @@ private:
 
     // Smoothed mode crossfade for click-free mode switching (0.0 = Clean, 1.0 = Colored)
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> modeCrossfade;
+
+    // Smoothed output gain for click-free level changes
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> outputGainSmooth;
+
+    // Thread-safe limit indicator for UI (0.0 = no limiting, 1.0 = heavy limiting)
+    std::atomic<float> limitIndicator { 0.0f };
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> limitIndicatorSmooth;
 
     // Helper methods
     void updateLatencyReport();

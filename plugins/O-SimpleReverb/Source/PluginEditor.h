@@ -1,9 +1,11 @@
 /*
   ==============================================================================
 
-    OuariconSimpleReverb - Editor
+    O-SimpleReverb - Editor
     Ouaricon Audio
     Developer: Taylor Brook
+
+    v1.5.0 - Renamed from OuariconSimpleReverb
 
   ==============================================================================
 */
@@ -12,12 +14,12 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OuariconSimpleReverbAudioProcessorEditor : public juce::AudioProcessorEditor,
+class OSimpleReverbAudioProcessorEditor : public juce::AudioProcessorEditor,
                                                   private juce::Timer
 {
 public:
-    explicit OuariconSimpleReverbAudioProcessorEditor(OuariconSimpleReverbAudioProcessor&);
-    ~OuariconSimpleReverbAudioProcessorEditor() override;
+    explicit OSimpleReverbAudioProcessorEditor(OSimpleReverbAudioProcessor&);
+    ~OSimpleReverbAudioProcessorEditor() override;
 
     void paint(juce::Graphics&) override;
     void resized() override;
@@ -25,7 +27,7 @@ public:
 private:
     void timerCallback() override;
 
-    OuariconSimpleReverbAudioProcessor& processorRef;
+    OSimpleReverbAudioProcessor& processorRef;
 
     // CRITICAL: Member declaration order (Pattern #11)
     // 1. Relays FIRST (no dependencies)
@@ -57,5 +59,5 @@ private:
     // File chooser for save/load dialogs
     std::unique_ptr<juce::FileChooser> fileChooser;
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSimpleReverbAudioProcessorEditor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSimpleReverbAudioProcessorEditor)
 };

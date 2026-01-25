@@ -32,7 +32,7 @@ Ouaricon Plugins:
 | O-Comp | 📦 Installed | 1.2.0 | Audio Effect (Compressor) | 2026-01-24 |
 | O-AnalogEQ | 📦 Installed | 1.1.0 | Audio Effect (EQ) | 2026-01-24 |
 | O-DigiDelay | 📦 Installed | 1.2.1 | Audio Effect (Delay) | 2026-01-24 |
-| OuariconSimpleReverb | 📦 Installed | 1.4.1 | Audio Effect (Reverb) | 2026-01-13 |
+| O-SimpleReverb | 📦 Installed | 1.5.0 | Audio Effect (Reverb) | 2026-01-24 |
 | OuariconPolystutter | 📦 Installed | 1.6.7 | Audio Effect (Beat Repeater) | 2026-01-21 |
 | OuariconLyrica | 📦 Installed | 1.16.0 | Synth (Physical Modeling Harp) | 2026-01-24 |
 

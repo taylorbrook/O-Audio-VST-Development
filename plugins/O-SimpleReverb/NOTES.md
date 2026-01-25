@@ -1,8 +1,10 @@
-# OuariconSimpleReverb Notes
+# O-SimpleReverb Notes
+
+(Formerly OuariconSimpleReverb - renamed v1.5.0)
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.2
+- **Version:** 1.5.0
 - **Type:** Audio Effect (Reverb)
 - **Complexity:** 4.2 (Complex)
 
@@ -18,6 +20,7 @@
 - **2026-01-13 (v1.3.0):** LP filter & VU improvements - Added 20-400Hz lowpass filter with toggle, VU meter now -90°/+90° with dB indicators and green-to-red color gradient, flora background 2x larger
 - **2026-01-13 (v1.3.1):** Filter & Decay fixes - Changed LP filter to Low Cut (highpass), toggle is now clickable button, Decay is now 0.5x-2.0x multiplier
 - **2026-01-13 (v1.3.2):** UI polish - Decay centered at 1.0x, Hz indicators on Low Cut, removed footer
+- **2026-01-24 (v1.5.0):** Renamed from OuariconSimpleReverb to O-SimpleReverb
 
 ## Known Issues
 
@@ -86,10 +89,10 @@ Lightweight, CPU-efficient reverb designed to add subtle color and realism to in
 2. Phase 4.2: Parameter Binding (6 parameters)
 
 ### References
-- Creative brief: `plugins/OuariconSimpleReverb/.ideas/creative-brief.md`
-- DSP architecture: `plugins/OuariconSimpleReverb/.ideas/architecture.md`
-- Implementation plan: `plugins/OuariconSimpleReverb/.ideas/plan.md`
+- Creative brief: `plugins/O-SimpleReverb/.ideas/creative-brief.md`
+- DSP architecture: `plugins/O-SimpleReverb/.ideas/architecture.md`
+- Implementation plan: `plugins/O-SimpleReverb/.ideas/plan.md`
 - Reference plugins: FlutterVerb, DriveVerb, LushVerb
 
 ### Next Steps
-Run `/implement OuariconSimpleReverb` to begin Stage 1 (Foundation + Shell)
+Plugin complete and installed.

@@ -62,6 +62,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBassAudioProcessor::createP
         0  // Default to Clean
     ));
 
+    // output - Output gain compensation
+    // Range: -18dB to +18dB, default 0dB (unity)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "output", 1 },
+        "Output",
+        juce::NormalisableRange<float>(-18.0f, 18.0f, 0.1f),
+        0.0f,  // Default 0dB
+        juce::AudioParameterFloatAttributes()
+            .withLabel("dB")
+    ));
+
     return layout;
 }
 
@@ -134,6 +145,17 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     auto* enhanceModeParam = parameters.getRawParameterValue("enhanceMode");
     modeCrossfade.setCurrentAndTargetValue(enhanceModeParam->load());  // 0.0 = Clean, 1.0 = Colored
 
+    // Initialize smoothed output gain (20ms ramp time, multiplicative for dB scale)
+    outputGainSmooth.reset(sampleRate, 0.020);
+    auto* outputParam = parameters.getRawParameterValue("output");
+    float initialGainLinear = juce::Decibels::decibelsToGain(outputParam->load());
+    outputGainSmooth.setCurrentAndTargetValue(initialGainLinear);
+
+    // Initialize limit indicator with 100ms decay for smooth UI display
+    limitIndicatorSmooth.reset(sampleRate, 0.100);
+    limitIndicatorSmooth.setCurrentAndTargetValue(0.0f);
+    limitIndicator.store(0.0f);
+
     // Report combined latency to host
     updateLatencyReport();
 }
@@ -152,7 +174,6 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     juce::ignoreUnused(midiMessages);
 
     const int numSamples = buffer.getNumSamples();
-    const int numChannels = buffer.getNumChannels();
 
     // Clear unused output channels
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
@@ -248,6 +269,54 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
     // Recombine low + high bands
     recombineBands(buffer, lowBandBuffer, highBandBuffer);
+
+    // Apply output gain with soft clipping
+    auto* outputParam = parameters.getRawParameterValue("output");
+    float targetGainLinear = juce::Decibels::decibelsToGain(outputParam->load());
+    outputGainSmooth.setTargetValue(targetGainLinear);
+
+    // Apply gain per-sample with soft clip protection
+    // NOTE: This output soft clipper is DEFENSE-IN-DEPTH, not duplicating processor limiting.
+    // - Processors (Clean/Colored) have internal tanh limiting at their processing stage
+    // - This output clipper catches: user Output boost + hot input + enhancement stacking
+    // - Threshold 0.95 prevents true 0dBFS clipping while allowing full loudness
+    // - Processors limit ~-2dB internally; this catches the final gain stage only
+    const int numChannels = buffer.getNumChannels();
+    float maxLimitAmount = 0.0f;
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        float gain = outputGainSmooth.getNextValue();
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            float sample = buffer.getSample(ch, i) * gain;
+
+            // Soft clip at ~0.95 to prevent digital clipping
+            // Uses tanh for smooth limiting at extreme output gain
+            // This is intentionally a higher threshold than processor limiting
+            // to allow normal dynamics while catching gain-boosted peaks
+            if (std::abs(sample) > 0.95f)
+            {
+                float sign = (sample > 0.0f) ? 1.0f : -1.0f;
+                float excess = std::abs(sample) - 0.95f;
+                float limitedSample = sign * (0.95f + std::tanh(excess * 10.0f) * 0.05f);
+
+                // Track limiting amount for UI indicator
+                float limitAmount = std::abs(sample) - std::abs(limitedSample);
+                maxLimitAmount = std::max(maxLimitAmount, limitAmount);
+
+                sample = limitedSample;
+            }
+
+            buffer.setSample(ch, i, sample);
+        }
+    }
+
+    // Update limit indicator (smoothed for UI display)
+    // Convert limit amount to 0-1 range (0.1 excess = full limiting)
+    float normalizedLimit = juce::jlimit(0.0f, 1.0f, maxLimitAmount * 10.0f);
+    limitIndicatorSmooth.setTargetValue(normalizedLimit);
+    limitIndicator.store(limitIndicatorSmooth.skip(numSamples));
 }
 
 juce::AudioProcessorEditor* OBassAudioProcessor::createEditor()

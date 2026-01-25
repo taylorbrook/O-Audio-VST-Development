@@ -4,30 +4,30 @@ cmake_minimum_required(VERSION 3.15)
 include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
-juce_add_plugin(OuariconSimpleReverb
+juce_add_plugin(O-SimpleReverb
     COMPANY_NAME "Ouaricon Audio"
     PLUGIN_MANUFACTURER_CODE OuAu
     PLUGIN_CODE OuSr
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "Ouaricon Simple Reverb"
+    PRODUCT_NAME "O-SimpleReverb"
     NEEDS_WEB_BROWSER TRUE
 )
 
 # Source files
-target_sources(OuariconSimpleReverb
+target_sources(O-SimpleReverb
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
 )
 
 # Include paths
-target_include_directories(OuariconSimpleReverb
+target_include_directories(O-SimpleReverb
     PRIVATE
         Source
 )
 
 # Required JUCE modules
-target_link_libraries(OuariconSimpleReverb
+target_link_libraries(O-SimpleReverb
     PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices
@@ -49,13 +49,13 @@ target_link_libraries(OuariconSimpleReverb
 )
 
 # Generate JuceHeader.h (JUCE 8 requirement)
-juce_generate_juce_header(OuariconSimpleReverb)
+juce_generate_juce_header(O-SimpleReverb)
 
 # Add Ouaricon Preset Manager module
-ouaricon_add_module(OuariconSimpleReverb preset-manager)
+ouaricon_add_module(O-SimpleReverb preset-manager)
 
 # WebView UI Resources
-juce_add_binary_data(OuariconSimpleReverb_UIResources
+juce_add_binary_data(O-SimpleReverb_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
@@ -65,13 +65,13 @@ juce_add_binary_data(OuariconSimpleReverb_UIResources
         Source/ui/public/img/flora.png
 )
 
-target_link_libraries(OuariconSimpleReverb
+target_link_libraries(O-SimpleReverb
     PRIVATE
-        OuariconSimpleReverb_UIResources
+        O-SimpleReverb_UIResources
 )
 
 # Compile definitions
-target_compile_definitions(OuariconSimpleReverb
+target_compile_definitions(O-SimpleReverb
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1

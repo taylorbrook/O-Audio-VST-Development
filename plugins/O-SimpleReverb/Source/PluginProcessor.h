@@ -1,11 +1,11 @@
 /*
   ==============================================================================
 
-    OuariconSimpleReverb - Audio Processor
+    O-SimpleReverb - Audio Processor
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.1.0 - Type-specific DSP for meaningful reverb differentiation
+    v1.5.0 - Renamed from OuariconSimpleReverb
 
   ==============================================================================
 */
@@ -15,7 +15,7 @@
 #include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
 
-class OuariconSimpleReverbAudioProcessor : public juce::AudioProcessor
+class OSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
 public:
     // ==================== DSP Constants ====================
@@ -42,8 +42,8 @@ public:
     static constexpr float kVuMeterFloorDB = -100.0f;
 
 
-    OuariconSimpleReverbAudioProcessor();
-    ~OuariconSimpleReverbAudioProcessor() override;
+    OSimpleReverbAudioProcessor();
+    ~OSimpleReverbAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -52,7 +52,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "Ouaricon Simple Reverb"; }
+    const juce::String getName() const override { return "O-SimpleReverb"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -167,5 +167,5 @@ private:
         *filter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
     }
 
-    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconSimpleReverbAudioProcessor)
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSimpleReverbAudioProcessor)
 };

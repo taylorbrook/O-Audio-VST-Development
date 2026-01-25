@@ -1,9 +1,11 @@
 /*
   ==============================================================================
 
-    OuariconSimpleReverb - Editor Implementation
+    O-SimpleReverb - Editor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
+
+    v1.5.0 - Renamed from OuariconSimpleReverb
 
   ==============================================================================
 */
@@ -11,7 +13,7 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 
-OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEditor(OuariconSimpleReverbAudioProcessor& p)
+OSimpleReverbAudioProcessorEditor::OSimpleReverbAudioProcessorEditor(OSimpleReverbAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
     // 1. Create relays FIRST (with parameter IDs matching HTML and APVTS)
@@ -172,26 +174,26 @@ OuariconSimpleReverbAudioProcessorEditor::OuariconSimpleReverbAudioProcessorEdit
     startTimerHz(30);
 }
 
-OuariconSimpleReverbAudioProcessorEditor::~OuariconSimpleReverbAudioProcessorEditor()
+OSimpleReverbAudioProcessorEditor::~OSimpleReverbAudioProcessorEditor()
 {
     stopTimer();
 }
 
 //==============================================================================
-void OuariconSimpleReverbAudioProcessorEditor::timerCallback()
+void OSimpleReverbAudioProcessorEditor::timerCallback()
 {
     // VU Meter - emit output level to WebView
     const float outputDB = processorRef.outputLevelDB.load(std::memory_order_relaxed);
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
 
-void OuariconSimpleReverbAudioProcessorEditor::paint(juce::Graphics& g)
+void OSimpleReverbAudioProcessorEditor::paint(juce::Graphics& g)
 {
     // WebView handles all painting
     juce::ignoreUnused(g);
 }
 
-void OuariconSimpleReverbAudioProcessorEditor::resized()
+void OSimpleReverbAudioProcessorEditor::resized()
 {
     // WebView fills entire editor
     if (webView)
@@ -199,7 +201,7 @@ void OuariconSimpleReverbAudioProcessorEditor::resized()
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
-OuariconSimpleReverbAudioProcessorEditor::getResource(const juce::String& url)
+OSimpleReverbAudioProcessorEditor::getResource(const juce::String& url)
 {
     // Helper to convert BinaryData to byte vector
     auto makeVector = [](const char* data, int size) {
