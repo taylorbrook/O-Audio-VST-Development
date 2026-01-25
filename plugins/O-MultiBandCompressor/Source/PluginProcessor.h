@@ -12,7 +12,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
-#include "DSP/Compressor.h"
+#include "DSP/MultiBandProcessor.h"
 
 class OMultiBandCompressorAudioProcessor : public juce::AudioProcessor
 {
@@ -44,15 +44,18 @@ public:
 
     juce::AudioProcessorValueTreeState& getParameters() { return parameters; }
 
-    // Access to gain reduction meter for UI
+    // Access to gain reduction meters for UI (all 4 bands)
     float getLowBandGainReduction() const { return lowBandGainReduction.load(std::memory_order_relaxed); }
+    float getLoMidBandGainReduction() const { return loMidBandGainReduction.load(std::memory_order_relaxed); }
+    float getHiMidBandGainReduction() const { return hiMidBandGainReduction.load(std::memory_order_relaxed); }
+    float getHighBandGainReduction() const { return highBandGainReduction.load(std::memory_order_relaxed); }
 
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
 
-    // Phase 4.1: Single-band compressor (LOW band only)
-    Compressor lowBandCompressor;
+    // Phase 4.2: Multiband processor (4-band crossover + compressors)
+    MultiBandProcessor multibandProcessor;
 
     // Gain stages
     juce::dsp::Gain<float> inputGain;
@@ -60,6 +63,9 @@ private:
 
     // Gain reduction metering (atomic for thread-safe UI access)
     std::atomic<float> lowBandGainReduction { 0.0f };
+    std::atomic<float> loMidBandGainReduction { 0.0f };
+    std::atomic<float> hiMidBandGainReduction { 0.0f };
+    std::atomic<float> highBandGainReduction { 0.0f };
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;

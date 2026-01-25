@@ -222,15 +222,15 @@ void OMultiBandCompressorAudioProcessor::prepareToPlay(double sampleRate, int sa
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
 
-    // Prepare LOW band compressor
-    lowBandCompressor.prepare(sampleRate, samplesPerBlock);
+    // Prepare multiband processor (crossover + 4 compressors)
+    multibandProcessor.prepare(sampleRate, samplesPerBlock, getTotalNumOutputChannels());
 
     // Prepare gain stages
     inputGain.prepare(spec);
     outputGain.prepare(spec);
 
     // Reset components to initial state
-    lowBandCompressor.reset();
+    multibandProcessor.reset();
     inputGain.reset();
     outputGain.reset();
 }
@@ -262,30 +262,43 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
     float outputGainDB = outputGainParam->load();
 
-    // LOW band compressor parameters (Phase 4.1: single-band only)
-    auto* thresholdParam = parameters.getRawParameterValue("LOW_THRESHOLD");
-    float threshold = thresholdParam->load();
+    // Crossover frequencies
+    auto* xover1Param = parameters.getRawParameterValue("XOVER1");
+    float xover1 = xover1Param->load();
 
-    auto* ratioParam = parameters.getRawParameterValue("LOW_RATIO");
-    float ratio = ratioParam->load();
+    auto* xover2Param = parameters.getRawParameterValue("XOVER2");
+    float xover2 = xover2Param->load();
 
-    auto* attackParam = parameters.getRawParameterValue("LOW_ATTACK");
-    float attack = attackParam->load();
+    auto* xover3Param = parameters.getRawParameterValue("XOVER3");
+    float xover3 = xover3Param->load();
 
-    auto* releaseParam = parameters.getRawParameterValue("LOW_RELEASE");
-    float release = releaseParam->load();
+    // Per-band parameters (arrays indexed by band: 0=LOW, 1=LOMID, 2=HIMID, 3=HIGH)
+    const char* bandPrefixes[4] = { "LOW", "LOMID", "HIMID", "HIGH" };
 
-    auto* kneeParam = parameters.getRawParameterValue("LOW_KNEE");
-    float knee = kneeParam->load();
+    float thresholds[4];
+    float ratios[4];
+    float attacks[4];
+    float releases[4];
+    float knees[4];
+    float makeups[4];
+    float peakRmsBlends[4];
+    bool bypasses[4];
+    bool solos[4];
 
-    auto* makeupParam = parameters.getRawParameterValue("LOW_MAKEUP");
-    float makeup = makeupParam->load();
+    for (int band = 0; band < 4; ++band)
+    {
+        juce::String prefix = bandPrefixes[band];
 
-    auto* peakRmsParam = parameters.getRawParameterValue("LOW_PEAK_RMS");
-    float peakRms = peakRmsParam->load();
-
-    auto* bypassParam = parameters.getRawParameterValue("LOW_BYPASS");
-    bool bypass = bypassParam->load() > 0.5f;
+        thresholds[band] = parameters.getRawParameterValue(prefix + "_THRESHOLD")->load();
+        ratios[band] = parameters.getRawParameterValue(prefix + "_RATIO")->load();
+        attacks[band] = parameters.getRawParameterValue(prefix + "_ATTACK")->load();
+        releases[band] = parameters.getRawParameterValue(prefix + "_RELEASE")->load();
+        knees[band] = parameters.getRawParameterValue(prefix + "_KNEE")->load();
+        makeups[band] = parameters.getRawParameterValue(prefix + "_MAKEUP")->load();
+        peakRmsBlends[band] = parameters.getRawParameterValue(prefix + "_PEAK_RMS")->load();
+        bypasses[band] = parameters.getRawParameterValue(prefix + "_BYPASS")->load() > 0.5f;
+        solos[band] = parameters.getRawParameterValue(prefix + "_SOLO")->load() > 0.5f;
+    }
 
     // ===== Process Audio =====
 
@@ -295,13 +308,33 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     juce::dsp::ProcessContextReplacing<float> inputContext(inputBlock);
     inputGain.process(inputContext);
 
-    // Update compressor parameters
-    lowBandCompressor.setAttackTime(attack);
-    lowBandCompressor.setReleaseTime(release);
+    // Update crossover frequencies
+    multibandProcessor.updateCrossoverFrequencies(xover1, xover2, xover3);
 
-    // Process compressor (stereo-linked)
-    lowBandCompressor.processStereo(buffer, threshold, ratio, knee, makeup,
-                                   peakRms, bypass, lowBandGainReduction);
+    // Update compressor attack/release times
+    multibandProcessor.setAttackTimes(attacks);
+    multibandProcessor.setReleaseTimes(releases);
+
+    // Array of gain reduction meters
+    std::atomic<float>* grMeters[4] = {
+        &lowBandGainReduction,
+        &loMidBandGainReduction,
+        &hiMidBandGainReduction,
+        &highBandGainReduction
+    };
+
+    // Process multiband compression (crossover + 4 compressors + summation)
+    multibandProcessor.processMultiband(
+        buffer,
+        thresholds,
+        ratios,
+        knees,
+        makeups,
+        peakRmsBlends,
+        bypasses,
+        solos,
+        grMeters
+    );
 
     // Apply output gain
     outputGain.setGainDecibels(outputGainDB);
