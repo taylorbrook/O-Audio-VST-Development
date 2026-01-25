@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-MultiBandCompressor</title>
+    <link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+    <div class="plugin-container">
+        <!-- Header -->
+        <header class="plugin-header">
+            <h1 class="plugin-title">O-MultiBandCompressor</h1>
+            <span class="brand-name">Ouaricon Audio</span>
+        </header>
+
+        <!-- Spectrum Analyzer Area -->
+        <section class="spectrum-section">
+            <div class="meter input-meter">
+                <div class="meter-fill" id="inputMeterFill"></div>
+                <span class="meter-label">IN</span>
+            </div>
+
+            <div class="spectrum-container">
+                <canvas id="spectrum-canvas" class="spectrum-canvas"></canvas>
+                <div class="spectrum-overlay">
+                    <div class="crossover-line" id="crossover1" style="left: 15%;">
+                        <div class="crossover-handle"></div>
+                        <span class="crossover-label">200 Hz</span>
+                    </div>
+                    <div class="crossover-line" id="crossover2" style="left: 45%;">
+                        <div class="crossover-handle"></div>
+                        <span class="crossover-label">2 kHz</span>
+                    </div>
+                    <div class="crossover-line" id="crossover3" style="left: 75%;">
+                        <div class="crossover-handle"></div>
+                        <span class="crossover-label">8 kHz</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="meter output-meter">
+                <div class="meter-fill" id="outputMeterFill"></div>
+                <span class="meter-label">OUT</span>
+            </div>
+        </section>
+
+        <!-- Band Controls -->
+        <section class="bands-section">
+            <!-- Low Band -->
+            <div class="band" id="band-low">
+                <div class="band-header">
+                    <h3 class="band-title">LOW</h3>
+                    <div class="band-range">20 Hz - 200 Hz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grLow"></div>
+                        <span class="gr-label">GR</span>
+                    </div>
+                    <div class="controls-placeholder">
+                        <p>Phase 5.2</p>
+                        <p>Threshold, Ratio</p>
+                        <p>Attack, Release</p>
+                        <p>Makeup, Knee</p>
+                        <p>Peak/RMS</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Low-Mid Band -->
+            <div class="band" id="band-lomid">
+                <div class="band-header">
+                    <h3 class="band-title">LOW-MID</h3>
+                    <div class="band-range">200 Hz - 2 kHz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grLomid"></div>
+                        <span class="gr-label">GR</span>
+                    </div>
+                    <div class="controls-placeholder">
+                        <p>Phase 5.2</p>
+                        <p>Threshold, Ratio</p>
+                        <p>Attack, Release</p>
+                        <p>Makeup, Knee</p>
+                        <p>Peak/RMS</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- High-Mid Band -->
+            <div class="band" id="band-himid">
+                <div class="band-header">
+                    <h3 class="band-title">HIGH-MID</h3>
+                    <div class="band-range">2 kHz - 8 kHz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grHimid"></div>
+                        <span class="gr-label">GR</span>
+                    </div>
+                    <div class="controls-placeholder">
+                        <p>Phase 5.2</p>
+                        <p>Threshold, Ratio</p>
+                        <p>Attack, Release</p>
+                        <p>Makeup, Knee</p>
+                        <p>Peak/RMS</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- High Band -->
+            <div class="band" id="band-high">
+                <div class="band-header">
+                    <h3 class="band-title">HIGH</h3>
+                    <div class="band-range">8 kHz - 20 kHz</div>
+                </div>
+                <div class="band-controls">
+                    <div class="gr-meter">
+                        <div class="gr-fill" id="grHigh"></div>
+                        <span class="gr-label">GR</span>
+                    </div>
+                    <div class="controls-placeholder">
+                        <p>Phase 5.2</p>
+                        <p>Threshold, Ratio</p>
+                        <p>Attack, Release</p>
+                        <p>Makeup, Knee</p>
+                        <p>Peak/RMS</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Global Controls -->
+        <footer class="global-controls">
+            <div class="control-group">
+                <label class="control-label">Input</label>
+                <div class="knob-placeholder">
+                    <div class="placeholder-circle"></div>
+                    <div class="placeholder-text">0 dB</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Mix</label>
+                <div class="knob-placeholder">
+                    <div class="placeholder-circle"></div>
+                    <div class="placeholder-text">100%</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Auto-MU</label>
+                <div class="toggle-placeholder">
+                    <div class="placeholder-switch"></div>
+                    <div class="placeholder-text">Off</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">M/S Mode</label>
+                <div class="select-placeholder">
+                    <div class="placeholder-select">Off</div>
+                </div>
+            </div>
+
+            <div class="control-group">
+                <label class="control-label">Output</label>
+                <div class="knob-placeholder">
+                    <div class="placeholder-circle"></div>
+                    <div class="placeholder-text">0 dB</div>
+                </div>
+            </div>
+        </footer>
+    </div>
+
+    <!-- JUCE WebView Bridge -->
+    <script type="module" src="js/juce/check_native_interop.js"></script>
+    <script type="module" src="js/app.js"></script>
+</body>
+</html>

@@ -10,6 +10,16 @@ juce_add_plugin(O-MultiBandCompressor
     NEEDS_WEB_BROWSER TRUE
 )
 
+# WebView UI Resources (Phase 5.1)
+juce_add_binary_data(O-MultiBandCompressor_UIResources
+    SOURCES
+        Source/ui/public/index.html
+        Source/ui/public/css/styles.css
+        Source/ui/public/js/app.js
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+)
+
 # Source files
 target_sources(O-MultiBandCompressor
     PRIVATE
@@ -26,6 +36,7 @@ target_include_directories(O-MultiBandCompressor
 # Required JUCE modules
 target_link_libraries(O-MultiBandCompressor
     PRIVATE
+        O-MultiBandCompressor_UIResources
         juce::juce_audio_basics
         juce::juce_audio_devices
         juce::juce_audio_formats
