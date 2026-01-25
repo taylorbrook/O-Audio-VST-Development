@@ -258,6 +258,22 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     if (buffer.getNumSamples() == 0)
         return;
 
+    // ===== Phase 5.3: Measure Input Levels =====
+    const int numChannels = buffer.getNumChannels();
+    const int numSamples = buffer.getNumSamples();
+
+    if (numChannels >= 1)
+    {
+        float inputMaxL = buffer.getMagnitude(0, 0, numSamples);
+        inputLevelL.store(inputMaxL, std::memory_order_relaxed);
+    }
+
+    if (numChannels >= 2)
+    {
+        float inputMaxR = buffer.getMagnitude(1, 0, numSamples);
+        inputLevelR.store(inputMaxR, std::memory_order_relaxed);
+    }
+
     // ===== Read Parameters (atomic, real-time safe) =====
 
     // Global parameters
@@ -336,8 +352,6 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     dryWetMixer.pushDrySamples(dryWetBlock);
 
     // M/S Encoding (if enabled)
-    const int numChannels = buffer.getNumChannels();
-    const int numSamples = buffer.getNumSamples();
 
     if (msMode > 0 && numChannels == 2)
     {
@@ -487,6 +501,19 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     juce::dsp::AudioBlock<float> outputBlock(buffer);
     juce::dsp::ProcessContextReplacing<float> outputContext(outputBlock);
     outputGain.process(outputContext);
+
+    // ===== Phase 5.3: Measure Output Levels =====
+    if (numChannels >= 1)
+    {
+        float outputMaxL = buffer.getMagnitude(0, 0, numSamples);
+        outputLevelL.store(outputMaxL, std::memory_order_relaxed);
+    }
+
+    if (numChannels >= 2)
+    {
+        float outputMaxR = buffer.getMagnitude(1, 0, numSamples);
+        outputLevelR.store(outputMaxR, std::memory_order_relaxed);
+    }
 }
 
 juce::AudioProcessorEditor* OMultiBandCompressorAudioProcessor::createEditor()

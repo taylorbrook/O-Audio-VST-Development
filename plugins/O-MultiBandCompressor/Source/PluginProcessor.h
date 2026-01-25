@@ -50,6 +50,12 @@ public:
     float getHiMidBandGainReduction() const { return hiMidBandGainReduction.load(std::memory_order_relaxed); }
     float getHighBandGainReduction() const { return highBandGainReduction.load(std::memory_order_relaxed); }
 
+    // Access to input/output level meters for UI (Phase 5.3)
+    float getInputLevelL() const { return inputLevelL.load(std::memory_order_relaxed); }
+    float getInputLevelR() const { return inputLevelR.load(std::memory_order_relaxed); }
+    float getOutputLevelL() const { return outputLevelL.load(std::memory_order_relaxed); }
+    float getOutputLevelR() const { return outputLevelR.load(std::memory_order_relaxed); }
+
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
@@ -69,6 +75,12 @@ private:
     std::atomic<float> loMidBandGainReduction { 0.0f };
     std::atomic<float> hiMidBandGainReduction { 0.0f };
     std::atomic<float> highBandGainReduction { 0.0f };
+
+    // Input/output level metering (Phase 5.3)
+    std::atomic<float> inputLevelL { 0.0f };
+    std::atomic<float> inputLevelR { 0.0f };
+    std::atomic<float> outputLevelL { 0.0f };
+    std::atomic<float> outputLevelR { 0.0f };
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;

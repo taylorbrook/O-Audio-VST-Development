@@ -14,7 +14,8 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OMultiBandCompressorAudioProcessorEditor : public juce::AudioProcessorEditor
+class OMultiBandCompressorAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                                  private juce::Timer
 {
 public:
     explicit OMultiBandCompressorAudioProcessorEditor(OMultiBandCompressorAudioProcessor&);
@@ -23,6 +24,15 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void parentHierarchyChanged() override;
+
+private:
+    // Timer callback for metering updates
+    void timerCallback() override;
+
+    // Send meter data to WebView
+    void sendGainReductionMeters();
+    void sendInputOutputMeters();
+    void sendCrossoverPositions();
 
 private:
     OMultiBandCompressorAudioProcessor& processorRef;
@@ -178,3 +188,4 @@ private:
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OMultiBandCompressorAudioProcessorEditor)
 };
+

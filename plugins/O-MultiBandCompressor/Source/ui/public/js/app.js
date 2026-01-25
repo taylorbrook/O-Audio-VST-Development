@@ -336,3 +336,87 @@ function initializeSpectrumPlaceholder() {
     ctx.fillText('Spectrum Analyzer', width / 2, height / 2 - 10);
     ctx.fillText('(Phase 5.3)', width / 2, height / 2 + 10);
 }
+
+// ========== PHASE 5.3: METERING FUNCTIONS ==========
+
+// Called by C++ to update gain reduction meters
+window.updateGainReductionMeters = function(lowNorm, lomidNorm, himidNorm, highNorm) {
+    // Update each band's GR meter (normalized 0-1, where 1 = full -24 dB GR)
+    updateMeterFill('grLow', lowNorm);
+    updateMeterFill('grLomid', lomidNorm);
+    updateMeterFill('grHimid', himidNorm);
+    updateMeterFill('grHigh', highNorm);
+};
+
+// Called by C++ to update input/output level meters
+window.updateInputOutputMeters = function(inputLevel, outputLevel) {
+    // Update meters (normalized 0-1 linear)
+    updateMeterFill('inputMeterFill', inputLevel);
+    updateMeterFill('outputMeterFill', outputLevel);
+};
+
+// Called by C++ to update crossover line positions
+window.updateCrossoverPositions = function(xover1Hz, xover2Hz, xover3Hz) {
+    // Convert Hz to X position (log scale: 20 Hz = 0%, 20000 Hz = 100%)
+    const xover1Pos = freqToX(xover1Hz);
+    const xover2Pos = freqToX(xover2Hz);
+    const xover3Pos = freqToX(xover3Hz);
+
+    // Update line positions
+    const crossover1 = document.getElementById('crossover1');
+    const crossover2 = document.getElementById('crossover2');
+    const crossover3 = document.getElementById('crossover3');
+
+    if (crossover1) {
+        crossover1.style.left = `${xover1Pos}%`;
+        const label = crossover1.querySelector('.crossover-label');
+        if (label) label.textContent = formatFrequency(xover1Hz);
+    }
+
+    if (crossover2) {
+        crossover2.style.left = `${xover2Pos}%`;
+        const label = crossover2.querySelector('.crossover-label');
+        if (label) label.textContent = formatFrequency(xover2Hz);
+    }
+
+    if (crossover3) {
+        crossover3.style.left = `${xover3Pos}%`;
+        const label = crossover3.querySelector('.crossover-label');
+        if (label) label.textContent = formatFrequency(xover3Hz);
+    }
+};
+
+// Helper: Update meter fill height/width
+function updateMeterFill(elementId, normalizedValue) {
+    const element = document.getElementById(elementId);
+    if (!element) return;
+
+    // Clamp to valid range
+    const clamped = Math.max(0, Math.min(1, normalizedValue));
+
+    // Check if it's a vertical meter (input/output) or horizontal (GR)
+    if (elementId === 'inputMeterFill' || elementId === 'outputMeterFill') {
+        // Vertical meter - height from bottom
+        element.style.height = `${clamped * 100}%`;
+    } else {
+        // Horizontal GR meter - width from left
+        element.style.width = `${clamped * 100}%`;
+    }
+}
+
+// Helper: Convert frequency to X position (log scale)
+function freqToX(freq) {
+    const minLog = Math.log10(20);
+    const maxLog = Math.log10(20000);
+    const freqLog = Math.log10(Math.max(20, Math.min(20000, freq)));
+    return ((freqLog - minLog) / (maxLog - minLog)) * 100;
+}
+
+// Helper: Format frequency for display
+function formatFrequency(freq) {
+    if (freq >= 1000) {
+        return (freq / 1000).toFixed(1) + ' kHz';
+    } else {
+        return freq.toFixed(0) + ' Hz';
+    }
+}
