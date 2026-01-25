@@ -565,9 +565,10 @@ function getIntervalClass(cents) {
 > **🔄 REVISED SCOPE (2026-01-24):**
 > - 3.1 MTS-ESP → ⏸️ DEFERRED (will implement in future version)
 > - 3.2 Scale Generators → ✅ COMPLETE (v1.14.0)
-> - 3.3 Factory Library → 🔜 NEXT
-> - 3.4 Export → ⏳ Pending (SCL/KBM already exist, only HTML needed)
-> - NEW: Add Scale Degree UI → ⏳ Pending
+> - 3.3 Factory Library → ✅ COMPLETE (v1.15.0)
+> - 3.4 Export (HTML) → ✅ COMPLETE (v1.16.0)
+>
+> **Phase 3 COMPLETE.** Ready for Phase 4: Professional Polish.
 >
 > See `IMPLEMENTATION-GUIDE.md` for current task tracking.
 
@@ -928,11 +929,18 @@ juce::String TuningExporter::exportAsHTML(const TuningEngine& engine)
 
 ---
 
-## Phase 4: Professional Polish
+## Phase 4: Professional Polish ⏸️ DEFERRED
 
-**Priority:** Medium-Low
-**Estimated Complexity:** High
-**Dependencies:** Phases 1-3 complete
+**Status:** Deferred (2026-01-24)
+**Reason:**
+- 4.1 Unison Detuning: Not applicable to harp model (harps have single string per pitch)
+- 4.2 Apply Tuning Options: Deferred by user preference
+- 4.3 Interactive Interval Matrix: Deferred by user preference
+
+---
+
+<details>
+<summary>Original Phase 4 Specification (archived)</summary>
 
 ### 4.1 Unison Detuning (Multi-String)
 
@@ -1015,8 +1023,6 @@ void WaveguideString::updateUnisonDetuning()
 **CPU Impact:** 2x-3x per voice when enabled
 
 **UI Location:** String Properties section (new "Unison" subsection)
-
----
 
 ### 4.2 Apply Tuning Options
 
@@ -1179,6 +1185,8 @@ async function sendIntervalsToNative() {
 }
 ```
 
+</details>
+
 ---
 
 ## Implementation Timeline
@@ -1203,22 +1211,22 @@ async function sendIntervalsToNative() {
 | Modal rotation matrix | ✅ | index.html (JS/CSS) |
 | View mode switching | ✅ | index.html (UI logic) |
 
-### Phase 3: Advanced Features
-**Estimated Duration:** 3-4 weeks
-| Task | Complexity | Files Modified |
-|------|------------|----------------|
-| MTS-ESP client | High | TuningEngine, CMakeLists, new deps |
-| Scale generators | Medium | New ScaleGenerator class, UI |
-| Factory tuning library | Medium | New EmbeddedTunings, UI browser |
-| Export functionality | Medium | New TuningExporter class, UI |
+### Phase 3: Advanced Features ✅ COMPLETE (v1.16.0)
+**Completed:** 2026-01-24
+| Task | Status | Files Modified |
+|------|--------|----------------|
+| MTS-ESP client | ⏸️ Deferred | - |
+| Scale generators | ✅ | ScaleGenerator class, UI (v1.14.0) |
+| Factory tuning library | ✅ | EmbeddedTunings.h/.cpp, UI browser (v1.15.0) |
+| Export functionality (HTML) | ✅ | TuningExporter.h/.cpp, UI (v1.16.0) |
 
-### Phase 4: Professional Polish
-**Estimated Duration:** 3-4 weeks
-| Task | Complexity | Files Modified |
-|------|------------|----------------|
-| Unison detuning | High | WaveguideString (major changes) |
-| Apply tuning options | Medium | TuningEngine, voice processing |
-| Interactive interval matrix | Medium | index.html (complex JS) |
+### Phase 4: Professional Polish ⏸️ DEFERRED
+**Status:** Deferred (2026-01-24)
+| Task | Status | Reason |
+|------|--------|--------|
+| Unison detuning | ❌ N/A | Not applicable to harp (single string per pitch) |
+| Apply tuning options | ⏸️ Deferred | User preference |
+| Interactive interval matrix | ⏸️ Deferred | User preference |
 
 ---
 
@@ -1265,11 +1273,8 @@ async function sendIntervalsToNative() {
 - [ ] Factory library loads all tunings without errors
 - [ ] Export produces valid SCL/KBM/HTML files
 
-### Phase 4 Testing
-- [ ] Unison detuning produces expected beating
-- [ ] CPU impact of unison within acceptable limits
-- [ ] Apply tuning option affects pitch bend correctly
-- [ ] Interactive matrix allows smooth retuning
+### Phase 4 Testing ⏸️ DEFERRED
+- N/A (Phase 4 deferred)
 
 ---
 
@@ -1291,10 +1296,8 @@ async function sendIntervalsToNative() {
 - 20+ factory tunings bundled
 - Export to SCL/KBM/HTML functional
 
-### Phase 4 Complete When:
-- Unison detuning creates audibly richer sound
-- All professional features stable and documented
-- Performance remains within acceptable limits
+### Phase 4 Complete When: ⏸️ DEFERRED
+- N/A (Phase 4 deferred)
 
 ---
 
@@ -1319,3 +1322,4 @@ async function sendIntervalsToNative() {
 | Version | Date | Changes |
 |---------|------|---------|
 | 1.0 | 2026-01-21 | Initial plan based on Pianoteq/Surge research |
+| 1.1 | 2026-01-24 | Phase 3 completed (v1.14.0-v1.16.0). Phase 4 deferred: 4.1 not applicable to harp model, 4.2/4.3 deferred by user preference |
