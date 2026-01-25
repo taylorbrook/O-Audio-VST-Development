@@ -211,25 +211,36 @@ OMultiBandCompressorAudioProcessorEditor::getResource(const juce::String& url)
     if (resource == "/" || resource.isEmpty())
         resource = "/index.html";
 
-    // Remove leading slash for BinaryData lookup
+    // Remove leading slash
     auto path = resource.substring(1);
 
-    // Find in binary data (files embedded from ui/public/)
+    // Extract just the filename (remove any directory path)
+    // e.g., "css/styles.css" → "styles.css"
+    // e.g., "js/juce/check_native_interop.js" → "check_native_interop.js"
+    auto filename = path;
+    if (path.contains("/"))
+        filename = path.fromLastOccurrenceOf("/", false, false);
+
+    // Find in binary data by matching original filename
     for (int i = 0; i < BinaryData::namedResourceListSize; ++i)
     {
-        if (path == BinaryData::namedResourceList[i])
+        // Compare against original filenames (not mangled names)
+        if (filename == BinaryData::originalFilenames[i])
         {
             int dataSize = 0;
             const char* data = BinaryData::getNamedResource(
                 BinaryData::namedResourceList[i], dataSize);
 
+            if (data == nullptr || dataSize == 0)
+                continue;
+
             // Determine MIME type
             juce::String mimeType = "text/html";
-            if (path.endsWith(".css")) mimeType = "text/css";
-            if (path.endsWith(".js")) mimeType = "application/javascript";
-            if (path.endsWith(".png")) mimeType = "image/png";
-            if (path.endsWith(".jpg") || path.endsWith(".jpeg")) mimeType = "image/jpeg";
-            if (path.endsWith(".svg")) mimeType = "image/svg+xml";
+            if (filename.endsWith(".css")) mimeType = "text/css";
+            if (filename.endsWith(".js")) mimeType = "application/javascript";
+            if (filename.endsWith(".png")) mimeType = "image/png";
+            if (filename.endsWith(".jpg") || filename.endsWith(".jpeg")) mimeType = "image/jpeg";
+            if (filename.endsWith(".svg")) mimeType = "image/svg+xml";
 
             // Convert char* to std::vector<std::byte> for JUCE 8
             std::vector<std::byte> dataVector(dataSize);
@@ -242,7 +253,7 @@ OMultiBandCompressorAudioProcessorEditor::getResource(const juce::String& url)
     }
 
     // Resource not found
-    juce::Logger::writeToLog("Resource not found: " + url);
+    juce::Logger::writeToLog("Resource not found: " + url + " (looking for: " + filename + ")");
     return std::nullopt;
 }
 
