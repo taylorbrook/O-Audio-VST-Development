@@ -72,6 +72,7 @@ juce_add_binary_data(OBass_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/botanical.png
+        Source/ui/public/modules/preset-manager.js
 )
 
 target_link_libraries(OBass
