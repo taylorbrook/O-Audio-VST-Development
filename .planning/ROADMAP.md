@@ -127,7 +127,7 @@ Plans:
 - [x] 06-02-PLAN.md — Build, validation (pluginval + auval), and human DAW verification
 
 ### Phase 7: Oversampling & Adaptive Harmonics
-**Goal**: Implement the 4x oversampling and pitch-adaptive harmonics that were planned but simplified during Phase 2
+**Goal**: Wire 4x oversampling and pitch-adaptive harmonics that were planned but bypassed during Phase 2
 **Depends on**: Phase 6
 **Requirements**: DSP-04
 **Gap Closure**: Closes tech debt from v1.0 audit (dead code, orphaned components)
@@ -137,7 +137,7 @@ Plans:
   3. No dead code paths (processOversampled either integrated or removed)
   4. Documentation matches implementation (STATE.md decisions accurate)
   5. pluginval still passes at strictness 10 after changes
-**Plans**: TBD
+**Plans**: 3 plans in 3 waves
 
 Plans:
 - [ ] 07-01-PLAN.md — Wire 4x oversampling into HarmonicGenerator
