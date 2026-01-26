@@ -265,6 +265,7 @@ void OMultiBandCompressorAudioProcessorEditor::timerCallback()
     sendGainReductionMeters();
     sendInputOutputMeters();
     sendCrossoverPositions();
+    sendSpectrumData();  // v1.2.0: FFT spectrum analyzer
 }
 
 void OMultiBandCompressorAudioProcessorEditor::sendGainReductionMeters()
@@ -352,6 +353,56 @@ void OMultiBandCompressorAudioProcessorEditor::sendCrossoverPositions()
         "updateCrossoverPositions(%f, %f, %f); }",
         xover1, xover2, xover3
     );
+
+    webView->evaluateJavascript(script);
+}
+
+void OMultiBandCompressorAudioProcessorEditor::sendSpectrumData()
+{
+    if (!webView || !hasNavigated)
+        return;
+
+    // Only send if new FFT data is available
+    if (!processorRef.isSpectrumDataReady())
+        return;
+
+    processorRef.clearSpectrumDataReady();
+
+    // Get spectrum data from processor
+    const auto& spectrumData = processorRef.getSpectrumData();
+
+    // Build JSON array of magnitude values (downsampled for performance)
+    // Send 128 bins instead of 1024 for efficient WebView transfer
+    constexpr int numBinsToSend = 128;
+    constexpr int binStep = FFT_NUM_BINS / numBinsToSend;
+
+    juce::String jsonArray = "[";
+
+    for (int i = 0; i < numBinsToSend; ++i)
+    {
+        // Average multiple bins for smoother display
+        float sum = 0.0f;
+        int startBin = i * binStep;
+        int endBin = std::min(startBin + binStep, FFT_NUM_BINS);
+
+        for (int bin = startBin; bin < endBin; ++bin)
+        {
+            sum += spectrumData[static_cast<size_t>(bin)].load(std::memory_order_relaxed);
+        }
+
+        float avgMagnitude = sum / static_cast<float>(endBin - startBin);
+
+        if (i > 0)
+            jsonArray += ",";
+
+        jsonArray += juce::String(avgMagnitude, 4);
+    }
+
+    jsonArray += "]";
+
+    // Call JavaScript function to update spectrum display
+    juce::String script = "if (typeof updateSpectrumData === 'function') { "
+                          "updateSpectrumData(" + jsonArray + "); }";
 
     webView->evaluateJavascript(script);
 }

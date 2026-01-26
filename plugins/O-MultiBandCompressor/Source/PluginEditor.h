@@ -33,6 +33,7 @@ private:
     void sendGainReductionMeters();
     void sendInputOutputMeters();
     void sendCrossoverPositions();
+    void sendSpectrumData();  // v1.2.0: FFT spectrum analyzer
 
 private:
     OMultiBandCompressorAudioProcessor& processorRef;

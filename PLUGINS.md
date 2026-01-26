@@ -35,7 +35,7 @@ Ouaricon Plugins:
 | O-SimpleReverb | 📦 Installed | 1.5.0 | Audio Effect (Reverb) | 2026-01-24 |
 | O-Polystutter | 📦 Installed | 1.6.8 | Audio Effect (Beat Repeater) | 2026-01-24 |
 | O-Lyrica | 📦 Installed | 1.17.0 | Synth (Physical Modeling Harp) | 2026-01-25 |
-| O-MultiBandCompressor | 📦 Installed | 1.1.0 | Audio Effect (Dynamics) | 2026-01-25 |
+| O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-25 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

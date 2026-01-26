@@ -271,68 +271,165 @@ function bindComboBox(elementId, parameterId) {
     }
 }
 
-// ========== SPECTRUM ANALYZER PLACEHOLDER ==========
+// ========== SPECTRUM ANALYZER (v1.2.0) ==========
+
+// Spectrum state
+let spectrumCanvas = null;
+let spectrumCtx = null;
+let spectrumWidth = 0;
+let spectrumHeight = 0;
+let smoothedSpectrum = new Array(128).fill(0);
+const SMOOTHING_FACTOR = 0.7; // Higher = smoother (0-1)
 
 function initializeSpectrumPlaceholder() {
-    const canvas = document.getElementById('spectrum-canvas');
-    if (!canvas) return;
+    spectrumCanvas = document.getElementById('spectrum-canvas');
+    if (!spectrumCanvas) return;
 
-    const ctx = canvas.getContext('2d');
-    canvas.width = canvas.offsetWidth * 2; // Retina resolution
-    canvas.height = canvas.offsetHeight * 2;
-    ctx.scale(2, 2);
+    spectrumCtx = spectrumCanvas.getContext('2d');
 
-    const width = canvas.offsetWidth;
-    const height = canvas.offsetHeight;
+    // Set canvas size with retina support
+    const dpr = window.devicePixelRatio || 1;
+    spectrumWidth = spectrumCanvas.offsetWidth;
+    spectrumHeight = spectrumCanvas.offsetHeight;
+    spectrumCanvas.width = spectrumWidth * dpr;
+    spectrumCanvas.height = spectrumHeight * dpr;
+    spectrumCtx.scale(dpr, dpr);
+
+    // Draw initial state (grid only, waiting for data)
+    drawSpectrumGrid();
+    drawSpectrumPlaceholderText();
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+        if (!spectrumCanvas) return;
+        const dpr = window.devicePixelRatio || 1;
+        spectrumWidth = spectrumCanvas.offsetWidth;
+        spectrumHeight = spectrumCanvas.offsetHeight;
+        spectrumCanvas.width = spectrumWidth * dpr;
+        spectrumCanvas.height = spectrumHeight * dpr;
+        spectrumCtx.scale(dpr, dpr);
+    });
+}
+
+function drawSpectrumGrid() {
+    if (!spectrumCtx) return;
+
+    // Clear canvas
+    spectrumCtx.clearRect(0, 0, spectrumWidth, spectrumHeight);
 
     // Draw grid
-    ctx.strokeStyle = 'rgba(139, 115, 85, 0.2)';
-    ctx.lineWidth = 1;
+    spectrumCtx.strokeStyle = 'rgba(139, 115, 85, 0.15)';
+    spectrumCtx.lineWidth = 1;
 
-    // Horizontal lines (dB grid)
-    for (let i = 0; i <= 4; i++) {
-        const y = (height / 4) * i;
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(width, y);
-        ctx.stroke();
+    // Horizontal lines (dB grid: 0, -20, -40, -60, -80, -100 dB)
+    for (let i = 0; i <= 5; i++) {
+        const y = (spectrumHeight / 5) * i;
+        spectrumCtx.beginPath();
+        spectrumCtx.moveTo(0, y);
+        spectrumCtx.lineTo(spectrumWidth, y);
+        spectrumCtx.stroke();
     }
 
-    // Vertical lines (frequency grid)
-    for (let i = 0; i <= 10; i++) {
-        const x = (width / 10) * i;
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, height);
-        ctx.stroke();
+    // Vertical lines at key frequencies (log scale)
+    const keyFreqs = [50, 100, 200, 500, 1000, 2000, 5000, 10000];
+    keyFreqs.forEach(freq => {
+        const x = freqToX(freq) / 100 * spectrumWidth;
+        spectrumCtx.beginPath();
+        spectrumCtx.moveTo(x, 0);
+        spectrumCtx.lineTo(x, spectrumHeight);
+        spectrumCtx.stroke();
+    });
+}
+
+function drawSpectrumPlaceholderText() {
+    if (!spectrumCtx) return;
+
+    spectrumCtx.fillStyle = 'rgba(60, 47, 47, 0.3)';
+    spectrumCtx.font = '12px Garamond';
+    spectrumCtx.textAlign = 'center';
+    spectrumCtx.fillText('Waiting for audio...', spectrumWidth / 2, spectrumHeight / 2);
+}
+
+// Called by C++ with FFT magnitude data (128 bins, normalized 0-1)
+window.updateSpectrumData = function(magnitudes) {
+    if (!spectrumCtx || !Array.isArray(magnitudes)) return;
+
+    // Apply smoothing for visual appeal
+    for (let i = 0; i < magnitudes.length && i < smoothedSpectrum.length; i++) {
+        smoothedSpectrum[i] = smoothedSpectrum[i] * SMOOTHING_FACTOR + magnitudes[i] * (1 - SMOOTHING_FACTOR);
     }
 
-    // Draw placeholder spectrum curve
-    ctx.strokeStyle = 'rgba(107, 142, 35, 0.5)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
+    // Redraw spectrum
+    drawSpectrumGrid();
+    drawSpectrumBars();
+};
 
-    for (let x = 0; x < width; x++) {
-        // Simulate frequency response curve
-        const freq = Math.pow(x / width, 1.5);
-        const lowBump = Math.sin(freq * Math.PI * 2) * 0.2;
-        const midBump = Math.sin(freq * Math.PI * 4) * 0.3;
-        const y = height * (0.5 + lowBump + midBump);
+function drawSpectrumBars() {
+    if (!spectrumCtx) return;
 
-        if (x === 0) {
-            ctx.moveTo(x, y);
+    const numBins = smoothedSpectrum.length;
+
+    // Create gradient for spectrum fill
+    const gradient = spectrumCtx.createLinearGradient(0, spectrumHeight, 0, 0);
+    gradient.addColorStop(0, 'rgba(107, 142, 35, 0.1)');   // Olive green (low)
+    gradient.addColorStop(0.5, 'rgba(107, 142, 35, 0.4)'); // Mid
+    gradient.addColorStop(1, 'rgba(139, 115, 85, 0.6)');   // Brown (high)
+
+    // Draw filled spectrum area
+    spectrumCtx.beginPath();
+    spectrumCtx.moveTo(0, spectrumHeight);
+
+    for (let i = 0; i < numBins; i++) {
+        // Map bin index to log-scale X position
+        // Bins are linear in frequency, but we want log display
+        const binFreq = binToFrequency(i, numBins);
+        const x = freqToX(binFreq) / 100 * spectrumWidth;
+
+        // Height based on magnitude (0 = bottom, 1 = top)
+        const magnitude = smoothedSpectrum[i];
+        const y = spectrumHeight * (1 - magnitude);
+
+        if (i === 0) {
+            spectrumCtx.lineTo(x, y);
         } else {
-            ctx.lineTo(x, y);
+            spectrumCtx.lineTo(x, y);
         }
     }
-    ctx.stroke();
 
-    // Add text
-    ctx.fillStyle = 'rgba(60, 47, 47, 0.4)';
-    ctx.font = '14px Garamond';
-    ctx.textAlign = 'center';
-    ctx.fillText('Spectrum Analyzer', width / 2, height / 2 - 10);
-    ctx.fillText('(Phase 5.3)', width / 2, height / 2 + 10);
+    // Close path at bottom right
+    spectrumCtx.lineTo(spectrumWidth, spectrumHeight);
+    spectrumCtx.closePath();
+
+    // Fill with gradient
+    spectrumCtx.fillStyle = gradient;
+    spectrumCtx.fill();
+
+    // Draw spectrum line on top
+    spectrumCtx.beginPath();
+    spectrumCtx.strokeStyle = 'rgba(107, 142, 35, 0.8)';
+    spectrumCtx.lineWidth = 1.5;
+
+    for (let i = 0; i < numBins; i++) {
+        const binFreq = binToFrequency(i, numBins);
+        const x = freqToX(binFreq) / 100 * spectrumWidth;
+        const magnitude = smoothedSpectrum[i];
+        const y = spectrumHeight * (1 - magnitude);
+
+        if (i === 0) {
+            spectrumCtx.moveTo(x, y);
+        } else {
+            spectrumCtx.lineTo(x, y);
+        }
+    }
+
+    spectrumCtx.stroke();
+}
+
+// Convert FFT bin index to frequency (assuming 44.1kHz, 2048 FFT)
+// 128 bins covers 0-22050 Hz
+function binToFrequency(binIndex, numBins) {
+    const nyquist = 22050; // Half of 44.1kHz
+    return (binIndex / numBins) * nyquist;
 }
 
 // ========== PHASE 5.3: METERING FUNCTIONS ==========

@@ -1,5 +1,42 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.2.0 (2026-01-25)
+
+### Added
+
+- **Real-Time FFT Spectrum Analyzer:** Live frequency visualization in the spectrum display area
+  - 2048-sample FFT using `juce::dsp::FFT` with Hann windowing
+  - Lock-free audio→UI communication via atomic float arrays
+  - 128-bin WebView canvas visualization (downsampled from 1024 bins)
+  - Logarithmic frequency scale (20 Hz - 20 kHz)
+  - Smooth visual transitions (0.7 smoothing factor)
+  - Gradient fill with olive/brown color scheme matching UI aesthetic
+  - Real-time update at 30 Hz display rate
+  - Shows actual frequency content of processed audio signal
+
+### Technical Details
+
+- **Audio Thread (real-time safe):**
+  - Sample accumulation in ring buffer (FIFO)
+  - Mono sum of L/R channels for analysis
+  - FFT computed when 2048 samples accumulated
+  - Magnitude conversion to normalized dB scale (-100 to 0 dB → 0 to 1)
+  - Atomic store to spectrum data array
+
+- **UI Thread:**
+  - Conditional send only when new FFT data available
+  - Bin averaging for 128-point display (8:1 reduction)
+  - JSON array serialization for WebView transfer
+
+- **WebView Rendering:**
+  - Canvas 2D context with retina display support
+  - Gradient fill from bottom (green) to top (brown)
+  - Line stroke overlay for spectrum contour
+  - Grid overlay at key frequencies (50, 100, 200, 500, 1k, 2k, 5k, 10k Hz)
+  - Window resize handling
+
+---
+
 ## Version 1.1.0 (2026-01-25)
 
 ### Added
