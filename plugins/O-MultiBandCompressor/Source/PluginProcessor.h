@@ -12,7 +12,13 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
+#include <array>
 #include "DSP/MultiBandProcessor.h"
+
+// FFT Configuration
+static constexpr int FFT_ORDER = 11;                    // 2^11 = 2048 samples
+static constexpr int FFT_SIZE = 1 << FFT_ORDER;         // 2048
+static constexpr int FFT_NUM_BINS = FFT_SIZE / 2;       // 1024 unique bins
 
 class OMultiBandCompressorAudioProcessor : public juce::AudioProcessor
 {
@@ -56,6 +62,11 @@ public:
     float getOutputLevelL() const { return outputLevelL.load(std::memory_order_relaxed); }
     float getOutputLevelR() const { return outputLevelR.load(std::memory_order_relaxed); }
 
+    // FFT spectrum data access (v1.2.0)
+    const std::array<std::atomic<float>, FFT_NUM_BINS>& getSpectrumData() const { return spectrumMagnitudes; }
+    bool isSpectrumDataReady() const { return spectrumDataReady.load(std::memory_order_relaxed); }
+    void clearSpectrumDataReady() { spectrumDataReady.store(false, std::memory_order_relaxed); }
+
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::dsp::ProcessSpec spec;
@@ -81,6 +92,15 @@ private:
     std::atomic<float> inputLevelR { 0.0f };
     std::atomic<float> outputLevelL { 0.0f };
     std::atomic<float> outputLevelR { 0.0f };
+
+    // FFT spectrum analyzer (v1.2.0)
+    juce::dsp::FFT fft { FFT_ORDER };
+    juce::dsp::WindowingFunction<float> fftWindow { FFT_SIZE, juce::dsp::WindowingFunction<float>::hann };
+    std::array<float, FFT_SIZE * 2> fftData {};           // FFT input/output buffer (complex)
+    std::array<float, FFT_SIZE> fftInputFifo {};          // Sample accumulation buffer
+    int fftFifoIndex = 0;                                  // Current write position in FIFO
+    std::array<std::atomic<float>, FFT_NUM_BINS> spectrumMagnitudes {};  // Lock-free output to UI
+    std::atomic<bool> spectrumDataReady { false };        // Flag for new data available
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
