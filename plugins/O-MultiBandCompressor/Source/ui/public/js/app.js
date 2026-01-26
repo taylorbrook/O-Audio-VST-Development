@@ -335,6 +335,102 @@ function initializeSpectrumPlaceholder() {
     ctx.fillText('(Phase 5.3)', width / 2, height / 2 + 10);
 }
 
+// ========== v1.2.0: REAL-TIME SPECTRUM ANALYZER ==========
+
+// Spectrum state (initialized lazily when first data arrives)
+let spectrumCtx = null;
+let spectrumWidth = 0;
+let spectrumHeight = 0;
+let smoothedSpectrum = null;
+const SMOOTHING = 0.7;
+
+// Called by C++ with FFT magnitude data (64 bins, normalized 0-1)
+window.updateSpectrumData = function(magnitudes) {
+    try {
+        if (!Array.isArray(magnitudes) || magnitudes.length === 0) return;
+
+        const canvas = document.getElementById('spectrum-canvas');
+        if (!canvas) return;
+
+        // Lazy initialization
+        if (!spectrumCtx) {
+            spectrumCtx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            spectrumWidth = canvas.offsetWidth;
+            spectrumHeight = canvas.offsetHeight;
+            canvas.width = spectrumWidth * dpr;
+            canvas.height = spectrumHeight * dpr;
+            spectrumCtx.scale(dpr, dpr);
+            smoothedSpectrum = new Array(magnitudes.length).fill(0);
+        }
+
+        // Apply smoothing
+        for (let i = 0; i < magnitudes.length; i++) {
+            smoothedSpectrum[i] = smoothedSpectrum[i] * SMOOTHING + magnitudes[i] * (1 - SMOOTHING);
+        }
+
+        // Clear and draw grid
+        spectrumCtx.clearRect(0, 0, spectrumWidth, spectrumHeight);
+        spectrumCtx.strokeStyle = 'rgba(139, 115, 85, 0.15)';
+        spectrumCtx.lineWidth = 1;
+
+        // Horizontal grid lines
+        for (let i = 0; i <= 4; i++) {
+            const y = (spectrumHeight / 4) * i;
+            spectrumCtx.beginPath();
+            spectrumCtx.moveTo(0, y);
+            spectrumCtx.lineTo(spectrumWidth, y);
+            spectrumCtx.stroke();
+        }
+
+        // Vertical grid lines
+        for (let i = 0; i <= 8; i++) {
+            const x = (spectrumWidth / 8) * i;
+            spectrumCtx.beginPath();
+            spectrumCtx.moveTo(x, 0);
+            spectrumCtx.lineTo(x, spectrumHeight);
+            spectrumCtx.stroke();
+        }
+
+        // Draw spectrum fill
+        const gradient = spectrumCtx.createLinearGradient(0, spectrumHeight, 0, 0);
+        gradient.addColorStop(0, 'rgba(107, 142, 35, 0.1)');
+        gradient.addColorStop(0.5, 'rgba(107, 142, 35, 0.3)');
+        gradient.addColorStop(1, 'rgba(139, 115, 85, 0.5)');
+
+        spectrumCtx.beginPath();
+        spectrumCtx.moveTo(0, spectrumHeight);
+
+        const numBins = smoothedSpectrum.length;
+        for (let i = 0; i < numBins; i++) {
+            const x = (i / (numBins - 1)) * spectrumWidth;
+            const y = spectrumHeight * (1 - smoothedSpectrum[i]);
+            spectrumCtx.lineTo(x, y);
+        }
+
+        spectrumCtx.lineTo(spectrumWidth, spectrumHeight);
+        spectrumCtx.closePath();
+        spectrumCtx.fillStyle = gradient;
+        spectrumCtx.fill();
+
+        // Draw spectrum line
+        spectrumCtx.beginPath();
+        spectrumCtx.strokeStyle = 'rgba(107, 142, 35, 0.8)';
+        spectrumCtx.lineWidth = 1.5;
+
+        for (let i = 0; i < numBins; i++) {
+            const x = (i / (numBins - 1)) * spectrumWidth;
+            const y = spectrumHeight * (1 - smoothedSpectrum[i]);
+            if (i === 0) spectrumCtx.moveTo(x, y);
+            else spectrumCtx.lineTo(x, y);
+        }
+        spectrumCtx.stroke();
+
+    } catch (e) {
+        console.error('Spectrum update error:', e);
+    }
+};
+
 // ========== PHASE 5.3: METERING FUNCTIONS ==========
 
 // Called by C++ to update gain reduction meters

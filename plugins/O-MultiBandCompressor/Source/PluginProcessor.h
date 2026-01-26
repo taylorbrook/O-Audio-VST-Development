@@ -13,12 +13,13 @@
 #include <juce_dsp/juce_dsp.h>
 #include <atomic>
 #include <array>
+#include <mutex>
 #include "DSP/MultiBandProcessor.h"
 
 // FFT Configuration
-static constexpr int FFT_ORDER = 11;                    // 2^11 = 2048 samples
-static constexpr int FFT_SIZE = 1 << FFT_ORDER;         // 2048
-static constexpr int FFT_NUM_BINS = FFT_SIZE / 2;       // 1024 unique bins
+static constexpr int FFT_ORDER = 11;                     // 2^11 = 2048 samples
+static constexpr int FFT_SIZE = 1 << FFT_ORDER;          // 2048
+static constexpr int SPECTRUM_BINS = 64;                 // Bins sent to UI (downsampled)
 
 class OMultiBandCompressorAudioProcessor : public juce::AudioProcessor
 {
@@ -62,10 +63,10 @@ public:
     float getOutputLevelL() const { return outputLevelL.load(std::memory_order_relaxed); }
     float getOutputLevelR() const { return outputLevelR.load(std::memory_order_relaxed); }
 
-    // FFT spectrum data access (v1.2.0)
-    const std::array<std::atomic<float>, FFT_NUM_BINS>& getSpectrumData() const { return spectrumMagnitudes; }
-    bool isSpectrumDataReady() const { return spectrumDataReady.load(std::memory_order_relaxed); }
-    void clearSpectrumDataReady() { spectrumDataReady.store(false, std::memory_order_relaxed); }
+    // FFT Spectrum data access (v1.2.0)
+    void getSpectrumData(std::array<float, SPECTRUM_BINS>& dest) const;
+    bool hasNewSpectrumData() const { return spectrumDataReady.load(std::memory_order_acquire); }
+    void clearSpectrumDataFlag() { spectrumDataReady.store(false, std::memory_order_release); }
 
 private:
     // DSP Components (BEFORE parameters for initialization order)
@@ -93,14 +94,15 @@ private:
     std::atomic<float> outputLevelL { 0.0f };
     std::atomic<float> outputLevelR { 0.0f };
 
-    // FFT spectrum analyzer (v1.2.0)
+    // FFT Spectrum analyzer (v1.2.0)
     juce::dsp::FFT fft { FFT_ORDER };
     juce::dsp::WindowingFunction<float> fftWindow { FFT_SIZE, juce::dsp::WindowingFunction<float>::hann };
-    std::array<float, FFT_SIZE * 2> fftData {};           // FFT input/output buffer (complex)
-    std::array<float, FFT_SIZE> fftInputFifo {};          // Sample accumulation buffer
-    int fftFifoIndex = 0;                                  // Current write position in FIFO
-    std::array<std::atomic<float>, FFT_NUM_BINS> spectrumMagnitudes {};  // Lock-free output to UI
-    std::atomic<bool> spectrumDataReady { false };        // Flag for new data available
+    std::array<float, FFT_SIZE * 2> fftWorkBuffer {};    // FFT work buffer
+    std::array<float, FFT_SIZE> fftInputFifo {};         // Sample accumulation
+    int fftFifoWriteIndex = 0;
+    std::array<float, SPECTRUM_BINS> spectrumData {};    // Downsampled magnitude data
+    std::atomic<bool> spectrumDataReady { false };
+    mutable std::mutex spectrumMutex;                    // Protects spectrumData copy
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;

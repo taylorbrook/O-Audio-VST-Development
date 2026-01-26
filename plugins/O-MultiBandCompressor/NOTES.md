@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.2.0
 - **Type:** Audio Effect (Dynamics Processor - Multiband Compressor)
 - **Complexity:** 5.0 (Maximum complexity - 56 parameters, 10 DSP components)
 
@@ -13,6 +13,7 @@
 - **2026-01-25 (Stage 1):** Foundation complete - Build system operational, 56 parameters implemented in APVTS
 - **2026-01-25 (v1.0.0):** Production ready - All stages complete (DSP, crossover network, M/S processing, WebView UI, metering)
 - **2026-01-25 (v1.1.0):** Added draggable crossover controls - click and drag to adjust XOVER1/2/3 frequency split points
+- **2026-01-26 (v1.2.0):** Real-time FFT spectrum analyzer - 2048-sample FFT with lock-free audio→UI communication
 
 ## Known Issues
 

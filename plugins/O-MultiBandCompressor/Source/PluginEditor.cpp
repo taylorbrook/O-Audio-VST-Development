@@ -265,6 +265,7 @@ void OMultiBandCompressorAudioProcessorEditor::timerCallback()
     sendGainReductionMeters();
     sendInputOutputMeters();
     sendCrossoverPositions();
+    sendSpectrumData();  // v1.2.0
 }
 
 void OMultiBandCompressorAudioProcessorEditor::sendGainReductionMeters()
@@ -352,6 +353,36 @@ void OMultiBandCompressorAudioProcessorEditor::sendCrossoverPositions()
         "updateCrossoverPositions(%f, %f, %f); }",
         xover1, xover2, xover3
     );
+
+    webView->evaluateJavascript(script);
+}
+
+void OMultiBandCompressorAudioProcessorEditor::sendSpectrumData()
+{
+    if (!webView || !hasNavigated)
+        return;
+
+    // Only send if new FFT data is available
+    if (!processorRef.hasNewSpectrumData())
+        return;
+
+    // Get spectrum data from processor
+    std::array<float, SPECTRUM_BINS> spectrum {};
+    processorRef.getSpectrumData(spectrum);
+    processorRef.clearSpectrumDataFlag();
+
+    // Build JSON array
+    juce::String json = "[";
+    for (int i = 0; i < SPECTRUM_BINS; ++i)
+    {
+        if (i > 0) json += ",";
+        json += juce::String(spectrum[static_cast<size_t>(i)], 3);
+    }
+    json += "]";
+
+    // Call JavaScript function
+    juce::String script = "if (typeof updateSpectrumData === 'function') { "
+                          "updateSpectrumData(" + json + "); }";
 
     webView->evaluateJavascript(script);
 }

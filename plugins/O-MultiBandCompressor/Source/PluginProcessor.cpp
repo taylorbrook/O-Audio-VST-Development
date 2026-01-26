@@ -514,6 +514,70 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         float outputMaxR = buffer.getMagnitude(1, 0, numSamples);
         outputLevelR.store(outputMaxR, std::memory_order_relaxed);
     }
+
+    // ===== v1.2.0: FFT Spectrum Analysis =====
+    // Accumulate samples for FFT (mono sum of output)
+    const float* leftOut = buffer.getReadPointer(0);
+    const float* rightOut = numChannels >= 2 ? buffer.getReadPointer(1) : leftOut;
+
+    for (int i = 0; i < numSamples; ++i)
+    {
+        // Mono sum
+        float sample = (leftOut[i] + rightOut[i]) * 0.5f;
+        fftInputFifo[static_cast<size_t>(fftFifoWriteIndex)] = sample;
+        ++fftFifoWriteIndex;
+
+        // When FIFO is full, compute FFT
+        if (fftFifoWriteIndex >= FFT_SIZE)
+        {
+            fftFifoWriteIndex = 0;
+
+            // Copy to work buffer and apply window
+            std::copy(fftInputFifo.begin(), fftInputFifo.end(), fftWorkBuffer.begin());
+            fftWindow.multiplyWithWindowingTable(fftWorkBuffer.data(), FFT_SIZE);
+
+            // Perform FFT
+            fft.performFrequencyOnlyForwardTransform(fftWorkBuffer.data());
+
+            // Downsample to SPECTRUM_BINS and convert to normalized dB
+            constexpr int binsPerOutput = (FFT_SIZE / 2) / SPECTRUM_BINS;
+            constexpr float minDb = -80.0f;
+            constexpr float maxDb = 0.0f;
+
+            std::array<float, SPECTRUM_BINS> tempSpectrum {};
+
+            for (int bin = 0; bin < SPECTRUM_BINS; ++bin)
+            {
+                float sum = 0.0f;
+                int startIdx = bin * binsPerOutput;
+                int endIdx = startIdx + binsPerOutput;
+
+                for (int j = startIdx; j < endIdx; ++j)
+                    sum += fftWorkBuffer[static_cast<size_t>(j)];
+
+                float avgMag = sum / static_cast<float>(binsPerOutput);
+                float db = avgMag > 0.0f
+                    ? juce::jlimit(minDb, maxDb, juce::Decibels::gainToDecibels(avgMag))
+                    : minDb;
+
+                // Normalize to 0-1
+                tempSpectrum[static_cast<size_t>(bin)] = (db - minDb) / (maxDb - minDb);
+            }
+
+            // Update shared spectrum data (protected by mutex)
+            {
+                std::lock_guard<std::mutex> lock(spectrumMutex);
+                spectrumData = tempSpectrum;
+            }
+            spectrumDataReady.store(true, std::memory_order_release);
+        }
+    }
+}
+
+void OMultiBandCompressorAudioProcessor::getSpectrumData(std::array<float, SPECTRUM_BINS>& dest) const
+{
+    std::lock_guard<std::mutex> lock(spectrumMutex);
+    dest = spectrumData;
 }
 
 juce::AudioProcessorEditor* OMultiBandCompressorAudioProcessor::createEditor()

@@ -1,5 +1,26 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.2.0 (2026-01-26)
+
+### Added
+
+- **Real-Time FFT Spectrum Analyzer:** Live frequency visualization in the spectrum display
+  - 2048-sample FFT with Hann windowing (`juce::dsp::FFT`)
+  - 64-bin downsampled output for efficient UI transfer
+  - Mutex-protected thread-safe audio→UI communication
+  - Smooth visual transitions (0.7 smoothing factor)
+  - Gradient fill with olive/brown color scheme
+  - Grid overlay for frequency reference
+
+### Technical Details
+
+- FFT computed when 2048 samples accumulated (mono sum of L/R)
+- Magnitude values converted to normalized dB scale (-80 to 0 dB → 0 to 1)
+- 30 Hz UI update rate with conditional send (only when new data ready)
+- Error handling in JavaScript to prevent UI crashes
+
+---
+
 ## Version 1.1.0 (2026-01-25)
 
 ### Added
