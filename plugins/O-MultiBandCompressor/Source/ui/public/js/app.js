@@ -418,3 +418,201 @@ function formatFrequency(freq) {
         return freq.toFixed(0) + ' Hz';
     }
 }
+
+// ========== CROSSOVER DRAG INTERACTION ==========
+
+// Parameter ranges (must match PluginProcessor.cpp)
+const XOVER_RANGES = {
+    XOVER1: { min: 20, max: 500 },
+    XOVER2: { min: 200, max: 5000 },
+    XOVER3: { min: 2000, max: 16000 }
+};
+
+// Minimum gap between crossovers (Hz) to prevent overlap
+const MIN_CROSSOVER_GAP = 100;
+
+// Active drag state
+let activeDrag = null;
+
+// Initialize crossover drag handlers
+function initializeCrossoverDrag() {
+    const crossovers = [
+        { element: document.getElementById('crossover1'), param: 'XOVER1', index: 1 },
+        { element: document.getElementById('crossover2'), param: 'XOVER2', index: 2 },
+        { element: document.getElementById('crossover3'), param: 'XOVER3', index: 3 }
+    ];
+
+    crossovers.forEach(xover => {
+        if (!xover.element) return;
+
+        // Mouse down - start drag
+        xover.element.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            startCrossoverDrag(xover.param, xover.index, xover.element);
+        });
+
+        // Touch support for mobile/tablet
+        xover.element.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            startCrossoverDrag(xover.param, xover.index, xover.element);
+        }, { passive: false });
+    });
+
+    // Global mouse/touch move and up handlers
+    document.addEventListener('mousemove', handleCrossoverDrag);
+    document.addEventListener('mouseup', endCrossoverDrag);
+    document.addEventListener('touchmove', handleCrossoverDrag, { passive: false });
+    document.addEventListener('touchend', endCrossoverDrag);
+
+    console.log('Crossover drag handlers initialized');
+}
+
+function startCrossoverDrag(paramId, index, element) {
+    const sliderState = parameterStates[paramId];
+    if (!sliderState) {
+        console.warn(`No slider state for ${paramId}`);
+        return;
+    }
+
+    // Notify JUCE that drag is starting (for undo/redo grouping)
+    sliderState.sliderDragStarted();
+
+    activeDrag = {
+        paramId: paramId,
+        index: index,
+        element: element,
+        sliderState: sliderState
+    };
+
+    // Visual feedback
+    element.classList.add('dragging');
+    document.body.style.cursor = 'ew-resize';
+
+    console.log(`Started dragging ${paramId}`);
+}
+
+function handleCrossoverDrag(e) {
+    if (!activeDrag) return;
+
+    e.preventDefault();
+
+    // Get the spectrum container for position calculation
+    const container = document.querySelector('.spectrum-container');
+    if (!container) return;
+
+    const rect = container.getBoundingClientRect();
+
+    // Get X position from mouse or touch
+    let clientX;
+    if (e.type === 'touchmove') {
+        clientX = e.touches[0].clientX;
+    } else {
+        clientX = e.clientX;
+    }
+
+    // Calculate position as percentage (0-100)
+    let xPercent = ((clientX - rect.left) / rect.width) * 100;
+    xPercent = Math.max(0, Math.min(100, xPercent));
+
+    // Convert X position to frequency (inverse of freqToX)
+    let freq = xToFreq(xPercent);
+
+    // Apply range constraints for this crossover
+    const range = XOVER_RANGES[activeDrag.paramId];
+    freq = Math.max(range.min, Math.min(range.max, freq));
+
+    // Apply ordering constraints to prevent overlap
+    freq = applyOrderingConstraints(activeDrag.paramId, freq);
+
+    // Convert frequency to normalized value for JUCE parameter
+    const normValue = freqToNormalized(freq, range.min, range.max);
+
+    // Update the JUCE parameter
+    activeDrag.sliderState.setNormalisedValue(normValue);
+
+    // Update visual position immediately (don't wait for C++ callback)
+    const newXPercent = freqToX(freq);
+    activeDrag.element.style.left = `${newXPercent}%`;
+
+    // Update label
+    const label = activeDrag.element.querySelector('.crossover-label');
+    if (label) {
+        label.textContent = formatFrequency(freq);
+    }
+}
+
+function endCrossoverDrag() {
+    if (!activeDrag) return;
+
+    // Notify JUCE that drag ended
+    activeDrag.sliderState.sliderDragEnded();
+
+    // Remove visual feedback
+    activeDrag.element.classList.remove('dragging');
+    document.body.style.cursor = '';
+
+    console.log(`Ended dragging ${activeDrag.paramId}`);
+    activeDrag = null;
+}
+
+// Convert X position (0-100%) back to frequency (log scale)
+function xToFreq(xPercent) {
+    const minLog = Math.log10(20);
+    const maxLog = Math.log10(20000);
+    const freqLog = minLog + (xPercent / 100) * (maxLog - minLog);
+    return Math.pow(10, freqLog);
+}
+
+// Convert frequency to normalized value (0-1) for a given range
+// Uses logarithmic mapping to match JUCE's skew factor of 0.3
+function freqToNormalized(freq, minFreq, maxFreq) {
+    // Skew factor 0.3 means: normalized = pow(linear, 0.3)
+    // So: linear = pow(normalized, 1/0.3)
+    // And: normalized = pow(linear, 0.3)
+    const linear = (freq - minFreq) / (maxFreq - minFreq);
+    const skew = 0.3;
+    return Math.pow(Math.max(0, Math.min(1, linear)), skew);
+}
+
+// Apply ordering constraints: XOVER1 < XOVER2 < XOVER3
+function applyOrderingConstraints(paramId, freq) {
+    const xover1State = parameterStates['XOVER1'];
+    const xover2State = parameterStates['XOVER2'];
+    const xover3State = parameterStates['XOVER3'];
+
+    // Get current frequencies from parameters
+    const xover1Freq = normalizedToFreq(xover1State?.getNormalisedValue() || 0.5, XOVER_RANGES.XOVER1.min, XOVER_RANGES.XOVER1.max);
+    const xover2Freq = normalizedToFreq(xover2State?.getNormalisedValue() || 0.5, XOVER_RANGES.XOVER2.min, XOVER_RANGES.XOVER2.max);
+    const xover3Freq = normalizedToFreq(xover3State?.getNormalisedValue() || 0.5, XOVER_RANGES.XOVER3.min, XOVER_RANGES.XOVER3.max);
+
+    if (paramId === 'XOVER1') {
+        // XOVER1 must be at least MIN_GAP below XOVER2
+        const maxAllowed = xover2Freq - MIN_CROSSOVER_GAP;
+        return Math.min(freq, maxAllowed);
+    } else if (paramId === 'XOVER2') {
+        // XOVER2 must be at least MIN_GAP above XOVER1 and below XOVER3
+        const minAllowed = xover1Freq + MIN_CROSSOVER_GAP;
+        const maxAllowed = xover3Freq - MIN_CROSSOVER_GAP;
+        return Math.max(minAllowed, Math.min(freq, maxAllowed));
+    } else if (paramId === 'XOVER3') {
+        // XOVER3 must be at least MIN_GAP above XOVER2
+        const minAllowed = xover2Freq + MIN_CROSSOVER_GAP;
+        return Math.max(freq, minAllowed);
+    }
+
+    return freq;
+}
+
+// Convert normalized value (0-1) back to frequency
+function normalizedToFreq(norm, minFreq, maxFreq) {
+    const skew = 0.3;
+    const linear = Math.pow(norm, 1.0 / skew);
+    return minFreq + linear * (maxFreq - minFreq);
+}
+
+// Initialize drag handlers after DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', initializeCrossoverDrag);
+} else {
+    initializeCrossoverDrag();
+}

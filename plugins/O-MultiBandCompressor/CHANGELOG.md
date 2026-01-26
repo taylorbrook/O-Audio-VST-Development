@@ -1,5 +1,25 @@
 # O-MultiBandCompressor Changelog
 
+## Version 1.1.0 (2026-01-25)
+
+### Added
+
+- **Draggable Crossover Controls:** Click and drag crossover lines to adjust frequency split points directly in the UI
+  - XOVER1 (Low/Low-Mid): 20-500 Hz
+  - XOVER2 (Low-Mid/High-Mid): 200-5000 Hz
+  - XOVER3 (High-Mid/High): 2000-16000 Hz
+- Ordering constraints enforced during drag (XOVER1 < XOVER2 < XOVER3 with 100 Hz minimum gap)
+- Visual feedback: hover highlights, drag state with green accent, enlarged handles
+- Touch support for tablet/trackpad use
+- Proper JUCE drag start/end notifications for undo/redo grouping
+
+### Changed
+
+- Crossover lines now have smooth hover transitions
+- Disabled CSS transitions during drag for instant visual response
+
+---
+
 ## Version 1.0.0 - Stage 3 Complete (2026-01-25)
 
 **PRODUCTION READY:** All stages complete - build system, DSP processing, and GUI with real-time metering functional.

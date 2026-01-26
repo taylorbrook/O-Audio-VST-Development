@@ -1,8 +1,8 @@
 # O-MultiBandCompressor Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 1 (Foundation Complete)
-- **Version:** 1.0.0 (in development)
+- **Current Status:** 📦 Installed
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Dynamics Processor - Multiband Compressor)
 - **Complexity:** 5.0 (Maximum complexity - 56 parameters, 10 DSP components)
 
@@ -11,10 +11,12 @@
 - **2026-01-25 (Ideation):** Creative brief created - 4-band multiband compressor with Linkwitz-Riley crossovers, M/S processing, sidechain filtering, and real-time FFT visualization
 - **2026-01-25 (Stage 0):** Research & Planning complete - Architecture and plan documented (Complexity 5.0, phased implementation)
 - **2026-01-25 (Stage 1):** Foundation complete - Build system operational, 56 parameters implemented in APVTS
+- **2026-01-25 (v1.0.0):** Production ready - All stages complete (DSP, crossover network, M/S processing, WebView UI, metering)
+- **2026-01-25 (v1.1.0):** Added draggable crossover controls - click and drag to adjust XOVER1/2/3 frequency split points
 
 ## Known Issues
 
-None (not yet implemented)
+None
 
 ## Additional Notes
 
@@ -107,9 +109,10 @@ Professional 4-band multiband compressor designed for mixing and mastering workf
   - `plugins/O-MultiBandCompressor/Source/PluginProcessor.{h,cpp}`
   - `plugins/O-MultiBandCompressor/Source/PluginEditor.{h,cpp}`
 - **Build Location:** `build/plugins/O-MultiBandCompressor/`
-- **Installed Formats:** Not yet installed (Stage 1 - foundation only)
+- **Installed Formats:**
+  - VST3: `~/Library/Audio/Plug-Ins/VST3/O-MultiBandCompressor.vst3`
+  - AU: `~/Library/Audio/Plug-Ins/Components/O-MultiBandCompressor.component`
 
 ---
 
 *Last updated: 2026-01-25*
-*Next: Phase 4.1 (DSP) - Single-band compressor foundation*

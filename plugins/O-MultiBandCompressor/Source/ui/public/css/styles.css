@@ -124,8 +124,37 @@ body {
     background: rgba(139, 115, 85, 0.6);
     pointer-events: all;
     cursor: ew-resize;
-    transition: left 0.1s ease-out;
+    transition: left 0.1s ease-out, background 0.15s ease;
     will-change: left;
+}
+
+.crossover-line:hover {
+    background: rgba(139, 115, 85, 0.9);
+}
+
+.crossover-line:hover .crossover-handle {
+    transform: translate(-50%, -50%) scale(1.2);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.4);
+}
+
+.crossover-line.dragging {
+    background: rgba(107, 142, 35, 0.9);
+    transition: none; /* Disable transition during drag for instant response */
+}
+
+.crossover-line.dragging .crossover-handle {
+    transform: translate(-50%, -50%) scale(1.3);
+    background: radial-gradient(circle at 40% 40%, #C9E4A5, #6B8E23);
+    border-color: #556B2F;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.5);
+}
+
+.crossover-line.dragging .crossover-label {
+    background: rgba(107, 142, 35, 0.95);
+    color: #FFF;
+    border-color: #556B2F;
+    font-size: 10px;
+    padding: 3px 8px;
 }
 
 .crossover-handle {
@@ -139,6 +168,7 @@ body {
     border: 2px solid #8B7355;
     border-radius: 50%;
     box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
 }
 
 .crossover-label {
@@ -155,6 +185,7 @@ body {
     white-space: nowrap;
     pointer-events: none;
     border: 1px solid #8B7355;
+    transition: background 0.15s ease, color 0.15s ease, font-size 0.15s ease;
 }
 
 /* Meters */
