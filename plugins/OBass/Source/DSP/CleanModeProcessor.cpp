@@ -117,9 +117,22 @@ void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
     // Store dry signal (copy without allocation)
     dryBuffer.copyFrom(0, 0, monoBuffer, 0, 0, numSamples);
 
-    // For now, harmonics = 0 (HarmonicGenerator is bypassed)
-    // Just test the mixing math
-    harmonicGenerator.process(monoBuffer);  // Currently clears buffer
+    // Detect pitch for adaptive harmonic generation
+    // Lower frequencies (sub-bass) get more harmonics for psychoacoustic effect
+    // Higher frequencies (upper bass) get fewer to avoid muddiness
+    float detectedPitch = pitchTracker.detectPitch(
+        monoBuffer.getReadPointer(0), numSamples);
+
+    if (detectedPitch > 0.0f)
+    {
+        // Valid pitch detected - adjust harmonic count
+        // <40Hz: 5 harmonics, <80Hz: 4, <120Hz: 3, else: 2
+        harmonicGenerator.setAdaptiveHarmonics(detectedPitch);
+    }
+    // If no pitch detected (silence, noise), keep previous setting
+
+    // Generate harmonics with Chebyshev waveshaping + 4x oversampling
+    harmonicGenerator.process(monoBuffer);
 
     const float* dry = dryBuffer.getReadPointer(0);
     float* wet = monoBuffer.getWritePointer(0);
@@ -239,7 +252,16 @@ float CleanModeProcessor::getCompressedEnhance(float rawEnhance)
 //==============================================================================
 int CleanModeProcessor::getLatencyInSamples() const
 {
-    // TEMPORARY: Return 0 to debug sample rate issue
-    // We'll add proper latency compensation later once DSP is stable
-    return 0;
+    int latency = 0;
+
+    // Oversampler latency (from harmonic generator)
+    latency += harmonicGenerator.getLatencyInSamples();
+
+    // Lookahead latency (High Fidelity mode only)
+    if (currentMode == Mode::HighFidelity)
+    {
+        latency += lookaheadSamples;
+    }
+
+    return latency;
 }
