@@ -18,6 +18,7 @@
 #include "DSP/MonoSummer.h"
 #include "DSP/CleanModeProcessor.h"
 #include "DSP/ColoredModeProcessor.h"
+#include "OuariconPresetManager.h"
 
 class OBassAudioProcessor : public juce::AudioProcessor
 {
@@ -48,6 +49,7 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState parameters;
+    OuariconPresetManager presetManager;
 
     // Public method for mode changes (called from UI/automation)
     void setLatencyMode(CrossoverFilter::Mode mode);

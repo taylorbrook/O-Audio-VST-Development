@@ -81,7 +81,28 @@ OBassAudioProcessor::OBassAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "OBass")
 {
+    // Initialize factory presets
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        // Default - neutral starting point
+        {"Default", {{"crossover_freq", 0.25f}, {"enhance", 0.50f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
+
+        // Clean Mode presets
+        {"Gentle Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.30f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
+        {"Punchy 808", {{"crossover_freq", 0.0f}, {"enhance", 0.70f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
+        {"Subtle Mix Glue", {{"crossover_freq", 0.50f}, {"enhance", 0.20f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
+        {"Full Sub Enhancement", {{"crossover_freq", 0.125f}, {"enhance", 0.80f}, {"enhanceMode", 0.0f}, {"output", 0.45f}}, juce::var()},
+
+        // Colored Mode presets
+        {"Warm Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.50f}, {"enhanceMode", 1.0f}, {"output", 0.5f}}, juce::var()},
+        {"Fat Synth Bass", {{"crossover_freq", 0.25f}, {"enhance", 0.65f}, {"enhanceMode", 1.0f}, {"output", 0.48f}}, juce::var()},
+        {"Saturated Sub", {{"crossover_freq", 0.0f}, {"enhance", 0.85f}, {"enhanceMode", 1.0f}, {"output", 0.42f}}, juce::var()},
+        {"Vintage Mix Bus", {{"crossover_freq", 0.50f}, {"enhance", 0.35f}, {"enhanceMode", 1.0f}, {"output", 0.5f}}, juce::var()},
+        {"Aggressive Colored", {{"crossover_freq", 0.25f}, {"enhance", 0.90f}, {"enhanceMode", 1.0f}, {"output", 0.40f}}, juce::var()}
+    };
+
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 OBassAudioProcessor::~OBassAudioProcessor()
@@ -326,20 +347,14 @@ juce::AudioProcessorEditor* OBassAudioProcessor::createEditor()
 
 void OBassAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    // Save parameter state using APVTS
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void OBassAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    // Restore parameter state using APVTS
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState != nullptr)
-        if (xmlState->hasTagName(parameters.state.getType()))
-            parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+        presetManager.setStateFromXml(xml.get());
 }
 
 //==============================================================================
