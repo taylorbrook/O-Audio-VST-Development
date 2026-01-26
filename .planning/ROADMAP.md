@@ -18,7 +18,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Controls & Refinement** - All 4 controls with intensity limiting and parameter tuning
 - [x] **Phase 5: WebView UI** - Visual interface matching Ouaricon suite language
 - [x] **Phase 6: Formats & Integration** - VST3/AU builds and preset system
-- [ ] **Phase 7: Oversampling & Adaptive Harmonics** - Tech debt closure (DSP-04)
+- [x] **Phase 7: Oversampling & Adaptive Harmonics** - Tech debt closure (DSP-04)
 - [ ] **Phase 8: Sound & UI Polish** - Final tuning and visual refinements
 
 ## Phase Details
@@ -140,9 +140,9 @@ Plans:
 **Plans**: 3 plans in 3 waves
 
 Plans:
-- [ ] 07-01-PLAN.md — Wire 4x oversampling into HarmonicGenerator
-- [ ] 07-02-PLAN.md — Wire PitchTracker for adaptive harmonics
-- [ ] 07-03-PLAN.md — Dead code cleanup and documentation update
+- [x] 07-01-PLAN.md — Wire 4x oversampling into HarmonicGenerator
+- [x] 07-02-PLAN.md — Wire PitchTracker for adaptive harmonics
+- [x] 07-03-PLAN.md — Dead code cleanup and documentation update
 
 ### Phase 8: Sound & UI Polish
 **Goal**: Final tuning pass on effect character and visual presentation before release
@@ -175,7 +175,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 | 4. Controls & Refinement | 3/3 | ✓ Complete | 2026-01-24 |
 | 5. WebView UI | 3/3 | ✓ Complete | 2026-01-25 |
 | 6. Formats & Integration | 2/2 | ✓ Complete | 2026-01-26 |
-| 7. Oversampling & Adaptive Harmonics | 0/3 | Pending | — |
+| 7. Oversampling & Adaptive Harmonics | 3/3 | ✓ Complete | 2026-01-26 |
 | 8. Sound & UI Polish | 0/3 | Pending | — |
 
 ---
