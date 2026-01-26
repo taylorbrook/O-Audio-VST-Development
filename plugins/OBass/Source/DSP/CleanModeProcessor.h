@@ -75,6 +75,9 @@ private:
     double sampleRate = 44100.0;
     int maxBlockSize = 512;
 
+    // Pre-allocated buffer for dry signal copy (avoid allocation in process)
+    juce::AudioBuffer<float> dryBuffer;
+
     // Internal processing
     float processLookahead(float input);
     float calculateTransientDuckGain(float fastEnv, float slowEnv);

@@ -77,9 +77,15 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
 //==============================================================================
 void HarmonicGenerator::reset()
 {
-    // Reset filters only - oversamplers not used in simplified mode
+    // Reset filters
     outputBandpassLow.reset();
     outputBandpassHigh.reset();
+
+    // Reset oversamplers (they maintain internal buffers)
+    if (oversamplerIIR)
+        oversamplerIIR->reset();
+    if (oversamplerFIR)
+        oversamplerFIR->reset();
 }
 
 //==============================================================================

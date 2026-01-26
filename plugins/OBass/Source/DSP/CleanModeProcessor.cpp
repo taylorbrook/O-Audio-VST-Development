@@ -49,6 +49,10 @@ void CleanModeProcessor::prepare(const juce::dsp::ProcessSpec& spec)
     lookaheadBuffer.setSize(1, lookaheadSamples);
     lookaheadBuffer.clear();
     lookaheadWritePos = 0;
+
+    // Pre-allocate dry buffer to avoid allocation in process
+    dryBuffer.setSize(1, maxBlockSize);
+    dryBuffer.clear();
 }
 
 //==============================================================================
@@ -61,6 +65,7 @@ void CleanModeProcessor::reset()
 
     lookaheadBuffer.clear();
     lookaheadWritePos = 0;
+    dryBuffer.clear();
 }
 
 //==============================================================================
@@ -105,9 +110,12 @@ void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
     if (numSamples == 0)
         return;
 
-    // Store dry signal
-    juce::AudioBuffer<float> dryBuffer;
-    dryBuffer.makeCopyOf(monoBuffer);
+    // Resize dry buffer if needed (should rarely happen after prepare)
+    if (dryBuffer.getNumSamples() < numSamples)
+        dryBuffer.setSize(1, numSamples, false, false, true);
+
+    // Store dry signal (copy without allocation)
+    dryBuffer.copyFrom(0, 0, monoBuffer, 0, 0, numSamples);
 
     // For now, harmonics = 0 (HarmonicGenerator is bypassed)
     // Just test the mixing math

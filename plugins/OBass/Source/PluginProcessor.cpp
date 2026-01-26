@@ -187,6 +187,12 @@ void OBassAudioProcessor::releaseResources()
     monoSummer.reset();
     cleanModeProcessor.reset();
     coloredModeProcessor.reset();
+
+    // Reset SmoothedValue objects to prevent stale state
+    smoothedEnhance.reset(0);
+    modeCrossfade.reset(0);
+    outputGainSmooth.reset(0);
+    limitIndicatorSmooth.reset(0);
 }
 
 void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -246,9 +252,13 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     // Split into low and high bands
     crossover.process(buffer, lowBandBuffer, highBandBuffer);
 
+    // Create views that match the actual sample count (not allocated size)
+    juce::AudioBuffer<float> lowBandView(lowBandBuffer.getArrayOfWritePointers(), 2, numSamples);
+    juce::AudioBuffer<float> monoView(monoBuffer.getArrayOfWritePointers(), 1, numSamples);
+
     // Sum low band to mono for harmonic processing
-    monoSummer.captureBalance(lowBandBuffer);
-    monoSummer.sumToMono(lowBandBuffer, monoBuffer);
+    monoSummer.captureBalance(lowBandView);
+    monoSummer.sumToMono(lowBandView, monoView);
 
     // Read mode parameter and update crossfade target
     auto* modeParam = parameters.getRawParameterValue("enhanceMode");
@@ -269,15 +279,21 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     // doesn't need it as the character is inherently warm regardless of context
 
     // Copy mono buffer for colored processing (parallel path)
-    coloredBuffer.makeCopyOf(monoBuffer);
+    // Resize if needed (should rarely happen after prepare)
+    if (coloredBuffer.getNumSamples() < numSamples)
+        coloredBuffer.setSize(1, numSamples, false, false, true);
+    coloredBuffer.copyFrom(0, 0, monoView, 0, 0, numSamples);
+
+    // Create view for colored buffer
+    juce::AudioBuffer<float> coloredView(coloredBuffer.getArrayOfWritePointers(), 1, numSamples);
 
     // Process both paths
-    cleanModeProcessor.process(monoBuffer);      // Clean result in monoBuffer
-    coloredModeProcessor.process(coloredBuffer); // Colored result in coloredBuffer
+    cleanModeProcessor.process(monoView);       // Clean result in monoView
+    coloredModeProcessor.process(coloredView);  // Colored result in coloredView
 
     // Crossfade between paths (per-sample for smooth transition)
-    float* cleanData = monoBuffer.getWritePointer(0);
-    const float* coloredData = coloredBuffer.getReadPointer(0);
+    float* cleanData = monoView.getWritePointer(0);
+    const float* coloredData = coloredView.getReadPointer(0);
 
     for (int i = 0; i < numSamples; ++i)
     {
@@ -286,10 +302,13 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     }
 
     // Expand back to stereo
-    monoSummer.expandToStereo(monoBuffer, lowBandBuffer);
+    monoSummer.expandToStereo(monoView, lowBandView);
+
+    // Create view for high band
+    juce::AudioBuffer<float> highBandView(highBandBuffer.getArrayOfWritePointers(), 2, numSamples);
 
     // Recombine low + high bands
-    recombineBands(buffer, lowBandBuffer, highBandBuffer);
+    recombineBands(buffer, lowBandView, highBandView);
 
     // Apply output gain with soft clipping
     auto* outputParam = parameters.getRawParameterValue("output");
