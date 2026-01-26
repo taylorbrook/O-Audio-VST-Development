@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-22)
 ## Current Position
 
 Phase: 7 of 8 (Oversampling & Adaptive Harmonics)
-Plan: 0 of 3 complete
-Status: Gap closure phases added after v1.0 audit
-Progress: [###############.....] 75%
+Plan: 1 of 3 complete
+Status: In progress
+Progress: [################....] 80%
 
-Last activity: 2026-01-26 - Added gap closure phases 7-8 after milestone audit
+Last activity: 2026-01-26 - Completed 07-01-PLAN.md (Oversampling Pipeline)
 
 ## Performance Metrics
 
@@ -33,10 +33,11 @@ Last activity: 2026-01-26 - Added gap closure phases 7-8 after milestone audit
 | 04-controls-refinement | 3 | 10m 47s | 3m 36s |
 | 05-webview-ui | 3 | 7m 7s | 2m 22s |
 | 06-formats-integration | 2 | 18m | 9m |
+| 07-oversampling-adaptive-harmonics | 1 | 1m 23s | 1m 23s |
 
 **Recent Trend:**
-- Last 5 plans: 05-02 (2 min), 05-03 (3 min), 06-01 (3 min), 06-02 (15 min)
-- Trend: Validation plan took longer due to bug fix iteration
+- Last 5 plans: 05-03 (3 min), 06-01 (3 min), 06-02 (15 min), 07-01 (1 min)
+- Trend: Straightforward DSP wiring, no issues
 
 *Updated after each plan completion*
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - **Factory presets:** 10 presets with normalized parameter values (0.0-1.0)
 - **Preset exclusions:** latency_mode and bypass excluded (runtime-only settings)
 - **Preset output compensation:** High-enhance presets have reduced output to prevent limiting
+- **4x oversampling:** Factor 2^2 for both IIR and FIR oversamplers
+- **IIR oversampler:** filterHalfBandPolyphaseIIR for Low Latency mode
+- **FIR oversampler:** filterHalfBandFIREquiripple for High Fidelity mode
 
 ### Pending Todos
 
@@ -318,8 +322,23 @@ Key files ready for Phase 2:
 - `plugins/OBass/Source/DSP/CrossoverFilter.h` - Provides lowBandBuffer for enhancement, RT-safe mode switching
 - `plugins/OBass/Source/DSP/MonoSummer.h` - Mono bass ready for harmonic generation
 
+## Phase 7 Plan 01 Completion Summary
+
+**Oversampling Pipeline - COMPLETE**
+
+Plan 07-01 completed (Wire 4x Oversampling):
+- Upgraded oversampler factor from 2x to 4x (factor=2)
+- IIR oversampler: filterHalfBandPolyphaseIIR with max quality
+- FIR oversampler: filterHalfBandFIREquiripple for High Fidelity
+- Wired complete pipeline: processSamplesUp -> processOversampled -> processSamplesDown
+- Fixed getLatencyInSamples() to return actual oversampler latency
+- Closed DSP-04 tech debt: oversamplers were bypassed, now properly integrated
+
+Key files modified:
+- `plugins/OBass/Source/DSP/HarmonicGenerator.cpp` - 4x oversampling pipeline
+
 ## Session Continuity
 
 Last session: 2026-01-26
-Stopped at: Added gap closure phases 7-8 after milestone audit
-Resume file: Ready for /gsd:plan-phase 7
+Stopped at: Completed 07-01-PLAN.md (Oversampling Pipeline)
+Resume file: Ready for 07-02-PLAN.md
