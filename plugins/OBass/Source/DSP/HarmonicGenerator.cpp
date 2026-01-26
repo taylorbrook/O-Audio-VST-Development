@@ -6,7 +6,7 @@
 
     Generates 2nd-5th harmonics using Chebyshev polynomials for controlled
     harmonic generation. Uses 4x oversampling to prevent aliasing artifacts.
-    Output is bandpassed to 60-400Hz for psychoacoustic bass enhancement.
+    Output is bandpassed to 40-400Hz for psychoacoustic bass enhancement.
 
   ==============================================================================
 */
@@ -93,8 +93,7 @@ void HarmonicGenerator::reset()
 //==============================================================================
 void HarmonicGenerator::setMode(Mode newMode)
 {
-    // SIMPLIFIED: Mode doesn't affect processing anymore (no oversampling)
-    // Just store for API compatibility
+    // Store mode atomically - selects IIR (LowLatency) or FIR (HighFidelity) oversampler
     activeMode.store(newMode, std::memory_order_release);
 }
 

@@ -6,7 +6,7 @@
 
     Generates controlled harmonics (2nd-5th) using Chebyshev polynomials with
     dual oversamplers for latency mode support. Output is bandpassed to
-    psychoacoustically useful range (60-400Hz).
+    psychoacoustically useful range (40-400Hz).
 
   ==============================================================================
 */
@@ -60,7 +60,7 @@ private:
     std::unique_ptr<juce::dsp::Oversampling<float>> oversamplerIIR;
     std::unique_ptr<juce::dsp::Oversampling<float>> oversamplerFIR;
 
-    // Output bandpass filter (60-400Hz) to limit harmonics to useful range
+    // Output bandpass filter (40-400Hz) to limit harmonics to useful range
     juce::dsp::IIR::Filter<float> outputBandpassLow;
     juce::dsp::IIR::Filter<float> outputBandpassHigh;
 
