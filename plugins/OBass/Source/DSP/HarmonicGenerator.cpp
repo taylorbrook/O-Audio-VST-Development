@@ -36,21 +36,23 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
     sampleRate = spec.sampleRate;
     blockSize = static_cast<int>(spec.maximumBlockSize);
 
-    // Use 2x oversampling (not 4x) to reduce latency and complexity
-    // IIR filter for minimal latency
+    // Use 4x oversampling for clean harmonics from Chebyshev waveshaping
+    // IIR filter for Low Latency mode - minimal phase distortion
     oversamplerIIR = std::make_unique<juce::dsp::Oversampling<float>>(
-        1,  // numChannels (mono bass processing)
-        1,  // factor (2^1 = 2x oversampling) - reduced from 4x
+        1,      // numChannels (mono bass processing)
+        2,      // factor (2^2 = 4x oversampling)
         juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
-        false,  // not max quality - faster
+        true,   // max quality for clean harmonics
         true    // useIntegerLatency
     );
 
-    // FIR version also at 2x for consistency
+    // FIR version for High Fidelity mode - maximum quality
     oversamplerFIR = std::make_unique<juce::dsp::Oversampling<float>>(
-        1, 1,  // 2x oversampling
-        juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,  // Use IIR for both to reduce latency
-        false, true
+        1,      // numChannels (mono bass processing)
+        2,      // factor (2^2 = 4x oversampling)
+        juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple,
+        true,   // max quality for clean harmonics
+        true    // useIntegerLatency
     );
 
     // Initialize both oversamplers
@@ -131,31 +133,34 @@ void HarmonicGenerator::process(juce::AudioBuffer<float>& monoBuffer)
     if (numSamples == 0)
         return;
 
-    float* data = monoBuffer.getWritePointer(0);
+    // Get active oversampler based on latency mode
+    auto* oversampler = getActiveOversampler();
+    if (!oversampler)
+    {
+        // Fallback: clear buffer if oversamplers not ready
+        monoBuffer.clear();
+        return;
+    }
 
+    // Create audio block from mono buffer
+    juce::dsp::AudioBlock<float> inputBlock(monoBuffer);
+
+    // Upsample to 4x sample rate
+    auto oversampledBlock = oversampler->processSamplesUp(inputBlock);
+
+    // Process at elevated sample rate (Chebyshev waveshaping)
+    processOversampled(oversampledBlock.getChannelPointer(0),
+                       static_cast<int>(oversampledBlock.getNumSamples()));
+
+    // Downsample back to original rate (anti-aliasing filter applied automatically)
+    oversampler->processSamplesDown(inputBlock);
+
+    // Apply output bandpass filter (40-400Hz) at original sample rate
+    float* data = monoBuffer.getWritePointer(0);
     for (int i = 0; i < numSamples; ++i)
     {
-        float x = data[i];
-
-        // Skip invalid samples
-        if (!std::isfinite(x))
-        {
-            data[i] = 0.0f;
-            continue;
-        }
-
-        // Soft saturation approach - generates harmonics that ADD energy
-        // tanh(x * drive) / tanh(drive) gives normalized soft clipping
-        // This naturally generates 2nd and 3rd harmonics in phase with fundamental
-
-        float drive = 3.0f;  // Amount of saturation
-        float saturated = std::tanh(x * drive) / std::tanh(drive);
-
-        // The harmonic content is the difference between saturated and clean
-        float harmonics = saturated - x;
-
-        // Scale up the harmonics (they're subtle from soft saturation)
-        data[i] = harmonics * 2.0f;
+        data[i] = outputBandpassLow.processSample(data[i]);
+        data[i] = outputBandpassHigh.processSample(data[i]);
     }
 }
 
@@ -203,7 +208,10 @@ juce::dsp::Oversampling<float>* HarmonicGenerator::getActiveOversampler() const
 //==============================================================================
 int HarmonicGenerator::getLatencyInSamples() const
 {
-    // TEMPORARY: Return 0 to debug sample rate issue
-    // The oversampler latency was causing Logic to report wrong sample rates
-    return 0;
+    auto* oversampler = getActiveOversampler();
+    if (!oversampler)
+        return 0;
+
+    // JUCE oversampler returns float latency - round to int for DAW reporting
+    return static_cast<int>(std::round(oversampler->getLatencyInSamples()));
 }
