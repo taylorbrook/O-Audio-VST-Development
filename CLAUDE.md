@@ -36,3 +36,4 @@ ninja [PluginName]_VST3 [PluginName]_AU
 - Plugins are in `plugins/[PluginName]/`
 - Build output is in `build/plugins/[PluginName]/[PluginName]_artefacts/Release/`
 - Working directory for builds: `/Users/taylorbrook/Dev/VST-development/build`
+- **Research documents** go in `research/` (NOT `docs/`) — includes algorithm references, market research, technical deep-dives
