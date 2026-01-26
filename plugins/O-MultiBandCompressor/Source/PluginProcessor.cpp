@@ -514,59 +514,6 @@ void OMultiBandCompressorAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         float outputMaxR = buffer.getMagnitude(1, 0, numSamples);
         outputLevelR.store(outputMaxR, std::memory_order_relaxed);
     }
-
-    // ===== v1.2.0: FFT Spectrum Analysis =====
-    // Process output signal through FFT for spectrum visualization
-    // Uses mono sum of stereo signal for display
-
-    const float* leftChannel = buffer.getReadPointer(0);
-    const float* rightChannel = numChannels >= 2 ? buffer.getReadPointer(1) : leftChannel;
-
-    for (int sample = 0; sample < numSamples; ++sample)
-    {
-        // Mono sum (average L+R)
-        float monoSample = (leftChannel[sample] + rightChannel[sample]) * 0.5f;
-
-        // Push sample into FIFO
-        fftInputFifo[static_cast<size_t>(fftFifoIndex)] = monoSample;
-        ++fftFifoIndex;
-
-        // When FIFO is full, perform FFT
-        if (fftFifoIndex == FFT_SIZE)
-        {
-            fftFifoIndex = 0;
-
-            // Copy to FFT buffer and apply window
-            std::copy(fftInputFifo.begin(), fftInputFifo.end(), fftData.begin());
-            fftWindow.multiplyWithWindowingTable(fftData.data(), FFT_SIZE);
-
-            // Perform FFT (in-place, complex output)
-            fft.performFrequencyOnlyForwardTransform(fftData.data());
-
-            // Convert to magnitude (dB) and store in atomic array
-            // fftData now contains FFT_SIZE/2 + 1 magnitude values
-            const float minDb = -100.0f;
-            const float maxDb = 0.0f;
-
-            for (int bin = 0; bin < FFT_NUM_BINS; ++bin)
-            {
-                float magnitude = fftData[static_cast<size_t>(bin)];
-
-                // Convert to dB with floor
-                float db = magnitude > 0.0f
-                    ? juce::jlimit(minDb, maxDb, juce::Decibels::gainToDecibels(magnitude))
-                    : minDb;
-
-                // Normalize to 0-1 range for UI (0 = -100dB, 1 = 0dB)
-                float normalized = (db - minDb) / (maxDb - minDb);
-
-                spectrumMagnitudes[static_cast<size_t>(bin)].store(normalized, std::memory_order_relaxed);
-            }
-
-            // Signal that new data is available
-            spectrumDataReady.store(true, std::memory_order_relaxed);
-        }
-    }
 }
 
 juce::AudioProcessorEditor* OMultiBandCompressorAudioProcessor::createEditor()

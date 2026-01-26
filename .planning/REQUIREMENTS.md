@@ -72,10 +72,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DSP-01 | Phase 2 | Complete |
 | DSP-02 | Phase 1 | Complete |
 | DSP-03 | Phase 1 | Complete |
-| DSP-04 | Phase 2 | Complete |
+| DSP-04 | Phase 7 | Pending (gap closure) |
 | DSP-05 | Phase 1 | Complete |
 | MODE-01 | Phase 2 | Complete |
-| MODE-02 | Phase 3 | Complete |
+| MODE-02 | Phase 8 | Pending (gap closure) |
 | MODE-03 | Phase 3 | Complete |
 | CTRL-01 | Phase 4 | Complete |
 | CTRL-02 | Phase 4 | Complete |
@@ -84,10 +84,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | UI-01 | Phase 5 | Complete |
 | UI-02 | Phase 5 | Complete |
 | UI-03 | Phase 5 | Complete |
-| FMT-01 | Phase 6 | Pending |
-| FMT-02 | Phase 6 | Pending |
-| FMT-03 | Phase 6 | Pending |
-| INT-01 | Phase 6 | Pending |
+| FMT-01 | Phase 6 | Complete |
+| FMT-02 | Phase 6 | Complete |
+| FMT-03 | Phase 6 | Complete |
+| INT-01 | Phase 6 | Complete |
 
 **Coverage:**
 - v1 requirements: 19 total
@@ -96,4 +96,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-22*
-*Last updated: 2026-01-25 after Phase 5 completion*
+*Last updated: 2026-01-26 after gap closure phases added*

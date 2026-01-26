@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Dynamics Processor - Multiband Compressor)
 - **Complexity:** 5.0 (Maximum complexity - 56 parameters, 10 DSP components)
 
@@ -13,7 +13,6 @@
 - **2026-01-25 (Stage 1):** Foundation complete - Build system operational, 56 parameters implemented in APVTS
 - **2026-01-25 (v1.0.0):** Production ready - All stages complete (DSP, crossover network, M/S processing, WebView UI, metering)
 - **2026-01-25 (v1.1.0):** Added draggable crossover controls - click and drag to adjust XOVER1/2/3 frequency split points
-- **2026-01-25 (v1.2.0):** Real-time FFT spectrum analyzer - 2048-sample FFT with lock-free audio→UI communication, WebView canvas visualization
 
 ## Known Issues
 
@@ -65,7 +64,7 @@ Professional 4-band multiband compressor designed for mixing and mastering workf
 - **Crossover:** Cascaded 2nd order Butterworth filters (Linkwitz-Riley 4th order)
 - **Compressor:** Custom feed-forward topology with soft knee and Peak/RMS blend
 - **M/S Encoding:** Power-preserving matrix (√2 scaling)
-- **FFT Analysis:** 2048 samples (order 11), Hann window, lock-free atomic transfer, 30Hz canvas updates
+- **FFT Analysis:** 2048 samples, Hann window, 30-60fps updates (separate thread)
 - **Latency:** ~10-12ms (IIR filters + attack lookahead)
 - **CPU Target:** <30% single core @ 48kHz stereo (Off mode), <50% (Both mode)
 

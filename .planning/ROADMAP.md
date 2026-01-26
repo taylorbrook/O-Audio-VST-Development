@@ -18,6 +18,8 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 4: Controls & Refinement** - All 4 controls with intensity limiting and parameter tuning
 - [x] **Phase 5: WebView UI** - Visual interface matching Ouaricon suite language
 - [x] **Phase 6: Formats & Integration** - VST3/AU builds and preset system
+- [ ] **Phase 7: Oversampling & Adaptive Harmonics** - Tech debt closure (DSP-04)
+- [ ] **Phase 8: Sound & UI Polish** - Final tuning and visual refinements
 
 ## Phase Details
 
@@ -124,10 +126,46 @@ Plans:
 - [x] 06-01-PLAN.md — Preset manager integration and factory preset definitions
 - [x] 06-02-PLAN.md — Build, validation (pluginval + auval), and human DAW verification
 
+### Phase 7: Oversampling & Adaptive Harmonics
+**Goal**: Implement the 4x oversampling and pitch-adaptive harmonics that were planned but simplified during Phase 2
+**Depends on**: Phase 6
+**Requirements**: DSP-04
+**Gap Closure**: Closes tech debt from v1.0 audit (dead code, orphaned components)
+**Success Criteria** (what must be TRUE):
+  1. HarmonicGenerator uses 4x oversampling in process() path
+  2. PitchTracker.detectPitch() called and drives adaptive harmonic count
+  3. No dead code paths (processOversampled either integrated or removed)
+  4. Documentation matches implementation (STATE.md decisions accurate)
+  5. pluginval still passes at strictness 10 after changes
+**Plans**: TBD
+
+Plans:
+- [ ] 07-01-PLAN.md — Wire 4x oversampling into HarmonicGenerator
+- [ ] 07-02-PLAN.md — Wire PitchTracker for adaptive harmonics
+- [ ] 07-03-PLAN.md — Dead code cleanup and documentation update
+
+### Phase 8: Sound & UI Polish
+**Goal**: Final tuning pass on effect character and visual presentation before release
+**Depends on**: Phase 7
+**Requirements**: MODE-02
+**Gap Closure**: Ensures Colored mode has distinct analog warmth character
+**Success Criteria** (what must be TRUE):
+  1. Colored mode is audibly warmer/more saturated than Clean mode in A/B test
+  2. Both modes sound musical across the full Enhance range (0-100%)
+  3. UI visual polish complete (animations smooth, layout balanced)
+  4. Human listening test approves final sound quality
+  5. Human visual inspection approves final UI appearance
+**Plans**: TBD
+
+Plans:
+- [ ] 08-01-PLAN.md — Sound tuning and Colored mode differentiation
+- [ ] 08-02-PLAN.md — UI visual polish and refinements
+- [ ] 08-03-PLAN.md — Final human verification (sound + UI approval)
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
+Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -137,6 +175,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6
 | 4. Controls & Refinement | 3/3 | ✓ Complete | 2026-01-24 |
 | 5. WebView UI | 3/3 | ✓ Complete | 2026-01-25 |
 | 6. Formats & Integration | 2/2 | ✓ Complete | 2026-01-26 |
+| 7. Oversampling & Adaptive Harmonics | 0/3 | Pending | — |
+| 8. Sound & UI Polish | 0/3 | Pending | — |
 
 ---
 *Roadmap created: 2026-01-22*
