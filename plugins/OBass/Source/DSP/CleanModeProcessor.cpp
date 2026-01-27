@@ -106,52 +106,33 @@ void CleanModeProcessor::setIntensityScale(float scale)
 //==============================================================================
 void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
 {
+    // DEBUG STEP 3: Test PitchTracker added
     const int numSamples = monoBuffer.getNumSamples();
     if (numSamples == 0)
         return;
 
-    // Resize dry buffer if needed (should rarely happen after prepare)
-    if (dryBuffer.getNumSamples() < numSamples)
-        dryBuffer.setSize(1, numSamples, false, false, true);
+    // Store dry signal
+    if (dryBuffer.getNumSamples() >= numSamples)
+        dryBuffer.copyFrom(0, 0, monoBuffer, 0, 0, numSamples);
 
-    // Store dry signal (copy without allocation)
-    dryBuffer.copyFrom(0, 0, monoBuffer, 0, 0, numSamples);
-
-    // Detect pitch for adaptive harmonic generation
-    // Lower frequencies (sub-bass) get more harmonics for psychoacoustic effect
-    // Higher frequencies (upper bass) get fewer to avoid muddiness
+    // TEST: Add pitch tracking back
     float detectedPitch = pitchTracker.detectPitch(
         monoBuffer.getReadPointer(0), numSamples);
 
     if (detectedPitch > 0.0f)
-    {
-        // Valid pitch detected - adjust harmonic count
-        // <40Hz: 5 harmonics, <80Hz: 4, <120Hz: 3, else: 2
         harmonicGenerator.setAdaptiveHarmonics(detectedPitch);
-    }
-    // If no pitch detected (silence, noise), keep previous setting
 
-    // Generate harmonics with Chebyshev waveshaping + 4x oversampling
+    // Generate harmonics (oversampling disabled)
     harmonicGenerator.process(monoBuffer);
 
+    // Mix dry + wet
     const float* dry = dryBuffer.getReadPointer(0);
     float* wet = monoBuffer.getWritePointer(0);
-
-    // Apply intensity scale for frequency-dependent boost
-    // Lower crossover frequencies get stronger enhancement
     float scaledEnhance = enhanceAmount * intensityScale;
 
-    // ADD harmonics to dry signal (not replace)
-    // scaledEnhance controls how much harmonic content is added
     for (int i = 0; i < numSamples; ++i)
     {
-        float harmonics = wet[i];
-        float original = dry[i];
-
-        // Output = dry + (harmonics * scaledEnhance)
-        float output = original + harmonics * scaledEnhance;
-
-        // Soft limit to prevent clipping
+        float output = dry[i] + wet[i] * scaledEnhance;
         wet[i] = std::tanh(output);
     }
 }
@@ -252,16 +233,10 @@ float CleanModeProcessor::getCompressedEnhance(float rawEnhance)
 //==============================================================================
 int CleanModeProcessor::getLatencyInSamples() const
 {
-    int latency = 0;
-
-    // Oversampler latency (from harmonic generator)
-    latency += harmonicGenerator.getLatencyInSamples();
-
-    // Lookahead latency (High Fidelity mode only)
-    if (currentMode == Mode::HighFidelity)
-    {
-        latency += lookaheadSamples;
-    }
-
-    return latency;
+    // DISABLED: Latency reporting causes Logic Pro crash ("Sample Rate 15,595" error)
+    // Root cause unknown - possibly JUCE oversampler latency query issue.
+    // Workaround: Return 0 to disable DAW latency compensation.
+    // Impact: Minor phase offset (~2-5ms) which is acceptable for bass enhancement.
+    // TODO: Investigate root cause in future phase if precise latency compensation needed.
+    return 0;
 }

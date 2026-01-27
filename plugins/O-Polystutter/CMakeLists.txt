@@ -2,12 +2,12 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OPolystutter
-    COMPANY_NAME "Ouaricon Audio"
-    PLUGIN_MANUFACTURER_CODE OuAu
+    COMPANY_NAME "Ouaricon Development"
+    PLUGIN_MANUFACTURER_CODE OuDv
     PLUGIN_CODE OuPs
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Polystutter"
-    VERSION 1.6.8
+    VERSION 1.8.0
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE

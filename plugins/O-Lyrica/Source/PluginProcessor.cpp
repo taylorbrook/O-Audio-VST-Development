@@ -603,6 +603,8 @@ void OLyricaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
     {
         // v1.13.1: Save tonic directly to XML (workaround for CustomState serialization bug)
         xml->setAttribute("directTonic", tuningEngine.getTonicNote());
+        // v1.18.0: Save tooltip enabled state
+        xml->setAttribute("tooltipsEnabled", tooltipsEnabled.load(std::memory_order_acquire));
         copyXmlToBinary(*xml, destData);
     }
 }
@@ -624,6 +626,13 @@ void OLyricaAudioProcessor::setStateInformation(const void* data, int sizeInByte
         {
             int savedTonic = xmlState->getIntAttribute("directTonic", 0);
             tuningEngine.setTonicNote(savedTonic);
+        }
+
+        // v1.18.0: Restore tooltip enabled state
+        if (xmlState->hasAttribute("tooltipsEnabled"))
+        {
+            bool enabled = xmlState->getBoolAttribute("tooltipsEnabled", false);
+            tooltipsEnabled.store(enabled, std::memory_order_release);
         }
     }
 

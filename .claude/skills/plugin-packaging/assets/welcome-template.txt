@@ -1,4 +1,4 @@
-{{PLUGIN_NAME}} by TÂCHES
+{{PLUGIN_NAME}} by Ouaricon Audio
 
 Welcome to the {{PLUGIN_NAME}} installer.
 
@@ -10,3 +10,5 @@ What You're Installing:
 • {{PARAM_COUNT}} parameters for complete control
 
 Click Continue to begin installation.
+
+oaudio.io

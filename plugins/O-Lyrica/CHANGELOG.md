@@ -2,6 +2,35 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.18.0] - 2026-01-26
+
+### Added
+
+- **Tooltip System** - Interactive parameter tooltips with toggle button
+  - "?" toggle button in bottom-right corner (doesn't overlap UI elements)
+  - Tooltips off by default, click "?" to enable
+  - Persistent across tab switches
+  - Tooltip state saved/restored with plugin session (DAW project save)
+  - Parchment aesthetic styling matching O-Lyrica's classical theme
+  - Dark brown tooltip with cream text for readability
+  - Subtle dashed outline on hoverable elements when tooltips enabled
+
+### Tooltips Authored
+
+- **SOUND tab**: Brightness, Timbre, Decay Time, Attack Noise, Material, Tension, Gauge, Length, Stiffness, Body Size, Body Resonance, Wood Type, Mode Spread, Bridge Brightness, Pluck Position, Finger Hardness, Technique, Sympathetic Amount, Sympathetic Q
+- **TECHNIQUES tab**: Glissando Mode, Glissando Scale
+- **TUNING tab**: Temperament, Tuning Mode, A4 Reference, Octave Stretch
+- **FOOTER**: Master Volume
+
+### Technical Details
+
+- Files modified: index.html (CSS + HTML + JS), PluginProcessor.h/cpp, PluginEditor.cpp
+- New CSS: .tooltip-toggle, .tooltip, .tooltips-enabled styling
+- New native functions: `setTooltipsEnabled`, `getTooltipsEnabled`
+- State persistence via XML attributes in getStateInformation/setStateInformation
+- Timer callback syncs tooltip state from processor on editor open
+- Tooltip positioning with boundary constraints and automatic flip above/below
+
 ## [1.17.0] - 2026-01-25
 
 ### Changed

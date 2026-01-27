@@ -2,8 +2,8 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconAnalogEQ
-    COMPANY_NAME "Ouaricon Audio"
-    PLUGIN_MANUFACTURER_CODE OuAu
+    COMPANY_NAME "Ouaricon Development"
+    PLUGIN_MANUFACTURER_CODE OuDv
     PLUGIN_CODE OuAE
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-AnalogEQ"

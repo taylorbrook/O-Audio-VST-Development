@@ -1,6 +1,6 @@
 ---
 name: package
-description: Create branded PKG installer for plugin distribution
+description: Create signed, branded PKG installer for plugin distribution
 argument-hint: <PluginName>
 ---
 
@@ -44,13 +44,14 @@ argument-hint: <PluginName>
     Source AU binary for packaging
   </reads>
   <writes target="plugins/{{PLUGIN_NAME}}/dist/">
-    {{PLUGIN_NAME}}-by-TACHES.pkg and install-readme.txt
+    {{PLUGIN_NAME}}-OuariconAudio.pkg and install-readme.txt
   </writes>
 </state_contracts>
 
 <success_criteria>
   Packaging succeeds when:
   - PKG file created with branded installer screens
+  - Package signed with Developer ID Installer certificate
   - Installation guide generated
   - Both files copied to plugins/{{PLUGIN_NAME}}/dist/
   - User presented with decision menu
@@ -58,10 +59,10 @@ argument-hint: <PluginName>
 
 <invocation_examples>
   User input: "/package TapeAge"
-  → Creates: plugins/TapeAge/dist/TapeAge-by-TACHES.pkg
+  → Creates: plugins/TapeAge/dist/TapeAge-OuariconAudio.pkg
 
   User input: "/package GainKnob"
-  → Creates: plugins/GainKnob/dist/GainKnob-by-TACHES.pkg
+  → Creates: plugins/GainKnob/dist/GainKnob-OuariconAudio.pkg
 
   User input: "Create installer for DriveVerb"
   → Natural language routing to plugin-packaging skill

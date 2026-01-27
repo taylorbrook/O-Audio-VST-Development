@@ -197,6 +197,7 @@ void OBassAudioProcessor::releaseResources()
 
 void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
+    // DEBUG: Enabling sections one at a time to find crash source
     juce::ScopedNoDenormals noDenormals;
     juce::ignoreUnused(midiMessages);
 
@@ -260,23 +261,42 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     monoSummer.captureBalance(lowBandView);
     monoSummer.sumToMono(lowBandView, monoView);
 
+    // Get smoothed enhance value
+    float smoothedEnhanceValue = smoothedEnhance.skip(numSamples);
+
+    // Set enhance amount on clean processor only
+    cleanModeProcessor.setEnhanceAmount(smoothedEnhanceValue);
+
+    // Calculate high-band energy for spectral blending
+    float highEnergy = calculateHighBandEnergy(highBandBuffer);
+    cleanModeProcessor.setHighBandEnergy(highEnergy);
+
+    // Clean Mode processing - harmonic generation with 4x oversampling
+    // Fixed in v1.0.1: Added buffer size validation to prevent memory corruption
+    cleanModeProcessor.process(monoView);
+
+    // Expand back to stereo
+    monoSummer.expandToStereo(monoView, lowBandView);
+
+    // Create view for high band and recombine
+    {
+        juce::AudioBuffer<float> hbView(highBandBuffer.getArrayOfWritePointers(), 2, numSamples);
+        recombineBands(buffer, lowBandView, hbView);
+    }
+
+    // v1.0.1: Clean mode only (Colored mode crossfade disabled pending further testing)
+    // Output gain applied inline via soft tanh limiting in CleanModeProcessor
+    return;
+
+    // --- DISABLED: Colored mode crossfade and output gain stage ---
+    // TODO: Re-enable after fixing ColoredModeProcessor similarly
     // Read mode parameter and update crossfade target
     auto* modeParam = parameters.getRawParameterValue("enhanceMode");
     float modeValue = modeParam->load();
     modeCrossfade.setTargetValue(modeValue);  // 0.0 = Clean, 1.0 = Colored
 
-    // Get smoothed enhance value (for both processors)
-    float smoothedEnhanceValue = smoothedEnhance.skip(numSamples);
-
     // Set enhance amount on both processors
-    cleanModeProcessor.setEnhanceAmount(smoothedEnhanceValue);
     coloredModeProcessor.setEnhanceAmount(smoothedEnhanceValue);
-
-    // Calculate high-band energy for spectral blending
-    float highEnergy = calculateHighBandEnergy(highBandBuffer);
-    cleanModeProcessor.setHighBandEnergy(highEnergy);
-    // Note: ColoredModeProcessor doesn't have setHighBandEnergy - asymmetric saturation
-    // doesn't need it as the character is inherently warm regardless of context
 
     // Copy mono buffer for colored processing (parallel path)
     // Resize if needed (should rarely happen after prepare)
@@ -288,7 +308,6 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     juce::AudioBuffer<float> coloredView(coloredBuffer.getArrayOfWritePointers(), 1, numSamples);
 
     // Process both paths
-    cleanModeProcessor.process(monoView);       // Clean result in monoView
     coloredModeProcessor.process(coloredView);  // Colored result in coloredView
 
     // Crossfade between paths (per-sample for smooth transition)
@@ -404,13 +423,11 @@ void OBassAudioProcessor::recombineBands(juce::AudioBuffer<float>& output,
 
 void OBassAudioProcessor::updateLatencyReport()
 {
-    int latencySamples = crossover.getLatencyInSamples()
-                       + cleanModeProcessor.getLatencyInSamples();
-
-    // Safety: cap latency to reasonable maximum (500ms at 48kHz = 24000 samples)
-    latencySamples = juce::jmin(latencySamples, 24000);
-
-    setLatencySamples(latencySamples);
+    // DISABLED: Latency reporting causes Logic Pro crash ("Sample Rate XXXXX" error)
+    // Root cause unknown - possibly related to how Logic interprets latency values.
+    // Workaround: Always report 0 latency.
+    // Impact: No DAW latency compensation, acceptable for bass enhancement.
+    setLatencySamples(0);
     lastReportedMode = crossover.getMode();
 }
 

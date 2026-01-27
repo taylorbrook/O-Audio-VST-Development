@@ -87,7 +87,7 @@ Create PKG installer automatically after installation.
 
 **Prerequisite:** Plugin must be installed first (auto_install=true or manual install)
 
-**Output:** `plugins/[PluginName]/dist/[PluginName]-by-TACHES.pkg`
+**Output:** `plugins/[PluginName]/dist/[PluginName]-OuariconAudio.pkg`
 
 **Example:**
 ```json

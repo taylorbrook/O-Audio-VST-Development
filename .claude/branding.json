@@ -1,8 +1,15 @@
 {
   "company": {
-    "full_name": "Ouaricon Audio",
-    "short_name": "O-AUDIO",
-    "manufacturer_code": "OuAu",
+    "production": {
+      "full_name": "Ouaricon Audio",
+      "short_name": "O-AUDIO",
+      "manufacturer_code": "OuAu"
+    },
+    "development": {
+      "full_name": "Ouaricon Development",
+      "short_name": "O-DEV",
+      "manufacturer_code": "OuDv"
+    },
     "website": "https://ouaricon.audio",
     "copyright_year_start": 2025
   },
@@ -12,7 +19,8 @@
   },
   "defaults": {
     "plugin_code_prefix": "Ou",
-    "version_start": "1.0.0"
+    "version_start": "1.0.0",
+    "use_development_branding": true
   },
   "metadata": {
     "description": "Professional audio plugins by Ouaricon Audio",

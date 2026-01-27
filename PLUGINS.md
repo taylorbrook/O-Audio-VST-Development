@@ -28,14 +28,15 @@ Ouaricon Plugins:
 |-------------|--------|---------|------|--------------|
 | O-Tremolo | 📦 Installed | 1.3.1 | Audio Effect (Tremolo) | 2026-01-24 |
 | O-AnalogSaturation | 📦 Installed | 1.1.0 | Audio Effect (Saturation) | 2026-01-24 |
-| O-Marimba | 📦 Installed | 1.10.0 | Synth (Physical Model) | 2026-01-25 |
+| O-Marimba | 📦 Installed | 1.11.0 | Synth (Physical Model) | 2026-01-26 |
 | O-Comp | 📦 Installed | 1.2.0 | Audio Effect (Compressor) | 2026-01-24 |
 | O-AnalogEQ | 📦 Installed | 1.1.0 | Audio Effect (EQ) | 2026-01-24 |
 | O-DigiDelay | 📦 Installed | 1.2.1 | Audio Effect (Delay) | 2026-01-24 |
 | O-SimpleReverb | 📦 Installed | 1.5.0 | Audio Effect (Reverb) | 2026-01-24 |
-| O-Polystutter | 📦 Installed | 1.6.8 | Audio Effect (Beat Repeater) | 2026-01-24 |
+| O-Polystutter | 📦 Installed | 1.8.0 | Audio Effect (Beat Repeater) | 2026-01-26 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
 | O-Lyrica | 📦 Installed | 1.17.0 | Synth (Physical Modeling Harp) | 2026-01-25 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
+| OBass | 📦 Installed | 1.0.1 | Audio Effect (Bass Enhancer) | 2026-01-27 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

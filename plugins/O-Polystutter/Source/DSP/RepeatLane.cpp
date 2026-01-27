@@ -412,6 +412,31 @@ void RepeatLane::startNewRepeat()
         currentGain *= decayAmount;
     }
 
+    // v1.7.0: Generate new random pitch offset for this repeat
+    if (pitchRandEnabled)
+    {
+        // Generate random value in [min, max] range
+        float range = pitchRandMax - pitchRandMin;
+        currentRandomPitch = pitchRandMin + randomGenerator.nextFloat() * range;
+
+        // Quantize to semitones if enabled
+        if (pitchRandQuantize)
+        {
+            currentRandomPitch = std::round(currentRandomPitch);
+        }
+
+        // Calculate effective pitch ratio (base pitch + random offset)
+        float effectivePitch = pitchSemitones + currentRandomPitch;
+        effectivePitch = juce::jlimit(-24.0f, 24.0f, effectivePitch); // Safety clamp
+        pitchRatio = std::pow(2.0f, effectivePitch / 12.0f);
+    }
+    else
+    {
+        // No randomization, use base pitch
+        currentRandomPitch = 0.0f;
+        pitchRatio = std::pow(2.0f, pitchSemitones / 12.0f);
+    }
+
     // Set timer for next repeat (with swing offset)
     int swingOffset = calculateSwingOffset(currentRepeat);
     samplesUntilNextRepeat = static_cast<int>(subdivisionSamples) + swingOffset;
@@ -452,13 +477,19 @@ void RepeatLane::setSwing(float swingPercent)
 
 void RepeatLane::setPitch(float semitones)
 {
-    // Store semitones and calculate pitch ratio
+    // Store semitones for use in pitch calculation
     pitchSemitones = juce::jlimit(-12.0f, 12.0f, semitones);
 
-    // Pitch ratio = 2^(semitones/12)
-    // Positive semitones = higher pitch = faster playback
-    // Negative semitones = lower pitch = slower playback
-    pitchRatio = std::pow(2.0f, pitchSemitones / 12.0f);
+    // v1.7.0 FIX: Only recalculate pitchRatio here when randomization is DISABLED.
+    // When enabled, pitchRatio is calculated in startNewRepeat() with random offset.
+    // This prevents overwriting the randomized pitch on every processBlock call.
+    if (!pitchRandEnabled)
+    {
+        // Pitch ratio = 2^(semitones/12)
+        // Positive semitones = higher pitch = faster playback
+        // Negative semitones = lower pitch = slower playback
+        pitchRatio = std::pow(2.0f, pitchSemitones / 12.0f);
+    }
 }
 
 void RepeatLane::setPatternStep(int stepIndex, bool stepEnabled)
@@ -566,4 +597,32 @@ float RepeatLane::getProgress() const
 
     // Clamp to 0.0-1.0 range
     return static_cast<float>(juce::jlimit(0.0, 1.0, progress));
+}
+
+// v1.7.0: Pitch randomization setters
+void RepeatLane::setPitchRandEnabled(bool shouldEnable)
+{
+    pitchRandEnabled = shouldEnable;
+
+    // If disabling, reset pitch ratio to base pitch
+    if (!shouldEnable)
+    {
+        currentRandomPitch = 0.0f;
+        pitchRatio = std::pow(2.0f, pitchSemitones / 12.0f);
+    }
+}
+
+void RepeatLane::setPitchRandMin(float minSemitones)
+{
+    pitchRandMin = juce::jlimit(-12.0f, 12.0f, minSemitones);
+}
+
+void RepeatLane::setPitchRandMax(float maxSemitones)
+{
+    pitchRandMax = juce::jlimit(-12.0f, 12.0f, maxSemitones);
+}
+
+void RepeatLane::setPitchRandQuantize(bool shouldQuantize)
+{
+    pitchRandQuantize = shouldQuantize;
 }

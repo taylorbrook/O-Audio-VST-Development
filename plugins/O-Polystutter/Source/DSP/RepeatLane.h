@@ -42,6 +42,12 @@ public:
     // Phase 2.4: Pitch shifting
     void setPitch(float pitchSemitones);      // -12 to +12 semitones
 
+    // v1.7.0: Pitch randomization
+    void setPitchRandEnabled(bool shouldEnable);
+    void setPitchRandMin(float minSemitones);      // -12 to +12
+    void setPitchRandMax(float maxSemitones);      // -12 to +12
+    void setPitchRandQuantize(bool shouldQuantize); // true = semitones, false = cents
+
     // Phase 2.3: Advanced modes
     void setPingPong(bool shouldEnable);
     void setReverse(bool shouldEnable);
@@ -78,6 +84,13 @@ private:
     float swingAmount = 0.0f;  // 0.0 to 1.0 (0% to 100%)
     float pitchSemitones = 0.0f;  // -12.0 to +12.0 semitones
     float pitchRatio = 1.0f;  // Cached pitch ratio from semitones
+
+    // v1.7.0: Pitch randomization parameters
+    bool pitchRandEnabled = false;
+    float pitchRandMin = 0.0f;       // -12.0 to +12.0
+    float pitchRandMax = 0.0f;       // -12.0 to +12.0
+    bool pitchRandQuantize = true;   // true = semitones, false = cents
+    float currentRandomPitch = 0.0f; // Current random offset for this repeat
 
     // Phase 2.3: Advanced mode parameters
     bool pingPongEnabled = false;

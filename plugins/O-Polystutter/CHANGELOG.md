@@ -2,6 +2,65 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.8.0] - 2026-01-26
+
+### Added
+
+- **Tooltip system with toggle button**
+  - Question-mark (?) button in top-left corner toggles tooltips on/off
+  - When enabled, hover over any control to see helpful descriptions
+  - Tooltips cover all 50+ controls:
+    - Lane controls: SUBDIV, REPS, DECAY, FILTER, PROB, VOL, PAN, SWING, PITCH
+    - Pitch randomization: RND, MIN, MAX, ST toggles
+    - Lane toggles: PING, REV, MAN, FRZ
+    - Lane headers and progress bars
+    - Sequencer section and SEQ toggle
+    - Tape degradation: SAT, WOW, FLUTTER, HISS, ROLLOFF, DROPOUT, BYPASS
+    - Mix controls: DRY, WET
+    - Trigger controls: MIDI, TRIG
+    - Preset bar: navigation, save, load
+  - Controls get subtle outline highlight when hovered (with tooltips enabled)
+  - Tooltips auto-position above or below to stay within plugin bounds
+  - CSS-only styling matches the vintage paper aesthetic
+
+### Technical
+
+- HTML: Added `data-tooltip` attributes to all interactive elements
+- CSS: New `.tooltip-toggle`, `.tooltip`, and `.tooltips-enabled` classes
+- JS: Tooltip system (~80 lines) handles toggle state, positioning, and visibility
+- Files modified: `index.html` only (no C++ changes required)
+
+## [1.7.0] - 2026-01-26
+
+### Added
+
+- **Per-lane pitch randomization**
+  - New RND toggle per lane enables random pitch variation on each stutter repetition
+  - MIN/MAX knobs set the randomization range (-12 to +12 semitones)
+  - ST toggle switches between semitone quantization (whole numbers) and cents mode (2 decimal places)
+  - Random pitch is additive to the base PITCH knob (base ± random range)
+  - New parameters (16 total, 4 per lane):
+    - `lane[N]_pitch_rand_enabled` (bool, default: off)
+    - `lane[N]_pitch_rand_min` (float, -12 to +12, default: 0)
+    - `lane[N]_pitch_rand_max` (float, -12 to +12, default: 0)
+    - `lane[N]_pitch_rand_quantize` (bool, default: on)
+
+### Changed
+
+- **Lane control layout reorganized from 3-3-3 to 4-4-1**
+  - Row 1: SUBDIV, REPS, DECAY, FILTER (was: SUBDIV, REPS, DECAY)
+  - Row 2: PROB, VOL, PAN, SWING (was: PITCH, FILTER, PROB)
+  - Row 3: PITCH + pitch randomization controls (was: VOL, PAN, SWING)
+  - Row 4: PING, REV, MAN, FRZ (unchanged)
+  - Pitch knob now isolated on dedicated row with full randomization section
+  - Controls slightly more compact to fit 4-column layout
+
+### Technical
+
+- DSP: Random offset generated per-repeat in `RepeatLane::startNewRepeat()`
+- UI: Mini-knob CSS class for smaller MIN/MAX controls
+- Files modified: `RepeatLane.h/cpp`, `PluginProcessor.h/cpp`, `PluginEditor.h/cpp`, `index.html`, `parameter-bindings.js`
+
 ## [1.6.8] - 2026-01-24
 
 ### Changed

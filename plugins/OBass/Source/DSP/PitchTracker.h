@@ -83,6 +83,7 @@ private:
     double currentSampleRate = 44100.0;
     int windowSize = 2048;
     int writeIndex = 0;
+    int preparedBlockSize = 512;  // Max block size from prepare() for runtime validation
     float yinThreshold = 0.1f;  // YIN threshold (lower = stricter)
     float lastPitch = 0.0f;
 

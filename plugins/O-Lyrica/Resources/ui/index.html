@@ -1563,12 +1563,86 @@
         .library-list::-webkit-scrollbar-thumb:hover {
             background: rgba(139, 115, 85, 0.6);
         }
+
+        /* ====================================================================
+           v1.18.0: TOOLTIP SYSTEM
+           ==================================================================== */
+
+        /* Tooltip toggle button (?) - positioned bottom-right */
+        .tooltip-toggle {
+            position: absolute;
+            bottom: 50px;
+            right: 15px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            color: #5C4033;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 150ms ease;
+            z-index: 100;
+        }
+
+        .tooltip-toggle:hover {
+            background: rgba(139, 168, 112, 0.5);
+            border-color: #6B8E4E;
+        }
+
+        .tooltip-toggle.active {
+            background: rgba(139, 168, 112, 0.7);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            box-shadow: 0 0 6px rgba(107, 142, 78, 0.4);
+        }
+
+        /* Tooltip container (appears on hover when tooltips enabled) */
+        .tooltip {
+            position: absolute;
+            background: rgba(60, 47, 47, 0.95);
+            color: #F5E6D3;
+            padding: 6px 10px;
+            border: 1px solid rgba(139, 115, 85, 0.6);
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            line-height: 1.4;
+            max-width: 200px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 150ms ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            white-space: normal;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        /* Elements with tooltips get subtle indicator when tooltips enabled */
+        .tooltips-enabled [data-tooltip]:hover {
+            outline: 1px dashed rgba(139, 168, 112, 0.4);
+            outline-offset: 2px;
+        }
     </style>
 </head>
 <body>
     <div class="plugin-container">
         <!-- Botanical Overlay -->
         <img src="/images/fern_naturalistsmisc1Geor_0089.png" class="botanical-overlay" id="botanicalOverlay" alt="">
+
+        <!-- v1.18.0: Tooltip toggle button -->
+        <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+
+        <!-- Tooltip element (positioned dynamically by JS) -->
+        <div class="tooltip" id="tooltip"></div>
 
         <!-- Header -->
         <div class="header">
@@ -1603,28 +1677,28 @@
             <div class="section">
                 <div class="section-header">Main</div>
                 <div class="section-content">
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Brightness: Controls the high-frequency content of the string tone. Higher values produce a brighter, more brilliant sound.">
                         <span class="slider-label">Brightness</span>
                         <div class="slider-wrapper">
                             <input type="range" id="brightness" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="brightnessValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Timbre: Adjusts the tonal warmth of the string. Lower values produce darker, warmer tones; higher values add brightness.">
                         <span class="slider-label">Timbre</span>
                         <div class="slider-wrapper">
                             <input type="range" id="timbre" min="0" max="1" step="0.001" value="0.7">
                             <span class="slider-value" id="timbreValue">70%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Decay Time: How long the string resonates after being plucked. Longer decay creates sustained, ethereal notes.">
                         <span class="slider-label">Decay Time</span>
                         <div class="slider-wrapper">
                             <input type="range" id="decayTime" min="0" max="1" step="0.001" value="0.247">
                             <span class="slider-value" id="decayTimeValue">5.0s</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Attack Noise: Amount of pluck transient noise. Higher values add scratchy, percussive attack character.">
                         <span class="slider-label">Attack Noise</span>
                         <div class="slider-wrapper">
                             <input type="range" id="attackNoise" min="0" max="1" step="0.001" value="0.5">
@@ -1638,7 +1712,7 @@
             <div class="section">
                 <div class="section-header">String</div>
                 <div class="section-content">
-                    <div class="dropdown-group">
+                    <div class="dropdown-group" data-tooltip="Material: The string material affects tone, brightness, and sustain. Gut is warm and mellow; Wire is bright; Crystal has bell-like qualities.">
                         <span class="dropdown-label">Material</span>
                         <select id="stringMaterial">
                             <option value="0">Gut</option>
@@ -1651,28 +1725,28 @@
                             <option value="7">Energy</option>
                         </select>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Tension: String tightness affects resonance and brightness. Higher tension creates a brighter, more resonant tone.">
                         <span class="slider-label">Tension</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringTension" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="stringTensionValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Gauge: String thickness affects damping. Thinner strings are brighter with quick decay; thicker strings are darker with more body.">
                         <span class="slider-label">Gauge</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringGauge" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="stringGaugeValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Length: Virtual string length affects decay character. Shorter strings have punchy decay; longer strings sustain with diffuse tails.">
                         <span class="slider-label">Length</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringLength" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="stringLengthValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Stiffness: Controls harmonic stretch (inharmonicity). Higher values create bell-like, slightly detuned overtones.">
                         <span class="slider-label">Stiffness</span>
                         <div class="slider-wrapper">
                             <input type="range" id="stringStiffness" min="0" max="1" step="0.001" value="0.2">
@@ -1686,21 +1760,21 @@
             <div class="section">
                 <div class="section-header">Body</div>
                 <div class="section-content">
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Size: The soundboard size affects bass response and overall fullness. Larger bodies produce deeper, more resonant tones.">
                         <span class="slider-label">Size</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bodySize" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="bodySizeValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Resonance: Body resonance amount. Higher values add more sympathetic body vibration to the string sound.">
                         <span class="slider-label">Resonance</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bodyResonance" min="0" max="1" step="0.001" value="0.6">
                             <span class="slider-value" id="bodyResonanceValue">60%</span>
                         </div>
                     </div>
-                    <div class="dropdown-group">
+                    <div class="dropdown-group" data-tooltip="Wood Type: Soundboard wood affects tonal character. Spruce is balanced; Maple is bright; Exotic woods have unique timbres.">
                         <span class="dropdown-label">Wood Type</span>
                         <select id="woodType">
                             <option value="0">Spruce</option>
@@ -1709,14 +1783,14 @@
                             <option value="3">Synthetic</option>
                         </select>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Mode Spread: Spreads body resonance modes across frequencies. Higher values create a more complex, diffuse resonance.">
                         <span class="slider-label">Mode Spread</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bodyModeSpread" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="bodyModeSpreadValue">0%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Bridge Brightness: Affects the transfer of high frequencies from string to body. Higher values add clarity and definition.">
                         <span class="slider-label">Bridge Bright</span>
                         <div class="slider-wrapper">
                             <input type="range" id="bridgeBrightness" min="0" max="1" step="0.001" value="0.5">
@@ -1730,21 +1804,21 @@
             <div class="section">
                 <div class="section-header">Excitation</div>
                 <div class="section-content">
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Pluck Position: Where the string is plucked. Near the soundhole (0%) has more bass; near the bridge (100%) has more brilliance.">
                         <span class="slider-label">Pluck Position</span>
                         <div class="slider-wrapper">
                             <input type="range" id="pluckPosition" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="pluckPositionValue">50%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Finger Hardness: How firm the plucking finger is. Soft fingertips (0%) sound mellow; hard fingernails (100%) sound sharp.">
                         <span class="slider-label">Finger Hardness</span>
                         <div class="slider-wrapper">
                             <input type="range" id="fingerHardness" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="fingerHardnessValue">50%</span>
                         </div>
                     </div>
-                    <div class="dropdown-group">
+                    <div class="dropdown-group" data-tooltip="Technique: Playing technique changes the excitation character. Harmonics produce bell-like tones; Muted creates percussive plucks.">
                         <span class="dropdown-label">Technique</span>
                         <select id="technique">
                             <option value="0">Normal</option>
@@ -1760,14 +1834,14 @@
             <div class="section">
                 <div class="section-header">Sympathetic</div>
                 <div class="section-content">
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Amount: Sympathetic resonance intensity. How much unplayed strings vibrate in response to played notes. Creates richness.">
                         <span class="slider-label">Amount</span>
                         <div class="slider-wrapper">
                             <input type="range" id="sympatheticAmount" min="0" max="1" step="0.001" value="0.3">
                             <span class="slider-value" id="sympatheticAmountValue">30%</span>
                         </div>
                     </div>
-                    <div class="slider-group">
+                    <div class="slider-group" data-tooltip="Sharpness (Q): The tuning sharpness of sympathetic filters. Higher Q values create more focused, ringing resonance.">
                         <span class="slider-label">Sharpness (Q)</span>
                         <div class="slider-wrapper">
                             <input type="range" id="sympatheticQ" min="0" max="1" step="0.001" value="0.247">
@@ -1785,7 +1859,7 @@
             <div class="section">
                 <div class="section-header">Glissando</div>
                 <div class="section-content">
-                    <div class="dropdown-group">
+                    <div class="dropdown-group" data-tooltip="Mode: Glissando behavior. Off disables; Free allows smooth pitch slides; Scale-Locked snaps to selected scale notes.">
                         <span class="dropdown-label">Mode</span>
                         <select id="glissandoMode">
                             <option value="0">Off</option>
@@ -1793,7 +1867,7 @@
                             <option value="2">Scale-Locked</option>
                         </select>
                     </div>
-                    <div class="dropdown-group">
+                    <div class="dropdown-group" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor are diatonic; Pentatonic is anhemitonic; Custom uses the tuning tab scale.">
                         <span class="dropdown-label">Scale</span>
                         <select id="glissandoScale">
                             <option value="0">Major</option>
@@ -1872,7 +1946,7 @@
             <!-- RIGHT SIDE: Tuning Controls -->
             <div class="tuning-controls-panel">
                 <!-- v1.9.0: Temperament Preset Dropdown -->
-                <div class="tuning-preset-section">
+                <div class="tuning-preset-section" data-tooltip="Temperament: Select a built-in historical temperament or load a custom Scala file. Affects the tuning of all notes.">
                     <label class="tuning-preset-label">Temperament</label>
                     <select id="temperament-preset" class="tuning-preset-select" onchange="window.handlePresetChange && window.handlePresetChange(this.value)">
                         <option value="0">Equal 12-TET</option>
@@ -1890,7 +1964,7 @@
                 </div>
 
                 <!-- Mode Selection -->
-                <div class="tuning-mode-section">
+                <div class="tuning-mode-section" data-tooltip="Tuning Mode: 12-TET uses standard equal temperament; Custom enables Scala file loading; MTS-ESP connects to external tuning masters.">
                     <div class="tuning-mode-buttons">
                         <button class="tuning-mode-btn active" id="btn-12tet" data-mode="0" onclick="window.handleModeClick && window.handleModeClick(0, this)">12-TET</button>
                         <button class="tuning-mode-btn" id="btn-custom" data-mode="1" onclick="window.handleModeClick && window.handleModeClick(1, this)">Custom</button>
@@ -1899,7 +1973,7 @@
                 </div>
 
                 <!-- Reference Pitch Knob -->
-                <div class="tuning-ref-section">
+                <div class="tuning-ref-section" data-tooltip="A4 Reference: The concert pitch for A4. Standard is 440 Hz. Historical tunings may use 415 Hz (Baroque) or 432 Hz.">
                     <div class="ref-knob-container">
                         <div class="ref-knob" id="ref-pitch-knob">
                             <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
@@ -1913,7 +1987,7 @@
                 <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
 
                 <!-- v1.9.0: Octave Stretch Slider -->
-                <div class="octave-stretch-section">
+                <div class="octave-stretch-section" data-tooltip="Octave Stretch: Stretches octaves slightly. Values >1.0 widen octaves (piano-like). Used for compensating string inharmonicity.">
                     <div class="octave-stretch-row">
                         <span class="octave-stretch-label">Stretch</span>
                         <input type="range" id="octave-stretch" class="octave-stretch-slider"
@@ -2023,7 +2097,7 @@
 
         <!-- Footer -->
         <div class="footer">
-            <div class="master-volume">
+            <div class="master-volume" data-tooltip="Master Volume: The final output level of the instrument. Shown in dB. 0 dB is unity gain (no change).">
                 <span class="master-label">Master</span>
                 <input type="range" id="masterVolume" class="master-slider" min="0" max="1" step="0.001" value="0.909">
                 <span class="master-value" id="masterVolumeValue">0.0 dB</span>
@@ -3728,6 +3802,94 @@
                 console.log('[Tuning] Synced tonic from processor:', tonic);
             }
         };
+
+        // ====================================================================
+        // v1.18.0: Tooltip System
+        // ====================================================================
+        (function initTooltipSystem() {
+            const tooltipToggle = document.getElementById('tooltip-toggle');
+            const tooltip = document.getElementById('tooltip');
+            const pluginContainer = document.querySelector('.plugin-container');
+            let tooltipsEnabled = false;
+
+            // Toggle tooltips on/off
+            tooltipToggle.addEventListener('click', function() {
+                tooltipsEnabled = !tooltipsEnabled;
+                tooltipToggle.classList.toggle('active', tooltipsEnabled);
+                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
+
+                // Hide tooltip when disabling
+                if (!tooltipsEnabled) {
+                    tooltip.classList.remove('visible');
+                }
+
+                // Save state via JUCE native function (if available)
+                if (window.JuceAPI && window.JuceAPI.getNativeFunction) {
+                    try {
+                        window.JuceAPI.getNativeFunction('setTooltipsEnabled')(tooltipsEnabled);
+                    } catch (e) {
+                        // Silently ignore if function not available
+                    }
+                }
+            });
+
+            // Show tooltip on hover over elements with data-tooltip
+            pluginContainer.addEventListener('mouseover', function(e) {
+                if (!tooltipsEnabled) return;
+
+                const target = e.target.closest('[data-tooltip]');
+                if (!target) return;
+
+                const text = target.getAttribute('data-tooltip');
+                if (!text) return;
+
+                tooltip.textContent = text;
+                tooltip.classList.add('visible');
+
+                // Position tooltip above the element
+                const rect = target.getBoundingClientRect();
+                const containerRect = pluginContainer.getBoundingClientRect();
+
+                // Calculate position relative to container
+                let left = rect.left - containerRect.left + rect.width / 2;
+                let top = rect.top - containerRect.top - 8;
+
+                // Constrain within container bounds
+                const tooltipWidth = tooltip.offsetWidth || 200;
+                const tooltipHeight = tooltip.offsetHeight || 40;
+
+                // Keep tooltip within horizontal bounds
+                if (left - tooltipWidth / 2 < 10) {
+                    left = tooltipWidth / 2 + 10;
+                } else if (left + tooltipWidth / 2 > containerRect.width - 10) {
+                    left = containerRect.width - tooltipWidth / 2 - 10;
+                }
+
+                // Check if tooltip would go above container - if so, show below
+                if (top - tooltipHeight < 0) {
+                    top = rect.bottom - containerRect.top + 8;
+                }
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.transform = 'translateX(-50%)';
+            });
+
+            // Hide tooltip when mouse leaves element
+            pluginContainer.addEventListener('mouseout', function(e) {
+                const target = e.target.closest('[data-tooltip]');
+                if (target) {
+                    tooltip.classList.remove('visible');
+                }
+            });
+
+            // Restore tooltip state from JUCE (if available)
+            window.restoreTooltipState = function(enabled) {
+                tooltipsEnabled = !!enabled;
+                tooltipToggle.classList.toggle('active', tooltipsEnabled);
+                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
+            };
+        })();
 
         initializeTuning();
     </script>

@@ -5,8 +5,8 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-SimpleReverb
-    COMPANY_NAME "Ouaricon Audio"
-    PLUGIN_MANUFACTURER_CODE OuAu
+    COMPANY_NAME "Ouaricon Development"
+    PLUGIN_MANUFACTURER_CODE OuDv
     PLUGIN_CODE OuSr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-SimpleReverb"

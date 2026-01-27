@@ -665,6 +665,18 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                     }
                 );
             })
+            // v1.18.0: Tooltip system native functions
+            .withNativeFunction("setTooltipsEnabled", [this](const juce::Array<juce::var>& args,
+                                                              std::function<void(juce::var)> complete) {
+                if (args.isEmpty()) { complete(juce::var(false)); return; }
+                bool enabled = static_cast<bool>(args[0]);
+                processorRef.setTooltipsEnabled(enabled);
+                complete(juce::var(true));
+            })
+            .withNativeFunction("getTooltipsEnabled", [this](const juce::Array<juce::var>&,
+                                                              std::function<void(juce::var)> complete) {
+                complete(juce::var(processorRef.getTooltipsEnabled()));
+            })
             // v1.7.4: Note triggering for WebView keyboard visualization
             .withNativeFunction("triggerNoteOn", [this](const juce::Array<juce::var>& args,
                                                          std::function<void(juce::var)> complete) {
@@ -815,6 +827,7 @@ void OLyricaAudioProcessorEditor::resized()
 // v1.7.9: Timer callback - poll MIDI events and notify WebView for tuning circle visualization
 // v1.10.0: Also send held notes data for True Keys visualization
 // v1.13.1: Also sync tonic from processor to ensure persistence works
+// v1.18.0: Also sync tooltip state from processor
 void OLyricaAudioProcessorEditor::timerCallback()
 {
     // v1.13.1: Sync tonic from processor to WebView (handles state restoration timing)
@@ -825,6 +838,17 @@ void OLyricaAudioProcessorEditor::timerCallback()
         lastSyncedTonic = currentTonic;
         juce::String js = "if (typeof window.syncTonicFromProcessor === 'function') window.syncTonicFromProcessor("
             + juce::String(currentTonic) + ");";
+        webView->evaluateJavascript(js, nullptr);
+    }
+
+    // v1.18.0: Sync tooltip state from processor to WebView (once, on first callback)
+    static bool tooltipStateSynced = false;
+    if (!tooltipStateSynced)
+    {
+        tooltipStateSynced = true;
+        bool enabled = processorRef.getTooltipsEnabled();
+        juce::String js = "if (typeof window.restoreTooltipState === 'function') window.restoreTooltipState("
+            + juce::String(enabled ? "true" : "false") + ");";
         webView->evaluateJavascript(js, nullptr);
     }
 

@@ -94,7 +94,7 @@ mkdir -p "$TEMP_DIR/scripts"
 
 ```bash
 cat > "$TEMP_DIR/resources/Welcome.txt" << EOF
-${PLUGIN_NAME} by TÂCHES
+${PLUGIN_NAME} by Ouaricon Audio
 
 Welcome to the ${PLUGIN_NAME} installer.
 
@@ -121,7 +121,7 @@ Use template from `assets/readme-template.txt`, populate with:
 
 Example structure:
 ```
-${PLUGIN_NAME} by TÂCHES
+${PLUGIN_NAME} by Ouaricon Audio
 Version ${VERSION}
 
 ABOUT ${PLUGIN_NAME}
@@ -143,7 +143,7 @@ INSTALLATION LOCATION
 cat > "$TEMP_DIR/resources/Conclusion.txt" << EOF
 Installation Complete!
 
-${PLUGIN_NAME} by TÂCHES has been successfully installed.
+${PLUGIN_NAME} by Ouaricon Audio has been successfully installed.
 
 NEXT STEPS
 
@@ -154,12 +154,12 @@ NEXT STEPS
 
 FIND ${PLUGIN_NAME} IN YOUR DAW
 
-VST3: Look in your plugin browser under "TÂCHES" or "${PLUGIN_NAME}"
-AU: Audio Units > Effect > TÂCHES > ${PLUGIN_NAME}
+VST3: Look in your plugin browser under "Ouaricon Audio" or "${PLUGIN_NAME}"
+AU: Audio Units > Effect > Ouaricon Audio > ${PLUGIN_NAME}
 
 Thank you for using ${PLUGIN_NAME}!
 
-— TÂCHES
+— Ouaricon Audio
 EOF
 ```
 
@@ -223,7 +223,7 @@ cd "$TEMP_DIR"
 pkgbuild \
     --root payload \
     --scripts scripts \
-    --identifier "com.taches.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')" \
+    --identifier "io.oaudio.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')" \
     --version "$VERSION" \
     --install-location /tmp \
     "${PLUGIN_NAME}-Installer.pkg"
@@ -247,8 +247,8 @@ pkgbuild: Wrote package to [Name]-Installer.pkg
 cat > "$TEMP_DIR/Distribution.xml" << EOF
 <?xml version="1.0" encoding="utf-8"?>
 <installer-gui-script minSpecVersion="1">
-    <title>${PLUGIN_NAME} by TÂCHES</title>
-    <organization>com.taches</organization>
+    <title>${PLUGIN_NAME} by Ouaricon Audio</title>
+    <organization>io.oaudio</organization>
     <domains enable_localSystem="true"/>
     <options customize="never" require-scripts="true" rootVolumeOnly="true" />
 
@@ -256,22 +256,22 @@ cat > "$TEMP_DIR/Distribution.xml" << EOF
     <readme file="ReadMe.txt" mime-type="text/plain" />
     <conclusion file="Conclusion.txt" mime-type="text/plain" />
 
-    <pkg-ref id="com.taches.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')">
+    <pkg-ref id="io.oaudio.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')">
         <bundle-version/>
     </pkg-ref>
 
     <choices-outline>
         <line choice="default">
-            <line choice="com.taches.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')"/>
+            <line choice="io.oaudio.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')"/>
         </line>
     </choices-outline>
 
     <choice id="default"/>
-    <choice id="com.taches.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')" visible="false">
-        <pkg-ref id="com.taches.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')"/>
+    <choice id="io.oaudio.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')" visible="false">
+        <pkg-ref id="io.oaudio.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')"/>
     </choice>
 
-    <pkg-ref id="com.taches.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')" version="${VERSION}" onConclusion="none">${PLUGIN_NAME}-Installer.pkg</pkg-ref>
+    <pkg-ref id="io.oaudio.$(echo $PLUGIN_NAME | tr '[:upper:]' '[:lower:]')" version="${VERSION}" onConclusion="none">${PLUGIN_NAME}-Installer.pkg</pkg-ref>
 </installer-gui-script>
 EOF
 ```
@@ -285,12 +285,49 @@ productbuild \
     --distribution Distribution.xml \
     --resources resources \
     --package-path . \
-    "${PLUGIN_NAME}-by-TACHES.pkg"
+    "${PLUGIN_NAME}-OuariconAudio-unsigned.pkg"
 ```
 
 Expected output:
 ```
-productbuild: Wrote product to [Name]-by-TACHES.pkg
+productbuild: Wrote product to [Name]-OuariconAudio-unsigned.pkg
+```
+
+### 5c. Sign the Package with Developer ID
+
+```bash
+cd "$TEMP_DIR"
+
+# Sign the package with Developer ID Installer certificate
+productsign \
+    --sign "Developer ID Installer: Taylor Brook (XZ324L9P7A)" \
+    "${PLUGIN_NAME}-OuariconAudio-unsigned.pkg" \
+    "${PLUGIN_NAME}-OuariconAudio.pkg"
+
+# Verify signature
+pkgutil --check-signature "${PLUGIN_NAME}-OuariconAudio.pkg"
+
+# Clean up unsigned package
+rm "${PLUGIN_NAME}-OuariconAudio-unsigned.pkg"
+```
+
+Expected output:
+```
+productsign: Signing product with identity "Developer ID Installer: Taylor Brook (XZ324L9P7A)"
+productsign: Adding certificate [...]
+productsign: Wrote signed product to [Name]-OuariconAudio.pkg
+
+Package "[Name]-OuariconAudio.pkg":
+   Status: signed by a certificate trusted by macOS
+   Certificate Chain:
+    1. Developer ID Installer: Taylor Brook (XZ324L9P7A)
+    2. Developer ID Certification Authority
+    3. Apple Root CA
+```
+
+**Note:** Code signing requires "Developer ID Installer" certificate (different from "Developer ID Application"). If signing fails, verify certificate with:
+```bash
+security find-identity -v -p basic | grep "Developer ID Installer"
 ```
 
 ---
@@ -307,7 +344,7 @@ mkdir -p "$DIST_DIR"
 ### 6b. Copy Installer
 
 ```bash
-cp "$TEMP_DIR/${PLUGIN_NAME}-by-TACHES.pkg" "$DIST_DIR/"
+cp "$TEMP_DIR/${PLUGIN_NAME}-OuariconAudio.pkg" "$DIST_DIR/"
 ```
 
 ### 6c. Generate install-readme.txt
@@ -318,28 +355,17 @@ ${PLUGIN_NAME} v${VERSION} - Installation Instructions
 ===========================================
 
 INSTALLATION:
-1. Double-click "${PLUGIN_NAME}-by-TACHES.pkg"
+1. Double-click "${PLUGIN_NAME}-OuariconAudio.pkg"
 2. Follow the installation prompts
 3. The installer will copy ${PLUGIN_NAME} to your system folders:
    - VST3: ~/Library/Audio/Plug-Ins/VST3/${PRODUCT_NAME}.vst3
    - AU: ~/Library/Audio/Plug-Ins/Components/${PRODUCT_NAME}.component
 
-FIRST USE (IMPORTANT):
-macOS will show a security warning because this plugin is not signed.
-
-To bypass Gatekeeper:
-1. Open your DAW (Logic Pro, Ableton, etc.)
-2. When you first load ${PLUGIN_NAME}, macOS will block it
-3. Go to System Settings > Privacy & Security
-4. Scroll down and click "Open Anyway" next to ${PLUGIN_NAME} warning
-5. Confirm you want to open it
-
-You only need to do this once per plugin format (VST3 and AU).
-
 PLUGIN INFO:
 - Version: ${VERSION}
 - Formats: VST3, AU
 - Description: ${DESCRIPTION}
+- Signed by: Ouaricon Audio (Taylor Brook)
 
 UNINSTALLATION:
 To remove ${PLUGIN_NAME}:
@@ -349,17 +375,17 @@ To remove ${PLUGIN_NAME}:
 
 COMPATIBILITY:
 - macOS 14.6 or later recommended
-- Built for your Mac architecture
+- Universal binary (Apple Silicon & Intel)
 
 SUPPORT:
-For questions or issues, contact TÂCHES.
+Visit oaudio.io for support and more plugins.
 EOF
 ```
 
 ### 6d. Get File Sizes
 
 ```bash
-PKG_SIZE=$(du -h "$DIST_DIR/${PLUGIN_NAME}-by-TACHES.pkg" | cut -f1)
+PKG_SIZE=$(du -h "$DIST_DIR/${PLUGIN_NAME}-OuariconAudio.pkg" | cut -f1)
 ```
 
 ### 6e. Cleanup Temp Files
@@ -373,10 +399,10 @@ rm -rf "$TEMP_DIR"
 ```
 ✓ ${PLUGIN_NAME} packaged successfully
 
-Created: plugins/${PLUGIN_NAME}/dist/${PLUGIN_NAME}-by-TACHES.pkg (${PKG_SIZE})
+Created: plugins/${PLUGIN_NAME}/dist/${PLUGIN_NAME}-OuariconAudio.pkg (${PKG_SIZE})
 
 Distribution package includes:
-- ${PLUGIN_NAME}-by-TACHES.pkg (branded installer)
+- ${PLUGIN_NAME}-OuariconAudio.pkg (branded installer)
 - install-readme.txt (installation guide)
 
 To share with your friend:
@@ -392,7 +418,7 @@ To share with your friend:
 Before sending to friend, verify:
 
 1. **PKG opens without errors** (double-click test)
-2. **Installer shows branding** (Welcome screen has "by TÂCHES")
+2. **Installer shows branding** (Welcome screen has "by Ouaricon Audio")
 3. **ReadMe is readable** (no missing metadata)
 4. **Installation completes** (no permission errors)
 5. **Plugins appear in system folders** (check VST3 and AU)

@@ -231,6 +231,11 @@ function bindLaneParameters(laneNum) {
   bindKnob(`${prefix}_pan`, -100, 100, (v) => Math.round(v)); // Float ±100
   bindKnob(`${prefix}_swing`, 0, 1, (v) => `${Math.round(v * 100)}%`); // Float 0-100%
 
+  // v1.7.0: Pitch randomization knobs (min/max range -12 to +12)
+  // Formatter respects quantize state for display
+  bindKnob(`${prefix}_pitch_rand_min`, -12, 12, (v) => formatPitchRandValue(v, laneNum));
+  bindKnob(`${prefix}_pitch_rand_max`, -12, 12, (v) => formatPitchRandValue(v, laneNum));
+
   // Toggles (5 buttons: enabled, pingpong, reverse, manual, freeze)
   bindToggle(`${prefix}_enabled`);
   bindToggle(`${prefix}_pingpong`);
@@ -238,8 +243,28 @@ function bindLaneParameters(laneNum) {
   bindToggle(`${prefix}_manual_time_enabled`, `${prefix}_manual`); // HTML ID different
   bindToggle(`${prefix}_freeze`);
 
+  // v1.7.0: Pitch randomization toggles
+  bindToggle(`${prefix}_pitch_rand_enabled`);
+  bindToggle(`${prefix}_pitch_rand_quantize`);
+
   // Subdivision combo box (Choice parameter)
   bindComboBox(`${prefix}_subdivision`);
+}
+
+/**
+ * v1.7.0: Format pitch randomization min/max value
+ * Shows 2 decimal places when quantize is OFF, whole numbers when ON
+ */
+function formatPitchRandValue(value, laneNum) {
+  // Try to get quantize state for this lane
+  const quantizeState = Juce.getToggleState(`lane${laneNum}_pitch_rand_quantize`);
+  const isQuantized = quantizeState ? quantizeState.getValue() : true;
+
+  if (isQuantized) {
+    return Math.round(value).toString();
+  } else {
+    return value.toFixed(2);
+  }
 }
 
 // ========== TAPE DEGRADATION PARAMETERS (6 knobs) ==========

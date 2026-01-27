@@ -2,6 +2,19 @@
 
 All notable changes to this project will be documented in this file.
 
+## [1.11.0] - 2026-01-26
+
+### Added
+- **Tooltip system** - Click the "?" button (bottom-right) to enable tooltips
+  - Hover over any control to see a detailed description of its function
+  - Tooltips explain each parameter's musical effect
+  - Visual indicator (dashed outline) shows which elements have tooltips
+  - Tooltip state can be persisted via JUCE native function
+
+### Tooltips Added For
+- **Sound tab**: Mallet Hardness, Material Hardness, Resonance, Strike Position, Overtone Damping, Tone, Velocity, Output, VU Meter, Waveform Display
+- **Tuning tab**: Tuning Mode, A4 Reference, Interval List, Pitch Circle
+
 ## [1.10.0] - 2026-01-25
 
 ### Changed

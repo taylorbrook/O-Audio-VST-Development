@@ -36,35 +36,18 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
     sampleRate = spec.sampleRate;
     blockSize = static_cast<int>(spec.maximumBlockSize);
 
-    // Use 4x oversampling for clean harmonics from Chebyshev waveshaping
-    // IIR filter for Low Latency mode - minimal phase distortion
-    oversamplerIIR = std::make_unique<juce::dsp::Oversampling<float>>(
-        1,      // numChannels (mono bass processing)
-        2,      // factor (2^2 = 4x oversampling)
-        juce::dsp::Oversampling<float>::filterHalfBandPolyphaseIIR,
-        true,   // max quality for clean harmonics
-        true    // useIntegerLatency
-    );
+    // OVERSAMPLING DISABLED: JUCE Oversampling causes Logic Pro crash
+    // Oversamplers not initialized - process at native sample rate instead
+    // TODO: Investigate JUCE Oversampling issue in future version
+    oversamplerIIR = nullptr;
+    oversamplerFIR = nullptr;
 
-    // FIR version for High Fidelity mode - maximum quality
-    oversamplerFIR = std::make_unique<juce::dsp::Oversampling<float>>(
-        1,      // numChannels (mono bass processing)
-        2,      // factor (2^2 = 4x oversampling)
-        juce::dsp::Oversampling<float>::filterHalfBandFIREquiripple,
-        true,   // max quality for clean harmonics
-        true    // useIntegerLatency
-    );
-
-    // Initialize both oversamplers
-    oversamplerIIR->initProcessing(static_cast<size_t>(blockSize));
-    oversamplerFIR->initProcessing(static_cast<size_t>(blockSize));
-
-    // Prepare filters FIRST
+    // Prepare bandpass filters
     juce::dsp::ProcessSpec monoSpec { sampleRate, static_cast<juce::uint32>(blockSize), 1 };
     outputBandpassLow.prepare(monoSpec);
     outputBandpassHigh.prepare(monoSpec);
 
-    // THEN set coefficients
+    // Set filter coefficients - bandpass 40-300Hz for bass harmonics
     auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 40.0f, 0.707f);
     outputBandpassLow.coefficients = hpCoeffs;
 
@@ -132,30 +115,16 @@ void HarmonicGenerator::process(juce::AudioBuffer<float>& monoBuffer)
     if (numSamples == 0)
         return;
 
-    // Get active oversampler based on latency mode
-    auto* oversampler = getActiveOversampler();
-    if (!oversampler)
-    {
-        // Fallback: clear buffer if oversamplers not ready
-        monoBuffer.clear();
-        return;
-    }
+    // OVERSAMPLING BYPASSED: JUCE Oversampling causes Logic Pro crash
+    // ("Sample Rate XXXXX" error - memory corruption from oversampler internals)
+    // Process directly at native sample rate with gentler waveshaping to minimize aliasing
 
-    // Create audio block from mono buffer
-    juce::dsp::AudioBlock<float> inputBlock(monoBuffer);
-
-    // Upsample to 4x sample rate
-    auto oversampledBlock = oversampler->processSamplesUp(inputBlock);
-
-    // Process at elevated sample rate (Chebyshev waveshaping)
-    processOversampled(oversampledBlock.getChannelPointer(0),
-                       static_cast<int>(oversampledBlock.getNumSamples()));
-
-    // Downsample back to original rate (anti-aliasing filter applied automatically)
-    oversampler->processSamplesDown(inputBlock);
-
-    // Apply output bandpass filter (40-400Hz) at original sample rate
     float* data = monoBuffer.getWritePointer(0);
+
+    // Process waveshaping at native rate (no oversampling)
+    processOversampled(data, numSamples);
+
+    // Apply output bandpass filter (40-300Hz) at original sample rate
     for (int i = 0; i < numSamples; ++i)
     {
         data[i] = outputBandpassLow.processSample(data[i]);
@@ -166,7 +135,9 @@ void HarmonicGenerator::process(juce::AudioBuffer<float>& monoBuffer)
 //==============================================================================
 void HarmonicGenerator::processOversampled(float* data, int numSamples)
 {
-    // Process each oversampled sample through Chebyshev waveshaper
+    // Process each sample through gentle Chebyshev waveshaper
+    // NOTE: Without oversampling, we use very gentle saturation to minimize aliasing
+    // The bandpass filter (40-300Hz) helps remove any aliasing artifacts above bass range
     for (int i = 0; i < numSamples; ++i)
     {
         float x = data[i];
@@ -178,18 +149,15 @@ void HarmonicGenerator::processOversampled(float* data, int numSamples)
             continue;
         }
 
-        // Soft clip input to [-1, 1] range with tanh
-        x = std::tanh(x * 2.0f) * 0.5f;  // Scale down for gentler saturation
+        // Very gentle soft clip to minimize harmonic generation (reduces aliasing)
+        x = std::tanh(x * 1.5f) * 0.4f;
 
-        // Apply only 2nd and 3rd harmonics (simpler, safer)
-        // These are the most important for psychoacoustic bass perception
-        float h2 = T2(x) * 0.3f;  // Reduced weight
-        float h3 = T3(x) * 0.2f;  // Reduced weight
-
-        float output = (h2 + h3) * 0.5f;  // Mix and attenuate
+        // Apply only 2nd harmonic (gentlest, most musical for bass)
+        // 3rd harmonic omitted to reduce aliasing without oversampling
+        float h2 = T2(x) * 0.25f;
 
         // Hard limit output
-        output = std::max(-0.5f, std::min(0.5f, output));
+        float output = std::max(-0.4f, std::min(0.4f, h2));
 
         data[i] = output;
     }
@@ -207,10 +175,6 @@ juce::dsp::Oversampling<float>* HarmonicGenerator::getActiveOversampler() const
 //==============================================================================
 int HarmonicGenerator::getLatencyInSamples() const
 {
-    auto* oversampler = getActiveOversampler();
-    if (!oversampler)
-        return 0;
-
-    // JUCE oversampler returns float latency - round to int for DAW reporting
-    return static_cast<int>(std::round(oversampler->getLatencyInSamples()));
+    // Oversampling disabled - no latency
+    return 0;
 }

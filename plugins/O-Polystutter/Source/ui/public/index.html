@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>O-Polystutter - UI v1.6.8</title>
+  <title>O-Polystutter - UI v1.8.0</title>
 
   <style>
     /* CRITICAL: WebView constraints - NO viewport units */
@@ -531,7 +531,54 @@
       border-color: #6B8E4E;
     }
 
-    /* ========== PHASE 3.3: ADVANCED UI STATES ========== */
+    /* ========== v1.7.0: PITCH RANDOMIZATION CONTROLS ========== */
+
+    /* Mini knobs for pitch rand MIN/MAX (smaller size) */
+    .mini-knob {
+      width: 40px;  /* Smaller container */
+    }
+
+    .mini-knob .knob {
+      width: 32px;
+      height: 32px;
+    }
+
+    .mini-knob .knob::before {
+      top: 3px;
+      width: 2px;
+      height: 8px;
+    }
+
+    .mini-knob .knob-label {
+      font-size: 7px;
+      height: 10px;
+    }
+
+    .mini-knob .knob-value {
+      font-size: 8px;
+      height: 12px;
+    }
+
+    /* Pitch randomization toggle buttons */
+    .pitch-rand-toggle {
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      color: #3C2F2F;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 100ms;
+    }
+
+    .pitch-rand-toggle.active {
+      background: #6B8E4E;
+      color: #f5e6d3;
+      border-color: #6B8E4E;
+    }
+
+    /* ========== PHASE 3.3: ADVANCED UI STATES ==========
 
     /* Lane dimming when disabled */
     .lane-container.lane-disabled {
@@ -749,6 +796,91 @@
       background: #6B8E4E;
     }
 
+    /* ========== v1.8.0: TOOLTIP SYSTEM ========== */
+
+    /* Tooltip toggle button (?) - positioned bottom-right */
+    .tooltip-toggle {
+      position: absolute;
+      bottom: 15px;
+      right: 15px;
+      width: 22px;
+      height: 22px;
+      border-radius: 50%;
+      background: rgba(139, 115, 85, 0.5);
+      border: 1px solid #8B7355;
+      color: #3C2F2F;
+      font-size: 14px;
+      font-weight: bold;
+      font-family: 'Georgia', serif;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 150ms ease;
+      z-index: 100;
+    }
+
+    .tooltip-toggle:hover {
+      background: rgba(107, 142, 78, 0.5);
+      border-color: #6B8E4E;
+    }
+
+    .tooltip-toggle.active {
+      background: #6B8E4E;
+      color: #f5e6d3;
+      border-color: #5a7a3e;
+      box-shadow: 0 0 6px rgba(107, 142, 78, 0.5);
+    }
+
+    /* Tooltip container (appears on hover when tooltips enabled) */
+    .tooltip {
+      position: absolute;
+      background: rgba(60, 47, 47, 0.95);
+      color: #f5e6d3;
+      padding: 6px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-family: 'Garamond', 'Times New Roman', serif;
+      line-height: 1.4;
+      max-width: 220px;
+      z-index: 1000;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 150ms ease;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+      white-space: normal;
+    }
+
+    .tooltip.visible {
+      opacity: 1;
+    }
+
+    /* Arrow for tooltip */
+    .tooltip::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      left: 50%;
+      transform: translateX(-50%);
+      border-width: 0 6px 6px 6px;
+      border-style: solid;
+      border-color: transparent transparent rgba(60, 47, 47, 0.95) transparent;
+    }
+
+    /* Tooltip positioned above element */
+    .tooltip.tooltip-top::before {
+      top: auto;
+      bottom: -6px;
+      border-width: 6px 6px 0 6px;
+      border-color: rgba(60, 47, 47, 0.95) transparent transparent transparent;
+    }
+
+    /* Elements with tooltips get subtle indicator when tooltips enabled */
+    .tooltips-enabled [data-tooltip]:hover {
+      outline: 1px dashed rgba(107, 142, 78, 0.4);
+      outline-offset: 2px;
+    }
+
   </style>
 </head>
 <body>
@@ -756,10 +888,16 @@
     <!-- Title -->
     <div class="plugin-title">O-Polystutter</div>
 
+    <!-- v1.8.0: Tooltip toggle button -->
+    <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+
+    <!-- Tooltip element (positioned dynamically by JS) -->
+    <div class="tooltip" id="tooltip"></div>
+
     <!-- v1.6.0: Preset Bar (top-right header area) -->
     <div class="preset-bar">
-      <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
-      <div class="preset-dropdown">
+      <button class="preset-nav-btn" id="preset-prev" title="Previous preset" data-tooltip="Previous: Navigate to the previous preset in the list.">&lt;</button>
+      <div class="preset-dropdown" data-tooltip="Preset: Click to browse and select presets. Factory presets are protected; user presets can be deleted.">
         <div class="preset-name-display" id="preset-name-display">
           <span id="preset-name-text">Default</span>
           <span class="preset-dropdown-arrow">▼</span>
@@ -768,269 +906,329 @@
           <!-- Populated dynamically by JS -->
         </div>
       </div>
-      <button class="preset-nav-btn" id="preset-next" title="Next preset">&gt;</button>
-      <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
-      <button class="preset-action-btn" id="preset-load" title="Load preset from file">Load</button>
+      <button class="preset-nav-btn" id="preset-next" title="Next preset" data-tooltip="Next: Navigate to the next preset in the list.">&gt;</button>
+      <button class="preset-action-btn" id="preset-save" title="Save preset" data-tooltip="Save: Save current settings as a new user preset.">Save</button>
+      <button class="preset-action-btn" id="preset-load" title="Load preset from file" data-tooltip="Load: Import a preset from an external file.">Load</button>
     </div>
 
     <!-- LANES SECTION (320px height) -->
     <div class="lanes-section">
       <!-- Lane 1 - v1.1.2: Improved spacing (75px row gap, wider column spread) -->
       <div class="lane-container lane1">
-        <div class="lane-header active" id="lane1_enabled">LANE 1</div>
+        <div class="lane-header active" id="lane1_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 1</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar"><div class="progress-fill" id="lane1_progress"></div></div>
+        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane1_progress"></div></div>
 
-        <!-- Row 1: SUBDIV, REPS, DECAY -->
-        <div class="combo-container" style="left: 20px; top: 55px;">
+        <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
+        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane1_subdivision">1/16</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 55px;">
+        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane1_repeats"></div>
           <div class="knob-value" id="lane1_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 55px;">
+        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane1_decay"></div>
           <div class="knob-value" id="lane1_decay_value">90%</div>
         </div>
-
-        <!-- Row 2: PITCH, FILTR, PROB -->
-        <div class="knob-container" style="left: 20px; top: 130px;">
-          <div class="knob-label">PITCH</div>
-          <div class="knob" id="lane1_pitch"></div>
-          <div class="knob-value" id="lane1_pitch_value">0st</div>
-        </div>
-        <div class="knob-container" style="left: 95px; top: 130px;">
+        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane1_filter"></div>
           <div class="knob-value" id="lane1_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 130px;">
+
+        <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
+        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane1_probability"></div>
           <div class="knob-value" id="lane1_probability_value">100%</div>
         </div>
-
-        <!-- Row 3: VOL, PAN, SWING -->
-        <div class="knob-container" style="left: 20px; top: 205px;">
+        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane1_volume"></div>
           <div class="knob-value" id="lane1_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 205px;">
+        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane1_pan"></div>
           <div class="knob-value" id="lane1_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 205px;">
+        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane1_swing"></div>
           <div class="knob-value" id="lane1_swing_value">0%</div>
         </div>
 
+        <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
+        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane1_pitch"></div>
+          <div class="knob-value" id="lane1_pitch_value">0st</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane1_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MIN</div>
+          <div class="knob" id="lane1_pitch_rand_min"></div>
+          <div class="knob-value" id="lane1_pitch_rand_min_value">0</div>
+        </div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MAX</div>
+          <div class="knob" id="lane1_pitch_rand_max"></div>
+          <div class="knob-value" id="lane1_pitch_rand_max_value">0</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane1_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+
         <!-- Row 4: Toggle buttons -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane1_pingpong">PING</div>
-          <div class="toggle-button" id="lane1_reverse">REV</div>
-          <div class="toggle-button" id="lane1_manual">MAN</div>
-          <div class="toggle-button" id="lane1_freeze">FRZ</div>
+          <div class="toggle-button" id="lane1_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
+          <div class="toggle-button" id="lane1_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
+          <div class="toggle-button" id="lane1_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane1_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
         </div>
       </div>
 
       <!-- Lane 2 - v1.1.2: Improved spacing -->
       <div class="lane-container lane2">
-        <div class="lane-header active" id="lane2_enabled">LANE 2</div>
+        <div class="lane-header active" id="lane2_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 2</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar"><div class="progress-fill" id="lane2_progress"></div></div>
+        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane2_progress"></div></div>
 
-        <div class="combo-container" style="left: 20px; top: 55px;">
+        <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
+        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane2_subdivision">1/8</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 55px;">
+        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane2_repeats"></div>
           <div class="knob-value" id="lane2_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 55px;">
+        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane2_decay"></div>
           <div class="knob-value" id="lane2_decay_value">90%</div>
         </div>
-
-        <div class="knob-container" style="left: 20px; top: 130px;">
-          <div class="knob-label">PITCH</div>
-          <div class="knob" id="lane2_pitch"></div>
-          <div class="knob-value" id="lane2_pitch_value">0st</div>
-        </div>
-        <div class="knob-container" style="left: 95px; top: 130px;">
+        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane2_filter"></div>
           <div class="knob-value" id="lane2_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 130px;">
+
+        <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
+        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane2_probability"></div>
           <div class="knob-value" id="lane2_probability_value">100%</div>
         </div>
-
-        <div class="knob-container" style="left: 20px; top: 205px;">
+        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane2_volume"></div>
           <div class="knob-value" id="lane2_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 205px;">
+        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane2_pan"></div>
           <div class="knob-value" id="lane2_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 205px;">
+        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane2_swing"></div>
           <div class="knob-value" id="lane2_swing_value">0%</div>
         </div>
 
+        <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
+        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane2_pitch"></div>
+          <div class="knob-value" id="lane2_pitch_value">0st</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane2_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MIN</div>
+          <div class="knob" id="lane2_pitch_rand_min"></div>
+          <div class="knob-value" id="lane2_pitch_rand_min_value">0</div>
+        </div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MAX</div>
+          <div class="knob" id="lane2_pitch_rand_max"></div>
+          <div class="knob-value" id="lane2_pitch_rand_max_value">0</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane2_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+
+        <!-- Row 4: Toggle buttons -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane2_pingpong">PING</div>
-          <div class="toggle-button" id="lane2_reverse">REV</div>
-          <div class="toggle-button" id="lane2_manual">MAN</div>
-          <div class="toggle-button" id="lane2_freeze">FRZ</div>
+          <div class="toggle-button" id="lane2_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
+          <div class="toggle-button" id="lane2_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
+          <div class="toggle-button" id="lane2_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane2_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
         </div>
       </div>
 
-      <!-- Lane 3 - v1.1.2: Improved spacing -->
+      <!-- Lane 3 - v1.7.0: 4-4-1 layout -->
       <div class="lane-container lane3">
-        <div class="lane-header" id="lane3_enabled">LANE 3</div>
+        <div class="lane-header" id="lane3_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 3</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar"><div class="progress-fill" id="lane3_progress"></div></div>
+        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane3_progress"></div></div>
 
-        <div class="combo-container" style="left: 20px; top: 55px;">
+        <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
+        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane3_subdivision">1/8T</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 55px;">
+        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane3_repeats"></div>
           <div class="knob-value" id="lane3_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 55px;">
+        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane3_decay"></div>
           <div class="knob-value" id="lane3_decay_value">90%</div>
         </div>
-
-        <div class="knob-container" style="left: 20px; top: 130px;">
-          <div class="knob-label">PITCH</div>
-          <div class="knob" id="lane3_pitch"></div>
-          <div class="knob-value" id="lane3_pitch_value">0st</div>
-        </div>
-        <div class="knob-container" style="left: 95px; top: 130px;">
+        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane3_filter"></div>
           <div class="knob-value" id="lane3_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 130px;">
+
+        <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
+        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane3_probability"></div>
           <div class="knob-value" id="lane3_probability_value">100%</div>
         </div>
-
-        <div class="knob-container" style="left: 20px; top: 205px;">
+        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane3_volume"></div>
           <div class="knob-value" id="lane3_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 205px;">
+        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane3_pan"></div>
           <div class="knob-value" id="lane3_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 205px;">
+        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane3_swing"></div>
           <div class="knob-value" id="lane3_swing_value">0%</div>
         </div>
 
+        <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
+        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane3_pitch"></div>
+          <div class="knob-value" id="lane3_pitch_value">0st</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane3_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MIN</div>
+          <div class="knob" id="lane3_pitch_rand_min"></div>
+          <div class="knob-value" id="lane3_pitch_rand_min_value">0</div>
+        </div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MAX</div>
+          <div class="knob" id="lane3_pitch_rand_max"></div>
+          <div class="knob-value" id="lane3_pitch_rand_max_value">0</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane3_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+
+        <!-- Row 4: Toggle buttons -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane3_pingpong">PING</div>
-          <div class="toggle-button" id="lane3_reverse">REV</div>
-          <div class="toggle-button" id="lane3_manual">MAN</div>
-          <div class="toggle-button" id="lane3_freeze">FRZ</div>
+          <div class="toggle-button" id="lane3_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
+          <div class="toggle-button" id="lane3_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
+          <div class="toggle-button" id="lane3_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane3_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
         </div>
       </div>
 
-      <!-- Lane 4 - v1.1.2: Improved spacing -->
+      <!-- Lane 4 - v1.7.0: 4-4-1 layout -->
       <div class="lane-container lane4">
-        <div class="lane-header" id="lane4_enabled">LANE 4</div>
+        <div class="lane-header" id="lane4_enabled" data-tooltip="Enable or disable this stutter lane. When off, this lane won't process audio.">LANE 4</div>
         <div class="bug-lane"></div>
-        <div class="progress-bar"><div class="progress-fill" id="lane4_progress"></div></div>
+        <div class="progress-bar" data-tooltip="Shows playback position within the current repeat cycle."><div class="progress-fill" id="lane4_progress"></div></div>
 
-        <div class="combo-container" style="left: 20px; top: 55px;">
+        <!-- Row 1: SUBDIV, REPS, DECAY, FILTER (v1.7.0: 4-4-1 layout) -->
+        <div class="combo-container" style="left: 10px; top: 55px;" data-tooltip="Subdivision: Sets the rhythmic length of each stutter slice, synced to host tempo.">
           <div class="combo-label">SUBDIV</div>
           <div class="combo-box" id="lane4_subdivision">1/32</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 55px;">
+        <div class="knob-container" style="left: 68px; top: 55px;" data-tooltip="Repeats: Number of times the captured audio slice plays back (1-16).">
           <div class="knob-label">REPS</div>
           <div class="knob" id="lane4_repeats"></div>
           <div class="knob-value" id="lane4_repeats_value">4</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 55px;">
+        <div class="knob-container" style="left: 126px; top: 55px;" data-tooltip="Decay: Volume reduction applied to each successive repeat. Lower values create fading echoes.">
           <div class="knob-label">DECAY</div>
           <div class="knob" id="lane4_decay"></div>
           <div class="knob-value" id="lane4_decay_value">90%</div>
         </div>
-
-        <div class="knob-container" style="left: 20px; top: 130px;">
-          <div class="knob-label">PITCH</div>
-          <div class="knob" id="lane4_pitch"></div>
-          <div class="knob-value" id="lane4_pitch_value">0st</div>
-        </div>
-        <div class="knob-container" style="left: 95px; top: 130px;">
+        <div class="knob-container" style="left: 184px; top: 55px;" data-tooltip="Filter: Applies low-pass (negative) or high-pass (positive) filtering to repeats.">
           <div class="knob-label">FILTR</div>
           <div class="knob" id="lane4_filter"></div>
           <div class="knob-value" id="lane4_filter_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 130px;">
+
+        <!-- Row 2: PROB, VOL, PAN, SWING (v1.7.0: 4-4-1 layout) -->
+        <div class="knob-container" style="left: 10px; top: 130px;" data-tooltip="Probability: Chance that this lane triggers on each beat. 100% = always, 50% = half the time.">
           <div class="knob-label">PROB</div>
           <div class="knob" id="lane4_probability"></div>
           <div class="knob-value" id="lane4_probability_value">100%</div>
         </div>
-
-        <div class="knob-container" style="left: 20px; top: 205px;">
+        <div class="knob-container" style="left: 68px; top: 130px;" data-tooltip="Volume: Output level of this lane's stutters in the mix.">
           <div class="knob-label">VOL</div>
           <div class="knob" id="lane4_volume"></div>
           <div class="knob-value" id="lane4_volume_value">100%</div>
         </div>
-        <div class="knob-container" style="left: 95px; top: 205px;">
+        <div class="knob-container" style="left: 126px; top: 130px;" data-tooltip="Pan: Stereo position of the stutters. -100 = full left, +100 = full right.">
           <div class="knob-label">PAN</div>
           <div class="knob" id="lane4_pan"></div>
           <div class="knob-value" id="lane4_pan_value">0</div>
         </div>
-        <div class="knob-container" style="left: 170px; top: 205px;">
+        <div class="knob-container" style="left: 184px; top: 130px;" data-tooltip="Swing: Adds rhythmic shuffle to repeat timing. Higher values create more groove.">
           <div class="knob-label">SWING</div>
           <div class="knob" id="lane4_swing"></div>
           <div class="knob-value" id="lane4_swing_value">0%</div>
         </div>
 
+        <!-- Row 3: PITCH + Pitch Randomization (v1.7.0) -->
+        <div class="knob-container" style="left: 10px; top: 205px;" data-tooltip="Pitch: Transpose the stutters up or down in semitones (-12 to +12).">
+          <div class="knob-label">PITCH</div>
+          <div class="knob" id="lane4_pitch"></div>
+          <div class="knob-value" id="lane4_pitch_value">0st</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane4_pitch_rand_enabled" style="position: absolute; left: 68px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Random: Enable random pitch variation on each repeat within the MIN/MAX range.">RND</div>
+        <div class="knob-container mini-knob" style="left: 104px; top: 205px;" data-tooltip="Min: Minimum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MIN</div>
+          <div class="knob" id="lane4_pitch_rand_min"></div>
+          <div class="knob-value" id="lane4_pitch_rand_min_value">0</div>
+        </div>
+        <div class="knob-container mini-knob" style="left: 150px; top: 205px;" data-tooltip="Max: Maximum pitch offset for randomization (added to base pitch).">
+          <div class="knob-label">MAX</div>
+          <div class="knob" id="lane4_pitch_rand_max"></div>
+          <div class="knob-value" id="lane4_pitch_rand_max_value">0</div>
+        </div>
+        <div class="toggle-button pitch-rand-toggle" id="lane4_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
+
+        <!-- Row 4: Toggle buttons -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
-          <div class="toggle-button" id="lane4_pingpong">PING</div>
-          <div class="toggle-button" id="lane4_reverse">REV</div>
-          <div class="toggle-button" id="lane4_manual">MAN</div>
-          <div class="toggle-button" id="lane4_freeze">FRZ</div>
+          <div class="toggle-button" id="lane4_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
+          <div class="toggle-button" id="lane4_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
+          <div class="toggle-button" id="lane4_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
+          <div class="toggle-button" id="lane4_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
         </div>
       </div>
     </div>
 
     <!-- v1.5.5: SEQ toggle outside section (always clickable) -->
     <div class="seq-header">
-      <div class="seq-toggle-inline active" id="seq_toggle">SEQ</div>
+      <div class="seq-toggle-inline active" id="seq_toggle" data-tooltip="Sequencer: When ON, the 16-step pattern controls when each lane can trigger. When OFF, lanes trigger on every beat.">SEQ</div>
     </div>
 
     <!-- PATTERN SEQUENCER SECTION (130px height, COMPACT) -->
-    <div class="sequencer-section">
+    <div class="sequencer-section" data-tooltip="Pattern Sequencer: Click steps to enable (green) or disable (dim). Each row controls one lane. Active steps allow stutter triggers on that beat.">
       <div class="pattern-container">
         <div class="pattern-grid">
           <!-- Lane labels restored -->
@@ -1114,36 +1312,36 @@
       <div class="section-label">TAPE DEGRADATION</div>
       <!-- v1.6.5: Bypass toggle left of tape knobs -->
       <div class="tape-bypass-toggle">
-        <div class="footer-toggle" id="tape_bypass">BYPASS</div>
+        <div class="footer-toggle" id="tape_bypass" data-tooltip="Bypass: Skip all tape degradation processing for a clean signal comparison.">BYPASS</div>
       </div>
       <!-- Left side: Tape knobs -->
       <div class="tape-knobs-row">
-        <div class="tape-knob-container">
+        <div class="tape-knob-container" data-tooltip="Saturation: Adds warm tape-style harmonic distortion. Higher values = more grit.">
           <div class="knob-label">SAT</div>
           <div class="knob" id="saturation" data-param="saturation"></div>
           <div class="knob-value" id="saturation_value">0%</div>
         </div>
-        <div class="tape-knob-container">
+        <div class="tape-knob-container" data-tooltip="Wow: Slow pitch modulation that simulates tape speed variations. Creates a warbly, lo-fi feel.">
           <div class="knob-label">WOW</div>
           <div class="knob" id="wow" data-param="wow"></div>
           <div class="knob-value" id="wow_value">0%</div>
         </div>
-        <div class="tape-knob-container">
+        <div class="tape-knob-container" data-tooltip="Flutter: Fast pitch modulation for tape-like wobble. Adds instability and character.">
           <div class="knob-label">FLUTTER</div>
           <div class="knob" id="flutter" data-param="flutter"></div>
           <div class="knob-value" id="flutter_value">0%</div>
         </div>
-        <div class="tape-knob-container">
+        <div class="tape-knob-container" data-tooltip="Hiss: Adds subtle tape noise for vintage character. Keep low for realistic results.">
           <div class="knob-label">HISS</div>
           <div class="knob" id="hiss" data-param="hiss"></div>
           <div class="knob-value" id="hiss_value">0%</div>
         </div>
-        <div class="tape-knob-container">
+        <div class="tape-knob-container" data-tooltip="Rolloff: High-frequency attenuation mimicking tape head wear. Higher = darker, more muffled.">
           <div class="knob-label">ROLLOFF</div>
           <div class="knob" id="rolloff" data-param="rolloff"></div>
           <div class="knob-value" id="rolloff_value">0%</div>
         </div>
-        <div class="tape-knob-container">
+        <div class="tape-knob-container" data-tooltip="Dropout: Random momentary signal dropouts simulating worn tape. Use sparingly for subtle effect.">
           <div class="knob-label">DROPOUT</div>
           <div class="knob" id="dropout" data-param="dropout"></div>
           <div class="knob-value" id="dropout_value">0%</div>
@@ -1152,20 +1350,20 @@
       <!-- v1.6.3: Right side: DRY/WET knobs + MIDI/TRIG toggles -->
       <div class="tape-right-controls">
         <div class="tape-mix-knobs">
-          <div class="tape-knob-container">
+          <div class="tape-knob-container" data-tooltip="Dry: Level of the original unprocessed signal. Set to 0% for 100% wet stutters only.">
             <div class="knob-label">DRY</div>
             <div class="knob" id="mix_dry" data-param="mix_dry"></div>
             <div class="knob-value" id="mix_dry_value">50%</div>
           </div>
-          <div class="tape-knob-container">
+          <div class="tape-knob-container" data-tooltip="Wet: Level of the stutter effect. Controls how loud the repeats are in the mix.">
             <div class="knob-label">WET</div>
             <div class="knob" id="mix_wet" data-param="mix_wet"></div>
             <div class="knob-value" id="mix_wet_value">100%</div>
           </div>
         </div>
         <div class="tape-toggles">
-          <div class="footer-toggle" id="midi_toggle">MIDI</div>
-          <div class="footer-toggle" id="trig_toggle">TRIG</div>
+          <div class="footer-toggle" id="midi_toggle" data-tooltip="MIDI: Enable MIDI note triggering. Notes C1-B1 trigger lanes 1-4, any other note triggers all enabled lanes.">MIDI</div>
+          <div class="footer-toggle" id="trig_toggle" data-tooltip="Trigger: Manually trigger all enabled lanes instantly. Use with MAN mode for one-shot effects.">TRIG</div>
         </div>
       </div>
     </div>
@@ -1274,6 +1472,101 @@
     document.addEventListener("contextmenu", (e) => {
       e.preventDefault();
       return false;
+    });
+  </script>
+
+  <!-- v1.8.0: Tooltip System -->
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const tooltipToggle = document.getElementById('tooltip-toggle');
+      const tooltipElement = document.getElementById('tooltip');
+      const pluginFrame = document.querySelector('.plugin-frame');
+      let tooltipsEnabled = false;
+      let hideTimeout = null;
+
+      // Toggle tooltips on/off
+      tooltipToggle.addEventListener('click', () => {
+        tooltipsEnabled = !tooltipsEnabled;
+        tooltipToggle.classList.toggle('active', tooltipsEnabled);
+        pluginFrame.classList.toggle('tooltips-enabled', tooltipsEnabled);
+
+        // Hide tooltip when disabling
+        if (!tooltipsEnabled) {
+          tooltipElement.classList.remove('visible');
+        }
+
+        console.log('[v1.8.0] Tooltips:', tooltipsEnabled ? 'enabled' : 'disabled');
+      });
+
+      // Show tooltip on hover
+      pluginFrame.addEventListener('mouseover', (e) => {
+        if (!tooltipsEnabled) return;
+
+        // Find closest element with data-tooltip
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+
+        // Clear any pending hide
+        if (hideTimeout) {
+          clearTimeout(hideTimeout);
+          hideTimeout = null;
+        }
+
+        const tooltipText = target.getAttribute('data-tooltip');
+        if (!tooltipText) return;
+
+        // Set content
+        tooltipElement.textContent = tooltipText;
+
+        // Position tooltip
+        const rect = target.getBoundingClientRect();
+        const frameRect = pluginFrame.getBoundingClientRect();
+
+        // Calculate position relative to plugin frame
+        let left = rect.left - frameRect.left + rect.width / 2;
+        let top = rect.bottom - frameRect.top + 8; // 8px below element
+
+        // Check if tooltip would go off the bottom
+        const tooltipHeight = 60; // Approximate max height
+        if (top + tooltipHeight > 660) {
+          // Position above instead
+          top = rect.top - frameRect.top - tooltipHeight - 8;
+          tooltipElement.classList.add('tooltip-top');
+        } else {
+          tooltipElement.classList.remove('tooltip-top');
+        }
+
+        // Check horizontal bounds
+        const tooltipWidth = 220; // max-width from CSS
+        if (left + tooltipWidth / 2 > 1000) {
+          left = 1000 - tooltipWidth / 2 - 10;
+        }
+        if (left - tooltipWidth / 2 < 0) {
+          left = tooltipWidth / 2 + 10;
+        }
+
+        tooltipElement.style.left = `${left}px`;
+        tooltipElement.style.top = `${top}px`;
+        tooltipElement.style.transform = 'translateX(-50%)';
+
+        // Show tooltip
+        tooltipElement.classList.add('visible');
+      });
+
+      // Hide tooltip on mouseout
+      pluginFrame.addEventListener('mouseout', (e) => {
+        if (!tooltipsEnabled) return;
+
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+
+        // Small delay before hiding (prevents flicker)
+        hideTimeout = setTimeout(() => {
+          tooltipElement.classList.remove('visible');
+        }, 100);
+      });
+
+      console.log('[v1.8.0] Tooltip system initialized');
     });
   </script>
 </body>

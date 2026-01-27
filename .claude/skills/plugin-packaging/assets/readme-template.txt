@@ -1,4 +1,4 @@
-{{PLUGIN_NAME}} by TÂCHES
+{{PLUGIN_NAME}} by Ouaricon Audio
 Version {{VERSION}}
 
 ABOUT {{PLUGIN_NAME}}
@@ -19,19 +19,6 @@ After installation, {{PLUGIN_NAME}} will be available in:
 • ~/Library/Audio/Plug-Ins/VST3/{{PRODUCT_NAME}}.vst3
 • ~/Library/Audio/Plug-Ins/Components/{{PRODUCT_NAME}}.component
 
-FIRST USE - IMPORTANT
-
-macOS will show a security warning on first use because this plugin is not notarized by Apple.
-
-To authorize {{PLUGIN_NAME}}:
-1. Open your DAW and try to load {{PLUGIN_NAME}}
-2. macOS will block it with a warning
-3. Open System Settings > Privacy & Security
-4. Scroll down and click "Open Anyway" next to the {{PLUGIN_NAME}} warning
-5. Confirm you want to open it
-
-This is a one-time step for each plugin format (VST3 and AU).
-
 SYSTEM REQUIREMENTS
 
 • macOS 14.6 or later recommended
@@ -39,6 +26,6 @@ SYSTEM REQUIREMENTS
 
 SUPPORT
 
-For questions or issues, contact TÂCHES.
+Visit oaudio.io for support and more plugins.
 
 Enjoy making music with {{PLUGIN_NAME}}!

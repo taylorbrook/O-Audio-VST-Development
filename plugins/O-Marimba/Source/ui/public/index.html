@@ -892,6 +892,74 @@
             color: #5C4033;
             text-align: center;
         }
+
+        /* ====================================================================
+           v1.11.0: TOOLTIP SYSTEM
+           ==================================================================== */
+
+        /* Tooltip toggle button (?) - positioned bottom-right */
+        .tooltip-toggle {
+            position: absolute;
+            bottom: 50px;
+            right: 15px;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            color: #5C4033;
+            font-size: 12px;
+            font-weight: bold;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 150ms ease;
+            z-index: 100;
+        }
+
+        .tooltip-toggle:hover {
+            background: rgba(139, 168, 112, 0.5);
+            border-color: #6B8E4E;
+        }
+
+        .tooltip-toggle.active {
+            background: rgba(139, 168, 112, 0.7);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            box-shadow: 0 0 6px rgba(107, 142, 78, 0.4);
+        }
+
+        /* Tooltip container (appears on hover when tooltips enabled) */
+        .tooltip {
+            position: absolute;
+            background: rgba(60, 47, 47, 0.95);
+            color: #F5E6D3;
+            padding: 6px 10px;
+            border: 1px solid rgba(139, 115, 85, 0.6);
+            border-radius: 4px;
+            font-size: 10px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            line-height: 1.4;
+            max-width: 200px;
+            z-index: 1000;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 150ms ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+            white-space: normal;
+        }
+
+        .tooltip.visible {
+            opacity: 1;
+        }
+
+        /* Elements with tooltips get subtle indicator when tooltips enabled */
+        .tooltips-enabled [data-tooltip]:hover {
+            outline: 1px dashed rgba(139, 168, 112, 0.4);
+            outline-offset: 2px;
+        }
     </style>
 </head>
 <body>
@@ -900,6 +968,12 @@
         <img id="botanical" class="botanical-overlay"
              src="/images/tree_expositionmtho00lamo_0207.png"
              alt="Botanical illustration">
+
+        <!-- v1.11.0: Tooltip toggle button -->
+        <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+
+        <!-- Tooltip element (positioned dynamically by JS) -->
+        <div class="tooltip" id="tooltip"></div>
 
         <!-- Header -->
         <div class="header">
@@ -926,7 +1000,7 @@
         <!-- SOUND Tab Content -->
         <div id="main-tab" class="tab-content active">
             <!-- TOP LEFT: Sound Shaping Knobs (Row 1) -->
-            <div class="knob-container" style="left: 40px; top: 15px;">
+            <div class="knob-container" style="left: 40px; top: 15px;" data-tooltip="Mallet Hardness: Controls the hardness of the virtual mallet. Soft mallets (0%) produce warm, mellow tones; hard mallets (100%) create bright, articulate attacks.">
                 <div class="knob small" id="mallet-knob">
                     <div class="knob-indicator" id="mallet-indicator"></div>
                 </div>
@@ -934,7 +1008,7 @@
                 <div class="knob-sublabel" id="mallet-value">50%</div>
             </div>
 
-            <div class="knob-container" style="left: 120px; top: 15px;">
+            <div class="knob-container" style="left: 120px; top: 15px;" data-tooltip="Material Hardness: Simulates the bar material density. Lower values emulate softer rosewood; higher values emulate denser synthetic materials with more sustain.">
                 <div class="knob small" id="material-knob">
                     <div class="knob-indicator" id="material-indicator"></div>
                 </div>
@@ -942,7 +1016,7 @@
                 <div class="knob-sublabel" id="material-value">50%</div>
             </div>
 
-            <div class="knob-container" style="left: 200px; top: 15px;">
+            <div class="knob-container" style="left: 200px; top: 15px;" data-tooltip="Resonance: Controls the resonator tube coupling. Higher values increase sustain and add the characteristic 'bloom' of marimba resonators.">
                 <div class="knob small" id="resonance-knob">
                     <div class="knob-indicator" id="resonance-indicator"></div>
                 </div>
@@ -951,7 +1025,7 @@
             </div>
 
             <!-- v1.6.0: Second Row - Timbre Refinement Knobs -->
-            <div class="knob-container" style="left: 40px; top: 115px;">
+            <div class="knob-container" style="left: 40px; top: 115px;" data-tooltip="Strike Position: Where the mallet strikes the bar. Center (0%) emphasizes the fundamental; edge (100%) brings out higher partials and overtones.">
                 <div class="knob small" id="strike-knob">
                     <div class="knob-indicator" id="strike-indicator"></div>
                 </div>
@@ -959,7 +1033,7 @@
                 <div class="knob-sublabel" id="strike-value">50%</div>
             </div>
 
-            <div class="knob-container" style="left: 120px; top: 115px;">
+            <div class="knob-container" style="left: 120px; top: 115px;" data-tooltip="Overtone Damping: Controls how quickly upper harmonics decay. Lower values preserve bright overtones; higher values create a purer, more fundamental tone.">
                 <div class="knob small" id="damping-knob">
                     <div class="knob-indicator" id="damping-indicator"></div>
                 </div>
@@ -967,7 +1041,7 @@
                 <div class="knob-sublabel" id="damping-value">50%</div>
             </div>
 
-            <div class="knob-container" style="left: 200px; top: 115px;">
+            <div class="knob-container" style="left: 200px; top: 115px;" data-tooltip="Tone: Overall brightness control. Acts as a gentle low-pass filter. Lower values produce darker tones; higher values retain more high-frequency content.">
                 <div class="knob small" id="tone-knob">
                     <div class="knob-indicator" id="tone-indicator"></div>
                 </div>
@@ -976,7 +1050,7 @@
             </div>
 
             <!-- TOP RIGHT: Waveform Display -->
-            <div class="waveform-display">
+            <div class="waveform-display" data-tooltip="Waveform: Real-time visualization of the marimba's sound wave. Shows how the timbre controls affect the harmonic content of each note.">
                 <svg viewBox="0 0 260 120" preserveAspectRatio="none">
                     <path id="waveform-path" d="M0,60 L260,60"
                           fill="none" stroke="#6B8E4E" stroke-width="2"/>
@@ -987,7 +1061,7 @@
 
             <!-- BOTTOM LEFT: Velocity Section -->
             <div class="velocity-section">
-                <div class="knob-container" style="position: relative;">
+                <div class="knob-container" style="position: relative;" data-tooltip="Velocity Curve: Shapes how MIDI velocity affects volume. Low values create a compressed, even response; high values create dynamic, expressive playing with more contrast.">
                     <div class="knob small" id="velocity-knob">
                         <div class="knob-indicator" id="velocity-indicator"></div>
                     </div>
@@ -996,7 +1070,7 @@
                 </div>
 
                 <!-- v1.6.2: Velocity curve display scaled to 75% -->
-                <div class="velocity-curve-display" style="position: relative; left: 0; bottom: 0;">
+                <div class="velocity-curve-display" style="position: relative; left: 0; bottom: 0;" data-tooltip="Response Graph: Visual representation of the velocity curve. X-axis is input velocity; Y-axis is output volume. Steeper curves = more dynamic range.">
                     <span class="title-label">RESPONSE</span>
                     <span class="axis-label y">Out</span>
                     <span class="axis-label x">In</span>
@@ -1013,7 +1087,7 @@
 
             <!-- BOTTOM RIGHT: Output Section -->
             <div class="output-section">
-                <div class="knob-container" style="position: relative;">
+                <div class="knob-container" style="position: relative;" data-tooltip="Output Level: Master volume control in decibels (dB). 0 dB is unity gain. Use to match levels with other instruments in your mix.">
                     <div class="knob" id="output-knob">
                         <div class="knob-indicator" id="output-indicator"></div>
                     </div>
@@ -1021,7 +1095,7 @@
                     <div class="knob-sublabel" id="output-value">0.0 dB</div>
                 </div>
 
-                <div class="vu-meter">
+                <div class="vu-meter" data-tooltip="Level Meter: Shows the current output level. Keep peaks below 0 dB to avoid clipping. The needle responds to audio dynamics in real-time.">
                     <svg class="vu-meter-scale" viewBox="0 0 70 35">
                         <!-- Arc from left (-90°) to right (+90°) -->
                         <path d="M 5 30 A 30 30 0 0 1 65 30" fill="none" stroke="#8B7355" stroke-width="1"/>
@@ -1049,13 +1123,13 @@
             <!-- LEFT SIDE: Tuning Visualization -->
             <div class="tuning-viz-container">
                 <!-- Interval List -->
-                <div class="interval-list" id="interval-list">
+                <div class="interval-list" id="interval-list" data-tooltip="Interval List: Shows the cents offset for each scale degree. 100 cents = 1 semitone. In CUSTOM mode, these can be edited for microtonal scales.">
                     <div class="interval-list-header">Intervals</div>
                     <!-- Populated by JS -->
                 </div>
 
                 <!-- Pitch Circle -->
-                <div class="pitch-circle">
+                <div class="pitch-circle" data-tooltip="Scale Circle: Visual representation of the scale intervals around the octave. Lines show where each note falls relative to equal temperament.">
                     <svg viewBox="0 0 150 150" id="pitch-circle-svg">
                         <!-- Outer circle -->
                         <circle cx="75" cy="75" r="70" fill="none" stroke="#8B7355" stroke-width="1.5"/>
@@ -1075,7 +1149,7 @@
             <!-- RIGHT SIDE: Tuning Controls -->
             <div class="tuning-controls-panel">
                 <!-- Mode Selection -->
-                <div class="tuning-mode-section">
+                <div class="tuning-mode-section" data-tooltip="Tuning Mode: 12-TET uses standard equal temperament; CUSTOM enables Scala file loading for microtonal scales; MTS-ESP connects to external tuning masters.">
                     <div class="tuning-mode-buttons">
                         <button class="btn active" id="btn-12tet">12-TET</button>
                         <button class="btn" id="btn-scala">CUSTOM</button>
@@ -1085,7 +1159,7 @@
 
                 <!-- Reference Pitch -->
                 <div class="tuning-ref-section">
-                    <div class="knob-container" style="position: relative; left: auto; top: auto;">
+                    <div class="knob-container" style="position: relative; left: auto; top: auto;" data-tooltip="A4 Reference: The concert pitch for A4. Standard is 440 Hz. Historical tunings may use 415 Hz (Baroque) or 432 Hz. Adjustable from 400-480 Hz.">
                         <div class="knob small" id="ref-pitch-knob">
                             <div class="knob-indicator" id="ref-pitch-indicator"></div>
                         </div>
@@ -2311,7 +2385,95 @@
             }
         });
 
-        console.log("O-Marimba UI initialized (v1.9.1 with Compressor + Autogain)");
+        // ====================================================================
+        // v1.11.0: TOOLTIP SYSTEM
+        // ====================================================================
+        (function initTooltipSystem() {
+            const tooltipToggle = document.getElementById('tooltip-toggle');
+            const tooltip = document.getElementById('tooltip');
+            const pluginContainer = document.querySelector('.plugin-container');
+            let tooltipsEnabled = false;
+
+            // Toggle tooltips on/off
+            tooltipToggle.addEventListener('click', function() {
+                tooltipsEnabled = !tooltipsEnabled;
+                tooltipToggle.classList.toggle('active', tooltipsEnabled);
+                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
+
+                // Hide tooltip when disabling
+                if (!tooltipsEnabled) {
+                    tooltip.classList.remove('visible');
+                }
+
+                // Save state via JUCE native function (if available)
+                if (window.JuceAPI && window.JuceAPI.getNativeFunction) {
+                    try {
+                        window.JuceAPI.getNativeFunction('setTooltipsEnabled')(tooltipsEnabled);
+                    } catch (e) {
+                        // Silently ignore if function not available
+                    }
+                }
+            });
+
+            // Show tooltip on hover over elements with data-tooltip
+            pluginContainer.addEventListener('mouseover', function(e) {
+                if (!tooltipsEnabled) return;
+
+                const target = e.target.closest('[data-tooltip]');
+                if (!target) return;
+
+                const text = target.getAttribute('data-tooltip');
+                if (!text) return;
+
+                tooltip.textContent = text;
+                tooltip.classList.add('visible');
+
+                // Position tooltip above the element
+                const rect = target.getBoundingClientRect();
+                const containerRect = pluginContainer.getBoundingClientRect();
+
+                // Calculate position relative to container
+                let left = rect.left - containerRect.left + rect.width / 2;
+                let top = rect.top - containerRect.top - 8;
+
+                // Constrain within container bounds
+                const tooltipWidth = tooltip.offsetWidth || 200;
+                const tooltipHeight = tooltip.offsetHeight || 40;
+
+                // Keep tooltip within horizontal bounds
+                if (left - tooltipWidth / 2 < 10) {
+                    left = tooltipWidth / 2 + 10;
+                } else if (left + tooltipWidth / 2 > containerRect.width - 10) {
+                    left = containerRect.width - tooltipWidth / 2 - 10;
+                }
+
+                // Check if tooltip would go above container - if so, show below
+                if (top - tooltipHeight < 0) {
+                    top = rect.bottom - containerRect.top + 8;
+                }
+
+                tooltip.style.left = left + 'px';
+                tooltip.style.top = top + 'px';
+                tooltip.style.transform = 'translateX(-50%)';
+            });
+
+            // Hide tooltip when mouse leaves element
+            pluginContainer.addEventListener('mouseout', function(e) {
+                const target = e.target.closest('[data-tooltip]');
+                if (target) {
+                    tooltip.classList.remove('visible');
+                }
+            });
+
+            // Restore tooltip state from JUCE (if available)
+            window.restoreTooltipState = function(enabled) {
+                tooltipsEnabled = !!enabled;
+                tooltipToggle.classList.toggle('active', tooltipsEnabled);
+                pluginContainer.classList.toggle('tooltips-enabled', tooltipsEnabled);
+            };
+        })();
+
+        console.log("O-Marimba UI initialized (v1.11.0 with Tooltips)");
     </script>
 </body>
 </html>

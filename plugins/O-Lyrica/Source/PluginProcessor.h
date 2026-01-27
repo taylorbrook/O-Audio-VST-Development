@@ -153,6 +153,10 @@ public:
      */
     void getHeldNotesData(std::vector<int>& notes, std::vector<double>& frequencies);
 
+    // v1.18.0: Tooltip system state
+    bool getTooltipsEnabled() const { return tooltipsEnabled.load(std::memory_order_acquire); }
+    void setTooltipsEnabled(bool enabled) { tooltipsEnabled.store(enabled, std::memory_order_release); }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
@@ -171,6 +175,9 @@ private:
 
     // v1.13.3: Flag to prevent processBlock from syncing mode during state restoration
     std::atomic<bool> isRestoringState { false };
+
+    // v1.18.0: Tooltip system enabled state (saved with plugin state)
+    std::atomic<bool> tooltipsEnabled { false };
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

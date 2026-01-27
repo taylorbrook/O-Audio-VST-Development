@@ -117,6 +117,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         false
     ));
 
+    // v1.7.0: Lane 1 Pitch Randomization (4 parameters)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane1_pitch_rand_enabled", 1 },
+        "Lane 1 Pitch Rand",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane1_pitch_rand_min", 1 },
+        "Lane 1 Pitch Rand Min",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane1_pitch_rand_max", 1 },
+        "Lane 1 Pitch Rand Max",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane1_pitch_rand_quantize", 1 },
+        "Lane 1 Pitch Rand Quantize",
+        true  // Default: quantize to semitones
+    ));
+
     // ========================================================================================
     // LANE 2 PARAMETERS (14)
     // ========================================================================================
@@ -217,6 +246,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         juce::ParameterID { "lane2_freeze", 1 },
         "Lane 2 Freeze",
         false
+    ));
+
+    // v1.7.0: Lane 2 Pitch Randomization (4 parameters)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane2_pitch_rand_enabled", 1 },
+        "Lane 2 Pitch Rand",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane2_pitch_rand_min", 1 },
+        "Lane 2 Pitch Rand Min",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane2_pitch_rand_max", 1 },
+        "Lane 2 Pitch Rand Max",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane2_pitch_rand_quantize", 1 },
+        "Lane 2 Pitch Rand Quantize",
+        true
     ));
 
     // ========================================================================================
@@ -321,6 +379,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         false
     ));
 
+    // v1.7.0: Lane 3 Pitch Randomization (4 parameters)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane3_pitch_rand_enabled", 1 },
+        "Lane 3 Pitch Rand",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane3_pitch_rand_min", 1 },
+        "Lane 3 Pitch Rand Min",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane3_pitch_rand_max", 1 },
+        "Lane 3 Pitch Rand Max",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane3_pitch_rand_quantize", 1 },
+        "Lane 3 Pitch Rand Quantize",
+        true
+    ));
+
     // ========================================================================================
     // LANE 4 PARAMETERS (14)
     // ========================================================================================
@@ -421,6 +508,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         juce::ParameterID { "lane4_freeze", 1 },
         "Lane 4 Freeze",
         false
+    ));
+
+    // v1.7.0: Lane 4 Pitch Randomization (4 parameters)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane4_pitch_rand_enabled", 1 },
+        "Lane 4 Pitch Rand",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane4_pitch_rand_min", 1 },
+        "Lane 4 Pitch Rand Min",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lane4_pitch_rand_max", 1 },
+        "Lane 4 Pitch Rand Max",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.01f),
+        0.0f,
+        "st"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lane4_pitch_rand_quantize", 1 },
+        "Lane 4 Pitch Rand Quantize",
+        true
     ));
 
     // ========================================================================================
@@ -677,6 +793,27 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     lane2PitchParam = apvts.getRawParameterValue("lane2_pitch");
     lane3PitchParam = apvts.getRawParameterValue("lane3_pitch");
     lane4PitchParam = apvts.getRawParameterValue("lane4_pitch");
+
+    // v1.7.0: Cache pitch randomization parameter pointers
+    lane1PitchRandEnabledParam = apvts.getRawParameterValue("lane1_pitch_rand_enabled");
+    lane1PitchRandMinParam = apvts.getRawParameterValue("lane1_pitch_rand_min");
+    lane1PitchRandMaxParam = apvts.getRawParameterValue("lane1_pitch_rand_max");
+    lane1PitchRandQuantizeParam = apvts.getRawParameterValue("lane1_pitch_rand_quantize");
+
+    lane2PitchRandEnabledParam = apvts.getRawParameterValue("lane2_pitch_rand_enabled");
+    lane2PitchRandMinParam = apvts.getRawParameterValue("lane2_pitch_rand_min");
+    lane2PitchRandMaxParam = apvts.getRawParameterValue("lane2_pitch_rand_max");
+    lane2PitchRandQuantizeParam = apvts.getRawParameterValue("lane2_pitch_rand_quantize");
+
+    lane3PitchRandEnabledParam = apvts.getRawParameterValue("lane3_pitch_rand_enabled");
+    lane3PitchRandMinParam = apvts.getRawParameterValue("lane3_pitch_rand_min");
+    lane3PitchRandMaxParam = apvts.getRawParameterValue("lane3_pitch_rand_max");
+    lane3PitchRandQuantizeParam = apvts.getRawParameterValue("lane3_pitch_rand_quantize");
+
+    lane4PitchRandEnabledParam = apvts.getRawParameterValue("lane4_pitch_rand_enabled");
+    lane4PitchRandMinParam = apvts.getRawParameterValue("lane4_pitch_rand_min");
+    lane4PitchRandMaxParam = apvts.getRawParameterValue("lane4_pitch_rand_max");
+    lane4PitchRandQuantizeParam = apvts.getRawParameterValue("lane4_pitch_rand_quantize");
 
     // Cache Phase 2.4 tape degradation apvts
     tapeSaturationParam = apvts.getRawParameterValue("tape_saturation");
@@ -1054,6 +1191,12 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.4: Pitch shifting
         lane1->setPitch(lane1PitchParam->load());
 
+        // v1.7.0: Pitch randomization
+        lane1->setPitchRandEnabled(lane1PitchRandEnabledParam->load() > 0.5f);
+        lane1->setPitchRandMin(lane1PitchRandMinParam->load());
+        lane1->setPitchRandMax(lane1PitchRandMaxParam->load());
+        lane1->setPitchRandQuantize(lane1PitchRandQuantizeParam->load() > 0.5f);
+
         // Phase 2.3: Advanced modes
         lane1->setPingPong(lane1PingPong);
         lane1->setReverse(lane1Reverse);
@@ -1083,6 +1226,12 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.4: Pitch shifting
         lane2->setPitch(lane2PitchParam->load());
 
+        // v1.7.0: Pitch randomization
+        lane2->setPitchRandEnabled(lane2PitchRandEnabledParam->load() > 0.5f);
+        lane2->setPitchRandMin(lane2PitchRandMinParam->load());
+        lane2->setPitchRandMax(lane2PitchRandMaxParam->load());
+        lane2->setPitchRandQuantize(lane2PitchRandQuantizeParam->load() > 0.5f);
+
         // Phase 2.3: Advanced modes
         lane2->setPingPong(lane2PingPong);
         lane2->setReverse(lane2Reverse);
@@ -1110,6 +1259,12 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.4: Pitch shifting
         lane3->setPitch(lane3PitchParam->load());
 
+        // v1.7.0: Pitch randomization
+        lane3->setPitchRandEnabled(lane3PitchRandEnabledParam->load() > 0.5f);
+        lane3->setPitchRandMin(lane3PitchRandMinParam->load());
+        lane3->setPitchRandMax(lane3PitchRandMaxParam->load());
+        lane3->setPitchRandQuantize(lane3PitchRandQuantizeParam->load() > 0.5f);
+
         // Phase 2.3: Advanced modes
         lane3->setPingPong(lane3PingPong);
         lane3->setReverse(lane3Reverse);
@@ -1136,6 +1291,12 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
 
         // Phase 2.4: Pitch shifting
         lane4->setPitch(lane4PitchParam->load());
+
+        // v1.7.0: Pitch randomization
+        lane4->setPitchRandEnabled(lane4PitchRandEnabledParam->load() > 0.5f);
+        lane4->setPitchRandMin(lane4PitchRandMinParam->load());
+        lane4->setPitchRandMax(lane4PitchRandMaxParam->load());
+        lane4->setPitchRandQuantize(lane4PitchRandQuantizeParam->load() > 0.5f);
 
         // Phase 2.3: Advanced modes
         lane4->setPingPong(lane4PingPong);

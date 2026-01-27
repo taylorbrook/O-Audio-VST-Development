@@ -9,7 +9,7 @@ description: Create branded PKG installers for plugin distribution. Use when use
 
 ## Overview
 
-Generates macOS PKG installers with branded UI, automated plugin installation, and Gatekeeper bypass instructions.
+Generates signed macOS PKG installers with branded UI and automated plugin installation. Packages are signed with Developer ID for seamless installation without Gatekeeper warnings.
 
 ## Workflow
 
@@ -24,7 +24,8 @@ Plugin Packaging Progress:
 - [ ] 3. Branding files created (Welcome, ReadMe, Conclusion)
 - [ ] 4. Base package built (pkgbuild complete)
 - [ ] 5. Branded installer created (productbuild complete)
-- [ ] 6. Distribution package output (dist/ created, committed, PLUGINS.md updated)
+- [ ] 6. Package signed (productsign with Developer ID)
+- [ ] 7. Distribution package output (dist/ created, committed, PLUGINS.md updated)
 ```
 
 ---
@@ -89,36 +90,57 @@ Wrap base package with branding:
 
 **Validation:** Verify branded PKG created. ONLY proceed to step 6 when branded PKG exists.
 
-### 6. Output Distribution Package
+### 6. Sign the Package
+
+Sign the package with Developer ID Installer certificate:
+
+**6a. Run productsign** (see Section 5c in references/pkg-creation.md for complete command)
+
+```bash
+productsign \
+    --sign "Developer ID Installer: Taylor Brook (XZ324L9P7A)" \
+    "${PLUGIN_NAME}-OuariconAudio-unsigned.pkg" \
+    "${PLUGIN_NAME}-OuariconAudio.pkg"
+```
+
+**6b. Verify signature:**
+```bash
+pkgutil --check-signature "${PLUGIN_NAME}-OuariconAudio.pkg"
+```
+
+**Validation:** Verify signature shows "signed by a certificate trusted by macOS". ONLY proceed to step 7 when verified.
+
+### 7. Output Distribution Package
 
 Finalize and present to user:
 
-**6a. Create dist directory** (see Section 6a in references/pkg-creation.md)
+**7a. Create dist directory** (see Section 6a in references/pkg-creation.md)
 
-**6b. Copy installer** (see Section 6b in references/pkg-creation.md)
+**7b. Copy installer** (see Section 6b in references/pkg-creation.md)
 
-**6c. Generate install-readme.txt** (see Section 6c in references/pkg-creation.md for complete template)
+**7c. Generate install-readme.txt** (see Section 6c in references/pkg-creation.md for complete template)
 
-**6d. Commit distribution package:**
+**7d. Commit distribution package:**
 ```bash
 git add plugins/[PluginName]/dist/
 git commit -m "feat([PluginName]): create v[X.Y.Z] distribution package"
 ```
 
-**6e. Update PLUGINS.md** with packaging metadata:
+**7e. Update PLUGINS.md** with packaging metadata:
 ```markdown
 **Last Packaged:** YYYY-MM-DD
-**Distribution:** plugins/[PluginName]/dist/[PluginName]-by-TACHES.pkg (X.X MB)
+**Distribution:** plugins/[PluginName]/dist/[PluginName]-OuariconAudio.pkg (X.X MB)
+**Signed:** Developer ID Installer: Taylor Brook (XZ324L9P7A)
 ```
 
-**6f. Display summary:**
+**7f. Display summary:**
 ```
 ✓ [PluginName] packaged successfully
 
-Created: plugins/[PluginName]/dist/[PluginName]-by-TACHES.pkg (X.X MB)
+Created: plugins/[PluginName]/dist/[PluginName]-OuariconAudio.pkg (X.X MB)
 
 Distribution package includes:
-- [PluginName]-by-TACHES.pkg (branded installer)
+- [PluginName]-OuariconAudio.pkg (branded installer)
 - install-readme.txt (installation guide)
 
 Send both files to your friend.
@@ -144,7 +166,7 @@ Send both files to your friend.
 - `~/Library/Audio/Plug-Ins/Components/[Product].component` → Source binary
 
 **Creates:**
-- `plugins/[PluginName]/dist/[PluginName]-by-TACHES.pkg` → Branded installer
+- `plugins/[PluginName]/dist/[PluginName]-OuariconAudio.pkg` → Branded installer
 - `plugins/[PluginName]/dist/install-readme.txt` → Installation guide
 
 **Updates:**
@@ -162,7 +184,7 @@ After successful packaging, present this menu and WAIT for user response:
 ```
 ✓ [PluginName] packaged successfully
 
-Created: plugins/[PluginName]/dist/[PluginName]-by-TACHES.pkg (X.X MB)
+Created: plugins/[PluginName]/dist/[PluginName]-OuariconAudio.pkg (X.X MB)
 
 What's next?
 1. Test installer (recommended) → Verify PKG works correctly
@@ -196,6 +218,8 @@ For error scenarios and troubleshooting, see references/pkg-creation.md Section 
 Packaging succeeds when:
 - ✅ Base PKG created with postinstall script
 - ✅ Branded PKG created with Welcome/ReadMe/Conclusion screens
+- ✅ Package signed with Developer ID Installer certificate
+- ✅ Signature verified by pkgutil
 - ✅ Installer file copied to `plugins/[PluginName]/dist/`
 - ✅ Installation guide generated
 - ✅ File sizes reported (PKG should be 3-5 MB typically)
@@ -203,7 +227,7 @@ Packaging succeeds when:
 
 **NOT required for success:**
 - Actually testing installer (recommended but not blocking)
-- Signing/notarization (future enhancement)
+- Notarization (future enhancement - signing is sufficient for direct distribution)
 - Multi-format packages (DMG, ZIP - future modes)
 
 ---
@@ -217,8 +241,14 @@ Packaging succeeds when:
 3. Postinstall script must handle user detection (can't assume /Users/[name])
 4. Clean up temp files after success (`rm -rf /tmp/[PluginName]-installer`)
 5. Report file size to user (helpful for sharing over email/Dropbox)
+6. Always verify signature with `pkgutil --check-signature` before finalizing
 
 **Branding consistency:**
-- Always use "TÂCHES" in title, welcome, conclusion
-- Format: "[PluginName] by TÂCHES"
-- Include Gatekeeper steps in ReadMe (critical for unsigned plugins)
+- Always use "Ouaricon Audio" in title, welcome, conclusion
+- Format: "[PluginName] by Ouaricon Audio"
+- Website: oaudio.io
+
+**Code Signing:**
+- Identity: "Developer ID Installer: Taylor Brook (XZ324L9P7A)"
+- Signed packages install without Gatekeeper warnings
+- If signing fails, check certificate with: `security find-identity -v -p basic | grep "Developer ID Installer"`

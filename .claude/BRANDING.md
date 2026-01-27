@@ -11,6 +11,22 @@ All plugins built by this system automatically receive consistent branding metad
 - Proper developer attribution in source files
 - Professional metadata in plugin binaries
 
+## Dual Branding Strategy
+
+**Problem:** macOS code signing requires all plugins from a manufacturer to be signed once any one is signed. Unsigned development builds from "Ouaricon Audio" will be hidden/blocked by the OS if a signed "Ouaricon Audio" plugin exists.
+
+**Solution:** Use separate manufacturer identities for development vs production:
+
+| Context | Company Name | Manufacturer Code | Use Case |
+|---------|--------------|-------------------|----------|
+| **Development** | Ouaricon Development | OuDv | Local builds, testing, iteration |
+| **Production** | Ouaricon Audio | OuAu | Signed releases, published plugins |
+
+This allows:
+- Development plugins to load alongside production plugins
+- Code signing only needed for actual releases
+- Clear distinction between dev/release builds in DAW plugin lists
+
 ## Configuration File
 
 **Location:** `.claude/branding.json`
@@ -20,9 +36,16 @@ All plugins built by this system automatically receive consistent branding metad
 ```json
 {
   "company": {
-    "full_name": "Ouaricon Audio",
-    "short_name": "O-AUDIO",
-    "manufacturer_code": "OuAu",
+    "production": {
+      "full_name": "Ouaricon Audio",
+      "short_name": "O-AUDIO",
+      "manufacturer_code": "OuAu"
+    },
+    "development": {
+      "full_name": "Ouaricon Development",
+      "short_name": "O-DEV",
+      "manufacturer_code": "OuDv"
+    },
     "website": "https://ouaricon.audio",
     "copyright_year_start": 2025
   },
@@ -32,7 +55,8 @@ All plugins built by this system automatically receive consistent branding metad
   },
   "defaults": {
     "plugin_code_prefix": "Ou",
-    "version_start": "1.0.0"
+    "version_start": "1.0.0",
+    "use_development_branding": true
   },
   "metadata": {
     "description": "Professional audio plugins by Ouaricon Audio",
@@ -41,6 +65,27 @@ All plugins built by this system automatically receive consistent branding metad
   }
 }
 ```
+
+## When Each Brand Is Used
+
+### Development Branding (Default)
+
+Used for:
+- All local `ninja` builds
+- `/implement` workflow builds
+- Testing and iteration
+- Any unsigned plugin
+
+The `use_development_branding: true` flag in defaults ensures all local builds use "Ouaricon Development".
+
+### Production Branding
+
+Used for:
+- `/publish` workflow (GitHub Actions CI/CD)
+- `/package` workflow (PKG installers)
+- Any signed, notarized release
+
+The publishing workflow switches to production branding automatically when creating signed releases.
 
 ## How It Works
 

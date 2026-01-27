@@ -182,6 +182,27 @@ private:
     std::atomic<float>* lane3PitchParam = nullptr;
     std::atomic<float>* lane4PitchParam = nullptr;
 
+    // v1.7.0: Pitch randomization parameter pointers
+    std::atomic<float>* lane1PitchRandEnabledParam = nullptr;
+    std::atomic<float>* lane1PitchRandMinParam = nullptr;
+    std::atomic<float>* lane1PitchRandMaxParam = nullptr;
+    std::atomic<float>* lane1PitchRandQuantizeParam = nullptr;
+
+    std::atomic<float>* lane2PitchRandEnabledParam = nullptr;
+    std::atomic<float>* lane2PitchRandMinParam = nullptr;
+    std::atomic<float>* lane2PitchRandMaxParam = nullptr;
+    std::atomic<float>* lane2PitchRandQuantizeParam = nullptr;
+
+    std::atomic<float>* lane3PitchRandEnabledParam = nullptr;
+    std::atomic<float>* lane3PitchRandMinParam = nullptr;
+    std::atomic<float>* lane3PitchRandMaxParam = nullptr;
+    std::atomic<float>* lane3PitchRandQuantizeParam = nullptr;
+
+    std::atomic<float>* lane4PitchRandEnabledParam = nullptr;
+    std::atomic<float>* lane4PitchRandMinParam = nullptr;
+    std::atomic<float>* lane4PitchRandMaxParam = nullptr;
+    std::atomic<float>* lane4PitchRandQuantizeParam = nullptr;
+
     // Phase 2.4: Cached parameter pointers for tape degradation
     std::atomic<float>* tapeSaturationParam = nullptr;
     std::atomic<float>* tapeWowParam = nullptr;
