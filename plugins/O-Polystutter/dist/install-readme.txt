@@ -1,30 +1,26 @@
-O-Polystutter v1.7.0 - Installation Instructions
+O-Polystutter v1.8.0 - Installation Instructions
 ===========================================
 
 INSTALLATION:
-1. Double-click "O-Polystutter-by-TACHES.pkg"
+1. Double-click "O-Polystutter-OuariconAudio.pkg"
 2. Follow the installation prompts
 3. The installer will copy O-Polystutter to your system folders:
    - VST3: ~/Library/Audio/Plug-Ins/VST3/O-Polystutter.vst3
    - AU: ~/Library/Audio/Plug-Ins/Components/O-Polystutter.component
 
-FIRST USE (IMPORTANT):
-macOS will show a security warning because this plugin is not signed.
-
-To bypass Gatekeeper:
-1. Open your DAW (Logic Pro, Ableton, etc.)
-2. When you first load O-Polystutter, macOS will block it
-3. Go to System Settings > Privacy & Security
-4. Scroll down and click "Open Anyway" next to O-Polystutter warning
-5. Confirm you want to open it
-
-You only need to do this once per plugin format (VST3 and AU).
-
 PLUGIN INFO:
-- Version: 1.7.0
+- Version: 1.8.0
 - Formats: VST3, AU
-- Type: Polyrhythmic Beat Repeater
-- Features: 4 independent lanes, 16-step pattern sequencer, tape degradation
+- Description: A polyrhythmic beat repeater with 4 independent lanes
+- Signed by: Ouaricon Audio (Taylor Brook)
+
+FEATURES:
+• 4 Independent Repeat Lanes with different subdivisions
+• 16-Step Pattern Sequencer per lane
+• Tape Degradation Simulation
+• Reverse & Freeze Modes
+• MIDI, Envelope, and Sidechain Trigger options
+• Ping-Pong Pan and Swing Control
 
 UNINSTALLATION:
 To remove O-Polystutter:
@@ -34,7 +30,7 @@ To remove O-Polystutter:
 
 COMPATIBILITY:
 - macOS 14.6 or later recommended
-- Built for your Mac architecture
+- Universal binary (Apple Silicon & Intel)
 
 SUPPORT:
-For questions or issues, contact TÂCHES.
+Visit oaudio.io for support and more plugins.
