@@ -1,17 +1,17 @@
 ---
 name: context-resume
-description: Load plugin context from handoff files to resume work. Invoked by /continue command, 'resume [PluginName]', 'continue working on [PluginName]', 'pick up where I left off with [PluginName]', or 'show me where [PluginName] is at'. Locates handoff across 2 locations, parses state, presents summary, and routes to appropriate continuation skill.
+description: Load plugin context from STATUS.md to resume work. Invoked by /continue command, 'resume [PluginName]', 'continue working on [PluginName]', 'pick up where I left off with [PluginName]', or 'show me where [PluginName] is at'. Locates STATUS.md in plugin-local .planning/, parses state, presents summary, and routes to appropriate continuation skill.
 allowed-tools:
   - Read
   - Bash
   - Skill # To invoke next skill
 preconditions:
-  - Handoff file must exist in one of 2 locations
+  - STATUS.md must exist in plugins/[Name]/.planning/
 ---
 
 # context-resume Skill
 
-**Purpose:** Universal entry point for resuming plugin work from `.continue-here.md` handoff files. Handles workflow, ideation, mockup, and improvement resume scenarios.
+**Purpose:** Universal entry point for resuming plugin work from `STATUS.md` (plugin-local planning). Handles workflow, ideation, mockup, and improvement resume scenarios.
 
 **Capabilities:**
 - Locates handoff files (2 possible locations)
@@ -47,21 +47,21 @@ When enabled in handoff YAML, this flag activates the dispatcher pattern: plugin
 
 </delegation_rule>
 
-## Handoff File Locations
+## Status File Location
 
-The system uses 2 handoff locations, checked in priority order:
+Plugin status is stored in the plugin-local planning directory:
 
-**Priority 1: Main Workflow Handoff**
-`plugins/[PluginName]/.continue-here.md`
+**Primary Location: Plugin STATUS.md**
+`plugins/[PluginName]/.planning/STATUS.md`
 
-Plugin in active development (Stages 0-3, ideation, improvement planning). Contains stage, phase, orchestration_mode, next_action, completed work, next steps.
+Plugin in active development (Stages 0-3, ideation, improvement planning). Contains stage, orchestration_mode, next_action, completed work, next steps, and full progress history.
 
-**Priority 2: Mockup Handoff**
-`plugins/[PluginName]/.ideas/mockups/.continue-here.md`
+**Mockup Status (if separate):**
+`plugins/[PluginName]/.planning/mockups/.continue-here.md`
 
 UI mockup iteration in progress. Contains mockup_version, iteration notes, finalization status.
 
-**Search order:** Priority 1 → 2. If multiple found, present disambiguation menu to user (see references/handoff-location.md Step 1c).
+**Search order:** Check STATUS.md first, then mockup handoff if applicable.
 
 ---
 
@@ -192,16 +192,17 @@ MUST use Skill tool for invocation, NEVER implement directly.
 
 **This skill is READ-ONLY for state files.**
 
-MUST read:
-- `.continue-here.md` files (all 2 locations)
+MUST read (all paths relative to plugins/[Name]/.planning/):
+- `STATUS.md` (current stage, progress, history)
 - PLUGINS.md (status verification)
 - Git log (commit history for inference)
-- Contract files (creative-brief.md, parameter-spec.md, architecture.md, plan.md)
-- Source files (if mentioned in handoff)
+- Contract files: `BRIEF.md`, `parameter-spec.md`, `research/ARCHITECTURE.md`, `ROADMAP.md`
+- Stage context files: `stages/[N]-[name]/CONTEXT.md`, `VERIFICATION.md`
+- Source files (if mentioned in status)
 - CHANGELOG.md (for improvements)
 
 MUST NOT write:
-- Any `.continue-here.md` files
+- STATUS.md
 - PLUGINS.md
 - Any source code or contract files
 
@@ -215,13 +216,13 @@ MUST NOT write:
 
 Resume is successful when:
 
-1. **Handoff located:** Found correct handoff file(s) from 2 possible locations
+1. **Status located:** Found STATUS.md in `plugins/[Name]/.planning/`
 2. **Context parsed:** YAML and markdown extracted without errors
 3. **State understood:** User sees clear summary of where they left off
-4. **Continuity felt:** User doesn't need to remember details, handoff provides everything
+4. **Continuity felt:** User doesn't need to remember details, STATUS.md provides everything
 5. **Appropriate routing:** Correct continuation skill invoked with right parameters
-6. **Context loaded:** Contract files and relevant code loaded before proceeding
-7. **Error handled:** Missing/corrupt handoff handled gracefully with fallbacks
+6. **Context loaded:** Contract files and stage context loaded before proceeding
+7. **Error handled:** Missing/corrupt STATUS.md handled gracefully with fallbacks
 8. **User control:** User explicitly chooses to continue, not auto-proceeded
 
 ---
@@ -232,13 +233,13 @@ Resume is successful when:
 
 **MUST do when executing this skill:**
 
-1. **ALWAYS** search all 2 handoff locations before declaring "not found"
+1. **ALWAYS** check `plugins/[Name]/.planning/STATUS.md` first
 2. **MUST** parse YAML carefully - handle missing optional fields gracefully
 3. **MUST** present time-ago in human-readable format (not raw timestamps)
 4. **MUST** show enough context that user remembers where they were
 5. **NEVER** auto-proceed - wait for explicit user choice
 6. **MUST** load contract files BEFORE invoking continuation skill (provides context)
-7. **MUST** use git log as backup IF handoff is missing, stale (>2 weeks old), or corrupt
+7. **MUST** use git log as backup IF STATUS.md is missing, stale (>2 weeks old), or corrupt
 8. **MUST** preserve user's mental model - summary should match how they think about plugin
 
 </requirements>
@@ -247,10 +248,9 @@ Resume is successful when:
 
 **NEVER do these common mistakes:**
 
-- Checking only Priority 1 location and stopping early (MUST check both locations)
 - Auto-proceeding after summary without waiting for user confirmation
-- Invoking continuation skill before loading contract files
+- Invoking continuation skill before loading contract files from `.planning/`
 - Presenting raw YAML/markdown instead of formatted human-readable summary
-- Auto-selecting when multiple handoffs exist (MUST present disambiguation menu)
+- Ignoring stage CONTEXT.md and VERIFICATION.md files that provide rich context
 
 </anti_patterns>

@@ -1,0 +1,114 @@
+---
+name: plugin:discuss
+description: Gather context for a plugin stage through adaptive questioning (GSD discuss phase)
+invocation: /plugin:discuss [PluginName] [StageNumber]
+allowed-tools:
+  - Read
+  - Write
+  - AskUserQuestion
+  - Bash
+---
+
+# /plugin:discuss Command
+
+**Purpose:** Execute the DISCUSS phase of the GSD cycle for a specific plugin stage. Gathers context through adaptive questioning and produces CONTEXT.md.
+
+## Usage
+
+```
+/plugin:discuss O-Bass 2        # Discuss Stage 2 (DSP) for O-Bass
+/plugin:discuss O-NewPlugin 1   # Discuss Stage 1 (Foundation)
+```
+
+## What This Command Does
+
+1. **Loads existing context:**
+   - BRIEF.md (creative vision)
+   - ROADMAP.md (implementation plan)
+   - Previous stage VERIFICATION.md (if not Stage 0)
+   - Any existing CONTEXT.md for this stage
+
+2. **Asks adaptive questions based on stage:**
+   - Stage 0: Plugin vision, target users, sonic goals, constraints
+   - Stage 1: Parameter confirmation, sample rate handling, buffer requirements
+   - Stage 2: Algorithm approach, edge cases, performance requirements
+   - Stage 3: Layout preferences, control mapping, visual style
+   - Stage 4: Testing requirements, release targets, packaging needs
+
+3. **Produces:**
+   - `plugins/[Name]/.planning/stages/[N]-[name]/CONTEXT.md`
+
+4. **Updates:**
+   - `plugins/[Name]/.planning/STATUS.md` with discuss phase complete
+
+## Output: CONTEXT.md
+
+```markdown
+# Stage [N]: [StageName] - Context
+
+## Discussion Summary
+
+**Date:** [YYYY-MM-DD]
+**Participants:** User, Claude
+
+## Requirements Confirmed
+
+- [Requirement 1 with clarifications]
+- [Requirement 2 with clarifications]
+
+## Constraints Identified
+
+- [Constraint 1]
+- [Constraint 2]
+
+## Approach Decisions
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| [Topic] | [Choice] | [Why] |
+
+## Open Questions
+
+- [Any unresolved questions for research phase]
+
+## Next Phase
+
+Ready for: [research/plan] phase
+```
+
+## Stage-Specific Questions
+
+### Stage 0 (Ideation)
+- What's the core purpose of this plugin?
+- Who is the target user?
+- What sonic character should it have?
+- What are the must-have vs nice-to-have features?
+
+### Stage 1 (Foundation)
+- Are the parameters in ROADMAP.md complete and correct?
+- Any special sample rate considerations?
+- Buffer size requirements?
+- Latency tolerance?
+
+### Stage 2 (DSP)
+- Which algorithm approach from ARCHITECTURE.md?
+- Performance targets (CPU usage)?
+- Edge cases to handle?
+- Quality vs performance tradeoffs?
+
+### Stage 3 (UI)
+- Layout preferences (compact, expanded, modular)?
+- Which aesthetic template?
+- Special visualization needs?
+- Accessibility requirements?
+
+### Stage 4 (Polish)
+- Testing scope (manual, automated, DAW list)?
+- Packaging format (installer, zip)?
+- Release targets (internal, beta, public)?
+
+## Integration
+
+**Follows:** Previous stage VERIFICATION.md (except Stage 0)
+**Precedes:** /plugin:research or /plugin:plan
+**Updates:** STATUS.md with current GSD phase

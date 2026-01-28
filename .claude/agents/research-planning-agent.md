@@ -63,11 +63,11 @@ This file contains non-negotiable JUCE 8 patterns that inform your architecture 
 
 You will receive the following contract files:
 
-1. **creative-brief.md** - Plugin vision, user story, key features, sonic character (REQUIRED)
+1. **BRIEF.md** - Plugin vision, user story, key features, sonic character (REQUIRED)
 2. **parameter-spec.md OR parameter-spec-draft.md** - Parameter definitions (REQUIRED for complexity calculation)
 3. **mockups/*.yaml** - UI mockup files (optional, for design sync check)
 
-**Plugin location:** `plugins/[PluginName]/.ideas/`
+**Plugin planning location:** `plugins/[PluginName]/.planning/`
 
 </inputs>
 
@@ -79,7 +79,7 @@ Execute the complete research protocol from `.claude/skills/plugin-planning/refe
 
 ### Section 1: Read Creative Brief
 
-Read `plugins/[PluginName]/.ideas/creative-brief.md` and extract:
+Read `plugins/[PluginName]/.planning/BRIEF.md` and extract:
 - Plugin type (effect, instrument, utility)
 - Core audio functionality
 - Target use case
@@ -267,7 +267,9 @@ Output:
 
 #### 3.4: Comprehensive Documentation
 
-Create complete architecture.md using template from `.claude/skills/plugin-planning/assets/architecture-template.md`.
+Create complete ARCHITECTURE.md using template from `.claude/skills/plugin-planning/assets/architecture-template.md`.
+
+**Output location:** `plugins/[PluginName]/.planning/research/ARCHITECTURE.md`
 
 **Required sections:**
 1. Header (contract status, generation info)
@@ -322,7 +324,7 @@ For each parameter type in creative brief:
 
 Check for UI mockup:
 ```bash
-ls -la plugins/${PLUGIN_NAME}/.ideas/mockups/v*-ui.yaml 2>/dev/null
+ls -la plugins/${PLUGIN_NAME}/.planning/mockups/v*-ui.yaml 2>/dev/null
 ```
 
 **If mockup exists:**
@@ -352,14 +354,14 @@ After architecture.md is complete, create implementation plan (plan.md).
 ### 1. Read All Contracts
 
 ```bash
-# Read parameter specification
-cat plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md || cat plugins/${PLUGIN_NAME}/.ideas/parameter-spec-draft.md
+# Read parameter specification (plugin-local path)
+cat plugins/${PLUGIN_NAME}/.planning/parameter-spec.md || cat plugins/${PLUGIN_NAME}/.planning/parameter-spec-draft.md
 
 # Read DSP architecture specification (just created)
-cat plugins/${PLUGIN_NAME}/.ideas/architecture.md
+cat plugins/${PLUGIN_NAME}/.planning/research/ARCHITECTURE.md
 
 # Read creative brief for context
-cat plugins/${PLUGIN_NAME}/.ideas/creative-brief.md
+cat plugins/${PLUGIN_NAME}/.planning/BRIEF.md
 ```
 
 ### 2. Calculate Complexity Score
@@ -376,8 +378,8 @@ Cap at 5.0
 
 Count parameter definitions:
 ```bash
-# Each parameter entry counts as 1
-grep -c "^###" plugins/${PLUGIN_NAME}/.ideas/parameter-spec*.md
+# Each parameter entry counts as 1 (plugin-local path)
+grep -c "^###" plugins/${PLUGIN_NAME}/.planning/parameter-spec*.md
 ```
 
 Calculate param_score:
@@ -477,19 +479,21 @@ final_score = min(total_score, 5.0)
 - Spectrum analyzers
 - Real-time animations
 
-### 5. Create plan.md
+### 5. Create ROADMAP.md
 
 **Use template:** `.claude/skills/plugin-planning/assets/plan-template.md`
 
-**File location:** `plugins/${PLUGIN_NAME}/.ideas/plan.md`
+**File location:** `plugins/${PLUGIN_NAME}/.planning/ROADMAP.md`
 
 Include:
 - Complexity calculation breakdown
-- Implementation strategy (single-pass or phased)
+- Implementation strategy (single-pass or staged)
 - Stage breakdown
-- Phase breakdown for complex plugins with test criteria
-- Duration estimates
+- Sub-plans for complex plugins with test criteria
 - Implementation notes
+
+Also create stage context file:
+- `plugins/${PLUGIN_NAME}/.planning/stages/0-ideation/CONTEXT.md` - discuss phase findings
 
 </planning_protocol>
 
@@ -499,21 +503,25 @@ Include:
 
 ### Primary Outputs
 
-**1. architecture.md**
-- File location: `plugins/[PluginName]/.ideas/architecture.md`
+**1. ARCHITECTURE.md**
+- File location: `plugins/[PluginName]/.planning/research/ARCHITECTURE.md`
 - Template: `.claude/skills/plugin-planning/assets/architecture-template.md`
 - Content: Complete DSP architecture specification with all required sections
 
-**2. plan.md**
-- File location: `plugins/[PluginName]/.ideas/plan.md`
+**2. ROADMAP.md**
+- File location: `plugins/[PluginName]/.planning/ROADMAP.md`
 - Template: `.claude/skills/plugin-planning/assets/plan-template.md`
-- Content: Complexity assessment, implementation strategy, phase breakdown
+- Content: Complexity assessment, implementation strategy, stage breakdown
+
+**3. CONTEXT.md (Stage 0)**
+- File location: `plugins/[PluginName]/.planning/stages/0-ideation/CONTEXT.md`
+- Content: Discuss phase findings - decisions, constraints, approach
 
 ### State Updates
 
-#### 1. Create/Update Handoff File
+#### 1. Create/Update STATUS.md
 
-**File:** `plugins/[PluginName]/.continue-here.md`
+**File:** `plugins/[PluginName]/.planning/STATUS.md`
 
 **Content:**
 ```yaml
@@ -523,16 +531,18 @@ stage: 0
 status: complete
 last_updated: [YYYY-MM-DD HH:MM:SS]
 complexity_score: [X.X]
-phased_implementation: [true/false]
+staged_implementation: [true/false]
 next_stage: 1
 ready_for_implementation: true
 ---
 
-# Resume Point
+# [PluginName] Status
 
-## Current State: Stage 0 - Research & Planning Complete
+## Current Position
 
-DSP architecture documented and implementation plan created. Ready to proceed to implementation.
+Stage: 0 of N (Ideation) — complete
+Status: Research & Planning complete, ready for implementation
+Progress: [##..................] 10%
 
 ## Completed So Far
 
@@ -543,18 +553,19 @@ DSP architecture documented and implementation plan created. Ready to proceed to
 - DSP feasibility verified
 - Parameter ranges researched
 - Complexity score: [X.X]
-- Strategy: [Single-pass | Phased implementation]
-- Plan documented
+- Strategy: [Single-pass | Staged implementation]
+- ROADMAP documented
 
 ## Next Steps
 
-1. Stage 1: Foundation + Shell (create build system and parameters) - Run /implement [PluginName]
-2. Review architecture.md and plan.md
+1. Stage 1: Foundation (create build system and parameters) - Run /implement [PluginName]
+2. Review ARCHITECTURE.md and ROADMAP.md
 3. Pause here
 
 ## Files Created
-- plugins/[PluginName]/.ideas/architecture.md
-- plugins/[PluginName]/.ideas/plan.md
+- plugins/[PluginName]/.planning/research/ARCHITECTURE.md
+- plugins/[PluginName]/.planning/ROADMAP.md
+- plugins/[PluginName]/.planning/stages/0-ideation/CONTEXT.md
 ```
 
 ## State Management
@@ -563,11 +574,11 @@ After completing research & planning, update workflow state files:
 
 ### Step 1: Read Current State
 
-Read the existing continuation file (if it exists):
+Read the existing status file (if it exists):
 
 ```bash
 # Read current state (may not exist for new plugins)
-cat plugins/[PluginName]/.continue-here.md 2>/dev/null
+cat plugins/[PluginName]/.planning/STATUS.md 2>/dev/null
 ```
 
 If file doesn't exist, this is a new plugin. If it exists, parse YAML frontmatter to verify current stage.
@@ -577,14 +588,14 @@ If file doesn't exist, this is a new plugin. If it exists, parse YAML frontmatte
 Calculate SHA256 checksums for tamper detection:
 
 ```bash
-# Calculate checksums
-BRIEF_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/creative-brief.md | awk '{print $1}')
-PARAM_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/parameter-spec.md | awk '{print $1}')
-ARCH_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/architecture.md | awk '{print $1}')
-PLAN_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/plan.md | awk '{print $1}')
+# Calculate checksums (plugin-local paths)
+BRIEF_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/BRIEF.md | awk '{print $1}')
+PARAM_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/parameter-spec.md | awk '{print $1}')
+ARCH_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/research/ARCHITECTURE.md | awk '{print $1}')
+ROADMAP_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/ROADMAP.md | awk '{print $1}')
 ```
 
-### Step 3: Update .continue-here.md
+### Step 3: Update STATUS.md
 
 Update the YAML frontmatter fields:
 
@@ -592,25 +603,24 @@ Update the YAML frontmatter fields:
 ---
 plugin: [PluginName]
 stage: 0
-phase: null
 status: complete
 last_updated: [YYYY-MM-DD]
-complexity_score: [from plan.md]
-phased_implementation: [from plan.md]
+complexity_score: [from ROADMAP.md]
+staged_implementation: [from ROADMAP.md]
 orchestration_mode: true
 next_action: invoke_foundation_shell_agent
-next_phase: null
+next_stage: 1
 contract_checksums:
-  creative_brief: sha256:[hash]
+  brief: sha256:[hash]
   parameter_spec: sha256:[hash]
   architecture: sha256:[hash]
-  plan: sha256:[hash]
+  roadmap: sha256:[hash]
 ---
 ```
 
 Update the Markdown sections:
 
-- **Append to "Completed So Far":** `- **Stage 0:** Research & Planning complete - Architecture and plan documented (Complexity [X.X])`
+- **Append to "Completed So Far":** `- **Stage 0:** Research & Planning complete - ARCHITECTURE.md and ROADMAP.md documented (Complexity [X.X])`
 - **Update "Next Steps":** Add Stage 1 items (foundation-shell-agent invocation)
 - **Update "Context to Preserve":** Add architecture file locations, complexity score, implementation strategy
 
@@ -645,10 +655,11 @@ Include state update status in the completion report:
   "status": "success",
   "outputs": {
     "plugin_name": "[PluginName]",
-    "architecture_file": "plugins/[PluginName]/.ideas/architecture.md",
-    "plan_file": "plugins/[PluginName]/.ideas/plan.md",
+    "architecture_file": "plugins/[PluginName]/.planning/research/ARCHITECTURE.md",
+    "roadmap_file": "plugins/[PluginName]/.planning/ROADMAP.md",
+    "context_file": "plugins/[PluginName]/.planning/stages/0-ideation/CONTEXT.md",
     "complexity_score": 3.2,
-    "implementation_strategy": "phased"
+    "implementation_strategy": "staged"
   },
   "issues": [],
   "ready_for_next_stage": true,
@@ -669,7 +680,7 @@ Include state update status in the completion report:
   "issues": [],
   "ready_for_next_stage": true,
   "stateUpdated": false,
-  "stateUpdateError": "Failed to write .continue-here.md: [error message]"
+  "stateUpdateError": "Failed to write STATUS.md: [error message]"
 }
 ```
 
@@ -685,16 +696,17 @@ If state update fails:
 
 ```bash
 git add \
-  plugins/${PLUGIN_NAME}/.ideas/architecture.md \
-  plugins/${PLUGIN_NAME}/.ideas/plan.md \
-  plugins/${PLUGIN_NAME}/.continue-here.md \
+  plugins/${PLUGIN_NAME}/.planning/research/ARCHITECTURE.md \
+  plugins/${PLUGIN_NAME}/.planning/ROADMAP.md \
+  plugins/${PLUGIN_NAME}/.planning/STATUS.md \
+  plugins/${PLUGIN_NAME}/.planning/stages/0-ideation/CONTEXT.md \
   PLUGINS.md
 
 git commit -m "$(cat <<'EOF'
 feat: [PluginName] Stage 0 - research & planning complete
 
-Architecture documented, complexity assessed ([X.X])
-Strategy: [Single-pass | Phased implementation]
+ARCHITECTURE.md documented, complexity assessed ([X.X])
+Strategy: [Single-pass | Staged implementation]
 
 🤖 Generated with Claude Code
 
@@ -765,32 +777,33 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 
 **research-planning-agent succeeds when:**
 
-1. architecture.md created with ALL required sections (11 sections)
-2. plan.md created with complexity score and implementation strategy
-3. Every feature from 3.1 documented in architecture.md
-4. Every JUCE class has module dependency documented
-5. Every HIGH risk feature has fallback architecture
-6. Integration analysis covers dependencies, interactions, processing order, threads
-7. Processing chain shows complete signal flow
-8. Complexity score calculated and documented
-9. Implementation strategy determined (single-pass or phased)
-10. Phase breakdown created if complex (score ≥ 3.0)
-11. State files updated (.continue-here.md, PLUGINS.md)
-12. Changes committed to git
-13. JSON report generated with correct format
+1. ARCHITECTURE.md created with ALL required sections (11 sections) at `plugins/[Name]/.planning/research/`
+2. ROADMAP.md created with complexity score and implementation strategy at `plugins/[Name]/.planning/`
+3. CONTEXT.md created at `plugins/[Name]/.planning/stages/0-ideation/`
+4. Every feature from 3.1 documented in ARCHITECTURE.md
+5. Every JUCE class has module dependency documented
+6. Every HIGH risk feature has fallback architecture
+7. Integration analysis covers dependencies, interactions, processing order, threads
+8. Processing chain shows complete signal flow
+9. Complexity score calculated and documented
+10. Implementation strategy determined (single-pass or staged)
+11. Stage breakdown created if complex (score ≥ 3.0)
+12. State files updated (STATUS.md, PLUGINS.md)
+13. Changes committed to git
+14. JSON report generated with correct format
 
 **research-planning-agent fails when:**
 
-- creative-brief.md missing (blocking error)
+- BRIEF.md missing (blocking error)
 - parameter-spec.md AND parameter-spec-draft.md both missing (blocking error)
 - Complexity detection skipped (must execute 3.0)
 - Feature identification incomplete (must execute 3.1)
-- Any feature from 3.1 not documented in architecture.md
+- Any feature from 3.1 not documented in ARCHITECTURE.md
 - JUCE API documentation via WebSearch instead of Context7-MCP (wrong API version)
-- architecture.md missing required sections
-- plan.md not created
+- ARCHITECTURE.md missing required sections
+- ROADMAP.md not created
 - Complexity score not calculated
-- State updates incomplete (missing handoff or PLUGINS.md update)
+- State updates incomplete (missing STATUS.md or PLUGINS.md update)
 
 </success_criteria>
 
@@ -806,12 +819,13 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
   "status": "success",
   "outputs": {
     "plugin_name": "[PluginName]",
-    "architecture_file": "plugins/[PluginName]/.ideas/architecture.md",
-    "plan_file": "plugins/[PluginName]/.ideas/plan.md",
+    "architecture_file": "plugins/[PluginName]/.planning/research/ARCHITECTURE.md",
+    "roadmap_file": "plugins/[PluginName]/.planning/ROADMAP.md",
+    "context_file": "plugins/[PluginName]/.planning/stages/0-ideation/CONTEXT.md",
     "complexity_tier": 3,
     "complexity_score": 3.2,
     "research_depth": "MODERATE",
-    "implementation_strategy": "phased",
+    "implementation_strategy": "staged",
     "features_researched": [
       "Reverb engine",
       "Modulation delay",
@@ -831,8 +845,8 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
       "Phase vocoder pitch shifting"
     ],
     "fallback_architectures_documented": true,
-    "phase_count": 4,
-    "phased_implementation": true
+    "stage_count": 4,
+    "staged_implementation": true
   },
   "issues": [],
   "ready_for_next_stage": true
@@ -842,7 +856,7 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 **Required fields:**
 - `agent`: must be "research-planning-agent"
 - `status`: "success" or "failure"
-- `outputs`: object containing plugin_name, architecture_file, plan_file, complexity_tier, complexity_score, research_depth, implementation_strategy
+- `outputs`: object containing plugin_name, architecture_file, roadmap_file, complexity_tier, complexity_score, research_depth, implementation_strategy
 - `issues`: array (empty on success, populated with error messages on failure)
 - `ready_for_next_stage`: boolean
 
@@ -855,13 +869,13 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
   "outputs": {
     "plugin_name": "[PluginName]",
     "error_type": "contract_missing",
-    "error_message": "creative-brief.md not found"
+    "error_message": "BRIEF.md not found"
   },
   "issues": [
-    "Contract violation: creative-brief.md not found",
+    "Contract violation: BRIEF.md not found at plugins/[PluginName]/.planning/BRIEF.md",
     "Required for: Feature extraction and plugin type determination",
     "Stage 0 cannot proceed without creative brief from ideation",
-    "Run /start [PluginName] first to create creative brief"
+    "Run /start [PluginName] first to create BRIEF.md"
   ],
   "ready_for_next_stage": false
 }
@@ -871,7 +885,7 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 
 **BLOCK if missing:**
 
-- creative-brief.md (cannot extract features or plugin type)
+- BRIEF.md (cannot extract features or plugin type)
 - BOTH parameter-spec.md AND parameter-spec-draft.md (cannot calculate complexity score)
 
 **Error message format:**
@@ -882,10 +896,10 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
   "status": "failure",
   "outputs": {},
   "issues": [
-    "Contract violation: creative-brief.md not found",
+    "Contract violation: BRIEF.md not found at plugins/[PluginName]/.planning/",
     "Required for: Feature extraction and plugin type determination",
     "Stage 0 cannot proceed without complete contracts from ideation",
-    "Run /start [PluginName] first to create creative brief and parameters"
+    "Run /start [PluginName] first to create BRIEF.md and parameters"
   ],
   "ready_for_next_stage": false
 }
@@ -894,21 +908,25 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 ## Notes
 
 - **No implementation** - Research and planning only (code happens in Stages 1-3)
-- **Consolidated workflow** - Both architecture and plan created in single pass
+- **Consolidated workflow** - Both ARCHITECTURE.md and ROADMAP.md created in single pass
+- **GSD-style cycle** - Discuss → Research → Plan output documents
 - **Extended thinking enabled** - 10000 token budget for deep reasoning
 - **Context isolation** - Fresh context for each Stage 0 session
 - **Graduated depth** - Research depth scales with complexity (Tier 1: quick, Tier 6: deep)
 - **Per-feature iteration** - Document each feature immediately after research (prevents information loss)
 - **JUCE 8 focus** - Context7-MCP for API docs (NOT WebSearch)
+- **Plugin-local planning** - All output files written to `plugins/[Name]/.planning/`
 
 ## Next Stage
 
-After Stage 0 succeeds, plugin-workflow can proceed directly to Stage 1 (Foundation + Shell) via /implement command.
+After Stage 0 succeeds, plugin-workflow can proceed directly to Stage 1 (Foundation) via /implement command.
 
 The plugin now has:
 
-- ✅ Creative brief (Ideation)
+- ✅ BRIEF.md (Ideation)
 - ✅ Parameter specification (Ideation or mockup finalization)
-- ✅ DSP architecture (Stage 0 - research-planning-agent)
-- ✅ Implementation plan (Stage 0 - research-planning-agent)
+- ✅ ARCHITECTURE.md (Stage 0 - research-planning-agent)
+- ✅ ROADMAP.md (Stage 0 - research-planning-agent)
+- ✅ CONTEXT.md for Stage 0 (discuss phase output)
+- ✅ STATUS.md (tracking progress)
 - ⏳ Build system and parameters (Stage 1 - next)

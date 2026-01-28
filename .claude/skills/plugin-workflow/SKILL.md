@@ -8,8 +8,8 @@ allowed-tools:
   - Write # For documentation
   - Edit # For state updates
 preconditions:
-  - architecture.md must exist (from /plan)
-  - plan.md must exist (from /plan)
+  - ARCHITECTURE.md must exist at plugins/[Name]/.planning/research/ (from /plan)
+  - ROADMAP.md must exist at plugins/[Name]/.planning/ (from /plan)
   - Status must be 🚧 Planning Complete OR resuming from 🚧 Stage 1+
   - Plugin must NOT be ✅ Working or 📦 Installed (use /improve instead)
 ---
@@ -34,7 +34,7 @@ After Stage 3 completes, plugin is ready for installation (no separate validatio
 **CRITICAL:** Stages 1-3 MUST invoke subagents via Task tool. This skill is a pure orchestrator and NEVER implements plugin code directly.
 
 **Delegation sequence for every stage:**
-1. Load contracts in parallel (architecture.md, plan.md, parameter-spec.md, creative-brief.md)
+1. Load contracts in parallel (ARCHITECTURE.md, ROADMAP.md, parameter-spec.md, BRIEF.md) from `plugins/[Name]/.planning/`
 2. Read Required Reading (juce8-critical-patterns.md) once at workflow start
 3. Construct minimal prompt with plugin name + stage + Required Reading
 4. Invoke subagent via Task tool
@@ -51,11 +51,11 @@ After each stage completes, validation-agent runs automatically with enhanced ru
 
 ## Preconditions
 
-Before starting Stage 1, verify these contract files exist:
-- `plugins/$PLUGIN_NAME/.ideas/architecture.md` (from Stage 0)
-- `plugins/$PLUGIN_NAME/.ideas/plan.md` (from Stage 0)
-- `plugins/$PLUGIN_NAME/.ideas/creative-brief.md` (from ideation)
-- `plugins/$PLUGIN_NAME/.ideas/parameter-spec.md` (from UI mockup finalization)
+Before starting Stage 1, verify these contract files exist (plugin-local paths):
+- `plugins/$PLUGIN_NAME/.planning/research/ARCHITECTURE.md` (from Stage 0)
+- `plugins/$PLUGIN_NAME/.planning/ROADMAP.md` (from Stage 0)
+- `plugins/$PLUGIN_NAME/.planning/BRIEF.md` (from ideation)
+- `plugins/$PLUGIN_NAME/.planning/parameter-spec.md` (from UI mockup finalization)
 
 **If parameter-spec-draft.md exists but parameter-spec.md missing:**
 Block with message: "Draft parameters found, but full specification required. Complete UI mockup workflow to generate parameter-spec.md. Run: /start [PluginName] → option 2 (Full UI mockup first)"
@@ -70,12 +70,12 @@ See [references/precondition-checks.md](references/precondition-checks.md) for i
 When resuming via `/continue [PluginName]`:
 
 1. Verify state integrity (see references/state-management.md#verifyStateIntegrity)
-2. Parse `.continue-here.md` for current stage and workflow mode
+2. Parse `plugins/[Name]/.planning/STATUS.md` for current stage and workflow mode
 3. Verify contracts unchanged since last checkpoint (checksums match)
 4. Verify git working directory clean
-5. Verify PLUGINS.md status matches .continue-here.md stage
+5. Verify PLUGINS.md status matches STATUS.md stage
 
-**If all checks pass:** Resume at stage specified in .continue-here.md
+**If all checks pass:** Resume at stage specified in STATUS.md
 **If any fail:** Present recovery menu (reconcile / clean working directory / review changes)
 
 ## Workflow Mode
@@ -84,7 +84,7 @@ Determine whether to auto-progress (express mode) or present menus (manual mode)
 
 **Mode sources (priority order):**
 1. Environment variables: `WORKFLOW_MODE=express|manual`
-2. .continue-here.md field (for resumed workflows)
+2. STATUS.md field (for resumed workflows)
 3. Default to "manual"
 
 **Express mode behavior:**
@@ -116,11 +116,11 @@ For Stages 2-3 with complexity ≥3, use phase-aware dispatch to incrementally i
 
 **When to use:**
 - Stage 2 (DSP) or Stage 3 (GUI)
-- Complexity score ≥3 (from plan.md)
-- plan.md contains phase markers (### Phase 2.X or ### Phase 3.X)
+- Complexity score ≥3 (from ROADMAP.md)
+- ROADMAP.md contains phase markers (### Phase 2.X or ### Phase 3.X)
 
 **How it works:**
-1. Detect phases by scanning plan.md for phase markers
+1. Detect phases by scanning ROADMAP.md for phase markers
 2. Loop through phases sequentially (Phase 2.1 → 2.2 → 2.3...)
 3. Invoke subagent once per phase with phase-specific prompt
 4. Run validation-agent after each phase
@@ -135,7 +135,7 @@ See [references/phase-aware-dispatch.md](references/phase-aware-dispatch.md) for
 
 After EVERY subagent return, execute this 6-step sequence:
 
-1. **Verify state update:** Check subagent updated .continue-here.md and PLUGINS.md
+1. **Verify state update:** Check subagent updated STATUS.md and PLUGINS.md
 2. **Fallback state update:** If verification fails, orchestrator updates state
 3. **Invoke validation:** Run validation-agent for ALL stages 1-3 (BLOCKING on runtime failures)
 4. **Commit stage:** Auto-commit all changes with git
@@ -182,7 +182,7 @@ Subagents update state files AND return JSON report:
 
 **Verification:**
 1. Check `stateUpdated` field in JSON report
-2. If true: Verify .continue-here.md actually changed
+2. If true: Verify STATUS.md actually changed
 3. If false/missing: Trigger orchestrator fallback
 
 **Fallback:** Orchestrator reads current state, updates fields, writes back.
@@ -237,18 +237,22 @@ Each stage has detailed documentation in references/:
 - `build-automation` skill (build verification)
 - `plugin-lifecycle` skill (if user chooses to install)
 
-**Reads (contracts):**
-- architecture.md, plan.md, creative-brief.md, parameter-spec.md
+**Reads (contracts from plugins/[Name]/.planning/):**
+- research/ARCHITECTURE.md, ROADMAP.md, BRIEF.md, parameter-spec.md
 
-**Creates:**
-- .continue-here.md (handoff file)
+**Creates/Updates:**
+- STATUS.md (stage progress, in plugins/[Name]/.planning/)
+- stages/[N]-[name]/CONTEXT.md (discuss phase output for each stage)
+- stages/[N]-[name]/PLAN.md (execution plan for each stage)
+- stages/[N]-[name]/SUMMARY.md (completion summary for each stage)
+- stages/[N]-[name]/VERIFICATION.md (verify phase output for each stage)
 
 **Updates:**
 - PLUGINS.md (status after each stage)
-- .continue-here.md (after each stage)
+- STATUS.md (after each stage)
 
 **Deletes after Stage 3:**
-- .continue-here.md (workflow complete, plugin ready for installation)
+- Nothing - STATUS.md is preserved as project history
 
 ## Error Handling
 
@@ -308,7 +312,8 @@ Workflow succeeds when:
 - All stages completed in sequence (1 → 2 → 3)
 - Decision menus presented after EVERY stage (manual mode)
 - PLUGINS.md updated to ✅ Working after Stage 3
-- Handoff file deleted after Stage 3 (workflow complete)
+- STATUS.md shows complete progress history
+- Each stage has CONTEXT.md, PLAN.md, SUMMARY.md, VERIFICATION.md
 - Git history shows atomic commits for each stage
 
 ## Anti-Patterns
@@ -329,11 +334,11 @@ Common pitfalls to AVOID:
 
 **HIGH:**
 - ❌ Not verifying subagent updated state
-- ✓ Check stateUpdated field, verify .continue-here.md changed, fallback if needed
+- ✓ Check stateUpdated field, verify STATUS.md changed, fallback if needed
 
 **HIGH:**
 - ❌ Skipping phase detection for Stages 2-3 when complexity ≥3
-- ✓ Read plan.md to check for phases BEFORE invoking dsp-agent or gui-agent
+- ✓ Read ROADMAP.md to check for phases BEFORE invoking dsp-agent or gui-agent
 
 **HIGH:**
 - ❌ Skipping validation after subagent completes

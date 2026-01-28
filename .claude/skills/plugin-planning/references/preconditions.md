@@ -3,9 +3,13 @@
 All preconditions that must be verified before plugin-planning skill executes.
 
 ## Contents
-- Creative brief existence check
+- BRIEF.md existence check
 - Plugin status validation
 - Resume logic for existing contracts
+
+## Planning Location
+
+All planning files are stored in `plugins/[Name]/.planning/` (plugin-local).
 
 ## Validation Protocol
 
@@ -14,25 +18,25 @@ All preconditions that must be verified before plugin-planning skill executes.
 MUST verify all preconditions before proceeding. If ANY check fails, BLOCK and report to user.
 </validation_requirement>
 
-### Check 1: Creative Brief Exists
+### Check 1: BRIEF.md Exists
 
 ```bash
-if [ ! -f "plugins/${PLUGIN_NAME}/.ideas/creative-brief.md" ]; then
-    echo "✗ creative-brief.md not found - SKILL BLOCKED"
+if [ ! -f "plugins/${PLUGIN_NAME}/.planning/BRIEF.md" ]; then
+    echo "✗ BRIEF.md not found - SKILL BLOCKED"
     cat assets/precondition-failed.md
     exit 1
 fi
 ```
 
 **Verification:**
-- File exists at expected path
+- File exists at `plugins/[Name]/.planning/BRIEF.md`
 - File is readable
 - File is not empty
 
 **If check fails:**
 - Display error from assets/precondition-failed.md
 - Exit skill immediately
-- User must create creative brief first
+- User must create creative brief first (run /start)
 
 ### Check 2: Plugin Status Validation
 
@@ -66,10 +70,10 @@ ELSE IF status is 💡 Ideated or not found:
 - parameter-spec-draft.md (minimal specification from ideation)
 
 ```bash
-if [ -f "plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md" ]; then
+if [ -f "plugins/${PLUGIN_NAME}/.planning/parameter-spec.md" ]; then
     echo "✓ Using full parameter specification (preferred)"
     PARAM_FILE="parameter-spec.md"
-elif [ -f "plugins/${PLUGIN_NAME}/.ideas/parameter-spec-draft.md" ]; then
+elif [ -f "plugins/${PLUGIN_NAME}/.planning/parameter-spec-draft.md" ]; then
     echo "✓ Using draft parameters (full spec needed before Stage 1)"
     PARAM_FILE="parameter-spec-draft.md"
 else
@@ -90,17 +94,17 @@ fi
 ### Check 4: Existing Contract Detection
 
 ```bash
-# Check what already exists
-test -f "plugins/${PLUGIN_NAME}/.ideas/architecture.md" && echo "✓ architecture.md exists"
-test -f "plugins/${PLUGIN_NAME}/.ideas/plan.md" && echo "✓ plan.md exists"
+# Check what already exists (plugin-local paths)
+test -f "plugins/${PLUGIN_NAME}/.planning/research/ARCHITECTURE.md" && echo "✓ ARCHITECTURE.md exists"
+test -f "plugins/${PLUGIN_NAME}/.planning/ROADMAP.md" && echo "✓ ROADMAP.md exists"
 ```
 
 **Resume logic:**
 
 <resume_logic>
-IF architecture.md exists AND plan.md missing:
+IF ARCHITECTURE.md exists AND ROADMAP.md missing:
   THEN skip to Stage 1
-ELSE IF architecture.md exists AND plan.md exists:
+ELSE IF ARCHITECTURE.md exists AND ROADMAP.md exists:
   THEN ask user: "Both contracts exist. Regenerate both contracts or proceed to implementation?"
 ELSE:
   THEN start at Stage 0
@@ -121,8 +125,8 @@ SKILL.md should reference this file for detailed validation logic:
 **Check preconditions first:** See [references/preconditions.md](references/preconditions.md) for detailed validation logic.
 
 Quick validation:
-1. creative-brief.md must exist at plugins/[Name]/.ideas/
-2. Parameter specification required (parameter-spec.md OR parameter-spec-draft.md)
+1. BRIEF.md must exist at plugins/[Name]/.planning/
+2. Parameter specification required (parameter-spec.md OR parameter-spec-draft.md) in .planning/
 3. Plugin status must be ≤ Stage 0 (not already in implementation)
-4. Detect existing contracts (architecture.md, plan.md) for resume logic
+4. Detect existing contracts (research/ARCHITECTURE.md, ROADMAP.md) for resume logic
 ```
