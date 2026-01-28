@@ -28,8 +28,8 @@
         }
 
         .plugin-container {
-            width: 400px;
-            height: 350px;
+            width: 420px;
+            height: 320px;
             position: relative;
             box-shadow: 0 10px 40px rgba(0,0,0,0.5);
             border: 3px solid #5C4033;
@@ -57,25 +57,33 @@
             position: relative;
             width: 100%;
             height: 100%;
-            padding: 20px;
+            padding: 15px 20px;
             display: flex;
             flex-direction: column;
+            align-items: center;
         }
 
-        .header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 20px;
+        .title-row {
+            width: 100%;
+            text-align: center;
+            margin-bottom: 8px;
         }
 
         .title {
-            font-size: 28px;
+            font-size: 26px;
             color: #3C2F2F;
-            letter-spacing: 3px;
+            letter-spacing: 4px;
             font-weight: normal;
             text-transform: uppercase;
             text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+        }
+
+        .preset-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 15px;
         }
 
         .limit-indicator {
@@ -257,22 +265,12 @@
                 0 0 8px rgba(255, 100, 50, 0.6);
         }
 
-        .controls-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            grid-template-rows: 1fr 1fr;
-            gap: 20px;
-            flex: 1;
-            max-width: 360px;
-            margin: 0 auto;
-        }
-
-        .control-cell {
+        .controls-row {
             display: flex;
-            flex-direction: column;
-            align-items: center;
             justify-content: center;
-            gap: 8px;
+            align-items: flex-start;
+            gap: 25px;
+            flex: 1;
         }
 
         .knob-container {
@@ -283,8 +281,8 @@
         }
 
         .knob {
-            width: 70px;
-            height: 70px;
+            width: 65px;
+            height: 65px;
             border-radius: 50%;
             background:
                 radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
@@ -399,6 +397,42 @@
             text-align: center;
         }
 
+        /* VU Meter */
+        .meter-row {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
+            margin-top: 10px;
+        }
+
+        .meter-label {
+            font-size: 10px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .meter-container {
+            width: 180px;
+            height: 16px;
+            background: rgba(139, 115, 85, 0.3);
+            border: 2px solid #5C4033;
+            border-radius: 3px;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .meter-fill {
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #8BA870, #6B8E4E, #C9A27B);
+            transition: width 0.05s ease-out;
+        }
+
     </style>
 </head>
 <body>
@@ -407,8 +441,13 @@
         <img src="img/botanical.png" alt="Botanical" class="botanical-overlay">
 
         <div class="content">
-            <div class="header">
+            <!-- Row 1: Title -->
+            <div class="title-row">
                 <h1 class="title">Ouaricon Bass</h1>
+            </div>
+
+            <!-- Row 2: Preset bar -->
+            <div class="preset-row">
                 <div class="preset-bar">
                     <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
                     <span class="preset-name" id="presetName" title="Click to see all presets">Default</span>
@@ -423,42 +462,39 @@
                 </div>
             </div>
 
-            <div class="controls-grid">
-                <!-- Top Left: Frequency -->
-                <div class="control-cell">
-                    <div class="knob-container">
-                        <div class="knob-label">Frequency</div>
-                        <div class="knob" id="frequencyKnob">
-                            <div class="knob-indicator" id="frequencyIndicator"></div>
-                        </div>
-                        <div class="knob-value" id="frequencyValue">80 Hz</div>
+            <!-- Row 3: All knobs in one row -->
+            <div class="controls-row">
+                <div class="knob-container">
+                    <div class="knob-label">Frequency</div>
+                    <div class="knob" id="frequencyKnob">
+                        <div class="knob-indicator" id="frequencyIndicator"></div>
                     </div>
+                    <div class="knob-value" id="frequencyValue">80 Hz</div>
                 </div>
 
-                <!-- Top Right: Enhance -->
-                <div class="control-cell">
-                    <div class="knob-container">
-                        <div class="knob-label">Enhance</div>
-                        <div class="knob" id="enhanceKnob">
-                            <div class="knob-indicator" id="enhanceIndicator"></div>
-                        </div>
-                        <div class="knob-value" id="enhanceValue">50%</div>
+                <div class="knob-container">
+                    <div class="knob-label">Enhance</div>
+                    <div class="knob" id="enhanceKnob">
+                        <div class="knob-indicator" id="enhanceIndicator"></div>
                     </div>
+                    <div class="knob-value" id="enhanceValue">50%</div>
                 </div>
 
-                <!-- Bottom Left: Output -->
-                <div class="control-cell">
-                    <div class="knob-container">
-                        <div class="knob-label">Output</div>
-                        <div class="knob" id="outputKnob">
-                            <div class="knob-indicator" id="outputIndicator"></div>
-                        </div>
-                        <div class="knob-value" id="outputValue">0 dB</div>
+                <div class="knob-container">
+                    <div class="knob-label">Output</div>
+                    <div class="knob" id="outputKnob">
+                        <div class="knob-indicator" id="outputIndicator"></div>
                     </div>
+                    <div class="knob-value" id="outputValue">0 dB</div>
                 </div>
+            </div>
 
-                <!-- Bottom Right: Empty cell for layout balance -->
-                <div class="control-cell"></div>
+            <!-- Row 4: VU Meter -->
+            <div class="meter-row">
+                <span class="meter-label">Out</span>
+                <div class="meter-container" id="outputMeter">
+                    <div class="meter-fill" id="meterFill"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -471,7 +507,6 @@
 
         // Parameter states
         let frequencyState, enhanceState, outputState;
-        let getLimitIndicator;
 
         // Parameter ranges from PluginProcessor.cpp
         const FREQ_MIN = 40;
@@ -511,16 +546,14 @@
             enhanceState = getSliderState('enhance');
             outputState = getSliderState('output');
 
-            // Get limit indicator native function
-            getLimitIndicator = getNativeFunction('getLimitIndicator');
+            // Setup global meter update function (called from C++ via evaluateJavascript)
+            setupMeterReceiver();
 
             // Setup knobs
             setupKnob('frequency', frequencyState, formatFrequency, getFrequencyDefault());
             setupKnob('enhance', enhanceState, formatEnhance, 0.5);
             setupKnob('output', outputState, formatOutput, 0.5);
 
-            // Start limit indicator polling
-            startLimitPolling();
 
             // Initialize Preset Manager
             const presetNameDisplay = document.getElementById('presetName');
@@ -680,37 +713,36 @@
             updateVisual();
         }
 
-        // Limit indicator polling with requestAnimationFrame
-        function startLimitPolling() {
+        // Setup global function to receive meter data from C++ (via evaluateJavascript)
+        function setupMeterReceiver() {
             const limitLed = document.getElementById('limitLed');
+            const meterFill = document.getElementById('meterFill');
+
+            // Meter range: -60 to +3 dB
+            const MIN_DB = -60;
+            const MAX_DB = 3;
+
             let lastLimitValue = 0;
 
-            async function pollLimit() {
-                try {
-                    const limitValue = await getLimitIndicator();
+            // Global function called from C++ timerCallback
+            window.updateMeters = function(outputDB, limitValue) {
+                // Update VU meter
+                const normalized = Math.max(0, Math.min(1, (outputDB - MIN_DB) / (MAX_DB - MIN_DB)));
+                meterFill.style.width = (normalized * 100) + '%';
 
-                    // Only update DOM if value changed significantly
-                    if (Math.abs(limitValue - lastLimitValue) > 0.01) {
-                        if (limitValue > 0.1) {
-                            limitLed.classList.add('active');
-                            // Adjust brightness based on limit intensity
-                            const intensity = Math.min(1, limitValue);
-                            limitLed.style.opacity = 0.5 + intensity * 0.5;
-                        } else {
-                            limitLed.classList.remove('active');
-                            limitLed.style.opacity = 1;
-                        }
-                        lastLimitValue = limitValue;
+                // Update limit indicator
+                if (Math.abs(limitValue - lastLimitValue) > 0.01) {
+                    if (limitValue > 0.1) {
+                        limitLed.classList.add('active');
+                        const intensity = Math.min(1, limitValue);
+                        limitLed.style.opacity = 0.5 + intensity * 0.5;
+                    } else {
+                        limitLed.classList.remove('active');
+                        limitLed.style.opacity = 1;
                     }
-                } catch (e) {
-                    // Native function not available (running in browser preview)
-                    console.debug('Limit indicator not available:', e);
+                    lastLimitValue = limitValue;
                 }
-
-                requestAnimationFrame(pollLimit);
-            }
-
-            pollLimit();
+            };
         }
     </script>
 </body>

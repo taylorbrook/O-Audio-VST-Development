@@ -33,6 +33,10 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
             .withNativeFunction("getLimitIndicator", [this](auto&, auto complete) {
                 complete(processorRef.getLimitIndicator());
             })
+            // Output level native function for VU meter
+            .withNativeFunction("getOutputLevel", [this](auto&, auto complete) {
+                complete(processorRef.getOutputLevelDB());
+            })
             // Preset Manager native functions
             .withNativeFunction("savePreset", [this](auto& args, auto complete) {
                 if (args.size() > 0)
@@ -156,8 +160,11 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
     // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);
 
-    // Compact size for 3-knob layout
-    setSize(400, 350);
+    // Compact size for 3-knob horizontal layout
+    setSize(420, 320);
+
+    // Start meter update timer (30fps)
+    startTimerHz(30);
 }
 
 OBassAudioProcessorEditor::~OBassAudioProcessorEditor()
@@ -187,6 +194,20 @@ void OBassAudioProcessorEditor::parentHierarchyChanged()
         webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
         hasNavigated = true;
     }
+}
+
+void OBassAudioProcessorEditor::timerCallback()
+{
+    // Push meter data to WebView via JavaScript
+    float outputLevel = processorRef.getOutputLevelDB();
+    float limitIndicator = processorRef.getLimitIndicator();
+
+    juce::String script = juce::String::formatted(
+        "if (typeof updateMeters === 'function') { updateMeters(%f, %f); }",
+        outputLevel, limitIndicator
+    );
+
+    webView->evaluateJavascript(script, nullptr);
 }
 
 // Pattern #8: EXPLICIT URL MAPPING (never use generic loops)

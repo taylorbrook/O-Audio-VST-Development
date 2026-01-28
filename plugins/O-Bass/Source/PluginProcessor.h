@@ -56,6 +56,9 @@ public:
     // Limit indicator for UI - returns 0.0 (no limiting) to 1.0 (heavy limiting)
     float getLimitIndicator() const { return limitIndicator.load(); }
 
+    // Output level for VU meter - returns dB value (-60 to +3)
+    float getOutputLevelDB() const { return outputLevelDB.load(); }
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -85,6 +88,10 @@ private:
     // Thread-safe limit indicator for UI (0.0 = no limiting, 1.0 = heavy limiting)
     std::atomic<float> limitIndicator { 0.0f };
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> limitIndicatorSmooth;
+
+    // Thread-safe output level for VU meter (-60 to +3 dB)
+    std::atomic<float> outputLevelDB { -60.0f };
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> outputLevelSmooth;
 
     // Helper methods
     void updateLatencyReport();

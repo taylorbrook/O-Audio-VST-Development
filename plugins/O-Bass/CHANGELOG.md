@@ -1,5 +1,15 @@
 # O-Bass Changelog
 
+## [1.3.1] - 2026-01-28
+
+### Added
+- **VU Meter**: Horizontal output level meter at bottom center with smooth ballistics
+- Timer-based metering from C++ (30fps, same reliable pattern as O-Comp)
+
+### Changed
+- **Improved layout**: Title on top row, preset bar below, 3 knobs in single row, meter at bottom
+- Window size refined to 420×320 pixels
+
 ## [1.3.0] - 2026-01-28
 
 ### Changed

@@ -36,7 +36,7 @@ Ouaricon Plugins:
 | O-Polystutter | 📦 Installed | 1.8.0 | Audio Effect (Beat Repeater) | 2026-01-26 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
 | O-Lyrica | 📦 Installed | 1.17.0 | Synth (Physical Modeling Harp) | 2026-01-25 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
-| O-Bass | 📦 Installed | 1.3.0 | Audio Effect (Bass Enhancer) | 2026-01-28 |
+| O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

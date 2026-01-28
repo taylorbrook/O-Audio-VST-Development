@@ -151,6 +151,11 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     limitIndicatorSmooth.setCurrentAndTargetValue(0.0f);
     limitIndicator.store(0.0f);
 
+    // Initialize output level meter with fast attack (20ms) and slow release (300ms)
+    outputLevelSmooth.reset(sampleRate, 0.300);  // Release time
+    outputLevelSmooth.setCurrentAndTargetValue(-60.0f);
+    outputLevelDB.store(-60.0f);
+
     // Report combined latency to host
     updateLatencyReport();
 }
@@ -165,6 +170,7 @@ void OBassAudioProcessor::releaseResources()
     smoothedEnhance.reset(0);
     outputGainSmooth.reset(0);
     limitIndicatorSmooth.reset(0);
+    outputLevelSmooth.reset(0);
 }
 
 void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -281,6 +287,26 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float normalizedLimit = juce::jlimit(0.0f, 1.0f, maxLimitAmount * 10.0f);
     limitIndicatorSmooth.setTargetValue(normalizedLimit);
     limitIndicator.store(limitIndicatorSmooth.skip(numSamples));
+
+    // Calculate and store output level for VU meter with ballistics
+    float peakLevel = 0.0f;
+    for (int ch = 0; ch < numChannels; ++ch)
+        peakLevel = std::max(peakLevel, buffer.getMagnitude(ch, 0, numSamples));
+    float peakDB = juce::Decibels::gainToDecibels(peakLevel, -60.0f);
+
+    // Apply meter ballistics: fast attack, slow release
+    float currentSmoothed = outputLevelSmooth.getCurrentValue();
+    if (peakDB > currentSmoothed)
+    {
+        // Fast attack - jump to new peak
+        outputLevelSmooth.setCurrentAndTargetValue(peakDB);
+    }
+    else
+    {
+        // Slow release - decay towards new value
+        outputLevelSmooth.setTargetValue(peakDB);
+    }
+    outputLevelDB.store(outputLevelSmooth.skip(numSamples));
 }
 
 juce::AudioProcessorEditor* OBassAudioProcessor::createEditor()

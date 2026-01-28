@@ -14,7 +14,8 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OBassAudioProcessorEditor : public juce::AudioProcessorEditor
+class OBassAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                   private juce::Timer
 {
 public:
     explicit OBassAudioProcessorEditor(OBassAudioProcessor&);
@@ -25,6 +26,7 @@ public:
     void parentHierarchyChanged() override;
 
 private:
+    void timerCallback() override;
     OBassAudioProcessor& processorRef;
 
     // CRITICAL: Member declaration order (Pattern #11 from RESEARCH.md)
