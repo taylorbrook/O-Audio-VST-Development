@@ -4,9 +4,13 @@
     HarmonicGenerator.cpp
     O-Bass - Chebyshev Waveshaper Implementation
 
-    Generates 2nd-5th harmonics using Chebyshev polynomials for controlled
-    harmonic generation. Uses 4x oversampling to prevent aliasing artifacts.
-    Output is bandpassed to 40-400Hz for psychoacoustic bass enhancement.
+    Generates 2nd and 3rd harmonics using Chebyshev polynomials for controlled
+    harmonic generation. Output is bandpassed to 30-500Hz for psychoacoustic
+    bass enhancement.
+
+    Note: Oversampling is disabled due to JUCE compatibility issues with
+    Logic Pro (causes "Sample Rate XXXXX" crash). Processing occurs at native
+    sample rate with gentler waveshaping to minimize aliasing.
 
   ==============================================================================
 */
@@ -15,19 +19,17 @@
 #include <cmath>
 
 //==============================================================================
-// Chebyshev Polynomials T2-T5
+// Chebyshev Polynomials T2, T3
 // For input x in [-1, 1], Tn(cos(theta)) = cos(n*theta)
 // This generates the nth harmonic when applied to a sinusoidal input
 
 inline float T2(float x) { return 2.0f * x * x - 1.0f; }
 inline float T3(float x) { return 4.0f * x * x * x - 3.0f * x; }
-inline float T4(float x) { return 8.0f * x * x * x * x - 8.0f * x * x + 1.0f; }
-inline float T5(float x) { return 16.0f * x * x * x * x * x - 20.0f * x * x * x + 5.0f * x; }
 
 //==============================================================================
 HarmonicGenerator::HarmonicGenerator()
 {
-    // Dual oversamplers created in prepare() after we know spec
+    // No oversampling - processing at native sample rate
 }
 
 //==============================================================================
@@ -36,19 +38,12 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
     sampleRate = spec.sampleRate;
     blockSize = static_cast<int>(spec.maximumBlockSize);
 
-    // OVERSAMPLING DISABLED: JUCE Oversampling causes Logic Pro crash
-    // Oversamplers not initialized - process at native sample rate instead
-    // TODO: Investigate JUCE Oversampling issue in future version
-    oversamplerIIR = nullptr;
-    oversamplerFIR = nullptr;
-
     // Prepare bandpass filters
     juce::dsp::ProcessSpec monoSpec { sampleRate, static_cast<juce::uint32>(blockSize), 1 };
     outputBandpassLow.prepare(monoSpec);
     outputBandpassHigh.prepare(monoSpec);
 
     // Set filter coefficients - bandpass 30-500Hz for bass harmonics
-    // Wider range to preserve more harmonic content
     auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 30.0f, 0.707f);
     outputBandpassLow.coefficients = hpCoeffs;
 
@@ -63,50 +58,15 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
 //==============================================================================
 void HarmonicGenerator::reset()
 {
-    // Reset filters
     outputBandpassLow.reset();
     outputBandpassHigh.reset();
-
-    // Reset oversamplers (they maintain internal buffers)
-    if (oversamplerIIR)
-        oversamplerIIR->reset();
-    if (oversamplerFIR)
-        oversamplerFIR->reset();
 }
 
 //==============================================================================
 void HarmonicGenerator::setMode(Mode newMode)
 {
-    // Store mode atomically - selects IIR (LowLatency) or FIR (HighFidelity) oversampler
+    // Mode stored for potential future oversampling implementation
     activeMode.store(newMode, std::memory_order_release);
-}
-
-//==============================================================================
-void HarmonicGenerator::setHarmonicWeights(float h2, float h3, float h4, float h5)
-{
-    harmonicWeights[0] = h2;
-    harmonicWeights[1] = h3;
-    harmonicWeights[2] = h4;
-    harmonicWeights[3] = h5;
-}
-
-//==============================================================================
-void HarmonicGenerator::setAdaptiveHarmonics(float fundamentalHz)
-{
-    // Lower frequencies need more harmonics for psychoacoustic effect
-    // Sub-bass (<40Hz): nearly inaudible, needs maximum harmonics
-    // Deep bass (40-80Hz): still needs strong harmonic support
-    // Mid-bass (80-120Hz): moderate enhancement
-    // Upper bass (120+Hz): already somewhat audible, minimal harmonics
-
-    if (fundamentalHz < 40.0f)
-        activeHarmonicCount = 5;  // Sub-bass: maximum
-    else if (fundamentalHz < 80.0f)
-        activeHarmonicCount = 4;  // Deep bass
-    else if (fundamentalHz < 120.0f)
-        activeHarmonicCount = 3;  // Mid-bass
-    else
-        activeHarmonicCount = 2;  // Upper bass: minimal
 }
 
 //==============================================================================
@@ -150,27 +110,18 @@ void HarmonicGenerator::processOversampled(float* data, int numSamples)
         }
 
         // Soft clip input to [-1, 1] for Chebyshev polynomials
-        float clipped = std::tanh(x * 2.0f);
+        float clipped = std::tanh(x * kInputDrive);
 
         // Generate 2nd and 3rd harmonics (most important for psychoacoustic bass)
-        float h2 = T2(clipped) * 0.5f;   // 2nd harmonic - adds warmth
-        float h3 = T3(clipped) * 0.3f;   // 3rd harmonic - adds presence
+        float h2 = T2(clipped) * kH2Weight;  // 2nd harmonic - adds warmth
+        float h3 = T3(clipped) * kH3Weight;  // 3rd harmonic - adds presence
 
         // Output is the harmonic content only (will be mixed with dry)
-        float harmonics = (h2 + h3) * 0.7f;
+        float harmonics = (h2 + h3) * kHarmonicMix;
 
         // Soft limit
         data[i] = std::tanh(harmonics);
     }
-}
-
-//==============================================================================
-juce::dsp::Oversampling<float>* HarmonicGenerator::getActiveOversampler() const
-{
-    if (activeMode.load(std::memory_order_acquire) == Mode::LowLatency)
-        return oversamplerIIR.get();
-    else
-        return oversamplerFIR.get();
 }
 
 //==============================================================================

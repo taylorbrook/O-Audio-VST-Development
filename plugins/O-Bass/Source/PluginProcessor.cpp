@@ -218,7 +218,6 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     juce::AudioBuffer<float> monoView(monoBuffer.getArrayOfWritePointers(), 1, numSamples);
 
     // Sum low band to mono for harmonic processing
-    monoSummer.captureBalance(lowBandView);
     monoSummer.sumToMono(lowBandView, monoView);
 
     // Get smoothed enhance value

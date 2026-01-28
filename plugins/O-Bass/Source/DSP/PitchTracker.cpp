@@ -12,10 +12,9 @@
 #include "PitchTracker.h"
 #include <algorithm>
 
-void PitchTracker::prepare(double sampleRate, int maxBlockSize)
+void PitchTracker::prepare(double sampleRate, int /* maxBlockSize */)
 {
     currentSampleRate = sampleRate;
-    preparedBlockSize = maxBlockSize;  // Store for runtime validation
 
     // Analysis window: 2 periods minimum at 30Hz (lowest expected frequency)
     // At 44.1kHz: 44100 / 30 * 2 = ~2940 samples

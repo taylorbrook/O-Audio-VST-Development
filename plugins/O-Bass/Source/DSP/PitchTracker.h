@@ -7,6 +7,12 @@
     Detects fundamental frequency of mono bass signal (30-200Hz range).
     Uses YIN algorithm with bass-optimized window size.
 
+    STATUS: DISABLED - Not currently used in processing pipeline.
+    The YIN algorithm has O(n²) complexity (~2M iterations per call at 48kHz)
+    which overruns the audio thread, causing DAW crashes. Kept for potential
+    future optimization (e.g., running on background thread with smoothed
+    output). See CODE_REVIEW.md Priority 4.
+
   ==============================================================================
 */
 
@@ -23,6 +29,8 @@
  *
  * Window size calculated for 2 periods minimum at 30Hz (lowest expected).
  * Uses parabolic interpolation for sub-sample accuracy.
+ *
+ * NOTE: Currently disabled due to real-time performance constraints.
  */
 class PitchTracker {
 public:
@@ -44,6 +52,7 @@ public:
 
     /**
      * Detect fundamental frequency from input samples.
+     * WARNING: O(n²) complexity - not suitable for audio thread!
      * @param input Input sample buffer (mono)
      * @param numSamples Number of samples in buffer
      * @return Detected frequency in Hz, or 0.0f if no pitch detected
@@ -83,8 +92,7 @@ private:
     double currentSampleRate = 44100.0;
     int windowSize = 2048;
     int writeIndex = 0;
-    int preparedBlockSize = 512;  // Max block size from prepare() for runtime validation
-    float yinThreshold = 0.1f;  // YIN threshold (lower = stricter)
+    float yinThreshold = 0.1f;
     float lastPitch = 0.0f;
 
     // Analysis buffers (allocated in prepare only)

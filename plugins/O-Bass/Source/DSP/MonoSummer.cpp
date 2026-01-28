@@ -1,45 +1,13 @@
 #include "MonoSummer.h"
-#include <algorithm>
 
-void MonoSummer::prepare(int maxBlockSize)
+void MonoSummer::prepare(int /* maxBlockSize */)
 {
-    // Pre-allocate balance storage for worst-case block size
-    balanceRatios.resize(static_cast<size_t>(maxBlockSize), 0.5f);
-    balanceCaptured = false;
+    // No pre-allocation needed - simple mono sum/expand
 }
 
 void MonoSummer::reset()
 {
-    std::fill(balanceRatios.begin(), balanceRatios.end(), 0.5f);
-    balanceCaptured = false;
-}
-
-void MonoSummer::captureBalance(const juce::AudioBuffer<float>& stereoInput)
-{
-    jassert(stereoInput.getNumChannels() >= 2);
-
-    const int numSamples = stereoInput.getNumSamples();
-    const float* left = stereoInput.getReadPointer(0);
-    const float* right = stereoInput.getReadPointer(1);
-
-    // Ensure we have enough storage
-    if (balanceRatios.size() < static_cast<size_t>(numSamples))
-        balanceRatios.resize(static_cast<size_t>(numSamples));
-
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float absLeft = std::abs(left[i]);
-        float absRight = std::abs(right[i]);
-        float sum = absLeft + absRight;
-
-        // Avoid division by zero; default to center
-        if (sum > 1e-10f)
-            balanceRatios[static_cast<size_t>(i)] = absLeft / sum;
-        else
-            balanceRatios[static_cast<size_t>(i)] = 0.5f;
-    }
-
-    balanceCaptured = true;
+    // No state to reset
 }
 
 void MonoSummer::sumToMono(const juce::AudioBuffer<float>& stereoInput,
@@ -73,8 +41,8 @@ void MonoSummer::expandToStereo(const juce::AudioBuffer<float>& monoInput,
     float* left = stereoOutput.getWritePointer(0);
     float* right = stereoOutput.getWritePointer(1);
 
-    // Simple mono to stereo - same signal to both channels
-    // Avoids balance-matching complexity that could cause artifacts
+    // Mono to stereo - same signal to both channels
+    // This is intentional for bass frequencies to maintain phase coherence
     for (int i = 0; i < numSamples; ++i)
     {
         left[i] = mono[i];

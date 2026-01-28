@@ -2,40 +2,40 @@
   ==============================================================================
 
     CleanModeProcessor.h
-    O-Bass - Psychoacoustic Bass Enhancement Orchestrator
+    O-Bass - Psychoacoustic Bass Enhancement Processor
 
-    Master class for Clean Mode that coordinates pitch tracking, harmonic
-    generation, transient ducking, and spectral-aware blending. Integrates
-    EnvelopeFollower, PitchTracker, and HarmonicGenerator into a cohesive
-    enhancement system.
+    Coordinates harmonic generation for bass enhancement. Uses Chebyshev
+    waveshaping to generate musically useful harmonics.
+
+    Note: Advanced features (pitch tracking, transient ducking, lookahead)
+    are disabled due to real-time performance constraints. See CODE_REVIEW.md
+    Priority 4 for investigation status.
 
   ==============================================================================
 */
 
 #pragma once
-#include "EnvelopeFollower.h"
-#include "PitchTracker.h"
 #include "HarmonicGenerator.h"
 #include <juce_dsp/juce_dsp.h>
 
 /**
- * Clean Mode enhancement pipeline orchestrator.
+ * Bass enhancement processor using harmonic generation.
  *
  * Signal flow:
- * 1. Pitch detection (adaptive harmonics)
- * 2. Harmonic generation (Chebyshev waveshaping + oversampling)
- * 3. Transient ducking (preserves attack character)
- * 4. Spectral-aware blending (prevents harmonic buildup)
- *
- * Modes:
- * - LowLatency: Minimal delay, IIR oversampling
- * - HighFidelity: Lookahead for cleaner transients, FIR oversampling
+ * 1. Harmonic generation (Chebyshev waveshaping)
+ * 2. Dry/wet mixing with enhance amount
+ * 3. Soft limiting for clean output
  */
 class CleanModeProcessor {
 public:
     enum class Mode { LowLatency, HighFidelity };
 
-    CleanModeProcessor();
+    // DSP Constants
+    // Default fundamental frequency for harmonic tuning (Hz)
+    // Set to deep bass range for optimal psychoacoustic effect
+    static constexpr float kDefaultFundamental = 60.0f;
+
+    CleanModeProcessor() = default;
     ~CleanModeProcessor() = default;
 
     // Lifecycle
@@ -46,43 +46,29 @@ public:
     void setMode(Mode mode);
     Mode getMode() const;
     void setEnhanceAmount(float amount);  // 0.0 - 1.0
-    void setHighBandEnergy(float energy); // For spectral-aware blending
+    void setHighBandEnergy(float energy); // Reserved for future spectral-aware blending
     void setIntensityScale(float scale);  // 1.0 - 2.0, for frequency-dependent boost
 
     // Processing
     void process(juce::AudioBuffer<float>& monoBuffer);
 
-    // Latency
+    // Latency (currently returns 0 - no lookahead)
     int getLatencyInSamples() const;
 
 private:
     // Components
-    PitchTracker pitchTracker;
     HarmonicGenerator harmonicGenerator;
-    EnvelopeFollower fastEnvelope;   // Transient detection (fast attack)
-    EnvelopeFollower slowEnvelope;   // Average level tracking (slow attack)
-
-    // Lookahead for High Fidelity mode
-    juce::AudioBuffer<float> lookaheadBuffer;
-    int lookaheadSamples = 0;
-    int lookaheadWritePos = 0;
 
     // State
     Mode currentMode = Mode::LowLatency;
     float enhanceAmount = 0.5f;
     float highBandEnergy = 0.0f;
-    float intensityScale = 1.0f;  // Frequency-dependent intensity multiplier
+    float intensityScale = 1.0f;
     double sampleRate = 44100.0;
     int maxBlockSize = 512;
 
     // Pre-allocated buffer for dry signal copy (avoid allocation in process)
     juce::AudioBuffer<float> dryBuffer;
-
-    // Internal processing
-    float processLookahead(float input);
-    float calculateTransientDuckGain(float fastEnv, float slowEnv);
-    float calculateSpectralBlend();
-    float getCompressedEnhance(float rawEnhance);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(CleanModeProcessor)
 };

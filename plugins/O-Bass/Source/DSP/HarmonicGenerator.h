@@ -2,11 +2,13 @@
   ==============================================================================
 
     HarmonicGenerator.h
-    O-Bass - Chebyshev Waveshaper with 4x Oversampling
+    O-Bass - Chebyshev Waveshaper for Bass Enhancement
 
-    Generates controlled harmonics (2nd-5th) using Chebyshev polynomials with
-    dual oversamplers for latency mode support. Output is bandpassed to
-    psychoacoustically useful range (40-400Hz).
+    Generates controlled harmonics (2nd, 3rd) using Chebyshev polynomials.
+    Output is bandpassed to psychoacoustically useful range (30-500Hz).
+
+    Note: Oversampling is disabled due to JUCE compatibility issues with
+    Logic Pro. See CODE_REVIEW.md Priority 4 for investigation status.
 
   ==============================================================================
 */
@@ -15,11 +17,20 @@
 #include <juce_dsp/juce_dsp.h>
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <atomic>
-#include <array>
 
 class HarmonicGenerator {
 public:
     enum class Mode { LowLatency, HighFidelity };
+
+    // DSP Constants - tuned for dramatic psychoacoustic bass enhancement
+    // Input drive multiplier for soft clipping (higher = more saturation)
+    static constexpr float kInputDrive = 4.0f;
+    // 2nd harmonic weight - adds warmth and perceived loudness
+    static constexpr float kH2Weight = 0.8f;
+    // 3rd harmonic weight - adds presence and definition
+    static constexpr float kH3Weight = 0.5f;
+    // Overall harmonic mix level before final soft clip
+    static constexpr float kHarmonicMix = 1.2f;
 
     HarmonicGenerator();
     ~HarmonicGenerator() = default;
@@ -32,16 +43,10 @@ public:
     void setMode(Mode newMode);
     Mode getMode() const { return activeMode.load(std::memory_order_acquire); }
 
-    void setHarmonicWeights(float h2, float h3, float h4, float h5);
-
-    // Adaptive harmonic count based on detected fundamental
-    void setAdaptiveHarmonics(float fundamentalHz);
-    int getActiveHarmonicCount() const { return activeHarmonicCount; }
-
     // Processing - in-place mono buffer processing
     void process(juce::AudioBuffer<float>& monoBuffer);
 
-    // Latency reporting
+    // Latency reporting (currently returns 0 - oversampling disabled)
     int getLatencyInSamples() const;
 
 private:
@@ -49,24 +54,12 @@ private:
     double sampleRate = 44100.0;
     int blockSize = 512;
 
-    // Harmonic weights (default from psychoacoustic research)
-    std::array<float, 4> harmonicWeights {{ 0.7f, 0.5f, 0.3f, 0.15f }};  // H2, H3, H4, H5
-
-    // Adaptive harmonic count (adjusted based on fundamental frequency)
-    int activeHarmonicCount = 5;  // Default: use all harmonics
-
-    // Dual oversamplers for RT-safe mode switching (both always prepared)
-    // Factor 2 = 4x oversampling, mono channel
-    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplerIIR;
-    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplerFIR;
-
-    // Output bandpass filter (40-400Hz) to limit harmonics to useful range
+    // Output bandpass filter (30-500Hz) to limit harmonics to useful range
     juce::dsp::IIR::Filter<float> outputBandpassLow;
     juce::dsp::IIR::Filter<float> outputBandpassHigh;
 
     // Internal processing
     void processOversampled(float* data, int numSamples);
-    juce::dsp::Oversampling<float>* getActiveOversampler() const;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarmonicGenerator)
 };

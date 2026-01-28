@@ -1,9 +1,9 @@
 # O-Bass Code Review
 
 **Date:** 2026-01-27
-**Version:** 1.1.1
+**Version:** 1.2.0
 **Reviewer:** Claude Code
-**Last Updated:** 2026-01-27 (Priority 1+2 resolved)
+**Last Updated:** 2026-01-28 (Priority 1+2+3 resolved)
 
 ---
 
@@ -129,66 +129,30 @@ if (std::abs(data[i]) < 1e-15f) data[i] = 0.0f;
 
 ---
 
-## 5. Code Quality Issues 🟢
+## 5. Code Quality Issues ✅ RESOLVED (v1.2.0)
 
-### 5.1 Inconsistent Harmonic Usage (HarmonicGenerator.cpp:117)
+### 5.1-5.3 ~~Unused Code~~ ✅ FIXED
+**Resolution:** Removed all unused code:
+- `harmonicWeights` array and `setHarmonicWeights()` method removed from HarmonicGenerator
+- `activeHarmonicCount` and `setAdaptiveHarmonics()` removed from HarmonicGenerator
+- `StereoMode::MatchOriginal`, `captureBalance()`, and `balanceRatios` removed from MonoSummer
+- Envelope followers (`fastEnvelope`, `slowEnvelope`) removed from CleanModeProcessor
+- Lookahead buffer and related methods removed from CleanModeProcessor
+- PitchTracker decoupled from CleanModeProcessor (file retained for future use)
+- `preparedBlockSize` removed from PitchTracker
+
+### 5.4 ~~Magic Numbers~~ ✅ FIXED
+**Resolution:** Extracted to named constants with documentation:
 ```cpp
-// Header declares: H2, H3, H4, H5 weights
-std::array<float, 4> harmonicWeights {{ 0.7f, 0.5f, 0.3f, 0.15f }};
+// HarmonicGenerator.h
+static constexpr float kInputDrive = 2.0f;    // Soft clip drive
+static constexpr float kH2Weight = 0.5f;      // 2nd harmonic weight
+static constexpr float kH3Weight = 0.3f;      // 3rd harmonic weight
+static constexpr float kHarmonicMix = 0.7f;   // Overall mix level
 
-// Implementation only uses H2, H3 with hardcoded values:
-float h2 = T2(clipped) * 0.5f;   // Ignores harmonicWeights[0]
-float h3 = T3(clipped) * 0.3f;   // Ignores harmonicWeights[1]
+// CleanModeProcessor.h
+static constexpr float kDefaultFundamental = 60.0f;  // Deep bass target
 ```
-The `harmonicWeights` member and `setHarmonicWeights()` method are defined but never used.
-
-**File:** `Source/DSP/HarmonicGenerator.h:38`, `Source/DSP/HarmonicGenerator.cpp:117`
-
-### 5.2 Unused Members
-- `PitchTracker::preparedBlockSize` - set but never read
-- `HarmonicGenerator::activeHarmonicCount` - set via `setAdaptiveHarmonics()` but never used in processing
-- `CleanModeProcessor::fastEnvelope` / `slowEnvelope` - prepared but never called
-- `CleanModeProcessor::lookaheadBuffer` - allocated but `processLookahead()` never called
-
-**Files:**
-- `Source/DSP/PitchTracker.h:78`
-- `Source/DSP/HarmonicGenerator.h:44`
-- `Source/DSP/CleanModeProcessor.h:53-54`
-- `Source/DSP/CleanModeProcessor.h:47`
-
-### 5.3 MonoSummer StereoMode::MatchOriginal Never Used
-```cpp
-enum class StereoMode { Mono, MatchOriginal };
-// captureBalance() captures data but expandToStereo() ignores stereoMode
-```
-The `balanceRatios` vector and `MatchOriginal` mode exist but `expandToStereo()` always outputs mono:
-```cpp
-void MonoSummer::expandToStereo(...)
-{
-    // Simple mono to stereo - same signal to both channels
-    for (int i = 0; i < numSamples; ++i)
-    {
-        left[i] = mono[i];
-        right[i] = mono[i];
-    }
-}
-```
-
-**File:** `Source/DSP/MonoSummer.h:17`, `Source/DSP/MonoSummer.cpp:54`
-
-### 5.4 Magic Numbers
-Several magic numbers could be constants:
-```cpp
-// CleanModeProcessor.cpp
-harmonicGenerator.setAdaptiveHarmonics(60.0f);  // Fixed at deep bass range
-
-// HarmonicGenerator.cpp
-float clipped = std::tanh(x * 2.0f);  // Why 2.0f?
-float h2 = T2(clipped) * 0.5f;        // Why 0.5f?
-float harmonics = (h2 + h3) * 0.7f;   // Why 0.7f?
-```
-
-**Files:** `Source/DSP/CleanModeProcessor.cpp:76`, `Source/DSP/HarmonicGenerator.cpp:112-120`
 
 ---
 
@@ -230,15 +194,22 @@ CMakeLists.txt looks correct:
 - [x] **3.1** Optimize IIR coefficient updates - update every 16 samples instead of per-sample (v1.1.1)
 - [x] **3.2** Consider removing buffer resize checks in processBlock or make them `jassert`-only (v1.1.1)
 
-### Priority 3 (Code Quality)
-- [ ] **5.1-5.3** Remove unused code or implement the features:
-  - `harmonicWeights` array
-  - `activeHarmonicCount`
-  - `StereoMode::MatchOriginal`
-  - Envelope followers in CleanModeProcessor
-  - Lookahead buffer
-- [ ] **5.4** Extract magic numbers to named constants
-- [ ] Document why features are disabled (oversampling, pitch tracking, latency reporting) with issue tracker references
+### Priority 3 (Code Quality) ✅ COMPLETE
+- [x] **5.1-5.3** Removed unused code (v1.2.0):
+  - Removed `harmonicWeights` array and `setHarmonicWeights()` method
+  - Removed `activeHarmonicCount` and `setAdaptiveHarmonics()` method
+  - Removed `StereoMode::MatchOriginal`, `captureBalance()`, and `balanceRatios`
+  - Removed envelope followers from CleanModeProcessor
+  - Removed lookahead buffer and related methods
+  - Removed PitchTracker from CleanModeProcessor (kept file for future use)
+  - Removed unused `preparedBlockSize` from PitchTracker
+- [x] **5.4** Extracted magic numbers to named constants (v1.2.0):
+  - `HarmonicGenerator::kInputDrive` (2.0f)
+  - `HarmonicGenerator::kH2Weight` (0.5f)
+  - `HarmonicGenerator::kH3Weight` (0.3f)
+  - `HarmonicGenerator::kHarmonicMix` (0.7f)
+  - `CleanModeProcessor::kDefaultFundamental` (60.0f)
+- [x] Documented disabled features in file headers with references to Priority 4
 
 ### Priority 4 (Future Features)
 - [ ] Investigate and fix oversampling crash
@@ -254,10 +225,12 @@ CMakeLists.txt looks correct:
 | Functionality | ✅ Full (Clean mode, limit indicator working) |
 | Performance | ✅ Optimized (v1.1.1) |
 | Real-time Safety | 🟡 Mostly good, minor issues |
-| Code Quality | 🟡 Some unused code remains |
+| Code Quality | ✅ Clean (v1.2.0) |
 | UI/WebView | ✅ Good |
 | Build | ✅ Good |
 
 **v1.1.0 Update:** Priority 1 issues resolved. Colored mode removed entirely, eliminating dead code and confusion. The plugin now has a single, clean processing path with working limit indicator.
 
-**v1.1.1 Update:** Priority 2 issues resolved. IIR coefficient updates now happen every 16 samples during smoothing (was per-sample). Buffer resize checks converted to debug-only jasserts. Remaining technical debt is in Priority 3 (unused helper code).
+**v1.1.1 Update:** Priority 2 issues resolved. IIR coefficient updates now happen every 16 samples during smoothing (was per-sample). Buffer resize checks converted to debug-only jasserts.
+
+**v1.2.0 Update:** Priority 3 issues resolved. All unused code removed (harmonicWeights, activeHarmonicCount, StereoMode::MatchOriginal, envelope followers, lookahead buffer, PitchTracker integration). Magic numbers extracted to named constants with documentation. Disabled features documented in file headers. Remaining items are Priority 4 (future features: oversampling, latency reporting).

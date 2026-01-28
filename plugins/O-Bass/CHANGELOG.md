@@ -1,5 +1,20 @@
 # O-Bass Changelog
 
+## [1.2.1] - 2026-01-28
+
+### Changed
+- **More dramatic harmonic enhancement**: Increased DSP coefficients for noticeably stronger bass effect
+  - `kInputDrive`: 2.0 → 4.0 (more saturation into waveshaper)
+  - `kH2Weight`: 0.5 → 0.8 (stronger 2nd harmonic warmth)
+  - `kH3Weight`: 0.3 → 0.5 (more 3rd harmonic presence)
+  - `kHarmonicMix`: 0.7 → 1.2 (louder harmonic content in mix)
+- Root cause: Previous coefficients were too conservative, effect was barely audible at max enhance
+
+## [1.2.0] - 2026-01-28
+
+### Changed
+- Code quality cleanup: removed unused code, extracted magic numbers to constants, added documentation
+
 ## [1.1.1] - 2026-01-27
 
 ### Performance
