@@ -2,7 +2,7 @@
   ==============================================================================
 
     EnvelopeFollower.h
-    OBass - Dual-Coefficient IIR Envelope Follower
+    O-Bass - Dual-Coefficient IIR Envelope Follower
 
     Tracks signal amplitude with configurable attack/release times.
     Used for transient detection and dynamic harmonic control.

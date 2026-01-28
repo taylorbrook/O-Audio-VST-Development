@@ -2,7 +2,7 @@
   ==============================================================================
 
     HarmonicGenerator.cpp
-    OBass - Chebyshev Waveshaper Implementation
+    O-Bass - Chebyshev Waveshaper Implementation
 
     Generates 2nd-5th harmonics using Chebyshev polynomials for controlled
     harmonic generation. Uses 4x oversampling to prevent aliasing artifacts.
@@ -47,11 +47,12 @@ void HarmonicGenerator::prepare(const juce::dsp::ProcessSpec& spec)
     outputBandpassLow.prepare(monoSpec);
     outputBandpassHigh.prepare(monoSpec);
 
-    // Set filter coefficients - bandpass 40-300Hz for bass harmonics
-    auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 40.0f, 0.707f);
+    // Set filter coefficients - bandpass 30-500Hz for bass harmonics
+    // Wider range to preserve more harmonic content
+    auto hpCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, 30.0f, 0.707f);
     outputBandpassLow.coefficients = hpCoeffs;
 
-    auto lpCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 300.0f, 0.707f);
+    auto lpCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, 500.0f, 0.707f);
     outputBandpassHigh.coefficients = lpCoeffs;
 
     // Reset to clear any garbage state
@@ -135,9 +136,8 @@ void HarmonicGenerator::process(juce::AudioBuffer<float>& monoBuffer)
 //==============================================================================
 void HarmonicGenerator::processOversampled(float* data, int numSamples)
 {
-    // Process each sample through gentle Chebyshev waveshaper
-    // NOTE: Without oversampling, we use very gentle saturation to minimize aliasing
-    // The bandpass filter (40-300Hz) helps remove any aliasing artifacts above bass range
+    // Generate harmonics using Chebyshev polynomials
+    // Output is ONLY the harmonic content (added to dry signal in CleanModeProcessor)
     for (int i = 0; i < numSamples; ++i)
     {
         float x = data[i];
@@ -149,17 +149,18 @@ void HarmonicGenerator::processOversampled(float* data, int numSamples)
             continue;
         }
 
-        // Very gentle soft clip to minimize harmonic generation (reduces aliasing)
-        x = std::tanh(x * 1.5f) * 0.4f;
+        // Soft clip input to [-1, 1] for Chebyshev polynomials
+        float clipped = std::tanh(x * 2.0f);
 
-        // Apply only 2nd harmonic (gentlest, most musical for bass)
-        // 3rd harmonic omitted to reduce aliasing without oversampling
-        float h2 = T2(x) * 0.25f;
+        // Generate 2nd and 3rd harmonics (most important for psychoacoustic bass)
+        float h2 = T2(clipped) * 0.5f;   // 2nd harmonic - adds warmth
+        float h3 = T3(clipped) * 0.3f;   // 3rd harmonic - adds presence
 
-        // Hard limit output
-        float output = std::max(-0.4f, std::min(0.4f, h2));
+        // Output is the harmonic content only (will be mixed with dry)
+        float harmonics = (h2 + h3) * 0.7f;
 
-        data[i] = output;
+        // Soft limit
+        data[i] = std::tanh(harmonics);
     }
 }
 

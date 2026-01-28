@@ -1,4 +1,17 @@
-# OBass Changelog
+# O-Bass Changelog
+
+## [1.0.2] - 2026-01-27
+
+### Changed
+- **Renamed plugin from OBass to O-Bass** - Matches Ouaricon naming convention (O-Tremolo, O-Comp, O-Marimba, etc.)
+  - Updated CMake target, product name, and plugin code
+  - Updated all source file headers and getName() return value
+  - Renamed plugin folder from `plugins/OBass/` to `plugins/O-Bass/`
+  - Updated PLUGINS.md registry entry
+
+### Notes
+- This is a breaking change for existing DAW sessions (plugin ID changed)
+- Users will need to re-add the plugin in existing projects
 
 ## [1.0.1] - 2026-01-27
 

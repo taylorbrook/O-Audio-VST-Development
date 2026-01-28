@@ -1,12 +1,13 @@
-# OBass Notes
+# O-Bass Notes
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.0.1
+- **Version:** 1.0.2
 - **Type:** Audio Effect (Bass Enhancer)
 
 ## Lifecycle Timeline
 
+- **2026-01-27 (v1.0.2):** Renamed from OBass to O-Bass (matches Ouaricon naming convention)
 - **2026-01-27 (v1.0.1):** Fixed Logic Pro crash - buffer size validation in CleanModeProcessor, HarmonicGenerator, PitchTracker
 - **2026-01-27 (v1.0.0):** Registered in PLUGINS.md, initial release
 

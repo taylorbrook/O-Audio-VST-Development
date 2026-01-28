@@ -2,7 +2,7 @@
   ==============================================================================
 
     CleanModeProcessor.h
-    OBass - Psychoacoustic Bass Enhancement Orchestrator
+    O-Bass - Psychoacoustic Bass Enhancement Orchestrator
 
     Master class for Clean Mode that coordinates pitch tracking, harmonic
     generation, transient ducking, and spectral-aware blending. Integrates

@@ -2,7 +2,7 @@
   ==============================================================================
 
     ColoredModeProcessor.cpp
-    OBass - Colored Mode Asymmetric Saturation
+    O-Bass - Colored Mode Asymmetric Saturation
 
     Asymmetric tanh saturation for warm, even-harmonic-rich enhancement.
 

@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OBass - Audio Processor Implementation
+    O-Bass - Audio Processor Implementation
     Ouaricon Audio
     Developer: Taylor Brook
 

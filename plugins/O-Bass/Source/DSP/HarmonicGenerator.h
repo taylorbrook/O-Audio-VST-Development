@@ -2,7 +2,7 @@
   ==============================================================================
 
     HarmonicGenerator.h
-    OBass - Chebyshev Waveshaper with 4x Oversampling
+    O-Bass - Chebyshev Waveshaper with 4x Oversampling
 
     Generates controlled harmonics (2nd-5th) using Chebyshev polynomials with
     dual oversamplers for latency mode support. Output is bandpassed to

@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OBass - WebView Editor
+    O-Bass - WebView Editor
     Ouaricon Audio
     Developer: Taylor Brook
 

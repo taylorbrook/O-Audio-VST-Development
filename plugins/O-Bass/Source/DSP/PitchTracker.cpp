@@ -2,7 +2,7 @@
   ==============================================================================
 
     PitchTracker.cpp
-    OBass - YIN-based Monophonic Pitch Detection
+    O-Bass - YIN-based Monophonic Pitch Detection
 
     Reference: de Cheveigne & Kawahara 2002
 

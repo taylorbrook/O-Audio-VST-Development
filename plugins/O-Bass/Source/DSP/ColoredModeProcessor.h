@@ -2,7 +2,7 @@
   ==============================================================================
 
     ColoredModeProcessor.h
-    OBass - Colored Mode Asymmetric Saturation
+    O-Bass - Colored Mode Asymmetric Saturation
 
     Warm, analog-style harmonic generation using asymmetric tanh saturation.
     Unlike Clean Mode's symmetric saturation (odd harmonics), Colored Mode

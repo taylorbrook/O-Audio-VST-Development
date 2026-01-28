@@ -1,17 +1,17 @@
 cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
-juce_add_plugin(OBass
+juce_add_plugin(O-Bass
     COMPANY_NAME "Ouaricon Development"
     PLUGIN_MANUFACTURER_CODE OuDv
-    PLUGIN_CODE OuBa
+    PLUGIN_CODE OBas
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "OBass"
+    PRODUCT_NAME "O-Bass"
     NEEDS_WEB_BROWSER TRUE
 )
 
 # Source files
-target_sources(OBass
+target_sources(O-Bass
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
@@ -25,14 +25,14 @@ target_sources(OBass
 )
 
 # Include paths
-target_include_directories(OBass
+target_include_directories(O-Bass
     PRIVATE
         Source
         Source/DSP
 )
 
 # Required JUCE modules
-target_link_libraries(OBass
+target_link_libraries(O-Bass
     PRIVATE
         juce::juce_audio_basics
         juce::juce_audio_devices
@@ -54,10 +54,10 @@ target_link_libraries(OBass
 )
 
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL)
-juce_generate_juce_header(OBass)
+juce_generate_juce_header(O-Bass)
 
 # Compile definitions
-target_compile_definitions(OBass
+target_compile_definitions(O-Bass
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
@@ -65,7 +65,7 @@ target_compile_definitions(OBass
 )
 
 # WebView UI Resources
-juce_add_binary_data(OBass_UIResources
+juce_add_binary_data(O-Bass_UIResources
     SOURCES
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
@@ -75,7 +75,7 @@ juce_add_binary_data(OBass_UIResources
         Source/ui/public/modules/preset-manager.js
 )
 
-target_link_libraries(OBass
+target_link_libraries(O-Bass
     PRIVATE
-        OBass_UIResources
+        O-Bass_UIResources
 )

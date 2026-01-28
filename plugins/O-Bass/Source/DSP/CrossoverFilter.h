@@ -2,7 +2,7 @@
   ==============================================================================
 
     CrossoverFilter.h
-    OBass - Dual-Mode Crossover Filter
+    O-Bass - Dual-Mode Crossover Filter
 
     Splits stereo audio into low and high frequency bands with two modes:
     - LowLatency: IIR Linkwitz-Riley 24dB/oct (zero latency)

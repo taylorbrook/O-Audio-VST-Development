@@ -2,7 +2,7 @@
   ==============================================================================
 
     PitchTracker.h
-    OBass - YIN-based Monophonic Pitch Detection
+    O-Bass - YIN-based Monophonic Pitch Detection
 
     Detects fundamental frequency of mono bass signal (30-200Hz range).
     Uses YIN algorithm with bass-optimized window size.

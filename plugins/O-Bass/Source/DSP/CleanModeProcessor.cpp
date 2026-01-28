@@ -2,7 +2,7 @@
   ==============================================================================
 
     CleanModeProcessor.cpp
-    OBass - Psychoacoustic Bass Enhancement Orchestrator
+    O-Bass - Psychoacoustic Bass Enhancement Orchestrator
 
     Coordinates the complete enhancement pipeline:
     - Pitch tracking for adaptive harmonic generation
@@ -106,7 +106,6 @@ void CleanModeProcessor::setIntensityScale(float scale)
 //==============================================================================
 void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
 {
-    // DEBUG STEP 3: Test PitchTracker added
     const int numSamples = monoBuffer.getNumSamples();
     if (numSamples == 0)
         return;
@@ -115,14 +114,13 @@ void CleanModeProcessor::process(juce::AudioBuffer<float>& monoBuffer)
     if (dryBuffer.getNumSamples() >= numSamples)
         dryBuffer.copyFrom(0, 0, monoBuffer, 0, 0, numSamples);
 
-    // TEST: Add pitch tracking back
-    float detectedPitch = pitchTracker.detectPitch(
-        monoBuffer.getReadPointer(0), numSamples);
+    // PITCH TRACKING DISABLED: YIN algorithm causes Logic Pro crash
+    // - O(n²) complexity (~2M iterations per call) overruns audio thread
+    // - Potential buffer bounds issues if prepare() timing is wrong
+    // Use fixed harmonic setting instead (optimized for typical bass content)
+    harmonicGenerator.setAdaptiveHarmonics(60.0f);  // Fixed at deep bass range
 
-    if (detectedPitch > 0.0f)
-        harmonicGenerator.setAdaptiveHarmonics(detectedPitch);
-
-    // Generate harmonics (oversampling disabled)
+    // Generate harmonics
     harmonicGenerator.process(monoBuffer);
 
     // Mix dry + wet

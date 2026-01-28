@@ -1,7 +1,7 @@
 /*
   ==============================================================================
 
-    OBass - Audio Processor
+    O-Bass - Audio Processor
     Ouaricon Audio
     Developer: Taylor Brook
 
@@ -33,7 +33,7 @@ public:
     juce::AudioProcessorEditor* createEditor() override;
     bool hasEditor() const override { return true; }
 
-    const juce::String getName() const override { return "OBass"; }
+    const juce::String getName() const override { return "O-Bass"; }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }

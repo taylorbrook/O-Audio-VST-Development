@@ -2,7 +2,7 @@
   ==============================================================================
 
     EnvelopeFollower.cpp
-    OBass - Dual-Coefficient IIR Envelope Follower
+    O-Bass - Dual-Coefficient IIR Envelope Follower
 
   ==============================================================================
 */

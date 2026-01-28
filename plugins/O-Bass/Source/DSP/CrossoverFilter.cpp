@@ -2,7 +2,7 @@
   ==============================================================================
 
     CrossoverFilter.cpp
-    OBass - Dual-Mode Crossover Filter Implementation
+    O-Bass - Dual-Mode Crossover Filter Implementation
 
     Approach 3: Deferred Update - Pre-computes FIR coefficient bank at prepare()
     time. Parameter changes in FIR mode only update pendingFirIndex; filter
