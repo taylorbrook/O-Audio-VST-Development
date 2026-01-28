@@ -1,9 +1,9 @@
 # O-Bass Code Review
 
 **Date:** 2026-01-27
-**Version:** 1.1.0
+**Version:** 1.1.1
 **Reviewer:** Claude Code
-**Last Updated:** 2026-01-27 (Priority 1 resolved)
+**Last Updated:** 2026-01-27 (Priority 1+2 resolved)
 
 ---
 
@@ -226,9 +226,9 @@ CMakeLists.txt looks correct:
 - [x] **2.2** ~~Add channel validation in HarmonicGenerator~~ → Added (v1.1.0)
 - [x] **2.1** ~~Fix limit indicator~~ → Output gain stage restored (v1.1.0)
 
-### Priority 2 (Performance)
-- [ ] **3.1** Optimize IIR coefficient updates - update every 16 samples instead of per-sample
-- [ ] **3.2** Consider removing buffer resize checks in processBlock or make them `jassert`-only
+### Priority 2 (Performance) ✅ COMPLETE
+- [x] **3.1** Optimize IIR coefficient updates - update every 16 samples instead of per-sample (v1.1.1)
+- [x] **3.2** Consider removing buffer resize checks in processBlock or make them `jassert`-only (v1.1.1)
 
 ### Priority 3 (Code Quality)
 - [ ] **5.1-5.3** Remove unused code or implement the features:
@@ -252,9 +252,12 @@ CMakeLists.txt looks correct:
 |----------|--------|
 | Architecture | ✅ Good |
 | Functionality | ✅ Full (Clean mode, limit indicator working) |
+| Performance | ✅ Optimized (v1.1.1) |
 | Real-time Safety | 🟡 Mostly good, minor issues |
 | Code Quality | 🟡 Some unused code remains |
 | UI/WebView | ✅ Good |
 | Build | ✅ Good |
 
-**v1.1.0 Update:** Priority 1 issues resolved. Colored mode removed entirely, eliminating dead code and confusion. The plugin now has a single, clean processing path with working limit indicator. Remaining technical debt is in Priority 2-3 (performance optimizations and unused helper code).
+**v1.1.0 Update:** Priority 1 issues resolved. Colored mode removed entirely, eliminating dead code and confusion. The plugin now has a single, clean processing path with working limit indicator.
+
+**v1.1.1 Update:** Priority 2 issues resolved. IIR coefficient updates now happen every 16 samples during smoothing (was per-sample). Buffer resize checks converted to debug-only jasserts. Remaining technical debt is in Priority 3 (unused helper code).

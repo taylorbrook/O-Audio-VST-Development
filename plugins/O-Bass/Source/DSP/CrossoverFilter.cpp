@@ -123,14 +123,28 @@ void CrossoverFilter::process(const juce::AudioBuffer<float>& input,
     if (activeMode.load(std::memory_order_acquire) == Mode::LowLatency)
     {
         // IIR mode: sample-by-sample processing with smoothed cutoff
+        // Optimization: Update filter coefficients every 16 samples instead of per-sample
+        // setCutoffFrequency() recalculates coefficients which is expensive
+        constexpr int kCoefficientUpdateInterval = 16;
+        int samplesSinceUpdate = kCoefficientUpdateInterval;  // Force update on first sample
+
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            // Update cutoff if smoothing is active
+            // Update cutoff every N samples if smoothing is active
             if (smoothedCutoff.isSmoothing())
             {
-                float newCutoff = smoothedCutoff.getNextValue();
-                iirLowpass.setCutoffFrequency(newCutoff);
-                iirHighpass.setCutoffFrequency(newCutoff);
+                if (++samplesSinceUpdate >= kCoefficientUpdateInterval)
+                {
+                    float newCutoff = smoothedCutoff.getNextValue();
+                    iirLowpass.setCutoffFrequency(newCutoff);
+                    iirHighpass.setCutoffFrequency(newCutoff);
+                    samplesSinceUpdate = 0;
+                }
+                else
+                {
+                    // Advance smoother without applying (keeps timing consistent)
+                    smoothedCutoff.getNextValue();
+                }
             }
 
             for (int ch = 0; ch < numChannels; ++ch)

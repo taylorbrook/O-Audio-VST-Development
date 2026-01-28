@@ -189,17 +189,11 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     // Smooth the enhance value to avoid clicks on bypass toggle
     smoothedEnhance.setTargetValue(targetEnhance);
 
-    // Resize buffers if needed
-    if (lowBandBuffer.getNumSamples() < numSamples)
-    {
-        lowBandBuffer.setSize(2, numSamples, false, false, true);
-        highBandBuffer.setSize(2, numSamples, false, false, true);
-    }
-    if (monoBuffer.getNumSamples() < numSamples)
-    {
-        monoBuffer.setSize(1, numSamples, false, false, true);
-        monoBuffer.clear();
-    }
+    // Buffers are pre-allocated in prepareToPlay() - assert in debug builds only
+    // Removed runtime resize checks for performance (allocation in processBlock is RT-unsafe)
+    jassert(lowBandBuffer.getNumSamples() >= numSamples);
+    jassert(highBandBuffer.getNumSamples() >= numSamples);
+    jassert(monoBuffer.getNumSamples() >= numSamples);
 
     // Update crossover frequency from parameter
     auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");

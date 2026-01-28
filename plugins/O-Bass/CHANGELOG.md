@@ -1,5 +1,11 @@
 # O-Bass Changelog
 
+## [1.1.1] - 2026-01-27
+
+### Performance
+- **IIR coefficient updates optimized**: Filter coefficients now update every 16 samples during parameter smoothing instead of per-sample. Reduces CPU overhead during crossover frequency automation.
+- **Buffer resize checks removed**: Replaced runtime buffer size checks in processBlock() with debug-only jassert assertions. Buffers are pre-allocated in prepareToPlay() making runtime checks unnecessary overhead.
+
 ## [1.1.0] - 2026-01-27
 
 ### Removed
