@@ -17,7 +17,6 @@
 #include "DSP/CrossoverFilter.h"
 #include "DSP/MonoSummer.h"
 #include "DSP/CleanModeProcessor.h"
-#include "DSP/ColoredModeProcessor.h"
 #include "OuariconPresetManager.h"
 
 class OBassAudioProcessor : public juce::AudioProcessor
@@ -68,22 +67,17 @@ private:
     CrossoverFilter crossover;
     MonoSummer monoSummer;
     CleanModeProcessor cleanModeProcessor;
-    ColoredModeProcessor coloredModeProcessor;
 
     // Intermediate buffers (pre-allocated in prepareToPlay)
     juce::AudioBuffer<float> lowBandBuffer;   // Stereo low frequencies
     juce::AudioBuffer<float> highBandBuffer;  // Stereo high frequencies
     juce::AudioBuffer<float> monoBuffer;      // Mono bass for processing
-    juce::AudioBuffer<float> coloredBuffer;   // For parallel processing during crossfade
 
     // State tracking
     CrossoverFilter::Mode lastReportedMode = CrossoverFilter::Mode::LowLatency;
 
     // Smoothed enhance for click-free bypass transitions
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedEnhance;
-
-    // Smoothed mode crossfade for click-free mode switching (0.0 = Clean, 1.0 = Colored)
-    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> modeCrossfade;
 
     // Smoothed output gain for click-free level changes
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Multiplicative> outputGainSmooth;

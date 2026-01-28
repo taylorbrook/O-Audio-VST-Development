@@ -399,102 +399,6 @@
             text-align: center;
         }
 
-        .mode-toggle-container {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .mode-label {
-            font-size: 12px;
-            color: #3C2F2F;
-            font-weight: 600;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .mode-toggle {
-            position: relative;
-            width: 120px;
-            height: 40px;
-            background: rgba(139, 168, 112, 0.3);
-            border: 2px solid #5C4033;
-            border-radius: 20px;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow:
-                inset 2px 2px 4px rgba(0,0,0,0.15),
-                1px 1px 3px rgba(0,0,0,0.1);
-        }
-
-        .mode-toggle:hover {
-            background: rgba(139, 168, 112, 0.4);
-        }
-
-        .mode-toggle.colored {
-            background: rgba(180, 130, 90, 0.4);
-            border-color: #6B4423;
-        }
-
-        .mode-toggle::before {
-            content: '';
-            position: absolute;
-            top: 4px;
-            left: 4px;
-            width: 28px;
-            height: 28px;
-            background: radial-gradient(circle at 40% 40%, #6B8E23, #3C5C1A);
-            border-radius: 50%;
-            border: 2px solid #2C3E10;
-            box-shadow:
-                0 2px 4px rgba(0,0,0,0.3),
-                inset 0 1px 2px rgba(255,255,255,0.2);
-            transition: all 0.2s ease-out;
-        }
-
-        .mode-toggle.colored::before {
-            left: calc(100% - 32px);
-            background: radial-gradient(circle at 40% 40%, #B87333, #8B4513);
-            border-color: #5C3317;
-        }
-
-        .mode-text {
-            position: absolute;
-            top: 50%;
-            transform: translateY(-50%);
-            font-size: 10px;
-            font-weight: bold;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: opacity 0.2s;
-        }
-
-        .mode-text.clean {
-            left: 42px;
-            color: #2C3E10;
-        }
-
-        .mode-text.colored-text {
-            right: 12px;
-            color: #5C3317;
-            opacity: 0.5;
-        }
-
-        .mode-toggle.colored .mode-text.clean {
-            opacity: 0.5;
-        }
-
-        .mode-toggle.colored .mode-text.colored-text {
-            opacity: 1;
-        }
-
-        .mode-value {
-            font-size: 11px;
-            color: #5C4033;
-            font-weight: bold;
-            margin-top: 2px;
-        }
     </style>
 </head>
 <body>
@@ -553,17 +457,8 @@
                     </div>
                 </div>
 
-                <!-- Bottom Right: Mode -->
-                <div class="control-cell">
-                    <div class="mode-toggle-container">
-                        <div class="mode-label">Mode</div>
-                        <div class="mode-toggle" id="modeToggle">
-                            <span class="mode-text clean">Clean</span>
-                            <span class="mode-text colored-text">Warm</span>
-                        </div>
-                        <div class="mode-value" id="modeValue">Clean</div>
-                    </div>
-                </div>
+                <!-- Bottom Right: Empty cell for layout balance -->
+                <div class="control-cell"></div>
             </div>
         </div>
     </div>
@@ -571,11 +466,11 @@
     <!-- JUCE WebView Bridge -->
     <script type="module" src="js/juce/check_native_interop.js"></script>
     <script type="module">
-        import { getSliderState, getToggleState, getNativeFunction } from './js/juce/index.js';
+        import { getSliderState, getNativeFunction } from './js/juce/index.js';
         import { PresetManager } from './modules/preset-manager.js';
 
         // Parameter states
-        let frequencyState, enhanceState, outputState, modeState;
+        let frequencyState, enhanceState, outputState;
         let getLimitIndicator;
 
         // Parameter ranges from PluginProcessor.cpp
@@ -615,7 +510,6 @@
             frequencyState = getSliderState('crossover_freq');
             enhanceState = getSliderState('enhance');
             outputState = getSliderState('output');
-            modeState = getToggleState('mode');
 
             // Get limit indicator native function
             getLimitIndicator = getNativeFunction('getLimitIndicator');
@@ -624,9 +518,6 @@
             setupKnob('frequency', frequencyState, formatFrequency, getFrequencyDefault());
             setupKnob('enhance', enhanceState, formatEnhance, 0.5);
             setupKnob('output', outputState, formatOutput, 0.5);
-
-            // Setup mode toggle
-            setupModeToggle();
 
             // Start limit indicator polling
             startLimitPolling();
@@ -783,44 +674,6 @@
                 state.sliderDragStarted();
                 state.setNormalisedValue(defaultNorm);
                 state.sliderDragEnded();
-            });
-
-            // Initial update
-            updateVisual();
-        }
-
-        // Mode toggle setup (Pattern #19)
-        function setupModeToggle() {
-            if (!modeState) {
-                console.error('Failed to get mode toggle state');
-                return;
-            }
-
-            const toggle = document.getElementById('modeToggle');
-            const valueDisplay = document.getElementById('modeValue');
-
-            // Update visual from state
-            function updateVisual() {
-                const isColored = modeState.getValue();
-
-                if (isColored) {
-                    toggle.classList.add('colored');
-                    valueDisplay.textContent = 'Colored';
-                } else {
-                    toggle.classList.remove('colored');
-                    valueDisplay.textContent = 'Clean';
-                }
-            }
-
-            // JUCE -> UI: Listen for parameter changes
-            modeState.valueChangedEvent.addListener(() => {
-                updateVisual();
-            });
-
-            // UI -> JUCE: Click to toggle
-            toggle.addEventListener('click', () => {
-                const currentValue = modeState.getValue();
-                modeState.setValue(!currentValue);
             });
 
             // Initial update

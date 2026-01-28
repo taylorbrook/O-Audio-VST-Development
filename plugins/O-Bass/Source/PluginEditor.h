@@ -32,7 +32,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> frequencyRelay;
     std::unique_ptr<juce::WebSliderRelay> enhanceRelay;
     std::unique_ptr<juce::WebSliderRelay> outputRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> modeRelay;
 
     // 2. WebView SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -44,7 +43,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> frequencyAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> enhanceAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> modeAttachment;
 
     // Resource provider helper
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

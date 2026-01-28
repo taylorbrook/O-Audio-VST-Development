@@ -16,11 +16,10 @@
 OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
-    // 1. Create relays FIRST (with IDs matching HTML getSliderState/getToggleState calls)
+    // 1. Create relays FIRST (with IDs matching HTML getSliderState calls)
     frequencyRelay = std::make_unique<juce::WebSliderRelay>("crossover_freq");
     enhanceRelay = std::make_unique<juce::WebSliderRelay>("enhance");
     outputRelay = std::make_unique<juce::WebSliderRelay>("output");
-    modeRelay = std::make_unique<juce::WebToggleButtonRelay>("mode");
 
     // 2. Create WebView SECOND with relay options and native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -30,7 +29,6 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
             .withOptionsFrom(*frequencyRelay)
             .withOptionsFrom(*enhanceRelay)
             .withOptionsFrom(*outputRelay)
-            .withOptionsFrom(*modeRelay)
             // Limit indicator native function for UI polling
             .withNativeFunction("getLimitIndicator", [this](auto&, auto complete) {
                 complete(processorRef.getLimitIndicator());
@@ -154,8 +152,6 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
         *processorRef.parameters.getParameter("enhance"), *enhanceRelay, nullptr);
     outputAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("output"), *outputRelay, nullptr);
-    modeAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *processorRef.parameters.getParameter("enhanceMode"), *modeRelay, nullptr);
 
     // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);

@@ -53,15 +53,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBassAudioProcessor::createP
         "%"
     ));
 
-    // enhanceMode - Clean vs Colored processing character
-    // 0 = Clean (transparent, odd harmonics), 1 = Colored (warm, even harmonics)
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "enhanceMode", 1 },
-        "Enhance Mode",
-        juce::StringArray { "Clean", "Colored" },
-        0  // Default to Clean
-    ));
-
     // output - Output gain compensation
     // Range: -18dB to +18dB, default 0dB (unity)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -86,20 +77,18 @@ OBassAudioProcessor::OBassAudioProcessor()
     // Initialize factory presets
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         // Default - neutral starting point
-        {"Default", {{"crossover_freq", 0.25f}, {"enhance", 0.50f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
+        {"Default", {{"crossover_freq", 0.25f}, {"enhance", 0.50f}, {"output", 0.5f}}, juce::var()},
 
-        // Clean Mode presets
-        {"Gentle Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.30f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
-        {"Punchy 808", {{"crossover_freq", 0.0f}, {"enhance", 0.70f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
-        {"Subtle Mix Glue", {{"crossover_freq", 0.50f}, {"enhance", 0.20f}, {"enhanceMode", 0.0f}, {"output", 0.5f}}, juce::var()},
-        {"Full Sub Enhancement", {{"crossover_freq", 0.125f}, {"enhance", 0.80f}, {"enhanceMode", 0.0f}, {"output", 0.45f}}, juce::var()},
-
-        // Colored Mode presets
-        {"Warm Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.50f}, {"enhanceMode", 1.0f}, {"output", 0.5f}}, juce::var()},
-        {"Fat Synth Bass", {{"crossover_freq", 0.25f}, {"enhance", 0.65f}, {"enhanceMode", 1.0f}, {"output", 0.48f}}, juce::var()},
-        {"Saturated Sub", {{"crossover_freq", 0.0f}, {"enhance", 0.85f}, {"enhanceMode", 1.0f}, {"output", 0.42f}}, juce::var()},
-        {"Vintage Mix Bus", {{"crossover_freq", 0.50f}, {"enhance", 0.35f}, {"enhanceMode", 1.0f}, {"output", 0.5f}}, juce::var()},
-        {"Aggressive Colored", {{"crossover_freq", 0.25f}, {"enhance", 0.90f}, {"enhanceMode", 1.0f}, {"output", 0.40f}}, juce::var()}
+        // Bass enhancement presets
+        {"Gentle Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.30f}, {"output", 0.5f}}, juce::var()},
+        {"Punchy 808", {{"crossover_freq", 0.0f}, {"enhance", 0.70f}, {"output", 0.5f}}, juce::var()},
+        {"Subtle Mix Glue", {{"crossover_freq", 0.50f}, {"enhance", 0.20f}, {"output", 0.5f}}, juce::var()},
+        {"Full Sub Enhancement", {{"crossover_freq", 0.125f}, {"enhance", 0.80f}, {"output", 0.45f}}, juce::var()},
+        {"Warm Bass Guitar", {{"crossover_freq", 0.375f}, {"enhance", 0.50f}, {"output", 0.5f}}, juce::var()},
+        {"Fat Synth Bass", {{"crossover_freq", 0.25f}, {"enhance", 0.65f}, {"output", 0.48f}}, juce::var()},
+        {"Saturated Sub", {{"crossover_freq", 0.0f}, {"enhance", 0.85f}, {"output", 0.42f}}, juce::var()},
+        {"Vintage Mix Bus", {{"crossover_freq", 0.50f}, {"enhance", 0.35f}, {"output", 0.5f}}, juce::var()},
+        {"Maximum Enhancement", {{"crossover_freq", 0.25f}, {"enhance", 0.90f}, {"output", 0.40f}}, juce::var()}
     };
 
     presetManager.initializeFactoryPresets(factoryPresets);
@@ -120,11 +109,9 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     lowBandBuffer.setSize(2, samplesPerBlock);
     highBandBuffer.setSize(2, samplesPerBlock);
     monoBuffer.setSize(1, samplesPerBlock);
-    coloredBuffer.setSize(1, samplesPerBlock);  // Same size as monoBuffer
     lowBandBuffer.clear();
     highBandBuffer.clear();
     monoBuffer.clear();
-    coloredBuffer.clear();
 
     // Prepare DSP components
     crossover.prepare(spec);
@@ -148,23 +135,10 @@ void OBassAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
                                                : CleanModeProcessor::Mode::HighFidelity;
     cleanModeProcessor.setMode(cleanMode);
 
-    // Prepare Colored Mode processor
-    coloredModeProcessor.prepare(spec);
-
-    // Set initial Colored Mode from latency_mode parameter
-    auto coloredMode = modeParam->load() < 0.5f ? ColoredModeProcessor::Mode::LowLatency
-                                                 : ColoredModeProcessor::Mode::HighFidelity;
-    coloredModeProcessor.setMode(coloredMode);
-
     // Initialize smoothed enhance (20ms ramp time for click-free transitions)
     smoothedEnhance.reset(sampleRate, 0.020);
     auto* enhanceParam = parameters.getRawParameterValue("enhance");
     smoothedEnhance.setCurrentAndTargetValue(enhanceParam->load() / 100.0f);
-
-    // Initialize mode crossfade (20ms ramp for click-free mode switching)
-    modeCrossfade.reset(sampleRate, 0.020);
-    auto* enhanceModeParam = parameters.getRawParameterValue("enhanceMode");
-    modeCrossfade.setCurrentAndTargetValue(enhanceModeParam->load());  // 0.0 = Clean, 1.0 = Colored
 
     // Initialize smoothed output gain (20ms ramp time, multiplicative for dB scale)
     outputGainSmooth.reset(sampleRate, 0.020);
@@ -186,11 +160,9 @@ void OBassAudioProcessor::releaseResources()
     crossover.reset();
     monoSummer.reset();
     cleanModeProcessor.reset();
-    coloredModeProcessor.reset();
 
     // Reset SmoothedValue objects to prevent stale state
     smoothedEnhance.reset(0);
-    modeCrossfade.reset(0);
     outputGainSmooth.reset(0);
     limitIndicatorSmooth.reset(0);
 }
@@ -228,11 +200,6 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         monoBuffer.setSize(1, numSamples, false, false, true);
         monoBuffer.clear();
     }
-    if (coloredBuffer.getNumSamples() < numSamples)
-    {
-        coloredBuffer.setSize(1, numSamples, false, false, true);
-        coloredBuffer.clear();
-    }
 
     // Update crossover frequency from parameter
     auto* crossoverParam = parameters.getRawParameterValue("crossover_freq");
@@ -246,9 +213,8 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float normalized = juce::jlimit(0.0f, 1.0f, (crossoverHz - 40.0f) / 160.0f);
     float intensityScale = 1.0f + std::sqrt(1.0f - normalized) * 0.7f;
 
-    // Apply intensity scale to both processors
+    // Apply intensity scale to processor
     cleanModeProcessor.setIntensityScale(intensityScale);
-    coloredModeProcessor.setIntensityScale(intensityScale);
 
     // Split into low and high bands
     crossover.process(buffer, lowBandBuffer, highBandBuffer);
@@ -284,62 +250,12 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
         recombineBands(buffer, lowBandView, hbView);
     }
 
-    // v1.0.1: Clean mode only (Colored mode crossfade disabled pending further testing)
-    // Output gain applied inline via soft tanh limiting in CleanModeProcessor
-    return;
-
-    // --- DISABLED: Colored mode crossfade and output gain stage ---
-    // TODO: Re-enable after fixing ColoredModeProcessor similarly
-    // Read mode parameter and update crossfade target
-    auto* modeParam = parameters.getRawParameterValue("enhanceMode");
-    float modeValue = modeParam->load();
-    modeCrossfade.setTargetValue(modeValue);  // 0.0 = Clean, 1.0 = Colored
-
-    // Set enhance amount on both processors
-    coloredModeProcessor.setEnhanceAmount(smoothedEnhanceValue);
-
-    // Copy mono buffer for colored processing (parallel path)
-    // Resize if needed (should rarely happen after prepare)
-    if (coloredBuffer.getNumSamples() < numSamples)
-        coloredBuffer.setSize(1, numSamples, false, false, true);
-    coloredBuffer.copyFrom(0, 0, monoView, 0, 0, numSamples);
-
-    // Create view for colored buffer
-    juce::AudioBuffer<float> coloredView(coloredBuffer.getArrayOfWritePointers(), 1, numSamples);
-
-    // Process both paths
-    coloredModeProcessor.process(coloredView);  // Colored result in coloredView
-
-    // Crossfade between paths (per-sample for smooth transition)
-    float* cleanData = monoView.getWritePointer(0);
-    const float* coloredData = coloredView.getReadPointer(0);
-
-    for (int i = 0; i < numSamples; ++i)
-    {
-        float blend = modeCrossfade.getNextValue();
-        cleanData[i] = cleanData[i] * (1.0f - blend) + coloredData[i] * blend;
-    }
-
-    // Expand back to stereo
-    monoSummer.expandToStereo(monoView, lowBandView);
-
-    // Create view for high band
-    juce::AudioBuffer<float> highBandView(highBandBuffer.getArrayOfWritePointers(), 2, numSamples);
-
-    // Recombine low + high bands
-    recombineBands(buffer, lowBandView, highBandView);
-
     // Apply output gain with soft clipping
     auto* outputParam = parameters.getRawParameterValue("output");
     float targetGainLinear = juce::Decibels::decibelsToGain(outputParam->load());
     outputGainSmooth.setTargetValue(targetGainLinear);
 
     // Apply gain per-sample with soft clip protection
-    // NOTE: This output soft clipper is DEFENSE-IN-DEPTH, not duplicating processor limiting.
-    // - Processors (Clean/Colored) have internal tanh limiting at their processing stage
-    // - This output clipper catches: user Output boost + hot input + enhancement stacking
-    // - Threshold 0.95 prevents true 0dBFS clipping while allowing full loudness
-    // - Processors limit ~-2dB internally; this catches the final gain stage only
     const int numChannels = buffer.getNumChannels();
     float maxLimitAmount = 0.0f;
 
@@ -351,9 +267,6 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
             float sample = buffer.getSample(ch, i) * gain;
 
             // Soft clip at ~0.95 to prevent digital clipping
-            // Uses tanh for smooth limiting at extreme output gain
-            // This is intentionally a higher threshold than processor limiting
-            // to allow normal dynamics while catching gain-boosted peaks
             if (std::abs(sample) > 0.95f)
             {
                 float sign = (sample > 0.0f) ? 1.0f : -1.0f;
@@ -372,7 +285,6 @@ void OBassAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     }
 
     // Update limit indicator (smoothed for UI display)
-    // Convert limit amount to 0-1 range (0.1 excess = full limiting)
     float normalizedLimit = juce::jlimit(0.0f, 1.0f, maxLimitAmount * 10.0f);
     limitIndicatorSmooth.setTargetValue(normalizedLimit);
     limitIndicator.store(limitIndicatorSmooth.skip(numSamples));

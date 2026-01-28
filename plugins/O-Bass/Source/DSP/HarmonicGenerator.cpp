@@ -113,7 +113,7 @@ void HarmonicGenerator::setAdaptiveHarmonics(float fundamentalHz)
 void HarmonicGenerator::process(juce::AudioBuffer<float>& monoBuffer)
 {
     const int numSamples = monoBuffer.getNumSamples();
-    if (numSamples == 0)
+    if (numSamples == 0 || monoBuffer.getNumChannels() < 1)
         return;
 
     // OVERSAMPLING BYPASSED: JUCE Oversampling causes Logic Pro crash

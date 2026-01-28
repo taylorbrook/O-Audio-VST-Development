@@ -21,7 +21,6 @@ target_sources(O-Bass
         Source/DSP/PitchTracker.cpp
         Source/DSP/HarmonicGenerator.cpp
         Source/DSP/CleanModeProcessor.cpp
-        Source/DSP/ColoredModeProcessor.cpp
 )
 
 # Include paths
