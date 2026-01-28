@@ -156,8 +156,8 @@ OBassAudioProcessorEditor::OBassAudioProcessorEditor(OBassAudioProcessor& p)
     // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);
 
-    // Set size per CONTEXT.md specification
-    setSize(500, 450);
+    // Compact size for 3-knob layout
+    setSize(400, 350);
 }
 
 OBassAudioProcessorEditor::~OBassAudioProcessorEditor()

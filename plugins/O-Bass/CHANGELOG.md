@@ -1,5 +1,11 @@
 # O-Bass Changelog
 
+## [1.3.0] - 2026-01-28
+
+### Changed
+- **Compact UI**: Reduced window size from 500×450 to 400×350 pixels (better fit for 3-knob layout)
+- **Display title**: Changed in-plugin title from "O-Bass" to "Ouaricon Bass"
+
 ## [1.2.1] - 2026-01-28
 
 ### Changed
