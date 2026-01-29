@@ -243,7 +243,7 @@ Present post-test decision menu (see `assets/decision-menu-templates.md#post-tes
 
      Context:
      - Test failed: [specific failure message]
-     - Plugin type: [from creative-brief.md]
+     - Plugin type: [from BRIEF.md]
      - Relevant code: [file paths from investigation]
 
      Goal: Find root cause and provide specific fix"
@@ -272,9 +272,9 @@ Save detailed test log to: `logs/{PLUGIN_NAME}/test_[timestamp].log`
 
 Use format from `assets/report-templates.md#test-log-format`
 
-**Requirement 2: Update .continue-here.md**
+**Requirement 2: Update .planning/STATUS.md**
 
-Update `.continue-here.md`:
+Update `.planning/STATUS.md`:
 - Set stage: "testing_complete"
 - Set next_step based on test results (installation if passed, investigation if failed)
 - Record last_tested: [timestamp]
@@ -291,7 +291,7 @@ Update `PLUGINS.md` for {PLUGIN_NAME}:
 
 Commit test results and state updates:
 ```bash
-git add logs/{PLUGIN_NAME}/test_[timestamp].log .continue-here.md PLUGINS.md
+git add logs/{PLUGIN_NAME}/test_[timestamp].log .planning/STATUS.md PLUGINS.md
 git commit -m "test({PLUGIN_NAME}): {test_mode} validation {RESULT}"
 ```
 
@@ -358,7 +358,7 @@ Testing is successful when:
 
 **Updates:**
 
-- `.continue-here.md` → Testing checkpoint
+- `.planning/STATUS.md` → Testing checkpoint
 - `PLUGINS.md` → Test status
 
 

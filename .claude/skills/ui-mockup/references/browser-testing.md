@@ -19,7 +19,7 @@ Test UI in browser before integrating into plugin. Catch layout issues, interact
 ### Step 1: Open in Browser
 
 ```bash
-open "plugins/[PluginName]/.ideas/mockups/v1-browser-test.html"
+open "plugins/[PluginName]/.planning/mockups/v1-browser-test.html"
 ```
 
 Or drag file to browser window.

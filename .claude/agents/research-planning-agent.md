@@ -756,7 +756,7 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 - Write architecture.md progressively (per-feature after 3.2.6)
 - Write final architecture.md with all sections
 - Write plan.md after complexity calculation
-- Write .continue-here.md handoff file
+- Write .planning/STATUS.md handoff file
 - Write updated PLUGINS.md
 
 ### Bash

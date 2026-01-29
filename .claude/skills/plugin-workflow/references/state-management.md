@@ -8,7 +8,7 @@
 
 ## State Delegation Pattern
 
-**Primary responsibility:** Subagents update state files (.continue-here.md, PLUGINS.md)
+**Primary responsibility:** Subagents update state files (.planning/STATUS.md, PLUGINS.md)
 **Secondary responsibility:** Orchestrator verifies state updates
 **Safety net:** Orchestrator falls back to updating state if verification fails
 
@@ -41,8 +41,8 @@ function verifySubagentStateUpdate(pluginName, expectedStage, result) {
     return { verified: false, reason: "state_update_error", error: result.stateUpdateError }
   }
 
-  // Step 3: Verify .continue-here.md actually changed
-  const handoffPath = `plugins/${pluginName}/.continue-here.md`
+  // Step 3: Verify .planning/STATUS.md actually changed
+  const handoffPath = `plugins/${pluginName}/.planning/STATUS.md`
   const handoffContent = readFile(handoffPath)
   const yaml = parseFrontmatter(handoffContent)
 
@@ -87,7 +87,7 @@ function verifySubagentStateUpdate(pluginName, expectedStage, result) {
 ```javascript
 { verified: true }  // State updated correctly
 { verified: false, reason: "stateUpdated_false" }  // Subagent didn't update
-{ verified: false, reason: "stage_mismatch" }  // .continue-here.md wrong stage
+{ verified: false, reason: "stage_mismatch" }  // .planning/STATUS.md wrong stage
 { verified: false, reason: "plugins_md_not_updated" }  // PLUGINS.md not updated
 { verified: false, reason: "state_update_error", error: "..." }  // Error occurred
 ```
@@ -106,7 +106,7 @@ function fallbackStateUpdate(pluginName, currentStage, result) {
   logWarning("⚠️ Subagent did not update state, orchestrator handling fallback")
 
   try {
-    // Update .continue-here.md
+    // Update .planning/STATUS.md
     updateHandoff(pluginName, currentStage, result.completed, result.nextSteps)
 
     // Update PLUGINS.md table row + NOTES.md status
@@ -157,7 +157,7 @@ These functions are retained for fallback use when subagent doesn't update state
 
 ### updateHandoff(pluginName, stage, completed, nextSteps, complexityScore, phased, nextAction, nextPhase, guiType)
 
-**Purpose:** Update .continue-here.md with current workflow state.
+**Purpose:** Update .planning/STATUS.md with current workflow state.
 
 **Parameters:**
 - `pluginName`: Plugin identifier
@@ -180,16 +180,16 @@ NEW_STAGE=$2
 COMPLETED=$3
 NEXT_STEPS=$4
 
-HANDOFF_FILE="plugins/${PLUGIN_NAME}/.continue-here.md"
+HANDOFF_FILE="plugins/${PLUGIN_NAME}/.planning/STATUS.md"
 
 # Read existing file
 EXISTING=$(cat "$HANDOFF_FILE")
 
 # Recalculate contract checksums
-BRIEF_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.ideas/creative-brief.md | awk '{print $1}')"
-PARAM_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.ideas/parameter-spec.md | awk '{print $1}')"
-ARCH_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.ideas/architecture.md | awk '{print $1}')"
-PLAN_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.ideas/plan.md | awk '{print $1}')"
+BRIEF_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.planning/BRIEF.md | awk '{print $1}')"
+PARAM_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.planning/parameter-spec.md | awk '{print $1}')"
+ARCH_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.planning/architecture.md | awk '{print $1}')"
+PLAN_SHA="sha256:$(shasum -a 256 plugins/$PLUGIN_NAME/.planning/plan.md | awk '{print $1}')"
 
 # Update YAML frontmatter fields
 # (Use Edit tool to update specific fields, preserving structure)
@@ -227,7 +227,7 @@ fi
 echo "- **Stage ${NEW_STAGE}:** ${COMPLETED}" >> "$HANDOFF_FILE"
 ```
 
-**.continue-here.md format with gui_type and workflow_mode fields:**
+**.planning/STATUS.md format with gui_type and workflow_mode fields:**
 
 ```yaml
 ---
@@ -457,8 +457,8 @@ DESCRIPTION=$3
 
 # Stage ALL changes atomically
 git add plugins/${PLUGIN_NAME}/Source/ 2>/dev/null || true
-git add plugins/${PLUGIN_NAME}/.ideas/
-git add plugins/${PLUGIN_NAME}/.continue-here.md
+git add plugins/${PLUGIN_NAME}/.planning/
+git add plugins/${PLUGIN_NAME}/.planning/STATUS.md
 git add plugins/${PLUGIN_NAME}/plan.md 2>/dev/null || true
 git add PLUGINS.md
 
@@ -486,7 +486,7 @@ fi
 ```
 
 **Why atomic:**
-- PLUGINS.md + .continue-here.md + code = SINGLE commit
+- PLUGINS.md + .planning/STATUS.md + code = SINGLE commit
 - No temporal window between state updates
 - If commit fails → All state rolled back
 
@@ -508,7 +508,7 @@ fi
 # State integrity verification before stage dispatch
 
 PLUGIN_NAME=$1
-HANDOFF_FILE="plugins/${PLUGIN_NAME}/.continue-here.md"
+HANDOFF_FILE="plugins/${PLUGIN_NAME}/.planning/STATUS.md"
 
 # Check handoff file exists
 if [ ! -f "$HANDOFF_FILE" ]; then
@@ -525,7 +525,7 @@ PLUGINS_STATUS=$(grep -A1 "^### ${PLUGIN_NAME}$" PLUGINS.md | grep "^**Status:**
 # Verify stage consistency
 if [ "$HANDOFF_STAGE" != "$PLUGINS_STATUS" ]; then
   echo "❌ State mismatch:"
-  echo "   .continue-here.md: Stage ${HANDOFF_STAGE}"
+  echo "   .planning/STATUS.md: Stage ${HANDOFF_STAGE}"
   echo "   PLUGINS.md: Stage ${PLUGINS_STATUS}"
   echo "Run /reconcile ${PLUGIN_NAME} to fix"
   exit 2
@@ -555,7 +555,7 @@ exit 0
 ### Backward Compatibility
 
 **Old plugins (before delegation):**
-- .continue-here.md may be missing `next_action`, `next_phase` fields
+- .planning/STATUS.md may be missing `next_action`, `next_phase` fields
 - May be missing `contract_checksums` section
 - Orchestrator still updates state (fallback path works)
 
@@ -663,7 +663,7 @@ Validation: 3.5k → 0.3k tokens (verification only)
     "phase_completed": "2.2",
     "files_modified": ["PluginProcessor.cpp"],
     "state_files_updated": [
-      "plugins/PluginName/.continue-here.md",
+      "plugins/PluginName/.planning/STATUS.md",
       "PLUGINS.md"
     ]
   },
@@ -691,8 +691,8 @@ Validation: 3.5k → 0.3k tokens (verification only)
 **State update is successful when:**
 
 1. ✓ Subagent reports `stateUpdated: true` in JSON
-2. ✓ .continue-here.md stage field matches expected stage
-3. ✓ .continue-here.md last_updated is current date
+2. ✓ .planning/STATUS.md stage field matches expected stage
+3. ✓ .planning/STATUS.md last_updated is current date
 4. ✓ PLUGINS.md status updated (registry + full entry)
 5. ✓ PLUGINS.md timeline entry added
 6. ✓ Registry consistency validated (no drift)
@@ -701,7 +701,7 @@ Validation: 3.5k → 0.3k tokens (verification only)
 **OR fallback succeeded:**
 
 1. ✓ Subagent reported `stateUpdated: false`
-2. ✓ Orchestrator updated .continue-here.md
+2. ✓ Orchestrator updated .planning/STATUS.md
 3. ✓ Orchestrator updated PLUGINS.md
 4. ✓ Registry consistency validated
 5. ✓ Git commit succeeded (atomic)

@@ -12,9 +12,9 @@
 
 **Detection steps:**
 
-1. **Read .continue-here.md:**
+1. **Read .planning/STATUS.md:**
    ```bash
-   cat plugins/[PluginName]/.continue-here.md
+   cat plugins/[PluginName]/.planning/STATUS.md
    ```
 
 2. **Check for gui_type field:**
@@ -163,7 +163,7 @@ Now integrating WebView UI into [PluginName]...
 
 **Find latest mockup:**
 ```bash
-find plugins/[PluginName]/.ideas/mockups/ -name "*.html" -type f | sort -r | head -1
+find plugins/[PluginName]/.planning/mockups/ -name "*.html" -type f | sort -r | head -1
 ```
 
 **If no mockup found:**
@@ -179,9 +179,9 @@ Return to "Headless Detection Menu".
 **Read design contracts:**
 
 ```bash
-cat plugins/[PluginName]/.ideas/creative-brief.md
-cat plugins/[PluginName]/.ideas/parameter-spec.md
-cat plugins/[PluginName]/.ideas/architecture.md
+cat plugins/[PluginName]/.planning/BRIEF.md
+cat plugins/[PluginName]/.planning/parameter-spec.md
+cat plugins/[PluginName]/.planning/architecture.md
 ```
 
 Store contents for gui-agent invocation.
@@ -198,7 +198,7 @@ Task({
 Integrate WebView UI for [PluginName] (upgrading from headless).
 
 **Contracts:**
-- creative-brief.md: [contents]
+- BRIEF.md: [contents]
 - parameter-spec.md: [contents]
 - architecture.md: [contents]
 - Mockup: [MOCKUP_PATH]
@@ -249,9 +249,9 @@ CURRENT_VERSION=$(grep "^### $PLUGIN_NAME$" PLUGINS.md -A 2 | grep "Version" | a
 NEW_VERSION=$(echo $CURRENT_VERSION | awk -F. '{print $1"."($2+1)".0"}')
 ```
 
-**2. Update .continue-here.md gui_type field:**
+**2. Update .planning/STATUS.md gui_type field:**
 ```bash
-sed -i '' 's/^gui_type: headless/gui_type: webview/' plugins/[PluginName]/.continue-here.md
+sed -i '' 's/^gui_type: headless/gui_type: webview/' plugins/[PluginName]/.planning/STATUS.md
 ```
 
 **3. Update PLUGINS.md table row:**
@@ -298,7 +298,7 @@ PARAM_COUNT=$(grep "createParameterLayout" plugins/[PluginName]/Source/PluginPro
 **Stage and commit changes:**
 ```bash
 git add plugins/[PluginName]/Source/
-git add plugins/[PluginName]/.continue-here.md
+git add plugins/[PluginName]/.planning/STATUS.md
 git add plugins/[PluginName]/CHANGELOG.md
 git add PLUGINS.md
 
@@ -426,7 +426,7 @@ Press Enter to return to menu...
 - build-automation skill (via scripts/build-and-install.sh)
 
 **Updates:**
-- .continue-here.md (gui_type field: headless → webview)
+- .planning/STATUS.md (gui_type field: headless → webview)
 - PLUGINS.md (version, status)
 - NOTES.md (version, status, timeline)
 - CHANGELOG.md (version entry)
@@ -447,7 +447,7 @@ Custom UI creation is successful when:
 - gui-agent completes without errors
 - All parameters bound to UI controls
 - Build succeeds
-- .continue-here.md updated (gui_type: webview)
+- .planning/STATUS.md updated (gui_type: webview)
 - PLUGINS.md updated (version, status)
 - CHANGELOG.md updated (version entry with technical details)
 - Git commit created with conventional format

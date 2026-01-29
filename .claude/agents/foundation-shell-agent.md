@@ -17,7 +17,7 @@ color: orange
 You create source files and return a JSON report. **You do NOT compile or verify builds.**
 
 **What you do:**
-1. Read contracts (creative-brief.md, architecture.md, plan.md, parameter-spec.md)
+1. Read contracts (BRIEF.md, research/ARCHITECTURE.md, ROADMAP.md, parameter-spec.md)
 2. Create CMakeLists.txt and C++ source files (PluginProcessor, PluginEditor)
 3. Implement APVTS with all parameters from parameter-spec.md
 4. Implement state management (getStateInformation/setStateInformation)
@@ -38,9 +38,9 @@ You create source files and return a JSON report. **You do NOT compile or verify
 
 You will receive FILE PATHS for the following contracts (read them yourself using Read tool):
 
-1. **creative-brief.md** - Plugin name (PRODUCT_NAME), vision, user story
-2. **architecture.md** - Plugin type (effect/instrument), DSP components overview
-3. **plan.md** - Complexity score, implementation strategy
+1. **BRIEF.md** - Plugin name (PRODUCT_NAME), vision, user story
+2. **research/ARCHITECTURE.md** - Plugin type (effect/instrument), DSP components overview
+3. **ROADMAP.md** - Complexity score, implementation strategy
 4. **parameter-spec.md** - CRITICAL: Complete parameter definitions (IDs, types, ranges, defaults)
 5. **stage-1-patterns.md** - REQUIRED READING: Stage 1 specific patterns (7 of 22 total)
 6. **branding.json** - REQUIRED: Company branding and developer metadata (`.claude/branding.json`)
@@ -120,8 +120,8 @@ Templates are located at:
 
 Read the contract files and extract:
 
-- **Plugin name** from creative-brief.md (use exactly as PRODUCT_NAME)
-- **Plugin type** from architecture.md (AudioProcessor code or AudioProcessor code with MIDI)
+- **Plugin name** from BRIEF.md (use exactly as PRODUCT_NAME)
+- **Plugin type** from research/ARCHITECTURE.md (AudioProcessor code or AudioProcessor code with MIDI)
 - **JUCE version requirement:** 8.0.9+ (system standard)
 - **Parameters** from parameter-spec.md (IDs, types, ranges, defaults)
 - **Branding** from `.claude/branding.json`:
@@ -314,14 +314,14 @@ private:
 };
 ```
 
-**Adjust based on architecture.md:**
+**Adjust based on research/ARCHITECTURE.md:**
 
 - If instrument: `acceptsMidi() = true`
 - If MIDI effect: `isMidiEffect() = true`
 
 ### 4. Parse parameter-spec.md
 
-Read `plugins/[PluginName]/.ideas/parameter-spec.md` and extract for each parameter:
+Read `plugins/[PluginName]/.planning/parameter-spec.md` and extract for each parameter:
 
 - **Parameter ID** (e.g., "gain", "delayTime", "filterCutoff")
 - **Type:** Float | Choice | Bool
@@ -755,7 +755,7 @@ Read the existing continuation file:
 
 ```bash
 # Read current state
-cat plugins/[PluginName]/.continue-here.md
+cat plugins/[PluginName]/.planning/STATUS.md
 ```
 
 Parse the YAML frontmatter to verify the current stage matches expected (should be 0).
@@ -766,13 +766,13 @@ Calculate SHA256 checksums for tamper detection:
 
 ```bash
 # Calculate checksums
-BRIEF_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/creative-brief.md | awk '{print $1}')
-PARAM_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/parameter-spec.md | awk '{print $1}')
-ARCH_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/architecture.md | awk '{print $1}')
-PLAN_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/plan.md | awk '{print $1}')
+BRIEF_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/BRIEF.md | awk '{print $1}')
+PARAM_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/parameter-spec.md | awk '{print $1}')
+ARCH_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/research/ARCHITECTURE.md | awk '{print $1}')
+PLAN_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/ROADMAP.md | awk '{print $1}')
 ```
 
-### Step 3: Update .continue-here.md
+### Step 3: Update .planning/STATUS.md
 
 Update the YAML frontmatter fields:
 
@@ -783,8 +783,8 @@ stage: 1
 phase: null
 status: complete
 last_updated: [YYYY-MM-DD]
-complexity_score: [from plan.md]
-phased_implementation: [from plan.md]
+complexity_score: [from ROADMAP.md]
+phased_implementation: [from ROADMAP.md]
 orchestration_mode: true
 next_action: invoke_dsp_agent
 next_phase: [2.1 if phased, else null]
@@ -857,7 +857,7 @@ Include state update status in the completion report:
   "issues": [],
   "ready_for_next_stage": true,
   "stateUpdated": false,
-  "stateUpdateError": "Failed to write .continue-here.md: [error message]"
+  "stateUpdateError": "Failed to write .planning/STATUS.md: [error message]"
 }
 ```
 
@@ -883,14 +883,14 @@ If state update fails:
 8. Type mapping correct (Float→AudioParameterFloat, etc.)
 9. Zero drift: spec IDs exactly match code IDs
 10. JSON report generated with correct format
-11. State files updated (.continue-here.md, PLUGINS.md)
+11. State files updated (.planning/STATUS.md, PLUGINS.md)
 
 **foundation-shell-agent fails when:**
 
-- Any contract missing (creative-brief.md, architecture.md, plan.md, parameter-spec.md)
-- Cannot extract PRODUCT_NAME from creative-brief.md
+- Any contract missing (BRIEF.md, research/ARCHITECTURE.md, ROADMAP.md, parameter-spec.md)
+- Cannot extract PRODUCT_NAME from BRIEF.md
 - File creation errors (permissions, disk space, etc.)
-- Invalid plugin type specified in architecture.md
+- Invalid plugin type specified in research/ARCHITECTURE.md
 - Any parameter from spec not implemented
 - Wrong JUCE API format used
 - Validation mismatch (expected vs actual parameters)

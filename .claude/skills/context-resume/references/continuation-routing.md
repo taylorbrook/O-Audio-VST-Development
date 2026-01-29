@@ -116,10 +116,10 @@ Before invoking continuation skill, load relevant context:
 
 ```bash
 # Read all contract files
-cat "plugins/$PLUGIN_NAME/.ideas/creative-brief.md"
-cat "plugins/$PLUGIN_NAME/.ideas/parameter-spec.md"
-cat "plugins/$PLUGIN_NAME/.ideas/architecture.md"
-cat "plugins/$PLUGIN_NAME/.ideas/plan.md"
+cat "plugins/$PLUGIN_NAME/.planning/BRIEF.md"
+cat "plugins/$PLUGIN_NAME/.planning/parameter-spec.md"
+cat "plugins/$PLUGIN_NAME/.planning/architecture.md"
+cat "plugins/$PLUGIN_NAME/.planning/plan.md"
 
 # Show recent commits
 git log --oneline plugins/$PLUGIN_NAME/ -5
@@ -132,17 +132,17 @@ cat "plugins/$PLUGIN_NAME/Source/PluginProcessor.cpp"
 
 ```bash
 # Read creative brief
-cat "plugins/$PLUGIN_NAME/.ideas/creative-brief.md"
+cat "plugins/$PLUGIN_NAME/.planning/BRIEF.md"
 
 # Read latest mockup if exists
-find "plugins/$PLUGIN_NAME/.ideas/mockups/" -name "v*-ui.yaml" | sort -V | tail -1 | xargs cat
+find "plugins/$PLUGIN_NAME/.planning/mockups/" -name "v*-ui.yaml" | sort -V | tail -1 | xargs cat
 ```
 
 **For improvement resume:**
 
 ```bash
 # Read improvement proposal
-cat "plugins/$PLUGIN_NAME/.ideas/improvements/$IMPROVEMENT_FILE"
+cat "plugins/$PLUGIN_NAME/.planning/improvements/$IMPROVEMENT_FILE"
 
 # Read CHANGELOG for version context
 cat "plugins/$PLUGIN_NAME/CHANGELOG.md"

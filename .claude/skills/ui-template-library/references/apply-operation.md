@@ -35,8 +35,8 @@ METADATA_JSON="$AESTHETIC_DIR/metadata.json"
 **Read target plugin contracts to understand parameter requirements:**
 
 **Try in order:**
-1. `plugins/$PLUGIN_NAME/.ideas/parameter-spec.md` (preferred)
-2. `plugins/$PLUGIN_NAME/.ideas/creative-brief.md` (fallback)
+1. `plugins/$PLUGIN_NAME/.planning/parameter-spec.md` (preferred)
+2. `plugins/$PLUGIN_NAME/.planning/BRIEF.md` (fallback)
 
 **Extract critical information:**
 - Parameter count (determines layout complexity)

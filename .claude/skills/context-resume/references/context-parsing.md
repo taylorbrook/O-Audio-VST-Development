@@ -8,10 +8,10 @@
 
 ## Step 2a: Read Handoff File
 
-Read the complete `.continue-here.md` file:
+Read the complete `.planning/STATUS.md` file:
 
 ```bash
-cat "plugins/$PLUGIN_NAME/.continue-here.md"
+cat "plugins/$PLUGIN_NAME/.planning/STATUS.md"
 ```
 
 ## Step 2b: Parse YAML Frontmatter

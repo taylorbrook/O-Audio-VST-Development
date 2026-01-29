@@ -77,7 +77,7 @@ Choose aesthetic: _
 If user selects an aesthetic:
 
 **Step 1: Load plugin context**
-- Read `plugins/$PLUGIN_NAME/.ideas/creative-brief.md`
+- Read `plugins/$PLUGIN_NAME/.planning/BRIEF.md`
 - Extract parameter count and types
 - Identify prominent parameters (Mix, Output, etc.)
 
@@ -98,7 +98,7 @@ Invoke Skill tool with:
 ✓ Mockup v1 generated with "Vintage Hardware" aesthetic
 
 Files generated:
-- plugins/ReverbPlugin/.ideas/mockups/v1-ui-test.html
+- plugins/ReverbPlugin/.planning/mockups/v1-ui-test.html
 
 Layout: 3x2 grid (6 knobs) + 2 vertical sliders (adaptive)
 Colors: Orange/cream/brown (from aesthetic)
@@ -170,7 +170,7 @@ If user chooses to save aesthetic:
 ```
 Invoke Skill tool with:
 - skill: "ui-template-library"
-- prompt: "Save aesthetic from plugins/[PluginName]/.ideas/mockups/v[N]-ui.html"
+- prompt: "Save aesthetic from plugins/[PluginName]/.planning/mockups/v[N]-ui.html"
 ```
 
 **Step 2: ui-template-library prompts for details**

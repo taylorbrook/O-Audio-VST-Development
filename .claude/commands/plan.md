@@ -33,7 +33,7 @@ When user runs `/plan [PluginName?]`, invoke the plugin-planning skill to handle
   </status_verification>
 
   <contract_verification blocking="true">
-    <required_contract path="plugins/[PluginName]/.ideas/creative-brief.md" created_by="ideation">
+    <required_contract path="plugins/[PluginName]/.planning/BRIEF.md" created_by="ideation">
       Creative brief defines plugin vision and serves as input to Stage 0 (Research)
     </required_contract>
 
@@ -70,15 +70,15 @@ When user runs `/plan [PluginName?]`, invoke the plugin-planning skill to handle
   Invoke plugin-planning skill to execute Stage 0 (Research & Planning - consolidated).
 
   Skill produces:
-  - architecture.md (DSP specification)
-  - plan.md (implementation strategy with complexity score)
+  - research/ARCHITECTURE.md (DSP specification)
+  - ROADMAP.md (implementation strategy with complexity score)
 
   Both outputs are created in a single pass by research-planning-agent.
 </delegation>
 
 <contract_enforcement>
   Stage 0 requires:
-  - creative-brief.md (checked in preconditions above)
+  - BRIEF.md (checked in preconditions above)
   - parameter-spec.md OR parameter-spec-draft.md (for complexity calculation)
 
   If missing, plugin-planning skill will BLOCK with unblock instructions.
@@ -89,7 +89,7 @@ When user runs `/plan [PluginName?]`, invoke the plugin-planning skill to handle
 ## Handoff to Implementation
 
 After Stage 0 completes, the skill creates handoff state:
-- .continue-here.md updated with "ready_for_implementation: true"
+- .planning/STATUS.md updated with "ready_for_implementation: true"
 - User runs `/implement [PluginName]` to begin Stage 1 (Foundation + Shell)
 
 ## Workflow Integration
@@ -102,8 +102,8 @@ Complete plugin development flow:
 ## Output
 
 By completion of Stage 0, you have:
-- ✅ architecture.md (DSP specification)
-- ✅ plan.md (implementation strategy with complexity score)
+- ✅ research/ARCHITECTURE.md (DSP specification)
+- ✅ ROADMAP.md (implementation strategy with complexity score)
 - ✅ Updated PLUGINS.md status
 - ✅ Git commit for consolidated stage
 - ✅ Ready for implementation handoff

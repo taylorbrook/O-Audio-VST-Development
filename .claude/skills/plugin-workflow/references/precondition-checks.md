@@ -10,10 +10,10 @@ source .claude/utils/validation-cache.sh
 
 # Define contract files
 CONTRACT_FILES=(
-    "plugins/$PLUGIN_NAME/.ideas/architecture.md"
-    "plugins/$PLUGIN_NAME/.ideas/plan.md"
-    "plugins/$PLUGIN_NAME/.ideas/creative-brief.md"
-    "plugins/$PLUGIN_NAME/.ideas/parameter-spec.md"
+    "plugins/$PLUGIN_NAME/.planning/architecture.md"
+    "plugins/$PLUGIN_NAME/.planning/plan.md"
+    "plugins/$PLUGIN_NAME/.planning/BRIEF.md"
+    "plugins/$PLUGIN_NAME/.planning/parameter-spec.md"
 )
 
 # Check if contract verification is cached
@@ -69,7 +69,7 @@ Cannot start implementation - planning incomplete
 [PluginName] is missing required planning documents:
 - architecture.md (DSP design)
 - plan.md (implementation strategy)
-- creative-brief.md (vision document)
+- BRIEF.md (vision document)
 
 Complete planning first:
    Run /plan [PluginName] to create these documents

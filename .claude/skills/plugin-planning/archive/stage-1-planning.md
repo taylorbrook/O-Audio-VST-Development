@@ -20,7 +20,7 @@
 ### 1. Check Stage 0 Completion
 
 ```bash
-if [ ! -f "plugins/${PLUGIN_NAME}/.ideas/architecture.md" ]; then
+if [ ! -f "plugins/${PLUGIN_NAME}/.planning/architecture.md" ]; then
     echo "✗ Stage 0 incomplete - architecture.md not found"
     echo "Run Stage 0 (Research) first"
     exit 1
@@ -31,12 +31,12 @@ fi
 
 ```bash
 # Check for parameter specification
-if [ ! -f "plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md" ]; then
+if [ ! -f "plugins/${PLUGIN_NAME}/.planning/parameter-spec.md" ]; then
     MISSING_PARAM_SPEC=true
 fi
 
 # Check for architecture specification
-if [ ! -f "plugins/${PLUGIN_NAME}/.ideas/architecture.md" ]; then
+if [ ! -f "plugins/${PLUGIN_NAME}/.planning/architecture.md" ]; then
     MISSING_ARCHITECTURE=true
 fi
 ```
@@ -53,7 +53,7 @@ STOP IMMEDIATELY and BLOCK with this message:
 Missing implementation contracts:
 
 Required contracts:
-✓ creative-brief.md - exists
+✓ BRIEF.md - exists
 [✓/✗] parameter-spec.md - [exists/MISSING (required)]
 [✓/✗] architecture.md - [exists/MISSING (required)]
 
@@ -73,7 +73,7 @@ HOW TO UNBLOCK:
    - Run Stage 0 (Research) to generate architecture.md
    - Document DSP components and processing chain
    - Map parameters to DSP components
-   - Save to plugins/[PluginName]/.ideas/architecture.md
+   - Save to plugins/[PluginName]/.planning/architecture.md
 
 Once both contracts exist, Stage 1 will proceed.
 ```
@@ -88,13 +88,13 @@ Once both contracts exist, Stage 1 will proceed.
 
 ```bash
 # Read parameter specification
-cat plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md
+cat plugins/${PLUGIN_NAME}/.planning/parameter-spec.md
 
 # Read DSP architecture specification
-cat plugins/${PLUGIN_NAME}/.ideas/architecture.md
+cat plugins/${PLUGIN_NAME}/.planning/architecture.md
 
 # Read creative brief for context
-cat plugins/${PLUGIN_NAME}/.ideas/creative-brief.md
+cat plugins/${PLUGIN_NAME}/.planning/BRIEF.md
 ```
 
 ### 2. Calculate Complexity Score
@@ -113,7 +113,7 @@ Count parameter definitions:
 ```bash
 # Each parameter entry in parameter-spec.md counts as 1
 # Look for pattern: "### [PARAM_ID]" or similar
-grep -c "^###" plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md
+grep -c "^###" plugins/${PLUGIN_NAME}/.planning/parameter-spec.md
 ```
 
 Calculate param_score:
@@ -135,7 +135,7 @@ Count DSP algorithms/components:
 
 ```bash
 # Count component subsections
-grep -c "^###" plugins/${PLUGIN_NAME}/.ideas/architecture.md
+grep -c "^###" plugins/${PLUGIN_NAME}/.planning/architecture.md
 ```
 
 **From architecture.md (Feature Analysis):**
@@ -152,9 +152,9 @@ Identify complexity features:
 
 ```bash
 # Example feature detection
-grep -i "feedback" plugins/${PLUGIN_NAME}/.ideas/architecture.md && echo "Feedback: +1"
-grep -i "FFT\|frequency domain" plugins/${PLUGIN_NAME}/.ideas/architecture.md && echo "FFT: +1"
-grep -i "LFO\|envelope\|modulation" plugins/${PLUGIN_NAME}/.ideas/architecture.md && echo "Modulation: +1"
+grep -i "feedback" plugins/${PLUGIN_NAME}/.planning/architecture.md && echo "Feedback: +1"
+grep -i "FFT\|frequency domain" plugins/${PLUGIN_NAME}/.planning/architecture.md && echo "FFT: +1"
+grep -i "LFO\|envelope\|modulation" plugins/${PLUGIN_NAME}/.planning/architecture.md && echo "Modulation: +1"
 ```
 
 #### Calculate Total Score
@@ -267,7 +267,7 @@ Components:
 
 **Use template:** `assets/plan-template.md`
 
-**File location:** `plugins/${PLUGIN_NAME}/.ideas/plan.md`
+**File location:** `plugins/${PLUGIN_NAME}/.planning/plan.md`
 
 ### For Simple Plugins (Score ≤ 2.0)
 
@@ -349,7 +349,7 @@ Use template with full phase breakdown:
 
 ### 1. Update Handoff File
 
-**File:** `plugins/${PLUGIN_NAME}/.continue-here.md`
+**File:** `plugins/${PLUGIN_NAME}/.planning/STATUS.md`
 
 Update YAML frontmatter:
 ```yaml
@@ -386,8 +386,8 @@ Implementation plan created. Ready to proceed to foundation (Stage 1).
 3. Pause here
 
 ## Files Created
-- plugins/[PluginName]/.ideas/architecture.md
-- plugins/[PluginName]/.ideas/plan.md
+- plugins/[PluginName]/.planning/architecture.md
+- plugins/[PluginName]/.planning/plan.md
 ```
 
 ### 2. Update PLUGINS.md (ATOMIC - both locations)
@@ -432,8 +432,8 @@ ENTRY=$(grep -A 10 "^### [PluginName]$" PLUGINS.md | grep "^\*\*Status:\*\*" | s
 
 ```bash
 git add \
-  plugins/${PLUGIN_NAME}/.ideas/plan.md \
-  plugins/${PLUGIN_NAME}/.continue-here.md \
+  plugins/${PLUGIN_NAME}/.planning/plan.md \
+  plugins/${PLUGIN_NAME}/.planning/STATUS.md \
   PLUGINS.md
 
 git commit -m "$(cat <<'EOF'
@@ -503,7 +503,7 @@ Complexity: [X.X] ([Simple/Complex])
 Strategy: [Single-pass | Phased implementation]
 
 Contracts created:
-✓ creative-brief.md
+✓ BRIEF.md
 ✓ parameter-spec.md
 ✓ architecture.md
 ✓ plan.md
@@ -511,7 +511,7 @@ Contracts created:
 Ready to build. Run: /implement [PluginName]
 ```
 
-Exit skill. plugin-workflow will pick up from .continue-here.md.
+Exit skill. plugin-workflow will pick up from .planning/STATUS.md.
 
 ---
 

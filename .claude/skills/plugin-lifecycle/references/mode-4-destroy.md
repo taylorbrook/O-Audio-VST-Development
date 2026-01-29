@@ -86,7 +86,7 @@ MISSING_FILES=()
 
 # Check for critical contract files
 [ ! -f "$SOURCE_DIR/CMakeLists.txt" ] && MISSING_FILES+=("CMakeLists.txt")
-[ ! -f "$SOURCE_DIR/.ideas/creative-brief.md" ] && MISSING_FILES+=(".ideas/creative-brief.md")
+[ ! -f "$SOURCE_DIR/.planning/BRIEF.md" ] && MISSING_FILES+=(".planning/BRIEF.md")
 [ ! -d "$SOURCE_DIR/Source" ] && MISSING_FILES+=("Source/")
 
 if [ ${#MISSING_FILES[@]} -gt 0 ]; then

@@ -41,6 +41,8 @@ Transform your specifications into a fully functional plugin through an automate
 - **UI Integrated** (Stage 3): WebView interface connected to audio engine (or skip for headless plugins) - validated automatically with runtime tests
 - After Stage 3 validation passes: Plugin complete, ready to install
 
+Each stage follows the **GSD cycle**: discuss → research → plan → execute → verify. Documentation is automatically created at each phase, providing full traceability and easy resumption.
+
 ### 4. Deploy & Iterate
 
 - `/install-plugin` - Install to system folders for DAW use
@@ -137,17 +139,34 @@ Browse templates with `/templates` command or let subagents automatically discov
 
 ## System Architecture
 
-### Contracts (Single Source of Truth)
+### Plugin-Local Planning (GSD-Integrated)
 
-Every plugin has immutable contracts in `plugins/[Name]/.ideas/`:
+Every plugin has its own planning directory at `plugins/[Name]/.planning/`:
 
-- `creative-brief.md` - Vision, sonic goals, UX principles
-- `parameter-spec.md` - Complete parameter definitions
-- `architecture.md` - DSP design and signal flow
-- `plan.md` - Implementation strategy
-- `ui-mockups/` - Visual design references
+```
+plugins/[Name]/.planning/
+├── BRIEF.md                    # Vision, sonic goals, UX principles
+├── STATUS.md                   # Current stage, progress, history
+├── ROADMAP.md                  # Implementation strategy and phases
+├── parameter-spec.md           # Complete parameter definitions
+├── research/
+│   └── ARCHITECTURE.md         # DSP design and signal flow
+├── mockups/                    # Visual design references
+└── stages/                     # GSD-style stage documentation
+    ├── 1-foundation/
+    │   ├── CONTEXT.md          # Discuss phase output
+    │   ├── PLAN.md             # Execution plan
+    │   ├── SUMMARY.md          # What was built
+    │   └── VERIFICATION.md     # Verify phase output
+    ├── 2-dsp/
+    └── 3-ui/
+```
+
+**GSD Integration**: Each stage follows the discuss → research → plan → execute → verify cycle with explicit documentation at each phase.
 
 **Zero drift**: All stages reference the same specs. No "telephone game" across workflows.
+
+**Multi-plugin support**: Each plugin carries its own planning context—work on multiple plugins simultaneously without branch switching.
 
 ### Dispatcher Pattern
 
@@ -175,10 +194,11 @@ All features discoverable via:
 At every completion point:
 
 1. Auto-commit changes
-2. Update state files (`.continue-here.md`, `PLUGINS.md`)
-3. Present numbered decision menu
-4. Wait for user response
-5. Execute chosen action
+2. Update state files (`STATUS.md`, `PLUGINS.md`)
+3. Create stage documentation (`CONTEXT.md`, `SUMMARY.md`, `VERIFICATION.md`)
+4. Present numbered decision menu
+5. Wait for user response
+6. Execute chosen action
 
 **Never auto-proceeds**: You stay in control.
 
@@ -266,11 +286,16 @@ MCPs active and suggested:
 
 ### Development Workflow
 
-- `/start` - Brainstorm concept, create creative brief, parameter spec, and UI mockups
+- `/start` - Brainstorm concept, create BRIEF.md, parameter spec, and UI mockups
 - `/plan` - Research and design DSP architecture and implementation strategy
 - `/implement [Name]` - Build plugin through automated 3-stage workflow with continuous validation
 - `/continue [Name]` - Resume paused workflow
 - `/improve [Name]` - Modify completed plugin (with regression testing)
+
+### GSD-Style Phase Commands
+
+- `/plugin:discuss [Name] [Stage]` - Gather context for a stage (discuss phase)
+- `/plugin:verify [Name] [Stage]` - Verify stage completion (verify phase)
 
 ### Quality Assurance
 
@@ -296,22 +321,33 @@ MCPs active and suggested:
 ## Project Structure
 
 ```
-plugin-freedom-system/
+vst-development/
 ├── plugins/                          # Plugin source code
 │   └── [PluginName]/
-│       ├── .ideas/                   # Contracts (immutable during impl)
-│       │   ├── creative-brief.md
-│       │   ├── parameter-spec.md
-│       │   ├── architecture.md
-│       │   ├── plan.md
-│       │   └── ui-mockups/
+│       ├── .planning/                # GSD-style planning (plugin-local)
+│       │   ├── BRIEF.md              # Creative vision
+│       │   ├── STATUS.md             # Current state and progress
+│       │   ├── ROADMAP.md            # Implementation strategy
+│       │   ├── parameter-spec.md     # Parameter definitions
+│       │   ├── research/
+│       │   │   └── ARCHITECTURE.md   # DSP design
+│       │   ├── mockups/              # UI mockup files
+│       │   └── stages/               # Per-stage GSD docs
+│       │       ├── 1-foundation/
+│       │       │   ├── CONTEXT.md    # Discuss output
+│       │       │   ├── PLAN.md       # Execution plan
+│       │       │   ├── SUMMARY.md    # What was built
+│       │       │   └── VERIFICATION.md
+│       │       ├── 2-dsp/
+│       │       └── 3-ui/
 │       ├── Source/                   # C++ implementation
-│       ├── WebUI/                    # HTML/CSS/JS interface
 │       └── CMakeLists.txt
+├── docs/
+│   └── codebase/                     # Shared architecture documentation
 ├── .claude/
 │   ├── skills/                       # Specialized workflows
 │   │   ├── plugin-workflow/          # Orchestrator (Build → DSP → GUI → Validation)
-│   │   ├── plugin-planning/          # Research & design (Research Complete)
+│   │   ├── plugin-planning/          # Research & design (Stage 0)
 │   │   ├── plugin-ideation/          # Concept brainstorming
 │   │   ├── plugin-improve/           # Versioned modifications
 │   │   ├── ui-mockup/                # Visual design system
@@ -321,18 +357,19 @@ plugin-freedom-system/
 │   │   ├── troubleshooting-docs/     # Knowledge capture
 │   │   └── workflow-reconciliation/  # State consistency checks
 │   ├── agents/                       # Implementation subagents
-│   │   ├── research-planning-agent/  # Research Complete (Stage 0)
-│   │   ├── foundation-shell-agent/   # Build System Ready (Stage 1)
-│   │   ├── dsp-agent/                # Audio Engine Working (Stage 2)
-│   │   ├── gui-agent/                # UI Integrated (Stage 3)
-│   │   ├── validation-agent/         # Automatic validation (after each stage)
-│   │   ├── ui-design-agent/          # UI mockup design
-│   │   ├── ui-finalization-agent/    # UI implementation scaffolding
-│   │   └── troubleshoot-agent/       # Build failures
+│   │   ├── research-planning-agent   # Research & Planning (Stage 0)
+│   │   ├── foundation-shell-agent    # Build System Ready (Stage 1)
+│   │   ├── dsp-agent                 # Audio Engine Working (Stage 2)
+│   │   ├── gui-agent                 # UI Integrated (Stage 3)
+│   │   ├── validation-agent          # Automatic validation (after each stage)
+│   │   ├── ui-design-agent           # UI mockup design
+│   │   ├── ui-finalization-agent     # UI implementation scaffolding
+│   │   └── troubleshoot-agent        # Build failures
 │   ├── commands/                     # Slash command prompts
 │   ├── templates/                    # Reusable patterns library
 │   │   ├── code-snippets/            # Copy-paste code with variables
-│   │   └── prose-patterns/           # Conceptual patterns
+│   │   ├── prose-patterns/           # Conceptual patterns
+│   │   └── plugin-planning/          # Plugin .planning/ templates
 │   └── hooks/                        # Validation gates
 ├── scripts/
 │   ├── build-and-install.sh          # 7-phase build pipeline
@@ -344,8 +381,7 @@ plugin-freedom-system/
 │   ├── dsp-issues/
 │   └── patterns/
 │       └── juce8-critical-patterns.md  # Required Reading
-├── PLUGINS.md                        # Plugin registry
-└── .continue-here.md                 # Active workflow state
+└── PLUGINS.md                        # Plugin registry
 ```
 
 ## Philosophy

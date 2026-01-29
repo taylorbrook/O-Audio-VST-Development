@@ -44,7 +44,7 @@ Comprehensive error detection, recovery strategies, and user action patterns for
 
 ### State file corruption
 
-**Detection:** YAML parse error or missing required fields in .continue-here.md
+**Detection:** YAML parse error or missing required fields in .planning/STATUS.md
 
 **Recovery:** Reconstruct from git log and PLUGINS.md
 

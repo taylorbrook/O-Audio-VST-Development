@@ -307,7 +307,7 @@ What would you like to do?
 
 **CRITICAL:** Internal code STILL uses stage numbers for:
 - Routing logic (Stage 1 → foundation-shell-agent, Stage 2 → dsp-agent, Stage 3 → gui-agent)
-- .continue-here.md state tracking (stage: 3)
+- .planning/STATUS.md state tracking (stage: 3)
 - Precondition checks (checkStagePreconditions(3))
 - Git commit metadata (feat: [Plugin] Stage 2 - audio engine working)
 
@@ -322,7 +322,7 @@ What would you like to do?
 
 ## Backward Compatibility
 
-**Existing state files (.continue-here.md):**
+**Existing state files (.planning/STATUS.md):**
 ```yaml
 stage: 2
 milestone: "Audio Engine Working"  # NEW: Added for user-facing display

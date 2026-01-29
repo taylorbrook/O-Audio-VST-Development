@@ -53,7 +53,7 @@ done
 **Mode determination on resume:**
 1. Check for flag override (--express or --manual)
 2. If flag present: Use flag mode (override saved mode)
-3. If no flag: Read workflow_mode from .continue-here.md
+3. If no flag: Read workflow_mode from .planning/STATUS.md
 4. If field missing: Default to "manual"
 
 **Pass mode to continuation skill:**
@@ -63,18 +63,18 @@ if [ -n "$FLAG_MODE" ]; then
   export WORKFLOW_MODE="$FLAG_MODE"
   echo "Workflow mode: $FLAG_MODE (from flag, overriding saved mode)"
 else
-  # Read mode from .continue-here.md (handled by context-resume skill)
+  # Read mode from .planning/STATUS.md (handled by context-resume skill)
   echo "Workflow mode: (resuming with saved mode)"
 fi
 ```
 
 <preconditions enforcement="blocking">
   <check target="handoff_files" condition="at_least_one_exists">
-    Search for `.continue-here.md` files in priority order:
+    Search for `.planning/STATUS.md` files in priority order:
 
     **Without plugin name:**
-    1. `plugins/[Name]/.continue-here.md` (implementation/planning/ideation)
-    2. `plugins/[Name]/.ideas/mockups/.continue-here.md` (mockup iteration)
+    1. `plugins/[Name]/.planning/STATUS.md` (implementation/planning/ideation)
+    2. `plugins/[Name]/.planning/mockups/.planning/STATUS.md` (mockup iteration)
 
     Present interactive menu if multiple found:
     ```
@@ -91,7 +91,7 @@ fi
     ```
 
     **With plugin name:**
-    Load directly: `plugins/[PluginName]/.continue-here.md`
+    Load directly: `plugins/[PluginName]/.planning/STATUS.md`
 
     IF none found: See Error Handling section below.
   </check>
@@ -101,7 +101,7 @@ fi
 
 <state_contract>
   <reads>
-    - `.continue-here.md` (one of 3 locations by priority)
+    - `.planning/STATUS.md` (one of 3 locations by priority)
     - PLUGINS.md (status verification)
     - Recent git commits (for plugin only)
     - Contract files (if workflow stage 0-1)
@@ -166,7 +166,7 @@ See `context-resume` skill's `error-recovery.md` for additional scenarios.
 **Skill:** context-resume
 
 The skill handles:
-- Reading `.continue-here.md` files
+- Reading `.planning/STATUS.md` files
 - Parsing current stage and status
 - Summarizing completed work
 - Loading relevant context

@@ -40,23 +40,23 @@ Creates WebView UI mockups for audio plugins through iterative design and implem
 - `v[N]-CMakeLists.txt` - WebView build configuration
 - `v[N]-integration-checklist.md` - Implementation steps
 </outputs>
-<location>plugins/[PluginName]/.ideas/mockups/</location>
+<location>plugins/[PluginName]/.planning/mockups/</location>
 </phase>
 </workflow>
 
 <context_detection>
 <standalone_mode>
-- No `.continue-here.md` file present
+- No `.planning/STATUS.md` file present
 - Generates mockups independently
 - Skips state updates
 </standalone_mode>
 
 <workflow_mode>
-- File `plugins/[PluginName]/.continue-here.md` exists with `current_stage` field
+- File `plugins/[PluginName]/.planning/STATUS.md` exists with `current_stage` field
 - Updates workflow state after each phase
 </workflow_mode>
 
-Check for `.continue-here.md` existence to determine mode. If present, update state files. If absent, skip state updates.
+Check for `.planning/STATUS.md` existence to determine mode. If present, update state files. If absent, skip state updates.
 </context_detection>
 
 <phase name="0-aesthetic-check">
@@ -218,11 +218,11 @@ See `references/delegation-protocols.md` for enforcement details.
 </delegation_rules>
 
 <state_management>
-Subagents update `.continue-here.md` with their phase results. Orchestrator verifies `stateUpdated` flag in JSON report.
+Subagents update `.planning/STATUS.md` with their phase results. Orchestrator verifies `stateUpdated` flag in JSON report.
 
 After subagent returns `stateUpdated: true`, verify actual state contents match expected values (not just boolean flag).
 
-Read `.continue-here.md`, parse YAML, check specific fields match JSON report values. If mismatch, present state recovery menu.
+Read `.planning/STATUS.md`, parse YAML, check specific fields match JSON report values. If mismatch, present state recovery menu.
 
 See `references/state-tracking.md` for complete state schema and verification protocol.
 </state_management>
@@ -256,18 +256,18 @@ See `references/versioning.md` for file management details.
 - Browser test HTML works (interactive controls, parameter messages)
 - Visual quality meets commercial standard (intentional design, not defaults)
 - Design files committed to git
-- `.continue-here.md` updated with version (if workflow mode)
+- `.planning/STATUS.md` updated with version (if workflow mode)
 - User presented with Phase 5.5 decision menu
 - Design approved OR user iterates with refinements
 </design_phase>
 
 <implementation_phase>
-- All 7 files generated and saved to `.ideas/mockups/`
+- All 7 files generated and saved to `.planning/mockups/`
 - Production HTML complete (no placeholders)
 - C++ boilerplate matches YAML structure (correct parameter bindings)
 - parameter-spec.md generated and locked (v1 only)
 - Implementation files committed to git
-- `.continue-here.md` updated with finalization status (if workflow mode)
+- `.planning/STATUS.md` updated with finalization status (if workflow mode)
 </implementation_phase>
 </success_criteria>
 
@@ -289,13 +289,13 @@ See `references/versioning.md` for file management details.
 </also_invokes>
 
 <creates>
-- `plugins/[Name]/.ideas/mockups/v[N]-*.{yaml,html,h,cpp,txt,md}` (7 files)
-- `plugins/[Name]/.ideas/parameter-spec.md` (if v1 and doesn't exist)
+- `plugins/[Name]/.planning/mockups/v[N]-*.{yaml,html,h,cpp,txt,md}` (7 files)
+- `plugins/[Name]/.planning/parameter-spec.md` (if v1 and doesn't exist)
 </creates>
 
 <updates>
 - `PLUGINS.md` - Mark UI designed (if workflow)
-- `.continue-here.md` - Update workflow state (if workflow)
+- `.planning/STATUS.md` - Update workflow state (if workflow)
 </updates>
 
 <blocks>

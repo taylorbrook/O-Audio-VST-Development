@@ -41,9 +41,9 @@ argument-hint: "[PluginName]"
     At least one ideation artifact MUST exist to preserve
 
     <required_files>
-      - .ideas/creative-brief.md OR
-      - .ideas/mockups/*.html OR
-      - .ideas/parameter-spec.md
+      - .planning/BRIEF.md OR
+      - .planning/mockups/*.html OR
+      - .planning/parameter-spec.md
     </required_files>
 
     <on_failure action="WARN">
@@ -77,15 +77,15 @@ argument-hint: "[PluginName]"
 
 <preservation_contract>
   <preserved>
-    - Creative brief (.ideas/creative-brief.md)
-    - UI mockups (.ideas/mockups/)
-    - Parameter specifications (.ideas/parameter-spec.md)
+    - Creative brief (.planning/BRIEF.md)
+    - UI mockups (.planning/mockups/)
+    - Parameter specifications (.planning/parameter-spec.md)
   </preserved>
 
   <removed>
     - Source code (Source/ directory)
     - Build configuration (CMakeLists.txt)
-    - Implementation docs (.ideas/architecture.md, .ideas/plan.md)
+    - Implementation docs (.planning/research/ARCHITECTURE.md, .planning/ROADMAP.md)
     - Build artifacts and installed binaries
   </removed>
 

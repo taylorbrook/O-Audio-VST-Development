@@ -19,11 +19,11 @@ color: green
 
 Stage 3 requires these conditions to be met:
 
-1. **Finalized UI mockup exists:** `plugins/[PluginName]/.ideas/mockups/v[N]-ui.html`
+1. **Finalized UI mockup exists:** `plugins/[PluginName]/.planning/mockups/v[N]-ui.html`
    - Verify: Check for files matching pattern `v*-ui.html` with highest version number
    - If missing: Return failure report with `error_type: "missing_mockup"`
 
-2. **parameter-spec.md exists:** `plugins/[PluginName]/.ideas/parameter-spec.md`
+2. **parameter-spec.md exists:** `plugins/[PluginName]/.planning/parameter-spec.md`
    - Verify: File exists and contains parameter definitions
    - If missing: Return failure report with `error_type: "missing_contract"`
 
@@ -46,7 +46,7 @@ Stage 3 requires these conditions to be met:
   },
   "issues": [
     "BLOCKING ERROR: No finalized UI mockup found",
-    "Expected location: plugins/[PluginName]/.ideas/mockups/v[N]-ui.html",
+    "Expected location: plugins/[PluginName]/.planning/mockups/v[N]-ui.html",
     "Resolution: Complete UI mockup workflow (/mockup) and finalize a design version"
   ],
   "ready_for_next_stage": false
@@ -60,7 +60,7 @@ Stage 3 requires these conditions to be met:
 You integrate UI and return a JSON report. **You do NOT compile or verify builds.**
 
 **What you DO:**
-1. Read contracts (v[N]-ui.html, parameter-spec.md, creative-brief.md)
+1. Read contracts (v[N]-ui.html, parameter-spec.md, BRIEF.md)
 2. Create Source/ui/ directory structure with HTML/CSS/JS files
 3. Modify PluginEditor.h/cpp to add WebBrowserComponent and parameter bindings
 4. Update CMakeLists.txt to include juce_add_binary_data() and JUCE_WEB_BROWSER=1
@@ -85,15 +85,15 @@ You will receive FILE PATHS for the following contracts (read them yourself usin
 
 1. **v[N]-ui.html** - CRITICAL: Finalized UI mockup (complete HTML/CSS/JS)
 2. **parameter-spec.md** - Parameter IDs, types, ranges (must match HTML IDs exactly)
-3. **creative-brief.md** - Plugin name and visual aesthetic
-4. **architecture.md** - Context for parameter usage
+3. **BRIEF.md** - Plugin name and visual aesthetic
+4. **research/ARCHITECTURE.md** - Context for parameter usage
 5. **stage-3-patterns.md** - REQUIRED READING: Stage 3 specific patterns (14 of 22 total)
 
 **How to read:** Use Read tool with file paths provided in orchestrator prompt.
 
 **Plugin location:** `plugins/[PluginName]/`
 
-**UI mockup location:** `plugins/[PluginName]/.ideas/mockups/v[N]-ui.html`
+**UI mockup location:** `plugins/[PluginName]/.planning/mockups/v[N]-ui.html`
 </contracts>
 
 <contract_enforcement>
@@ -109,7 +109,7 @@ You will receive FILE PATHS for the following contracts (read them yourself usin
   "issues": [
     "BLOCKING ERROR: No finalized UI mockup found",
     "This contract is REQUIRED for Stage 2 implementation",
-    "Finalized mockup format: plugins/[PluginName]/.ideas/mockups/v[N]-ui.html",
+    "Finalized mockup format: plugins/[PluginName]/.planning/mockups/v[N]-ui.html",
     "Resolution: Complete UI mockup workflow (/mockup) and finalize a design version",
     "Finalized mockups are marked with version number (v1, v2, v3, etc.)",
     "Then re-run Stage 2"
@@ -180,7 +180,7 @@ Templates are located at:
 
 ```bash
 # Look for finalized mockup files
-WEBVIEW_MOCKUP_DIR="plugins/$PLUGIN_NAME/.ideas/mockups/"
+WEBVIEW_MOCKUP_DIR="plugins/$PLUGIN_NAME/.planning/mockups/"
 
 # Find highest version number with implementation files
 LATEST_VERSION=$(find "$WEBVIEW_MOCKUP_DIR" -name "v*-ui.html" 2>/dev/null | \
@@ -233,7 +233,7 @@ Follow steps 1-12 below for WebView integration.
 
 ### 1. Identify Finalized Mockup
 
-**Scan `.ideas/mockups/` directory for finalized version:**
+**Scan `.planning/mockups/` directory for finalized version:**
 
 - Look for `v[N]-ui.html` files (v1-ui.html, v2-ui.html, etc.)
 - Higher version number = more recent
@@ -257,14 +257,14 @@ import re
 from pathlib import Path
 
 # Read HTML
-html_content = Path(f"plugins/{PLUGIN_NAME}/.ideas/mockups/v{VERSION}-ui.html").read_text()
+html_content = Path(f"plugins/{PLUGIN_NAME}/.planning/mockups/v{VERSION}-ui.html").read_text()
 
 # Extract parameter IDs from HTML (look for data-param-id, id attributes on input elements)
 html_param_ids = set(re.findall(r'data-param-id=["\'](\w+)["\']', html_content))
 html_param_ids.update(re.findall(r'<(?:input|select)[^>]+id=["\'](\w+)["\']', html_content))
 
 # Read parameter-spec.md
-spec_content = Path(f"plugins/{PLUGIN_NAME}/.ideas/parameter-spec.md").read_text()
+spec_content = Path(f"plugins/{PLUGIN_NAME}/.planning/parameter-spec.md").read_text()
 
 # Extract parameter IDs from spec (format: "- **ID:** PARAM_NAME")
 spec_param_ids = set(re.findall(r'\*\*ID:\*\*\s+(\w+)', spec_content))
@@ -299,7 +299,7 @@ mkdir -p Source/ui/public/images
 **Copy finalized mockup:**
 
 ```bash
-cp .ideas/mockups/v[N]-ui.html Source/ui/public/index.html
+cp .planning/mockups/v[N]-ui.html Source/ui/public/index.html
 ```
 
 **If mockup includes separate CSS/JS files, copy those too:**
@@ -999,7 +999,7 @@ Read the existing continuation file:
 
 ```bash
 # Read current state
-cat plugins/[PluginName]/.continue-here.md
+cat plugins/[PluginName]/.planning/STATUS.md
 ```
 
 Parse the YAML frontmatter to verify the current stage matches expected (should be 3).
@@ -1010,13 +1010,13 @@ Calculate SHA256 checksums for tamper detection:
 
 ```bash
 # Calculate checksums
-BRIEF_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/creative-brief.md | awk '{print $1}')
-PARAM_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/parameter-spec.md | awk '{print $1}')
-ARCH_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/architecture.md | awk '{print $1}')
-PLAN_SHA=$(shasum -a 256 plugins/[PluginName]/.ideas/plan.md | awk '{print $1}')
+BRIEF_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/BRIEF.md | awk '{print $1}')
+PARAM_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/parameter-spec.md | awk '{print $1}')
+ARCH_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/research/ARCHITECTURE.md | awk '{print $1}')
+PLAN_SHA=$(shasum -a 256 plugins/[PluginName]/.planning/ROADMAP.md | awk '{print $1}')
 ```
 
-### Step 3: Update .continue-here.md
+### Step 3: Update .planning/STATUS.md
 
 Update the YAML frontmatter fields:
 
@@ -1027,8 +1027,8 @@ stage: 3
 phase: null
 status: complete
 last_updated: [YYYY-MM-DD]
-complexity_score: [from plan.md]
-phased_implementation: [from plan.md]
+complexity_score: [from ROADMAP.md]
+phased_implementation: [from ROADMAP.md]
 orchestration_mode: true
 next_action: begin_stage_4
 next_phase: null
@@ -1100,7 +1100,7 @@ Include state update status in the completion report:
   "issues": [],
   "ready_for_next_stage": true,
   "stateUpdated": false,
-  "stateUpdateError": "Failed to write .continue-here.md: [error message]"
+  "stateUpdateError": "Failed to write .planning/STATUS.md: [error message]"
 }
 ```
 
@@ -1129,7 +1129,7 @@ If state update fails:
 8. Automation works (parameters change UI)
 9. Presets work (load updates UI)
 10. Plugin doesn't crash on reload
-11. State files updated (.continue-here.md, PLUGINS.md)
+11. State files updated (.planning/STATUS.md, PLUGINS.md)
 
 **Stage 3 fails when:**
 

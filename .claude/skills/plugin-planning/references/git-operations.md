@@ -8,8 +8,8 @@ Standard git commit patterns for plugin-planning stages.
 
 **Files to stage:**
 ```bash
-git add plugins/${PLUGIN_NAME}/.ideas/architecture.md \
-        plugins/${PLUGIN_NAME}/.continue-here.md \
+git add plugins/${PLUGIN_NAME}/.planning/architecture.md \
+        plugins/${PLUGIN_NAME}/.planning/STATUS.md \
         PLUGINS.md
 ```
 
@@ -34,8 +34,8 @@ EOF
 
 **Files to stage:**
 ```bash
-git add plugins/${PLUGIN_NAME}/.ideas/plan.md \
-        plugins/${PLUGIN_NAME}/.continue-here.md \
+git add plugins/${PLUGIN_NAME}/.planning/plan.md \
+        plugins/${PLUGIN_NAME}/.planning/STATUS.md \
         PLUGINS.md
 ```
 

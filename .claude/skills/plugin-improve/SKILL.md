@@ -172,7 +172,7 @@ Choose (1-3): _
 
 **Workflow:**
 
-1. Read .continue-here.md and check `gui_type` field
+1. Read .planning/STATUS.md and check `gui_type` field
 2. If `gui_type: headless` OR WebView UI files don't exist → Plugin is headless
 3. If headless, present 4-option menu: Create UI, Keep headless, Explain headless, Other
 4. If "Create UI" selected → Invoke ui-mockup skill, then gui-agent subagent

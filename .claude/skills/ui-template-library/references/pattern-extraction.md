@@ -495,7 +495,7 @@ grep -o "<section\|<div class=['\"]section\|<div class=['\"]group" mockup.html |
 
 ```bash
 #!/bin/bash
-MOCKUP="plugins/TapeAge/.ideas/mockups/v2-ui.html"
+MOCKUP="plugins/TapeAge/.planning/mockups/v2-ui.html"
 
 echo "=== COLOR EXTRACTION ==="
 COLORS=$(grep -oE '#[0-9a-fA-F]{6}' "$MOCKUP" | sort -u)

@@ -511,7 +511,7 @@ def calculate_recommended_dimensions(layout_type, controls, spacing, margins):
 ```
 Step 1: Count controls from user requirements
     - Parse control types from design requirements
-    - Count parameters from creative-brief.md (if exists)
+    - Count parameters from BRIEF.md (if exists)
 
 Step 2: Estimate control sizes based on layout style
     - Vintage/skeuomorphic → Large (100px knobs)
@@ -1215,7 +1215,7 @@ Choose (1-3): _
 # After generating v1-ui.yaml
 
 echo "Validating layout constraints..."
-python validate_layout.py plugins/PluginName/.ideas/mockups/v1-ui.yaml
+python validate_layout.py plugins/PluginName/.planning/mockups/v1-ui.yaml
 
 # Output:
 ✅ PASSED - No errors or warnings

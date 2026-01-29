@@ -47,8 +47,8 @@ Detect current workflow context, validate state file currency, and remediate gap
   <required_analysis>
     Detect current workflow context by analyzing:
 
-    <detection_method priority="1" source=".continue-here.md">
-      IF .continue-here.md exists in current plugin directory:
+    <detection_method priority="1" source=".planning/STATUS.md">
+      IF .planning/STATUS.md exists in current plugin directory:
         - Extract YAML frontmatter (workflow, stage, status, phase)
         - This is authoritative source of workflow state
     </detection_method>
@@ -63,8 +63,8 @@ Detect current workflow context, validate state file currency, and remediate gap
       IF no handoff file found:
         - Analyze files created/modified in session
         - Infer workflow from file patterns:
-          - .ideas/creative-brief.md → plugin-ideation
-          - .ideas/mockups/v*-ui.html → ui-mockup
+          - .planning/BRIEF.md → plugin-ideation
+          - .planning/mockups/v*-ui.html → ui-mockup
           - Source/*.cpp changes + CHANGELOG.md → plugin-improve
           - plugins/*/CMakeLists.txt → plugin-workflow (Stage 1+)
     </detection_method>
@@ -107,7 +107,7 @@ Detect current workflow context, validate state file currency, and remediate gap
 <gap_analysis enforcement="blocking">
   <validation_sequence enforce_order="true">
     <check order="1" category="contract_immutability" required="true">
-      For contract files (.ideas/*.md):
+      For contract files (.planning/*.md):
         - Check if workflow is plugin-workflow AND stage is 1, 2, or 3
         - If YES: WARN user that contracts are immutable during implementation
         - Suggest completing current stage or rolling back to Stage 0
@@ -123,7 +123,7 @@ Detect current workflow context, validate state file currency, and remediate gap
     </check>
 
     <check order="3" category="state_file_currency" required="true">
-      Read .continue-here.md YAML frontmatter:
+      Read .planning/STATUS.md YAML frontmatter:
         - Extract: stage, phase, status, workflow, last_updated
         - Compare to detected context
         - Record as GAP if mismatch
@@ -150,7 +150,7 @@ Detect current workflow context, validate state file currency, and remediate gap
         {"file": "CMakeLists.txt", "status": "missing", "expected_path": "plugins/{PluginName}/CMakeLists.txt"}
       ],
       "state_currency_gaps": [
-        {"file": ".continue-here.md", "field": "stage", "current": "2", "expected": "3"}
+        {"file": ".planning/STATUS.md", "field": "stage", "current": "2", "expected": "3"}
       ],
       "git_status_gaps": [
         {"file": "Source/PluginProcessor.cpp", "status": "modified", "staged": false}
@@ -190,7 +190,7 @@ Detect current workflow context, validate state file currency, and remediate gap
       <menu_options category="minor_gaps" condition="only_timestamp_drift">
         1. Fix automatically - Update timestamps and commit
         2. Show me the diffs first
-        3. Update .continue-here.md only
+        3. Update .planning/STATUS.md only
         4. Skip reconciliation
         5. Other
       </menu_options>
@@ -199,7 +199,7 @@ Detect current workflow context, validate state file currency, and remediate gap
         1. Fix everything automatically - Create/update files and commit
         2. Show me the diffs first - Preview before committing
         3. Fix files only (no commit) - Update files but don't commit
-        4. Update .continue-here.md only - Minimal checkpoint
+        4. Update .planning/STATUS.md only - Minimal checkpoint
         5. Skip reconciliation - I'll handle manually
         6. Other
       </menu_options>
@@ -240,14 +240,14 @@ Detect current workflow context, validate state file currency, and remediate gap
   </strategy>
 
   <strategy id="fix_files_only">
-    1. Update state files (.continue-here.md, PLUGINS.md)
+    1. Update state files (.planning/STATUS.md, PLUGINS.md)
     2. Verify files written successfully and YAML is valid
     3. Do NOT stage or commit
     4. Confirm files updated
   </strategy>
 
   <strategy id="update_handoff_only">
-    1. Update .continue-here.md with current context
+    1. Update .planning/STATUS.md with current context
     2. Verify file written successfully and YAML is valid
     3. Leave other files unchanged
     4. Confirm minimal checkpoint complete
@@ -262,7 +262,7 @@ Detect current workflow context, validate state file currency, and remediate gap
 ## Reference Files
 
 - [reconciliation-rules.json](assets/reconciliation-rules.json) - Workflow-specific expectations (includes commit message templates)
-- [handoff-formats.md](references/handoff-formats.md) - .continue-here.md structure per workflow
+- [handoff-formats.md](references/handoff-formats.md) - .planning/STATUS.md structure per workflow
 - [reconciliation-examples.md](assets/reconciliation-examples.md) - Example reports and outputs
 
 ## Success Criteria
@@ -270,7 +270,7 @@ Detect current workflow context, validate state file currency, and remediate gap
 Reconciliation succeeds when:
 
 **State Files**:
-- .continue-here.md exists with current workflow, stage/phase, and timestamp
+- .planning/STATUS.md exists with current workflow, stage/phase, and timestamp
 - PLUGINS.md status emoji matches expected state for current stage
 - All required_files from reconciliation rule exist at expected paths
 

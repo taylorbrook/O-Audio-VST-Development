@@ -26,4 +26,4 @@ DSP architecture documented. Ready to proceed to planning.
 3. Pause here
 
 ## Files Created
-- plugins/${PLUGIN_NAME}/.ideas/architecture.md
+- plugins/${PLUGIN_NAME}/.planning/architecture.md

@@ -18,12 +18,12 @@ Generate YAML specification and browser-testable HTML mockup for rapid iteration
 **Before invoking ui-design-agent:**
 
 1. **Read context files in parallel:**
-   - `creative-brief.md` (if exists)
+   - `BRIEF.md` (if exists)
    - Aesthetic template (if user selected one in Phase 0)
    - Previous version YAML (if iteration)
 
 2. **Detect version number:**
-   - List all `v*-ui.yaml` files in `.ideas/mockups/`
+   - List all `v*-ui.yaml` files in `.planning/mockups/`
    - Extract version numbers, find highest
    - Increment for new version
 
@@ -195,7 +195,7 @@ When agent returns `stateUpdated == false`:
 What would you like to do?
 
 1. Verify state - Check if update actually happened
-2. Manual update - I'll fix .continue-here.md myself
+2. Manual update - I'll fix .planning/STATUS.md myself
 3. Continue anyway - State not critical for this step
 4. Other
 
@@ -234,7 +234,7 @@ IF orchestrator attempts to generate files directly:
 ## Tool Usage by Phase
 
 ### Orchestrator (ui-mockup skill)
-- **Read:** Load context files (creative-brief.md, aesthetics, previous versions)
+- **Read:** Load context files (BRIEF.md, aesthetics, previous versions)
 - **Task:** Invoke subagents (ui-design-agent, ui-finalization-agent)
 - **AskUserQuestion:** Gather requirements (Phases 1-3), internal routing
 - **Inline menus:** Decision menus (Phase 5.5, Phase 10.7)
@@ -242,7 +242,7 @@ IF orchestrator attempts to generate files directly:
 ### Subagents (ui-design-agent, ui-finalization-agent)
 - **Read:** Load specifications (YAML, HTML, parameter-spec.md)
 - **Write:** Create mockup files (7 total files across both agents)
-- **Edit:** Update state files (.continue-here.md, PLUGINS.md)
+- **Edit:** Update state files (.planning/STATUS.md, PLUGINS.md)
 - **Bash:** Git commits, file operations
 
 Orchestrator NEVER uses Write or Edit for mockup files.

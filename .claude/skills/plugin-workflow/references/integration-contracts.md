@@ -32,7 +32,7 @@ All subagents follow a consistent contract pattern:
 Implement Stage 1 (Foundation) for [PluginName].
 
 **Contracts:**
-- creative-brief.md: [full content]
+- BRIEF.md: [full content]
 - architecture.md: [full content]
 - plan.md: [full content]
 
@@ -203,7 +203,7 @@ Return JSON validation report.
 - Stage number (integer 0-3)
 - Phase (string or null)
 - Orchestration mode (boolean, must be true)
-- Handoff context (full .continue-here.md content)
+- Handoff context (full .planning/STATUS.md content)
 
 **Returns:**
 - Resumes at specified stage/phase

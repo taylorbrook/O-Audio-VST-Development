@@ -57,7 +57,7 @@ Plugin status is stored in the plugin-local planning directory:
 Plugin in active development (Stages 0-3, ideation, improvement planning). Contains stage, orchestration_mode, next_action, completed work, next steps, and full progress history.
 
 **Mockup Status (if separate):**
-`plugins/[PluginName]/.planning/mockups/.continue-here.md`
+`plugins/[PluginName]/.planning/mockups/.planning/STATUS.md`
 
 UI mockup iteration in progress. Contains mockup_version, iteration notes, finalization status.
 

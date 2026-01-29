@@ -28,5 +28,5 @@ Implementation plan created. Ready to proceed to foundation (Stage 1).
 3. Pause here
 
 ## Files Created
-- plugins/${PLUGIN_NAME}/.ideas/architecture.md
-- plugins/${PLUGIN_NAME}/.ideas/plan.md
+- plugins/${PLUGIN_NAME}/.planning/architecture.md
+- plugins/${PLUGIN_NAME}/.planning/plan.md

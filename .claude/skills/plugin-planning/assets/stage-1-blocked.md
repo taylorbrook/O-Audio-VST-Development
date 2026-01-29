@@ -7,7 +7,7 @@
 Missing implementation contracts:
 
 Required contracts:
-✓ creative-brief.md - exists
+✓ BRIEF.md - exists
 [✓/✗] parameter-spec.md - [exists/MISSING (required)]
 [✓/✗] architecture.md - [exists/MISSING (required)]
 
@@ -27,6 +27,6 @@ Stage 1 planning requires complete specifications to prevent implementation drif
    - Run Stage 0 (Research) to generate architecture.md
    - Document DSP components and processing chain
    - Map parameters to DSP components
-   - Save to plugins/${PLUGIN_NAME}/.ideas/architecture.md
+   - Save to plugins/${PLUGIN_NAME}/.planning/architecture.md
 
 Once both contracts exist, Stage 1 will proceed.

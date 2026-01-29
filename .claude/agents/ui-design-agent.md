@@ -22,7 +22,7 @@ Before starting UI design generation, verify these conditions are met:
 
 1. **Plugin name provided** - Must be specified in invocation prompt
 2. **Design requirements provided** - Layout, controls, styling preferences in prompt
-3. **creative-brief.md exists (optional)** - Provides additional context if available
+3. **BRIEF.md exists (optional)** - Provides additional context if available
 
 **If plugin name missing:**
 ```json
@@ -74,11 +74,11 @@ If contracts are malformed or missing critical information:
      "status": "failure",
      "outputs": {
        "error_type": "invalid_contract",
-       "contract_file": "creative-brief.md",
-       "error_message": "creative-brief.md missing 'Parameters' section"
+       "contract_file": "BRIEF.md",
+       "error_message": "BRIEF.md missing 'Parameters' section"
      },
      "issues": [
-       "Contract validation failed: creative-brief.md incomplete",
+       "Contract validation failed: BRIEF.md incomplete",
        "Required section 'Parameters' not found"
      ],
      "ready_for_next_stage": false,
@@ -109,11 +109,11 @@ You will receive the following inputs from the orchestrator via invocation promp
 1. **Plugin name** - Name of the plugin being designed
 2. **Version number** - Mockup version (v1, v2, v3, etc.)
 3. **Design requirements** - Layout, controls, styling preferences collected by orchestrator
-4. **creative-brief.md** (optional) - Plugin context if available
+4. **BRIEF.md** (optional) - Plugin context if available
 
 **Plugin location:** `plugins/[PluginName]/`
 
-**Output location:** `plugins/[PluginName]/.ideas/mockups/`
+**Output location:** `plugins/[PluginName]/.planning/mockups/`
 
 **Invocation prompt format:**
 ```
@@ -195,10 +195,10 @@ This means:
 - Color palette or theme
 - Window dimensions (width x height)
 
-**Read creative-brief.md if it exists:**
+**Read BRIEF.md if it exists:**
 
 ```bash
-BRIEF_PATH="plugins/${PLUGIN_NAME}/.ideas/creative-brief.md"
+BRIEF_PATH="plugins/${PLUGIN_NAME}/.planning/BRIEF.md"
 
 if [ -f "$BRIEF_PATH" ]; then
     # Extract additional context
@@ -213,7 +213,7 @@ fi
 
 ### 2. Generate Hierarchical YAML Specification
 
-**Create:** `plugins/[PluginName]/.ideas/mockups/v[N]-ui.yaml`
+**Create:** `plugins/[PluginName]/.planning/mockups/v[N]-ui.yaml`
 
 **Use template:** `ui-mockup/assets/ui-yaml-template.yaml`
 
@@ -268,7 +268,7 @@ styling:
 
 ### 3. Generate Browser Test HTML
 
-**Create:** `plugins/[PluginName]/.ideas/mockups/v[N]-ui-test.html`
+**Create:** `plugins/[PluginName]/.planning/mockups/v[N]-ui-test.html`
 
 **Purpose:** Standalone HTML file that opens in browser for design testing.
 
@@ -685,7 +685,7 @@ Proceed to commit and state update.
 **After validation passes, automatically open the test HTML in browser.**
 
 ```bash
-open "plugins/${PLUGIN_NAME}/.ideas/mockups/v${VERSION}-ui-test.html"
+open "plugins/${PLUGIN_NAME}/.planning/mockups/v${VERSION}-ui-test.html"
 ```
 
 This allows immediate visual inspection of the design.
@@ -700,7 +700,7 @@ This allows immediate visual inspection of the design.
 **After validation passes, commit both files atomically:**
 
 ```bash
-cd plugins/${PLUGIN_NAME}/.ideas/mockups
+cd plugins/${PLUGIN_NAME}/.planning/mockups
 
 git add "v${VERSION}-ui.yaml" "v${VERSION}-ui-test.html"
 
@@ -736,7 +736,7 @@ If commit fails, report in JSON output.
 **Check for workflow context:**
 
 ```bash
-CONTINUE_FILE="plugins/${PLUGIN_NAME}/.continue-here.md"
+CONTINUE_FILE="plugins/${PLUGIN_NAME}/.planning/STATUS.md"
 
 if [ -f "$CONTINUE_FILE" ]; then
     WORKFLOW_MODE=true
@@ -782,11 +782,11 @@ fi
 
 ### 9. Calculate Contract Checksums (If Workflow Context)
 
-**If creative-brief.md exists, calculate checksum for validation:**
+**If BRIEF.md exists, calculate checksum for validation:**
 
 ```bash
-if [ -f "plugins/${PLUGIN_NAME}/.ideas/creative-brief.md" ]; then
-    BRIEF_SHA=$(shasum -a 256 "plugins/${PLUGIN_NAME}/.ideas/creative-brief.md" | awk '{print $1}')
+if [ -f "plugins/${PLUGIN_NAME}/.planning/BRIEF.md" ]; then
+    BRIEF_SHA=$(shasum -a 256 "plugins/${PLUGIN_NAME}/.planning/BRIEF.md" | awk '{print $1}')
 else
     BRIEF_SHA="none"
 fi
@@ -810,8 +810,8 @@ After completing UI design generation, update workflow state files (if in workfl
 
 ```bash
 # Read current state
-if [ -f "plugins/${PLUGIN_NAME}/.continue-here.md" ]; then
-    cat "plugins/${PLUGIN_NAME}/.continue-here.md"
+if [ -f "plugins/${PLUGIN_NAME}/.planning/STATUS.md" ]; then
+    cat "plugins/${PLUGIN_NAME}/.planning/STATUS.md"
 fi
 ```
 
@@ -823,14 +823,14 @@ Calculate SHA256 checksums for tamper detection:
 
 ```bash
 # Calculate checksums
-if [ -f "plugins/${PLUGIN_NAME}/.ideas/creative-brief.md" ]; then
-    BRIEF_SHA=$(shasum -a 256 "plugins/${PLUGIN_NAME}/.ideas/creative-brief.md" | awk '{print $1}')
+if [ -f "plugins/${PLUGIN_NAME}/.planning/BRIEF.md" ]; then
+    BRIEF_SHA=$(shasum -a 256 "plugins/${PLUGIN_NAME}/.planning/BRIEF.md" | awk '{print $1}')
 else
     BRIEF_SHA="none"
 fi
 ```
 
-### Step 3: Update .continue-here.md
+### Step 3: Update .planning/STATUS.md
 
 Update the YAML frontmatter fields:
 
@@ -909,7 +909,7 @@ Include state update status in the completion report:
   "issues": [],
   "ready_for_next_stage": true,
   "stateUpdated": false,
-  "stateUpdateError": "Failed to write .continue-here.md: [error message]"
+  "stateUpdateError": "Failed to write .planning/STATUS.md: [error message]"
 }
 ```
 
@@ -1093,7 +1093,7 @@ If state update fails:
 
 - [ ] v[N]-ui.yaml created with valid YAML structure
 - [ ] v[N]-ui-test.html created with complete HTML
-- [ ] Both files saved to plugins/[PluginName]/.ideas/mockups/
+- [ ] Both files saved to plugins/[PluginName]/.planning/mockups/
 
 ### YAML Specification
 
@@ -1132,7 +1132,7 @@ If state update fails:
 
 ### State Management (If Workflow Context)
 
-- [ ] Workflow context detected (.continue-here.md exists)
+- [ ] Workflow context detected (.planning/STATUS.md exists)
 - [ ] latest_mockup_version updated to [N]
 - [ ] mockup_finalized remains false
 - [ ] Contract checksums calculated
@@ -1245,7 +1245,7 @@ After UI design agent completes:
 
 **Issue 5: State update fails**
 
-- Symptom: sed command fails to update .continue-here.md
+- Symptom: sed command fails to update .planning/STATUS.md
 - Resolution: Verify file exists, check file permissions, verify YAML format
 - Impact: Workflow state out of sync, orchestrator may have stale data
 

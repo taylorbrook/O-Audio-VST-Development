@@ -29,7 +29,7 @@ Otherwise: Invoke agent once for entire stage.
 
 ```typescript
 // 1. Read plan.md to check for phases
-const planContent = readFile(`plugins/${pluginName}/.ideas/plan.md`);
+const planContent = readFile(`plugins/${pluginName}/.planning/plan.md`);
 
 // 2. Extract complexity score
 const complexityMatch = planContent.match(/\*\*Complexity Score:\*\*\s+([\d.]+)/);
@@ -189,13 +189,13 @@ function constructPhasePrompt(phase, pluginName, currentStage, totalPhases) {
   const criticalPatterns = readFile("troubleshooting/patterns/juce8-critical-patterns.md");
 
   // Read contracts
-  const architectureMd = readFile(`plugins/${pluginName}/.ideas/architecture.md`);
-  const parameterSpecMd = readFile(`plugins/${pluginName}/.ideas/parameter-spec.md`);
-  const planMd = readFile(`plugins/${pluginName}/.ideas/plan.md`);
+  const architectureMd = readFile(`plugins/${pluginName}/.planning/architecture.md`);
+  const parameterSpecMd = readFile(`plugins/${pluginName}/.planning/parameter-spec.md`);
+  const planMd = readFile(`plugins/${pluginName}/.planning/plan.md`);
 
   // Stage-specific additional contracts
   const creativeBriefMd = currentStage === 3
-    ? readFile(`plugins/${pluginName}/.ideas/creative-brief.md`)
+    ? readFile(`plugins/${pluginName}/.planning/BRIEF.md`)
     : null;
 
   const mockupPath = currentStage === 3
@@ -225,7 +225,7 @@ ${parameterSpecMd}
 ${planMd}
 
 ${currentStage === 3 ? `
-- creative-brief.md:
+- BRIEF.md:
 ${creativeBriefMd}
 
 - UI Mockup: ${mockupPath}
@@ -309,7 +309,7 @@ Build verification handled by workflow after agent completes.
 
 After each phase completes:
 1. ✓ Commit phase changes (git commit with phase number)
-2. ✓ Update handoff (.continue-here.md with current phase)
+2. ✓ Update handoff (.planning/STATUS.md with current phase)
 3. ✓ Update plugin status (PLUGINS.md with phase emoji)
 4. ✓ Update plan.md (phase completion timestamp)
 5. ✓ Verify checkpoint succeeded (all files updated)

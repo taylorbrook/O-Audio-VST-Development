@@ -37,6 +37,6 @@ This structure reduces initial skill load from ~8k tokens (889 lines) to ~2k tok
 ## Related Assets
 
 Check `../assets/` for document templates:
-- `creative-brief.md` - Template for new plugin briefs
+- `BRIEF.md` - Template for new plugin briefs
 - `improvement-proposal.md` - Template for improvement proposals
 - `parameter-spec-draft-template.md` - Template for quick parameter capture

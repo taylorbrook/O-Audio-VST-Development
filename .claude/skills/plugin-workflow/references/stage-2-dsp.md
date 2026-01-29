@@ -21,7 +21,7 @@
 Determine if phased implementation is required:
 
 ```typescript
-const planContent = readFile(`plugins/${pluginName}/.ideas/plan.md`);
+const planContent = readFile(`plugins/${pluginName}/.planning/plan.md`);
 
 // Extract complexity score
 const complexityMatch = planContent.match(/Complexity Score:\*\*\s*([\d.]+)/);
@@ -56,10 +56,10 @@ You are dsp-agent implementing Stage 2 for ${pluginName}.
 **Your task:** Implement ALL DSP components from architecture.md
 
 **Contracts (read these files yourself):**
-- creative-brief.md: plugins/${pluginName}/.ideas/creative-brief.md
-- architecture.md: plugins/${pluginName}/.ideas/architecture.md
-- plan.md: plugins/${pluginName}/.ideas/plan.md
-- parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
+- BRIEF.md: plugins/${pluginName}/.planning/BRIEF.md
+- architecture.md: plugins/${pluginName}/.planning/architecture.md
+- plan.md: plugins/${pluginName}/.planning/plan.md
+- parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 - Required Reading: troubleshooting/patterns/stage-2-patterns.md
 
 **CRITICAL: Read Required Reading BEFORE implementation.**
@@ -159,10 +159,10 @@ You are dsp-agent implementing Phase ${phase.number} for ${pluginName}.
 **Your task:** Implement Phase ${phase.number} components only
 
 **Contracts (read these files yourself):**
-- creative-brief.md: plugins/${pluginName}/.ideas/creative-brief.md
-- architecture.md: plugins/${pluginName}/.ideas/architecture.md
-- plan.md: plugins/${pluginName}/.ideas/plan.md
-- parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
+- BRIEF.md: plugins/${pluginName}/.planning/BRIEF.md
+- architecture.md: plugins/${pluginName}/.planning/architecture.md
+- plan.md: plugins/${pluginName}/.planning/plan.md
+- parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 - Required Reading: troubleshooting/patterns/stage-2-patterns.md
 
 **CRITICAL: Read Required Reading BEFORE implementation.**
@@ -219,8 +219,8 @@ Choose (1-4): _
   // Git commit for this phase
   await bash(`
 git add plugins/${pluginName}/Source/
-git add plugins/${pluginName}/.ideas/plan.md
-git add plugins/${pluginName}/.continue-here.md
+git add plugins/${pluginName}/.planning/plan.md
+git add plugins/${pluginName}/.planning/STATUS.md
 
 git commit -m "$(cat <<'EOF'
 feat: ${pluginName} Stage ${phase.number} - ${phase.description}
@@ -319,7 +319,7 @@ updatePluginTimeline(
 // Git commit
 bash(`
 git add plugins/${pluginName}/Source/
-git add plugins/${pluginName}/.continue-here.md
+git add plugins/${pluginName}/.planning/STATUS.md
 git add PLUGINS.md
 
 git commit -m "$(cat <<'EOF'
@@ -437,12 +437,12 @@ if (complexityScore >= 4) {
 
   // Read contracts
   const paramSpecContent = readFile(
-    `plugins/${pluginName}/.ideas/parameter-spec.md`
+    `plugins/${pluginName}/.planning/parameter-spec.md`
   );
   const architectureContent = readFile(
-    `plugins/${pluginName}/.ideas/architecture.md`
+    `plugins/${pluginName}/.planning/architecture.md`
   );
-  const planContent = readFile(`plugins/${pluginName}/.ideas/plan.md`);
+  const planContent = readFile(`plugins/${pluginName}/.planning/plan.md`);
 
   const validationResult = Task({
     subagent_type: "validation-agent",
@@ -708,7 +708,7 @@ Mockup preserved for future use (add UI via /improve later).
   bash(`
 git add plugins/${pluginName}/Source/PluginEditor.h
 git add plugins/${pluginName}/Source/PluginEditor.cpp
-git add plugins/${pluginName}/.continue-here.md
+git add plugins/${pluginName}/.planning/STATUS.md
 git add PLUGINS.md
 
 git commit -m "$(cat <<'EOF'
@@ -800,7 +800,7 @@ function generateMinimalEditor(pluginName: string) {
 
 ```typescript
 function findLatestMockup(pluginName: string): string | null {
-  const mockupsDir = `plugins/${pluginName}/.ideas/mockups`;
+  const mockupsDir = `plugins/${pluginName}/.planning/mockups`;
 
   if (!fileExists(mockupsDir)) {
     return null;

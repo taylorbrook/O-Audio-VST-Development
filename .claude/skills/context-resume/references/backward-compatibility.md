@@ -107,7 +107,7 @@ After migration notice, route based on user selection:
 **Option 1: Install plugin**
 - Invoke plugin-lifecycle skill (Mode 1: Installation)
 - Update PLUGINS.md status to 📦 Installed
-- Update .continue-here.md to "installed" status
+- Update .planning/STATUS.md to "installed" status
 
 **Option 2: Run manual tests**
 - Invoke plugin-testing skill
@@ -126,7 +126,7 @@ After migration notice, route based on user selection:
 
 After migration and user action completes:
 
-**Update .continue-here.md:**
+**Update .planning/STATUS.md:**
 ```yaml
 plugin: [PluginName]
 stage: 3
@@ -143,7 +143,7 @@ ready_for: "installation"
 
 **Commit migration:**
 ```bash
-git add plugins/[PluginName]/.continue-here.md
+git add plugins/[PluginName]/.planning/STATUS.md
 git commit -m "migrate: [PluginName] workflow to unified validation (Stage [4/5] → Stage 3)"
 ```
 

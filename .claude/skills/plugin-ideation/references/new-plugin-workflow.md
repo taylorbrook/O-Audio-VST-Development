@@ -8,8 +8,8 @@ This workflow guides you through capturing a complete creative vision for a new 
 3. Phase 3: Question batch generation
 4. Phase 4: Decision gate (finalize or iterate)
 5. Phase 5: Plugin name validation (if needed)
-6. Phase 6: Document creation (creative-brief.md)
-7. Phase 7: Session handoff (.continue-here.md)
+6. Phase 6: Document creation (BRIEF.md)
+7. Phase 7: Session handoff (.planning/STATUS.md)
 8. Phase 8: Decision menu (next action)
 
 ---
@@ -111,7 +111,7 @@ Question:
   question: "Ready to finalize the creative brief?"
   header: "Next step"
   options:
-    - label: "Yes, finalize it", description: "Create creative-brief.md"
+    - label: "Yes, finalize it", description: "Create BRIEF.md"
     - label: "Ask me 4 more questions", description: "Continue refining"
     - label: "Let me add more context first", description: "Provide additional details"
 ```
@@ -177,7 +177,7 @@ Examples:
 <step number="6" required="true">
 **Must wait until user chooses "finalize" and name is confirmed, then create:**
 
-**File:** `plugins/[PluginName]/.ideas/creative-brief.md`
+**File:** `plugins/[PluginName]/.planning/BRIEF.md`
 
 **Format:**
 ```markdown
@@ -249,7 +249,7 @@ Add entry if doesn't exist:
 <step number="7" required="true">
 **Must create handoff file for resuming later:**
 
-**File:** `plugins/[PluginName]/.continue-here.md`
+**File:** `plugins/[PluginName]/.planning/STATUS.md`
 
 **Format:**
 ```markdown
@@ -287,7 +287,7 @@ Creative brief has been finalized for [PluginName]. Ready to proceed to UI mocku
 - Core concept: [Brief summary]
 
 **Files Created:**
-- plugins/[PluginName]/.ideas/creative-brief.md
+- plugins/[PluginName]/.planning/BRIEF.md
 ```
 </step>
 </state_requirement>
@@ -450,11 +450,11 @@ Ready to capture parameters? (y/n): _
 **After all parameters captured:**
 
 1. Generate `parameter-spec-draft.md` using template from assets/parameter-spec-draft-template.md
-2. Save to `plugins/[PluginName]/.ideas/parameter-spec-draft.md`
+2. Save to `plugins/[PluginName]/.planning/parameter-spec-draft.md`
 3. Update PLUGINS.md status to "💡 Ideated (Draft Params)"
 4. Commit changes:
    ```bash
-   git add plugins/[PluginName]/.ideas/parameter-spec-draft.md
+   git add plugins/[PluginName]/.planning/parameter-spec-draft.md
    git add PLUGINS.md
    git commit -m "feat([PluginName]): draft parameters captured for parallel workflow"
    ```

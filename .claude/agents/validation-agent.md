@@ -34,7 +34,7 @@ You ARE checking:
 
 ## Process
 
-1. Read contracts (creative-brief.md, parameter-spec.md, architecture.md)
+1. Read contracts (BRIEF.md, parameter-spec.md, research/ARCHITECTURE.md)
 2. Validate cross-contract consistency using contract_validator.py
 3. Read implementation files for the stage
 4. Evaluate semantic correctness and quality
@@ -51,7 +51,7 @@ python3 .claude/hooks/validators/validate-cross-contract.py plugins/[PluginName]
 This validates:
 - Parameter counts match across contracts
 - Parameter names referenced in architecture exist in parameter-spec
-- DSP components in architecture match plan.md
+- DSP components in architecture match ROADMAP.md
 - All contracts are internally consistent
 
 **CRITICAL:** If cross-contract validation fails, report errors in your JSON response and set `continue_to_next_stage: false`.
@@ -324,8 +324,8 @@ This ensures validation-agent always completes successfully, even when runtime v
 
 **Expected Inputs:**
 
-- `plugins/[PluginName]/.ideas/architecture.md`
-- `plugins/[PluginName]/.ideas/creative-brief.md`
+- `plugins/[PluginName]/.planning/research/ARCHITECTURE.md`
+- `plugins/[PluginName]/.planning/BRIEF.md`
 
 **Checks:**
 
@@ -372,16 +372,16 @@ This ensures validation-agent always completes successfully, even when runtime v
 
 **Expected Inputs:**
 
-- `plugins/[PluginName]/.ideas/plan.md`
-- `plugins/[PluginName]/.ideas/parameter-spec.md`
-- `plugins/[PluginName]/.ideas/architecture.md`
+- `plugins/[PluginName]/.planning/ROADMAP.md`
+- `plugins/[PluginName]/.planning/parameter-spec.md`
+- `plugins/[PluginName]/.planning/research/ARCHITECTURE.md`
 
 **Checks:**
 
 - ✓ Cross-contract consistency validated (MANDATORY)
 - ✓ Parameter counts match across creative-brief, parameter-spec, architecture
 - ✓ Complexity score calculation correct? (params + algos + features from both contracts)
-- ✓ All contracts (parameter-spec.md, architecture.md) referenced in plan?
+- ✓ All contracts (parameter-spec.md, research/ARCHITECTURE.md) referenced in plan?
 - ✓ Phase breakdown appropriate for complexity ≥3?
 - ✓ Single-pass strategy for complexity ≤2?
 - ✓ Stage breakdown includes all 7 stages?
@@ -404,7 +404,7 @@ This ensures validation-agent always completes successfully, even when runtime v
     {
       "name": "contracts_referenced",
       "passed": true,
-      "message": "plan.md references parameter-spec.md and architecture.md",
+      "message": "ROADMAP.md references parameter-spec.md and research/ARCHITECTURE.md",
       "severity": "info"
     },
     {
@@ -427,8 +427,8 @@ This ensures validation-agent always completes successfully, even when runtime v
 - `plugins/[PluginName]/CMakeLists.txt`
 - `plugins/[PluginName]/Source/PluginProcessor.{h,cpp}`
 - `plugins/[PluginName]/Source/PluginEditor.{h,cpp}`
-- `plugins/[PluginName]/.ideas/architecture.md`
-- `plugins/[PluginName]/.ideas/parameter-spec.md`
+- `plugins/[PluginName]/.planning/research/ARCHITECTURE.md`
+- `plugins/[PluginName]/.planning/parameter-spec.md`
 
 **Semantic Checks (hooks already validated patterns exist):**
 
@@ -493,8 +493,8 @@ If binary doesn't exist or build fails, skip runtime validation (report as "skip
 **Expected Inputs:**
 
 - `plugins/[PluginName]/Source/PluginProcessor.{h,cpp}` (with DSP implementation)
-- `plugins/[PluginName]/.ideas/architecture.md`
-- `plugins/[PluginName]/.ideas/parameter-spec.md`
+- `plugins/[PluginName]/.planning/research/ARCHITECTURE.md`
+- `plugins/[PluginName]/.planning/parameter-spec.md`
 
 **Semantic Checks (hooks verified components exist):**
 
@@ -565,7 +565,7 @@ If binary doesn't exist or build fails, skip runtime validation (report as "skip
 
 - `plugins/[PluginName]/Source/PluginEditor.{h,cpp}` (with WebView integration)
 - `plugins/[PluginName]/ui/public/index.html`
-- `plugins/[PluginName]/.ideas/parameter-spec.md`
+- `plugins/[PluginName]/.planning/parameter-spec.md`
 
 **Semantic Checks (hooks verified bindings exist):**
 
@@ -767,7 +767,7 @@ This is critical for the orchestrator optimization (Task 13). The orchestrator o
     {
       "name": "dsp_correctness",
       "passed": true,
-      "message": "DSP matches architecture.md, parameters connected, buffer handling correct",
+      "message": "DSP matches research/ARCHITECTURE.md, parameters connected, buffer handling correct",
       "severity": "info"
     },
     {
@@ -858,8 +858,8 @@ Validate Stage N completion for [PluginName].
 **Plugin:** [PluginName]
 **Contracts:**
 - parameter-spec.md: [content or "not applicable"]
-- architecture.md: [content or "not applicable"]
-- plan.md: [content or "not applicable"]
+- research/ARCHITECTURE.md: [content or "not applicable"]
+- ROADMAP.md: [content or "not applicable"]
 
 **Expected outputs for Stage N:**
 [stage-specific outputs list]
@@ -876,11 +876,11 @@ Validate Stage 0 completion for TestPlugin.
 **Plugin:** TestPlugin
 **Contracts:**
 - parameter-spec.md: [content here]
-- architecture.md: [content here]
-- plan.md: [content here]
+- research/ARCHITECTURE.md: [content here]
+- ROADMAP.md: [content here]
 
 **Expected outputs for Stage 0:**
-- plan.md exists with complexity score
+- ROADMAP.md exists with complexity score
 - All contracts referenced in plan
 - Phase breakdown if complexity ≥3
 - Stage breakdown includes all stages

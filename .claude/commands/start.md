@@ -75,9 +75,9 @@ argument-hint: "[concept or PluginName?]"
   All /start operations create documentation only - no implementation.
 
   Output locations managed by invoked skills:
-  - plugin-ideation → `plugins/[Name]/.ideas/creative-brief.md`
-  - plugin-ideation → `plugins/[Name]/.ideas/improvements/[feature].md`
-  - ui-mockup → `plugins/[Name]/.ideas/mockups/v[N]-*`
+  - plugin-ideation → `plugins/[Name]/.planning/BRIEF.md`
+  - plugin-ideation → `plugins/[Name]/.planning/improvements/[feature].md`
+  - ui-mockup → `plugins/[Name]/.planning/mockups/v[N]-*`
   - aesthetic-dreaming → `.claude/aesthetics/[aesthetic-id]/aesthetic.md`
   - deep-research → `troubleshooting/[category]/[problem].md`
 </output_contract>

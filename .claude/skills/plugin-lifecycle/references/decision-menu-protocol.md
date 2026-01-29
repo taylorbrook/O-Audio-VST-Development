@@ -60,7 +60,7 @@ Choose (1-5): _
 **Response handlers**:
 - **Option 1:** Provide DAW testing guidance (terminal - ends workflow)
 - **Option 2:** Route to plugin-ideation skill
-- **Option 3:** Suggest creating user manual in `.ideas/` directory
+- **Option 3:** Suggest creating user manual in `.planning/` directory
 - **Option 4:** Provide build export instructions (future feature note)
 - **Option 5:** Ask open-ended "What would you like to do?"
 
@@ -85,7 +85,7 @@ Choose (1-4): _
 
 What's next?
 1. Re-implement from Stage 0 → /plan [PluginName]
-2. Modify creative brief → Edit .ideas/creative-brief.md
+2. Modify creative brief → Edit .planning/BRIEF.md
 3. Create new plugin instead → /start
 4. Other
 

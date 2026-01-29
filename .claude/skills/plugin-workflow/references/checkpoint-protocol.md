@@ -14,7 +14,7 @@ verifyStateUpdate(pluginName, currentStage, result)
 
 Check if subagent updated state files:
 - Read `result.stateUpdated` field from JSON report
-- If true: Verify `.continue-here.md` stage field matches currentStage
+- If true: Verify `.planning/STATUS.md` stage field matches currentStage
 - If true: Verify `PLUGINS.md` status updated
 - If false or missing: Proceed to fallback
 
@@ -110,8 +110,8 @@ IF any failed:
 
 ## Verification Checks
 
-- **Step 1:** Check `result.stateUpdated == true` AND `.continue-here.md` stage field matches
-- **Step 2:** If fallback ran, verify `.continue-here.md` and `PLUGINS.md` updated
+- **Step 1:** Check `result.stateUpdated == true` AND `.planning/STATUS.md` stage field matches
+- **Step 2:** If fallback ran, verify `.planning/STATUS.md` and `PLUGINS.md` updated
 - **Step 3:** Validation ran, check `validationReport.status` (PASS/WARNING acceptable, FAIL with continue_to_next_stage=false blocks)
 - **Step 4:** `git log -1 --oneline` contains stage reference
 - **Step 5:** All state files consistent
@@ -134,7 +134,7 @@ Note: Phase count determined by plan.md (varies by complexity)
 
 After Stage 3 completes successfully:
 1. Update PLUGINS.md status to ✅ Working
-2. Delete .continue-here.md handoff file (workflow complete)
+2. Delete .planning/STATUS.md handoff file (workflow complete)
 3. Present completion menu with installation options:
    - Install to DAW
    - Make improvements

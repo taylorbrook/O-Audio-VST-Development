@@ -11,7 +11,7 @@
 **Preconditions:**
 
 - Stage 0 complete (plan.md exists)
-- creative-brief.md exists
+- BRIEF.md exists
 - architecture.md exists
 - parameter-spec.md exists (from finalized UI mockup)
 
@@ -22,7 +22,7 @@
 **BLOCKING check before proceeding:**
 
 ```bash
-if [ ! -f "plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md" ]; then
+if [ ! -f "plugins/${PLUGIN_NAME}/.planning/parameter-spec.md" ]; then
   echo "Cannot proceed to Stage 1 - parameter-spec.md missing"
   echo "Complete UI mockup workflow first (/mockup)"
   exit 1
@@ -51,10 +51,10 @@ You are foundation-shell-agent implementing Stage 1 for ${pluginName}.
 **Your task:** Create build system and implement ALL parameters
 
 **Contracts (read these files yourself):**
-- creative-brief.md: plugins/${pluginName}/.ideas/creative-brief.md
-- architecture.md: plugins/${pluginName}/.ideas/architecture.md
-- plan.md: plugins/${pluginName}/.ideas/plan.md
-- parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
+- BRIEF.md: plugins/${pluginName}/.planning/BRIEF.md
+- architecture.md: plugins/${pluginName}/.planning/architecture.md
+- plan.md: plugins/${pluginName}/.planning/plan.md
+- parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 - branding.json: .claude/branding.json
 - Required Reading: troubleshooting/patterns/stage-1-patterns.md
 
@@ -337,7 +337,7 @@ updatePluginTimeline(
 ```bash
 git add plugins/[PluginName]/Source/
 git add plugins/[PluginName]/CMakeLists.txt
-git add plugins/[PluginName]/.continue-here.md
+git add plugins/[PluginName]/.planning/STATUS.md
 git add PLUGINS.md
 
 git commit -m "$(cat <<'EOF'

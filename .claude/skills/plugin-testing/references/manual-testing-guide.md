@@ -34,7 +34,7 @@ The checklist template should be customized for each plugin based on its `parame
 **Steps:**
 
 1. Read `assets/manual-testing-checklist.md` template
-2. Load `plugins/[PluginName]/.ideas/parameter-spec.md`
+2. Load `plugins/[PluginName]/.planning/parameter-spec.md`
 3. Extract parameter list
 4. Generate parameter-specific test items
 5. Insert into checklist template

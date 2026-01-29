@@ -47,7 +47,7 @@ The gate is enforced via:
 1. Finalization marker in YAML (`finalized: true`)
 2. Phase B guard checks before Phases 6-10
 3. Phase 5.5 decision menu blocking auto-progression
-4. State tracking in `.continue-here.md`
+4. State tracking in `.planning/STATUS.md`
 
 See `references/phase-b-enforcement.md` for implementation details.
 
@@ -55,9 +55,9 @@ See `references/phase-b-enforcement.md` for implementation details.
 
 ### Missing Context Extraction (Severity: MEDIUM)
 
-❌ Don't ask users to repeat information from creative-brief.md
+❌ Don't ask users to repeat information from BRIEF.md
 
-✓ Always read creative-brief.md if it exists (Phase 1)
+✓ Always read BRIEF.md if it exists (Phase 1)
 
 ✓ Extract UI concept, parameters, plugin type, visual references
 

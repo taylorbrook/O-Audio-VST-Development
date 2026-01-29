@@ -52,8 +52,8 @@ After mode detection completes, load the appropriate workflow:
 - Phase 3: Question batch generation (adaptive 4-question batches)
 - Phase 4: Decision gate (finalize or iterate)
 - Phase 5: Plugin name validation
-- Phase 6: Document creation (creative-brief.md + PLUGINS.md)
-- Phase 7: Session handoff (.continue-here.md)
+- Phase 6: Document creation (BRIEF.md + PLUGINS.md)
+- Phase 7: Session handoff (.planning/STATUS.md)
 - Phase 8: Decision menu with parallel workflow option
 
 **Key features:**
@@ -75,7 +75,7 @@ After mode detection completes, load the appropriate workflow:
 - Phase 3: Question batch generation
 - Phase 4: Decision gate (finalize or iterate)
 - Phase 5: Document creation (improvement proposal)
-- Phase 6: Session handoff (.continue-here.md)
+- Phase 6: Session handoff (.planning/STATUS.md)
 - Phase 7: Decision menu
 
 **Key features:**

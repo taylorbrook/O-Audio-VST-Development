@@ -1,12 +1,12 @@
-# .continue-here.md Format Specification
+# .planning/STATUS.md Format Specification
 
 ## Purpose
 
-The `.continue-here.md` file is the authoritative handoff file that preserves workflow context across sessions. It allows workflow resumption without context loss or checkpoint amnesia.
+The `.planning/STATUS.md` file is the authoritative handoff file that preserves workflow context across sessions. It allows workflow resumption without context loss or checkpoint amnesia.
 
 ## Location
 
-Always created at: `plugins/{PluginName}/.continue-here.md`
+Always created at: `plugins/{PluginName}/.planning/STATUS.md`
 
 ## Format
 

@@ -12,7 +12,7 @@ Before generating ANY Phase B file (Phases 6-10), execute this verification:
 
 ```bash
 # Verify design finalization before Phase B
-MOCKUP_DIR="plugins/${PLUGIN_NAME}/.ideas/mockups"
+MOCKUP_DIR="plugins/${PLUGIN_NAME}/.planning/mockups"
 LATEST_VERSION=$(ls -1 "$MOCKUP_DIR"/v*-ui.yaml 2>/dev/null | \
                  sed 's/.*v\([0-9]*\)-.*/\1/' | sort -n | tail -1)
 

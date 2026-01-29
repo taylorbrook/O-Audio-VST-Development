@@ -13,7 +13,7 @@ BEFORE dispatching Stage 1 (foundation-shell-agent), IF mockup exists.
 ### 1. Check for finalized mockup
 
 ```bash
-if [ -d "plugins/${PLUGIN_NAME}/.ideas/mockups" ] && [ -f "plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md" ]; then
+if [ -d "plugins/${PLUGIN_NAME}/.planning/mockups" ] && [ -f "plugins/${PLUGIN_NAME}/.planning/parameter-spec.md" ]; then
   # Mockup finalized, proceed to step 2
 else
   # No mockup or not finalized, skip sync and proceed to Stage 1
@@ -23,8 +23,8 @@ fi
 ### 2. Verify brief is current
 
 ```bash
-# Read .continue-here.md for brief_updated_from_mockup flag
-if grep -q "brief_updated_from_mockup: true" plugins/${PLUGIN_NAME}/.continue-here.md; then
+# Read .planning/STATUS.md for brief_updated_from_mockup flag
+if grep -q "brief_updated_from_mockup: true" plugins/${PLUGIN_NAME}/.planning/STATUS.md; then
   # Skip sync (already done during finalization)
   # Proceed to Stage 1 dispatch
 else
@@ -40,20 +40,20 @@ fi
 
 ```bash
 # Find latest mockup version
-LATEST_MOCKUP=$(find plugins/${PLUGIN_NAME}/.ideas/mockups -name "v*-ui.yaml" | sort -V | tail -n 1)
+LATEST_MOCKUP=$(find plugins/${PLUGIN_NAME}/.planning/mockups -name "v*-ui.yaml" | sort -V | tail -n 1)
 VERSION=$(basename "$LATEST_MOCKUP" | sed 's/v\([0-9]*\)-.*/\1/')
 
 # Execute sync script
 .claude/utils/sync-brief-from-mockup.sh "${PLUGIN_NAME}" "${VERSION}"
 
 # Update state
-echo "brief_updated_from_mockup: true" >> plugins/${PLUGIN_NAME}/.continue-here.md
-echo "mockup_version_synced: ${VERSION}" >> plugins/${PLUGIN_NAME}/.continue-here.md
-echo "brief_update_timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> plugins/${PLUGIN_NAME}/.continue-here.md
+echo "brief_updated_from_mockup: true" >> plugins/${PLUGIN_NAME}/.planning/STATUS.md
+echo "mockup_version_synced: ${VERSION}" >> plugins/${PLUGIN_NAME}/.planning/STATUS.md
+echo "brief_update_timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >> plugins/${PLUGIN_NAME}/.planning/STATUS.md
 
 # Commit
-git add plugins/${PLUGIN_NAME}/.ideas/creative-brief.md
-git add plugins/${PLUGIN_NAME}/.continue-here.md
+git add plugins/${PLUGIN_NAME}/.planning/BRIEF.md
+git add plugins/${PLUGIN_NAME}/.planning/STATUS.md
 git commit -m "docs(${PLUGIN_NAME}): sync creative brief with finalized mockup v${VERSION}"
 ```
 

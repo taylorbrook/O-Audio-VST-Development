@@ -297,7 +297,7 @@ When you pause and resume a workflow:
 3. Resume: `/continue PluginName`
 
 **Result:**
-- Resume in express mode (mode preserved in `.continue-here.md`)
+- Resume in express mode (mode preserved in `.planning/STATUS.md`)
 - Stage 2 continues → auto-progress to Stage 3
 
 ### Mode Override on Resume
@@ -310,7 +310,7 @@ When you pause and resume a workflow:
 **Result:**
 - Resume in express mode (flag overrides saved mode)
 - Stage 2 continues → auto-progress to Stage 3
-- `.continue-here.md` updated to `workflow_mode: express`
+- `.planning/STATUS.md` updated to `workflow_mode: express`
 
 ---
 
@@ -323,7 +323,7 @@ When you pause and resume a workflow:
 
 **No breaking changes:**
 - Existing commands work unchanged
-- Old `.continue-here.md` files work (default to manual if mode missing)
+- Old `.planning/STATUS.md` files work (default to manual if mode missing)
 - No migration required
 
 ---

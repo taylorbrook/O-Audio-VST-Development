@@ -26,7 +26,7 @@ Current status: [Status from PLUGINS.md]
 
 2. Reset to ideation - Remove implementation, keep idea/mockups
    → Removes: Source/, CMakeLists.txt, implementation docs
-   → Keeps: creative-brief.md, mockups/, parameter-spec.md
+   → Keeps: BRIEF.md, mockups/, parameter-spec.md
    → Status change: [Any] → 💡 Ideated
    → Backup: Created in backups/rollbacks/
 

@@ -14,7 +14,7 @@ User: A simple compressor with threshold, ratio, attack, and release controls.
 System: [Adaptive questioning Phase 1-4]
 User: [Finalize]
 
-System creates creative-brief.md
+System creates BRIEF.md
 ```
 
 ### Phase 2: Quick Parameter Capture (NEW PATH)

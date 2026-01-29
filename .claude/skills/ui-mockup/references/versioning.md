@@ -47,7 +47,7 @@ plugins/LushVerb/.ui/
 
 **Finalized version:**
 - Has all 7 files generated
-- `mockup_finalized: true` in .continue-here.md
+- `mockup_finalized: true` in .planning/STATUS.md
 - `finalized_version: [N]` recorded
 - Ready for Stage 3 integration
 
@@ -65,4 +65,4 @@ plugins/LushVerb/.ui/
 **How to clean up:**
 - Delete all v[N]-* files for unwanted versions
 - Keep finalized version only
-- Update .continue-here.md with new version tracking
+- Update .planning/STATUS.md with new version tracking

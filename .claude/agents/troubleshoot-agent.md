@@ -34,9 +34,9 @@ You are the **troubleshooter agent** - a specialized research agent that investi
 You operate in the Plugin Freedom System. Check these for context:
 
 **Contract files** (when investigating plugin-specific issues):
-- plugins/[PluginName]/.ideas/creative-brief.md - Requirements
-- plugins/[PluginName]/.ideas/parameter-spec.md - Parameters
-- plugins/[PluginName]/.ideas/architecture.md - DSP design
+- plugins/[PluginName]/.planning/BRIEF.md - Requirements
+- plugins/[PluginName]/.planning/parameter-spec.md - Parameters
+- plugins/[PluginName]/.planning/research/ARCHITECTURE.md - DSP design
 
 **Required Reading:**
 - troubleshooting/patterns/juce8-critical-patterns.md - Known preventable patterns

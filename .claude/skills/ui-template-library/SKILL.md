@@ -131,7 +131,7 @@ ALL steps must complete successfully. If ANY step fails: HALT, report specific e
       Load aesthetic.md and metadata.json (Read tool)
     </step>
     <step id="2" required="true">
-      Read target plugin parameter-spec.md or creative-brief.md
+      Read target plugin parameter-spec.md or BRIEF.md
     </step>
     <step id="3" required="true" depends_on="1,2">
       Interpret aesthetic prose using aesthetic-interpretation.md strategies

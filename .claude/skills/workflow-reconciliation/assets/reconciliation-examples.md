@@ -16,7 +16,7 @@ Current Workflow: ui-mockup (Phase 6 - Complete)
 
 State File Analysis:
 
-✓ .continue-here.md
+✓ .planning/STATUS.md
   Status: UP TO DATE
   Last updated: 2025-11-12T14:30:00Z
 
@@ -32,11 +32,11 @@ Git Status:
 
 ✓ Staged: None
 ✗ Unstaged: 5 files
-  - plugins/DriveVerb/.ideas/mockups/v1-PluginEditor.h
-  - plugins/DriveVerb/.ideas/mockups/v1-PluginEditor.cpp
-  - plugins/DriveVerb/.ideas/mockups/v1-CMakeLists.txt
-  - plugins/DriveVerb/.ideas/mockups/v1-integration-checklist.md
-  - plugins/DriveVerb/.ideas/mockups/v1-ui.html
+  - plugins/DriveVerb/.planning/mockups/v1-PluginEditor.h
+  - plugins/DriveVerb/.planning/mockups/v1-PluginEditor.cpp
+  - plugins/DriveVerb/.planning/mockups/v1-CMakeLists.txt
+  - plugins/DriveVerb/.planning/mockups/v1-integration-checklist.md
+  - plugins/DriveVerb/.planning/mockups/v1-ui.html
 ✗ Untracked: None
 ✗ Uncommitted: 5 workflow artifacts
 
@@ -52,7 +52,7 @@ What should I do?
 1. Fix everything automatically - Execute all updates and commit
 2. Show me the diffs first - Preview file changes before committing
 3. Fix files only (no commit) - Update state files but don't stage/commit
-4. Update .continue-here.md only - Minimal checkpoint
+4. Update .planning/STATUS.md only - Minimal checkpoint
 5. Skip reconciliation - I'll handle it manually
 6. Other
 
@@ -77,7 +77,7 @@ All state files synchronized. Workflow can resume without context loss.
 ## Example 2: After Subagent Completion
 
 ### Scenario
-foundation-shell-agent completed Stage 1 but didn't create .continue-here.md handoff file. Reconciliation detects missing handoff and offers to create it.
+foundation-shell-agent completed Stage 1 but didn't create .planning/STATUS.md handoff file. Reconciliation detects missing handoff and offers to create it.
 
 ### Report Output
 
@@ -90,7 +90,7 @@ Current Workflow: plugin-workflow (Stage 1 - Complete)
 
 State File Analysis:
 
-✗ .continue-here.md
+✗ .planning/STATUS.md
   Status: MISSING
   Expected: Handoff file with stage=2, status=complete
   Action: CREATE handoff file
@@ -108,7 +108,7 @@ Git Status:
 
 Proposed Actions:
 
-1. Create .continue-here.md with:
+1. Create .planning/STATUS.md with:
    - plugin: SimpleTremolo
    - workflow: plugin-workflow
    - stage: 2
@@ -122,7 +122,7 @@ What should I do?
 1. Fix everything automatically - Create handoff and commit
 2. Show me the diffs first - Preview handoff file content
 3. Fix files only (no commit) - Create handoff but don't commit
-4. Update .continue-here.md only - Create handoff, ignore staged changes
+4. Update .planning/STATUS.md only - Create handoff, ignore staged changes
 5. Skip reconciliation - I'll handle it manually
 6. Other
 
@@ -134,7 +134,7 @@ Choose (1-6): _
 ### Diff Preview
 
 ```
-Creating .continue-here.md with content:
+Creating .planning/STATUS.md with content:
 
 ---
 plugin: SimpleTremolo
@@ -153,7 +153,7 @@ Next: Invoke dsp-agent for Stage 2 (DSP Core implementation).
 ─────────────────────────────────────────────────────
 
 Commit will include:
-- plugins/SimpleTremolo/.continue-here.md (new file)
+- plugins/SimpleTremolo/.planning/STATUS.md (new file)
 - plugins/SimpleTremolo/CMakeLists.txt
 - plugins/SimpleTremolo/Source/PluginProcessor.h
 - plugins/SimpleTremolo/Source/PluginProcessor.cpp
@@ -190,7 +190,7 @@ Current Workflow: plugin-workflow (Stage 2 - In Progress)
 
 State File Analysis:
 
-✓ .continue-here.md
+✓ .planning/STATUS.md
   Status: UP TO DATE
   Last updated: 2025-11-12T14:30:00Z
 

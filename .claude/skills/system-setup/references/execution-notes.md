@@ -212,7 +212,7 @@ Choose (1-3): _
 
 **This skill is STANDALONE**:
 - Does NOT update PLUGINS.md
-- Does NOT create .continue-here.md
+- Does NOT create .planning/STATUS.md
 - Does NOT invoke plugin-workflow or plugin-planning
 - Does NOT create or modify plugin directories
 

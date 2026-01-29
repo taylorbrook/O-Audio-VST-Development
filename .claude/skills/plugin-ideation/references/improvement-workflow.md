@@ -9,7 +9,7 @@ This workflow guides you through brainstorming improvements to existing plugins.
 4. Phase 3: Question batch generation
 5. Phase 4: Decision gate (finalize or iterate)
 6. Phase 5: Document creation (improvement proposal)
-7. Phase 6: Session handoff (.continue-here.md)
+7. Phase 6: Session handoff (.planning/STATUS.md)
 8. Phase 7: Decision menu (next action)
 
 ---
@@ -140,7 +140,7 @@ Question:
 
 <step number="5" required="true">
 
-Create: `plugins/[PluginName]/.ideas/improvements/[feature-name].md`
+Create: `plugins/[PluginName]/.planning/improvements/[feature-name].md`
 
 **Format:**
 ```markdown
@@ -190,7 +190,7 @@ Create: `plugins/[PluginName]/.ideas/improvements/[feature-name].md`
 <step number="6" required="true">
 **Must create handoff file for resuming later:**
 
-**File:** `plugins/[PluginName]/.continue-here.md`
+**File:** `plugins/[PluginName]/.planning/STATUS.md`
 
 ```markdown
 ---
@@ -227,7 +227,7 @@ Improvement proposal finalized for [PluginName]: [ImprovementName]
 **Version Impact:** [PATCH/MINOR/MAJOR]
 
 **Files Created:**
-- plugins/[PluginName]/.ideas/improvements/[feature-name].md
+- plugins/[PluginName]/.planning/improvements/[feature-name].md
 ```
 </step>
 </state_requirement>

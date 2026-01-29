@@ -41,7 +41,7 @@ IF --test=SCENARIO argument provided:
 <precondition_gate>
 None required - this is the entry point skill
 Can be invoked anytime, creates system-config.json
-No dependencies on PLUGINS.md or .continue-here.md
+No dependencies on PLUGINS.md or .planning/STATUS.md
 </precondition_gate>
 
 <delegation_rules>
@@ -373,7 +373,7 @@ Choose (1-5): _
 <state_management>
 This skill is STANDALONE and does NOT:
 - Update PLUGINS.md
-- Create .continue-here.md
+- Create .planning/STATUS.md
 - Invoke other workflow skills (plugin-workflow, plugin-planning, etc.)
 - Create or modify plugin directories
 

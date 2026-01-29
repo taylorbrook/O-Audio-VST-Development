@@ -15,7 +15,7 @@ Search the 2 standard handoff locations in order:
 ### 1. Main workflow handoff
 
 ```bash
-test -f "plugins/$PLUGIN_NAME/.continue-here.md"
+test -f "plugins/$PLUGIN_NAME/.planning/STATUS.md"
 ```
 
 **Location meaning:** Plugin in active development, planning, or ideation (Stages 0-3, ideation, improvement planning)
@@ -25,7 +25,7 @@ test -f "plugins/$PLUGIN_NAME/.continue-here.md"
 ### 2. Mockup handoff
 
 ```bash
-test -f "plugins/$PLUGIN_NAME/.ideas/mockups/.continue-here.md"
+test -f "plugins/$PLUGIN_NAME/.planning/mockups/.planning/STATUS.md"
 ```
 
 **Location meaning:** UI mockup iteration in progress
@@ -45,7 +45,7 @@ test -f "plugins/$PLUGIN_NAME/.ideas/mockups/.continue-here.md"
 Search for all handoff files:
 
 ```bash
-find plugins -name ".continue-here.md" -type f
+find plugins -name ".planning/STATUS.md" -type f
 ```
 
 For each handoff found, extract context summary and present interactive menu:
@@ -98,12 +98,12 @@ Present disambiguation:
 Multiple resume points found for TapeDelay:
 
 1. Main workflow: Stage 2 (DSP implementation)
-   Location: plugins/TapeDelay/.continue-here.md
+   Location: plugins/TapeDelay/.planning/STATUS.md
    Last updated: 2 hours ago
    Context: Implementing modulation matrix for wow/flutter
 
 2. UI mockup iteration: Mockup v3 in progress
-   Location: plugins/TapeDelay/.ideas/mockups/.continue-here.md
+   Location: plugins/TapeDelay/.planning/mockups/.planning/STATUS.md
    Last updated: 1 day ago
    Context: Exploring vintage tape UI design options
 

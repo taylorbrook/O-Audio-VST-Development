@@ -8,7 +8,7 @@ Determine whether to auto-progress (express mode) or present decision menus (man
 
 **Priority order:**
 1. Environment variables (set by /implement or /continue command)
-2. .continue-here.md field (for resumed workflows)
+2. .planning/STATUS.md field (for resumed workflows)
 3. Default to "manual"
 
 ## Environment Variables
@@ -22,7 +22,7 @@ AUTO_PACKAGE="true" | "false"       # Default: "false"
 
 ## Mode Persistence
 
-Store mode in .continue-here.md for resume scenarios:
+Store mode in .planning/STATUS.md for resume scenarios:
 
 ```yaml
 ---
@@ -43,8 +43,8 @@ function getWorkflowMode(pluginName) {
   // Check environment variable first
   let mode = process.env.WORKFLOW_MODE || "manual"
 
-  // Check .continue-here.md for resumed workflows
-  const handoffPath = `plugins/${pluginName}/.continue-here.md`
+  // Check .planning/STATUS.md for resumed workflows
+  const handoffPath = `plugins/${pluginName}/.planning/STATUS.md`
   if (fileExists(handoffPath)) {
     const content = readFile(handoffPath)
     const yaml = parseFrontmatter(content)

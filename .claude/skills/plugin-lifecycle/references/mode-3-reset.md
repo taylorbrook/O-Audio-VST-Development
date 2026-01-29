@@ -7,10 +7,10 @@
 ## What Gets Preserved
 
 ✅ **Keep (The Ideation):**
-- `.ideas/creative-brief.md` - Your original vision
-- `.ideas/mockups/` - All UI exploration (v1, v2, v3, etc.)
-- `.ideas/mockups/*.yaml` - Aesthetic specifications
-- `.ideas/parameter-spec.md` - Generated from finalized mockup
+- `.planning/BRIEF.md` - Your original vision
+- `.planning/mockups/` - All UI exploration (v1, v2, v3, etc.)
+- `.planning/mockups/*.yaml` - Aesthetic specifications
+- `.planning/parameter-spec.md` - Generated from finalized mockup
 
 ✅ **Keep (Backup):**
 - Timestamped backup of removed code: `backups/rollbacks/[PluginName]_TIMESTAMP.tar.gz`
@@ -20,9 +20,9 @@
 ❌ **Remove (The Implementation):**
 - `Source/` directory - All C++ code
 - `CMakeLists.txt` - Build configuration
-- `.ideas/architecture.md` - DSP specification (Stage 0 output)
-- `.ideas/plan.md` - Implementation strategy (Stage 1 output)
-- `.continue-here.md` - Handoff state
+- `.planning/architecture.md` - DSP specification (Stage 0 output)
+- `.planning/plan.md` - Implementation strategy (Stage 1 output)
+- `.planning/STATUS.md` - Handoff state
 - Build artifacts in `build/plugins/[PluginName]/`
 - Installed binaries (VST3, AU) if present
 
@@ -38,8 +38,8 @@ You'll be back at exactly this point:
 
 ```
 plugins/[PluginName]/
-  .ideas/
-    creative-brief.md          ← Your vision (preserved)
+  .planning/
+    BRIEF.md          ← Your vision (preserved)
     mockups/
       v1-ui.html              ← UI iterations (preserved)
       v1-ui.yaml
@@ -67,7 +67,7 @@ Will REMOVE:
 - Build artifacts
 
 Will PRESERVE:
-- Idea: creative-brief.md
+- Idea: BRIEF.md
 - Mockups: 2 versions (v1-ui, v2-ui)
 - Parameters: parameter-spec.md
 
@@ -102,7 +102,7 @@ fi
 ### 2. Check Prerequisites (Creative Brief Must Exist)
 
 ```bash
-BRIEF_FILE="plugins/$PLUGIN_NAME/.ideas/creative-brief.md"
+BRIEF_FILE="plugins/$PLUGIN_NAME/.planning/BRIEF.md"
 
 if [ ! -f "$BRIEF_FILE" ]; then
   echo "❌ Cannot roll back: No creative brief found"
@@ -119,9 +119,9 @@ fi
 SOURCE_DIR="plugins/$PLUGIN_NAME/Source"
 BUILD_DIR="build/plugins/$PLUGIN_NAME"
 CMAKE_FILE="plugins/$PLUGIN_NAME/CMakeLists.txt"
-ARCH_FILE="plugins/$PLUGIN_NAME/.ideas/architecture.md"
-PLAN_FILE="plugins/$PLUGIN_NAME/.ideas/plan.md"
-HANDOFF_FILE="plugins/$PLUGIN_NAME/.continue-here.md"
+ARCH_FILE="plugins/$PLUGIN_NAME/.planning/architecture.md"
+PLAN_FILE="plugins/$PLUGIN_NAME/.planning/plan.md"
+HANDOFF_FILE="plugins/$PLUGIN_NAME/.planning/STATUS.md"
 
 # Count files to remove
 SOURCE_COUNT=$(find "$SOURCE_DIR" -type f 2>/dev/null | wc -l | xargs)
@@ -134,7 +134,7 @@ if [ -f "$CMAKE_FILE" ]; then
 fi
 
 # Count preserved files
-MOCKUP_COUNT=$(ls -1 plugins/$PLUGIN_NAME/.ideas/mockups/*.html 2>/dev/null | wc -l | xargs)
+MOCKUP_COUNT=$(ls -1 plugins/$PLUGIN_NAME/.planning/mockups/*.html 2>/dev/null | wc -l | xargs)
 ```
 
 ### 4. Present Confirmation Prompt
@@ -215,7 +215,7 @@ fi
 # Remove implementation docs
 [ -f "$ARCH_FILE" ] && rm "$ARCH_FILE" && echo "✓ Removed: architecture.md"
 [ -f "$PLAN_FILE" ] && rm "$PLAN_FILE" && echo "✓ Removed: plan.md"
-[ -f "$HANDOFF_FILE" ] && rm "$HANDOFF_FILE" && echo "✓ Removed: .continue-here.md"
+[ -f "$HANDOFF_FILE" ] && rm "$HANDOFF_FILE" && echo "✓ Removed: .planning/STATUS.md"
 ```
 
 ### 9. Update PLUGINS.md
@@ -264,7 +264,7 @@ Removed:
 - Build artifacts
 
 Preserved:
-- Creative brief: creative-brief.md ✓
+- Creative brief: BRIEF.md ✓
 - UI mockups: 2 versions ✓
 - Parameters: parameter-spec.md ✓
 
@@ -405,7 +405,7 @@ Claude: [Stage 0 research - recalculates complexity, creates phases if needed]
 3. Check for installed binaries and uninstall cleanly
 4. Update PLUGINS.md status to 💡 Ideated
 5. Add rollback entry to lifecycle timeline
-6. Clear handoff state (.continue-here.md)
+6. Clear handoff state (.planning/STATUS.md)
 7. Suggest `/implement` as next step
 
 **What NOT to remove:**

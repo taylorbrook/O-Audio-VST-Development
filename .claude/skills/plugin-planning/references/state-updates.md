@@ -5,15 +5,15 @@ Protocol for updating state files during plugin-planning stages.
 ## State Files
 
 - `PLUGINS.md` - Global plugin registry
-- `plugins/[Name]/.continue-here.md` - Plugin-specific continuation point
+- `plugins/[Name]/.planning/STATUS.md` - Plugin-specific continuation point
 
 ## Stage 0 State Updates
 
-### Update .continue-here.md
+### Update .planning/STATUS.md
 
 Create or update handoff file:
 ```bash
-cat > plugins/${PLUGIN_NAME}/.continue-here.md <<'EOF'
+cat > plugins/${PLUGIN_NAME}/.planning/STATUS.md <<'EOF'
 [Content from assets/continue-stage-0-template.md]
 EOF
 ```
@@ -43,11 +43,11 @@ grep -A 5 "^### ${PLUGIN_NAME}$" PLUGINS.md | grep "Stage 0"
 
 ## Stage 1 State Updates
 
-### Update .continue-here.md
+### Update .planning/STATUS.md
 
 Update handoff file:
 ```bash
-cat > plugins/${PLUGIN_NAME}/.continue-here.md <<'EOF'
+cat > plugins/${PLUGIN_NAME}/.planning/STATUS.md <<'EOF'
 [Content from assets/continue-stage-1-template.md]
 EOF
 ```
@@ -82,8 +82,8 @@ grep -A 5 "^### ${PLUGIN_NAME}$" PLUGINS.md | grep "Stage 1"
 
 After all updates:
 ```bash
-# Verify .continue-here.md exists and is not empty
-test -s "plugins/${PLUGIN_NAME}/.continue-here.md" || echo "ERROR: Handoff file missing or empty"
+# Verify .planning/STATUS.md exists and is not empty
+test -s "plugins/${PLUGIN_NAME}/.planning/STATUS.md" || echo "ERROR: Handoff file missing or empty"
 
 # Verify PLUGINS.md was updated
 grep "Stage [01]" PLUGINS.md | grep "${PLUGIN_NAME}" || echo "ERROR: PLUGINS.md not updated"
@@ -95,5 +95,5 @@ If state updates fail:
 ```bash
 # Restore from git (if previous version exists)
 git checkout HEAD -- PLUGINS.md
-git checkout HEAD -- "plugins/${PLUGIN_NAME}/.continue-here.md"
+git checkout HEAD -- "plugins/${PLUGIN_NAME}/.planning/STATUS.md"
 ```

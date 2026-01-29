@@ -25,11 +25,11 @@ You run in a fresh context with complete specifications provided. Your job is to
 
 Implementation scaffolding requires these conditions:
 
-1. **Finalized YAML exists:** `plugins/[PluginName]/.ideas/mockups/v[N]-ui.yaml`
+1. **Finalized YAML exists:** `plugins/[PluginName]/.planning/mockups/v[N]-ui.yaml`
    - Verify: File contains `finalized: true` marker
    - If missing: Return failure with `error_type: "design_not_finalized"`
 
-2. **Finalized HTML test exists:** `plugins/[PluginName]/.ideas/mockups/v[N]-ui-test.html`
+2. **Finalized HTML test exists:** `plugins/[PluginName]/.planning/mockups/v[N]-ui-test.html`
    - Verify: File exists with complete mockup
    - If missing: Return failure with `error_type: "missing_test_html"`
 
@@ -71,7 +71,7 @@ The Phase B guard from `ui-mockup/references/phase-b-enforcement.md` MUST pass b
 
 ```bash
 # Verify finalization marker in YAML
-YAML_PATH="plugins/${PLUGIN_NAME}/.ideas/mockups/v${VERSION}-ui.yaml"
+YAML_PATH="plugins/${PLUGIN_NAME}/.planning/mockups/v${VERSION}-ui.yaml"
 
 if ! grep -q "finalized: true" "$YAML_PATH"; then
   # Return failure - design not approved yet
@@ -83,7 +83,7 @@ fi
 - Finalized YAML (with finalization marker)
 - Finalized test HTML
 - parameter-spec.md (if version > 1)
-- creative-brief.md (for plugin name, optional for standalone mockups)
+- BRIEF.md (for plugin name, optional for standalone mockups)
 
 **If any contract missing:** Return failure report, do NOT attempt to proceed.
 </contract_enforcement>
@@ -104,7 +104,7 @@ You generate implementation files and return a JSON report. **You do NOT present
 8. Generate v[N]-integration-checklist.md (implementation steps)
 9. Generate parameter-spec.md if v1 (with draft validation)
 10. Commit all files atomically with proper message
-11. Update .continue-here.md (set mockup_finalized: true)
+11. Update .planning/STATUS.md (set mockup_finalized: true)
 12. Return JSON report to orchestrator
 
 **What you DON'T do:**
@@ -113,7 +113,7 @@ You generate implementation files and return a JSON report. **You do NOT present
 - ❌ Run builds or verify compilation
 - ❌ Copy template files with {{PLACEHOLDERS}} directly
 - ❌ Test in browser or DAW
-- ❌ Modify creative-brief.md or other contracts
+- ❌ Modify BRIEF.md or other contracts
 
 **Build verification:** Handled by gui-agent during Stage 3 (GUI) implementation.
 </responsibilities>
@@ -126,10 +126,10 @@ You will receive the following files:
 1. **v[N]-ui.yaml** - Finalized UI specification with controls (REQUIRED)
 2. **v[N]-ui-test.html** - Finalized browser-testable mockup (REQUIRED)
 3. **parameter-spec.md** - Parameter definitions (REQUIRED if version > 1)
-4. **creative-brief.md** - Plugin name and context (OPTIONAL, for standalone mockups)
+4. **BRIEF.md** - Plugin name and context (OPTIONAL, for standalone mockups)
 5. **parameter-spec-draft.md** - Draft parameters (OPTIONAL, only for v1 validation)
 
-**Plugin location:** `plugins/[PluginName]/.ideas/mockups/`
+**Plugin location:** `plugins/[PluginName]/.planning/mockups/`
 </contracts>
 
 <task>
@@ -164,7 +164,7 @@ This file contains non-negotiable JUCE 8 patterns that prevent repeat mistakes.
 
 ```bash
 PLUGIN_NAME="[PluginName]"  # Provided by orchestrator
-MOCKUP_DIR="plugins/${PLUGIN_NAME}/.ideas/mockups"
+MOCKUP_DIR="plugins/${PLUGIN_NAME}/.planning/mockups"
 
 # Find highest version number
 LATEST_VERSION=$(find "$MOCKUP_DIR" -name "v*-ui.yaml" 2>/dev/null | \
@@ -189,7 +189,7 @@ if ! grep -q "finalized: true" "$YAML_PATH"; then
 fi
 
 # Verify parameter-spec.md for v2+
-PARAM_SPEC_PATH="plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md"
+PARAM_SPEC_PATH="plugins/${PLUGIN_NAME}/.planning/parameter-spec.md"
 if [ "$LATEST_VERSION" -gt 1 ] && [ ! -f "$PARAM_SPEC_PATH" ]; then
   echo "ERROR: parameter-spec.md missing (required for v2+)"
   exit 1
@@ -202,7 +202,7 @@ echo "✓ Preconditions met - proceeding to file generation"
 
 ### Phase 6: Generate Production HTML
 
-**Create:** `plugins/[Name]/.ideas/mockups/v[N]-ui.html`
+**Create:** `plugins/[Name]/.planning/mockups/v[N]-ui.html`
 
 **Purpose:** Production HTML that will be copied to `Source/ui/public/index.html` during Stage 3.
 
@@ -213,7 +213,7 @@ echo "✓ Preconditions met - proceeding to file generation"
    - Parse HTML for control elements (sliders, buttons, dropdowns)
    - Extract parameter IDs from JUCE binding calls
 3. **Replace template placeholders:**
-   - `{{PLUGIN_NAME}}` → Plugin name from creative-brief.md (or "Plugin UI" if standalone)
+   - `{{PLUGIN_NAME}}` → Plugin name from BRIEF.md (or "Plugin UI" if standalone)
    - `{{CONTROL_HTML}}` → Extracted controls from test HTML
    - `{{PARAMETER_BINDINGS}}` → Generated JavaScript bindings
 
@@ -257,8 +257,8 @@ for (const match of comboMatches) {
 ### Phase 7: Generate C++ Boilerplate
 
 **Create:**
-- `plugins/[Name]/.ideas/mockups/v[N]-PluginEditor-TEMPLATE.h`
-- `plugins/[Name]/.ideas/mockups/v[N]-PluginEditor-TEMPLATE.cpp`
+- `plugins/[Name]/.planning/mockups/v[N]-PluginEditor-TEMPLATE.h`
+- `plugins/[Name]/.planning/mockups/v[N]-PluginEditor-TEMPLATE.cpp`
 
 **⚠️ IMPORTANT:** These are TEMPLATE files for gui-agent reference, NOT copy-paste files. gui-agent will adapt them to actual plugin structure during Stage 3.
 
@@ -398,7 +398,7 @@ setSize(600, 400);  // From YAML dimensions
 
 ### Phase 8: Generate CMake Snippet
 
-**Create:** `plugins/[Name]/.ideas/mockups/v[N]-CMakeLists-SNIPPET.txt`
+**Create:** `plugins/[Name]/.planning/mockups/v[N]-CMakeLists-SNIPPET.txt`
 
 **Purpose:** CMake configuration snippet to append to plugin's CMakeLists.txt during Stage 3.
 
@@ -438,7 +438,7 @@ target_compile_definitions(${PRODUCT_NAME}
 
 ### Phase 9: Generate Integration Checklist
 
-**Create:** `plugins/[Name]/.ideas/mockups/v[N]-integration-checklist.md`
+**Create:** `plugins/[Name]/.planning/mockups/v[N]-integration-checklist.md`
 
 **Purpose:** Step-by-step guide for gui-agent to integrate UI during Stage 3.
 
@@ -524,7 +524,7 @@ fi
 **CRITICAL: Draft validation prevents parameter mismatches.**
 
 ```bash
-DRAFT_PATH="plugins/${PLUGIN_NAME}/.ideas/parameter-spec-draft.md"
+DRAFT_PATH="plugins/${PLUGIN_NAME}/.planning/parameter-spec-draft.md"
 
 if [ -f "$DRAFT_PATH" ]; then
   echo "ℹ Draft parameters found - validating consistency..."
@@ -663,7 +663,7 @@ if missing_from_mockup or extra_in_mockup:
 - UI Control descriptions: From YAML or inferred from type
 - DSP Usage: Placeholder text (user will update during planning)
 
-**Output location:** `plugins/[PluginName]/.ideas/parameter-spec.md`
+**Output location:** `plugins/[PluginName]/.planning/parameter-spec.md`
 
 ### Phase 10.5: Commit and Update State
 
@@ -672,7 +672,7 @@ if missing_from_mockup or extra_in_mockup:
 #### Step 10.5.1: Stage all generated files
 
 ```bash
-cd plugins/[PluginName]/.ideas/mockups
+cd plugins/[PluginName]/.planning/mockups
 
 git add v[N]-ui.html \
         v[N]-PluginEditor-TEMPLATE.h \
@@ -717,11 +717,11 @@ if [ $? -ne 0 ]; then
 fi
 ```
 
-#### Step 10.5.3: Update .continue-here.md
+#### Step 10.5.3: Update .planning/STATUS.md
 
 ```bash
 # Read current state
-CONTINUE_FILE="plugins/${PLUGIN_NAME}/.continue-here.md"
+CONTINUE_FILE="plugins/${PLUGIN_NAME}/.planning/STATUS.md"
 
 # Update state fields
 sed -i '' "s/mockup_finalized: .*/mockup_finalized: true/" "$CONTINUE_FILE"
@@ -874,11 +874,11 @@ After completing file generation and commit, update workflow state files.
 ### Step 1: Read Current State
 
 ```bash
-CONTINUE_FILE="plugins/${PLUGIN_NAME}/.continue-here.md"
+CONTINUE_FILE="plugins/${PLUGIN_NAME}/.planning/STATUS.md"
 
 # Verify file exists
 if [ ! -f "$CONTINUE_FILE" ]; then
-  echo "WARNING: .continue-here.md not found - creating new file"
+  echo "WARNING: .planning/STATUS.md not found - creating new file"
   # Create minimal state file
 fi
 ```
@@ -930,7 +930,7 @@ fi
   "issues": ["WARNING: State file update failed"],
   "ready_for_next_stage": true,
   "stateUpdated": false,
-  "stateUpdateError": "Failed to write .continue-here.md: [error message]"
+  "stateUpdateError": "Failed to write .planning/STATUS.md: [error message]"
 }
 ```
 </state_management>
@@ -1015,7 +1015,7 @@ All reports MUST conform to the unified subagent report schema.
   "outputs": {
     "plugin_name": "[PluginName]",
     "error_type": "design_not_finalized",
-    "yaml_path": "plugins/[PluginName]/.ideas/mockups/v1-ui.yaml",
+    "yaml_path": "plugins/[PluginName]/.planning/mockups/v1-ui.yaml",
     "finalization_marker_present": false
   },
   "issues": [
@@ -1038,8 +1038,8 @@ All reports MUST conform to the unified subagent report schema.
     "plugin_name": "[PluginName]",
     "error_type": "parameter_mismatch",
     "version": 1,
-    "draft_path": "plugins/[PluginName]/.ideas/parameter-spec-draft.md",
-    "yaml_path": "plugins/[PluginName]/.ideas/mockups/v1-ui.yaml",
+    "draft_path": "plugins/[PluginName]/.planning/parameter-spec-draft.md",
+    "yaml_path": "plugins/[PluginName]/.planning/mockups/v1-ui.yaml",
     "missing_from_mockup": ["filterCutoff", "resonance"],
     "extra_in_mockup": ["outputGain"],
     "draft_parameter_count": 5,
@@ -1071,7 +1071,7 @@ All reports MUST conform to the unified subagent report schema.
     "plugin_name": "[PluginName]",
     "error_type": "missing_parameter_spec",
     "version": 2,
-    "expected_path": "plugins/[PluginName]/.ideas/parameter-spec.md"
+    "expected_path": "plugins/[PluginName]/.planning/parameter-spec.md"
   },
   "issues": [
     "BLOCKING ERROR: parameter-spec.md missing",
@@ -1143,9 +1143,9 @@ Before returning success report, verify:
 
 **State management:**
 - [ ] Git commit succeeded (all files staged)
-- [ ] .continue-here.md updated with `mockup_finalized: true`
-- [ ] .continue-here.md has `finalized_version: [N]`
-- [ ] .continue-here.md has `stage_0_status: ui_design_complete`
+- [ ] .planning/STATUS.md updated with `mockup_finalized: true`
+- [ ] .planning/STATUS.md has `finalized_version: [N]`
+- [ ] .planning/STATUS.md has `stage_0_status: ui_design_complete`
 
 **Automated verification script:**
 
@@ -1188,7 +1188,7 @@ echo "✓ Validation passed"
 6. Integration checklist has all steps
 7. parameter-spec.md created if v1 (or consistent if draft exists)
 8. Git commit succeeded
-9. .continue-here.md updated with finalization markers
+9. .planning/STATUS.md updated with finalization markers
 10. JSON report returned to orchestrator
 
 **File generation fails when:**

@@ -17,7 +17,7 @@
 
 ## Prerequisites Verified
 
-- ✓ creative-brief.md exists
+- ✓ BRIEF.md exists
 - ✓ parameter-spec.md exists (REQUIRED for Stage 1)
 - ✓ architecture.md exists (REQUIRED for Stage 1)
 

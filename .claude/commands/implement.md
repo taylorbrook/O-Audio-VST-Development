@@ -30,8 +30,8 @@ When user runs `/implement [PluginName?]`, invoke the plugin-workflow skill to b
         [PluginName] planning is not complete.
 
         Run /plan [PluginName] first to complete Stage 0 (Research & Planning):
-        - Creates architecture.md (DSP specification)
-        - Creates plan.md (implementation strategy)
+        - Creates research/ARCHITECTURE.md (DSP specification)
+        - Creates ROADMAP.md (implementation strategy)
 
         Then run /implement to build (stages 1-3).
       </error_message>
@@ -48,16 +48,16 @@ When user runs `/implement [PluginName?]`, invoke the plugin-workflow skill to b
 
   <decision_gate type="contract_verification" blocking="true">
     <required_contracts>
-      <contract path="plugins/${PLUGIN_NAME}/.ideas/architecture.md" created_by="Stage 0"/>
-      <contract path="plugins/${PLUGIN_NAME}/.ideas/plan.md" created_by="Stage 0"/>
-      <contract path="plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md" created_by="ideation"/>
+      <contract path="plugins/${PLUGIN_NAME}/.planning/research/ARCHITECTURE.md" created_by="Stage 0"/>
+      <contract path="plugins/${PLUGIN_NAME}/.planning/ROADMAP.md" created_by="Stage 0"/>
+      <contract path="plugins/${PLUGIN_NAME}/.planning/parameter-spec.md" created_by="ideation"/>
     </required_contracts>
 
     <validation_command>
       # See .claude/skills/plugin-workflow/references/precondition-checks.sh for reusable check functions
-      test -f "plugins/${PLUGIN_NAME}/.ideas/architecture.md" &amp;&amp; \
-      test -f "plugins/${PLUGIN_NAME}/.ideas/plan.md" &amp;&amp; \
-      test -f "plugins/${PLUGIN_NAME}/.ideas/parameter-spec.md"
+      test -f "plugins/${PLUGIN_NAME}/.planning/research/ARCHITECTURE.md" &amp;&amp; \
+      test -f "plugins/${PLUGIN_NAME}/.planning/ROADMAP.md" &amp;&amp; \
+      test -f "plugins/${PLUGIN_NAME}/.planning/parameter-spec.md"
     </validation_command>
 
     <on_failure action="BLOCK">
@@ -69,14 +69,14 @@ When user runs `/implement [PluginName?]`, invoke the plugin-workflow skill to b
         Implementation requires complete planning contracts:
 
         Required contracts:
-        [✓/✗] architecture.md - [exists/MISSING]
-        [✓/✗] plan.md - [exists/MISSING]
+        [✓/✗] research/ARCHITECTURE.md - [exists/MISSING]
+        [✓/✗] ROADMAP.md - [exists/MISSING]
         [✓/✗] parameter-spec.md - [exists/MISSING]
 
         HOW TO UNBLOCK:
         1. Run: /plan [PluginName]
-           - Completes Stage 0 (Research) → architecture.md
-           - Completes Stage 0 (Planning) → plan.md
+           - Completes Stage 0 (Research) → research/ARCHITECTURE.md
+           - Completes Stage 0 (Planning) → ROADMAP.md
 
         2. If parameter-spec.md missing:
            - Run: /start [PluginName]
@@ -264,7 +264,7 @@ Invoke the plugin-workflow skill with the plugin name and starting stage. The sk
 ## Pause & Resume
 
 If user pauses:
-- .continue-here.md updated with current stage
+- .planning/STATUS.md updated with current stage
 - PLUGINS.md status updated
 - Changes committed
 

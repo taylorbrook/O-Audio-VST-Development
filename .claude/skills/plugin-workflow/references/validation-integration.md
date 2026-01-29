@@ -15,10 +15,10 @@ Validate Stage ${stage} completion for ${pluginName}.
 **Plugin:** ${pluginName}
 
 **Contracts (read these files yourself):**
-- creative-brief.md: plugins/${pluginName}/.ideas/creative-brief.md
-- architecture.md: plugins/${pluginName}/.ideas/architecture.md
-- plan.md: plugins/${pluginName}/.ideas/plan.md
-- parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
+- BRIEF.md: plugins/${pluginName}/.planning/BRIEF.md
+- architecture.md: plugins/${pluginName}/.planning/architecture.md
+- plan.md: plugins/${pluginName}/.planning/plan.md
+- parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 - Required Reading: troubleshooting/patterns/juce8-critical-patterns.md
 
 **Expected outputs for Stage ${stage}:**

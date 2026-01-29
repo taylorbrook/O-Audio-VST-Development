@@ -12,7 +12,7 @@ ready_for_implementation: true
 # Ready for Implementation
 
 Planning complete. All contracts created:
-- ✓ creative-brief.md
+- ✓ BRIEF.md
 - ✓ parameter-spec.md
 - ✓ architecture.md
 - ✓ plan.md

@@ -20,8 +20,8 @@
 
 1. Check for creative brief:
 ```bash
-if [ ! -f "plugins/${PLUGIN_NAME}/.ideas/creative-brief.md" ]; then
-    echo "✗ creative-brief.md not found"
+if [ ! -f "plugins/${PLUGIN_NAME}/.planning/BRIEF.md" ]; then
+    echo "✗ BRIEF.md not found"
     echo "Run /start ${PLUGIN_NAME} first"
     exit 1
 fi
@@ -44,7 +44,7 @@ fi
 ### 1. Read Creative Brief
 
 ```bash
-cat plugins/${PLUGIN_NAME}/.ideas/creative-brief.md
+cat plugins/${PLUGIN_NAME}/.planning/BRIEF.md
 ```
 
 Extract key information:
@@ -655,7 +655,7 @@ Output:
 
 **Use enhanced architecture-template.md to compile all research.**
 
-**File location:** `plugins/${PLUGIN_NAME}/.ideas/architecture.md`
+**File location:** `plugins/${PLUGIN_NAME}/.planning/architecture.md`
 
 **Required sections (see template for detailed structure):**
 
@@ -676,7 +676,7 @@ Output:
 2. Fill all sections with research findings from 3.2.1-3.3
 3. Ensure all features from 3.1 are documented
 4. Include examples and concrete details (not vague placeholders)
-5. Write file: `plugins/${PLUGIN_NAME}/.ideas/architecture.md`
+5. Write file: `plugins/${PLUGIN_NAME}/.planning/architecture.md`
 
 **Quality check:**
 - Every feature from 3.1 has a section in architecture.md
@@ -735,7 +735,7 @@ grep -r "addParameter" plugins/*/Source/*.cpp | grep -i "[parameter-type]"
 
 Check for existing UI mockup:
 ```bash
-ls -la plugins/${PLUGIN_NAME}/.ideas/mockups/v*-ui.yaml 2>/dev/null
+ls -la plugins/${PLUGIN_NAME}/.planning/mockups/v*-ui.yaml 2>/dev/null
 ```
 
 **If mockup exists:**
@@ -766,7 +766,7 @@ Note: Conflicts will be auto-resolved when mockup is finalized (mockup becomes s
 - [List any type changes]
 
 **Contracts updated:**
-- [creative-brief.md | parameter-spec.md | both]
+- [BRIEF.md | parameter-spec.md | both]
 ```
 
 ---
@@ -775,7 +775,7 @@ Note: Conflicts will be auto-resolved when mockup is finalized (mockup becomes s
 
 **Use template:** `assets/architecture-template.md`
 
-**File location:** `plugins/${PLUGIN_NAME}/.ideas/architecture.md`
+**File location:** `plugins/${PLUGIN_NAME}/.planning/architecture.md`
 
 ### Required Sections
 
@@ -910,7 +910,7 @@ Document all research:
 
 ### 1. Create Handoff File
 
-**File:** `plugins/${PLUGIN_NAME}/.continue-here.md`
+**File:** `plugins/${PLUGIN_NAME}/.planning/STATUS.md`
 
 **Content:**
 ```yaml
@@ -943,7 +943,7 @@ DSP architecture documented. Ready to proceed to planning.
 3. Pause here
 
 ## Files Created
-- plugins/[PluginName]/.ideas/architecture.md
+- plugins/[PluginName]/.planning/architecture.md
 ```
 
 ### 2. Update PLUGINS.md (ATOMIC - both locations)
@@ -971,7 +971,7 @@ fi
    **Type:** [Audio Effect | MIDI Instrument | Synth | Utility]
    **Created:** [YYYY-MM-DD]
 
-   [Brief description from creative-brief.md]
+   [Brief description from BRIEF.md]
 
    **Lifecycle Timeline:**
    - **[YYYY-MM-DD]:** Creative brief created
@@ -1002,8 +1002,8 @@ fi
 
 ```bash
 git add \
-  plugins/${PLUGIN_NAME}/.ideas/architecture.md \
-  plugins/${PLUGIN_NAME}/.continue-here.md \
+  plugins/${PLUGIN_NAME}/.planning/architecture.md \
+  plugins/${PLUGIN_NAME}/.planning/STATUS.md \
   PLUGINS.md
 
 git commit -m "$(cat <<'EOF'

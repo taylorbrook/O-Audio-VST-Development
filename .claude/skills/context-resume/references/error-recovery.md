@@ -8,7 +8,7 @@
 
 ## Error 1: No Handoff Found
 
-**Scenario:** `.continue-here.md` doesn't exist in any of the 2 locations.
+**Scenario:** `.planning/STATUS.md` doesn't exist in any of the 2 locations.
 
 **Response:**
 
@@ -146,8 +146,8 @@ Choose (1-4): _
 Support resuming from older handoff file if multiple backups exist:
 
 ```bash
-# If .continue-here.md.backup files exist
-find plugins/$PLUGIN_NAME -name ".continue-here.md*"
+# If .planning/STATUS.md.backup files exist
+find plugins/$PLUGIN_NAME -name ".planning/STATUS.md*"
 ```
 
 **Present options:**

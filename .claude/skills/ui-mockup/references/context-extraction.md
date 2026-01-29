@@ -8,10 +8,10 @@ Before designing UI, gather context from existing plugin documentation to inform
 
 ```bash
 # Creative brief (plugin concept)
-test -f "plugins/$PLUGIN_NAME/.ideas/creative-brief.md"
+test -f "plugins/$PLUGIN_NAME/.planning/BRIEF.md"
 
 # Improvement notes (redesign context)
-find "plugins/$PLUGIN_NAME/.ideas/improvements/" -name "*.md"
+find "plugins/$PLUGIN_NAME/.planning/improvements/" -name "*.md"
 
 # Existing implementation (for redesigns)
 test -d "plugins/$PLUGIN_NAME/Source/"
@@ -31,7 +31,7 @@ Identifies UI conventions and user expectations:
 
 ### Parameters
 
-From creative-brief.md or existing code:
+From BRIEF.md or existing code:
 
 - **Names**: "Threshold", "Attack Time", "Mix"
 - **Types**: Float, Bool, Choice
@@ -67,7 +67,7 @@ Advanced UI features:
 
 ## Example Extraction
 
-**From creative-brief.md:**
+**From BRIEF.md:**
 
 ```markdown
 # Vintage Compressor
@@ -104,7 +104,7 @@ If creative brief says "vintage compressor" but doesn't specify:
 - Control positions → Ask (or use standard horizontal flow)
 - Font → Use classic sans-serif (Inter, no script fonts for readability)
 
-## Example: Extracting from creative-brief.md
+## Example: Extracting from BRIEF.md
 
 **Creative brief excerpt:**
 ```

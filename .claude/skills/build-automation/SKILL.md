@@ -271,18 +271,18 @@ After user makes decision from success menu:
 
 **State update responsibility:**
 - build-automation commits the successful build (Step 3 above)
-- Invoking skill (plugin-workflow) handles .continue-here.md and PLUGINS.md updates
+- Invoking skill (plugin-workflow) handles .planning/STATUS.md and PLUGINS.md updates
 - Proper separation: build-automation handles build artifacts, orchestrator handles workflow state
 
 NEVER continue workflow autonomously after success.
 NEVER invoke next stage directly.
-NEVER update .continue-here.md or PLUGINS.md (invoking skill's responsibility).
+NEVER update .planning/STATUS.md or PLUGINS.md (invoking skill's responsibility).
 ALWAYS exit and let invoking skill/workflow orchestrate next action.
 
 Exit the skill cleanly:
 1. Do NOT invoke any other skills or agents
 2. Do NOT continue to next stage
-3. Do NOT update state files (.continue-here.md, PLUGINS.md)
+3. Do NOT update state files (.planning/STATUS.md, PLUGINS.md)
 4. Simply complete skill execution
 5. The invoking skill/workflow will detect completion and proceed according to its own logic
 

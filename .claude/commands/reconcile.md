@@ -23,7 +23,7 @@ When user runs `/reconcile [PluginName?]`, invoke the workflow-reconciliation sk
 ## What This Does
 
 Reconciliation ensures workflow state files are synchronized:
-- `.continue-here.md` - Resume point with stage/phase/status
+- `.planning/STATUS.md` - Resume point with stage/phase/status
 - `PLUGINS.md` - Plugin registry with status emoji
 - Git status - Staged/unstaged/uncommitted changes
 - Contract files - Required artifacts per workflow stage

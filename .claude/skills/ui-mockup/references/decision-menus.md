@@ -59,7 +59,7 @@ Choose (1-4): _
 - This is the ONLY option that proceeds to Phase B (files 3-7)
 - Verification steps:
   1. Check WebView constraints validation (Phase 5.3 already executed)
-  2. Update creative-brief.md from mockup (Phase 5.6 - automatic)
+  2. Update BRIEF.md from mockup (Phase 5.6 - automatic)
   3. Verify user explicitly confirmed finalization
   4. Mark design as finalized in YAML file
   5. Proceed to Phase 6-10 (generate 5 implementation files)
@@ -72,7 +72,7 @@ Choose (1-4): _
   ```
   Invoke Skill tool:
   - skill: "ui-template-library"
-  - context: "Save aesthetic from plugins/[PluginName]/.ideas/mockups/v[N]-ui-test.html"
+  - context: "Save aesthetic from plugins/[PluginName]/.planning/mockups/v[N]-ui-test.html"
   ```
   After ui-template-library completes: return to Phase 5.5 decision menu
 

@@ -2,19 +2,19 @@
 
 ## Overview
 
-State management in ui-mockup workflow uses `.continue-here.md` for workflow mode and skips state updates in standalone mode.
+State management in ui-mockup workflow uses `.planning/STATUS.md` for workflow mode and skips state updates in standalone mode.
 
 ## Mode Detection
 
 Check for workflow vs standalone mode before any state operation:
 
 **Workflow Mode:**
-- File exists: `plugins/[PluginName]/.continue-here.md`
+- File exists: `plugins/[PluginName]/.planning/STATUS.md`
 - File contains: `current_stage` field
 - Actions: Update state after each phase completion
 
 **Standalone Mode:**
-- No `.continue-here.md` file present
+- No `.planning/STATUS.md` file present
 - Invoked directly via natural language or /start
 - Actions: Skip all state updates, generate mockups independently
 
@@ -24,7 +24,7 @@ Check for workflow vs standalone mode before any state operation:
 
 ```yaml
 # Mockup versioning
-mockup_latest_version: 3              # Highest v[N] in .ideas/mockups/
+mockup_latest_version: 3              # Highest v[N] in .planning/mockups/
 mockup_finalized: true                # Design approved via Phase 5.5 menu
 finalized_version: 2                  # Which version was finalized
 
@@ -119,7 +119,7 @@ ui_design_phase_complete: true       # Must be set to true
 ```
 
 **Verification logic:**
-1. Read `.continue-here.md`
+1. Read `.planning/STATUS.md`
 2. Parse YAML
 3. Check `mockup_latest_version == JSON.version`
 4. Check `ui_design_phase_complete == true`
@@ -134,7 +134,7 @@ next_action: "proceed_to_stage_1"    # Must be set (workflow mode)
 ```
 
 **Verification logic:**
-1. Read `.continue-here.md`
+1. Read `.planning/STATUS.md`
 2. Parse YAML
 3. Check `ui_scaffolding_phase_complete == true`
 4. Check `next_action` is set (if workflow mode)
@@ -149,7 +149,7 @@ When verification fails or agent returns `stateUpdated: false`:
 
 What would you like to do?
 
-1. Verify manually - Read .continue-here.md and check contents
+1. Verify manually - Read .planning/STATUS.md and check contents
 2. Fix state - Update fields to correct values
 3. Continue anyway - Proceed despite state mismatch
 4. Other
@@ -200,7 +200,7 @@ Choose (1-4): _
 
 ### Scenario: Missing State File
 
-If `.continue-here.md` doesn't exist but workflow context suggests it should:
+If `.planning/STATUS.md` doesn't exist but workflow context suggests it should:
 
 1. Log warning
 2. Assume standalone mode
@@ -217,7 +217,7 @@ If YAML parse fails:
 
 What would you like to do?
 
-1. Inspect file - Show .continue-here.md contents
+1. Inspect file - Show .planning/STATUS.md contents
 2. Reset state - Recreate with current values
 3. Manual fix - I'll edit YAML manually
 4. Other
@@ -261,13 +261,13 @@ git commit -m "feat(${PLUGIN_NAME}): UI mockup v${VERSION} implementation scaffo
 
 After ui-mockup workflow completes:
 
-1. **Read `.continue-here.md`**
+1. **Read `.planning/STATUS.md`**
    - All ui-mockup fields present
    - Values match what subagents reported in JSON
    - YAML is valid (no parse errors)
 
 2. **Check filesystem matches state**
-   - `mockup_latest_version` matches highest v[N] in `.ideas/mockups/`
+   - `mockup_latest_version` matches highest v[N] in `.planning/mockups/`
    - `finalized_version` has corresponding finalization marker in YAML
    - All files reported in JSON `filesCreated` actually exist
 

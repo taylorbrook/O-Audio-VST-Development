@@ -17,7 +17,7 @@
 mkdir -p plugins/[PluginName]/Source/ui
 
 # Copy production HTML
-cp plugins/[PluginName]/.ideas/mockups/v[N]-ui.html \
+cp plugins/[PluginName]/.planning/mockups/v[N]-ui.html \
    plugins/[PluginName]/Source/ui/index.html
 ```
 

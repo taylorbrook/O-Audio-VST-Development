@@ -48,8 +48,8 @@ Check plugin is ready for packaging:
 **Read multiple files in parallel** using multiple Read tool calls:
 - PLUGINS.md entry for plugin (version, description, parameter list, use cases)
 - `plugins/[PluginName]/CMakeLists.txt` (for PRODUCT_NAME extraction)
-- `plugins/[PluginName]/.ideas/parameter-spec.md` (detailed parameter descriptions)
-- `plugins/[PluginName]/.ideas/creative-brief.md` (features, use cases, design rationale)
+- `plugins/[PluginName]/.planning/parameter-spec.md` (detailed parameter descriptions)
+- `plugins/[PluginName]/.planning/BRIEF.md` (features, use cases, design rationale)
 
 Extract PRODUCT_NAME using grep + sed (see Section 1.2 in references/pkg-creation.md).
 
@@ -60,7 +60,7 @@ Extract PRODUCT_NAME using grep + sed (see Section 1.2 in references/pkg-creatio
 
 ### 3. Create Branding Files
 
-Generate Welcome.txt, ReadMe.txt, and Conclusion.txt by reading templates from `assets/` and replacing {{VARIABLE}} placeholders with metadata from contracts (.ideas/parameter-spec.md and creative-brief.md provide richer content than PLUGINS.md).
+Generate Welcome.txt, ReadMe.txt, and Conclusion.txt by reading templates from `assets/` and replacing {{VARIABLE}} placeholders with metadata from contracts (.planning/parameter-spec.md and BRIEF.md provide richer content than PLUGINS.md).
 
 See Section 3 in references/pkg-creation.md for complete bash implementation.
 

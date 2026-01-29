@@ -21,7 +21,7 @@
 **Scan for finalized mockup version:**
 
 ```bash
-cd plugins/${PLUGIN_NAME}/.ideas/mockups/
+cd plugins/${PLUGIN_NAME}/.planning/mockups/
 
 # Find highest version number
 LATEST_MOCKUP=$(ls -1 v*-ui.html 2>/dev/null | sort -V | tail -1)
@@ -49,7 +49,7 @@ HOW TO UNBLOCK:
 3. Finalize a design version (marks it as v[N])
 4. Then resume Stage 3 with /continue ${PLUGIN_NAME}
 
-Current status: No finalized mockup found in .ideas/mockups/
+Current status: No finalized mockup found in .planning/mockups/
 
 Cannot proceed without this contract.
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -67,7 +67,7 @@ echo "✓ Found finalized mockup: $LATEST_MOCKUP"
 Same as Stage 2 - check if phased implementation needed:
 
 ```typescript
-const planContent = readFile(`plugins/${pluginName}/.ideas/plan.md`);
+const planContent = readFile(`plugins/${pluginName}/.planning/plan.md`);
 const complexityScore = extractComplexityScore(planContent);
 const hasPhases =
   planContent.includes("### Phase 4.1") ||
@@ -101,10 +101,10 @@ You are gui-agent implementing Stage 3 for ${pluginName}.
 **UI Mockup:** ${mockupPath}
 
 **Contracts (read these files yourself):**
-- creative-brief.md: plugins/${pluginName}/.ideas/creative-brief.md
-- architecture.md: plugins/${pluginName}/.ideas/architecture.md
-- plan.md: plugins/${pluginName}/.ideas/plan.md
-- parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
+- BRIEF.md: plugins/${pluginName}/.planning/BRIEF.md
+- architecture.md: plugins/${pluginName}/.planning/architecture.md
+- plan.md: plugins/${pluginName}/.planning/plan.md
+- parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 - Required Reading: troubleshooting/patterns/stage-3-patterns.md
 
 **CRITICAL: Read Required Reading BEFORE implementation.**
@@ -211,10 +211,10 @@ You are gui-agent implementing Phase ${phase.number} for ${pluginName}.
 **UI Mockup:** ${mockupPath}
 
 **Contracts (read these files yourself):**
-- creative-brief.md: plugins/${pluginName}/.ideas/creative-brief.md
-- architecture.md: plugins/${pluginName}/.ideas/architecture.md
-- plan.md: plugins/${pluginName}/.ideas/plan.md
-- parameter-spec.md: plugins/${pluginName}/.ideas/parameter-spec.md
+- BRIEF.md: plugins/${pluginName}/.planning/BRIEF.md
+- architecture.md: plugins/${pluginName}/.planning/architecture.md
+- plan.md: plugins/${pluginName}/.planning/plan.md
+- parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 - Required Reading: troubleshooting/patterns/stage-3-patterns.md
 
 **CRITICAL: Read Required Reading BEFORE implementation.**
@@ -249,8 +249,8 @@ Build verification handled by orchestrator after you complete.
 git add plugins/${pluginName}/Source/
 git add plugins/${pluginName}/ui/
 git add plugins/${pluginName}/CMakeLists.txt
-git add plugins/${pluginName}/.ideas/plan.md
-git add plugins/${pluginName}/.continue-here.md
+git add plugins/${pluginName}/.planning/plan.md
+git add plugins/${pluginName}/.planning/STATUS.md
 
 git commit -m "feat: ${pluginName} Stage ${phase.number} - ${phase.description}"
   `);
@@ -310,7 +310,7 @@ bash(`
 git add plugins/${pluginName}/Source/
 git add plugins/${pluginName}/ui/
 git add plugins/${pluginName}/CMakeLists.txt
-git add plugins/${pluginName}/.continue-here.md
+git add plugins/${pluginName}/.planning/STATUS.md
 git add PLUGINS.md
 
 git commit -m "$(cat <<'EOF'
@@ -455,12 +455,12 @@ if (complexityScore >= 4) {
 
   // Read contracts
   const paramSpecContent = readFile(
-    `plugins/${pluginName}/.ideas/parameter-spec.md`
+    `plugins/${pluginName}/.planning/parameter-spec.md`
   );
   const architectureContent = readFile(
-    `plugins/${pluginName}/.ideas/architecture.md`
+    `plugins/${pluginName}/.planning/architecture.md`
   );
-  const planContent = readFile(`plugins/${pluginName}/.ideas/plan.md`);
+  const planContent = readFile(`plugins/${pluginName}/.planning/plan.md`);
 
   const validationResult = Task({
     subagent_type: "validation-agent",

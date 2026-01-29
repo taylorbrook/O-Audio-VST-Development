@@ -71,7 +71,7 @@ When the user asks their question:
 **DO NOT load:**
 - `.claude/aesthetics/*` (visual templates, not system architecture)
 - `PLUGINS.md` (plugin tracking, not system architecture)
-- `.continue-here.md` (workflow state, not architecture)
+- `.planning/STATUS.md` (workflow state, not architecture)
 - `system-config.json` (environment config, not architecture)
 - Any files under `plugins/` (plugin implementations, not system code)
 - Any backup directories
@@ -119,7 +119,7 @@ User: "How can we optimize the checkpoint protocol?"
 → This involves hooks and best practices → Invoke claude-code-knowledge
 → Then analyze with both Claude Code docs + loaded PFS context
 
-User: "Should we rename the .continue-here.md file?"
+User: "Should we rename the .planning/STATUS.md file?"
 → Pure PFS naming convention → Proceed directly with PFS context
 ```
 

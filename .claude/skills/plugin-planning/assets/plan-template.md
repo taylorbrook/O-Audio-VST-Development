@@ -254,10 +254,10 @@
 
 [Link to contract files and related documentation]
 
-- Creative brief: `plugins/[PluginName]/.ideas/creative-brief.md`
-- Parameter spec: `plugins/[PluginName]/.ideas/parameter-spec.md`
-- DSP architecture: `plugins/[PluginName]/.ideas/architecture.md`
-- UI mockup: `plugins/[PluginName]/.ideas/mockups/v[N]-ui.yaml`
+- Creative brief: `plugins/[PluginName]/.planning/BRIEF.md`
+- Parameter spec: `plugins/[PluginName]/.planning/parameter-spec.md`
+- DSP architecture: `plugins/[PluginName]/.planning/architecture.md`
+- UI mockup: `plugins/[PluginName]/.planning/mockups/v[N]-ui.yaml`
 
 [Link to similar plugins for reference]
 

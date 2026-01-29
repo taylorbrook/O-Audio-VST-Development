@@ -49,7 +49,7 @@ Test output:
 [exact error message or failure log]
 
 Plugin info:
-- Type: [from creative-brief.md - e.g., delay effect, reverb, etc.]
+- Type: [from BRIEF.md - e.g., delay effect, reverb, etc.]
 - DSP features: [list from parameter-spec.md]
 - Parameters: [count and types]
 

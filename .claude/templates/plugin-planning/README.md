@@ -80,17 +80,17 @@ sed -i '' "s/\[PluginName\]/${PLUGIN_NAME}/g" plugins/${PLUGIN_NAME}/.planning/S
 ## Templates
 
 - **BRIEF-template.md** - Creative brief / project vision (replaces PROJECT.md)
-- **STATUS-template.md** - Current state and progress (replaces STATE.md and .continue-here.md)
+- **STATUS-template.md** - Current state and progress (replaces STATE.md and .planning/STATUS.md)
 
 ## Migration from Old Structure
 
-If migrating from the old `.ideas/` structure:
+If migrating from the old `.planning/` structure:
 
 | Old Location | New Location |
 |--------------|--------------|
-| `.ideas/creative-brief.md` | `.planning/BRIEF.md` |
-| `.ideas/parameter-spec.md` | `.planning/parameter-spec.md` |
-| `.ideas/architecture.md` | `.planning/research/ARCHITECTURE.md` |
-| `.ideas/plan.md` | `.planning/ROADMAP.md` |
-| `.ideas/mockups/` | `.planning/mockups/` |
-| `.continue-here.md` | `.planning/STATUS.md` |
+| `.planning/BRIEF.md` | `.planning/BRIEF.md` |
+| `.planning/parameter-spec.md` | `.planning/parameter-spec.md` |
+| `.planning/architecture.md` | `.planning/research/ARCHITECTURE.md` |
+| `.planning/plan.md` | `.planning/ROADMAP.md` |
+| `.planning/mockups/` | `.planning/mockups/` |
+| `.planning/STATUS.md` | `.planning/STATUS.md` |
