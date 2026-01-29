@@ -1,289 +1,172 @@
 ---
 name: implement
-description: Build plugin through implementation stages 1-4
-argument-hint: [PluginName?]
-allowed-tools: Bash(test:*)
+description: Build plugin through implementation stages 1-4 with GSD phase cycles
+argument-hint: "[PluginName?] [--express] [--skip-discuss] [--skip-research] [--skip-verify]"
+skill: plugin-workflow
 ---
 
 # /implement
 
-When user runs `/implement [PluginName?]`, invoke the plugin-workflow skill to build the plugin (stages 1-3).
+Build a plugin through implementation stages 1-4, with each stage running a full GSD phase cycle (discuss → research → plan → execute → verify).
 
-<prerequisite>
-  Planning (Stage 0) must be completed first via `/plan` command.
-</prerequisite>
+## Usage
 
-## Preconditions
+```
+/implement [plugin_name] [flags]    # Specific plugin with options
+/implement [flags]                  # Focused plugin with options
+/implement                          # Focused plugin, default options
+```
 
-<preconditions enforcement="blocking">
-  <decision_gate type="status_verification" source="PLUGINS.md">
-    <allowed_state status="🚧 Stage 0" description="Planning complete">
-      Start implementation at Stage 1
-    </allowed_state>
+## Arguments
 
-    <allowed_state status="🚧 Stage 1-3" description="In progress">
-      Resume implementation at current stage
-    </allowed_state>
+- `plugin_name` - Plugin to implement (optional, defaults to focused)
 
-    <blocked_state status="💡 Ideated" action="redirect">
-      <error_message>
-        [PluginName] planning is not complete.
+## Flags
 
-        Run /plan [PluginName] first to complete Stage 0 (Research & Planning):
-        - Creates research/ARCHITECTURE.md (DSP specification)
-        - Creates ROADMAP.md (implementation strategy)
+| Flag | Description |
+|------|-------------|
+| `--express` | Auto-progress through all stages and phases |
+| `--manual` | Show decision menus at each checkpoint |
+| `--skip-discuss` | Skip discuss phase (use existing context) |
+| `--skip-research` | Skip research phase |
+| `--skip-verify` | Skip verify phase (not recommended) |
 
-        Then run /implement to build (stages 1-3).
-      </error_message>
-    </blocked_state>
+## Prerequisites
 
-    <blocked_state status="✅ Working" action="redirect">
-      <error_message>
-        [PluginName] is already implemented and working.
+Planning (Stage 0) must be complete. Required files:
+- `plugins/[Name]/.planning/research/ARCHITECTURE.md`
+- `plugins/[Name]/.planning/ROADMAP.md`
+- `plugins/[Name]/.planning/parameter-spec.md`
 
-        Use /improve [PluginName] to make changes or add features.
-      </error_message>
-    </blocked_state>
-  </decision_gate>
+If missing, run `/plan [PluginName]` first.
 
-  <decision_gate type="contract_verification" blocking="true">
-    <required_contracts>
-      <contract path="plugins/${PLUGIN_NAME}/.planning/research/ARCHITECTURE.md" created_by="Stage 0"/>
-      <contract path="plugins/${PLUGIN_NAME}/.planning/ROADMAP.md" created_by="Stage 0"/>
-      <contract path="plugins/${PLUGIN_NAME}/.planning/parameter-spec.md" created_by="ideation"/>
-    </required_contracts>
+## Stages and Phases
 
-    <validation_command>
-      # See .claude/skills/plugin-workflow/references/precondition-checks.sh for reusable check functions
-      test -f "plugins/${PLUGIN_NAME}/.planning/research/ARCHITECTURE.md" &amp;&amp; \
-      test -f "plugins/${PLUGIN_NAME}/.planning/ROADMAP.md" &amp;&amp; \
-      test -f "plugins/${PLUGIN_NAME}/.planning/parameter-spec.md"
-    </validation_command>
+Each stage runs a full GSD cycle:
 
-    <on_failure action="BLOCK">
-      <error_message>
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-        ✗ BLOCKED: Missing planning artifacts
-        ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+┌─────────────────────────────────────────────────────────────┐
+│ Stage 1: Foundation                                         │
+│   discuss → research → plan → execute → verify              │
+│   Agent: foundation-shell-agent                             │
+│   Output: CMake, project structure, APVTS parameters        │
+├─────────────────────────────────────────────────────────────┤
+│ Stage 2: DSP                                                │
+│   discuss → research → plan → execute → verify              │
+│   Agent: dsp-agent                                          │
+│   Output: Audio processing, algorithms                      │
+├─────────────────────────────────────────────────────────────┤
+│ Stage 3: GUI                                                │
+│   discuss → research → plan → execute → verify              │
+│   Agent: gui-agent                                          │
+│   Output: WebView UI, parameter binding                     │
+├─────────────────────────────────────────────────────────────┤
+│ Stage 4: Polish                                             │
+│   discuss → research → plan → execute → verify              │
+│   Agent: polish-agent                                       │
+│   Output: Presets, optimization, edge cases                 │
+└─────────────────────────────────────────────────────────────┘
+```
 
-        Implementation requires complete planning contracts:
+## Workflow Mode
 
-        Required contracts:
-        [✓/✗] research/ARCHITECTURE.md - [exists/MISSING]
-        [✓/✗] ROADMAP.md - [exists/MISSING]
-        [✓/✗] parameter-spec.md - [exists/MISSING]
+**Mode precedence:**
+1. Command-line flag (`--express` or `--manual`)
+2. `.claude/preferences.json` (workflow.mode)
+3. Default: "manual"
 
-        HOW TO UNBLOCK:
-        1. Run: /plan [PluginName]
-           - Completes Stage 0 (Research) → research/ARCHITECTURE.md
-           - Completes Stage 0 (Planning) → ROADMAP.md
+**Express mode:**
+- Auto-progresses through all phases and stages
+- Creates CONTEXT.md from existing docs (skips interactive discuss)
+- Drops to manual mode on any error
+- Final menu always appears after Stage 4
 
-        2. If parameter-spec.md missing:
-           - Run: /start [PluginName]
-           - Create and finalize UI mockup
-           - Finalization generates parameter-spec.md
-
-        Once all contracts exist, /implement will proceed.
-      </error_message>
-    </on_failure>
-  </decision_gate>
-</preconditions>
+**Manual mode:**
+- Presents decision menus after each phase
+- Interactive discuss phase with questions
+- Full control over progression
 
 ## Behavior
 
-**If no plugin name provided:**
-1. Read PLUGINS.md and filter for plugins with status 🚧 Stage 0 or 🚧 Stage 1-4
-2. Present numbered menu of eligible plugins with current stage
-3. Wait for user selection
+1. **Resolve plugin name** (use focused if not specified)
+2. **Register in plugin-registry.json** (if not already)
+3. **Verify preconditions** (Stage 0 complete, contracts exist)
+4. **Determine workflow mode** (flag > preferences > default)
+5. **For each stage 1-4:**
+   - Run discuss phase (or skip if `--skip-discuss`)
+   - Run research phase (or skip if `--skip-research`)
+   - Run plan phase (always)
+   - Run execute phase (always)
+   - Run verify phase (or skip if `--skip-verify`)
+   - Update STATUS.md and registry
+   - Present checkpoint menu (manual) or auto-advance (express)
+6. **On completion:** Update PLUGINS.md to ✅ Working
 
-**If plugin name provided:**
-1. Parse plugin name and flags from arguments
-2. Read preferences.json (if exists) and determine workflow mode
-3. Apply flag precedence (flag > preferences > default)
-4. Verify preconditions (status check, contract verification)
-5. If preconditions pass: Invoke plugin-workflow skill via Skill tool with mode context
-6. If preconditions fail: Display blocking error and stop
-
-## Workflow Mode & Preferences
-
-**Command-line flags:**
-- `--express`: Force express mode (auto-progress through stages)
-- `--manual`: Force manual mode (show decision menus)
-
-**Precedence order:**
-1. Command-line flag (--express or --manual)
-2. `.claude/preferences.json` (workflow.mode)
-3. Default ("manual")
-
-**Flag parsing:**
-```bash
-# Parse plugin name and flags from arguments
-# Input examples:
-#   "/implement PluginName"
-#   "/implement PluginName --express"
-#   "/implement PluginName --manual"
-
-PLUGIN_NAME=""
-FLAG_MODE=""
-
-for arg in "$@"; do
-  case "$arg" in
-    --express)
-      FLAG_MODE="express"
-      ;;
-    --manual)
-      FLAG_MODE="manual"
-      ;;
-    /implement)
-      # Skip command itself
-      ;;
-    *)
-      PLUGIN_NAME="$arg"
-      ;;
-  esac
-done
-```
-
-**Preferences reading:**
-```bash
-# Read preferences.json (if exists)
-PREFS_MODE="manual"  # default
-AUTO_TEST="false"
-AUTO_INSTALL="false"
-AUTO_PACKAGE="false"
-
-if [ -f ".claude/preferences.json" ]; then
-  # Validate JSON before parsing
-  if jq empty .claude/preferences.json 2>/dev/null; then
-    PREFS_MODE=$(jq -r '.workflow.mode // "manual"' .claude/preferences.json)
-    AUTO_TEST=$(jq -r '.workflow.auto_test // false' .claude/preferences.json)
-    AUTO_INSTALL=$(jq -r '.workflow.auto_install // false' .claude/preferences.json)
-    AUTO_PACKAGE=$(jq -r '.workflow.auto_package // false' .claude/preferences.json)
-
-    # Validate mode value
-    if [[ "$PREFS_MODE" != "express" && "$PREFS_MODE" != "manual" ]]; then
-      echo "Warning: workflow.mode must be 'express' or 'manual', using manual mode"
-      PREFS_MODE="manual"
-    fi
-  else
-    echo "Warning: preferences.json is invalid JSON, using manual mode"
-    PREFS_MODE="manual"
-  fi
-fi
-
-# Determine effective mode (flag > preferences > default)
-EFFECTIVE_MODE="${FLAG_MODE:-$PREFS_MODE}"
-
-# Display mode selection
-if [ -n "$FLAG_MODE" ]; then
-  echo "Workflow mode: $EFFECTIVE_MODE (from flag)"
-else
-  echo "Workflow mode: $EFFECTIVE_MODE (from preferences)"
-fi
-```
-
-**Pass mode to plugin-workflow:**
-
-Before invoking the plugin-workflow skill, set environment variables for mode propagation:
+## Examples
 
 ```bash
-export WORKFLOW_MODE="$EFFECTIVE_MODE"
-export AUTO_TEST="$AUTO_TEST"
-export AUTO_INSTALL="$AUTO_INSTALL"
-export AUTO_PACKAGE="$AUTO_PACKAGE"
+# Implement focused plugin with express mode
+/implement --express
+
+# Implement specific plugin manually
+/implement O-IntonationPad --manual
+
+# Skip optional phases for faster iteration
+/implement O-IntonationPad --express --skip-discuss --skip-research
+
+# Resume from where you left off
+/continue O-IntonationPad --express
 ```
 
-The plugin-workflow skill reads these variables to control checkpoint behavior:
-- Express mode: Auto-progress through stages (no intermediate menus)
-- Manual mode: Present decision menus at each checkpoint (current behavior)
+## Phase Output Files
 
-See `.claude/skills/plugin-workflow/SKILL.md` for checkpoint protocol details.
+Each stage creates phase artifacts in `plugins/[Name]/.planning/stages/[N]-[name]/`:
 
-**Status parsing (ROBUST implementation):**
+| Phase | Output | Description |
+|-------|--------|-------------|
+| discuss | CONTEXT.md | Requirements, constraints, decisions |
+| research | RESEARCH.md | API patterns, algorithms, modules |
+| plan | PLAN.md | Task breakdown, success criteria |
+| execute | SUMMARY.md | What was implemented |
+| verify | VERIFICATION.md | Goal achievement, technical validation |
+
+## Error Handling
+
+**Build failure:**
 ```
-CRITICAL: Always parse status from FULL ENTRY section (canonical source), not registry table.
+✗ Build failed at Stage 2, Phase execute
 
-Implementation:
-1. Find full entry: grep -A 10 "^### ${PLUGIN_NAME}$" PLUGINS.md
-2. Extract status line: grep "^\*\*Status:\*\*"
-3. Strip Markdown: sed 's/\*\*//g; s/__//g; s/_//g; s/Status://g'
-4. Parse stage: Extract "Stage N" or "Stage N.M" pattern
-
-Example:
-  Input: **Status:** 🚧 **Stage 3.1**
-  After strip: 🚧 Stage 3.1
-  Parsed stage: 4.1
-
-Why this approach:
-- Full entry is canonical source (always most accurate)
-- Registry table is derived view (can drift out of sync)
-- Handles all Markdown formatting variations (**bold**, _italic_, etc.)
-- Prevents false-negative blocks from registry drift
+Options:
+1. View build log
+2. Investigate with /research
+3. Re-run execute phase
+4. Pause for manual fix
 ```
 
-**Registry consistency:**
-If implementing status checks in bash/scripts, use the `getPluginStatus()` and `validateRegistryConsistency()` functions from `.claude/skills/plugin-workflow/references/state-management.md` to ensure accurate parsing and detect drift.
+**Verification failure:**
+```
+⚠ Verification failed for Stage 2 (DSP)
 
-**Skill invocation:**
-Invoke the plugin-workflow skill with the plugin name and starting stage. The skill handles stages 1-4 implementation using the subagent dispatcher pattern.
+Issues:
+- processBlock not generating audio
 
-## The Implementation Stages
-
-<skill_delegation>
-  <command_responsibility>
-    This command is a ROUTING LAYER:
-    1. Verify preconditions (status check, contract verification)
-    2. Invoke plugin-workflow skill via Skill tool
-    3. Return control to user
-  </command_responsibility>
-
-  <skill_responsibility ref="plugin-workflow">
-    The plugin-workflow skill orchestrates stages 1-3:
-
-    Stage 1 (Foundation) → Stage 2 (DSP) → Stage 3 (GUI with automatic validation)
-
-    Each stage uses specialized subagent, follows checkpoint protocol (commit, state update, decision menu).
-
-    For stage details, see .claude/skills/plugin-workflow/SKILL.md
-  </skill_responsibility>
-
-  <handoff_point>
-    Command completes immediately after invoking plugin-workflow skill.
-    All subsequent interaction (stage progression, decision menus) happens within skill context.
-  </handoff_point>
-</skill_delegation>
-
-## Decision Menus
-
-<decision_menus>
-  Plugin-workflow skill presents decision menus at each stage completion.
-  Decision menu format documented in plugin-workflow skill references.
-  Command does NOT present menus - this is skill's responsibility after delegation.
-</decision_menus>
+Options:
+1. View VERIFICATION.md details
+2. Re-run execute phase
+3. Investigate issue
+4. Accept with warning
+```
 
 ## Pause & Resume
 
-If user pauses:
-- .planning/STATUS.md updated with current stage
-- PLUGINS.md status updated
-- Changes committed
+Pause workflow at any time. State is saved to:
+- `plugins/[Name]/.planning/STATUS.md`
+- `.claude/plugin-registry.json`
+- PLUGINS.md
 
-Resume with `/continue [PluginName]`
+Resume with `/continue [PluginName]` or `/plugin:resume [PluginName]`
 
-## Output
+## Integration
 
-<expected_output>
-  By completion, plugin has:
-  - Compiling VST3 + AU plugins
-  - Working audio processing + functional WebView UI
-  - Pluginval compliant with factory presets
-  - Complete git history for all stages
-</expected_output>
-
-## Workflow Integration
-
-Complete plugin development flow:
-1. `/start [PluginName]` - Creative brief + UI mockup
-2. `/plan [PluginName]` - Research and planning (Stage 0)
-3. `/implement [PluginName]` - Build plugin (Stages 1-3)
-4. `/install-plugin [PluginName]` - Deploy to system folders
+**Precedes:** `/install-plugin`, `/package`, `/publish`
+**Related:** `/continue`, `/plugin:status`, `/plugin:pause`

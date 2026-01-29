@@ -1,12 +1,13 @@
 ---
 name: plugin-workflow
-description: Orchestrates JUCE plugin implementation through stages 1-3 (Foundation, DSP, GUI) using subagent delegation with automatic validation after each stage. Use when implementing plugins after planning completes, or when resuming with /continue command. Invoked by /implement command.
+description: Orchestrates JUCE plugin implementation through stages 1-4 with GSD phase cycles. Each stage runs discuss → research → plan → execute → verify. Use when implementing plugins after planning completes, or when resuming with /continue command. Invoked by /implement command.
 allowed-tools:
-  - Task # REQUIRED - All stages 1-3 MUST invoke subagents
-  - Bash # For git commits
-  - Read # For contracts
+  - Task # REQUIRED - All phases invoke subagents
+  - Bash # For git commits, builds
+  - Read # For contracts and state
   - Write # For documentation
   - Edit # For state updates
+  - AskUserQuestion # For discuss phase
 preconditions:
   - ARCHITECTURE.md must exist at plugins/[Name]/.planning/research/ (from /plan)
   - ROADMAP.md must exist at plugins/[Name]/.planning/ (from /plan)
@@ -16,334 +17,486 @@ preconditions:
 
 # plugin-workflow Skill
 
-**Purpose:** Pure orchestrator for stages 1-3 of JUCE plugin implementation with automatic validation after each stage. This skill delegates to specialized subagents and validation-agent for continuous quality assurance.
+**Purpose:** Orchestrate stages 1-4 of JUCE plugin implementation with GSD phase cycles. Each stage runs a full discuss → research → plan → execute → verify cycle before advancing.
 
 ## Overview
 
-Implementation milestones:
-- **Build System Ready** (Stage 1): Create build system and implement parameters (foundation-shell-agent)
-- **Audio Engine Working** (Stage 2): Implement audio processing (dsp-agent)
-- **UI Integrated** (Stage 3): Connect WebView interface to audio engine (gui-agent)
+Implementation stages:
+- **Stage 1: Foundation** - CMake, project structure, APVTS parameters
+- **Stage 2: DSP** - Audio processing, algorithms
+- **Stage 3: GUI** - WebView UI, parameter binding
+- **Stage 4: Polish** - Presets, optimization, edge cases
 
-Stage 0 (Research & Planning) is handled by `plugin-planning` skill.
+Each stage runs 5 phases:
+```
+┌─────────┐   ┌──────────┐   ┌──────┐   ┌─────────┐   ┌────────┐
+│ discuss │ → │ research │ → │ plan │ → │ execute │ → │ verify │
+└─────────┘   └──────────┘   └──────┘   └─────────┘   └────────┘
+```
 
-After Stage 3 completes, plugin is ready for installation (no separate validation stage - validation is automatic and continuous).
+## Phase Delegation
 
-## Delegation Protocol
+Each phase invokes a specialized agent via Task tool:
 
-**CRITICAL:** Stages 1-3 MUST invoke subagents via Task tool. This skill is a pure orchestrator and NEVER implements plugin code directly.
+| Phase | Agent | Output |
+|-------|-------|--------|
+| discuss | plugin-discuss-agent | CONTEXT.md |
+| research | gsd-phase-researcher | RESEARCH.md |
+| plan | gsd-planner | PLAN.md |
+| execute | Stage-specific agent | SUMMARY.md |
+| verify | gsd-verifier + validation-agent | VERIFICATION.md |
 
-**Delegation sequence for every stage:**
-1. Load contracts in parallel (ARCHITECTURE.md, ROADMAP.md, parameter-spec.md, BRIEF.md) from `plugins/[Name]/.planning/`
-2. Read Required Reading (juce8-critical-patterns.md) once at workflow start
-3. Construct minimal prompt with plugin name + stage + Required Reading
-4. Invoke subagent via Task tool
-5. After subagent returns, invoke validation-agent (ALL stages 1-3)
-6. Execute checkpoint protocol (see references/checkpoint-protocol.md)
-
-**Stage routing:**
+**Execute phase agents:**
 - Stage 1 → foundation-shell-agent
 - Stage 2 → dsp-agent
 - Stage 3 → gui-agent
+- Stage 4 → polish-agent
 
-**Validation routing:**
-After each stage completes, validation-agent runs automatically with enhanced runtime validation (compile-time + runtime tests). If validation fails with `continue_to_next_stage: false`, workflow BLOCKS until issues resolved.
+## Main Orchestration Loop
 
-## Preconditions
+```python
+def orchestrate_implementation(plugin_name, start_stage, skip_phases, express_mode):
+    """Main orchestration loop for plugin implementation."""
 
-Before starting Stage 1, verify these contract files exist (plugin-local paths):
-- `plugins/$PLUGIN_NAME/.planning/research/ARCHITECTURE.md` (from Stage 0)
-- `plugins/$PLUGIN_NAME/.planning/ROADMAP.md` (from Stage 0)
-- `plugins/$PLUGIN_NAME/.planning/BRIEF.md` (from ideation)
-- `plugins/$PLUGIN_NAME/.planning/parameter-spec.md` (from UI mockup finalization)
+    stages = ["1-foundation", "2-dsp", "3-gui", "4-polish"]
+    phases = ["discuss", "research", "plan", "execute", "verify"]
 
-**If parameter-spec-draft.md exists but parameter-spec.md missing:**
-Block with message: "Draft parameters found, but full specification required. Complete UI mockup workflow to generate parameter-spec.md. Run: /start [PluginName] → option 2 (Full UI mockup first)"
+    # Load current state from registry
+    current_state = load_plugin_state(plugin_name)
+    current_stage = current_state.stage or start_stage
+    current_phase = current_state.phase or "discuss"
 
-**If contracts missing:**
-Block and instruct user to run `/plan [PluginName]` to complete Stage 0.
+    # Find starting position
+    stage_idx = stages.index(current_stage)
 
-See [references/precondition-checks.md](references/precondition-checks.md) for implementation.
+    for stage in stages[stage_idx:]:
+        # Create stage directory
+        ensure_stage_directory(plugin_name, stage)
 
-## Resume Entry Point
+        # Update registry
+        update_registry(plugin_name, stage=stage, phase="discuss")
 
-When resuming via `/continue [PluginName]`:
+        for phase in phases:
+            # Check if phase should be skipped
+            if phase in skip_phases and phase != "plan" and phase != "execute":
+                mark_phase_skipped(plugin_name, stage, phase)
+                continue
 
-1. Verify state integrity (see references/state-management.md#verifyStateIntegrity)
-2. Parse `plugins/[Name]/.planning/STATUS.md` for current stage and workflow mode
-3. Verify contracts unchanged since last checkpoint (checksums match)
-4. Verify git working directory clean
-5. Verify PLUGINS.md status matches STATUS.md stage
+            # Update current phase
+            update_registry(plugin_name, phase=phase)
+            update_status_md(plugin_name, stage, phase)
 
-**If all checks pass:** Resume at stage specified in STATUS.md
-**If any fail:** Present recovery menu (reconcile / clean working directory / review changes)
+            # Run phase
+            result = run_phase(plugin_name, stage, phase)
 
-## Workflow Mode
+            if result.status == "error":
+                # Drop to manual mode on error
+                present_error_menu(plugin_name, stage, phase, result.error)
+                return  # Exit, user will /continue
 
-Determine whether to auto-progress (express mode) or present menus (manual mode).
+            # Phase checkpoint
+            commit_phase(plugin_name, stage, phase)
 
-**Mode sources (priority order):**
-1. Environment variables: `WORKFLOW_MODE=express|manual`
-2. STATUS.md field (for resumed workflows)
-3. Default to "manual"
+            # Present menu (manual mode) or auto-advance (express mode)
+            if not express_mode:
+                action = present_phase_menu(plugin_name, stage, phase)
+                if action == "pause":
+                    create_handoff(plugin_name, stage, phase)
+                    return
 
-**Express mode behavior:**
-- Auto-progress through stages without menus
-- Drops to manual on ANY error (build failures, validation failures, etc.)
-- Final menu always appears after Stage 3 (plugin complete)
+        # Stage complete - advance to next
+        mark_stage_complete(plugin_name, stage)
+        commit_stage(plugin_name, stage)
 
-See [references/workflow-mode.md](references/workflow-mode.md) for implementation.
+        if not express_mode:
+            action = present_stage_menu(plugin_name, stage)
+            if action == "pause":
+                return
 
-## Stage Dispatcher
-
-**Entry point:** Called by /implement or /continue after plugin-planning completes.
-
-**Dispatch flow:**
-1. Verify state integrity → BLOCK if corrupted (exit 2 → run /reconcile)
-2. Check preconditions → BLOCK if failed
-3. **Automatic brief sync** (before Stage 1 only, if mockup exists) → See [references/creative-brief-sync.md](references/creative-brief-sync.md)
-4. Route to subagent based on stage
-5. Pass contracts and Required Reading to subagent
-6. Wait for subagent completion
-7. Invoke validation-agent with enhanced runtime validation
-8. Execute checkpoint protocol
-
-See [references/dispatcher-pattern.md](references/dispatcher-pattern.md) for full algorithm.
-
-## Phase-Aware Dispatch
-
-For Stages 2-3 with complexity ≥3, use phase-aware dispatch to incrementally implement complex plugins.
-
-**When to use:**
-- Stage 2 (DSP) or Stage 3 (GUI)
-- Complexity score ≥3 (from ROADMAP.md)
-- ROADMAP.md contains phase markers (### Phase 2.X or ### Phase 3.X)
-
-**How it works:**
-1. Detect phases by scanning ROADMAP.md for phase markers
-2. Loop through phases sequentially (Phase 2.1 → 2.2 → 2.3...)
-3. Invoke subagent once per phase with phase-specific prompt
-4. Run validation-agent after each phase
-5. Execute checkpoint protocol after each phase
-6. Present decision menu showing progress ("Phase 2 of 4 complete")
-
-**CRITICAL:** Never send "Implement ALL phases" to subagent. This caused DrumRoulette Stage 2 compilation errors. Phase-aware dispatch is MANDATORY for complex plugins.
-
-See [references/phase-aware-dispatch.md](references/phase-aware-dispatch.md) for detailed algorithm.
-
-## Checkpoint Protocol
-
-After EVERY subagent return, execute this 6-step sequence:
-
-1. **Verify state update:** Check subagent updated STATUS.md and PLUGINS.md
-2. **Fallback state update:** If verification fails, orchestrator updates state
-3. **Invoke validation:** Run validation-agent for ALL stages 1-3 (BLOCKING on runtime failures)
-4. **Commit stage:** Auto-commit all changes with git
-5. **Verify checkpoint:** Validate all steps completed successfully
-6. **Handle checkpoint:** Present menu (manual mode) or auto-progress (express mode)
-
-**Checkpoint applies to:**
-- Simple plugins (complexity ≤2): After stages 1, 2, 3
-- Complex plugins (complexity ≥3): After stage 1 AND after EACH DSP/GUI phase (2.X, 3.X)
-
-See [references/checkpoint-protocol.md](references/checkpoint-protocol.md) for implementation.
-
-## Validation Integration
-
-Stages 1-3 invoke validation-agent with enhanced runtime validation after subagent completes:
-- **BLOCKING on runtime failures:** If `status: FAIL` and `continue_to_next_stage: false`, workflow stops
-- Runs compile-time checks (contract matching, implementation correctness)
-- Runs runtime tests (load plugin, process audio, parameter changes) when binary available
-- Returns JSON report with status, checks, recommendation
-- Max 500 tokens per report
-
-**Blocking behavior:**
-- If validation passes (PASS/WARNING): Continue to next stage
-- If validation fails with `continue_to_next_stage: true`: Present warning, allow continuation
-- If validation fails with `continue_to_next_stage: false`: BLOCK workflow, present error menu
-
-See [references/validation-integration.md](references/validation-integration.md) for functions.
-
-## Subagent Handoff Protocol
-
-Subagents update state files AND return JSON report:
-
-```json
-{
-  "status": "success" | "error",
-  "stage": 1-3,
-  "completionStatement": "...",
-  "filesCreated": [...],
-  "nextSteps": [...],
-  "stateUpdated": true | false,
-  "stateUpdateError": "..." (optional)
-}
+    # All stages complete
+    mark_plugin_complete(plugin_name)
+    present_completion_menu(plugin_name)
 ```
 
-**Verification:**
-1. Check `stateUpdated` field in JSON report
-2. If true: Verify STATUS.md actually changed
-3. If false/missing: Trigger orchestrator fallback
+## Phase Execution
 
-**Fallback:** Orchestrator reads current state, updates fields, writes back.
+### Discuss Phase
 
-See [references/state-management.md](references/state-management.md) for fallback implementation.
+Gather context through interactive questioning (or auto-generate from existing docs in express mode).
 
-## Required Reading Injection
+```python
+def run_discuss_phase(plugin_name, stage, express_mode):
+    if express_mode:
+        # Auto-generate CONTEXT.md from existing docs
+        context = compile_context_from_docs(plugin_name, stage)
+        write_context_md(plugin_name, stage, context)
+    else:
+        # Interactive questioning via plugin-discuss-agent
+        invoke_task(
+            subagent_type="general-purpose",
+            prompt=f"""
+            You are a plugin-discuss-agent gathering context for {stage} of {plugin_name}.
 
-Each stage receives a focused subset of patterns to reduce context size:
+            Load and review:
+            - BRIEF.md (creative vision)
+            - ARCHITECTURE.md (DSP design)
+            - Previous stage VERIFICATION.md (if exists)
 
-- **Stage 1:** `troubleshooting/patterns/stage-1-patterns.md` (7 patterns - build/config)
-- **Stage 2:** `troubleshooting/patterns/stage-2-patterns.md` (3 patterns - DSP/threading)
-- **Stage 3:** `troubleshooting/patterns/stage-3-patterns.md` (14 patterns - WebView/GUI)
-
-**Implementation:**
-1. Subagents read their stage-specific patterns file themselves
-2. Full 22-pattern file available at `juce8-critical-patterns.md` for edge cases
-3. No need to pass patterns in orchestrator prompts - agents self-load
-
-## Reference Files
-
-Each stage has detailed documentation in references/:
-
-- [stage-1-foundation-shell.md](references/stage-1-foundation-shell.md) - foundation-shell-agent prompt template
-- [stage-2-dsp.md](references/stage-2-dsp.md) - dsp-agent prompt template
-- [stage-3-gui.md](references/stage-3-gui.md) - gui-agent prompt template
-- [state-management.md](references/state-management.md) - State functions
-- [dispatcher-pattern.md](references/dispatcher-pattern.md) - Routing logic
-- [precondition-checks.md](references/precondition-checks.md) - Contract validation
-- [phase-aware-dispatch.md](references/phase-aware-dispatch.md) - Complex plugin handling
-- [workflow-mode.md](references/workflow-mode.md) - Express vs manual mode
-- [checkpoint-protocol.md](references/checkpoint-protocol.md) - 6-step checkpoint sequence
-- [validation-integration.md](references/validation-integration.md) - Validation-agent functions (enhanced runtime validation)
-- [creative-brief-sync.md](references/creative-brief-sync.md) - Automatic brief update from mockup
-- [error-handling.md](references/error-handling.md) - Error patterns and recovery
-- [integration-contracts.md](references/integration-contracts.md) - Component contracts
-
-## Integration Points
-
-**Invoked by:**
-- `/implement` command (after plugin-planning completes)
-- `/continue` command (for stages 1-3)
-- `context-resume` skill (when resuming implementation)
-
-**Invokes via Task tool:**
-- `foundation-shell-agent` (Stage 1) - REQUIRED
-- `dsp-agent` (Stage 2) - REQUIRED
-- `gui-agent` (Stage 3) - REQUIRED
-- `validation-agent` (Stages 1-3) - REQUIRED, BLOCKING on runtime failures
-
-**Also invokes:**
-- `build-automation` skill (build verification)
-- `plugin-lifecycle` skill (if user chooses to install)
-
-**Reads (contracts from plugins/[Name]/.planning/):**
-- research/ARCHITECTURE.md, ROADMAP.md, BRIEF.md, parameter-spec.md
-
-**Creates/Updates:**
-- STATUS.md (stage progress, in plugins/[Name]/.planning/)
-- stages/[N]-[name]/CONTEXT.md (discuss phase output for each stage)
-- stages/[N]-[name]/PLAN.md (execution plan for each stage)
-- stages/[N]-[name]/SUMMARY.md (completion summary for each stage)
-- stages/[N]-[name]/VERIFICATION.md (verify phase output for each stage)
-
-**Updates:**
-- PLUGINS.md (status after each stage)
-- STATUS.md (after each stage)
-
-**Deletes after Stage 3:**
-- Nothing - STATUS.md is preserved as project history
-
-## Error Handling
-
-**Contract files missing before Stage 1:**
-Block and instruct user to run `/plan [PluginName]`.
-
-**Build fails during subagent execution:**
-Subagent returns error. Present menu:
-1. Investigate (deep-research)
-2. Show code
-3. Show build output
-4. Manual fix (resume with /continue)
-
-**State mismatch detected (exit 2):**
-BLOCKING error - user must run `/reconcile [PluginName]` to fix.
-
-**Validation fails with continue_to_next_stage: false:**
-BLOCKING error. Present menu with investigation options. Workflow cannot proceed until issues resolved.
-
-**Validation fails with continue_to_next_stage: true:**
-Present warning, allow user to decide whether to continue or fix issues first.
-
-See [references/error-handling.md](references/error-handling.md) for detailed patterns.
-
-## Decision Menu Protocol
-
-**Use inline numbered menus for:**
-- After EVERY stage completion (checkpoint gates)
-- Build failure recovery
-- Test failure investigation
-- Phase completion (for complex plugins)
-
-**Format:**
+            Ask 3-5 clarifying questions about this stage's requirements.
+            After answers, create stages/{stage}/CONTEXT.md.
+            """
+        )
+    return PhaseResult(status="success")
 ```
-✓ [Milestone name]
+
+### Research Phase
+
+Investigate implementation approach.
+
+```python
+def run_research_phase(plugin_name, stage):
+    invoke_task(
+        subagent_type="gsd-phase-researcher",
+        prompt=f"""
+        Research implementation approach for {plugin_name} stage {stage}.
+
+        Context: Load stages/{stage}/CONTEXT.md
+
+        Research:
+        1. Relevant JUCE APIs and patterns
+        2. Algorithm approaches
+        3. Existing modules that could be reused
+        4. Pitfalls from troubleshooting knowledge base
+
+        Output: stages/{stage}/RESEARCH.md
+        """
+    )
+    return PhaseResult(status="success")
+```
+
+### Plan Phase
+
+Create execution plan with task breakdown.
+
+```python
+def run_plan_phase(plugin_name, stage):
+    invoke_task(
+        subagent_type="gsd-planner",
+        prompt=f"""
+        Create execution plan for {plugin_name} stage {stage}.
+
+        Load:
+        - stages/{stage}/CONTEXT.md
+        - stages/{stage}/RESEARCH.md (if exists)
+        - ARCHITECTURE.md
+        - ROADMAP.md
+
+        Create stages/{stage}/PLAN.md with:
+        1. Goal statement
+        2. Numbered task breakdown
+        3. Files to create/modify
+        4. Dependencies between tasks
+        5. Success criteria
+        """
+    )
+    return PhaseResult(status="success")
+```
+
+### Execute Phase
+
+Run stage-specific implementation agent.
+
+```python
+def run_execute_phase(plugin_name, stage):
+    # Map stage to agent
+    stage_agents = {
+        "1-foundation": "foundation-shell-agent",
+        "2-dsp": "dsp-agent",
+        "3-gui": "gui-agent",
+        "4-polish": "polish-agent"
+    }
+    agent = stage_agents[stage]
+
+    # Load contracts and plan
+    contracts = load_contracts(plugin_name)
+    plan = read_file(f"plugins/{plugin_name}/.planning/stages/{stage}/PLAN.md")
+
+    # Invoke agent
+    result = invoke_task(
+        subagent_type=agent,
+        prompt=f"""
+        Implement {stage} for {plugin_name}.
+
+        PLAN.md tasks:
+        {plan}
+
+        Contracts:
+        - BRIEF.md: {contracts.brief_summary}
+        - ARCHITECTURE.md: {contracts.arch_summary}
+        - parameter-spec.md: {contracts.params}
+
+        Required Reading: Load stage-{stage[0]}-patterns.md
+
+        After implementation, create stages/{stage}/SUMMARY.md.
+        """
+    )
+
+    if result.status == "error":
+        return PhaseResult(status="error", error=result.error)
+
+    return PhaseResult(status="success")
+```
+
+### Verify Phase
+
+Validate goal achievement through goal-backward analysis.
+
+```python
+def run_verify_phase(plugin_name, stage):
+    # Run goal verification
+    invoke_task(
+        subagent_type="gsd-verifier",
+        prompt=f"""
+        Verify {stage} achievement for {plugin_name}.
+
+        Load:
+        - stages/{stage}/PLAN.md (goals and success criteria)
+        - stages/{stage}/SUMMARY.md (what was built)
+
+        Verify each success criterion is met.
+        Output: stages/{stage}/VERIFICATION.md with pass/fail for each goal.
+        """
+    )
+
+    # Run technical validation
+    validation_result = invoke_task(
+        subagent_type="validation-agent",
+        prompt=f"Validate {plugin_name} after {stage} completion."
+    )
+
+    if validation_result.status == "FAIL" and not validation_result.continue_to_next_stage:
+        return PhaseResult(status="error", error=validation_result.issues)
+
+    return PhaseResult(status="success")
+```
+
+## State Management
+
+### Registry Updates
+
+Update `.claude/plugin-registry.json` at every phase transition:
+
+```python
+def update_registry(plugin_name, stage=None, phase=None, status=None):
+    registry = load_registry()
+    plugin = registry["plugins"][plugin_name]
+
+    if stage:
+        plugin["stage"] = stage
+    if phase:
+        plugin["phase"] = phase
+    if status:
+        plugin["status"] = status
+
+    plugin["lastActivity"] = datetime.now().isoformat()
+    save_registry(registry)
+```
+
+### STATUS.md Updates
+
+Update `plugins/[Name]/.planning/STATUS.md` with phase progress:
+
+```markdown
+## Phase Progress
+
+### Stage 2: DSP
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | ✓ | 2026-01-29 | |
+| research | ✓ | 2026-01-29 | |
+| plan | → | | |
+| execute | | | |
+| verify | | | |
+```
+
+### Git Commits
+
+Commit after each phase and stage:
+
+```bash
+# Phase commit
+git add plugins/${PLUGIN_NAME}/.planning/stages/${STAGE}/
+git commit -m "phase: ${PLUGIN_NAME} ${STAGE}/${PHASE} complete"
+
+# Stage commit
+git add plugins/${PLUGIN_NAME}/
+git commit -m "stage: ${PLUGIN_NAME} ${STAGE} complete"
+```
+
+## Decision Menus
+
+### Phase Completion Menu (Manual Mode)
+
+```
+✓ Research phase complete for Stage 2 (DSP)
+
+RESEARCH.md created with:
+- JI ratio calculation algorithms
+- scala-tuning-engine module recommendation
+- Voice management patterns
 
 What's next?
-
-1. [Next milestone action] (recommended)
-2. [Run tests] - Verify implementation
-3. [Pause workflow] - Resume anytime
-4. [Review code] - See what was implemented
+1. Continue to plan phase (recommended)
+2. Re-run research phase
+3. View RESEARCH.md
+4. Pause workflow
 5. Other
 
 Choose (1-5): _
 ```
 
-**Express mode:** Skip menus and auto-progress to next stage (except final stage).
-**Manual mode:** ALWAYS wait for user response.
+### Stage Completion Menu
 
-## Success Criteria
+```
+✓ Stage 2 (DSP) complete
 
-Workflow succeeds when:
-- All subagents (stages 1-3) invoked successfully via Task tool
-- Plugin compiles without errors at each stage
-- All validation passes (or explicitly allowed to continue with warnings)
-- All stages completed in sequence (1 → 2 → 3)
-- Decision menus presented after EVERY stage (manual mode)
-- PLUGINS.md updated to ✅ Working after Stage 3
-- STATUS.md shows complete progress history
-- Each stage has CONTEXT.md, PLAN.md, SUMMARY.md, VERIFICATION.md
-- Git history shows atomic commits for each stage
+All 5 phases verified:
+- discuss ✓
+- research ✓
+- plan ✓
+- execute ✓
+- verify ✓
 
-## Anti-Patterns
+What's next?
+1. Continue to Stage 3 (GUI) (recommended)
+2. Review stage artifacts
+3. Run additional tests
+4. Pause workflow
+5. Other
 
-Common pitfalls to AVOID:
+Choose (1-5): _
+```
 
-**CRITICAL:**
-- ❌ Implementing stage logic directly in orchestrator
-- ✓ ALWAYS use Task tool to invoke appropriate subagent
+### Express Mode Output
 
-**CRITICAL:**
-- ❌ Sending "Implement ALL phases" to subagent for Stages 2-3
-- ✓ ALWAYS detect phases in plan.md and loop through them one at a time
+```
+/implement O-IntonationPad --express
 
-**CRITICAL:**
-- ❌ Proceeding to next stage when validation fails with continue_to_next_stage: false
-- ✓ BLOCK workflow and present error menu until issues resolved
+━━━ Stage 1: Foundation ━━━
+  [auto] discuss → Context compiled from BRIEF.md
+  [auto] research → Foundation patterns loaded
+  [auto] plan → PLAN.md generated (6 tasks)
+  [auto] execute → foundation-shell-agent running...
+         ✓ CMakeLists.txt created
+         ✓ PluginProcessor.cpp created
+         ✓ Parameters implemented
+  [auto] verify → Build successful, parameters validated
+  ✓ Stage 1 complete
 
-**HIGH:**
-- ❌ Not verifying subagent updated state
-- ✓ Check stateUpdated field, verify STATUS.md changed, fallback if needed
+━━━ Stage 2: DSP ━━━
+  [auto] discuss → Context from ARCHITECTURE.md
+  [auto] research → DSP patterns loaded
+  [auto] plan → PLAN.md generated (8 tasks)
+  [auto] execute → dsp-agent running...
+         ✓ JI chord generator implemented
+         ✓ Wavetable voice implemented
+         ✓ Voice management implemented
+  [auto] verify → Audio processing verified
+  ✓ Stage 2 complete
 
-**HIGH:**
-- ❌ Skipping phase detection for Stages 2-3 when complexity ≥3
-- ✓ Read ROADMAP.md to check for phases BEFORE invoking dsp-agent or gui-agent
+...continues through Stage 4...
+```
 
-**HIGH:**
-- ❌ Skipping validation after subagent completes
-- ✓ ALWAYS invoke validation-agent after each stage (1-3)
+## Error Handling
 
-**MEDIUM:**
-- ❌ Not injecting Required Reading to subagents
-- ✓ Agents read stage-specific patterns (stage-1/2/3-patterns.md) to prevent repeat mistakes
+### Build Failure
+
+```
+✗ Build failed at Stage 2, Phase execute
+
+Error: undefined reference to 'JIChordGenerator::calculateRatio'
+
+Options:
+1. View full build log
+2. Investigate with /research
+3. Re-run execute phase
+4. Pause for manual fix
+5. Other
+
+Choose (1-5): _
+```
+
+### Verification Failure
+
+```
+⚠ Verification failed for Stage 2 (DSP)
+
+Issues found:
+- ✗ Chord voices not tuned to JI ratios
+  Expected: 3:2 fifth ratio
+  Actual: 1.498 (equal temperament)
+
+Options:
+1. View VERIFICATION.md details
+2. Re-run execute phase with fix
+3. Investigate issue
+4. Accept with warning (not recommended)
+5. Other
+
+Choose (1-5): _
+```
+
+## Preconditions
+
+Before starting Stage 1, verify:
+- `plugins/[Name]/.planning/research/ARCHITECTURE.md` exists
+- `plugins/[Name]/.planning/ROADMAP.md` exists
+- `plugins/[Name]/.planning/parameter-spec.md` exists
+- Plugin status is 🚧 Stage 0 or 🚧 Stage 1-4
+
+**If contracts missing:** Block with instructions to run `/plan [PluginName]`
+
+## Skip Flags
+
+Supported skip flags (from `/implement` command):
+- `--skip-discuss` → Skip discuss phase, auto-generate CONTEXT.md
+- `--skip-research` → Skip research phase, proceed to plan
+- `--skip-verify` → Skip verify phase (not recommended)
+
+**Cannot skip:** plan, execute
+
+## Reference Files
+
+- [checkpoint-protocol.md](references/checkpoint-protocol.md) - Git commit patterns
+- [dispatcher-pattern.md](references/dispatcher-pattern.md) - Stage dispatch logic
+- [state-management.md](references/state-management.md) - Registry and STATUS.md
+- [validation-integration.md](references/validation-integration.md) - Validation agent
+- [error-handling.md](references/error-handling.md) - Error recovery
+- [workflow-mode.md](references/workflow-mode.md) - Express vs manual
+
+## Integration Points
+
+**Invoked by:**
+- `/implement` command
+- `/continue` command
+
+**Invokes via Task tool:**
+- plugin-discuss-agent (discuss phase)
+- gsd-phase-researcher (research phase)
+- gsd-planner (plan phase)
+- foundation-shell-agent, dsp-agent, gui-agent, polish-agent (execute phase)
+- gsd-verifier, validation-agent (verify phase)
+
+**Reads:**
+- `.claude/plugin-registry.json`
+- `plugins/[Name]/.planning/*`
+
+**Writes:**
+- `.claude/plugin-registry.json`
+- `plugins/[Name]/.planning/STATUS.md`
+- `plugins/[Name]/.planning/stages/*/CONTEXT.md`
+- `plugins/[Name]/.planning/stages/*/RESEARCH.md`
+- `plugins/[Name]/.planning/stages/*/PLAN.md`
+- `plugins/[Name]/.planning/stages/*/SUMMARY.md`
+- `plugins/[Name]/.planning/stages/*/VERIFICATION.md`
+- `PLUGINS.md`

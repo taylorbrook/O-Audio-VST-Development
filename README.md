@@ -277,46 +277,124 @@ MCPs active and suggested:
 
 ## Complete Command Reference
 
+### Workflow Overview
+
+The Plugin Freedom System uses a staged workflow with GSD (Get Stuff Done) phase cycles:
+
+```
+Stage 0: Ideation/Planning → Stage 1: Foundation → Stage 2: DSP → Stage 3: GUI → Stage 4: Polish
+                                      ↓
+                            Each stage cycles through:
+                            discuss → research → plan → execute → verify
+```
+
+### Typical Workflow Example
+
+```bash
+/start O-NewPlugin          # Create idea/brief
+/plan O-NewPlugin           # Stage 0: Architecture planning
+/implement O-NewPlugin      # Stages 1-4: Build it
+/test O-NewPlugin           # Validate with pluginval
+/install-plugin O-NewPlugin # Deploy to DAW
+/improve O-NewPlugin        # Later: add features
+```
+
+---
+
 ### Setup
 
-- `/setup` - Validate and configure system dependencies (first-time setup)
-  - Detects platform, checks for required tools
-  - Offers automated installation or guided manual setup
-  - Saves configuration to `.claude/system-config.json`
+| Command | Purpose |
+|---------|---------|
+| `/setup` | Validate and configure system dependencies (first-time setup) |
 
-### Development Workflow
+### Starting a Plugin
 
-- `/start` - Brainstorm concept, create BRIEF.md, parameter spec, and UI mockups
-- `/plan` - Research and design DSP architecture and implementation strategy
-- `/implement [Name]` - Build plugin through automated 3-stage workflow with continuous validation
-- `/continue [Name]` - Resume paused workflow
-- `/improve [Name]` - Modify completed plugin (with regression testing)
+| Command | Purpose |
+|---------|---------|
+| `/start [Name?]` | Explore plugin ideas, create creative brief (no implementation) |
+| `/plan [Name?]` | Stage 0 - Research DSP architecture, create ARCHITECTURE.md and ROADMAP.md |
 
-### GSD-Style Phase Commands
+### Context Management
 
-- `/plugin:discuss [Name] [Stage]` - Gather context for a stage (discuss phase)
-- `/plugin:verify [Name] [Stage]` - Verify stage completion (verify phase)
+Manage multiple plugins in parallel with explicit context switching:
 
-### Quality Assurance
+| Command | Purpose |
+|---------|---------|
+| `/plugin-list` | Show all plugins with stage/phase status |
+| `/plugin-focus [Name]` | Set active plugin context (default for other commands) |
+| `/plugin-status [Name?]` | Detailed stage/phase breakdown |
+| `/continue [Name?]` | Resume from last checkpoint |
+| `/plugin-pause [Name?]` | Save progress, create handoff document |
+| `/plugin-resume [Name?]` | Restore context from handoff and continue |
 
-- `/test [Name]` - Run automated validation suite
-- `/research [topic]` - Deep investigation (3-level protocol)
-- `/doc-fix` - Document solved problems for knowledge base
-- `/add-critical-pattern` - Add current problem to Required Reading
+### Implementation (Stages 1-4)
 
-### Deployment
+| Command | Purpose |
+|---------|---------|
+| `/implement [Name?] [--express]` | Run full implementation workflow through stages |
+| `/plugin-discuss [Name?] [Stage?]` | GSD discuss phase - gather context for current stage |
+| `/plugin-research [Name?] [Stage?]` | GSD research phase - investigate approach |
+| `/plugin-plan [Name?] [Stage?]` | GSD plan phase - create task breakdown |
+| `/plugin-execute [Name?] [Stage?]` | GSD execute phase - run stage-specific agent |
+| `/plugin-verify [Name?] [Stage?]` | GSD verify phase - validate stage goals achieved |
 
-- `/install-plugin [Name]` - Install to system folders
-- `/uninstall [Name]` - Remove binaries (keep source)
-- `/show-standalone [Name]` - Preview UI in standalone mode
+Skip flags: `--skip-discuss`, `--skip-research`, `--skip-verify`
 
-### Lifecycle
+### Testing & Validation
 
-- `/clean` - Interactive cleanup menu (uninstall/reset/destroy)
-- `/reconcile [Name]` - Reconcile state between planning and implementation
-- `/clear-cache [Name]` - Clear validation cache
-- `/reset-to-ideation [Name]` - Remove implementation, keep idea/mockups
-- `/destroy [Name]` - Complete removal (with verified backup)
+| Command | Purpose |
+|---------|---------|
+| `/test [Name]` | Run pluginval and automated validation suite |
+| `/show-standalone [Name]` | Open plugin UI in Standalone mode for visual inspection |
+
+### Post-Completion
+
+| Command | Purpose |
+|---------|---------|
+| `/improve [Name]` | Add features, fix bugs (with versioning and regression testing) |
+| `/install-plugin [Name]` | Deploy to `~/Library/Audio/Plug-Ins/` |
+| `/package [Name]` | Create signed PKG installer for distribution |
+| `/publish [Name]` | Release via GitHub Actions CI/CD |
+
+### Lifecycle Management
+
+| Command | Purpose |
+|---------|---------|
+| `/uninstall [Name]` | Remove from system folders (keep source code) |
+| `/reset-to-ideation [Name]` | Remove implementation, keep idea/mockups |
+| `/destroy [Name]` | Complete removal with verified backup |
+| `/clean [Name]` | Interactive cleanup menu (choose operation) |
+| `/reconcile [Name]` | Fix out-of-sync state files |
+| `/clear-cache [Name]` | Clear validation cache |
+
+### Module System (Code Reuse)
+
+Reusable code components with versioning and dependency tracking:
+
+| Command | Purpose |
+|---------|---------|
+| `/modules` | Manage shared modules (interactive) |
+| `/module-list` | List all available modules by category |
+| `/module-info [Name]` | Show detailed module information and dependents |
+| `/module-add [Plugin] [Module]` | Add module dependency to plugin |
+| `/module-remove [Plugin] [Module]` | Remove module dependency |
+| `/module-create [Name] --from [Plugin]` | Extract code into reusable module |
+| `/module-upgrade [Name]` | Upgrade module and rebuild all dependents |
+
+### Research & Troubleshooting
+
+| Command | Purpose |
+|---------|---------|
+| `/research [topic]` | Deep multi-agent investigation (3-level protocol) |
+| `/doc-fix` | Document solved problem to knowledge base |
+| `/add-critical-pattern` | Add current problem to Required Reading |
+
+### System
+
+| Command | Purpose |
+|---------|---------|
+| `/pfs` | Load Plugin Freedom System architecture context |
+| `/templates` | Browse reusable code patterns and snippets |
 
 ## Project Structure
 
@@ -326,20 +404,24 @@ vst-development/
 │   └── [PluginName]/
 │       ├── .planning/                # GSD-style planning (plugin-local)
 │       │   ├── BRIEF.md              # Creative vision
-│       │   ├── STATUS.md             # Current state and progress
+│       │   ├── STATUS.md             # Current state and progress (phase-aware)
 │       │   ├── ROADMAP.md            # Implementation strategy
 │       │   ├── parameter-spec.md     # Parameter definitions
+│       │   ├── modules.json          # Module dependencies
 │       │   ├── research/
 │       │   │   └── ARCHITECTURE.md   # DSP design
 │       │   ├── mockups/              # UI mockup files
-│       │   └── stages/               # Per-stage GSD docs
+│       │   └── stages/               # Per-stage GSD docs (5 phases each)
+│       │       ├── 0-ideation/
 │       │       ├── 1-foundation/
 │       │       │   ├── CONTEXT.md    # Discuss output
+│       │       │   ├── RESEARCH.md   # Research output
 │       │       │   ├── PLAN.md       # Execution plan
 │       │       │   ├── SUMMARY.md    # What was built
 │       │       │   └── VERIFICATION.md
 │       │       ├── 2-dsp/
-│       │       └── 3-ui/
+│       │       ├── 3-gui/
+│       │       └── 4-polish/
 │       ├── Source/                   # C++ implementation
 │       └── CMakeLists.txt
 ├── docs/

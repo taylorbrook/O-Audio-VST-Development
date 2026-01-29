@@ -1,23 +1,33 @@
 ---
 name: plugin:discuss
-description: Gather context for a plugin stage through adaptive questioning (GSD discuss phase)
-invocation: /plugin:discuss [PluginName] [StageNumber]
-allowed-tools:
-  - Read
-  - Write
-  - AskUserQuestion
-  - Bash
+description: Interactive context gathering for a stage (GSD discuss phase)
+skill: plugin-phases
+args: "[plugin_name?] [stage?]"
 ---
 
-# /plugin:discuss Command
+# /plugin:discuss
 
-**Purpose:** Execute the DISCUSS phase of the GSD cycle for a specific plugin stage. Gathers context through adaptive questioning and produces CONTEXT.md.
+**Purpose:** Execute the DISCUSS phase of the GSD cycle for a specific plugin stage. Gathers context through interactive questioning and produces CONTEXT.md.
 
 ## Usage
 
 ```
-/plugin:discuss O-Bass 2        # Discuss Stage 2 (DSP) for O-Bass
-/plugin:discuss O-NewPlugin 1   # Discuss Stage 1 (Foundation)
+/plugin:discuss [plugin_name] [stage]     # Specific plugin and stage
+/plugin:discuss [stage]                   # Focused plugin, specific stage
+/plugin:discuss                           # Focused plugin, current stage
+```
+
+## Arguments
+
+- `plugin_name` - Plugin to discuss (optional, defaults to focused)
+- `stage` - Stage: `0-ideation`, `1-foundation`, `2-dsp`, `3-gui`, `4-polish`
+
+## Examples
+
+```
+/plugin:discuss O-IntonationPad 2-dsp    # Discuss DSP stage
+/plugin:discuss 2-dsp                    # Use focused plugin
+/plugin:discuss                          # Use focused plugin and current stage
 ```
 
 ## What This Command Does

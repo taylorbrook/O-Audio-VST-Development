@@ -1,30 +1,116 @@
-# [PluginName] Status
+---
+plugin: ${PLUGIN_NAME}
+focused: false
+current_stage: 0-ideation
+current_phase: discuss
+express_mode: false
+created: ${CREATED_DATE}
+last_activity: ${LAST_ACTIVITY}
+modules: []
+---
+
+# ${PLUGIN_NAME} Status
 
 ## Project Reference
 
-See: plugins/[PluginName]/.planning/BRIEF.md
+See: plugins/${PLUGIN_NAME}/.planning/BRIEF.md
 
-**Core value:** [One sentence from BRIEF.md]
-**Current focus:** [Current stage/phase description]
+**Core value:** ${CORE_VALUE}
+**Current focus:** ${CURRENT_FOCUS}
 
 ## Current Position
 
-Stage: [N] of [Total] ([Stage Name]) - [status: planning/executing/verifying/complete]
-Plan: [M] of [P] complete
-Status: [Brief status description]
-Progress: [##########..........] [X]%
+```
+Stage: ${STAGE_NUM} of 4 (${STAGE_NAME})
+Phase: ${PHASE_NAME}
+Status: ${STATUS_DESCRIPTION}
+```
 
-Last activity: [YYYY-MM-DD] - [Description of last action]
+Last activity: ${LAST_ACTIVITY_DATE} - ${LAST_ACTIVITY_DESC}
 
-## GSD Cycle Position
+## Phase Progress
 
-Current phase: [discuss/research/plan/execute/verify]
-Stage files:
-- [ ] CONTEXT.md (discuss output)
-- [ ] RESEARCH.md (research output, if applicable)
-- [ ] PLAN.md (plan output)
-- [ ] SUMMARY.md (execute output)
-- [ ] VERIFICATION.md (verify output)
+### Stage 0: Ideation
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | | | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+**Outputs:**
+- [ ] BRIEF.md
+- [ ] parameter-spec.md
+
+### Stage 1: Foundation
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | | | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+**Outputs:**
+- [ ] stages/1-foundation/CONTEXT.md
+- [ ] stages/1-foundation/RESEARCH.md
+- [ ] stages/1-foundation/PLAN.md
+- [ ] stages/1-foundation/SUMMARY.md
+- [ ] stages/1-foundation/VERIFICATION.md
+
+### Stage 2: DSP
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | | | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+**Outputs:**
+- [ ] stages/2-dsp/CONTEXT.md
+- [ ] stages/2-dsp/RESEARCH.md
+- [ ] stages/2-dsp/PLAN.md
+- [ ] stages/2-dsp/SUMMARY.md
+- [ ] stages/2-dsp/VERIFICATION.md
+
+### Stage 3: GUI
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | | | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+**Outputs:**
+- [ ] stages/3-gui/CONTEXT.md
+- [ ] stages/3-gui/RESEARCH.md
+- [ ] stages/3-gui/PLAN.md
+- [ ] stages/3-gui/SUMMARY.md
+- [ ] stages/3-gui/VERIFICATION.md
+
+### Stage 4: Polish
+| Phase | Status | Date | Skipped |
+|-------|--------|------|---------|
+| discuss | | | |
+| research | | | |
+| plan | | | |
+| execute | | | |
+| verify | | | |
+
+**Outputs:**
+- [ ] stages/4-polish/CONTEXT.md
+- [ ] stages/4-polish/PLAN.md
+- [ ] stages/4-polish/SUMMARY.md
+- [ ] stages/4-polish/VERIFICATION.md
+
+## Module Dependencies
+
+| Module | Version | Added |
+|--------|---------|-------|
+| (none) | | |
 
 ## Accumulated Context
 
@@ -33,55 +119,16 @@ Stage files:
 Decisions are logged in BRIEF.md Key Decisions table.
 Recent decisions affecting current work:
 
-- **[Decision topic]:** [Decision and rationale]
-
-### Pending Todos
-
-- [Todo 1]
-- [Todo 2]
+- (none yet)
 
 ### Blockers/Concerns
 
-- [Any blockers or concerns]
+- (none)
 
-## Stage Completion Summary
+## Handoff Context
 
-[This section is populated as stages complete]
+Last checkpoint: (none)
+Key context for resuming:
+- (none)
 
-### Stage 0: Ideation
-- [x] BRIEF.md created
-- [x] Parameter specification drafted
-- [x] ARCHITECTURE.md researched
-- [x] ROADMAP.md created
-- Complexity: [X.X]
-- Strategy: [Single-pass | Staged]
-
-### Stage 1: Foundation
-- [ ] CONTEXT.md - discuss phase
-- [ ] PLAN.md - execution plan
-- [ ] SUMMARY.md - what was built
-- [ ] VERIFICATION.md - verified working
-
-### Stage 2: DSP
-- [ ] CONTEXT.md
-- [ ] RESEARCH.md (if complex algorithm)
-- [ ] PLAN.md
-- [ ] SUMMARY.md
-- [ ] VERIFICATION.md
-
-### Stage 3: UI
-- [ ] CONTEXT.md
-- [ ] PLAN.md
-- [ ] SUMMARY.md
-- [ ] VERIFICATION.md
-
-### Stage 4: Polish & Release
-- [ ] Testing complete
-- [ ] Packaging complete
-- [ ] Published
-
-## Session Continuity
-
-Last session: [YYYY-MM-DD]
-Stopped at: [Description]
-Resume file: [Path to current stage files]
+Resume with: `/continue ${PLUGIN_NAME}`

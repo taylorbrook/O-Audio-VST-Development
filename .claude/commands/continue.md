@@ -1,174 +1,144 @@
 ---
 name: continue
-description: Resume plugin development from checkpoint
+description: Resume plugin development from checkpoint (phase-aware)
+argument-hint: "[PluginName?] [--express] [--skip-discuss] [--skip-research] [--skip-verify]"
+skill: context-resume
 ---
 
 # /continue
 
-When user runs `/continue [PluginName?]`, YOU MUST invoke the context-resume skill using the Skill tool.
+Resume plugin development from the last checkpoint. Restores context and continues at the exact stage and phase where work was paused.
 
-**IMPORTANT: Use this exact invocation:**
+## Usage
 
 ```
-Skill({ skill: "context-resume" })
+/continue [plugin_name] [flags]    # Resume specific plugin
+/continue [flags]                  # Resume focused plugin
+/continue                          # Resume focused plugin, default options
 ```
 
-DO NOT manually read handoff files or present summaries. The context-resume skill handles all of this.
+## Arguments
+
+- `plugin_name` - Plugin to resume (optional, defaults to focused)
+
+## Flags
+
+| Flag | Description |
+|------|-------------|
+| `--express` | Force express mode (override saved mode) |
+| `--manual` | Force manual mode (override saved mode) |
+| `--skip-discuss` | Skip discuss phases on resume |
+| `--skip-research` | Skip research phases on resume |
+| `--skip-verify` | Skip verify phases on resume |
 
 ## Behavior
 
-**Command-line flags:**
-- `--express`: Force express mode for resumed workflow
-- `--manual`: Force manual mode for resumed workflow
+1. **Resolve plugin name:**
+   - If provided: Use specified plugin
+   - If not provided: Use focused plugin from registry
+   - If no focused plugin: Show menu of resumable plugins
 
-**Flag parsing:**
+2. **Load state:**
+   - Read `plugins/[Name]/.planning/STATUS.md`
+   - Parse current stage and phase from frontmatter
+   - Read handoff context
+
+3. **Determine workflow mode:**
+   - Flag override (`--express` or `--manual`) takes priority
+   - Otherwise use `express_mode` from STATUS.md
+   - Default to "manual" if not set
+
+4. **Present context summary:**
+   ```
+   Resuming O-IntonationPad
+   ══════════════════════════════════════════════════════════════
+
+   Stage: 2-dsp
+   Phase: plan
+
+   Completed:
+   - Stage 1 (Foundation): ✓ all 5 phases
+   - Stage 2 (DSP): discuss ✓, research ✓
+
+   Handoff Context:
+   ─────────────────────────────────────────────────────────────
+   Working on: JI ratio calculation for chord generation
+   Key decisions: 5-limit JI for triads, 7-limit for extensions
+
+   Continue with:
+   1. /plugin:plan O-IntonationPad 2-dsp (recommended)
+   2. /plugin:research O-IntonationPad 2-dsp (re-research)
+   3. /implement O-IntonationPad --express (auto-complete all)
+   ```
+
+5. **Route to continuation:**
+   - For stages 1-4: Route to plugin-workflow skill
+   - For stage 0 (ideation/planning): Route to appropriate skill
+
+## Examples
+
 ```bash
-# Parse plugin name and flags from arguments
-# Input examples:
-#   "/continue PluginName"
-#   "/continue PluginName --express"
-#   "/continue PluginName --manual"
+# Resume focused plugin
+/continue
 
-PLUGIN_NAME=""
-FLAG_MODE=""
+# Resume specific plugin with express mode
+/continue O-IntonationPad --express
 
-for arg in "$@"; do
-  case "$arg" in
-    --express)
-      FLAG_MODE="express"
-      ;;
-    --manual)
-      FLAG_MODE="manual"
-      ;;
-    /continue)
-      # Skip command itself
-      ;;
-    *)
-      PLUGIN_NAME="$arg"
-      ;;
-  esac
-done
+# Resume and skip optional phases
+/continue O-IntonationPad --express --skip-discuss --skip-research
+
+# Force manual mode (overrides saved express mode)
+/continue O-IntonationPad --manual
 ```
 
-**Mode determination on resume:**
-1. Check for flag override (--express or --manual)
-2. If flag present: Use flag mode (override saved mode)
-3. If no flag: Read workflow_mode from .planning/STATUS.md
-4. If field missing: Default to "manual"
+## Registry Integration
 
-**Pass mode to continuation skill:**
-```bash
-# Set environment variables before invoking context-resume
-if [ -n "$FLAG_MODE" ]; then
-  export WORKFLOW_MODE="$FLAG_MODE"
-  echo "Workflow mode: $FLAG_MODE (from flag, overriding saved mode)"
-else
-  # Read mode from .planning/STATUS.md (handled by context-resume skill)
-  echo "Workflow mode: (resuming with saved mode)"
-fi
+On resume:
+1. Set plugin as focused in registry
+2. Update `lastActivity` timestamp
+3. Set status to "active" (if was "paused")
+
+## No Resumable Work
+
+**If no focused plugin and no plugin specified:**
+```
+No plugin currently focused.
+
+Resumable plugins:
+1. O-IntonationPad (Stage 2-dsp, Phase plan)
+2. O-NewPlugin (Stage 1-foundation, Phase discuss)
+
+Choose a plugin or use: /plugin:focus [name]
 ```
 
-<preconditions enforcement="blocking">
-  <check target="handoff_files" condition="at_least_one_exists">
-    Search for `.planning/STATUS.md` files in priority order:
-
-    **Without plugin name:**
-    1. `plugins/[Name]/.planning/STATUS.md` (implementation/planning/ideation)
-    2. `plugins/[Name]/.planning/mockups/.planning/STATUS.md` (mockup iteration)
-
-    Present interactive menu if multiple found:
-    ```
-    Which plugin would you like to resume?
-
-    1. [PluginName1]
-       Stage [N] ([StageName]) • Active development • [time] ago
-
-    2. [PluginName2]
-       Mockup v[N] ready • Ready to build • [time] ago
-
-    3. [PluginName3]
-       Creative brief complete • Not started • [time] ago
-    ```
-
-    **With plugin name:**
-    Load directly: `plugins/[PluginName]/.planning/STATUS.md`
-
-    IF none found: See Error Handling section below.
-  </check>
-</preconditions>
-
-## State Contract
-
-<state_contract>
-  <reads>
-    - `.planning/STATUS.md` (one of 3 locations by priority)
-    - PLUGINS.md (status verification)
-    - Recent git commits (for plugin only)
-    - Contract files (if workflow stage 0-1)
-    - Source files (if mentioned in handoff)
-    - Research notes (if Stage 0-1)
-    - UI mockups (if applicable)
-  </reads>
-
-  <writes>
-    NONE - This command is READ-ONLY for state files.
-    Continuation skills handle all state updates.
-  </writes>
-
-  <loads_before_routing>
-    Load contracts and context files BEFORE invoking continuation skill.
-    This provides full context for skill execution.
-  </loads_before_routing>
-</state_contract>
-
-## After Loading
-
-Present summary:
+**If specified plugin has no handoff:**
 ```
-Resuming [PluginName] at Stage [N]...
+O-SomePlugin doesn't have resumable state.
 
-Summary of completed work:
-- [Stage 1] Foundation set up
-- [Stage 2] Plugin loads in DAW
-- [Stage 3.1] Core DSP implemented
+Status: ✅ Working (complete)
 
-Current status:
-Working on Stage [N] ([Description]).
-[Current state description]
-
-Next steps:
-1. [Primary next action]
-2. [Alternative action]
-
-Ready to continue?
+Options:
+- /improve O-SomePlugin (add features/fix bugs)
+- /plugin:status O-SomePlugin (view details)
 ```
 
-Wait for confirmation, then resume workflow at exact continuation point.
+## Phase-Aware Resume
 
-## Error Handling
+The continue command resumes at the exact phase within a stage:
 
-**No handoff files found:**
+```
+# If paused at Stage 2, Phase research:
+/continue O-IntonationPad
 
-IF no handoff exists for any plugin:
-- Display: "No resumable work found"
-- Explain: Handoffs created after ideation, mockup, during implementation, or after improvements
-- Suggest: `/start` (explore ideas) or `/implement` (build new plugin)
+Resuming at Stage 2 (DSP), Phase research
+- Previous: discuss ✓
+- Current: research →
+- Remaining: plan, execute, verify
+```
 
-IF specific [PluginName] doesn't have handoff:
-- Display: "[PluginName] doesn't have a handoff file"
-- Explain: Plugin may be complete (Stage 3), not started, or handoff removed
-- Suggest: Check `PLUGINS.md`, `/improve [PluginName]`, or `/implement [PluginName]`
+## Related Commands
 
-See `context-resume` skill's `error-recovery.md` for additional scenarios.
-
-## Routes To
-
-**Skill:** context-resume
-
-The skill handles:
-- Reading `.planning/STATUS.md` files
-- Parsing current stage and status
-- Summarizing completed work
-- Loading relevant context
-- Proposing next steps
-- Continuing workflow from checkpoint
+- `/plugin:resume` - Alternative resume command (same behavior)
+- `/plugin:status` - View status without resuming
+- `/plugin:pause` - Pause current work
+- `/implement` - Start or restart implementation

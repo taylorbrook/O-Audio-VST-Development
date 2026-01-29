@@ -1,11 +1,14 @@
 ---
 name: modules
-description: Manage Ouaricon modules - list, add, upgrade, info
+description: Manage Ouaricon modules - list, add, remove, create, upgrade, info
+skill: module-system
 ---
 
 # /modules
 
 Manage the Ouaricon Module System - reusable components for JUCE plugin development.
+
+**Note:** This command provides shortcuts to the `/module:*` namespace commands.
 
 ## Usage
 

@@ -1,0 +1,120 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "$id": "phase-constants.json",
+  "title": "Phase System Constants",
+  "description": "Canonical definitions for stages, phases, and their relationships",
+
+  "stages": {
+    "0-ideation": {
+      "name": "Ideation",
+      "description": "Creative brief, parameters, UI concept",
+      "agent": "plugin-ideation",
+      "outputs": ["BRIEF.md", "parameter-spec.md"],
+      "order": 0
+    },
+    "1-foundation": {
+      "name": "Foundation",
+      "description": "CMake, project structure, APVTS parameters",
+      "agent": "foundation-shell-agent",
+      "outputs": ["CMakeLists.txt", "PluginProcessor.cpp", "PluginProcessor.h"],
+      "order": 1
+    },
+    "2-dsp": {
+      "name": "DSP",
+      "description": "Audio processing, algorithms",
+      "agent": "dsp-agent",
+      "outputs": ["processBlock implementation", "DSP classes"],
+      "order": 2
+    },
+    "3-gui": {
+      "name": "GUI",
+      "description": "WebView UI, parameter binding",
+      "agent": "gui-agent",
+      "outputs": ["index.html", "PluginEditor.cpp", "PluginEditor.h"],
+      "order": 3
+    },
+    "4-polish": {
+      "name": "Polish",
+      "description": "Edge cases, optimization, presets",
+      "agent": "polish-agent",
+      "outputs": ["Factory presets", "Performance optimizations"],
+      "order": 4
+    },
+    "complete": {
+      "name": "Complete",
+      "description": "Plugin ready for release",
+      "agent": null,
+      "outputs": [],
+      "order": 5
+    }
+  },
+
+  "phases": {
+    "discuss": {
+      "name": "Discuss",
+      "description": "Interactive context gathering",
+      "agent": "plugin-discuss-agent",
+      "output": "CONTEXT.md",
+      "skippable": true,
+      "order": 0
+    },
+    "research": {
+      "name": "Research",
+      "description": "Investigate implementation approach",
+      "agent": "gsd-phase-researcher",
+      "output": "RESEARCH.md",
+      "skippable": true,
+      "order": 1
+    },
+    "plan": {
+      "name": "Plan",
+      "description": "Create execution plan with task breakdown",
+      "agent": "gsd-planner",
+      "output": "PLAN.md",
+      "skippable": false,
+      "order": 2
+    },
+    "execute": {
+      "name": "Execute",
+      "description": "Run stage-specific agent",
+      "agent": "stage-specific",
+      "output": "SUMMARY.md",
+      "skippable": false,
+      "order": 3
+    },
+    "verify": {
+      "name": "Verify",
+      "description": "Validate goal achievement",
+      "agent": "gsd-verifier",
+      "output": "VERIFICATION.md",
+      "skippable": true,
+      "order": 4
+    }
+  },
+
+  "transitions": {
+    "phaseOrder": ["discuss", "research", "plan", "execute", "verify"],
+    "stageOrder": ["0-ideation", "1-foundation", "2-dsp", "3-gui", "4-polish", "complete"],
+    "nextPhase": {
+      "discuss": "research",
+      "research": "plan",
+      "plan": "execute",
+      "execute": "verify",
+      "verify": null
+    },
+    "nextStage": {
+      "0-ideation": "1-foundation",
+      "1-foundation": "2-dsp",
+      "2-dsp": "3-gui",
+      "3-gui": "4-polish",
+      "4-polish": "complete",
+      "complete": null
+    }
+  },
+
+  "skipFlags": {
+    "--skip-discuss": "discuss",
+    "--skip-research": "research",
+    "--skip-verify": "verify"
+  }
+}
