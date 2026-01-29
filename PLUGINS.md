@@ -37,7 +37,7 @@ Ouaricon Plugins:
 | O-Lyrica | 📦 Installed | 1.17.0 | Synth (Physical Modeling Harp) | 2026-01-25 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
-| O-IntonationPad | 💡 Ideated | - | Synth (Wavetable Pad) | 2026-01-28 |
+| O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
