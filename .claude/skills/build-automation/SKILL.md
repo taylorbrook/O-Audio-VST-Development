@@ -1,5 +1,11 @@
 # build-automation
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/build-automation.input.json`
+- Output schema: `.claude/schemas/agent-contracts/build-automation.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 ---
 name: build-automation
 description: Orchestrates plugin builds and installation via build script with comprehensive failure handling. Use when build or compile is needed, build fails, compilation errors occur, or during plugin installation. Invoked by plugin-workflow, plugin-improve, and plugin-lifecycle skills.

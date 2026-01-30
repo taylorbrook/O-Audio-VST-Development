@@ -7,6 +7,12 @@ allowed-tools:
   - Task # For deep-research on failures
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/plugin-testing.input.json`
+- Output schema: `.claude/schemas/agent-contracts/plugin-testing.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 # plugin-testing Skill
 
 **Purpose:** Catch crashes, parameter issues, and state bugs in 2 minutes with automated tests.

@@ -8,6 +8,12 @@ allowed-tools:
   - WebSearch # Web research (Level 2-3)
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/deep-research.input.json`
+- Output schema: `.claude/schemas/agent-contracts/deep-research.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 # deep-research Skill
 
 **Purpose:** Multi-level autonomous investigation for complex JUCE plugin development problems using graduated research depth protocol.

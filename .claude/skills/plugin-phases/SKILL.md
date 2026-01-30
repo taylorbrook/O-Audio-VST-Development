@@ -9,19 +9,19 @@ allowed-tools:
   - Bash
   - AskUserQuestion
 commands:
-  - name: plugin:discuss
+  - name: plugin-discuss
     description: Interactive context gathering for a stage
     args: "[plugin_name?] [stage?] [--skip-*]"
-  - name: plugin:research
+  - name: plugin-research
     description: Investigate implementation approach
     args: "[plugin_name?] [stage?] [--skip-*]"
-  - name: plugin:plan
+  - name: plugin-plan
     description: Create execution plan with task breakdown
     args: "[plugin_name?] [stage?] [--skip-*]"
-  - name: plugin:execute
+  - name: plugin-execute
     description: Run stage-specific agent
     args: "[plugin_name?] [stage?] [--skip-*]"
-  - name: plugin:verify
+  - name: plugin-verify
     description: Validate goal achievement
     args: "[plugin_name?] [stage?] [--skip-*]"
 ---
@@ -49,7 +49,7 @@ commands:
 
 ## Commands
 
-### /plugin:discuss [plugin_name?] [stage?]
+### /plugin-discuss [plugin_name?] [stage?]
 
 Interactive context gathering for a stage. Asks questions to build understanding before implementation.
 
@@ -93,12 +93,12 @@ Interactive context gathering for a stage. Asks questions to build understanding
    - Voice leading preferences
 
    Next:
-   1. /plugin:research O-IntonationPad 2-dsp (recommended)
-   2. /plugin:plan O-IntonationPad 2-dsp (skip research)
-   3. /plugin:status O-IntonationPad
+   1. /plugin-research O-IntonationPad 2-dsp (recommended)
+   2. /plugin-plan O-IntonationPad 2-dsp (skip research)
+   3. /plugin-status O-IntonationPad
    ```
 
-### /plugin:research [plugin_name?] [stage?]
+### /plugin-research [plugin_name?] [stage?]
 
 Investigate implementation approach. Researches patterns, algorithms, and existing code.
 
@@ -130,7 +130,7 @@ Investigate implementation approach. Researches patterns, algorithms, and existi
 6. Update STATUS.md and registry
 7. Present completion menu
 
-### /plugin:plan [plugin_name?] [stage?]
+### /plugin-plan [plugin_name?] [stage?]
 
 Create execution plan with detailed task breakdown.
 
@@ -164,7 +164,7 @@ Create execution plan with detailed task breakdown.
 6. Update STATUS.md and registry
 7. Present completion menu
 
-### /plugin:execute [plugin_name?] [stage?]
+### /plugin-execute [plugin_name?] [stage?]
 
 Run the stage-specific implementation agent.
 
@@ -191,7 +191,7 @@ Run the stage-specific implementation agent.
 7. Update STATUS.md and registry
 8. Present completion menu
 
-### /plugin:verify [plugin_name?] [stage?]
+### /plugin-verify [plugin_name?] [stage?]
 
 Validate that stage goals were achieved.
 
@@ -239,7 +239,7 @@ Phases can be skipped with flags:
 
 **Example:**
 ```
-/plugin:execute O-IntonationPad 2-dsp --skip-discuss --skip-research
+/plugin-execute O-IntonationPad 2-dsp --skip-discuss --skip-research
 ```
 
 **Implementation:**
@@ -311,9 +311,9 @@ Error: Cannot run 'execute' phase - 'plan' phase not complete.
 Current state: Stage 2-dsp, Phase: discuss
 
 Run these phases first:
-1. /plugin:discuss O-IntonationPad 2-dsp
-2. /plugin:research O-IntonationPad 2-dsp (or --skip-research)
-3. /plugin:plan O-IntonationPad 2-dsp
+1. /plugin-discuss O-IntonationPad 2-dsp
+2. /plugin-research O-IntonationPad 2-dsp (or --skip-research)
+3. /plugin-plan O-IntonationPad 2-dsp
 ```
 
 **Verification fails:**

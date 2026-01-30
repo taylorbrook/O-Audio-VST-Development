@@ -10,6 +10,12 @@ preconditions:
   - Varies by mode (see mode-specific preconditions)
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/plugin-lifecycle.input.json`
+- Output schema: `.claude/schemas/agent-contracts/plugin-lifecycle.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 # plugin-lifecycle Skill
 
 **Purpose:** Manage the complete lifecycle of plugins from installation to removal with proper state tracking and safety features.

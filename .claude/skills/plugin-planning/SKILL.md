@@ -16,6 +16,12 @@ preconditions:
   - Plugin must NOT already be past Stage 0
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/plugin-planning.input.json`
+- Output schema: `.claude/schemas/agent-contracts/plugin-planning.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 # plugin-planning Skill
 
 **Purpose:** Handle Stage 0 (Research & Planning - consolidated) through subagent delegation. This skill creates the foundation contracts (ARCHITECTURE.md, ROADMAP.md) that guide implementation using the GSD-style discuss → research → plan → execute → verify cycle.

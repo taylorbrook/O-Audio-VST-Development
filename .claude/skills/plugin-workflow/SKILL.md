@@ -15,6 +15,12 @@ preconditions:
   - Plugin must NOT be ✅ Working or 📦 Installed (use /improve instead)
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/plugin-workflow.input.json`
+- Output schema: `.claude/schemas/agent-contracts/plugin-workflow.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 # plugin-workflow Skill
 
 **Purpose:** Orchestrate stages 1-4 of JUCE plugin implementation with GSD phase cycles. Each stage runs a full discuss → research → plan → execute → verify cycle before advancing.

@@ -12,6 +12,12 @@ preconditions:
   - Plugin must NOT be 🚧 In Development
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/plugin-improve.input.json`
+- Output schema: `.claude/schemas/agent-contracts/plugin-improve.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 # plugin-improve Skill
 
 **Purpose:** Make changes to completed plugins with versioning, backups, changelog automation, and root cause investigation.

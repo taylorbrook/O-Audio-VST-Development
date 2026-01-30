@@ -9,6 +9,12 @@ preconditions:
   - None (entry point)
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/plugin-ideation.input.json`
+- Output schema: `.claude/schemas/agent-contracts/plugin-ideation.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 # plugin-ideation Skill
 
 **Purpose:** Interactive brainstorming and creative vision capture for new plugins and improvements to existing plugins.

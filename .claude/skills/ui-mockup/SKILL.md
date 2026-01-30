@@ -9,6 +9,12 @@ preconditions:
   - None (can work standalone or with creative brief)
 ---
 
+## Contract
+
+- Input schema: `.claude/schemas/agent-contracts/ui-mockup.input.json`
+- Output schema: `.claude/schemas/agent-contracts/ui-mockup.output.json`
+- Boundaries: See `BOUNDARIES.md` in this directory
+
 <objective>
 Creates WebView UI mockups for audio plugins through iterative design and implementation scaffolding.
 </objective>

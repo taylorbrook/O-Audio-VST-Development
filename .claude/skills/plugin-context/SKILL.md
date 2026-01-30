@@ -8,18 +8,18 @@ allowed-tools:
   - Bash
   - AskUserQuestion
 commands:
-  - name: plugin:list
+  - name: plugin-list
     description: List all plugins with stage/phase status
-  - name: plugin:focus
+  - name: plugin-focus
     description: Set active plugin context
     args: "[plugin_name]"
-  - name: plugin:status
+  - name: plugin-status
     description: Detailed phase breakdown for a plugin
     args: "[plugin_name?]"
-  - name: plugin:pause
+  - name: plugin-pause
     description: Checkpoint current work, create handoff document
     args: "[plugin_name?]"
-  - name: plugin:resume
+  - name: plugin-resume
     description: Restore context from handoff and continue work
     args: "[plugin_name?]"
 ---
@@ -30,7 +30,7 @@ commands:
 
 ## Commands
 
-### /plugin:list
+### /plugin-list
 
 List all plugins with their current stage and phase.
 
@@ -54,7 +54,7 @@ Legend: → = focused
 2. Format output as table
 3. Mark focused plugin with arrow
 
-### /plugin:focus [plugin_name]
+### /plugin-focus [plugin_name]
 
 Set the active plugin context. Subsequent commands without explicit plugin name will use this context.
 
@@ -68,7 +68,7 @@ Set the active plugin context. Subsequent commands without explicit plugin name 
 **If no plugin_name provided:**
 Display currently focused plugin or "(none)"
 
-### /plugin:status [plugin_name?]
+### /plugin-status [plugin_name?]
 
 Show detailed phase breakdown for a plugin.
 
@@ -105,7 +105,7 @@ Phase Progress
 Module Dependencies: scala-tuning-engine@1.0.0
 
 Resume: /continue O-IntonationPad
-Next: /plugin:plan O-IntonationPad 2-dsp
+Next: /plugin-plan O-IntonationPad 2-dsp
 ```
 
 **Implementation:**
@@ -115,7 +115,7 @@ Next: /plugin:plan O-IntonationPad 2-dsp
 4. Parse phase progress tables
 5. Format output
 
-### /plugin:pause [plugin_name?]
+### /plugin-pause [plugin_name?]
 
 Checkpoint current work and create handoff document for later resumption.
 
@@ -129,9 +129,9 @@ Checkpoint current work and create handoff document for later resumption.
 4. Update STATUS.md Handoff Context section
 5. Update registry status to "paused"
 6. Git commit: "checkpoint: [plugin_name] paused at stage [X] phase [Y]"
-7. Confirm: "Paused [plugin_name]. Resume with /plugin:resume [plugin_name]"
+7. Confirm: "Paused [plugin_name]. Resume with /plugin-resume [plugin_name]"
 
-### /plugin:resume [plugin_name?]
+### /plugin-resume [plugin_name?]
 
 Restore context from handoff and continue work.
 
@@ -154,9 +154,9 @@ Restore context from handoff and continue work.
    - Decided to use 5-limit JI for triads, 7-limit for extensions
 
    Continue with:
-   1. /plugin:plan O-IntonationPad 2-dsp (recommended)
-   2. /plugin:discuss O-IntonationPad 2-dsp
-   3. /plugin:status O-IntonationPad
+   1. /plugin-plan O-IntonationPad 2-dsp (recommended)
+   2. /plugin-discuss O-IntonationPad 2-dsp
+   3. /plugin-status O-IntonationPad
    ```
 
 ## State Management
@@ -187,7 +187,7 @@ Plugin-local state in `plugins/[name]/.planning/STATUS.md`:
 - `plugins/[name]/.planning/STATUS.md`
 
 **Used by:**
-- All `/plugin:*` commands
+- All `/plugin-*` commands
 - `/continue` (routes through plugin:resume)
 - `/implement` (checks focused context)
 
@@ -209,7 +209,7 @@ Create new plugin with: /start FooBar
 ```
 No plugin currently focused.
 
-Use /plugin:focus [name] or /plugin:list to see available plugins.
+Use /plugin-focus [name] or /plugin-list to see available plugins.
 ```
 
 **Registry out of sync:**
