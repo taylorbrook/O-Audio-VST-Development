@@ -13,6 +13,26 @@ allowed-tools:
 - Output schema: `.claude/schemas/agent-contracts/plugin-testing.output.json`
 - Boundaries: See `BOUNDARIES.md` in this directory
 
+## Contract Validation
+
+Before processing any request, validate inputs against the contract:
+
+1. **Load schema:** `.claude/schemas/agent-contracts/plugin-testing.input.json`
+2. **Validate:** Check all required fields present, types match, constraints satisfied
+3. **On violation:** Stop immediately. Report error using format from `.claude/skills/contract-validation/SKILL.md`:
+   ```
+   CONTRACT VIOLATION: plugin-testing input invalid
+
+   Field: {field_name}
+   Expected: {from_schema}
+   Received: {actual_value}
+
+   Fix: {actionable_instruction}
+   ```
+4. **On success:** Proceed to main agent logic
+
+See `.claude/skills/contract-validation/SKILL.md` for full validation protocol.
+
 # plugin-testing Skill
 
 **Purpose:** Catch crashes, parameter issues, and state bugs in 2 minutes with automated tests.

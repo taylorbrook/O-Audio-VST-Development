@@ -6,6 +6,26 @@
 - Output schema: `.claude/schemas/agent-contracts/build-automation.output.json`
 - Boundaries: See `BOUNDARIES.md` in this directory
 
+## Contract Validation
+
+Before processing any request, validate inputs against the contract:
+
+1. **Load schema:** `.claude/schemas/agent-contracts/build-automation.input.json`
+2. **Validate:** Check all required fields present, types match, constraints satisfied
+3. **On violation:** Stop immediately. Report error using format from `.claude/skills/contract-validation/SKILL.md`:
+   ```
+   CONTRACT VIOLATION: build-automation input invalid
+
+   Field: {field_name}
+   Expected: {from_schema}
+   Received: {actual_value}
+
+   Fix: {actionable_instruction}
+   ```
+4. **On success:** Proceed to main agent logic
+
+See `.claude/skills/contract-validation/SKILL.md` for full validation protocol.
+
 ---
 name: build-automation
 description: Orchestrates plugin builds and installation via build script with comprehensive failure handling. Use when build or compile is needed, build fails, compilation errors occur, or during plugin installation. Invoked by plugin-workflow, plugin-improve, and plugin-lifecycle skills.
