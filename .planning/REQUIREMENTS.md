@@ -92,7 +92,7 @@ Deferred to future release. Tracked but not in current roadmap.
 | Feature | Reason |
 |---------|--------|
 | Changing JUCE version | JUCE 8 is proven and working |
-| Abandoning GSD phases | The discuss→research→plan→execute→verify model is valuable |
+| Abandoning GSD phases | The discuss->research->plan->execute->verify model is valuable |
 | Building plugins during overhaul | Focus is on system improvement |
 | Automatic cross-DAW testing | Requires infrastructure not yet available |
 | Real-time collaboration | Single-user workflow is sufficient |
@@ -103,49 +103,49 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AGNT-01 | TBD | Pending |
-| AGNT-02 | TBD | Pending |
-| AGNT-03 | TBD | Pending |
-| AGNT-04 | TBD | Pending |
-| AGNT-05 | TBD | Pending |
-| AGNT-06 | TBD | Pending |
-| AGNT-07 | TBD | Pending |
-| STAT-01 | TBD | Pending |
-| STAT-02 | TBD | Pending |
-| STAT-03 | TBD | Pending |
-| STAT-04 | TBD | Pending |
-| STAT-05 | TBD | Pending |
-| HAND-01 | TBD | Pending |
-| HAND-02 | TBD | Pending |
-| HAND-03 | TBD | Pending |
-| HAND-04 | TBD | Pending |
-| HAND-05 | TBD | Pending |
-| GATE-01 | TBD | Pending |
-| GATE-02 | TBD | Pending |
-| GATE-03 | TBD | Pending |
-| GATE-04 | TBD | Pending |
-| GATE-05 | TBD | Pending |
-| GATE-06 | TBD | Pending |
-| CRIT-01 | TBD | Pending |
-| CRIT-02 | TBD | Pending |
-| CRIT-03 | TBD | Pending |
-| CRIT-04 | TBD | Pending |
-| DOMN-01 | TBD | Pending |
-| DOMN-02 | TBD | Pending |
-| DOMN-03 | TBD | Pending |
-| DOMN-04 | TBD | Pending |
-| DOMN-05 | TBD | Pending |
-| DOMN-06 | TBD | Pending |
-| MODS-01 | TBD | Pending |
-| MODS-02 | TBD | Pending |
-| MODS-03 | TBD | Pending |
-| MODS-04 | TBD | Pending |
+| AGNT-01 | Phase 1 | Pending |
+| AGNT-02 | Phase 1 | Pending |
+| AGNT-03 | Phase 1 | Pending |
+| AGNT-04 | Phase 1 | Pending |
+| AGNT-05 | Phase 1 | Pending |
+| AGNT-06 | Phase 1 | Pending |
+| AGNT-07 | Phase 1 | Pending |
+| STAT-01 | Phase 2 | Pending |
+| STAT-02 | Phase 2 | Pending |
+| STAT-03 | Phase 2 | Pending |
+| STAT-04 | Phase 2 | Pending |
+| STAT-05 | Phase 2 | Pending |
+| HAND-01 | Phase 3 | Pending |
+| HAND-02 | Phase 3 | Pending |
+| HAND-03 | Phase 3 | Pending |
+| HAND-04 | Phase 3 | Pending |
+| HAND-05 | Phase 3 | Pending |
+| CRIT-01 | Phase 4 | Pending |
+| CRIT-02 | Phase 4 | Pending |
+| CRIT-03 | Phase 4 | Pending |
+| CRIT-04 | Phase 4 | Pending |
+| GATE-01 | Phase 5 | Pending |
+| GATE-02 | Phase 5 | Pending |
+| GATE-03 | Phase 5 | Pending |
+| GATE-04 | Phase 5 | Pending |
+| GATE-05 | Phase 5 | Pending |
+| GATE-06 | Phase 5 | Pending |
+| DOMN-01 | Phase 6 | Pending |
+| DOMN-02 | Phase 6 | Pending |
+| DOMN-03 | Phase 6 | Pending |
+| DOMN-04 | Phase 6 | Pending |
+| DOMN-05 | Phase 6 | Pending |
+| DOMN-06 | Phase 6 | Pending |
+| MODS-01 | Phase 7 | Pending |
+| MODS-02 | Phase 7 | Pending |
+| MODS-03 | Phase 7 | Pending |
+| MODS-04 | Phase 7 | Pending |
 
 **Coverage:**
 - v1 requirements: 34 total
-- Mapped to phases: 0
-- Unmapped: 34 ⚠️
+- Mapped to phases: 34
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-29 after initial definition*
+*Last updated: 2026-01-30 after roadmap creation*
