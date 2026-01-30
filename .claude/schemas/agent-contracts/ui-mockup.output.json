@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ui-mockup.output",
+  "title": "UI Mockup Output Contract",
+  "description": "Expected outputs from ui-mockup skill execution",
+  "type": "object",
+  "required": ["status", "phase", "version"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["design_complete", "finalized", "iterating", "cancelled"],
+      "description": "Current state of mockup workflow"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["A-design-iteration", "B-implementation-scaffolding"],
+      "description": "Which phase completed"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Mockup version number"
+    },
+    "artifacts_created": {
+      "type": "object",
+      "properties": {
+        "yaml_spec": {
+          "type": "string",
+          "description": "Path to v[N]-ui.yaml"
+        },
+        "test_html": {
+          "type": "string",
+          "description": "Path to v[N]-ui-test.html"
+        },
+        "production_html": {
+          "type": "string",
+          "description": "Path to v[N]-ui.html (Phase B only)"
+        },
+        "plugin_editor_h": {
+          "type": "string",
+          "description": "Path to v[N]-PluginEditor.h (Phase B only)"
+        },
+        "plugin_editor_cpp": {
+          "type": "string",
+          "description": "Path to v[N]-PluginEditor.cpp (Phase B only)"
+        },
+        "cmake_config": {
+          "type": "string",
+          "description": "Path to v[N]-CMakeLists.txt (Phase B only)"
+        },
+        "integration_checklist": {
+          "type": "string",
+          "description": "Path to v[N]-integration-checklist.md (Phase B only)"
+        },
+        "parameter_spec": {
+          "type": "string",
+          "description": "Path to parameter-spec.md (generated on v1 finalization)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "aesthetic_saved": {
+      "type": "boolean",
+      "description": "Whether design was saved to aesthetic library"
+    },
+    "status_md_updated": {
+      "type": "boolean",
+      "description": "Whether STATUS.md was updated (workflow mode)"
+    }
+  },
+  "additionalProperties": false
+}

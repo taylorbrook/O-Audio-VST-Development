@@ -1,0 +1,33 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "ui-mockup.input",
+  "title": "UI Mockup Input Contract",
+  "description": "Required inputs for ui-mockup skill invocation - WebView UI mockup creation",
+  "type": "object",
+  "required": ["plugin_name"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to design UI for"
+    },
+    "parameter_spec_path": {
+      "type": "string",
+      "description": "Path to parameter specification file"
+    },
+    "aesthetic_id": {
+      "type": "string",
+      "description": "ID of aesthetic template to apply (from aesthetic library)"
+    },
+    "iteration_feedback": {
+      "type": "string",
+      "description": "Refinements for new version (if iterating on existing mockup)"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1,
+      "default": 1,
+      "description": "Mockup version number (v1, v2, etc.)"
+    }
+  },
+  "additionalProperties": false
+}

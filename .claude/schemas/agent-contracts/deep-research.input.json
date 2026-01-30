@@ -1,0 +1,41 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deep-research.input",
+  "title": "Deep Research Input Contract",
+  "description": "Required inputs for deep-research skill invocation - multi-level autonomous investigation",
+  "type": "object",
+  "required": ["topic"],
+  "properties": {
+    "topic": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Research question or problem to investigate"
+    },
+    "context": {
+      "type": "object",
+      "properties": {
+        "plugin_name": {
+          "type": "string",
+          "description": "Related plugin name (if applicable)"
+        },
+        "stage": {
+          "type": "string",
+          "description": "Current workflow stage (if applicable)"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message being investigated (if applicable)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Optional context for the research"
+    },
+    "starting_level": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "default": 1,
+      "description": "Level to start research at (1=Quick, 2=Moderate, 3=Deep)"
+    }
+  },
+  "additionalProperties": false
+}

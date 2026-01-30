@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-planning.output",
+  "title": "Plugin Planning Output Contract",
+  "description": "Expected outputs from plugin-planning skill execution",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "paused", "failure"],
+      "description": "Planning execution result"
+    },
+    "artifacts_created": {
+      "type": "object",
+      "properties": {
+        "architecture_path": {
+          "type": "string",
+          "description": "Path to ARCHITECTURE.md"
+        },
+        "roadmap_path": {
+          "type": "string",
+          "description": "Path to ROADMAP.md"
+        },
+        "context_path": {
+          "type": "string",
+          "description": "Path to Stage 0 CONTEXT.md"
+        },
+        "status_path": {
+          "type": "string",
+          "description": "Path to updated STATUS.md"
+        }
+      },
+      "additionalProperties": false
+    },
+    "complexity_score": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 10,
+      "description": "Assessed implementation complexity (from ROADMAP.md)"
+    },
+    "estimated_duration_hours": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Estimated implementation time"
+    },
+    "registry_updated": {
+      "type": "boolean",
+      "description": "Whether plugin-registry.json was updated"
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": ["precondition", "discuss", "research", "plan"],
+          "description": "Phase where error occurred"
+        },
+        "message": { "type": "string" },
+        "missing_artifact": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "if": {
+    "properties": { "status": { "const": "failure" } }
+  },
+  "then": {
+    "required": ["error"]
+  },
+  "additionalProperties": false
+}

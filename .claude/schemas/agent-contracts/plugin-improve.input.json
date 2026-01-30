@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-improve.input",
+  "title": "Plugin Improve Input Contract",
+  "description": "Required inputs for plugin-improve skill invocation - fix bugs, add features to completed plugins",
+  "type": "object",
+  "required": ["plugin_name", "improvement_request"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to improve (must be Working or Installed status)"
+    },
+    "improvement_request": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What to fix, add, or change"
+    },
+    "version_bump": {
+      "type": "string",
+      "enum": ["patch", "minor", "major"],
+      "description": "Semantic version increment type"
+    },
+    "research_context": {
+      "type": "object",
+      "properties": {
+        "from_deep_research": {
+          "type": "boolean",
+          "description": "Whether invoked from deep-research handoff"
+        },
+        "findings_summary": {
+          "type": "string",
+          "description": "Summary of research findings to apply"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Context from deep-research skill (if handoff)"
+    }
+  },
+  "additionalProperties": false
+}

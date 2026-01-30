@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-testing.input",
+  "title": "Plugin Testing Input Contract",
+  "description": "Required inputs for plugin-testing skill invocation - manual testing validation",
+  "type": "object",
+  "required": ["plugin_name"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to test (must have implementation)"
+    },
+    "test_mode": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "Test mode: 1=Automated (~2min), 2=Build+Pluginval (~5-10min), 3=Manual DAW (~30-60min)"
+    },
+    "shorthand": {
+      "type": "string",
+      "enum": ["quick", "build", "manual"],
+      "description": "Alternative to test_mode: quick=Mode 1, build=Mode 2, manual=Mode 3"
+    }
+  },
+  "additionalProperties": false
+}

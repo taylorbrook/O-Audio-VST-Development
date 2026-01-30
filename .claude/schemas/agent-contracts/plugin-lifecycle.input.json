@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-lifecycle.input",
+  "title": "Plugin Lifecycle Input Contract",
+  "description": "Required inputs for plugin-lifecycle skill invocation - install, uninstall, reset, destroy",
+  "type": "object",
+  "required": ["plugin_name", "mode"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to manage"
+    },
+    "mode": {
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "description": "Operation mode: 1=Install, 2=Uninstall, 3=Reset to Ideation, 4=Destroy"
+    },
+    "confirmation": {
+      "type": "string",
+      "description": "User confirmation for destructive operations (Mode 3/4 require exact plugin name)"
+    }
+  },
+  "additionalProperties": false
+}

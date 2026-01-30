@@ -1,0 +1,74 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-lifecycle.output",
+  "title": "Plugin Lifecycle Output Contract",
+  "description": "Expected outputs from plugin-lifecycle skill execution",
+  "type": "object",
+  "required": ["status", "mode"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "cancelled", "failure"],
+      "description": "Operation result"
+    },
+    "mode": {
+      "type": "integer",
+      "enum": [1, 2, 3, 4],
+      "description": "Operation mode that was executed"
+    },
+    "installed_paths": {
+      "type": "object",
+      "properties": {
+        "vst3": {
+          "type": "string",
+          "description": "VST3 installation path (Mode 1)"
+        },
+        "au": {
+          "type": "string",
+          "description": "AU installation path (Mode 1)"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Paths where plugins were installed (Mode 1 only)"
+    },
+    "removed_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths that were removed (Mode 2/3/4)"
+    },
+    "backup_path": {
+      "type": "string",
+      "description": "Path to backup (Mode 4 only)"
+    },
+    "plugins_md_updated": {
+      "type": "boolean",
+      "description": "Whether PLUGINS.md was updated"
+    },
+    "notes_md_updated": {
+      "type": "boolean",
+      "description": "Whether NOTES.md was updated"
+    },
+    "caches_cleared": {
+      "type": "boolean",
+      "description": "Whether DAW caches were cleared"
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "step": {
+          "type": "string",
+          "description": "Installation step where error occurred"
+        },
+        "message": { "type": "string" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "if": {
+    "properties": { "status": { "const": "failure" } }
+  },
+  "then": {
+    "required": ["error"]
+  },
+  "additionalProperties": false
+}

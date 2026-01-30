@@ -1,0 +1,28 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-planning.input",
+  "title": "Plugin Planning Input Contract",
+  "description": "Required inputs for plugin-planning skill invocation - Stage 0 research and planning",
+  "type": "object",
+  "required": ["plugin_name"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to plan (must have BRIEF.md)"
+    },
+    "brief_path": {
+      "type": "string",
+      "description": "Path to BRIEF.md (defaults to plugins/[Name]/.planning/BRIEF.md)"
+    },
+    "parameter_spec_path": {
+      "type": "string",
+      "description": "Path to parameter-spec.md or parameter-spec-draft.md"
+    },
+    "mockup_paths": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "Paths to UI mockup YAML files (optional)"
+    }
+  },
+  "additionalProperties": false
+}

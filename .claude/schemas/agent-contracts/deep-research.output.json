@@ -1,0 +1,72 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "deep-research.output",
+  "title": "Deep Research Output Contract",
+  "description": "Expected outputs from deep-research skill execution",
+  "type": "object",
+  "required": ["status", "level_reached", "confidence"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["solution_found", "escalated", "no_solution", "applied"],
+      "description": "Research outcome"
+    },
+    "level_reached": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "Highest research level completed"
+    },
+    "confidence": {
+      "type": "string",
+      "enum": ["HIGH", "MEDIUM", "LOW"],
+      "description": "Confidence in recommended solution"
+    },
+    "findings": {
+      "type": "object",
+      "properties": {
+        "summary": {
+          "type": "string",
+          "description": "Brief summary of findings"
+        },
+        "recommended_solution": {
+          "type": "string",
+          "description": "Primary recommended solution"
+        },
+        "alternative_solutions": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Other viable approaches"
+        },
+        "sources": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["local_docs", "context7", "juce_forum", "github", "web"]
+              },
+              "reference": { "type": "string" },
+              "confidence": {
+                "type": "string",
+                "enum": ["HIGH", "MEDIUM", "LOW"]
+              }
+            },
+            "additionalProperties": false
+          },
+          "description": "Sources consulted"
+        }
+      },
+      "additionalProperties": false
+    },
+    "handoff_to_improve": {
+      "type": "boolean",
+      "description": "Whether user selected 'Apply solution' (handoff to plugin-improve)"
+    },
+    "report_path": {
+      "type": "string",
+      "description": "Path to detailed research report (if saved)"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,82 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-improve.output",
+  "title": "Plugin Improve Output Contract",
+  "description": "Expected outputs from plugin-improve skill execution",
+  "type": "object",
+  "required": ["status"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "rolled_back", "cancelled", "failure"],
+      "description": "Improvement execution result"
+    },
+    "version": {
+      "type": "object",
+      "properties": {
+        "previous": {
+          "type": "string",
+          "pattern": "^v?\\d+\\.\\d+\\.\\d+$",
+          "description": "Version before improvement"
+        },
+        "current": {
+          "type": "string",
+          "pattern": "^v?\\d+\\.\\d+\\.\\d+$",
+          "description": "Version after improvement"
+        },
+        "bump_type": {
+          "type": "string",
+          "enum": ["patch", "minor", "major"]
+        }
+      },
+      "additionalProperties": false
+    },
+    "backup_path": {
+      "type": "string",
+      "description": "Path to backup directory"
+    },
+    "files_modified": {
+      "type": "array",
+      "items": { "type": "string" },
+      "description": "List of source files that were changed"
+    },
+    "changelog_updated": {
+      "type": "boolean",
+      "description": "Whether CHANGELOG.md was updated"
+    },
+    "build_result": {
+      "type": "string",
+      "enum": ["success", "failure", "skipped"],
+      "description": "Result of build phase"
+    },
+    "test_result": {
+      "type": "string",
+      "enum": ["passed", "failed", "skipped"],
+      "description": "Result of test phase"
+    },
+    "git_tag": {
+      "type": "string",
+      "description": "Git tag created for release"
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "phase": {
+          "type": "string",
+          "enum": ["precondition", "backup", "implementation", "build", "test", "git"],
+          "description": "Phase where error occurred"
+        },
+        "message": { "type": "string" },
+        "rollback_available": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "if": {
+    "properties": { "status": { "const": "failure" } }
+  },
+  "then": {
+    "required": ["error"]
+  },
+  "additionalProperties": false
+}

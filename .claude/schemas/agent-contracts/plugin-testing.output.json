@@ -1,0 +1,59 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-testing.output",
+  "title": "Plugin Testing Output Contract",
+  "description": "Expected outputs from plugin-testing skill execution",
+  "type": "object",
+  "required": ["status", "test_mode", "results"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["passed", "failed", "cancelled"],
+      "description": "Overall test result"
+    },
+    "test_mode": {
+      "type": "integer",
+      "enum": [1, 2, 3],
+      "description": "Test mode that was executed"
+    },
+    "results": {
+      "type": "object",
+      "properties": {
+        "total_tests": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 },
+        "skipped": { "type": "integer", "minimum": 0 }
+      },
+      "additionalProperties": false
+    },
+    "failures": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "properties": {
+          "test_name": { "type": "string" },
+          "error_message": { "type": "string" },
+          "severity": {
+            "type": "string",
+            "enum": ["critical", "warning", "info"]
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Details of failed tests"
+    },
+    "log_path": {
+      "type": "string",
+      "description": "Path to test log file"
+    },
+    "plugins_md_updated": {
+      "type": "boolean",
+      "description": "Whether PLUGINS.md test_status was updated"
+    },
+    "status_md_updated": {
+      "type": "boolean",
+      "description": "Whether STATUS.md was updated"
+    }
+  },
+  "additionalProperties": false
+}
