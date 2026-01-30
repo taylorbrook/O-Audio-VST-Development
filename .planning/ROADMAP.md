@@ -32,12 +32,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Agent invocation fails fast with clear error when inputs are invalid
   4. Each agent has documented scope boundaries (explicit does/doesn't do lists)
   5. Audit report identifies gaps, overlaps, and missing agents with specs for new agents
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: Audit existing 9 agents and create gap analysis
-- [ ] 01-02: Define input/output schemas for all agents
-- [ ] 01-03: Implement contract validation and missing agent specs
+- [ ] 01-01-PLAN.md — Audit existing agents and create gap analysis
+- [ ] 01-02-PLAN.md — Define input/output schemas for all 9 agents
+- [ ] 01-03-PLAN.md — Implement contract validation and missing agent specs
 
 ### Phase 2: State Management
 **Goal**: Workflow state persists reliably across sessions with automatic corruption detection and recovery
@@ -142,7 +142,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Agent Contracts | 0/3 | Not started | - |
+| 1. Agent Contracts | 0/3 | Planned | - |
 | 2. State Management | 0/2 | Not started | - |
 | 3. Structured Handoffs | 0/2 | Not started | - |
 | 4. Verification Infrastructure | 0/2 | Not started | - |
