@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "common/plugin-reference",
+  "title": "Plugin Reference",
+  "description": "Standard plugin identifier used across agent contracts",
+  "type": "object",
+  "required": ["plugin_name"],
+  "properties": {
+    "plugin_name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[A-Z][a-zA-Z0-9-]*$",
+      "description": "Plugin name matching directory in plugins/"
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-ideation.input",
+  "title": "Plugin Ideation Input Contract",
+  "description": "Required inputs for plugin-ideation skill invocation - adaptive brainstorming for new plugins and improvements",
+  "type": "object",
+  "required": ["user_description"],
+  "properties": {
+    "user_description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "User's initial idea or improvement request (free-form text)"
+    },
+    "plugin_name": {
+      "type": ["string", "null"],
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Plugin name if improving existing plugin, null if new plugin"
+    },
+    "trigger_type": {
+      "type": "string",
+      "enum": ["new_plugin", "improvement"],
+      "description": "Whether ideating new plugin or improving existing (auto-detected from plugin_name)"
+    }
+  },
+  "additionalProperties": false
+}

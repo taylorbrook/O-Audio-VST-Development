@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "build-automation.input",
+  "title": "Build Automation Input Contract",
+  "description": "Required inputs for build-automation skill invocation",
+  "type": "object",
+  "required": ["plugin_name"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to build (must exist in plugins/)"
+    },
+    "stage": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "maximum": 5,
+      "description": "Current workflow stage (0=Planning, 2=Foundation, 3=DSP, 4=GUI, 5=Validation, null for manual)"
+    },
+    "invoker": {
+      "type": "string",
+      "enum": ["plugin-workflow", "plugin-improve", "plugin-lifecycle", "manual"],
+      "default": "manual",
+      "description": "Which skill/command invoked this build"
+    },
+    "build_flags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["--no-install", "--dry-run"]
+      },
+      "default": [],
+      "description": "Optional build flags"
+    }
+  },
+  "additionalProperties": false
+}

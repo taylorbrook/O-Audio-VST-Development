@@ -1,0 +1,85 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "build-automation.output",
+  "title": "Build Automation Output Contract",
+  "description": "Expected outputs from build-automation skill execution",
+  "type": "object",
+  "required": ["status", "build_time_seconds"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "failure"],
+      "description": "Build execution result"
+    },
+    "build_time_seconds": {
+      "type": "number",
+      "minimum": 0,
+      "description": "Total build duration in seconds"
+    },
+    "log_path": {
+      "type": "string",
+      "description": "Path to build log file"
+    },
+    "installed_paths": {
+      "type": "object",
+      "properties": {
+        "vst3": {
+          "type": "string",
+          "description": "Path to installed VST3 plugin"
+        },
+        "au": {
+          "type": "string",
+          "description": "Path to installed AU plugin"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Paths where plugins were installed (if not --no-install)"
+    },
+    "artifact_paths": {
+      "type": "object",
+      "properties": {
+        "vst3": {
+          "type": "string",
+          "description": "Path to built VST3 artifact"
+        },
+        "au": {
+          "type": "string",
+          "description": "Path to built AU artifact"
+        }
+      },
+      "additionalProperties": false,
+      "description": "Paths to build artifacts (always present on success)"
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["cmake", "compilation", "linker", "installation", "dependency"],
+          "description": "Category of build error"
+        },
+        "message": {
+          "type": "string",
+          "description": "Error message from build system"
+        },
+        "file": {
+          "type": "string",
+          "description": "Source file where error occurred"
+        },
+        "line": {
+          "type": "integer",
+          "description": "Line number of error"
+        }
+      },
+      "required": ["type", "message"],
+      "additionalProperties": false
+    }
+  },
+  "if": {
+    "properties": { "status": { "const": "failure" } }
+  },
+  "then": {
+    "required": ["error"]
+  },
+  "additionalProperties": false
+}

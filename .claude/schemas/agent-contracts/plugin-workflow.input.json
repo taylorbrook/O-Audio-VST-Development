@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-workflow.input",
+  "title": "Plugin Workflow Input Contract",
+  "description": "Required inputs for plugin-workflow skill invocation - orchestrates stages 1-4 implementation",
+  "type": "object",
+  "required": ["plugin_name"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to implement (must exist in plugins/)"
+    },
+    "start_stage": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 4,
+      "default": 1,
+      "description": "Stage to begin at (1=Foundation, 2=DSP, 3=GUI, 4=Polish)"
+    },
+    "skip_phases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["discuss", "research", "verify"]
+      },
+      "default": [],
+      "description": "Phases to skip (plan and execute cannot be skipped)"
+    },
+    "express_mode": {
+      "type": "boolean",
+      "default": false,
+      "description": "Auto-advance without decision menus"
+    }
+  },
+  "additionalProperties": false
+}

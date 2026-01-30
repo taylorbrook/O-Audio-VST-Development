@@ -1,0 +1,81 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-workflow.output",
+  "title": "Plugin Workflow Output Contract",
+  "description": "Expected outputs from plugin-workflow skill execution",
+  "type": "object",
+  "required": ["status", "completed_stages"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "paused", "failure"],
+      "description": "Final execution status"
+    },
+    "completed_stages": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["1-foundation", "2-dsp", "3-gui", "4-polish"]
+      },
+      "description": "List of stages successfully completed"
+    },
+    "current_stage": {
+      "type": "string",
+      "enum": ["1-foundation", "2-dsp", "3-gui", "4-polish"],
+      "description": "Stage where workflow stopped (if paused/failed)"
+    },
+    "current_phase": {
+      "type": "string",
+      "enum": ["discuss", "research", "plan", "execute", "verify"],
+      "description": "Phase where workflow stopped (if paused/failed)"
+    },
+    "artifacts_created": {
+      "type": "object",
+      "properties": {
+        "context_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "CONTEXT.md files created per stage"
+        },
+        "research_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "RESEARCH.md files created per stage"
+        },
+        "plan_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "PLAN.md files created per stage"
+        },
+        "summary_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "SUMMARY.md files created per stage"
+        },
+        "verification_files": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "VERIFICATION.md files created per stage"
+        }
+      },
+      "additionalProperties": false
+    },
+    "error": {
+      "type": "object",
+      "properties": {
+        "stage": { "type": "string" },
+        "phase": { "type": "string" },
+        "message": { "type": "string" },
+        "recoverable": { "type": "boolean" }
+      },
+      "additionalProperties": false
+    }
+  },
+  "if": {
+    "properties": { "status": { "const": "failure" } }
+  },
+  "then": {
+    "required": ["error"]
+  },
+  "additionalProperties": false
+}

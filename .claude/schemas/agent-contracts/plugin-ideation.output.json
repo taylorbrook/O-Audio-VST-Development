@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-ideation.output",
+  "title": "Plugin Ideation Output Contract",
+  "description": "Expected outputs from plugin-ideation skill execution",
+  "type": "object",
+  "required": ["status", "mode"],
+  "properties": {
+    "status": {
+      "type": "string",
+      "enum": ["success", "cancelled", "deferred"],
+      "description": "Ideation session result"
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["new_plugin", "improvement"],
+      "description": "Which mode was executed"
+    },
+    "plugin_name": {
+      "type": "string",
+      "description": "Final plugin name (validated and confirmed)"
+    },
+    "artifacts_created": {
+      "type": "object",
+      "properties": {
+        "brief_path": {
+          "type": "string",
+          "description": "Path to BRIEF.md (new plugin mode)"
+        },
+        "status_path": {
+          "type": "string",
+          "description": "Path to STATUS.md"
+        },
+        "improvement_proposal_path": {
+          "type": "string",
+          "description": "Path to improvement proposal (improvement mode)"
+        }
+      },
+      "additionalProperties": false
+    },
+    "plugins_md_updated": {
+      "type": "boolean",
+      "description": "Whether PLUGINS.md was updated with new entry"
+    },
+    "registry_updated": {
+      "type": "boolean",
+      "description": "Whether plugin-registry.json was updated"
+    },
+    "next_recommended_action": {
+      "type": "string",
+      "enum": ["plan", "mockup", "implement", "improve"],
+      "description": "Suggested next step for user"
+    }
+  },
+  "additionalProperties": false
+}
