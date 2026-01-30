@@ -12,7 +12,7 @@ Transform the Plugin Freedom System from a collection of loosely-coordinated age
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Agent Contracts** - Define explicit input/output contracts for all agents
+- [x] **Phase 1: Agent Contracts** - Define explicit input/output contracts for all agents
 - [ ] **Phase 2: State Management** - Harden file-based state persistence and session continuity
 - [ ] **Phase 3: Structured Handoffs** - Implement schema-validated handoff documents between stages
 - [ ] **Phase 4: Verification Infrastructure** - Build generator-critic loops and domain validation
@@ -35,25 +35,27 @@ Decimal phases appear between their surrounding integers in numeric order.
 **Plans**: 3 plans
 
 Plans:
-- [ ] 01-01-PLAN.md — Audit existing agents and create gap analysis
-- [ ] 01-02-PLAN.md — Define input/output schemas for all 9 agents
-- [ ] 01-03-PLAN.md — Implement contract validation and missing agent specs
+- [x] 01-01-PLAN.md — Audit existing agents and create gap analysis
+- [x] 01-02-PLAN.md — Define input/output schemas for all 9 agents
+- [x] 01-03-PLAN.md — Implement contract validation and missing agent specs
 
 ### Phase 2: State Management
-**Goal**: Workflow state persists reliably across sessions with automatic corruption detection and recovery
+**Goal**: Workflow state persists reliably across sessions with automatic corruption detection, recovery, and multi-plugin isolation
 **Depends on**: Phase 1 (contracts define what state agents need)
-**Requirements**: STAT-01, STAT-02, STAT-03, STAT-04, STAT-05
+**Requirements**: STAT-01, STAT-02, STAT-03, STAT-04, STAT-05, STAT-06
 **Success Criteria** (what must be TRUE):
   1. All workflow state persists to .planning/ files following GSD pattern
   2. Session resume via /continue restores full context from last checkpoint
   3. Inconsistencies between STATUS.md and registry are detected automatically
   4. Corrupted state triggers recovery mechanism that auto-repairs
   5. Context boundary transitions include explicit next-command instructions
+  6. Plugin state is isolated — each plugin's state under `plugins/{Name}/.planning/`, `/focus` loads only that plugin's context
 **Plans**: TBD
 
 Plans:
 - [ ] 02-01: Implement GSD-aligned state persistence
 - [ ] 02-02: Build state validation and recovery mechanisms
+- [ ] 02-03: Implement plugin-scoped state isolation
 
 ### Phase 3: Structured Handoffs
 **Goal**: Stage transitions preserve context through schema-validated handoff documents
@@ -142,8 +144,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Agent Contracts | 0/3 | Planned | - |
-| 2. State Management | 0/2 | Not started | - |
+| 1. Agent Contracts | 3/3 | Complete | 2026-01-30 |
+| 2. State Management | 0/3 | Not started | - |
 | 3. Structured Handoffs | 0/2 | Not started | - |
 | 4. Verification Infrastructure | 0/2 | Not started | - |
 | 5. Quality Gates | 0/3 | Not started | - |
@@ -152,13 +154,13 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 
 ## Coverage Validation
 
-**Total v1 Requirements:** 34
-**Mapped:** 34/34 (100%)
+**Total v1 Requirements:** 35
+**Mapped:** 35/35 (100%)
 
 | Category | Requirements | Phase | Count |
 |----------|-------------|-------|-------|
 | Agent Contracts | AGNT-01 to AGNT-07 | Phase 1 | 7 |
-| State Management | STAT-01 to STAT-05 | Phase 2 | 5 |
+| State Management | STAT-01 to STAT-06 | Phase 2 | 6 |
 | Structured Handoffs | HAND-01 to HAND-05 | Phase 3 | 5 |
 | Generator-Critic | CRIT-01 to CRIT-04 | Phase 4 | 4 |
 | Quality Gates | GATE-01 to GATE-06 | Phase 5 | 6 |
@@ -169,4 +171,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-30*
+*Last updated: 2026-01-30 — Phase 1 complete (Agent Contracts)*

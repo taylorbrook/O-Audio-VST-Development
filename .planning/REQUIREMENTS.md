@@ -9,13 +9,13 @@ Requirements for the system overhaul. Each maps to roadmap phases.
 
 ### Agent Contracts
 
-- [ ] **AGNT-01**: Each agent has explicit JSON schema defining required inputs
-- [ ] **AGNT-02**: Each agent has explicit JSON schema defining expected outputs
-- [ ] **AGNT-03**: Validation runs before agent invocation, rejecting invalid inputs
-- [ ] **AGNT-04**: Each agent has documented scope boundaries (does/doesn't do)
-- [ ] **AGNT-05**: Each agent has defined tool inventory (10-20 tools max)
-- [ ] **AGNT-06**: Audit existing 9 agents for gaps and overlaps
-- [ ] **AGNT-07**: Identify and spec missing agents (music theory, aesthetics, etc.)
+- [x] **AGNT-01**: Each agent has explicit JSON schema defining required inputs
+- [x] **AGNT-02**: Each agent has explicit JSON schema defining expected outputs
+- [x] **AGNT-03**: Validation runs before agent invocation, rejecting invalid inputs
+- [x] **AGNT-04**: Each agent has documented scope boundaries (does/doesn't do)
+- [x] **AGNT-05**: Each agent has defined tool inventory (10-20 tools max)
+- [x] **AGNT-06**: Audit existing 9 agents for gaps and overlaps
+- [x] **AGNT-07**: Identify and spec missing agents (music theory, aesthetics, etc.)
 
 ### State Management
 
@@ -24,6 +24,7 @@ Requirements for the system overhaul. Each maps to roadmap phases.
 - [ ] **STAT-03**: State validation detects inconsistencies between STATUS.md and registry
 - [ ] **STAT-04**: Recovery mechanism auto-repairs corrupted state
 - [ ] **STAT-05**: Clear hand-off instructions at context boundaries with next slash command
+- [ ] **STAT-06**: Plugin state isolation — each plugin's planning/progress/changelog under `plugins/{Name}/.planning/`, `/focus` loads only that plugin's state
 
 ### Structured Handoffs
 
@@ -103,18 +104,19 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AGNT-01 | Phase 1 | Pending |
-| AGNT-02 | Phase 1 | Pending |
-| AGNT-03 | Phase 1 | Pending |
-| AGNT-04 | Phase 1 | Pending |
-| AGNT-05 | Phase 1 | Pending |
-| AGNT-06 | Phase 1 | Pending |
-| AGNT-07 | Phase 1 | Pending |
+| AGNT-01 | Phase 1 | Complete |
+| AGNT-02 | Phase 1 | Complete |
+| AGNT-03 | Phase 1 | Complete |
+| AGNT-04 | Phase 1 | Complete |
+| AGNT-05 | Phase 1 | Complete |
+| AGNT-06 | Phase 1 | Complete |
+| AGNT-07 | Phase 1 | Complete |
 | STAT-01 | Phase 2 | Pending |
 | STAT-02 | Phase 2 | Pending |
 | STAT-03 | Phase 2 | Pending |
 | STAT-04 | Phase 2 | Pending |
 | STAT-05 | Phase 2 | Pending |
+| STAT-06 | Phase 2 | Pending |
 | HAND-01 | Phase 3 | Pending |
 | HAND-02 | Phase 3 | Pending |
 | HAND-03 | Phase 3 | Pending |
@@ -142,10 +144,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | MODS-04 | Phase 7 | Pending |
 
 **Coverage:**
-- v1 requirements: 34 total
-- Mapped to phases: 34
+- v1 requirements: 35 total
+- Mapped to phases: 35
 - Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-30 after roadmap creation*
+*Last updated: 2026-01-30 — Phase 1 complete (AGNT-01 to AGNT-07)*
