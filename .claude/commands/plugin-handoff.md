@@ -2,7 +2,7 @@
 name: plugin-handoff
 description: Create handoff document for stage transition
 skill: plugin-workflow
-args: "[plugin_name?] [stage]"
+args: "[plugin_name?] [stage] [--skip-review?]"
 ---
 
 # /plugin-handoff
@@ -12,14 +12,16 @@ Create a validated handoff document at stage completion for transition to the ne
 ## Usage
 
 ```
-/plugin-handoff [plugin_name] [stage]    # Specific plugin and stage
-/plugin-handoff [stage]                  # Focused plugin, specific stage
+/plugin-handoff [plugin_name] [stage]              # Specific plugin and stage
+/plugin-handoff [stage]                            # Focused plugin, specific stage
+/plugin-handoff [plugin_name] [stage] --skip-review  # Skip code review (requires justification)
 ```
 
 ## Arguments
 
 - `plugin_name` - Plugin to create handoff for (optional, defaults to focused)
 - `stage` - Stage being completed: `0-ideation`, `1-foundation`, `2-dsp`, `3-gui`
+- `--skip-review` - Skip the code review checkpoint (requires justification)
 
 **Note:** Stage 4-polish does not produce a handoff (final stage).
 
@@ -125,13 +127,39 @@ Append decisions to `plugins/[plugin]/.planning/DECISIONS.md`:
 | FOUNDATION-001 | Use APVTS for parameter management | 2026-01-29 |
 ```
 
-### 6. Output
+### 6. Code Review Checkpoint
+
+After handoff creation, invoke code review:
+
+```bash
+.planning/workflow/scripts/run-code-review.sh [plugin] [stage-number]
+```
+
+**Review results:**
+- Exit 0 (APPROVED): Handoff complete, ready for next stage
+- Exit 1 (CHANGES_REQUESTED/BLOCKED): Stop with message about required changes
+- Exit 2 (SKIPPED): Log warning, handoff complete (when --skip-review used)
+
+**Using --skip-review:**
+When you need to bypass code review, use `--skip-review`. This:
+1. Prompts for justification (required)
+2. Logs bypass to `gate-bypasses.log`
+3. Completes handoff without interactive review
+
+**NOTE:** `--skip-review` should be rare. Code review catches issues early.
+
+### 7. Output
 
 ```
 Handoff created: plugins/[plugin]/.planning/stages/[stage]/HANDOFF.json
 
 Validation: PASSED
 Decisions logged: 3 entries appended to DECISIONS.md
+
+Code Review: Starting...
+  Mandatory simplification pass: [checklist]
+  Stage-specific checks: [checklist]
+  Verdict: APPROVED
 
 Stage transition ready.
 Next: /plugin-execute [plugin] [next-stage]
@@ -224,8 +252,48 @@ Validating...
 Updating DECISIONS.md...
   3 entries appended
 
-HANDOFF CREATED
-==============================================================
+Code Review: Starting...
+══════════════════════════════════════════════════════════════
+MANDATORY SIMPLIFICATION PASS
+  [ ] Dead code removed
+  [ ] Duplicate logic consolidated
+  [ ] Magic numbers extracted
+  [ ] Complex conditionals simplified
+
+STAGE 1: FOUNDATION REVIEW
+  [ ] CMakeLists.txt follows project patterns
+  [ ] APVTS parameter setup correct
+  [ ] Plugin metadata accurate
+
+Verdict: [A]PPROVED / [C]HANGES / [B]LOCKED
+
+> A
+Review notes (optional): > Clean implementation, ready for DSP
+
+HANDOFF COMPLETE
+══════════════════════════════════════════════════════════════
+Path: plugins/O-IntonationPad/.planning/stages/1-foundation/HANDOFF.json
+Review: APPROVED
+Next: /plugin-execute O-IntonationPad 2-dsp
+```
+
+**Example with --skip-review:**
+
+```
+/plugin-handoff O-IntonationPad 1-foundation --skip-review
+
+Creating handoff for O-IntonationPad stage 1-foundation
+...
+Validation: PASSED
+Decisions logged: 3 entries
+
+SKIPPING CODE REVIEW
+Why are you skipping the Stage 1 (Foundation) review?
+> Quick iteration, will review at DSP handoff
+
+Review skip logged to: gate-bypasses.log
+
+HANDOFF COMPLETE (review skipped)
 Path: plugins/O-IntonationPad/.planning/stages/1-foundation/HANDOFF.json
 Next: /plugin-execute O-IntonationPad 2-dsp
 ```
