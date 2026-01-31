@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./decision-entry.schema.json",
+  "title": "Decision Entry",
+  "description": "Reusable schema for decision audit trail entries in handoff documents",
+  "type": "object",
+  "required": ["id", "decision", "rationale", "date", "alternatives", "supersedes"],
+  "additionalProperties": false,
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z]+-[0-9]+$",
+      "description": "Decision identifier (e.g., FOUNDATION-001, DSP-002)"
+    },
+    "decision": {
+      "type": "string",
+      "description": "What was decided"
+    },
+    "rationale": {
+      "type": "string",
+      "description": "Why this choice was made"
+    },
+    "date": {
+      "type": "string",
+      "format": "date",
+      "description": "Decision date (ISO 8601 date format)"
+    },
+    "alternatives": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Other options that were considered"
+    },
+    "supersedes": {
+      "type": ["string", "null"],
+      "description": "ID of superseded decision (null if no prior decision)"
+    }
+  }
+}
