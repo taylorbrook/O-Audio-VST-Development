@@ -97,14 +97,14 @@ Plans:
   1. Automated verification runs at each stage boundary (0->1, 1->2, 2->3, 3->4)
   2. Each stage has measurable success criteria (not subjective pass/fail)
   3. Stage progression physically blocked until gate passes
-  4. Verification depth matches complexity (smoke test vs full validation)
+  4. Verification depth uniform at every gate (user decision: no tiered/fast-path)
   5. Code review step integrated at end of implementation phases
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 05-01: Define gate criteria for each stage boundary
-- [ ] 05-02: Implement blocking gates with tiered verification
-- [ ] 05-03: Integrate code review and simplification passes
+- [ ] 05-01-PLAN.md — Create gate report schema and unified run-gate.sh script
+- [ ] 05-02-PLAN.md — Create code review checklist template and run-code-review.sh
+- [ ] 05-03-PLAN.md — Integrate gates into /plugin-execute and /plugin-handoff commands
 
 ### Phase 6: Domain Specialization
 **Goal**: Agents encode professional domain expertise that catches domain-specific quality issues
@@ -149,7 +149,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 2. State Management | 4/4 | Complete | 2026-01-30 |
 | 3. Structured Handoffs | 2/2 | Complete | 2026-01-31 |
 | 4. Verification Infrastructure | 2/2 | Complete | 2026-01-31 |
-| 5. Quality Gates | 0/3 | Not started | - |
+| 5. Quality Gates | 0/3 | Planned | - |
 | 6. Domain Specialization | 0/3 | Not started | - |
 | 7. Module System | 0/2 | Not started | - |
 
@@ -172,4 +172,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-31 — Phase 4 complete (Verification Infrastructure)*
+*Last updated: 2026-01-31 — Phase 5 planned (Quality Gates)*
