@@ -1,0 +1,6 @@
+{
+  "$schema": "../../../../.planning/workflow/schemas/dependencies.schema.json",
+  "modules": [],
+  "ouariconModules": [],
+  "juceModules": ["juce_audio_processors", "juce_audio_basics", "juce_audio_utils"]
+}
