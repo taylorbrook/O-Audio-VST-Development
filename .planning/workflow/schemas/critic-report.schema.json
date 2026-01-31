@@ -1,0 +1,172 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./critic-report.schema.json",
+  "title": "Critic Report",
+  "description": "Base schema for domain-specific critic feedback reports with numeric scoring",
+  "type": "object",
+  "required": [
+    "critic",
+    "plugin",
+    "stage",
+    "attempt",
+    "maxAttempts",
+    "timestamp",
+    "scores",
+    "overallStatus",
+    "issues",
+    "nextAction"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "critic": {
+      "type": "string",
+      "description": "Critic identifier (e.g., dsp-critic, ui-critic)"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin name being evaluated"
+    },
+    "stage": {
+      "type": "string",
+      "description": "Stage being validated (e.g., 2-dsp, 3-gui)"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "description": "Current iteration attempt (1-3)"
+    },
+    "maxAttempts": {
+      "type": "integer",
+      "const": 3,
+      "description": "Maximum allowed iterations"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Report generation time (ISO 8601)"
+    },
+    "scores": {
+      "type": "object",
+      "description": "Domain-specific scoring categories",
+      "additionalProperties": {
+        "$ref": "#/$defs/ScoreEntry"
+      }
+    },
+    "overallStatus": {
+      "type": "string",
+      "enum": ["PASSED", "NEEDS_FIXES", "ESCALATE"],
+      "description": "Overall validation status"
+    },
+    "overallScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Weighted average of all scores"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Issue"
+      },
+      "description": "List of identified issues"
+    },
+    "previousIssueIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]+-[0-9]+$"
+      },
+      "description": "Issue IDs from previous iteration (for no-progress detection)"
+    },
+    "nextAction": {
+      "type": "string",
+      "enum": ["gate_pass", "fix_and_resubmit", "escalate_to_user"],
+      "description": "Recommended next action based on validation results"
+    },
+    "tokenMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "thisIteration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Tokens used in this iteration"
+        },
+        "cumulative": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total tokens used across all iterations"
+        },
+        "budgetWarning": {
+          "type": "boolean",
+          "description": "True if cumulative exceeds soft limit"
+        }
+      },
+      "description": "Token usage tracking for cost awareness"
+    }
+  },
+  "$defs": {
+    "ScoreEntry": {
+      "type": "object",
+      "required": ["score", "threshold", "passed"],
+      "additionalProperties": false,
+      "properties": {
+        "score": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Numeric score (1-10)"
+        },
+        "threshold": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 10,
+          "description": "Minimum passing score"
+        },
+        "passed": {
+          "type": "boolean",
+          "description": "Whether score meets threshold"
+        },
+        "details": {
+          "type": "string",
+          "description": "Explanation of scoring rationale"
+        }
+      }
+    },
+    "Issue": {
+      "type": "object",
+      "required": ["id", "severity", "category", "description", "fixSuggestion"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]+-[0-9]+$",
+          "description": "Issue identifier (e.g., DSP-001, UI-002)"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning"],
+          "description": "Issue severity (errors block, warnings proceed with ack)"
+        },
+        "category": {
+          "type": "string",
+          "description": "Scoring category this issue affects"
+        },
+        "location": {
+          "type": "string",
+          "description": "File and line location (e.g., PluginProcessor.cpp:87)"
+        },
+        "description": {
+          "type": "string",
+          "description": "What is wrong"
+        },
+        "fixSuggestion": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Actionable fix approach (not code snippets)"
+        }
+      }
+    }
+  }
+}

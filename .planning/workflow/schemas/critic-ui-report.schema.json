@@ -1,0 +1,241 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./critic-ui-report.schema.json",
+  "title": "UI Critic Report",
+  "description": "UI domain critic feedback with polish and consistency scoring. Extends critic-report.schema.json with UI-specific scoring categories.",
+  "type": "object",
+  "required": [
+    "critic",
+    "plugin",
+    "stage",
+    "attempt",
+    "maxAttempts",
+    "timestamp",
+    "scores",
+    "overallStatus",
+    "issues",
+    "nextAction"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "critic": {
+      "const": "ui-critic"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin name being evaluated"
+    },
+    "stage": {
+      "type": "string",
+      "pattern": "^3-gui$",
+      "description": "Must be 3-gui stage"
+    },
+    "attempt": {
+      "type": "integer",
+      "minimum": 1,
+      "maximum": 3,
+      "description": "Current iteration attempt (1-3)"
+    },
+    "maxAttempts": {
+      "type": "integer",
+      "const": 3,
+      "description": "Maximum allowed iterations"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Report generation time (ISO 8601)"
+    },
+    "scores": {
+      "type": "object",
+      "required": ["polish", "consistency"],
+      "additionalProperties": false,
+      "properties": {
+        "polish": {
+          "type": "object",
+          "required": ["score", "threshold", "passed"],
+          "additionalProperties": false,
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "threshold": {
+              "type": "integer",
+              "const": 5,
+              "description": "Lower bar - iterative improvement OK"
+            },
+            "passed": {
+              "type": "boolean"
+            },
+            "details": {
+              "type": "string"
+            }
+          },
+          "description": "Visual refinement, professional appearance"
+        },
+        "consistency": {
+          "type": "object",
+          "required": ["score", "threshold", "passed"],
+          "additionalProperties": false,
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "threshold": {
+              "type": "integer",
+              "const": 6,
+              "description": "Moderate importance"
+            },
+            "passed": {
+              "type": "boolean"
+            },
+            "details": {
+              "type": "string"
+            }
+          },
+          "description": "Consistent spacing, colors, typography"
+        },
+        "accessibility": {
+          "type": "object",
+          "required": ["score", "threshold", "passed"],
+          "additionalProperties": false,
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "threshold": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "passed": {
+              "type": "boolean"
+            },
+            "details": {
+              "type": "string"
+            }
+          },
+          "description": "Optional: contrast ratios, text legibility"
+        },
+        "responsiveness": {
+          "type": "object",
+          "required": ["score", "threshold", "passed"],
+          "additionalProperties": false,
+          "properties": {
+            "score": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "threshold": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 10
+            },
+            "passed": {
+              "type": "boolean"
+            },
+            "details": {
+              "type": "string"
+            }
+          },
+          "description": "Optional: resize behavior, layout adaptation"
+        }
+      }
+    },
+    "overallStatus": {
+      "type": "string",
+      "enum": ["PASSED", "NEEDS_FIXES", "ESCALATE"],
+      "description": "Overall validation status"
+    },
+    "overallScore": {
+      "type": "number",
+      "minimum": 0,
+      "maximum": 10,
+      "description": "Weighted average of all scores"
+    },
+    "issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/Issue"
+      },
+      "description": "List of identified issues"
+    },
+    "previousIssueIds": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^[A-Z]+-[0-9]+$"
+      },
+      "description": "Issue IDs from previous iteration (for no-progress detection)"
+    },
+    "nextAction": {
+      "type": "string",
+      "enum": ["gate_pass", "fix_and_resubmit", "escalate_to_user"],
+      "description": "Recommended next action based on validation results"
+    },
+    "tokenMetrics": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "thisIteration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Tokens used in this iteration"
+        },
+        "cumulative": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Total tokens used across all iterations"
+        },
+        "budgetWarning": {
+          "type": "boolean",
+          "description": "True if cumulative exceeds soft limit"
+        }
+      },
+      "description": "Token usage tracking for cost awareness"
+    }
+  },
+  "$defs": {
+    "Issue": {
+      "type": "object",
+      "required": ["id", "severity", "category", "description", "fixSuggestion"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]+-[0-9]+$",
+          "description": "Issue identifier (e.g., UI-001)"
+        },
+        "severity": {
+          "type": "string",
+          "enum": ["error", "warning"],
+          "description": "Issue severity (errors block, warnings proceed with ack)"
+        },
+        "category": {
+          "type": "string",
+          "description": "Scoring category this issue affects"
+        },
+        "location": {
+          "type": "string",
+          "description": "File and line location (e.g., PluginEditor.cpp:45)"
+        },
+        "description": {
+          "type": "string",
+          "description": "What is wrong"
+        },
+        "fixSuggestion": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Actionable fix approach (not code snippets)"
+        }
+      }
+    }
+  }
+}
