@@ -1,30 +1,63 @@
 ---
-name: plugin:execute
+name: plugin-execute
 description: Run stage-specific implementation agent
 skill: plugin-phases
-args: "[plugin_name?] [stage?]"
+args: "[plugin_name?] [stage?] [--force?]"
 ---
 
-# /plugin:execute
+# /plugin-execute
 
 Execute the implementation plan using the stage-specific agent. This is where code gets written.
 
 ## Usage
 
 ```
-/plugin:execute [plugin_name] [stage]     # Specific plugin and stage
-/plugin:execute [stage]                   # Focused plugin, specific stage
-/plugin:execute                           # Focused plugin, current stage
+/plugin-execute [plugin_name] [stage]           # Specific plugin and stage
+/plugin-execute [stage]                         # Focused plugin, specific stage
+/plugin-execute                                 # Focused plugin, current stage
+/plugin-execute [plugin_name] [stage] --force   # Bypass gate with justification
 ```
 
 ## Arguments
 
 - `plugin_name` - Plugin to execute (optional, defaults to focused)
 - `stage` - Stage to execute: `0-ideation`, `1-foundation`, `2-dsp`, `3-gui`, `4-polish`
+- `--force` - Bypass quality gate if it fails (requires justification)
 
 ## Prerequisites
 
 **Plan phase must be complete.** PLAN.md is required.
+
+## Quality Gate Check
+
+Before executing a stage, a quality gate validates the previous stage is complete.
+
+**Gate invocation:**
+```bash
+.planning/workflow/scripts/run-gate.sh [plugin] [from-stage] [stage]
+```
+
+**Stage transitions:**
+| Target Stage | From Stage | Gate Checks |
+|--------------|------------|-------------|
+| 1-foundation | 0-ideation | Schema, artifacts |
+| 2-dsp | 1-foundation | Schema, build, artifacts |
+| 3-gui | 2-dsp | Schema, build, pluginval, DSP critic |
+| 4-polish | 3-gui | Schema, build, pluginval, DSP + UI critics |
+
+**Gate results:**
+- Exit 0 (PASSED): Proceed with stage execution
+- Exit 1 (BLOCKED): Stop with "Gate blocked. Fix issues or use --force."
+- Exit 2 (BYPASSED): Log warning and proceed (when --force used)
+
+**Using --force:**
+When the gate fails but you need to proceed, use `--force`. This:
+1. Prompts for justification (required)
+2. Logs bypass to `gate-bypasses.log`
+3. Generates report with bypass details
+4. Proceeds with stage execution
+
+**NOTE:** `--force` should be rare. Address gate failures when possible.
 
 ## Stage Agents
 
@@ -39,16 +72,28 @@ Execute the implementation plan using the stage-specific agent. This is where co
 ## Behavior
 
 1. Verifies PLAN.md exists
-2. Loads all context (CONTEXT.md, RESEARCH.md, PLAN.md)
-3. Invokes stage-specific agent
-4. Agent executes tasks from PLAN.md
-5. Creates `stages/[N]-[name]/SUMMARY.md`
-6. Updates phase progress
+2. **Runs quality gate** (run-gate.sh) for stage transition
+   - If PASSED: continue
+   - If BLOCKED: stop (unless --force)
+   - If BYPASSED: log warning and continue
+3. Loads all context (CONTEXT.md, RESEARCH.md, PLAN.md)
+4. Invokes stage-specific agent
+5. Agent executes tasks from PLAN.md
+6. Creates `stages/[N]-[name]/SUMMARY.md`
+7. Updates phase progress
 
 ## Example
 
 ```
-/plugin:execute O-IntonationPad 2-dsp
+/plugin-execute O-IntonationPad 2-dsp
+
+Running quality gate: 1-foundation -> 2-dsp
+══════════════════════════════════════════════════════════════
+CRITICAL CHECKS
+  [schema] PASSED (45ms)
+  [build] PASSED (2341ms)
+
+GATE PASSED
 
 Executing Stage 2 (DSP) plan
 ══════════════════════════════════════════════════════════════
@@ -92,7 +137,30 @@ Building...
 ✓ Stage 2 (DSP) execution complete
 ✓ SUMMARY.md created
 
-Next: /plugin:verify O-IntonationPad 2-dsp
+Next: /plugin-verify O-IntonationPad 2-dsp
+```
+
+**Example with --force (gate bypass):**
+
+```
+/plugin-execute O-IntonationPad 2-dsp --force
+
+Running quality gate: 1-foundation -> 2-dsp
+══════════════════════════════════════════════════════════════
+CRITICAL CHECKS
+  [schema] PASSED (45ms)
+  [build] FAILED (1234ms)
+
+GATE BLOCKED
+
+Gate blocked, but --force requested
+Failed checks: build
+Justification (required): > Build fails due to missing module, will fix after stage
+
+GATE BYPASSED
+Bypass logged to: gate-bypasses.log
+
+Executing Stage 2 (DSP) plan...
 ```
 
 ## Error Handling
@@ -110,6 +178,6 @@ Options:
 
 ## Related Commands
 
-- `/plugin:plan` - Previous phase
-- `/plugin:verify` - Next phase
-- `/plugin:status` - Check progress
+- `/plugin-plan` - Previous phase
+- `/plugin-verify` - Next phase
+- `/plugin-status` - Check progress
