@@ -68,11 +68,11 @@ Plans:
   3. Decision audit trail captures why choices were made at each stage
   4. Handoff schemas are versioned with semver for evolution
   5. Context clear messages include copy-paste slash command for continuation
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 03-01: Define handoff schemas for each stage boundary
-- [ ] 03-02: Implement artifact validation and decision audit trail
+- [ ] 03-01-PLAN.md — Create handoff schemas for all stage boundaries (0-1, 1-2, 2-3, 3-4)
+- [ ] 03-02-PLAN.md — Implement validation scripts and /plugin-handoff command
 
 ### Phase 4: Verification Infrastructure
 **Goal**: Independent verification through generator-critic loops catches issues before stage transitions
@@ -147,7 +147,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 |-------|----------------|--------|-----------|
 | 1. Agent Contracts | 3/3 | Complete | 2026-01-30 |
 | 2. State Management | 3/4 | Gap closure pending | - |
-| 3. Structured Handoffs | 0/2 | Not started | - |
+| 3. Structured Handoffs | 0/2 | Ready for execution | - |
 | 4. Verification Infrastructure | 0/2 | Not started | - |
 | 5. Quality Gates | 0/3 | Not started | - |
 | 6. Domain Specialization | 0/3 | Not started | - |
