@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./active-plugin.schema.json",
+  "title": "Active Plugin",
+  "description": "Current plugin focus state for session tracking",
+  "type": "object",
+  "required": ["$schema", "plugin", "focusedAt"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema file"
+    },
+    "plugin": {
+      "type": ["string", "null"],
+      "description": "Currently focused plugin name (null if none)"
+    },
+    "focusedAt": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO 8601 datetime when focus was set (null if no plugin focused)"
+    },
+    "loadedContext": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "statusMd": {
+          "type": "boolean",
+          "description": "Whether STATUS.md has been loaded"
+        },
+        "currentPlan": {
+          "type": ["string", "null"],
+          "description": "Path to currently active plan file"
+        },
+        "currentContext": {
+          "type": ["string", "null"],
+          "description": "Path to currently active context file"
+        }
+      },
+      "description": "Context loaded for the focused plugin (null if not yet loaded)"
+    }
+  }
+}

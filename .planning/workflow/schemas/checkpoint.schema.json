@@ -1,0 +1,92 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./checkpoint.schema.json",
+  "title": "Checkpoint",
+  "description": "Task-level checkpoint for session resume and handoff context preservation",
+  "type": "object",
+  "required": ["$schema", "version", "plugin", "timestamp", "stage", "phase", "task", "state", "filesModified"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema file"
+    },
+    "version": {
+      "type": "string",
+      "const": "1.0.0",
+      "description": "Checkpoint schema version"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin name this checkpoint belongs to"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO 8601 datetime when checkpoint was created"
+    },
+    "stage": {
+      "type": "string",
+      "description": "Stage identifier (e.g., '2-dsp')"
+    },
+    "phase": {
+      "type": "string",
+      "enum": ["discuss", "research", "plan", "execute", "verify"],
+      "description": "Phase within the stage"
+    },
+    "task": {
+      "type": "object",
+      "required": ["plan", "taskNumber", "taskTitle"],
+      "additionalProperties": false,
+      "properties": {
+        "plan": {
+          "type": "string",
+          "description": "Plan file reference (e.g., '02-01-PLAN.md')"
+        },
+        "taskNumber": {
+          "type": "integer",
+          "minimum": 1,
+          "description": "Task number within the plan"
+        },
+        "taskTitle": {
+          "type": "string",
+          "description": "Human-readable task title"
+        }
+      },
+      "description": "Task identification within the plan"
+    },
+    "state": {
+      "type": "object",
+      "required": ["completedTasks", "remainingTasks", "handoffContext"],
+      "additionalProperties": false,
+      "properties": {
+        "completedTasks": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Array of completed task numbers"
+        },
+        "remainingTasks": {
+          "type": "array",
+          "items": {
+            "type": "integer"
+          },
+          "description": "Array of remaining task numbers"
+        },
+        "handoffContext": {
+          "type": "string",
+          "description": "Human-readable context for resuming work"
+        }
+      },
+      "description": "Execution state at checkpoint"
+    },
+    "filesModified": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of files created or modified up to this checkpoint"
+    }
+  }
+}
