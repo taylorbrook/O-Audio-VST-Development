@@ -50,12 +50,12 @@ Plans:
   4. Corrupted state triggers recovery mechanism that auto-repairs
   5. Context boundary transitions include explicit next-command instructions
   6. Plugin state is isolated — each plugin's state under `plugins/{Name}/.planning/`, `/focus` loads only that plugin's context
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 02-01: Implement GSD-aligned state persistence
-- [ ] 02-02: Build state validation and recovery mechanisms
-- [ ] 02-03: Implement plugin-scoped state isolation
+- [ ] 02-01-PLAN.md — Create workflow state infrastructure and migrate registry
+- [ ] 02-02-PLAN.md — Build state validation and recovery mechanisms
+- [ ] 02-03-PLAN.md — Implement session resume and plugin isolation
 
 ### Phase 3: Structured Handoffs
 **Goal**: Stage transitions preserve context through schema-validated handoff documents
@@ -145,7 +145,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Agent Contracts | 3/3 | Complete | 2026-01-30 |
-| 2. State Management | 0/3 | Not started | - |
+| 2. State Management | 0/3 | Planned | - |
 | 3. Structured Handoffs | 0/2 | Not started | - |
 | 4. Verification Infrastructure | 0/2 | Not started | - |
 | 5. Quality Gates | 0/3 | Not started | - |
@@ -171,4 +171,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-30 — Phase 1 complete (Agent Contracts)*
+*Last updated: 2026-01-30 — Phase 2 planned (State Management)*
