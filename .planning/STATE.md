@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-01-29)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins
-**Current focus:** Phase 5 - Quality Gates (Phase 4 complete)
+**Current focus:** Phase 6 - Domain Specialization (Phase 5 complete)
 
 ## Current Position
 
@@ -94,4 +94,4 @@ Stopped at: Completed 05-03-PLAN.md (gate integration) - Phase 5 COMPLETE
 Resume file: None
 
 ---
-*Next step: Begin Phase 6 (DSP Specialization) or Phase 7 (Modular Agents)*
+*Next step: Start Phase 6 - Domain Specialization (discuss phase)*

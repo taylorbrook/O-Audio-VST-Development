@@ -36,12 +36,12 @@ Requirements for the system overhaul. Each maps to roadmap phases.
 
 ### Quality Gates
 
-- [ ] **GATE-01**: Automated verification runs at each stage boundary
-- [ ] **GATE-02**: Measurable success criteria defined for each stage
-- [ ] **GATE-03**: Progression blocked until gate passes
-- [ ] **GATE-04**: Tiered verification (smoke test vs full validation by complexity)
-- [ ] **GATE-05**: Code review integrated at end of implementation phases
-- [ ] **GATE-06**: Code simplification pass after implementation phases
+- [x] **GATE-01**: Automated verification runs at each stage boundary
+- [x] **GATE-02**: Measurable success criteria defined for each stage
+- [x] **GATE-03**: Progression blocked until gate passes
+- [x] **GATE-04**: Tiered verification (smoke test vs full validation by complexity)
+- [x] **GATE-05**: Code review integrated at end of implementation phases
+- [x] **GATE-06**: Code simplification pass after implementation phases
 
 ### Generator-Critic Loops
 
@@ -126,12 +126,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | CRIT-02 | Phase 4 | Complete |
 | CRIT-03 | Phase 4 | Complete |
 | CRIT-04 | Phase 4 | Complete |
-| GATE-01 | Phase 5 | Pending |
-| GATE-02 | Phase 5 | Pending |
-| GATE-03 | Phase 5 | Pending |
-| GATE-04 | Phase 5 | Pending |
-| GATE-05 | Phase 5 | Pending |
-| GATE-06 | Phase 5 | Pending |
+| GATE-01 | Phase 5 | Complete |
+| GATE-02 | Phase 5 | Complete |
+| GATE-03 | Phase 5 | Complete |
+| GATE-04 | Phase 5 | Complete |
+| GATE-05 | Phase 5 | Complete |
+| GATE-06 | Phase 5 | Complete |
 | DOMN-01 | Phase 6 | Pending |
 | DOMN-02 | Phase 6 | Pending |
 | DOMN-03 | Phase 6 | Pending |
@@ -150,4 +150,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-31 — Phases 2-4 complete (STAT-01 to STAT-06, HAND-01 to HAND-05, CRIT-01 to CRIT-04)*
+*Last updated: 2026-01-31 — Phase 5 complete (GATE-01 to GATE-06)*
