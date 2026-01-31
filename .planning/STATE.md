@@ -70,6 +70,8 @@ Recent decisions affecting current work:
 - [04-01]: Token soft limit 50K with warn-not-block
 - [04-02]: Mandatory fix suggestions (every issue needs actionable approach)
 - [04-02]: Thread safety required in UI critic (threshold 7, member order crashes)
+- [05-01]: ISO 8601 timestamp via regex pattern (portable, no ajv-formats dependency)
+- [05-01]: Stage-dependent critics (DSP at 2+, UI at 3+)
 - [05-02]: Verdict options APPROVED/CHANGES_REQUESTED/BLOCKED for clear action
 - [05-02]: Skip bypass requires justification logged to gate-bypasses.log
 - [05-02]: Exit codes 0=APPROVED, 1=issues, 2=SKIPPED
@@ -85,7 +87,7 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-01-31
-Stopped at: Completed 05-02-PLAN.md (code review infrastructure)
+Stopped at: Re-executed 05-01-PLAN.md (gate infrastructure)
 Resume file: None
 
 ---
