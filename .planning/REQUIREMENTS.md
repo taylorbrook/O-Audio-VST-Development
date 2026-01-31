@@ -45,10 +45,10 @@ Requirements for the system overhaul. Each maps to roadmap phases.
 
 ### Generator-Critic Loops
 
-- [ ] **CRIT-01**: Critic agent validates outputs before stage handoff
-- [ ] **CRIT-02**: Iterative refinement loop until quality threshold met
-- [ ] **CRIT-03**: Domain-specific critics (DSP critic knows real-time rules, UI critic knows polish)
-- [ ] **CRIT-04**: Token budget awareness stops iteration if budget exceeded
+- [x] **CRIT-01**: Critic agent validates outputs before stage handoff
+- [x] **CRIT-02**: Iterative refinement loop until quality threshold met
+- [x] **CRIT-03**: Domain-specific critics (DSP critic knows real-time rules, UI critic knows polish)
+- [x] **CRIT-04**: Token budget awareness stops iteration if budget exceeded
 
 ### Domain Expertise Encoding
 
@@ -122,10 +122,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | HAND-03 | Phase 3 | Complete |
 | HAND-04 | Phase 3 | Complete |
 | HAND-05 | Phase 3 | Complete |
-| CRIT-01 | Phase 4 | Pending |
-| CRIT-02 | Phase 4 | Pending |
-| CRIT-03 | Phase 4 | Pending |
-| CRIT-04 | Phase 4 | Pending |
+| CRIT-01 | Phase 4 | Complete |
+| CRIT-02 | Phase 4 | Complete |
+| CRIT-03 | Phase 4 | Complete |
+| CRIT-04 | Phase 4 | Complete |
 | GATE-01 | Phase 5 | Pending |
 | GATE-02 | Phase 5 | Pending |
 | GATE-03 | Phase 5 | Pending |
@@ -150,4 +150,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-31 — Phases 2-3 complete (STAT-01 to STAT-06, HAND-01 to HAND-05)*
+*Last updated: 2026-01-31 — Phases 2-4 complete (STAT-01 to STAT-06, HAND-01 to HAND-05, CRIT-01 to CRIT-04)*

@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Agent Contracts** - Define explicit input/output contracts for all agents
 - [x] **Phase 2: State Management** - Harden file-based state persistence and session continuity
 - [x] **Phase 3: Structured Handoffs** - Implement schema-validated handoff documents between stages
-- [ ] **Phase 4: Verification Infrastructure** - Build generator-critic loops and domain validation
+- [x] **Phase 4: Verification Infrastructure** - Build generator-critic loops and domain validation
 - [ ] **Phase 5: Quality Gates** - Implement blocking gates at stage boundaries
 - [ ] **Phase 6: Domain Specialization** - Encode professional domain expertise into agents
 - [ ] **Phase 7: Module System** - Fix module reliability and dependency tracking
@@ -86,8 +86,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 04-01-PLAN.md — Build critic agent infrastructure (schemas, orchestration script)
-- [ ] 04-02-PLAN.md — Implement domain-specific critics (DSP, UI) and /plugin-critique command
+- [x] 04-01-PLAN.md — Build critic agent infrastructure (schemas, orchestration script)
+- [x] 04-02-PLAN.md — Implement domain-specific critics (DSP, UI) and /plugin-critique command
 
 ### Phase 5: Quality Gates
 **Goal**: Stage progression blocked until measurable success criteria pass
@@ -148,7 +148,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 1. Agent Contracts | 3/3 | Complete | 2026-01-30 |
 | 2. State Management | 4/4 | Complete | 2026-01-30 |
 | 3. Structured Handoffs | 2/2 | Complete | 2026-01-31 |
-| 4. Verification Infrastructure | 0/2 | Planned | - |
+| 4. Verification Infrastructure | 2/2 | Complete | 2026-01-31 |
 | 5. Quality Gates | 0/3 | Not started | - |
 | 6. Domain Specialization | 0/3 | Not started | - |
 | 7. Module System | 0/2 | Not started | - |
@@ -172,4 +172,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-31 — Phase 4 planned (Verification Infrastructure)*
+*Last updated: 2026-01-31 — Phase 4 complete (Verification Infrastructure)*
