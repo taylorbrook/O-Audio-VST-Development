@@ -1,0 +1,143 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "gate-report.schema.json",
+  "title": "Quality Gate Report",
+  "description": "Results from quality gate execution at stage transition",
+  "type": "object",
+  "required": ["gate", "plugin", "fromStage", "toStage", "timestamp", "checks", "overallStatus"],
+  "additionalProperties": false,
+  "properties": {
+    "gate": {
+      "type": "string",
+      "pattern": "^gate-[0-9]+-to-[0-9]+$",
+      "description": "Gate identifier (e.g., gate-1-to-2)"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin name"
+    },
+    "fromStage": {
+      "type": "string",
+      "description": "Stage transitioning from (e.g., 1-foundation)"
+    },
+    "toStage": {
+      "type": "string",
+      "description": "Stage transitioning to (e.g., 2-dsp)"
+    },
+    "timestamp": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}(\\.[0-9]+)?(Z|[+-][0-9]{2}:[0-9]{2})$",
+      "description": "ISO 8601 timestamp of gate execution"
+    },
+    "checks": {
+      "type": "object",
+      "description": "Check results separated by criticality",
+      "required": ["critical", "advisory"],
+      "additionalProperties": false,
+      "properties": {
+        "critical": {
+          "type": "array",
+          "description": "Checks that block progression on failure",
+          "items": { "$ref": "#/$defs/CheckResult" }
+        },
+        "advisory": {
+          "type": "array",
+          "description": "Checks that report only, never block",
+          "items": { "$ref": "#/$defs/CheckResult" }
+        }
+      }
+    },
+    "overallStatus": {
+      "type": "string",
+      "enum": ["PASSED", "BLOCKED", "BYPASSED"],
+      "description": "Final gate decision"
+    },
+    "totalDuration": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Total gate execution time in milliseconds"
+    },
+    "bypass": {
+      "type": "object",
+      "description": "Bypass information when --force was used",
+      "additionalProperties": false,
+      "properties": {
+        "used": {
+          "type": "boolean",
+          "description": "Whether bypass was activated"
+        },
+        "justification": {
+          "type": "string",
+          "description": "User-provided reason for bypass"
+        },
+        "failedChecks": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Names of checks that were bypassed"
+        }
+      }
+    },
+    "review": {
+      "type": "object",
+      "description": "Human code review status",
+      "additionalProperties": false,
+      "properties": {
+        "status": {
+          "type": "string",
+          "enum": ["approved", "requested_changes", "skipped"],
+          "description": "Review outcome"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Reviewer notes"
+        },
+        "skipped": {
+          "type": "boolean",
+          "description": "Whether review was skipped"
+        },
+        "skipJustification": {
+          "type": "string",
+          "description": "Reason for skipping review (when skipped=true)"
+        }
+      }
+    }
+  },
+  "$defs": {
+    "CheckResult": {
+      "type": "object",
+      "description": "Result of a single verification check",
+      "required": ["name", "status", "duration"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Check identifier (e.g., schema, build, pluginval)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["passed", "failed", "skipped", "timeout"],
+          "description": "Check outcome"
+        },
+        "duration": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Check execution time in milliseconds"
+        },
+        "attempts": {
+          "type": "integer",
+          "minimum": 1,
+          "maximum": 3,
+          "description": "Number of attempts (including retries)"
+        },
+        "output": {
+          "type": "string",
+          "description": "Captured stdout from check execution"
+        },
+        "error": {
+          "type": "string",
+          "description": "Error message on failure"
+        }
+      }
+    }
+  }
+}
