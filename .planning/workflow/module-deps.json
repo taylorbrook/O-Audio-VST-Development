@@ -1,0 +1,4 @@
+{
+  "$schema": "./schemas/module-deps.schema.json",
+  "modules": {}
+}

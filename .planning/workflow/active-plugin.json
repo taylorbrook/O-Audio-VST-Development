@@ -1,0 +1,6 @@
+{
+  "$schema": "./schemas/active-plugin.schema.json",
+  "plugin": "O-IntonationPad",
+  "focusedAt": "2026-01-31T00:28:24Z",
+  "loadedContext": null
+}

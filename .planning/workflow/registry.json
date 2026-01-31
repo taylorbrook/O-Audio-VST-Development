@@ -1,6 +1,5 @@
 {
-  "_deprecated": "Moved to .planning/workflow/registry.json - this file kept for backward compatibility",
-  "$schema": "./schemas/plugin-registry.schema.json",
+  "$schema": "./schemas/registry.schema.json",
   "version": "2.0.0",
   "focused": "O-IntonationPad",
   "plugins": {
