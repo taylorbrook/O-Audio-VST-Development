@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./handoff-1-to-2.schema.json",
+  "title": "Stage 1 to 2 Handoff",
+  "description": "Foundation to DSP stage transition handoff",
+  "type": "object",
+  "required": ["$schema", "schemaVersion", "plugin", "timestamp", "summary", "stateSnapshot", "artifacts", "decisions", "contextForNextStage"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema file"
+    },
+    "schemaVersion": {
+      "type": "string",
+      "const": "1.0.0",
+      "description": "Schema version (semver)"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin name"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Handoff creation time (ISO 8601)"
+    },
+    "summary": {
+      "type": "string",
+      "description": "Human-readable summary (one sentence)"
+    },
+    "stateSnapshot": {
+      "$ref": "#/$defs/StateSnapshot"
+    },
+    "artifacts": {
+      "$ref": "#/$defs/ArtifactList"
+    },
+    "decisions": {
+      "type": "array",
+      "items": {
+        "$ref": "./decision-entry.schema.json"
+      },
+      "minItems": 0,
+      "description": "Decisions made during foundation stage"
+    },
+    "contextForNextStage": {
+      "$ref": "#/$defs/NextStageContext"
+    }
+  },
+  "$defs": {
+    "StateSnapshot": {
+      "type": "object",
+      "required": ["stage", "phase", "parameterCount", "buildVerified", "source"],
+      "additionalProperties": false,
+      "properties": {
+        "stage": {
+          "type": "string",
+          "const": "1-foundation",
+          "description": "Current stage (must be 1-foundation for this handoff)"
+        },
+        "phase": {
+          "type": "string",
+          "const": "complete",
+          "description": "Phase within stage (must be complete for handoff)"
+        },
+        "parameterCount": {
+          "type": "integer",
+          "minimum": 0,
+          "description": "Number of APVTS parameters defined"
+        },
+        "buildVerified": {
+          "type": "boolean",
+          "description": "Whether VST3/AU build has been verified"
+        },
+        "source": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Source files for state information"
+        }
+      }
+    },
+    "ArtifactList": {
+      "type": "object",
+      "required": ["required", "validation"],
+      "additionalProperties": false,
+      "properties": {
+        "required": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtifactEntry"
+          },
+          "description": "Required artifacts for stage completion"
+        },
+        "optional": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/ArtifactEntry"
+          },
+          "description": "Optional artifacts"
+        },
+        "validation": {
+          "type": "object",
+          "required": ["allRequiredPresent", "checkedAt"],
+          "additionalProperties": false,
+          "properties": {
+            "allRequiredPresent": {
+              "type": "boolean",
+              "description": "Whether all required artifacts exist"
+            },
+            "checkedAt": {
+              "type": "string",
+              "format": "date-time",
+              "description": "When artifacts were validated"
+            }
+          }
+        }
+      }
+    },
+    "ArtifactEntry": {
+      "type": "object",
+      "required": ["path", "exists"],
+      "additionalProperties": false,
+      "properties": {
+        "path": {
+          "type": "string",
+          "description": "Relative path to artifact"
+        },
+        "exists": {
+          "type": "boolean",
+          "description": "Whether artifact exists"
+        },
+        "type": {
+          "type": "string",
+          "description": "Artifact type (e.g., header, implementation, config)"
+        },
+        "note": {
+          "type": "string",
+          "description": "Additional notes about artifact"
+        }
+      }
+    },
+    "NextStageContext": {
+      "type": "object",
+      "required": ["receivingStage", "keyInformation", "continueCommand"],
+      "additionalProperties": false,
+      "properties": {
+        "receivingStage": {
+          "type": "string",
+          "const": "2-dsp",
+          "description": "Next stage (must be 2-dsp for this handoff)"
+        },
+        "keyInformation": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Key information for next stage"
+        },
+        "continueCommand": {
+          "type": "string",
+          "description": "Slash command to continue in next stage"
+        },
+        "alternativeCommands": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "Alternative continuation commands"
+        }
+      }
+    }
+  }
+}
