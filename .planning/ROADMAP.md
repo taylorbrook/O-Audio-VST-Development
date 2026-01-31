@@ -13,8 +13,8 @@ Transform the Plugin Freedom System from a collection of loosely-coordinated age
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Agent Contracts** - Define explicit input/output contracts for all agents
-- [ ] **Phase 2: State Management** - Harden file-based state persistence and session continuity
-- [ ] **Phase 3: Structured Handoffs** - Implement schema-validated handoff documents between stages
+- [x] **Phase 2: State Management** - Harden file-based state persistence and session continuity
+- [x] **Phase 3: Structured Handoffs** - Implement schema-validated handoff documents between stages
 - [ ] **Phase 4: Verification Infrastructure** - Build generator-critic loops and domain validation
 - [ ] **Phase 5: Quality Gates** - Implement blocking gates at stage boundaries
 - [ ] **Phase 6: Domain Specialization** - Encode professional domain expertise into agents
@@ -56,7 +56,7 @@ Plans:
 - [x] 02-01-PLAN.md — Create workflow state infrastructure and migrate registry
 - [x] 02-02-PLAN.md — Build state validation and recovery mechanisms
 - [x] 02-03-PLAN.md — Implement session resume and plugin isolation
-- [ ] 02-04-PLAN.md — Gap closure: fix registry inconsistency and create checkpoint (verification)
+- [x] 02-04-PLAN.md — Gap closure: fix registry inconsistency and create checkpoint (verification)
 
 ### Phase 3: Structured Handoffs
 **Goal**: Stage transitions preserve context through schema-validated handoff documents
@@ -71,8 +71,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 03-01-PLAN.md — Create handoff schemas for all stage boundaries (0-1, 1-2, 2-3, 3-4)
-- [ ] 03-02-PLAN.md — Implement validation scripts and /plugin-handoff command
+- [x] 03-01-PLAN.md — Create handoff schemas for all stage boundaries (0-1, 1-2, 2-3, 3-4)
+- [x] 03-02-PLAN.md — Implement validation scripts and /plugin-handoff command
 
 ### Phase 4: Verification Infrastructure
 **Goal**: Independent verification through generator-critic loops catches issues before stage transitions
@@ -146,8 +146,8 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Agent Contracts | 3/3 | Complete | 2026-01-30 |
-| 2. State Management | 3/4 | Gap closure pending | - |
-| 3. Structured Handoffs | 0/2 | Ready for execution | - |
+| 2. State Management | 4/4 | Complete | 2026-01-30 |
+| 3. Structured Handoffs | 2/2 | Complete | 2026-01-31 |
 | 4. Verification Infrastructure | 0/2 | Not started | - |
 | 5. Quality Gates | 0/3 | Not started | - |
 | 6. Domain Specialization | 0/3 | Not started | - |
@@ -172,4 +172,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-31 — Phase 2 gap closure plan created (02-04)*
+*Last updated: 2026-01-31 — Phase 3 complete (Structured Handoffs)*

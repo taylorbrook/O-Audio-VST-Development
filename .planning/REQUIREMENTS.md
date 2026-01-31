@@ -19,20 +19,20 @@ Requirements for the system overhaul. Each maps to roadmap phases.
 
 ### State Management
 
-- [ ] **STAT-01**: All workflow state persisted to files (GSD pattern)
-- [ ] **STAT-02**: Session resume restores full context from last checkpoint
-- [ ] **STAT-03**: State validation detects inconsistencies between STATUS.md and registry
-- [ ] **STAT-04**: Recovery mechanism auto-repairs corrupted state
-- [ ] **STAT-05**: Clear hand-off instructions at context boundaries with next slash command
-- [ ] **STAT-06**: Plugin state isolation — each plugin's planning/progress/changelog under `plugins/{Name}/.planning/`, `/focus` loads only that plugin's state
+- [x] **STAT-01**: All workflow state persisted to files (GSD pattern)
+- [x] **STAT-02**: Session resume restores full context from last checkpoint
+- [x] **STAT-03**: State validation detects inconsistencies between STATUS.md and registry
+- [x] **STAT-04**: Recovery mechanism auto-repairs corrupted state
+- [x] **STAT-05**: Clear hand-off instructions at context boundaries with next slash command
+- [x] **STAT-06**: Plugin state isolation — each plugin's planning/progress/changelog under `plugins/{Name}/.planning/`, `/focus` loads only that plugin's state
 
 ### Structured Handoffs
 
-- [ ] **HAND-01**: Schema-validated handoff documents between stages
-- [ ] **HAND-02**: Explicit artifact requirements for each stage boundary
-- [ ] **HAND-03**: Decision audit trail tracking why choices were made
-- [ ] **HAND-04**: Versioned handoff formats (semver for schema evolution)
-- [ ] **HAND-05**: Context clear messages with copy-paste slash command for continuation
+- [x] **HAND-01**: Schema-validated handoff documents between stages
+- [x] **HAND-02**: Explicit artifact requirements for each stage boundary
+- [x] **HAND-03**: Decision audit trail tracking why choices were made
+- [x] **HAND-04**: Versioned handoff formats (semver for schema evolution)
+- [x] **HAND-05**: Context clear messages with copy-paste slash command for continuation
 
 ### Quality Gates
 
@@ -111,17 +111,17 @@ Which phases cover which requirements. Updated during roadmap creation.
 | AGNT-05 | Phase 1 | Complete |
 | AGNT-06 | Phase 1 | Complete |
 | AGNT-07 | Phase 1 | Complete |
-| STAT-01 | Phase 2 | Pending |
-| STAT-02 | Phase 2 | Pending |
-| STAT-03 | Phase 2 | Pending |
-| STAT-04 | Phase 2 | Pending |
-| STAT-05 | Phase 2 | Pending |
-| STAT-06 | Phase 2 | Pending |
-| HAND-01 | Phase 3 | Pending |
-| HAND-02 | Phase 3 | Pending |
-| HAND-03 | Phase 3 | Pending |
-| HAND-04 | Phase 3 | Pending |
-| HAND-05 | Phase 3 | Pending |
+| STAT-01 | Phase 2 | Complete |
+| STAT-02 | Phase 2 | Complete |
+| STAT-03 | Phase 2 | Complete |
+| STAT-04 | Phase 2 | Complete |
+| STAT-05 | Phase 2 | Complete |
+| STAT-06 | Phase 2 | Complete |
+| HAND-01 | Phase 3 | Complete |
+| HAND-02 | Phase 3 | Complete |
+| HAND-03 | Phase 3 | Complete |
+| HAND-04 | Phase 3 | Complete |
+| HAND-05 | Phase 3 | Complete |
 | CRIT-01 | Phase 4 | Pending |
 | CRIT-02 | Phase 4 | Pending |
 | CRIT-03 | Phase 4 | Pending |
@@ -150,4 +150,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-30 — Phase 1 complete (AGNT-01 to AGNT-07)*
+*Last updated: 2026-01-31 — Phases 2-3 complete (STAT-01 to STAT-06, HAND-01 to HAND-05)*
