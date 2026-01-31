@@ -83,11 +83,11 @@ Plans:
   2. Iterative refinement loop runs until quality threshold met (max 3 iterations)
   3. Domain-specific critics exist for DSP (real-time rules) and UI (polish standards)
   4. Token budget awareness stops iteration when budget exceeded
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 04-01: Build critic agent infrastructure
-- [ ] 04-02: Implement domain-specific critics (DSP, UI)
+- [ ] 04-01-PLAN.md — Build critic agent infrastructure (schemas, orchestration script)
+- [ ] 04-02-PLAN.md — Implement domain-specific critics (DSP, UI) and /plugin-critique command
 
 ### Phase 5: Quality Gates
 **Goal**: Stage progression blocked until measurable success criteria pass
@@ -148,7 +148,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 1. Agent Contracts | 3/3 | Complete | 2026-01-30 |
 | 2. State Management | 4/4 | Complete | 2026-01-30 |
 | 3. Structured Handoffs | 2/2 | Complete | 2026-01-31 |
-| 4. Verification Infrastructure | 0/2 | Not started | - |
+| 4. Verification Infrastructure | 0/2 | Planned | - |
 | 5. Quality Gates | 0/3 | Not started | - |
 | 6. Domain Specialization | 0/3 | Not started | - |
 | 7. Module System | 0/2 | Not started | - |
@@ -172,4 +172,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-31 — Phase 3 complete (Structured Handoffs)*
+*Last updated: 2026-01-31 — Phase 4 planned (Verification Infrastructure)*
