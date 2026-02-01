@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-01)
 ## Current Position
 
 Phase: 8 of 9 (Repository Cleanup)
-Plan: 0 of 2 in current phase
-Status: Ready to plan
-Last activity: 2026-02-01 - v1.1 roadmap created
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-01 - Completed 08-01-PLAN.md (Git History Cleanup)
 
-Progress: [####################..] 81% (18/22 total plans)
+Progress: [#####################.] 86% (19/22 total plans)
 
 ## Performance Metrics
 
@@ -24,8 +24,8 @@ Progress: [####################..] 81% (18/22 total plans)
 - Total execution time: ~1h 51min
 
 **v1.1 Progress:**
-- Plans completed: 0/4
-- Estimated remaining: ~28 minutes
+- Plans completed: 1/4
+- Estimated remaining: ~21 minutes
 
 ## Accumulated Context
 
@@ -39,10 +39,12 @@ Recent decisions affecting current work:
 - [v1.0]: Level-based reconciliation pattern (Kubernetes-style)
 - [v1.1]: git-filter-repo selected over BFG (path filtering required)
 - [v1.1]: Phase 0.6 Planning triggers only for Tier 2/3 (preserve fast path)
+- [08-01]: Two-pass cleanup for root + plugin-specific builds
+- [08-01]: Re-clone approach for cleanest size reduction
 
 ### Pending Todos
 
-1. Repository cleanup: ~584MB .git reducible to ~50-80MB
+1. ~~Repository cleanup: ~584MB .git reducible to ~50-80MB~~ DONE (58MB achieved)
 2. Plugin naming standardization (after cleanup)
 3. Windows installer (deferred to v1.2)
 
@@ -52,9 +54,9 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-02-01
-Stopped at: v1.1 roadmap created, ready to plan Phase 8
+Last session: 2026-02-01 15:05
+Stopped at: Completed 08-01-PLAN.md, ready for 08-02
 Resume file: None
 
 ---
-*Milestone v1.1 roadmap complete. Ready to plan Phase 8.*
+*Phase 08-01 complete. Repository reduced from 636MB to 58MB (91% reduction).*
