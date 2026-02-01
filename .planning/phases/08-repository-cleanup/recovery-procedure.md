@@ -1,0 +1,204 @@
+# Repository Cleanup Recovery Procedure
+
+**Date:** 2026-02-01
+**Cleanup Type:** Git history rewrite using git-filter-repo
+**Backup Branch:** `pre-cleanup-backup-20260201`
+
+## What Was Removed
+
+The repository underwent a comprehensive cleanup to reduce size from **636MB to 58MB** (91% reduction).
+
+### Removed Items
+
+1. **Build Artifacts** (~300MB)
+   - Compiled object files (*.o, *.a)
+   - Dynamic libraries (*.dylib, *.so, *.dll)
+   - Plugin binaries (*.vst3/, *.component/)
+   - Build directories (build/, cmake-build-*/)
+   - CMake generated files (CMakeCache.txt, CMakeFiles/)
+
+2. **Backup Directories** (~250MB)
+   - `backups/` folder containing old plugin versions
+   - `backups/*/.DS_Store` files
+
+3. **System Files** (~50MB)
+   - macOS .DS_Store files throughout repository
+   - Xcode derived data
+   - IDE configuration files
+
+### Why These Were Removed
+
+- **Build artifacts** should be generated locally, not stored in version control
+- **Backup directories** were large binary snapshots, now preserved in backup branch
+- **System files** are machine-specific and should never be versioned
+
+## Accessing the Backup Branch
+
+The pre-cleanup state is preserved in a remote branch for recovery purposes.
+
+### View Backup Branch Contents
+
+```bash
+# Fetch the backup branch
+git fetch origin pre-cleanup-backup-20260201
+
+# List files in backup (without checking out)
+git ls-tree -r --name-only origin/pre-cleanup-backup-20260201
+
+# View a specific file from backup
+git show origin/pre-cleanup-backup-20260201:path/to/file
+```
+
+### Recover Specific Files
+
+To recover a single file from the backup:
+
+```bash
+# Show file contents
+git show origin/pre-cleanup-backup-20260201:backups/OuariconComp/Source/PluginProcessor.cpp
+
+# Save file locally
+git show origin/pre-cleanup-backup-20260201:backups/OuariconComp/Source/PluginProcessor.cpp > recovered-file.cpp
+```
+
+### Recover a Directory
+
+To recover an entire directory from the backup:
+
+```bash
+# Create a temporary worktree with the backup
+git worktree add /tmp/backup-recovery origin/pre-cleanup-backup-20260201
+
+# Copy what you need
+cp -R /tmp/backup-recovery/backups/OuariconComp ./recovered-plugin/
+
+# Clean up worktree
+git worktree remove /tmp/backup-recovery
+```
+
+## Handling Existing Clones
+
+**IMPORTANT:** If you have a local clone from before the cleanup, you have two options:
+
+### Option 1: Fresh Clone (Recommended)
+
+The cleanest approach is to re-clone the repository:
+
+```bash
+# Backup any local changes
+cd /path/to/VST-development
+git stash
+
+# Remove old clone and get fresh copy
+cd ..
+rm -rf VST-development
+git clone https://github.com/taylorbrook/VST-development.git
+
+# Restore local changes if needed
+cd VST-development
+git stash pop  # Only if you stashed changes
+```
+
+### Option 2: Reset Existing Clone
+
+If you must keep the existing directory:
+
+```bash
+cd /path/to/VST-development
+
+# Backup local changes
+git stash
+
+# Reset to match remote (this will lose local history)
+git fetch origin
+git reset --hard origin/main
+
+# Prune old objects
+git reflog expire --expire=now --all
+git gc --prune=now --aggressive
+
+# Restore local changes if needed
+git stash pop
+```
+
+**Note:** Option 2 may leave old objects that take up space until garbage collected.
+
+## Selective Recovery Script
+
+For batch recovery of multiple files, save this script as `recover-from-backup.sh`:
+
+```bash
+#!/bin/bash
+# Usage: ./recover-from-backup.sh <path-in-backup> <destination>
+# Example: ./recover-from-backup.sh backups/OuariconComp ./recovered/OuariconComp
+
+BACKUP_BRANCH="pre-cleanup-backup-20260201"
+SOURCE_PATH="$1"
+DEST_PATH="$2"
+
+if [ -z "$SOURCE_PATH" ] || [ -z "$DEST_PATH" ]; then
+    echo "Usage: $0 <path-in-backup> <destination>"
+    echo "Example: $0 backups/OuariconComp ./recovered/OuariconComp"
+    exit 1
+fi
+
+# Ensure we have the backup branch
+git fetch origin "$BACKUP_BRANCH" 2>/dev/null
+
+# Check if path exists in backup
+if ! git ls-tree -d "origin/$BACKUP_BRANCH" "$SOURCE_PATH" >/dev/null 2>&1; then
+    # Try as a file instead of directory
+    if ! git cat-file -e "origin/$BACKUP_BRANCH:$SOURCE_PATH" 2>/dev/null; then
+        echo "Error: Path '$SOURCE_PATH' not found in backup branch"
+        exit 1
+    fi
+fi
+
+# Create worktree for extraction
+WORKTREE=$(mktemp -d)
+git worktree add "$WORKTREE" "origin/$BACKUP_BRANCH" --quiet
+
+# Copy files
+mkdir -p "$(dirname "$DEST_PATH")"
+cp -R "$WORKTREE/$SOURCE_PATH" "$DEST_PATH"
+
+# Clean up
+git worktree remove "$WORKTREE" --force
+
+echo "Recovered '$SOURCE_PATH' to '$DEST_PATH'"
+```
+
+## Verifying Recovery
+
+After recovering files, verify integrity:
+
+```bash
+# Check file exists and has content
+ls -la recovered-file.cpp
+wc -l recovered-file.cpp
+
+# For source code, verify it compiles
+# (integration into build system required)
+```
+
+## Contact
+
+If you need files that cannot be recovered using this procedure:
+1. Check if they're in the backup branch first
+2. The backup branch contains the complete pre-cleanup state
+3. Build artifacts can always be regenerated by building the project
+
+## Prevention
+
+The repository now has a comprehensive `.gitignore` that prevents re-accumulation of:
+- Build artifacts (*.o, *.a, *.dylib, build/)
+- System files (.DS_Store)
+- Backup directories (backups/)
+- IDE files (.idea/, *.xcodeproj/)
+
+**Never bypass .gitignore** by force-adding these files.
+
+---
+
+*Recovery procedure created: 2026-02-01*
+*Backup branch preserved indefinitely: `pre-cleanup-backup-20260201`*
