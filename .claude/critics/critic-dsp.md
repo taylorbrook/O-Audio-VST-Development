@@ -31,18 +31,140 @@ Validate DSP implementation against real-time safety rules and professional audi
 - [ ] System calls: `printf`, `std::cout`, `std::cerr`, `DBG` in release builds
 - [ ] Exceptions: `throw`, `try/catch` blocks in processBlock
 - [ ] Unbounded loops: `while` with external condition, infinite loops
+- [ ] **std::function usage** (see detailed analysis below)
+- [ ] **Lambda captures through std::function** (see detailed analysis below)
+- [ ] **MessageManager::callAsync from audio thread** (see detailed analysis below)
 
 **Evidence required:**
 - Exact file path and line number for each violation
 - Code snippet showing the violation (10-15 chars context)
 - Whether violation is in processBlock or called functions
+- For std::function: trace call path from processBlock to std::function usage
 
-**Scoring:**
-- 10: No violations found
-- 8-9: Minor warnings (e.g., DBG statements in debug builds)
-- 6-7: 1-2 violations that could cause glitches
-- 4-5: Multiple violations affecting stability
-- 1-3: Critical violations (locks, allocations in hot path)
+---
+
+#### std::function Analysis (Zero Tolerance)
+
+**Policy:** REJECT any std::function in processBlock call path. No exceptions.
+
+**Why zero tolerance:**
+- std::function uses type erasure which may allocate heap memory
+- Small object optimization (SBO) threshold varies by implementation (16-32 bytes)
+- Even capture-less lambdas may allocate when wrapped in std::function
+- Allocation timing is unpredictable - may happen on construction or copy
+
+**What to search for:**
+- `std::function` anywhere in processBlock call path
+- Even if defined outside processBlock, called from within = violation
+- Trace function calls from processBlock to identify hidden std::function usage
+
+**Detection:**
+1. Search for `std::function<` in PluginProcessor.cpp and .h
+2. If found, trace usage to determine if reachable from processBlock
+3. Check member functions called by processBlock for std::function parameters
+
+**Example violations:**
+```cpp
+// VIOLATION: std::function member called from processBlock
+std::function<float(float)> waveshaper;  // Member variable
+void processBlock(...) {
+    output = waveshaper(input);  // VIOLATION
+}
+
+// VIOLATION: std::function parameter in helper
+void applyEffect(std::function<void(float&)> fn) { ... }
+void processBlock(...) {
+    applyEffect([](float& x) { x *= 2; });  // VIOLATION
+}
+```
+
+---
+
+#### Lambda Capture Rules
+
+**Capture-less lambdas `[]`:** ALLOWED - compile to function pointers, no allocation
+```cpp
+auto fn = []() { return 42; };           // ALLOWED
+auto fn = [](float x) { return x * 2; }; // ALLOWED
+```
+
+**`[this]` capture:** ALLOWED if NOT passed through std::function
+```cpp
+auto fn = [this]() { return memberVar; }; // ALLOWED (direct use)
+std::function<int()> fn = [this]() { ... }; // REJECTED (through std::function)
+```
+
+**`[&var]` or `[var]` capture:** SUSPICIOUS - evaluate capture size
+```cpp
+auto fn = [sampleRate](...) { ... };     // Small primitive - OK if not through std::function
+auto fn = [buf, a, b, c, d](...) { ... }; // Large capture - may allocate, audit
+```
+
+**Any lambda passed to std::function:** REJECT regardless of capture
+```cpp
+std::function<void()> fn = []() { };     // REJECTED - even capture-less
+```
+
+---
+
+#### Audio Thread to GUI Communication
+
+**REJECT: MessageManager::callAsync in processBlock path**
+- Posts message to queue which may block
+- Causes priority inversion risk
+- Unpredictable latency
+
+**ACCEPTABLE: Atomic + Timer polling pattern**
+```cpp
+// Processor side (audio thread)
+std::atomic<float> vuLevel{0.0f};
+void processBlock(...) {
+    vuLevel.store(level, std::memory_order_release);  // OK
+}
+
+// Editor side (message thread, Timer ~30ms)
+void timerCallback() {
+    float level = processorRef.vuLevel.load(std::memory_order_acquire);
+}
+```
+
+**ACCEPTABLE: Lock-free FIFO for complex data**
+- juce::AbstractFifo pattern
+- Audio thread writes, GUI thread reads
+- No blocking on either end
+
+**CAUTION: AsyncUpdater**
+- `triggerAsyncUpdate()` may block on some platforms
+- Acceptable for infrequent state changes
+- NOT suitable for per-buffer updates (VU meters)
+
+---
+
+#### Detection Regex Patterns
+
+**Use these patterns for automated violation detection:**
+
+| Violation Type | Regex Pattern |
+|---------------|---------------|
+| Allocation | `new\s+\w+` |
+| Smart pointers | `std::make_unique\|std::make_shared` |
+| C allocation | `malloc\|calloc\|realloc` |
+| Vector growth | `push_back\|emplace_back\|resize` |
+| std::function | `std::function\s*<` |
+| Lambda with capture | `\[(?!\])[^\]]+\]\s*\(` |
+| Locks | `std::mutex\|lock_guard\|ScopedLock\|CriticalSection` |
+| MessageManager | `MessageManager::callAsync` |
+| Exceptions | `\bthrow\b` or `\btry\s*\{` |
+| File I/O | `fopen\|fread\|fwrite\|juce::File` |
+
+---
+
+**Scoring (Updated for Zero Tolerance):**
+- 10: No violations, all safety patterns present (ScopedNoDenormals, zero-length check)
+- 8-9: Minor warnings only (DBG in debug builds, missing optional patterns)
+- 6-7: 1-2 violations that could cause glitches (e.g., string concatenation)
+- 4-5: std::function found in processBlock path OR multiple allocation violations
+- 1-3: Locks in processBlock OR MessageManager::callAsync from audio thread
 
 ### 2. Buffer Handling (Threshold: 7/10)
 
