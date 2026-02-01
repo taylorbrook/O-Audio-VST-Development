@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 
 ## Current Position
 
-Phase: 5 of 7 (Quality Gates)
-Plan: 3 of 3 in phase (PHASE COMPLETE)
-Status: Phase complete
-Last activity: 2026-01-31 — Completed 05-03-PLAN.md (gate integration)
+Phase: 6 of 7 (Domain Specialization)
+Plan: 1 of 3 in phase
+Status: In progress
+Last activity: 2026-02-01 — Completed 06-01-PLAN.md (real-time safety rules)
 
-Progress: [██████████████----] 67%
+Progress: [███████████████---] 71%
 
 ## Performance Metrics
 
@@ -32,9 +32,10 @@ Progress: [██████████████----] 67%
 | 3 | 2 | ~5 min | ~2.5 min |
 | 4 | 2 | ~9 min | ~4.5 min |
 | 5 | 3 | ~9 min | ~3 min |
+| 6 | 1 | ~3 min | ~3 min |
 
 **Recent Trend:**
-- Last 5 plans: 03-02, 04-01, 04-02, 05-02, 05-03
+- Last 5 plans: 04-01, 04-02, 05-02, 05-03, 06-01
 - Trend: Accelerating (infrastructure plans executing fast)
 
 *Updated after each plan completion*
@@ -78,6 +79,10 @@ Recent decisions affecting current work:
 - [05-03]: Gate as pre-condition (run before existing execution logic)
 - [05-03]: Review as post-step (run after handoff creation)
 - [05-03]: Bypass flags require justification logged to gate-bypasses.log
+- [06-01]: std::function rejected entirely in processBlock path (zero tolerance)
+- [06-01]: Capture-less lambdas allowed, through std::function rejected
+- [06-01]: MessageManager::callAsync rejected from audio thread, atomic+timer suggested
+- [06-01]: Detection regex patterns added for automated violation scanning
 
 ### Pending Todos
 
@@ -85,13 +90,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Research flags: Phase 6 (DSP specialization) may need targeted research for audio-specific patterns
+- (Resolved) Research flags: Phase 6 DSP patterns now encoded from RESEARCH.md
 
 ## Session Continuity
 
-Last session: 2026-01-31
-Stopped at: Completed 05-03-PLAN.md (gate integration) - Phase 5 COMPLETE
+Last session: 2026-02-01
+Stopped at: Completed 06-01-PLAN.md (real-time safety rules)
 Resume file: None
 
 ---
-*Next step: Start Phase 6 - Domain Specialization (discuss phase)*
+*Next step: Continue Phase 6 - Execute 06-02-PLAN.md (thread safety patterns)*
