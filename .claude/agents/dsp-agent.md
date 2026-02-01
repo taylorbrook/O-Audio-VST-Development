@@ -550,6 +550,340 @@ juce::dsp::\w+<float>\s+(\w+);
 ### 10. Return Report
 </workflow>
 
+<realtime_safety_rules>
+## Real-Time Safety Rules - Zero Tolerance Enforcement
+
+These rules MUST be enforced with zero tolerance. Any violation in processBlock or functions called from processBlock is grounds for REJECTION. No exceptions.
+
+### 1. Memory Allocation (REJECT)
+
+The following patterns MUST NOT appear in the processBlock path:
+
+**Direct allocation:**
+- `new`, `delete`
+- `malloc`, `calloc`, `realloc`, `free`
+
+**Smart pointers:**
+- `std::make_unique`, `std::make_shared`
+- Any smart pointer construction in audio thread
+
+**Container operations that may allocate:**
+- `std::vector::push_back`, `std::vector::emplace_back`, `std::vector::resize`
+- `std::vector::insert`, `std::vector::assign` (dynamic)
+- `std::string` operations (construction, concatenation, append, `+=`, `+`)
+- `juce::String` operations in processBlock
+- `juce::Array` dynamic operations (`add`, `insert`, `resize`)
+
+**Detection regex:**
+```regex
+new\s+\w+
+std::make_unique|std::make_shared
+malloc|calloc|realloc
+push_back|emplace_back|resize
+```
+
+### 2. std::function (REJECT entirely)
+
+**Zero tolerance for std::function in processBlock path:**
+- REJECT any `std::function` usage in processBlock or called functions
+- Type erasure may allocate on construction
+- Even small captures can exceed small object optimization (SBO) threshold
+- SBO threshold varies by implementation (16-32 bytes typically, not guaranteed)
+- No exceptions - reject ALL std::function in audio path
+
+**Why this matters:**
+```cpp
+// REJECTED - std::function may allocate
+std::function<float(float)> processor = [](float x) { return x * 2.0f; };
+
+// REJECTED - even capture-less may allocate due to type erasure
+std::function<void()> callback = []() { };
+
+// REJECTED - called from processBlock, even if defined elsewhere
+void processBlock(...) {
+    myStdFunction(); // VIOLATION - traces to std::function
+}
+```
+
+**Detection regex:**
+```regex
+std::function\s*<
+```
+
+### 3. Lambda Rules (Conditional)
+
+**ALLOWED - Capture-less lambdas:**
+```cpp
+// Compiles to function pointer, no allocation
+auto fn = []() { return 42; };
+auto fn = [](float x) { return x * 2.0f; };
+```
+
+**ALLOWED - Small captures NOT passed through std::function:**
+```cpp
+// [this] capture is safe when NOT through std::function
+auto fn = [this]() { return memberVar; };
+
+// Small primitive captures are safe
+auto fn = [sampleRate](int n) { return n / sampleRate; };
+```
+
+**REJECTED - Lambda through std::function:**
+```cpp
+// REJECTED regardless of capture size
+std::function<void()> fn = []() { };        // capture-less still REJECTED
+std::function<void()> fn = [this]() { };    // small capture still REJECTED
+std::function<void()> fn = [&]() { };       // reference capture REJECTED
+```
+
+**SUSPICIOUS - Large captures (audit required):**
+```cpp
+// May allocate if exceeds SBO, audit capture size
+auto fn = [buffer, param1, param2, param3, param4]() { ... };
+```
+
+**Detection regex for lambdas with captures:**
+```regex
+\[(?!\])[^\]]+\]\s*\(
+```
+
+### 4. Locks and Synchronization (REJECT)
+
+**Standard library locks:**
+- `std::mutex`, `std::recursive_mutex`, `std::shared_mutex`
+- `std::lock_guard`, `std::unique_lock`, `std::scoped_lock`
+- `std::condition_variable`, `std::condition_variable_any`
+
+**JUCE locks:**
+- `juce::ScopedLock`, `juce::ScopedReadLock`, `juce::ScopedWriteLock`
+- `juce::CriticalSection` (acquiring lock)
+- `juce::SpinLock` (still blocking)
+
+**Platform locks:**
+- `pthread_mutex_lock`, `pthread_rwlock_rdlock`, `pthread_rwlock_wrlock`
+- Windows `EnterCriticalSection`, `WaitForSingleObject`
+
+**Any blocking waits:**
+- `std::condition_variable::wait`
+- `std::future::wait`, `std::future::get`
+- Semaphore waits
+
+**Detection regex:**
+```regex
+std::mutex|std::recursive_mutex|std::shared_mutex
+std::lock_guard|std::unique_lock|std::scoped_lock
+juce::ScopedLock|juce::CriticalSection
+pthread_mutex_lock
+```
+
+### 5. System Calls and I/O (REJECT)
+
+**Console I/O:**
+- `printf`, `fprintf`, `sprintf` (may allocate)
+- `std::cout`, `std::cerr`, `std::clog`
+- `puts`, `fputs`
+
+**Debug logging:**
+- `DBG()` in release builds (allowed in debug only with `#ifdef DEBUG`)
+- `juce::Logger::writeToLog`
+
+**File I/O:**
+- `fopen`, `fread`, `fwrite`, `fclose`, `fseek`
+- `std::ifstream`, `std::ofstream`, `std::fstream`
+- `juce::File` operations (exists, read, write, create)
+- `juce::OutputStream`, `juce::InputStream`
+
+**Network operations:**
+- Socket calls
+- HTTP requests
+- `juce::URL` operations
+
+**System registry/preferences:**
+- Registry access (Windows)
+- Plist access (macOS)
+- `juce::PropertiesFile` operations
+
+**Detection regex:**
+```regex
+printf|fprintf|std::cout|std::cerr
+fopen|fread|fwrite|fclose
+std::ifstream|std::ofstream
+juce::File|juce::OutputStream|juce::InputStream
+```
+
+### 6. Exception Handling (REJECT)
+
+**Throw statements:**
+- `throw` keyword in processBlock path
+- Any function that may throw (unless marked `noexcept`)
+
+**Try/catch blocks:**
+- `try { ... } catch` in processBlock
+- Exception handling has unpredictable performance
+
+**Functions that may throw:**
+- `std::vector::at()` (bounds checking throws)
+- `std::map::at()` (key not found throws)
+- `std::stoi`, `std::stof` (parse errors throw)
+- `dynamic_cast` with references (bad_cast)
+
+**Detection regex:**
+```regex
+\bthrow\b
+\btry\s*\{
+\.at\s*\(
+```
+
+### 7. Unbounded Operations (REJECT)
+
+**While loops with external conditions:**
+```cpp
+// REJECTED - unbounded iteration
+while (condition) { ... }
+while (!buffer.isEmpty()) { ... }
+
+// ALLOWED - bounded by buffer size
+for (int i = 0; i < numSamples; ++i) { ... }
+```
+
+**Recursion without proven bounds:**
+```cpp
+// REJECTED - depth depends on input
+void process(Node* n) {
+    if (n) process(n->next);
+}
+```
+
+**Unbounded algorithms:**
+- `std::find` on unbounded range
+- `std::sort` on dynamic container
+- Any algorithm with O(n) where n is unbounded
+
+**Detection approach:**
+- Audit all `while` loops in processBlock
+- Verify loop termination depends only on buffer size or fixed constants
+
+### 8. MessageManager Communication (Context-Dependent)
+
+**REJECT from audio thread:**
+- `MessageManager::callAsync` from processBlock
+- Posts message to queue which may block
+- Causes priority inversion risk
+
+**SUGGEST instead - Atomic + Timer polling:**
+```cpp
+// Processor (audio thread)
+std::atomic<float> vuLevel{0.0f};
+
+void processBlock(AudioBuffer<float>& buffer, MidiBuffer&) {
+    float level = calculateLevel(buffer);
+    vuLevel.store(level, std::memory_order_release);
+}
+
+// Editor (Timer callback, ~30ms interval)
+void timerCallback() {
+    float level = processorRef.vuLevel.load(std::memory_order_acquire);
+    updateMeter(level);
+}
+```
+
+**ACCEPTABLE - Lock-free FIFO for complex data:**
+```cpp
+// Use juce::AbstractFifo for buffer data
+// Audio thread writes, GUI thread reads
+// No blocking on either end
+```
+
+**CAUTION - AsyncUpdater:**
+- `triggerAsyncUpdate()` may block on some platforms
+- Use only for infrequent updates (state changes)
+- Not suitable for per-buffer updates (VU meters)
+
+**Decision matrix:**
+| Data Type | Update Frequency | Recommended Pattern |
+|-----------|-----------------|---------------------|
+| Level meter (float) | Per buffer | Atomic + Timer |
+| Waveform display | Per N buffers | Lock-free FIFO |
+| State change event | Rare | AsyncUpdater OK |
+| UI rebuild trigger | Very rare | callAsync OK (NOT from audio thread) |
+
+**Detection regex:**
+```regex
+MessageManager::callAsync
+```
+
+### 9. Pre-allocation Patterns (REQUIRED)
+
+**All buffers in prepareToPlay():**
+```cpp
+void prepareToPlay(double sampleRate, int samplesPerBlock) {
+    // Preallocate all buffers HERE
+    delayBuffer.setSize(2, static_cast<int>(sampleRate * maxDelaySeconds));
+    scratchBuffer.setSize(2, samplesPerBlock);
+    fftBuffer.resize(fftSize);
+
+    // Prepare DSP modules
+    filter.prepare({sampleRate, static_cast<uint32>(samplesPerBlock),
+                    static_cast<uint32>(getTotalNumOutputChannels())});
+}
+```
+
+**ScopedNoDenormals at processBlock start:**
+```cpp
+void processBlock(AudioBuffer<float>& buffer, MidiBuffer& midi) {
+    juce::ScopedNoDenormals noDenormals;  // REQUIRED - prevents CPU spikes
+
+    // ... processing
+}
+```
+
+**Channel count validation:**
+```cpp
+void processBlock(AudioBuffer<float>& buffer, MidiBuffer&) {
+    const int numChannels = juce::jmin(buffer.getNumChannels(),
+                                        getTotalNumOutputChannels());
+    // Iterate only valid channels
+    for (int ch = 0; ch < numChannels; ++ch) { ... }
+}
+```
+
+**Zero-length buffer early exit:**
+```cpp
+void processBlock(AudioBuffer<float>& buffer, MidiBuffer&) {
+    if (buffer.getNumSamples() == 0)
+        return;  // Early exit for empty buffers
+
+    // ... processing
+}
+```
+
+### Enforcement Summary
+
+| Category | Verdict | Action |
+|----------|---------|--------|
+| Memory allocation in processBlock | REJECT | Remove, preallocate in prepareToPlay |
+| std::function in processBlock path | REJECT | Use function pointers or templates |
+| Lambda with captures through std::function | REJECT | Use direct lambda or function pointer |
+| Capture-less lambda | ALLOWED | Safe - compiles to function pointer |
+| Locks in processBlock | REJECT | Use atomics or lock-free structures |
+| System calls/I/O | REJECT | Move to non-audio thread |
+| Exceptions in processBlock | REJECT | Use error codes, bounds checking |
+| Unbounded loops | REJECT | Use bounded iteration over buffer |
+| MessageManager::callAsync from audio | REJECT | Use atomic + Timer polling |
+| Missing ScopedNoDenormals | REJECT | Add at processBlock start |
+| Missing zero-length check | WARNING | Add early exit check |
+
+### Cross-Reference
+
+These rules align with:
+- `.claude/critics/critic-dsp.md` Real-Time Safety category (threshold 8/10)
+- `troubleshooting/patterns/stage-2-patterns.md` real-time safety patterns
+- Ross Bencina's "Real-time Audio Programming 101" principles
+- Timur Doumler's "Using Locks in Real-Time Audio Processing Safely"
+
+**Any code failing these checks should be flagged by critic-dsp with severity "error".**
+</realtime_safety_rules>
+
 ## State Management
 
 After completing DSP implementation, update workflow state files:
