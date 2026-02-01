@@ -40,7 +40,7 @@ Ouaricon Plugins:
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
 | O-Detune | 🚧 Stage 0 | 1.0.0 | Audio Effect (Detuning) | 2026-02-01 |
 | O-Freeze | 🚧 Stage 1 | 1.0.0 | Audio Effect (Granular Freeze) | 2026-02-01 |
-| O-Bells | 💡 Ideated | - | Synth (Physical Modeling Bells) | 2026-02-01 |
+| O-Bells | 🚧 Stage 0 | - | Synth (Physical Modeling Bells) | 2026-02-01 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
