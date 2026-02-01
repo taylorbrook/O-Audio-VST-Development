@@ -132,11 +132,13 @@ Plans:
   2. Module registry tracks which plugins depend on which modules
   3. Module versions use semver with compatibility checks
   4. Documentation exists for manual rebuild after module updates
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 07-01: Fix module add/remove reliability
-- [ ] 07-02: Implement dependency tracking and version management
+- [ ] 07-01-PLAN.md — Extend registry schema and migrate to v3.0.0 with module tracking
+- [ ] 07-02-PLAN.md — Implement reliable /module:add and /module:remove with content hash
+- [ ] 07-03-PLAN.md — Add semver comparison and customization detection for safe upgrades
+- [ ] 07-04-PLAN.md — Integrate update notifications and create documentation
 
 ## Progress
 
@@ -151,7 +153,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 4. Verification Infrastructure | 2/2 | Complete | 2026-01-31 |
 | 5. Quality Gates | 3/3 | Complete | 2026-01-31 |
 | 6. Domain Specialization | 3/3 | Complete | 2026-01-31 |
-| 7. Module System | 0/2 | Not started | - |
+| 7. Module System | 0/4 | Planned | - |
 
 ## Coverage Validation
 
@@ -172,4 +174,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-31 — Phase 6 complete (Domain Specialization)*
+*Last updated: 2026-01-31 — Phase 7 planned (Module System)*
