@@ -116,12 +116,12 @@ Plans:
   3. All relevant agents follow JUCE 8 best practices by default
   4. Professional quality standards defined (what makes commercial plugins pro)
   5. Music theory agent spec exists for domain-aware tuning assistance
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 06-01: Encode real-time safety rules in DSP agent
-- [ ] 06-02: Encode thread-safety patterns in GUI agent
-- [ ] 06-03: Define professional quality standards and specialist agent specs
+- [ ] 06-01-PLAN.md — Encode exhaustive real-time safety rules in DSP agent and critic
+- [ ] 06-02-PLAN.md — Encode thread-safety patterns in GUI agent and critic
+- [ ] 06-03-PLAN.md — Define professional quality standards and create specialist agent specs
 
 ### Phase 7: Module System
 **Goal**: Module add/remove/update works reliably with tracked dependencies
@@ -150,7 +150,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 3. Structured Handoffs | 2/2 | Complete | 2026-01-31 |
 | 4. Verification Infrastructure | 2/2 | Complete | 2026-01-31 |
 | 5. Quality Gates | 3/3 | Complete | 2026-01-31 |
-| 6. Domain Specialization | 0/3 | Not started | - |
+| 6. Domain Specialization | 0/3 | Planned | - |
 | 7. Module System | 0/2 | Not started | - |
 
 ## Coverage Validation
@@ -172,4 +172,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-31 — Phase 5 complete (Quality Gates)*
+*Last updated: 2026-01-31 — Phase 6 planned (Domain Specialization)*
