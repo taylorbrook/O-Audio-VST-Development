@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 3: Structured Handoffs** - Implement schema-validated handoff documents between stages
 - [x] **Phase 4: Verification Infrastructure** - Build generator-critic loops and domain validation
 - [x] **Phase 5: Quality Gates** - Implement blocking gates at stage boundaries
-- [ ] **Phase 6: Domain Specialization** - Encode professional domain expertise into agents
+- [x] **Phase 6: Domain Specialization** - Encode professional domain expertise into agents
 - [ ] **Phase 7: Module System** - Fix module reliability and dependency tracking
 
 ## Phase Details
@@ -119,9 +119,9 @@ Plans:
 **Plans**: 3 plans
 
 Plans:
-- [ ] 06-01-PLAN.md — Encode exhaustive real-time safety rules in DSP agent and critic
-- [ ] 06-02-PLAN.md — Encode thread-safety patterns in GUI agent and critic
-- [ ] 06-03-PLAN.md — Define professional quality standards and create specialist agent specs
+- [x] 06-01-PLAN.md — Encode exhaustive real-time safety rules in DSP agent and critic
+- [x] 06-02-PLAN.md — Encode thread-safety patterns in GUI agent and critic
+- [x] 06-03-PLAN.md — Define professional quality standards and create specialist agent specs
 
 ### Phase 7: Module System
 **Goal**: Module add/remove/update works reliably with tracked dependencies
@@ -150,7 +150,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7
 | 3. Structured Handoffs | 2/2 | Complete | 2026-01-31 |
 | 4. Verification Infrastructure | 2/2 | Complete | 2026-01-31 |
 | 5. Quality Gates | 3/3 | Complete | 2026-01-31 |
-| 6. Domain Specialization | 0/3 | Planned | - |
+| 6. Domain Specialization | 3/3 | Complete | 2026-01-31 |
 | 7. Module System | 0/2 | Not started | - |
 
 ## Coverage Validation
@@ -172,4 +172,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-01-31 — Phase 6 planned (Domain Specialization)*
+*Last updated: 2026-01-31 — Phase 6 complete (Domain Specialization)*

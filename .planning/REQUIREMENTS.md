@@ -52,12 +52,12 @@ Requirements for the system overhaul. Each maps to roadmap phases.
 
 ### Domain Expertise Encoding
 
-- [ ] **DOMN-01**: Real-time safety rules encoded in DSP agent (no allocation in processBlock)
-- [ ] **DOMN-02**: Thread-safety patterns encoded in GUI agent (APVTS atomics, relay lifecycle)
-- [ ] **DOMN-03**: JUCE 8 best practices baked into relevant agents
-- [ ] **DOMN-04**: Professional quality standards defined (what makes commercial plugins pro)
-- [ ] **DOMN-05**: Music theory/tuning agent spec for domain-aware assistance
-- [ ] **DOMN-06**: Aesthetics agent spec for design-aware UI guidance
+- [x] **DOMN-01**: Real-time safety rules encoded in DSP agent (no allocation in processBlock)
+- [x] **DOMN-02**: Thread-safety patterns encoded in GUI agent (APVTS atomics, relay lifecycle)
+- [x] **DOMN-03**: JUCE 8 best practices baked into relevant agents
+- [x] **DOMN-04**: Professional quality standards defined (what makes commercial plugins pro)
+- [x] **DOMN-05**: Music theory/tuning agent spec for domain-aware assistance
+- [x] **DOMN-06**: Aesthetics agent spec for design-aware UI guidance
 
 ### Module System
 
@@ -132,12 +132,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GATE-04 | Phase 5 | Complete |
 | GATE-05 | Phase 5 | Complete |
 | GATE-06 | Phase 5 | Complete |
-| DOMN-01 | Phase 6 | Pending |
-| DOMN-02 | Phase 6 | Pending |
-| DOMN-03 | Phase 6 | Pending |
-| DOMN-04 | Phase 6 | Pending |
-| DOMN-05 | Phase 6 | Pending |
-| DOMN-06 | Phase 6 | Pending |
+| DOMN-01 | Phase 6 | Complete |
+| DOMN-02 | Phase 6 | Complete |
+| DOMN-03 | Phase 6 | Complete |
+| DOMN-04 | Phase 6 | Complete |
+| DOMN-05 | Phase 6 | Complete |
+| DOMN-06 | Phase 6 | Complete |
 | MODS-01 | Phase 7 | Pending |
 | MODS-02 | Phase 7 | Pending |
 | MODS-03 | Phase 7 | Pending |
@@ -150,4 +150,4 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 ---
 *Requirements defined: 2026-01-29*
-*Last updated: 2026-01-31 — Phase 5 complete (GATE-01 to GATE-06)*
+*Last updated: 2026-01-31 — Phase 6 complete (DOMN-01 to DOMN-06)*
