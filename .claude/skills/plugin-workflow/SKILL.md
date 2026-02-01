@@ -130,18 +130,18 @@ def orchestrate_implementation(plugin_name, start_stage, skip_phases, express_mo
                     create_handoff(plugin_name, stage, phase)
                     return
 
-        # Stage complete - advance to next
+        # Stage complete - HANDOFF POINT
         mark_stage_complete(plugin_name, stage)
         commit_stage(plugin_name, stage)
 
-        if not express_mode:
-            action = present_stage_menu(plugin_name, stage)
-            if action == "pause":
-                return
+        # CRITICAL: Always present handoff at stage boundary
+        # See .claude/references/handoff-protocol.md
+        present_stage_handoff(plugin_name, stage)  # Includes /clear instruction
+        return  # STOP - do not auto-advance
 
     # All stages complete
     mark_plugin_complete(plugin_name)
-    present_completion_menu(plugin_name)
+    present_completion_handoff(plugin_name)  # Final handoff with /install-plugin
 ```
 
 ## Phase Execution
@@ -381,27 +381,49 @@ What's next?
 Choose (1-5): _
 ```
 
-### Stage Completion Menu
+### Stage Completion Menu (Handoff Point)
+
+**CRITICAL: This is a handoff point. Present clean continuation format, do NOT auto-proceed.**
 
 ```
-✓ Stage 2 (DSP) complete
+---
 
-All 5 phases verified:
-- discuss ✓
-- research ✓
-- plan ✓
-- execute ✓
-- verify ✓
+## ✓ Stage 2 (DSP) Complete
 
-What's next?
-1. Continue to Stage 3 (GUI) (recommended)
-2. Review stage artifacts
-3. Run additional tests
-4. Pause workflow
-5. Other
+**[PluginName]** — All 5 phases verified
 
-Choose (1-5): _
+| Phase | Status |
+|-------|--------|
+| discuss | ✓ |
+| research | ✓ |
+| plan | ✓ |
+| execute | ✓ |
+| verify | ✓ |
+
+---
+
+## ▶ Next Up
+
+**Stage 3: GUI** — WebView UI integration and parameter binding
+
+`/implement [PluginName]`
+
+<sub>`/clear` first → fresh context window</sub>
+
+---
+
+**Also available:**
+
+- `/test [PluginName]` → Run additional tests
+- Review stage artifacts
+- Save for later (handoff file created)
+
+---
 ```
+
+**Do NOT auto-advance to Stage 3.** Present the handoff and STOP.
+
+See: `.claude/references/handoff-protocol.md`
 
 ### Express Mode Output
 

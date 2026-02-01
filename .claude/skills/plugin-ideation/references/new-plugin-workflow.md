@@ -431,59 +431,65 @@ Creative brief has been finalized for [PluginName]. Ready to proceed to UI mocku
 </step>
 </state_requirement>
 
-## Phase 8: Decision Menu
+## Phase 8: Decision Menu (Handoff Point)
 
 <decision_gate>
 <gate_name>next_action</gate_name>
 <blocking>true</blocking>
 <checkpoint_protocol>true</checkpoint_protocol>
+<handoff_required>true</handoff_required>
 
 <step number="8" required="true">
-**Must present next steps:**
+**CRITICAL: This is a handoff point. Present clean continuation format, do NOT auto-proceed.**
+
+**Must present using continuation format:**
 
 ```
-✓ Creative brief complete: [PluginName]
+---
 
-What's next?
-1. Quick params + parallel workflow (18 min faster) ← Provide minimal parameter list now, UI design happens in parallel with DSP research
-2. Full UI mockup first (traditional workflow) ← Design UI now, parameters extracted afterward
-3. Start implementation directly (not recommended - requires existing mockup)
-4. Research similar plugins ← Find inspiration and examples
-5. Save for later
-6. Other
+## ✓ Ideation Complete
 
-Choose (1-6): _
+**[PluginName]** — [one-line description from brief]
+
+Files created:
+- `plugins/[PluginName]/.planning/BRIEF.md`
+- `plugins/[PluginName]/.planning/REQUIREMENTS.md`
+- `plugins/[PluginName]/.planning/STATUS.md`
+
+---
+
+## ▶ Next Up
+
+**Stage 0: Planning** — Research DSP approach and create architecture
+
+`/plan [PluginName]`
+
+<sub>`/clear` first → fresh context window</sub>
+
+---
+
+**Also available:**
+
+- `/start [PluginName]` → Create UI mockup first (option 3)
+- `/research [topic]` → Research similar plugins
+- Save for later (handoff file created)
+
+---
 ```
 
-<delegation_rules>
-**Handle responses:**
+**Do NOT invoke any skills directly.** Present the handoff and STOP.
 
-<delegation_rule skill="quick-params-workflow" trigger="option_1">
-- Condition: User chooses option 1 (Quick params + parallel workflow)
-- Action: Execute Phase 8.1 (Quick Parameter Capture)
-- After capture complete: Present parallel execution decision menu
-</delegation_rule>
+The user will:
+1. Run `/clear` to reset context
+2. Paste the command they want
+3. Continue in a fresh context window
 
-<delegation_rule skill="ui-mockup" trigger="option_2">
-- Condition: User chooses option 2 (Full UI mockup first)
-- Action: Must invoke ui-mockup skill via Skill tool
-- Do NOT attempt to create mockup within this skill
-</delegation_rule>
+**Why handoffs matter:**
+- Ideation consumes significant context tokens
+- Planning needs fresh context for research agents
+- Clean handoffs prevent context pollution
+- User controls when to proceed
 
-<delegation_rule skill="plugin-workflow" trigger="option_3">
-- Condition: User chooses option 3 (Start implementation directly)
-- Action: Must invoke plugin-workflow skill via Skill tool
-- Warning: Must warn user about contract requirements before delegating
-</delegation_rule>
-
-<delegation_rule skill="deep-research" trigger="option_4">
-- Condition: User chooses option 4 (Research similar plugins)
-- Action: Must invoke deep-research skill via Skill tool
-</delegation_rule>
-
-- Option 5 → Confirm handoff file created, exit
-- Option 6 → Ask what they'd like to do
-</delegation_rules>
 </step>
 </decision_gate>
 
@@ -598,48 +604,39 @@ Ready to capture parameters? (y/n): _
    git commit -m "feat([PluginName]): draft parameters captured for parallel workflow"
    ```
 
-5. Present parallel execution decision menu:
+5. Present handoff with continuation format:
+
    ```
-   ✓ Draft parameters captured: [N] parameters
+   ---
+
+   ## ✓ Draft Parameters Captured
+
+   **[PluginName]** — [N] parameters defined
 
    Files created:
-   - parameter-spec-draft.md ([N] parameters)
+   - `plugins/[PluginName]/.planning/parameter-spec-draft.md`
 
-   What's next?
+   ---
 
-   1. Start Stage 0 research now (recommended) ← Begin DSP research immediately
-   2. Design UI mockup now ← Create visual design in parallel
-   3. Do both in parallel ← Start research, then design (maximum time savings)
-   4. Other
+   ## ▶ Next Up
 
-   Choose (1-4): _
+   **Stage 0: Planning** — Research DSP approach and create architecture
+
+   `/plan [PluginName]`
+
+   <sub>`/clear` first → fresh context window</sub>
+
+   ---
+
+   **Also available:**
+
+   - `/start [PluginName]` → Create UI mockup (can run in parallel)
+   - Save for later (handoff file created)
+
+   ---
    ```
 
-**Handle menu choices:**
-
-- **Option 1:** Invoke plugin-planning skill for Stage 0 (will accept draft params)
-  ```
-  Skill tool:
-  - skill: "plugin-planning"
-  - prompt: "Begin Stage 0 research for [PluginName] using draft parameter-spec"
-  ```
-
-- **Option 2:** Invoke ui-mockup skill (will validate against draft when generating full spec)
-  ```
-  Skill tool:
-  - skill: "ui-mockup"
-  - prompt: "Create UI mockup for [PluginName] using parameter-spec-draft.md"
-  ```
-
-- **Option 3:** Invoke plugin-planning skill first, then suggest ui-mockup in parallel
-  ```
-  Skill tool:
-  - skill: "plugin-planning"
-  - prompt: "Begin Stage 0 research for [PluginName]. After completion, suggest running ui-mockup in parallel."
-  ```
-  After plugin-planning completes, present option to start ui-mockup.
-
-- **Option 4:** Collect custom input
+**Do NOT invoke any skills directly.** Present the handoff and STOP.
 
 </step>
 

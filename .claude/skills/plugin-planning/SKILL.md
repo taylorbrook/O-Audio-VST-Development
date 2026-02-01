@@ -105,16 +105,17 @@ DISCUSS (BRIEF.md exists) → RESEARCH → PLAN → outputs: ARCHITECTURE.md, RO
 - `plugins/[Name]/.planning/stages/0-ideation/CONTEXT.md` (discuss output)
 - `plugins/[Name]/.planning/STATUS.md` (updated with stage progress)
 
-**Decision menu:** Use assets/decision-menu-stage-0.md template
+**Decision menu (HANDOFF POINT):** Use assets/decision-menu-stage-0.md template
 
-**Menu option routing:**
+**CRITICAL: This is a handoff point. Present clean continuation format, do NOT auto-proceed.**
 
-- **Option 1 (Start implementation):** Invoke plugin-workflow skill
-- **Option 2 (Review contracts):** Read and display ARCHITECTURE.md, ROADMAP.md, parameter-spec.md, BRIEF.md
-- **Option 3 (Improve brief):** Invoke plugin-ideation skill
-- **Option 4 (Deep research):** Invoke deep-research skill
-- **Option 5 (Pause):** Verify state saved, exit skill
-- **Option 6 (Other):** Route based on request (plugin-workflow, ui-mockup, deep-research, or handle directly)
+After presenting the handoff menu:
+- Do NOT invoke any skills directly
+- Present the menu with full `/implement [PluginName]` command
+- Include `/clear` instruction
+- STOP and wait for user to run the command in fresh context
+
+See `.claude/references/handoff-protocol.md` for handoff protocol details.
 
 **Note:** research-planning-agent runs in fresh context (5-35 min session doesn't pollute orchestrator)
 
