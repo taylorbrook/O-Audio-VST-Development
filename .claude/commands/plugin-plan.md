@@ -1,21 +1,21 @@
 ---
-name: plugin:plan
+name: plugin-plan
 description: Create execution plan with task breakdown
 skill: plugin-phases
 args: "[plugin_name?] [stage?] [--skip-discuss] [--skip-research]"
 ---
 
-# /plugin:plan
+# /plugin-plan
 
 Create a detailed execution plan with task breakdown for a stage. This plan guides the execute phase.
 
 ## Usage
 
 ```
-/plugin:plan [plugin_name] [stage]        # Specific plugin and stage
-/plugin:plan [stage]                      # Focused plugin, specific stage
-/plugin:plan                              # Focused plugin, current stage
-/plugin:plan [name] [stage] --skip-discuss --skip-research
+/plugin-plan [plugin_name] [stage]        # Specific plugin and stage
+/plugin-plan [stage]                      # Focused plugin, specific stage
+/plugin-plan                              # Focused plugin, current stage
+/plugin-plan [name] [stage] --skip-discuss --skip-research
 ```
 
 ## Arguments
@@ -40,7 +40,7 @@ Create a detailed execution plan with task breakdown for a stage. This plan guid
 ## Example
 
 ```
-/plugin:plan O-IntonationPad 2-dsp
+/plugin-plan O-IntonationPad 2-dsp
 
 Creating execution plan for Stage 2 (DSP)
 ══════════════════════════════════════════════════════════════
@@ -99,11 +99,11 @@ chord generation, wavetable synthesis, and voice management.
 - [ ] No audio glitches or clicks
 
 ✓ PLAN.md created (8 tasks)
-Next: /plugin:execute O-IntonationPad 2-dsp
+Next: /plugin-execute O-IntonationPad 2-dsp
 ```
 
 ## Related Commands
 
-- `/plugin:research` - Previous phase
-- `/plugin:execute` - Next phase
-- `/plugin:discuss` - Return to gather more context
+- `/plugin-research` - Previous phase
+- `/plugin-execute` - Next phase
+- `/plugin-discuss` - Return to gather more context

@@ -1,20 +1,20 @@
 ---
-name: plugin:discuss
+name: plugin-discuss
 description: Interactive context gathering for a stage (GSD discuss phase)
 skill: plugin-phases
 args: "[plugin_name?] [stage?]"
 ---
 
-# /plugin:discuss
+# /plugin-discuss
 
 **Purpose:** Execute the DISCUSS phase of the GSD cycle for a specific plugin stage. Gathers context through interactive questioning and produces CONTEXT.md.
 
 ## Usage
 
 ```
-/plugin:discuss [plugin_name] [stage]     # Specific plugin and stage
-/plugin:discuss [stage]                   # Focused plugin, specific stage
-/plugin:discuss                           # Focused plugin, current stage
+/plugin-discuss [plugin_name] [stage]     # Specific plugin and stage
+/plugin-discuss [stage]                   # Focused plugin, specific stage
+/plugin-discuss                           # Focused plugin, current stage
 ```
 
 ## Arguments
@@ -25,9 +25,9 @@ args: "[plugin_name?] [stage?]"
 ## Examples
 
 ```
-/plugin:discuss O-IntonationPad 2-dsp    # Discuss DSP stage
-/plugin:discuss 2-dsp                    # Use focused plugin
-/plugin:discuss                          # Use focused plugin and current stage
+/plugin-discuss O-IntonationPad 2-dsp    # Discuss DSP stage
+/plugin-discuss 2-dsp                    # Use focused plugin
+/plugin-discuss                          # Use focused plugin and current stage
 ```
 
 ## What This Command Does
@@ -120,5 +120,5 @@ Ready for: [research/plan] phase
 ## Integration
 
 **Follows:** Previous stage VERIFICATION.md (except Stage 0)
-**Precedes:** /plugin:research or /plugin:plan
+**Precedes:** /plugin-research or /plugin-plan
 **Updates:** STATUS.md with current GSD phase

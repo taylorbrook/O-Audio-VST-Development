@@ -275,6 +275,346 @@ MCPs active and suggested:
 # System loads checkpoint and presents next steps
 ```
 
+## Production Workflow Guide
+
+This section provides a complete guide for using the Plugin Freedom System in production, including multi-plugin parallel development.
+
+### Complete Single Plugin Workflow
+
+The full journey from idea to installed plugin:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Stage 0: Ideation & Planning                                               │
+│  ┌─────────┐    ┌─────────┐                                                 │
+│  │ /start  │ →  │ /plan   │  Creates: BRIEF.md, parameter-spec.md,         │
+│  └─────────┘    └─────────┘           ARCHITECTURE.md, ROADMAP.md           │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Stages 1-3: Implementation (/implement)                                    │
+│                                                                             │
+│  Each stage runs: discuss → research → plan → execute → verify              │
+│                                                                             │
+│  Stage 1: Foundation    → CMakeLists.txt, PluginProcessor, parameters       │
+│  Stage 2: DSP           → processBlock, audio algorithms                    │
+│  Stage 3: GUI           → WebView UI, parameter bindings                    │
+│                                                                             │
+│  Quality gates block progression until verification passes.                 │
+└─────────────────────────────────────────────────────────────────────────────┘
+                                    ↓
+┌─────────────────────────────────────────────────────────────────────────────┐
+│  Stage 4: Deploy & Iterate                                                  │
+│  ┌─────────────────┐    ┌─────────┐    ┌──────────┐                        │
+│  │ /install-plugin │ →  │ /test   │ →  │ /improve │ (as needed)            │
+│  └─────────────────┘    └─────────┘    └──────────┘                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Step-by-step walkthrough:**
+
+```bash
+# 1. IDEATION: Explore your plugin idea
+/start O-MyPlugin
+
+# Interactive conversation captures:
+# - Creative brief (vision, sonic goals, UX principles)
+# - Parameter specification (all controls with ranges)
+# - UI mockups (optional, can add later)
+
+# 2. PLANNING: Design the technical architecture
+/plan O-MyPlugin
+
+# Creates:
+# - ARCHITECTURE.md (DSP design, signal flow)
+# - ROADMAP.md (implementation strategy)
+# - Complexity assessment
+
+# 3. IMPLEMENTATION: Build the plugin
+/implement O-MyPlugin
+
+# Runs stages 1-3 automatically:
+# - Stage 1: Project structure, CMake, parameters
+# - Stage 2: Audio processing, DSP algorithms
+# - Stage 3: WebView UI (or skip for headless)
+#
+# Each stage has quality gates that must pass.
+
+# 4. TESTING: Validate the plugin
+/test O-MyPlugin
+
+# Runs pluginval (VST3/AU validation)
+# Reports any issues found
+
+# 5. INSTALLATION: Deploy to DAW
+/install-plugin O-MyPlugin
+
+# Copies to ~/Library/Audio/Plug-Ins/
+# Clears AU cache for immediate availability
+
+# 6. ITERATION: Improve as needed
+/improve O-MyPlugin
+
+# Add features, fix bugs with:
+# - Semantic versioning
+# - Regression testing
+# - Rollback safety
+```
+
+### Multi-Plugin Parallel Development
+
+Develop multiple plugins simultaneously using context isolation:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                        Context Switching Model                              │
+│                                                                             │
+│   Session A                    Session B                    Session C       │
+│   ┌──────────────┐            ┌──────────────┐            ┌──────────────┐ │
+│   │ O-Reverb     │            │ O-Compressor │            │ O-Saturator  │ │
+│   │ Stage 2: DSP │            │ Stage 1: Found│            │ Stage 3: GUI │ │
+│   └──────────────┘            └──────────────┘            └──────────────┘ │
+│         ↑                           ↑                           ↑          │
+│   /plugin-focus              /plugin-focus              /plugin-focus      │
+│   O-Reverb                   O-Compressor               O-Saturator        │
+│                                                                             │
+│   Each plugin has isolated state in plugins/[Name]/.planning/               │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Managing multiple plugins:**
+
+```bash
+# See all plugins and their status
+/plugin-list
+
+# Output example:
+# ┌────────────────┬───────────┬─────────┬──────────────┐
+# │ Plugin         │ Stage     │ Phase   │ Status       │
+# ├────────────────┼───────────┼─────────┼──────────────┤
+# │ O-Reverb       │ 2-dsp     │ execute │ in_progress  │
+# │ O-Compressor   │ 1-found   │ verify  │ pending      │
+# │ O-Saturator    │ 3-gui     │ discuss │ paused       │
+# └────────────────┴───────────┴─────────┴──────────────┘
+
+# Switch focus to a specific plugin
+/plugin-focus O-Compressor
+
+# Now all commands default to O-Compressor
+/plugin-status          # Shows O-Compressor status
+/implement              # Continues O-Compressor implementation
+
+# Check detailed status
+/plugin-status O-Reverb
+
+# Output shows:
+# - Current stage and phase
+# - Completed stages with timestamps
+# - Next recommended action
+```
+
+**Parallel development workflow:**
+
+```bash
+# Terminal 1: Working on O-Reverb
+/plugin-focus O-Reverb
+/implement
+
+# Terminal 2: Working on O-Compressor (different Claude Code session)
+/plugin-focus O-Compressor
+/implement
+
+# Each session operates independently with isolated state.
+# No branch switching required—each plugin has its own .planning/ directory.
+```
+
+### Session Management (Pause/Resume)
+
+Long-running development can span multiple sessions:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                         Session Continuity                                  │
+│                                                                             │
+│   Session 1                    [Pause]                    Session 2         │
+│   ┌──────────────┐            ┌──────────┐            ┌──────────────────┐ │
+│   │ Working on   │     →      │ HANDOFF  │     →      │ Resume with full │ │
+│   │ Stage 2 DSP  │            │ created  │            │ context restored │ │
+│   └──────────────┘            └──────────┘            └──────────────────┘ │
+│                                                                             │
+│   /plugin-pause               Saves:                  /continue O-Plugin   │
+│   O-Plugin                    - STATUS.md             Loads:               │
+│                               - HANDOFF.json          - Last checkpoint    │
+│                               - Stage docs            - Decision history   │
+│                                                       - Next steps         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Pausing work:**
+
+```bash
+# When you need to stop mid-workflow
+/plugin-pause O-MyPlugin
+
+# Creates:
+# - Updated STATUS.md with exact position
+# - HANDOFF.json with context for resumption
+# - Commit with checkpoint marker
+
+# Output includes next command to run:
+# "To resume: /continue O-MyPlugin"
+```
+
+**Resuming work:**
+
+```bash
+# In a new session (even days later)
+/continue O-MyPlugin
+
+# System:
+# 1. Loads STATUS.md to find last position
+# 2. Reads stage documentation for context
+# 3. Presents summary of where you left off
+# 4. Offers next action options
+
+# You're back exactly where you stopped.
+```
+
+**Handling context window limits:**
+
+```bash
+# If context fills up during long workflow
+# Claude Code will prompt: "Context limit approaching"
+
+# Best practice:
+/plugin-pause O-MyPlugin   # Save state
+/clear                     # Clear context
+/continue O-MyPlugin       # Resume with fresh context
+```
+
+### Quality Assurance Flow
+
+Every stage has quality gates that must pass:
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│                          Quality Gate Flow                                  │
+│                                                                             │
+│   Execute Phase                Gate Check                Verify Phase       │
+│   ┌──────────────┐            ┌──────────┐            ┌──────────────────┐ │
+│   │ Agent runs   │     →      │ Blocking │     →      │ Goal-backward    │ │
+│   │ stage tasks  │            │ checks   │            │ verification     │ │
+│   └──────────────┘            └──────────┘            └──────────────────┘ │
+│                                     │                                       │
+│                               ┌─────┴─────┐                                 │
+│                               │  Pass?    │                                 │
+│                               └─────┬─────┘                                 │
+│                            Yes ↙         ↘ No                               │
+│                     ┌──────────┐    ┌─────────────┐                        │
+│                     │ Proceed  │    │ Fix issues  │                        │
+│                     │ to next  │    │ then retry  │                        │
+│                     │ stage    │    │ gate        │                        │
+│                     └──────────┘    └─────────────┘                        │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Gate checks by stage:**
+
+| Stage | Gate Checks |
+|-------|-------------|
+| 1-foundation | CMake configures, builds without error, parameters registered |
+| 2-dsp | processBlock compiles, no real-time safety violations, audio flows |
+| 3-gui | WebView loads, parameters bind correctly, UI responds |
+
+**Manual gate control:**
+
+```bash
+# Run gate check explicitly
+/plugin-verify O-MyPlugin 2-dsp
+
+# If gate fails, fix issues then retry
+/plugin-execute O-MyPlugin 2-dsp   # Re-run execution
+/plugin-verify O-MyPlugin 2-dsp    # Re-check gate
+
+# Skip gate (use sparingly, requires justification)
+/plugin-verify O-MyPlugin 2-dsp --skip "Known issue, will fix in Stage 3"
+```
+
+### Best Practices
+
+**1. One plugin per focus**
+```bash
+# Always set focus before working
+/plugin-focus O-MyPlugin
+
+# Then run commands without specifying name
+/implement
+/plugin-status
+/test
+```
+
+**2. Commit frequently**
+```bash
+# The system auto-commits at checkpoints, but you can also:
+git status                    # Check what's pending
+git add -A && git commit -m "WIP: Stage 2 progress"
+```
+
+**3. Use express mode for straightforward plugins**
+```bash
+# Skip intermediate menus
+/implement O-SimpleGain --express
+
+# Drops to manual mode on any error
+```
+
+**4. Pause before context fills**
+```bash
+# Don't wait for "context limit" warning
+# Pause proactively after completing a stage
+/plugin-pause O-MyPlugin
+/clear
+/continue O-MyPlugin
+```
+
+**5. Check status when returning**
+```bash
+# First command in any session
+/plugin-list
+
+# Then focus and continue
+/plugin-focus O-MyPlugin
+/plugin-status
+/continue
+```
+
+**6. Use reconcile if state seems wrong**
+```bash
+# If STATUS.md and registry disagree
+/reconcile O-MyPlugin
+
+# Auto-repairs inconsistencies
+```
+
+**7. Document learnings**
+```bash
+# After solving a tricky problem
+/doc-fix
+
+# Adds to knowledge base for future reference
+```
+
+### Troubleshooting Common Issues
+
+| Issue | Solution |
+|-------|----------|
+| "Plugin not found" | Run `/plugin-list` to see exact names |
+| Stage won't progress | Run `/plugin-verify` to see gate failures |
+| State seems corrupted | Run `/reconcile [Name]` to repair |
+| Context too large | `/plugin-pause` then `/clear` then `/continue` |
+| Build fails | `/research [error message]` for investigation |
+| Plugin not in DAW | Run `/install-plugin` and restart DAW |
+
 ## Complete Command Reference
 
 ### Workflow Overview
@@ -495,16 +835,21 @@ Every problem encountered becomes institutional knowledge. The system learns and
 
 ## Implementation Status
 
-- ✓ **Phase 0**: Foundation & Contracts
-- ✓ **Phase 1**: Discovery System
-- ✓ **Phase 2**: Workflow Engine
-- ✓ **Phase 3**: Implementation Subagents
-- ✓ **Phase 4**: Build & Troubleshooting System
-- ✓ **Phase 5**: Validation System
-- ✓ **Phase 6**: WebView UI System
-- ✓ **Phase 7**: Polish & Enhancement
+### Plugin Freedom System v1.0 (Complete)
 
-**System status**: Production ready.
+All 35 requirements delivered across 7 phases:
+
+| Phase | Deliverables | Status |
+|-------|--------------|--------|
+| 1. Agent Contracts | JSON schemas for all 9 agents, contract validation, gap analysis | ✓ Complete |
+| 2. State Management | Registry v3, checkpoints, plugin isolation, session continuity | ✓ Complete |
+| 3. Structured Handoffs | 4 handoff schemas, validation scripts, decision audit trails | ✓ Complete |
+| 4. Verification Infrastructure | Critic agents (DSP/UI), token budget awareness | ✓ Complete |
+| 5. Quality Gates | Blocking gates, code review integration, unified gate script | ✓ Complete |
+| 6. Domain Specialization | Real-time safety rules, thread-safety patterns, quality standards | ✓ Complete |
+| 7. Module System | Dependency tracking, semver, upgrade notifications | ✓ Complete |
+
+**System status**: Production ready. v1.0 milestone complete (2026-02-01).
 
 ## Requirements
 

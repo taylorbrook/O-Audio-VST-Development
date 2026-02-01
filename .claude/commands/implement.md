@@ -164,9 +164,9 @@ Pause workflow at any time. State is saved to:
 - `.claude/plugin-registry.json`
 - PLUGINS.md
 
-Resume with `/continue [PluginName]` or `/plugin:resume [PluginName]`
+Resume with `/continue [PluginName]` or `/plugin-resume [PluginName]`
 
 ## Integration
 
 **Precedes:** `/install-plugin`, `/package`, `/publish`
-**Related:** `/continue`, `/plugin:status`, `/plugin:pause`
+**Related:** `/continue`, `/plugin-status`, `/plugin-pause`

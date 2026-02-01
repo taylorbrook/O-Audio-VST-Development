@@ -1,17 +1,17 @@
 ---
-name: plugin:list
+name: plugin-list
 description: List all plugins with stage/phase status
 skill: plugin-context
 ---
 
-# /plugin:list
+# /plugin-list
 
 List all registered plugins with their current development stage and phase.
 
 ## Usage
 
 ```
-/plugin:list
+/plugin-list
 ```
 
 ## Output
@@ -41,6 +41,6 @@ Legend: → = focused
 
 ## Related Commands
 
-- `/plugin:focus [name]` - Set active plugin
-- `/plugin:status [name]` - Detailed status
+- `/plugin-focus [name]` - Set active plugin
+- `/plugin-status [name]` - Detailed status
 - `/start [name]` - Create new plugin

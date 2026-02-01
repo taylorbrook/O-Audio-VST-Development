@@ -1,20 +1,20 @@
 ---
-name: plugin:verify
+name: plugin-verify
 description: Validate stage goal achievement through goal-backward analysis (GSD verify phase)
 skill: plugin-phases
 args: "[plugin_name?] [stage?]"
 ---
 
-# /plugin:verify
+# /plugin-verify
 
 **Purpose:** Execute the VERIFY phase of the GSD cycle for a completed plugin stage. Confirms the stage goal was achieved through goal-backward analysis and produces VERIFICATION.md.
 
 ## Usage
 
 ```
-/plugin:verify [plugin_name] [stage]      # Specific plugin and stage
-/plugin:verify [stage]                    # Focused plugin, specific stage
-/plugin:verify                            # Focused plugin, current stage
+/plugin-verify [plugin_name] [stage]      # Specific plugin and stage
+/plugin-verify [stage]                    # Focused plugin, specific stage
+/plugin-verify                            # Focused plugin, current stage
 ```
 
 ## Arguments
@@ -25,9 +25,9 @@ args: "[plugin_name?] [stage?]"
 ## Examples
 
 ```
-/plugin:verify O-IntonationPad 2-dsp     # Verify DSP stage
-/plugin:verify 2-dsp                     # Use focused plugin
-/plugin:verify                           # Use focused plugin and current stage
+/plugin-verify O-IntonationPad 2-dsp     # Verify DSP stage
+/plugin-verify 2-dsp                     # Use focused plugin
+/plugin-verify                           # Use focused plugin and current stage
 ```
 
 ## What This Command Does

@@ -1,19 +1,19 @@
 ---
-name: plugin:resume
+name: plugin-resume
 description: Restore context from handoff and continue work
 skill: plugin-context
 args: "[plugin_name?]"
 ---
 
-# /plugin:resume
+# /plugin-resume
 
 Restore context from a previous handoff and continue work on a paused plugin.
 
 ## Usage
 
 ```
-/plugin:resume [plugin_name]   # Resume specific plugin
-/plugin:resume                 # Resume focused plugin
+/plugin-resume [plugin_name]   # Resume specific plugin
+/plugin-resume                 # Resume focused plugin
 ```
 
 ## Arguments
@@ -31,7 +31,7 @@ Restore context from a previous handoff and continue work on a paused plugin.
 ## Example
 
 ```
-/plugin:resume O-IntonationPad
+/plugin-resume O-IntonationPad
 
 Resuming O-IntonationPad
 ══════════════════════════════════════════════════════════════
@@ -53,13 +53,13 @@ Recent Artifacts:
 - stages/2-dsp/RESEARCH.md (research output)
 
 Continue with:
-1. /plugin:plan O-IntonationPad 2-dsp (recommended)
-2. /plugin:research O-IntonationPad 2-dsp (re-research)
-3. /plugin:status O-IntonationPad
+1. /plugin-plan O-IntonationPad 2-dsp (recommended)
+2. /plugin-research O-IntonationPad 2-dsp (re-research)
+3. /plugin-status O-IntonationPad
 ```
 
 ## Related Commands
 
-- `/plugin:pause` - Pause work
+- `/plugin-pause` - Pause work
 - `/continue` - Alternative resume command
-- `/plugin:status` - Check state before resuming
+- `/plugin-status` - Check state before resuming

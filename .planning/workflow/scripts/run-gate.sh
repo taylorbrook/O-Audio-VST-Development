@@ -131,8 +131,42 @@ HANDOFF_FILE="$STAGE_DIR/HANDOFF.json"
 BUILD_DIR="$PROJECT_ROOT/build"
 VST3_PATH="$BUILD_DIR/plugins/${PLUGIN}/${PLUGIN}_artefacts/Release/VST3/${PLUGIN}.vst3"
 
-# Initialize timing
-START_TIME=$(date +%s%3N 2>/dev/null || echo $(($(date +%s) * 1000)))
+# Initialize timing (macOS date doesn't support %N, so use seconds * 1000)
+get_time_ms() {
+    if [[ "$OSTYPE" == "darwin"* ]]; then
+        echo $(($(date +%s) * 1000))
+    else
+        date +%s%3N 2>/dev/null || echo $(($(date +%s) * 1000))
+    fi
+}
+
+# macOS-compatible timeout (uses gtimeout if available, otherwise runs without timeout)
+run_with_timeout() {
+    local TIMEOUT_SEC=$1
+    shift
+    if command -v gtimeout &>/dev/null; then
+        gtimeout "$TIMEOUT_SEC" "$@"
+    elif command -v timeout &>/dev/null; then
+        timeout "$TIMEOUT_SEC" "$@"
+    else
+        # No timeout available - run directly
+        "$@"
+    fi
+}
+
+START_TIME=$(get_time_ms)
+
+# Find pluginval (check PATH first, then macOS app bundle)
+find_pluginval() {
+    if command -v pluginval &>/dev/null; then
+        echo "pluginval"
+    elif [ -x "/Applications/pluginval.app/Contents/MacOS/pluginval" ]; then
+        echo "/Applications/pluginval.app/Contents/MacOS/pluginval"
+    else
+        echo ""
+    fi
+}
+PLUGINVAL_CMD=$(find_pluginval)
 
 # Track results
 declare -a CRITICAL_RESULTS=()
@@ -169,12 +203,12 @@ run_check() {
         CHECK_ATTEMPTS=$ATTEMPT
         echo -ne "  [$NAME] Attempt $ATTEMPT/$MAX_RETRIES... "
 
-        local CHECK_START=$(date +%s%3N 2>/dev/null || echo $(($(date +%s) * 1000)))
+        local CHECK_START=$(get_time_ms)
         local TMP_OUTPUT=$(mktemp)
         local TMP_ERROR=$(mktemp)
 
-        if timeout $CHECK_TIMEOUT bash -c "$CMD" >"$TMP_OUTPUT" 2>"$TMP_ERROR"; then
-            local CHECK_END=$(date +%s%3N 2>/dev/null || echo $(($(date +%s) * 1000)))
+        if run_with_timeout $CHECK_TIMEOUT bash -c "$CMD" >"$TMP_OUTPUT" 2>"$TMP_ERROR"; then
+            local CHECK_END=$(get_time_ms)
             CHECK_DURATION=$((CHECK_END - CHECK_START))
             CHECK_OUTPUT=$(cat "$TMP_OUTPUT" 2>/dev/null | head -c 10000 || true)
             rm -f "$TMP_OUTPUT" "$TMP_ERROR"
@@ -182,7 +216,7 @@ run_check() {
             return 0
         fi
 
-        local CHECK_END=$(date +%s%3N 2>/dev/null || echo $(($(date +%s) * 1000)))
+        local CHECK_END=$(get_time_ms)
         CHECK_DURATION=$((CHECK_END - CHECK_START))
         CHECK_ERROR=$(cat "$TMP_ERROR" 2>/dev/null | head -c 10000 || true)
         CHECK_OUTPUT=$(cat "$TMP_OUTPUT" 2>/dev/null | head -c 10000 || true)
@@ -280,8 +314,8 @@ else
 fi
 
 # Critical Check 3: Pluginval (strictness 10 on VST3)
-if command -v pluginval &> /dev/null && [ -d "$VST3_PATH" ]; then
-    if run_check "pluginval" "pluginval --strictness-level 10 --validate '$VST3_PATH'"; then
+if [ -n "$PLUGINVAL_CMD" ] && [ -d "$VST3_PATH" ]; then
+    if run_check "pluginval" "'$PLUGINVAL_CMD' --strictness-level 10 --validate '$VST3_PATH'"; then
         add_critical_result "pluginval" "passed" "$CHECK_DURATION" "$CHECK_ATTEMPTS" "$CHECK_OUTPUT"
     else
         CRITICAL_PASSED=false
@@ -355,7 +389,7 @@ echo -e "${CYAN}SKIPPED${NC} (placeholder)"
 echo ""
 
 # Calculate total duration
-END_TIME=$(date +%s%3N 2>/dev/null || echo $(($(date +%s) * 1000)))
+END_TIME=$(get_time_ms)
 TOTAL_DURATION=$((END_TIME - START_TIME))
 
 echo "----------------------------------------------------------------"
@@ -372,34 +406,40 @@ build_report() {
     local REVIEW_SKIPPED=${6:-false}
     local SKIP_JUSTIFICATION="${7:-}"
 
-    # Build critical checks array
+    # Build critical checks array (handle empty array with set -u)
     local CRITICAL_JSON="["
     local FIRST=true
-    for result in "${CRITICAL_RESULTS[@]}"; do
-        [ "$FIRST" = true ] || CRITICAL_JSON="$CRITICAL_JSON,"
-        CRITICAL_JSON="$CRITICAL_JSON$result"
-        FIRST=false
-    done
+    if [ ${#CRITICAL_RESULTS[@]} -gt 0 ]; then
+        for result in "${CRITICAL_RESULTS[@]}"; do
+            [ "$FIRST" = true ] || CRITICAL_JSON="$CRITICAL_JSON,"
+            CRITICAL_JSON="$CRITICAL_JSON$result"
+            FIRST=false
+        done
+    fi
     CRITICAL_JSON="$CRITICAL_JSON]"
 
-    # Build advisory checks array
+    # Build advisory checks array (handle empty array with set -u)
     local ADVISORY_JSON="["
     FIRST=true
-    for result in "${ADVISORY_RESULTS[@]}"; do
-        [ "$FIRST" = true ] || ADVISORY_JSON="$ADVISORY_JSON,"
-        ADVISORY_JSON="$ADVISORY_JSON$result"
-        FIRST=false
-    done
+    if [ ${#ADVISORY_RESULTS[@]} -gt 0 ]; then
+        for result in "${ADVISORY_RESULTS[@]}"; do
+            [ "$FIRST" = true ] || ADVISORY_JSON="$ADVISORY_JSON,"
+            ADVISORY_JSON="$ADVISORY_JSON$result"
+            FIRST=false
+        done
+    fi
     ADVISORY_JSON="$ADVISORY_JSON]"
 
-    # Build failed checks array for bypass
+    # Build failed checks array for bypass (handle empty array with set -u)
     local FAILED_JSON="["
     FIRST=true
-    for check in "${FAILED_CHECKS[@]}"; do
-        [ "$FIRST" = true ] || FAILED_JSON="$FAILED_JSON,"
-        FAILED_JSON="$FAILED_JSON\"$check\""
-        FIRST=false
-    done
+    if [ ${#FAILED_CHECKS[@]} -gt 0 ]; then
+        for check in "${FAILED_CHECKS[@]}"; do
+            [ "$FIRST" = true ] || FAILED_JSON="$FAILED_JSON,"
+            FAILED_JSON="$FAILED_JSON\"$check\""
+            FIRST=false
+        done
+    fi
     FAILED_JSON="$FAILED_JSON]"
 
     # Construct full report

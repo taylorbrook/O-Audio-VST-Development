@@ -1,19 +1,19 @@
 ---
-name: plugin:pause
+name: plugin-pause
 description: Checkpoint current work, create handoff document
 skill: plugin-context
 args: "[plugin_name?]"
 ---
 
-# /plugin:pause
+# /plugin-pause
 
 Checkpoint current work and create a handoff document for later resumption. Captures context about what you were working on and any important decisions.
 
 ## Usage
 
 ```
-/plugin:pause [plugin_name]    # Pause specific plugin
-/plugin:pause                  # Pause focused plugin
+/plugin-pause [plugin_name]    # Pause specific plugin
+/plugin-pause                  # Pause focused plugin
 ```
 
 ## Arguments
@@ -36,7 +36,7 @@ Checkpoint current work and create a handoff document for later resumption. Capt
 ## Example
 
 ```
-/plugin:pause O-IntonationPad
+/plugin-pause O-IntonationPad
 
 Pausing O-IntonationPad at Stage 2-dsp, Phase plan
 
@@ -52,11 +52,11 @@ Blockers or concerns?
 ✓ Handoff saved to STATUS.md
 ✓ Committed: "checkpoint: O-IntonationPad paused at 2-dsp/plan"
 
-Resume with: /plugin:resume O-IntonationPad
+Resume with: /plugin-resume O-IntonationPad
 ```
 
 ## Related Commands
 
-- `/plugin:resume` - Resume paused work
-- `/plugin:status` - Check current state
+- `/plugin-resume` - Resume paused work
+- `/plugin-status` - Check current state
 - `/continue` - Alternative resume command

@@ -1,19 +1,19 @@
 ---
-name: plugin:status
+name: plugin-status
 description: Detailed phase breakdown for a plugin
 skill: plugin-context
 args: "[plugin_name?]"
 ---
 
-# /plugin:status
+# /plugin-status
 
 Show detailed phase progress for a plugin, including all stages and their phase completion status.
 
 ## Usage
 
 ```
-/plugin:status [plugin_name]   # Status for specific plugin
-/plugin:status                 # Status for focused plugin
+/plugin-status [plugin_name]   # Status for specific plugin
+/plugin-status                 # Status for focused plugin
 ```
 
 ## Arguments
@@ -60,11 +60,11 @@ Phase Progress
 Module Dependencies: scala-tuning-engine@1.0.0
 
 Resume: /continue O-IntonationPad
-Next: /plugin:plan O-IntonationPad 2-dsp
+Next: /plugin-plan O-IntonationPad 2-dsp
 ```
 
 ## Related Commands
 
-- `/plugin:list` - Overview of all plugins
-- `/plugin:focus` - Set active plugin
+- `/plugin-list` - Overview of all plugins
+- `/plugin-focus` - Set active plugin
 - `/continue` - Resume work

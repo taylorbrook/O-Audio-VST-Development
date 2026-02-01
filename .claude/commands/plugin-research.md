@@ -1,20 +1,20 @@
 ---
-name: plugin:research
+name: plugin-research
 description: Investigate implementation approach for a stage
 skill: plugin-phases
 args: "[plugin_name?] [stage?]"
 ---
 
-# /plugin:research
+# /plugin-research
 
 Investigate implementation approach for a stage. Researches JUCE APIs, algorithms, existing modules, and potential pitfalls.
 
 ## Usage
 
 ```
-/plugin:research [plugin_name] [stage]    # Specific plugin and stage
-/plugin:research [stage]                  # Focused plugin, specific stage
-/plugin:research                          # Focused plugin, current stage
+/plugin-research [plugin_name] [stage]    # Specific plugin and stage
+/plugin-research [stage]                  # Focused plugin, specific stage
+/plugin-research                          # Focused plugin, current stage
 ```
 
 ## Arguments
@@ -36,7 +36,7 @@ Investigate implementation approach for a stage. Researches JUCE APIs, algorithm
 ## Example
 
 ```
-/plugin:research O-IntonationPad 2-dsp
+/plugin-research O-IntonationPad 2-dsp
 
 Researching Stage 2 (DSP) implementation
 ══════════════════════════════════════════════════════════════
@@ -65,7 +65,7 @@ Research Findings:
      ✓ Scala file parsing
      ✓ Frequency table generation
      ✓ Tonic transposition
-   - Recommend: /module:add O-IntonationPad scala-tuning-engine
+   - Recommend: /module-add O-IntonationPad scala-tuning-engine
 
 4. Wavetable Implementation
    - Use juce::dsp::LookupTableTransform for efficiency
@@ -73,18 +73,18 @@ Research Findings:
    - Anti-aliasing: band-limit at Nyquist/2
 
 ✓ RESEARCH.md created
-Next: /plugin:plan O-IntonationPad 2-dsp
+Next: /plugin-plan O-IntonationPad 2-dsp
 ```
 
 ## Skip Flag
 
 To skip research and go directly to planning:
 ```
-/plugin:plan O-IntonationPad 2-dsp --skip-research
+/plugin-plan O-IntonationPad 2-dsp --skip-research
 ```
 
 ## Related Commands
 
-- `/plugin:discuss` - Previous phase
-- `/plugin:plan` - Next phase
-- `/module:add` - Add discovered modules
+- `/plugin-discuss` - Previous phase
+- `/plugin-plan` - Next phase
+- `/module-add` - Add discovered modules
