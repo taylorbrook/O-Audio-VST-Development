@@ -1159,3 +1159,143 @@ The plugin is now COMPLETE:
 - ✅ Validation (automatic during Stage 3)
 </next_stage>
 </workflow>
+
+<thread_safety_patterns>
+## MANDATORY Thread Safety Patterns
+
+These patterns are REQUIRED for all GUI implementations. Violations cause release build crashes that are extremely difficult to debug.
+
+### APVTS Atomic Patterns (REQUIRED)
+
+**Audio Thread Parameter Access:**
+- USE: `getRawParameterValue("id")->load()` - atomic, lock-free
+- REJECT: `getParameter("id")->getValue()` - may lock
+- REJECT: `setValue()` from audio thread - posts to message queue
+
+**UI Thread Parameter Access:**
+- USE: Attachment classes (SliderAttachment, ButtonAttachment, ComboBoxAttachment)
+- Attachments handle thread-safe synchronization automatically
+- REJECT: Manual parameter sync between threads
+
+**Message Thread Restrictions:**
+- REJECT: processBlock calls from UI thread
+- REJECT: Audio buffer access from UI thread
+- USE: APVTS for all UI<->Audio communication
+
+### Member Declaration Order - CRITICAL
+
+**Declaration Order in PluginEditor.h private section:**
+1. Relays FIRST (no dependencies)
+2. WebView SECOND (depends on relays via withOptionsFrom)
+3. Attachments LAST (depend on both relays and WebView)
+
+**Destruction Order (Reverse of Declaration):**
+1. Attachments destroyed first -> stop using relays/webView
+2. WebView destroyed second -> safe (attachments gone)
+3. Relays destroyed last -> safe (nothing using them)
+
+**Wrong Order Consequences:**
+- Release build crashes on plugin reload
+- Attachments call evaluateJavascript() on destroyed WebView
+- Random crashes that don't reproduce in debug builds
+
+**Verification Pattern:**
+Parse PluginEditor.h private section:
+1. Find all WebSliderRelay, WebToggleButtonRelay, WebComboBoxRelay declarations
+2. Find WebBrowserComponent declaration
+3. Find all Attachment declarations
+4. Verify order: ALL relays before WebView, WebView before ALL attachments
+
+**Example Correct Order:**
+```cpp
+private:
+    PluginProcessor& processorRef;
+
+    // 1. RELAYS FIRST (no dependencies)
+    juce::WebSliderRelay gainRelay;
+    juce::WebSliderRelay cutoffRelay;
+    juce::WebToggleButtonRelay bypassRelay;
+
+    // 2. WEBVIEW SECOND (depends on relays via withOptionsFrom)
+    juce::WebBrowserComponent webView;
+
+    // 3. ATTACHMENTS LAST (depend on both relays and webView)
+    juce::WebSliderParameterAttachment gainAttachment;
+    juce::WebSliderParameterAttachment cutoffAttachment;
+    juce::WebToggleButtonParameterAttachment bypassAttachment;
+```
+
+### WebView Relay Lifecycle
+
+**Constructor Pattern:**
+- Relays created in initializer list with parameter ID string
+- WebView created with .withOptionsFrom() for each relay
+- Attachments created connecting parameter to relay
+
+**resized() Pattern:**
+- WebView gets bounds in resized()
+- Relay connections established after WebView has valid bounds
+
+**Destructor Pattern:**
+- No explicit cleanup needed IF member order is correct
+- Relays destroyed last, safely disconnected
+
+**Common Errors:**
+- Creating relays in constructor body (too late)
+- Forgetting .withOptionsFrom() for a relay (parameter won't sync)
+- Wrong attachment type for parameter type
+
+### Timer Safety Patterns
+
+**Destructor Rule:**
+- stopTimer() MUST be called in destructor
+- Call before any member destruction begins
+
+**Callback Safety:**
+- Timer callbacks must check component validity
+- Never assume component exists when timer fires
+- Use weak references or validity flags if necessary
+
+**Pattern:**
+```cpp
+~PluginEditor() {
+    stopTimer();  // FIRST action in destructor
+    // ... other cleanup
+}
+
+void timerCallback() override {
+    if (isShowing()) {  // Check validity
+        updateMeter(processorRef.vuLevel.load());
+    }
+}
+```
+
+### Audio->GUI Communication Patterns
+
+**Atomic + Timer Polling (SAFEST - for level meters, etc.):**
+```cpp
+// Processor
+std::atomic<float> vuLevel{0.0f};
+
+void processBlock(...) {
+    vuLevel.store(calculateLevel(), std::memory_order_release);
+}
+
+// Editor (Timer callback, ~30ms)
+void timerCallback() {
+    float level = processorRef.vuLevel.load(std::memory_order_acquire);
+    updateMeter(level);
+}
+```
+
+**Lock-Free Queue (for complex data):**
+- Use juce::AbstractFifo pattern
+- Audio thread writes, GUI thread reads
+- No blocking on either end
+
+**MessageManager::callAsync (REJECT from audio thread):**
+- Posts message to queue - may block
+- Causes priority inversion risk
+- Use atomic + polling instead
+
+</thread_safety_patterns>
