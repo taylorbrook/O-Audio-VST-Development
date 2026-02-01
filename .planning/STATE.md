@@ -107,7 +107,23 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+1. **Add GSD-style Plan phase to plugin-improve workflow**
+   - Context: Currently, plugin-improve goes from Investigation (Phase 0.5) directly to Implementation (Phase 3) with no formal planning step
+   - Gap: For complex improvements (Tier 2/3), there's no structured plan creation, task breakdown, or approach approval before coding
+   - Proposal: Insert a Plan phase between Phase 0.5 and Phase 0.9 that:
+     - Creates a structured PLAN.md with task breakdown
+     - Identifies affected files and dependencies
+     - Estimates scope/risk
+     - Gets user approval on the *approach* (not just the *what*)
+   - Affected files: `.claude/skills/plugin-improve/SKILL.md`, potentially new reference docs
+   - Priority: Medium (workflow enhancement, not blocking)
+
+2. **Add NSIS Windows installer to GitHub Actions**
+   - Context: Current workflow packages Windows builds as raw ZIP; users must manually install
+   - Gap: No proper Windows installer with Add/Remove Programs integration
+   - Proposal: Extend build-windows job with NSIS to create `.exe` installers
+   - Affected files: `.github/workflows/build-and-release.yml`, new `installer/windows.nsi.template`
+   - Priority: Medium (distribution enhancement)
 
 ### Blockers/Concerns
 
