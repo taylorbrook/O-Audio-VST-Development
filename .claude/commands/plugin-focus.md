@@ -207,6 +207,67 @@ Multiple Claude Code instances can focus different plugins:
 
 Note: This is designed for the common case of working on different plugins. If you need to work on the same plugin from multiple instances, coordinate manually.
 
+## Module Update Check
+
+When focusing a plugin, check for available module updates to notify the user proactively.
+
+### Workflow
+
+1. **Load plugin's installed modules** from `registry.json` `plugins.{plugin}.modules` array
+2. **For each InstalledModule:**
+   - Get installed version from entry
+   - Get current version from `modules.{module}.version`
+   - Compare using semver: `python3 modules/scripts/semver.py compare <installed> <current>`
+   - If current > installed, add to updates list
+3. **Display notification** (only if updates exist)
+
+### Output Format
+
+**If updates available:**
+```
+/plugin:focus O-IntonationPad
+
+Focusing: O-IntonationPad
+Stage: 4-wavetable
+Status: active
+
+Module updates available:
+-------------------------------------------------------------------
+  scala-tuning-engine: 1.0.0 -> 1.1.0
+  playable-keyboard: 1.0.0 -> 1.0.1
+
+Run /module:upgrade [module] to update.
+Or /module:upgrade-all for batch update with preview.
+-------------------------------------------------------------------
+```
+
+**If no updates available:** Show nothing (don't clutter output).
+
+### Update Check Implementation
+
+```python
+# Pseudocode for update check
+for module in plugin.modules:
+    installed_version = module.version
+    current_version = registry.modules[module.name].version
+
+    result = run(f"python3 modules/scripts/semver.py compare {installed_version} {current_version}")
+    # Returns: 0 (v1 == v2), 1 (v1 > v2), or 255 (v1 < v2)
+
+    if result.returncode == 255:  # installed < current
+        updates.append({
+            "name": module.name,
+            "from": installed_version,
+            "to": current_version
+        })
+```
+
+### Rationale
+
+User decision from CONTEXT.md: "Notify on plugin focus when module updates are available"
+
+This proactive notification helps users stay aware of available improvements without being intrusive (only shows when updates exist).
+
 ## Registry Updates
 
 On focus:
@@ -214,6 +275,7 @@ On focus:
 2. Update `active-plugin.json` with focus state
 3. Set `lastActivity` timestamp
 4. Validate before completing switch
+5. **Check for module updates** (new step)
 
 ## Related Commands
 
