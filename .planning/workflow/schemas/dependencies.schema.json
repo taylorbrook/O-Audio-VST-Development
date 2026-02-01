@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./dependencies.schema.json",
+  "title": "Plugin Dependencies",
+  "description": "Forward dependency declaration for a single plugin",
+  "type": "object",
+  "required": ["$schema", "modules"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "Reference to this schema"
+    },
+    "modules": {
+      "type": "array",
+      "description": "Module dependencies with version specifications",
+      "items": {
+        "type": "object",
+        "required": ["name", "version"],
+        "additionalProperties": false,
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Module name"
+          },
+          "version": {
+            "type": "string",
+            "description": "Version specification (exact or range)"
+          },
+          "purpose": {
+            "type": "string",
+            "description": "Why this module is needed"
+          }
+        }
+      }
+    },
+    "ouariconModules": {
+      "type": "array",
+      "description": "Ouaricon module names (without version)",
+      "items": {
+        "type": "string"
+      }
+    },
+    "juceModules": {
+      "type": "array",
+      "description": "JUCE module names",
+      "items": {
+        "type": "string"
+      }
+    }
+  }
+}
