@@ -1,153 +1,78 @@
-# Requirements: Plugin Freedom System Overhaul
+# Requirements: Plugin Freedom System v1.1
 
-**Defined:** 2026-01-29
+**Defined:** 2026-02-01
 **Core Value:** Reliable collaborative workflow producing professional-quality plugins
 
-## v1 Requirements
+## v1.1 Requirements
 
-Requirements for the system overhaul. Each maps to roadmap phases.
+Requirements for Cleanup & Workflow Polish milestone.
 
-### Agent Contracts
+### Repository Cleanup
 
-- [x] **AGNT-01**: Each agent has explicit JSON schema defining required inputs
-- [x] **AGNT-02**: Each agent has explicit JSON schema defining expected outputs
-- [x] **AGNT-03**: Validation runs before agent invocation, rejecting invalid inputs
-- [x] **AGNT-04**: Each agent has documented scope boundaries (does/doesn't do)
-- [x] **AGNT-05**: Each agent has defined tool inventory (10-20 tools max)
-- [x] **AGNT-06**: Audit existing 9 agents for gaps and overlaps
-- [x] **AGNT-07**: Identify and spec missing agents (music theory, aesthetics, etc.)
+- [ ] **REPO-01**: Build artifacts removed from git history (.o, .a, build/, .DS_Store)
+- [ ] **REPO-02**: .gitignore updated with comprehensive coverage for all build artifacts
+- [ ] **REPO-03**: Pre-cleanup backup created and verified
+- [ ] **REPO-04**: Post-cleanup verification confirms repository integrity
+- [ ] **REPO-05**: Recovery procedure documented for affected clones
+- [ ] **REPO-06**: CI/CD cache clearing automated after history rewrite
 
-### State Management
+### Workflow Planning Phase
 
-- [x] **STAT-01**: All workflow state persisted to files (GSD pattern)
-- [x] **STAT-02**: Session resume restores full context from last checkpoint
-- [x] **STAT-03**: State validation detects inconsistencies between STATUS.md and registry
-- [x] **STAT-04**: Recovery mechanism auto-repairs corrupted state
-- [x] **STAT-05**: Clear hand-off instructions at context boundaries with next slash command
-- [x] **STAT-06**: Plugin state isolation — each plugin's planning/progress/changelog under `plugins/{Name}/.planning/`, `/focus` loads only that plugin's state
+- [ ] **PLAN-01**: Phase 0.6 (Implementation Planning) added to plugin-improve SKILL.md
+- [ ] **PLAN-02**: Planning phase activates only for Tier 2/3 improvements
+- [ ] **PLAN-03**: Task breakdown with dependencies included in planning output
+- [ ] **PLAN-04**: Approach approval checkpoint gates implementation start
+- [ ] **PLAN-05**: Planning template created with structured sections
+- [ ] **PLAN-06**: Deep-research handoff compatibility preserved (skip planning when coming from research)
+- [ ] **PLAN-07**: Express mode bypass option available for experienced users
 
-### Structured Handoffs
+## Future Requirements
 
-- [x] **HAND-01**: Schema-validated handoff documents between stages
-- [x] **HAND-02**: Explicit artifact requirements for each stage boundary
-- [x] **HAND-03**: Decision audit trail tracking why choices were made
-- [x] **HAND-04**: Versioned handoff formats (semver for schema evolution)
-- [x] **HAND-05**: Context clear messages with copy-paste slash command for continuation
+Deferred to later milestones.
 
-### Quality Gates
+### v1.2: Windows Distribution
 
-- [x] **GATE-01**: Automated verification runs at each stage boundary
-- [x] **GATE-02**: Measurable success criteria defined for each stage
-- [x] **GATE-03**: Progression blocked until gate passes
-- [x] **GATE-04**: Tiered verification (smoke test vs full validation by complexity)
-- [x] **GATE-05**: Code review integrated at end of implementation phases
-- [x] **GATE-06**: Code simplification pass after implementation phases
+- **INST-01**: NSIS Windows installer for GitHub Actions
+- **INST-02**: Add/Remove Programs integration
 
-### Generator-Critic Loops
-
-- [x] **CRIT-01**: Critic agent validates outputs before stage handoff
-- [x] **CRIT-02**: Iterative refinement loop until quality threshold met
-- [x] **CRIT-03**: Domain-specific critics (DSP critic knows real-time rules, UI critic knows polish)
-- [x] **CRIT-04**: Token budget awareness stops iteration if budget exceeded
-
-### Domain Expertise Encoding
-
-- [x] **DOMN-01**: Real-time safety rules encoded in DSP agent (no allocation in processBlock)
-- [x] **DOMN-02**: Thread-safety patterns encoded in GUI agent (APVTS atomics, relay lifecycle)
-- [x] **DOMN-03**: JUCE 8 best practices baked into relevant agents
-- [x] **DOMN-04**: Professional quality standards defined (what makes commercial plugins pro)
-- [x] **DOMN-05**: Music theory/tuning agent spec for domain-aware assistance
-- [x] **DOMN-06**: Aesthetics agent spec for design-aware UI guidance
-
-### Module System
-
-- [x] **MODS-01**: Module add/remove works reliably across plugins
-- [x] **MODS-02**: Dependency tracking knows which plugins use which modules
-- [x] **MODS-03**: Version management with semver and compatibility checks
-- [x] **MODS-04**: Documentation for manual rebuild integration after module updates
-
-## v2 Requirements
-
-Deferred to future release. Tracked but not in current roadmap.
-
-### Automation
+### v2.0: Automation
 
 - **AUTO-01**: Automatic rebuild propagation when modules update
 - **AUTO-02**: CI/CD integration for plugin validation on commit
 - **AUTO-03**: Automated performance benchmarking for DSP agents
 
-### Advanced Features
-
-- **ADVN-01**: Multi-plugin project orchestration (build related plugins together)
-- **ADVN-02**: A/B comparison testing for DSP quality validation
-- **ADVN-03**: Cross-DAW compatibility matrix testing
-
-### Observability
-
-- **OBSV-01**: Full tracing for agent invocations and decisions
-- **OBSV-02**: Token usage tracking and cost reporting
-- **OBSV-03**: Quality metrics dashboard
-
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Changing JUCE version | JUCE 8 is proven and working |
-| Abandoning GSD phases | The discuss->research->plan->execute->verify model is valuable |
-| Building plugins during overhaul | Focus is on system improvement |
-| Automatic cross-DAW testing | Requires infrastructure not yet available |
-| Real-time collaboration | Single-user workflow is sufficient |
+| Incremental cleanup automation | One-time operation sufficient for v1.1 |
+| Planning for Tier 1 fixes | Adds overhead to simple fixes without value |
+| Planning phase for other workflows | Focus on plugin-improve first |
+| Git LFS migration | Not needed after cleanup |
 
 ## Traceability
 
-Which phases cover which requirements. Updated during roadmap creation.
-
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| AGNT-01 | Phase 1 | Complete |
-| AGNT-02 | Phase 1 | Complete |
-| AGNT-03 | Phase 1 | Complete |
-| AGNT-04 | Phase 1 | Complete |
-| AGNT-05 | Phase 1 | Complete |
-| AGNT-06 | Phase 1 | Complete |
-| AGNT-07 | Phase 1 | Complete |
-| STAT-01 | Phase 2 | Complete |
-| STAT-02 | Phase 2 | Complete |
-| STAT-03 | Phase 2 | Complete |
-| STAT-04 | Phase 2 | Complete |
-| STAT-05 | Phase 2 | Complete |
-| STAT-06 | Phase 2 | Complete |
-| HAND-01 | Phase 3 | Complete |
-| HAND-02 | Phase 3 | Complete |
-| HAND-03 | Phase 3 | Complete |
-| HAND-04 | Phase 3 | Complete |
-| HAND-05 | Phase 3 | Complete |
-| CRIT-01 | Phase 4 | Complete |
-| CRIT-02 | Phase 4 | Complete |
-| CRIT-03 | Phase 4 | Complete |
-| CRIT-04 | Phase 4 | Complete |
-| GATE-01 | Phase 5 | Complete |
-| GATE-02 | Phase 5 | Complete |
-| GATE-03 | Phase 5 | Complete |
-| GATE-04 | Phase 5 | Complete |
-| GATE-05 | Phase 5 | Complete |
-| GATE-06 | Phase 5 | Complete |
-| DOMN-01 | Phase 6 | Complete |
-| DOMN-02 | Phase 6 | Complete |
-| DOMN-03 | Phase 6 | Complete |
-| DOMN-04 | Phase 6 | Complete |
-| DOMN-05 | Phase 6 | Complete |
-| DOMN-06 | Phase 6 | Complete |
-| MODS-01 | Phase 7 | Complete |
-| MODS-02 | Phase 7 | Complete |
-| MODS-03 | Phase 7 | Complete |
-| MODS-04 | Phase 7 | Complete |
+| REPO-01 | Phase 8 | Pending |
+| REPO-02 | Phase 8 | Pending |
+| REPO-03 | Phase 8 | Pending |
+| REPO-04 | Phase 8 | Pending |
+| REPO-05 | Phase 8 | Pending |
+| REPO-06 | Phase 8 | Pending |
+| PLAN-01 | Phase 9 | Pending |
+| PLAN-02 | Phase 9 | Pending |
+| PLAN-03 | Phase 9 | Pending |
+| PLAN-04 | Phase 9 | Pending |
+| PLAN-05 | Phase 9 | Pending |
+| PLAN-06 | Phase 9 | Pending |
+| PLAN-07 | Phase 9 | Pending |
 
 **Coverage:**
-- v1 requirements: 35 total
-- Mapped to phases: 35
-- Unmapped: 0
+- v1.1 requirements: 13 total
+- Mapped to phases: 13
+- Unmapped: 0 ✓
 
 ---
-*Requirements defined: 2026-01-29*
-*Last updated: 2026-02-01 — Phase 7 complete (MODS-01 to MODS-04) — ALL v1 REQUIREMENTS COMPLETE*
+*Requirements defined: 2026-02-01*
+*Last updated: 2026-02-01 after initial definition*
