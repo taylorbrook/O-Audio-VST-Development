@@ -8,6 +8,14 @@ A comprehensive overhaul of Ouaricon Audio's JUCE plugin development system — 
 
 Reliable collaborative workflow that produces professional-quality plugins — where the user guides key decisions and agents execute quality work that doesn't require constant rework.
 
+## Current Milestone: v1.1 Cleanup & Workflow Polish
+
+**Goal:** Clean up repository debt and enhance the plugin-improve workflow with a structured planning phase.
+
+**Target features:**
+- Repository cleanup (remove ~1.5GB build artifacts, standardize naming, organize structure)
+- Add GSD-style Plan phase to plugin-improve workflow for complex improvements
+
 ## Requirements
 
 ### Validated
@@ -15,22 +23,23 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 - JUCE 8 audio framework integration — existing
 - GSD hybrid workflow (discuss→research→plan→execute→verify) — existing
 - WebView-based UI architecture — existing
-- Module system for code reuse — existing (but unreliable)
-- 9 specialized agents for different stages — existing (but incomplete)
-- State tracking via STATUS.md and registry — existing (but breaks)
+- Module system for code reuse — v1.0 (reliable with tracking)
+- 13 specialized agents with contracts — v1.0
+- State tracking via STATUS.md and registry — v1.0 (reconciliation working)
+- Structured handoffs with schema validation — v1.0
+- Quality gates at stage boundaries — v1.0
+- Generator-critic loops — v1.0
+- Domain expertise encoding (DSP, UI) — v1.0
 
 ### Active
 
-- [ ] Audit existing agents for spec completeness, boundary clarity, and gaps
-- [ ] Define clear contracts (inputs/outputs) for each agent
-- [ ] Add missing agents where specialized work lacks dedicated support
-- [ ] Improve DSP agent to produce professional-quality audio processing
-- [ ] Improve UI agent to produce polished, consistent interfaces
-- [ ] Fix stability issues (crashes, DAW compatibility, WebView lifecycle)
-- [ ] Fix module system reliability (add/update across plugins)
-- [ ] Improve stage transitions with clear handoffs and context preservation
-- [ ] Fix state persistence so pause/resume works reliably
-- [ ] Reduce rework loops through better verification and quality gates
+- [ ] Remove build artifacts from git history (~1.5GB)
+- [ ] Standardize plugin naming conventions
+- [ ] Organize scattered documentation
+- [ ] Update .gitignore for comprehensive coverage
+- [ ] Add Plan phase to plugin-improve workflow (Tier 2/3 improvements)
+- [ ] Create improvement plan template with task breakdown
+- [ ] Add approach approval checkpoint before implementation
 
 ### Out of Scope
 
@@ -120,4 +129,4 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | Collaborative workflow model | User guides, agents execute | — Pending |
 
 ---
-*Last updated: 2026-01-29 after initialization*
+*Last updated: 2026-02-01 after milestone v1.1 initialization*

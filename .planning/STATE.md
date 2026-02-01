@@ -2,44 +2,28 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-01-29)
+See: .planning/PROJECT.md (updated 2026-02-01)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins
-**Current focus:** Phase 7 - Module System (COMPLETE)
+**Current focus:** Milestone v1.1 - Cleanup & Workflow Polish
 
 ## Current Position
 
-Phase: 7 of 7 (Module System)
-Plan: 4 of 4 in phase (COMPLETE)
-Status: Phase complete
-Last activity: 2026-02-01 — Completed 07-04-PLAN.md (integration and documentation)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-01 — Milestone v1.1 started
 
-Progress: [████████████████████] 100%
+Progress: [░░░░░░░░░░░░░░░░░░░░] 0%
 
 ## Performance Metrics
 
-**Velocity:**
+**Previous Milestone (v1.0):**
 - Total plans completed: 18
 - Average duration: ~7 minutes
 - Total execution time: ~1h 51min
 
-**By Phase:**
-
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 1 | 3 | ~1 hour | ~20 min |
-| 2 | 4 | ~19 min | ~5 min |
-| 3 | 2 | ~5 min | ~2.5 min |
-| 4 | 2 | ~9 min | ~4.5 min |
-| 5 | 3 | ~9 min | ~3 min |
-| 6 | 3 | ~7 min | ~2.3 min |
-| 7 | 4 | ~11 min | ~2.8 min |
-
-**Recent Trend:**
-- Last 5 plans: 06-03, 07-01, 07-02, 07-03, 07-04
-- Trend: Accelerating (infrastructure plans executing fast)
-
-*Updated after each plan completion*
+*Metrics reset for v1.1*
 
 ## Accumulated Context
 
@@ -48,101 +32,37 @@ Progress: [████████████████████] 100%
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Roadmap]: Foundation-first approach (contracts -> state -> handoffs -> verification -> gates -> specialization -> modules)
-- [Roadmap]: 7 phases derived from requirement categories, not imposed template
-- [Phase 1]: 9 core agents identified and contracted (plugin-workflow, build-automation, plugin-ideation, plugin-planning, plugin-testing, plugin-improve, ui-mockup, plugin-lifecycle, deep-research)
-- [Phase 1]: 4 missing agents specified (music-theory, aesthetics, performance-profiling, cross-plugin-integration)
-- [Phase 1]: JSON Schema draft 2020-12 with strict validation (additionalProperties: false)
-- [Phase 2]: State files in .planning/workflow/ with schema references
-- [Phase 2]: Forward declaration for dependencies.schema.json (Phase 7)
-- [02-02]: Level-based reconciliation pattern (check ALL state every run, Kubernetes-style)
-- [02-02]: Source of truth per field (STATUS.md for stage/phase/status, registry for modules)
-- [02-02]: Never auto-repair silently principle
-- [02-03]: Task-level checkpoints (after each task, not just phases)
-- [02-03]: Plugin isolation: load ONLY target plugin's .planning/ state
-- [02-03]: Explicit State NOT Loaded documentation for context budget
-- [02-04]: Gap closure validates infrastructure with live data before moving on
-- [03-01]: Reusable decision-entry.schema.json via $ref pattern
-- [03-02]: Dual validation (schema + artifacts) in single validate-handoff.sh script
-- [03-02]: Gate composition (stage-transition-gate.sh invokes validate-handoff.sh)
-- [03-02]: --force bypass with stderr warning (user discretion)
-- [04-01]: Self-contained domain schemas for ajv-cli compatibility
-- [04-01]: DSP thresholds 8/7/6 (realtime_safety critical, buffer important, params iterative)
-- [04-01]: UI thresholds 5/6 (polish iterative, consistency moderate)
-- [04-01]: Token soft limit 50K with warn-not-block
-- [04-02]: Mandatory fix suggestions (every issue needs actionable approach)
-- [04-02]: Thread safety required in UI critic (threshold 7, member order crashes)
-- [05-01]: ISO 8601 timestamp via regex pattern (portable, no ajv-formats dependency)
-- [05-01]: Stage-dependent critics (DSP at 2+, UI at 3+)
-- [05-02]: Verdict options APPROVED/CHANGES_REQUESTED/BLOCKED for clear action
-- [05-02]: Skip bypass requires justification logged to gate-bypasses.log
-- [05-02]: Exit codes 0=APPROVED, 1=issues, 2=SKIPPED
-- [05-03]: Gate as pre-condition (run before existing execution logic)
-- [05-03]: Review as post-step (run after handoff creation)
-- [05-03]: Bypass flags require justification logged to gate-bypasses.log
-- [06-01]: std::function rejected entirely in processBlock path (zero tolerance)
-- [06-01]: Capture-less lambdas allowed, through std::function rejected
-- [06-01]: MessageManager::callAsync rejected from audio thread, atomic+timer suggested
-- [06-01]: Detection regex patterns added for automated violation scanning
-- [06-02]: Member declaration order: Relays -> WebView -> Attachments (CRITICAL)
-- [06-02]: APVTS access: getRawParameterValue()->load() only in audio thread
-- [06-02]: stopTimer() required in destructor before member destruction
-- [06-02]: Member order violation flagged as severity: error (causes release crashes)
-- [06-03]: THD+N threshold < 0.005% professional, < 0.01% acceptable
-- [06-03]: Music theory agent as working prototype; aesthetics as spec only
-- [06-03]: Just intonation ratios based on 5-limit tuning system
-- [07-01]: ModuleEntry requires: version, path, category, description, dependents, lastUpdated, usageStats
-- [07-01]: InstalledModule requires: name, version, installedAt, modified, contentHash
-- [07-01]: Content hash format: sha256:[hex] for customization detection
-- [07-01]: Empty InstalledModule array on migration (actual installs populate later)
-- [07-02]: Content hash SHA-256 truncated to 16 hex chars
-- [07-02]: Hash includes relative file path + contents for rename detection
-- [07-02]: Module removal is soft (code remains, tracking stops)
-- [07-03]: Prerelease ordering: release > prerelease (1.0.0 > 1.0.0-alpha)
-- [07-03]: originalHash reset on update (new baseline for customization)
-- [07-03]: Exit codes: 0 (clean/success), 1 (modified/result), 2 (error)
-- [07-04]: Update notification only when updates exist (no clutter)
-- [07-04]: Preview always shown before batch upgrade
-- [07-04]: Dry-run flag for safe checking without changes
+- [v1.0]: Foundation-first approach validated (contracts -> state -> handoffs -> verification -> gates -> specialization -> modules)
+- [v1.0]: 7 phases derived from requirement categories, not imposed template
+- [v1.0]: JSON Schema draft 2020-12 with strict validation
+- [v1.0]: Level-based reconciliation pattern (Kubernetes-style)
+- [v1.0]: Plugin isolation: load ONLY target plugin's .planning/ state
+- [v1.0]: Generator-critic loops with max 3 iterations
+- [v1.0]: Domain expertise encoded in DSP/UI agents and critics
 
 ### Pending Todos
 
-1. **Repository cleanup and efficiency improvements**
-   - Context: Repo review identified ~1.5GB removable content (.o files, build dirs, .DS_Store)
-   - Gap: Build artifacts in git, plugin naming inconsistencies, duplicate code, scattered docs
-   - Proposal: Three-phase cleanup (git cleanup → standardization → organization)
-   - Affected files: .gitignore, build/, plugins/*/build/, CMakeLists.txt files
-   - Priority: Medium (maintenance/efficiency)
+1. **(IN SCOPE)** Repository cleanup and efficiency improvements
+   - ~1.5GB removable content (.o files, build dirs, .DS_Store)
+   - Plugin naming inconsistencies
+   - Scattered documentation
 
-2. **Add GSD-style Plan phase to plugin-improve workflow**
-   - Context: Currently, plugin-improve goes from Investigation (Phase 0.5) directly to Implementation (Phase 3) with no formal planning step
-   - Gap: For complex improvements (Tier 2/3), there's no structured plan creation, task breakdown, or approach approval before coding
-   - Proposal: Insert a Plan phase between Phase 0.5 and Phase 0.9 that:
-     - Creates a structured PLAN.md with task breakdown
-     - Identifies affected files and dependencies
-     - Estimates scope/risk
-     - Gets user approval on the *approach* (not just the *what*)
-   - Affected files: `.claude/skills/plugin-improve/SKILL.md`, potentially new reference docs
-   - Priority: Medium (workflow enhancement, not blocking)
+2. **(IN SCOPE)** Add GSD-style Plan phase to plugin-improve workflow
+   - Currently goes Investigation → Implementation with no planning step
+   - Need structured plan creation for Tier 2/3 improvements
 
-2. **Add NSIS Windows installer to GitHub Actions**
-   - Context: Current workflow packages Windows builds as raw ZIP; users must manually install
-   - Gap: No proper Windows installer with Add/Remove Programs integration
-   - Proposal: Extend build-windows job with NSIS to create `.exe` installers
-   - Affected files: `.github/workflows/build-and-release.yml`, new `installer/windows.nsi.template`
-   - Priority: Medium (distribution enhancement)
+3. **(DEFERRED)** Add NSIS Windows installer to GitHub Actions
+   - Deferred to v1.2
 
 ### Blockers/Concerns
 
-- (Resolved) Research flags: Phase 6 DSP patterns now encoded from RESEARCH.md
-- (Resolved) Forward declaration: dependencies.schema.json now implemented
+None currently.
 
 ## Session Continuity
 
 Last session: 2026-02-01
-Stopped at: Completed 07-04-PLAN.md (integration and documentation)
+Stopped at: Milestone v1.1 initialization
 Resume file: None
 
 ---
-*Phase 7 complete. All MODS requirements satisfied.*
-*MILESTONE v1.0 COMPLETE — All 35 requirements satisfied, 7 phases executed, 18 plans delivered.*
+*Milestone v1.1 initialized. Defining requirements.*
