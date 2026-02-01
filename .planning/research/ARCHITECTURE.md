@@ -22,54 +22,54 @@ For professional audio plugin development specifically, quality requires:
 ### System Overview
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         ORCHESTRATOR                                 │
-│   (routes work, maintains state, enforces quality gates)            │
-└─────────────────────────────────────────────────────────────────────┘
-          │                    │                    │
-          ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│   DISCUSS       │  │   RESEARCH      │  │     PLAN        │
-│   PHASE         │  │   PHASE         │  │     PHASE       │
-│                 │  │                 │  │                 │
-│ - Clarify scope │  │ - Context7 docs │  │ - Task breakdown│
-│ - Validate req  │  │ - Domain survey │  │ - Complexity    │
-│ - User approval │  │ - Pattern match │  │ - Dependencies  │
-└────────┬────────┘  └────────┬────────┘  └────────┬────────┘
-         │                    │                    │
-         ▼                    ▼                    ▼
-         └────────────────────┼────────────────────┘
-                              │
-                              ▼
-         ┌────────────────────────────────────────┐
-         │           EXECUTE PHASE                 │
-         │                                         │
-         │  ┌─────────┐  ┌─────────┐  ┌─────────┐ │
-         │  │ DSP     │  │ GUI     │  │ Polish  │ │
-         │  │ Agent   │  │ Agent   │  │ Agent   │ │
-         │  └────┬────┘  └────┬────┘  └────┬────┘ │
-         │       │            │            │      │
-         └───────┼────────────┼────────────┼──────┘
-                 │            │            │
-                 ▼            ▼            ▼
-         ┌────────────────────────────────────────┐
-         │           VERIFY PHASE                  │
-         │                                         │
-         │  ┌─────────────────────────────────┐   │
-         │  │     VALIDATION AGENT            │   │
-         │  │                                 │   │
-         │  │ - Contract compliance           │   │
-         │  │ - Domain-specific checks        │   │
-         │  │ - Runtime validation (pluginval)│   │
-         │  │ - Quality gate enforcement      │   │
-         │  └─────────────────────────────────┘   │
-         │                                         │
-         └─────────────┬───────────────────────────┘
-                       │
-                       ▼
++---------------------------------------------------------------------+
+|                         ORCHESTRATOR                                 |
+|   (routes work, maintains state, enforces quality gates)            |
++---------------------------------------------------------------------+
+          |                    |                    |
+          v                    v                    v
++-----------------+  +-----------------+  +-----------------+
+|   DISCUSS       |  |   RESEARCH      |  |     PLAN        |
+|   PHASE         |  |   PHASE         |  |     PHASE       |
+|                 |  |                 |  |                 |
+| - Clarify scope |  | - Context7 docs |  | - Task breakdown|
+| - Validate req  |  | - Domain survey |  | - Complexity    |
+| - User approval |  | - Pattern match |  | - Dependencies  |
++--------+--------+  +--------+--------+  +--------+--------+
+         |                    |                    |
+         v                    v                    v
+         +--------------------+--------------------+
+                              |
+                              v
+         +----------------------------------------+
+         |           EXECUTE PHASE                 |
+         |                                         |
+         |  +---------+  +---------+  +---------+ |
+         |  | DSP     |  | GUI     |  | Polish  | |
+         |  | Agent   |  | Agent   |  | Agent   | |
+         |  +----+----+  +----+----+  +----+----+ |
+         |       |            |            |      |
+         +-------+------------+------------+------+
+                 |            |            |
+                 v            v            v
+         +----------------------------------------+
+         |           VERIFY PHASE                  |
+         |                                         |
+         |  +-------------------------------------+|
+         |  |     VALIDATION AGENT                ||
+         |  |                                     ||
+         |  | - Contract compliance               ||
+         |  | - Domain-specific checks            ||
+         |  | - Runtime validation (pluginval)    ||
+         |  | - Quality gate enforcement          ||
+         |  +-------------------------------------+|
+         |                                         |
+         +--------------+-------------------------+
+                       |
+                       v
               QUALITY GATE DECISION
-              ├── PASS → Next Stage
-              └── FAIL → Return to Execute with feedback
+              +-- PASS -> Next Stage
+              +-- FAIL -> Return to Execute with feedback
 ```
 
 ### Component Boundaries
@@ -87,21 +87,21 @@ For professional audio plugin development specifically, quality requires:
 
 **Contract Flow (Upstream):**
 ```
-BRIEF.md → parameter-spec.md → ARCHITECTURE.md → ROADMAP.md
-    │              │                  │               │
-    │              │                  │               └── Task breakdown per phase
-    │              │                  └── Technical implementation plan
-    │              └── Parameter definitions with DSP mappings
-    └── Creative intent, sonic goals, user requirements
+BRIEF.md -> parameter-spec.md -> ARCHITECTURE.md -> ROADMAP.md
+    |              |                  |               |
+    |              |                  |               +-- Task breakdown per phase
+    |              |                  +-- Technical implementation plan
+    |              +-- Parameter definitions with DSP mappings
+    +-- Creative intent, sonic goals, user requirements
 ```
 
 **Execution Flow (Downstream):**
 ```
-ROADMAP.md → Agent Invocation → Code Output → Validation → Gate Decision
-                    │                │             │
-                    │                │             └── JSON report with pass/fail
-                    │                └── Modified files list
-                    └── Contract files + complexity score
+ROADMAP.md -> Agent Invocation -> Code Output -> Validation -> Gate Decision
+                    |                |             |
+                    |                |             +-- JSON report with pass/fail
+                    |                +-- Modified files list
+                    +-- Contract files + complexity score
 ```
 
 ---
@@ -507,34 +507,34 @@ cross_contract_checks = {
 
 ```
 Stage 0 (Research/Plan)
-    │
-    ├── ARCHITECTURE.md defines DSP components
-    ├── parameter-spec.md defines all parameters
-    └── ROADMAP.md defines complexity and phases
+    |
+    +-- ARCHITECTURE.md defines DSP components
+    +-- parameter-spec.md defines all parameters
+    +-- ROADMAP.md defines complexity and phases
 
 Stage 1 (Foundation) [depends on Stage 0]
-    │
-    ├── CMakeLists.txt builds correctly
-    ├── APVTS has all parameters from spec
-    └── Plugin loads without crash
+    |
+    +-- CMakeLists.txt builds correctly
+    +-- APVTS has all parameters from spec
+    +-- Plugin loads without crash
 
 Stage 2 (DSP) [depends on Stage 1]
-    │
-    ├── All DSP components from ARCHITECTURE.md implemented
-    ├── All parameters connected to DSP
-    └── Plugin processes audio correctly
+    |
+    +-- All DSP components from ARCHITECTURE.md implemented
+    +-- All parameters connected to DSP
+    +-- Plugin processes audio correctly
 
 Stage 3 (GUI) [depends on Stage 2]
-    │
-    ├── WebView loads and displays
-    ├── All parameters have UI controls
-    └── Parameters bidirectionally synced
+    |
+    +-- WebView loads and displays
+    +-- All parameters have UI controls
+    +-- Parameters bidirectionally synced
 
 Stage 4 (Polish) [depends on Stage 3]
-    │
-    ├── All pluginval tests pass
-    ├── DAW compatibility verified
-    └── Presets work correctly
+    |
+    +-- All pluginval tests pass
+    +-- DAW compatibility verified
+    +-- Presets work correctly
 ```
 
 ### Critical Ordering Constraints
@@ -682,5 +682,328 @@ Based on this research, the Plugin Freedom System overhaul should prioritize:
 
 ---
 
+## v1.1 Improvements: Plugin-Improve Planning Phase Integration
+
+**Added:** 2026-02-01
+**Purpose:** Architecture for adding planning phase to plugin-improve workflow
+
+### Current Workflow (Phase 0.5 Investigation)
+
+```
+Phase 0: Specificity Detection
+  |
+Phase 0.3: Clarification Questions
+  |
+Phase 0.4: Decision Gate
+  |
+Phase 0.45: Research Detection (MANDATORY - scan for deep-research handoff)
+  |
+  +-- [Research found?] ----YES----> Skip to Phase 0.9
+  |
+Phase 0.5: Investigation (Tier 1/2/3 auto-detected)
+  |           |
+  |           +-- Tier 1: Basic Code Inspection (5-10 min)
+  |           +-- Tier 2: Root Cause Analysis (15-30 min)
+  |           +-- Tier 3: Deep Research Delegation (30-60 min)
+  |
+  v
+Phase 0.9: Backup Verification (CRITICAL GATE)
+  |
+Phase 1: Pre-Implementation Checks
+  |
+[...remaining phases...]
+```
+
+### Proposed Changes (With Planning Phase)
+
+```
+Phase 0.5: Investigation (Tier 1/2/3 auto-detected)
+  |
+  +-- Tier 1 -----> Skip planning, proceed to Phase 0.9
+  |
+  +-- Tier 2/3 ---> PHASE 0.6: PLANNING (NEW)
+                      |
+                      +-- Read investigation findings
+                      +-- Generate implementation plan
+                      +-- Present plan for approval
+                      +-- Create IMPROVEMENT-PLAN.md (optional artifact)
+                      |
+                      v
+                    Phase 0.9: Backup Verification
+```
+
+### Decision: Planning Phase Trigger
+
+**Trigger Condition:** Tier 2 or Tier 3 investigation completed
+
+**Rationale:**
+- Tier 1 fixes are simple (5-10 min) - planning overhead not justified
+- Tier 2/3 improvements are complex and benefit from explicit planning
+- Aligns with existing tier detection logic in Phase 0.5
+
+**Implementation:** Add conditional branch after Phase 0.5 that checks investigation tier.
+
+---
+
+### New Artifacts Required
+
+#### 1. Reference File: `references/planning-protocol.md`
+
+**Location:** `.claude/skills/plugin-improve/references/planning-protocol.md`
+
+**Purpose:** Define the planning phase process, decision gates, and output format.
+
+**Contents:**
+- When planning is triggered (Tier 2/3 only)
+- Planning process steps
+- Plan approval workflow
+- Skip conditions (user can decline planning)
+
+**Pattern:** Matches existing reference files (`investigation-tiers.md`, `regression-testing.md`)
+
+#### 2. Template File: `assets/planning-template.md`
+
+**Location:** `.claude/skills/plugin-improve/assets/planning-template.md`
+
+**Purpose:** Structured format for improvement plans.
+
+**Contents:**
+```markdown
+# Improvement Plan: [PluginName] v[X.Y.Z]
+
+## Summary
+[One-sentence description of the improvement]
+
+## Investigation Findings
+**Root Cause:** [From Phase 0.5]
+**Affected Files:** [List]
+**Complexity:** Tier [2/3]
+
+## Implementation Steps
+1. [Step with specific file and changes]
+2. [Step with specific file and changes]
+...
+
+## Risk Assessment
+- Breaking changes: [Yes/No - if yes, details]
+- Regression risk: [Low/Medium/High]
+- Rollback complexity: [Simple/Moderate/Complex]
+
+## Testing Strategy
+- [ ] Unit tests needed: [Yes/No]
+- [ ] Manual verification: [Description]
+- [ ] Regression tests: [If baseline exists]
+
+## Estimated Duration
+[X minutes/hours]
+```
+
+#### 3. Optional: Plugin-Local Plan File
+
+**Location:** `plugins/[PluginName]/.planning/improvements/IMPROVEMENT-PLAN-[version].md`
+
+**Purpose:** Persist complex plans for reference during implementation.
+
+**When created:**
+- Tier 3 improvements only (complex enough to warrant persistence)
+- User requests plan persistence
+- Multi-session improvements
+
+**When skipped:**
+- Tier 2 improvements (plan presented inline, not persisted)
+- User declines planning
+
+---
+
+### Data Flow Through Planning Phase
+
+```
+INPUTS (from Phase 0.5 Investigation):
+  |
+  +-- Investigation tier (2 or 3)
+  +-- Root cause analysis
+  +-- Affected files list
+  +-- Recommended approach
+  +-- Alternative approaches
+  +-- Breaking change assessment
+  |
+  v
+PHASE 0.6: PLANNING PROCESS
+  |
+  +-- 1. Validate investigation tier >= 2
+  +-- 2. Structure implementation steps from investigation
+  +-- 3. Assess risks (breaking changes, regressions)
+  +-- 4. Define testing strategy
+  +-- 5. Estimate duration
+  +-- 6. Generate plan (inline or file)
+  |
+  v
+OUTPUTS (to Phase 0.9 and beyond):
+  |
+  +-- Structured implementation plan
+  +-- Risk assessment
+  +-- Testing checklist
+  +-- (Optional) IMPROVEMENT-PLAN.md artifact
+  |
+  v
+USER APPROVAL GATE
+  |
+  +-- Present plan
+  +-- Options: Approve, Revise, Skip planning
+  +-- Wait for user decision
+```
+
+---
+
+### SKILL.md Modifications Required
+
+**File:** `.claude/skills/plugin-improve/SKILL.md`
+
+**Changes Required:**
+
+1. **Add Phase 0.6 definition** after Phase 0.5
+2. **Add conditional branch** in Phase 0.5 to trigger planning
+3. **Update workflow diagram** in Overview section
+4. **Update progress checklist** to include Phase 0.6
+5. **Add reference link** to new `planning-protocol.md`
+
+**Minimal Insertion Pattern:**
+
+Insert between Phase 0.5 and Phase 0.9:
+
+```markdown
+## Phase 0.6: Planning (Tier 2/3 Only)
+
+**CONDITIONAL:** Only executes if Phase 0.5 detected Tier 2 or Tier 3 complexity.
+
+**Purpose:** Structure implementation approach before proceeding.
+
+**Workflow:**
+
+1. **Generate plan** from investigation findings using template
+2. **Present plan** with decision menu
+3. **Wait for approval** before proceeding
+
+**See**: [references/planning-protocol.md](references/planning-protocol.md) for detailed process and plan template.
+
+**If Tier 1:** Skip this phase, proceed directly to Phase 0.9.
+
+**Decision Menu:**
+```
+Implementation plan ready.
+
+1. Approve plan - Proceed to Phase 0.9 (Backup)
+2. Revise plan - Adjust approach
+3. Skip planning - Proceed without formal plan
+4. Cancel - Stop improvement workflow
+
+Choose (1-4): _
+```
+```
+
+---
+
+### Integration Points With Existing System
+
+#### 1. Phase 0.5 Investigation Output
+
+**Current behavior:** Investigation findings presented inline, user approves before proceeding.
+
+**New behavior:** If Tier 2/3, investigation findings flow into Phase 0.6 planning.
+
+**Interface:** No schema change needed - investigation output is already structured in SKILL.md.
+
+#### 2. Handoff Protocol Compatibility
+
+**deep-research handoff:** Phase 0.45 detection still works. If research detected:
+- Skip Phase 0.5 (investigation)
+- Skip Phase 0.6 (planning) - research already includes recommendations
+- Proceed to Phase 0.9
+
+**Rationale:** Deep research (Opus + extended thinking) already produces structured recommendations. Adding planning phase would be redundant.
+
+#### 3. Tier Detection Enhancement
+
+**Current tier detection** (in Phase 0.5):
+- Tier 1: Simple fixes, single file, obvious cause
+- Tier 2: Root cause analysis, integration issues
+- Tier 3: Complex bugs, multi-component, unclear cause
+
+**Planning trigger:** `tier >= 2`
+
+**No change needed** to tier detection logic - just conditional branch after.
+
+#### 4. Backup Verification (Phase 0.9)
+
+**Unchanged.** Planning phase completes before backup verification.
+
+**Dependency:** Phase 0.9 MUST NOT execute until Phase 0.6 approves plan (or skips).
+
+---
+
+### Implementation Order for v1.1
+
+#### Phase 1: Reference Documentation (30 min)
+
+1. Create `references/planning-protocol.md` with:
+   - Planning trigger conditions
+   - Planning process steps
+   - Decision menu format
+   - Skip conditions
+
+2. Create `assets/planning-template.md` with:
+   - Plan structure template
+   - Risk assessment section
+   - Testing checklist
+
+#### Phase 2: SKILL.md Update (20 min)
+
+1. Add Phase 0.6 section to SKILL.md
+2. Update workflow diagram
+3. Update progress checklist
+4. Add conditional branch in Phase 0.5
+
+#### Phase 3: Testing (15 min)
+
+1. Test Tier 1 improvement (should skip planning)
+2. Test Tier 2 improvement (should trigger planning)
+3. Test deep-research handoff (should skip both investigation AND planning)
+
+---
+
+### Patterns Followed (Not Invented)
+
+| Pattern | Source | Applied |
+|---------|--------|---------|
+| Phase numbering (0.X) | Existing phases 0.3, 0.4, 0.45, 0.5, 0.9 | Phase 0.6 |
+| Reference file structure | `references/investigation-tiers.md` | `references/planning-protocol.md` |
+| Asset templates | `assets/backup-template.sh` | `assets/planning-template.md` |
+| Conditional phases | Phase 0.45 skip logic, Phase 5.5 conditional | Planning conditional on tier |
+| Decision menus | All checkpoint protocols | Planning approval menu |
+| Handoff compatibility | Phase 0.45 research detection | Deep-research skips planning |
+
+### Anti-Patterns Avoided
+
+| Anti-Pattern | Why Avoided |
+|--------------|-------------|
+| New skill creation | Planning is a phase, not a separate skill |
+| Schema changes | Existing investigation output sufficient |
+| Breaking handoff protocol | Deep-research integration preserved |
+| Mandatory planning | Made conditional (skip option available) |
+| Tier detection modification | Leverages existing tier detection unchanged |
+
+---
+
+### Open Questions
+
+1. **Plan persistence threshold:** Should Tier 2 plans be persisted to files, or only Tier 3? Current recommendation: Tier 3 only (or user request).
+
+2. **Plan revision workflow:** If user selects "Revise plan", should this loop back to Phase 0.5 or allow inline editing? Recommendation: Allow inline revision without re-investigation.
+
+3. **Express mode interaction:** If plugin is in express mode (registry.json `expressMode: true`), should planning be skipped entirely? Recommendation: Yes, express mode skips planning.
+
+---
+
 *Architecture research: 2026-01-29*
+*v1.1 addition: 2026-02-01*
 *Researcher: gsd-project-researcher agent*

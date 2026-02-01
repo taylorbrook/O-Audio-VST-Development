@@ -276,3 +276,362 @@ This injects full skill content at startup—agent doesn't need to discover and 
 ---
 *Research conducted: 2026-01-29*
 *Next step: Roadmap creation using these findings*
+
+---
+
+# v1.1 Stack Research: Repository Cleanup & Workflow Enhancement
+
+**Milestone:** v1.1 Improvements
+**Domain:** Git history cleanup, workflow phase insertion
+**Researched:** 2026-02-01
+**Overall confidence:** HIGH
+
+---
+
+## Git History Cleanup
+
+### Current State Analysis
+
+| Metric | Value | Notes |
+|--------|-------|-------|
+| `.git` directory | 584 MB | Measured via `du -sh .git` |
+| Pack size | 557 MB | From `git count-objects -v` |
+| Largest objects | 30-55 MB each | Static library archives (.a files) |
+| System git version | 2.50.1 | Exceeds git-filter-repo requirement (2.36.0+) |
+
+**Primary offenders identified:**
+- `build/plugins/*/lib*.a` - JUCE shared code archives (30-55 MB each)
+- `plugins/*/build/` - Local plugin build directories
+- `.o` files - Object files tracked in history
+- `.DS_Store` files - 40+ macOS metadata files
+
+### Recommended Tool: git-filter-repo
+
+**Version:** 2.47.0 (current stable via Homebrew)
+**Install:** `brew install git-filter-repo`
+**Requirements:** Python 3.6+, Git 2.36.0+ (both satisfied)
+
+**Why git-filter-repo over BFG Repo-Cleaner:**
+
+| Criterion | git-filter-repo | BFG Repo-Cleaner |
+|-----------|-----------------|------------------|
+| Path-based filtering | YES - full path support | NO - filename only |
+| Active maintenance | YES - actively developed | Less active |
+| Dependency | Python (already on macOS) | Java 11+ required |
+| Speed | Fast (seconds for this repo) | Faster for huge repos |
+| HEAD protection | Applies to all commits | Skips HEAD (confusing) |
+
+**Decision:** Use git-filter-repo because:
+1. We need path-based filtering (e.g., `build/plugins/*` vs just `*.a`)
+2. Python already available on macOS
+3. Consistent behavior - filters apply to HEAD too
+4. Better documentation and community support
+
+### Cleanup Approach
+
+**Phase 1: Pre-cleanup (Safety)**
+```bash
+# 1. Create full backup branch
+git branch backup-before-cleanup
+
+# 2. Ensure working directory is clean
+git status --porcelain  # must be empty
+
+# 3. Document current state
+git count-objects -v > pre-cleanup-stats.txt
+du -sh .git >> pre-cleanup-stats.txt
+
+# 4. Record current remotes (git-filter-repo deletes .git/config)
+git remote -v > remotes-backup.txt
+```
+
+**Phase 2: Install tool**
+```bash
+brew install git-filter-repo
+```
+
+**Phase 3: Execute cleanup**
+```bash
+# Remove build directories from history
+git filter-repo --invert-paths --path build/ --path-glob 'plugins/*/build/'
+
+# Remove object files from history
+git filter-repo --invert-paths --path-glob '**/*.o'
+
+# Remove .DS_Store files from history
+git filter-repo --invert-paths --path-glob '**/.DS_Store'
+
+# Remove backup directory from history (redundant with tags)
+git filter-repo --invert-paths --path backups/
+```
+
+**Phase 4: Post-cleanup**
+```bash
+# Re-add remote (git-filter-repo clears .git/config)
+git remote add origin <url-from-remotes-backup.txt>
+
+# Verify size reduction
+git count-objects -v > post-cleanup-stats.txt
+du -sh .git >> post-cleanup-stats.txt
+
+# Aggressive garbage collection
+git reflog expire --expire=now --all
+git gc --aggressive --prune=now
+
+# Force push (DESTRUCTIVE - coordinate with team first)
+git push origin --force --all
+git push origin --force --tags
+```
+
+### Integration Considerations
+
+**Impact on existing clones:**
+- ALL existing clones become incompatible (different commit hashes)
+- Team members MUST delete and re-clone
+- CI/CD pipelines MUST be updated to fresh clone
+
+**GitHub-specific notes:**
+- GitHub caches refs; size reduction may not appear immediately
+- Contact GitHub support if size doesn't decrease after 24 hours
+- Consider enabling branch protection rules after cleanup
+
+**Mitigation strategy:**
+1. Announce cleanup window to team (if any)
+2. Merge all open PRs before cleanup
+3. Create release tag at current HEAD before cleanup
+4. Execute cleanup
+5. Verify size reduction locally
+6. Force push
+7. Notify team to re-clone
+
+### Expected Results
+
+| Metric | Before | After (estimated) |
+|--------|--------|-------------------|
+| `.git` size | 584 MB | ~50-80 MB |
+| Clone time | ~60s | ~10s |
+| CI cache | Large | Minimal |
+
+**Confidence:** HIGH - based on identified objects (557 MB in packs, mostly build artifacts)
+
+---
+
+## Workflow Enhancement: Planning Phase Insertion
+
+### Current plugin-improve Flow Analysis
+
+From `/Users/taylorbrook/Dev/VST-development/.claude/skills/plugin-improve/SKILL.md`:
+
+```
+Phase 0: Specificity Detection
+  |
+Phase 0.3: Clarification Questions
+  |
+Phase 0.4: Decision Gate
+  |
+Phase 0.45: Research Detection (MANDATORY)
+  |
+Phase 0.5: Investigation (Tier 1/2/3)  <-- GAP: No planning for Tier 2/3
+  |
+Phase 0.9: Backup Verification
+  |
+Phase 1: Pre-Implementation
+  |
+Phase 3: Implementation
+```
+
+**Problem:** For complex (Tier 2/3) improvements, the workflow jumps directly from investigation findings to implementation without a planning phase to:
+- Decompose work into steps
+- Identify module dependencies
+- Estimate scope/risk
+- Get user approval on approach
+
+### Patterns for Phase Insertion
+
+**Pattern 1: Conditional Middleware (Recommended)**
+
+Insert a new phase that activates only when conditions are met, similar to existing Phase 5.5 (Regression Testing).
+
+```
+Phase 0.5: Investigation (Tier 1/2/3)
+  |
+  +-- [Tier 1] --> Skip to Phase 0.9 (simple, no planning needed)
+  |
+  +-- [Tier 2/3] --> Phase 0.6: Planning (NEW)
+                       |
+                       v
+                     Phase 0.9: Backup Verification
+```
+
+**Implementation approach:**
+```markdown
+## Phase 0.6: Implementation Planning (Conditional)
+
+**GATE CONDITION:** Only runs for Tier 2 or Tier 3 investigations
+
+**If Tier 1:** Skip to Phase 0.9 (simple fixes don't need plans)
+
+**If Tier 2/3:**
+
+1. **Decompose work:**
+   - Break investigation findings into discrete tasks
+   - Identify file touchpoints
+   - List module dependencies
+
+2. **Risk assessment:**
+   - Breaking change potential
+   - Regression risk areas
+   - Rollback complexity
+
+3. **Present plan for approval:**
+   ```
+   ## Implementation Plan
+
+   ### Tasks
+   1. [Task 1] - [file(s)]
+   2. [Task 2] - [file(s)]
+
+   ### Dependencies
+   - Requires: [module/component]
+   - Affects: [downstream components]
+
+   ### Risk Assessment
+   - Breaking changes: [YES/NO]
+   - Regression areas: [list]
+   - Estimated complexity: [LOW/MEDIUM/HIGH]
+
+   Proceed with this plan? (y/n): _
+   ```
+
+4. **On approval:** Continue to Phase 0.9
+5. **On rejection:** Return to Phase 0.5 with refinements
+```
+
+**Pattern 2: Hierarchical State Machine**
+
+For more complex workflows, use nested state machines where complex states expand into sub-workflows.
+
+```
+Investigation (Tier 3)
+  |
+  +-- Sub-workflow:
+        Research --> Planning --> Approval --> Return to parent
+```
+
+**Not recommended for v1.1** because:
+- Increases complexity significantly
+- Current workflow is linear and debuggable
+- Conditional phase insertion is sufficient
+
+**Pattern 3: Interceptor/Hook Pattern**
+
+Allow phases to register hooks that execute before/after other phases.
+
+```javascript
+workflow.registerHook('after:investigation', (context) => {
+  if (context.tier >= 2) {
+    return executePhase('planning', context);
+  }
+});
+```
+
+**Not recommended** because:
+- Requires workflow engine refactoring
+- Implicit control flow is harder to debug
+- Overkill for adding one phase
+
+### Recommended Implementation
+
+**1. Modify SKILL.md:**
+- Add Phase 0.6 definition after Phase 0.5
+- Update workflow diagram
+- Update progress checklist
+
+**2. Modify investigation-tiers.md:**
+- Add planning handoff at end of Tier 2/3 protocols
+
+**3. Create new reference file:**
+- `.claude/skills/plugin-improve/references/planning-protocol.md`
+- Contains plan template, risk matrix, approval flow
+
+**4. Update JSON schemas (optional):**
+- Add `planning_required: boolean` to output contract
+- Add `plan_approved: boolean` to track state
+
+### Why Conditional Middleware
+
+| Criterion | Conditional Phase | Hierarchical FSM | Hook Pattern |
+|-----------|-------------------|------------------|--------------|
+| Implementation effort | LOW | HIGH | MEDIUM |
+| Debugging ease | HIGH | MEDIUM | LOW |
+| Consistency with existing | HIGH | LOW | MEDIUM |
+| Future extensibility | MEDIUM | HIGH | HIGH |
+
+**Decision:** Use conditional middleware pattern because:
+1. Matches existing Phase 5.5 pattern (regression testing)
+2. Linear flow preserved - easy to trace
+3. Minimal changes to existing workflow
+4. Can evolve to hierarchical later if needed
+
+---
+
+## Not Recommended
+
+### git filter-branch
+
+**Why not:**
+- Deprecated by Git project itself
+- 10-100x slower than git-filter-repo
+- Memory issues on large repos
+- Confusing semantics
+
+### BFG Repo-Cleaner
+
+**Why not for this project:**
+- Requires Java installation
+- Filename-only filtering (can't target `build/plugins/*` specifically)
+- Skips HEAD by default (confusing protection feature)
+- Less actively maintained
+
+### git gc alone
+
+**Why not:**
+- Only cleans unreferenced objects
+- Cannot remove objects still in history
+- Must use filter-repo first, then gc
+
+### Rewriting workflow as state machine library
+
+**Why not:**
+- Current linear workflow is working
+- Adding formal FSM adds cognitive overhead
+- Conditional phases achieve the goal with minimal change
+- Can evolve later if workflow becomes more complex
+
+### Adding planning to ALL improvements
+
+**Why not:**
+- Tier 1 fixes are simple (typos, cosmetic)
+- Planning overhead would slow down trivial changes
+- Conditional activation preserves fast path for simple fixes
+
+---
+
+## v1.1 Sources
+
+### Git History Cleanup
+- [git-filter-repo GitHub](https://github.com/newren/git-filter-repo) - PRIMARY
+- [BFG vs git-filter-repo comparison](https://github.com/newren/git-filter-repo/blob/main/Documentation/converting-from-bfg-repo-cleaner.md)
+- [Remove large binaries - Azure DevOps](https://learn.microsoft.com/en-us/azure/devops/repos/git/remove-binaries?view=azure-devops)
+- [Git Tower - git-filter-repo guide](https://www.git-tower.com/learn/git/faq/git-filter-repo)
+
+### Workflow Patterns
+- [Google Multi-Agent Design Patterns](https://www.infoq.com/news/2026/01/multi-agent-design-patterns/)
+- [Microsoft Agent Framework](https://learn.microsoft.com/en-us/agent-framework/overview/agent-framework-overview)
+- [Extensible State Machine Pattern (Springer)](https://link.springer.com/chapter/10.1007/978-3-540-70592-5_24)
+- [State Machine Design Pattern (LinkedIn)](https://www.linkedin.com/pulse/state-machine-design-pattern-concepts-examples-python-sajad-rahimi)
+
+---
+
+*v1.1 Research conducted: 2026-02-01*
+*Confidence: HIGH for git cleanup (verified tool versions), HIGH for workflow (matches existing patterns)*

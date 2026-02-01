@@ -1,176 +1,342 @@
-# Feature Landscape: AI Agent Systems for Development Workflows
+# Feature Research: v1.1 Improvements
 
-**Domain:** AI-assisted multi-agent development systems (specifically for JUCE plugin development)
-**Researched:** 2026-01-29
-**Overall Confidence:** MEDIUM-HIGH (verified against multiple authoritative sources)
-
----
-
-## Executive Summary
-
-Effective AI agent systems in 2026 have evolved from experimental prototypes to production-ready infrastructure. The industry has moved through a "microservices revolution" where single all-purpose agents are being replaced by orchestrated teams of specialized agents. For the Plugin Freedom System overhaul, this research identifies what capabilities are table stakes (expected by any serious implementation), what differentiates effective systems (competitive advantages), and what anti-features to deliberately avoid (common traps that cause failures).
-
-The key insight: **most agent failures are orchestration and context-transfer issues, not model capability issues**. This means the system architecture and handoff protocols matter more than raw agent intelligence.
+**Domain:** Repository hygiene tooling and workflow planning phases
+**Researched:** 2026-02-01
+**Overall confidence:** HIGH (verified against official docs and established codebase patterns)
 
 ---
 
-## Table Stakes
+## Context: v1.1 Milestone
 
-Features users expect. Missing = system feels incomplete or unreliable.
+This research focuses on two capability areas for v1.1:
 
-| Feature | Why Expected | Complexity | Dependencies | Notes |
-|---------|--------------|------------|--------------|-------|
-| **Observability & Tracing** | 89% of production agent systems have observability; it's the foundation for debugging | Medium | Logging infrastructure | Without tracing, multi-step failures are impossible to diagnose. Must trace individual agent steps and tool calls. |
-| **Clear Agent Role Definitions** | Ambiguous responsibilities cause overlaps, delegation chaos, and task failure | Low | None | Each agent needs explicit: inputs, outputs, scope boundaries, and escalation paths. |
-| **State Persistence** | Users expect pause/resume; state loss = work loss | Medium | Storage layer | Working memory (session) + persistent memory (cross-session). Context != state != memory. |
-| **Human-in-the-Loop Checkpoints** | Regulatory requirement (EU AI Act); user expectation for high-stakes actions | Medium | UI for approval flows | Not optional for production systems. Must allow approve/reject/modify at critical points. |
-| **Error Surfacing (Not Hiding)** | Hidden errors cascade into major downstream failures | Low | Error handling patterns | Errors must be visible so downstream agents and users can respond appropriately. |
-| **Structured Handoffs** | Unstructured handoffs are the #1 cause of multi-agent failures | Medium | Schema definitions | Treat every handoff as a versioned API with validation. Free-form prose causes failures. |
-| **Input/Output Validation** | Guards against hallucination, drift, and format compliance issues | Medium | Guardrails tooling | Validates against configurable rules including format, completeness, and constraint adherence. |
-| **Graceful Degradation** | Individual agent failures shouldn't crash the entire workflow | Medium | Circuit breaker patterns | Timeout, retry, and fallback mechanisms. Surface errors instead of failing silently. |
-| **Explicit Success Criteria** | Agents need to know when they're done; users need to verify completion | Low | Definition in specs | Outcome validation: whether agent outputs meet defined success criteria. |
-| **Parameter/Configuration Management** | Agents need consistent access to project configuration | Low | Config storage | Centralized configuration that agents can read but not corrupt. |
+1. **Repository Cleanup** - Remove build artifacts from git history (currently 584MB .git with 50MB+ binaries)
+2. **Workflow Planning Phase** - Add structured planning between investigation and implementation for complex improvements
 
-### Table Stakes Rationale
-
-These features reflect the 2026 reality that **94% of production agent systems have observability**, **human-in-the-loop is regulatory standard**, and **most failures trace back to handoff and state issues** rather than model capability. A system missing these will feel broken, not just suboptimal.
+These are incremental enhancements to the existing Plugin Freedom System, not a fundamental overhaul.
 
 ---
 
-## Differentiators
+## Repository Cleanup
 
-Features that set a system apart. Not expected, but valued when present.
+### Table Stakes
 
-| Feature | Value Proposition | Complexity | Dependencies | Notes |
-|---------|-------------------|------------|--------------|-------|
-| **Domain-Specialized Agents** | 70% higher accuracy than generalist agents for domain-specific tasks | Medium | Agent specs + domain knowledge | Specialized agents (DSP, UI, validation) outperform "do everything" agents. Gartner forecasts 70% of multi-agent systems will have narrow-focused agents by 2027. |
-| **Hierarchical Task Decomposition** | Breaks complex goals into manageable, verifiable sub-tasks | High | Orchestrator + planning agent | "One agent plans, another executes, a third validates" pattern. Mirrors effective human team structure. |
-| **Context-Aware Orchestration** | Central orchestrator knows which agent to invoke based on task type and state | High | Orchestrator agent + routing logic | Hub-and-spoke pattern: predictable workflows, strong consistency, simplified debugging. |
-| **Parallel Agent Execution** | Multiple agents work simultaneously on independent sub-tasks | High | Git worktrees or isolation, merge strategy | Requires code isolation (branches, worktrees) and intelligent merge-back. Significant speedup potential. |
-| **Semantic Memory Layer** | Agents remember not just facts but relationships and context across sessions | High | Vector DB, embedding infrastructure | Goes beyond simple state persistence to maintain semantic understanding. |
-| **Quality Gates Between Stages** | Automated verification before advancing to next stage | Medium | Validation agent + criteria | Reduces rework loops by catching issues early. Not just "is it done" but "is it good enough". |
-| **Plan-and-Execute Cost Optimization** | Capable model creates strategy, cheaper models execute | Medium | Multi-model routing | Can reduce costs by 90% compared to frontier models for everything. |
-| **Progressive Disclosure of Complexity** | Simple interface for simple tasks, full control available when needed | Medium | UI/UX design | Users shouldn't need to understand the full system to use it effectively. |
-| **Bounded Autonomy Architecture** | Clear operational limits with escalation paths | Medium | Policy definitions | Leading organizations implement this: agents operate within defined bounds, escalate for high-stakes decisions. |
-| **Cross-Agent Learning** | Patterns learned by one agent inform others | High | Shared knowledge base | When DSP agent learns a new pattern, UI agent can benefit from that context. |
-| **Audit Trails** | Comprehensive record of all agent actions and decisions | Medium | Logging + storage | Not just for compliance; essential for debugging and continuous improvement. |
+Features required for a functional repository cleanup capability.
 
-### Differentiator Priorities for Plugin Freedom System
+| Feature | Why Expected | Complexity | Dependencies |
+|---------|--------------|------------|--------------|
+| **Build artifact removal from history** | Primary use case - 584MB .git with 50MB+ binaries in history | Medium | git-filter-repo or BFG |
+| **Pre-cleanup backup** | Cannot undo history rewrite without backup | Low | git clone --mirror |
+| **Large file detection** | Must identify cleanup targets before removal | Low | git rev-list, cat-file |
+| **Team coordination protocol** | History rewrite requires all collaborators to re-clone | Low | Documentation |
+| **Post-cleanup garbage collection** | BFG/filter-repo don't physically delete data | Low | git gc --aggressive |
+| **Verification report** | Confirm cleanup succeeded, compare before/after sizes | Low | du -sh .git |
 
-Given the project context (DSP quality issues, UI polish gaps, rework loops), the highest-impact differentiators are:
-1. **Domain-Specialized Agents** (already have 9, need to sharpen boundaries)
-2. **Quality Gates Between Stages** (reduce rework)
-3. **Structured Handoffs** (context preservation)
-4. **Bounded Autonomy** (prevent agents from doing too much or too little)
+**Notes:**
+- git-filter-repo is now recommended over BFG (BFG is simpler but git-filter-repo has more features and better maintenance)
+- The 40-55MB build artifacts in git history are primary cleanup targets
+- Cleanup is destructive and non-reversible - backup is non-negotiable
+
+### Differentiators
+
+Nice-to-have features that improve usability.
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Automated detection script** | Find large files without manual git commands | Low | One-time script |
+| **Dry-run mode** | Preview what would be removed before committing | Medium | git-filter-repo supports this |
+| **Pattern-based cleanup** | Remove by extension (*.a, *.o) not just specific files | Low | Both tools support globs |
+| **.gitignore validation** | Ensure cleaned patterns won't recur | Low | Parse and verify |
+| **Size threshold configuration** | Define what "large" means (default: 1MB) | Low | User preference |
+| **Incremental cleanup** | Remove files added since last cleanup | Medium | Track cleanup history |
+
+---
+
+## Workflow Planning Phase
+
+### Table Stakes
+
+Features required for a planning phase between investigation and implementation.
+
+| Feature | Why Expected | Complexity | Dependencies |
+|---------|--------------|------------|--------------|
+| **Implementation plan document** | Technical blueprint before coding (the "40-20-40 rule") | Medium | Template system |
+| **Task decomposition** | Break improvement into sequential, testable steps | Medium | Existing PLAN.md pattern |
+| **Architecture decisions** | Document choices with rationale (ADR-style) | Medium | None |
+| **File modification manifest** | Know exactly which files will be changed | Low | Static analysis |
+| **Verification criteria** | How to know each task succeeded | Low | Part of plan format |
+| **Dependency identification** | Which tasks must complete before others | Low | DAG structure |
+| **Risk assessment** | Flag potentially complex or unknown areas | Medium | Research integration |
+
+**Notes:**
+- The existing O-Bass planning structure (CONTEXT.md + XX-PLAN.md) is a strong pattern to follow
+- Planning phase should produce artifacts similar to stage-level plans
+- "Waterfall in 15 minutes" - rapid structured planning pays off enormously
+
+### Differentiators
+
+Nice-to-have features that improve planning quality.
+
+| Feature | Value Proposition | Complexity | Notes |
+|---------|-------------------|------------|-------|
+| **Affected component analysis** | Auto-detect which DSP components, UI elements touched | Medium | AST parsing or grep |
+| **Backward compatibility check** | Warn if change affects parameter serialization | Medium | Schema validation |
+| **Complexity estimation** | Predict implementation time from plan structure | High | Heuristics needed |
+| **Alternative approaches section** | Document paths not taken and why | Low | ADR best practice |
+| **Rollback strategy** | How to undo if implementation fails | Low | Git-based, straightforward |
+| **Integration with research** | Link plan tasks to research findings | Medium | Cross-reference system |
+| **Plan validation gate** | Require human approval before implementation | Low | Checkpoint protocol exists |
+| **Context gathering automation** | Auto-collect relevant files for plan context | Medium | Glob + grep automation |
+
+---
+
+## Planning Phase Flow
+
+Based on research, the recommended planning phase structure:
+
+```
+Phase 0.5: Investigation (EXISTS)
+    |
+    v
+Phase 1.0: Planning (NEW) -----> Produces: PLAN.md
+    |                                       - Objective
+    |                                       - Tasks with dependencies
+    |                                       - Files to modify
+    |                                       - Verification criteria
+    |                                       - Architecture decisions
+    v
+[Approval Gate] -----> User confirms plan
+    |
+    v
+Phase 0.9: Pre-implementation (EXISTS - backup, version bump)
+    |
+    v
+Phase 3: Implementation (EXISTS - execute plan)
+```
+
+### Planning Document Template
+
+Based on existing O-Bass patterns and ADR best practices:
+
+```markdown
+---
+improvement: [name]
+phase: planning
+created: [date]
+depends_on: [investigation output]
+files_modified: [list]
+complexity: [low/medium/high]
+autonomous: [true/false]
+---
+
+## Objective
+
+[What we're trying to achieve and why]
+
+## Architecture Decisions
+
+### Decision 1: [Name]
+- **Context:** [Why this decision is needed]
+- **Options considered:** [Alternatives]
+- **Decision:** [What we chose]
+- **Rationale:** [Why this option]
+- **Consequences:** [What this means for implementation]
+
+## Implementation Tasks
+
+<task wave="1" type="auto">
+  <name>Task 1: [Name]</name>
+  <files>[Files to modify]</files>
+  <action>[What to do]</action>
+  <verify>[How to verify success]</verify>
+  <done>[Success criteria]</done>
+</task>
+
+## Risk Assessment
+
+| Risk | Likelihood | Impact | Mitigation |
+|------|------------|--------|------------|
+| [risk] | Low/Med/High | [impact] | [mitigation] |
+
+## Verification Criteria
+
+- [ ] [Criterion 1]
+- [ ] [Criterion 2]
+
+## Rollback Strategy
+
+[How to undo if needed]
+```
 
 ---
 
 ## Anti-Features
 
-Features to explicitly NOT build. Common mistakes in this domain.
+Features to explicitly NOT build and why.
 
-| Anti-Feature | Why Avoid | What to Do Instead | Complexity to Fix |
-|--------------|-----------|-------------------|-------------------|
-| **Unbounded Autonomy** | "Fastest path to instability in agentic systems." Agents exceed intended scope, make unauthorized decisions. | Bounded autonomy with explicit limits, escalation paths, and human checkpoints for high-stakes actions. | High |
-| **Shared Mutable State Without Synchronization** | Race conditions cause state corruption, duplicate operations, lost updates. Systems produce incorrect results that appear intermittently. | Explicit state synchronization: transactions, optimistic concurrency control, or event sourcing. | High |
-| **Context Window as Memory** | Context has no identity, no lifecycle, no accountability. Treating it as memory causes unbounded growth and eventual failure. | Separate context (immediate), state (session), and memory (persistent). Implement summarization and pruning. | Medium |
-| **Free-Form Prose Handoffs** | Unstructured text between agents is ambiguous, causes interpretation drift, and is impossible to validate. | Structured schemas with explicit fields, validation, and versioning. Treat handoffs as APIs. | Medium |
-| **Single Generalist Agent** | General-purpose agents struggle with extended tasks. "I've deliberately avoided investing heavily in general-purpose autonomous agents." | Orchestrated teams of specialized agents, each optimized for specific functions. | High |
-| **Hidden Error Handling** | Errors silently swallowed cascade into major downstream failures. One small mistake rarely stays small. | Surface errors explicitly. Downstream agents must know when upstream failed. Circuit breaker patterns. | Low |
-| **Implicit Role Boundaries** | Agents try to do too much OR too little. Overlapping responsibilities cause confusion; gaps cause dropped tasks. | Explicit agent specs with inputs, outputs, scope, and "NOT responsible for" sections. | Low |
-| **Over-Engineering Orchestration** | Using complex multi-agent patterns when simple sequential would suffice. "Creating unnecessary coordination complexity." | Start with 2-3 agents solving one specific problem. Prove value before expanding. | Medium |
-| **Autonomy Without Audit** | Agents take actions with no record. Impossible to debug, improve, or comply with regulations. | Comprehensive audit trails of all agent actions, decisions, and rationale. | Medium |
-| **Optimistic Context Assumptions** | Assuming all agents have consistent view of project state without verification. | Validate state consistency through automated checks before each agent run. | Medium |
-| **Monolithic Agent Specifications** | Giant spec files that no one reads or maintains. | Modular specs: core responsibilities in main file, detailed protocols in references. | Low |
-| **Cost-Blind Architecture** | Using frontier models for everything, leading to unsustainable costs at scale. | Plan-and-execute pattern, strategic caching, batching, token-efficient structured outputs. | Medium |
+| Anti-Feature | Why Avoid | What to Do Instead |
+|--------------|-----------|-------------------|
+| **Automatic cleanup without backup** | Catastrophic data loss risk | Always require explicit backup step |
+| **Force-push automation** | Risk of overwriting collaborator work | Manual confirmation required |
+| **Planning without investigation** | Plans based on assumptions fail | Investigation phase is prerequisite |
+| **Overly detailed plans** | Paralysis by analysis, plans become stale | Keep plans focused on "what" and "why", not line-by-line "how" |
+| **Auto-generated code from plans** | Plans inform, not dictate implementation | Executor has discretion within plan boundaries |
+| **Complex task dependency graphs** | Hard to understand, fragile to changes | Prefer linear sequences with clear wave structure |
+| **Git history rewrite during active development** | Collaborator chaos | Cleanup only at project boundaries or release points |
+| **Planning phase for trivial changes** | Overhead exceeds benefit | Keep Phase 0.5 investigation for small changes, planning for complex ones |
 
-### Anti-Feature Context
+### When to Skip Planning Phase
 
-Research shows **41% of multi-agent failures stem from specification/misalignment issues** and **37% from coordination failures**. The anti-features above directly address these root causes. The Plugin Freedom System's current problems ("agents try to do too much or too little", "context gets lost", "output quality requires rework") map directly to these anti-patterns.
+Planning phase adds value for complex changes but creates overhead for simple ones. Skip planning when:
+
+1. **Single-file changes** - Investigation sufficient
+2. **Bug fixes with obvious cause** - Fix is clear from investigation
+3. **Parameter value adjustments** - No architectural impact
+4. **Documentation updates** - No implementation complexity
+5. **Styling-only UI changes** - No DSP or state changes
+
+Invoke planning phase when:
+
+1. **Multiple components affected** - Need coordination strategy
+2. **Architecture decisions required** - ADRs needed
+3. **Unknown implementation path** - Research gaps exist
+4. **Breaking changes possible** - Risk assessment needed
+5. **New algorithm implementation** - Technical design required
 
 ---
 
 ## Feature Dependencies
 
 ```
-Observability & Tracing
-    └── Error Surfacing (tracing enables error visibility)
-    └── Audit Trails (logs are foundation)
+Repository Cleanup
+├── Large file detection (prerequisite)
+├── Backup creation (prerequisite)
+├── Build artifact removal (core)
+├── Garbage collection (post-step)
+└── Verification report (post-step)
 
-Clear Agent Role Definitions
-    └── Structured Handoffs (roles define interfaces)
-    └── Bounded Autonomy (roles define limits)
-
-State Persistence
-    └── Human-in-the-Loop Checkpoints (need state to checkpoint)
-    └── Semantic Memory Layer (builds on persistence)
-
-Structured Handoffs
-    └── Quality Gates (gates use handoff schemas)
-    └── Cross-Agent Learning (learning uses handoff data)
-
-Domain-Specialized Agents
-    └── Hierarchical Task Decomposition (specialist agents execute decomposed tasks)
-    └── Context-Aware Orchestration (orchestrator routes to specialists)
-
-Quality Gates
-    └── Human-in-the-Loop Checkpoints (gates may require human approval)
+Planning Phase
+├── Investigation output (prerequisite - Phase 0.5)
+├── Plan document creation (core)
+│   ├── Architecture decisions
+│   ├── Task decomposition
+│   └── Verification criteria
+├── Approval gate (checkpoint)
+└── Pre-implementation (successor - Phase 0.9)
 ```
 
-**Critical Path for MVP:**
-1. Clear Agent Role Definitions (foundation)
-2. Structured Handoffs (enables reliable communication)
-3. State Persistence (enables pause/resume)
-4. Observability & Tracing (enables debugging)
-5. Quality Gates (reduces rework)
+---
+
+## Complexity Estimates
+
+### Repository Cleanup
+
+| Task | Complexity | Rationale |
+|------|------------|-----------|
+| Implement detection script | Low | Well-documented git commands |
+| Integrate git-filter-repo | Medium | Tool installation, wrapper needed |
+| Create backup/restore flow | Low | Standard git operations |
+| Team coordination docs | Low | Documentation only |
+| **Total** | **Medium** | Mostly tooling integration |
+
+### Planning Phase
+
+| Task | Complexity | Rationale |
+|------|------------|-----------|
+| Define plan document schema | Low | Template from existing patterns |
+| Create planning phase workflow | Medium | Integration with existing phases |
+| Implement approval gate | Low | Checkpoint protocol exists |
+| Add skip-planning heuristics | Medium | Need to define thresholds |
+| **Total** | **Medium** | Building on existing infrastructure |
+
+---
+
+## Integration with Existing System
+
+### Repository Cleanup Integration Points
+
+- **Entry point:** New `/cleanup` command or menu option in system setup
+- **State tracking:** Record cleanup events in `.planning/cleanup-log.md`
+- **Verification:** Post-cleanup size report and .gitignore validation
+
+### Planning Phase Integration Points
+
+| Existing Phase | Integration |
+|----------------|-------------|
+| Phase 0.5 (Investigation) | Planning consumes investigation output |
+| Phase 0.9 (Pre-implementation) | Planning gate before pre-implementation |
+| Phase 3 (Implementation) | Implementation follows plan document |
+| Phase 4 (Verification) | Uses verification criteria from plan |
+
+### Files to Create/Modify
+
+**Repository Cleanup:**
+- `scripts/repo-cleanup.sh` - Detection and cleanup automation
+- `docs/repo-cleanup-protocol.md` - Team coordination documentation
+
+**Planning Phase:**
+- `.claude/skills/plugin-improve/templates/PLAN.md` - Plan document template
+- `.claude/skills/plugin-improve/references/planning-workflow.md` - Planning phase workflow
+- Update `.claude/commands/improve.md` - Add planning phase routing
 
 ---
 
 ## MVP Recommendation
 
-For the Plugin Freedom System overhaul, prioritize:
+### Phase 1: Repository Cleanup (Low Effort, High Impact)
 
-### Must Have (Table Stakes)
-1. **Clear Agent Role Definitions** - Audit and sharpen all 9 agent specs with explicit boundaries
-2. **Structured Handoffs** - Define schemas for stage transitions, not prose
-3. **State Persistence** - Fix STATUS.md reliability, separate context/state/memory
-4. **Observability** - Add tracing for agent invocations and tool calls
-5. **Error Surfacing** - Agents must report failures explicitly, not hide them
+Build first because:
+- Immediate benefit (smaller repo, faster clones)
+- Low complexity (existing tools)
+- No dependencies on other features
 
-### Should Have (High-Impact Differentiators)
-1. **Quality Gates** - Automated verification before stage advancement
-2. **Bounded Autonomy** - Explicit limits for each agent, escalation paths
-3. **Human-in-the-Loop Checkpoints** - Approval for risky changes (DSP algorithms, major refactors)
+Include:
+1. Large file detection script
+2. Backup protocol
+3. git-filter-repo integration
+4. Verification report
+5. Team coordination docs
 
-### Defer to Post-MVP
-- **Parallel Agent Execution** - Significant infrastructure complexity
-- **Semantic Memory Layer** - Valuable but not critical for reliability
-- **Cross-Agent Learning** - Requires mature system to implement effectively
-- **Plan-and-Execute Cost Optimization** - Optimize after system works reliably
+### Phase 2: Planning Phase (Medium Effort, High Value)
+
+Build second because:
+- Builds on existing patterns (O-Bass PLAN.md)
+- Reduces rework on complex improvements
+- Addresses gap in current workflow
+
+Include:
+1. Plan document template
+2. Planning phase in plugin-improve workflow
+3. Approval gate checkpoint
+4. Skip-planning heuristics
+
+### Defer to v1.2
+
+- Automated complexity estimation
+- Cross-session plan persistence
+- Plan-to-implementation tracing
 
 ---
 
 ## Sources
 
-### HIGH Confidence (Official Documentation, Primary Sources)
-- [Microsoft Azure AI Agent Design Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) - Agent orchestration patterns
-- [Microsoft Agent Framework Handoff Documentation](https://learn.microsoft.com/en-us/agent-framework/user-guide/workflows/orchestrations/handoff) - Context preservation mechanisms
-- [LangChain State of Agent Engineering](https://www.langchain.com/state-of-agent-engineering) - Production adoption statistics
-- [OpenAI Agents SDK Multi-Agent Orchestration](https://openai.github.io/openai-agents-python/multi_agent/) - Handoff patterns
+### Repository Cleanup
+- [git-filter-repo](https://github.com/newren/git-filter-repo) - Official replacement for git-filter-branch (HIGH confidence)
+- [BFG Repo-Cleaner](https://rtyley.github.io/bfg-repo-cleaner/) - Simpler alternative (HIGH confidence)
+- [Converting from BFG to git-filter-repo](https://github.com/newren/git-filter-repo/blob/main/Documentation/converting-from-bfg-repo-cleaner.md) (HIGH confidence)
+- [Repo Hygiene Best Practices](https://www.repotocloud.com/repo-hygiene-keeping-your-github-projects-sane/) (MEDIUM confidence)
 
-### MEDIUM Confidence (WebSearch Verified with Multiple Sources)
-- [IBM Guide to AI Agents](https://www.ibm.com/think/ai-agents) - Core capabilities, 2026 trends
-- [DataCamp Best AI Agents 2026](https://www.datacamp.com/blog/best-ai-agents) - Framework comparison
-- [MachineLearningMastery Agentic AI Trends 2026](https://machinelearningmastery.com/7-agentic-ai-trends-to-watch-in-2026/) - Specialization vs generalist
-- [Multi-Agent System Reliability Paper](https://www.getmaxim.ai/articles/multi-agent-system-reliability-failure-patterns-root-causes-and-production-validation-strategies/) - Failure taxonomy
-- [Why Multi-Agent LLM Systems Fail](https://arxiv.org/abs/2503.13657) - MAST failure taxonomy (14 failure modes)
-- [Skywork AI Best Practices for Handoffs](https://skywork.ai/blog/ai-agent-orchestration-best-practices-handoffs/) - Handoff as versioned API
-- [Agent Memory vs Context (Medium)](https://medium.com/emergent-intelligence/agent-memory-is-not-context-56432b3dd4de) - Memory architecture patterns
+### Workflow Planning
+- [Architecture Decision Records](https://adr.github.io/) - ADR format and best practices (HIGH confidence)
+- [AWS ADR Best Practices](https://aws.amazon.com/blogs/architecture/master-architecture-decision-records-adrs-best-practices-for-effective-decision-making/) (HIGH confidence)
+- [Addy Osmani's LLM Coding Workflow](https://addyosmani.com/blog/ai-coding-workflow/) - Planning-first approach (HIGH confidence)
+- [Software Development Process Phases](https://monday.com/blog/rnd/software-development-process/) - 40-20-40 rule (MEDIUM confidence)
+- [Technical Design Document Templates](https://www.atlassian.com/work-management/knowledge-sharing/documentation/software-design-document) (MEDIUM confidence)
 
-### LOW Confidence (Single Source, Community Wisdom)
-- [Anti-Patterns in Multi-Agent Gen AI Solutions (Medium)](https://medium.com/@armankamran/anti-patterns-in-multi-agent-gen-ai-solutions-enterprise-pitfalls-and-best-practices-ea39118f3b70) - Enterprise pitfalls
-- [Orq.ai Why Multi-Agent Systems Fail](https://orq.ai/blog/why-do-multi-agent-llm-systems-fail) - Failure pattern analysis
-- [Rossum Specialist vs Generalist Agents](https://rossum.ai/blog/specialist-vs-generalist-ai-agents-expert-opinions/) - Expert opinions on specialization
+### Existing Codebase Patterns
+- `/plugins/O-Bass/.planning/stages/01-core-dsp-foundation/01-CONTEXT.md` - Context gathering pattern
+- `/plugins/O-Bass/.planning/stages/01-core-dsp-foundation/01-01-PLAN.md` - Plan document format
+- `/.claude/skills/plugin-ideation/references/improvement-workflow.md` - Current improvement flow
 
 ---
 
@@ -178,11 +344,12 @@ For the Plugin Freedom System overhaul, prioritize:
 
 - [x] Categories are clear (table stakes vs differentiators vs anti-features)
 - [x] Complexity noted for each feature (Low/Medium/High)
-- [x] Dependencies between features identified
-- [x] Rationale provided for categorization
+- [x] Dependencies on existing features identified
+- [x] Integration points with existing system documented
+- [x] MVP recommendation with phased approach
 - [x] Sources documented with confidence levels
-- [x] MVP recommendation with priority ordering
 
 ---
 
-*Feature landscape research: 2026-01-29*
+*Researched: 2026-02-01*
+*Confidence: HIGH - Verified against official documentation and established codebase patterns*

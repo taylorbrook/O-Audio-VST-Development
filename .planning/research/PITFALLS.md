@@ -470,3 +470,346 @@ Based on comprehensive research, the primary causes of quality issues, workflow 
 **Academic/Research:**
 - [arXiv: A Deep Dive Into LLM Code Generation Mistakes](https://arxiv.org/html/2411.01414v1)
 - [arXiv: Helping LLMs Improve Code Using Testing](https://arxiv.org/html/2412.14841v1)
+
+---
+
+---
+
+# Addendum: v1.1 Improvement Pitfalls
+
+**Domain:** Git repository cleanup and agent workflow phase modification
+**Researched:** 2026-02-01
+**Confidence:** HIGH (verified with official documentation and tool maintainer discussions)
+
+This addendum covers pitfalls specific to the v1.1 milestone improvements: git history cleanup and plugin-improve workflow enhancements.
+
+---
+
+## Git Cleanup Pitfalls
+
+### Pitfall 14: Breaking Existing Clones After History Rewrite
+
+**Impact:** HIGH
+
+**What goes wrong:** After force-pushing rewritten history, collaborators who run `git pull` get cryptic merge conflicts or errors. If they then push without re-cloning, they reintroduce the exact data you tried to remove.
+
+**Warning signs:**
+- Any existing clone older than the rewrite
+- CI/CD pipelines caching old commit SHAs
+- Team members not notified before cleanup
+- GitHub Actions caching branches/refs
+
+**Prevention:**
+1. Coordinate with all contributors before rewriting
+2. Use git-filter-repo's default fresh-clone requirement (it refuses to run otherwise)
+3. Document in a pinned issue/announcement that re-cloning is required
+4. Schedule cleanup during low-activity periods (weekends, between milestones)
+5. After push, verify CI/CD creates fresh clones (most do by default)
+
+**Recovery:** If old history gets pushed back:
+- Force push the clean history again
+- Explicitly require all collaborators to delete local clones
+- Audit who pushed and ensure they understand the process
+
+**Phase assignment:** Phase 1 (Git Cleanup) - must coordinate BEFORE execution
+
+**Sources:**
+- [GitHub Docs: Removing Sensitive Data](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
+- [git-filter-repo GitHub Repository](https://github.com/newren/git-filter-repo)
+
+---
+
+### Pitfall 15: Remote Origin Removed by git-filter-repo
+
+**Impact:** MEDIUM
+
+**What goes wrong:** git-filter-repo intentionally removes the `origin` remote after rewriting to prevent accidental push to the original repository. Users then can't push or get confused about how to proceed.
+
+**Warning signs:**
+- Running git-filter-repo without reading the post-rewrite instructions
+- Scripts that assume origin always exists
+- CI/CD workflows that depend on origin remote
+
+**Prevention:**
+1. Document the expected post-rewrite steps in your runbook
+2. Create a simple script that re-adds origin after cleanup:
+   ```bash
+   git remote add origin <your-repo-url>
+   git push --force --branches --tags --prune
+   ```
+3. Understand this is an intentional safety feature, not a bug
+
+**Recovery:**
+```bash
+git remote add origin https://github.com/your-org/your-repo.git
+```
+
+**Phase assignment:** Phase 1 (Git Cleanup) - document in execution steps
+
+**Sources:**
+- [git-filter-repo Issue #46: Remote Removal](https://github.com/newren/git-filter-repo/issues/46)
+- [git-filter-repo Man Page](https://www.mankier.com/1/git-filter-repo)
+
+---
+
+### Pitfall 16: BFG Doesn't Clean Latest Commit (HEAD Protection)
+
+**Impact:** MEDIUM
+
+**What goes wrong:** BFG Repo-Cleaner by default protects HEAD - if the problematic files still exist in your latest commit, they won't be removed. Users think cleanup succeeded but the bad files remain.
+
+**Warning signs:**
+- Large files or secrets still appear after BFG run
+- Protected commit warnings in BFG output
+- Running BFG before removing files from current working tree
+
+**Prevention:**
+1. Delete/fix problematic files in a normal commit BEFORE running BFG
+2. BFG cleans history, not your current state
+3. Alternatively use `--no-blob-protection` flag (understand the risks)
+4. Use git-filter-repo instead - more predictable behavior
+
+**Recovery:** Delete the files manually, commit, then re-run BFG or use git-filter-repo
+
+**Phase assignment:** Phase 1 (Git Cleanup) - add to pre-cleanup checklist
+
+**Sources:**
+- [BFG Repo-Cleaner Documentation](https://rtyley.github.io/bfg-repo-cleaner/)
+
+---
+
+### Pitfall 17: CI/CD Pipeline Failures After Cleanup
+
+**Impact:** HIGH
+
+**What goes wrong:** GitHub Actions, caching, and artifact storage may reference old commit SHAs that no longer exist. Build pipelines fail or behave unexpectedly.
+
+**Warning signs:**
+- Workflows that pin specific commits or use commit SHA in caching
+- Release workflows that reference historical tags
+- Deployment workflows that compare commits
+- Any workflow using actions/cache with commit-based keys
+
+**Prevention:**
+1. Review all workflow files before cleanup for SHA dependencies
+2. Clear GitHub Actions caches after cleanup: Settings > Actions > Caches
+3. Test workflows in a fork first with rewritten history
+4. Use tag-based or branch-based references where possible
+
+**Recovery:**
+- Clear all workflow caches
+- Re-run failed workflows
+- Update any hardcoded SHAs in workflow files
+
+**Phase assignment:** Phase 1 (Git Cleanup) - add cache clearing to post-cleanup checklist
+
+**Sources:**
+- [GitHub Actions Breaking Changes 2025](https://github.blog/changelog/2025-04-15-upcoming-breaking-changes-and-releases-for-github-actions/)
+- [OneNine: Reduce Git Repository Size Safely](https://onenine.com/how-to-reduce-git-repository-size-safely/)
+
+---
+
+### Pitfall 18: Repository Size Not Reduced After Cleanup
+
+**Impact:** LOW (annoyance, not data loss)
+
+**What goes wrong:** After removing large files from history, the repository still shows the same size. Users think cleanup failed.
+
+**Warning signs:**
+- Clone size unchanged after cleanup
+- `.git/objects` directory still large
+- GitHub repository size not updated
+
+**Prevention:**
+1. Always run `git gc --aggressive --prune=now` after cleanup
+2. Wait 24-48 hours for GitHub to run GC on remote
+3. GitHub may not show immediate size reduction - this is normal
+
+**Recovery:**
+```bash
+git reflog expire --expire=now --all
+git gc --aggressive --prune=now
+# Then force push and wait for GitHub GC
+```
+
+**Phase assignment:** Phase 1 (Git Cleanup) - add to post-cleanup verification
+
+**Sources:**
+- [Codegenes: Reduce Git Folder Size](https://www.codegenes.net/blog/is-there-a-way-to-reduce-the-size-of-the-git-folder/)
+
+---
+
+### Pitfall 19: Using Deprecated git filter-branch
+
+**Impact:** MEDIUM
+
+**What goes wrong:** git filter-branch is slow, error-prone, and officially deprecated. It can silently corrupt history or produce worse results than you started with.
+
+**Warning signs:**
+- Any documentation suggesting `git filter-branch`
+- Scripts using filter-branch instead of git-filter-repo
+- Long-running cleanup operations (git-filter-repo is 10-720x faster)
+
+**Prevention:**
+1. Always use git-filter-repo (officially recommended by Git project)
+2. Update any existing cleanup scripts
+3. Ignore outdated tutorials suggesting filter-branch
+
+**Recovery:** Start over with git-filter-repo
+
+**Phase assignment:** Phase 1 (Git Cleanup) - enforce tool choice in documentation
+
+**Sources:**
+- [Git Tower: git-filter-repo Guide](https://www.git-tower.com/learn/git/faq/git-filter-repo)
+- [git-filter-repo GitHub Repository](https://github.com/newren/git-filter-repo)
+
+---
+
+## Workflow Modification Pitfalls
+
+### Pitfall 20: Breaking Existing Plugin-Improve Users with Complexity Creep
+
+**Impact:** HIGH
+
+**What goes wrong:** Adding new phases or flows to `plugin-improve` makes simple fixes (like "tweak this parameter") require understanding a complex multi-phase system. Users who had muscle memory from the current simple flow get frustrated.
+
+**Warning signs:**
+- Simple improvements now require multiple phase decisions
+- User needs to read documentation for basic operations
+- Commands that used to be one-step now require several
+- Entry points/commands multiplying
+
+**Prevention:**
+1. Preserve the simple path - new phases should be optional/orthogonal
+2. Default to current behavior; new phases are opt-in
+3. Keep the "quick fix" path as simple as before
+4. Add phases for NEW capabilities, don't complicate existing ones
+
+**Recovery:**
+- Add express/simple mode that bypasses new phases
+- Document clear "I just want to fix X" quick paths
+
+**Phase assignment:** Phase 2 (Workflow Enhancements) - design principle from start
+
+**Sources:**
+- [N8N Latest Version 2025](https://latenode.com/blog/low-code-no-code-platforms/n8n-setup-workflows-self-hosting-templates/n8n-latest-version-2025-release-notes-changelog-update-analysis)
+
+---
+
+### Pitfall 21: In-Flight Plugins When Workflow Changes
+
+**Impact:** MEDIUM
+
+**What goes wrong:** Plugins currently in a workflow stage (like O-IntonationPad at Stage 4, O-Freeze at Stage 0) may become incompatible with modified workflow definitions. Stage names change, required fields added, or transitions become invalid.
+
+**Warning signs:**
+- Active plugins in registry.json with non-complete status
+- Adding required fields to workflow state
+- Changing stage names or numbers
+- Adding mandatory new phases between existing stages
+
+**Prevention:**
+1. New phases should be additive, not modify existing stage definitions
+2. Test workflow changes against current in-flight plugins
+3. Migration path: complete in-flight plugins before structural changes, OR
+4. Grandfather existing plugins: they continue under old rules
+
+**Recovery:**
+- Manual migration of STATUS.md files
+- Add compatibility shims in workflow code
+- Consider workflow versioning (v2 alongside v1)
+
+**Phase assignment:** Phase 2 (Workflow Enhancements) - verify no in-flight plugins OR plan migration
+
+**Sources:**
+- [XState: Migrating Running State Charts](https://github.com/statelyai/xstate/discussions/1338)
+- Local: registry.json shows O-IntonationPad (Stage 4), O-Freeze (Stage 0) active
+
+---
+
+### Pitfall 22: GitHub Actions Workflow Trigger Compatibility
+
+**Impact:** MEDIUM
+
+**What goes wrong:** Adding new workflow triggers or modifying existing ones can break release automation. The current build-and-release.yml triggers on `*-v*` tags; changes could cause double-triggers, missed triggers, or permission issues.
+
+**Warning signs:**
+- Adding new workflow files with overlapping triggers
+- Modifying tag patterns
+- Not testing workflow changes in a branch first
+- GitHub Actions breaking changes (cache service, artifact actions, runner images)
+
+**Prevention:**
+1. Test workflow changes in a fork or feature branch first
+2. Use `workflow_dispatch` for testing new workflows manually
+3. Review GitHub's breaking changes changelog before modifying workflows
+4. Current workflow uses `ubuntu-22.04` - safe for now, but monitor deprecation schedule
+
+**Recovery:**
+- Revert workflow changes
+- Create new release tag to re-trigger
+
+**Phase assignment:** Phase 2 (Workflow Enhancements) - test before merge
+
+**Sources:**
+- [GitHub Actions Breaking Changes](https://github.blog/changelog/2025-02-12-notice-of-upcoming-deprecations-and-breaking-changes-for-github-actions/)
+- Local: .github/workflows/build-and-release.yml analysis
+
+---
+
+### Pitfall 23: Workflow Schema Drift
+
+**Impact:** LOW-MEDIUM
+
+**What goes wrong:** Adding fields to workflow JSON schemas (active-plugin.json, registry.json) without updating validators or documentation causes silent failures or confusing validation errors.
+
+**Warning signs:**
+- Adding fields to JSON files without schema updates
+- Schema files referenced in JSON don't match actual structure
+- Different agents expecting different schema versions
+
+**Prevention:**
+1. Update schema files when adding new fields
+2. Make new fields optional with defaults (backwards compatible)
+3. Run schema validation in CI
+4. Document schema changes in workflow documentation
+
+**Recovery:**
+- Add missing fields with sensible defaults
+- Update schemas to match actual usage
+
+**Phase assignment:** Phase 2 (Workflow Enhancements) - include schema updates with feature work
+
+**Sources:**
+- Local: registry.json references `./schemas/registry.schema.json`
+- Local: active-plugin.json references `./schemas/active-plugin.schema.json`
+
+---
+
+## v1.1 Phase-Specific Warnings Summary
+
+| Phase | Likely Pitfall | Mitigation |
+|-------|---------------|------------|
+| Phase 1: Git Cleanup | Breaking clones, CI cache failures | Coordinate announcement, clear caches post-cleanup |
+| Phase 1: Git Cleanup | Using wrong tool (filter-branch) | Enforce git-filter-repo in docs |
+| Phase 2: Workflow | Complexity creep in plugin-improve | Design for simple path first |
+| Phase 2: Workflow | In-flight plugin incompatibility | Check registry, plan migration OR grandfather |
+| Phase 2: Workflow | GitHub Actions breaks | Test in fork, review deprecations |
+
+---
+
+## v1.1 Pre-Implementation Checklist
+
+Before starting v1.1 improvements:
+
+- [ ] Announce planned repository cleanup to any collaborators
+- [ ] Verify no time-sensitive CI/CD runs during cleanup window
+- [ ] Document in-flight plugins that may be affected by workflow changes
+- [ ] Review GitHub Actions deprecation timeline for any affected runners/actions
+- [ ] Backup current workflow schemas before modification
+- [ ] Plan the "simple path" for plugin-improve before adding complexity
+
+---
+
+*v1.1 Addendum Researched: 2026-02-01*
+*Sources: GitHub Docs, git-filter-repo documentation, BFG Repo-Cleaner, GitHub Actions Changelog, XState discussions, local codebase analysis*
