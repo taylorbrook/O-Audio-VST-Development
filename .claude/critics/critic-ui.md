@@ -121,15 +121,44 @@ UI validation has lower thresholds than DSP because visual polish is iterative -
 
 ### 5. Thread Safety (Required, Threshold: 7/10)
 
-**Purpose:** Ensure UI code follows JUCE thread safety patterns.
+**Purpose:** Ensure UI code follows JUCE thread safety patterns that prevent release-build crashes.
 
-**Checklist:**
-- [ ] Member declaration order: Relays -> WebView -> Attachments (critical for destruction order)
-- [ ] APVTS atomic patterns: Parameter access uses proper atomic reads
-- [ ] No UI thread violations: Audio parameters not modified from UI thread without proper synchronization
-- [ ] WebView initialization: Proper options configuration with `.withNativeIntegrationEnabled()`
-- [ ] Relay registration: All relays registered via `.withOptionsFrom()`
-- [ ] Attachment initialization: All parameters have corresponding attachments
+**Checklist - Member Declaration Order (CRITICAL):**
+- [ ] Parse PluginEditor.h private section
+- [ ] Find all relay declarations (WebSliderRelay, WebToggleButtonRelay, WebComboBoxRelay)
+- [ ] Find WebBrowserComponent declaration
+- [ ] Find all attachment declarations
+- [ ] Verify: ALL relays declared BEFORE WebView
+- [ ] Verify: WebView declared BEFORE ALL attachments
+- [ ] Flag any violation as severity: error (causes release crashes)
+
+**Checklist - APVTS Access Patterns:**
+- [ ] In processBlock: Only `getRawParameterValue("id")->load()` used
+- [ ] REJECT: `getParameter("id")->getValue()` in audio path (may lock)
+- [ ] REJECT: `setValue()` from audio thread
+- [ ] In UI: Attachment classes used for all bound parameters
+
+**Checklist - WebView Relay Registration:**
+- [ ] Count relays declared in header
+- [ ] Count .withOptionsFrom() calls in WebView construction
+- [ ] All relays must be registered (counts must match)
+- [ ] Parameter IDs in relays match APVTS parameter IDs
+
+**Checklist - Timer Safety:**
+- [ ] If Timer used: stopTimer() in destructor
+- [ ] Timer callbacks check component validity
+- [ ] No assumption of component existence in callbacks
+
+**Checklist - Attachment Initialization:**
+- [ ] All APVTS parameters have corresponding attachments
+- [ ] Attachment type matches parameter type (Slider for float, Toggle for bool, ComboBox for choice)
+- [ ] Attachments initialized in initializer list, not constructor body
+
+**Detection Patterns:**
+- Member order: Parse order of `WebSliderRelay`, `WebBrowserComponent`, `WebSliderParameterAttachment`
+- APVTS audio access: `getRawParameterValue.*->load\(\)` (correct) vs `getParameter.*getValue` (wrong)
+- Timer destructor: `stopTimer\s*\(\s*\)` in destructor
+- Relay registration: Count `withOptionsFrom` calls
 
 **Evidence required:**
 - Member order in header file
@@ -137,11 +166,22 @@ UI validation has lower thresholds than DSP because visual polish is iterative -
 - Thread-unsafe parameter access
 
 **Scoring:**
-- 10: Perfect thread safety patterns
-- 8-9: All critical patterns followed, minor gaps
-- 7: Core patterns correct, some optional improvements
-- 5-6: Some thread safety issues
-- 1-4: Critical thread safety violations (will crash)
+- 10: Perfect thread safety patterns, all checks pass
+- 8-9: All critical patterns correct, minor gaps (optional checks)
+- 7: Core patterns correct (member order, APVTS access), some improvements possible
+- 5-6: Some thread safety issues (missing relay registration, getValue in audio)
+- 3-4: Member order violation (CRITICAL - will crash in release)
+- 1-2: Multiple critical violations (wrong order + wrong APVTS access)
+
+**Common Thread Safety Failures:**
+
+| Issue | Symptom | Detection |
+|-------|---------|-----------|
+| Wrong member order | Crash on plugin reload in release | Parse header declaration order |
+| Missing relay registration | Parameter doesn't respond | Count relays vs withOptionsFrom |
+| getValue in processBlock | Potential lock/hang | Grep for pattern in audio path |
+| No stopTimer in destructor | Crash on editor close | Check destructor for stopTimer() |
+| Attachment type mismatch | Compilation error or wrong behavior | Compare param types to attachment types |
 
 ## Issue Reporting
 
