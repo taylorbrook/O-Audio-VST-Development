@@ -52,6 +52,8 @@ Deferred to later milestones.
 
 ## Traceability
 
+### v1.1 Requirements
+
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | REPO-01 | Phase 8 | Pending |
@@ -68,11 +70,11 @@ Deferred to later milestones.
 | PLAN-06 | Phase 9 | Pending |
 | PLAN-07 | Phase 9 | Pending |
 
-**Coverage:**
-- v1.1 requirements: 13 total
+**v1.1 Coverage:**
+- Total requirements: 13
 - Mapped to phases: 13
-- Unmapped: 0 ✓
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 after initial definition*
+*Last updated: 2026-02-01 - Traceability confirmed after roadmap creation*
