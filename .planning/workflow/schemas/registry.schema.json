@@ -1,10 +1,10 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "./registry.schema.json",
-  "title": "Plugin Registry",
-  "description": "Global registry tracking all plugins and their current phase state",
+  "title": "Plugin Registry with Module Tracking",
+  "description": "Global registry tracking all plugins and their current phase state with module dependency management",
   "type": "object",
-  "required": ["$schema", "version", "focused", "plugins"],
+  "required": ["$schema", "version", "focused", "plugins", "modules"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
@@ -26,12 +26,19 @@
         "$ref": "#/$defs/PluginEntry"
       },
       "description": "Map of plugin names to their entries"
+    },
+    "modules": {
+      "type": "object",
+      "additionalProperties": {
+        "$ref": "#/$defs/ModuleEntry"
+      },
+      "description": "Map of module names to their metadata"
     }
   },
   "$defs": {
     "PluginEntry": {
       "type": "object",
-      "required": ["path", "stage", "phase", "status", "created"],
+      "required": ["path", "stage", "phase", "status", "created", "modules"],
       "additionalProperties": false,
       "properties": {
         "path": {
@@ -55,21 +62,21 @@
         },
         "created": {
           "type": "string",
-          "format": "date",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
           "description": "Creation date (ISO 8601 date format)"
         },
         "lastActivity": {
           "type": "string",
-          "format": "date-time",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z?$",
           "description": "Last activity timestamp (ISO 8601 datetime format)"
         },
         "modules": {
           "type": "array",
           "items": {
-            "type": "string"
+            "$ref": "#/$defs/InstalledModule"
           },
           "default": [],
-          "description": "Module dependencies (e.g., ['microtonality@1.2.0'])"
+          "description": "Installed module dependencies with version and hash tracking"
         },
         "expressMode": {
           "type": "boolean",
@@ -79,6 +86,112 @@
         "blockedBy": {
           "type": ["string", "null"],
           "description": "Description of what's blocking progress (if status is blocked)"
+        }
+      }
+    },
+    "InstalledModule": {
+      "type": "object",
+      "required": ["name", "version", "installedAt", "modified", "contentHash"],
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Module name (matches key in modules object)"
+        },
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$",
+          "description": "Installed version (semver format)"
+        },
+        "installedAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z?$",
+          "description": "Installation timestamp (ISO 8601 datetime)"
+        },
+        "updatedAt": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z?$",
+          "description": "Last update timestamp (ISO 8601 datetime)"
+        },
+        "modified": {
+          "type": "boolean",
+          "description": "Whether module has local customizations (contentHash != originalHash)"
+        },
+        "contentHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]+$",
+          "description": "SHA-256 hash of current module files in plugin"
+        },
+        "originalHash": {
+          "type": "string",
+          "pattern": "^sha256:[a-f0-9]+$",
+          "description": "SHA-256 hash of original module files at install time"
+        }
+      }
+    },
+    "ModuleEntry": {
+      "type": "object",
+      "required": ["version", "path", "category", "description", "dependents", "lastUpdated", "usageStats"],
+      "additionalProperties": false,
+      "properties": {
+        "version": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+(-[a-zA-Z0-9.]+)?$",
+          "description": "Current module version (semver format)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path to module directory"
+        },
+        "category": {
+          "type": "string",
+          "description": "Module category (core, persistence, metering, tuning, effects, ui, etc.)"
+        },
+        "description": {
+          "type": "string",
+          "description": "Human-readable module description"
+        },
+        "author": {
+          "type": "string",
+          "description": "Module author or organization"
+        },
+        "changelogUrl": {
+          "type": ["string", "null"],
+          "description": "Path to changelog file (relative) or URL"
+        },
+        "compatibilityNotes": {
+          "type": ["string", "null"],
+          "description": "Notes about compatibility requirements or known issues"
+        },
+        "dependents": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "description": "List of plugin names using this module"
+        },
+        "lastUpdated": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z?$",
+          "description": "Last update timestamp (ISO 8601 datetime)"
+        },
+        "usageStats": {
+          "type": "object",
+          "required": ["addCount", "removeCount"],
+          "additionalProperties": false,
+          "properties": {
+            "addCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of times module has been added to plugins"
+            },
+            "removeCount": {
+              "type": "integer",
+              "minimum": 0,
+              "description": "Number of times module has been removed from plugins"
+            }
+          },
+          "description": "Usage statistics for the module"
         }
       }
     }
