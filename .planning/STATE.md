@@ -107,7 +107,14 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-1. **Add GSD-style Plan phase to plugin-improve workflow**
+1. **Repository cleanup and efficiency improvements**
+   - Context: Repo review identified ~1.5GB removable content (.o files, build dirs, .DS_Store)
+   - Gap: Build artifacts in git, plugin naming inconsistencies, duplicate code, scattered docs
+   - Proposal: Three-phase cleanup (git cleanup → standardization → organization)
+   - Affected files: .gitignore, build/, plugins/*/build/, CMakeLists.txt files
+   - Priority: Medium (maintenance/efficiency)
+
+2. **Add GSD-style Plan phase to plugin-improve workflow**
    - Context: Currently, plugin-improve goes from Investigation (Phase 0.5) directly to Implementation (Phase 3) with no formal planning step
    - Gap: For complex improvements (Tier 2/3), there's no structured plan creation, task breakdown, or approach approval before coding
    - Proposal: Insert a Plan phase between Phase 0.5 and Phase 0.9 that:
