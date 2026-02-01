@@ -1,18 +1,154 @@
 {
   "$schema": "./schemas/registry.schema.json",
-  "version": "2.0.0",
+  "version": "3.0.0",
   "focused": "O-IntonationPad",
   "plugins": {
     "O-IntonationPad": {
       "path": "plugins/O-IntonationPad",
-      "stage": "1-foundation",
+      "stage": "4-wavetable",
       "phase": "complete",
       "status": "active",
       "created": "2026-01-28",
-      "lastActivity": "2026-01-29T14:00:00Z",
+      "lastActivity": "2026-01-30T10:15:00Z",
       "modules": [],
       "expressMode": false,
       "blockedBy": null
+    }
+  },
+  "modules": {
+    "webview-relay-manager": {
+      "version": "1.0.0",
+      "path": "modules/core/webview-relay-manager",
+      "category": "core",
+      "description": "Manages WebSliderRelay and WebToggleButtonRelay lifecycle with correct destruction order. Prevents 90% of release build crashes caused by attachments calling evaluateJavascript() on destroyed WebView.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 0,
+        "removeCount": 0
+      }
+    },
+    "resource-provider": {
+      "version": "1.0.0",
+      "path": "modules/core/resource-provider",
+      "category": "core",
+      "description": "Generic resource provider for WebView binary data serving. Maps flattened BinaryData names back to URL paths with correct MIME types.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 0,
+        "removeCount": 0
+      }
+    },
+    "preset-manager": {
+      "version": "1.0.0",
+      "path": "modules/persistence/preset-manager",
+      "category": "persistence",
+      "description": "JSON-based preset persistence with factory/user preset separation. Supports APVTS parameter serialization, navigation (next/previous), and DAW session save/restore via XML.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [
+        "OuariconMarimba",
+        "OuariconTremolo"
+      ],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 2,
+        "removeCount": 0
+      }
+    },
+    "vu-meter": {
+      "version": "1.0.0",
+      "path": "modules/metering/vu-meter",
+      "category": "metering",
+      "description": "Thread-safe VU metering with atomic float polling (C++) and smooth animated display (JavaScript). Configurable attack/release ballistics, dB range mapping, and optional peak hold.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [
+        "OuariconComp",
+        "OuariconAnalogEQ"
+      ],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 2,
+        "removeCount": 0
+      }
+    },
+    "scala-tuning-engine": {
+      "version": "1.0.0",
+      "path": "modules/tuning/scala-tuning-engine",
+      "category": "tuning",
+      "description": "Complete microtonal tuning system supporting 12-TET, custom scales via Scala (.scl/.kbm) files, and MTS-ESP integration (stubbed). Includes thread-safe atomic frequency table for real-time audio, interval editing UI, pitch circle visualization, and tonic transposition.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [
+        "OuariconMarimba"
+      ],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 1,
+        "removeCount": 0
+      }
+    },
+    "analog-eq-unit": {
+      "version": "1.2.0",
+      "path": "modules/effects/analog-eq-unit",
+      "category": "effects",
+      "description": "4-band analog-style parametric EQ module with low/high shelves and two mid bells. Includes optional analog saturation for warmth. Designed as an embeddable unit for effects tabs in VST instruments. Same DSP as Ouaricon Analog Equalizer. Features signature dual-ring knobs where outer ring controls frequency and inner dial controls gain.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [
+        "OuariconMarimba"
+      ],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 1,
+        "removeCount": 0
+      }
+    },
+    "compressor-unit": {
+      "version": "1.2.1",
+      "path": "modules/effects/compressor-unit",
+      "category": "effects",
+      "description": "Compact dynamics compressor module for embedding in VST instruments. Same DSP as Ouaricon Compressor with simplified controls: Threshold, Ratio, Attack, Release. Fixed 6dB soft knee for musical response. Features clickable title for bypass toggle, canonical 10-segment seed knobs in Ouaricon naturalist aesthetic, and vertical GR LED strip.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [
+        "OuariconMarimba"
+      ],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 1,
+        "removeCount": 0
+      }
+    },
+    "playable-keyboard": {
+      "version": "1.0.0",
+      "path": "modules/ui/playable-keyboard",
+      "category": "ui",
+      "description": "Interactive piano keyboard for WebView-based plugins. Supports mouse and touch input, sends MIDI notes via native function, highlights active keys, and integrates with pitch circle visualization.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [
+        "OuariconMarimba"
+      ],
+      "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 1,
+        "removeCount": 0
+      }
     }
   }
 }
