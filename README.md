@@ -24,6 +24,7 @@ All plugins compile to native VST3/AU formats compatible with any DAW (Ableton, 
 Brainstorm your plugin concept through conversation:
 - **Creative brief** - Vision, sonic goals, UX principles
 - **Parameter specification** - All controls, ranges, and mappings
+- **Requirements** - Formal requirements with acceptance criteria (auto-extracted from brief)
 - **UI mockups** - Visual design and layout
 
 ### 2. Plan (`/plan`)
@@ -146,6 +147,7 @@ Every plugin has its own planning directory at `plugins/[Name]/.planning/`:
 ```
 plugins/[Name]/.planning/
 ├── BRIEF.md                    # Vision, sonic goals, UX principles
+├── REQUIREMENTS.md             # Formal requirements with acceptance criteria
 ├── STATUS.md                   # Current stage, progress, history
 ├── ROADMAP.md                  # Implementation strategy and phases
 ├── parameter-spec.md           # Complete parameter definitions
@@ -320,6 +322,7 @@ The full journey from idea to installed plugin:
 # Interactive conversation captures:
 # - Creative brief (vision, sonic goals, UX principles)
 # - Parameter specification (all controls with ranges)
+# - Requirements (auto-extracted with acceptance criteria)
 # - UI mockups (optional, can add later)
 
 # 2. PLANNING: Design the technical architecture
@@ -522,9 +525,11 @@ Every stage has quality gates that must pass:
 
 | Stage | Gate Checks |
 |-------|-------------|
-| 1-foundation | CMake configures, builds without error, parameters registered |
-| 2-dsp | processBlock compiles, no real-time safety violations, audio flows |
-| 3-gui | WebView loads, parameters bind correctly, UI responds |
+| 1-foundation | CMake configures, builds without error, parameters registered, COMPAT requirements pass |
+| 2-dsp | processBlock compiles, no real-time safety violations, audio flows, FUNC/DSP/PERF/QUAL requirements pass |
+| 3-gui | WebView loads, parameters bind correctly, UI responds, UI requirements pass |
+
+Each gate also verifies requirements from REQUIREMENTS.md where `verifiedAt` matches the current stage.
 
 **Manual gate control:**
 
@@ -744,6 +749,7 @@ vst-development/
 │   └── [PluginName]/
 │       ├── .planning/                # GSD-style planning (plugin-local)
 │       │   ├── BRIEF.md              # Creative vision
+│       │   ├── REQUIREMENTS.md       # Formal requirements with acceptance criteria
 │       │   ├── STATUS.md             # Current state and progress (phase-aware)
 │       │   ├── ROADMAP.md            # Implementation strategy
 │       │   ├── parameter-spec.md     # Parameter definitions

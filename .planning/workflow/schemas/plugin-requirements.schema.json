@@ -1,0 +1,89 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "plugin-requirements.schema.json",
+  "title": "Plugin Requirements",
+  "description": "Schema for plugin REQUIREMENTS.md validation",
+  "type": "object",
+  "required": ["version", "plugin", "requirements"],
+  "additionalProperties": false,
+  "properties": {
+    "version": {
+      "type": "string",
+      "pattern": "^[0-9]+\\.[0-9]+\\.[0-9]+$",
+      "description": "Semantic version of the requirements document"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin name"
+    },
+    "created": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Creation date in YYYY-MM-DD format"
+    },
+    "lastUpdated": {
+      "type": "string",
+      "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$",
+      "description": "Last update date in YYYY-MM-DD format"
+    },
+    "requirements": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/requirement"
+      },
+      "minItems": 1,
+      "description": "List of requirements"
+    }
+  },
+  "$defs": {
+    "requirement": {
+      "type": "object",
+      "required": ["id", "description", "priority", "status", "category"],
+      "additionalProperties": false,
+      "properties": {
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]+-[0-9]+$",
+          "description": "Requirement ID (e.g., FUNC-01, DSP-03)"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Clear description of what must be achieved"
+        },
+        "priority": {
+          "type": "string",
+          "enum": ["must", "should", "nice"],
+          "description": "Priority level: must (blocks release), should (expected), nice (optional)"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["pending", "in_progress", "complete", "deferred"],
+          "description": "Current status"
+        },
+        "category": {
+          "type": "string",
+          "enum": ["functional", "dsp", "ui", "performance", "compatibility", "quality"],
+          "description": "Requirement category"
+        },
+        "acceptanceCriteria": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "description": "Specific criteria that must be met to satisfy the requirement"
+        },
+        "verifiedAt": {
+          "type": "string",
+          "pattern": "^stage-[0-4]$",
+          "description": "Stage where this requirement is verified"
+        },
+        "notes": {
+          "type": "string",
+          "description": "Additional notes or context"
+        }
+      }
+    }
+  }
+}

@@ -76,6 +76,7 @@ argument-hint: "[concept or PluginName?]"
 
   Output locations managed by invoked skills:
   - plugin-ideation → `plugins/[Name]/.planning/BRIEF.md`
+  - plugin-ideation → `plugins/[Name]/.planning/REQUIREMENTS.md` (auto-extracted from brief)
   - plugin-ideation → `plugins/[Name]/.planning/improvements/[feature].md`
   - ui-mockup → `plugins/[Name]/.planning/mockups/v[N]-*`
   - aesthetic-dreaming → `.claude/aesthetics/[aesthetic-id]/aesthetic.md`

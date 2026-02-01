@@ -36,12 +36,19 @@ args: "[plugin_name?] [stage?]"
    - CONTEXT.md (what was discussed/decided)
    - PLAN.md (what was planned)
    - SUMMARY.md (what was implemented)
-   - BRIEF.md (original requirements)
+   - BRIEF.md (original vision)
+   - REQUIREMENTS.md (formal requirements with acceptance criteria)
 
 2. **Runs goal-backward verification:**
    - What did we set out to achieve? (from CONTEXT.md, PLAN.md)
    - What did we actually deliver? (from SUMMARY.md, code inspection)
    - Does delivery match goals?
+
+3. **Checks requirements for this stage:**
+   - Loads REQUIREMENTS.md
+   - Filters requirements where `verifiedAt` matches current stage
+   - Checks acceptance criteria for each requirement
+   - Updates requirement status (pending → complete/partial)
 
 3. **Runs automated checks (stage-dependent):**
    - Stage 1: Build passes, parameters exist, pass-through works
@@ -54,6 +61,7 @@ args: "[plugin_name?] [stage?]"
 
 5. **Updates:**
    - `plugins/[Name]/.planning/STATUS.md` with stage complete
+   - `plugins/[Name]/.planning/REQUIREMENTS.md` requirement statuses (pending → complete/partial)
 
 ## Output: VERIFICATION.md
 
@@ -85,6 +93,24 @@ args: "[plugin_name?] [stage?]"
 | [Goal 1] | ✅ Achieved | [How verified] |
 | [Goal 2] | ✅ Achieved | [How verified] |
 | [Goal 3] | ⚠️ Partial | [What's missing] |
+
+## Requirements Verification
+
+**Stage:** [current stage]
+**Requirements for this stage:** [N] total ([M] must, [K] should, [L] nice)
+
+| Requirement | Priority | Status | Acceptance Criteria |
+|-------------|----------|--------|---------------------|
+| FUNC-01: [Description] | must | ✅ Complete | All criteria met |
+| DSP-01: [Description] | must | ✅ Complete | All criteria met |
+| PERF-01: Real-time safe | must | ✅ Complete | No allocations in processBlock |
+| UI-01: [Description] | should | ⏸️ Deferred | Verified at stage-3 |
+
+**Requirements Summary:**
+- ✅ Complete: [N]
+- ⚠️ Partial: [N]
+- ⏸️ Deferred (later stage): [N]
+- ❌ Failed: [N]
 
 ## Automated Checks
 

@@ -9,8 +9,9 @@ This workflow guides you through capturing a complete creative vision for a new 
 4. Phase 4: Decision gate (finalize or iterate)
 5. Phase 5: Plugin name validation (if needed)
 6. Phase 6: Document creation (BRIEF.md)
-7. Phase 7: Session handoff (.planning/STATUS.md)
-8. Phase 8: Decision menu (next action)
+7. Phase 6.5: Requirements extraction (REQUIREMENTS.md)
+8. Phase 7: Session handoff (.planning/STATUS.md)
+9. Phase 8: Decision menu (next action)
 
 ---
 
@@ -242,6 +243,142 @@ Add entry if doesn't exist:
 ```
 </step>
 
+## Phase 6.5: Requirements Extraction
+
+<step number="6.5" required="true">
+**Must extract formal requirements from BRIEF.md immediately after creating it.**
+
+**Purpose:** Transform creative brief into explicit, verifiable requirements with acceptance criteria.
+
+**Extraction Process:**
+
+1. **Read the just-created BRIEF.md**
+2. **Extract requirements by category:**
+
+   | Source Section | Requirement Category |
+   |---------------|---------------------|
+   | Vision / Core Concept | FUNC (functional) |
+   | Parameters table | DSP, FUNC |
+   | UI Concept | UI |
+   | Technical Notes | PERF, QUAL |
+   | Use Cases | FUNC, COMPAT |
+
+3. **Assign priorities:**
+   - `must` — Core functionality that defines the plugin (blocks release)
+   - `should` — Expected features for good UX (strong expectation)
+   - `nice` — Enhancements that add polish (optional for v1.0)
+
+4. **Add standard requirements:**
+   - PERF-01: Real-time safe processing (always `must`)
+   - COMPAT-01: Passes pluginval (always `must`)
+   - QUAL-01: No audio artifacts (always `must`)
+
+5. **Generate acceptance criteria:**
+   - Each requirement needs 1-3 specific, testable criteria
+   - Criteria should be verifiable during `/plugin-verify`
+
+**File:** `plugins/[PluginName]/.planning/REQUIREMENTS.md`
+
+**Format:**
+```markdown
+# [PluginName] - Requirements
+
+---
+version: 1.0.0
+plugin: [PluginName]
+created: [YYYY-MM-DD]
+lastUpdated: [YYYY-MM-DD]
+---
+
+## Overview
+
+**Target Milestone:** v1.0
+**Total Requirements:** [N]
+**Coverage:** must: [N] | should: [N] | nice: [N]
+
+## Requirements
+
+### Functional (FUNC)
+
+| ID | Description | Priority | Status | Verified At |
+|----|-------------|----------|--------|-------------|
+| FUNC-01 | [Extracted from core concept] | must | pending | stage-2 |
+| FUNC-02 | [Extracted from use cases] | should | pending | stage-2 |
+
+### DSP (DSP)
+
+| ID | Description | Priority | Status | Verified At |
+|----|-------------|----------|--------|-------------|
+| DSP-01 | [Extracted from parameters/technical notes] | must | pending | stage-2 |
+
+### UI (UI)
+
+| ID | Description | Priority | Status | Verified At |
+|----|-------------|----------|--------|-------------|
+| UI-01 | [Extracted from UI concept] | should | pending | stage-3 |
+
+### Performance (PERF)
+
+| ID | Description | Priority | Status | Verified At |
+|----|-------------|----------|--------|-------------|
+| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | pending | stage-2 |
+
+### Compatibility (COMPAT)
+
+| ID | Description | Priority | Status | Verified At |
+|----|-------------|----------|--------|-------------|
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+
+### Quality (QUAL)
+
+| ID | Description | Priority | Status | Verified At |
+|----|-------------|----------|--------|-------------|
+| QUAL-01 | No audio artifacts at normal parameter ranges | must | pending | stage-2 |
+
+## Acceptance Criteria Details
+
+### FUNC-01: [Title]
+
+**Description:** [Full description from brief]
+
+**Acceptance Criteria:**
+- [ ] [Testable criterion 1]
+- [ ] [Testable criterion 2]
+
+---
+
+## Traceability
+
+| Stage | Requirements Verified |
+|-------|----------------------|
+| stage-1 | COMPAT-01 |
+| stage-2 | FUNC-*, DSP-*, PERF-01, QUAL-* |
+| stage-3 | UI-* |
+| stage-4 | COMPAT-*, all remaining |
+
+## Out of Scope (v1.0)
+
+| Feature | Reason | Future Version |
+|---------|--------|----------------|
+| [From BRIEF.md if mentioned] | [Reason] | v1.1+ |
+
+---
+*Generated from BRIEF.md on [YYYY-MM-DD]*
+*Schema: .planning/workflow/schemas/plugin-requirements.schema.json*
+```
+
+**Verification:** Requirements document must have:
+- At least 1 `must` priority requirement per category (FUNC, DSP, PERF, COMPAT, QUAL)
+- Acceptance criteria for all `must` requirements
+- Traceability to verification stage
+
+**Commit:**
+```bash
+git add plugins/[PluginName]/.planning/REQUIREMENTS.md
+git commit -m "docs([PluginName]): extract requirements from creative brief"
+```
+</step>
+
 ## Phase 7: Session Handoff
 
 <state_requirement>
@@ -273,6 +410,7 @@ Creative brief has been finalized for [PluginName]. Ready to proceed to UI mocku
 - Parameters specified
 - UI vision captured
 - Use cases identified
+- Requirements extracted with acceptance criteria
 
 ## Next Steps
 
@@ -288,6 +426,7 @@ Creative brief has been finalized for [PluginName]. Ready to proceed to UI mocku
 
 **Files Created:**
 - plugins/[PluginName]/.planning/BRIEF.md
+- plugins/[PluginName]/.planning/REQUIREMENTS.md
 ```
 </step>
 </state_requirement>
