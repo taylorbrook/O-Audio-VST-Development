@@ -39,7 +39,7 @@ Ouaricon Plugins:
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
 | O-Detune | 🚧 Stage 0 | 1.0.0 | Audio Effect (Detuning) | 2026-02-01 |
-| O-Freeze | 💡 Ideated | - | Audio Effect (Granular Freeze) | 2026-02-01 |
+| O-Freeze | 🚧 Stage 0 | - | Audio Effect (Granular Freeze) | 2026-02-01 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
