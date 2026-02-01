@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-01-29)
 ## Current Position
 
 Phase: 6 of 7 (Domain Specialization)
-Plan: 1 of 3 in phase
+Plan: 2 of 3 in phase
 Status: In progress
-Last activity: 2026-02-01 — Completed 06-01-PLAN.md (real-time safety rules)
+Last activity: 2026-02-01 — Completed 06-02-PLAN.md (thread-safety patterns)
 
-Progress: [███████████████---] 71%
+Progress: [████████████████--] 76%
 
 ## Performance Metrics
 
@@ -32,10 +32,10 @@ Progress: [███████████████---] 71%
 | 3 | 2 | ~5 min | ~2.5 min |
 | 4 | 2 | ~9 min | ~4.5 min |
 | 5 | 3 | ~9 min | ~3 min |
-| 6 | 1 | ~3 min | ~3 min |
+| 6 | 2 | ~5 min | ~2.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 04-01, 04-02, 05-02, 05-03, 06-01
+- Last 5 plans: 04-02, 05-02, 05-03, 06-01, 06-02
 - Trend: Accelerating (infrastructure plans executing fast)
 
 *Updated after each plan completion*
@@ -83,6 +83,10 @@ Recent decisions affecting current work:
 - [06-01]: Capture-less lambdas allowed, through std::function rejected
 - [06-01]: MessageManager::callAsync rejected from audio thread, atomic+timer suggested
 - [06-01]: Detection regex patterns added for automated violation scanning
+- [06-02]: Member declaration order: Relays -> WebView -> Attachments (CRITICAL)
+- [06-02]: APVTS access: getRawParameterValue()->load() only in audio thread
+- [06-02]: stopTimer() required in destructor before member destruction
+- [06-02]: Member order violation flagged as severity: error (causes release crashes)
 
 ### Pending Todos
 
@@ -95,8 +99,8 @@ None yet.
 ## Session Continuity
 
 Last session: 2026-02-01
-Stopped at: Completed 06-01-PLAN.md (real-time safety rules)
+Stopped at: Completed 06-02-PLAN.md (thread-safety patterns)
 Resume file: None
 
 ---
-*Next step: Continue Phase 6 - Execute 06-02-PLAN.md (thread safety patterns)*
+*Next step: Continue Phase 6 - Execute 06-03-PLAN.md (music theory agent)*
