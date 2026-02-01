@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Detune</title>
+    <script type="module" src="/js/juce/index.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --bg-dark: #1a1a2e;
+            --bg-panel: #252538;
+            --accent-orange: #d97341;
+            --accent-teal: #5ba89a;
+            --accent-cream: #f5f0e8;
+            --accent-purple: #7a5d9e;
+            --text-light: #e8e8e8;
+            --text-muted: #a0a0a0;
+            --knob-bg: #2d2d42;
+            --knob-indicator: #d97341;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, var(--bg-dark) 0%, #16162a 100%);
+            color: var(--text-light);
+            min-height: 100vh;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        .container {
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            height: 100vh;
+        }
+
+        /* Header */
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0 8px;
+        }
+
+        .logo {
+            font-size: 20px;
+            font-weight: 700;
+            color: var(--accent-orange);
+            letter-spacing: 1px;
+        }
+
+        .logo span {
+            color: var(--accent-cream);
+        }
+
+        /* Panels */
+        .panel {
+            background: var(--bg-panel);
+            border-radius: 12px;
+            padding: 12px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+
+        .panel-label {
+            font-size: 10px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-muted);
+            margin-bottom: 8px;
+        }
+
+        /* Engines Row */
+        .engines-row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 12px;
+            align-items: stretch;
+        }
+
+        .engine-panel {
+            border: 2px solid transparent;
+            transition: border-color 0.2s;
+        }
+
+        .engine-panel.wobble {
+            border-color: var(--accent-purple);
+        }
+
+        .engine-panel.unison {
+            border-color: var(--accent-teal);
+        }
+
+        .engine-controls {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+        }
+
+        /* Blend Control */
+        .blend-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 8px;
+        }
+
+        .blend-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        /* Knob */
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .knob {
+            width: 48px;
+            height: 48px;
+            background: var(--knob-bg);
+            border-radius: 50%;
+            position: relative;
+            cursor: grab;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);
+        }
+
+        .knob.large {
+            width: 64px;
+            height: 64px;
+        }
+
+        .knob:active {
+            cursor: grabbing;
+        }
+
+        .knob-indicator {
+            position: absolute;
+            width: 4px;
+            height: 16px;
+            background: var(--knob-indicator);
+            border-radius: 2px;
+            left: 50%;
+            top: 6px;
+            transform-origin: center 18px;
+            transform: translateX(-50%) rotate(0deg);
+        }
+
+        .knob.large .knob-indicator {
+            height: 20px;
+            transform-origin: center 26px;
+            top: 8px;
+        }
+
+        .knob-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .knob-value {
+            font-size: 10px;
+            color: var(--text-light);
+            font-weight: 500;
+        }
+
+        /* Dropdown */
+        .dropdown-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .dropdown-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .dropdown {
+            background: var(--knob-bg);
+            border: 1px solid rgba(255,255,255,0.1);
+            border-radius: 6px;
+            padding: 6px 10px;
+            color: var(--text-light);
+            font-size: 11px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        .dropdown:hover {
+            border-color: var(--accent-orange);
+        }
+
+        /* Character Section */
+        .character-row {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 12px;
+            justify-items: center;
+        }
+
+        /* Output Row */
+        .output-row {
+            display: grid;
+            grid-template-columns: 1fr auto 1fr;
+            gap: 16px;
+            align-items: center;
+        }
+
+        .slider-container {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .slider-label {
+            font-size: 9px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+        }
+
+        .slider {
+            -webkit-appearance: none;
+            width: 100%;
+            height: 6px;
+            background: var(--knob-bg);
+            border-radius: 3px;
+            outline: none;
+        }
+
+        .slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 16px;
+            height: 16px;
+            background: var(--accent-orange);
+            border-radius: 50%;
+            cursor: pointer;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+        }
+
+        /* Toggle */
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .toggle {
+            width: 40px;
+            height: 20px;
+            background: var(--knob-bg);
+            border-radius: 10px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .toggle.active {
+            background: var(--accent-teal);
+        }
+
+        .toggle-knob {
+            width: 16px;
+            height: 16px;
+            background: var(--accent-cream);
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: left 0.2s;
+        }
+
+        .toggle.active .toggle-knob {
+            left: 22px;
+        }
+
+        .toggle-label {
+            font-size: 10px;
+            color: var(--text-light);
+        }
+
+        /* Advanced Panel */
+        .advanced-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+            padding: 4px 0;
+        }
+
+        .advanced-header:hover {
+            color: var(--accent-orange);
+        }
+
+        .advanced-arrow {
+            transition: transform 0.2s;
+        }
+
+        .advanced-arrow.open {
+            transform: rotate(90deg);
+        }
+
+        .advanced-content {
+            display: none;
+            margin-top: 12px;
+            padding-top: 12px;
+            border-top: 1px solid rgba(255,255,255,0.1);
+        }
+
+        .advanced-content.open {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <div class="logo">O-<span>DETUNE</span></div>
+        </div>
+
+        <!-- Engines Row -->
+        <div class="engines-row">
+            <!-- Wobble Engine -->
+            <div class="panel engine-panel wobble">
+                <div class="panel-label">Wobble</div>
+                <div class="engine-controls">
+                    <div class="dropdown-container">
+                        <span class="dropdown-label">Era</span>
+                        <select class="dropdown" id="wobble_era">
+                            <option value="0">60s</option>
+                            <option value="1" selected>70s</option>
+                            <option value="2">80s</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-container">
+                        <span class="dropdown-label">Shape</span>
+                        <select class="dropdown" id="wobble_shape">
+                            <option value="0" selected>Sine</option>
+                            <option value="1">Triangle</option>
+                            <option value="2">Random</option>
+                        </select>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob" id="wobble_rate" data-min="0.1" data-max="10" data-value="2">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <span class="knob-label">Rate</span>
+                        <span class="knob-value" id="wobble_rate_value">2.0 Hz</span>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob" id="wobble_depth" data-min="0" data-max="100" data-value="25">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <span class="knob-label">Depth</span>
+                        <span class="knob-value" id="wobble_depth_value">25 ct</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Blend Control -->
+            <div class="blend-section">
+                <span class="blend-label">BLEND</span>
+                <div class="knob-container">
+                    <div class="knob large" id="blend" data-min="0" data-max="1" data-value="0.5">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-value" id="blend_value">50%</span>
+                </div>
+            </div>
+
+            <!-- Unison Engine -->
+            <div class="panel engine-panel unison">
+                <div class="panel-label">Unison</div>
+                <div class="engine-controls">
+                    <div class="dropdown-container">
+                        <span class="dropdown-label">Voices</span>
+                        <select class="dropdown" id="unison_voices">
+                            <option value="0">2</option>
+                            <option value="1" selected>3</option>
+                            <option value="2">4</option>
+                            <option value="3">5</option>
+                            <option value="4">7</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-container">
+                        <span class="dropdown-label">Dist</span>
+                        <select class="dropdown" id="unison_dist">
+                            <option value="0" selected>Linear</option>
+                            <option value="1">Exp</option>
+                            <option value="2">Random</option>
+                        </select>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob" id="unison_detune" data-min="0" data-max="50" data-value="15">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <span class="knob-label">Detune</span>
+                        <span class="knob-value" id="unison_detune_value">15 ct</span>
+                    </div>
+                    <div class="knob-container">
+                        <div class="knob" id="unison_spread" data-min="0" data-max="100" data-value="75">
+                            <div class="knob-indicator"></div>
+                        </div>
+                        <span class="knob-label">Spread</span>
+                        <span class="knob-value" id="unison_spread_value">75%</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Character Section -->
+        <div class="panel">
+            <div class="panel-label">Character</div>
+            <div class="character-row">
+                <div class="knob-container">
+                    <div class="knob" id="drive" data-min="0" data-max="100" data-value="20">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-label">Drive</span>
+                    <span class="knob-value" id="drive_value">20%</span>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" id="color" data-min="-100" data-max="100" data-value="0">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-label">Color</span>
+                    <span class="knob-value" id="color_value">0</span>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" id="age" data-min="0" data-max="100" data-value="0">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-label">Age</span>
+                    <span class="knob-value" id="age_value">0%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Output Section -->
+        <div class="panel">
+            <div class="output-row">
+                <div class="slider-container">
+                    <span class="slider-label">Width: <span id="width_value">100%</span></span>
+                    <input type="range" class="slider" id="width" min="0" max="200" value="100">
+                </div>
+
+                <div class="toggle-container">
+                    <div class="toggle active" id="mono_safe">
+                        <div class="toggle-knob"></div>
+                    </div>
+                    <span class="toggle-label">Mono-Safe</span>
+                </div>
+
+                <div class="knob-container" style="align-items: flex-end;">
+                    <div class="knob large" id="mix" data-min="0" data-max="100" data-value="50">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-label">Mix</span>
+                    <span class="knob-value" id="mix_value">50%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Advanced Panel -->
+        <div class="panel">
+            <div class="advanced-header" onclick="toggleAdvanced()">
+                <span class="advanced-arrow" id="advancedArrow">▶</span>
+                <span class="panel-label" style="margin: 0;">Advanced</span>
+            </div>
+            <div class="advanced-content" id="advancedContent">
+                <div class="knob-container">
+                    <div class="knob" id="delay" data-min="0" data-max="50" data-value="0">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-label">Pre-Delay</span>
+                    <span class="knob-value" id="delay_value">0 ms</span>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" id="feedback" data-min="0" data-max="80" data-value="0">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-label">Feedback</span>
+                    <span class="knob-value" id="feedback_value">0%</span>
+                </div>
+                <div class="knob-container">
+                    <div class="knob" id="random_amt" data-min="0" data-max="100" data-value="15">
+                        <div class="knob-indicator"></div>
+                    </div>
+                    <span class="knob-label">Random</span>
+                    <span class="knob-value" id="random_amt_value">15%</span>
+                </div>
+                <div class="toggle-container" style="flex-direction: column; align-items: center;">
+                    <div class="toggle" id="wobble_sync">
+                        <div class="toggle-knob"></div>
+                    </div>
+                    <span class="toggle-label">Tempo Sync</span>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import * as Juce from '/js/juce/index.js';
+
+        // Wait for JUCE native integration
+        await Juce.__juce__.initialise();
+
+        // Get slider states from JUCE
+        const sliderStates = {
+            blend: Juce.getSliderState('blend'),
+            wobble_rate: Juce.getSliderState('wobble_rate'),
+            wobble_depth: Juce.getSliderState('wobble_depth'),
+            unison_detune: Juce.getSliderState('unison_detune'),
+            unison_spread: Juce.getSliderState('unison_spread'),
+            drive: Juce.getSliderState('drive'),
+            color: Juce.getSliderState('color'),
+            age: Juce.getSliderState('age'),
+            width: Juce.getSliderState('width'),
+            mix: Juce.getSliderState('mix'),
+            focus_low: Juce.getSliderState('focus_low'),
+            focus_high: Juce.getSliderState('focus_high'),
+            delay: Juce.getSliderState('delay'),
+            feedback: Juce.getSliderState('feedback'),
+            random_amt: Juce.getSliderState('random_amt')
+        };
+
+        // Get combobox states
+        const comboStates = {
+            wobble_era: Juce.getComboBoxState('wobble_era'),
+            wobble_shape: Juce.getComboBoxState('wobble_shape'),
+            unison_voices: Juce.getComboBoxState('unison_voices'),
+            unison_dist: Juce.getComboBoxState('unison_dist')
+        };
+
+        // Get toggle states
+        const toggleStates = {
+            wobble_sync: Juce.getToggleState('wobble_sync'),
+            mono_safe: Juce.getToggleState('mono_safe')
+        };
+
+        // Value formatters
+        const formatters = {
+            blend: v => Math.round(v * 100) + '%',
+            wobble_rate: v => v.toFixed(1) + ' Hz',
+            wobble_depth: v => Math.round(v) + ' ct',
+            unison_detune: v => Math.round(v) + ' ct',
+            unison_spread: v => Math.round(v) + '%',
+            drive: v => Math.round(v) + '%',
+            color: v => Math.round(v),
+            age: v => Math.round(v) + '%',
+            width: v => Math.round(v) + '%',
+            mix: v => Math.round(v) + '%',
+            focus_low: v => Math.round(v) + ' Hz',
+            focus_high: v => (v / 1000).toFixed(1) + ' kHz',
+            delay: v => Math.round(v) + ' ms',
+            feedback: v => Math.round(v) + '%',
+            random_amt: v => Math.round(v) + '%'
+        };
+
+        // Setup knobs
+        document.querySelectorAll('.knob').forEach(knob => {
+            const id = knob.id;
+            const state = sliderStates[id];
+            if (!state) return;
+
+            let isDragging = false;
+            let startY, startValue;
+
+            const updateVisual = (normalizedValue) => {
+                const rotation = -135 + normalizedValue * 270;
+                knob.querySelector('.knob-indicator').style.transform =
+                    `translateX(-50%) rotate(${rotation}deg)`;
+
+                const valueEl = document.getElementById(id + '_value');
+                if (valueEl && formatters[id]) {
+                    const props = state.properties;
+                    const actualValue = props.start + normalizedValue * (props.end - props.start);
+                    valueEl.textContent = formatters[id](actualValue);
+                }
+            };
+
+            // Initial value from JUCE
+            state.valueChangedEvent.addListener(() => {
+                updateVisual(state.getNormalisedValue());
+            });
+            updateVisual(state.getNormalisedValue());
+
+            // Drag interaction
+            knob.addEventListener('mousedown', e => {
+                isDragging = true;
+                startY = e.clientY;
+                startValue = state.getNormalisedValue();
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', e => {
+                if (!isDragging) return;
+                const delta = (startY - e.clientY) / 200;
+                const newValue = Math.max(0, Math.min(1, startValue + delta));
+                state.setNormalisedValue(newValue);
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    state.sliderDragEnded();
+                }
+            });
+        });
+
+        // Setup width slider
+        const widthSlider = document.getElementById('width');
+        const widthState = sliderStates.width;
+        if (widthSlider && widthState) {
+            widthState.valueChangedEvent.addListener(() => {
+                const props = widthState.properties;
+                const value = props.start + widthState.getNormalisedValue() * (props.end - props.start);
+                widthSlider.value = value;
+                document.getElementById('width_value').textContent = Math.round(value) + '%';
+            });
+
+            widthSlider.addEventListener('input', e => {
+                const props = widthState.properties;
+                const norm = (parseFloat(e.target.value) - props.start) / (props.end - props.start);
+                widthState.setNormalisedValue(norm);
+            });
+
+            // Initial
+            const props = widthState.properties;
+            const value = props.start + widthState.getNormalisedValue() * (props.end - props.start);
+            widthSlider.value = value;
+            document.getElementById('width_value').textContent = Math.round(value) + '%';
+        }
+
+        // Setup dropdowns
+        Object.entries(comboStates).forEach(([id, state]) => {
+            const select = document.getElementById(id);
+            if (!select || !state) return;
+
+            state.valueChangedEvent.addListener(() => {
+                select.value = state.getChosenItemIndex();
+            });
+            select.value = state.getChosenItemIndex();
+
+            select.addEventListener('change', e => {
+                state.setChosenItemIndex(parseInt(e.target.value));
+            });
+        });
+
+        // Setup toggles
+        Object.entries(toggleStates).forEach(([id, state]) => {
+            const toggle = document.getElementById(id);
+            if (!toggle || !state) return;
+
+            const updateToggle = () => {
+                if (state.getValue()) {
+                    toggle.classList.add('active');
+                } else {
+                    toggle.classList.remove('active');
+                }
+            };
+
+            state.valueChangedEvent.addListener(updateToggle);
+            updateToggle();
+
+            toggle.addEventListener('click', () => {
+                state.setValue(!state.getValue());
+            });
+        });
+
+        // Advanced panel toggle
+        window.toggleAdvanced = () => {
+            const content = document.getElementById('advancedContent');
+            const arrow = document.getElementById('advancedArrow');
+            content.classList.toggle('open');
+            arrow.classList.toggle('open');
+        };
+    </script>
+</body>
+</html>

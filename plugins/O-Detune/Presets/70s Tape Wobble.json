@@ -1,0 +1,28 @@
+{
+  "preset_name": "70s Tape Wobble",
+  "preset_author": "Ouaricon Development",
+  "preset_category": "Lo-Fi",
+  "parameters": {
+    "blend": 0.0,
+    "wobble_era": 1,
+    "wobble_rate": 1.5,
+    "wobble_depth": 40.0,
+    "wobble_shape": 0,
+    "wobble_sync": false,
+    "unison_voices": 1,
+    "unison_detune": 15.0,
+    "unison_dist": 0,
+    "unison_spread": 75.0,
+    "drive": 35.0,
+    "color": -20.0,
+    "age": 25.0,
+    "width": 100.0,
+    "mix": 60.0,
+    "focus_low": 20.0,
+    "focus_high": 15000.0,
+    "mono_safe": true,
+    "delay": 0.0,
+    "feedback": 0.0,
+    "random_amt": 15.0
+  }
+}

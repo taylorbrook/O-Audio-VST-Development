@@ -1,6 +1,6 @@
 {
   "$schema": "./schemas/active-plugin.schema.json",
-  "plugin": "O-IntonationPad",
-  "focusedAt": "2026-01-31T00:28:24Z",
+  "plugin": "O-Freeze",
+  "focusedAt": "2026-02-01T18:00:00Z",
   "loadedContext": null
 }

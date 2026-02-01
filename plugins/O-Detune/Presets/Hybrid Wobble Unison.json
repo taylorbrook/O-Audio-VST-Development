@@ -1,0 +1,28 @@
+{
+  "preset_name": "Hybrid Wobble Unison",
+  "preset_author": "Ouaricon Development",
+  "preset_category": "Creative",
+  "parameters": {
+    "blend": 0.5,
+    "wobble_era": 1,
+    "wobble_rate": 2.5,
+    "wobble_depth": 30.0,
+    "wobble_shape": 1,
+    "wobble_sync": false,
+    "unison_voices": 2,
+    "unison_detune": 20.0,
+    "unison_dist": 0,
+    "unison_spread": 80.0,
+    "drive": 25.0,
+    "color": 0.0,
+    "age": 10.0,
+    "width": 130.0,
+    "mix": 55.0,
+    "focus_low": 20.0,
+    "focus_high": 18000.0,
+    "mono_safe": false,
+    "delay": 8.0,
+    "feedback": 20.0,
+    "random_amt": 25.0
+  }
+}

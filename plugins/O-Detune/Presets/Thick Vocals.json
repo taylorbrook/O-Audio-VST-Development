@@ -1,0 +1,28 @@
+{
+  "preset_name": "Thick Vocals",
+  "preset_author": "Ouaricon Development",
+  "preset_category": "Vocals",
+  "parameters": {
+    "blend": 1.0,
+    "wobble_era": 1,
+    "wobble_rate": 2.0,
+    "wobble_depth": 0.0,
+    "wobble_shape": 0,
+    "wobble_sync": false,
+    "unison_voices": 1,
+    "unison_detune": 10.0,
+    "unison_dist": 0,
+    "unison_spread": 60.0,
+    "drive": 30.0,
+    "color": 15.0,
+    "age": 0.0,
+    "width": 120.0,
+    "mix": 45.0,
+    "focus_low": 80.0,
+    "focus_high": 12000.0,
+    "mono_safe": true,
+    "delay": 0.0,
+    "feedback": 0.0,
+    "random_amt": 10.0
+  }
+}

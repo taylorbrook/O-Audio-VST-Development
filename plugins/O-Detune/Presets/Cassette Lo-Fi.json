@@ -1,0 +1,28 @@
+{
+  "preset_name": "Cassette Lo-Fi",
+  "preset_author": "Ouaricon Development",
+  "preset_category": "Lo-Fi",
+  "parameters": {
+    "blend": 0.3,
+    "wobble_era": 2,
+    "wobble_rate": 3.0,
+    "wobble_depth": 50.0,
+    "wobble_shape": 2,
+    "wobble_sync": false,
+    "unison_voices": 0,
+    "unison_detune": 8.0,
+    "unison_dist": 0,
+    "unison_spread": 50.0,
+    "drive": 45.0,
+    "color": -40.0,
+    "age": 50.0,
+    "width": 90.0,
+    "mix": 55.0,
+    "focus_low": 60.0,
+    "focus_high": 10000.0,
+    "mono_safe": true,
+    "delay": 3.0,
+    "feedback": 15.0,
+    "random_amt": 30.0
+  }
+}

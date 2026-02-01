@@ -1,8 +1,19 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-IntonationPad",
+  "focused": "O-Freeze",
   "plugins": {
+    "O-Freeze": {
+      "path": "plugins/O-Freeze",
+      "stage": "0-ideation",
+      "phase": "complete",
+      "status": "active",
+      "created": "2026-02-01",
+      "lastActivity": "2026-02-01T11:27:00Z",
+      "modules": [],
+      "expressMode": false,
+      "blockedBy": null
+    },
     "O-IntonationPad": {
       "path": "plugins/O-IntonationPad",
       "stage": "4-wavetable",
@@ -12,6 +23,17 @@
       "lastActivity": "2026-01-30T10:15:00Z",
       "modules": [],
       "expressMode": false,
+      "blockedBy": null
+    },
+    "O-Detune": {
+      "path": "plugins/O-Detune",
+      "stage": "complete",
+      "phase": "complete",
+      "status": "complete",
+      "created": "2026-02-01",
+      "lastActivity": "2026-02-01T14:30:00Z",
+      "modules": [],
+      "expressMode": true,
       "blockedBy": null
     }
   },
