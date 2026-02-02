@@ -26,6 +26,9 @@ target_sources(O-Bells
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/BellSound.h
+        Source/BellVoice.h
+        Source/BellVoice.cpp
 )
 
 # Include paths

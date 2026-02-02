@@ -1,8 +1,19 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-Freeze",
+  "focused": "O-Bells",
   "plugins": {
+    "O-Bells": {
+      "path": "plugins/O-Bells",
+      "stage": "2-dsp",
+      "phase": "verify",
+      "status": "active",
+      "created": "2026-02-01",
+      "lastActivity": "2026-02-01T21:00:00Z",
+      "modules": [],
+      "expressMode": false,
+      "blockedBy": null
+    },
     "O-Freeze": {
       "path": "plugins/O-Freeze",
       "stage": "0-ideation",

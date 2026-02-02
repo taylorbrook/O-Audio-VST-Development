@@ -37,15 +37,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
-    // BELL_SIZE - Small hand bell to large church bell
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "bellSize", 1 },
-        "Size",
-        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
-        0.5f,
-        "%"
-    ));
-
     // DAMPING - Hand-damped to free-ring
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "damping", 1 },
@@ -148,15 +139,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
-    // SYMPATHETIC_RESONANCE - Cross-voice coupling
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "sympatheticResonance", 1 },
-        "Sympathetic",
-        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
-        0.0f,
-        "%"
-    ));
-
     // STRIKE_NOISE_CHARACTER - Transient filter type
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "strikeNoiseChar", 1 },
@@ -208,14 +190,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "dB"
     ));
 
-    // QUALITY - CPU vs quality tradeoff
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "quality", 1 },
-        "Quality",
-        juce::StringArray { "Low", "Medium", "High" },
-        2
-    ));
-
     return layout;
 }
 
@@ -225,6 +199,12 @@ OBellsAudioProcessor::OBellsAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+    // Add 8 bell voices
+    for (int i = 0; i < 8; ++i)
+        synthesiser.addVoice(new BellVoice());
+
+    // Add one sound (all notes trigger bell sounds)
+    synthesiser.addSound(new BellSound());
 }
 
 OBellsAudioProcessor::~OBellsAudioProcessor()
@@ -234,25 +214,95 @@ OBellsAudioProcessor::~OBellsAudioProcessor()
 //==============================================================================
 void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // DSP initialization will be added in Stage 2 (DSP implementation)
-    juce::ignoreUnused(sampleRate, samplesPerBlock);
+    // Prepare synthesiser with sample rate
+    synthesiser.setCurrentPlaybackSampleRate(sampleRate);
+
+    // Prepare all voices
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<BellVoice*>(synthesiser.getVoice(i)))
+        {
+            voice->prepare(sampleRate, samplesPerBlock);
+        }
+    }
+
+    // Cache parameter pointers (atomic reads in processBlock)
+    // Main Panel
+    strikePositionParam = parameters.getRawParameterValue("strikePosition");
+    malletHardnessParam = parameters.getRawParameterValue("malletHardness");
+    dampingParam = parameters.getRawParameterValue("damping");
+    brightnessParam = parameters.getRawParameterValue("brightness");
+    materialParam = parameters.getRawParameterValue("material");
+    inharmonicityParam = parameters.getRawParameterValue("inharmonicity");
+    // Ensemble
+    unisonCountParam = parameters.getRawParameterValue("unisonCount");
+    unisonDetuneParam = parameters.getRawParameterValue("unisonDetune");
+    octaveBlendSubParam = parameters.getRawParameterValue("octaveBlendSub");
+    octaveBlendOctParam = parameters.getRawParameterValue("octaveBlendOct");
+    stereoSpreadParam = parameters.getRawParameterValue("stereoSpread");
+    // Advanced
+    partialTuningParam = parameters.getRawParameterValue("partialTuning");
+    nonlinearEffectsParam = parameters.getRawParameterValue("nonlinearEffects");
+    strikeNoiseCharParam = parameters.getRawParameterValue("strikeNoiseChar");
+    decayShapeParam = parameters.getRawParameterValue("decayShape");
+    velocityCurveParam = parameters.getRawParameterValue("velocityCurve");
+    pitchEnvelopeParam = parameters.getRawParameterValue("pitchEnvelope");
+    pitchEnvTimeParam = parameters.getRawParameterValue("pitchEnvTime");
+    outputGainParam = parameters.getRawParameterValue("outputGain");
 }
 
 void OBellsAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2 (DSP implementation)
+    // Release synthesiser resources
 }
 
 void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
-    juce::ignoreUnused(midiMessages);
-
-    // Pass-through for Stage 1 (DSP implementation happens in Stage 2)
-    // Currently synthesizer produces silence (no audio generation yet)
 
     // Clear output buffer
     buffer.clear();
+
+    // Read parameters (atomic, real-time safe)
+    float inharmonicity = inharmonicityParam->load();
+    float damping = dampingParam->load();
+    float brightness = brightnessParam->load();
+    float strikePosition = strikePositionParam->load();
+    float malletHardness = malletHardnessParam->load();
+    float material = materialParam->load();
+    int unisonCount = static_cast<int>(unisonCountParam->load());
+    float unisonDetune = unisonDetuneParam->load();
+    float octaveBlendSub = octaveBlendSubParam->load();
+    float octaveBlendOct = octaveBlendOctParam->load();
+    float stereoSpread = stereoSpreadParam->load();
+    float partialTuning = partialTuningParam->load();
+    float pitchEnvelope = pitchEnvelopeParam->load();
+    float pitchEnvTime = pitchEnvTimeParam->load();
+    int decayShape = static_cast<int>(decayShapeParam->load());
+    int velocityCurve = static_cast<int>(velocityCurveParam->load());
+    float nonlinearEffects = nonlinearEffectsParam->load();
+    int strikeNoiseChar = static_cast<int>(strikeNoiseCharParam->load());
+    float outputGain = outputGainParam->load();
+
+    // Update all voice parameters
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = dynamic_cast<BellVoice*>(synthesiser.getVoice(i)))
+        {
+            voice->updateParameters(
+                inharmonicity, damping, brightness,
+                strikePosition, malletHardness, material,
+                unisonCount, unisonDetune,
+                octaveBlendSub, octaveBlendOct, stereoSpread,
+                partialTuning, pitchEnvelope, pitchEnvTime,
+                decayShape, velocityCurve, nonlinearEffects,
+                strikeNoiseChar, outputGain
+            );
+        }
+    }
+
+    // Process MIDI and render audio
+    synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 }
 
 //==============================================================================

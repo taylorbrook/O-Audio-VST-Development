@@ -11,6 +11,8 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "BellSound.h"
+#include "BellVoice.h"
 
 class OBellsAudioProcessor : public juce::AudioProcessor
 {
@@ -44,6 +46,34 @@ public:
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
 private:
+    // DSP Components (BEFORE parameters for initialization order)
+    juce::Synthesiser synthesiser;
+
+    // Cached parameter pointers (atomic reads, real-time safe)
+    // Main Panel (6 params)
+    std::atomic<float>* strikePositionParam = nullptr;
+    std::atomic<float>* malletHardnessParam = nullptr;
+    std::atomic<float>* dampingParam = nullptr;
+    std::atomic<float>* brightnessParam = nullptr;
+    std::atomic<float>* materialParam = nullptr;
+    std::atomic<float>* inharmonicityParam = nullptr;
+    // Ensemble (5 params)
+    std::atomic<float>* unisonCountParam = nullptr;
+    std::atomic<float>* unisonDetuneParam = nullptr;
+    std::atomic<float>* octaveBlendSubParam = nullptr;
+    std::atomic<float>* octaveBlendOctParam = nullptr;
+    std::atomic<float>* stereoSpreadParam = nullptr;
+    // Advanced (7 params)
+    std::atomic<float>* partialTuningParam = nullptr;
+    std::atomic<float>* nonlinearEffectsParam = nullptr;
+    std::atomic<float>* strikeNoiseCharParam = nullptr;
+    std::atomic<float>* decayShapeParam = nullptr;
+    std::atomic<float>* velocityCurveParam = nullptr;
+    std::atomic<float>* pitchEnvelopeParam = nullptr;
+    std::atomic<float>* pitchEnvTimeParam = nullptr;
+    std::atomic<float>* outputGainParam = nullptr;
+
+    // APVTS (AFTER DSP components)
     juce::AudioProcessorValueTreeState parameters;
 
     // Parameter layout creation

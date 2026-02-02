@@ -1,6 +1,6 @@
 {
   "$schema": "./schemas/active-plugin.schema.json",
-  "plugin": "O-Freeze",
-  "focusedAt": "2026-02-01T18:00:00Z",
+  "plugin": "O-Bells",
+  "focusedAt": "2026-02-01T20:00:00Z",
   "loadedContext": null
 }
