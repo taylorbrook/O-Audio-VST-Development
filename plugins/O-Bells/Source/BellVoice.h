@@ -36,7 +36,8 @@ public:
                          float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                          float partialTuning, float pitchEnvelope, float pitchEnvTime,
                          int decayShape, int velocityCurve, float nonlinearEffects,
-                         int strikeNoiseChar, float outputGain);
+                         int strikeNoiseChar, float outputGain,
+                         float strikeTime, float brilliance, float bodyTime, float humSustain);
 
 private:
     // Modal synthesis configuration
@@ -121,6 +122,11 @@ private:
     float currentNonlinearEffects = 0.0f;
     int currentStrikeNoiseChar = 0;  // Click
     float currentOutputGain = 0.0f;
+    // Multi-stage envelope parameters (active when decayShape == 2)
+    float currentStrikeTime = 30.0f;      // ms
+    float currentBrilliance = 50.0f;      // %
+    float currentBodyTime = 1500.0f;      // ms
+    float currentHumSustain = 50.0f;      // %
 
     // Voice state
     int currentMidiNote = 0;
@@ -137,6 +143,13 @@ private:
     float pitchEnvelopePhase = 0.0f;
     float pitchEnvelopeDecayRate = 0.0f;
 
+    // Multi-stage envelope state (for decayShape == 2)
+    int samplesSinceNoteOn = 0;
+    // Pre-calculated decay coefficients per partial (computed once in startNote)
+    float strikeDecayCoeffs[NUM_PARTIALS];
+    float bodyDecayCoeffs[NUM_PARTIALS];
+    float humDecayCoeffs[NUM_PARTIALS];
+
     // Helper functions
     float calculatePartialFrequency(int partialIndex, float fundamental, float inharmonicity);
     float calculateStrikePositionGain(int partialIndex, float position);
@@ -148,4 +161,6 @@ private:
     float generateStrikeNoise();
     float processPitchEnvelope();
     float processPartial(ModalPartial& partial);
+    void calculateMultiStageCoefficients(float fundamental);
+    void applyMultiStageDecay(ModalPartial& partial, int partialIndex);
 };

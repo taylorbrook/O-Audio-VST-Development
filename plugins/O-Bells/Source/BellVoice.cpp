@@ -32,7 +32,8 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
                                  float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                                  float partialTuning, float pitchEnvelope, float pitchEnvTime,
                                  int decayShape, int velocityCurve, float nonlinearEffects,
-                                 int strikeNoiseChar, float outputGain)
+                                 int strikeNoiseChar, float outputGain,
+                                 float strikeTime, float brilliance, float bodyTime, float humSustain)
 {
     currentInharmonicity = inharmonicity;
     currentDamping = damping;
@@ -53,6 +54,11 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
     currentNonlinearEffects = nonlinearEffects;
     currentStrikeNoiseChar = strikeNoiseChar;
     currentOutputGain = outputGain;
+    // Multi-stage envelope params
+    currentStrikeTime = strikeTime;
+    currentBrilliance = brilliance;
+    currentBodyTime = bodyTime;
+    currentHumSustain = humSustain;
 }
 
 void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserSound*, int)
@@ -63,9 +69,16 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     tailOff = false;
     releaseEnvelope = 1.0f;
     releaseRate = 1.0f;
+    samplesSinceNoteOn = 0;  // Reset sample counter for multi-stage envelope
 
     // Calculate fundamental frequency
     float fundamental = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+
+    // Pre-calculate multi-stage coefficients if using multi-stage decay
+    if (currentDecayShape == 2)
+    {
+        calculateMultiStageCoefficients(fundamental);
+    }
 
     // Initialize pitch envelope
     pitchEnvelopePhase = 1.0f;  // Start at max deviation
@@ -246,13 +259,13 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                     float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                     voiceSample += partialSample * partial.amplitude;
 
-                    // Apply decay envelope
-                    if (currentDecayShape == 1)  // Exponential
+                    // Apply decay envelope based on decay shape
+                    if (currentDecayShape == 2)  // Multi-stage (research-based)
+                        applyMultiStageDecay(partial, p);
+                    else if (currentDecayShape == 1)  // Exponential
                         partial.amplitude *= partial.decayRate;
-                    else if (currentDecayShape == 0)  // Linear
-                        partial.amplitude -= partial.decayRate * 0.0001f;  // Small linear step
-                    else  // Multi-stage (simplified: just use exponential)
-                        partial.amplitude *= partial.decayRate;
+                    else  // Linear (decayShape == 0)
+                        partial.amplitude -= partial.decayRate * 0.0001f;
 
                     // Check if partial is still active
                     if (partial.amplitude > 0.001f)
@@ -290,12 +303,13 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                         float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                         voiceSample += partialSample * partial.amplitude;
 
-                        if (currentDecayShape == 1)
+                        // Apply decay envelope based on decay shape
+                        if (currentDecayShape == 2)
+                            applyMultiStageDecay(partial, p);
+                        else if (currentDecayShape == 1)
                             partial.amplitude *= partial.decayRate;
-                        else if (currentDecayShape == 0)
-                            partial.amplitude -= partial.decayRate * 0.0001f;
                         else
-                            partial.amplitude *= partial.decayRate;
+                            partial.amplitude -= partial.decayRate * 0.0001f;
 
                         if (partial.amplitude > 0.001f)
                             anyPartialActive = true;
@@ -332,12 +346,13 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                         float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                         voiceSample += partialSample * partial.amplitude;
 
-                        if (currentDecayShape == 1)
+                        // Apply decay envelope based on decay shape
+                        if (currentDecayShape == 2)
+                            applyMultiStageDecay(partial, p);
+                        else if (currentDecayShape == 1)
                             partial.amplitude *= partial.decayRate;
-                        else if (currentDecayShape == 0)
-                            partial.amplitude -= partial.decayRate * 0.0001f;
                         else
-                            partial.amplitude *= partial.decayRate;
+                            partial.amplitude -= partial.decayRate * 0.0001f;
 
                         if (partial.amplitude > 0.001f)
                             anyPartialActive = true;
@@ -353,6 +368,10 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                 rightOutput += voiceSample * currentOctaveBlendOct * panRight;
             }
         }
+
+        // Increment sample counter for multi-stage envelope timing
+        if (currentDecayShape == 2)
+            ++samplesSinceNoteOn;
 
         // Add strike noise transient
         leftOutput += noiseSignal * 0.3f;
@@ -637,4 +656,99 @@ float BellVoice::processPartial(ModalPartial& partial)
         partial.active = false;
 
     return output;
+}
+
+// ============================================================================
+// Multi-Stage Envelope Implementation (Research-Based)
+// Based on: CCRMA modal synthesis, Chaigne frequency-dependent damping,
+// Pigments "Brilliance" concept, industry-standard bell decay phases
+// ============================================================================
+
+void BellVoice::calculateMultiStageCoefficients(float fundamental)
+{
+    // Frequency-dependent damping: R_k = b_1 + b_3 * f_k^2
+    // b_1 = frequency-independent damping
+    // b_3 = frequency-dependent coefficient (higher = more high-freq damping)
+
+    float b1 = 0.5f;  // Base damping (s^-1)
+
+    // Brilliance controls b_3: 0% = high-freq decays fast (warm), 100% = sustains (bright)
+    // Scale b_3 from 2e-8 (warm) to near-zero (bright)
+    float b3 = (100.0f - currentBrilliance) / 100.0f * 2e-8f;
+
+    // Convert time parameters from ms to seconds
+    float strikeTimeSec = currentStrikeTime / 1000.0f;
+    float bodyTimeSec = currentBodyTime / 1000.0f;
+
+    // Hum extension factor: 0% = 1x, 100% = 3x body time
+    float humExtension = 1.0f + (currentHumSustain / 100.0f) * 2.0f;
+
+    // Material affects all decay times
+    float materialMult = calculateMaterialDecayMultiplier(currentMaterial);
+
+    for (int p = 0; p < NUM_PARTIALS; ++p)
+    {
+        // Calculate partial frequency
+        float freq = calculatePartialFrequency(p, fundamental, currentInharmonicity);
+
+        // Frequency-dependent loss factor (academic formula)
+        float R_k = b1 + b3 * freq * freq;
+        float baseDecayTime = 1.0f / R_k;
+
+        // === STRIKE PHASE coefficients ===
+        // High partials (5+) decay fast, low partials (0-1) hold, mid (2-4) moderate
+        float strikeMultiplier;
+        if (p < 2)
+            strikeMultiplier = 2.0f;   // Hum partials: very slow during strike
+        else if (p < 5)
+            strikeMultiplier = 1.0f;   // Body partials: normal
+        else
+            strikeMultiplier = 0.3f;   // High partials: fast decay
+
+        float strikeDecayTime = strikeTimeSec * strikeMultiplier * materialMult;
+        strikeDecayCoeffs[p] = std::exp(-1.0f / (strikeDecayTime * static_cast<float>(currentSampleRate)));
+
+        // === BODY PHASE coefficients ===
+        // Use Risset-style duration ratios already in DECAY_MULTIPLIERS
+        float bodyDecayTime = bodyTimeSec * DECAY_MULTIPLIERS[p] * materialMult;
+        bodyDecayCoeffs[p] = std::exp(-1.0f / (bodyDecayTime * static_cast<float>(currentSampleRate)));
+
+        // === HUM PHASE coefficients ===
+        // Extended low partials, damping affects here only (user requirement)
+        float humDecayTime = baseDecayTime * humExtension * materialMult;
+        if (p < 2)
+        {
+            // Apply damping only to hum partials
+            float dampingFactor = 1.0f - (currentDamping * 0.8f);
+            humDecayTime *= (1.0f + dampingFactor * 2.0f);  // Damping extends hum
+        }
+        humDecayCoeffs[p] = std::exp(-1.0f / (humDecayTime * static_cast<float>(currentSampleRate)));
+    }
+}
+
+void BellVoice::applyMultiStageDecay(ModalPartial& partial, int partialIndex)
+{
+    // Calculate current time in seconds
+    float timeSeconds = static_cast<float>(samplesSinceNoteOn) / static_cast<float>(currentSampleRate);
+
+    // Phase boundaries (in seconds)
+    float strikeEndTime = currentStrikeTime / 1000.0f;
+    float bodyEndTime = strikeEndTime + (currentBodyTime / 1000.0f);
+
+    // State machine: determine which phase we're in and apply appropriate coefficient
+    if (timeSeconds < strikeEndTime)
+    {
+        // STRIKE PHASE: Bright transient, high partials decay fast
+        partial.amplitude *= strikeDecayCoeffs[partialIndex];
+    }
+    else if (timeSeconds < bodyEndTime)
+    {
+        // BODY PHASE: Main tonal decay, frequency-dependent
+        partial.amplitude *= bodyDecayCoeffs[partialIndex];
+    }
+    else
+    {
+        // HUM PHASE: Only low partials remain, extended sustain
+        partial.amplitude *= humDecayCoeffs[partialIndex];
+    }
 }

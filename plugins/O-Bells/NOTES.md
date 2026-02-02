@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.1
+- **Version:** 1.2.0
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -11,6 +11,7 @@
 - **2026-02-02 (v1.0.0):** Physical modeling bell synthesizer with 18 parameters, WebView UI, 25 factory presets
 - **2026-02-02 (v1.1.0):** Added reverb control for spaciousness (MINOR feature addition)
 - **2026-02-02 (v1.1.1):** Fixed output clipping with proper DSP gain staging normalization
+- **2026-02-02 (v1.2.0):** Implemented proper multi-stage decay envelope with 4 new parameters
 
 ## Known Issues
 
@@ -26,7 +27,7 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - **Ensemble section** with unison, detune, and octave layering
 - **Built-in reverb** for spacious, ambient bell tones
 
-## Parameters (19 total)
+## Parameters (23 total)
 
 ### Synthesis (6)
 - Strike Position (0-100%) - Center to edge strike point
@@ -53,6 +54,12 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - Pitch Envelope (0-100%) - Initial pitch drop
 - Pitch Env Time (5-200ms) - Pitch envelope return time
 - Nonlinear Effects (0-100%) - Bell warping/distortion
+
+### Multi-Stage Envelope (4) - visible when Decay Shape = Multi-stage [v1.2.0]
+- Strike Time (5-100ms) - Duration of bright metallic transient
+- Brilliance (0-100%) - High-frequency sustain (0=warm, 100=bright)
+- Body Time (100-5000ms) - Duration of main tonal decay
+- Hum Sustain (0-100%) - Extension of low partial sustain
 
 ### Output (3)
 - Reverb Mix (0-100%) - Spaciousness control [v1.1.0]
@@ -112,3 +119,31 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - BellVoice.cpp - renderNextBlock() gain staging
 
 **Validation:** pluginval SUCCESS, DAW testing confirmed
+
+### v1.2.0 (2026-02-02)
+**Request:** Implement proper multi-stage decay envelope (previously a placeholder)
+
+**Research-Based Implementation:**
+- Comprehensive research from CCRMA, IRCAM, Arturia Pigments, AAS Chromaphone
+- Academic formula: R_k = b₁ + b₃×f_k² for frequency-dependent damping
+- Industry-standard parameter naming (Brilliance, Strike Time, Body Time, Hum Sustain)
+
+**New Parameters (4):**
+- **Strike Time** (5-100ms): Duration of bright metallic transient
+- **Brilliance** (0-100%): High-frequency sustain (0=warm/woody, 100=bright/glassy)
+- **Body Time** (0.1-5s): Duration of main tonal decay phase
+- **Hum Sustain** (0-100%): Extension of low partial sustain
+
+**Key Features:**
+- Physics-based three-phase envelope (Strike → Body → Hum)
+- Per-partial decay coefficients pre-calculated for performance
+- Damping parameter affects only Hum phase (user requirement)
+- New "Envelope" UI section appears only when Multi-stage is selected
+
+**Files Modified:**
+- PluginProcessor.h/cpp - 4 new APVTS parameters
+- BellVoice.h/cpp - Multi-stage envelope DSP implementation
+- PluginEditor.h/cpp - 4 new WebSlider relays and attachments
+- Resources/ui/index.html - New Envelope section with show/hide logic
+
+**Validation:** pluginval SUCCESS (strictness 5), auval PASS

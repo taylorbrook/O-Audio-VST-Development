@@ -55,6 +55,11 @@ private:
     std::unique_ptr<juce::WebSliderRelay> nonlinearEffectsRelay;
     std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
+    // Multi-stage envelope relays (4 sliders, active when decayShape == 2)
+    std::unique_ptr<juce::WebSliderRelay> strikeTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> brillianceRelay;
+    std::unique_ptr<juce::WebSliderRelay> bodyTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> humSustainRelay;
 
     // Choice parameter relays (3 combo boxes)
     std::unique_ptr<juce::WebComboBoxRelay> strikeNoiseCharRelay;
@@ -83,6 +88,11 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> nonlinearEffectsAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
+    // Multi-stage envelope attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> strikeTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> brillianceAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bodyTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> humSustainAttachment;
 
     // Choice parameter attachments (3 combo boxes)
     std::unique_ptr<juce::WebComboBoxParameterAttachment> strikeNoiseCharAttachment;

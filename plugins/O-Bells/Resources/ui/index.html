@@ -384,6 +384,35 @@
         }
 
         /* ====================================================================
+           MULTI-STAGE ENVELOPE SECTION (hidden when decayShape != 2)
+           ==================================================================== */
+
+        .envelope-section {
+            display: none;
+            border: 1px dashed #8BA870;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: rgba(139, 168, 112, 0.08);
+        }
+
+        .envelope-section.visible {
+            display: block;
+        }
+
+        .envelope-section .section-title {
+            color: #3C5C1A;
+        }
+
+        .envelope-section .section-hint {
+            font-size: 9px;
+            color: #6B8E23;
+            font-style: italic;
+            margin-top: -2px;
+            margin-bottom: 8px;
+        }
+
+        /* ====================================================================
            PLACEHOLDER
            ==================================================================== */
 
@@ -740,6 +769,42 @@
                 </div>
             </div>
 
+            <!-- Multi-Stage Envelope Section (visible when decayShape == Multi) -->
+            <div class="section envelope-section" id="envelope-section">
+                <div class="section-title">Multi-Stage Envelope</div>
+                <div class="section-hint">Controls how different frequencies decay over time</div>
+                <div class="param-row param-row-4">
+                    <div class="param-control">
+                        <div class="param-label">Strike Time</div>
+                        <div class="slider" data-param="strikeTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="strikeTime">30ms</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Brilliance</div>
+                        <div class="slider" data-param="brilliance">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="brilliance">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Body Time</div>
+                        <div class="slider" data-param="bodyTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="bodyTime">1.5s</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Hum Sustain</div>
+                        <div class="slider" data-param="humSustain">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="humSustain">50%</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Output Section -->
             <div class="section">
                 <div class="section-title">Output</div>
@@ -840,6 +905,15 @@
             { id: 'pitchEnvelope', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'pitchEnvTime', min: 0, max: 1, default: 0.23, format: v => `${Math.round(5 + v * 195)}ms` },
             { id: 'nonlinearEffects', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            // Multi-stage envelope params (visible when decayShape == 2)
+            { id: 'strikeTime', min: 0, max: 1, default: 0.26, format: v => `${Math.round(5 + v * 95)}ms` },
+            { id: 'brilliance', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bodyTime', min: 0, max: 1, default: 0.29, format: v => {
+                const ms = 100 + v * 4900;
+                return ms >= 1000 ? `${(ms/1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
+            }},
+            { id: 'humSustain', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            // Output
             { id: 'reverbMix', min: 0, max: 1, default: 0.3, format: v => `${Math.round(v * 100)}%` },
             { id: 'outputGain', min: 0, max: 1, default: 0.67, format: v => `${Math.round((v - 0.67) * 36 / 0.33)}dB` }
         ];
@@ -947,6 +1021,38 @@
         }
 
         // ====================================================================
+        // ENVELOPE SECTION VISIBILITY (show when decayShape == Multi-stage)
+        // ====================================================================
+
+        const envelopeSection = document.getElementById('envelope-section');
+        const decayShapeState = parameterStates.get('decayShape');
+
+        function updateEnvelopeVisibility() {
+            const decayIndex = decayShapeState.getChoiceIndex();
+            // 0 = Linear, 1 = Exponential, 2 = Multi-stage
+            if (decayIndex === 2) {
+                envelopeSection.classList.add('visible');
+            } else {
+                envelopeSection.classList.remove('visible');
+            }
+        }
+
+        // Initialize visibility
+        updateEnvelopeVisibility();
+
+        // Listen for decayShape changes
+        decayShapeState.valueChangedEvent.addListener(updateEnvelopeVisibility);
+
+        // Also update when clicking decay buttons
+        const decayButtons = document.querySelectorAll('.choice-group[data-param="decayShape"] .choice-button');
+        decayButtons.forEach((button, index) => {
+            button.addEventListener('click', () => {
+                // Small delay to let JUCE state update
+                setTimeout(updateEnvelopeVisibility, 10);
+            });
+        });
+
+        // ====================================================================
         // OUTPUT METER (real levels from C++ backend)
         // ====================================================================
 
@@ -963,7 +1069,7 @@
             meterRight.style.setProperty('--level', `${rightPercent}%`);
         };
 
-        console.log('O-Bells UI initialized - 19 parameters bound + real output meter');
+        console.log('O-Bells v1.2.0 UI initialized - 23 parameters bound (19 + 4 multi-stage envelope)');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY

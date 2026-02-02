@@ -90,6 +90,12 @@ private:
     std::atomic<float>* velocityCurveParam = nullptr;
     std::atomic<float>* pitchEnvelopeParam = nullptr;
     std::atomic<float>* pitchEnvTimeParam = nullptr;
+    // Multi-stage envelope (4 params, active when decayShape == 2)
+    std::atomic<float>* strikeTimeParam = nullptr;
+    std::atomic<float>* brillianceParam = nullptr;
+    std::atomic<float>* bodyTimeParam = nullptr;
+    std::atomic<float>* humSustainParam = nullptr;
+    // Output
     std::atomic<float>* reverbMixParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
 

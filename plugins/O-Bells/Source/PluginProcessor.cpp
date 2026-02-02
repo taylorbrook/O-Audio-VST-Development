@@ -181,6 +181,45 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "ms"
     ));
 
+    // ========== Multi-Stage Envelope Parameters (4) ==========
+    // Only active when decayShape == 2 (Multi-stage)
+
+    // STRIKE_TIME - Duration of bright metallic transient
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "strikeTime", 1 },
+        "Strike Time",
+        juce::NormalisableRange<float>(5.0f, 100.0f, 0.1f),
+        30.0f,
+        "ms"
+    ));
+
+    // BRILLIANCE - High-frequency sustain (0=warm/woody, 100=bright/glassy)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "brilliance", 1 },
+        "Brilliance",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        50.0f,
+        "%"
+    ));
+
+    // BODY_TIME - Duration of main tonal decay phase
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bodyTime", 1 },
+        "Body Time",
+        juce::NormalisableRange<float>(100.0f, 5000.0f, 1.0f),
+        1500.0f,
+        "ms"
+    ));
+
+    // HUM_SUSTAIN - Extension of low partial sustain
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "humSustain", 1 },
+        "Hum Sustain",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        50.0f,
+        "%"
+    ));
+
     // REVERB_MIX - Spaciousness control (0-100%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "reverbMix", 1 },
@@ -277,6 +316,12 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     velocityCurveParam = parameters.getRawParameterValue("velocityCurve");
     pitchEnvelopeParam = parameters.getRawParameterValue("pitchEnvelope");
     pitchEnvTimeParam = parameters.getRawParameterValue("pitchEnvTime");
+    // Multi-stage envelope
+    strikeTimeParam = parameters.getRawParameterValue("strikeTime");
+    brillianceParam = parameters.getRawParameterValue("brilliance");
+    bodyTimeParam = parameters.getRawParameterValue("bodyTime");
+    humSustainParam = parameters.getRawParameterValue("humSustain");
+    // Output
     reverbMixParam = parameters.getRawParameterValue("reverbMix");
     outputGainParam = parameters.getRawParameterValue("outputGain");
 }
@@ -313,6 +358,11 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     int velocityCurve = static_cast<int>(velocityCurveParam->load());
     float nonlinearEffects = nonlinearEffectsParam->load();
     int strikeNoiseChar = static_cast<int>(strikeNoiseCharParam->load());
+    // Multi-stage envelope params (active when decayShape == 2)
+    float strikeTime = strikeTimeParam->load();
+    float brilliance = brillianceParam->load();
+    float bodyTime = bodyTimeParam->load();
+    float humSustain = humSustainParam->load();
     float outputGain = outputGainParam->load();
 
     // Update all voice parameters
@@ -327,7 +377,8 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 octaveBlendSub, octaveBlendOct, stereoSpread,
                 partialTuning, pitchEnvelope, pitchEnvTime,
                 decayShape, velocityCurve, nonlinearEffects,
-                strikeNoiseChar, outputGain
+                strikeNoiseChar, outputGain,
+                strikeTime, brilliance, bodyTime, humSustain
             );
         }
     }
