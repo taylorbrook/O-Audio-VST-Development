@@ -382,15 +382,20 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
             rightOutput = std::tanh(rightOutput * (1.0f + nlAmount * 2.0f)) / (1.0f + nlAmount * 2.0f);
         }
 
-        // Apply output gain
+        // Normalize signal to prevent clipping
+        // Account for: partial count (~2.7x from harmonic series), unison voices, and octave layers
+        float partialNorm = 0.4f;  // Compensate for 8 partials summing to ~2.5-3x
+        float unisonNorm = 1.0f / std::sqrt(static_cast<float>(currentUnisonCount));
+        float layerNorm = 1.0f / (1.0f + currentOctaveBlendSub + currentOctaveBlendOct);
+        float totalNorm = partialNorm * unisonNorm * layerNorm;
+
+        leftOutput *= totalNorm;
+        rightOutput *= totalNorm;
+
+        // Apply output gain (after normalization so 0dB = unity)
         float outputGainLinear = juce::Decibels::decibelsToGain(currentOutputGain);
         leftOutput *= outputGainLinear;
         rightOutput *= outputGainLinear;
-
-        // Normalize by unison count to prevent clipping
-        float normalizationFactor = 1.0f / std::sqrt(static_cast<float>(currentUnisonCount));
-        leftOutput *= normalizationFactor;
-        rightOutput *= normalizationFactor;
 
         // Write to output buffer
         int outputSample = startSample + sample;

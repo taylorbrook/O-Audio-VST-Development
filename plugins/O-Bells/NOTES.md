@@ -10,7 +10,7 @@
 - **2026-02-02:** Initial development completed (v1.0.0)
 - **2026-02-02 (v1.0.0):** Physical modeling bell synthesizer with 18 parameters, WebView UI, 25 factory presets
 - **2026-02-02 (v1.1.0):** Added reverb control for spaciousness (MINOR feature addition)
-- **2026-02-02 (v1.1.1):** Fixed default output level too loud (PATCH - reduced default from 0 dB to -6 dB)
+- **2026-02-02 (v1.1.1):** Fixed output clipping with proper DSP gain staging normalization
 
 ## Known Issues
 
@@ -97,11 +97,18 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 ### v1.1.1 (2026-02-02)
 **Request:** Default output level too loud, causes clipping
 
-**Root Cause:** With 8-voice polyphony, multiple partials per voice, and potential octave layer stacking, the signal easily exceeded 0 dBFS at the default 0 dB output gain setting.
+**Root Cause:** Signal exceeded 0 dBFS due to:
+- 8 partials summing to ~2.7x amplitude (harmonic series)
+- Unison voices stacking
+- Octave layers (sub + upper) adding signal without normalization
 
-**Fix:** Reduced default `outputGain` parameter from 0.0 dB to -6.0 dB to provide proper headroom. The full -24 to +12 dB range remains available for user adjustment.
+**Fix:** Added proper gain staging normalization in BellVoice::renderNextBlock():
+- Partial normalization: 0.4x factor to compensate for partial summing
+- Unison normalization: 1/sqrt(unisonCount) - already existed
+- Layer normalization: 1/(1 + subBlend + octBlend) for octave layers
+- Output gain at 0 dB now produces unity gain as expected
 
 **Files Modified:**
-- PluginProcessor.cpp - Line 199, default value change
+- BellVoice.cpp - renderNextBlock() gain staging
 
-**Validation:** pluginval SUCCESS (strictness 5)
+**Validation:** pluginval SUCCESS, DAW testing confirmed

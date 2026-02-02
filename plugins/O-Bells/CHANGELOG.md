@@ -5,9 +5,10 @@ All notable changes to O-Bells will be documented in this file.
 ## [1.1.1] - 2026-02-02
 
 ### Fixed
-- **Default output level too loud** - Reduced default output gain from 0 dB to -6 dB
-  - Root cause: With 8-voice polyphony, multiple partials per voice, and octave layers, the signal could easily exceed 0 dBFS at default settings
-  - Fix: Lower default provides proper headroom while maintaining full -24 to +12 dB range for user adjustment
+- **Output clipping at default settings** - Added proper gain staging normalization in DSP
+  - Root cause: 8 partials summing to ~2.7x, plus unison voices and octave layers, caused signal to exceed 0 dBFS
+  - Fix: Normalize signal for partial count (0.4x), unison voices (sqrt), and octave layer blend before output gain stage
+  - Output gain at 0 dB now produces unity gain as expected
 
 ## [1.1.0] - 2026-02-02
 

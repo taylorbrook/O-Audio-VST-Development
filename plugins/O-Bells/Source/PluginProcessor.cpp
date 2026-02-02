@@ -191,12 +191,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
     ));
 
     // OUTPUT_GAIN - Master output level
-    // Default -6dB provides headroom for polyphonic playing with multiple partials
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "outputGain", 1 },
         "Output",
         juce::NormalisableRange<float>(-24.0f, 12.0f, 0.1f),
-        -6.0f,
+        0.0f,
         "dB"
     ));
 
