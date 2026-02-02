@@ -20,6 +20,8 @@ Every workflow transition point MUST present a clean handoff that:
 
 ## Standard Format
 
+**Two-step handoff is mandatory.** Users must clear context before starting the next workflow.
+
 ```
 ---
 
@@ -37,9 +39,8 @@ Files created/modified:
 
 **[Next Stage]: [Name]** — [objective]
 
-`/command [PluginName]`
-
-<sub>`/clear` first → fresh context window</sub>
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/command [PluginName]`
 
 ---
 
@@ -54,14 +55,16 @@ Files created/modified:
 
 ## Plugin Workflow Handoff Points
 
-| After | Next Command | Alternatives |
-|-------|--------------|--------------|
-| Ideation (BRIEF.md) | `/plan [Name]` | `/start [Name]` (mockup), save |
-| Planning (ARCHITECTURE.md) | `/implement [Name]` | `/start [Name]` (mockup), save |
-| Stage 1 (Foundation) | `/implement [Name]` | review, save |
-| Stage 2 (DSP) | `/implement [Name]` | test, review, save |
-| Stage 3 (GUI) | `/implement [Name]` | test, review, save |
-| Stage 4 (Polish) | `/install-plugin [Name]` | test, package, save |
+**Every handoff is a two-step process: `/clear` first, then the next command.**
+
+| After | Step 1 | Step 2 | Alternatives |
+|-------|--------|--------|--------------|
+| Ideation (BRIEF.md) | `/clear` | `/plan [Name]` | `/start [Name]` (mockup), save |
+| Planning (ARCHITECTURE.md) | `/clear` | `/implement [Name]` | `/start [Name]` (mockup), save |
+| Stage 1 (Foundation) | `/clear` | `/implement [Name]` | review, save |
+| Stage 2 (DSP) | `/clear` | `/implement [Name]` | test, review, save |
+| Stage 3 (GUI) | `/clear` | `/implement [Name]` | test, review, save |
+| Stage 4 (Polish) | `/clear` | `/install-plugin [Name]` | test, package, save |
 
 ## Anti-Patterns
 
@@ -86,6 +89,21 @@ What's next?
 ```
 # BAD - context pollution
 `/plan TapeAge`
+```
+
+### DON'T: Relegate /clear to a footnote
+
+```
+# BAD - /clear is easily missed
+`/plan TapeAge`
+<sub>`/clear` first → fresh context window</sub>
+```
+
+Use the explicit two-step format instead:
+```
+# GOOD - clear two-step sequence
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/plan TapeAge`
 ```
 
 ### DON'T: Use generic commands without plugin name
