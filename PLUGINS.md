@@ -38,9 +38,9 @@ Ouaricon Plugins:
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
-| O-Detune | 🚧 Stage 0 | 1.0.0 | Audio Effect (Detuning) | 2026-02-01 |
+| O-Detune | 📦 Installed | 1.1.0 | Audio Effect (Detuning) | 2026-02-02 |
 | O-Freeze | 🚧 Stage 1 | 1.0.0 | Audio Effect (Granular Freeze) | 2026-02-01 |
-| O-Bells | 🚧 Stage 1 | 1.0.0 | Synth (Physical Modeling Bells) | 2026-02-01 |
+| O-Bells | ✅ Working | 1.0.0 | Synth (Physical Modeling Bells) | 2026-02-02 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
