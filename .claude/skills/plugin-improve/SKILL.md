@@ -66,10 +66,17 @@ Phase 0.4: Decision Gate (confirm understanding)
   ↓
 Phase 0.45: Research Detection (MANDATORY - scan conversation history)
   ↓
-[Research found?] ─YES→ Skip to Phase 0.9
-  ↓ NO
+[Research found?] ─YES→ Present planning choice menu
+  ↓ NO                         ↓
 Phase 0.5: Investigation (Tier 1/2/3 auto-detected)
+  |                            ↓
+[Tier 1?] ─YES─────────────────────────────────────> Skip to Phase 0.9
+  | NO (Tier 2 or 3)                                   (no planning needed)
   ↓
+Phase 0.6: Implementation Planning (conditional - Tier 2/3 only)
+  ↓
+[Approved?] ─NO→ Revision menu
+  ↓ YES
 Phase 0.9: Backup Verification (CRITICAL GATE - must pass to proceed)
   ↓
 Phase 1: Pre-Implementation Checks (version, state, commits)
@@ -94,7 +101,7 @@ Phase 8: Completion (decision menu)
 **Key:**
 - MANDATORY: Always executes (Phase 0.45)
 - CRITICAL GATE: Blocks workflow if fails (Phase 0.9)
-- CONDITIONAL: Only if conditions met (Phase 5.5, Phase 7)
+- CONDITIONAL: Only if conditions met (Phase 0.6, Phase 5.5, Phase 7)
 
 ## Progress Checklist
 
@@ -107,6 +114,7 @@ Improvement Progress:
 - [ ] Phase 0.4: Confirmed understanding with user
 - [ ] Phase 0.45: ✓ MANDATORY - Scanned conversation history for research
 - [ ] Phase 0.5: Investigated root cause (if no handoff)
+- [ ] Phase 0.6: Created implementation plan (if Tier 2/3)
 - [ ] Phase 0.9: ✓ CRITICAL - Backup verified (blocks if fails)
 - [ ] Phase 1: Loaded current state, determined version bump
 - [ ] Phase 2: Confirmed rollback path ready
@@ -257,9 +265,33 @@ Choose (1-4): _
 1. Analyze request and auto-detect tier (1/2/3) - never ask user which tier
 2. Execute tier-appropriate investigation protocol
 3. For Tier 3 (complex issues), delegate to deep-research skill
-4. Present findings and wait for approval before implementing
+4. After investigation, check tier for planning trigger (see references/investigation-tiers.md)
+5. Present findings and wait for approval before implementing
 
 **See**: [references/investigation-tiers.md](references/investigation-tiers.md) for complete tier detection algorithm and protocols for each tier (1: Basic Code Inspection, 2: Root Cause Analysis, 3: Deep Research Delegation).
+
+## Phase 0.6: Implementation Planning
+
+**Purpose:** Create task breakdown for Tier 2/3 improvements to reduce rework.
+
+**Trigger:** Auto-detected Tier 2 or 3 in Phase 0.5
+
+**Skip conditions:**
+- Tier 1 (simple fixes don't need planning overhead)
+- User provides --no-plan flag
+- User declines suggestion when prompted
+
+**Workflow:**
+1. Present planning suggestion (soft for Tier 2, strong for Tier 3)
+2. If accepted, generate implementation plan from investigation findings
+3. Present plan for user approval
+4. Store approved plan in STATUS.md
+
+**Output:** Approved plan stored in plugin's STATUS.md under "Active Improvement Plan" section.
+
+**Gate:** Implementation (Phase 3) MUST NOT start until plan is approved. This is an approval gate, not just a suggestion.
+
+**See**: [references/implementation-planning.md](references/implementation-planning.md) for complete protocol including plan format, approval flow, and revision menus.
 
 <critical_sequence phase="backup-verification" enforcement="strict">
 ## Phase 0.9: Backup Verification
