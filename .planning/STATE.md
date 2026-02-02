@@ -47,6 +47,7 @@ See `.planning/milestones/v1.1-ROADMAP.md` for v1.1 decisions archive.
 1. Windows installer automation (v1.2)
 2. Plugin naming standardization (v1.2)
 3. CI/CD pipeline verification (test tag push)
+4. Fix registry updates during phase transitions (root cause - workflow agents not updating plugin-registry.json)
 
 ### Blockers/Concerns
 
