@@ -1,16 +1,16 @@
 ---
 plugin: O-Bells
-stage: 3
-phase: discuss
-status: ready
-last_updated: 2026-02-01
+stage: 4
+phase: verify
+status: complete
+last_updated: 2026-02-02
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: discuss_gui
-next_stage: 3
-next_phase: discuss
-ready_for_implementation: true
+next_action: manual_testing
+next_stage: complete
+next_phase: none
+ready_for_implementation: false
 contract_checksums:
   brief: sha256:46384ea8e9a1e60c2dcf9553c26a98dce4b29b3f8132073ec4d7999a14d01fd0
   parameter_spec: sha256:e7d4f1a8c9b2e3f5a6d7c8b9a0e1f2d3c4b5a6e7f8d9c0a1b2c3d4e5f6a7b8c9
@@ -22,12 +22,12 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI Implementation)
-Phase: Ready for Discuss
-Status: Stage 2 complete, ready to begin Stage 3
-Progress: [################....] 80%
+Stage: 4 of 4 (Polish) - COMPLETE
+Phase: Execute → Verify → Complete
+Status: All stages complete, awaiting manual DAW testing
+Progress: [####################] 100%
 
-## Completed So Far
+## All Stages Complete
 
 **Stage 0:** ✓ Complete
 - Plugin type defined: Physical Modeling Synthesizer (Modal Synthesis)
@@ -83,45 +83,84 @@ Progress: [################....] 80%
 - **Verify:** ✓ Complete
   - Build: SUCCESS (VST3 + AU)
   - AU registered: `aumu OBls OuDv - Ouaricon Development: O-Bells`
-  - 16/21 parameters fully connected to DSP (76%)
+  - 18/18 parameters fully connected to DSP (100%)
   - Core modal synthesis engine verified working
   - See VERIFICATION.md for full report
 
-## Stage 2 Verification Summary
+**Stage 3:** ✓ Complete (Verified)
+- **Discuss:** ✓ UI technology (WebView), window size (800x600), layout (tabs)
+- **Research:** ✓ JUCE 8 WebView patterns, O-Lyrica reference, Ouaricon Naturalist aesthetic
+- **Plan:** ✓ Task breakdown (10 tasks) with file creation/modification summary
+- **Execute:** ✓ Complete - WebView UI implemented:
+  - **Resources Created:**
+    - `Resources/ui/index.html` - Main WebView UI (27KB, full Ouaricon Naturalist aesthetic)
+    - `Resources/ui/js/juce/index.js` - JUCE ES6 bridge (copied from O-Lyrica)
+    - `Resources/ui/js/juce/check_native_interop.js` - Native interop verification
+    - `Resources/ui/img/snail.png` - Botanical overlay (snail image)
+  - **Source Updates:**
+    - `CMakeLists.txt` - Added juce_add_binary_data for UI resources
+    - `Source/PluginEditor.h` - WebView members (19 relays, WebView, 19 attachments)
+    - `Source/PluginEditor.cpp` - WebView setup with explicit URL mappings
+  - **UI Features:**
+    - Tab-based layout: Instrument (all params) / Tuning (placeholder)
+    - 18 parameter bindings (16 sliders + 3 choice selectors)
+    - Snail botanical watermark with tab-switching animation
+    - Ouaricon Naturalist aesthetic (Garamond, aged paper, earth tones)
+  - **Critical Patterns Applied:**
+    - Pattern #8: Explicit URL mapping in getResource()
+    - Pattern #11: Member order: Relays → WebView → Attachments
+    - Pattern #12: Three-parameter attachments (nullptr undoManager)
+    - Pattern #15: valueChangedEvent callbacks with getNormalisedValue()
+    - Pattern #21: ES6 module type="module"
+  - **Build Status:** SUCCESS (VST3 + AU compiled and installed)
+- **Verify:** ✓ Complete
+  - All automated checks passed
+  - JUCE 8 critical patterns verified
+  - 19/19 parameter bindings confirmed
+  - VERIFICATION.md created
 
-| Category | Result |
-|----------|--------|
-| Build | ✅ Pass |
-| AU Registration | ✅ Pass |
-| Parameter Binding | ✅ 100% connected (18/18) |
-| Real-time Safety | ✅ Pass |
-| Core Goals | ✅ All achieved |
+**Stage 4:** ✓ Complete (Polish)
+- **Research:** ✓ Complete
+  - Documented folder-based category approach (UI-side grouping)
+  - Analyzed O-Lyrica preset bar patterns
+  - Defined 25 factory presets across 5 categories
+- **Plan:** ✓ Complete
+  - 13 tasks across 5 phases
+  - File modification specifications complete
+  - 25 factory preset parameter values defined
+- **Execute:** ✓ Complete
+  - Extended OuariconPresetManager with category support
+  - Added 10 native functions for preset operations
+  - Implemented preset bar UI with categorized dropdown
+  - Created 25 factory presets (5 categories × 5 presets)
+  - Updated state save/load for preset persistence
+- **Verify:** ✓ Complete
+  - pluginval: SUCCESS (Strictness Level 5)
+  - auval: AU VALIDATION SUCCEEDED
+  - Factory presets: 25 created in `~/Library/O-Bells/Presets/Factory/`
+  - See: `stages/4-polish/SUMMARY.md`
 
-### Notable Implementation Details
-- Modal synthesis with 8 sine oscillators per voice
-- Three ratio tables: harmonic, bell (church), gamelan
-- Material morphing affects decay: Bronze(1.0) → Crystal(5.0)
-- Unison up to 4 voices with symmetric detune spread
-- Pitch envelope for large bell physics (initial pitch drop)
-- **Strike noise with distinct filters: Click (HP), Thud (LP), Ping (resonant BP)**
+## Factory Presets (25 total)
 
-### Parameters Simplified
-Removed 3 unnecessary parameters to streamline the plugin:
-- ~~bellSize~~ (note pitch implies size)
-- ~~sympatheticResonance~~ (complex, marginal benefit)
-- ~~quality~~ (8 partials is performant)
+| Category | Presets |
+|----------|---------|
+| Orchestral | Tubular Bells, Concert Chimes, Glockenspiel, Celesta Mallet, Vibraphone |
+| Sacred | Church Bell, Cathedral Carillon, Meditation Bowl, Temple Gong, Singing Bowl |
+| World | Gamelan Saron, Gamelan Bonang, Tibetan Bowl, Steel Pan, Kalimba Bell |
+| Ambient | Frozen Shimmer, Bell Pad, Crystal Drone, Ethereal Chime, Submerged Bells |
+| Cinematic | Epic Bell, Tension Chime, Horror Stinger, Dramatic Swell, Distant Thunder |
 
-## Next Steps
+## Manual Testing Checklist
 
-1. **Stage 3: GUI** - WebView UI implementation
-   - Discuss: Confirm UI approach (WebView vs native JUCE)
-   - Research: JUCE 8 WebView patterns
-   - Plan: Component layout, parameter binding strategy
-   - Execute: Implement UI with Ouaricon Botanical theme
-   - Verify: All controls functional, state persistence
-
-2. **Stage 4: Polish** - Final refinements
-   - Presets, advanced features, validation
+- [ ] Plugin loads in DAW without blank WebView
+- [ ] Preset dropdown shows 5 categories with headers
+- [ ] All 25 factory presets load correctly
+- [ ] Prev/Next navigation works and wraps
+- [ ] Save creates new user preset
+- [ ] Load opens file chooser
+- [ ] Preset state saves with DAW project
+- [ ] No audio glitches during preset changes
+- [ ] CPU < 60% with full ensemble
 
 ## Files Created
 
@@ -129,33 +168,39 @@ Removed 3 unnecessary parameters to streamline the plugin:
 - `plugins/O-Bells/.planning/research/ARCHITECTURE.md` - DSP architecture specification
 - `plugins/O-Bells/.planning/ROADMAP.md` - Implementation strategy and phase breakdown
 - `plugins/O-Bells/.planning/stages/0-ideation/CONTEXT.md` - Research findings and decisions
-- `plugins/O-Bells/.planning/STATUS.md` - This file (updated)
+- `plugins/O-Bells/.planning/STATUS.md` - This file
 - `plugins/O-Bells/.planning/parameter-spec.md` - Formal parameter definitions (22 params)
 
 **Stage 1 (Foundation + Shell):**
 - `plugins/O-Bells/CMakeLists.txt` - Build configuration (JUCE 8, IS_SYNTH TRUE)
 - `plugins/O-Bells/Source/PluginProcessor.h` - Audio processor header
 - `plugins/O-Bells/Source/PluginProcessor.cpp` - APVTS implementation with 22 parameters
-- `plugins/O-Bells/Source/PluginEditor.h` - Editor header (stub)
-- `plugins/O-Bells/Source/PluginEditor.cpp` - Editor implementation (placeholder UI)
-- `plugins/O-Bells/.planning/stages/1-foundation/CONTEXT.md` - Discuss phase decisions
-- `plugins/O-Bells/.planning/stages/1-foundation/VERIFICATION.md` - Verify phase report
+- `plugins/O-Bells/Source/PluginEditor.h` - Editor header
+- `plugins/O-Bells/Source/PluginEditor.cpp` - Editor implementation
 
 **Stage 2 (DSP Implementation):**
-- `plugins/O-Bells/.planning/stages/2-dsp/CONTEXT.md` - Discuss phase decisions
-- `plugins/O-Bells/.planning/stages/2-dsp/RESEARCH.md` - Research findings
-- `plugins/O-Bells/.planning/stages/2-dsp/PLAN.md` - Execution plan
-- `plugins/O-Bells/.planning/stages/2-dsp/HANDOFF.md` - Handoff document
-- `plugins/O-Bells/.planning/stages/2-dsp/VERIFICATION.md` - Verify phase report ← NEW
 - `plugins/O-Bells/Source/BellSound.h` - SynthesiserSound subclass
 - `plugins/O-Bells/Source/BellVoice.h` - Modal synthesis voice header
 - `plugins/O-Bells/Source/BellVoice.cpp` - Modal synthesis implementation (~570 lines)
+
+**Stage 3 (GUI Implementation):**
+- `plugins/O-Bells/Resources/ui/index.html` - WebView UI (27KB)
+- `plugins/O-Bells/Resources/ui/js/juce/index.js` - JUCE ES6 bridge
+- `plugins/O-Bells/Resources/ui/js/juce/check_native_interop.js` - Native interop
+- `plugins/O-Bells/Resources/ui/img/snail.png` - Botanical overlay (346KB)
+
+**Stage 4 (Polish):**
+- `plugins/O-Bells/Source/OuariconPresetManager.h` - Extended preset manager with category support
+- `plugins/O-Bells/.planning/stages/4-polish/RESEARCH.md` - Preset research
+- `plugins/O-Bells/.planning/stages/4-polish/PLAN.md` - Execution plan
+- `plugins/O-Bells/.planning/stages/4-polish/SUMMARY.md` - Execution summary
 
 **Build Artifacts (verified):**
 - `build/plugins/O-Bells/O-Bells_artefacts/VST3/O-Bells.vst3` ✓
 - `build/plugins/O-Bells/O-Bells_artefacts/AU/O-Bells.component` ✓
 - `~/Library/Audio/Plug-Ins/VST3/O-Bells.vst3` (installed)
 - `~/Library/Audio/Plug-Ins/Components/O-Bells.component` (installed)
+- `~/Library/O-Bells/Presets/Factory/` (25 presets)
 
 ## Context to Preserve
 
@@ -171,9 +216,10 @@ Modal synthesis (additive synthesis of inharmonic partials) chosen over waveguid
 - Material morphing: Bronze → Steel → Glass → Crystal (continuous interpolation)
 - Strike dynamics: Mallet hardness, strike position, velocity response
 - Advanced: Pitch envelope, partial tuning, nonlinear effects
+- 25 factory presets across 5 categories with preset bar UI
 
 **Aesthetic:**
-Ouaricon Botanical theme with snail motif (Architectonica perspectiva species). Warm amber/bronze/cream colors reflecting bell metal patina. Two-panel design (Main/Advanced tabs).
+Ouaricon Naturalist theme with snail motif (Architectonica perspectiva species). Warm aged paper background (#F5E6D3), earth tone controls, Garamond typography. Tab-based design (Instrument/Tuning). Preset bar in header with categorized dropdown.
 
 **DSP Implementation Details:**
 - Partial ratios: harmonic [0.5,1,2,3,4,5,6,7], bell [0.5,1,2.4,3,4,5.2,6,8], gamelan [0.5,1,2.1,3.5,4.8,5.8,7.2,9.5]
@@ -183,6 +229,14 @@ Ouaricon Botanical theme with snail motif (Architectonica perspectiva species). 
 - Strike noise: Click (highpass, 3-8ms), Thud (lowpass, 15-30ms), Ping (resonant bandpass, 8-20ms)
 - **All 18 parameters fully connected to DSP engine (100%)**
 
+**GUI Implementation Details:**
+- WebView-based UI with JUCE 8 ES6 module pattern
+- 16 WebSliderRelay + 3 WebComboBoxRelay for parameter binding
+- 10 native functions for preset operations
+- Explicit URL mapping in getResource() (Pattern #8)
+- Member order: Relays → WebView → Attachments (Pattern #11)
+- Three-parameter attachments with nullptr undoManager (Pattern #12)
+
 **CPU Target:**
 <60% CPU single core worst case (8 voices × 4 unison × 3 octave layers = theoretical 768 oscillators). Current implementation uses efficient phase-accumulator synthesis with denormal protection.
 
@@ -191,7 +245,9 @@ Ouaricon Botanical theme with snail motif (Architectonica perspectiva species). 
 - Roadmap: `plugins/O-Bells/.planning/ROADMAP.md`
 - BRIEF: `plugins/O-Bells/.planning/BRIEF.md`
 - DSP Verify: `plugins/O-Bells/.planning/stages/2-dsp/VERIFICATION.md`
+- GUI Plan: `plugins/O-Bells/.planning/stages/3-gui/PLAN.md`
+- Polish Summary: `plugins/O-Bells/.planning/stages/4-polish/SUMMARY.md`
 
 ---
 
-*Last Updated: 2026-02-01*
+*Last Updated: 2026-02-02*

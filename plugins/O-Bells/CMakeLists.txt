@@ -70,14 +70,16 @@ target_compile_definitions(O-Bells
         JUCE_USE_CURL=0
 )
 
-# WebView UI Resources (commented out - will be uncommented by gui-agent)
-# juce_add_binary_data(O-Bells_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-# )
-#
-# target_link_libraries(O-Bells
-#     PRIVATE
-#         O-Bells_UIResources
-# )
+# WebView UI Resources
+juce_add_binary_data(O-Bells_UIResources
+    SOURCES
+        Resources/ui/index.html
+        Resources/ui/js/juce/index.js
+        Resources/ui/js/juce/check_native_interop.js
+        Resources/ui/img/snail.png
+)
+
+target_link_libraries(O-Bells
+    PRIVATE
+        O-Bells_UIResources
+)

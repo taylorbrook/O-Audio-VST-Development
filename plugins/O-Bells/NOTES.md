@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.1.1
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -10,6 +10,7 @@
 - **2026-02-02:** Initial development completed (v1.0.0)
 - **2026-02-02 (v1.0.0):** Physical modeling bell synthesizer with 18 parameters, WebView UI, 25 factory presets
 - **2026-02-02 (v1.1.0):** Added reverb control for spaciousness (MINOR feature addition)
+- **2026-02-02 (v1.1.1):** Fixed default output level too loud (PATCH - reduced default from 0 dB to -6 dB)
 
 ## Known Issues
 
@@ -92,3 +93,15 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - Resources/ui/index.html - UI element and JS binding
 
 **Validation:** auval PASS, pluginval SUCCESS (strictness 5)
+
+### v1.1.1 (2026-02-02)
+**Request:** Default output level too loud, causes clipping
+
+**Root Cause:** With 8-voice polyphony, multiple partials per voice, and potential octave layer stacking, the signal easily exceeded 0 dBFS at the default 0 dB output gain setting.
+
+**Fix:** Reduced default `outputGain` parameter from 0.0 dB to -6.0 dB to provide proper headroom. The full -24 to +12 dB range remains available for user adjustment.
+
+**Files Modified:**
+- PluginProcessor.cpp - Line 199, default value change
+
+**Validation:** pluginval SUCCESS (strictness 5)
