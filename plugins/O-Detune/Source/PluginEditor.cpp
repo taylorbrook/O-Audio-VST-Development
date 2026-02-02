@@ -4,7 +4,6 @@
     O-Detune - Editor Implementation
     Ouaricon Development
     Developer: Taylor Brook
-    Version: 1.1.1
 
   ==============================================================================
 */
@@ -81,7 +80,7 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
     );
 
     // ============================================================================
-    // 3. Create parameter attachments LAST
+    // 3. Create attachments LAST (Pattern #12: 3 parameters)
     // ============================================================================
 
     // Float parameter attachments
@@ -142,7 +141,10 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
     setSize(600, 400);
 }
 
-ODetuneAudioProcessorEditor::~ODetuneAudioProcessorEditor() = default;
+ODetuneAudioProcessorEditor::~ODetuneAudioProcessorEditor()
+{
+    // Members destroyed in REVERSE order of declaration (automatic cleanup)
+}
 
 void ODetuneAudioProcessorEditor::paint(juce::Graphics& g)
 {
@@ -203,24 +205,6 @@ ODetuneAudioProcessorEditor::getResource(const juce::String& url)
             makeVector(BinaryData::check_native_interop_js,
                       BinaryData::check_native_interop_jsSize),
             juce::String("text/javascript")
-        };
-    }
-
-    // Paper background image (Ouaricon Naturalist aesthetic)
-    if (url == "/img/paper_background.jpg") {
-        return juce::WebBrowserComponent::Resource {
-            makeVector(BinaryData::paper_background_jpg,
-                      BinaryData::paper_background_jpgSize),
-            juce::String("image/jpeg")
-        };
-    }
-
-    // Botanical slug overlay (Ouaricon Naturalist aesthetic)
-    if (url == "/img/slug.png") {
-        return juce::WebBrowserComponent::Resource {
-            makeVector(BinaryData::slug_png,
-                      BinaryData::slug_pngSize),
-            juce::String("image/png")
         };
     }
 

@@ -4,7 +4,6 @@
     O-Detune - Editor
     Ouaricon Development
     Developer: Taylor Brook
-    Version: 1.1.0
 
   ==============================================================================
 */

@@ -65,8 +65,6 @@ juce_add_binary_data(O-Detune_UIResources
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
-        Resources/paper_background.jpg
-        Resources/slug.png
 )
 
 target_link_libraries(O-Detune

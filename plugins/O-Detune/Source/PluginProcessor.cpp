@@ -4,7 +4,6 @@
     O-Detune - Audio Processor Implementation
     Ouaricon Development
     Developer: Taylor Brook
-    Version: 1.1.1
 
   ==============================================================================
 */
@@ -216,11 +215,11 @@ ODetuneAudioProcessor::ODetuneAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
-    // Initialize random generator with current time for true randomness
-    randomGenerator.setSeedRandomly();
 }
 
-ODetuneAudioProcessor::~ODetuneAudioProcessor() = default;
+ODetuneAudioProcessor::~ODetuneAudioProcessor()
+{
+}
 
 void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -228,6 +227,7 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     currentSampleRate = sampleRate;
 
     // Calculate latency based on sample rate
+    // 50ms delay line = (50 / 1000.0) * sampleRate
     latencySamples = static_cast<int>((centerDelayMs / 1000.0) * sampleRate);
 
     // Prepare ProcessSpec for all juce::dsp components
@@ -235,7 +235,9 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
 
-    // Wobble Engine delay lines (60ms buffer for 50ms center + modulation range)
+    // Prepare Wobble Engine
+    // Center delay: 50ms + modulation range (±100 cents = ~4.8ms)
+    // Buffer size: 60ms to accommodate modulation
     const int maxDelaySamples = static_cast<int>((60.0 / 1000.0) * sampleRate);
     wobbleDelayL.prepare(spec);
     wobbleDelayR.prepare(spec);
@@ -244,7 +246,13 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     wobbleDelayL.reset();
     wobbleDelayR.reset();
 
-    // Unison Engine delay lines
+    // Prepare Wobble LFO (Phase 4.1: Sine wave only)
+    wobbleLFO.prepare(spec);
+    wobbleLFO.initialise([](float x) { return std::sin(x); });  // Sine wave
+    wobbleLFO.setFrequency(2.0f);  // Default 2 Hz
+    wobbleLFO.reset();
+
+    // Prepare Unison Engine (all 7 delay lines for future phases)
     for (int i = 0; i < maxUnisonVoices; ++i)
     {
         unisonDelaysL[i].prepare(spec);
@@ -253,21 +261,9 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
         unisonDelaysR[i].setMaximumDelayInSamples(maxDelaySamples);
         unisonDelaysL[i].reset();
         unisonDelaysR[i].reset();
-
-        // Initialize random offsets for voice randomization
-        voiceRandomOffsets[i] = randomGenerator.nextFloat() * 2.0f - 1.0f;
     }
 
-    // Pre-delay lines (50ms max)
-    const int preDelayMaxSamples = static_cast<int>((50.0 / 1000.0) * sampleRate);
-    preDelayL.prepare(spec);
-    preDelayR.prepare(spec);
-    preDelayL.setMaximumDelayInSamples(preDelayMaxSamples);
-    preDelayR.setMaximumDelayInSamples(preDelayMaxSamples);
-    preDelayL.reset();
-    preDelayR.reset();
-
-    // Focus Filter
+    // Prepare Focus Filter
     focusHighPassL.prepare(spec);
     focusHighPassR.prepare(spec);
     focusLowPassL.prepare(spec);
@@ -277,54 +273,17 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     focusLowPassL.reset();
     focusLowPassR.reset();
 
-    // Initialize filter coefficients
-    lastFocusLow = 20.0f;
-    lastFocusHigh = 20000.0f;
-    auto highPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(sampleRate, lastFocusLow);
-    auto lowPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(sampleRate, lastFocusHigh);
-    *focusHighPassL.coefficients = *highPassCoeffs;
-    *focusHighPassR.coefficients = *highPassCoeffs;
-    *focusLowPassL.coefficients = *lowPassCoeffs;
-    *focusLowPassR.coefficients = *lowPassCoeffs;
-
-    // Era filters
-    eraFilterL.prepare(spec);
-    eraFilterR.prepare(spec);
-    eraFilterL.reset();
-    eraFilterR.reset();
-    lastEra = 1;  // 70s (bypass)
-
-    // Color filters
-    colorFilterL.prepare(spec);
-    colorFilterR.prepare(spec);
-    colorFilterL.reset();
-    colorFilterR.reset();
-    lastColor = 0.0f;
-
-    // Dry/Wet Mixer
+    // Prepare Dry/Wet Mixer
     dryWetMixer.prepare(spec);
-    dryWetMixer.setWetMixProportion(0.5f);
+    dryWetMixer.setWetMixProportion(0.5f);  // Default 50% mix
     dryWetMixer.reset();
 
-    // Pre-allocate processing buffers
+    // Pre-allocate processing buffers (real-time safety)
     const int numChannels = getTotalNumOutputChannels();
     wobbleBuffer.setSize(numChannels, samplesPerBlock);
     unisonBuffer.setSize(numChannels, samplesPerBlock);
-    feedbackBuffer.setSize(numChannels, samplesPerBlock);
     wobbleBuffer.clear();
     unisonBuffer.clear();
-    feedbackBuffer.clear();
-
-    // Reset LFO state
-    lfoPhase = 0.0f;
-    randomCurrentValue = 0.0f;
-    randomTargetValue = randomGenerator.nextFloat() * 2.0f - 1.0f;
-    randomHoldCounter = 0;
-    randomHoldSamples = static_cast<int>(sampleRate / 2.0f);  // Initial hold
-
-    // Reset feedback
-    feedbackL = 0.0f;
-    feedbackR = 0.0f;
 }
 
 void ODetuneAudioProcessor::releaseResources()
@@ -332,205 +291,75 @@ void ODetuneAudioProcessor::releaseResources()
     // Release processing buffers to save memory when plugin not in use
     wobbleBuffer.setSize(0, 0);
     unisonBuffer.setSize(0, 0);
-    feedbackBuffer.setSize(0, 0);
 }
 
-float ODetuneAudioProcessor::generateLFOSample(int shape, float rate)
-{
-    float lfoValue = 0.0f;
-
-    switch (shape)
-    {
-        case 0:  // Sine
-            lfoValue = std::sin(lfoPhase * juce::MathConstants<float>::twoPi);
-            break;
-
-        case 1:  // Triangle
-            lfoValue = 4.0f * std::abs(lfoPhase - std::floor(lfoPhase + 0.5f)) - 1.0f;
-            break;
-
-        case 2:  // Random (sample-and-hold with smoothing)
-            if (randomHoldCounter >= randomHoldSamples)
-            {
-                randomTargetValue = randomGenerator.nextFloat() * 2.0f - 1.0f;
-                randomHoldSamples = std::max(1, static_cast<int>(currentSampleRate / rate));
-                randomHoldCounter = 0;
-            }
-            // Smooth interpolation (~10ms slew)
-            const float smoothCoeff = 1.0f - std::exp(-1.0f / (0.01f * static_cast<float>(currentSampleRate)));
-            randomCurrentValue += (randomTargetValue - randomCurrentValue) * smoothCoeff;
-            randomHoldCounter++;
-            lfoValue = randomCurrentValue;
-            break;
-    }
-
-    // Advance phase for sine/triangle
-    if (shape != 2)
-    {
-        lfoPhase += rate / static_cast<float>(currentSampleRate);
-        if (lfoPhase >= 1.0f)
-            lfoPhase -= 1.0f;
-    }
-
-    return lfoValue;
-}
-
-void ODetuneAudioProcessor::applyEraCharacter(int era, float& rate, float& depth)
-{
-    switch (era)
-    {
-        case 0:  // 60s (Ampex) - slower, warmer, subtler
-            rate *= 0.7f;
-            depth *= 0.8f;
-            break;
-
-        case 1:  // 70s (Teac) - default, no modification
-            break;
-
-        case 2:  // 80s (Cassette) - faster flutter, more unstable
-            rate *= 1.3f;
-            depth *= 1.1f;
-            break;
-    }
-}
-
-float ODetuneAudioProcessor::applySaturation(float input, float driveAmount)
-{
-    if (driveAmount < 0.001f)
-        return input;
-
-    // Soft clipping with tanh waveshaping
-    const float gain = 1.0f + driveAmount * 3.0f;
-    const float driven = input * gain;
-    const float saturated = std::tanh(driven);
-
-    // Compensate for gain increase
-    return saturated / gain;
-}
-
-void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& /*midiMessages*/)
+void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+    juce::ignoreUnused(midiMessages);
 
-    const int numSamples = buffer.getNumSamples();
-    const int numChannels = buffer.getNumChannels();
-
-    if (numSamples == 0)
+    // Early exit for zero-length buffers
+    if (buffer.getNumSamples() == 0)
         return;
 
-    // Clear unused output channels
+    // Clear unused channels
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
-        buffer.clear(i, 0, numSamples);
+        buffer.clear(i, 0, buffer.getNumSamples());
 
     //==============================================================================
-    // Read ALL parameters (atomic, real-time safe)
-    const float blendValue = parameters.getRawParameterValue("blend")->load();
+    // Read parameters (atomic, real-time safe)
 
-    // Wobble parameters
-    const int wobbleEra = static_cast<int>(parameters.getRawParameterValue("wobble_era")->load());
-    float wobbleRate = parameters.getRawParameterValue("wobble_rate")->load();
-    float wobbleDepth = parameters.getRawParameterValue("wobble_depth")->load();
-    const int wobbleShape = static_cast<int>(parameters.getRawParameterValue("wobble_shape")->load());
-    const bool wobbleSync = parameters.getRawParameterValue("wobble_sync")->load() > 0.5f;
+    // Mode blend (0 = wobble only, 1 = unison only)
+    auto* blendParam = parameters.getRawParameterValue("blend");
+    float blendValue = blendParam->load();
 
-    // Unison parameters
-    const int unisonVoicesIdx = static_cast<int>(parameters.getRawParameterValue("unison_voices")->load());
-    const float unisonDetune = parameters.getRawParameterValue("unison_detune")->load();
-    const int unisonDist = static_cast<int>(parameters.getRawParameterValue("unison_dist")->load());
-    const float unisonSpread = parameters.getRawParameterValue("unison_spread")->load() / 100.0f;
+    // Wobble engine parameters
+    auto* wobbleRateParam = parameters.getRawParameterValue("wobble_rate");
+    auto* wobbleDepthParam = parameters.getRawParameterValue("wobble_depth");
+    float wobbleRate = wobbleRateParam->load();
+    float wobbleDepth = wobbleDepthParam->load();
 
-    // Character parameters
-    const float driveAmount = parameters.getRawParameterValue("drive")->load() / 100.0f;
-    const float colorValue = parameters.getRawParameterValue("color")->load();
-    const float ageAmount = parameters.getRawParameterValue("age")->load() / 100.0f;
+    // Unison engine parameters
+    auto* unisonDetuneParam = parameters.getRawParameterValue("unison_detune");
+    float unisonDetune = unisonDetuneParam->load();
 
-    // Output parameters
-    const float widthValue = parameters.getRawParameterValue("width")->load() / 100.0f;
-    const float mixValue = parameters.getRawParameterValue("mix")->load() / 100.0f;
-    const float focusLow = parameters.getRawParameterValue("focus_low")->load();
-    const float focusHigh = parameters.getRawParameterValue("focus_high")->load();
-    const bool monoSafe = parameters.getRawParameterValue("mono_safe")->load() > 0.5f;
+    // Phase 4.1: Fixed 3 voices (will expand in Phase 4.3)
+    int activeVoices = 3;
 
-    // Advanced parameters
-    const float preDelayMs = parameters.getRawParameterValue("delay")->load();
-    const float feedbackAmount = parameters.getRawParameterValue("feedback")->load() / 100.0f;
-    const float randomAmount = parameters.getRawParameterValue("random_amt")->load() / 100.0f;
+    // Focus filter parameters
+    auto* focusLowParam = parameters.getRawParameterValue("focus_low");
+    auto* focusHighParam = parameters.getRawParameterValue("focus_high");
+    float focusLow = focusLowParam->load();
+    float focusHigh = focusHighParam->load();
 
-    // Map voice index to count: {0→2, 1→3, 2→4, 3→5, 4→7}
-    const int voiceCounts[5] = {2, 3, 4, 5, 7};
-    const int activeVoices = voiceCounts[juce::jlimit(0, 4, unisonVoicesIdx)];
+    // Mix parameter (0-100%)
+    auto* mixParam = parameters.getRawParameterValue("mix");
+    float mixValue = mixParam->load() / 100.0f;  // Convert to 0.0-1.0
 
     //==============================================================================
-    // Apply era character to wobble
-    applyEraCharacter(wobbleEra, wobbleRate, wobbleDepth);
-
-    // Handle tempo sync (if playhead available)
-    if (wobbleSync)
-    {
-        if (auto* playHead = getPlayHead())
-        {
-            if (auto position = playHead->getPosition())
-            {
-                if (auto bpm = position->getBpm())
-                {
-                    // Sync to 1/4 note by default
-                    wobbleRate = static_cast<float>(*bpm) / 60.0f;
-                }
-            }
-        }
-    }
+    // Update LFO frequency
+    wobbleLFO.setFrequency(wobbleRate);
 
     //==============================================================================
-    // 1. Capture dry signal
+    // 1. Capture dry signal (DryWetMixer)
     dryWetMixer.pushDrySamples(buffer);
 
     //==============================================================================
-    // 2. Apply pre-delay if set
-    if (preDelayMs > 0.01f)
-    {
-        const float preDelaySamples = (preDelayMs / 1000.0f) * static_cast<float>(currentSampleRate);
-        preDelayL.setDelay(preDelaySamples);
-        preDelayR.setDelay(preDelaySamples);
+    // 2. Apply Focus Filter (frequency-selective processing)
 
-        if (numChannels >= 1)
-        {
-            auto* dataL = buffer.getWritePointer(0);
-            for (int s = 0; s < numSamples; ++s)
-            {
-                preDelayL.pushSample(0, dataL[s]);
-                dataL[s] = preDelayL.popSample(0);
-            }
-        }
-        if (numChannels >= 2)
-        {
-            auto* dataR = buffer.getWritePointer(1);
-            for (int s = 0; s < numSamples; ++s)
-            {
-                preDelayR.pushSample(0, dataR[s]);
-                dataR[s] = preDelayR.popSample(0);
-            }
-        }
-    }
+    // Update focus filter coefficients
+    auto highPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, focusLow);
+    auto lowPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, focusHigh);
 
-    //==============================================================================
-    // 3. Update focus filter coefficients only when changed
-    if (std::abs(focusLow - lastFocusLow) > 0.01f)
-    {
-        lastFocusLow = focusLow;
-        auto highPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeHighPass(currentSampleRate, focusLow);
-        *focusHighPassL.coefficients = *highPassCoeffs;
-        *focusHighPassR.coefficients = *highPassCoeffs;
-    }
+    *focusHighPassL.coefficients = *highPassCoeffs;
+    *focusHighPassR.coefficients = *highPassCoeffs;
+    *focusLowPassL.coefficients = *lowPassCoeffs;
+    *focusLowPassR.coefficients = *lowPassCoeffs;
 
-    if (std::abs(focusHigh - lastFocusHigh) > 0.01f)
-    {
-        lastFocusHigh = focusHigh;
-        auto lowPassCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, focusHigh);
-        *focusLowPassL.coefficients = *lowPassCoeffs;
-        *focusLowPassR.coefficients = *lowPassCoeffs;
-    }
+    // Process focus filters
+    const int numSamples = buffer.getNumSamples();
+    const int numChannels = buffer.getNumChannels();
 
-    // Apply focus filters
     if (numChannels >= 1)
     {
         auto* channelDataL = buffer.getWritePointer(0);
@@ -552,288 +381,120 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 4. Update era filter (60s=LP, 70s=bypass, 80s=HS boost)
-    if (wobbleEra != lastEra)
-    {
-        lastEra = wobbleEra;
-        switch (wobbleEra)
-        {
-            case 0:  // 60s - low-pass at 2kHz
-            {
-                auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, 2000.0f);
-                *eraFilterL.coefficients = *coeffs;
-                *eraFilterR.coefficients = *coeffs;
-                break;
-            }
-            case 1:  // 70s - bypass (all-pass)
-            {
-                auto coeffs = juce::dsp::IIR::Coefficients<float>::makeAllPass(currentSampleRate, 1000.0f);
-                *eraFilterL.coefficients = *coeffs;
-                *eraFilterR.coefficients = *coeffs;
-                break;
-            }
-            case 2:  // 80s - high-shelf boost at 4kHz
-            {
-                auto coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(currentSampleRate, 4000.0f, 0.7f, 1.4f);
-                *eraFilterL.coefficients = *coeffs;
-                *eraFilterR.coefficients = *coeffs;
-                break;
-            }
-        }
-    }
+    // 3. Process Wobble Engine (delay-based pitch modulation)
 
-    //==============================================================================
-    // 5. Process Wobble Engine (delay-based pitch modulation)
+    wobbleBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
 
-    // Copy filtered signal to wobble buffer
-    for (int ch = 0; ch < numChannels; ++ch)
-        wobbleBuffer.copyFrom(ch, 0, buffer, ch, 0, numSamples);
-
+    // Calculate center delay time in samples
     const float centerDelaySamples = (centerDelayMs / 1000.0f) * static_cast<float>(currentSampleRate);
-    const float pitchRatio = std::pow(2.0f, wobbleDepth / 1200.0f);
-    const float modulationRange = centerDelaySamples * (pitchRatio - 1.0f);
 
-    // Get channel pointers outside the sample loop
-    float* wobbleDataL = (numChannels >= 1) ? wobbleBuffer.getWritePointer(0) : nullptr;
-    float* wobbleDataR = (numChannels >= 2) ? wobbleBuffer.getWritePointer(1) : nullptr;
+    // Pre-calculate pitch modulation parameters
+    // wobbleDepth in cents, 1200 cents = 1 octave
+    float pitchRatio = std::pow(2.0f, wobbleDepth / 1200.0f);
+    float modulationRange = centerDelaySamples * (pitchRatio - 1.0f);
 
+    // Process wobble modulation (both channels share same LFO phase)
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Generate LFO with selected shape
-        const float lfoValue = generateLFOSample(wobbleShape, wobbleRate);
-        const float delayTime = centerDelaySamples + (lfoValue * modulationRange);
+        // Get LFO value (-1 to +1)
+        float lfoValue = wobbleLFO.processSample(0.0f);
 
-        if (wobbleDataL != nullptr)
+        // Calculate modulated delay time
+        float delayTime = centerDelaySamples + (lfoValue * modulationRange);
+
+        // Process left channel
+        if (numChannels >= 1)
         {
-            // Mix in feedback
-            float inputL = wobbleDataL[sample] + feedbackL * feedbackAmount;
+            auto* wobbleDataL = wobbleBuffer.getWritePointer(0);
             wobbleDelayL.setDelay(delayTime);
-            wobbleDelayL.pushSample(0, inputL);
-            float outputL = wobbleDelayL.popSample(0);
-
-            // Apply era filter
-            if (wobbleEra != 1)  // Skip for 70s (bypass)
-                outputL = eraFilterL.processSample(outputL);
-
-            wobbleDataL[sample] = outputL;
-            feedbackL = outputL;
+            wobbleDelayL.pushSample(0, wobbleDataL[sample]);
+            wobbleDataL[sample] = wobbleDelayL.popSample(0);
         }
 
-        if (wobbleDataR != nullptr)
+        // Process right channel (same LFO phase)
+        if (numChannels >= 2)
         {
-            float inputR = wobbleDataR[sample] + feedbackR * feedbackAmount;
+            auto* wobbleDataR = wobbleBuffer.getWritePointer(1);
             wobbleDelayR.setDelay(delayTime);
-            wobbleDelayR.pushSample(0, inputR);
-            float outputR = wobbleDelayR.popSample(0);
-
-            if (wobbleEra != 1)
-                outputR = eraFilterR.processSample(outputR);
-
-            wobbleDataR[sample] = outputR;
-            feedbackR = outputR;
+            wobbleDelayR.pushSample(0, wobbleDataR[sample]);
+            wobbleDataR[sample] = wobbleDelayR.popSample(0);
         }
     }
 
     //==============================================================================
-    // 6. Process Unison Engine (multi-voice detuning)
+    // 4. Process Unison Engine (multi-voice detuning)
 
-    unisonBuffer.clear();
+    unisonBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
+    unisonBuffer.clear();  // Clear for voice accumulation
 
-    // Calculate voice detuning based on distribution
-    float voiceDetunes[maxUnisonVoices] = {0.0f};
+    // Phase 4.1: 3 voices with linear distribution
+    // Voice detuning: [-detune/2, 0, +detune/2] cents
+    float voiceDetunes[3];
+    voiceDetunes[0] = -unisonDetune / 2.0f;  // Voice 1: negative detune
+    voiceDetunes[1] = 0.0f;                   // Voice 2: center (unity pitch)
+    voiceDetunes[2] = +unisonDetune / 2.0f;   // Voice 3: positive detune
 
-    for (int v = 0; v < activeVoices; ++v)
-    {
-        // Normalized position [-1, 1]
-        float normalizedPos = (activeVoices == 1) ? 0.0f :
-            (static_cast<float>(v) / static_cast<float>(activeVoices - 1)) * 2.0f - 1.0f;
-
-        switch (unisonDist)
-        {
-            case 0:  // Linear
-                voiceDetunes[v] = normalizedPos * (unisonDetune / 2.0f);
-                break;
-
-            case 1:  // Exponential (cluster toward center)
-            {
-                float sign = (normalizedPos >= 0.0f) ? 1.0f : -1.0f;
-                float absPos = std::abs(normalizedPos);
-                voiceDetunes[v] = sign * std::pow(absPos, 2.0f) * (unisonDetune / 2.0f);
-                break;
-            }
-
-            case 2:  // Random
-                voiceDetunes[v] = normalizedPos * (unisonDetune / 2.0f)
-                    + voiceRandomOffsets[v] * randomAmount * (unisonDetune / 4.0f);
-                break;
-        }
-    }
-
-    const float voiceGain = 1.0f / static_cast<float>(activeVoices);
-
-    // Get buffer pointers outside the voice loop
-    const float* inputDataL = (numChannels >= 1) ? buffer.getReadPointer(0) : nullptr;
-    const float* inputDataR = (numChannels >= 2) ? buffer.getReadPointer(1) : nullptr;
-    float* outputDataL = (numChannels >= 1) ? unisonBuffer.getWritePointer(0) : nullptr;
-    float* outputDataR = (numChannels >= 2) ? unisonBuffer.getWritePointer(1) : nullptr;
-
+    // Process each voice
     for (int voice = 0; voice < activeVoices; ++voice)
     {
-        const float voicePitchRatio = std::pow(2.0f, voiceDetunes[voice] / 1200.0f);
-        // Pitch UP = shorter delay (read faster), pitch DOWN = longer delay
-        // Inverse relationship: higher pitch ratio means shorter delay time
-        const float voiceDelayTime = centerDelaySamples / voicePitchRatio;
+        float detuneCents = voiceDetunes[voice];
 
-        // Calculate stereo pan for this voice
-        float normalizedPos = (activeVoices == 1) ? 0.0f :
-            (static_cast<float>(voice) / static_cast<float>(activeVoices - 1)) * 2.0f - 1.0f;
-        float panL = std::cos((normalizedPos * unisonSpread + 1.0f) * juce::MathConstants<float>::halfPi * 0.5f);
-        float panR = std::sin((normalizedPos * unisonSpread + 1.0f) * juce::MathConstants<float>::halfPi * 0.5f);
+        // Calculate static delay time for this voice
+        // delay(voice) = centerDelay * 2^(detune_cents/1200)
+        float voicePitchRatio = std::pow(2.0f, detuneCents / 1200.0f);
+        float voiceDelayTime = centerDelaySamples * voicePitchRatio;
 
-        if (inputDataL != nullptr)
+        // Process left channel
+        if (numChannels >= 1)
         {
+            auto* inputDataL = buffer.getReadPointer(0);
+            auto* outputDataL = unisonBuffer.getWritePointer(0);
+
             unisonDelaysL[voice].setDelay(voiceDelayTime);
+
             for (int sample = 0; sample < numSamples; ++sample)
             {
                 unisonDelaysL[voice].pushSample(0, inputDataL[sample]);
-                float voiceOutput = unisonDelaysL[voice].popSample(0) * voiceGain;
-                outputDataL[sample] += voiceOutput * panL;
-                if (outputDataR != nullptr)
-                    outputDataR[sample] += voiceOutput * panR * 0.5f;  // Cross-feed for stereo
+                float delayedSample = unisonDelaysL[voice].popSample(0);
+                outputDataL[sample] += delayedSample / static_cast<float>(activeVoices);
             }
         }
 
-        if (inputDataR != nullptr)
+        // Process right channel
+        if (numChannels >= 2)
         {
+            auto* inputDataR = buffer.getReadPointer(1);
+            auto* outputDataR = unisonBuffer.getWritePointer(1);
+
             unisonDelaysR[voice].setDelay(voiceDelayTime);
+
             for (int sample = 0; sample < numSamples; ++sample)
             {
                 unisonDelaysR[voice].pushSample(0, inputDataR[sample]);
-                float voiceOutput = unisonDelaysR[voice].popSample(0) * voiceGain;
-                outputDataR[sample] += voiceOutput * panR;
-                if (outputDataL != nullptr)
-                    outputDataL[sample] += voiceOutput * panL * 0.5f;  // Cross-feed
+                float delayedSample = unisonDelaysR[voice].popSample(0);
+                outputDataR[sample] += delayedSample / static_cast<float>(activeVoices);
             }
         }
     }
 
     //==============================================================================
-    // 7. Blend dual engines (blend=0: wobble, blend=1: unison)
-
-    const float wobbleGain = 1.0f - blendValue;
-    for (int channel = 0; channel < numChannels; ++channel)
-    {
-        const float* wobbleData = wobbleBuffer.getReadPointer(channel);
-        const float* unisonData = unisonBuffer.getReadPointer(channel);
-        float* outputData = buffer.getWritePointer(channel);
-
-        for (int sample = 0; sample < numSamples; ++sample)
-            outputData[sample] = wobbleData[sample] * wobbleGain + unisonData[sample] * blendValue;
-    }
-
-    //==============================================================================
-    // 8. Apply Character processing (drive, color, age)
-
-    // Update color filter if changed
-    if (std::abs(colorValue - lastColor) > 0.1f)
-    {
-        lastColor = colorValue;
-        if (colorValue < -10.0f)  // Dark (low-pass)
-        {
-            float freq = juce::jmap(colorValue, -100.0f, -10.0f, 1000.0f, 10000.0f);
-            auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, freq);
-            *colorFilterL.coefficients = *coeffs;
-            *colorFilterR.coefficients = *coeffs;
-        }
-        else if (colorValue > 10.0f)  // Bright (high-shelf boost)
-        {
-            float gain = juce::jmap(colorValue, 10.0f, 100.0f, 1.0f, 2.0f);
-            auto coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(currentSampleRate, 3000.0f, 0.7f, gain);
-            *colorFilterL.coefficients = *coeffs;
-            *colorFilterR.coefficients = *coeffs;
-        }
-        else  // Neutral (bypass via all-pass)
-        {
-            auto coeffs = juce::dsp::IIR::Coefficients<float>::makeAllPass(currentSampleRate, 1000.0f);
-            *colorFilterL.coefficients = *coeffs;
-            *colorFilterR.coefficients = *coeffs;
-        }
-    }
+    // 5. Blend dual engines (crossfade)
+    // blend = 0: wobble only, blend = 1: unison only
 
     for (int channel = 0; channel < numChannels; ++channel)
     {
-        float* data = buffer.getWritePointer(channel);
-        auto& colorFilter = (channel == 0) ? colorFilterL : colorFilterR;
+        auto* wobbleData = wobbleBuffer.getWritePointer(channel);
+        auto* unisonData = unisonBuffer.getReadPointer(channel);
+        auto* outputData = buffer.getWritePointer(channel);
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            float s = data[sample];
-
-            // Apply drive (saturation)
-            s = applySaturation(s, driveAmount);
-
-            // Apply color filter
-            if (std::abs(colorValue) > 10.0f)
-                s = colorFilter.processSample(s);
-
-            // Apply age (noise + subtle drift)
-            if (ageAmount > 0.01f)
-            {
-                // Add subtle noise
-                float noise = (randomGenerator.nextFloat() * 2.0f - 1.0f) * ageAmount * 0.01f;
-                s += noise;
-            }
-
-            data[sample] = s;
+            outputData[sample] = wobbleData[sample] * (1.0f - blendValue) + unisonData[sample] * blendValue;
         }
     }
 
     //==============================================================================
-    // 9. Apply stereo width
-
-    if (numChannels >= 2 && std::abs(widthValue - 1.0f) > 0.01f)
-    {
-        float* dataL = buffer.getWritePointer(0);
-        float* dataR = buffer.getWritePointer(1);
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            float mid = (dataL[sample] + dataR[sample]) * 0.5f;
-            float side = (dataL[sample] - dataR[sample]) * 0.5f;
-
-            side *= widthValue;
-
-            dataL[sample] = mid + side;
-            dataR[sample] = mid - side;
-        }
-    }
-
-    //==============================================================================
-    // 10. Apply mono-safe processing
-
-    if (monoSafe && numChannels >= 2)
-    {
-        float* dataL = buffer.getWritePointer(0);
-        float* dataR = buffer.getWritePointer(1);
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            // Check correlation - if negative (out of phase), reduce side
-            float mid = (dataL[sample] + dataR[sample]) * 0.5f;
-            float side = (dataL[sample] - dataR[sample]) * 0.5f;
-
-            // Limit side content to prevent phase cancellation
-            float sideLimit = std::abs(mid) * 1.5f;
-            if (std::abs(side) > sideLimit)
-                side = (side > 0.0f) ? sideLimit : -sideLimit;
-
-            dataL[sample] = mid + side;
-            dataR[sample] = mid - side;
-        }
-    }
-
-    //==============================================================================
-    // 11. Apply dry/wet mix
+    // 6. Blend with dry signal (final mix)
     dryWetMixer.setWetMixProportion(mixValue);
     dryWetMixer.mixWetSamples(buffer);
 }
