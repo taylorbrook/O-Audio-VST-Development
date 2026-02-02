@@ -2,58 +2,51 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-01)
+See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins
-**Current focus:** Phase 9 - Workflow Planning Phase (v1.1) COMPLETE
+**Current focus:** Planning next milestone (v1.2 Windows Distribution)
 
 ## Current Position
 
-Phase: 9 of 9 (Workflow Planning Phase)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-02 - Completed 09-02-PLAN.md
+Phase: 9 of 9 complete (v1.1 shipped)
+Plan: N/A — between milestones
+Status: Ready for next milestone
+Last activity: 2026-02-02 — v1.1 milestone archived
 
-Progress: [########################] 100% (22/22 total plans)
+Progress: [########################] 100% (25/25 total plans across v1.0 + v1.1)
 
 ## Performance Metrics
 
 **v1.0 Complete:**
-- Total plans completed: 18
-- Average duration: ~7 minutes
-- Total execution time: ~1h 51min
+- Phases: 1-7
+- Plans completed: 21
+- Requirements: 35/35
+- Timeline: 2 days
 
 **v1.1 Complete:**
-- Plans completed: 4/4
-- Phases: 08 (Repo Cleanup) + 09 (Workflow Planning)
+- Phases: 8-9
+- Plans completed: 4
+- Requirements: 13/13
+- Timeline: 2 days
+
+**Cumulative:**
+- Total phases: 9
+- Total plans: 25
+- Total requirements: 48
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-Recent decisions affecting current work:
-
-- [v1.0]: Foundation-first approach validated
-- [v1.0]: JSON Schema draft 2020-12 with strict validation
-- [v1.0]: Level-based reconciliation pattern (Kubernetes-style)
-- [v1.1]: git-filter-repo selected over BFG (path filtering required)
-- [v1.1]: Phase 0.6 Planning triggers only for Tier 2/3 (preserve fast path)
-- [08-01]: Two-pass cleanup for root + plugin-specific builds
-- [08-01]: Re-clone approach for cleanest size reduction
-- [08-02]: 173-line organized .gitignore by category
-- [08-02]: backups/ pattern added to prevent re-accumulation
-- [09-01]: Outcome-focused tasks (not file-path-centric)
-- [09-01]: Plan storage in STATUS.md section (not separate file)
-- [09-01]: Bypass failure flag for gentle reminder
-- [09-02]: Soft vs strong suggestion based on tier
-- [09-02]: --no-plan flag for bypass
+See `.planning/milestones/v1.1-ROADMAP.md` for v1.1 decisions archive.
 
 ### Pending Todos
 
-1. ~~Repository cleanup: ~584MB .git reducible to ~50-80MB~~ DONE (58MB achieved)
-2. Plugin naming standardization (Future - v1.2)
-3. Windows installer (deferred to v1.2)
+1. Windows installer automation (v1.2)
+2. Plugin naming standardization (v1.2)
+3. CI/CD pipeline verification (test tag push)
 
 ### Blockers/Concerns
 
@@ -62,8 +55,8 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-02
-Stopped at: v1.1 complete - all planning infrastructure integrated
+Stopped at: v1.1 milestone archived
 Resume file: None
 
 ---
-*v1.1 COMPLETE. Phase 09 (Workflow Planning Phase) finished. Planning template, protocol, and workflow integration all done.*
+*v1.1 SHIPPED. Start next milestone with `/gsd:new-milestone`*
