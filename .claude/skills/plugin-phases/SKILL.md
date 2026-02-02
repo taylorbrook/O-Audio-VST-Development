@@ -83,7 +83,7 @@ Interactive context gathering for a stage. Asks questions to build understanding
 5. Agent creates `stages/[N]-[name]/CONTEXT.md`
 6. Update STATUS.md phase progress
 7. Update registry
-8. Present completion menu:
+8. Present completion menu with two-step handoff:
    ```
    ✓ Discuss phase complete for Stage 2 (DSP)
 
@@ -93,10 +93,14 @@ Interactive context gathering for a stage. Asks questions to build understanding
    - Voice leading preferences
 
    Next:
-   1. /plugin-research O-IntonationPad 2-dsp (recommended)
-   2. /plugin-plan O-IntonationPad 2-dsp (skip research)
-   3. /plugin-status O-IntonationPad
+   **Step 1:** `/clear` — fresh context window
+   **Step 2:** Choose one:
+   - `/plugin-research O-IntonationPad 2-dsp` (recommended)
+   - `/plugin-plan O-IntonationPad 2-dsp` (skip research)
+   - `/plugin-status O-IntonationPad`
    ```
+
+   See: `.claude/references/handoff-protocol.md`
 
 ### /plugin-research [plugin_name?] [stage?]
 
@@ -128,7 +132,12 @@ Investigate implementation approach. Researches patterns, algorithms, and existi
    ```
 5. Agent creates `stages/[N]-[name]/RESEARCH.md`
 6. Update STATUS.md and registry
-7. Present completion menu
+7. Present completion menu with two-step handoff (see `.claude/references/handoff-protocol.md`):
+   ```
+   Next:
+   **Step 1:** `/clear`
+   **Step 2:** `/plugin-plan O-IntonationPad 2-dsp`
+   ```
 
 ### /plugin-plan [plugin_name?] [stage?]
 
@@ -162,7 +171,12 @@ Create execution plan with detailed task breakdown.
    ```
 5. Agent creates `stages/[N]-[name]/PLAN.md`
 6. Update STATUS.md and registry
-7. Present completion menu
+7. Present completion menu with two-step handoff (see `.claude/references/handoff-protocol.md`):
+   ```
+   Next:
+   **Step 1:** `/clear`
+   **Step 2:** `/plugin-execute O-IntonationPad 2-dsp`
+   ```
 
 ### /plugin-execute [plugin_name?] [stage?]
 
@@ -189,7 +203,12 @@ Run the stage-specific implementation agent.
    - Required Reading patterns
 6. Agent implements and creates `stages/[N]-[name]/SUMMARY.md`
 7. Update STATUS.md and registry
-8. Present completion menu
+8. Present completion menu with two-step handoff (see `.claude/references/handoff-protocol.md`):
+   ```
+   Next:
+   **Step 1:** `/clear`
+   **Step 2:** `/plugin-verify O-IntonationPad 2-dsp`
+   ```
 
 ### /plugin-verify [plugin_name?] [stage?]
 
@@ -333,7 +352,12 @@ Options:
 
 ## Express Mode Integration
 
-When express mode is enabled, all 5 phases run automatically:
+When express mode is enabled, all 5 phases run automatically within a stage.
+
+**Express mode auto-advances PHASES but presents handoff at STAGE boundaries.**
+
+See: `.claude/references/handoff-protocol.md`
+
 ```
 /implement O-IntonationPad --express
 
@@ -346,7 +370,17 @@ Stage 2: DSP
          ✓ Chord generator implemented
          ✓ Voice management implemented
   [auto] verify → All checks passed
-  → Advancing to Stage 3
+  ✓ Stage 2 complete
+
+---
+## ▶ Next Up
+**Stage 3: GUI** — WebView UI integration
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/implement O-IntonationPad`
+---
 ```
+
+**STOP at stage boundary.** Do not auto-advance to Stage 3.
 
 **On any error:** Drops to manual mode, presents error menu.
