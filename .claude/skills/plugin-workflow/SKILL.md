@@ -406,9 +406,8 @@ Choose (1-5): _
 
 **Stage 3: GUI** — WebView UI integration and parameter binding
 
-`/implement [PluginName]`
-
-<sub>`/clear` first → fresh context window</sub>
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/implement [PluginName]`
 
 ---
 
@@ -421,11 +420,15 @@ Choose (1-5): _
 ---
 ```
 
-**Do NOT auto-advance to Stage 3.** Present the handoff and STOP.
+**Do NOT auto-advance to Stage 3.** Present the handoff with explicit two-step format and STOP.
 
-See: `.claude/references/handoff-protocol.md`
+See: `.claude/references/handoff-protocol.md` for standard handoff format.
 
 ### Express Mode Output
+
+**Express mode auto-advances PHASES within a stage but STOPS at stage boundaries to present handoff.**
+
+See: `.claude/references/handoff-protocol.md` for handoff format.
 
 ```
 /implement O-IntonationPad --express
@@ -441,19 +444,16 @@ See: `.claude/references/handoff-protocol.md`
   [auto] verify → Build successful, parameters validated
   ✓ Stage 1 complete
 
-━━━ Stage 2: DSP ━━━
-  [auto] discuss → Context from ARCHITECTURE.md
-  [auto] research → DSP patterns loaded
-  [auto] plan → PLAN.md generated (8 tasks)
-  [auto] execute → dsp-agent running...
-         ✓ JI chord generator implemented
-         ✓ Wavetable voice implemented
-         ✓ Voice management implemented
-  [auto] verify → Audio processing verified
-  ✓ Stage 2 complete
+---
+## ▶ Next Up
+**Stage 2: DSP** — Audio processing and algorithms
 
-...continues through Stage 4...
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/implement O-IntonationPad`
+---
 ```
+
+**STOP - do not auto-advance across stage boundaries.** Each stage completion presents a handoff.
 
 ## Error Handling
 
