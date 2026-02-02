@@ -13,6 +13,16 @@
 #include <juce_dsp/juce_dsp.h>
 #include "BellSound.h"
 #include "BellVoice.h"
+#include "OuariconPresetManager.h"
+
+// Reverb spec for spacious bell sound
+struct BellReverbSpec
+{
+    static constexpr float roomSize = 0.7f;      // Large room
+    static constexpr float damping = 0.4f;       // Moderate high-freq damping
+    static constexpr float width = 1.0f;         // Full stereo width
+    static constexpr float freezeMode = 0.0f;    // No freeze
+};
 
 class OBellsAudioProcessor : public juce::AudioProcessor
 {
@@ -45,9 +55,18 @@ public:
     // Public access to APVTS for editor
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    // Public access to preset manager
+    OuariconPresetManager& getPresetManager() { return presetManager; }
+
+    // Output level metering (peak values, 0.0 to 1.0)
+    std::atomic<float> outputLevelLeft { 0.0f };
+    std::atomic<float> outputLevelRight { 0.0f };
+
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
+    juce::dsp::Reverb reverb;
+    juce::dsp::Reverb::Parameters reverbParams;
 
     // Cached parameter pointers (atomic reads, real-time safe)
     // Main Panel (6 params)
@@ -71,13 +90,20 @@ private:
     std::atomic<float>* velocityCurveParam = nullptr;
     std::atomic<float>* pitchEnvelopeParam = nullptr;
     std::atomic<float>* pitchEnvTimeParam = nullptr;
+    std::atomic<float>* reverbMixParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
 
     // APVTS (AFTER DSP components)
     juce::AudioProcessorValueTreeState parameters;
 
+    // Preset manager (AFTER APVTS)
+    OuariconPresetManager presetManager;
+
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Factory preset initialization (called once on first run)
+    void initializeFactoryPresets();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBellsAudioProcessor)
 };

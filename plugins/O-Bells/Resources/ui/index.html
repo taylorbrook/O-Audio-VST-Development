@@ -1,0 +1,1128 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=800, height=600">
+    <title>Ouaricon Bells</title>
+    <style>
+        /* ====================================================================
+           CRITICAL CSS CONSTRAINTS
+           ==================================================================== */
+
+        /* Use 100%, NOT 100vh - JUCE WebView requires percentage-based sizing */
+        html, body {
+            margin: 0;
+            padding: 0;
+            height: 100%;
+            overflow: hidden;
+            box-sizing: border-box;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        /* ====================================================================
+           NATIVE APPLICATION FEEL
+           ==================================================================== */
+
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100%;
+            background: #2a2a2a;
+            font-family: 'Garamond', 'Times New Roman', serif;
+
+            /* Native feel CSS */
+            user-select: none;
+            -webkit-user-select: none;
+            -moz-user-select: none;
+            -ms-user-select: none;
+            -webkit-touch-callout: none;
+            -webkit-tap-highlight-color: transparent;
+            cursor: default;
+        }
+
+        .plugin-container {
+            width: 800px;
+            height: 600px;
+            position: relative;
+            background: #F5E6D3;
+            border: 3px solid #5C4033;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.5);
+            overflow: hidden;
+        }
+
+        /* ====================================================================
+           BOTANICAL OVERLAY
+           ==================================================================== */
+
+        .botanical-overlay {
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 71.25%;
+            opacity: 0.25;
+            pointer-events: none;
+            z-index: 1;
+            transition: right 0.4s ease-out, opacity 0.4s ease-out;
+        }
+
+        .botanical-overlay.tuning-position {
+            right: -80px;
+            opacity: 0.18;
+        }
+
+        /* ====================================================================
+           HEADER
+           ==================================================================== */
+
+        .header {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 50px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #EBD9C7, #F5E6D3);
+            border-bottom: 2px solid #8B7355;
+            z-index: 10;
+            overflow: visible;
+        }
+
+        .header h1 {
+            font-size: 22px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #3C2F2F;
+            text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+            white-space: nowrap;
+        }
+
+        /* ====================================================================
+           TAB BAR
+           ==================================================================== */
+
+        .tab-bar {
+            position: absolute;
+            top: 50px;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            display: flex;
+            background: #D4C4B0;
+            border-bottom: 2px solid #8B7355;
+            z-index: 2;
+        }
+
+        .tab {
+            flex: 1;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #D4C4B0;
+            color: #5C4033;
+            font-size: 13px;
+            font-weight: 400;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            cursor: pointer;
+            border-right: 1px solid #8B7355;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        .tab:last-child {
+            border-right: none;
+        }
+
+        .tab:hover {
+            background: #C9B69F;
+        }
+
+        .tab.active {
+            background: #F5E6D3;
+            color: #3C2F2F;
+            border-bottom: 2px solid #F5E6D3;
+            margin-bottom: -2px;
+        }
+
+        /* ====================================================================
+           TAB CONTENT
+           ==================================================================== */
+
+        .tab-content {
+            position: absolute;
+            top: 90px;
+            left: 0;
+            width: 100%;
+            height: calc(100% - 130px);
+            display: none;
+            padding: 14px 30px;
+            z-index: 0;
+            overflow-y: auto;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* ====================================================================
+           FOOTER
+           ==================================================================== */
+
+        .footer {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 40px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: linear-gradient(to bottom, #F5E6D3, #EBD9C7);
+            border-top: 2px solid #8B7355;
+            z-index: 2;
+        }
+
+        .footer p {
+            font-size: 11px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #5C4033;
+            text-transform: uppercase;
+        }
+
+        /* ====================================================================
+           PARAMETER SECTIONS
+           ==================================================================== */
+
+        .section {
+            margin-bottom: 12px;
+        }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #5C4033;
+            margin-bottom: 6px;
+            border-bottom: 1px solid #D4C4B0;
+            padding-bottom: 3px;
+        }
+
+        .param-row {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .param-row-4 {
+            gap: 12px;
+        }
+
+        .param-row-4 .param-control {
+            flex: 1;
+            min-width: 0;
+        }
+
+        /* ====================================================================
+           SLIDER CONTROLS
+           ==================================================================== */
+
+        .param-control {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .param-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+            margin-bottom: 5px;
+        }
+
+        .slider {
+            width: 100%;
+            height: 8px;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            position: relative;
+            cursor: pointer;
+        }
+
+        .slider-thumb {
+            position: absolute;
+            top: -4px;
+            left: 0;
+            width: 14px;
+            height: 16px;
+            background: #C9A27B;
+            border: 2px solid #8B7355;
+            border-radius: 3px;
+            cursor: grab;
+            box-shadow: 1px 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .slider-thumb:active {
+            cursor: grabbing;
+        }
+
+        .param-value {
+            font-size: 9px;
+            color: #5C4033;
+            margin-top: 4px;
+        }
+
+        /* ====================================================================
+           CHOICE BUTTONS
+           ==================================================================== */
+
+        .choice-group {
+            display: flex;
+            gap: 6px;
+            margin-top: 5px;
+        }
+
+        .choice-button {
+            flex: 1;
+            padding: 6px 10px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 2px solid #3C5C1A;
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .choice-button:hover {
+            background: rgba(139, 168, 112, 0.5);
+            transform: translateY(-1px);
+        }
+
+        .choice-button.active {
+            background: rgba(107, 142, 35, 0.6);
+            border-color: #2C3E10;
+        }
+
+        /* ====================================================================
+           OUTPUT METER
+           ==================================================================== */
+
+        .output-row {
+            align-items: flex-start;
+        }
+
+        .output-control {
+            flex: 0 0 30%;
+        }
+
+        .meter-control {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        .output-meter {
+            width: 100%;
+            height: 8px;
+            display: flex;
+            gap: 4px;
+            margin-top: 0;
+        }
+
+        .meter-bar {
+            flex: 1;
+            height: 100%;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 2px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .meter-bar::after {
+            content: '';
+            position: absolute;
+            left: 0;
+            top: 0;
+            height: 100%;
+            width: 0%;
+            background: linear-gradient(to right, #6B8E23, #8FBC3F, #F4A460);
+            transition: width 0.05s ease-out;
+        }
+
+        .meter-bar.active::after {
+            width: var(--level, 0%);
+        }
+
+        .meter-labels {
+            display: flex;
+            justify-content: space-around;
+            width: 100%;
+            margin-top: 4px;
+            font-size: 8px;
+            color: #5C4033;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ====================================================================
+           PLACEHOLDER
+           ==================================================================== */
+
+        .placeholder {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            font-size: 18px;
+            font-weight: 300;
+            letter-spacing: 2px;
+            color: #8B7355;
+            opacity: 0.6;
+        }
+
+        /* ====================================================================
+           PRESET BROWSER
+           ==================================================================== */
+
+        .header-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            width: 100%;
+            padding: 0 20px;
+        }
+
+        .preset-browser {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            pointer-events: auto;
+        }
+
+        .preset-arrow {
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: #D4C4B0;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 10px;
+            color: #5C4033;
+            cursor: pointer;
+            transition: background 0.15s;
+            pointer-events: auto;
+        }
+
+        .preset-arrow:hover {
+            background: #C9B69F;
+        }
+
+        .preset-arrow:active {
+            background: #B8A590;
+        }
+
+        .preset-name-wrapper {
+            position: relative;
+            min-width: 140px;
+        }
+
+        .preset-name {
+            padding: 5px 12px;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 11px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            color: #3C2F2F;
+            cursor: pointer;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            pointer-events: auto;
+        }
+
+        .preset-name:hover {
+            background: #DBC9AA;
+        }
+
+        .preset-name:active {
+            background: #CFC0A0;
+        }
+
+        .preset-dropdown {
+            position: absolute;
+            top: 100%;
+            left: -50px;
+            width: 240px;
+            margin-top: 4px;
+            max-height: 320px;
+            overflow-y: auto;
+            background: #F5E6D3;
+            border: 1px solid #8B7355;
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 1000;
+            display: none;
+            pointer-events: auto;
+        }
+
+        .preset-dropdown.visible {
+            display: block;
+        }
+
+        .preset-dropdown-header {
+            padding: 6px 10px;
+            font-size: 9px;
+            font-weight: 500;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            color: #8B7355;
+            background: #EBD9C7;
+            border-bottom: 1px solid #D4C4B0;
+            position: sticky;
+            top: 0;
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 14px;
+            font-size: 11px;
+            color: #3C2F2F;
+            cursor: pointer;
+            transition: background 0.1s;
+        }
+
+        .preset-dropdown-item:hover {
+            background: #E8D5B7;
+        }
+
+        .preset-dropdown-item.active {
+            background: rgba(107, 142, 35, 0.3);
+        }
+
+        .preset-action-btn {
+            padding: 5px 10px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #3C5C1A;
+            border-radius: 3px;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: background 0.15s;
+            pointer-events: auto;
+        }
+
+        .preset-action-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .preset-action-btn:active {
+            background: rgba(139, 168, 112, 0.7);
+        }
+    </style>
+</head>
+<body>
+    <div class="plugin-container">
+        <!-- Botanical Overlay -->
+        <img src="img/snail.png" alt="Snail" class="botanical-overlay" id="botanicalOverlay">
+
+        <!-- Header -->
+        <div class="header">
+            <div class="header-bar">
+                <h1>Ouaricon Bells</h1>
+                <div class="preset-browser">
+                    <div class="preset-arrow" id="preset-prev">◀</div>
+                    <div class="preset-name-wrapper">
+                        <div class="preset-name" id="preset-name-display">Default</div>
+                        <div class="preset-dropdown" id="preset-dropdown"></div>
+                    </div>
+                    <div class="preset-arrow" id="preset-next">▶</div>
+                    <div class="preset-action-btn" id="preset-save">Save</div>
+                    <div class="preset-action-btn" id="preset-load">Load</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Bar -->
+        <div class="tab-bar">
+            <div class="tab active" data-tab="instrument">Instrument</div>
+            <div class="tab" data-tab="tuning">Tuning</div>
+        </div>
+
+        <!-- Tab Content: Instrument -->
+        <div class="tab-content active" id="instrument-tab">
+            <!-- Synthesis Section -->
+            <div class="section">
+                <div class="section-title">Synthesis</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="param-label">Strike</div>
+                        <div class="slider" data-param="strikePosition">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="strikePosition">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Mallet</div>
+                        <div class="slider" data-param="malletHardness">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="malletHardness">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Damping</div>
+                        <div class="slider" data-param="damping">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="damping">70%</div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="param-label">Brightness</div>
+                        <div class="slider" data-param="brightness">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="brightness">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Material</div>
+                        <div class="slider" data-param="material">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="material">25%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Inharm</div>
+                        <div class="slider" data-param="inharmonicity">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="inharmonicity">50%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Ensemble Section -->
+            <div class="section">
+                <div class="section-title">Ensemble</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="param-label">Unison</div>
+                        <div class="slider" data-param="unisonCount">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="unisonCount">1</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Detune</div>
+                        <div class="slider" data-param="unisonDetune">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="unisonDetune">10ct</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Sub</div>
+                        <div class="slider" data-param="octaveBlendSub">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="octaveBlendSub">0%</div>
+                    </div>
+                </div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="param-label">Oct</div>
+                        <div class="slider" data-param="octaveBlendOct">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="octaveBlendOct">0%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Spread</div>
+                        <div class="slider" data-param="stereoSpread">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="stereoSpread">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <!-- Spacer -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Character Section -->
+            <div class="section">
+                <div class="section-title">Character</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="param-label">Noise</div>
+                        <div class="choice-group" data-param="strikeNoiseChar">
+                            <div class="choice-button active" data-index="0">Click</div>
+                            <div class="choice-button" data-index="1">Thud</div>
+                            <div class="choice-button" data-index="2">Ping</div>
+                        </div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Velocity</div>
+                        <div class="choice-group" data-param="velocityCurve">
+                            <div class="choice-button active" data-index="0">Linear</div>
+                            <div class="choice-button" data-index="1">Exp</div>
+                            <div class="choice-button" data-index="2">Log</div>
+                        </div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Decay</div>
+                        <div class="choice-group" data-param="decayShape">
+                            <div class="choice-button" data-index="0">Linear</div>
+                            <div class="choice-button active" data-index="1">Exp</div>
+                            <div class="choice-button" data-index="2">Multi</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Advanced Section -->
+            <div class="section">
+                <div class="section-title">Advanced</div>
+                <div class="param-row param-row-4">
+                    <div class="param-control">
+                        <div class="param-label">Partial Tune</div>
+                        <div class="slider" data-param="partialTuning">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="partialTuning">0ct</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Pitch Env</div>
+                        <div class="slider" data-param="pitchEnvelope">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="pitchEnvelope">0%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">P.Env Time</div>
+                        <div class="slider" data-param="pitchEnvTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="pitchEnvTime">50ms</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Nonlinear</div>
+                        <div class="slider" data-param="nonlinearEffects">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="nonlinearEffects">0%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Output Section -->
+            <div class="section">
+                <div class="section-title">Output</div>
+                <div class="param-row output-row">
+                    <div class="param-control output-control">
+                        <div class="param-label">Reverb</div>
+                        <div class="slider" data-param="reverbMix">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="reverbMix">30%</div>
+                    </div>
+                    <div class="param-control output-control">
+                        <div class="param-label">Gain</div>
+                        <div class="slider" data-param="outputGain">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="outputGain">0dB</div>
+                    </div>
+                    <div class="meter-control">
+                        <div class="param-label">Level</div>
+                        <div class="output-meter">
+                            <div class="meter-bar meter-left" id="meterLeft"></div>
+                            <div class="meter-bar meter-right" id="meterRight"></div>
+                        </div>
+                        <div class="meter-labels">
+                            <span>L</span>
+                            <span>R</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tab Content: Tuning -->
+        <div class="tab-content" id="tuning-tab">
+            <div class="placeholder">Coming Soon</div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer">
+            <p>Ouaricon Audio</p>
+        </div>
+    </div>
+
+    <!-- JUCE WebView Bridge -->
+    <script type="module">
+        import * as Juce from './js/juce/index.js';
+
+        // Parameter state storage
+        const parameterStates = new Map();
+
+        // ====================================================================
+        // TAB SWITCHING
+        // ====================================================================
+
+        const tabs = document.querySelectorAll('.tab');
+        const tabContents = document.querySelectorAll('.tab-content');
+        const botanicalOverlay = document.getElementById('botanicalOverlay');
+
+        tabs.forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+
+                // Update active tab
+                tabs.forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                // Update active content
+                tabContents.forEach(content => content.classList.remove('active'));
+                document.getElementById(`${targetTab}-tab`).classList.add('active');
+
+                // Update botanical overlay position
+                if (targetTab === 'tuning') {
+                    botanicalOverlay.classList.add('tuning-position');
+                } else {
+                    botanicalOverlay.classList.remove('tuning-position');
+                }
+            });
+        });
+
+        // ====================================================================
+        // SLIDER PARAMETER BINDINGS
+        // ====================================================================
+
+        const sliderParams = [
+            { id: 'strikePosition', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'malletHardness', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'damping', min: 0, max: 1, default: 0.7, format: v => `${Math.round(v * 100)}%` },
+            { id: 'brightness', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'material', min: 0, max: 1, default: 0.25, format: v => `${Math.round(v * 100)}%` },
+            { id: 'inharmonicity', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'unisonCount', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 3) + 1}` },
+            { id: 'unisonDetune', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v * 50)}ct` },
+            { id: 'octaveBlendSub', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'octaveBlendOct', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'stereoSpread', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'partialTuning', min: 0, max: 1, default: 0.5, format: v => `${Math.round((v - 0.5) * 200)}ct` },
+            { id: 'pitchEnvelope', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'pitchEnvTime', min: 0, max: 1, default: 0.23, format: v => `${Math.round(5 + v * 195)}ms` },
+            { id: 'nonlinearEffects', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'reverbMix', min: 0, max: 1, default: 0.3, format: v => `${Math.round(v * 100)}%` },
+            { id: 'outputGain', min: 0, max: 1, default: 0.67, format: v => `${Math.round((v - 0.67) * 36 / 0.33)}dB` }
+        ];
+
+        sliderParams.forEach(param => {
+            const sliderEl = document.querySelector(`.slider[data-param="${param.id}"]`);
+            const thumbEl = sliderEl.querySelector('.slider-thumb');
+            const valueEl = document.querySelector(`.param-value[data-value="${param.id}"]`);
+
+            // Get JUCE parameter state
+            const state = Juce.getSliderState(param.id);
+            parameterStates.set(param.id, state);
+
+            // Initialize UI
+            const initialValue = state.getNormalisedValue();
+            updateSliderVisual(thumbEl, initialValue);
+            valueEl.textContent = param.format(initialValue);
+
+            // UI -> JUCE
+            let isDragging = false;
+
+            sliderEl.addEventListener('mousedown', (e) => {
+                isDragging = true;
+                updateSliderValue(e, sliderEl, thumbEl, state, param.format, valueEl);
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging) {
+                    updateSliderValue(e, sliderEl, thumbEl, state, param.format, valueEl);
+                }
+            });
+
+            document.addEventListener('mouseup', () => {
+                isDragging = false;
+            });
+
+            // JUCE -> UI (automation, preset load)
+            state.valueChangedEvent.addListener(() => {
+                const value = state.getNormalisedValue();
+                updateSliderVisual(thumbEl, value);
+                valueEl.textContent = param.format(value);
+            });
+        });
+
+        function updateSliderValue(e, sliderEl, thumbEl, state, formatter, valueEl) {
+            const rect = sliderEl.getBoundingClientRect();
+            const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+            const normalizedValue = x / rect.width;
+
+            state.setNormalisedValue(normalizedValue);
+            updateSliderVisual(thumbEl, normalizedValue);
+            valueEl.textContent = formatter(normalizedValue);
+        }
+
+        function updateSliderVisual(thumbEl, value) {
+            const position = value * 100;
+            thumbEl.style.left = `calc(${position}% - 7px)`;
+        }
+
+        // ====================================================================
+        // CHOICE PARAMETER BINDINGS
+        // ====================================================================
+
+        const choiceParams = [
+            { id: 'strikeNoiseChar', choices: ['Click', 'Thud', 'Ping'], default: 0 },
+            { id: 'velocityCurve', choices: ['Linear', 'Exponential', 'Logarithmic'], default: 0 },
+            { id: 'decayShape', choices: ['Linear', 'Exponential', 'Multi-stage'], default: 1 }
+        ];
+
+        choiceParams.forEach(param => {
+            const groupEl = document.querySelector(`.choice-group[data-param="${param.id}"]`);
+            const buttons = groupEl.querySelectorAll('.choice-button');
+
+            // Get JUCE parameter state
+            const state = Juce.getComboBoxState(param.id);
+            parameterStates.set(param.id, state);
+
+            // Initialize UI (getChoiceIndex returns 0-based index)
+            const initialIndex = state.getChoiceIndex();
+            updateChoiceVisual(buttons, initialIndex);
+
+            // UI -> JUCE (setChoiceIndex takes 0-based index)
+            buttons.forEach((button, index) => {
+                button.addEventListener('click', () => {
+                    state.setChoiceIndex(index);
+                    updateChoiceVisual(buttons, index);
+                });
+            });
+
+            // JUCE -> UI (automation, preset load)
+            state.valueChangedEvent.addListener(() => {
+                const index = state.getChoiceIndex();
+                updateChoiceVisual(buttons, index);
+            });
+        });
+
+        function updateChoiceVisual(buttons, activeIndex) {
+            buttons.forEach((button, index) => {
+                if (index === activeIndex) {
+                    button.classList.add('active');
+                } else {
+                    button.classList.remove('active');
+                }
+            });
+        }
+
+        // ====================================================================
+        // OUTPUT METER (real levels from C++ backend)
+        // ====================================================================
+
+        const meterLeft = document.getElementById('meterLeft');
+        const meterRight = document.getElementById('meterRight');
+
+        // Add active class for visual styling
+        meterLeft.classList.add('active');
+        meterRight.classList.add('active');
+
+        // Global function called from C++ via evaluateJavascript
+        window.updateMeterLevels = function(leftPercent, rightPercent) {
+            meterLeft.style.setProperty('--level', `${leftPercent}%`);
+            meterRight.style.setProperty('--level', `${rightPercent}%`);
+        };
+
+        console.log('O-Bells UI initialized - 19 parameters bound + real output meter');
+
+        // ====================================================================
+        // PRESET BROWSER FUNCTIONALITY
+        // Uses Juce.getNativeFunction() pattern (not window.__JUCE__.backend)
+        // ====================================================================
+
+        const presetNameDisplay = document.getElementById('preset-name-display');
+        const presetDropdown = document.getElementById('preset-dropdown');
+        const presetPrev = document.getElementById('preset-prev');
+        const presetNext = document.getElementById('preset-next');
+        const presetSave = document.getElementById('preset-save');
+        const presetLoad = document.getElementById('preset-load');
+
+        let dropdownOpen = false;
+
+        // Update preset display
+        function updatePresetDisplay(name) {
+            presetNameDisplay.textContent = name || 'Default';
+        }
+
+        // Show categorized dropdown
+        async function showPresetDropdown() {
+            try {
+                const categories = await Juce.getNativeFunction('getPresetListWithCategories')();
+                const currentPreset = await Juce.getNativeFunction('getCurrentPreset')();
+
+                presetDropdown.innerHTML = '';
+
+                // Sort categories: Orchestral, Sacred, World, Ambient, Cinematic, User
+                const categoryOrder = ['Orchestral', 'Sacred', 'World', 'Ambient', 'Cinematic', 'User'];
+                const sortedCategories = Object.keys(categories).sort((a, b) => {
+                    const idxA = categoryOrder.indexOf(a);
+                    const idxB = categoryOrder.indexOf(b);
+                    if (idxA === -1 && idxB === -1) return a.localeCompare(b);
+                    if (idxA === -1) return 1;
+                    if (idxB === -1) return -1;
+                    return idxA - idxB;
+                });
+
+                for (const category of sortedCategories) {
+                    const presets = categories[category];
+                    if (!presets || presets.length === 0) continue;
+
+                    // Category header
+                    const header = document.createElement('div');
+                    header.className = 'preset-dropdown-header';
+                    header.textContent = category;
+                    presetDropdown.appendChild(header);
+
+                    // Preset items
+                    for (const preset of presets) {
+                        const item = document.createElement('div');
+                        item.className = 'preset-dropdown-item';
+                        if (preset === currentPreset) {
+                            item.classList.add('active');
+                        }
+                        item.textContent = preset;
+                        item.addEventListener('click', async () => {
+                            try {
+                                await Juce.getNativeFunction('loadPresetFromCategory')(category, preset);
+                                updatePresetDisplay(preset);
+                                hidePresetDropdown();
+                            } catch (err) {
+                                console.error('[Presets] Load failed:', err);
+                            }
+                        });
+                        presetDropdown.appendChild(item);
+                    }
+                }
+
+                presetDropdown.classList.add('visible');
+                dropdownOpen = true;
+            } catch (err) {
+                console.error('[Presets] Failed to load preset list:', err);
+            }
+        }
+
+        function hidePresetDropdown() {
+            presetDropdown.classList.remove('visible');
+            dropdownOpen = false;
+        }
+
+        // Toggle dropdown on name click
+        presetNameDisplay.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (dropdownOpen) {
+                hidePresetDropdown();
+            } else {
+                showPresetDropdown();
+            }
+        });
+
+        // Close dropdown on outside click
+        document.addEventListener('click', (e) => {
+            if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
+                hidePresetDropdown();
+            }
+        });
+
+        // Previous preset
+        presetPrev.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('selectPreviousPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Prev failed:', err);
+            }
+        });
+
+        // Next preset
+        presetNext.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('selectNextPreset')();
+                updatePresetDisplay(name || 'Default');
+            } catch (err) {
+                console.error('[Presets] Next failed:', err);
+            }
+        });
+
+        // Save preset (with dialog)
+        presetSave.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('savePresetWithDialog')();
+                if (name) {
+                    updatePresetDisplay(name);
+                }
+            } catch (err) {
+                console.error('[Presets] Save failed:', err);
+            }
+        });
+
+        // Load preset from file
+        presetLoad.addEventListener('click', async (e) => {
+            e.stopPropagation();
+            try {
+                const name = await Juce.getNativeFunction('loadPresetFromFile')();
+                if (name) {
+                    updatePresetDisplay(name);
+                }
+            } catch (err) {
+                console.error('[Presets] Load failed:', err);
+            }
+        });
+
+        // Initialize preset display
+        (async () => {
+            try {
+                const currentPreset = await Juce.getNativeFunction('getCurrentPreset')();
+                updatePresetDisplay(currentPreset);
+                console.log('[Presets] Initialized with preset:', currentPreset);
+            } catch (err) {
+                console.error('[Presets] Init failed:', err);
+            }
+        })();
+
+        console.log('Ouaricon Bells preset browser initialized');
+    </script>
+</body>
+</html>

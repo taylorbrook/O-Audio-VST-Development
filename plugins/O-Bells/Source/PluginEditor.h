@@ -11,8 +11,10 @@
 #pragma once
 #include "PluginProcessor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
+#include <juce_gui_extra/juce_gui_extra.h>
 
-class OBellsAudioProcessorEditor : public juce::AudioProcessorEditor
+class OBellsAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                   private juce::Timer
 {
 public:
     explicit OBellsAudioProcessorEditor(OBellsAudioProcessor&);
@@ -22,7 +24,76 @@ public:
     void resized() override;
 
 private:
+    // Timer callback for meter updates
+    void timerCallback() override;
+
+
     OBellsAudioProcessor& processorRef;
+
+    // ═══════════════════════════════════════════════════════════════════
+    // CRITICAL ORDER: Relays → WebView → Attachments
+    // Members destroyed in REVERSE order. Attachments call evaluateJavascript()
+    // during destruction, so WebView must still exist when attachments die.
+    // ═══════════════════════════════════════════════════════════════════
+
+    // 1️⃣ RELAYS FIRST (no dependencies)
+    // Float/Int parameter relays (16 sliders)
+    std::unique_ptr<juce::WebSliderRelay> strikePositionRelay;
+    std::unique_ptr<juce::WebSliderRelay> malletHardnessRelay;
+    std::unique_ptr<juce::WebSliderRelay> dampingRelay;
+    std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
+    std::unique_ptr<juce::WebSliderRelay> materialRelay;
+    std::unique_ptr<juce::WebSliderRelay> inharmonicityRelay;
+    std::unique_ptr<juce::WebSliderRelay> unisonCountRelay;
+    std::unique_ptr<juce::WebSliderRelay> unisonDetuneRelay;
+    std::unique_ptr<juce::WebSliderRelay> octaveBlendSubRelay;
+    std::unique_ptr<juce::WebSliderRelay> octaveBlendOctRelay;
+    std::unique_ptr<juce::WebSliderRelay> stereoSpreadRelay;
+    std::unique_ptr<juce::WebSliderRelay> partialTuningRelay;
+    std::unique_ptr<juce::WebSliderRelay> pitchEnvelopeRelay;
+    std::unique_ptr<juce::WebSliderRelay> pitchEnvTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> nonlinearEffectsRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
+
+    // Choice parameter relays (3 combo boxes)
+    std::unique_ptr<juce::WebComboBoxRelay> strikeNoiseCharRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> velocityCurveRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> decayShapeRelay;
+
+    // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
+    std::unique_ptr<juce::WebBrowserComponent> webView;
+
+    // 3️⃣ ATTACHMENTS LAST (depend on both relays and webView)
+    // Float/Int parameter attachments (16 sliders)
+    std::unique_ptr<juce::WebSliderParameterAttachment> strikePositionAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> malletHardnessAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> dampingAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> materialAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> inharmonicityAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> unisonCountAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> unisonDetuneAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> octaveBlendSubAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> octaveBlendOctAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> stereoSpreadAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> partialTuningAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> pitchEnvelopeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> pitchEnvTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> nonlinearEffectsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
+
+    // Choice parameter attachments (3 combo boxes)
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> strikeNoiseCharAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> velocityCurveAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> decayShapeAttachment;
+
+    // Helper for serving UI resources from BinaryData
+    std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
+
+    // File chooser for preset save/load dialogs
+    std::shared_ptr<juce::FileChooser> fileChooser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBellsAudioProcessorEditor)
 };
