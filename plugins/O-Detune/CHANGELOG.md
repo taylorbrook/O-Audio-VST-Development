@@ -1,5 +1,20 @@
 # O-Detune Changelog
 
+## [1.0.1] - 2026-02-02
+
+### Fixed
+
+- **UI knobs and dropdowns now respond to interaction** (critical bug fix)
+  - Root cause #1: ComboBox API used wrong method names (`getChosenItemIndex` → `getChoiceIndex`)
+  - Root cause #2: Build system cache issue - HTML changes weren't being picked up by ninja incremental builds
+  - Fix: Changed to correct JUCE 8 API `getChoiceIndex()`/`setChoiceIndex()` + clean rebuild required
+
+### Technical Notes
+
+- **JUCE 8 ComboBox API:** Uses `getChoiceIndex()`/`setChoiceIndex()`, NOT `getChosenItemIndex()`/`setChosenItemIndex()`
+- **Build cache issue:** When modifying WebView HTML/JS, delete `juce_binarydata_*` directory and run `cmake ..` to force BinaryData regeneration
+- Files modified: Source/ui/public/index.html (3 method calls corrected)
+
 ## [1.0.0] - 2026-02-01
 
 ### Initial Release

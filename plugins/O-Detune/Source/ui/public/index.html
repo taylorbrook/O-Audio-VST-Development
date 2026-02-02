@@ -517,42 +517,39 @@
     </div>
 
     <script type="module">
-        import * as Juce from '/js/juce/index.js';
-
-        // Wait for JUCE native integration
-        await Juce.__juce__.initialise();
+        import { getSliderState, getToggleState, getComboBoxState } from '/js/juce/index.js';
 
         // Get slider states from JUCE
         const sliderStates = {
-            blend: Juce.getSliderState('blend'),
-            wobble_rate: Juce.getSliderState('wobble_rate'),
-            wobble_depth: Juce.getSliderState('wobble_depth'),
-            unison_detune: Juce.getSliderState('unison_detune'),
-            unison_spread: Juce.getSliderState('unison_spread'),
-            drive: Juce.getSliderState('drive'),
-            color: Juce.getSliderState('color'),
-            age: Juce.getSliderState('age'),
-            width: Juce.getSliderState('width'),
-            mix: Juce.getSliderState('mix'),
-            focus_low: Juce.getSliderState('focus_low'),
-            focus_high: Juce.getSliderState('focus_high'),
-            delay: Juce.getSliderState('delay'),
-            feedback: Juce.getSliderState('feedback'),
-            random_amt: Juce.getSliderState('random_amt')
+            blend: getSliderState('blend'),
+            wobble_rate: getSliderState('wobble_rate'),
+            wobble_depth: getSliderState('wobble_depth'),
+            unison_detune: getSliderState('unison_detune'),
+            unison_spread: getSliderState('unison_spread'),
+            drive: getSliderState('drive'),
+            color: getSliderState('color'),
+            age: getSliderState('age'),
+            width: getSliderState('width'),
+            mix: getSliderState('mix'),
+            focus_low: getSliderState('focus_low'),
+            focus_high: getSliderState('focus_high'),
+            delay: getSliderState('delay'),
+            feedback: getSliderState('feedback'),
+            random_amt: getSliderState('random_amt')
         };
 
         // Get combobox states
         const comboStates = {
-            wobble_era: Juce.getComboBoxState('wobble_era'),
-            wobble_shape: Juce.getComboBoxState('wobble_shape'),
-            unison_voices: Juce.getComboBoxState('unison_voices'),
-            unison_dist: Juce.getComboBoxState('unison_dist')
+            wobble_era: getComboBoxState('wobble_era'),
+            wobble_shape: getComboBoxState('wobble_shape'),
+            unison_voices: getComboBoxState('unison_voices'),
+            unison_dist: getComboBoxState('unison_dist')
         };
 
         // Get toggle states
         const toggleStates = {
-            wobble_sync: Juce.getToggleState('wobble_sync'),
-            mono_safe: Juce.getToggleState('mono_safe')
+            wobble_sync: getToggleState('wobble_sync'),
+            mono_safe: getToggleState('mono_safe')
         };
 
         // Value formatters
@@ -655,12 +652,12 @@
             if (!select || !state) return;
 
             state.valueChangedEvent.addListener(() => {
-                select.value = state.getChosenItemIndex();
+                select.value = state.getChoiceIndex();
             });
-            select.value = state.getChosenItemIndex();
+            select.value = state.getChoiceIndex();
 
             select.addEventListener('change', e => {
-                state.setChosenItemIndex(parseInt(e.target.value));
+                state.setChoiceIndex(parseInt(e.target.value));
             });
         });
 
