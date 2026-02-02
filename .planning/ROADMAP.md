@@ -3,7 +3,7 @@
 ## Milestones
 
 - [x] **v1.0 MVP** - Phases 1-7 (shipped 2026-02-01)
-- [ ] **v1.1 Cleanup & Workflow Polish** - Phases 8-9 (in progress)
+- [x] **v1.1 Cleanup & Workflow Polish** - Phases 8-9 (shipped 2026-02-02)
 - [ ] **v1.2 Windows Distribution** - TBD (planned)
 
 ## Phases
@@ -164,8 +164,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md - Create planning protocol reference and template
-- [ ] 09-02-PLAN.md - Update SKILL.md with Phase 0.6 and conditional triggers
+- [x] 09-01-PLAN.md - Create planning protocol reference and template
+- [x] 09-02-PLAN.md - Update SKILL.md with Phase 0.6 and conditional triggers
 
 ### v1.2 Windows Distribution (Planned)
 
@@ -188,7 +188,7 @@ Phases execute in numeric order: 1 -> 2 -> 3 -> 4 -> 5 -> 6 -> 7 -> 8 -> 9
 | 6. Domain Specialization | v1.0 | 3/3 | Complete | 2026-01-31 |
 | 7. Module System | v1.0 | 4/4 | Complete | 2026-02-01 |
 | 8. Repository Cleanup | v1.1 | 2/2 | Complete | 2026-02-01 |
-| 9. Workflow Planning Phase | v1.1 | 0/2 | Not started | - |
+| 9. Workflow Planning Phase | v1.1 | 2/2 | Complete | 2026-02-02 |
 
 ## Coverage Validation
 
@@ -221,4 +221,4 @@ No orphaned requirements. No duplicates.
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-02-01 - Phase 8 complete (636MB → 58MB)*
+*Last updated: 2026-02-02 - v1.1 complete (Phase 9 verified)*

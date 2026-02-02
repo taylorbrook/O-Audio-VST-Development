@@ -18,13 +18,13 @@ Requirements for Cleanup & Workflow Polish milestone.
 
 ### Workflow Planning Phase
 
-- [ ] **PLAN-01**: Phase 0.6 (Implementation Planning) added to plugin-improve SKILL.md
-- [ ] **PLAN-02**: Planning phase activates only for Tier 2/3 improvements
-- [ ] **PLAN-03**: Task breakdown with dependencies included in planning output
-- [ ] **PLAN-04**: Approach approval checkpoint gates implementation start
-- [ ] **PLAN-05**: Planning template created with structured sections
-- [ ] **PLAN-06**: Deep-research handoff compatibility preserved (skip planning when coming from research)
-- [ ] **PLAN-07**: Express mode bypass option available for experienced users
+- [x] **PLAN-01**: Phase 0.6 (Implementation Planning) added to plugin-improve SKILL.md
+- [x] **PLAN-02**: Planning phase activates only for Tier 2/3 improvements
+- [x] **PLAN-03**: Task breakdown with dependencies included in planning output
+- [x] **PLAN-04**: Approach approval checkpoint gates implementation start
+- [x] **PLAN-05**: Planning template created with structured sections
+- [x] **PLAN-06**: Deep-research handoff compatibility preserved (skip planning when coming from research)
+- [x] **PLAN-07**: Express mode bypass option available for experienced users
 
 ## Future Requirements
 
@@ -62,13 +62,13 @@ Deferred to later milestones.
 | REPO-04 | Phase 8 | Complete |
 | REPO-05 | Phase 8 | Complete |
 | REPO-06 | Phase 8 | Complete |
-| PLAN-01 | Phase 9 | Pending |
-| PLAN-02 | Phase 9 | Pending |
-| PLAN-03 | Phase 9 | Pending |
-| PLAN-04 | Phase 9 | Pending |
-| PLAN-05 | Phase 9 | Pending |
-| PLAN-06 | Phase 9 | Pending |
-| PLAN-07 | Phase 9 | Pending |
+| PLAN-01 | Phase 9 | Complete |
+| PLAN-02 | Phase 9 | Complete |
+| PLAN-03 | Phase 9 | Complete |
+| PLAN-04 | Phase 9 | Complete |
+| PLAN-05 | Phase 9 | Complete |
+| PLAN-06 | Phase 9 | Complete |
+| PLAN-07 | Phase 9 | Complete |
 
 **v1.1 Coverage:**
 - Total requirements: 13
@@ -77,4 +77,4 @@ Deferred to later milestones.
 
 ---
 *Requirements defined: 2026-02-01*
-*Last updated: 2026-02-01 - Phase 8 requirements complete (REPO-01 to REPO-06)*
+*Last updated: 2026-02-02 - v1.1 complete (all requirements satisfied)*
