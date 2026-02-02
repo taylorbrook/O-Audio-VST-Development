@@ -106,21 +106,23 @@ When research findings detected in conversation history:
 
 4. **Present implementation approval:**
    ```
-   Ready to implement this solution?
+   Research findings available. How should I proceed?
 
-   1. Yes, proceed with recommended solution
-   2. No, use alternative approach - Show me alternatives
-   3. No, investigate further - Run fresh investigation (Phase 0.5)
+   1. Plan based on research - Create task breakdown from findings
+   2. Proceed directly - Skip planning, use findings in implementation
+   3. Investigate further - Run fresh investigation (Phase 0.5)
    4. Other
 
    Choose (1-4): _
    ```
 
    **Handle responses:**
-   - Option 1 → Proceed to Phase 0.9 (Backup Verification)
-   - Option 2 → Show alternative solutions from research, ask which to use
+   - Option 1 → Generate implementation plan using research findings, proceed to Phase 0.6 approval
+   - Option 2 → Skip Phase 0.6, proceed directly to Phase 0.9 (Backup Verification) with findings
    - Option 3 → Proceed to Phase 0.5 (Investigation) despite research existing
    - Option 4 → Collect free-form text, reassess
+
+   **Note:** Option 1 triggers Phase 0.6 (Implementation Planning) using research findings as input. This creates a task breakdown based on the recommended solution and implementation steps from deep-research. Option 2 preserves the existing behavior for users who prefer to work without explicit planning.
 
 ### If No Research Detected
 
