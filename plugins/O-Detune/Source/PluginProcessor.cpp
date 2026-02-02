@@ -4,7 +4,7 @@
     O-Detune - Audio Processor Implementation
     Ouaricon Development
     Developer: Taylor Brook
-    Version: 1.1.0
+    Version: 1.1.1
 
   ==============================================================================
 */
@@ -680,7 +680,9 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     for (int voice = 0; voice < activeVoices; ++voice)
     {
         const float voicePitchRatio = std::pow(2.0f, voiceDetunes[voice] / 1200.0f);
-        const float voiceDelayTime = centerDelaySamples * voicePitchRatio;
+        // Pitch UP = shorter delay (read faster), pitch DOWN = longer delay
+        // Inverse relationship: higher pitch ratio means shorter delay time
+        const float voiceDelayTime = centerDelaySamples / voicePitchRatio;
 
         // Calculate stereo pan for this voice
         float normalizedPos = (activeVoices == 1) ? 0.0f :

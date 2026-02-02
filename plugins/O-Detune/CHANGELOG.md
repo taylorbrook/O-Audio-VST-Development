@@ -1,5 +1,26 @@
 # O-Detune Changelog
 
+## [1.1.1] - 2026-02-02
+
+### Fixed
+
+- **Bitcrushing/distortion artifacts** - Corrected pitch shifting calculation in unison engine
+  - Root cause: Delay time was multiplied by pitch ratio instead of divided
+  - Pitch UP requires shorter delay (read faster), pitch DOWN requires longer delay
+  - Fixed formula: `centerDelaySamples / voicePitchRatio` (was `* voicePitchRatio`)
+- **UI knobs/toggles not responding to mouse interaction**
+  - Root cause: WebView event capture was intercepting mouse events before they reached document-level listeners
+  - Fixed by switching to Pointer Events API with `setPointerCapture()` for reliable drag handling
+  - Added `{ capture: true }` option for event listeners to catch events in capture phase
+  - Toggles now use `pointerup` instead of `click` for WebView compatibility
+
+### Technical
+
+- Knob drag handling now uses global tracking with window-level event capture
+- Added `pointercancel` handler for edge cases (touch interrupts, etc.)
+
+---
+
 ## [1.1.0] - 2026-02-02
 
 ### Complete Implementation Release

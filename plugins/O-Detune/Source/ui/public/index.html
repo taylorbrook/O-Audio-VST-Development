@@ -760,14 +760,35 @@
             random_amt: v => Math.round(v) + '%'
         };
 
-        // Setup knobs
+        // Setup knobs with robust event handling for WebView
+        // Track active drag globally to handle WebView event capture issues
+        let activeKnob = null;
+        let dragStartY = 0;
+        let dragStartValue = 0;
+
+        // Global mouse handlers at window level with capture phase
+        window.addEventListener('mousemove', e => {
+            if (!activeKnob) return;
+            const state = sliderStates[activeKnob.id];
+            if (!state) return;
+            const delta = (dragStartY - e.clientY) / 200;
+            const newValue = Math.max(0, Math.min(1, dragStartValue + delta));
+            state.setNormalisedValue(newValue);
+            e.preventDefault();
+        }, { capture: true });
+
+        window.addEventListener('mouseup', e => {
+            if (activeKnob) {
+                const state = sliderStates[activeKnob.id];
+                if (state) state.sliderDragEnded();
+                activeKnob = null;
+            }
+        }, { capture: true });
+
         document.querySelectorAll('.knob').forEach(knob => {
             const id = knob.id;
             const state = sliderStates[id];
             if (!state) return;
-
-            let isDragging = false;
-            let startY, startValue;
 
             const updateVisual = (normalizedValue) => {
                 const rotation = -135 + normalizedValue * 270;
@@ -788,27 +809,37 @@
             });
             updateVisual(state.getNormalisedValue());
 
-            // Drag interaction
-            knob.addEventListener('mousedown', e => {
-                isDragging = true;
-                startY = e.clientY;
-                startValue = state.getNormalisedValue();
+            // Drag interaction - use pointerdown for better WebView compatibility
+            knob.addEventListener('pointerdown', e => {
+                activeKnob = knob;
+                dragStartY = e.clientY;
+                dragStartValue = state.getNormalisedValue();
+                knob.setPointerCapture(e.pointerId);
                 e.preventDefault();
-            });
+                e.stopPropagation();
+            }, { capture: true });
 
-            document.addEventListener('mousemove', e => {
-                if (!isDragging) return;
-                const delta = (startY - e.clientY) / 200;
-                const newValue = Math.max(0, Math.min(1, startValue + delta));
+            knob.addEventListener('pointermove', e => {
+                if (activeKnob !== knob) return;
+                const delta = (dragStartY - e.clientY) / 200;
+                const newValue = Math.max(0, Math.min(1, dragStartValue + delta));
                 state.setNormalisedValue(newValue);
-            });
+                e.preventDefault();
+            }, { capture: true });
 
-            document.addEventListener('mouseup', () => {
-                if (isDragging) {
-                    isDragging = false;
+            knob.addEventListener('pointerup', e => {
+                if (activeKnob === knob) {
                     state.sliderDragEnded();
+                    activeKnob = null;
                 }
-            });
+            }, { capture: true });
+
+            knob.addEventListener('pointercancel', e => {
+                if (activeKnob === knob) {
+                    state.sliderDragEnded();
+                    activeKnob = null;
+                }
+            }, { capture: true });
         });
 
         // Setup width slider
@@ -850,7 +881,7 @@
             });
         });
 
-        // Setup toggles
+        // Setup toggles with pointer events for WebView compatibility
         Object.entries(toggleStates).forEach(([id, state]) => {
             const toggle = document.getElementById(id);
             if (!toggle || !state) return;
@@ -866,9 +897,12 @@
             state.valueChangedEvent.addListener(updateToggle);
             updateToggle();
 
-            toggle.addEventListener('click', () => {
+            // Use pointerup for more reliable WebView interaction
+            toggle.addEventListener('pointerup', e => {
                 state.setValue(!state.getValue());
-            });
+                e.preventDefault();
+                e.stopPropagation();
+            }, { capture: true });
         });
 
         // Advanced panel toggle
