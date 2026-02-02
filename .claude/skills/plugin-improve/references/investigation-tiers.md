@@ -164,3 +164,89 @@ No breaking changes - pure bug fix.
 1. Log escalation: "Initial investigation insufficient, escalating to Tier [N]"
 2. Apply higher-tier protocol
 3. Document escalation in CHANGELOG (shows thoroughness)
+
+---
+
+## Planning Trigger Detection (Phase 0.5 Extension)
+
+After investigation completes, check tier to determine if Phase 0.6 (Implementation Planning) should trigger.
+
+### Tier 1: No Planning
+
+**Characteristics:**
+- Cosmetic changes, typo fixes, single-parameter adjustments
+- Single-file scope
+- Known patterns from troubleshooting/
+- Quick fixes with obvious solutions
+
+**Action:** Skip Phase 0.6 entirely. Proceed directly to Phase 0.9 (Backup Verification).
+
+**Rationale:** Planning overhead not justified for simple fixes. Keep the fast path fast.
+
+---
+
+### Tier 2: Planning Suggested
+
+**Characteristics:**
+- Logic errors, multi-parameter changes, integration fixes
+- 2-5 files affected
+- DSP changes (but not architectural)
+- Requires understanding of component interactions
+
+**Keywords detected:** "change", "fix", "modify", "update", "adjust"
+
+**Action:** Soft suggestion to user:
+```
+This looks moderately complex. Planning recommended.
+
+Would you like me to create an implementation plan before starting?
+
+1. Yes, create plan
+2. No, proceed directly
+3. Other
+
+Choose (1-3): _
+```
+
+**Proceed to Phase 0.6** if user accepts, otherwise skip to Phase 0.9.
+
+---
+
+### Tier 3: Planning Required
+
+**Characteristics:**
+- Architectural changes, major refactors, multi-system improvements
+- 5+ files affected
+- New features touching multiple components
+- High risk of rework without upfront planning
+
+**Keywords detected:** "refactor", "overhaul", "redesign", "rewrite", "architecture"
+
+**Action:** Strong suggestion to user:
+```
+This is a significant change. Planning recommended before starting.
+
+Would you like me to create an implementation plan?
+
+1. Yes, create plan (recommended)
+2. No, proceed directly
+3. Other
+
+Choose (1-3): _
+```
+
+**Proceed to Phase 0.6** if user accepts, otherwise skip to Phase 0.9.
+
+---
+
+### Notes
+
+**Tier boundary between 2 and 3 is Claude's discretion based on investigation findings.** Use judgment based on:
+- Number of files affected
+- Complexity of changes
+- Risk of unintended side effects
+- Whether changes touch DSP vs UI vs both
+
+**User can decline planning suggestion or use --no-plan flag to bypass.** The suggestion is not a hard gate - users who prefer to work iteratively can skip planning even for Tier 3.
+
+**See:** `references/implementation-planning.md` for complete Phase 0.6 protocol.
