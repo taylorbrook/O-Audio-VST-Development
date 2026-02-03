@@ -72,6 +72,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
+    // BLOOM - Spectral swelling before decay (v1.2.0)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloom", 1 },
+        "Bloom",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f,
+        "%"
+    ));
+
+    // SHIMMER - Frequency modulation that increases during decay (v1.2.0)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "shimmer", 1 },
+        "Shimmer",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.2f,
+        "%"
+    ));
+
     // ========== Ensemble Section Parameters (5) ==========
 
     // UNISON_COUNT - Number of detuned bell copies (1-4)
@@ -147,13 +165,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         0
     ));
 
-    // DECAY_SHAPE - Envelope curve type
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "decayShape", 1 },
-        "Decay",
-        juce::StringArray { "Linear", "Exponential", "Multi-stage" },
-        1
-    ));
+    // DECAY_SHAPE parameter removed in v1.2.0 - always use multi-stage decay
 
     // VELOCITY_CURVE - Velocity response shaping
     layout.add(std::make_unique<juce::AudioParameterChoice>(
@@ -302,6 +314,8 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     brightnessParam = parameters.getRawParameterValue("brightness");
     materialParam = parameters.getRawParameterValue("material");
     inharmonicityParam = parameters.getRawParameterValue("inharmonicity");
+    bloomParam = parameters.getRawParameterValue("bloom");
+    shimmerParam = parameters.getRawParameterValue("shimmer");
     // Ensemble
     unisonCountParam = parameters.getRawParameterValue("unisonCount");
     unisonDetuneParam = parameters.getRawParameterValue("unisonDetune");
@@ -312,7 +326,7 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     partialTuningParam = parameters.getRawParameterValue("partialTuning");
     nonlinearEffectsParam = parameters.getRawParameterValue("nonlinearEffects");
     strikeNoiseCharParam = parameters.getRawParameterValue("strikeNoiseChar");
-    decayShapeParam = parameters.getRawParameterValue("decayShape");
+    // decayShapeParam removed in v1.2.0 - always use multi-stage
     velocityCurveParam = parameters.getRawParameterValue("velocityCurve");
     pitchEnvelopeParam = parameters.getRawParameterValue("pitchEnvelope");
     pitchEnvTimeParam = parameters.getRawParameterValue("pitchEnvTime");
@@ -346,6 +360,8 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float strikePosition = strikePositionParam->load();
     float malletHardness = malletHardnessParam->load();
     float material = materialParam->load();
+    float bloom = bloomParam->load();
+    float shimmer = shimmerParam->load();
     int unisonCount = static_cast<int>(unisonCountParam->load());
     float unisonDetune = unisonDetuneParam->load();
     float octaveBlendSub = octaveBlendSubParam->load();
@@ -354,11 +370,11 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float partialTuning = partialTuningParam->load();
     float pitchEnvelope = pitchEnvelopeParam->load();
     float pitchEnvTime = pitchEnvTimeParam->load();
-    int decayShape = static_cast<int>(decayShapeParam->load());
+    // decayShape removed - always use multi-stage in v1.2.0
     int velocityCurve = static_cast<int>(velocityCurveParam->load());
     float nonlinearEffects = nonlinearEffectsParam->load();
     int strikeNoiseChar = static_cast<int>(strikeNoiseCharParam->load());
-    // Multi-stage envelope params (active when decayShape == 2)
+    // Multi-stage envelope params (always active in v1.2.0)
     float strikeTime = strikeTimeParam->load();
     float brilliance = brillianceParam->load();
     float bodyTime = bodyTimeParam->load();
@@ -372,11 +388,11 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         {
             voice->updateParameters(
                 inharmonicity, damping, brightness,
-                strikePosition, malletHardness, material,
+                strikePosition, malletHardness, material, bloom, shimmer,
                 unisonCount, unisonDetune,
                 octaveBlendSub, octaveBlendOct, stereoSpread,
                 partialTuning, pitchEnvelope, pitchEnvTime,
-                decayShape, velocityCurve, nonlinearEffects,
+                velocityCurve, nonlinearEffects,
                 strikeNoiseChar, outputGain,
                 strikeTime, brilliance, bodyTime, humSustain
             );

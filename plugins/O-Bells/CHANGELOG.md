@@ -2,6 +2,38 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.2.0] - 2026-02-02
+
+### Added
+- **Bloom parameter** - Spectral swelling effect where partials swell from initial to peak amplitude before decay
+  - Range: 0-100%, Default: 0% (off)
+  - Creates organic "breath" to bell attacks
+- **Shimmer parameter** - Frequency modulation that increases during decay for metallic shimmering effect
+  - Range: 0-100%, Default: 20%
+  - Prime-ratio LFOs prevent phase locking between partials
+  - Intensity increases as bell decays for authentic bell shimmer
+- **Mallet temporal spreading** - Soft mallets now have gradual 50ms attack, hard mallets remain instant
+- **Stereo enhancement infrastructure** - Per-partial panning, slow pan LFOs, and Haas delay functions implemented
+
+### Changed
+- **Material system overhaul** - Replaced 4-material system with research-based 5-material acoustic model
+  - Bronze (1.0x decay, neutral), Brass (0.9x, +0.05 brightness), Steel (1.4x, +0.10 brightness)
+  - Aluminum (0.7x, +0.15 brightness), Cast Iron (1.2x, -0.10 brightness, gamelan-like)
+  - Each material now affects decay, brightness, AND inharmonicity
+- **Inharmonicity label** - UI now displays full word "Inharmonicity" instead of "Inharm"
+
+### Removed
+- **Decay Shape parameter** - Multi-stage decay envelope is now always active
+  - Simplified UI with more predictable sound
+  - Note: Presets with old `decayShape` entries will ignore them
+
+### Technical Notes
+- Domain: DSP
+- Milestone: realism-overhaul
+- CPU overhead: ~4.3% increase for new features
+- Memory: ~23KB increase (8 voices with bloom/shimmer/stereo state)
+- Preset compatibility: Existing presets load with bloom=0%, shimmer=20% defaults
+
 ## [1.1.1] - 2026-02-02
 
 ### Fixed

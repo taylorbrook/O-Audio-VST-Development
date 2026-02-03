@@ -24,14 +24,17 @@ void BellVoice::prepare(double sampleRate, int samplesPerBlock)
 {
     juce::ignoreUnused(samplesPerBlock);
     currentSampleRate = sampleRate;
+
+    // Prepare Haas delay buffer (v1.2.0)
+    prepareHaasDelay(sampleRate);
 }
 
 void BellVoice::updateParameters(float inharmonicity, float damping, float brightness,
-                                 float strikePosition, float malletHardness, float material,
+                                 float strikePosition, float malletHardness, float material, float bloom, float shimmer,
                                  int unisonCount, float unisonDetune,
                                  float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                                  float partialTuning, float pitchEnvelope, float pitchEnvTime,
-                                 int decayShape, int velocityCurve, float nonlinearEffects,
+                                 int velocityCurve, float nonlinearEffects,
                                  int strikeNoiseChar, float outputGain,
                                  float strikeTime, float brilliance, float bodyTime, float humSustain)
 {
@@ -41,6 +44,8 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
     currentStrikePosition = strikePosition;
     currentMalletHardness = malletHardness;
     currentMaterial = material;
+    currentBloom = bloom;
+    currentShimmer = shimmer;
     currentUnisonCount = juce::jlimit(1, MAX_UNISON, unisonCount);
     currentUnisonDetune = unisonDetune;
     currentOctaveBlendSub = octaveBlendSub;
@@ -49,12 +54,12 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
     currentPartialTuning = partialTuning;
     currentPitchEnvelope = pitchEnvelope;
     currentPitchEnvTime = pitchEnvTime;
-    currentDecayShape = decayShape;
+    // currentDecayShape removed - always multi-stage in v1.2.0
     currentVelocityCurve = velocityCurve;
     currentNonlinearEffects = nonlinearEffects;
     currentStrikeNoiseChar = strikeNoiseChar;
     currentOutputGain = outputGain;
-    // Multi-stage envelope params
+    // Multi-stage envelope params (always active in v1.2.0)
     currentStrikeTime = strikeTime;
     currentBrilliance = brilliance;
     currentBodyTime = bodyTime;
@@ -70,15 +75,13 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     releaseEnvelope = 1.0f;
     releaseRate = 1.0f;
     samplesSinceNoteOn = 0;  // Reset sample counter for multi-stage envelope
+    decayProgress = 0.0f;    // Reset decay progress for shimmer
 
     // Calculate fundamental frequency
     float fundamental = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
 
-    // Pre-calculate multi-stage coefficients if using multi-stage decay
-    if (currentDecayShape == 2)
-    {
-        calculateMultiStageCoefficients(fundamental);
-    }
+    // Pre-calculate multi-stage coefficients (always active in v1.2.0)
+    calculateMultiStageCoefficients(fundamental);
 
     // Initialize pitch envelope
     pitchEnvelopePhase = 1.0f;  // Start at max deviation
@@ -96,6 +99,12 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     // Calculate unison detune amounts and pan positions
     calculateUnisonDetunes(currentUnisonCount, currentUnisonDetune);
 
+    // Initialize mallet attack ramp (v1.2.0)
+    initializeMalletAttack();
+
+    // Initialize stereo movement (v1.2.0)
+    initializeStereoMovement();
+
     // Initialize fundamental voices
     for (int i = 0; i < currentUnisonCount; ++i)
     {
@@ -110,6 +119,12 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
                 calculatePartialFrequency(p, 1.0f, currentInharmonicity);
             fundamentalVoices[i].partials[p].phaseIncrement =
                 fundamentalVoices[i].partials[p].frequency / static_cast<float>(currentSampleRate);
+
+            // Initialize bloom for this partial
+            initializeBloom(fundamentalVoices[i].partials[p], p);
+
+            // Initialize shimmer for this partial
+            initializeShimmer(fundamentalVoices[i].partials[p], p);
         }
     }
 
@@ -126,6 +141,12 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
                     calculatePartialFrequency(p, 1.0f, currentInharmonicity);
                 subOctaveVoices[i].partials[p].phaseIncrement =
                     subOctaveVoices[i].partials[p].frequency / static_cast<float>(currentSampleRate);
+
+                // Initialize bloom for sub-octave partial
+                initializeBloom(subOctaveVoices[i].partials[p], p);
+
+                // Initialize shimmer for sub-octave partial
+                initializeShimmer(subOctaveVoices[i].partials[p], p);
             }
         }
     }
@@ -143,6 +164,12 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
                     calculatePartialFrequency(p, 1.0f, currentInharmonicity);
                 upperOctaveVoices[i].partials[p].phaseIncrement =
                     upperOctaveVoices[i].partials[p].frequency / static_cast<float>(currentSampleRate);
+
+                // Initialize bloom for upper-octave partial
+                initializeBloom(upperOctaveVoices[i].partials[p], p);
+
+                // Initialize shimmer for upper-octave partial
+                initializeShimmer(upperOctaveVoices[i].partials[p], p);
             }
         }
     }
@@ -252,6 +279,10 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                 {
                     // Apply pitch envelope modulation
                     float modulatedPhaseInc = partial.phaseIncrement * (1.0f + pitchModulation);
+
+                    // Apply shimmer (frequency modulation)
+                    modulatedPhaseInc = applyShimmer(partial, modulatedPhaseInc);
+
                     partial.phase += modulatedPhaseInc;
                     if (partial.phase >= 1.0f)
                         partial.phase -= 1.0f;
@@ -259,13 +290,11 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                     float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                     voiceSample += partialSample * partial.amplitude;
 
-                    // Apply decay envelope based on decay shape
-                    if (currentDecayShape == 2)  // Multi-stage (research-based)
-                        applyMultiStageDecay(partial, p);
-                    else if (currentDecayShape == 1)  // Exponential
-                        partial.amplitude *= partial.decayRate;
-                    else  // Linear (decayShape == 0)
-                        partial.amplitude -= partial.decayRate * 0.0001f;
+                    // Apply bloom (spectral swelling before decay)
+                    applyBloom(partial);
+
+                    // Apply multi-stage decay (always active in v1.2.0)
+                    applyMultiStageDecay(partial, p);
 
                     // Check if partial is still active
                     if (partial.amplitude > 0.001f)
@@ -296,6 +325,7 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                     if (partial.active)
                     {
                         float modulatedPhaseInc = partial.phaseIncrement * (1.0f + pitchModulation);
+                        modulatedPhaseInc = applyShimmer(partial, modulatedPhaseInc);
                         partial.phase += modulatedPhaseInc;
                         if (partial.phase >= 1.0f)
                             partial.phase -= 1.0f;
@@ -303,13 +333,8 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                         float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                         voiceSample += partialSample * partial.amplitude;
 
-                        // Apply decay envelope based on decay shape
-                        if (currentDecayShape == 2)
-                            applyMultiStageDecay(partial, p);
-                        else if (currentDecayShape == 1)
-                            partial.amplitude *= partial.decayRate;
-                        else
-                            partial.amplitude -= partial.decayRate * 0.0001f;
+                        // Apply multi-stage decay (always active in v1.2.0)
+                        applyMultiStageDecay(partial, p);
 
                         if (partial.amplitude > 0.001f)
                             anyPartialActive = true;
@@ -339,6 +364,7 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                     if (partial.active)
                     {
                         float modulatedPhaseInc = partial.phaseIncrement * (1.0f + pitchModulation);
+                        modulatedPhaseInc = applyShimmer(partial, modulatedPhaseInc);
                         partial.phase += modulatedPhaseInc;
                         if (partial.phase >= 1.0f)
                             partial.phase -= 1.0f;
@@ -346,13 +372,8 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
                         float partialSample = std::sin(partial.phase * juce::MathConstants<float>::twoPi);
                         voiceSample += partialSample * partial.amplitude;
 
-                        // Apply decay envelope based on decay shape
-                        if (currentDecayShape == 2)
-                            applyMultiStageDecay(partial, p);
-                        else if (currentDecayShape == 1)
-                            partial.amplitude *= partial.decayRate;
-                        else
-                            partial.amplitude -= partial.decayRate * 0.0001f;
+                        // Apply multi-stage decay (always active in v1.2.0)
+                        applyMultiStageDecay(partial, p);
 
                         if (partial.amplitude > 0.001f)
                             anyPartialActive = true;
@@ -370,12 +391,30 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
         }
 
         // Increment sample counter for multi-stage envelope timing
-        if (currentDecayShape == 2)
-            ++samplesSinceNoteOn;
+        ++samplesSinceNoteOn;
+
+        // Update decay progress for shimmer (0.0 = start, 1.0 = fully decayed)
+        // Approximate using time-based calculation
+        float totalDecayTime = (currentStrikeTime + currentBodyTime) / 1000.0f;
+        float currentTime = static_cast<float>(samplesSinceNoteOn) / static_cast<float>(currentSampleRate);
+        decayProgress = juce::jlimit(0.0f, 1.0f, currentTime / totalDecayTime);
 
         // Add strike noise transient
         leftOutput += noiseSignal * 0.3f;
         rightOutput += noiseSignal * 0.3f;
+
+        // Apply mallet attack ramp (v1.2.0)
+        if (attackRampPosition < attackRampSamples)
+        {
+            // Cosine curve for smooth attack
+            float rampProgress = static_cast<float>(attackRampPosition) / static_cast<float>(attackRampSamples);
+            float attackGain = (1.0f - std::cos(rampProgress * juce::MathConstants<float>::pi)) * 0.5f;
+
+            leftOutput *= attackGain;
+            rightOutput *= attackGain;
+
+            ++attackRampPosition;
+        }
 
         // Apply release envelope (gradual fade on note-off)
         if (tailOff)
@@ -496,23 +535,48 @@ float BellVoice::applyVelocityCurve(float velocity, int curve)
     }
 }
 
-float BellVoice::calculateMaterialDecayMultiplier(float material)
+BellVoice::MaterialProperties BellVoice::getMaterialProperties(float material)
 {
-    // Material: 0 = Bronze, 0.33 = Steel, 0.67 = Glass, 1.0 = Crystal
-    if (material < 0.33f)
+    // v1.2.0: 5-material system (0.0 to 1.0 maps to Bronze → Brass → Steel → Aluminum → Cast Iron)
+    if (material < 0.25f)
     {
-        // Bronze → Steel
-        return juce::jmap(material, 0.0f, 0.33f, MATERIAL_DECAY_BRONZE, MATERIAL_DECAY_STEEL);
+        // Bronze → Brass
+        float t = material / 0.25f;
+        return {
+            juce::jmap(t, MATERIAL_BRONZE.decayMultiplier, MATERIAL_BRASS.decayMultiplier),
+            juce::jmap(t, MATERIAL_BRONZE.brightnessOffset, MATERIAL_BRASS.brightnessOffset),
+            juce::jmap(t, MATERIAL_BRONZE.inharmonicity, MATERIAL_BRASS.inharmonicity)
+        };
     }
-    else if (material < 0.67f)
+    else if (material < 0.5f)
     {
-        // Steel → Glass
-        return juce::jmap(material, 0.33f, 0.67f, MATERIAL_DECAY_STEEL, MATERIAL_DECAY_GLASS);
+        // Brass → Steel
+        float t = (material - 0.25f) / 0.25f;
+        return {
+            juce::jmap(t, MATERIAL_BRASS.decayMultiplier, MATERIAL_STEEL.decayMultiplier),
+            juce::jmap(t, MATERIAL_BRASS.brightnessOffset, MATERIAL_STEEL.brightnessOffset),
+            juce::jmap(t, MATERIAL_BRASS.inharmonicity, MATERIAL_STEEL.inharmonicity)
+        };
+    }
+    else if (material < 0.75f)
+    {
+        // Steel → Aluminum
+        float t = (material - 0.5f) / 0.25f;
+        return {
+            juce::jmap(t, MATERIAL_STEEL.decayMultiplier, MATERIAL_ALUMINUM.decayMultiplier),
+            juce::jmap(t, MATERIAL_STEEL.brightnessOffset, MATERIAL_ALUMINUM.brightnessOffset),
+            juce::jmap(t, MATERIAL_STEEL.inharmonicity, MATERIAL_ALUMINUM.inharmonicity)
+        };
     }
     else
     {
-        // Glass → Crystal
-        return juce::jmap(material, 0.67f, 1.0f, MATERIAL_DECAY_GLASS, MATERIAL_DECAY_CRYSTAL);
+        // Aluminum → Cast Iron
+        float t = (material - 0.75f) / 0.25f;
+        return {
+            juce::jmap(t, MATERIAL_ALUMINUM.decayMultiplier, MATERIAL_CAST_IRON.decayMultiplier),
+            juce::jmap(t, MATERIAL_ALUMINUM.brightnessOffset, MATERIAL_CAST_IRON.brightnessOffset),
+            juce::jmap(t, MATERIAL_ALUMINUM.inharmonicity, MATERIAL_CAST_IRON.inharmonicity)
+        };
     }
 }
 
@@ -554,27 +618,35 @@ void BellVoice::calculateUnisonDetunes(int count, float detuneAmount)
 
 void BellVoice::initializePartials(float fundamental, float velocity)
 {
-    float materialDecayMult = calculateMaterialDecayMultiplier(currentMaterial);
+    // Get material properties
+    auto materialProps = getMaterialProperties(currentMaterial);
 
     for (int p = 0; p < NUM_PARTIALS; ++p)
     {
         auto& partial = fundamentalVoices[0].partials[p];
 
-        partial.frequency = calculatePartialFrequency(p, fundamental, currentInharmonicity);
+        // Apply material inharmonicity offset to base inharmonicity
+        float effectiveInharmonicity = currentInharmonicity + materialProps.inharmonicity;
+        effectiveInharmonicity = juce::jlimit(0.0f, 1.0f, effectiveInharmonicity);
+
+        partial.frequency = calculatePartialFrequency(p, fundamental, effectiveInharmonicity);
         partial.phaseIncrement = partial.frequency / static_cast<float>(currentSampleRate);
         partial.phase = 0.0f;
 
-        // Calculate initial amplitude
-        float baseAmplitude = calculatePartialAmplitude(p, currentBrightness);
+        // Calculate initial amplitude with material brightness offset
+        float effectiveBrightness = currentBrightness + materialProps.brightnessOffset;
+        effectiveBrightness = juce::jlimit(0.0f, 1.0f, effectiveBrightness);
+
+        float baseAmplitude = calculatePartialAmplitude(p, effectiveBrightness);
         float strikeGain = calculateStrikePositionGain(p, currentStrikePosition);
         float malletGain = 1.0f + currentMalletHardness * (p / static_cast<float>(NUM_PARTIALS));
 
         partial.amplitude = baseAmplitude * strikeGain * malletGain * velocity;
         partial.targetAmplitude = partial.amplitude;
 
-        // Calculate decay rate (exponential decay)
+        // Calculate decay rate (exponential decay) with material multiplier
         float baseDecayTime = juce::jmap(currentDamping, 0.5f, 5.0f);  // 0.5s to 5s
-        float partialDecayTime = baseDecayTime * DECAY_MULTIPLIERS[p] * materialDecayMult;
+        float partialDecayTime = baseDecayTime * DECAY_MULTIPLIERS[p] * materialProps.decayMultiplier;
         partial.decayRate = std::exp(-1.0f / (partialDecayTime * static_cast<float>(currentSampleRate)));
 
         partial.active = partial.amplitude > 0.001f;
@@ -684,7 +756,8 @@ void BellVoice::calculateMultiStageCoefficients(float fundamental)
     float humExtension = 1.0f + (currentHumSustain / 100.0f) * 2.0f;
 
     // Material affects all decay times
-    float materialMult = calculateMaterialDecayMultiplier(currentMaterial);
+    auto materialProps = getMaterialProperties(currentMaterial);
+    float materialMult = materialProps.decayMultiplier;
 
     for (int p = 0; p < NUM_PARTIALS; ++p)
     {
@@ -751,4 +824,238 @@ void BellVoice::applyMultiStageDecay(ModalPartial& partial, int partialIndex)
         // HUM PHASE: Only low partials remain, extended sustain
         partial.amplitude *= humDecayCoeffs[partialIndex];
     }
+}
+
+// ============================================================================
+// Bloom Implementation (v1.2.0 Realism Overhaul)
+// Spectral swelling: partials swell from initial to peak amplitude before decay
+// ============================================================================
+
+void BellVoice::initializeBloom(ModalPartial& partial, int partialIndex)
+{
+    if (currentBloom <= 0.0f)
+    {
+        // No bloom - skip initialization
+        partial.bloomPhase = 1.0f;  // Completed immediately
+        return;
+    }
+
+    // Bloom duration: 10ms (subtle) to 100ms (pronounced)
+    float bloomDurationMs = juce::jmap(currentBloom, 10.0f, 100.0f);
+    float bloomDurationSamples = (bloomDurationMs / 1000.0f) * static_cast<float>(currentSampleRate);
+
+    partial.bloomPhase = 0.0f;
+    partial.bloomRate = 1.0f / bloomDurationSamples;
+
+    // Initial amplitude: start at 30-70% of target (bloom amount dependent)
+    float initialFraction = juce::jmap(currentBloom, 0.7f, 0.3f);
+    partial.initialAmplitude = partial.amplitude * initialFraction;
+    partial.peakAmplitude = partial.amplitude;
+
+    // Set amplitude to initial value
+    partial.amplitude = partial.initialAmplitude;
+}
+
+void BellVoice::applyBloom(ModalPartial& partial)
+{
+    if (partial.bloomPhase >= 1.0f)
+        return;  // Bloom complete
+
+    // Cosine interpolation for smooth swelling
+    float t = partial.bloomPhase;
+    float cosineT = (1.0f - std::cos(t * juce::MathConstants<float>::pi)) * 0.5f;
+
+    // Interpolate from initial to peak amplitude
+    partial.amplitude = partial.initialAmplitude + (partial.peakAmplitude - partial.initialAmplitude) * cosineT;
+
+    // Advance bloom phase
+    partial.bloomPhase += partial.bloomRate;
+
+    // Clamp to prevent overshoot
+    if (partial.bloomPhase >= 1.0f)
+    {
+        partial.bloomPhase = 1.0f;
+        partial.amplitude = partial.peakAmplitude;
+    }
+}
+
+// ============================================================================
+// Shimmer Implementation (v1.2.0 Realism Overhaul)
+// Frequency modulation that increases during decay for metallic shimmering
+// ============================================================================
+
+void BellVoice::initializeShimmer(ModalPartial& partial, int partialIndex)
+{
+    if (currentShimmer <= 0.0f)
+    {
+        partial.shimmerLFORate = 0.0f;
+        partial.shimmerDepth = 0.0f;
+        return;
+    }
+
+    // LFO frequency: use prime ratios to prevent phase locking between partials
+    // Range: 0.5 Hz to 3 Hz (slow shimmering)
+    static const float primeLFORatios[NUM_PARTIALS] = {1.0f, 1.1f, 1.3f, 1.7f, 1.9f, 2.3f, 2.9f, 3.1f};
+    float baseLFOFreq = juce::jmap(currentShimmer, 0.5f, 3.0f);
+    partial.shimmerLFORate = baseLFOFreq * primeLFORatios[partialIndex] / static_cast<float>(currentSampleRate);
+
+    // Modulation depth: subtle (1-5 cents depending on shimmer amount)
+    partial.shimmerDepth = juce::jmap(currentShimmer, 1.0f, 5.0f);
+
+    // Random initial phase to decorrelate partials
+    partial.shimmerLFOPhase = static_cast<float>(rand()) / RAND_MAX;
+}
+
+float BellVoice::applyShimmer(ModalPartial& partial, float basePhaseInc)
+{
+    if (currentShimmer <= 0.0f || partial.shimmerLFORate == 0.0f)
+        return basePhaseInc;
+
+    // Advance LFO phase
+    partial.shimmerLFOPhase += partial.shimmerLFORate;
+    if (partial.shimmerLFOPhase >= 1.0f)
+        partial.shimmerLFOPhase -= 1.0f;
+
+    // Generate LFO (sine wave)
+    float lfoValue = std::sin(partial.shimmerLFOPhase * juce::MathConstants<float>::twoPi);
+
+    // Shimmer intensity increases with decay progress (0.0 = none, 1.0 = full)
+    // This creates the "metallic shimmer gets stronger as bell fades" effect
+    float shimmerIntensity = decayProgress * currentShimmer;
+
+    // Calculate frequency modulation in cents
+    float modulationCents = lfoValue * partial.shimmerDepth * shimmerIntensity;
+
+    // Convert cents to frequency ratio
+    float freqRatio = std::pow(2.0f, modulationCents / 1200.0f);
+
+    return basePhaseInc * freqRatio;
+}
+
+// ============================================================================
+// Mallet Attack Enhancement (v1.2.0 Realism Overhaul)
+// Temporal spreading: soft mallets have gradual attack, hard have instant
+// ============================================================================
+
+void BellVoice::initializeMalletAttack()
+{
+    // Soft mallets (0.0) have gradual attack (up to 50ms)
+    // Hard mallets (1.0) have instant attack (0ms)
+    float attackTimeMs = juce::jmap(currentMalletHardness, 50.0f, 0.0f);
+
+    if (attackTimeMs > 0.0f)
+    {
+        attackRampSamples = static_cast<int>((attackTimeMs / 1000.0f) * currentSampleRate);
+        attackRampPosition = 0;
+    }
+    else
+    {
+        attackRampSamples = 0;
+        attackRampPosition = 0;
+    }
+}
+
+// ============================================================================
+// Stereo Enhancement (v1.2.0 Realism Overhaul)
+// Partial-based panning, slow LFO movement, Haas delay for width
+// ============================================================================
+
+float BellVoice::getPartialPan(int partialIndex)
+{
+    // Low partials (0-1): centered (mono foundation)
+    // Mid partials (2-4): moderate spread
+    // High partials (5-7): wide spread, alternating L/R
+
+    if (partialIndex < 2)
+        return 0.0f;  // Center
+
+    if (partialIndex < 5)
+    {
+        // Moderate spread: ±0.3
+        float spread = 0.3f;
+        return (partialIndex % 2 == 0) ? -spread : spread;
+    }
+
+    // Wide spread: ±0.7, alternating
+    float spread = 0.7f;
+    return (partialIndex % 2 == 0) ? -spread : spread;
+}
+
+void BellVoice::initializeStereoMovement()
+{
+    for (int p = 0; p < NUM_PARTIALS; ++p)
+    {
+        // Base pan position (static)
+        partialStereo[p].basePan = getPartialPan(p);
+
+        // Slow LFO for subtle movement (0.1 Hz to 0.5 Hz)
+        // Use prime ratios to decorrelate
+        static const float primePanRatios[NUM_PARTIALS] = {1.0f, 1.1f, 1.2f, 1.3f, 1.5f, 1.7f, 1.9f, 2.1f};
+        float baseLFOFreq = 0.3f;  // 0.3 Hz base
+        partialStereo[p].panLFORate = baseLFOFreq * primePanRatios[p] / static_cast<float>(currentSampleRate);
+
+        // Random initial phase
+        partialStereo[p].panLFOPhase = static_cast<float>(rand()) / RAND_MAX;
+    }
+}
+
+float BellVoice::getModulatedPan(int partialIndex)
+{
+    auto& stereo = partialStereo[partialIndex];
+
+    // Advance LFO
+    stereo.panLFOPhase += stereo.panLFORate;
+    if (stereo.panLFOPhase >= 1.0f)
+        stereo.panLFOPhase -= 1.0f;
+
+    // Generate LFO (sine)
+    float lfoValue = std::sin(stereo.panLFOPhase * juce::MathConstants<float>::twoPi);
+
+    // Subtle modulation depth (±0.1)
+    float modulation = lfoValue * 0.1f;
+
+    // Combine base pan + modulation
+    float finalPan = stereo.basePan + modulation;
+
+    return juce::jlimit(-1.0f, 1.0f, finalPan);
+}
+
+void BellVoice::prepareHaasDelay(double sampleRate)
+{
+    // Max Haas delay: 30ms (for stereo width)
+    haasDelayLength = static_cast<int>((30.0f / 1000.0f) * sampleRate);
+    haasDelayBuffer.setSize(2, haasDelayLength);
+    haasDelayBuffer.clear();
+    haasWritePosition = 0;
+}
+
+void BellVoice::setHaasDelay(float delayMs)
+{
+    // Currently unused - could be parameter-driven in future
+    juce::ignoreUnused(delayMs);
+}
+
+void BellVoice::processHaasDelay(float& leftSample, float& rightSample)
+{
+    // Haas delay: delay right channel by ~10ms for stereo width
+    static constexpr float haasDelayMs = 10.0f;
+    int delaySamples = static_cast<int>((haasDelayMs / 1000.0f) * currentSampleRate);
+    delaySamples = juce::jmin(delaySamples, haasDelayLength - 1);
+
+    if (delaySamples == 0)
+        return;
+
+    // Write current samples to delay buffer
+    haasDelayBuffer.setSample(0, haasWritePosition, leftSample);
+    haasDelayBuffer.setSample(1, haasWritePosition, rightSample);
+
+    // Read delayed right channel
+    int readPos = (haasWritePosition - delaySamples + haasDelayLength) % haasDelayLength;
+    float delayedRight = haasDelayBuffer.getSample(1, readPos);
+
+    // Replace right channel with delayed version (subtle mix)
+    rightSample = rightSample * 0.7f + delayedRight * 0.3f;
+
+    // Advance write position
+    haasWritePosition = (haasWritePosition + 1) % haasDelayLength;
 }

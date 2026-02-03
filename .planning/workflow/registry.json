@@ -1,7 +1,7 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-Bells",
+  "focused": "O-Freeze",
   "plugins": {
     "O-Bells": {
       "path": "plugins/O-Bells",
@@ -9,22 +9,23 @@
       "phase": "complete",
       "status": "complete",
       "created": "2026-02-01",
-      "lastActivity": "2026-02-02T12:00:00Z",
+      "lastActivity": "2026-02-02T20:00:00Z",
       "modules": [],
       "expressMode": false,
       "blockedBy": null,
-      "activeMilestone": "realism-overhaul"
+      "activeMilestone": null
     },
     "O-Freeze": {
       "path": "plugins/O-Freeze",
-      "stage": "0-ideation",
+      "stage": "4-polish",
       "phase": "complete",
-      "status": "active",
+      "status": "complete",
       "created": "2026-02-01",
-      "lastActivity": "2026-02-01T11:27:00Z",
+      "lastActivity": "2026-02-02T16:00:00Z",
       "modules": [],
       "expressMode": false,
-      "blockedBy": null
+      "blockedBy": null,
+      "activeMilestone": "eliminate-clicks-smooth-windowing"
     },
     "O-IntonationPad": {
       "path": "plugins/O-IntonationPad",
@@ -43,10 +44,11 @@
       "phase": "complete",
       "status": "complete",
       "created": "2026-02-01",
-      "lastActivity": "2026-02-01T14:30:00Z",
+      "lastActivity": "2026-02-02T15:30:00Z",
       "modules": [],
       "expressMode": true,
-      "blockedBy": null
+      "blockedBy": null,
+      "activeMilestone": "implement-placeholder-params"
     }
   },
   "modules": {

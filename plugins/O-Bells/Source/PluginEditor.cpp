@@ -21,6 +21,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     brightnessRelay = std::make_unique<juce::WebSliderRelay>("brightness");
     materialRelay = std::make_unique<juce::WebSliderRelay>("material");
     inharmonicityRelay = std::make_unique<juce::WebSliderRelay>("inharmonicity");
+    bloomRelay = std::make_unique<juce::WebSliderRelay>("bloom");
+    shimmerRelay = std::make_unique<juce::WebSliderRelay>("shimmer");
     unisonCountRelay = std::make_unique<juce::WebSliderRelay>("unisonCount");
     unisonDetuneRelay = std::make_unique<juce::WebSliderRelay>("unisonDetune");
     octaveBlendSubRelay = std::make_unique<juce::WebSliderRelay>("octaveBlendSub");
@@ -40,7 +42,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
 
     strikeNoiseCharRelay = std::make_unique<juce::WebComboBoxRelay>("strikeNoiseChar");
     velocityCurveRelay = std::make_unique<juce::WebComboBoxRelay>("velocityCurve");
-    decayShapeRelay = std::make_unique<juce::WebComboBoxRelay>("decayShape");
+    // decayShapeRelay removed in v1.2.0 - always multi-stage
 
     // 2️⃣ CREATE WEBVIEW WITH OPTIONS
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -53,6 +55,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*brightnessRelay)
             .withOptionsFrom(*materialRelay)
             .withOptionsFrom(*inharmonicityRelay)
+            .withOptionsFrom(*bloomRelay)
+            .withOptionsFrom(*shimmerRelay)
             .withOptionsFrom(*unisonCountRelay)
             .withOptionsFrom(*unisonDetuneRelay)
             .withOptionsFrom(*octaveBlendSubRelay)
@@ -71,7 +75,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*humSustainRelay)
             .withOptionsFrom(*strikeNoiseCharRelay)
             .withOptionsFrom(*velocityCurveRelay)
-            .withOptionsFrom(*decayShapeRelay)
+            // decayShapeRelay removed in v1.2.0
 
             // ═══════════════════════════════════════════════════════════════════
             // PRESET NATIVE FUNCTIONS
@@ -221,6 +225,10 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("material"), *materialRelay, nullptr);
     inharmonicityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("inharmonicity"), *inharmonicityRelay, nullptr);
+    bloomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloom"), *bloomRelay, nullptr);
+    shimmerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("shimmer"), *shimmerRelay, nullptr);
     unisonCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("unisonCount"), *unisonCountRelay, nullptr);
     unisonDetuneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -257,8 +265,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("strikeNoiseChar"), *strikeNoiseCharRelay, nullptr);
     velocityCurveAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("velocityCurve"), *velocityCurveRelay, nullptr);
-    decayShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
-        *apvts.getParameter("decayShape"), *decayShapeRelay, nullptr);
+    // decayShapeAttachment removed in v1.2.0 - always multi-stage
 
     // Add WebView to editor
     addAndMakeVisible(*webView);

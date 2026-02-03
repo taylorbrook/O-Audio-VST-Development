@@ -37,13 +37,15 @@ private:
     // ═══════════════════════════════════════════════════════════════════
 
     // 1️⃣ RELAYS FIRST (no dependencies)
-    // Float/Int parameter relays (16 sliders)
+    // Float/Int parameter relays (18 sliders in v1.2.0)
     std::unique_ptr<juce::WebSliderRelay> strikePositionRelay;
     std::unique_ptr<juce::WebSliderRelay> malletHardnessRelay;
     std::unique_ptr<juce::WebSliderRelay> dampingRelay;
     std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
     std::unique_ptr<juce::WebSliderRelay> materialRelay;
     std::unique_ptr<juce::WebSliderRelay> inharmonicityRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomRelay;
+    std::unique_ptr<juce::WebSliderRelay> shimmerRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonCountRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonDetuneRelay;
     std::unique_ptr<juce::WebSliderRelay> octaveBlendSubRelay;
@@ -61,22 +63,23 @@ private:
     std::unique_ptr<juce::WebSliderRelay> bodyTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> humSustainRelay;
 
-    // Choice parameter relays (3 combo boxes)
+    // Choice parameter relays (2 combo boxes, decayShape removed in v1.2.0)
     std::unique_ptr<juce::WebComboBoxRelay> strikeNoiseCharRelay;
     std::unique_ptr<juce::WebComboBoxRelay> velocityCurveRelay;
-    std::unique_ptr<juce::WebComboBoxRelay> decayShapeRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
     // 3️⃣ ATTACHMENTS LAST (depend on both relays and webView)
-    // Float/Int parameter attachments (16 sliders)
+    // Float/Int parameter attachments (18 sliders in v1.2.0)
     std::unique_ptr<juce::WebSliderParameterAttachment> strikePositionAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> malletHardnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> dampingAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> materialAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> inharmonicityAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> shimmerAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonDetuneAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> octaveBlendSubAttachment;
@@ -94,10 +97,9 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> bodyTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> humSustainAttachment;
 
-    // Choice parameter attachments (3 combo boxes)
+    // Choice parameter attachments (2 combo boxes, decayShape removed in v1.2.0)
     std::unique_ptr<juce::WebComboBoxParameterAttachment> strikeNoiseCharAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> velocityCurveAttachment;
-    std::unique_ptr<juce::WebComboBoxParameterAttachment> decayShapeAttachment;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

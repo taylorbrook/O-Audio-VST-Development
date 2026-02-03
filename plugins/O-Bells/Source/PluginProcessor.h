@@ -69,13 +69,15 @@ private:
     juce::dsp::Reverb::Parameters reverbParams;
 
     // Cached parameter pointers (atomic reads, real-time safe)
-    // Main Panel (6 params)
+    // Main Panel (8 params in v1.2.0)
     std::atomic<float>* strikePositionParam = nullptr;
     std::atomic<float>* malletHardnessParam = nullptr;
     std::atomic<float>* dampingParam = nullptr;
     std::atomic<float>* brightnessParam = nullptr;
     std::atomic<float>* materialParam = nullptr;
     std::atomic<float>* inharmonicityParam = nullptr;
+    std::atomic<float>* bloomParam = nullptr;
+    std::atomic<float>* shimmerParam = nullptr;
     // Ensemble (5 params)
     std::atomic<float>* unisonCountParam = nullptr;
     std::atomic<float>* unisonDetuneParam = nullptr;
@@ -86,11 +88,11 @@ private:
     std::atomic<float>* partialTuningParam = nullptr;
     std::atomic<float>* nonlinearEffectsParam = nullptr;
     std::atomic<float>* strikeNoiseCharParam = nullptr;
-    std::atomic<float>* decayShapeParam = nullptr;
+    // decayShapeParam removed in v1.2.0 - always multi-stage
     std::atomic<float>* velocityCurveParam = nullptr;
     std::atomic<float>* pitchEnvelopeParam = nullptr;
     std::atomic<float>* pitchEnvTimeParam = nullptr;
-    // Multi-stage envelope (4 params, active when decayShape == 2)
+    // Multi-stage envelope (4 params, always active in v1.2.0)
     std::atomic<float>* strikeTimeParam = nullptr;
     std::atomic<float>* brillianceParam = nullptr;
     std::atomic<float>* bodyTimeParam = nullptr;
