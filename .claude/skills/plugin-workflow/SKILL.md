@@ -364,21 +364,34 @@ git commit -m "stage: ${PLUGIN_NAME} ${STAGE} complete"
 ### Phase Completion Menu (Manual Mode)
 
 ```
-✓ Research phase complete for Stage 2 (DSP)
+━━━ PHASE COMPLETE ━━━
+
+**[PluginName]** — Stage 2 (DSP) / research phase
 
 RESEARCH.md created with:
 - JI ratio calculation algorithms
 - scala-tuning-engine module recommendation
 - Voice management patterns
 
-What's next?
-1. Continue to plan phase (recommended)
-2. Re-run research phase
-3. View RESEARCH.md
-4. Pause workflow
-5. Other
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Choose (1-5): _
+## ▶ Next Up
+
+**plan phase** — Create execution plan
+
+**Step 1:** `/clear` — fresh context window (recommended)
+**Step 2:** `/implement [PluginName]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Also available:**
+
+- Re-run research phase
+- View RESEARCH.md
+- Pause workflow
+- Other
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
 ### Stage Completion Menu (Handoff Point)

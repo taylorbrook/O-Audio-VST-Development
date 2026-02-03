@@ -122,43 +122,62 @@ last_updated="2025-11-10 14:30:00"
 
 ## Step 3: Build Summary
 
-Construct user-facing summary combining all parsed information:
+Construct user-facing summary using the standard handoff format (see `.claude/references/handoff-protocol.md`).
+
+**Required format elements:**
+1. `━━━` separator lines for visual structure
+2. Boxed "SESSION RESUMED" header
+3. Current state section with plugin name bolded
+4. Phase progress table
+5. Key context preserved from handoff
+6. Explicit two-step "Next Up" section with `/clear` + command
+7. Alternative options listed
 
 **Example for workflow resume:**
 
 ```
-Resuming TapeDelay at Stage 3 (DSP Implementation)...
+━━━ SESSION RESUMED ━━━
 
-Status: Stage 3.2 in progress (modulation system)
-Last session: 2 hours ago
+**TapeDelay** — Stage 3 (DSP Implementation)
 
-Progress so far:
-✓ Stage 0: Research
-✓ Stage 1: Planning (complexity 3.8, phased)
-✓ Stage 1: Foundation
-✓ Stage 2: Shell
-✓ Stage 3.1: Core delay algorithm
-🚧 Stage 3.2: Modulation system (in progress)
+| Phase | Status |
+|-------|--------|
+| Stage 0: Research | ✓ |
+| Stage 1: Foundation | ✓ |
+| Stage 2: DSP | → in progress |
 
-Current work:
+**Current Position:** Stage 2, Phase plan (research complete)
+**Last Session:** 2 hours ago
+**Complexity:** C4 (3.8/5) — phased implementation
+
+**Key Context:**
 - Implementing LFOs for wow/flutter modulation
-- Next: Add modulation to delay read pointer
+- Core delay algorithm complete
 
-Last build: ✓ Success
-Last test: ✓ Pass (4/5 tests)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Next steps:
-1. ⭐ Continue Stage 3.2 (implement modulation matrix)
-2. Review Stage 3.1 code
-3. Test wow/flutter parameters manually
-4. Pause here
+## ▶ Next Up
 
-Ready to continue with modulation implementation?
+**Stage 2: DSP** — Continue modulation system implementation
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/implement TapeDelay`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Also available:**
+
+- `/plugin-plan TapeDelay 2-dsp` → Create execution plan first
+- `/test TapeDelay` → Run validation tests
+- Review stage artifacts
+- Save for later (checkpoint preserved)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
 
-**Present summary and wait for user confirmation.**
+**CRITICAL:** Present summary and STOP. Do not auto-proceed — user must explicitly choose an action.
 
-Do not auto-proceed - user must explicitly choose next action.
+The two-step format (`/clear` then command) is mandatory. Never present a prose-style "Next:" instruction.
 
 ---
 
