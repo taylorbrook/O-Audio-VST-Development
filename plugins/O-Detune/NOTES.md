@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.0
+- **Version:** 1.3.1
 - **Type:** Audio Effect (Detuning / Pitch Thickening)
 - **Complexity:** 5.0 (Maximum)
 
@@ -16,6 +16,7 @@
 - **2026-02-02 (v1.1.1):** Fixed UI knob smoothness - implemented requestAnimationFrame interpolation loop, added mouse wheel support
 - **2026-02-02 (v1.2.0):** Added blend-responsive panel opacity - Wobble/Unison panels fade based on blend knob position
 - **2026-02-03 (v1.3.0):** All 14 placeholder parameters functional + mono-safe forces width to 0
+- **2026-02-03 (v1.3.1):** Fixed unison engine (now produces audible pitch detuning via drift modulation), fixed glitch distortion with random distribution + loud signals
 
 ## Overview
 

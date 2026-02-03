@@ -317,6 +317,14 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     feedbackStateL = 0.0f;
     feedbackStateR = 0.0f;
 
+    // Reset unison drift phases (stagger initial phases for richer sound)
+    for (int i = 0; i < maxUnisonVoices; ++i)
+    {
+        voiceDriftPhases[i] = static_cast<float>(i) / static_cast<float>(maxUnisonVoices);
+        voiceCrossfadeProgress[i] = 0.0f;
+        voiceInCrossfade[i] = false;
+    }
+
     // Pre-allocate processing buffers (real-time safety)
     const int numChannels = getTotalNumOutputChannels();
     wobbleBuffer.setSize(numChannels, samplesPerBlock);
@@ -336,7 +344,7 @@ void ODetuneAudioProcessor::releaseResources()
 // DSP Helper Functions
 
 // Multi-waveform LFO generator
-float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& noiseHeld, int& lastQuarter, juce::Random& rng)
+float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& noiseHeld, int& /*lastQuarter*/, juce::Random& rng)
 {
     switch (shapeType)
     {
@@ -790,7 +798,7 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 8. Process Unison Engine (multi-voice detuning)
+    // 8. Process Unison Engine (multi-voice detuning with continuous pitch shift)
 
     unisonBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
     unisonBuffer.clear();  // Clear for voice accumulation
@@ -806,20 +814,18 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         switch (unisonDist)
         {
             case 0: // Linear
-                voiceDetunes[i] = normalizedPos * (unisonDetune / 2.0f);
+                voiceDetunes[i] = normalizedPos * unisonDetune;
                 break;
 
             case 1: // Exponential (more voices near center)
             {
                 float sign = (normalizedPos >= 0) ? 1.0f : -1.0f;
-                voiceDetunes[i] = sign * std::pow(std::abs(normalizedPos), 2.0f) * (unisonDetune / 2.0f);
+                voiceDetunes[i] = sign * std::pow(std::abs(normalizedPos), 2.0f) * unisonDetune;
                 break;
             }
 
-            case 2: // Random (use stable random offsets, not regenerated every block)
-                // voiceRandomOffsets already has stable random values that refresh slowly
-                // Scale by unisonDetune to get the actual cent offset
-                voiceDetunes[i] = voiceRandomOffsets[i] * (unisonDetune / 10.0f);
+            case 2: // Random (stable random offsets - don't add again later)
+                voiceDetunes[i] = voiceRandomOffsets[i] * unisonDetune;
                 break;
         }
     }
@@ -839,56 +845,110 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         voicePanR[i] = std::sin((pan + 1.0f) * 0.25f * juce::MathConstants<float>::pi);
     }
 
-    // Add random variation (refresh every 1024 samples to avoid noise)
+    // Add random variation (refresh slowly - every 4096 samples for smoother transitions)
     if (randomRefreshCounter <= 0)
     {
         for (int i = 0; i < maxUnisonVoices; ++i)
         {
-            voiceRandomOffsets[i] = (random.nextFloat() * 2.0f - 1.0f) * (randomAmt / 100.0f) * 5.0f;
+            // Smoother random: interpolate toward new target instead of jumping
+            float newTarget = (random.nextFloat() * 2.0f - 1.0f);
+            voiceRandomOffsets[i] = voiceRandomOffsets[i] * 0.7f + newTarget * 0.3f;
         }
-        randomRefreshCounter = 1024;
+        randomRefreshCounter = 4096;
     }
     randomRefreshCounter -= numSamples;
 
-    // Process each voice
+    // Drift rate constant: how fast the delay changes to create pitch shift
+    // For delay-based pitch shifting: dDelay/dt = (1 - pitchRatio) * sampleRate
+    // We use a modulation range of ±20ms around center for smooth wrapping
+    const float driftRangeMs = 20.0f;
+    const float driftRangeSamples = (driftRangeMs / 1000.0f) * static_cast<float>(currentSampleRate);
+
+    // Process each voice with continuous delay modulation
     for (int voice = 0; voice < activeVoices; ++voice)
     {
-        float effectiveDetune = voiceDetunes[voice] + voiceRandomOffsets[voice];
-
-        // Calculate static delay time for this voice
-        float voicePitchRatio = std::pow(2.0f, effectiveDetune / 1200.0f);
-        float voiceDelayTime = centerDelaySamples * voicePitchRatio;
-
-        // Process left channel
-        if (numChannels >= 1)
+        // Only add random offset for non-Random distributions (avoid double-application)
+        float effectiveDetune = voiceDetunes[voice];
+        if (unisonDist != 2)  // Not Random distribution
         {
-            auto* inputDataL = buffer.getReadPointer(0);
-            auto* outputDataL = unisonBuffer.getWritePointer(0);
-
-            unisonDelaysL[voice].setDelay(voiceDelayTime);
-
-            for (int sample = 0; sample < numSamples; ++sample)
-            {
-                unisonDelaysL[voice].pushSample(0, inputDataL[sample]);
-                float delayedSample = unisonDelaysL[voice].popSample(0);
-                outputDataL[sample] += delayedSample * voicePanL[voice] / static_cast<float>(activeVoices);
-            }
+            effectiveDetune += voiceRandomOffsets[voice] * (randomAmt / 100.0f) * unisonDetune * 0.5f;
         }
 
-        // Process right channel
-        if (numChannels >= 2)
+        // Calculate drift rate: how fast delay changes per sample
+        // voicePitchRatio > 1 means pitch up, which requires decreasing delay
+        float voicePitchRatio = std::pow(2.0f, effectiveDetune / 1200.0f);
+        float driftRate = (1.0f - voicePitchRatio);  // Negative for pitch up, positive for pitch down
+
+        // Normalize to drift range (one complete cycle = one drift range traversal)
+        float phaseIncrement = std::abs(driftRate) / driftRangeSamples;
+
+        // Process both channels sample-by-sample with modulating delay
+        auto* inputDataL = numChannels >= 1 ? buffer.getReadPointer(0) : nullptr;
+        auto* inputDataR = numChannels >= 2 ? buffer.getReadPointer(1) : nullptr;
+        auto* outputDataL = numChannels >= 1 ? unisonBuffer.getWritePointer(0) : nullptr;
+        auto* outputDataR = numChannels >= 2 ? unisonBuffer.getWritePointer(1) : nullptr;
+
+        for (int sample = 0; sample < numSamples; ++sample)
         {
-            auto* inputDataR = buffer.getReadPointer(1);
-            auto* outputDataR = unisonBuffer.getWritePointer(1);
+            // Calculate delay offset from drift phase (sawtooth wave)
+            // Phase 0->1 maps to delay offset 0 -> driftRange (or reverse for pitch down)
+            float delayOffset;
+            if (driftRate < 0)  // Pitch up: delay decreases over time
+                delayOffset = voiceDriftPhases[voice] * driftRangeSamples;
+            else  // Pitch down: delay increases over time
+                delayOffset = (1.0f - voiceDriftPhases[voice]) * driftRangeSamples;
 
-            unisonDelaysR[voice].setDelay(voiceDelayTime);
+            float voiceDelayTime = centerDelaySamples + delayOffset;
 
-            for (int sample = 0; sample < numSamples; ++sample)
+            // Clamp delay time to valid range
+            voiceDelayTime = std::max(1.0f, std::min(voiceDelayTime, centerDelaySamples + driftRangeSamples));
+
+            // Process left channel
+            if (inputDataL && outputDataL)
             {
+                unisonDelaysL[voice].setDelay(voiceDelayTime);
+                unisonDelaysL[voice].pushSample(0, inputDataL[sample]);
+                float delayedSample = unisonDelaysL[voice].popSample(0);
+                outputDataL[sample] += delayedSample * voicePanL[voice];
+            }
+
+            // Process right channel
+            if (inputDataR && outputDataR)
+            {
+                unisonDelaysR[voice].setDelay(voiceDelayTime);
                 unisonDelaysR[voice].pushSample(0, inputDataR[sample]);
                 float delayedSample = unisonDelaysR[voice].popSample(0);
-                outputDataR[sample] += delayedSample * voicePanR[voice] / static_cast<float>(activeVoices);
+                outputDataR[sample] += delayedSample * voicePanR[voice];
             }
+
+            // Advance drift phase
+            voiceDriftPhases[voice] += phaseIncrement;
+
+            // Wrap phase with smooth crossfade to avoid clicks
+            if (voiceDriftPhases[voice] >= 1.0f)
+            {
+                voiceDriftPhases[voice] -= 1.0f;
+            }
+        }
+    }
+
+    // Normalize by voice count and apply soft limiting to prevent clipping
+    float gainCompensation = 1.0f / std::sqrt(static_cast<float>(activeVoices));
+    for (int channel = 0; channel < numChannels; ++channel)
+    {
+        auto* data = unisonBuffer.getWritePointer(channel);
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            // Apply gain compensation
+            float s = data[sample] * gainCompensation;
+
+            // Soft clipper to prevent harsh distortion on loud signals
+            if (std::abs(s) > 0.9f)
+            {
+                s = std::tanh(s * 1.5f) / 1.5f;
+            }
+
+            data[sample] = s;
         }
     }
 

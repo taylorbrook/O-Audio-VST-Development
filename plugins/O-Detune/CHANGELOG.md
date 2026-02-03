@@ -1,5 +1,35 @@
 # O-Detune Changelog
 
+## [1.3.1] - 2026-02-03
+
+### Fixed
+
+- **Unison engine now produces audible pitch detuning** (critical bug fix)
+  - Root cause: Static delay times don't create pitch shift - delay-based pitch shifting requires continuously modulating delay time
+  - Fix: Implemented per-voice sawtooth drift phases that continuously modulate delay time
+  - Each voice now has a drifting delay offset that creates actual pitch variation
+  - Drift phases staggered at init for richer chorusing effect
+  - Proper pitch ratio calculation: 2^(cents/1200) determines drift rate
+
+- **Fixed glitch distortion when Spread + Random distribution used with loud signals**
+  - Root cause #1: Random distribution double-applied `voiceRandomOffsets` (once in distribution calc, again in effectiveDetune)
+  - Root cause #2: Voice accumulation had no output limiting, causing clipping on loud signals
+  - Root cause #3: Random offsets refreshed too frequently (1024 samples), causing audible jumps
+  - Fix: Random offsets only applied once per distribution mode
+  - Fix: Added soft clipper after voice accumulation (tanh compression above 0.9)
+  - Fix: Increased random refresh interval to 4096 samples with smoothed interpolation
+
+### Changed
+
+- Voice gain compensation changed from `1/N` to `1/sqrt(N)` for better loudness consistency across voice counts
+- Random offset interpolation now uses 70/30 blend toward new target (smoother transitions)
+
+### Technical Notes
+
+- Drift range: ±20ms around 50ms center delay
+- Drift rate derived from pitch ratio: `driftRate = 1 - pitchRatio`
+- Soft clipper threshold: 0.9, uses `tanh(x * 1.5) / 1.5` for gentle saturation
+
 ## [1.3.0] - 2026-02-03
 
 ### Added

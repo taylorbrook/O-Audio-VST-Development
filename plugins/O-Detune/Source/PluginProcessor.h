@@ -96,6 +96,14 @@ private:
     float voiceRandomOffsets[maxUnisonVoices] = {0};
     int randomRefreshCounter = 0;
 
+    // Per-voice drift phases for continuous pitch shifting
+    // Each voice has a sawtooth phase that creates the pitch-shift effect
+    float voiceDriftPhases[maxUnisonVoices] = {0};
+
+    // Crossfade state for glitch-free drift reset
+    float voiceCrossfadeProgress[maxUnisonVoices] = {0};
+    bool voiceInCrossfade[maxUnisonVoices] = {false};
+
     // Pre-delay lines
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> preDelayL;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> preDelayR;
