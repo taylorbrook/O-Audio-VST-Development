@@ -96,7 +96,7 @@ private:
     float voiceRandomOffsets[maxUnisonVoices] = {0};
     int randomRefreshCounter = 0;
 
-    // Per-voice LFO phases for chorus-style modulation (inherently click-free)
+    // Per-voice LFO phases for chorus-style unison modulation
     float voiceLfoPhases[maxUnisonVoices] = {0};
 
     // Pre-delay lines

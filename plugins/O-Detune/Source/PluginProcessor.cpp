@@ -318,9 +318,11 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     feedbackStateR = 0.0f;
 
     // Reset unison LFO phases (stagger for rich chorusing)
+    // Initialize random offsets for Random distribution mode
     for (int i = 0; i < maxUnisonVoices; ++i)
     {
         voiceLfoPhases[i] = static_cast<float>(i) / static_cast<float>(maxUnisonVoices);
+        voiceRandomOffsets[i] = (random.nextFloat() * 2.0f - 1.0f);
     }
 
     // Pre-allocate processing buffers (real-time safety)
@@ -342,7 +344,7 @@ void ODetuneAudioProcessor::releaseResources()
 // DSP Helper Functions
 
 // Multi-waveform LFO generator
-float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& noiseHeld, int& /*lastQuarter*/, juce::Random& rng)
+float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& noiseHeld, int& lastQuarter, juce::Random& rng)
 {
     switch (shapeType)
     {
@@ -796,41 +798,15 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 8. Process Unison Engine (multi-voice detuning with continuous pitch shift)
+    // 8. Process Unison Engine (chorus-style LFO modulation - click-free)
 
     unisonBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
     unisonBuffer.clear();  // Clear for voice accumulation
 
-    // Calculate voice detunes based on distribution algorithm
-    float voiceDetunes[maxUnisonVoices];
-    float halfCount = (activeVoices - 1) / 2.0f;
-
-    for (int i = 0; i < activeVoices; ++i)
-    {
-        float normalizedPos = (halfCount > 0.0f) ? (i - halfCount) / halfCount : 0.0f;
-
-        switch (unisonDist)
-        {
-            case 0: // Linear
-                voiceDetunes[i] = normalizedPos * unisonDetune;
-                break;
-
-            case 1: // Exponential (more voices near center)
-            {
-                float sign = (normalizedPos >= 0) ? 1.0f : -1.0f;
-                voiceDetunes[i] = sign * std::pow(std::abs(normalizedPos), 2.0f) * unisonDetune;
-                break;
-            }
-
-            case 2: // Random (stable random offsets - don't add again later)
-                voiceDetunes[i] = voiceRandomOffsets[i] * unisonDetune;
-                break;
-        }
-    }
-
     // Calculate per-voice pan positions
     float voicePanL[maxUnisonVoices];
     float voicePanR[maxUnisonVoices];
+    float halfCount = (activeVoices - 1) / 2.0f;
     float spreadNorm = unisonSpread / 100.0f;
 
     for (int i = 0; i < activeVoices; ++i)
@@ -843,41 +819,20 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         voicePanR[i] = std::sin((pan + 1.0f) * 0.25f * juce::MathConstants<float>::pi);
     }
 
-    // Add random variation (refresh slowly - every 4096 samples for smoother transitions)
-    if (randomRefreshCounter <= 0)
-    {
-        for (int i = 0; i < maxUnisonVoices; ++i)
-        {
-            // Smoother random: interpolate toward new target instead of jumping
-            float newTarget = (random.nextFloat() * 2.0f - 1.0f);
-            voiceRandomOffsets[i] = voiceRandomOffsets[i] * 0.7f + newTarget * 0.3f;
-        }
-        randomRefreshCounter = 4096;
-    }
-    randomRefreshCounter -= numSamples;
-
-    // ==========================================================================
-    // CLASSIC CHORUS ALGORITHM (inherently click-free)
-    // Each voice has a sine LFO that modulates delay time continuously.
-    // The detune parameter controls modulation depth (more detune = wider sweep).
-    // Distribution affects the LFO rate spread between voices.
-    // ==========================================================================
-
     // Convert detune (cents) to delay modulation depth (samples)
-    // 50 cents ≈ 3% pitch change, which needs ~1.5ms delay modulation at 50ms center
     const float maxModulationMs = 3.0f;  // ±3ms max modulation
     const float modulationDepthSamples = (unisonDetune / 50.0f) * (maxModulationMs / 1000.0f) * static_cast<float>(currentSampleRate);
 
     // Base LFO rate (Hz) - slow for chorus effect
-    const float baseLfoRate = 0.5f;  // 0.5 Hz = 2 second cycle
+    const float baseLfoRate = 0.5f;
 
-    // Process each voice
+    // Process each voice with sine LFO modulation
     for (int voice = 0; voice < activeVoices; ++voice)
     {
-        // Calculate this voice's LFO rate based on distribution
-        float voiceLfoRate = baseLfoRate;
         float normalizedPos = (halfCount > 0.0f) ? (voice - halfCount) / halfCount : 0.0f;
 
+        // Calculate this voice's LFO rate based on distribution
+        float voiceLfoRate = baseLfoRate;
         switch (unisonDist)
         {
             case 0: // Linear - voices have evenly spread rates
@@ -897,10 +852,8 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 break;
         }
 
-        // Phase increment for this voice's LFO
         float phaseIncrement = voiceLfoRate / static_cast<float>(currentSampleRate);
 
-        // Get buffer pointers
         auto* inputDataL = numChannels >= 1 ? buffer.getReadPointer(0) : nullptr;
         auto* inputDataR = numChannels >= 2 ? buffer.getReadPointer(1) : nullptr;
         auto* outputDataL = numChannels >= 1 ? unisonBuffer.getWritePointer(0) : nullptr;
@@ -908,59 +861,42 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            // Sine LFO (inherently smooth, no discontinuities)
+            // Sine LFO (inherently smooth)
             float lfoValue = std::sin(voiceLfoPhases[voice] * juce::MathConstants<float>::twoPi);
 
-            // Calculate delay time: center + modulation
-            // Each voice gets a different modulation direction based on position
+            // Calculate delay time
             float voiceModDepth = modulationDepthSamples * (1.0f + normalizedPos * 0.2f);
             float delayTime = centerDelaySamples + lfoValue * voiceModDepth;
-
-            // Clamp to valid range
             delayTime = std::max(1.0f, std::min(delayTime, centerDelaySamples * 1.5f));
 
-            // Process left channel
             if (inputDataL && outputDataL)
             {
                 unisonDelaysL[voice].setDelay(delayTime);
                 unisonDelaysL[voice].pushSample(0, inputDataL[sample]);
-                float delayedSample = unisonDelaysL[voice].popSample(0);
-                outputDataL[sample] += delayedSample * voicePanL[voice];
+                outputDataL[sample] += unisonDelaysL[voice].popSample(0) * voicePanL[voice];
             }
 
-            // Process right channel
             if (inputDataR && outputDataR)
             {
                 unisonDelaysR[voice].setDelay(delayTime);
                 unisonDelaysR[voice].pushSample(0, inputDataR[sample]);
-                float delayedSample = unisonDelaysR[voice].popSample(0);
-                outputDataR[sample] += delayedSample * voicePanR[voice];
+                outputDataR[sample] += unisonDelaysR[voice].popSample(0) * voicePanR[voice];
             }
 
-            // Advance LFO phase (wraps naturally, sine is continuous)
             voiceLfoPhases[voice] += phaseIncrement;
             if (voiceLfoPhases[voice] >= 1.0f)
                 voiceLfoPhases[voice] -= 1.0f;
         }
     }
 
-    // Normalize by voice count with conservative gain (1/N instead of 1/sqrt(N))
-    // Random distribution can cause phase alignment, so we need more headroom
+    // Normalize and soft-limit the unison output
     float gainCompensation = 1.0f / static_cast<float>(activeVoices);
-
     for (int channel = 0; channel < numChannels; ++channel)
     {
         auto* data = unisonBuffer.getWritePointer(channel);
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            // Apply gain compensation
-            float s = data[sample] * gainCompensation;
-
-            // Always-on soft saturation (gentle compression that increases with level)
-            // This prevents harsh clipping while preserving dynamics at normal levels
-            s = std::tanh(s);
-
-            data[sample] = s;
+            data[sample] = std::tanh(data[sample] * gainCompensation);
         }
     }
 

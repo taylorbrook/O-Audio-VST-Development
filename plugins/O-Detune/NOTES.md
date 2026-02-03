@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.5
+- **Version:** 1.3.6
 - **Type:** Audio Effect (Detuning / Pitch Thickening)
 - **Complexity:** 5.0 (Maximum)
 
@@ -21,6 +21,7 @@
 - **2026-02-03 (v1.3.3):** Fixed remaining clicks (added per-voice detune + delay smoothing)
 - **2026-02-03 (v1.3.4):** Rewrote unison engine with classic chorus algorithm (per-voice sine LFO)
 - **2026-02-03 (v1.3.5):** Fixed clipping on loud signals (1/N gain + always-on tanh saturation)
+- **2026-02-03 (v1.3.6):** Restored wobble engine (was broken in v1.3.5), reapplied unison fixes cleanly
 
 ## Overview
 

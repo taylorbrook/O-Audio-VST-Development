@@ -1,5 +1,21 @@
 # O-Detune Changelog
 
+## [1.3.6] - 2026-02-03
+
+### Fixed
+
+- **Restored wobble engine functionality** (was accidentally not working in v1.3.5)
+  - Restored from v1.3.0 backup and carefully reapplied only unison changes
+  - Wobble engine code is now identical to the working v1.3.0 version
+  - Unison engine updated with new chorus algorithm (from v1.3.4/v1.3.5)
+
+### Technical Notes
+
+- Wobble engine unchanged from v1.3.0
+- Unison engine uses per-voice sine LFO (from v1.3.4)
+- Gain compensation: 1/N with always-on tanh() saturation (from v1.3.5)
+- voiceRandomOffsets initialized in prepareToPlay for Random distribution
+
 ## [1.3.5] - 2026-02-03
 
 ### Fixed
