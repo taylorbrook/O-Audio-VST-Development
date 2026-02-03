@@ -2,6 +2,23 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.5.2] - 2026-02-03
+
+### Added
+- **Attack Amount slider in UI** - Now visible in Character section, underneath the Noise (attack type) selector
+  - Controls the level of the strike transient (noise, thud, ping)
+  - 0% = minimal transient, pure tone
+  - 50% = natural transient level (default)
+  - 100% = exaggerated transient, percussive
+
+### Changed
+- **Parameter label renamed** - "Attack" → "Attack Amount" for clarity
+
+### Technical Notes
+- Domain: UI only (parameter already existed since v1.3.0, just wasn't visible in UI)
+- Total UI controls: 30 sliders + 2 choice params
+- Preset compatibility: Fully compatible (parameter ID unchanged)
+
 ## [1.5.1] - 2026-02-03
 
 ### Changed

@@ -924,6 +924,21 @@
                         <!-- Decay removed in v1.2.0 - always multi-stage -->
                     </div>
                 </div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="param-label">Attack Amount</div>
+                        <div class="slider" data-param="attackLevel">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="attackLevel">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <!-- Spacer for alignment -->
+                    </div>
+                    <div class="param-control">
+                        <!-- Spacer for alignment -->
+                    </div>
+                </div>
             </div>
 
             <!-- Advanced Section -->
@@ -1114,6 +1129,7 @@
             { id: 'pitchEnvelope', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'pitchEnvTime', min: 0, max: 1, default: 0.23, format: v => `${Math.round(5 + v * 195)}ms` },
             { id: 'nonlinearEffects', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'attackLevel', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
             // Multi-stage envelope params (visible when decayShape == 2)
             { id: 'strikeTime', min: 0, max: 1, default: 0.26, format: v => `${Math.round(5 + v * 95)}ms` },
             { id: 'brilliance', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
@@ -1307,7 +1323,7 @@
             meterRight.style.setProperty('--level', `${rightPercent}%`);
         };
 
-        console.log('O-Bells v1.5.0 UI initialized - 29 sliders + 2 choice params bound');
+        console.log('O-Bells v1.5.2 UI initialized - 30 sliders + 2 choice params bound');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY

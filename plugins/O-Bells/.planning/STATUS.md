@@ -252,6 +252,8 @@ Ouaricon Naturalist theme with snail motif (Architectonica perspectiva species).
 
 | Version | Date | Changes |
 |---------|------|---------|
+| 1.5.2 | 2026-02-03 | Attack Amount slider added to UI, parameter renamed for clarity |
+| 1.5.1 | 2026-02-03 | Bloom speed readouts now display milliseconds |
 | 1.5.0 | 2026-02-03 | Bloom Fine Controls - per-band (Low/Mid/High) control of bloom speed/amount |
 | 1.4.1 | 2026-02-03 | Expanded bloom speed range, increased low partial bloom amount |
 | 1.4.0 | 2026-02-03 | Split bloom into speed/amount parameters |

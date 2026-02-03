@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.1
+- **Version:** 1.5.2
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -17,6 +17,7 @@
 - **2026-02-03 (v1.4.1):** Expanded bloom speed ranges for more dramatic effects
 - **2026-02-03 (v1.5.0):** Bloom Fine Controls - per-band independent speed/amount (6 new params)
 - **2026-02-03 (v1.5.1):** Bloom speed readouts now display milliseconds instead of percentages
+- **2026-02-03 (v1.5.2):** Attack Amount slider added to UI (was missing), parameter renamed for clarity
 
 ## Known Issues
 

@@ -251,10 +251,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         0
     ));
 
-    // ATTACK_LEVEL - Transient volume control (v1.3.0)
+    // ATTACK_LEVEL - Transient volume control (v1.3.0, renamed v1.5.2)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "attackLevel", 1 },
-        "Attack",
+        "Attack Amount",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.5f,  // Default 50% (natural level)
         "%"
