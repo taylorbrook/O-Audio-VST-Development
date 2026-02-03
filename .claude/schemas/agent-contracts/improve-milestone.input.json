@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "improve-milestone.input",
+  "title": "Improve Milestone Input Contract",
+  "description": "Required inputs for improve-milestone skill invocation - manages complex improvements with GSD-style phase cycles",
+  "type": "object",
+  "required": ["plugin_name"],
+  "properties": {
+    "plugin_name": {
+      "$ref": "common/plugin-reference.json#/properties/plugin_name",
+      "description": "Name of plugin to improve (must be Working or Installed status)"
+    },
+    "milestone_description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Description of the improvement (used to generate milestone slug)"
+    },
+    "resume": {
+      "type": "boolean",
+      "default": false,
+      "description": "Resume existing milestone instead of starting new"
+    },
+    "skip_phases": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": ["discuss", "research", "verify"]
+      },
+      "uniqueItems": true,
+      "description": "Phases to skip (plan and execute cannot be skipped)"
+    },
+    "force_domain": {
+      "type": "string",
+      "enum": ["dsp", "gui", "polish", "general"],
+      "description": "Override automatic domain detection for execute phase agent selection"
+    },
+    "force_version_bump": {
+      "type": "string",
+      "enum": ["patch", "minor", "major"],
+      "description": "Override automatic version bump type detection"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "plugin_name": "O-Bells",
+      "milestone_description": "add chorus effect with modulation routing"
+    },
+    {
+      "plugin_name": "O-Bells",
+      "resume": true
+    },
+    {
+      "plugin_name": "O-Detune",
+      "milestone_description": "optimize DSP for lower CPU usage",
+      "skip_phases": ["discuss"],
+      "force_domain": "dsp"
+    }
+  ]
+}

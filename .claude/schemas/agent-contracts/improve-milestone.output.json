@@ -1,0 +1,199 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "improve-milestone.output",
+  "title": "Improve Milestone Output Contract",
+  "description": "Guaranteed outputs from improve-milestone skill on successful completion",
+  "type": "object",
+  "required": [
+    "milestone_slug",
+    "phases_completed",
+    "version_bump",
+    "artifacts"
+  ],
+  "properties": {
+    "milestone_slug": {
+      "type": "string",
+      "pattern": "^[a-z0-9-]+$",
+      "description": "Slug identifier for the milestone (e.g., 'add-chorus-effect')"
+    },
+    "plugin_name": {
+      "type": "string",
+      "description": "Name of the improved plugin"
+    },
+    "phases_completed": {
+      "type": "object",
+      "properties": {
+        "discuss": {
+          "type": "string",
+          "enum": ["complete", "skipped"]
+        },
+        "research": {
+          "type": "string",
+          "enum": ["complete", "skipped"]
+        },
+        "plan": {
+          "type": "string",
+          "enum": ["complete"]
+        },
+        "execute": {
+          "type": "string",
+          "enum": ["complete"]
+        },
+        "verify": {
+          "type": "string",
+          "enum": ["complete", "skipped"]
+        }
+      },
+      "required": ["discuss", "research", "plan", "execute", "verify"],
+      "additionalProperties": false,
+      "description": "Status of each phase"
+    },
+    "version_bump": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": ["patch", "minor", "major"]
+        },
+        "from": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "Previous version"
+        },
+        "to": {
+          "type": "string",
+          "pattern": "^\\d+\\.\\d+\\.\\d+$",
+          "description": "New version"
+        }
+      },
+      "required": ["type", "from", "to"],
+      "additionalProperties": false,
+      "description": "Version change details"
+    },
+    "domain": {
+      "type": "string",
+      "enum": ["dsp", "gui", "polish", "mixed"],
+      "description": "Detected improvement domain"
+    },
+    "execute_agent": {
+      "type": "string",
+      "enum": ["dsp-agent", "gui-agent", "polish-agent", "general-purpose"],
+      "description": "Agent used for execute phase"
+    },
+    "artifacts": {
+      "type": "object",
+      "properties": {
+        "milestone_directory": {
+          "type": "string",
+          "description": "Path to milestone directory with all phase outputs"
+        },
+        "context_md": {
+          "type": "string",
+          "description": "Path to CONTEXT.md (or null if skipped)"
+        },
+        "research_md": {
+          "type": "string",
+          "description": "Path to RESEARCH.md (or null if skipped)"
+        },
+        "plan_md": {
+          "type": "string",
+          "description": "Path to PLAN.md"
+        },
+        "summary_md": {
+          "type": "string",
+          "description": "Path to SUMMARY.md"
+        },
+        "verification_md": {
+          "type": "string",
+          "description": "Path to VERIFICATION.md (or null if skipped)"
+        },
+        "status_yaml": {
+          "type": "string",
+          "description": "Path to STATUS.yaml"
+        },
+        "backup_path": {
+          "type": "string",
+          "description": "Path to pre-implementation backup"
+        }
+      },
+      "required": [
+        "milestone_directory",
+        "plan_md",
+        "summary_md",
+        "status_yaml",
+        "backup_path"
+      ],
+      "additionalProperties": false,
+      "description": "Paths to generated artifacts"
+    },
+    "verification_result": {
+      "type": "string",
+      "enum": ["passed", "passed_with_notes", "skipped"],
+      "description": "Result of verify phase"
+    },
+    "git_operations": {
+      "type": "object",
+      "properties": {
+        "commit_hash": {
+          "type": "string",
+          "description": "Git commit hash for the improvement"
+        },
+        "tag": {
+          "type": "string",
+          "description": "Git tag created (e.g., 'v1.2.0')"
+        }
+      },
+      "required": ["commit_hash", "tag"],
+      "additionalProperties": false,
+      "description": "Git operation results"
+    },
+    "changelog_entry": {
+      "type": "string",
+      "description": "CHANGELOG.md entry that was added"
+    },
+    "known_issues": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Issues documented if verification passed with notes"
+    }
+  },
+  "additionalProperties": false,
+  "examples": [
+    {
+      "milestone_slug": "add-chorus-effect",
+      "plugin_name": "O-Bells",
+      "phases_completed": {
+        "discuss": "complete",
+        "research": "complete",
+        "plan": "complete",
+        "execute": "complete",
+        "verify": "complete"
+      },
+      "version_bump": {
+        "type": "minor",
+        "from": "1.1.1",
+        "to": "1.2.0"
+      },
+      "domain": "dsp",
+      "execute_agent": "dsp-agent",
+      "artifacts": {
+        "milestone_directory": "plugins/O-Bells/.planning/improvements/add-chorus-effect/",
+        "context_md": "plugins/O-Bells/.planning/improvements/add-chorus-effect/CONTEXT.md",
+        "research_md": "plugins/O-Bells/.planning/improvements/add-chorus-effect/RESEARCH.md",
+        "plan_md": "plugins/O-Bells/.planning/improvements/add-chorus-effect/PLAN.md",
+        "summary_md": "plugins/O-Bells/.planning/improvements/add-chorus-effect/SUMMARY.md",
+        "verification_md": "plugins/O-Bells/.planning/improvements/add-chorus-effect/VERIFICATION.md",
+        "status_yaml": "plugins/O-Bells/.planning/improvements/add-chorus-effect/STATUS.yaml",
+        "backup_path": "backups/O-Bells/v1.1.1/"
+      },
+      "verification_result": "passed",
+      "git_operations": {
+        "commit_hash": "abc123def",
+        "tag": "v1.2.0"
+      },
+      "changelog_entry": "## [1.2.0] - 2026-02-02\n\n### Added\n- Chorus effect with rate and depth controls"
+    }
+  ]
+}

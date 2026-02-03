@@ -86,6 +86,11 @@
         "blockedBy": {
           "type": ["string", "null"],
           "description": "Description of what's blocking progress (if status is blocked)"
+        },
+        "activeMilestone": {
+          "type": ["string", "null"],
+          "pattern": "^[a-z0-9-]+$",
+          "description": "Active improvement milestone slug (e.g., 'add-chorus-effect'). Set when /improve:milestone is in progress, cleared on completion."
         }
       }
     },

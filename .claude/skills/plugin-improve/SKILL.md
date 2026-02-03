@@ -71,8 +71,15 @@ Phase 0.45: Research Detection (MANDATORY - scan conversation history)
 Phase 0.5: Investigation (Tier 1/2/3 auto-detected)
   |                            ↓
 [Tier 1?] ─YES─────────────────────────────────────> Skip to Phase 0.9
-  | NO (Tier 2 or 3)                                   (no planning needed)
+  |                                                    (no planning needed)
+  | NO
   ↓
+[Tier 3?] ─YES→ Present milestone option menu
+  |              ↓
+  |         [User chooses milestone?] ─YES→ EXIT: /improve-milestone
+  |              ↓ NO
+  | NO (Tier 2)  |
+  ↓              ↓
 Phase 0.6: Implementation Planning (conditional - Tier 2/3 only)
   ↓
 [Approved?] ─NO→ Revision menu
@@ -102,6 +109,7 @@ Phase 8: Completion (decision menu)
 - MANDATORY: Always executes (Phase 0.45)
 - CRITICAL GATE: Blocks workflow if fails (Phase 0.9)
 - CONDITIONAL: Only if conditions met (Phase 0.6, Phase 5.5, Phase 7)
+- MILESTONE FORK: Tier 3 can route to /improve-milestone for phase cycles
 
 ## Progress Checklist
 

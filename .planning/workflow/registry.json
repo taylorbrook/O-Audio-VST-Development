@@ -9,10 +9,11 @@
       "phase": "complete",
       "status": "complete",
       "created": "2026-02-01",
-      "lastActivity": "2026-02-02T00:00:00Z",
+      "lastActivity": "2026-02-02T12:00:00Z",
       "modules": [],
       "expressMode": false,
-      "blockedBy": null
+      "blockedBy": null,
+      "activeMilestone": "realism-overhaul"
     },
     "O-Freeze": {
       "path": "plugins/O-Freeze",

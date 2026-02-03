@@ -212,30 +212,49 @@ Choose (1-3): _
 
 ---
 
-### Tier 3: Planning Required
+### Tier 3: Planning Required (or Milestone Routing)
 
 **Characteristics:**
 - Architectural changes, major refactors, multi-system improvements
 - 5+ files affected
 - New features touching multiple components
 - High risk of rework without upfront planning
+- Research-heavy or multi-session work
 
-**Keywords detected:** "refactor", "overhaul", "redesign", "rewrite", "architecture"
+**Keywords detected:** "refactor", "overhaul", "redesign", "rewrite", "architecture", "optimize", "performance", "chorus", "reverb", "new effect"
 
-**Action:** Strong suggestion to user:
+**Action:** Present milestone option alongside planning:
 ```
-This is a significant change. Planning recommended before starting.
+This is a significant change that may benefit from structured tracking.
 
-Would you like me to create an implementation plan?
+How would you like to proceed?
 
-1. Yes, create plan (recommended)
-2. No, proceed directly
-3. Other
+1. Continue with /improve (create plan in current context)
+2. Switch to /improve-milestone (phase cycles with context clearing)
+3. Proceed without planning (not recommended)
+4. Other
 
-Choose (1-3): _
+Choose (1-4): _
 ```
 
-**Proceed to Phase 0.6** if user accepts, otherwise skip to Phase 0.9.
+**Option descriptions:**
+- **Option 1:** Creates implementation plan in current conversation, proceeds to execute. Good for medium complexity Tier 3 that fits in one context.
+- **Option 2:** Switches to `/improve-milestone` workflow with 5-phase cycle (discuss → research → plan → execute → verify) and `/clear` between phases. Recommended for:
+  - Large architectural changes
+  - Research-heavy improvements
+  - Work spanning multiple sessions
+  - Changes needing formal verification
+- **Option 3:** Proceed directly (not recommended for Tier 3)
+- **Option 4:** Custom approach
+
+**If Option 1 selected:** Proceed to Phase 0.6 (Implementation Planning)
+**If Option 2 selected:**
+```
+Switching to milestone workflow.
+
+Run: /improve-milestone [PluginName] "[description]"
+```
+**If Option 3 selected:** Skip to Phase 0.9 (log: user bypassed planning for Tier 3)
 
 ---
 
