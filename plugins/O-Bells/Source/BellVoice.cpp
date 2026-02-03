@@ -588,9 +588,19 @@ float BellVoice::calculatePartialFrequency(int partialIndex, float fundamental, 
 
 float BellVoice::calculateStrikePositionGain(int partialIndex, float position)
 {
-    // Comb filter effect: nodes at integer multiples of position
-    float phase = juce::MathConstants<float>::pi * position * (partialIndex + 1);
-    return std::abs(std::sin(phase));
+    // Strike position models where the bell is struck:
+    // Center (0): warm, fundamental-heavy - like striking the bell's center
+    // Edge (1): bright, partial-rich - like striking near the rim
+
+    float normalizedPartial = partialIndex / 7.0f;  // 0.0 to 1.0 for 8 partials
+
+    // Spectral tilt: center favors low partials, edge favors high partials
+    // More extreme range for obvious tonal difference
+    float lowPartialGain = 1.0f - position * 0.85f;   // 1.0 → 0.15 as position 0 → 1
+    float highPartialGain = 0.15f + position * 0.85f; // 0.15 → 1.0 as position 0 → 1
+
+    // Interpolate based on which partial we're calculating
+    return lowPartialGain + normalizedPartial * (highPartialGain - lowPartialGain);
 }
 
 float BellVoice::calculatePartialAmplitude(int partialIndex, float brightness)

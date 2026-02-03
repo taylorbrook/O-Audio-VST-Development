@@ -2,6 +2,23 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.5.3] - 2026-02-03
+
+### Fixed
+- **No sound when Strike at 0% or 100%** - Strike position now produces sound across the full range
+  - Root cause: Comb filter formula created zero-nodes at position extremes (`sin(0)=0`, `sin(nπ)=0`)
+  - Fix: Replaced comb filter with spectral tilt model for more musical and audible results
+
+### Changed
+- **Strike parameter redesigned** - Now models physical strike position with clear tonal difference
+  - 0% (center): Warm, fundamental-heavy tone - like striking the bell's center
+  - 100% (edge): Bright, partial-rich tone - like striking near the rim
+  - Smooth spectral transition across the full range
+
+### Technical Notes
+- Domain: DSP (BellVoice.cpp:calculateStrikePositionGain)
+- Preset compatibility: Existing presets may sound slightly different (spectral balance changed)
+
 ## [1.5.2] - 2026-02-03
 
 ### Added
