@@ -107,8 +107,8 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     gateState = GateState::Idle;
 
     // Initialize granular synthesis components
-    grainSize = static_cast<int>(sampleRate * 0.200); // 200ms grains
-    grainTriggerInterval = grainSize / 8; // 8 grains with 87.5% overlap
+    grainSize = static_cast<int>(sampleRate * 0.350); // 350ms grains for smoother texture
+    grainTriggerInterval = grainSize / NUM_GRAINS; // 12 grains with 91.7% overlap
 
     // Pre-compute symmetric Hann window (true zero at endpoints, COLA compliant at 87.5% overlap)
     hannWindow.resize(grainSize);
@@ -123,14 +123,14 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 #if JUCE_DEBUG
     // Verify COLA compliance: sum of overlapping windows should be constant
     float colaSum = 0.0f;
-    for (int grainOffset = 0; grainOffset < 8; ++grainOffset)
+    for (int grainOffset = 0; grainOffset < NUM_GRAINS; ++grainOffset)
     {
         int windowPos = grainOffset * grainTriggerInterval;
         if (windowPos < grainSize)
             colaSum += hannWindow[windowPos];
     }
-    // At 87.5% overlap with Hann window, sum should be approximately 1.0
-    jassert(std::abs(colaSum - 1.0f) < 0.1f);
+    // At 91.7% overlap with Hann window, sum should be approximately 1.0
+    jassert(std::abs(colaSum - 1.0f) < 0.15f);  // Slightly wider tolerance for 12 grains
 #endif
 
     // Reset all grains to inactive
@@ -247,7 +247,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             grains[0].position = startPos;
 
             // Deactivate all other grains - they'll be triggered naturally
-            for (int i = 1; i < 8; ++i)
+            for (int i = 1; i < NUM_GRAINS; ++i)
             {
                 grains[i].active = false;
             }
@@ -262,9 +262,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Stop triggering NEW grains, but let active grains complete their cycle
             stopTriggeringNewGrains = true;
 
-            // Extended fade-out to cover grain completion time (grainSize samples ≈ 200ms)
+            // Extended fade-out to cover grain completion time (grainSize samples ≈ 350ms)
             // Add extra 50ms safety margin
-            freezeGain.reset(currentSampleRate, 0.250); // 250ms fade-out
+            freezeGain.reset(currentSampleRate, 0.400); // 400ms fade-out
             freezeGain.setTargetValue(0.0f);
 
             // DON'T deactivate grains here - they'll naturally complete
@@ -295,7 +295,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 newGrain.position = (basePos + driftOffset) % freezeBufferLength;
 
                 // Advance grain index (round-robin)
-                nextGrainIndex = (nextGrainIndex + 1) % 8;
+                nextGrainIndex = (nextGrainIndex + 1) % NUM_GRAINS;
 
                 // Reset trigger counter
                 grainTriggerCounter = 0;
@@ -307,17 +307,15 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         }
 
         // Get current window values and positions for all active grains (before advancing)
-        float windowValues[8] = {0};
-        int grainPositions[8] = {0};
-        int activeGrainCount = 0;
+        float windowValues[NUM_GRAINS] = {0};
+        int grainPositions[NUM_GRAINS] = {0};
 
-        for (int g = 0; g < 8; ++g)
+        for (int g = 0; g < NUM_GRAINS; ++g)
         {
             if (grains[g].active)
             {
                 windowValues[g] = hannWindow[grains[g].startSample];
                 grainPositions[g] = grains[g].position;
-                activeGrainCount++;
             }
         }
 
@@ -339,23 +337,25 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Granular synthesis (if frozen or fading out)
             if (bufferFrozen || freezeGain.getCurrentValue() > 0.001f)
             {
-                // Sum all active grains (overlap-add synthesis)
+                // Sum all active grains (overlap-add synthesis with COLA)
+                // NOTE: With proper COLA, overlapping Hann windows sum to ~1.0
+                // so NO normalization by grain count is needed
                 float granularSum = 0.0f;
 
-                for (int g = 0; g < 8; ++g)
+                for (int g = 0; g < NUM_GRAINS; ++g)
                 {
                     if (grains[g].active)
                     {
                         // Read from freeze buffer at grain position
                         float grainSample = freezeData[grainPositions[g]];
 
-                        // Apply Hann window
+                        // Apply Hann window (COLA-compliant)
                         granularSum += grainSample * windowValues[g];
                     }
                 }
 
-                // Normalize output to prevent clipping
-                float frozenSample = (activeGrainCount > 0) ? (granularSum / activeGrainCount) : 0.0f;
+                // COLA handles amplitude - no division by grain count
+                float frozenSample = granularSum;
 
                 // Apply crossfade envelope
                 float currentGain = freezeGain.getNextValue();

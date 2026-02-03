@@ -72,7 +72,8 @@ private:
     int rmsSamplesPerWindow = 0;
 
     // Granular synthesis components
-    std::array<Grain, 8> grains;
+    static constexpr int NUM_GRAINS = 12;  // 12 grains for denser overlap
+    std::array<Grain, NUM_GRAINS> grains;
     std::vector<float> hannWindow;
     int grainSize = 0;
     int grainTriggerInterval = 0;

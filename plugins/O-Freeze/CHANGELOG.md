@@ -2,6 +2,21 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.2.0] - 2026-02-03
+
+### Fixed
+- Removed incorrect COLA normalization (dividing by active grain count caused amplitude pumping)
+
+### Changed
+- Increased grain size from 200ms to 350ms for smoother, more lush frozen textures
+- Increased grain count from 8 to 12 for denser overlap (91.7% vs 87.5%)
+- Extended release fade from 250ms to 400ms to accommodate longer grains
+
+### Technical Notes
+- COLA (Constant Overlap-Add) now works correctly: overlapping Hann windows sum to ~1.0 without division
+- 12 grains with 91.7% overlap provides more continuous, artifact-free frozen sound
+- Longer grains = slower envelope = gentler transitions
+
 ## [1.1.0] - 2026-02-02
 
 ### Changed
