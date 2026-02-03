@@ -110,35 +110,28 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     grainSize = static_cast<int>(sampleRate * 0.200); // 200ms grains
     grainTriggerInterval = grainSize / 8; // 8 grains with 87.5% overlap
 
-    // Pre-compute asymmetric Blackman-Harris window (extended attack, softer onsets)
-    // Attack: 60% of grain, Release: 40% of grain
+    // Pre-compute symmetric Hann window (true zero at endpoints, COLA compliant at 87.5% overlap)
     hannWindow.resize(grainSize);
     const double PI = juce::MathConstants<double>::pi;
-    const int attackLen = static_cast<int>(grainSize * 0.6);
-    const int releaseLen = grainSize - attackLen;
 
-    // Blackman-Harris coefficients
-    const double a0 = 0.35875, a1 = 0.48829, a2 = 0.14128, a3 = 0.01168;
-
-    // Attack phase (stretched Blackman-Harris rise)
-    for (int i = 0; i < attackLen; ++i)
+    for (int i = 0; i < grainSize; ++i)
     {
-        double phase = 0.5 * static_cast<double>(i) / (attackLen - 1); // 0 to 0.5
-        double w = a0 - a1 * std::cos(2.0 * PI * phase)
-                      + a2 * std::cos(4.0 * PI * phase)
-                      - a3 * std::cos(6.0 * PI * phase);
-        hannWindow[i] = static_cast<float>(w);
+        double phase = static_cast<double>(i) / static_cast<double>(grainSize - 1);
+        hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
     }
 
-    // Release phase (compressed Blackman-Harris fall)
-    for (int i = 0; i < releaseLen; ++i)
+#if JUCE_DEBUG
+    // Verify COLA compliance: sum of overlapping windows should be constant
+    float colaSum = 0.0f;
+    for (int grainOffset = 0; grainOffset < 8; ++grainOffset)
     {
-        double phase = 0.5 + 0.5 * static_cast<double>(i) / (releaseLen - 1); // 0.5 to 1.0
-        double w = a0 - a1 * std::cos(2.0 * PI * phase)
-                      + a2 * std::cos(4.0 * PI * phase)
-                      - a3 * std::cos(6.0 * PI * phase);
-        hannWindow[attackLen + i] = static_cast<float>(w);
+        int windowPos = grainOffset * grainTriggerInterval;
+        if (windowPos < grainSize)
+            colaSum += hannWindow[windowPos];
     }
+    // At 87.5% overlap with Hann window, sum should be approximately 1.0
+    jassert(std::abs(colaSum - 1.0f) < 0.1f);
+#endif
 
     // Reset all grains to inactive
     for (auto& grain : grains)
@@ -150,6 +143,7 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     grainTriggerCounter = 0;
     nextGrainIndex = 0;
+    stopTriggeringNewGrains = false;
 }
 
 void OFreezeAudioProcessor::releaseResources()
@@ -242,28 +236,39 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             freezeGain.reset(currentSampleRate, 0.050); // 50ms fade-in
             freezeGain.setTargetValue(1.0f);
 
-            // Immediately trigger all 8 grains with staggered positions for instant full overlap
-            // Start reading from BEHIND writePosition (where audio actually exists)
+            // Staggered activation: only activate FIRST grain immediately
+            // Subsequent grains will be activated by normal trigger mechanism
             const int freezeBufLen = freezeBuffer.getNumSamples();
             int startPos = (writePosition - grainSize + freezeBufLen) % freezeBufLen;
-            for (int i = 0; i < 8; ++i)
+
+            // Activate only the first grain
+            grains[0].active = true;
+            grains[0].startSample = 0;
+            grains[0].position = startPos;
+
+            // Deactivate all other grains - they'll be triggered naturally
+            for (int i = 1; i < 8; ++i)
             {
-                grains[i].active = true;
-                grains[i].startSample = i * (grainSize / 8); // Stagger within grain window
-                grains[i].position = (startPos + i * (grainSize / 8)) % freezeBufLen;
+                grains[i].active = false;
             }
-            nextGrainIndex = 0;
+
+            nextGrainIndex = 1;  // Next grain to trigger
             grainTriggerCounter = 0;
+            stopTriggeringNewGrains = false;  // Ensure we're triggering grains
         }
         else
         {
-            // Freeze released: fade out frozen signal
-            freezeGain.reset(currentSampleRate, 0.100); // 100ms fade-out
+            // Freeze released: soft deactivation
+            // Stop triggering NEW grains, but let active grains complete their cycle
+            stopTriggeringNewGrains = true;
+
+            // Extended fade-out to cover grain completion time (grainSize samples ≈ 200ms)
+            // Add extra 50ms safety margin
+            freezeGain.reset(currentSampleRate, 0.250); // 250ms fade-out
             freezeGain.setTargetValue(0.0f);
 
-            // Deactivate all grains
-            for (auto& grain : grains)
-                grain.active = false;
+            // DON'T deactivate grains here - they'll naturally complete
+            // when startSample >= grainSize (already handled in grain advance loop)
         }
     }
 
@@ -272,8 +277,8 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // Process sample-by-sample (all channels together) so grain state stays in sync
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Trigger new grain (once per trigger interval)
-        if (bufferFrozen)
+        // Only trigger new grains if frozen AND not in soft release mode
+        if (bufferFrozen && !stopTriggeringNewGrains)
         {
             if (grainTriggerCounter >= grainTriggerInterval)
             {

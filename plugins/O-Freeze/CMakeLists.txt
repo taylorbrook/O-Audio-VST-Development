@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Freeze
+    VERSION 1.1.0
     COMPANY_NAME "Ouaricon Development"
     PLUGIN_MANUFACTURER_CODE OuDv
     PLUGIN_CODE OFCR

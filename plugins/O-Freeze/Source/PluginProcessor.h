@@ -79,6 +79,7 @@ private:
     int grainTriggerCounter = 0;
     int nextGrainIndex = 0;
     juce::Random random;
+    bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;
