@@ -860,8 +860,8 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     // Drift rate constant: how fast the delay changes to create pitch shift
     // For delay-based pitch shifting: dDelay/dt = (1 - pitchRatio) * sampleRate
-    // We use a modulation range of ±20ms around center for smooth wrapping
-    const float driftRangeMs = 20.0f;
+    // We use a modulation range of ±10ms around center (smaller = faster cycles, more stable pitch)
+    const float driftRangeMs = 10.0f;
     const float driftRangeSamples = (driftRangeMs / 1000.0f) * static_cast<float>(currentSampleRate);
 
     // Process each voice with continuous delay modulation
@@ -879,7 +879,8 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         float voicePitchRatio = std::pow(2.0f, effectiveDetune / 1200.0f);
         float driftRate = (1.0f - voicePitchRatio);  // Negative for pitch up, positive for pitch down
 
-        // Normalize to drift range (one complete cycle = one drift range traversal)
+        // Phase increment determines how fast the triangle wave cycles
+        // Smaller detune = slower drift = more stable pitch perception
         float phaseIncrement = std::abs(driftRate) / driftRangeSamples;
 
         // Process both channels sample-by-sample with modulating delay
@@ -890,18 +891,26 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            // Calculate delay offset from drift phase (sawtooth wave)
-            // Phase 0->1 maps to delay offset 0 -> driftRange (or reverse for pitch down)
-            float delayOffset;
-            if (driftRate < 0)  // Pitch up: delay decreases over time
-                delayOffset = voiceDriftPhases[voice] * driftRangeSamples;
-            else  // Pitch down: delay increases over time
-                delayOffset = (1.0f - voiceDriftPhases[voice]) * driftRangeSamples;
+            // Triangle wave for smooth direction reversal (no discontinuities)
+            // Phase 0->0.5: rising (0->1), Phase 0.5->1: falling (1->0)
+            float triangleValue;
+            if (voiceDriftPhases[voice] < 0.5f)
+                triangleValue = voiceDriftPhases[voice] * 2.0f;  // 0->1
+            else
+                triangleValue = 2.0f - voiceDriftPhases[voice] * 2.0f;  // 1->0
+
+            // Calculate delay offset from triangle wave
+            // Center the modulation around centerDelay (±driftRange/2)
+            float delayOffset = (triangleValue - 0.5f) * driftRangeSamples;
+
+            // Apply direction based on pitch shift direction
+            if (driftRate > 0)  // Pitch down
+                delayOffset = -delayOffset;
 
             float voiceDelayTime = centerDelaySamples + delayOffset;
 
             // Clamp delay time to valid range
-            voiceDelayTime = std::max(1.0f, std::min(voiceDelayTime, centerDelaySamples + driftRangeSamples));
+            voiceDelayTime = std::max(1.0f, std::min(voiceDelayTime, centerDelaySamples * 1.5f));
 
             // Process left channel
             if (inputDataL && outputDataL)
@@ -921,10 +930,10 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 outputDataR[sample] += delayedSample * voicePanR[voice];
             }
 
-            // Advance drift phase
+            // Advance drift phase (triangle wave wraps smoothly at boundaries)
             voiceDriftPhases[voice] += phaseIncrement;
 
-            // Wrap phase with smooth crossfade to avoid clicks
+            // Simple wrap - triangle wave handles the smooth transition
             if (voiceDriftPhases[voice] >= 1.0f)
             {
                 voiceDriftPhases[voice] -= 1.0f;

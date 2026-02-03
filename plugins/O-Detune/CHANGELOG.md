@@ -1,5 +1,26 @@
 # O-Detune Changelog
 
+## [1.3.2] - 2026-02-03
+
+### Fixed
+
+- **Eliminated clicks in unison engine** (critical bug fix)
+  - Root cause: Sawtooth drift phase wrapped abruptly from 1.0→0.0, causing ~20ms delay jump
+  - Fix: Replaced sawtooth with triangle wave modulation
+  - Triangle wave reverses direction smoothly at boundaries (no discontinuity)
+  - Creates chorus-like oscillation around target pitch (sounds natural)
+
+### Changed
+
+- Reduced drift range from ±20ms to ±10ms for faster cycles and more stable pitch perception
+- Delay offset now centered around centerDelay (±driftRange/2) for symmetric modulation
+
+### Technical Notes
+
+- Triangle wave: phase 0→0.5 rising, 0.5→1 falling
+- Direction reversal at 0.5 creates smooth pitch oscillation
+- Smaller drift range = more frequent direction changes = less perceived pitch drift
+
 ## [1.3.1] - 2026-02-03
 
 ### Fixed
