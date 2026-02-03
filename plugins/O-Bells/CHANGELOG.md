@@ -2,6 +2,19 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.5.1] - 2026-02-03
+
+### Changed
+- **Bloom Speed readouts now display milliseconds** - All 4 bloom speed controls show actual time values instead of percentages
+  - Main Bloom Speed: 25-400 ms (mid-partial range)
+  - Bloom Speed Low: 15-250 ms
+  - Bloom Speed Mid: 25-400 ms
+  - Bloom Speed High: 50-800 ms
+
+### Technical Notes
+- Domain: UI (parameter display only, no DSP changes)
+- Preset compatibility: Fully compatible (internal values unchanged)
+
 ## [1.5.0] - 2026-02-03
 
 ### Added

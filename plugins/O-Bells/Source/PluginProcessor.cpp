@@ -73,12 +73,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
     ));
 
     // BLOOM SPEED - How fast partials swell (v1.4.0: split from bloom)
+    // v1.5.1: Display as milliseconds (uses mid-partial range 25-400ms as representative)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "bloomSpeed", 1 },
         "Bloom Speed",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.5f,  // Default: medium speed
-        "%"
+        juce::AudioParameterFloatAttributes()
+            .withStringFromValueFunction([](float value, int) {
+                float ms = juce::jmap(value, 25.0f, 400.0f);
+                return juce::String(juce::roundToInt(ms)) + " ms";
+            })
     ));
 
     // BLOOM AMOUNT - Intensity of spectral swelling (v1.4.0: split from bloom)
@@ -100,13 +105,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         false  // Default: off (use main sliders)
     ));
 
-    // Per-band Speed controls
+    // Per-band Speed controls (v1.5.1: Display as milliseconds)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "bloomSpeedLow", 1 },
         "Bloom Speed Low",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.5f,
-        "%"
+        juce::AudioParameterFloatAttributes()
+            .withStringFromValueFunction([](float value, int) {
+                float ms = juce::jmap(value, 15.0f, 250.0f);
+                return juce::String(juce::roundToInt(ms)) + " ms";
+            })
     ));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -114,7 +123,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "Bloom Speed Mid",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.5f,
-        "%"
+        juce::AudioParameterFloatAttributes()
+            .withStringFromValueFunction([](float value, int) {
+                float ms = juce::jmap(value, 25.0f, 400.0f);
+                return juce::String(juce::roundToInt(ms)) + " ms";
+            })
     ));
 
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -122,7 +135,11 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "Bloom Speed High",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.5f,
-        "%"
+        juce::AudioParameterFloatAttributes()
+            .withStringFromValueFunction([](float value, int) {
+                float ms = juce::jmap(value, 50.0f, 800.0f);
+                return juce::String(juce::roundToInt(ms)) + " ms";
+            })
     ));
 
     // Per-band Amount controls

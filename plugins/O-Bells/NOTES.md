@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.5.1
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -12,6 +12,11 @@
 - **2026-02-02 (v1.1.0):** Added reverb control for spaciousness (MINOR feature addition)
 - **2026-02-02 (v1.1.1):** Fixed output clipping with proper DSP gain staging normalization
 - **2026-02-02 (v1.2.0):** Implemented proper multi-stage decay envelope with 4 new parameters
+- **2026-02-03 (v1.3.0):** Attack parameter, shimmer quality, material differentiation, bloom fix
+- **2026-02-03 (v1.4.0):** Bloom split into Speed + Amount controls (BREAKING - presets need resave)
+- **2026-02-03 (v1.4.1):** Expanded bloom speed ranges for more dramatic effects
+- **2026-02-03 (v1.5.0):** Bloom Fine Controls - per-band independent speed/amount (6 new params)
+- **2026-02-03 (v1.5.1):** Bloom speed readouts now display milliseconds instead of percentages
 
 ## Known Issues
 
