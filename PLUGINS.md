@@ -41,6 +41,8 @@ Ouaricon Plugins:
 | O-Detune | 📦 Installed | 1.2.0 | Audio Effect (Detuning) | 2026-02-02 |
 | O-Freeze | 📦 Installed | 1.0.1 | Audio Effect (Granular Freeze) | 2026-02-02 |
 | O-Bells | 📦 Installed | 1.2.0 | Synth (Physical Modeling Bells) | 2026-02-02 |
+| O-FreqPulse | 🚧 Stage 1 | - | Audio Effect (Spectral Sequencer) | 2026-02-03 |
+| O-SpectralShaper | 💡 Ideated | - | Audio Effect (Spectral Transient Shaper) | 2026-02-03 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
