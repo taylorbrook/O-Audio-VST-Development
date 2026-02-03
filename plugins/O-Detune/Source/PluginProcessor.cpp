@@ -944,8 +944,10 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         }
     }
 
-    // Normalize by voice count and apply soft limiting to prevent clipping
-    float gainCompensation = 1.0f / std::sqrt(static_cast<float>(activeVoices));
+    // Normalize by voice count with conservative gain (1/N instead of 1/sqrt(N))
+    // Random distribution can cause phase alignment, so we need more headroom
+    float gainCompensation = 1.0f / static_cast<float>(activeVoices);
+
     for (int channel = 0; channel < numChannels; ++channel)
     {
         auto* data = unisonBuffer.getWritePointer(channel);
@@ -954,11 +956,9 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Apply gain compensation
             float s = data[sample] * gainCompensation;
 
-            // Soft clipper to prevent harsh distortion on loud signals
-            if (std::abs(s) > 0.9f)
-            {
-                s = std::tanh(s * 1.5f) / 1.5f;
-            }
+            // Always-on soft saturation (gentle compression that increases with level)
+            // This prevents harsh clipping while preserving dynamics at normal levels
+            s = std::tanh(s);
 
             data[sample] = s;
         }

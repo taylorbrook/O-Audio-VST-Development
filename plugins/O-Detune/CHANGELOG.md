@@ -1,5 +1,21 @@
 # O-Detune Changelog
 
+## [1.3.5] - 2026-02-03
+
+### Fixed
+
+- **Eliminated clipping on loud signals** (especially with Random distribution)
+  - Root cause: `1/sqrt(N)` gain compensation wasn't enough when LFO phases aligned
+  - Fix: Changed to `1/N` gain compensation (more conservative)
+  - Added always-on `tanh()` soft saturation (not just above threshold)
+  - This provides gentle compression that increases naturally with level
+
+### Technical Notes
+
+- Previous: `gainCompensation = 1/sqrt(N)`, conditional clipper above 0.9
+- Now: `gainCompensation = 1/N`, always-on `tanh(s)` saturation
+- `tanh(x)` is transparent at low levels, compresses smoothly at high levels
+
 ## [1.3.4] - 2026-02-03
 
 ### Changed
