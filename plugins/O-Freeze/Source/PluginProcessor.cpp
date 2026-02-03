@@ -107,31 +107,23 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     gateState = GateState::Idle;
 
     // Initialize granular synthesis components
-    grainSize = static_cast<int>(sampleRate * 0.350); // 350ms grains for smoother texture
-    grainTriggerInterval = grainSize / NUM_GRAINS; // 12 grains with 91.7% overlap
+    grainSize = static_cast<int>(sampleRate * 0.400); // 400ms grains
+    grainTriggerInterval = grainSize / NUM_GRAINS; // 8 grains with 87.5% overlap
 
-    // Pre-compute symmetric Hann window (true zero at endpoints, COLA compliant at 87.5% overlap)
+    // True Hann window scaled for COLA (Constant Overlap-Add)
+    // With 8 grains at 87.5% overlap (hop = N/8), Hann windows sum to 4.0
+    // Scale by 0.25 so overlapping grains sum to 1.0 (no normalization needed)
     hannWindow.resize(grainSize);
     const double PI = juce::MathConstants<double>::pi;
+    const float colaScale = 0.25f;  // 1/4 scaling for 8-grain COLA sum = 1.0
 
     for (int i = 0; i < grainSize; ++i)
     {
-        double phase = static_cast<double>(i) / static_cast<double>(grainSize - 1);
-        hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
+        // Standard Hann window: 0.5 * (1 - cos(2πn/N))
+        double phase = static_cast<double>(i) / static_cast<double>(grainSize);
+        float hannValue = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
+        hannWindow[i] = hannValue * colaScale;
     }
-
-#if JUCE_DEBUG
-    // Verify COLA compliance: sum of overlapping windows should be constant
-    float colaSum = 0.0f;
-    for (int grainOffset = 0; grainOffset < NUM_GRAINS; ++grainOffset)
-    {
-        int windowPos = grainOffset * grainTriggerInterval;
-        if (windowPos < grainSize)
-            colaSum += hannWindow[windowPos];
-    }
-    // At 91.7% overlap with Hann window, sum should be approximately 1.0
-    jassert(std::abs(colaSum - 1.0f) < 0.15f);  // Slightly wider tolerance for 12 grains
-#endif
 
     // Reset all grains to inactive
     for (auto& grain : grains)
@@ -144,6 +136,12 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     grainTriggerCounter = 0;
     nextGrainIndex = 0;
     stopTriggeringNewGrains = false;
+
+    // Initialize smoothed drift (update target every ~3 seconds for slow organic wandering)
+    currentDriftOffset = 0.0f;
+    targetDriftOffset = 0.0f;
+    driftUpdateCounter = 0;
+    driftUpdateInterval = static_cast<int>(sampleRate * 3.0); // 3 seconds
 }
 
 void OFreezeAudioProcessor::releaseResources()
@@ -280,6 +278,20 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // Only trigger new grains if frozen AND not in soft release mode
         if (bufferFrozen && !stopTriggeringNewGrains)
         {
+            // Update smoothed drift offset (glacially slow for phase coherence)
+            // At 44.1kHz, coefficient of 0.000005 gives ~5 second convergence
+            // This ensures overlapping grains stay phase-aligned
+            const float driftSmoothCoeff = 0.000005f;
+            currentDriftOffset += (targetDriftOffset - currentDriftOffset) * driftSmoothCoeff;
+
+            // Periodically pick a new random target for organic wandering (every ~3 seconds)
+            driftUpdateCounter++;
+            if (driftUpdateCounter >= driftUpdateInterval)
+            {
+                targetDriftOffset = random.nextFloat(); // New target (0 to 1)
+                driftUpdateCounter = 0;
+            }
+
             if (grainTriggerCounter >= grainTriggerInterval)
             {
                 // Activate new grain
@@ -287,11 +299,11 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 newGrain.active = true;
                 newGrain.startSample = 0;
 
-                // Calculate grain position with drift
-                // Start from behind writePosition (where audio exists), drift adds variation
+                // Calculate grain position with SMOOTHED drift
+                // All grains use the same slowly-wandering offset for phase coherence
                 int basePos = (writePosition - grainSize + freezeBufferLength) % freezeBufferLength;
-                int driftRange = static_cast<int>(grainSize * driftValue); // Drift within captured grain
-                int driftOffset = random.nextInt(driftRange + 1);
+                int driftRange = static_cast<int>(grainSize * driftValue); // Drift range from parameter
+                int driftOffset = static_cast<int>(currentDriftOffset * driftRange); // Smoothed offset
                 newGrain.position = (basePos + driftOffset) % freezeBufferLength;
 
                 // Advance grain index (round-robin)
@@ -337,9 +349,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Granular synthesis (if frozen or fading out)
             if (bufferFrozen || freezeGain.getCurrentValue() > 0.001f)
             {
-                // Sum all active grains (overlap-add synthesis with COLA)
-                // NOTE: With proper COLA, overlapping Hann windows sum to ~1.0
-                // so NO normalization by grain count is needed
+                // Sum all active grains (overlap-add synthesis)
+                // COLA property: 8 Hann windows at 87.5% overlap sum to constant
+                // Window is pre-scaled by 0.25 so sum = 1.0 (no normalization needed)
                 float granularSum = 0.0f;
 
                 for (int g = 0; g < NUM_GRAINS; ++g)
@@ -349,12 +361,12 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                         // Read from freeze buffer at grain position
                         float grainSample = freezeData[grainPositions[g]];
 
-                        // Apply Hann window (COLA-compliant)
+                        // Apply pre-scaled Hann window
                         granularSum += grainSample * windowValues[g];
                     }
                 }
 
-                // COLA handles amplitude - no division by grain count
+                // Direct sum - COLA guarantees constant amplitude
                 float frozenSample = granularSum;
 
                 // Apply crossfade envelope

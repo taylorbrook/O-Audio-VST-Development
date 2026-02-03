@@ -72,7 +72,7 @@ private:
     int rmsSamplesPerWindow = 0;
 
     // Granular synthesis components
-    static constexpr int NUM_GRAINS = 12;  // 12 grains for denser overlap
+    static constexpr int NUM_GRAINS = 8;  // 8 grains for 87.5% overlap (COLA compliant)
     std::array<Grain, NUM_GRAINS> grains;
     std::vector<float> hannWindow;
     int grainSize = 0;
@@ -81,6 +81,12 @@ private:
     int nextGrainIndex = 0;
     juce::Random random;
     bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
+
+    // Smoothed drift (prevents clicking from discontinuous grain positions)
+    float currentDriftOffset = 0.0f;   // Current smoothed offset (0 to 1)
+    float targetDriftOffset = 0.0f;    // Target offset to drift toward
+    int driftUpdateCounter = 0;        // Counter for picking new targets
+    int driftUpdateInterval = 0;       // How often to pick new target (samples)
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;

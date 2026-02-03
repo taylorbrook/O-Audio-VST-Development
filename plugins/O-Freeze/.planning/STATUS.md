@@ -183,6 +183,10 @@ Progress: [####################] 100%
 ✓ auval -a | grep freeze → aufx OFCR OuDv - Ouaricon Development: O-Freeze
 ```
 
+## Known Issues
+
+None - drift clicking resolved in v1.2.2
+
 ## Next Steps
 
 O-Freeze V1.0.0 is ready for release. Options:

@@ -39,7 +39,7 @@ Ouaricon Plugins:
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
 | O-Detune | 📦 Installed | 1.3.6 | Audio Effect (Detuning) | 2026-02-03 |
-| O-Freeze | 📦 Installed | 1.2.1 | Audio Effect (Granular Freeze) | 2026-02-03 |
+| O-Freeze | 📦 Installed | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
 | O-Bells | 📦 Installed | 1.5.1 | Synth (Physical Modeling Bells) | 2026-02-03 |
 | O-FreqPulse | 🚧 Stage 1 | - | Audio Effect (Spectral Sequencer) | 2026-02-03 |
 | O-SpectralShaper | 🚧 Stage 0 | - | Audio Effect (Spectral Transient Shaper) | 2026-02-03 |

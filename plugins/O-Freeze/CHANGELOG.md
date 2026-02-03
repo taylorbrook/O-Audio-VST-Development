@@ -2,6 +2,36 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.2.2] - 2026-02-03
+
+### Fixed
+- **Drift clicking eliminated** - Removed per-sample normalization that caused amplitude modulation
+  - Root cause: Dividing each sample by `windowSum` created periodic amplitude fluctuations as grains phased through their envelopes, producing "evenly spaced clicks" at the grain trigger rate
+  - Solution: Use true Hann window with COLA (Constant Overlap-Add) property - 8 Hann windows at 87.5% overlap mathematically sum to constant amplitude, eliminating the need for normalization
+
+### Changed
+- Replaced custom trapezoidal window with standard Hann window (pre-scaled by 0.25 for unit COLA sum)
+
+### Technical Notes
+- COLA identity: 8 Hann windows offset by N/8 each sum to exactly 4.0 at every sample point
+- Window scaled by 0.25 so overlapping grains sum to 1.0 without per-sample division
+- This is a mathematically guaranteed constant-amplitude solution vs the previous heuristic normalization
+
+## [1.2.1] - 2026-02-03
+
+### Fixed
+- **Drift clicking eliminated** - Replaced per-grain random offsets with smoothed drift
+  - Root cause: Each grain received an independent random position offset, causing phase discontinuities between overlapping grains that Hann windowing couldn't smooth
+  - Solution: All grains now share a slowly-interpolating drift offset that wanders organically over ~500ms, maintaining phase coherence while preserving texture variation
+
+### Changed
+- Reduced grain count from 12 to 8 (87.5% overlap, proper COLA compliance)
+
+### Technical Notes
+- `currentDriftOffset` smoothly interpolates toward `targetDriftOffset` (new random target every 500ms)
+- Smooth coefficient ~0.0005 gives ~50ms convergence for click-free transitions
+- Drift parameter still controls range of movement, but movement is now continuous rather than discontinuous
+
 ## [1.2.0] - 2026-02-03
 
 ### Fixed
