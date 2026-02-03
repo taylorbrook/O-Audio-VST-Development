@@ -317,12 +317,10 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     feedbackStateL = 0.0f;
     feedbackStateR = 0.0f;
 
-    // Reset unison drift phases (stagger initial phases for richer sound)
+    // Reset unison LFO phases (stagger for rich chorusing)
     for (int i = 0; i < maxUnisonVoices; ++i)
     {
-        voiceDriftPhases[i] = static_cast<float>(i) / static_cast<float>(maxUnisonVoices);
-        smoothedVoiceDetunes[i] = 0.0f;
-        smoothedDelayTimes[i] = (centerDelayMs / 1000.0f) * static_cast<float>(sampleRate);
+        voiceLfoPhases[i] = static_cast<float>(i) / static_cast<float>(maxUnisonVoices);
     }
 
     // Pre-allocate processing buffers (real-time safety)
@@ -858,26 +856,51 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
     randomRefreshCounter -= numSamples;
 
-    // Drift modulation range (±5ms for subtle chorusing effect)
-    const float driftRangeMs = 5.0f;
-    const float driftRangeSamples = (driftRangeMs / 1000.0f) * static_cast<float>(currentSampleRate);
+    // ==========================================================================
+    // CLASSIC CHORUS ALGORITHM (inherently click-free)
+    // Each voice has a sine LFO that modulates delay time continuously.
+    // The detune parameter controls modulation depth (more detune = wider sweep).
+    // Distribution affects the LFO rate spread between voices.
+    // ==========================================================================
 
-    // Smoothing coefficient (very smooth to prevent clicks)
-    // At 48kHz: 0.0002 = ~100ms time constant
-    const float detuneSmoothing = 0.0002f;
-    const float delaySmoothing = 0.001f;  // Slightly faster for delay (still ~20ms)
+    // Convert detune (cents) to delay modulation depth (samples)
+    // 50 cents ≈ 3% pitch change, which needs ~1.5ms delay modulation at 50ms center
+    const float maxModulationMs = 3.0f;  // ±3ms max modulation
+    const float modulationDepthSamples = (unisonDetune / 50.0f) * (maxModulationMs / 1000.0f) * static_cast<float>(currentSampleRate);
 
-    // Process each voice with continuous delay modulation
+    // Base LFO rate (Hz) - slow for chorus effect
+    const float baseLfoRate = 0.5f;  // 0.5 Hz = 2 second cycle
+
+    // Process each voice
     for (int voice = 0; voice < activeVoices; ++voice)
     {
-        // Calculate target detune for this voice
-        float targetDetune = voiceDetunes[voice];
-        if (unisonDist != 2)  // Not Random distribution - add random variation
+        // Calculate this voice's LFO rate based on distribution
+        float voiceLfoRate = baseLfoRate;
+        float normalizedPos = (halfCount > 0.0f) ? (voice - halfCount) / halfCount : 0.0f;
+
+        switch (unisonDist)
         {
-            targetDetune += voiceRandomOffsets[voice] * (randomAmt / 100.0f) * unisonDetune * 0.5f;
+            case 0: // Linear - voices have evenly spread rates
+                voiceLfoRate = baseLfoRate * (1.0f + normalizedPos * 0.3f);
+                break;
+
+            case 1: // Exponential - outer voices have more rate difference
+            {
+                float sign = (normalizedPos >= 0) ? 1.0f : -1.0f;
+                float expSpread = sign * std::pow(std::abs(normalizedPos), 2.0f) * 0.5f;
+                voiceLfoRate = baseLfoRate * (1.0f + expSpread);
+                break;
+            }
+
+            case 2: // Random - use stored random offset to vary rate
+                voiceLfoRate = baseLfoRate * (1.0f + voiceRandomOffsets[voice] * 0.4f);
+                break;
         }
 
-        // Process both channels sample-by-sample with modulating delay
+        // Phase increment for this voice's LFO
+        float phaseIncrement = voiceLfoRate / static_cast<float>(currentSampleRate);
+
+        // Get buffer pointers
         auto* inputDataL = numChannels >= 1 ? buffer.getReadPointer(0) : nullptr;
         auto* inputDataR = numChannels >= 2 ? buffer.getReadPointer(1) : nullptr;
         auto* outputDataL = numChannels >= 1 ? unisonBuffer.getWritePointer(0) : nullptr;
@@ -885,42 +908,21 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            // Smooth the detune value (prevents clicks from sudden parameter changes)
-            smoothedVoiceDetunes[voice] += (targetDetune - smoothedVoiceDetunes[voice]) * detuneSmoothing;
-            float effectiveDetune = smoothedVoiceDetunes[voice];
+            // Sine LFO (inherently smooth, no discontinuities)
+            float lfoValue = std::sin(voiceLfoPhases[voice] * juce::MathConstants<float>::twoPi);
 
-            // Calculate drift rate from smoothed detune
-            float voicePitchRatio = std::pow(2.0f, effectiveDetune / 1200.0f);
-            float driftRate = (1.0f - voicePitchRatio);
-
-            // Phase increment based on detune magnitude
-            float phaseIncrement = std::abs(driftRate) / driftRangeSamples;
-
-            // Triangle wave for smooth oscillation (no discontinuities)
-            float triangleValue;
-            if (voiceDriftPhases[voice] < 0.5f)
-                triangleValue = voiceDriftPhases[voice] * 2.0f;
-            else
-                triangleValue = 2.0f - voiceDriftPhases[voice] * 2.0f;
-
-            // Calculate target delay from triangle wave and detune direction
-            float delayOffset = (triangleValue - 0.5f) * driftRangeSamples;
-            if (effectiveDetune < 0)  // Pitch down = positive delay offset
-                delayOffset = -delayOffset;
-
-            float targetDelayTime = centerDelaySamples + delayOffset;
-
-            // Smooth the delay time itself (final safety net against clicks)
-            smoothedDelayTimes[voice] += (targetDelayTime - smoothedDelayTimes[voice]) * delaySmoothing;
-            float voiceDelayTime = smoothedDelayTimes[voice];
+            // Calculate delay time: center + modulation
+            // Each voice gets a different modulation direction based on position
+            float voiceModDepth = modulationDepthSamples * (1.0f + normalizedPos * 0.2f);
+            float delayTime = centerDelaySamples + lfoValue * voiceModDepth;
 
             // Clamp to valid range
-            voiceDelayTime = std::max(1.0f, std::min(voiceDelayTime, centerDelaySamples * 1.5f));
+            delayTime = std::max(1.0f, std::min(delayTime, centerDelaySamples * 1.5f));
 
             // Process left channel
             if (inputDataL && outputDataL)
             {
-                unisonDelaysL[voice].setDelay(voiceDelayTime);
+                unisonDelaysL[voice].setDelay(delayTime);
                 unisonDelaysL[voice].pushSample(0, inputDataL[sample]);
                 float delayedSample = unisonDelaysL[voice].popSample(0);
                 outputDataL[sample] += delayedSample * voicePanL[voice];
@@ -929,16 +931,16 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Process right channel
             if (inputDataR && outputDataR)
             {
-                unisonDelaysR[voice].setDelay(voiceDelayTime);
+                unisonDelaysR[voice].setDelay(delayTime);
                 unisonDelaysR[voice].pushSample(0, inputDataR[sample]);
                 float delayedSample = unisonDelaysR[voice].popSample(0);
                 outputDataR[sample] += delayedSample * voicePanR[voice];
             }
 
-            // Advance drift phase
-            voiceDriftPhases[voice] += phaseIncrement;
-            if (voiceDriftPhases[voice] >= 1.0f)
-                voiceDriftPhases[voice] -= 1.0f;
+            // Advance LFO phase (wraps naturally, sine is continuous)
+            voiceLfoPhases[voice] += phaseIncrement;
+            if (voiceLfoPhases[voice] >= 1.0f)
+                voiceLfoPhases[voice] -= 1.0f;
         }
     }
 

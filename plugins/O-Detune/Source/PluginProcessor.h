@@ -96,14 +96,8 @@ private:
     float voiceRandomOffsets[maxUnisonVoices] = {0};
     int randomRefreshCounter = 0;
 
-    // Per-voice drift phases for continuous pitch shifting
-    float voiceDriftPhases[maxUnisonVoices] = {0};
-
-    // Per-voice smoothed detune values (prevents clicks from sudden detune changes)
-    float smoothedVoiceDetunes[maxUnisonVoices] = {0};
-
-    // Per-voice smoothed delay times (final click prevention)
-    float smoothedDelayTimes[maxUnisonVoices] = {0};
+    // Per-voice LFO phases for chorus-style modulation (inherently click-free)
+    float voiceLfoPhases[maxUnisonVoices] = {0};
 
     // Pre-delay lines
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> preDelayL;

@@ -1,5 +1,31 @@
 # O-Detune Changelog
 
+## [1.3.4] - 2026-02-03
+
+### Changed
+
+- **Complete rewrite of unison engine using classic chorus algorithm**
+  - Previous approach (drift modulation with smoothing) still had click artifacts
+  - New approach: Per-voice sine LFO modulating delay time (proven click-free design)
+  - This is how classic chorus pedals work (Boss CE-1, Roland Dimension D, etc.)
+
+### How It Works Now
+
+- Each voice has a sine LFO at a slightly different rate
+- LFO continuously modulates delay time (sine is always smooth)
+- Detune parameter controls modulation depth (50 cents ≈ ±3ms sweep)
+- Distribution affects LFO rate spread between voices:
+  - Linear: Even rate spread
+  - Exponential: Outer voices have more rate difference
+  - Random: Uses stored random values to vary rates (no updates during playback)
+
+### Technical Notes
+
+- Base LFO rate: 0.5 Hz (2-second cycle)
+- Max modulation depth: ±3ms around 50ms center
+- Sine wave is continuous everywhere (no discontinuities at phase wrap)
+- Random offsets now only affect LFO rate, not detune values directly
+
 ## [1.3.3] - 2026-02-03
 
 ### Fixed
