@@ -1,5 +1,32 @@
 # O-Detune Changelog
 
+## [1.1.0] - 2026-02-02
+
+### Changed
+
+- **Complete UI redesign to Ouaricon Naturalist aesthetic**
+  - Replaced dark gradient background with aged parchment paper texture
+  - Added nudibranch (sea slug) botanical illustration overlay at 32% opacity
+  - Converted all knobs from CSS indicator style to SVG vine-arc design (O-Freeze style)
+  - Changed typography from system sans-serif to Georgia serif with brown earth tones
+  - Restyled panels with subtle translucent backgrounds and brown borders
+  - Updated dropdowns with parchment background and custom arrow indicator
+  - Converted toggles to botanical green theme matching Ouaricon brand
+  - Restyled slider with green thumb matching accent palette
+
+### Visual Elements
+
+- **Color Palette:** Paper (#F5E6D3), Text (#3C2F2F, #8b7355), Accent green (#5a7a6a)
+- **Typography:** Georgia/Times New Roman serif, letter-spacing for labels
+- **Knob Design:** 52px standard / 64px large SVG circles with animated vine arc fill
+- **Botanical Overlay:** Nudibranch illustration positioned right side
+
+### Technical Notes
+
+- Window size changed from 600x400 to 600x520 to accommodate improved layout
+- Added paper1.jpg and slug.png to BinaryData resources
+- All parameter bindings preserved from v1.0.1 (no DSP changes)
+
 ## [1.0.1] - 2026-02-02
 
 ### Fixed

@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>O-Detune</title>
+    <meta name="viewport" content="width=600, initial-scale=1.0">
+    <title>O-Detune - Ouaricon Audio</title>
     <script type="module" src="/js/juce/index.js"></script>
     <style>
         * {
@@ -13,114 +13,148 @@
         }
 
         :root {
-            --bg-dark: #1a1a2e;
-            --bg-panel: #252538;
-            --accent-orange: #d97341;
-            --accent-teal: #5ba89a;
-            --accent-cream: #f5f0e8;
-            --accent-purple: #7a5d9e;
-            --text-light: #e8e8e8;
-            --text-muted: #a0a0a0;
-            --knob-bg: #2d2d42;
-            --knob-indicator: #d97341;
+            /* Ouaricon Naturalist Palette */
+            --paper-bg: #F5E6D3;
+            --text-primary: #3C2F2F;
+            --text-secondary: #8b7355;
+            --text-muted: #a08870;
+            --border-walnut: #8B7355;
+            --border-oak: #5C4033;
+            --accent-green: #5a7a6a;
+            --accent-green-light: #8BA870;
+            --accent-green-dark: #4a6a5a;
+            --panel-bg: rgba(245, 230, 211, 0.6);
+            --panel-border: rgba(139, 115, 85, 0.25);
+            --knob-track: rgba(139, 115, 85, 0.3);
+            --knob-vine: #5a7a6a;
         }
 
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, var(--bg-dark) 0%, #16162a 100%);
-            color: var(--text-light);
-            min-height: 100vh;
+        html, body {
+            width: 600px;
+            height: 520px;
             overflow: hidden;
             user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #1a1410;
         }
 
+        #app {
+            width: 600px;
+            height: 520px;
+            position: relative;
+            background-image: url('assets/paper1.jpg');
+            background-size: cover;
+            background-position: center;
+        }
+
+        /* Botanical Overlay - Nudibranch */
+        #botanical-overlay {
+            position: absolute;
+            right: -30px;
+            top: 50%;
+            transform: translateY(-50%);
+            height: 85%;
+            opacity: 0.32;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        #botanical-overlay img {
+            height: 100%;
+            width: auto;
+        }
+
+        /* Content Container */
         .container {
-            padding: 12px;
+            position: relative;
+            z-index: 2;
+            padding: 16px 20px;
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            height: 100vh;
+            gap: 14px;
+            height: 100%;
         }
 
         /* Header */
         .header {
             display: flex;
-            justify-content: space-between;
+            justify-content: center;
             align-items: center;
-            padding: 0 8px;
+            padding: 4px 0 8px 0;
+            border-bottom: 1px solid var(--panel-border);
         }
 
         .logo {
-            font-size: 20px;
-            font-weight: 700;
-            color: var(--accent-orange);
-            letter-spacing: 1px;
+            font-size: 22px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            color: var(--text-primary);
+            text-transform: uppercase;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.5);
         }
 
         .logo span {
-            color: var(--accent-cream);
+            color: var(--accent-green);
         }
 
-        /* Panels */
+        /* Panels - Subtle naturalist styling */
         .panel {
-            background: var(--bg-panel);
-            border-radius: 12px;
-            padding: 12px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
+            padding: 12px 14px;
         }
 
         .panel-label {
-            font-size: 10px;
-            font-weight: 600;
+            font-size: 11px;
+            font-weight: 400;
             text-transform: uppercase;
-            letter-spacing: 1px;
-            color: var(--text-muted);
-            margin-bottom: 8px;
+            letter-spacing: 1.5px;
+            color: var(--text-secondary);
+            margin-bottom: 10px;
+            text-shadow: 0 1px 0 rgba(255, 255, 255, 0.4);
         }
 
         /* Engines Row */
         .engines-row {
             display: grid;
             grid-template-columns: 1fr auto 1fr;
-            gap: 12px;
+            gap: 14px;
             align-items: stretch;
         }
 
         .engine-panel {
-            border: 2px solid transparent;
-            transition: border-color 0.2s;
-        }
-
-        .engine-panel.wobble {
-            border-color: var(--accent-purple);
-        }
-
-        .engine-panel.unison {
-            border-color: var(--accent-teal);
+            border: 1px solid var(--panel-border);
         }
 
         .engine-controls {
             display: grid;
             grid-template-columns: repeat(2, 1fr);
-            gap: 8px;
+            gap: 10px;
         }
 
-        /* Blend Control */
+        /* Blend Control - Center section */
         .blend-section {
             display: flex;
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 8px;
+            padding: 8px 12px;
+            background: var(--panel-bg);
+            border: 1px solid var(--panel-border);
+            border-radius: 4px;
         }
 
         .blend-label {
-            font-size: 9px;
-            color: var(--text-muted);
-            margin-bottom: 4px;
+            font-size: 10px;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            margin-bottom: 6px;
         }
 
-        /* Knob */
+        /* SVG Vine-Arc Knobs (O-Freeze style) */
         .knob-container {
             display: flex;
             flex-direction: column;
@@ -129,55 +163,65 @@
         }
 
         .knob {
-            width: 48px;
-            height: 48px;
-            background: var(--knob-bg);
-            border-radius: 50%;
-            position: relative;
-            cursor: grab;
-            box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 1px rgba(255,255,255,0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
         }
 
-        .knob.large {
+        .knob.disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .knob-visual {
+            width: 52px;
+            height: 52px;
+            position: relative;
+        }
+
+        .knob-visual.large {
             width: 64px;
             height: 64px;
         }
 
-        .knob:active {
-            cursor: grabbing;
+        .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
         }
 
-        .knob-indicator {
-            position: absolute;
-            width: 4px;
-            height: 16px;
-            background: var(--knob-indicator);
-            border-radius: 2px;
-            left: 50%;
-            top: 6px;
-            transform-origin: center 18px;
-            transform: translateX(-50%) rotate(0deg);
+        .knob-track {
+            fill: none;
+            stroke: var(--knob-track);
+            stroke-width: 2;
         }
 
-        .knob.large .knob-indicator {
-            height: 20px;
-            transform-origin: center 26px;
-            top: 8px;
+        .knob-vine {
+            fill: none;
+            stroke: var(--knob-vine);
+            stroke-width: 3;
+            stroke-linecap: round;
+            transition: stroke-dashoffset 0.1s ease;
         }
 
         .knob-label {
             font-size: 9px;
-            color: var(--text-muted);
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
             text-transform: uppercase;
+            margin-top: 4px;
         }
 
         .knob-value {
             font-size: 10px;
-            color: var(--text-light);
-            font-weight: 500;
+            color: var(--text-muted);
+            margin-top: 1px;
+            min-width: 50px;
+            text-align: center;
         }
 
-        /* Dropdown */
+        /* Dropdown - Naturalist style */
         .dropdown-container {
             display: flex;
             flex-direction: column;
@@ -186,30 +230,48 @@
 
         .dropdown-label {
             font-size: 9px;
-            color: var(--text-muted);
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
             text-transform: uppercase;
         }
 
         .dropdown {
-            background: var(--knob-bg);
-            border: 1px solid rgba(255,255,255,0.1);
-            border-radius: 6px;
+            background: rgba(245, 230, 211, 0.8);
+            border: 1px solid var(--border-walnut);
+            border-radius: 3px;
             padding: 6px 10px;
-            color: var(--text-light);
+            color: var(--text-primary);
+            font-family: 'Georgia', 'Times New Roman', serif;
             font-size: 11px;
             cursor: pointer;
             outline: none;
+            -webkit-appearance: none;
+            appearance: none;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='%238B7355' d='M0 0l5 6 5-6z'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 8px center;
+            padding-right: 24px;
         }
 
         .dropdown:hover {
-            border-color: var(--accent-orange);
+            border-color: var(--accent-green);
+        }
+
+        .dropdown:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 2px rgba(90, 122, 106, 0.2);
+        }
+
+        .dropdown option {
+            background: var(--paper-bg);
+            color: var(--text-primary);
         }
 
         /* Character Section */
         .character-row {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 12px;
+            gap: 16px;
             justify-items: center;
         }
 
@@ -217,42 +279,54 @@
         .output-row {
             display: grid;
             grid-template-columns: 1fr auto 1fr;
-            gap: 16px;
+            gap: 20px;
             align-items: center;
         }
 
+        /* Slider - Naturalist style */
         .slider-container {
             display: flex;
             flex-direction: column;
-            gap: 4px;
+            gap: 6px;
         }
 
         .slider-label {
             font-size: 9px;
-            color: var(--text-muted);
+            letter-spacing: 0.8px;
+            color: var(--text-secondary);
             text-transform: uppercase;
+        }
+
+        .slider-label span {
+            color: var(--text-muted);
+            font-size: 10px;
         }
 
         .slider {
             -webkit-appearance: none;
             width: 100%;
             height: 6px;
-            background: var(--knob-bg);
+            background: var(--knob-track);
             border-radius: 3px;
             outline: none;
         }
 
         .slider::-webkit-slider-thumb {
             -webkit-appearance: none;
-            width: 16px;
-            height: 16px;
-            background: var(--accent-orange);
+            width: 14px;
+            height: 14px;
+            background: var(--accent-green);
+            border: 2px solid var(--accent-green-dark);
             border-radius: 50%;
             cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
         }
 
-        /* Toggle */
+        .slider::-webkit-slider-thumb:hover {
+            background: var(--accent-green-light);
+        }
+
+        /* Toggle - Naturalist botanical style */
         .toggle-container {
             display: flex;
             align-items: center;
@@ -260,37 +334,43 @@
         }
 
         .toggle {
-            width: 40px;
-            height: 20px;
-            background: var(--knob-bg);
-            border-radius: 10px;
+            width: 44px;
+            height: 22px;
+            background: var(--knob-track);
+            border: 1px solid var(--border-walnut);
+            border-radius: 11px;
             position: relative;
             cursor: pointer;
-            transition: background 0.2s;
+            transition: background 0.2s, border-color 0.2s;
         }
 
         .toggle.active {
-            background: var(--accent-teal);
+            background: var(--accent-green);
+            border-color: var(--accent-green-dark);
         }
 
         .toggle-knob {
             width: 16px;
             height: 16px;
-            background: var(--accent-cream);
+            background: var(--paper-bg);
+            border: 1px solid var(--border-walnut);
             border-radius: 50%;
             position: absolute;
             top: 2px;
             left: 2px;
             transition: left 0.2s;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
         }
 
         .toggle.active .toggle-knob {
-            left: 22px;
+            left: 24px;
+            border-color: var(--accent-green-dark);
         }
 
         .toggle-label {
             font-size: 10px;
-            color: var(--text-light);
+            color: var(--text-primary);
+            letter-spacing: 0.3px;
         }
 
         /* Advanced Panel */
@@ -299,14 +379,17 @@
             align-items: center;
             gap: 8px;
             cursor: pointer;
-            padding: 4px 0;
+            padding: 2px 0;
+            transition: color 0.2s;
         }
 
         .advanced-header:hover {
-            color: var(--accent-orange);
+            color: var(--accent-green);
         }
 
         .advanced-arrow {
+            color: var(--text-secondary);
+            font-size: 10px;
             transition: transform 0.2s;
         }
 
@@ -318,199 +401,297 @@
             display: none;
             margin-top: 12px;
             padding-top: 12px;
-            border-top: 1px solid rgba(255,255,255,0.1);
+            border-top: 1px solid var(--panel-border);
         }
 
         .advanced-content.open {
             display: grid;
             grid-template-columns: repeat(4, 1fr);
             gap: 12px;
+            align-items: start;
+        }
+
+        /* Value input for direct entry */
+        .knob-input {
+            width: 50px;
+            margin-top: 2px;
+            font-size: 10px;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            color: var(--text-primary);
+            background: rgba(245, 230, 211, 0.95);
+            border: 1px solid var(--border-walnut);
+            border-radius: 3px;
+            padding: 2px 4px;
+            text-align: center;
+            outline: none;
+        }
+
+        .knob-input:focus {
+            border-color: var(--accent-green);
+            box-shadow: 0 0 0 2px rgba(90, 122, 106, 0.2);
         }
     </style>
 </head>
 <body>
-    <div class="container">
-        <!-- Header -->
-        <div class="header">
-            <div class="logo">O-<span>DETUNE</span></div>
+    <div id="app">
+        <!-- Botanical Overlay - Nudibranch -->
+        <div id="botanical-overlay">
+            <img src="assets/slug.png" alt="">
         </div>
 
-        <!-- Engines Row -->
-        <div class="engines-row">
-            <!-- Wobble Engine -->
-            <div class="panel engine-panel wobble">
-                <div class="panel-label">Wobble</div>
-                <div class="engine-controls">
-                    <div class="dropdown-container">
-                        <span class="dropdown-label">Era</span>
-                        <select class="dropdown" id="wobble_era">
-                            <option value="0">60s</option>
-                            <option value="1" selected>70s</option>
-                            <option value="2">80s</option>
-                        </select>
+        <div class="container">
+            <!-- Header -->
+            <div class="header">
+                <div class="logo">O-<span>Detune</span></div>
+            </div>
+
+            <!-- Engines Row -->
+            <div class="engines-row">
+                <!-- Wobble Engine -->
+                <div class="panel engine-panel">
+                    <div class="panel-label">Wobble</div>
+                    <div class="engine-controls">
+                        <div class="dropdown-container">
+                            <span class="dropdown-label">Era</span>
+                            <select class="dropdown" id="wobble_era">
+                                <option value="0">60s</option>
+                                <option value="1" selected>70s</option>
+                                <option value="2">80s</option>
+                            </select>
+                        </div>
+                        <div class="dropdown-container">
+                            <span class="dropdown-label">Shape</span>
+                            <select class="dropdown" id="wobble_shape">
+                                <option value="0" selected>Sine</option>
+                                <option value="1">Triangle</option>
+                                <option value="2">Random</option>
+                            </select>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="wobble_rate_knob">
+                                <div class="knob-visual">
+                                    <svg viewBox="0 0 52 52">
+                                        <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                        <circle class="knob-vine" id="wobble_rate_vine" cx="26" cy="26" r="22"
+                                            stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    </svg>
+                                </div>
+                                <span class="knob-label">Rate</span>
+                                <span class="knob-value" id="wobble_rate_value">2.0 Hz</span>
+                            </div>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="wobble_depth_knob">
+                                <div class="knob-visual">
+                                    <svg viewBox="0 0 52 52">
+                                        <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                        <circle class="knob-vine" id="wobble_depth_vine" cx="26" cy="26" r="22"
+                                            stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    </svg>
+                                </div>
+                                <span class="knob-label">Depth</span>
+                                <span class="knob-value" id="wobble_depth_value">25 ct</span>
+                            </div>
+                        </div>
                     </div>
-                    <div class="dropdown-container">
-                        <span class="dropdown-label">Shape</span>
-                        <select class="dropdown" id="wobble_shape">
-                            <option value="0" selected>Sine</option>
-                            <option value="1">Triangle</option>
-                            <option value="2">Random</option>
-                        </select>
+                </div>
+
+                <!-- Blend Control -->
+                <div class="blend-section">
+                    <span class="blend-label">Blend</span>
+                    <div class="knob" id="blend_knob">
+                        <div class="knob-visual large">
+                            <svg viewBox="0 0 64 64">
+                                <circle class="knob-track" cx="32" cy="32" r="27"/>
+                                <circle class="knob-vine" id="blend_vine" cx="32" cy="32" r="27"
+                                    stroke-dasharray="169.65" stroke-dashoffset="84.82"/>
+                            </svg>
+                        </div>
+                        <span class="knob-value" id="blend_value">50%</span>
+                    </div>
+                </div>
+
+                <!-- Unison Engine -->
+                <div class="panel engine-panel">
+                    <div class="panel-label">Unison</div>
+                    <div class="engine-controls">
+                        <div class="dropdown-container">
+                            <span class="dropdown-label">Voices</span>
+                            <select class="dropdown" id="unison_voices">
+                                <option value="0">2</option>
+                                <option value="1" selected>3</option>
+                                <option value="2">4</option>
+                                <option value="3">5</option>
+                                <option value="4">7</option>
+                            </select>
+                        </div>
+                        <div class="dropdown-container">
+                            <span class="dropdown-label">Dist</span>
+                            <select class="dropdown" id="unison_dist">
+                                <option value="0" selected>Linear</option>
+                                <option value="1">Exp</option>
+                                <option value="2">Random</option>
+                            </select>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="unison_detune_knob">
+                                <div class="knob-visual">
+                                    <svg viewBox="0 0 52 52">
+                                        <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                        <circle class="knob-vine" id="unison_detune_vine" cx="26" cy="26" r="22"
+                                            stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    </svg>
+                                </div>
+                                <span class="knob-label">Detune</span>
+                                <span class="knob-value" id="unison_detune_value">15 ct</span>
+                            </div>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="unison_spread_knob">
+                                <div class="knob-visual">
+                                    <svg viewBox="0 0 52 52">
+                                        <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                        <circle class="knob-vine" id="unison_spread_vine" cx="26" cy="26" r="22"
+                                            stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    </svg>
+                                </div>
+                                <span class="knob-label">Spread</span>
+                                <span class="knob-value" id="unison_spread_value">75%</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Character Section -->
+            <div class="panel">
+                <div class="panel-label">Character</div>
+                <div class="character-row">
+                    <div class="knob-container">
+                        <div class="knob" id="drive_knob">
+                            <div class="knob-visual">
+                                <svg viewBox="0 0 52 52">
+                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                    <circle class="knob-vine" id="drive_vine" cx="26" cy="26" r="22"
+                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                </svg>
+                            </div>
+                            <span class="knob-label">Drive</span>
+                            <span class="knob-value" id="drive_value">20%</span>
+                        </div>
                     </div>
                     <div class="knob-container">
-                        <div class="knob" id="wobble_rate" data-min="0.1" data-max="10" data-value="2">
-                            <div class="knob-indicator"></div>
+                        <div class="knob" id="color_knob">
+                            <div class="knob-visual">
+                                <svg viewBox="0 0 52 52">
+                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                    <circle class="knob-vine" id="color_vine" cx="26" cy="26" r="22"
+                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                </svg>
+                            </div>
+                            <span class="knob-label">Color</span>
+                            <span class="knob-value" id="color_value">0</span>
                         </div>
-                        <span class="knob-label">Rate</span>
-                        <span class="knob-value" id="wobble_rate_value">2.0 Hz</span>
                     </div>
                     <div class="knob-container">
-                        <div class="knob" id="wobble_depth" data-min="0" data-max="100" data-value="25">
-                            <div class="knob-indicator"></div>
+                        <div class="knob" id="age_knob">
+                            <div class="knob-visual">
+                                <svg viewBox="0 0 52 52">
+                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                    <circle class="knob-vine" id="age_vine" cx="26" cy="26" r="22"
+                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                </svg>
+                            </div>
+                            <span class="knob-label">Age</span>
+                            <span class="knob-value" id="age_value">0%</span>
                         </div>
-                        <span class="knob-label">Depth</span>
-                        <span class="knob-value" id="wobble_depth_value">25 ct</span>
                     </div>
                 </div>
             </div>
 
-            <!-- Blend Control -->
-            <div class="blend-section">
-                <span class="blend-label">BLEND</span>
-                <div class="knob-container">
-                    <div class="knob large" id="blend" data-min="0" data-max="1" data-value="0.5">
-                        <div class="knob-indicator"></div>
+            <!-- Output Section -->
+            <div class="panel">
+                <div class="output-row">
+                    <div class="slider-container">
+                        <span class="slider-label">Width: <span id="width_value">100%</span></span>
+                        <input type="range" class="slider" id="width" min="0" max="200" value="100">
                     </div>
-                    <span class="knob-value" id="blend_value">50%</span>
+
+                    <div class="toggle-container">
+                        <div class="toggle active" id="mono_safe">
+                            <div class="toggle-knob"></div>
+                        </div>
+                        <span class="toggle-label">Mono-Safe</span>
+                    </div>
+
+                    <div class="knob-container" style="align-items: flex-end;">
+                        <div class="knob" id="mix_knob">
+                            <div class="knob-visual large">
+                                <svg viewBox="0 0 64 64">
+                                    <circle class="knob-track" cx="32" cy="32" r="27"/>
+                                    <circle class="knob-vine" id="mix_vine" cx="32" cy="32" r="27"
+                                        stroke-dasharray="169.65" stroke-dashoffset="84.82"/>
+                                </svg>
+                            </div>
+                            <span class="knob-label">Mix</span>
+                            <span class="knob-value" id="mix_value">50%</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <!-- Unison Engine -->
-            <div class="panel engine-panel unison">
-                <div class="panel-label">Unison</div>
-                <div class="engine-controls">
-                    <div class="dropdown-container">
-                        <span class="dropdown-label">Voices</span>
-                        <select class="dropdown" id="unison_voices">
-                            <option value="0">2</option>
-                            <option value="1" selected>3</option>
-                            <option value="2">4</option>
-                            <option value="3">5</option>
-                            <option value="4">7</option>
-                        </select>
-                    </div>
-                    <div class="dropdown-container">
-                        <span class="dropdown-label">Dist</span>
-                        <select class="dropdown" id="unison_dist">
-                            <option value="0" selected>Linear</option>
-                            <option value="1">Exp</option>
-                            <option value="2">Random</option>
-                        </select>
+            <!-- Advanced Panel -->
+            <div class="panel">
+                <div class="advanced-header" onclick="toggleAdvanced()">
+                    <span class="advanced-arrow" id="advancedArrow">&#9654;</span>
+                    <span class="panel-label" style="margin: 0;">Advanced</span>
+                </div>
+                <div class="advanced-content" id="advancedContent">
+                    <div class="knob-container">
+                        <div class="knob" id="delay_knob">
+                            <div class="knob-visual">
+                                <svg viewBox="0 0 52 52">
+                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                    <circle class="knob-vine" id="delay_vine" cx="26" cy="26" r="22"
+                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                </svg>
+                            </div>
+                            <span class="knob-label">Pre-Delay</span>
+                            <span class="knob-value" id="delay_value">0 ms</span>
+                        </div>
                     </div>
                     <div class="knob-container">
-                        <div class="knob" id="unison_detune" data-min="0" data-max="50" data-value="15">
-                            <div class="knob-indicator"></div>
+                        <div class="knob" id="feedback_knob">
+                            <div class="knob-visual">
+                                <svg viewBox="0 0 52 52">
+                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                    <circle class="knob-vine" id="feedback_vine" cx="26" cy="26" r="22"
+                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                </svg>
+                            </div>
+                            <span class="knob-label">Feedback</span>
+                            <span class="knob-value" id="feedback_value">0%</span>
                         </div>
-                        <span class="knob-label">Detune</span>
-                        <span class="knob-value" id="unison_detune_value">15 ct</span>
                     </div>
                     <div class="knob-container">
-                        <div class="knob" id="unison_spread" data-min="0" data-max="100" data-value="75">
-                            <div class="knob-indicator"></div>
+                        <div class="knob" id="random_amt_knob">
+                            <div class="knob-visual">
+                                <svg viewBox="0 0 52 52">
+                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                    <circle class="knob-vine" id="random_amt_vine" cx="26" cy="26" r="22"
+                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                </svg>
+                            </div>
+                            <span class="knob-label">Random</span>
+                            <span class="knob-value" id="random_amt_value">15%</span>
                         </div>
-                        <span class="knob-label">Spread</span>
-                        <span class="knob-value" id="unison_spread_value">75%</span>
                     </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Character Section -->
-        <div class="panel">
-            <div class="panel-label">Character</div>
-            <div class="character-row">
-                <div class="knob-container">
-                    <div class="knob" id="drive" data-min="0" data-max="100" data-value="20">
-                        <div class="knob-indicator"></div>
+                    <div class="toggle-container" style="flex-direction: column; align-items: center; gap: 6px;">
+                        <div class="toggle" id="wobble_sync">
+                            <div class="toggle-knob"></div>
+                        </div>
+                        <span class="toggle-label">Tempo Sync</span>
                     </div>
-                    <span class="knob-label">Drive</span>
-                    <span class="knob-value" id="drive_value">20%</span>
-                </div>
-                <div class="knob-container">
-                    <div class="knob" id="color" data-min="-100" data-max="100" data-value="0">
-                        <div class="knob-indicator"></div>
-                    </div>
-                    <span class="knob-label">Color</span>
-                    <span class="knob-value" id="color_value">0</span>
-                </div>
-                <div class="knob-container">
-                    <div class="knob" id="age" data-min="0" data-max="100" data-value="0">
-                        <div class="knob-indicator"></div>
-                    </div>
-                    <span class="knob-label">Age</span>
-                    <span class="knob-value" id="age_value">0%</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Output Section -->
-        <div class="panel">
-            <div class="output-row">
-                <div class="slider-container">
-                    <span class="slider-label">Width: <span id="width_value">100%</span></span>
-                    <input type="range" class="slider" id="width" min="0" max="200" value="100">
-                </div>
-
-                <div class="toggle-container">
-                    <div class="toggle active" id="mono_safe">
-                        <div class="toggle-knob"></div>
-                    </div>
-                    <span class="toggle-label">Mono-Safe</span>
-                </div>
-
-                <div class="knob-container" style="align-items: flex-end;">
-                    <div class="knob large" id="mix" data-min="0" data-max="100" data-value="50">
-                        <div class="knob-indicator"></div>
-                    </div>
-                    <span class="knob-label">Mix</span>
-                    <span class="knob-value" id="mix_value">50%</span>
-                </div>
-            </div>
-        </div>
-
-        <!-- Advanced Panel -->
-        <div class="panel">
-            <div class="advanced-header" onclick="toggleAdvanced()">
-                <span class="advanced-arrow" id="advancedArrow">▶</span>
-                <span class="panel-label" style="margin: 0;">Advanced</span>
-            </div>
-            <div class="advanced-content" id="advancedContent">
-                <div class="knob-container">
-                    <div class="knob" id="delay" data-min="0" data-max="50" data-value="0">
-                        <div class="knob-indicator"></div>
-                    </div>
-                    <span class="knob-label">Pre-Delay</span>
-                    <span class="knob-value" id="delay_value">0 ms</span>
-                </div>
-                <div class="knob-container">
-                    <div class="knob" id="feedback" data-min="0" data-max="80" data-value="0">
-                        <div class="knob-indicator"></div>
-                    </div>
-                    <span class="knob-label">Feedback</span>
-                    <span class="knob-value" id="feedback_value">0%</span>
-                </div>
-                <div class="knob-container">
-                    <div class="knob" id="random_amt" data-min="0" data-max="100" data-value="15">
-                        <div class="knob-indicator"></div>
-                    </div>
-                    <span class="knob-label">Random</span>
-                    <span class="knob-value" id="random_amt_value">15%</span>
-                </div>
-                <div class="toggle-container" style="flex-direction: column; align-items: center;">
-                    <div class="toggle" id="wobble_sync">
-                        <div class="toggle-knob"></div>
-                    </div>
-                    <span class="toggle-label">Tempo Sync</span>
                 </div>
             </div>
         </div>
@@ -552,6 +733,25 @@
             mono_safe: getToggleState('mono_safe')
         };
 
+        // Knob configurations for SVG arc rendering
+        // Arc uses 270 degrees (0.75 of circumference)
+        // Small knobs: r=22, circumference = 2*PI*22 = 138.23, arc = 103.67
+        // Large knobs: r=27, circumference = 2*PI*27 = 169.65, arc = 127.24
+        const knobConfigs = {
+            wobble_rate: { vineId: 'wobble_rate_vine', valueId: 'wobble_rate_value', arcLength: 103.67 },
+            wobble_depth: { vineId: 'wobble_depth_vine', valueId: 'wobble_depth_value', arcLength: 103.67 },
+            blend: { vineId: 'blend_vine', valueId: 'blend_value', arcLength: 127.24 },
+            unison_detune: { vineId: 'unison_detune_vine', valueId: 'unison_detune_value', arcLength: 103.67 },
+            unison_spread: { vineId: 'unison_spread_vine', valueId: 'unison_spread_value', arcLength: 103.67 },
+            drive: { vineId: 'drive_vine', valueId: 'drive_value', arcLength: 103.67 },
+            color: { vineId: 'color_vine', valueId: 'color_value', arcLength: 103.67 },
+            age: { vineId: 'age_vine', valueId: 'age_value', arcLength: 103.67 },
+            mix: { vineId: 'mix_vine', valueId: 'mix_value', arcLength: 127.24 },
+            delay: { vineId: 'delay_vine', valueId: 'delay_value', arcLength: 103.67 },
+            feedback: { vineId: 'feedback_vine', valueId: 'feedback_value', arcLength: 103.67 },
+            random_amt: { vineId: 'random_amt_vine', valueId: 'random_amt_value', arcLength: 103.67 }
+        };
+
         // Value formatters
         const formatters = {
             blend: v => Math.round(v * 100) + '%',
@@ -571,55 +771,82 @@
             random_amt: v => Math.round(v) + '%'
         };
 
-        // Setup knobs
-        document.querySelectorAll('.knob').forEach(knob => {
-            const id = knob.id;
+        // Global drag state
+        const dragState = {
+            isDragging: false,
+            target: null,
+            startY: 0,
+            startValue: 0
+        };
+
+        // Setup SVG knobs
+        Object.entries(knobConfigs).forEach(([id, config]) => {
             const state = sliderStates[id];
             if (!state) return;
 
-            let isDragging = false;
-            let startY, startValue;
+            const knobEl = document.getElementById(id + '_knob');
+            const vine = document.getElementById(config.vineId);
+            const valueDisplay = document.getElementById(config.valueId);
 
-            const updateVisual = (normalizedValue) => {
-                const rotation = -135 + normalizedValue * 270;
-                knob.querySelector('.knob-indicator').style.transform =
-                    `translateX(-50%) rotate(${rotation}deg)`;
+            if (!knobEl || !vine || !valueDisplay) return;
 
-                const valueEl = document.getElementById(id + '_value');
-                if (valueEl && formatters[id]) {
-                    const props = state.properties;
-                    const actualValue = props.start + normalizedValue * (props.end - props.start);
-                    valueEl.textContent = formatters[id](actualValue);
+            const updateKnobVisual = () => {
+                const normalised = state.getNormalisedValue();
+                const scaledValue = state.getScaledValue();
+
+                // Update vine arc - offset goes from arcLength (empty) to 0 (full)
+                const offset = config.arcLength - (normalised * config.arcLength);
+                vine.style.strokeDashoffset = offset;
+
+                // Update value display
+                if (formatters[id]) {
+                    valueDisplay.textContent = formatters[id](scaledValue);
                 }
             };
 
-            // Initial value from JUCE
-            state.valueChangedEvent.addListener(() => {
-                updateVisual(state.getNormalisedValue());
-            });
-            updateVisual(state.getNormalisedValue());
+            // Listen for JUCE parameter changes
+            state.valueChangedEvent.addListener(updateKnobVisual);
 
-            // Drag interaction
-            knob.addEventListener('mousedown', e => {
-                isDragging = true;
-                startY = e.clientY;
-                startValue = state.getNormalisedValue();
+            // Initial render
+            updateKnobVisual();
+
+            // Mouse drag interaction
+            const knobVisual = knobEl.querySelector('.knob-visual');
+            knobVisual.addEventListener('mousedown', (e) => {
                 e.preventDefault();
+                dragState.isDragging = true;
+                dragState.target = id;
+                dragState.startY = e.clientY;
+                dragState.startValue = state.getNormalisedValue();
+                state.sliderDragStarted();
             });
+        });
 
-            document.addEventListener('mousemove', e => {
-                if (!isDragging) return;
-                const delta = (startY - e.clientY) / 200;
-                const newValue = Math.max(0, Math.min(1, startValue + delta));
-                state.setNormalisedValue(newValue);
-            });
+        // Global mouse handlers for knob dragging
+        document.addEventListener('mousemove', (e) => {
+            if (!dragState.isDragging || !dragState.target) return;
 
-            document.addEventListener('mouseup', () => {
-                if (isDragging) {
-                    isDragging = false;
-                    state.sliderDragEnded();
-                }
-            });
+            const state = sliderStates[dragState.target];
+            if (!state) return;
+
+            const deltaY = dragState.startY - e.clientY;
+            const sensitivity = 0.005;
+            let newNormalised = dragState.startValue + (deltaY * sensitivity);
+            newNormalised = Math.max(0, Math.min(1, newNormalised));
+
+            state.setNormalisedValue(newNormalised);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!dragState.isDragging) return;
+
+            const state = sliderStates[dragState.target];
+            if (state) {
+                state.sliderDragEnded();
+            }
+
+            dragState.isDragging = false;
+            dragState.target = null;
         });
 
         // Setup width slider

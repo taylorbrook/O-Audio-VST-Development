@@ -137,8 +137,8 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
 
     addAndMakeVisible(*webView);
 
-    // Set editor size (600x400 from BRIEF.md)
-    setSize(600, 400);
+    // Set editor size (600x520 for Ouaricon Naturalist aesthetic)
+    setSize(600, 520);
 }
 
 ODetuneAudioProcessorEditor::~ODetuneAudioProcessorEditor()
@@ -205,6 +205,21 @@ ODetuneAudioProcessorEditor::getResource(const juce::String& url)
             makeVector(BinaryData::check_native_interop_js,
                       BinaryData::check_native_interop_jsSize),
             juce::String("text/javascript")
+        };
+    }
+
+    // Ouaricon Naturalist assets
+    if (url == "/assets/paper1.jpg") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::paper1_jpg, BinaryData::paper1_jpgSize),
+            juce::String("image/jpeg")
+        };
+    }
+
+    if (url == "/assets/slug.png") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::slug_png, BinaryData::slug_pngSize),
+            juce::String("image/png")
         };
     }
 

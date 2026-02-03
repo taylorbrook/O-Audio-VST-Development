@@ -1,8 +1,8 @@
 # O-Detune Notes
 
 ## Status
-- **Current Status:** 🚧 Stage 0 (Research & Planning)
-- **Version:** 1.0.0 (not yet released)
+- **Current Status:** 📦 Installed
+- **Version:** 1.1.0
 - **Type:** Audio Effect (Detuning / Pitch Thickening)
 - **Complexity:** 5.0 (Maximum)
 
@@ -10,6 +10,9 @@
 
 - **2026-02-01 (Ideation):** Plugin concept created - dual-engine detuning (wobble + unison) with mono-safe mode
 - **2026-02-01 (Stage 0):** Research & Planning complete - ARCHITECTURE.md and ROADMAP.md documented (Complexity 5.0)
+- **2026-02-02 (v1.0.0):** Initial release - dual-engine architecture, WebView UI
+- **2026-02-02 (v1.0.1):** Fixed UI knobs and dropdowns (JUCE 8 ComboBox API correction)
+- **2026-02-02 (v1.1.0):** Complete UI redesign to Ouaricon Naturalist aesthetic (paper background, SVG vine-arc knobs, nudibranch botanical overlay)
 
 ## Overview
 
@@ -160,7 +163,7 @@ A colorful lo-fi detuning plugin that combines analog tape wobble with unison th
 
 ## Known Issues
 
-None (plugin not yet implemented)
+None
 
 ## Additional Notes
 
@@ -184,4 +187,4 @@ None (plugin not yet implemented)
 
 ---
 
-*Last updated: 2026-02-01*
+*Last updated: 2026-02-02*
