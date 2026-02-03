@@ -84,10 +84,11 @@ private:
     std::atomic<float>* octaveBlendSubParam = nullptr;
     std::atomic<float>* octaveBlendOctParam = nullptr;
     std::atomic<float>* stereoSpreadParam = nullptr;
-    // Advanced (7 params)
+    // Advanced (8 params in v1.3.0)
     std::atomic<float>* partialTuningParam = nullptr;
     std::atomic<float>* nonlinearEffectsParam = nullptr;
     std::atomic<float>* strikeNoiseCharParam = nullptr;
+    std::atomic<float>* attackLevelParam = nullptr;
     // decayShapeParam removed in v1.2.0 - always multi-stage
     std::atomic<float>* velocityCurveParam = nullptr;
     std::atomic<float>* pitchEnvelopeParam = nullptr;

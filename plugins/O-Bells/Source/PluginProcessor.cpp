@@ -55,12 +55,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
-    // MATERIAL - Bronze → Steel → Glass → Crystal
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
+    // MATERIAL - Discrete choice parameter (v1.3.0)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "material", 1 },
         "Material",
-        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
-        0.25f
+        juce::StringArray { "Bronze", "Brass", "Steel", "Aluminum", "Cast Iron" },
+        0  // Default: Bronze
     ));
 
     // INHARMONICITY - Pure harmonic to gamelan
@@ -163,6 +163,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "Noise",
         juce::StringArray { "Click", "Thud", "Ping" },
         0
+    ));
+
+    // ATTACK_LEVEL - Transient volume control (v1.3.0)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "attackLevel", 1 },
+        "Attack",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f,  // Default 50% (natural level)
+        "%"
     ));
 
     // DECAY_SHAPE parameter removed in v1.2.0 - always use multi-stage decay
@@ -326,6 +335,7 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     partialTuningParam = parameters.getRawParameterValue("partialTuning");
     nonlinearEffectsParam = parameters.getRawParameterValue("nonlinearEffects");
     strikeNoiseCharParam = parameters.getRawParameterValue("strikeNoiseChar");
+    attackLevelParam = parameters.getRawParameterValue("attackLevel");
     // decayShapeParam removed in v1.2.0 - always use multi-stage
     velocityCurveParam = parameters.getRawParameterValue("velocityCurve");
     pitchEnvelopeParam = parameters.getRawParameterValue("pitchEnvelope");
@@ -374,6 +384,7 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     int velocityCurve = static_cast<int>(velocityCurveParam->load());
     float nonlinearEffects = nonlinearEffectsParam->load();
     int strikeNoiseChar = static_cast<int>(strikeNoiseCharParam->load());
+    float attackLevel = attackLevelParam->load();
     // Multi-stage envelope params (always active in v1.2.0)
     float strikeTime = strikeTimeParam->load();
     float brilliance = brillianceParam->load();
@@ -393,7 +404,7 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 octaveBlendSub, octaveBlendOct, stereoSpread,
                 partialTuning, pitchEnvelope, pitchEnvTime,
                 velocityCurve, nonlinearEffects,
-                strikeNoiseChar, outputGain,
+                strikeNoiseChar, attackLevel, outputGain,
                 strikeTime, brilliance, bodyTime, humSustain
             );
         }

@@ -19,7 +19,6 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     malletHardnessRelay = std::make_unique<juce::WebSliderRelay>("malletHardness");
     dampingRelay = std::make_unique<juce::WebSliderRelay>("damping");
     brightnessRelay = std::make_unique<juce::WebSliderRelay>("brightness");
-    materialRelay = std::make_unique<juce::WebSliderRelay>("material");
     inharmonicityRelay = std::make_unique<juce::WebSliderRelay>("inharmonicity");
     bloomRelay = std::make_unique<juce::WebSliderRelay>("bloom");
     shimmerRelay = std::make_unique<juce::WebSliderRelay>("shimmer");
@@ -32,6 +31,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     pitchEnvelopeRelay = std::make_unique<juce::WebSliderRelay>("pitchEnvelope");
     pitchEnvTimeRelay = std::make_unique<juce::WebSliderRelay>("pitchEnvTime");
     nonlinearEffectsRelay = std::make_unique<juce::WebSliderRelay>("nonlinearEffects");
+    attackLevelRelay = std::make_unique<juce::WebSliderRelay>("attackLevel");
     reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("outputGain");
     // Multi-stage envelope relays
@@ -40,6 +40,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     bodyTimeRelay = std::make_unique<juce::WebSliderRelay>("bodyTime");
     humSustainRelay = std::make_unique<juce::WebSliderRelay>("humSustain");
 
+    materialRelay = std::make_unique<juce::WebComboBoxRelay>("material");
     strikeNoiseCharRelay = std::make_unique<juce::WebComboBoxRelay>("strikeNoiseChar");
     velocityCurveRelay = std::make_unique<juce::WebComboBoxRelay>("velocityCurve");
     // decayShapeRelay removed in v1.2.0 - always multi-stage
@@ -66,6 +67,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*pitchEnvelopeRelay)
             .withOptionsFrom(*pitchEnvTimeRelay)
             .withOptionsFrom(*nonlinearEffectsRelay)
+            .withOptionsFrom(*attackLevelRelay)
             .withOptionsFrom(*reverbMixRelay)
             .withOptionsFrom(*outputGainRelay)
             // Multi-stage envelope relays
@@ -221,8 +223,6 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("damping"), *dampingRelay, nullptr);
     brightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("brightness"), *brightnessRelay, nullptr);
-    materialAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("material"), *materialRelay, nullptr);
     inharmonicityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("inharmonicity"), *inharmonicityRelay, nullptr);
     bloomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -247,6 +247,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("pitchEnvTime"), *pitchEnvTimeRelay, nullptr);
     nonlinearEffectsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("nonlinearEffects"), *nonlinearEffectsRelay, nullptr);
+    attackLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("attackLevel"), *attackLevelRelay, nullptr);
     reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -261,6 +263,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     humSustainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("humSustain"), *humSustainRelay, nullptr);
 
+    materialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("material"), *materialRelay, nullptr);
     strikeNoiseCharAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("strikeNoiseChar"), *strikeNoiseCharRelay, nullptr);
     velocityCurveAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(

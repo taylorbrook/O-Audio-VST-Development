@@ -27,6 +27,18 @@ void BellVoice::prepare(double sampleRate, int samplesPerBlock)
 
     // Prepare Haas delay buffer (v1.2.0)
     prepareHaasDelay(sampleRate);
+
+    // Prepare resonator filters (v1.3.0)
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = 1;
+
+    for (int i = 0; i < StrikeExciter::NUM_RESONATORS; ++i)
+    {
+        strikeNoise.resonators[i].prepare(spec);
+        strikeNoise.resonators[i].reset();
+    }
 }
 
 void BellVoice::updateParameters(float inharmonicity, float damping, float brightness,
@@ -35,7 +47,7 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
                                  float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                                  float partialTuning, float pitchEnvelope, float pitchEnvTime,
                                  int velocityCurve, float nonlinearEffects,
-                                 int strikeNoiseChar, float outputGain,
+                                 int strikeNoiseChar, float attackLevel, float outputGain,
                                  float strikeTime, float brilliance, float bodyTime, float humSustain)
 {
     currentInharmonicity = inharmonicity;
@@ -58,6 +70,7 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
     currentVelocityCurve = velocityCurve;
     currentNonlinearEffects = nonlinearEffects;
     currentStrikeNoiseChar = strikeNoiseChar;
+    currentAttackLevel = attackLevel;
     currentOutputGain = outputGain;
     // Multi-stage envelope params (always active in v1.2.0)
     currentStrikeTime = strikeTime;
@@ -139,8 +152,18 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
                 subOctaveVoices[i].partials[p] = fundamentalVoices[i].partials[p];
                 subOctaveVoices[i].partials[p].frequency = subFundamental *
                     calculatePartialFrequency(p, 1.0f, currentInharmonicity);
+
+                // Per-note pitch randomization (v1.3.0)
+                float pitchOffset = gaussianApprox() * 10.0f;
+                subOctaveVoices[i].partials[p].frequency *= std::pow(2.0f, pitchOffset / 1200.0f);
+
                 subOctaveVoices[i].partials[p].phaseIncrement =
                     subOctaveVoices[i].partials[p].frequency / static_cast<float>(currentSampleRate);
+
+                // Per-note amplitude randomization (v1.3.0)
+                float ampVariation = 1.0f + gaussianApprox() * 0.25f;
+                ampVariation = juce::jlimit(0.5f, 1.5f, ampVariation);
+                subOctaveVoices[i].partials[p].amplitude *= ampVariation;
 
                 // Initialize bloom for sub-octave partial
                 initializeBloom(subOctaveVoices[i].partials[p], p);
@@ -162,8 +185,18 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
                 upperOctaveVoices[i].partials[p] = fundamentalVoices[i].partials[p];
                 upperOctaveVoices[i].partials[p].frequency = octFundamental *
                     calculatePartialFrequency(p, 1.0f, currentInharmonicity);
+
+                // Per-note pitch randomization (v1.3.0)
+                float pitchOffset = gaussianApprox() * 10.0f;
+                upperOctaveVoices[i].partials[p].frequency *= std::pow(2.0f, pitchOffset / 1200.0f);
+
                 upperOctaveVoices[i].partials[p].phaseIncrement =
                     upperOctaveVoices[i].partials[p].frequency / static_cast<float>(currentSampleRate);
+
+                // Per-note amplitude randomization (v1.3.0)
+                float ampVariation = 1.0f + gaussianApprox() * 0.25f;
+                ampVariation = juce::jlimit(0.5f, 1.5f, ampVariation);
+                upperOctaveVoices[i].partials[p].amplitude *= ampVariation;
 
                 // Initialize bloom for upper-octave partial
                 initializeBloom(upperOctaveVoices[i].partials[p], p);
@@ -214,6 +247,41 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
             break;
         }
     }
+
+    // Initialize resonant filter bank (v1.3.0)
+    // Q based on strike character: Click=high Q, Thud=low Q, Ping=medium Q
+    float resonatorQ;
+    switch (currentStrikeNoiseChar)
+    {
+        case 0:  // Click - high Q, sharp transient
+            resonatorQ = 10.0f;
+            break;
+        case 1:  // Thud - low Q, soft impact
+            resonatorQ = 2.0f;
+            break;
+        case 2:  // Ping - medium Q, metallic
+        default:
+            resonatorQ = 5.0f;
+            break;
+    }
+
+    // Configure resonators tuned to first 4 partials
+    for (int i = 0; i < StrikeExciter::NUM_RESONATORS; ++i)
+    {
+        float partialFreq = calculatePartialFrequency(i, fundamental, currentInharmonicity);
+        strikeNoise.resonators[i].reset();
+        strikeNoise.resonators[i].setType(juce::dsp::StateVariableTPTFilterType::bandpass);
+        strikeNoise.resonators[i].setCutoffFrequency(partialFreq);
+        strikeNoise.resonators[i].setResonance(resonatorQ);
+
+        // Gains based on mallet hardness (harder = more high partials)
+        float partialGain = 1.0f - (i * 0.15f);  // Rolloff
+        strikeNoise.resonatorGains[i] = partialGain * (1.0f + currentMalletHardness * (i * 0.3f));
+    }
+
+    // Impulse: 2 samples
+    strikeNoise.impulseSamplesRemaining = 2;
+    strikeNoise.impulseAmplitude = 1.0f;
 }
 
 void BellVoice::stopNote(float velocity, bool allowTailOff)
@@ -537,46 +605,18 @@ float BellVoice::applyVelocityCurve(float velocity, int curve)
 
 BellVoice::MaterialProperties BellVoice::getMaterialProperties(float material)
 {
-    // v1.2.0: 5-material system (0.0 to 1.0 maps to Bronze → Brass → Steel → Aluminum → Cast Iron)
-    if (material < 0.25f)
+    // v1.3.0: Discrete lookup (Choice parameter normalizes to 0.0, 0.25, 0.5, 0.75, 1.0)
+    int index = static_cast<int>(std::round(material * 4.0f));
+    index = juce::jlimit(0, 4, index);
+
+    switch (index)
     {
-        // Bronze → Brass
-        float t = material / 0.25f;
-        return {
-            juce::jmap(t, MATERIAL_BRONZE.decayMultiplier, MATERIAL_BRASS.decayMultiplier),
-            juce::jmap(t, MATERIAL_BRONZE.brightnessOffset, MATERIAL_BRASS.brightnessOffset),
-            juce::jmap(t, MATERIAL_BRONZE.inharmonicity, MATERIAL_BRASS.inharmonicity)
-        };
-    }
-    else if (material < 0.5f)
-    {
-        // Brass → Steel
-        float t = (material - 0.25f) / 0.25f;
-        return {
-            juce::jmap(t, MATERIAL_BRASS.decayMultiplier, MATERIAL_STEEL.decayMultiplier),
-            juce::jmap(t, MATERIAL_BRASS.brightnessOffset, MATERIAL_STEEL.brightnessOffset),
-            juce::jmap(t, MATERIAL_BRASS.inharmonicity, MATERIAL_STEEL.inharmonicity)
-        };
-    }
-    else if (material < 0.75f)
-    {
-        // Steel → Aluminum
-        float t = (material - 0.5f) / 0.25f;
-        return {
-            juce::jmap(t, MATERIAL_STEEL.decayMultiplier, MATERIAL_ALUMINUM.decayMultiplier),
-            juce::jmap(t, MATERIAL_STEEL.brightnessOffset, MATERIAL_ALUMINUM.brightnessOffset),
-            juce::jmap(t, MATERIAL_STEEL.inharmonicity, MATERIAL_ALUMINUM.inharmonicity)
-        };
-    }
-    else
-    {
-        // Aluminum → Cast Iron
-        float t = (material - 0.75f) / 0.25f;
-        return {
-            juce::jmap(t, MATERIAL_ALUMINUM.decayMultiplier, MATERIAL_CAST_IRON.decayMultiplier),
-            juce::jmap(t, MATERIAL_ALUMINUM.brightnessOffset, MATERIAL_CAST_IRON.brightnessOffset),
-            juce::jmap(t, MATERIAL_ALUMINUM.inharmonicity, MATERIAL_CAST_IRON.inharmonicity)
-        };
+        case 0: return MATERIAL_BRONZE;
+        case 1: return MATERIAL_BRASS;
+        case 2: return MATERIAL_STEEL;
+        case 3: return MATERIAL_ALUMINUM;
+        case 4: return MATERIAL_CAST_IRON;
+        default: return MATERIAL_BRONZE;
     }
 }
 
@@ -630,6 +670,11 @@ void BellVoice::initializePartials(float fundamental, float velocity)
         effectiveInharmonicity = juce::jlimit(0.0f, 1.0f, effectiveInharmonicity);
 
         partial.frequency = calculatePartialFrequency(p, fundamental, effectiveInharmonicity);
+
+        // Per-note pitch randomization (v1.3.0 - ±10 cents std dev)
+        float pitchOffset = gaussianApprox() * 10.0f;  // ±10 cents
+        partial.frequency *= std::pow(2.0f, pitchOffset / 1200.0f);
+
         partial.phaseIncrement = partial.frequency / static_cast<float>(currentSampleRate);
         partial.phase = 0.0f;
 
@@ -642,6 +687,11 @@ void BellVoice::initializePartials(float fundamental, float velocity)
         float malletGain = 1.0f + currentMalletHardness * (p / static_cast<float>(NUM_PARTIALS));
 
         partial.amplitude = baseAmplitude * strikeGain * malletGain * velocity;
+
+        // Per-note amplitude randomization (v1.3.0 - ±25% std dev, clamped 50%-150%)
+        float ampVariation = 1.0f + gaussianApprox() * 0.25f;
+        ampVariation = juce::jlimit(0.5f, 1.5f, ampVariation);
+        partial.amplitude *= ampVariation;
         partial.targetAmplitude = partial.amplitude;
 
         // Calculate decay rate (exponential decay) with material multiplier
@@ -655,38 +705,29 @@ void BellVoice::initializePartials(float fundamental, float velocity)
 
 float BellVoice::generateStrikeNoise()
 {
-    // Generate white noise
-    float noise = (static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f;
+    // v1.3.0: Impulse-driven resonant filter bank
+    float input = 0.0f;
+
+    // Generate impulse for first 2 samples
+    if (strikeNoise.impulseSamplesRemaining > 0)
+    {
+        input = strikeNoise.impulseAmplitude;
+        --strikeNoise.impulseSamplesRemaining;
+    }
+
+    // Process impulse through resonator bank in parallel
     float output = 0.0f;
-
-    if (currentStrikeNoiseChar == 2)  // Ping - resonant bandpass
+    for (int i = 0; i < StrikeExciter::NUM_RESONATORS; ++i)
     {
-        // Simple state-variable bandpass filter
-        float f = 2.0f * std::sin(juce::MathConstants<float>::pi * strikeNoise.centerFreq /
-                                   static_cast<float>(currentSampleRate));
-        f = juce::jlimit(0.0f, 1.0f, f);  // Clamp for stability
+        float resonatorOutput = strikeNoise.resonators[i].processSample(0, input);
+        output += resonatorOutput * strikeNoise.resonatorGains[i];
+    }
 
-        float q = strikeNoise.resonance;
-        strikeNoise.bp1 += f * (noise - strikeNoise.bp1 - q * strikeNoise.bp2);
-        strikeNoise.bp2 += f * strikeNoise.bp1;
+    // Apply overall decay envelope
+    output *= strikeNoise.amplitude;
 
-        output = strikeNoise.bp1 * strikeNoise.amplitude;
-    }
-    else if (strikeNoise.filterCoeff > 0.0f)  // Thud - lowpass
-    {
-        // One-pole lowpass: y[n] = coeff * y[n-1] + (1-coeff) * x[n]
-        strikeNoise.filterState = strikeNoise.filterCoeff * strikeNoise.filterState +
-                                  (1.0f - strikeNoise.filterCoeff) * noise;
-        output = strikeNoise.filterState * strikeNoise.amplitude * 2.0f;  // Gain boost for low end
-    }
-    else  // Click - highpass
-    {
-        // Simple highpass: output difference between current and filtered
-        float coeff = -strikeNoise.filterCoeff;
-        float lowpassed = coeff * strikeNoise.filterState + (1.0f - coeff) * noise;
-        output = (noise - lowpassed) * strikeNoise.amplitude * 1.5f;  // Boost for presence
-        strikeNoise.filterState = lowpassed;
-    }
+    // Scale by attack level (50% = original level, so multiply by 2.0)
+    output *= currentAttackLevel * 2.0f;
 
     return output;
 }
@@ -801,6 +842,10 @@ void BellVoice::calculateMultiStageCoefficients(float fundamental)
 
 void BellVoice::applyMultiStageDecay(ModalPartial& partial, int partialIndex)
 {
+    // Skip decay during bloom phase (v1.3.0 bug fix)
+    if (partial.bloomPhase < 1.0f)
+        return;
+
     // Calculate current time in seconds
     float timeSeconds = static_cast<float>(samplesSinceNoteOn) / static_cast<float>(currentSampleRate);
 
@@ -840,15 +885,34 @@ void BellVoice::initializeBloom(ModalPartial& partial, int partialIndex)
         return;
     }
 
-    // Bloom duration: 10ms (subtle) to 100ms (pronounced)
-    float bloomDurationMs = juce::jmap(currentBloom, 10.0f, 100.0f);
+    // Spectral bloom: staggered timing based on partial index (v1.3.0)
+    float bloomDurationMs;
+    float initialFraction;
+
+    if (partialIndex < 2)
+    {
+        // Low partials (0-1): Near-instant (5ms), 95% initial amplitude
+        bloomDurationMs = 5.0f;
+        initialFraction = 0.95f;
+    }
+    else if (partialIndex < 5)
+    {
+        // Mid partials (2-4): 30-80ms based on bloom, 50-70% initial
+        bloomDurationMs = juce::jmap(currentBloom, 30.0f, 80.0f);
+        initialFraction = juce::jmap(currentBloom, 0.7f, 0.5f);
+    }
+    else
+    {
+        // High partials (5-7): 50-150ms based on bloom, 15-50% initial
+        bloomDurationMs = juce::jmap(currentBloom, 50.0f, 150.0f);
+        initialFraction = juce::jmap(currentBloom, 0.5f, 0.15f);
+    }
+
     float bloomDurationSamples = (bloomDurationMs / 1000.0f) * static_cast<float>(currentSampleRate);
 
     partial.bloomPhase = 0.0f;
     partial.bloomRate = 1.0f / bloomDurationSamples;
 
-    // Initial amplitude: start at 30-70% of target (bloom amount dependent)
-    float initialFraction = juce::jmap(currentBloom, 0.7f, 0.3f);
     partial.initialAmplitude = partial.amplitude * initialFraction;
     partial.peakAmplitude = partial.amplitude;
 
@@ -894,9 +958,9 @@ void BellVoice::initializeShimmer(ModalPartial& partial, int partialIndex)
     }
 
     // LFO frequency: use prime ratios to prevent phase locking between partials
-    // Range: 0.5 Hz to 3 Hz (slow shimmering)
-    static const float primeLFORatios[NUM_PARTIALS] = {1.0f, 1.1f, 1.3f, 1.7f, 1.9f, 2.3f, 2.9f, 3.1f};
-    float baseLFOFreq = juce::jmap(currentShimmer, 0.5f, 3.0f);
+    // Range: 0.1 Hz to 8.0 Hz (v1.3.0 - wider range for organic shimmer)
+    static const float primeLFORatios[NUM_PARTIALS] = {1.0f, 1.31f, 1.73f, 2.17f, 2.71f, 3.31f, 4.13f, 5.03f};
+    float baseLFOFreq = juce::jmap(currentShimmer, 0.1f, 8.0f);
     partial.shimmerLFORate = baseLFOFreq * primeLFORatios[partialIndex] / static_cast<float>(currentSampleRate);
 
     // Modulation depth: subtle (1-5 cents depending on shimmer amount)

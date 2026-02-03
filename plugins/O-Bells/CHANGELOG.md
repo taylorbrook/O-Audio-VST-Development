@@ -2,6 +2,48 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.3.0] - 2026-02-03
+
+### Added
+- **Attack parameter** - New slider (0-100%) controls strike transient volume
+  - 0% = minimal transient, pure tone
+  - 50% = natural transient level (default)
+  - 100% = exaggerated transient, percussive
+
+### Changed
+- **Shimmer quality improvement** - Wider LFO range (0.1-8 Hz) with better desynchronization
+  - Replaced prime ratios with more spread values for organic metallic shimmer
+  - No more audible LFO synchronization patterns at any setting
+- **Material differentiation** - Exaggerated material properties for audible distinction
+  - Bronze: Baseline warm church bell (1.0x decay)
+  - Brass: Bright, short, jazzy (0.7x decay, +0.20 brightness)
+  - Steel: Very bright, long sustain (2.0x decay, +0.25 brightness)
+  - Aluminum: Very bright, short, thin (0.5x decay, +0.30 brightness)
+  - Cast Iron: Dark, long, gamelan-like (1.5x decay, -0.25 brightness)
+- **Attack noise overhaul** - Replaced filtered noise with impulse-driven resonant filter bank
+  - 4 resonant filters tuned to first 4 partials
+  - Q values based on strike character (Click=10, Thud=2, Ping=5)
+  - Strike transients now sound like physical mallet impact
+
+### Fixed
+- **Bloom bug** - Bloom effect now produces audible amplitude swell
+  - Fixed decay masking bloom by delaying decay until bloom completes
+  - Added spectral bloom with staggered partial timing (low partials instant, high partials fade in)
+- **Per-note variation** - Repeated strikes now sound subtly different
+  - Added Gaussian-distributed pitch variation (±10 cents)
+  - Added amplitude variation (±25%, clamped 50%-150%)
+
+### Breaking Changes
+- **Material parameter type changed** from continuous slider to discrete dropdown
+  - Old presets will round material value to nearest discrete option
+  - Users should resave presets after loading in v1.3.0
+
+### Technical Notes
+- Domain: DSP
+- Milestone: acoustic-realism-v2
+- Total parameters: 22 (was 21)
+- Pluginval: Passes Level 5 (VST3 and AU)
+
 ## [1.2.0] - 2026-02-02
 
 ### Added

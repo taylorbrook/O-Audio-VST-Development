@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
+#include <cstdlib>
 #include "BellSound.h"
 
 class BellVoice : public juce::SynthesiserVoice
@@ -36,7 +37,7 @@ public:
                          float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                          float partialTuning, float pitchEnvelope, float pitchEnvTime,
                          int velocityCurve, float nonlinearEffects,
-                         int strikeNoiseChar, float outputGain,
+                         int strikeNoiseChar, float attackLevel, float outputGain,
                          float strikeTime, float brilliance, float bodyTime, float humSustain);
 
 private:
@@ -60,12 +61,12 @@ private:
         float inharmonicity;        // Partial stretch (0.0 = harmonic, higher = more inharmonic)
     };
 
-    // Research-based material definitions (5 materials)
-    static constexpr MaterialProperties MATERIAL_BRONZE     = {1.0f,  0.0f,   0.0f};   // Baseline: warm, balanced
-    static constexpr MaterialProperties MATERIAL_BRASS      = {0.9f,  +0.05f, +0.02f}; // Brighter, slightly stretched
-    static constexpr MaterialProperties MATERIAL_STEEL      = {1.4f,  +0.10f, +0.01f}; // Bright, long sustain
-    static constexpr MaterialProperties MATERIAL_ALUMINUM   = {0.7f,  +0.15f, +0.05f}; // Very bright, short, stretched
-    static constexpr MaterialProperties MATERIAL_CAST_IRON  = {1.2f,  -0.10f, +0.03f}; // Dark, long, gamelan-like
+    // Research-based material definitions (5 materials) - v1.3.0 exaggerated for audible differentiation
+    static constexpr MaterialProperties MATERIAL_BRONZE     = {1.0f,  0.0f,   0.0f};    // Baseline warm
+    static constexpr MaterialProperties MATERIAL_BRASS      = {0.7f,  +0.20f, +0.08f};  // Bright, short, jazzy
+    static constexpr MaterialProperties MATERIAL_STEEL      = {2.0f,  +0.25f, -0.05f};  // Very bright, long sustain
+    static constexpr MaterialProperties MATERIAL_ALUMINUM   = {0.5f,  +0.30f, +0.12f};  // Very bright, short, thin
+    static constexpr MaterialProperties MATERIAL_CAST_IRON  = {1.5f,  -0.25f, +0.15f};  // Dark, long, gamelan-like
 
     // Modal partial state
     struct ModalPartial
@@ -114,6 +115,13 @@ private:
         float bp2 = 0.0f;
         float resonance = 0.0f;
         float centerFreq = 0.0f;
+
+        // Resonant filter bank for impulse response (v1.3.0)
+        static constexpr int NUM_RESONATORS = 4;
+        juce::dsp::StateVariableTPTFilter<float> resonators[NUM_RESONATORS];
+        float resonatorGains[NUM_RESONATORS] = {1.0f, 1.0f, 1.0f, 1.0f};
+        int impulseSamplesRemaining = 0;
+        float impulseAmplitude = 1.0f;
     };
 
     // Stereo enhancement state (v1.2.0)
@@ -157,6 +165,7 @@ private:
     int currentVelocityCurve = 0;  // Linear
     float currentNonlinearEffects = 0.0f;
     int currentStrikeNoiseChar = 0;  // Click
+    float currentAttackLevel = 0.5f;  // v1.3.0
     float currentOutputGain = 0.0f;
     // Multi-stage envelope parameters (always active in v1.2.0)
     float currentStrikeTime = 30.0f;      // ms
@@ -217,4 +226,14 @@ private:
     float processPartial(ModalPartial& partial);
     void calculateMultiStageCoefficients(float fundamental);
     void applyMultiStageDecay(ModalPartial& partial, int partialIndex);
+
+    // Gaussian random number generator (v1.3.0 - CLT approximation)
+    float gaussianApprox()
+    {
+        // Sum of 3 uniform randoms approximates Gaussian (Central Limit Theorem)
+        float sum = 0.0f;
+        for (int i = 0; i < 3; ++i)
+            sum += (static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f;
+        return sum / 1.73f;  // Scale to ~unit variance
+    }
 };
