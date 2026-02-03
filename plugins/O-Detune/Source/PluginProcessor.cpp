@@ -684,72 +684,86 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     //==============================================================================
     // 5. Color + Age drift processing
-    float currentColor = smoothedColor.getCurrentValue();
-    // Process color if not near zero (threshold lowered for audibility)
-    if (std::abs(currentColor) > 0.5f)
+    // Always advance the smoothed Color value (even if not processing) to maintain state
     {
-        // Calculate drift modulation from age
-        float ageForDrift = smoothedAge.getCurrentValue();
-        float driftMod = std::sin(filterDriftPhase * juce::MathConstants<float>::twoPi) * (ageForDrift / 100.0f) * 0.2f;
-
-        // Update filter coefficients (once per block for efficiency)
-        if (currentColor < 0)
-        {
-            // Negative: Low-pass filter to darken (more dramatic effect)
-            float cutoff = juce::jmap(currentColor, -100.0f, 0.0f, 1000.0f, 18000.0f);
-            cutoff = std::max(200.0f, cutoff * (1.0f + driftMod));  // Apply drift, clamp minimum
-            auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff, 0.707f);
-            *colorFilterL.coefficients = *coeffs;
-            *colorFilterR.coefficients = *coeffs;
-        }
-        else
-        {
-            // Positive: High-shelf boost (bright)
-            float cutoff = 2500.0f * (1.0f + driftMod);  // Apply drift
-            float gainDb = 9.0f * (currentColor / 100.0f);  // Increased gain for audibility
-            auto coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-                currentSampleRate, cutoff, 0.707f, juce::Decibels::decibelsToGain(gainDb));
-            *colorFilterL.coefficients = *coeffs;
-            *colorFilterR.coefficients = *coeffs;
-        }
-
-        // Process both channels
         auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
         auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
+
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            if (dataL) dataL[sample] = colorFilterL.processSample(dataL[sample]);
-            if (dataR) dataR[sample] = colorFilterR.processSample(dataR[sample]);
+            float color = smoothedColor.getNextValue();
+            float ageForDrift = smoothedAge.getCurrentValue();  // Read current (Age is advanced later)
+
+            // Only process if color value is significant
+            if (std::abs(color) > 0.5f)
+            {
+                // Calculate drift modulation from age
+                float driftMod = std::sin(filterDriftPhase * juce::MathConstants<float>::twoPi) * (ageForDrift / 100.0f) * 0.2f;
+
+                // Update filter coefficients per-sample for smooth automation
+                if (color < 0)
+                {
+                    // Negative: Low-pass filter to darken
+                    float cutoff = juce::jmap(color, -100.0f, 0.0f, 1000.0f, 18000.0f);
+                    cutoff = std::max(200.0f, cutoff * (1.0f + driftMod));
+                    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff, 0.707f);
+                    *colorFilterL.coefficients = *coeffs;
+                    *colorFilterR.coefficients = *coeffs;
+                }
+                else
+                {
+                    // Positive: High-shelf boost (bright)
+                    float cutoff = 2500.0f * (1.0f + driftMod);
+                    float gainDb = 9.0f * (color / 100.0f);
+                    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+                        currentSampleRate, cutoff, 0.707f, juce::Decibels::decibelsToGain(gainDb));
+                    *colorFilterL.coefficients = *coeffs;
+                    *colorFilterR.coefficients = *coeffs;
+                }
+
+                // Process both channels
+                if (dataL) dataL[sample] = colorFilterL.processSample(dataL[sample]);
+                if (dataR) dataR[sample] = colorFilterR.processSample(dataR[sample]);
+            }
         }
     }
 
     //==============================================================================
     // 6. Age hiss processing
-    float currentAge = smoothedAge.getCurrentValue();
-    if (currentAge > 0.5f)  // Lower threshold
+    // Always advance the smoothed Age value (even if not processing) to maintain state
     {
-        float ageMix = currentAge / 100.0f;
-        float eraDrift = eraPresets[wobbleEra].drift;
-        float effectiveAgeDrift = ageMix * (eraDrift * 10.0f);  // Scale up drift effect
-
-        // 1. Hiss: Audible broadband noise (scaled for audibility)
-        float hissLevel = ageMix * 0.05f;  // Increased from 0.02 for audibility
-
         auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
         auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
+        float eraDrift = eraPresets[wobbleEra].drift;
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            float noiseL = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
-            float noiseR = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
+            float age = smoothedAge.getNextValue();
 
-            if (dataL) dataL[sample] += noiseL;
-            if (dataR) dataR[sample] += noiseR;
+            // Only process if age value is significant
+            if (age > 0.5f)
+            {
+                float ageMix = age / 100.0f;
+
+                // Hiss: Audible broadband noise
+                float hissLevel = ageMix * 0.05f;
+                float noiseL = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
+                float noiseR = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
+
+                if (dataL) dataL[sample] += noiseL;
+                if (dataR) dataR[sample] += noiseR;
+            }
         }
 
-        // 2. Filter drift: Update phase for next block (affects color filter modulation)
-        filterDriftPhase += 0.5f * numSamples / static_cast<float>(currentSampleRate) * (1.0f + effectiveAgeDrift);
-        if (filterDriftPhase >= 1.0f) filterDriftPhase -= 1.0f;
+        // Filter drift: Update phase for next block (affects color filter modulation)
+        float currentAge = smoothedAge.getCurrentValue();
+        if (currentAge > 0.5f)
+        {
+            float ageMix = currentAge / 100.0f;
+            float effectiveAgeDrift = ageMix * (eraDrift * 10.0f);
+            filterDriftPhase += 0.5f * numSamples / static_cast<float>(currentSampleRate) * (1.0f + effectiveAgeDrift);
+            if (filterDriftPhase >= 1.0f) filterDriftPhase -= 1.0f;
+        }
     }
 
     //==============================================================================

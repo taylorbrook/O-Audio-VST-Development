@@ -1,5 +1,24 @@
 # O-Detune Changelog
 
+## [1.3.7] - 2026-02-03
+
+### Fixed
+
+- **Character panel (Drive, Color, Age) now has audible effect** (critical bug fix)
+  - Root cause: Smoothed values for Color and Age were never advanced with `getNextValue()`
+  - The parameter smoothing system requires calling `getNextValue()` per-sample to progress the ramp
+  - Color and Age used `getCurrentValue()` for threshold checks but never advanced the smoothing state
+  - Result: Parameters were stuck at their initial values and never responded to user adjustment
+  - Fix: Restructured Color and Age processing to advance smoothed values per-sample
+  - Both parameters now properly respond to knob/automation changes in real-time
+
+### Technical Notes
+
+- `SmoothedValue<float>` requires `getNextValue()` to be called to progress the interpolation
+- `getCurrentValue()` only reads current state without advancing
+- Color filter now updates coefficients per-sample (was per-block) for smoother automation
+- Age hiss level now calculated per-sample for proper parameter tracking
+
 ## [1.3.6] - 2026-02-03
 
 ### Fixed
