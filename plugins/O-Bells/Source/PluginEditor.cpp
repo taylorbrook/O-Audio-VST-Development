@@ -20,7 +20,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     dampingRelay = std::make_unique<juce::WebSliderRelay>("damping");
     brightnessRelay = std::make_unique<juce::WebSliderRelay>("brightness");
     inharmonicityRelay = std::make_unique<juce::WebSliderRelay>("inharmonicity");
-    bloomRelay = std::make_unique<juce::WebSliderRelay>("bloom");
+    bloomSpeedRelay = std::make_unique<juce::WebSliderRelay>("bloomSpeed");
+    bloomAmountRelay = std::make_unique<juce::WebSliderRelay>("bloomAmount");
     shimmerRelay = std::make_unique<juce::WebSliderRelay>("shimmer");
     unisonCountRelay = std::make_unique<juce::WebSliderRelay>("unisonCount");
     unisonDetuneRelay = std::make_unique<juce::WebSliderRelay>("unisonDetune");
@@ -56,7 +57,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*brightnessRelay)
             .withOptionsFrom(*materialRelay)
             .withOptionsFrom(*inharmonicityRelay)
-            .withOptionsFrom(*bloomRelay)
+            .withOptionsFrom(*bloomSpeedRelay)
+            .withOptionsFrom(*bloomAmountRelay)
             .withOptionsFrom(*shimmerRelay)
             .withOptionsFrom(*unisonCountRelay)
             .withOptionsFrom(*unisonDetuneRelay)
@@ -225,8 +227,10 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("brightness"), *brightnessRelay, nullptr);
     inharmonicityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("inharmonicity"), *inharmonicityRelay, nullptr);
-    bloomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("bloom"), *bloomRelay, nullptr);
+    bloomSpeedAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomSpeed"), *bloomSpeedRelay, nullptr);
+    bloomAmountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomAmount"), *bloomAmountRelay, nullptr);
     shimmerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("shimmer"), *shimmerRelay, nullptr);
     unisonCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

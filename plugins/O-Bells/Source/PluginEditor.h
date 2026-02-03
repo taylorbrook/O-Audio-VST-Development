@@ -43,7 +43,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> dampingRelay;
     std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
     std::unique_ptr<juce::WebSliderRelay> inharmonicityRelay;
-    std::unique_ptr<juce::WebSliderRelay> bloomRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomSpeedRelay;   // v1.4.0: Split bloom
+    std::unique_ptr<juce::WebSliderRelay> bloomAmountRelay;
     std::unique_ptr<juce::WebSliderRelay> shimmerRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonCountRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonDetuneRelay;
@@ -78,7 +79,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> dampingAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> inharmonicityAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> bloomAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomSpeedAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomAmountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> shimmerAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonDetuneAttachment;

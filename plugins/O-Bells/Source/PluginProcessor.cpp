@@ -72,12 +72,21 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
-    // BLOOM - Spectral swelling before decay (v1.2.0)
+    // BLOOM SPEED - How fast partials swell (v1.4.0: split from bloom)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "bloom", 1 },
-        "Bloom",
+        juce::ParameterID { "bloomSpeed", 1 },
+        "Bloom Speed",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
-        0.0f,
+        0.5f,  // Default: medium speed
+        "%"
+    ));
+
+    // BLOOM AMOUNT - Intensity of spectral swelling (v1.4.0: split from bloom)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloomAmount", 1 },
+        "Bloom Amount",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f,  // Default: off
         "%"
     ));
 
@@ -323,7 +332,8 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     brightnessParam = parameters.getRawParameterValue("brightness");
     materialParam = parameters.getRawParameterValue("material");
     inharmonicityParam = parameters.getRawParameterValue("inharmonicity");
-    bloomParam = parameters.getRawParameterValue("bloom");
+    bloomSpeedParam = parameters.getRawParameterValue("bloomSpeed");
+    bloomAmountParam = parameters.getRawParameterValue("bloomAmount");
     shimmerParam = parameters.getRawParameterValue("shimmer");
     // Ensemble
     unisonCountParam = parameters.getRawParameterValue("unisonCount");
@@ -370,7 +380,8 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float strikePosition = strikePositionParam->load();
     float malletHardness = malletHardnessParam->load();
     float material = materialParam->load();
-    float bloom = bloomParam->load();
+    float bloomSpeed = bloomSpeedParam->load();
+    float bloomAmount = bloomAmountParam->load();
     float shimmer = shimmerParam->load();
     int unisonCount = static_cast<int>(unisonCountParam->load());
     float unisonDetune = unisonDetuneParam->load();
@@ -399,7 +410,7 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         {
             voice->updateParameters(
                 inharmonicity, damping, brightness,
-                strikePosition, malletHardness, material, bloom, shimmer,
+                strikePosition, malletHardness, material, bloomSpeed, bloomAmount, shimmer,
                 unisonCount, unisonDetune,
                 octaveBlendSub, octaveBlendOct, stereoSpread,
                 partialTuning, pitchEnvelope, pitchEnvTime,

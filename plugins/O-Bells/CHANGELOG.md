@@ -2,6 +2,35 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.4.0] - 2026-02-03
+
+### Added
+- **Bloom Speed parameter** - Independent control over bloom duration (0-100%)
+  - Low partials: 5-15ms bloom time
+  - Mid partials: 30-120ms bloom time
+  - High partials: 50-200ms bloom time
+- **Bloom Amount parameter** - Independent control over bloom intensity (0-100%)
+  - Controls how much partials swell from initial to peak amplitude
+  - Low partials: subtle effect (0-5% reduction)
+  - Mid partials: moderate effect (0-60% reduction)
+  - High partials: dramatic effect (0-90% reduction)
+
+### Changed
+- **Bloom parameter split** - The original single "Bloom" parameter is now two separate controls:
+  - "Bloom Speed" controls how fast the swell occurs
+  - "Bloom Amount" controls the intensity of the spectral swelling effect
+  - Provides finer control over the organic "breath" effect on bell attacks
+
+### Breaking Changes
+- **Bloom parameter replaced** - Old presets with `bloom` parameter will not load correctly
+  - Users should resave presets after loading in v1.4.0
+  - Default values: Speed=50%, Amount=0% (bloom off by default)
+
+### Technical Notes
+- Domain: DSP + UI
+- Total parameters: 23 (was 22)
+- Pluginval: Passes Level 5 (VST3 and AU)
+
 ## [1.3.0] - 2026-02-03
 
 ### Added

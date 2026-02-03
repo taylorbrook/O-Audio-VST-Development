@@ -76,7 +76,8 @@ private:
     std::atomic<float>* brightnessParam = nullptr;
     std::atomic<float>* materialParam = nullptr;
     std::atomic<float>* inharmonicityParam = nullptr;
-    std::atomic<float>* bloomParam = nullptr;
+    std::atomic<float>* bloomSpeedParam = nullptr;   // v1.4.0: Split bloom
+    std::atomic<float>* bloomAmountParam = nullptr;
     std::atomic<float>* shimmerParam = nullptr;
     // Ensemble (5 params)
     std::atomic<float>* unisonCountParam = nullptr;

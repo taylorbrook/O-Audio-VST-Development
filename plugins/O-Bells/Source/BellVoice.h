@@ -32,7 +32,8 @@ public:
 
     // Parameter update (called from processor's prepareToPlay or processBlock)
     void updateParameters(float inharmonicity, float damping, float brightness,
-                         float strikePosition, float malletHardness, float material, float bloom, float shimmer,
+                         float strikePosition, float malletHardness, float material,
+                         float bloomSpeed, float bloomAmount, float shimmer,
                          int unisonCount, float unisonDetune,
                          float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                          float partialTuning, float pitchEnvelope, float pitchEnvTime,
@@ -151,7 +152,8 @@ private:
     float currentStrikePosition = 0.5f;
     float currentMalletHardness = 0.5f;
     float currentMaterial = 0.25f;
-    float currentBloom = 0.0f;
+    float currentBloomSpeed = 0.0f;    // v1.4.0: Split bloom into speed/amount
+    float currentBloomAmount = 0.0f;
     float currentShimmer = 0.2f;
     int currentUnisonCount = 1;
     float currentUnisonDetune = 10.0f;
