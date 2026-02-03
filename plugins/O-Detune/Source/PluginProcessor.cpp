@@ -321,8 +321,8 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     for (int i = 0; i < maxUnisonVoices; ++i)
     {
         voiceDriftPhases[i] = static_cast<float>(i) / static_cast<float>(maxUnisonVoices);
-        voiceCrossfadeProgress[i] = 0.0f;
-        voiceInCrossfade[i] = false;
+        smoothedVoiceDetunes[i] = 0.0f;
+        smoothedDelayTimes[i] = (centerDelayMs / 1000.0f) * static_cast<float>(sampleRate);
     }
 
     // Pre-allocate processing buffers (real-time safety)
@@ -858,30 +858,24 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
     randomRefreshCounter -= numSamples;
 
-    // Drift rate constant: how fast the delay changes to create pitch shift
-    // For delay-based pitch shifting: dDelay/dt = (1 - pitchRatio) * sampleRate
-    // We use a modulation range of ±10ms around center (smaller = faster cycles, more stable pitch)
-    const float driftRangeMs = 10.0f;
+    // Drift modulation range (±5ms for subtle chorusing effect)
+    const float driftRangeMs = 5.0f;
     const float driftRangeSamples = (driftRangeMs / 1000.0f) * static_cast<float>(currentSampleRate);
+
+    // Smoothing coefficient (very smooth to prevent clicks)
+    // At 48kHz: 0.0002 = ~100ms time constant
+    const float detuneSmoothing = 0.0002f;
+    const float delaySmoothing = 0.001f;  // Slightly faster for delay (still ~20ms)
 
     // Process each voice with continuous delay modulation
     for (int voice = 0; voice < activeVoices; ++voice)
     {
-        // Only add random offset for non-Random distributions (avoid double-application)
-        float effectiveDetune = voiceDetunes[voice];
-        if (unisonDist != 2)  // Not Random distribution
+        // Calculate target detune for this voice
+        float targetDetune = voiceDetunes[voice];
+        if (unisonDist != 2)  // Not Random distribution - add random variation
         {
-            effectiveDetune += voiceRandomOffsets[voice] * (randomAmt / 100.0f) * unisonDetune * 0.5f;
+            targetDetune += voiceRandomOffsets[voice] * (randomAmt / 100.0f) * unisonDetune * 0.5f;
         }
-
-        // Calculate drift rate: how fast delay changes per sample
-        // voicePitchRatio > 1 means pitch up, which requires decreasing delay
-        float voicePitchRatio = std::pow(2.0f, effectiveDetune / 1200.0f);
-        float driftRate = (1.0f - voicePitchRatio);  // Negative for pitch up, positive for pitch down
-
-        // Phase increment determines how fast the triangle wave cycles
-        // Smaller detune = slower drift = more stable pitch perception
-        float phaseIncrement = std::abs(driftRate) / driftRangeSamples;
 
         // Process both channels sample-by-sample with modulating delay
         auto* inputDataL = numChannels >= 1 ? buffer.getReadPointer(0) : nullptr;
@@ -891,25 +885,36 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            // Triangle wave for smooth direction reversal (no discontinuities)
-            // Phase 0->0.5: rising (0->1), Phase 0.5->1: falling (1->0)
+            // Smooth the detune value (prevents clicks from sudden parameter changes)
+            smoothedVoiceDetunes[voice] += (targetDetune - smoothedVoiceDetunes[voice]) * detuneSmoothing;
+            float effectiveDetune = smoothedVoiceDetunes[voice];
+
+            // Calculate drift rate from smoothed detune
+            float voicePitchRatio = std::pow(2.0f, effectiveDetune / 1200.0f);
+            float driftRate = (1.0f - voicePitchRatio);
+
+            // Phase increment based on detune magnitude
+            float phaseIncrement = std::abs(driftRate) / driftRangeSamples;
+
+            // Triangle wave for smooth oscillation (no discontinuities)
             float triangleValue;
             if (voiceDriftPhases[voice] < 0.5f)
-                triangleValue = voiceDriftPhases[voice] * 2.0f;  // 0->1
+                triangleValue = voiceDriftPhases[voice] * 2.0f;
             else
-                triangleValue = 2.0f - voiceDriftPhases[voice] * 2.0f;  // 1->0
+                triangleValue = 2.0f - voiceDriftPhases[voice] * 2.0f;
 
-            // Calculate delay offset from triangle wave
-            // Center the modulation around centerDelay (±driftRange/2)
+            // Calculate target delay from triangle wave and detune direction
             float delayOffset = (triangleValue - 0.5f) * driftRangeSamples;
-
-            // Apply direction based on pitch shift direction
-            if (driftRate > 0)  // Pitch down
+            if (effectiveDetune < 0)  // Pitch down = positive delay offset
                 delayOffset = -delayOffset;
 
-            float voiceDelayTime = centerDelaySamples + delayOffset;
+            float targetDelayTime = centerDelaySamples + delayOffset;
 
-            // Clamp delay time to valid range
+            // Smooth the delay time itself (final safety net against clicks)
+            smoothedDelayTimes[voice] += (targetDelayTime - smoothedDelayTimes[voice]) * delaySmoothing;
+            float voiceDelayTime = smoothedDelayTimes[voice];
+
+            // Clamp to valid range
             voiceDelayTime = std::max(1.0f, std::min(voiceDelayTime, centerDelaySamples * 1.5f));
 
             // Process left channel
@@ -930,14 +935,10 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 outputDataR[sample] += delayedSample * voicePanR[voice];
             }
 
-            // Advance drift phase (triangle wave wraps smoothly at boundaries)
+            // Advance drift phase
             voiceDriftPhases[voice] += phaseIncrement;
-
-            // Simple wrap - triangle wave handles the smooth transition
             if (voiceDriftPhases[voice] >= 1.0f)
-            {
                 voiceDriftPhases[voice] -= 1.0f;
-            }
         }
     }
 

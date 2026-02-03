@@ -1,5 +1,27 @@
 # O-Detune Changelog
 
+## [1.3.3] - 2026-02-03
+
+### Fixed
+
+- **Eliminated remaining clicks in unison engine** (especially with Random distribution)
+  - Root cause: When detune values changed (random offset updates), driftRate could flip sign causing sudden direction reversal
+  - Fix: Added dual-layer smoothing system
+    1. Per-voice detune smoothing (α=0.0002, ~100ms time constant)
+    2. Per-voice delay time smoothing (α=0.001, ~20ms time constant)
+  - All parameter changes now interpolate smoothly over time
+
+### Changed
+
+- Reduced drift range from ±10ms to ±5ms for subtler chorusing effect
+- Detune direction now based on smoothed detune value (prevents sign-flip clicks)
+
+### Technical Notes
+
+- `smoothedVoiceDetunes[voice]` prevents sudden detune jumps from random offsets
+- `smoothedDelayTimes[voice]` provides final safety net for delay discontinuities
+- Exponential smoothing: `value += (target - value) * coefficient`
+
 ## [1.3.2] - 2026-02-03
 
 ### Fixed
