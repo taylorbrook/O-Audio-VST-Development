@@ -252,7 +252,7 @@
             stroke: #5a7a6a;
             stroke-width: 3;
             stroke-linecap: round;
-            transition: stroke-dashoffset 0.1s ease;
+            /* Smooth animation handled by JS interpolation loop */
         }
 
         .knob-label {
@@ -403,6 +403,50 @@
 
         // Knob configurations for lookup
         const knobConfigs = {};
+
+        // Animation state for smooth knob movement
+        const animationState = {
+            targets: {},      // { knobId: { current: 0, target: 0, vine: element, arcLength: number } }
+            frameId: null,
+            isRunning: false,
+            smoothingFactor: 0.15  // Exponential smoothing (0-1, lower = smoother but slower)
+        };
+
+        // Animation loop for smooth knob interpolation
+        const animationLoop = (timestamp) => {
+            let needsUpdate = false;
+
+            Object.entries(animationState.targets).forEach(([id, state]) => {
+                const delta = state.target - state.current;
+
+                // Only update if there's meaningful difference
+                if (Math.abs(delta) > 0.0001) {
+                    // Exponential easing toward target
+                    state.current += delta * animationState.smoothingFactor;
+                    needsUpdate = true;
+
+                    // Update vine arc visual
+                    const offset = state.arcLength - (state.current * state.arcLength);
+                    state.vine.style.strokeDashoffset = offset;
+                }
+            });
+
+            // Continue loop if any knob needs updating
+            if (needsUpdate) {
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            } else {
+                animationState.isRunning = false;
+                animationState.frameId = null;
+            }
+        };
+
+        // Start animation loop if not already running
+        const startAnimationLoop = () => {
+            if (!animationState.isRunning) {
+                animationState.isRunning = true;
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            }
+        };
 
         // Wait for JUCE backend
         function initializeJUCE() {
@@ -564,8 +608,26 @@
             const vine = knob.querySelector('.knob-vine');
             const valueDisplay = knob.querySelector('.knob-value');
 
+            // Calculate arc length for this knob (r=25, 270 degrees = 0.75 circumference)
+            const circumference = 2 * Math.PI * 25;
+            const arcLength = circumference * 0.75;
+
             // Store config for global handler
-            knobConfigs[knobId] = { state, min, max, formatValue, unit, vine, valueDisplay };
+            knobConfigs[knobId] = { state, min, max, formatValue, unit, vine, valueDisplay, arcLength };
+
+            // Initialize animation state for this knob
+            const initialNorm = state.getNormalisedValue();
+            animationState.targets[knobId] = {
+                current: initialNorm,
+                target: initialNorm,
+                vine: vine,
+                arcLength: arcLength
+            };
+
+            // Set initial visual state (no animation needed for initial render)
+            const initialOffset = arcLength - (initialNorm * arcLength);
+            vine.style.strokeDashoffset = initialOffset;
+            valueDisplay.textContent = formatValue(state.getScaledValue());
 
             // Mousedown on knob visual to start drag
             const knobVisual = knob.querySelector('.knob-visual');
@@ -594,14 +656,14 @@
                 const normalised = state.getNormalisedValue();
                 const scaledValue = state.getScaledValue();
 
-                // Update vine arc (270 degrees total, starts at -135deg)
-                const circumference = 2 * Math.PI * 25; // r=25
-                const arcLength = circumference * 0.75; // 270 degrees
-                const offset = arcLength - (normalised * arcLength);
-                vine.style.strokeDashoffset = offset;
+                // Update animation target (will be smoothly interpolated)
+                animationState.targets[knobId].target = normalised;
 
-                // Update value display
+                // Update value display immediately (text updates feel better without lag)
                 valueDisplay.textContent = formatValue(scaledValue);
+
+                // Start animation loop if not running
+                startAnimationLoop();
             }
 
             // Store update function

@@ -2,6 +2,15 @@
 
 All notable changes to O-Freeze are documented in this file.
 
+## [1.0.1] - 2026-02-02
+
+### Fixed
+
+- **Smooth knob animation**: Replaced CSS transition with JavaScript `requestAnimationFrame` animation loop
+  - **Root cause**: CSS `transition: stroke-dashoffset 0.1s ease` caused jerky snap/jump behavior
+  - **Solution**: Exponential smoothing interpolation (factor 0.15) for fluid knob movement
+  - Pattern applied from O-Detune v1.1.1 fix
+
 ## [1.0.0] - 2026-02-01
 
 ### Initial Release
