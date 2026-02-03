@@ -895,22 +895,22 @@ void BellVoice::initializeBloom(ModalPartial& partial, int partialIndex)
 
     if (partialIndex < 2)
     {
-        // Low partials (0-1): Near-instant (5ms base), 95% initial amplitude (barely affected by bloom)
-        bloomDurationMs = juce::jmap(currentBloomSpeed, 5.0f, 15.0f);  // Speed: 5-15ms
-        initialFraction = 1.0f - (currentBloomAmount * 0.05f);  // Amount: 95-100% initial
+        // Low partials (0-1): Slower bloom for foundation tones
+        bloomDurationMs = juce::jmap(currentBloomSpeed, 15.0f, 250.0f);  // Speed: 15-250ms
+        initialFraction = 1.0f - (currentBloomAmount * 0.4f);  // Amount: 60-100% initial
     }
     else if (partialIndex < 5)
     {
-        // Mid partials (2-4): Speed controls 30-120ms duration
-        bloomDurationMs = juce::jmap(currentBloomSpeed, 30.0f, 120.0f);
-        // Amount controls initial fraction: 90% (amount=0) to 40% (amount=1)
+        // Mid partials (2-4): Medium bloom for body tones
+        bloomDurationMs = juce::jmap(currentBloomSpeed, 25.0f, 400.0f);  // Speed: 25-400ms
+        // Amount controls initial fraction: 100% (amount=0) to 40% (amount=1)
         initialFraction = 1.0f - (currentBloomAmount * 0.6f);
     }
     else
     {
-        // High partials (5-7): Speed controls 50-200ms duration
-        bloomDurationMs = juce::jmap(currentBloomSpeed, 50.0f, 200.0f);
-        // Amount controls initial fraction: 80% (amount=0) to 10% (amount=1)
+        // High partials (5-7): Longest bloom for shimmer/brilliance
+        bloomDurationMs = juce::jmap(currentBloomSpeed, 50.0f, 800.0f);  // Speed: 50-800ms
+        // Amount controls initial fraction: 100% (amount=0) to 10% (amount=1)
         initialFraction = 1.0f - (currentBloomAmount * 0.9f);
     }
 

@@ -2,6 +2,16 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.4.1] - 2026-02-03
+
+### Changed
+- **Bloom Speed range expanded** - Much wider duration ranges for more dramatic bloom effects
+  - Low partials: 15-250ms (was 5-15ms)
+  - Mid partials: 25-400ms (was 30-120ms)
+  - High partials: 50-800ms (was 50-200ms)
+- **Low partial bloom amount increased** - More audible bloom on foundation tones
+  - Low partials: 0-40% reduction (was 0-5%)
+
 ## [1.4.0] - 2026-02-03
 
 ### Added
