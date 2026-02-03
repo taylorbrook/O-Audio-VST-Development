@@ -278,6 +278,45 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     dryWetMixer.setWetMixProportion(0.5f);  // Default 50% mix
     dryWetMixer.reset();
 
+    // Initialize pre-delay lines (50ms max)
+    const int maxPreDelaySamples = static_cast<int>(0.05 * sampleRate);
+    preDelayL.prepare(spec);
+    preDelayR.prepare(spec);
+    preDelayL.setMaximumDelayInSamples(maxPreDelaySamples);
+    preDelayR.setMaximumDelayInSamples(maxPreDelaySamples);
+    preDelayL.reset();
+    preDelayR.reset();
+
+    // Initialize color filters
+    colorFilterL.prepare(spec);
+    colorFilterR.prepare(spec);
+    colorFilterL.reset();
+    colorFilterR.reset();
+
+    // Initialize parameter smoothing (50ms ramp)
+    const double smoothingTime = 0.05;
+    smoothedBlend.reset(sampleRate, smoothingTime);
+    smoothedWobbleRate.reset(sampleRate, smoothingTime);
+    smoothedWobbleDepth.reset(sampleRate, smoothingTime);
+    smoothedUnisonDetune.reset(sampleRate, smoothingTime);
+    smoothedDrive.reset(sampleRate, smoothingTime);
+    smoothedColor.reset(sampleRate, smoothingTime);
+    smoothedAge.reset(sampleRate, smoothingTime);
+    smoothedWidth.reset(sampleRate, smoothingTime);
+    smoothedDelay.reset(sampleRate, smoothingTime);
+    smoothedFeedback.reset(sampleRate, smoothingTime);
+    smoothedUnisonSpread.reset(sampleRate, smoothingTime);
+    smoothedRandomAmt.reset(sampleRate, smoothingTime);
+
+    // Reset LFO state
+    lfoPhase = 0.0f;
+    noiseHeldValue = 0.0f;
+    noiseLastQuarter = -1;
+    filterDriftPhase = 0.0f;
+    randomRefreshCounter = 0;
+    feedbackStateL = 0.0f;
+    feedbackStateR = 0.0f;
+
     // Pre-allocate processing buffers (real-time safety)
     const int numChannels = getTotalNumOutputChannels();
     wobbleBuffer.setSize(numChannels, samplesPerBlock);
@@ -291,6 +330,108 @@ void ODetuneAudioProcessor::releaseResources()
     // Release processing buffers to save memory when plugin not in use
     wobbleBuffer.setSize(0, 0);
     unisonBuffer.setSize(0, 0);
+}
+
+//==============================================================================
+// DSP Helper Functions
+
+// Multi-waveform LFO generator
+float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& noiseHeld, int& lastQuarter, juce::Random& rng)
+{
+    switch (shapeType)
+    {
+        case 0: // Sine
+            return std::sin(phase * juce::MathConstants<float>::twoPi);
+
+        case 1: // Triangle
+        {
+            float t = phase;
+            if (t < 0.25f)
+                return t * 4.0f;
+            else if (t < 0.75f)
+                return 2.0f - (t * 4.0f);
+            else
+                return -4.0f + (t * 4.0f);
+        }
+
+        case 2: // Random (smoothed noise - continuous random walk)
+        {
+            // Slow random walk: drift toward new target smoothly
+            float driftSpeed = 0.0005f;  // Very slow drift for smooth random pitch bending
+            float newTarget = rng.nextFloat() * 2.0f - 1.0f;
+            noiseHeld += (newTarget - noiseHeld) * driftSpeed;
+            return noiseHeld;
+        }
+
+        default:
+            return std::sin(phase * juce::MathConstants<float>::twoPi);
+    }
+}
+
+// Tube-style saturation processor
+float ODetuneAudioProcessor::processDrive(float input, float driveAmount)
+{
+    if (driveAmount < 0.5f) return input;  // Lower threshold
+
+    float driveMix = driveAmount / 100.0f;
+    float gain = 1.0f + driveMix * 3.0f;  // 1.0 to 4.0
+    float driven = input * gain;
+
+    // Tube-style asymmetric soft clipping
+    float saturated;
+    if (driven >= 0.0f)
+        saturated = driven / (1.0f + std::abs(driven));
+    else
+        saturated = std::tanh(driven * 1.5f) / 1.5f;
+
+    // Add subtle even harmonics
+    float x2 = saturated * saturated;
+    saturated = saturated + 0.1f * x2 * ((saturated > 0) ? 1.0f : -1.0f);
+
+    return input * (1.0f - driveMix) + saturated * driveMix;
+}
+
+// Stereo width processor (M/S processing)
+void ODetuneAudioProcessor::processWidth(float& left, float& right, float widthPercent)
+{
+    const float sqrtHalf = 0.70710678f;
+
+    // Encode to M/S
+    float mid = (left + right) * sqrtHalf;
+    float side = (left - right) * sqrtHalf;
+
+    // Scale side by width (0=mono, 1=normal, 2=extra-wide)
+    float widthScale = widthPercent / 100.0f;
+    side *= widthScale;
+
+    // Decode back to L/R
+    left = (mid + side) * sqrtHalf;
+    right = (mid - side) * sqrtHalf;
+}
+
+// Mono-safe limiter (prevents phase cancellation)
+void ODetuneAudioProcessor::processMonoSafe(float& left, float& right)
+{
+    const float sqrtHalf = 0.70710678f;
+
+    float mid = (left + right) * sqrtHalf;
+    float side = (left - right) * sqrtHalf;
+
+    // Gentle side reduction using soft knee compression
+    // Only reduce side when it significantly exceeds mid (phase cancellation risk)
+    float sideAbs = std::abs(side);
+    float midAbs = std::abs(mid) + 0.0001f;  // Avoid div/0
+    float ratio = sideAbs / midAbs;
+
+    // Soft knee: start reducing when side > 1.5x mid, fully limited at 3x
+    if (ratio > 1.5f)
+    {
+        float reduction = 1.0f / (1.0f + (ratio - 1.5f) * 0.3f);  // Gentle compression
+        side *= reduction;
+    }
+
+    left = (mid + side) * sqrtHalf;
+    right = (mid - side) * sqrtHalf;
 }
 
 void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -319,12 +460,49 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     float wobbleRate = wobbleRateParam->load();
     float wobbleDepth = wobbleDepthParam->load();
 
+    // Wobble engine - additional parameters
+    auto* wobbleEraParam = parameters.getRawParameterValue("wobble_era");
+    auto* wobbleShapeParam = parameters.getRawParameterValue("wobble_shape");
+    auto* wobbleSyncParam = parameters.getRawParameterValue("wobble_sync");
+    int wobbleEra = static_cast<int>(wobbleEraParam->load());
+    int wobbleShape = static_cast<int>(wobbleShapeParam->load());
+    bool wobbleSync = wobbleSyncParam->load() > 0.5f;
+
     // Unison engine parameters
     auto* unisonDetuneParam = parameters.getRawParameterValue("unison_detune");
     float unisonDetune = unisonDetuneParam->load();
 
-    // Phase 4.1: Fixed 3 voices (will expand in Phase 4.3)
-    int activeVoices = 3;
+    // Unison engine - additional parameters
+    auto* unisonVoicesParam = parameters.getRawParameterValue("unison_voices");
+    auto* unisonDistParam = parameters.getRawParameterValue("unison_dist");
+    auto* unisonSpreadParam = parameters.getRawParameterValue("unison_spread");
+    auto* randomAmtParam = parameters.getRawParameterValue("random_amt");
+    int unisonVoicesIndex = static_cast<int>(unisonVoicesParam->load());
+    int unisonDist = static_cast<int>(unisonDistParam->load());
+    float unisonSpread = unisonSpreadParam->load();
+    float randomAmt = randomAmtParam->load();
+
+    // Map voice index to count: 0→2, 1→3, 2→4, 3→5, 4→7
+    const int voiceCounts[] = { 2, 3, 4, 5, 7 };
+    int activeVoices = voiceCounts[unisonVoicesIndex];
+
+    // Character section
+    auto* driveParam = parameters.getRawParameterValue("drive");
+    auto* colorParam = parameters.getRawParameterValue("color");
+    auto* ageParam = parameters.getRawParameterValue("age");
+    float driveValue = driveParam->load();
+    float colorValue = colorParam->load();
+    float ageValue = ageParam->load();
+
+    // Output section
+    auto* widthParam = parameters.getRawParameterValue("width");
+    auto* monoSafeParam = parameters.getRawParameterValue("mono_safe");
+    auto* delayParam = parameters.getRawParameterValue("delay");
+    auto* feedbackParam = parameters.getRawParameterValue("feedback");
+    float widthValue = widthParam->load();
+    bool monoSafe = monoSafeParam->load() > 0.5f;
+    float delayMs = delayParam->load();
+    float feedbackValue = feedbackParam->load();
 
     // Focus filter parameters
     auto* focusLowParam = parameters.getRawParameterValue("focus_low");
@@ -336,9 +514,74 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* mixParam = parameters.getRawParameterValue("mix");
     float mixValue = mixParam->load() / 100.0f;  // Convert to 0.0-1.0
 
+    // Update smoothed values
+    smoothedBlend.setTargetValue(blendValue);
+    smoothedWobbleRate.setTargetValue(wobbleRate);
+    smoothedWobbleDepth.setTargetValue(wobbleDepth);
+    smoothedUnisonDetune.setTargetValue(unisonDetune);
+    smoothedDrive.setTargetValue(driveValue);
+    smoothedColor.setTargetValue(colorValue);
+    smoothedAge.setTargetValue(ageValue);
+    // Mono-safe forces width to 0 (mono) - parameter value preserved for restoration
+    smoothedWidth.setTargetValue(monoSafe ? 0.0f : widthValue);
+    smoothedDelay.setTargetValue(delayMs);
+    smoothedFeedback.setTargetValue(feedbackValue);
+    smoothedUnisonSpread.setTargetValue(unisonSpread);
+    smoothedRandomAmt.setTargetValue(randomAmt);
+
+    // Era presets: { depthMultiplier, filterDarkening, driftAmount }
+    struct EraPreset { float depthMult; float darkness; float drift; };
+    const EraPreset eraPresets[] = {
+        { 1.2f, 0.8f, 0.15f },  // 60s: More depth, darker, more drift
+        { 1.0f, 1.0f, 0.08f },  // 70s: Neutral
+        { 0.8f, 1.1f, 0.03f },  // 80s: Less depth, brighter, less drift
+    };
+
+    // Apply era scaling to wobble depth
+    float scaledWobbleDepth = wobbleDepth * eraPresets[wobbleEra].depthMult;
+
     //==============================================================================
-    // Update LFO frequency
-    wobbleLFO.setFrequency(wobbleRate);
+    // Calculate effective wobble rate (with tempo sync if enabled)
+    float effectiveRate = wobbleRate;
+
+    if (wobbleSync)
+    {
+        double hostBpm = 120.0;  // Fallback
+
+        if (auto* playHead = getPlayHead())
+        {
+            auto posInfo = playHead->getPosition();
+            if (posInfo.hasValue() && posInfo->getBpm().hasValue())
+            {
+                hostBpm = *posInfo->getBpm();
+            }
+        }
+
+        double beatsPerSecond = hostBpm / 60.0;
+
+        // Map wobbleRate (0.1-10 Hz) to nearest musical division
+        // Divisions: 1/16=0.25, 1/8=0.5, 1/4=1, 1/2=2, 1=4 beats
+        const float divisions[] = { 0.25f, 0.333f, 0.5f, 1.0f, 2.0f, 4.0f };
+        const int numDivisions = 6;
+
+        // Find closest musical rate
+        float targetHz = wobbleRate;
+        float closestHz = static_cast<float>(beatsPerSecond / divisions[0]);
+        float closestDiff = std::abs(targetHz - closestHz);
+
+        for (int i = 1; i < numDivisions; ++i)
+        {
+            float hz = static_cast<float>(beatsPerSecond / divisions[i]);
+            float diff = std::abs(targetHz - hz);
+            if (diff < closestDiff)
+            {
+                closestHz = hz;
+                closestDiff = diff;
+            }
+        }
+
+        effectiveRate = closestHz;
+    }
 
     //==============================================================================
     // 1. Capture dry signal (DryWetMixer)
@@ -381,7 +624,128 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 3. Process Wobble Engine (delay-based pitch modulation)
+    // 3. Pre-Delay + Feedback processing
+    float currentDelay = smoothedDelay.getCurrentValue();
+    float currentFeedback = smoothedFeedback.getCurrentValue() / 100.0f;
+
+    if (currentDelay > 0.1f || currentFeedback > 0.01f)
+    {
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float delayMsVal = smoothedDelay.getNextValue();
+            float feedback = smoothedFeedback.getNextValue() / 100.0f;
+            float delaySamples = (delayMsVal / 1000.0f) * static_cast<float>(currentSampleRate);
+
+            if (numChannels >= 1)
+            {
+                auto* dataL = buffer.getWritePointer(0);
+                preDelayL.setDelay(delaySamples);
+                float delayedL = preDelayL.popSample(0);
+                float toDelayL = dataL[sample] + delayedL * feedback;
+                preDelayL.pushSample(0, toDelayL);
+                dataL[sample] = delayedL;
+            }
+
+            if (numChannels >= 2)
+            {
+                auto* dataR = buffer.getWritePointer(1);
+                preDelayR.setDelay(delaySamples);
+                float delayedR = preDelayR.popSample(0);
+                float toDelayR = dataR[sample] + delayedR * feedback;
+                preDelayR.pushSample(0, toDelayR);
+                dataR[sample] = delayedR;
+            }
+        }
+    }
+
+    //==============================================================================
+    // 4. Drive processing (tube saturation)
+    float currentDrive = smoothedDrive.getCurrentValue();
+    if (currentDrive > 0.5f)  // Process if drive > 0.5%
+    {
+        auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
+        auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float drive = smoothedDrive.getNextValue();
+            if (dataL) dataL[sample] = processDrive(dataL[sample], drive);
+            if (dataR) dataR[sample] = processDrive(dataR[sample], drive);
+        }
+    }
+
+    //==============================================================================
+    // 5. Color + Age drift processing
+    float currentColor = smoothedColor.getCurrentValue();
+    // Process color if not near zero (threshold lowered for audibility)
+    if (std::abs(currentColor) > 0.5f)
+    {
+        // Calculate drift modulation from age
+        float ageForDrift = smoothedAge.getCurrentValue();
+        float driftMod = std::sin(filterDriftPhase * juce::MathConstants<float>::twoPi) * (ageForDrift / 100.0f) * 0.2f;
+
+        // Update filter coefficients (once per block for efficiency)
+        if (currentColor < 0)
+        {
+            // Negative: Low-pass filter to darken (more dramatic effect)
+            float cutoff = juce::jmap(currentColor, -100.0f, 0.0f, 1000.0f, 18000.0f);
+            cutoff = std::max(200.0f, cutoff * (1.0f + driftMod));  // Apply drift, clamp minimum
+            auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff, 0.707f);
+            *colorFilterL.coefficients = *coeffs;
+            *colorFilterR.coefficients = *coeffs;
+        }
+        else
+        {
+            // Positive: High-shelf boost (bright)
+            float cutoff = 2500.0f * (1.0f + driftMod);  // Apply drift
+            float gainDb = 9.0f * (currentColor / 100.0f);  // Increased gain for audibility
+            auto coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
+                currentSampleRate, cutoff, 0.707f, juce::Decibels::decibelsToGain(gainDb));
+            *colorFilterL.coefficients = *coeffs;
+            *colorFilterR.coefficients = *coeffs;
+        }
+
+        // Process both channels
+        auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
+        auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            if (dataL) dataL[sample] = colorFilterL.processSample(dataL[sample]);
+            if (dataR) dataR[sample] = colorFilterR.processSample(dataR[sample]);
+        }
+    }
+
+    //==============================================================================
+    // 6. Age hiss processing
+    float currentAge = smoothedAge.getCurrentValue();
+    if (currentAge > 0.5f)  // Lower threshold
+    {
+        float ageMix = currentAge / 100.0f;
+        float eraDrift = eraPresets[wobbleEra].drift;
+        float effectiveAgeDrift = ageMix * (eraDrift * 10.0f);  // Scale up drift effect
+
+        // 1. Hiss: Audible broadband noise (scaled for audibility)
+        float hissLevel = ageMix * 0.05f;  // Increased from 0.02 for audibility
+
+        auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
+        auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float noiseL = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
+            float noiseR = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
+
+            if (dataL) dataL[sample] += noiseL;
+            if (dataR) dataR[sample] += noiseR;
+        }
+
+        // 2. Filter drift: Update phase for next block (affects color filter modulation)
+        filterDriftPhase += 0.5f * numSamples / static_cast<float>(currentSampleRate) * (1.0f + effectiveAgeDrift);
+        if (filterDriftPhase >= 1.0f) filterDriftPhase -= 1.0f;
+    }
+
+    //==============================================================================
+    // 7. Process Wobble Engine (delay-based pitch modulation)
 
     wobbleBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
 
@@ -389,15 +753,19 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const float centerDelaySamples = (centerDelayMs / 1000.0f) * static_cast<float>(currentSampleRate);
 
     // Pre-calculate pitch modulation parameters
-    // wobbleDepth in cents, 1200 cents = 1 octave
-    float pitchRatio = std::pow(2.0f, wobbleDepth / 1200.0f);
+    // Use era-scaled wobble depth
+    float pitchRatio = std::pow(2.0f, scaledWobbleDepth / 1200.0f);
     float modulationRange = centerDelaySamples * (pitchRatio - 1.0f);
 
     // Process wobble modulation (both channels share same LFO phase)
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Get LFO value (-1 to +1)
-        float lfoValue = wobbleLFO.processSample(0.0f);
+        // Get LFO value (-1 to +1) using multi-waveform generator
+        float lfoValue = generateLFO(lfoPhase, wobbleShape, noiseHeldValue, noiseLastQuarter, random);
+
+        // Advance phase
+        lfoPhase += effectiveRate / static_cast<float>(currentSampleRate);
+        if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
 
         // Calculate modulated delay time
         float delayTime = centerDelaySamples + (lfoValue * modulationRange);
@@ -422,26 +790,73 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 4. Process Unison Engine (multi-voice detuning)
+    // 8. Process Unison Engine (multi-voice detuning)
 
     unisonBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
     unisonBuffer.clear();  // Clear for voice accumulation
 
-    // Phase 4.1: 3 voices with linear distribution
-    // Voice detuning: [-detune/2, 0, +detune/2] cents
-    float voiceDetunes[3];
-    voiceDetunes[0] = -unisonDetune / 2.0f;  // Voice 1: negative detune
-    voiceDetunes[1] = 0.0f;                   // Voice 2: center (unity pitch)
-    voiceDetunes[2] = +unisonDetune / 2.0f;   // Voice 3: positive detune
+    // Calculate voice detunes based on distribution algorithm
+    float voiceDetunes[maxUnisonVoices];
+    float halfCount = (activeVoices - 1) / 2.0f;
+
+    for (int i = 0; i < activeVoices; ++i)
+    {
+        float normalizedPos = (halfCount > 0.0f) ? (i - halfCount) / halfCount : 0.0f;
+
+        switch (unisonDist)
+        {
+            case 0: // Linear
+                voiceDetunes[i] = normalizedPos * (unisonDetune / 2.0f);
+                break;
+
+            case 1: // Exponential (more voices near center)
+            {
+                float sign = (normalizedPos >= 0) ? 1.0f : -1.0f;
+                voiceDetunes[i] = sign * std::pow(std::abs(normalizedPos), 2.0f) * (unisonDetune / 2.0f);
+                break;
+            }
+
+            case 2: // Random (use stable random offsets, not regenerated every block)
+                // voiceRandomOffsets already has stable random values that refresh slowly
+                // Scale by unisonDetune to get the actual cent offset
+                voiceDetunes[i] = voiceRandomOffsets[i] * (unisonDetune / 10.0f);
+                break;
+        }
+    }
+
+    // Calculate per-voice pan positions
+    float voicePanL[maxUnisonVoices];
+    float voicePanR[maxUnisonVoices];
+    float spreadNorm = unisonSpread / 100.0f;
+
+    for (int i = 0; i < activeVoices; ++i)
+    {
+        float normalizedPos = (halfCount > 0.0f) ? (i - halfCount) / halfCount : 0.0f;
+        float pan = normalizedPos * spreadNorm;
+
+        // Constant-power panning
+        voicePanL[i] = std::cos((pan + 1.0f) * 0.25f * juce::MathConstants<float>::pi);
+        voicePanR[i] = std::sin((pan + 1.0f) * 0.25f * juce::MathConstants<float>::pi);
+    }
+
+    // Add random variation (refresh every 1024 samples to avoid noise)
+    if (randomRefreshCounter <= 0)
+    {
+        for (int i = 0; i < maxUnisonVoices; ++i)
+        {
+            voiceRandomOffsets[i] = (random.nextFloat() * 2.0f - 1.0f) * (randomAmt / 100.0f) * 5.0f;
+        }
+        randomRefreshCounter = 1024;
+    }
+    randomRefreshCounter -= numSamples;
 
     // Process each voice
     for (int voice = 0; voice < activeVoices; ++voice)
     {
-        float detuneCents = voiceDetunes[voice];
+        float effectiveDetune = voiceDetunes[voice] + voiceRandomOffsets[voice];
 
         // Calculate static delay time for this voice
-        // delay(voice) = centerDelay * 2^(detune_cents/1200)
-        float voicePitchRatio = std::pow(2.0f, detuneCents / 1200.0f);
+        float voicePitchRatio = std::pow(2.0f, effectiveDetune / 1200.0f);
         float voiceDelayTime = centerDelaySamples * voicePitchRatio;
 
         // Process left channel
@@ -456,7 +871,7 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             {
                 unisonDelaysL[voice].pushSample(0, inputDataL[sample]);
                 float delayedSample = unisonDelaysL[voice].popSample(0);
-                outputDataL[sample] += delayedSample / static_cast<float>(activeVoices);
+                outputDataL[sample] += delayedSample * voicePanL[voice] / static_cast<float>(activeVoices);
             }
         }
 
@@ -472,13 +887,13 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             {
                 unisonDelaysR[voice].pushSample(0, inputDataR[sample]);
                 float delayedSample = unisonDelaysR[voice].popSample(0);
-                outputDataR[sample] += delayedSample / static_cast<float>(activeVoices);
+                outputDataR[sample] += delayedSample * voicePanR[voice] / static_cast<float>(activeVoices);
             }
         }
     }
 
     //==============================================================================
-    // 5. Blend dual engines (crossfade)
+    // 9. Blend dual engines (crossfade)
     // blend = 0: wobble only, blend = 1: unison only
 
     for (int channel = 0; channel < numChannels; ++channel)
@@ -489,14 +904,48 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            outputData[sample] = wobbleData[sample] * (1.0f - blendValue) + unisonData[sample] * blendValue;
+            float blend = smoothedBlend.getNextValue();
+            outputData[sample] = wobbleData[sample] * (1.0f - blend) + unisonData[sample] * blend;
         }
     }
 
     //==============================================================================
-    // 6. Blend with dry signal (final mix)
+    // 10. Blend with dry signal (final mix)
     dryWetMixer.setWetMixProportion(mixValue);
     dryWetMixer.mixWetSamples(buffer);
+
+    //==============================================================================
+    // 11. Width processing (stereo spread)
+    float currentWidth = smoothedWidth.getCurrentValue();
+    if (std::abs(currentWidth - 100.0f) > 1.0f)  // Not default
+    {
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float width = smoothedWidth.getNextValue();
+            if (numChannels >= 2)
+            {
+                float left = buffer.getWritePointer(0)[sample];
+                float right = buffer.getWritePointer(1)[sample];
+                processWidth(left, right, width);
+                buffer.getWritePointer(0)[sample] = left;
+                buffer.getWritePointer(1)[sample] = right;
+            }
+        }
+    }
+
+    //==============================================================================
+    // 12. Mono Safe processing (prevent phase cancellation)
+    if (monoSafe && numChannels >= 2)
+    {
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float left = buffer.getWritePointer(0)[sample];
+            float right = buffer.getWritePointer(1)[sample];
+            processMonoSafe(left, right);
+            buffer.getWritePointer(0)[sample] = left;
+            buffer.getWritePointer(1)[sample] = right;
+        }
+    }
 }
 
 juce::AudioProcessorEditor* ODetuneAudioProcessor::createEditor()

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.3.0
 - **Type:** Audio Effect (Detuning / Pitch Thickening)
 - **Complexity:** 5.0 (Maximum)
 
@@ -15,6 +15,7 @@
 - **2026-02-02 (v1.1.0):** Complete UI redesign to Ouaricon Naturalist aesthetic (paper background, SVG vine-arc knobs, nudibranch botanical overlay)
 - **2026-02-02 (v1.1.1):** Fixed UI knob smoothness - implemented requestAnimationFrame interpolation loop, added mouse wheel support
 - **2026-02-02 (v1.2.0):** Added blend-responsive panel opacity - Wobble/Unison panels fade based on blend knob position
+- **2026-02-03 (v1.3.0):** All 14 placeholder parameters functional + mono-safe forces width to 0
 
 ## Overview
 
@@ -189,4 +190,4 @@ None
 
 ---
 
-*Last updated: 2026-02-02*
+*Last updated: 2026-02-03*

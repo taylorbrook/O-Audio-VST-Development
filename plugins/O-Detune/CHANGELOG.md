@@ -1,5 +1,29 @@
 # O-Detune Changelog
 
+## [1.3.0] - 2026-02-03
+
+### Added
+
+- **All 14 placeholder parameters now functional** - Complete parameter implementation
+  - Wobble: Era presets (60s/70s/80s), multi-waveform LFO (Sine/Triangle/Random), tempo sync
+  - Unison: Voice count (2/3/4/5/7), distribution modes (Linear/Exp/Random), spread, randomization
+  - Character: Drive (tube saturation), Color (tone shaping with age drift), Age (hiss + filter drift)
+  - Output: Width (M/S stereo spread), Pre-delay, Feedback, Mono-safe
+
+### Changed
+
+- **Mono-safe now forces width to 0** - Enabling mono-safe automatically sets stereo width to mono
+  - Width slider becomes disabled (grayed out) when mono-safe is active
+  - Previous width value is preserved and restored when mono-safe is disabled
+  - Width automation is ignored while mono-safe is active
+
+### Technical Notes
+
+- SmoothedValue used for all 12 continuous parameters (zipper-free automation)
+- Era presets affect wobble depth and age drift intensity
+- DSP helper functions: generateLFO, processDrive, processWidth, processMonoSafe
+- Real-time safe: all buffers preallocated, no allocations in processBlock
+
 ## [1.2.0] - 2026-02-02
 
 ### Added

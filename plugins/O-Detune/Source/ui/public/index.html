@@ -327,6 +327,16 @@
             background: var(--accent-green-light);
         }
 
+        /* Disabled slider state (mono-safe forces width to 0) */
+        .slider-container.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .slider-container.disabled .slider {
+            cursor: not-allowed;
+        }
+
         /* Toggle - Naturalist botanical style */
         .toggle-container {
             display: flex;
@@ -952,6 +962,10 @@
         const widthState = sliderStates.width;
         if (widthSlider && widthState) {
             widthState.valueChangedEvent.addListener(() => {
+                // Ignore JUCE parameter changes while mono-safe is active
+                // (width is forced to 0 in processor, slider stays disabled at 0)
+                if (toggleStates.mono_safe?.getValue()) return;
+
                 const props = widthState.properties;
                 const value = props.start + widthState.getNormalisedValue() * (props.end - props.start);
                 widthSlider.value = value;
@@ -964,7 +978,7 @@
                 widthState.setNormalisedValue(norm);
             });
 
-            // Initial
+            // Initial value (will be overridden by mono-safe check below if active)
             const props = widthState.properties;
             const value = props.start + widthState.getNormalisedValue() * (props.end - props.start);
             widthSlider.value = value;
@@ -1006,6 +1020,33 @@
                 state.setValue(!state.getValue());
             });
         });
+
+        // Mono-safe disables width slider (forces width to 0)
+        const widthSliderContainer = widthSlider?.parentElement;
+        if (toggleStates.mono_safe && widthSliderContainer && widthSlider) {
+            const updateWidthSliderState = () => {
+                const monoSafeOn = toggleStates.mono_safe.getValue();
+                if (monoSafeOn) {
+                    // Disable slider visually, show 0%
+                    widthSliderContainer.classList.add('disabled');
+                    widthSlider.value = 0;
+                    document.getElementById('width_value').textContent = '0%';
+                } else {
+                    // Re-enable slider, restore actual parameter value
+                    widthSliderContainer.classList.remove('disabled');
+                    if (widthState) {
+                        const props = widthState.properties;
+                        const value = props.start + widthState.getNormalisedValue() * (props.end - props.start);
+                        widthSlider.value = value;
+                        document.getElementById('width_value').textContent = Math.round(value) + '%';
+                    }
+                }
+            };
+
+            toggleStates.mono_safe.valueChangedEvent.addListener(updateWidthSliderState);
+            // Set initial state
+            updateWidthSliderState();
+        }
 
         // Advanced panel toggle
         window.toggleAdvanced = () => {

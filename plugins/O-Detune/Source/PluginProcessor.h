@@ -83,9 +83,52 @@ private:
     int latencySamples = 2400; // 50ms @ 48kHz
     static constexpr float centerDelayMs = 50.0f;
 
+    // LFO state (for multi-waveform support)
+    float lfoPhase = 0.0f;
+    float noiseHeldValue = 0.0f;
+    int noiseLastQuarter = -1;
+    juce::Random random;
+
+    // Age processor state
+    float filterDriftPhase = 0.0f;
+
+    // Voice randomization (refresh periodically)
+    float voiceRandomOffsets[maxUnisonVoices] = {0};
+    int randomRefreshCounter = 0;
+
+    // Pre-delay lines
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> preDelayL;
+    juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Lagrange3rd> preDelayR;
+    float feedbackStateL = 0.0f;
+    float feedbackStateR = 0.0f;
+
+    // Color filter
+    juce::dsp::IIR::Filter<float> colorFilterL;
+    juce::dsp::IIR::Filter<float> colorFilterR;
+
+    // Parameter smoothing (50ms ramp time)
+    juce::SmoothedValue<float> smoothedBlend;
+    juce::SmoothedValue<float> smoothedWobbleRate;
+    juce::SmoothedValue<float> smoothedWobbleDepth;
+    juce::SmoothedValue<float> smoothedUnisonDetune;
+    juce::SmoothedValue<float> smoothedDrive;
+    juce::SmoothedValue<float> smoothedColor;
+    juce::SmoothedValue<float> smoothedAge;
+    juce::SmoothedValue<float> smoothedWidth;
+    juce::SmoothedValue<float> smoothedDelay;
+    juce::SmoothedValue<float> smoothedFeedback;
+    juce::SmoothedValue<float> smoothedUnisonSpread;
+    juce::SmoothedValue<float> smoothedRandomAmt;
+
     //==============================================================================
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // DSP helper functions
+    float generateLFO(float phase, int shapeType, float& noiseHeld, int& lastQuarter, juce::Random& rng);
+    float processDrive(float input, float driveAmount);
+    void processWidth(float& left, float& right, float widthPercent);
+    void processMonoSafe(float& left, float& right);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(ODetuneAudioProcessor)
 };
