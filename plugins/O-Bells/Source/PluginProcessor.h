@@ -78,6 +78,14 @@ private:
     std::atomic<float>* inharmonicityParam = nullptr;
     std::atomic<float>* bloomSpeedParam = nullptr;   // v1.4.0: Split bloom
     std::atomic<float>* bloomAmountParam = nullptr;
+    // v1.5.0: Bloom fine controls (per-band)
+    std::atomic<float>* bloomFineEnabledParam = nullptr;
+    std::atomic<float>* bloomSpeedLowParam = nullptr;
+    std::atomic<float>* bloomSpeedMidParam = nullptr;
+    std::atomic<float>* bloomSpeedHighParam = nullptr;
+    std::atomic<float>* bloomAmountLowParam = nullptr;
+    std::atomic<float>* bloomAmountMidParam = nullptr;
+    std::atomic<float>* bloomAmountHighParam = nullptr;
     std::atomic<float>* shimmerParam = nullptr;
     // Ensemble (5 params)
     std::atomic<float>* unisonCountParam = nullptr;

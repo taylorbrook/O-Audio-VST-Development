@@ -90,6 +90,66 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
+    // ========== Bloom Fine Controls (v1.5.0) ==========
+    // Per-band bloom control when fine controls are enabled
+
+    // BLOOM_FINE_ENABLED - Toggle for fine controls (0=off, 1=on)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "bloomFineEnabled", 1 },
+        "Bloom Fine Controls",
+        false  // Default: off (use main sliders)
+    ));
+
+    // Per-band Speed controls
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloomSpeedLow", 1 },
+        "Bloom Speed Low",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloomSpeedMid", 1 },
+        "Bloom Speed Mid",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloomSpeedHigh", 1 },
+        "Bloom Speed High",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f,
+        "%"
+    ));
+
+    // Per-band Amount controls
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloomAmountLow", 1 },
+        "Bloom Amount Low",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloomAmountMid", 1 },
+        "Bloom Amount Mid",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f,
+        "%"
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bloomAmountHigh", 1 },
+        "Bloom Amount High",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f,
+        "%"
+    ));
+
     // SHIMMER - Frequency modulation that increases during decay (v1.2.0)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "shimmer", 1 },
@@ -334,6 +394,14 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     inharmonicityParam = parameters.getRawParameterValue("inharmonicity");
     bloomSpeedParam = parameters.getRawParameterValue("bloomSpeed");
     bloomAmountParam = parameters.getRawParameterValue("bloomAmount");
+    // v1.5.0: Bloom fine controls
+    bloomFineEnabledParam = parameters.getRawParameterValue("bloomFineEnabled");
+    bloomSpeedLowParam = parameters.getRawParameterValue("bloomSpeedLow");
+    bloomSpeedMidParam = parameters.getRawParameterValue("bloomSpeedMid");
+    bloomSpeedHighParam = parameters.getRawParameterValue("bloomSpeedHigh");
+    bloomAmountLowParam = parameters.getRawParameterValue("bloomAmountLow");
+    bloomAmountMidParam = parameters.getRawParameterValue("bloomAmountMid");
+    bloomAmountHighParam = parameters.getRawParameterValue("bloomAmountHigh");
     shimmerParam = parameters.getRawParameterValue("shimmer");
     // Ensemble
     unisonCountParam = parameters.getRawParameterValue("unisonCount");
@@ -382,6 +450,14 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float material = materialParam->load();
     float bloomSpeed = bloomSpeedParam->load();
     float bloomAmount = bloomAmountParam->load();
+    // v1.5.0: Bloom fine controls
+    bool bloomFineEnabled = bloomFineEnabledParam->load() > 0.5f;
+    float bloomSpeedLow = bloomSpeedLowParam->load();
+    float bloomSpeedMid = bloomSpeedMidParam->load();
+    float bloomSpeedHigh = bloomSpeedHighParam->load();
+    float bloomAmountLow = bloomAmountLowParam->load();
+    float bloomAmountMid = bloomAmountMidParam->load();
+    float bloomAmountHigh = bloomAmountHighParam->load();
     float shimmer = shimmerParam->load();
     int unisonCount = static_cast<int>(unisonCountParam->load());
     float unisonDetune = unisonDetuneParam->load();
@@ -410,7 +486,10 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
         {
             voice->updateParameters(
                 inharmonicity, damping, brightness,
-                strikePosition, malletHardness, material, bloomSpeed, bloomAmount, shimmer,
+                strikePosition, malletHardness, material, bloomSpeed, bloomAmount,
+                bloomFineEnabled, bloomSpeedLow, bloomSpeedMid, bloomSpeedHigh,
+                bloomAmountLow, bloomAmountMid, bloomAmountHigh,
+                shimmer,
                 unisonCount, unisonDetune,
                 octaveBlendSub, octaveBlendOct, stereoSpread,
                 partialTuning, pitchEnvelope, pitchEnvTime,

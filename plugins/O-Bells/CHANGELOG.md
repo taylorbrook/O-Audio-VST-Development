@@ -2,6 +2,22 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.5.0] - 2026-02-03
+
+### Added
+- **Bloom Fine Controls** - Per-band (Low/Mid/High) independent control of bloom speed and amount
+  - 6 new parameters: `bloomSpeedLow`, `bloomSpeedMid`, `bloomSpeedHigh`, `bloomAmountLow`, `bloomAmountMid`, `bloomAmountHigh`
+  - Toggle parameter `bloomFineEnabled` enables Override Mode
+  - When enabled, main Bloom Speed/Amount sliders are greyed out and per-band controls take full effect
+  - Expandable UI section with clear visual distinction between basic and advanced controls
+  - Default values: All at 50% speed, 0% amount (matches behavior when disabled)
+
+### Technical Notes
+- Domain: DSP + UI
+- Total parameters: 30 (was 23)
+- Band definitions: Low (partials 0-1), Mid (partials 2-4), High (partials 5-7)
+- Preset compatibility: New params default to values that match current behavior
+
 ## [1.4.1] - 2026-02-03
 
 ### Changed

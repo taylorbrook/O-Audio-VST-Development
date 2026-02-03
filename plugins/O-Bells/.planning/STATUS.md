@@ -248,6 +248,19 @@ Ouaricon Naturalist theme with snail motif (Architectonica perspectiva species).
 - GUI Plan: `plugins/O-Bells/.planning/stages/3-gui/PLAN.md`
 - Polish Summary: `plugins/O-Bells/.planning/stages/4-polish/SUMMARY.md`
 
+## Version History
+
+| Version | Date | Changes |
+|---------|------|---------|
+| 1.5.0 | 2026-02-03 | Bloom Fine Controls - per-band (Low/Mid/High) control of bloom speed/amount |
+| 1.4.1 | 2026-02-03 | Expanded bloom speed range, increased low partial bloom amount |
+| 1.4.0 | 2026-02-03 | Split bloom into speed/amount parameters |
+| 1.3.0 | 2026-02-03 | Attack parameter, improved shimmer/material, per-note variation |
+| 1.2.0 | 2026-02-02 | Bloom, shimmer, mallet temporal spreading, material overhaul |
+| 1.1.1 | 2026-02-02 | Fixed output clipping via gain staging normalization |
+| 1.1.0 | 2026-02-02 | Added reverb control |
+| 1.0.0 | 2026-02-02 | Initial release |
+
 ---
 
-*Last Updated: 2026-02-02*
+*Last Updated: 2026-02-03*

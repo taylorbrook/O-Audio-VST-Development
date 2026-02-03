@@ -45,6 +45,14 @@ private:
     std::unique_ptr<juce::WebSliderRelay> inharmonicityRelay;
     std::unique_ptr<juce::WebSliderRelay> bloomSpeedRelay;   // v1.4.0: Split bloom
     std::unique_ptr<juce::WebSliderRelay> bloomAmountRelay;
+    // v1.5.0: Bloom fine controls (per-band)
+    std::unique_ptr<juce::WebSliderRelay> bloomFineEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomSpeedLowRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomSpeedMidRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomSpeedHighRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomAmountLowRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomAmountMidRelay;
+    std::unique_ptr<juce::WebSliderRelay> bloomAmountHighRelay;
     std::unique_ptr<juce::WebSliderRelay> shimmerRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonCountRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonDetuneRelay;
@@ -81,6 +89,14 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> inharmonicityAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bloomSpeedAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bloomAmountAttachment;
+    // v1.5.0: Bloom fine controls (per-band)
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomFineEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomSpeedLowAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomSpeedMidAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomSpeedHighAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomAmountLowAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomAmountMidAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bloomAmountHighAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> shimmerAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonDetuneAttachment;

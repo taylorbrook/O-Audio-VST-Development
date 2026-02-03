@@ -43,7 +43,11 @@ void BellVoice::prepare(double sampleRate, int samplesPerBlock)
 
 void BellVoice::updateParameters(float inharmonicity, float damping, float brightness,
                                  float strikePosition, float malletHardness, float material,
-                                 float bloomSpeed, float bloomAmount, float shimmer,
+                                 float bloomSpeed, float bloomAmount,
+                                 bool bloomFineEnabled,
+                                 float bloomSpeedLow, float bloomSpeedMid, float bloomSpeedHigh,
+                                 float bloomAmountLow, float bloomAmountMid, float bloomAmountHigh,
+                                 float shimmer,
                                  int unisonCount, float unisonDetune,
                                  float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                                  float partialTuning, float pitchEnvelope, float pitchEnvTime,
@@ -59,6 +63,14 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
     currentMaterial = material;
     currentBloomSpeed = bloomSpeed;    // v1.4.0: Split bloom
     currentBloomAmount = bloomAmount;
+    // v1.5.0: Bloom fine controls
+    currentBloomFineEnabled = bloomFineEnabled;
+    currentBloomSpeedLow = bloomSpeedLow;
+    currentBloomSpeedMid = bloomSpeedMid;
+    currentBloomSpeedHigh = bloomSpeedHigh;
+    currentBloomAmountLow = bloomAmountLow;
+    currentBloomAmountMid = bloomAmountMid;
+    currentBloomAmountHigh = bloomAmountHigh;
     currentShimmer = shimmer;
     currentUnisonCount = juce::jlimit(1, MAX_UNISON, unisonCount);
     currentUnisonDetune = unisonDetune;
@@ -880,8 +892,37 @@ void BellVoice::applyMultiStageDecay(ModalPartial& partial, int partialIndex)
 
 void BellVoice::initializeBloom(ModalPartial& partial, int partialIndex)
 {
+    // v1.5.0: Per-band bloom control when fine controls enabled
+    float speedValue, amountValue;
+
+    if (currentBloomFineEnabled)
+    {
+        // Use per-band values (Override Mode)
+        if (partialIndex < 2)
+        {
+            speedValue = currentBloomSpeedLow;
+            amountValue = currentBloomAmountLow;
+        }
+        else if (partialIndex < 5)
+        {
+            speedValue = currentBloomSpeedMid;
+            amountValue = currentBloomAmountMid;
+        }
+        else
+        {
+            speedValue = currentBloomSpeedHigh;
+            amountValue = currentBloomAmountHigh;
+        }
+    }
+    else
+    {
+        // Use global values (original behavior)
+        speedValue = currentBloomSpeed;
+        amountValue = currentBloomAmount;
+    }
+
     // v1.4.0: Bloom Amount controls whether bloom is active, Speed controls duration
-    if (currentBloomAmount <= 0.0f)
+    if (amountValue <= 0.0f)
     {
         // No bloom - skip initialization
         partial.bloomPhase = 1.0f;  // Completed immediately
@@ -896,22 +937,22 @@ void BellVoice::initializeBloom(ModalPartial& partial, int partialIndex)
     if (partialIndex < 2)
     {
         // Low partials (0-1): Slower bloom for foundation tones
-        bloomDurationMs = juce::jmap(currentBloomSpeed, 15.0f, 250.0f);  // Speed: 15-250ms
-        initialFraction = 1.0f - (currentBloomAmount * 0.4f);  // Amount: 60-100% initial
+        bloomDurationMs = juce::jmap(speedValue, 15.0f, 250.0f);  // Speed: 15-250ms
+        initialFraction = 1.0f - (amountValue * 0.4f);  // Amount: 60-100% initial
     }
     else if (partialIndex < 5)
     {
         // Mid partials (2-4): Medium bloom for body tones
-        bloomDurationMs = juce::jmap(currentBloomSpeed, 25.0f, 400.0f);  // Speed: 25-400ms
+        bloomDurationMs = juce::jmap(speedValue, 25.0f, 400.0f);  // Speed: 25-400ms
         // Amount controls initial fraction: 100% (amount=0) to 40% (amount=1)
-        initialFraction = 1.0f - (currentBloomAmount * 0.6f);
+        initialFraction = 1.0f - (amountValue * 0.6f);
     }
     else
     {
         // High partials (5-7): Longest bloom for shimmer/brilliance
-        bloomDurationMs = juce::jmap(currentBloomSpeed, 50.0f, 800.0f);  // Speed: 50-800ms
+        bloomDurationMs = juce::jmap(speedValue, 50.0f, 800.0f);  // Speed: 50-800ms
         // Amount controls initial fraction: 100% (amount=0) to 10% (amount=1)
-        initialFraction = 1.0f - (currentBloomAmount * 0.9f);
+        initialFraction = 1.0f - (amountValue * 0.9f);
     }
 
     float bloomDurationSamples = (bloomDurationMs / 1000.0f) * static_cast<float>(currentSampleRate);

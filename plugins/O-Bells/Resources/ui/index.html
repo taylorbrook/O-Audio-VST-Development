@@ -384,7 +384,118 @@
         }
 
         /* ====================================================================
-           MULTI-STAGE ENVELOPE SECTION (hidden when decayShape != 2)
+           EXPANDABLE SECTIONS (Bloom Fine Controls, Envelope)
+           ==================================================================== */
+
+        .expandable-section {
+            display: none;
+            border: 1px dashed #8BA870;
+            border-radius: 4px;
+            padding: 10px;
+            margin-bottom: 12px;
+            background: rgba(139, 168, 112, 0.08);
+        }
+
+        .expandable-section.visible {
+            display: block;
+        }
+
+        .expandable-section .section-title {
+            color: #3C5C1A;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .expandable-section .section-title::before {
+            content: '▼';
+            font-size: 8px;
+            transition: transform 0.2s;
+        }
+
+        .expandable-section.collapsed .section-title::before {
+            transform: rotate(-90deg);
+        }
+
+        .expandable-section .section-hint {
+            font-size: 9px;
+            color: #6B8E23;
+            font-style: italic;
+            margin-top: -2px;
+            margin-bottom: 8px;
+        }
+
+        /* Bloom Fine Controls specific styling */
+        .bloom-fine-section {
+            margin-top: -4px;
+        }
+
+        .bloom-fine-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 8px;
+            padding: 4px 8px;
+            background: rgba(139, 168, 112, 0.15);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .bloom-fine-toggle:hover {
+            background: rgba(139, 168, 112, 0.25);
+        }
+
+        .bloom-fine-toggle .toggle-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #3C5C1A;
+            border-radius: 3px;
+            background: #E8D5B7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #3C5C1A;
+        }
+
+        .bloom-fine-toggle.active .toggle-checkbox {
+            background: rgba(107, 142, 35, 0.6);
+        }
+
+        .bloom-fine-toggle .toggle-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+        }
+
+        .bloom-fine-content {
+            display: none;
+        }
+
+        .bloom-fine-content.visible {
+            display: block;
+        }
+
+        /* Disabled/greyed out state for main bloom sliders */
+        .param-control.disabled {
+            opacity: 0.4;
+            pointer-events: none;
+        }
+
+        .param-control.disabled .slider {
+            background: #ccc;
+        }
+
+        .param-control.disabled .slider-thumb {
+            background: #999;
+            cursor: not-allowed;
+        }
+
+        /* ====================================================================
+           MULTI-STAGE ENVELOPE SECTION (always visible in v1.2.0)
            ==================================================================== */
 
         .envelope-section {
@@ -654,15 +765,15 @@
                         <div class="param-value" data-value="inharmonicity">50%</div>
                     </div>
                 </div>
-                <div class="param-row">
-                    <div class="param-control">
+                <div class="param-row" id="bloom-main-row">
+                    <div class="param-control" id="bloomSpeed-control">
                         <div class="param-label">Bloom Speed</div>
                         <div class="slider" data-param="bloomSpeed">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="bloomSpeed">50%</div>
                     </div>
-                    <div class="param-control">
+                    <div class="param-control" id="bloomAmount-control">
                         <div class="param-label">Bloom Amount</div>
                         <div class="slider" data-param="bloomAmount">
                             <div class="slider-thumb"></div>
@@ -675,6 +786,69 @@
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="shimmer">20%</div>
+                    </div>
+                </div>
+
+                <!-- Bloom Fine Controls (v1.5.0) - expandable per-band override -->
+                <div class="expandable-section bloom-fine-section" id="bloom-fine-section">
+                    <div class="bloom-fine-toggle" id="bloom-fine-toggle">
+                        <div class="toggle-checkbox" id="bloom-fine-checkbox"></div>
+                        <div class="toggle-label">Bloom Fine Controls (Override Mode)</div>
+                    </div>
+                    <div class="bloom-fine-content" id="bloom-fine-content">
+                        <div class="section-hint">Per-band control - main sliders disabled when active</div>
+                        <div class="param-row param-row-4">
+                            <div class="param-control">
+                                <div class="param-label">Speed Low</div>
+                                <div class="slider" data-param="bloomSpeedLow">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomSpeedLow">50%</div>
+                            </div>
+                            <div class="param-control">
+                                <div class="param-label">Speed Mid</div>
+                                <div class="slider" data-param="bloomSpeedMid">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomSpeedMid">50%</div>
+                            </div>
+                            <div class="param-control">
+                                <div class="param-label">Speed High</div>
+                                <div class="slider" data-param="bloomSpeedHigh">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomSpeedHigh">50%</div>
+                            </div>
+                            <div class="param-control">
+                                <!-- Spacer for alignment -->
+                            </div>
+                        </div>
+                        <div class="param-row param-row-4">
+                            <div class="param-control">
+                                <div class="param-label">Amount Low</div>
+                                <div class="slider" data-param="bloomAmountLow">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomAmountLow">0%</div>
+                            </div>
+                            <div class="param-control">
+                                <div class="param-label">Amount Mid</div>
+                                <div class="slider" data-param="bloomAmountMid">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomAmountMid">0%</div>
+                            </div>
+                            <div class="param-control">
+                                <div class="param-label">Amount High</div>
+                                <div class="slider" data-param="bloomAmountHigh">
+                                    <div class="slider-thumb"></div>
+                                </div>
+                                <div class="param-value" data-value="bloomAmountHigh">0%</div>
+                            </div>
+                            <div class="param-control">
+                                <!-- Spacer for alignment -->
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -923,6 +1097,13 @@
             { id: 'inharmonicity', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
             { id: 'bloomSpeed', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
             { id: 'bloomAmount', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            // v1.5.0: Bloom fine controls (per-band)
+            { id: 'bloomSpeedLow', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomSpeedMid', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomSpeedHigh', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomAmountLow', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomAmountMid', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'bloomAmountHigh', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
             { id: 'shimmer', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v * 100)}%` },
             { id: 'unisonCount', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 3) + 1}` },
             { id: 'unisonDetune', min: 0, max: 1, default: 0.2, format: v => `${Math.round(v * 50)}ct` },
@@ -1049,6 +1230,59 @@
         }
 
         // ====================================================================
+        // BLOOM FINE CONTROLS TOGGLE (v1.5.0)
+        // ====================================================================
+
+        const bloomFineSection = document.getElementById('bloom-fine-section');
+        const bloomFineToggle = document.getElementById('bloom-fine-toggle');
+        const bloomFineCheckbox = document.getElementById('bloom-fine-checkbox');
+        const bloomFineContent = document.getElementById('bloom-fine-content');
+        const bloomSpeedControl = document.getElementById('bloomSpeed-control');
+        const bloomAmountControl = document.getElementById('bloomAmount-control');
+
+        // Always show the expandable section
+        bloomFineSection.classList.add('visible');
+
+        // Get JUCE parameter state for the toggle
+        const bloomFineEnabledState = Juce.getSliderState('bloomFineEnabled');
+        parameterStates.set('bloomFineEnabled', bloomFineEnabledState);
+
+        // Function to update UI based on fine controls enabled state
+        function updateBloomFineControlsUI(enabled) {
+            if (enabled) {
+                bloomFineToggle.classList.add('active');
+                bloomFineCheckbox.textContent = '✓';
+                bloomFineContent.classList.add('visible');
+                bloomSpeedControl.classList.add('disabled');
+                bloomAmountControl.classList.add('disabled');
+            } else {
+                bloomFineToggle.classList.remove('active');
+                bloomFineCheckbox.textContent = '';
+                bloomFineContent.classList.remove('visible');
+                bloomSpeedControl.classList.remove('disabled');
+                bloomAmountControl.classList.remove('disabled');
+            }
+        }
+
+        // Initialize UI from parameter state
+        const initialFineEnabled = bloomFineEnabledState.getNormalisedValue() > 0.5;
+        updateBloomFineControlsUI(initialFineEnabled);
+
+        // UI -> JUCE: Toggle click handler
+        bloomFineToggle.addEventListener('click', () => {
+            const currentValue = bloomFineEnabledState.getNormalisedValue() > 0.5;
+            const newValue = !currentValue;
+            bloomFineEnabledState.setNormalisedValue(newValue ? 1.0 : 0.0);
+            updateBloomFineControlsUI(newValue);
+        });
+
+        // JUCE -> UI: Listen for parameter changes (automation, preset load)
+        bloomFineEnabledState.valueChangedEvent.addListener(() => {
+            const enabled = bloomFineEnabledState.getNormalisedValue() > 0.5;
+            updateBloomFineControlsUI(enabled);
+        });
+
+        // ====================================================================
         // ENVELOPE SECTION VISIBILITY (always visible in v1.2.0 - multi-stage is always on)
         // ====================================================================
 
@@ -1073,7 +1307,7 @@
             meterRight.style.setProperty('--level', `${rightPercent}%`);
         };
 
-        console.log('O-Bells v1.4.0 UI initialized - 22 sliders + 2 choice params bound');
+        console.log('O-Bells v1.5.0 UI initialized - 29 sliders + 2 choice params bound');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY

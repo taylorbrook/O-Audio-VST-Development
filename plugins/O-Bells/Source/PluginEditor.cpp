@@ -22,6 +22,14 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     inharmonicityRelay = std::make_unique<juce::WebSliderRelay>("inharmonicity");
     bloomSpeedRelay = std::make_unique<juce::WebSliderRelay>("bloomSpeed");
     bloomAmountRelay = std::make_unique<juce::WebSliderRelay>("bloomAmount");
+    // v1.5.0: Bloom fine controls (per-band)
+    bloomFineEnabledRelay = std::make_unique<juce::WebSliderRelay>("bloomFineEnabled");
+    bloomSpeedLowRelay = std::make_unique<juce::WebSliderRelay>("bloomSpeedLow");
+    bloomSpeedMidRelay = std::make_unique<juce::WebSliderRelay>("bloomSpeedMid");
+    bloomSpeedHighRelay = std::make_unique<juce::WebSliderRelay>("bloomSpeedHigh");
+    bloomAmountLowRelay = std::make_unique<juce::WebSliderRelay>("bloomAmountLow");
+    bloomAmountMidRelay = std::make_unique<juce::WebSliderRelay>("bloomAmountMid");
+    bloomAmountHighRelay = std::make_unique<juce::WebSliderRelay>("bloomAmountHigh");
     shimmerRelay = std::make_unique<juce::WebSliderRelay>("shimmer");
     unisonCountRelay = std::make_unique<juce::WebSliderRelay>("unisonCount");
     unisonDetuneRelay = std::make_unique<juce::WebSliderRelay>("unisonDetune");
@@ -59,6 +67,14 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*inharmonicityRelay)
             .withOptionsFrom(*bloomSpeedRelay)
             .withOptionsFrom(*bloomAmountRelay)
+            // v1.5.0: Bloom fine controls
+            .withOptionsFrom(*bloomFineEnabledRelay)
+            .withOptionsFrom(*bloomSpeedLowRelay)
+            .withOptionsFrom(*bloomSpeedMidRelay)
+            .withOptionsFrom(*bloomSpeedHighRelay)
+            .withOptionsFrom(*bloomAmountLowRelay)
+            .withOptionsFrom(*bloomAmountMidRelay)
+            .withOptionsFrom(*bloomAmountHighRelay)
             .withOptionsFrom(*shimmerRelay)
             .withOptionsFrom(*unisonCountRelay)
             .withOptionsFrom(*unisonDetuneRelay)
@@ -231,6 +247,21 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("bloomSpeed"), *bloomSpeedRelay, nullptr);
     bloomAmountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("bloomAmount"), *bloomAmountRelay, nullptr);
+    // v1.5.0: Bloom fine controls (per-band)
+    bloomFineEnabledAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomFineEnabled"), *bloomFineEnabledRelay, nullptr);
+    bloomSpeedLowAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomSpeedLow"), *bloomSpeedLowRelay, nullptr);
+    bloomSpeedMidAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomSpeedMid"), *bloomSpeedMidRelay, nullptr);
+    bloomSpeedHighAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomSpeedHigh"), *bloomSpeedHighRelay, nullptr);
+    bloomAmountLowAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomAmountLow"), *bloomAmountLowRelay, nullptr);
+    bloomAmountMidAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomAmountMid"), *bloomAmountMidRelay, nullptr);
+    bloomAmountHighAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("bloomAmountHigh"), *bloomAmountHighRelay, nullptr);
     shimmerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("shimmer"), *shimmerRelay, nullptr);
     unisonCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

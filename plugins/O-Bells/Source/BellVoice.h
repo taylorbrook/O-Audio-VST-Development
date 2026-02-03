@@ -33,7 +33,11 @@ public:
     // Parameter update (called from processor's prepareToPlay or processBlock)
     void updateParameters(float inharmonicity, float damping, float brightness,
                          float strikePosition, float malletHardness, float material,
-                         float bloomSpeed, float bloomAmount, float shimmer,
+                         float bloomSpeed, float bloomAmount,
+                         bool bloomFineEnabled,
+                         float bloomSpeedLow, float bloomSpeedMid, float bloomSpeedHigh,
+                         float bloomAmountLow, float bloomAmountMid, float bloomAmountHigh,
+                         float shimmer,
                          int unisonCount, float unisonDetune,
                          float octaveBlendSub, float octaveBlendOct, float stereoSpread,
                          float partialTuning, float pitchEnvelope, float pitchEnvTime,
@@ -154,6 +158,14 @@ private:
     float currentMaterial = 0.25f;
     float currentBloomSpeed = 0.0f;    // v1.4.0: Split bloom into speed/amount
     float currentBloomAmount = 0.0f;
+    // v1.5.0: Bloom fine controls (per-band override)
+    bool currentBloomFineEnabled = false;
+    float currentBloomSpeedLow = 0.5f;
+    float currentBloomSpeedMid = 0.5f;
+    float currentBloomSpeedHigh = 0.5f;
+    float currentBloomAmountLow = 0.0f;
+    float currentBloomAmountMid = 0.0f;
+    float currentBloomAmountHigh = 0.0f;
     float currentShimmer = 0.2f;
     int currentUnisonCount = 1;
     float currentUnisonDetune = 10.0f;
