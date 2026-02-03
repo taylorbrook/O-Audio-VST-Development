@@ -721,28 +721,12 @@
                 <div class="section-title">Synthesis</div>
                 <div class="param-row">
                     <div class="param-control">
-                        <div class="param-label">Strike</div>
-                        <div class="slider" data-param="strikePosition">
-                            <div class="slider-thumb"></div>
-                        </div>
-                        <div class="param-value" data-value="strikePosition">50%</div>
-                    </div>
-                    <div class="param-control">
-                        <div class="param-label">Mallet</div>
-                        <div class="slider" data-param="malletHardness">
-                            <div class="slider-thumb"></div>
-                        </div>
-                        <div class="param-value" data-value="malletHardness">50%</div>
-                    </div>
-                    <div class="param-control">
                         <div class="param-label">Damping</div>
                         <div class="slider" data-param="damping">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="damping">70%</div>
                     </div>
-                </div>
-                <div class="param-row">
                     <div class="param-control">
                         <div class="param-label">Brightness</div>
                         <div class="slider" data-param="brightness">
@@ -757,12 +741,20 @@
                         </div>
                         <div class="param-value" data-value="material">25%</div>
                     </div>
+                </div>
+                <div class="param-row">
                     <div class="param-control">
                         <div class="param-label">Inharmonicity</div>
                         <div class="slider" data-param="inharmonicity">
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="inharmonicity">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <!-- Spacer -->
+                    </div>
+                    <div class="param-control">
+                        <!-- Spacer -->
                     </div>
                 </div>
                 <div class="param-row" id="bloom-main-row">
@@ -900,9 +892,32 @@
                 </div>
             </div>
 
-            <!-- Character Section -->
+            <!-- Onsets Section (renamed from Character in v1.5.4) -->
             <div class="section">
-                <div class="section-title">Character</div>
+                <div class="section-title">Onsets</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="param-label">Strike</div>
+                        <div class="slider" data-param="strikePosition">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="strikePosition">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Mallet</div>
+                        <div class="slider" data-param="malletHardness">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="malletHardness">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Attack Amount</div>
+                        <div class="slider" data-param="attackLevel">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="attackLevel">50%</div>
+                    </div>
+                </div>
                 <div class="param-row">
                     <div class="param-control">
                         <div class="param-label">Noise</div>
@@ -921,22 +936,7 @@
                         </div>
                     </div>
                     <div class="param-control">
-                        <!-- Decay removed in v1.2.0 - always multi-stage -->
-                    </div>
-                </div>
-                <div class="param-row">
-                    <div class="param-control">
-                        <div class="param-label">Attack Amount</div>
-                        <div class="slider" data-param="attackLevel">
-                            <div class="slider-thumb"></div>
-                        </div>
-                        <div class="param-value" data-value="attackLevel">50%</div>
-                    </div>
-                    <div class="param-control">
-                        <!-- Spacer for alignment -->
-                    </div>
-                    <div class="param-control">
-                        <!-- Spacer for alignment -->
+                        <!-- Spacer -->
                     </div>
                 </div>
             </div>
@@ -1323,7 +1323,7 @@
             meterRight.style.setProperty('--level', `${rightPercent}%`);
         };
 
-        console.log('O-Bells v1.5.2 UI initialized - 30 sliders + 2 choice params bound');
+        console.log('O-Bells v1.5.4 UI initialized - 30 sliders + 2 choice params bound');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY

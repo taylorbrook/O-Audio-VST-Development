@@ -2,6 +2,18 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [1.5.4] - 2026-02-03
+
+### Changed
+- **UI reorganization** - Improved parameter grouping for better workflow
+  - Renamed "Character" section to "Onsets" - better describes the parameters in this group
+  - Moved "Strike" and "Mallet" sliders from Synthesis section to Onsets section
+  - Onsets section now contains all onset-related parameters: Strike, Mallet, Attack Amount, Noise, Velocity
+
+### Technical Notes
+- Domain: UI only (no DSP changes, no parameter ID changes)
+- Preset compatibility: Fully compatible (parameter IDs unchanged)
+
 ## [1.5.3] - 2026-02-03
 
 ### Fixed
