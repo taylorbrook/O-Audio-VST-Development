@@ -1,5 +1,25 @@
 # O-Detune Changelog
 
+## [1.1.1] - 2026-02-02
+
+### Fixed
+
+- **UI knobs now move smoothly** (visual animation improvement)
+  - Root cause: Knob visuals relied solely on JUCE parameter callbacks without frontend animation interpolation. Backend updates fire at audio block rate, causing discrete visual jumps.
+  - Fix: Implemented `requestAnimationFrame` loop with exponential smoothing interpolation (factor 0.15) for vine arc SVG updates
+  - Removed CSS `transition` property on `.knob-vine` stroke-dashoffset (now handled by JS)
+  - Text value displays update immediately (no lag) while visual arcs interpolate smoothly
+
+### Added
+
+- **Mouse wheel support for knobs** - scroll up/down to adjust values with fine control (±2% per scroll tick)
+
+### Technical Notes
+
+- Animation system tracks target vs current normalized values per knob
+- Loop runs only when knobs are animating (no idle CPU cost)
+- Smoothing factor 0.15 provides balance between responsiveness and smoothness
+
 ## [1.1.0] - 2026-02-02
 
 ### Changed

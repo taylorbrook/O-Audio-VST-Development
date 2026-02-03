@@ -202,7 +202,7 @@
             stroke: var(--knob-vine);
             stroke-width: 3;
             stroke-linecap: round;
-            transition: stroke-dashoffset 0.1s ease;
+            /* Smooth animation handled by JS interpolation loop */
         }
 
         .knob-label {
@@ -779,7 +779,51 @@
             startValue: 0
         };
 
-        // Setup SVG knobs
+        // Animation state for smooth knob movement
+        const animationState = {
+            targets: {},      // { knobId: { current: 0, target: 0, vine: element, valueDisplay: element, config: obj } }
+            frameId: null,
+            isRunning: false,
+            smoothingFactor: 0.15  // Exponential smoothing (0-1, lower = smoother but slower)
+        };
+
+        // Animation loop for smooth knob interpolation
+        const animationLoop = (timestamp) => {
+            let needsUpdate = false;
+
+            Object.entries(animationState.targets).forEach(([id, state]) => {
+                const delta = state.target - state.current;
+
+                // Only update if there's meaningful difference
+                if (Math.abs(delta) > 0.0001) {
+                    // Exponential easing toward target
+                    state.current += delta * animationState.smoothingFactor;
+                    needsUpdate = true;
+
+                    // Update vine arc visual
+                    const offset = state.config.arcLength - (state.current * state.config.arcLength);
+                    state.vine.style.strokeDashoffset = offset;
+                }
+            });
+
+            // Continue loop if any knob needs updating
+            if (needsUpdate) {
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            } else {
+                animationState.isRunning = false;
+                animationState.frameId = null;
+            }
+        };
+
+        // Start animation loop if not already running
+        const startAnimationLoop = () => {
+            if (!animationState.isRunning) {
+                animationState.isRunning = true;
+                animationState.frameId = requestAnimationFrame(animationLoop);
+            }
+        };
+
+        // Setup SVG knobs with smooth animation
         Object.entries(knobConfigs).forEach(([id, config]) => {
             const state = sliderStates[id];
             if (!state) return;
@@ -790,25 +834,39 @@
 
             if (!knobEl || !vine || !valueDisplay) return;
 
-            const updateKnobVisual = () => {
+            // Initialize animation state for this knob
+            const initialNorm = state.getNormalisedValue();
+            animationState.targets[id] = {
+                current: initialNorm,
+                target: initialNorm,
+                vine: vine,
+                valueDisplay: valueDisplay,
+                config: config
+            };
+
+            // Set initial visual state (no animation needed for initial render)
+            const initialOffset = config.arcLength - (initialNorm * config.arcLength);
+            vine.style.strokeDashoffset = initialOffset;
+            if (formatters[id]) {
+                valueDisplay.textContent = formatters[id](state.getScaledValue());
+            }
+
+            // Listen for JUCE parameter changes - update target and text
+            state.valueChangedEvent.addListener(() => {
                 const normalised = state.getNormalisedValue();
                 const scaledValue = state.getScaledValue();
 
-                // Update vine arc - offset goes from arcLength (empty) to 0 (full)
-                const offset = config.arcLength - (normalised * config.arcLength);
-                vine.style.strokeDashoffset = offset;
+                // Update animation target (will be smoothly interpolated)
+                animationState.targets[id].target = normalised;
 
-                // Update value display
+                // Update value display immediately (text updates feel better without lag)
                 if (formatters[id]) {
                     valueDisplay.textContent = formatters[id](scaledValue);
                 }
-            };
 
-            // Listen for JUCE parameter changes
-            state.valueChangedEvent.addListener(updateKnobVisual);
-
-            // Initial render
-            updateKnobVisual();
+                // Start animation loop if not running
+                startAnimationLoop();
+            });
 
             // Mouse drag interaction
             const knobVisual = knobEl.querySelector('.knob-visual');
@@ -847,6 +905,22 @@
 
             dragState.isDragging = false;
             dragState.target = null;
+        });
+
+        // Add mouse wheel support for knobs
+        Object.keys(knobConfigs).forEach(id => {
+            const knobEl = document.getElementById(id + '_knob');
+            const state = sliderStates[id];
+            if (!knobEl || !state) return;
+
+            knobEl.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const currentNorm = state.getNormalisedValue();
+                // Wheel delta: positive = scroll up = increase value
+                const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+                state.setNormalisedValue(newNorm);
+            }, { passive: false });
         });
 
         // Setup width slider

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.1.1
 - **Type:** Audio Effect (Detuning / Pitch Thickening)
 - **Complexity:** 5.0 (Maximum)
 
@@ -13,6 +13,7 @@
 - **2026-02-02 (v1.0.0):** Initial release - dual-engine architecture, WebView UI
 - **2026-02-02 (v1.0.1):** Fixed UI knobs and dropdowns (JUCE 8 ComboBox API correction)
 - **2026-02-02 (v1.1.0):** Complete UI redesign to Ouaricon Naturalist aesthetic (paper background, SVG vine-arc knobs, nudibranch botanical overlay)
+- **2026-02-02 (v1.1.1):** Fixed UI knob smoothness - implemented requestAnimationFrame interpolation loop, added mouse wheel support
 
 ## Overview
 
