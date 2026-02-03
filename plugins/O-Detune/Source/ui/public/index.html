@@ -126,6 +126,7 @@
 
         .engine-panel {
             border: 1px solid var(--panel-border);
+            transition: opacity 0.2s ease;
         }
 
         .engine-controls {
@@ -448,7 +449,7 @@
             <!-- Engines Row -->
             <div class="engines-row">
                 <!-- Wobble Engine -->
-                <div class="panel engine-panel">
+                <div class="panel engine-panel" id="wobble_panel">
                     <div class="panel-label">Wobble</div>
                     <div class="engine-controls">
                         <div class="dropdown-container">
@@ -512,7 +513,7 @@
                 </div>
 
                 <!-- Unison Engine -->
-                <div class="panel engine-panel">
+                <div class="panel engine-panel" id="unison_panel">
                     <div class="panel-label">Unison</div>
                     <div class="engine-controls">
                         <div class="dropdown-container">
@@ -822,6 +823,29 @@
                 animationState.frameId = requestAnimationFrame(animationLoop);
             }
         };
+
+        // Panel opacity based on blend - visual feedback for engine mix
+        const wobblePanel = document.getElementById('wobble_panel');
+        const unisonPanel = document.getElementById('unison_panel');
+        const MIN_OPACITY = 0.35;  // Keep panels visible even when not active
+
+        const updatePanelOpacity = (blendNorm) => {
+            // blend = 0: 100% wobble, blend = 1: 100% unison
+            // Wobble fades out as blend increases, Unison fades in
+            const wobbleOpacity = 1 - (blendNorm * (1 - MIN_OPACITY));
+            const unisonOpacity = MIN_OPACITY + (blendNorm * (1 - MIN_OPACITY));
+
+            wobblePanel.style.opacity = wobbleOpacity;
+            unisonPanel.style.opacity = unisonOpacity;
+        };
+
+        // Initialize panel opacity from blend state
+        if (sliderStates.blend) {
+            updatePanelOpacity(sliderStates.blend.getNormalisedValue());
+            sliderStates.blend.valueChangedEvent.addListener(() => {
+                updatePanelOpacity(sliderStates.blend.getNormalisedValue());
+            });
+        }
 
         // Setup SVG knobs with smooth animation
         Object.entries(knobConfigs).forEach(([id, config]) => {

@@ -1,5 +1,21 @@
 # O-Detune Changelog
 
+## [1.2.0] - 2026-02-02
+
+### Added
+
+- **Blend-responsive panel opacity** - Wobble and Unison panels now fade based on blend knob position
+  - Blend at 0%: Wobble panel fully visible, Unison panel faded (35% opacity)
+  - Blend at 100%: Wobble panel faded, Unison panel fully visible
+  - Provides clear visual feedback for which engine is active
+  - Smooth 200ms CSS transition between states
+  - Minimum 35% opacity ensures controls remain usable
+
+### Technical Notes
+
+- Panel opacity updates via blend parameter's valueChangedEvent
+- Initial state synced on load from JUCE parameter value
+
 ## [1.1.1] - 2026-02-02
 
 ### Fixed
