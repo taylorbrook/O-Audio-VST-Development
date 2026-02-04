@@ -91,9 +91,45 @@ html, body {
 .band-row {
     flex: 1;
     display: grid;
-    grid-template-columns: 60px 1fr 80px 40px;
+    grid-template-columns: 60px 1fr 60px 80px 40px;
     gap: 8px;
     align-items: center;
+}
+
+/* Lane action buttons (Clear/Random) */
+.lane-actions {
+    display: flex;
+    gap: 4px;
+    justify-content: center;
+}
+
+.lane-btn {
+    background: var(--border-accent);
+    color: var(--bg-paper);
+    border: none;
+    border-radius: 3px;
+    width: 26px;
+    height: 22px;
+    font-size: 9px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+    letter-spacing: 0;
+}
+
+.lane-btn:hover {
+    background: var(--step-on);
+}
+
+.lane-btn.clear-btn {
+    font-size: 12px;
+}
+
+.lane-btn.random-btn {
+    font-size: 10px;
 }
 
 .band-label {

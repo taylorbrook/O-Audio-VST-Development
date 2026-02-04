@@ -228,6 +228,30 @@ function renderGrid() {
 
         bandRow.appendChild(stepsContainer);
 
+        // Lane action buttons (Clear/Random)
+        const laneActions = document.createElement('div');
+        laneActions.className = 'lane-actions';
+
+        const clearBtn = document.createElement('button');
+        clearBtn.className = 'lane-btn clear-btn';
+        clearBtn.textContent = '⌀';
+        clearBtn.title = 'Clear all steps';
+        clearBtn.addEventListener('click', () => {
+            clearBand(band.id);
+        });
+        laneActions.appendChild(clearBtn);
+
+        const randomBtn = document.createElement('button');
+        randomBtn.className = 'lane-btn random-btn';
+        randomBtn.textContent = '⚄';
+        randomBtn.title = 'Randomize steps';
+        randomBtn.addEventListener('click', () => {
+            randomizeBand(band.id);
+        });
+        laneActions.appendChild(randomBtn);
+
+        bandRow.appendChild(laneActions);
+
         // Band mode indicator
         const modeIndicator = document.createElement('div');
         modeIndicator.className = 'band-mode';
@@ -434,6 +458,34 @@ function updateBandModeIndicator(bandId, isEuclidean) {
     const indicator = document.getElementById(`mode-${bandId}`);
     if (indicator) {
         indicator.textContent = isEuclidean ? 'Euclidean' : 'Manual';
+    }
+}
+
+// ============================================================================
+// Lane Actions (Clear/Random)
+// ============================================================================
+
+function clearBand(bandId) {
+    for (let step = 0; step < 32; step++) {
+        const paramId = `step_b${bandId}_s${step}`;
+        const toggleState = state.stepStates[paramId];
+        if (toggleState) {
+            toggleState.setValue(false);
+            updateStepVisual(bandId, step, false);
+        }
+    }
+}
+
+function randomizeBand(bandId) {
+    for (let step = 0; step < 32; step++) {
+        const paramId = `step_b${bandId}_s${step}`;
+        const toggleState = state.stepStates[paramId];
+        if (toggleState) {
+            // 50% chance each step is enabled
+            const active = Math.random() < 0.5;
+            toggleState.setValue(active);
+            updateStepVisual(bandId, step, active);
+        }
     }
 }
 
