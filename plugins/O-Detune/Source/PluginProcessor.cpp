@@ -360,6 +360,11 @@ void ODetuneAudioProcessor::processWidth(float& left, float& right, float widthP
 void ODetuneAudioProcessor::processMonoSafe(float& left, float& right)
 {
     const float sqrtHalf = 0.70710678f;
+    const float noiseFloor = 1e-6f;  // -120 dB noise floor
+
+    // Skip processing for signals below noise floor (prevents amplifying silence)
+    if (std::abs(left) < noiseFloor && std::abs(right) < noiseFloor)
+        return;
 
     float mid = (left + right) * sqrtHalf;
     float side = (left - right) * sqrtHalf;
@@ -367,12 +372,12 @@ void ODetuneAudioProcessor::processMonoSafe(float& left, float& right)
     // Gentle side reduction using soft knee compression
     // Only reduce side when it significantly exceeds mid (phase cancellation risk)
     float sideAbs = std::abs(side);
-    float midAbs = std::abs(mid) + 0.0001f;  // Avoid div/0
-    float ratio = sideAbs / midAbs;
+    float midAbs = std::abs(mid);
 
-    // Soft knee: start reducing when side > 1.5x mid, fully limited at 3x
-    if (ratio > 1.5f)
+    // Only apply compression if mid is significant enough to calculate ratio safely
+    if (midAbs > noiseFloor && sideAbs > midAbs * 1.5f)
     {
+        float ratio = sideAbs / midAbs;
         float reduction = 1.0f / (1.0f + (ratio - 1.5f) * 0.3f);  // Gentle compression
         side *= reduction;
     }

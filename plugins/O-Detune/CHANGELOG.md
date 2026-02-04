@@ -1,5 +1,14 @@
 # O-Detune Changelog
 
+## [1.4.1] - 2026-02-03
+
+### Fixed
+
+- **Mono-safe toggle no longer causes noise**
+  - Root cause: Division in side/mid ratio calculation amplified tiny floating-point noise when signal was near zero
+  - Fix: Added noise floor check (-120 dB) to skip processing on silent signals
+  - Ratio calculation now only happens when mid signal is above noise floor
+
 ## [1.4.0] - 2026-02-03
 
 ### Changed
