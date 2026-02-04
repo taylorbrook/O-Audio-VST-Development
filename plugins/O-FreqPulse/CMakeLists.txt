@@ -40,6 +40,7 @@ target_link_libraries(O-FreqPulse
         juce::juce_graphics
         juce::juce_gui_basics
         juce::juce_gui_extra
+        O-FreqPulse_UIResources
     PUBLIC
         juce::juce_recommended_config_flags
         juce::juce_recommended_lto_flags
@@ -49,17 +50,15 @@ target_link_libraries(O-FreqPulse
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-FreqPulse)
 
-# WebView UI Resources (will be added in Stage 3)
-# juce_add_binary_data(O-FreqPulse_UIResources
-#     SOURCES
-#         Source/ui/public/index.html
-#         Source/ui/public/js/juce/index.js
-# )
-#
-# target_link_libraries(O-FreqPulse
-#     PRIVATE
-#         O-FreqPulse_UIResources
-# )
+# WebView UI Resources (Stage 3)
+juce_add_binary_data(O-FreqPulse_UIResources
+    SOURCES
+        Resources/ui/index.html
+        Resources/ui/css/styles.css
+        Resources/ui/js/app.js
+        Resources/ui/js/juce/index.js
+        Resources/ui/js/juce/check_native_interop.js
+)
 
 # Compile definitions
 target_compile_definitions(O-FreqPulse

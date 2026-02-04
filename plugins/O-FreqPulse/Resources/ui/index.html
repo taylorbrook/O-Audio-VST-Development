@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-FreqPulse</title>
+    <link rel="stylesheet" href="/css/styles.css">
+    <script type="module" src="/js/app.js"></script>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <header class="header">
+            <h1>O-FreqPulse</h1>
+            <p class="tagline">Frequency Band Step Sequencer</p>
+        </header>
+
+        <!-- Grid Area -->
+        <div class="grid-area">
+            <div class="playhead" id="playhead"></div>
+            <div id="grid-container"></div>
+        </div>
+
+        <!-- Euclidean Panel (hidden by default) -->
+        <div class="euclidean-panel" id="euclidean-panel">
+            <h3 id="euc-band-title">Band Controls</h3>
+            <div class="euc-controls">
+                <div class="control-group">
+                    <label>Mode</label>
+                    <div class="toggle-container" id="euc-mode-toggle">
+                        <span class="mode-label">Manual</span>
+                        <span class="mode-label">Euclidean</span>
+                    </div>
+                </div>
+                <div class="control-group">
+                    <label>Steps</label>
+                    <input type="range" class="slider" id="euc-steps" min="1" max="32" value="16">
+                    <span class="value-display" id="euc-steps-value">16</span>
+                </div>
+                <div class="control-group">
+                    <label>Pulses</label>
+                    <input type="range" class="slider" id="euc-pulses" min="1" max="32" value="8">
+                    <span class="value-display" id="euc-pulses-value">8</span>
+                </div>
+                <div class="control-group">
+                    <label>Offset</label>
+                    <input type="range" class="slider" id="euc-offset" min="0" max="31" value="0">
+                    <span class="value-display" id="euc-offset-value">0</span>
+                </div>
+                <div class="control-group">
+                    <label>Depth</label>
+                    <input type="range" class="slider" id="euc-depth" min="0" max="100" value="100">
+                    <span class="value-display" id="euc-depth-value">100%</span>
+                </div>
+            </div>
+            <button class="close-btn" id="euc-close">×</button>
+        </div>
+
+        <!-- Footer Controls -->
+        <footer class="footer">
+            <div class="global-controls">
+                <div class="control">
+                    <label>Mix</label>
+                    <input type="range" class="slider" id="mix" min="0" max="100" value="100">
+                    <span class="value-display" id="mix-value">100%</span>
+                </div>
+                <div class="control">
+                    <label>Steps</label>
+                    <select class="dropdown" id="steps">
+                        <option value="0">4</option>
+                        <option value="1">8</option>
+                        <option value="2" selected>16</option>
+                        <option value="3">32</option>
+                    </select>
+                </div>
+                <div class="control">
+                    <label>Rate</label>
+                    <select class="dropdown" id="rate">
+                        <option value="0">1/1</option>
+                        <option value="1">1/2</option>
+                        <option value="2">1/4</option>
+                        <option value="3">1/8</option>
+                        <option value="4" selected>1/16</option>
+                        <option value="5">1/32</option>
+                        <option value="6">1/8T</option>
+                        <option value="7">1/16T</option>
+                        <option value="8">1/4D</option>
+                        <option value="9">1/8D</option>
+                    </select>
+                </div>
+                <div class="control">
+                    <label>Swing</label>
+                    <input type="range" class="slider" id="swing" min="0" max="100" value="0">
+                    <span class="value-display" id="swing-value">0%</span>
+                </div>
+                <div class="control">
+                    <label>Smoothing</label>
+                    <input type="range" class="slider" id="smoothing" min="0" max="100" value="5">
+                    <span class="value-display" id="smoothing-value">5ms</span>
+                </div>
+            </div>
+        </footer>
+    </div>
+</body>
+</html>

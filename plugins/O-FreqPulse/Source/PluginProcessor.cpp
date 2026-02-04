@@ -222,7 +222,9 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
 
     // Reset step sequencer
     currentStep = 0;
+    currentStepAtomic.store(0);
     lastPpqPosition = -1.0;
+    sampleAccumulator = 0.0;
 
     // Report latency to DAW
     setLatencySamples(fftSize);
@@ -243,7 +245,9 @@ void OFreqPulseAudioProcessor::releaseResources()
 
     // Reset step tracking
     currentStep = 0;
+    currentStepAtomic.store(0);
     lastPpqPosition = -1.0;
+    sampleAccumulator = 0.0;
 }
 
 //==============================================================================
@@ -522,19 +526,25 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         updateEuclideanPatterns();
 
     // Get playhead position for tempo sync
+    bool gotValidPosition = false;
     juce::AudioPlayHead* playHead = getPlayHead();
+
     if (playHead != nullptr)
     {
         if (auto posInfo = playHead->getPosition())
         {
-            if (posInfo->getPpqPosition().hasValue())
+            bool isPlaying = posInfo->getIsPlaying();
+
+            if (isPlaying && posInfo->getPpqPosition().hasValue())
             {
                 double ppq = *posInfo->getPpqPosition();
+                gotValidPosition = true;
 
-                // Calculate current step
+                // Calculate current step directly from PPQ (loops via modulo in calculateCurrentStep)
                 currentStep = calculateCurrentStep(ppq, numSteps, rateIndex, swing);
+                currentStepAtomic.store(currentStep);
 
-                // Update target gains when step changes
+                // Update target gains when PPQ changes
                 if (std::abs(ppq - lastPpqPosition) > 0.001)
                 {
                     for (int band = 0; band < 4; ++band)
@@ -544,6 +554,38 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
                     }
                     lastPpqPosition = ppq;
                 }
+            }
+        }
+    }
+
+    // Fallback: free-running step counter when no valid host position (e.g., Standalone)
+    if (!gotValidPosition)
+    {
+        // Use sample-based timing at assumed 120 BPM
+        // PPQ per step at different rates
+        const double ppqPerStep[] = {
+            4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 0.333333, 0.166666, 1.5, 0.75
+        };
+        double stepLength = ppqPerStep[juce::jlimit(0, 9, rateIndex)];
+
+        // Samples per beat at 120 BPM
+        double samplesPerBeat = currentSampleRate * 60.0 / 120.0;
+        double samplesPerStep = samplesPerBeat * stepLength;
+
+        // Accumulate samples and advance step
+        sampleAccumulator += static_cast<double>(numSamples);
+
+        if (sampleAccumulator >= samplesPerStep)
+        {
+            sampleAccumulator -= samplesPerStep;
+            currentStep = (currentStep + 1) % numSteps;
+            currentStepAtomic.store(currentStep);
+
+            // Update target gains
+            for (int band = 0; band < 4; ++band)
+            {
+                float targetGain = getTargetGainForBand(band, currentStep);
+                bandGainSmooth[band].setTargetValue(targetGain);
             }
         }
     }

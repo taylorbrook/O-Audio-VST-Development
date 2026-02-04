@@ -50,12 +50,17 @@ target_link_libraries(O-SpectralShaper
 # Generate JuceHeader.h (JUCE 8 requirement - MUST come after target_link_libraries)
 juce_generate_juce_header(O-SpectralShaper)
 
-# WebView UI Resources (placeholder for Stage 1)
+# WebView UI Resources (Stage 3 complete)
 juce_add_binary_data(O-SpectralShaper_UIResources
     SOURCES
         Resources/ui/index.html
+        Resources/ui/css/styles.css
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
+        Resources/ui/js/app.js
+        Resources/ui/js/components/RotaryKnob.js
+        Resources/ui/images/paper-bg.webp
+        Resources/ui/images/slug-overlay.webp
 )
 
 target_link_libraries(O-SpectralShaper

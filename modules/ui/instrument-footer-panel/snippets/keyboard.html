@@ -1,0 +1,19 @@
+<!-- Footer Keyboard HTML
+     Place inside your existing <div class="footer"> element.
+     Typical layout: [Gain slider] [Keyboard] [Branding]
+-->
+
+<div class="footer">
+    <!-- Master/Gain Slider (left) - keep your existing binding pattern -->
+    <div class="footer-gain">
+        <span class="footer-gain-label">Gain</span>
+        <input type="range" class="footer-gain-slider" data-param="outputGain">
+        <span class="footer-gain-value" id="outputGainValue">0.0 dB</span>
+    </div>
+
+    <!-- Keyboard (center) - JS will populate this -->
+    <div class="footer-keyboard-viz" id="keyboard-viz"></div>
+
+    <!-- Branding (right) -->
+    <span class="footer-brand">Ouaricon Audio</span>
+</div>

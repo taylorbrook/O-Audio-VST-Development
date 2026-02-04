@@ -1,8 +1,8 @@
-# scala-tuning-engine module v2.0.0
+# scala-tuning-engine module v2.1.0
 # Complete microtonal tuning system extracted from O-Lyrica
 
 name: scala-tuning-engine
-version: 2.0.0
+version: 2.1.0
 description: |
   Complete microtonal tuning system with:
   - 12-TET, custom scales (Scala .scl/.kbm), and MTS-ESP support
@@ -13,6 +13,10 @@ description: |
   - Editable intervals table with tonic/modal rotation
   - HTML documentation export with SVG pitch circle
   - Octave stretch for physical modeling
+
+  **Integration:** This module uses the standalone ES6 class approach (recommended
+  for complex modules). Copy-paste snippets are provided for C++ boilerplate.
+  See snippets/INTEGRATION-CHECKLIST.md for step-by-step guide.
 
 category: tuning
 author: Ouaricon Audio
@@ -125,16 +129,27 @@ requirements:
 # Source files
 sources:
   cpp:
-    - TuningEngine.h
-    - TuningEngine.cpp
-    - ScaleGenerator.h
-    - ScaleGenerator.cpp
-    - TuningExporter.h
-    - TuningExporter.cpp
-    - EmbeddedTunings.h
-    - EmbeddedTunings.cpp
+    - cpp/TuningEngine.h
+    - cpp/TuningEngine.cpp
+    - cpp/ScaleGenerator.h
+    - cpp/ScaleGenerator.cpp
+    - cpp/TuningExporter.h
+    - cpp/TuningExporter.cpp
+    - cpp/EmbeddedTunings.h
+    - cpp/EmbeddedTunings.cpp
   js:
-    - tuning-panel.js
+    - js/tuning-panel.js
+  css:
+    - snippets/tuning-panel.css
+
+# Copy-paste snippets for easier integration
+snippets:
+  INTEGRATION-CHECKLIST.md: Step-by-step integration guide with checkboxes
+  parameters.cpp: APVTS parameter definitions for tuning controls
+  processor-header.h: PluginProcessor.h additions (includes, members)
+  native-functions.cpp: All 20+ WebView native function registrations
+  persistence.cpp: State save/restore code for DAW sessions
+  tuning-panel.css: Complete CSS styles for tuning panel UI
 
 # APVTS parameters (with default prefix "tuning_")
 parameters:
@@ -191,6 +206,18 @@ embedded_tuning_categories:
 used_by: []
 
 changelog:
+  - version: 2.1.0
+    date: 2026-02-03
+    changes:
+      - "Added snippets/ directory with copy-paste C++ boilerplate"
+      - "Added INTEGRATION-CHECKLIST.md with step-by-step guide"
+      - "Added tuning-panel.css (was missing from v2.0.0)"
+      - "Added parameters.cpp snippet for APVTS setup"
+      - "Added native-functions.cpp snippet (all 20+ functions)"
+      - "Added persistence.cpp snippet for state save/restore"
+      - "Added processor-header.h snippet for header additions"
+      - "Documented standalone module approach vs surgical integration"
+
   - version: 2.0.0
     date: 2026-02-03
     changes:

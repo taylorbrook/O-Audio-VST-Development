@@ -69,8 +69,8 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
 
     addAndMakeVisible(*webView);
 
-    // Set editor size (600x400 default for Stage 1 placeholder)
-    setSize(600, 400);
+    // Set editor size (700x500 for Stage 3 full UI)
+    setSize(700, 500);
 }
 
 OSpectralShaperAudioProcessorEditor::~OSpectralShaperAudioProcessorEditor()
@@ -132,6 +132,44 @@ OSpectralShaperAudioProcessorEditor::getResource(const juce::String& url)
             makeVector(BinaryData::check_native_interop_js,
                       BinaryData::check_native_interop_jsSize),
             juce::String("text/javascript")
+        };
+    }
+
+    // CSS
+    if (url == "/css/styles.css") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::styles_css, BinaryData::styles_cssSize),
+            juce::String("text/css")
+        };
+    }
+
+    // JavaScript modules
+    if (url == "/js/app.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::app_js, BinaryData::app_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    if (url == "/js/components/RotaryKnob.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::RotaryKnob_js, BinaryData::RotaryKnob_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    // Images
+    if (url == "/images/paper-bg.webp") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::paperbg_webp, BinaryData::paperbg_webpSize),
+            juce::String("image/webp")
+        };
+    }
+
+    if (url == "/images/slug-overlay.webp") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::slugoverlay_webp, BinaryData::slugoverlay_webpSize),
+            juce::String("image/webp")
         };
     }
 

@@ -1,0 +1,87 @@
+/* ===== Footer Keyboard Styles =====
+ * Copy this into your plugin's <style> block.
+ * DO NOT replace existing footer CSS - ADD these styles.
+ *
+ * Also update:
+ *   .footer { height: 55px; }  // was 40px
+ *   .tab-content { height: calc(100% - 125px); }  // adjust for new footer
+ */
+
+.footer-keyboard-viz {
+    display: flex;
+    position: relative;
+    height: 42px;
+    background: var(--panel-bg, #FAF0E6);
+    border: 1px solid rgba(139, 115, 85, 0.6);
+    border-radius: 3px;
+    overflow: visible;
+    flex: 1;
+    max-width: 420px;
+    min-width: 200px;
+    margin: 0 15px;
+}
+
+.footer-keyboard-viz .white-key {
+    flex: 1;
+    background: rgba(139, 168, 112, 0.35);
+    border-right: 1px solid rgba(139, 115, 85, 0.6);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 2px;
+    transition: background 0.15s, transform 0.1s;
+    cursor: pointer;
+    z-index: 1;
+    min-width: 0;
+}
+
+.footer-keyboard-viz .white-key:last-of-type {
+    border-right: none;
+}
+
+.footer-keyboard-viz .white-key span {
+    font-size: 6px;
+    color: #5C4033;
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.footer-keyboard-viz .white-key:hover:not(.pressed) {
+    background: rgba(139, 168, 112, 0.5);
+}
+
+.footer-keyboard-viz .white-key.pressed {
+    background: #8BC34A !important;
+    transform: translateY(1px);
+    z-index: 2;
+}
+
+.footer-keyboard-viz .black-key {
+    position: absolute;
+    width: 14px;
+    height: 28px;
+    background: #4A6B2A;
+    border-radius: 0 0 2px 2px;
+    top: 0;
+    z-index: 10;
+    transition: background 0.15s, transform 0.1s;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.footer-keyboard-viz .black-key:hover:not(.pressed) {
+    background: #5A8B3A;
+}
+
+.footer-keyboard-viz .black-key.pressed {
+    background: #8BC34A !important;
+    transform: translateY(1px);
+}
+
+.footer-help-text {
+    font-size: 7px;
+    color: #8B7355;
+    text-align: center;
+    margin-top: 2px;
+}

@@ -1,13 +1,13 @@
 ---
 plugin: O-SpectralShaper
-stage: 2
-phase: verify
-status: complete
-last_updated: 2026-02-03
+stage: 3
+phase: execute
+status: ready
+last_updated: 2026-02-04
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: discuss
+next_action: plan
 next_stage: 3
 contract_checksums:
   brief: sha256:2e7cbc1752e5cd3c12fc44079e5ef5d8267db3e9b24c6e3428228c6957eec5ff
@@ -21,9 +21,9 @@ ready_for_implementation: true
 
 ## Current Position
 
-Stage: 2 of 5 (DSP Implementation) — VERIFIED ✓
-Status: Stage 2 complete, ready for Stage 3 (GUI)
-Progress: [############........] 60%
+Stage: 3 of 5 (GUI Implementation) — RESEARCH ✓
+Status: Research complete, ready for planning phase
+Progress: [###############.....] 75%
 
 ## Completed So Far
 
@@ -98,13 +98,39 @@ Progress: [############........] 60%
 | Real-time safety | ✅ No allocations/locks |
 | Thread safety | ✅ Atomic curve updates |
 
+## Stage 3 Progress
+
+**Discuss Phase:** ✓ Complete (CONTEXT.md created)
+**Research Phase:** ✓ Complete (RESEARCH.md created)
+**Plan Phase:** ✓ Complete (PLAN.md created - 23 tasks across 3 phases)
+
+Decisions captured:
+- Visual style: Dark Botanical (inverted paper + ghostly sea slug overlay)
+- Dimensions: 700×500 pixels
+- Layout: Stacked (spectrogram → attack curve → sustain curve, knobs in right sidebar)
+- Curve mode: Toggle button for Freehand vs Node
+- Transient visualization: Heat overlay on spectrogram
+- Assets: paper1.jpg + slug illustration (both inverted/darkened)
+
 ## Next Steps
 
-1. **Stage 3: GUI Implementation** (NEXT)
-   - Run `/plugin-discuss O-SpectralShaper 3-gui` to begin
-   - Phase 3.1: WebView layout with parameter controls
-   - Phase 3.2: Drawable curve editors (freehand + node modes)
-   - Phase 3.3: Real-time spectrogram with transient heat overlay
+1. **Stage 3: GUI Implementation** (IN PROGRESS)
+   - ✓ DISCUSS phase complete (CONTEXT.md)
+   - ✓ RESEARCH phase complete (RESEARCH.md)
+   - ✓ PLAN phase complete (PLAN.md - 23 tasks)
+   - Run `/plugin-execute O-SpectralShaper 3-gui` to begin execution
+   - Phase 3.1: WebView layout with parameter controls (6 tasks)
+   - Phase 3.2: Drawable curve editors (7 tasks)
+   - Phase 3.3: Real-time spectrogram with transient overlay (10 tasks)
+
+## Research Summary
+
+Key findings from Stage 3 research:
+- **WebGL Spectrogram:** Circular buffer texture + fragment shader colormap
+- **Curve Editors:** Catmull-Rom smoothing (freehand) + Bezier control points (node mode)
+- **Data Pipeline:** AbstractFifo for lock-free audio→GUI transfer, emitEventIfBrowserIsVisible for WebView
+- **Pitfalls Identified:** 14 JUCE 8 WebView patterns from troubleshooting knowledge base
+- **Performance Target:** 60fps with 8ms render budget
 
 ## Files Created
 
@@ -149,6 +175,12 @@ Progress: [############........] 60%
 - juce::Decibels (dB conversion)
 - juce::ScopedNoDenormals (CPU protection)
 
+## Files Created (Stage 3)
+
+- plugins/O-SpectralShaper/.planning/stages/3-gui/CONTEXT.md
+- plugins/O-SpectralShaper/.planning/stages/3-gui/RESEARCH.md
+- plugins/O-SpectralShaper/.planning/stages/3-gui/PLAN.md
+
 ## Last Updated
 
-2026-02-03 - Stage 2 VERIFIED, ready for Stage 3 (GUI)
+2026-02-04 - Stage 3 PLAN complete, ready for EXECUTE phase

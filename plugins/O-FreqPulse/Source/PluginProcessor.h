@@ -28,6 +28,9 @@ public:
     bool hasEditor() const override { return true; }
 
     const juce::String getName() const override { return "O-FreqPulse"; }
+
+    // Thread-safe access for GUI timer
+    int getCurrentStep() const { return currentStepAtomic.load(); }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -101,7 +104,11 @@ private:
 
     // Step Sequencer State
     int currentStep = 0;
+    std::atomic<int> currentStepAtomic { 0 };  // Thread-safe for GUI access
     double lastPpqPosition = -1.0;
+
+    // Free-running step counter (for standalone/no-host mode)
+    double sampleAccumulator = 0.0;
 
     // Cached parameter values (for change detection)
     float lastBandFreqs[4][2] = { {0, 0}, {0, 0}, {0, 0}, {0, 0} };  // [band][low/high]

@@ -1,6 +1,17 @@
-# scala-tuning-engine v2.0.0
+# scala-tuning-engine v2.1.0
 
 Complete microtonal tuning system for WebView-based JUCE plugins.
+
+## Quick Start
+
+For step-by-step integration, see **`snippets/INTEGRATION-CHECKLIST.md`**.
+
+The `snippets/` directory contains copy-paste ready code for:
+- `parameters.cpp` - APVTS parameter definitions
+- `processor-header.h` - PluginProcessor.h additions
+- `native-functions.cpp` - All 20+ WebView native functions
+- `persistence.cpp` - DAW session state save/restore
+- `tuning-panel.css` - Complete CSS styles for the UI
 
 ## Features
 
@@ -195,6 +206,17 @@ void PluginProcessor::getStateInformation(juce::MemoryBlock& destData)
     copyXmlToBinary(*xml, destData);
 }
 ```
+
+## Integration Approach
+
+This module uses the **standalone ES6 class approach** rather than surgical integration. This is appropriate because:
+
+1. **Self-contained panel** - The tuning system is a complete UI panel, not something that integrates into existing structures
+2. **No namespace conflicts** - Uses `.tuning-*` CSS prefix, doesn't share selectors with plugin CSS
+3. **Complexity** - 880 lines of JS with 5 visualization modes would be unwieldy as inline snippets
+4. **API cohesion** - The 20+ native functions form a logical API managed by a single class
+
+For simpler modules that integrate INTO existing UI (like footer keyboards), see `instrument-footer-panel` which uses surgical integration with inline snippets.
 
 ## Breaking Changes from v1.0.0
 

@@ -2,119 +2,106 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=600, initial-scale=1.0">
-    <title>O-SpectralShaper - Stage 1 Placeholder</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        html, body {
-            width: 600px;
-            height: 400px;
-            overflow: hidden;
-            user-select: none;
-            -webkit-user-select: none;
-            font-family: 'Georgia', 'Times New Roman', serif;
-            background: #1a1410;
-        }
-
-        #app {
-            width: 600px;
-            height: 400px;
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            background: linear-gradient(135deg, #1a1410 0%, #2a2015 100%);
-        }
-
-        h1 {
-            font-size: 32px;
-            font-weight: 400;
-            letter-spacing: 2px;
-            color: #d4c5b0;
-            text-transform: uppercase;
-            margin-bottom: 20px;
-        }
-
-        .subtitle {
-            font-size: 14px;
-            letter-spacing: 1px;
-            color: #8b7355;
-            text-transform: uppercase;
-            margin-bottom: 40px;
-        }
-
-        .status {
-            font-size: 12px;
-            color: #5a7a6a;
-            background: rgba(90, 122, 106, 0.1);
-            padding: 10px 20px;
-            border-radius: 5px;
-            border: 1px solid rgba(90, 122, 106, 0.3);
-        }
-
-        .param-list {
-            margin-top: 30px;
-            font-size: 11px;
-            color: #a08870;
-            text-align: center;
-            line-height: 1.8;
-        }
-    </style>
+    <meta name="viewport" content="width=700, initial-scale=1.0">
+    <title>O-SpectralShaper</title>
+    <link rel="stylesheet" href="/css/styles.css">
 </head>
 <body>
     <div id="app">
-        <h1>O-SpectralShaper</h1>
-        <div class="subtitle">Stage 1 Foundation</div>
-        <div class="status">Build System Operational</div>
-        <div class="param-list">
-            7 Parameters Implemented:<br>
-            MIX • ATTACK_TIME • SUSTAIN_TIME<br>
-            SENSITIVITY • LOOKAHEAD_ENABLED<br>
-            LOOKAHEAD_TIME • OUTPUT_GAIN
+        <!-- HEADER -->
+        <div class="header">
+            <h1>O-SpectralShaper</h1>
+            <div class="version">v1.0.0</div>
+        </div>
+
+        <!-- SPECTROGRAM (Main display area) -->
+        <div class="spectrogram-container">
+            <canvas id="spectrogram-canvas" class="spectrogram-canvas"></canvas>
+            <div class="spectrogram-label">Spectrogram</div>
+        </div>
+
+        <!-- ATTACK CURVE EDITOR -->
+        <div class="curve-container attack-curve-container">
+            <canvas id="attack-curve-canvas" class="curve-canvas"></canvas>
+            <div class="curve-label">Attack Curve</div>
+            <button id="attack-mode-toggle" class="curve-mode-toggle">Freehand</button>
+        </div>
+
+        <!-- SUSTAIN CURVE EDITOR -->
+        <div class="curve-container sustain-curve-container">
+            <canvas id="sustain-curve-canvas" class="curve-canvas"></canvas>
+            <div class="curve-label">Sustain Curve</div>
+            <button id="sustain-mode-toggle" class="curve-mode-toggle">Freehand</button>
+        </div>
+
+        <!-- KNOB SIDEBAR -->
+        <div class="knob-sidebar">
+            <!-- Mix Knob -->
+            <div class="knob-wrapper">
+                <div class="knob-container" id="mix-knob-container">
+                    <div class="knob" id="mix-knob"></div>
+                </div>
+                <div class="knob-label">Mix</div>
+                <div class="knob-value" id="mix-value">100%</div>
+            </div>
+
+            <!-- Attack Time Knob -->
+            <div class="knob-wrapper">
+                <div class="knob-container" id="attack-time-knob-container">
+                    <div class="knob" id="attack-time-knob"></div>
+                </div>
+                <div class="knob-label">Attack</div>
+                <div class="knob-value" id="attack-time-value">10ms</div>
+            </div>
+
+            <!-- Sustain Time Knob -->
+            <div class="knob-wrapper">
+                <div class="knob-container" id="sustain-time-knob-container">
+                    <div class="knob" id="sustain-time-knob"></div>
+                </div>
+                <div class="knob-label">Sustain</div>
+                <div class="knob-value" id="sustain-time-value">100ms</div>
+            </div>
+
+            <!-- Sensitivity Knob -->
+            <div class="knob-wrapper">
+                <div class="knob-container" id="sensitivity-knob-container">
+                    <div class="knob" id="sensitivity-knob"></div>
+                </div>
+                <div class="knob-label">Sensitivity</div>
+                <div class="knob-value" id="sensitivity-value">50%</div>
+            </div>
+
+            <!-- Lookahead Enabled Toggle -->
+            <div class="toggle-container">
+                <div class="toggle-switch" id="lookahead-toggle"></div>
+                <div class="toggle-label">Lookahead</div>
+            </div>
+
+            <!-- Lookahead Time Knob (small) -->
+            <div class="knob-wrapper">
+                <div class="knob-container" id="lookahead-time-knob-container" style="width: 40px; height: 40px;">
+                    <div class="knob" id="lookahead-time-knob" style="width: 40px; height: 40px;"></div>
+                </div>
+                <div class="knob-label">LA Time</div>
+                <div class="knob-value" id="lookahead-time-value">2.0ms</div>
+            </div>
+
+            <!-- Output Gain Knob -->
+            <div class="knob-wrapper">
+                <div class="knob-container" id="output-gain-knob-container">
+                    <div class="knob" id="output-gain-knob"></div>
+                </div>
+                <div class="knob-label">Output</div>
+                <div class="knob-value" id="output-gain-value">0.0dB</div>
+            </div>
         </div>
     </div>
 
-    <script type="module">
-        import * as Juce from './js/juce/index.js';
+    <!-- JUCE JavaScript Bridge -->
+    <script type="module" src="/js/juce/index.js"></script>
 
-        // Verify JUCE backend availability
-        function initializeJUCE() {
-            if (typeof window.__JUCE__ === 'undefined') {
-                console.warn('JUCE backend not available');
-                return;
-            }
-
-            console.log('O-SpectralShaper Stage 1 - WebView initialized');
-            console.log('Available parameters:', window.__JUCE__.initialisationData);
-
-            // Test parameter access (Stage 1 verification only)
-            try {
-                const mixState = Juce.getSliderState('MIX');
-                const attackTimeState = Juce.getSliderState('ATTACK_TIME');
-                const sustainTimeState = Juce.getSliderState('SUSTAIN_TIME');
-                const sensitivityState = Juce.getSliderState('SENSITIVITY');
-                const lookaheadEnabledState = Juce.getToggleState('LOOKAHEAD_ENABLED');
-                const lookaheadTimeState = Juce.getSliderState('LOOKAHEAD_TIME');
-                const outputGainState = Juce.getSliderState('OUTPUT_GAIN');
-
-                console.log('All 7 parameters accessible');
-            } catch (error) {
-                console.error('Parameter access error:', error);
-            }
-        }
-
-        // Initialize when DOM is ready
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', initializeJUCE);
-        } else {
-            initializeJUCE();
-        }
-    </script>
+    <!-- Main Application Logic -->
+    <script type="module" src="/js/app.js"></script>
 </body>
 </html>

@@ -2,7 +2,7 @@
 # Reusable sticky footer for VST instruments with master volume, keyboard, and branding
 
 name: instrument-footer-panel
-version: 1.0.0
+version: 1.1.0
 description: |
   Complete sticky footer panel for VST instruments. Combines three elements
   in a responsive horizontal layout:
@@ -14,6 +14,10 @@ description: |
   The panel is designed to be resizable and will adapt to different plugin widths.
   Keyboard size scales proportionally while master volume and branding maintain
   fixed minimum widths.
+
+  **Integration approach:** Based on O-Bells v2.2.0 lessons, this module now
+  recommends "surgical integration" (inline CSS/JS snippets) rather than
+  importing the standalone JS class. See README.md for step-by-step guide.
 
   Extracted from O-Lyrica v1.18.1+ footer implementation.
 
@@ -103,9 +107,17 @@ dependencies:
 # Sources
 sources:
   js:
-    - instrument-footer-panel.js
+    - js/instrument-footer-panel.js   # Standalone ES6 class (advanced use)
   css:
-    - instrument-footer-panel.css
+    - css/instrument-footer-panel.css # Complete standalone CSS
+
+# Copy-paste snippets for surgical integration (RECOMMENDED)
+snippets:
+  keyboard.css: CSS styles to add to your <style> block
+  keyboard.html: HTML structure for footer with keyboard
+  keyboard.js: IIFE to add after parameter bindings
+  processor.cpp: triggerNoteOn/Off methods for PluginProcessor
+  editor.cpp: sendMidiNote native function for PluginEditor
 
 # Requirements
 requirements:
@@ -116,8 +128,21 @@ requirements:
 used_by:
   - plugin: O-Lyrica
     version: 1.18.1
+  - plugin: O-Bells
+    version: 2.2.0
+    integration: surgical
 
 changelog:
+  - version: 1.1.0
+    date: 2026-02-03
+    changes:
+      - NEW "Surgical integration" approach based on O-Bells v2.2.0 lessons
+      - README rewritten with step-by-step integration guide
+      - Added copy-paste CSS/JS/HTML snippets for inline integration
+      - Added C++ boilerplate for triggerNoteOn/triggerNoteOff methods
+      - Added "What NOT To Do" section documenting integration pitfalls
+      - Standalone JS class still available for advanced use cases
+
   - version: 1.0.0
     date: 2026-02-03
     changes:
