@@ -1,0 +1,13 @@
+{
+  "gate": "gate-0-to-1",
+  "plugin": "O-SpectralShaper",
+  "fromStage": "0-ideation",
+  "toStage": "1-foundation",
+  "timestamp": "2026-02-03T20:01:35Z",
+  "checks": {
+    "critical": [{"name":"schema","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"No handoff file found\n"},{"name":"build","status":"failed","duration":0,"attempts":3,"output":"[0/2] Re-checking globbed directories...\n","error":"ninja: error: unknown target 'O-SpectralShaper_VST3'\n"},{"name":"pluginval","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"VST3 plugin not found at /Users/taylorbrook/Dev/VST-development/build/plugins/O-SpectralShaper/O-SpectralShaper_artefacts/Release/VST3/O-SpectralShaper.vst3\n"}],
+    "advisory": [{"name":"style","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"naming","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"},{"name":"docs","status":"skipped","duration":0,"attempts":1,"output":"\n","error":"Placeholder - future work\n"}]
+  },
+  "overallStatus": "BLOCKED",
+  "totalDuration": 3000
+}

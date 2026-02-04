@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=600, initial-scale=1.0">
+    <title>O-SpectralShaper - Stage 1 Placeholder</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html, body {
+            width: 600px;
+            height: 400px;
+            overflow: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            background: #1a1410;
+        }
+
+        #app {
+            width: 600px;
+            height: 400px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1a1410 0%, #2a2015 100%);
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 400;
+            letter-spacing: 2px;
+            color: #d4c5b0;
+            text-transform: uppercase;
+            margin-bottom: 20px;
+        }
+
+        .subtitle {
+            font-size: 14px;
+            letter-spacing: 1px;
+            color: #8b7355;
+            text-transform: uppercase;
+            margin-bottom: 40px;
+        }
+
+        .status {
+            font-size: 12px;
+            color: #5a7a6a;
+            background: rgba(90, 122, 106, 0.1);
+            padding: 10px 20px;
+            border-radius: 5px;
+            border: 1px solid rgba(90, 122, 106, 0.3);
+        }
+
+        .param-list {
+            margin-top: 30px;
+            font-size: 11px;
+            color: #a08870;
+            text-align: center;
+            line-height: 1.8;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>O-SpectralShaper</h1>
+        <div class="subtitle">Stage 1 Foundation</div>
+        <div class="status">Build System Operational</div>
+        <div class="param-list">
+            7 Parameters Implemented:<br>
+            MIX • ATTACK_TIME • SUSTAIN_TIME<br>
+            SENSITIVITY • LOOKAHEAD_ENABLED<br>
+            LOOKAHEAD_TIME • OUTPUT_GAIN
+        </div>
+    </div>
+
+    <script type="module">
+        import * as Juce from './js/juce/index.js';
+
+        // Verify JUCE backend availability
+        function initializeJUCE() {
+            if (typeof window.__JUCE__ === 'undefined') {
+                console.warn('JUCE backend not available');
+                return;
+            }
+
+            console.log('O-SpectralShaper Stage 1 - WebView initialized');
+            console.log('Available parameters:', window.__JUCE__.initialisationData);
+
+            // Test parameter access (Stage 1 verification only)
+            try {
+                const mixState = Juce.getSliderState('MIX');
+                const attackTimeState = Juce.getSliderState('ATTACK_TIME');
+                const sustainTimeState = Juce.getSliderState('SUSTAIN_TIME');
+                const sensitivityState = Juce.getSliderState('SENSITIVITY');
+                const lookaheadEnabledState = Juce.getToggleState('LOOKAHEAD_ENABLED');
+                const lookaheadTimeState = Juce.getSliderState('LOOKAHEAD_TIME');
+                const outputGainState = Juce.getSliderState('OUTPUT_GAIN');
+
+                console.log('All 7 parameters accessible');
+            } catch (error) {
+                console.error('Parameter access error:', error);
+            }
+        }
+
+        // Initialize when DOM is ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initializeJUCE);
+        } else {
+            initializeJUCE();
+        }
+    </script>
+</body>
+</html>

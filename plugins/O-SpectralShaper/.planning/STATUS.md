@@ -1,13 +1,14 @@
 ---
 plugin: O-SpectralShaper
-stage: 0
+stage: 2
+phase: execute
 status: complete
 last_updated: 2026-02-03
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
-next_stage: 1
+next_action: verify
+next_stage: 2
 contract_checksums:
   brief: sha256:2e7cbc1752e5cd3c12fc44079e5ef5d8267db3e9b24c6e3428228c6957eec5ff
   requirements: sha256:baed708486afead047c6715e09eaa86a6ed4d2714392ae2190d2d1b970193dc8
@@ -20,9 +21,9 @@ ready_for_implementation: true
 
 ## Current Position
 
-Stage: 0 of 5 (Research & Planning) — complete
-Status: Research & Planning complete, ready for implementation
-Progress: [##..................] 10%
+Stage: 2 of 5 (DSP Implementation) — EXECUTE complete
+Status: Stage 2 execution complete, ready for verification
+Progress: [############........] 60%
 
 ## Completed So Far
 
@@ -37,67 +38,111 @@ Progress: [##..................] 10%
 - ARCHITECTURE.md documented (68 pages, 11 sections)
 - ROADMAP.md documented (phase breakdown with test criteria)
 
+**Stage 1:** ✓ Complete (all phases)
+- CMakeLists.txt created with juce_dsp + juce_gui_extra modules
+- PluginProcessor.h/cpp with APVTS (7 parameters)
+- PluginEditor.h/cpp with WebView relays and attachments
+- WebView resources (index.html, JUCE bridge JavaScript)
+- Fixed 512-sample latency reporting
+- State management (save/load)
+- Build verified: VST3 + AU installed, auval detected
+
+**Stage 2:** ✓ Complete (all phases)
+
+*Phase 2.1: Core STFT Engine* ✓
+- Created STFTProcessor class with 512-point overlap-add FFT
+- 50% overlap (256-sample hop) with Hann window
+- Perfect reconstruction via COLA scaling
+- Sample-by-sample interface for block-size independence
+- Bypass mode for null-test verification
+
+*Phase 2.2: Per-Band Transient Detection* ✓
+- 32 logarithmic frequency bands (20Hz to Nyquist)
+- Spectral flux detection (positive-only magnitude difference)
+- Dual envelope followers (1ms fast, 15ms slow, 50ms release)
+- Per-band transient activity calculation (0.0-1.0)
+- Sensitivity parameter modulation
+
+*Phase 2.3: Envelope Shaping & Parameters* ✓
+- Per-band gain calculation using attack/sustain curves
+- SmoothedValue for 50ms click-free gain ramping
+- Magnitude-only FFT processing (phase preservation)
+- Dry delay buffer (512 samples for latency matching)
+- Optional lookahead buffer (0-10ms, toggleable)
+- State save/load for curve arrays (hex-encoded)
+- Full integration of all 7 APVTS parameters
+
+## Stage 2 Phases
+
+| Phase | Description | Status |
+|-------|-------------|--------|
+| 2.1 | Core STFT engine with perfect reconstruction | ✓ Complete |
+| 2.2 | Per-band transient detection (32 bands) | ✓ Complete |
+| 2.3 | Envelope shaping with attack/sustain curves | ✓ Complete |
+
+## Validation Results
+
+- **Build:** VST3 + AU successful
+- **Pluginval:** Strictness Level 5 PASSED
+- **Sample Rates:** 44100, 48000, 96000 all passed
+- **Block Sizes:** 64-1024 all passed
+
 ## Next Steps
 
-1. **Stage 1: Foundation** (create build system and parameters)
-   - Run `/implement O-SpectralShaper` to invoke foundation-shell-agent
-   - CMakeLists.txt with juce_dsp + juce_gui_extra modules
-   - APVTS with 6 parameters (Mix, Attack Time, Sustain Time, Sensitivity, Lookahead, Output Gain)
-   - Build verification (compiles and loads in DAW)
+1. **Verify Phase** (NEXT)
+   - Run `/plugin-verify O-SpectralShaper 2-dsp`
+   - Test criteria from ROADMAP.md:
+     - Null-test (perfect reconstruction)
+     - Transient detection on impulse/drum loops
+     - Envelope shaping audible on test material
 
-2. **Stage 2: DSP Implementation** (dsp-agent - 3 phases)
-   - Phase 2.1: Core STFT engine with perfect reconstruction
-   - Phase 2.2: Per-band transient detection (32 logarithmic bands)
-   - Phase 2.3: Envelope shaping with attack/sustain curves
-
-3. **Stage 3: GUI Implementation** (gui-agent - 3 phases)
-   - Phase 3.1: WebView layout with parameter controls
-   - Phase 3.2: Drawable curve editors (freehand + node modes)
-   - Phase 3.3: Real-time spectrogram with transient heat overlay
+2. **Stage 3: GUI Implementation**
+   - 32-band curve editors for attack and sustain
+   - Real-time transient activity visualization
+   - Parameter controls with WebView
 
 ## Files Created
 
-- plugins/O-SpectralShaper/.planning/research/ARCHITECTURE.md (Complete DSP specification)
-- plugins/O-SpectralShaper/.planning/ROADMAP.md (Implementation strategy)
-- plugins/O-SpectralShaper/.planning/stages/0-ideation/CONTEXT.md (Stage 0 findings)
+**Stage 0:**
+- plugins/O-SpectralShaper/.planning/research/ARCHITECTURE.md
+- plugins/O-SpectralShaper/.planning/ROADMAP.md
+- plugins/O-SpectralShaper/.planning/stages/0-ideation/CONTEXT.md
+
+**Stage 1:**
+- plugins/O-SpectralShaper/CMakeLists.txt
+- plugins/O-SpectralShaper/Source/PluginProcessor.h
+- plugins/O-SpectralShaper/Source/PluginProcessor.cpp
+- plugins/O-SpectralShaper/Source/PluginEditor.h
+- plugins/O-SpectralShaper/Source/PluginEditor.cpp
+- plugins/O-SpectralShaper/Resources/ui/index.html
+- plugins/O-SpectralShaper/Resources/ui/js/juce/index.js
+- plugins/O-SpectralShaper/Resources/ui/js/juce/check_native_interop.js
+
+**Stage 2:**
+- plugins/O-SpectralShaper/.planning/stages/2-dsp/CONTEXT.md
+- plugins/O-SpectralShaper/.planning/stages/2-dsp/RESEARCH.md
+- plugins/O-SpectralShaper/.planning/stages/2-dsp/PLAN.md
+- plugins/O-SpectralShaper/.planning/stages/2-dsp/SUMMARY.md
+- plugins/O-SpectralShaper/Source/STFTProcessor.h (NEW)
+- plugins/O-SpectralShaper/Source/STFTProcessor.cpp (NEW)
 
 ## Context to Preserve
 
-**Architecture Decisions:**
-- FFT Size: 512 samples (11.6ms latency @ 44.1kHz)
-- Overlap: 50% (256-sample hop)
-- Bands: 32 logarithmic (20Hz-20kHz)
-- Detection: Spectral flux + dual envelopes (fast 1ms, slow 15ms)
-- UI: WebView (Canvas for curves, WebGL for spectrogram)
-- Processing: Independent per-channel (not mid/side)
+**Stage 2 Implementation Details:**
+- FFT: 512-point, order 9
+- Window: Hann, COLA scale 2.0
+- Bands: 32 logarithmic (20Hz-Nyquist)
+- Envelope coefficients: Pre-computed in prepare()
+- Dry path: 512-sample circular buffer
+- Lookahead: Circular buffer, max 10ms
 
-**Implementation Strategy:**
-- Stage 1: Foundation (20 minutes)
-- Stage 2: DSP (60 minutes - 3 phases)
-- Stage 3: GUI (90 minutes - 3 phases)
-- Stage 4: Integration & Testing (30 minutes)
-- Stage 5: Polish & Release (20 minutes)
-- **Total:** ~3 hours
-
-**Risk Mitigations:**
-- FFT Latency (HIGH): Accept 11.6ms (competitors have 10-20ms), adaptive FFT at high sample rates
-- CPU Usage (MEDIUM): SIMD optimization, quality mode selector
-- WebGL Performance (MEDIUM): GPU texture scrolling, downsample to 64 bands
-- Curve Sync (LOW): Double-buffering with atomic flag
-- Phase Coherence (LOW): Magnitude-only processing, smooth gain changes
-
-**JUCE Modules:**
-- juce_audio_processors (core plugin)
-- juce_dsp (FFT, windowing, DryWetMixer)
-- juce_gui_extra (WebBrowserComponent)
-
-**Critical Patterns:**
-- juce_generate_juce_header() after target_link_libraries
-- NEEDS_WEB_BROWSER TRUE for VST3
-- WebSliderParameterAttachment(parameter, relay, nullptr) - 3 params in JUCE 8
-- ES6 module loading: `<script type="module">`
-- Lock-free communication: APVTS, AbstractFifo, std::atomic
+**JUCE Classes Used:**
+- juce::dsp::FFT (forward/inverse)
+- juce::dsp::WindowingFunction<float>::fillWindowingTables
+- juce::SmoothedValue<float> (gain ramping)
+- juce::Decibels (dB conversion)
+- juce::ScopedNoDenormals (CPU protection)
 
 ## Last Updated
 
-2026-02-03 - Stage 0 complete (Research & Planning)
+2026-02-03 - Stage 2 execution complete (all 3 phases implemented)
