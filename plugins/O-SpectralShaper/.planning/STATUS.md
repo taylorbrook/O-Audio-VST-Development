@@ -21,9 +21,9 @@ ready_for_implementation: true
 
 ## Current Position
 
-Stage: 3 of 5 (GUI Implementation) — RESEARCH ✓
-Status: Research complete, ready for planning phase
-Progress: [###############.....] 75%
+Stage: 3 of 5 (GUI Implementation) — Phases 3.1 & 3.2 COMPLETE
+Status: Phases 3.1 (Layout) and 3.2 (Curves) complete, Phase 3.3 (Spectrogram) pending
+Progress: [##################..] 90%
 
 ## Completed So Far
 
@@ -103,25 +103,39 @@ Progress: [###############.....] 75%
 **Discuss Phase:** ✓ Complete (CONTEXT.md created)
 **Research Phase:** ✓ Complete (RESEARCH.md created)
 **Plan Phase:** ✓ Complete (PLAN.md created - 23 tasks across 3 phases)
+**Execute Phase:** ✓ Phases 3.1 & 3.2 Complete (SUMMARY.md created)
 
-Decisions captured:
-- Visual style: Dark Botanical (inverted paper + ghostly sea slug overlay)
-- Dimensions: 700×500 pixels
-- Layout: Stacked (spectrogram → attack curve → sustain curve, knobs in right sidebar)
-- Curve mode: Toggle button for Freehand vs Node
-- Transient visualization: Heat overlay on spectrogram
-- Assets: paper1.jpg + slug illustration (both inverted/darkened)
+### Phase Completion
+- **Phase 3.1 (Layout & Controls):** ✓ Complete (6 tasks)
+  - Dark botanical theme with paper texture and slug overlay
+  - 700×500px WebView layout
+  - 7 parameter controls (6 rotary knobs + 1 toggle)
+  - Full bidirectional parameter binding
+
+- **Phase 3.2 (Curve Editors):** ✓ Complete (7 tasks)
+  - CurveEditor base class with logarithmic grid
+  - FreehandCurve mode with Catmull-Rom smoothing
+  - NodeCurve mode with Bezier interpolation
+  - Mode toggle buttons
+  - C++ → JS curve initialization
+  - 32-band frequency sampling
+
+- **Phase 3.3 (Spectrogram):** ⏳ Pending (10 tasks)
+  - Real-time WebGL spectrogram renderer
+  - AbstractFifo visualization pipeline
+  - 60fps Timer for data emission
+  - Transient heat overlay
 
 ## Next Steps
 
-1. **Stage 3: GUI Implementation** (IN PROGRESS)
+1. **Stage 3: GUI Implementation** (PHASES 3.1 & 3.2 COMPLETE)
    - ✓ DISCUSS phase complete (CONTEXT.md)
    - ✓ RESEARCH phase complete (RESEARCH.md)
    - ✓ PLAN phase complete (PLAN.md - 23 tasks)
-   - Run `/plugin-execute O-SpectralShaper 3-gui` to begin execution
-   - Phase 3.1: WebView layout with parameter controls (6 tasks)
-   - Phase 3.2: Drawable curve editors (7 tasks)
-   - Phase 3.3: Real-time spectrogram with transient overlay (10 tasks)
+   - ✓ Phase 3.1 complete: WebView layout with parameter controls
+   - ✓ Phase 3.2 complete: Drawable curve editors
+   - ⏳ Phase 3.3 pending: Real-time spectrogram with transient overlay
+   - Ready for Phase 3.3 implementation session
 
 ## Research Summary
 
@@ -177,10 +191,31 @@ Key findings from Stage 3 research:
 
 ## Files Created (Stage 3)
 
+**Planning:**
 - plugins/O-SpectralShaper/.planning/stages/3-gui/CONTEXT.md
 - plugins/O-SpectralShaper/.planning/stages/3-gui/RESEARCH.md
 - plugins/O-SpectralShaper/.planning/stages/3-gui/PLAN.md
+- plugins/O-SpectralShaper/.planning/stages/3-gui/SUMMARY.md
+
+**Phase 3.1 (Layout & Controls):**
+- plugins/O-SpectralShaper/Resources/ui/index.html (updated)
+- plugins/O-SpectralShaper/Resources/ui/css/styles.css
+- plugins/O-SpectralShaper/Resources/ui/js/app.js (updated)
+- plugins/O-SpectralShaper/Resources/ui/js/components/RotaryKnob.js
+- plugins/O-SpectralShaper/Resources/ui/images/paper-bg.webp
+- plugins/O-SpectralShaper/Resources/ui/images/slug-overlay.webp
+
+**Phase 3.2 (Curve Editors):**
+- plugins/O-SpectralShaper/Resources/ui/js/components/CurveEditor.js
+- plugins/O-SpectralShaper/Resources/ui/js/components/FreehandCurve.js
+- plugins/O-SpectralShaper/Resources/ui/js/components/NodeCurve.js
+- plugins/O-SpectralShaper/Source/PluginEditor.h (event handlers added)
+- plugins/O-SpectralShaper/Source/PluginEditor.cpp (curve communication added)
 
 ## Last Updated
 
-2026-02-04 - Stage 3 PLAN complete, ready for EXECUTE phase
+2026-02-04 - Stage 3 Phases 3.1 & 3.2 complete, Phase 3.3 pending
+- Commits: 2 (Phase 3.1, Phase 3.2)
+- Build status: ✅ VST3 + AU
+- Installation: ✅ System plugin folders
+- Next: Phase 3.3 (WebGL spectrogram with real-time visualization)
