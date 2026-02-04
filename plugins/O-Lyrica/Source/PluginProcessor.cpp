@@ -233,8 +233,8 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-Lyrica")
 {
-    // Initialize synthesiser with 16 voices
-    for (int i = 0; i < 16; ++i)
+    // Initialize synthesiser with 32 voices (v1.18.4: increased from 16)
+    for (int i = 0; i < 32; ++i)
     {
         auto* voice = new HarpSynthVoice();
         voice->setAPVTS(&parameters);

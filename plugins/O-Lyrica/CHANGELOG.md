@@ -2,6 +2,18 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.18.4] - 2026-02-03
+
+### Changed
+
+- **Increased maximum polyphony from 16 to 32 voices** - Allows fuller chord voicings and more simultaneous notes for complex harp passages
+
+### Technical Details
+
+- File modified: PluginProcessor.cpp (constructor voice allocation loop)
+- CPU impact: Up to 2x voice processing load at full polyphony (acceptable per VOICE_MANAGEMENT.md design targets)
+- No parameter changes - existing presets and sessions compatible
+
 ## [1.18.3] - 2026-02-03
 
 ### Changed
