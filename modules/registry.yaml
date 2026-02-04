@@ -166,26 +166,47 @@ modules:
 
   - name: scala-tuning-engine
     path: tuning/scala-tuning-engine
-    version: 1.0.0
+    version: 2.0.0
     description: |
-      Complete microtonal tuning system supporting 12-TET, custom scales via
-      Scala (.scl/.kbm) files, and MTS-ESP integration (stubbed). Includes
-      thread-safe atomic frequency table for real-time audio, interval editing
-      UI, pitch circle visualization, and tonic transposition.
+      Complete microtonal tuning system extracted from O-Lyrica with:
+      - 12-TET, custom scales (Scala .scl/.kbm), MTS-ESP support
+      - 5 visualization modes (Circle, Polar, Matrix, TrueKeys, Rotation)
+      - Scale generator (EDO, Harmonic Series, Rank-2 temperaments)
+      - 24+ factory presets (Historical, Just, EDO, Non-Octave, World)
+      - Editable intervals table with tonic/modal rotation
+      - HTML export with SVG pitch circle
+      - Octave stretch for physical modeling
     category: tuning
     provides:
-      - cpp-class: OuariconTuningEngine
+      - cpp-class: TuningEngine
+      - cpp-class: ScaleGenerator
+      - cpp-class: TuningExporter
+      - cpp-class: EmbeddedTunings
       - js-module: tuning-panel.js
-      - js-module: pitch-circle.js
       - native-functions:
-        - loadScalaFile
-        - loadKBMFile
-        - saveScalaFile
-        - saveKBMFile
-        - setTuningIntervals
         - getTuningIntervals
+        - setTuningIntervals
+        - setSingleInterval
         - setTonicNote
+        - getTonicNote
+        - loadScalaFile
+        - saveScalaFile
+        - loadKBMFile
+        - saveKBMFile
+        - setOctaveStretch
+        - getOctaveStretch
+        - generateEDO
+        - generateHarmonicSeries
+        - generateRank2
+        - applyGeneratedScale
+        - getEmbeddedTuningList
+        - loadEmbeddedTuning
+        - exportTuningHTML
     config:
+      param_prefix:
+        type: string
+        default: "tuning_"
+        description: Prefix for APVTS parameter IDs
       default_mode:
         type: string
         default: "12tet"
@@ -195,11 +216,9 @@ modules:
         default: 440.0
         description: Default A4 reference pitch (Hz)
     dependencies: []
-    tags: [tuning, scala, microtuning, mts-esp, frequency, pitch]
-    reuse_score: 8
-    used_by:
-      - plugin: OuariconMarimba
-        version: 1.0.0
+    tags: [tuning, scala, microtuning, mts-esp, frequency, pitch, visualization, generator, library]
+    reuse_score: 10
+    used_by: []
 
   # ============================================================================
   # EFFECTS MODULES

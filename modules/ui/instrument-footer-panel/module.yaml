@@ -1,0 +1,128 @@
+# instrument-footer-panel module
+# Reusable sticky footer for VST instruments with master volume, keyboard, and branding
+
+name: instrument-footer-panel
+version: 1.0.0
+description: |
+  Complete sticky footer panel for VST instruments. Combines three elements
+  in a responsive horizontal layout:
+
+  1. Master Volume - Slider with dB display (left)
+  2. Playable Keyboard - Interactive 2-octave keyboard with QWERTY support (center)
+  3. Branding - "Ouaricon Audio" text (right)
+
+  The panel is designed to be resizable and will adapt to different plugin widths.
+  Keyboard size scales proportionally while master volume and branding maintain
+  fixed minimum widths.
+
+  Extracted from O-Lyrica v1.18.1+ footer implementation.
+
+category: ui
+author: Ouaricon Audio
+origin: O-Lyrica
+
+# What this module provides
+provides:
+  js-module: instrument-footer-panel.js
+  css-styles: instrument-footer-panel.css
+  native-functions:
+    - sendMidiNote  # For keyboard input
+  html-template: |
+    <div class="instrument-footer">
+      <div class="footer-master-volume">
+        <span class="footer-master-label">Master</span>
+        <input type="range" id="masterVolume" class="footer-master-slider">
+        <span class="footer-master-value" id="masterVolumeValue">0.0 dB</span>
+      </div>
+      <div class="footer-keyboard" id="footer-keyboard"></div>
+      <span class="footer-brand">Ouaricon Audio</span>
+    </div>
+
+# Configuration schema
+config:
+  height:
+    type: integer
+    default: 55
+    min: 45
+    max: 80
+    description: Footer height in pixels
+
+  octaves:
+    type: integer
+    default: 2
+    min: 1
+    max: 3
+    description: Number of octaves to display (1-3)
+
+  start_note:
+    type: integer
+    default: 48
+    description: MIDI note number for first key (48 = C3, 60 = C4)
+
+  show_key_labels:
+    type: boolean
+    default: true
+    description: Show note name labels on white keys
+
+  enable_qwerty:
+    type: boolean
+    default: true
+    description: Enable computer keyboard input (Z-M, Q-P rows)
+
+  show_help_text:
+    type: boolean
+    default: true
+    description: Show "Click to play" help text below keyboard
+
+  master_volume_param_id:
+    type: string
+    default: "masterVolume"
+    description: Parameter ID for master volume slider binding
+
+  brand_text:
+    type: string
+    default: "Ouaricon Audio"
+    description: Branding text to display (or empty to hide)
+
+  velocity:
+    type: float
+    default: 0.8
+    min: 0.0
+    max: 1.0
+    description: Default velocity for mouse/touch input
+
+  highlight_color:
+    type: string
+    default: "#8BC34A"
+    description: Color for active/playing keys (CSS color value)
+
+# Dependencies
+dependencies:
+  - playable-keyboard  # Uses keyboard logic, but re-implements for footer context
+
+# Sources
+sources:
+  js:
+    - instrument-footer-panel.js
+  css:
+    - instrument-footer-panel.css
+
+# Requirements
+requirements:
+  juce_modules: []
+  cpp_standard: 20
+
+# Tracking
+used_by:
+  - plugin: O-Lyrica
+    version: 1.18.1
+
+changelog:
+  - version: 1.0.0
+    date: 2026-02-03
+    changes:
+      - Initial extraction from O-Lyrica v1.18.1
+      - Configurable octave count (1-3)
+      - QWERTY keyboard input support
+      - Responsive layout that adapts to plugin width
+      - Standalone CSS for easy theming

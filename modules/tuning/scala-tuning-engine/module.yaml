@@ -1,34 +1,77 @@
-# scala-tuning-engine module
-# Microtonal tuning system with Scala file support
+# scala-tuning-engine module v2.0.0
+# Complete microtonal tuning system extracted from O-Lyrica
 
 name: scala-tuning-engine
-version: 1.0.0
+version: 2.0.0
 description: |
-  Complete microtonal tuning system supporting 12-TET, custom scales via Scala
-  (.scl/.kbm) files, and MTS-ESP integration (stubbed). Includes thread-safe
-  atomic frequency table for real-time audio, interval editing UI, pitch circle
-  visualization, and tonic transposition.
+  Complete microtonal tuning system with:
+  - 12-TET, custom scales (Scala .scl/.kbm), and MTS-ESP support
+  - Thread-safe atomic frequency table for real-time audio
+  - 5 visualization modes (Circle, Polar, Matrix, TrueKeys, Rotation)
+  - Scale generator (EDO, Harmonic Series, Rank-2 temperaments)
+  - 24+ embedded factory presets (Historical, Just, EDO, Non-Octave, World)
+  - Editable intervals table with tonic/modal rotation
+  - HTML documentation export with SVG pitch circle
+  - Octave stretch for physical modeling
 
 category: tuning
 author: Ouaricon Audio
 
+# BREAKING CHANGES from v1.0.0:
+# - Complete rewrite with new API
+# - New parameter naming (configurable prefix)
+# - New JavaScript module API (ES6 class-based)
+# - Added 4 new C++ classes (was just TuningEngine)
+
 # What this module provides
 provides:
-  cpp-class: OuariconTuningEngine
+  cpp-classes:
+    - TuningEngine       # Core tuning engine
+    - ScaleGenerator     # EDO, Harmonic, Rank-2 generation
+    - TuningExporter     # HTML export with SVG
+    - EmbeddedTunings    # 24+ factory presets
   js-modules:
-    - tuning-panel.js
-    - pitch-circle.js
+    - tuning-panel.js    # Complete UI component
   native-functions:
-    - loadScalaFile
-    - loadKBMFile
-    - saveScalaFile
-    - saveKBMFile
-    - setTuningIntervals
+    # Tuning data
     - getTuningIntervals
+    - setTuningIntervals
+    - getTuningName
+    - setSingleInterval
+    - setSingleIntervalEncoded
+    # Tonic/rotation
     - setTonicNote
+    - getTonicNote
+    # File I/O
+    - loadScalaFile
+    - saveScalaFile
+    - loadKBMFile
+    - saveKBMFile
+    # Presets
+    - setTemperamentPreset
+    - getTemperamentPreset
+    # Octave stretch
+    - getOctaveStretch
+    - setOctaveStretch
+    # Scale generation
+    - generateEDO
+    - generateHarmonicSeries
+    - generateRank2
+    - applyGeneratedScale
+    # Embedded library
+    - getEmbeddedTuningList
+    - loadEmbeddedTuning
+    - getEmbeddedTuningCategories
+    # Export
+    - exportTuningHTML
 
 # Configuration schema
 config:
+  param_prefix:
+    type: string
+    default: "tuning_"
+    description: Prefix for APVTS parameter IDs to avoid conflicts
+
   default_mode:
     type: string
     default: "12tet"
@@ -50,15 +93,25 @@ config:
     default: 440.0
     description: Default A4 reference pitch (Hz)
 
-  show_pitch_circle:
+  show_visualizations:
     type: boolean
     default: true
-    description: Show circular pitch visualization
+    description: Show all 5 visualization modes
+
+  show_scale_generator:
+    type: boolean
+    default: true
+    description: Show scale generator section
+
+  show_tuning_library:
+    type: boolean
+    default: true
+    description: Show embedded tuning library
 
   allow_interval_editing:
     type: boolean
     default: true
-    description: Allow direct editing of interval values in Custom mode
+    description: Allow direct editing of interval values
 
 # Dependencies
 dependencies: []
@@ -72,34 +125,89 @@ requirements:
 # Source files
 sources:
   cpp:
-    - OuariconTuningEngine.h
-    - OuariconTuningEngine.cpp
+    - TuningEngine.h
+    - TuningEngine.cpp
+    - ScaleGenerator.h
+    - ScaleGenerator.cpp
+    - TuningExporter.h
+    - TuningExporter.cpp
+    - EmbeddedTunings.h
+    - EmbeddedTunings.cpp
   js:
     - tuning-panel.js
-    - pitch-circle.js
 
-# APVTS parameters required
+# APVTS parameters (with default prefix "tuning_")
 parameters:
-  - id: TUNING_MODE
-    type: choice
-    choices: ["12-TET", "Custom", "MTS-ESP"]
-    default: 0
-
-  - id: REFERENCE_PITCH
+  - id: masterTune
     type: float
     range: [400.0, 480.0]
     default: 440.0
+    description: A4 reference frequency in Hz
+
+  - id: pitchBendRange
+    type: float
+    range: [1.0, 48.0]
+    default: 2.0
+    description: Pitch bend range in semitones
+
+  - id: tuningMode
+    type: choice
+    choices: ["12-TET", "Custom", "MTS-ESP"]
+    default: 0
+    description: Active tuning mode
+
+  - id: octaveStretch
+    type: float
+    range: [0.95, 1.25]
+    default: 1.0
+    description: Octave stretch factor for physical modeling
+
+  - id: temperamentPreset
+    type: choice
+    choices:
+      - "Equal 12-TET"
+      - "Pythagorean"
+      - "Zarlino"
+      - "Meantone (1/4)"
+      - "Werckmeister III"
+      - "Kirnberger III"
+      - "Vallotti"
+      - "Well Tempered"
+      - "Just Intonation"
+      - "Bohlen-Pierce"
+      - "Custom"
+    default: 0
+    description: Built-in temperament preset
+
+# Embedded tuning categories
+embedded_tuning_categories:
+  - Historical
+  - Just Intonation
+  - Equal Divisions
+  - Non-Octave
+  - World
 
 # Tracking
-used_by:
-  - plugin: OuariconMarimba
-    version: 1.0.0
+used_by: []
 
 changelog:
+  - version: 2.0.0
+    date: 2026-02-03
+    changes:
+      - "BREAKING: Complete rewrite from O-Lyrica tuning system"
+      - "Added ScaleGenerator class (EDO, Harmonic, Rank-2)"
+      - "Added TuningExporter class (HTML export with SVG)"
+      - "Added EmbeddedTunings class (24+ factory presets)"
+      - "Added 5 visualization modes (Circle, Polar, Matrix, TrueKeys, Rotation)"
+      - "Added scale generator UI"
+      - "Added tuning library browser"
+      - "Added octave stretch control"
+      - "JavaScript rewritten as ES6 module class"
+      - "Configurable parameter prefix"
+
   - version: 1.0.0
     date: 2026-01-12
     changes:
       - Initial extraction from OuariconMarimba
-      - Genericized for multi-plugin use
-      - Added modular JavaScript components
-      - Pitch circle visualization as separate component
+      - Basic TuningEngine with Scala support
+      - Simple pitch circle visualization

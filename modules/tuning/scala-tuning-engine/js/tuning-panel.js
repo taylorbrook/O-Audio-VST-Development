@@ -1,464 +1,881 @@
 /**
- * Ouaricon Tuning Panel - JavaScript UI Module
+ * tuning-panel.js
+ * scala-tuning-engine module v2.0.0
  *
- * Complete tuning interface with mode selection, interval editing,
- * reference pitch control, and tonic transposition.
+ * Complete tuning panel UI component for WebView-based JUCE plugins.
+ * Includes:
+ * - Editable intervals table with tonic selector
+ * - 5 visualization modes (Circle, Polar, Matrix, TrueKeys, Rotation)
+ * - Tuning library browser (factory presets)
+ * - Scale generator (EDO, Harmonic Series, Rank-2)
+ * - Reference pitch (A4) control
+ * - Octave stretch control
+ * - Scala file I/O (.scl, .kbm)
+ * - HTML export
  *
  * Usage:
- *   import { TuningPanel } from './modules/tuning-panel.js';
- *
- *   const panel = new TuningPanel({
- *     container: document.getElementById('tuning-container'),
- *     pitchCircle: pitchCircleInstance,  // Optional PitchCircle component
- *     onTuningChanged: (intervals, name) => console.log('Tuning:', name)
- *   });
- *
- *   panel.initialize();
+ *   import { TuningPanel } from './tuning-panel.js';
+ *   const panel = new TuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
+ *   panel.init();
  */
 
-// Note names for display
-const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
-// Built-in scale presets
-const SCALE_PRESETS = {
-    '12tet': {
-        name: '12-TET Standard',
-        intervals: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100]
-    },
-    'just': {
-        name: 'Just Intonation',
-        intervals: [0, 112, 204, 316, 386, 498, 590, 702, 814, 884, 996, 1088]
-    },
-    'pythagorean': {
-        name: 'Pythagorean',
-        intervals: [0, 90, 204, 294, 408, 498, 612, 702, 792, 906, 996, 1110]
-    },
-    'meantone': {
-        name: 'Quarter-Comma Meantone',
-        intervals: [0, 76, 193, 310, 386, 503, 579, 697, 773, 890, 1007, 1083]
-    }
-};
-
 export class TuningPanel {
-    constructor(options = {}) {
-        this.container = options.container;
-        this.pitchCircle = options.pitchCircle;
-        this.onTuningChanged = options.onTuningChanged || (() => {});
-        this.onModeChanged = options.onModeChanged || (() => {});
+    constructor(containerElement, juceApi) {
+        this.container = containerElement;
+        this.juce = juceApi;
 
-        // Current state
-        this.currentMode = 0;  // 0 = 12-TET, 1 = Custom, 2 = MTS-ESP
-        this.currentIntervals = [...SCALE_PRESETS['12tet'].intervals];
-        this.currentScaleName = '12-TET Standard';
-        this.currentTonic = 0;
-        this.referencePitch = 440.0;
+        // State
+        this.intervals = [];
+        this.scaleName = '12-TET Standard';
+        this.tonic = 0;
+        this.currentVizMode = 'circle';
+        this.embeddedTunings = [];
+        this.libraryFilter = 'all';
+        this.generatorType = 'edo';
+        this.heldNotes = new Set();
 
-        // Native functions (set after JUCE initialization)
-        this.nativeFunctions = {};
-
-        this.isInitialized = false;
+        // Note names for display
+        this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
     }
 
-    /**
-     * Initialize the tuning panel.
-     */
-    async initialize() {
-        if (this.isInitialized) return;
-
-        await this._waitForNative();
-        this._bindNativeFunctions();
-        this._buildUI();
-        this._attachEventListeners();
-
-        this.isInitialized = true;
+    async init() {
+        this.render();
+        this.attachEventListeners();
+        await this.loadInitialState();
     }
 
-    /**
-     * Wait for JUCE native integration.
-     */
-    async _waitForNative() {
-        return new Promise((resolve) => {
-            const check = () => {
-                if (window.__JUCE__ && window.__JUCE__.backend) {
-                    resolve();
-                } else {
-                    setTimeout(check, 50);
-                }
-            };
-            check();
-        });
-    }
+    // ═══════════════════════════════════════════════════════════════════
+    // RENDERING
+    // ═══════════════════════════════════════════════════════════════════
 
-    /**
-     * Bind native functions from JUCE.
-     */
-    _bindNativeFunctions() {
-        const Juce = window.Juce || { getNativeFunction: (name) => window.__JUCE__.backend[name] };
-
-        this.nativeFunctions = {
-            loadScalaFile: Juce.getNativeFunction?.('loadScalaFile'),
-            loadKBMFile: Juce.getNativeFunction?.('loadKBMFile'),
-            saveScalaFile: Juce.getNativeFunction?.('saveScalaFile'),
-            saveKBMFile: Juce.getNativeFunction?.('saveKBMFile'),
-            setTuningIntervals: Juce.getNativeFunction?.('setTuningIntervals'),
-            getTuningIntervals: Juce.getNativeFunction?.('getTuningIntervals'),
-            setTonicNote: Juce.getNativeFunction?.('setTonicNote')
-        };
-    }
-
-    /**
-     * Build the panel UI.
-     */
-    _buildUI() {
-        if (!this.container) return;
-
+    render() {
         this.container.innerHTML = `
             <div class="tuning-panel">
-                <!-- Mode Buttons -->
-                <div class="tuning-mode-section">
-                    <div class="tuning-mode-buttons">
-                        <button class="btn active" data-mode="0">12-TET</button>
-                        <button class="btn" data-mode="1">CUSTOM</button>
-                        <button class="btn" data-mode="2">MTS-ESP</button>
+                <!-- LEFT: Interval List -->
+                <div class="tuning-viz-container">
+                    <div class="interval-list" id="interval-list">
+                        <div class="interval-list-header">Intervals (<span id="interval-count">12</span> notes)</div>
                     </div>
                 </div>
 
-                <!-- Scale Name Display -->
-                <div class="scale-name-display">${this.currentScaleName}</div>
-
-                <!-- Interval List -->
-                <div class="interval-list"></div>
-
-                <!-- File Buttons (Custom mode only) -->
-                <div class="file-buttons" style="display: none;">
-                    <button class="btn btn-small" data-action="load-scl">LOAD .SCL</button>
-                    <button class="btn btn-small" data-action="load-kbm">LOAD .KBM</button>
-                    <button class="btn btn-small" data-action="save-scl">SAVE .SCL</button>
-                    <button class="btn btn-small" data-action="save-kbm">SAVE .KBM</button>
+                <!-- Visualization Mode Toggle -->
+                <div class="viz-mode-toggle">
+                    <button class="viz-btn active" data-mode="circle">Circle</button>
+                    <button class="viz-btn" data-mode="polar">Polar</button>
+                    <button class="viz-btn" data-mode="matrix">Matrix</button>
+                    <button class="viz-btn" data-mode="truekeys">True Keys</button>
+                    <button class="viz-btn" data-mode="rotation">Rotation</button>
                 </div>
 
-                <!-- MTS Status (MTS mode only) -->
-                <div class="mts-status" style="display: none;">
-                    <div class="mts-indicator"></div>
-                    <span>MTS-ESP: <span class="mts-status-text">Disconnected</span></span>
+                <!-- CENTER: Visualization Container -->
+                <div class="viz-container" id="viz-container">
+                    <div class="viz-view active" id="circle-view">
+                        <div class="pitch-circle">
+                            <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                                <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                                <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                                <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                                <g id="interval-lines"></g>
+                                <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                            </svg>
+                            <div class="pitch-circle-label">Scale Intervals</div>
+                        </div>
+                    </div>
+                    <div class="viz-view" id="polar-view">
+                        <canvas id="polar-canvas" width="180" height="180"></canvas>
+                    </div>
+                    <div class="viz-view matrix-view" id="matrix-view"></div>
+                    <div class="viz-view truekeys-view" id="truekeys-view">
+                        <div class="tk-hint">Hold 2+ notes to see intervals</div>
+                    </div>
+                    <div class="viz-view rotation-view" id="rotation-view"></div>
+                </div>
+
+                <!-- RIGHT: Controls Panel -->
+                <div class="tuning-controls-panel">
+                    <!-- Tuning Library -->
+                    <div class="library-section" id="library-section">
+                        <div class="library-header">
+                            <span class="library-header-text">Tuning Library</span>
+                            <span class="library-toggle" id="library-toggle">▼</span>
+                        </div>
+                        <div class="library-content" id="library-content">
+                            <div class="library-filter">
+                                <select id="library-filter" class="library-filter-select">
+                                    <option value="all">All Categories</option>
+                                    <option value="Historical">Historical</option>
+                                    <option value="Just Intonation">Just Intonation</option>
+                                    <option value="Equal Divisions">Equal Divisions</option>
+                                    <option value="Non-Octave">Non-Octave</option>
+                                    <option value="World">World</option>
+                                </select>
+                            </div>
+                            <div class="library-list" id="library-list"></div>
+                        </div>
+                    </div>
+
+                    <!-- Reference Pitch -->
+                    <div class="tuning-ref-section">
+                        <div class="ref-knob-container">
+                            <div class="ref-knob" id="ref-pitch-knob">
+                                <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
+                            </div>
+                        </div>
+                        <div class="ref-knob-label">A4 REF</div>
+                        <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
+                    </div>
+
+                    <!-- Scale Name Display -->
+                    <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+
+                    <!-- Octave Stretch -->
+                    <div class="octave-stretch-section">
+                        <div class="octave-stretch-row">
+                            <span class="octave-stretch-label">Stretch</span>
+                            <input type="range" id="octave-stretch" class="octave-stretch-slider"
+                                   min="0.95" max="1.25" step="0.01" value="1.0">
+                            <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
+                        </div>
+                    </div>
+
+                    <!-- File Operations -->
+                    <div class="tuning-file-section">
+                        <div class="tuning-file-buttons">
+                            <button class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
+                            <button class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
+                            <button class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
+                            <button class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
+                            <button class="tuning-file-btn tuning-export-btn" id="btn-export-html">Export HTML</button>
+                        </div>
+                    </div>
+
+                    <!-- Scale Generator -->
+                    <div class="generator-section" id="generator-section">
+                        <div class="generator-header">
+                            <span class="generator-header-text">Generate Scale</span>
+                            <span class="generator-toggle" id="generator-toggle">▼</span>
+                        </div>
+                        <div class="generator-content" id="generator-content">
+                            <div class="generator-type-row">
+                                <select id="generator-type" class="generator-type-select">
+                                    <option value="edo">EDO (Equal Division)</option>
+                                    <option value="harmonic">Harmonic Series</option>
+                                    <option value="rank2">Rank-2 Temperament</option>
+                                </select>
+                            </div>
+                            <div class="generator-inputs" id="generator-inputs">
+                                <div class="gen-row">
+                                    <label>Divisions</label>
+                                    <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                                </div>
+                                <div class="gen-row">
+                                    <label>Period (c)</label>
+                                    <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                                </div>
+                            </div>
+                            <button class="generator-btn" id="btn-generate">Generate</button>
+                        </div>
+                    </div>
                 </div>
             </div>
         `;
-
-        this._updateIntervalList();
     }
 
-    /**
-     * Attach event listeners.
-     */
-    _attachEventListeners() {
-        // Mode buttons
-        this.container.querySelectorAll('[data-mode]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const mode = parseInt(e.target.dataset.mode);
-                this.setMode(mode);
-            });
+    attachEventListeners() {
+        // Visualization mode buttons
+        this.container.querySelectorAll('.viz-btn').forEach(btn => {
+            btn.addEventListener('click', () => this.setVizMode(btn.dataset.mode));
         });
 
-        // File buttons
-        this.container.querySelectorAll('[data-action]').forEach(btn => {
-            btn.addEventListener('click', (e) => {
-                const action = e.target.dataset.action;
-                this._handleFileAction(action);
-            });
-        });
+        // Library toggle
+        this.container.querySelector('.library-header').addEventListener('click', () => this.toggleLibrary());
+        this.container.querySelector('#library-filter').addEventListener('change', (e) => this.filterLibrary(e.target.value));
+
+        // Generator toggle
+        this.container.querySelector('.generator-header').addEventListener('click', () => this.toggleGenerator());
+        this.container.querySelector('#generator-type').addEventListener('change', (e) => this.setGeneratorType(e.target.value));
+        this.container.querySelector('#btn-generate').addEventListener('click', () => this.generate());
+
+        // File operations
+        this.container.querySelector('#btn-load-scl').addEventListener('click', () => this.loadSCL());
+        this.container.querySelector('#btn-load-kbm').addEventListener('click', () => this.loadKBM());
+        this.container.querySelector('#btn-save-scl').addEventListener('click', () => this.saveSCL());
+        this.container.querySelector('#btn-save-kbm').addEventListener('click', () => this.saveKBM());
+        this.container.querySelector('#btn-export-html').addEventListener('click', () => this.exportHTML());
+
+        // Octave stretch
+        this.container.querySelector('#octave-stretch').addEventListener('input', (e) => this.setOctaveStretch(e.target.value));
+
+        // Reference pitch knob (drag)
+        this.setupRefPitchKnob();
     }
 
-    /**
-     * Set tuning mode.
-     */
-    setMode(mode) {
-        this.currentMode = mode;
+    // ═══════════════════════════════════════════════════════════════════
+    // STATE MANAGEMENT
+    // ═══════════════════════════════════════════════════════════════════
 
-        // Update button states
-        this.container.querySelectorAll('[data-mode]').forEach(btn => {
-            btn.classList.toggle('active', parseInt(btn.dataset.mode) === mode);
-        });
+    async loadInitialState() {
+        if (!this.juce) return;
 
-        // Show/hide mode-specific controls
-        const fileButtons = this.container.querySelector('.file-buttons');
-        const mtsStatus = this.container.querySelector('.mts-status');
+        try {
+            // Get intervals
+            const intervalsJson = await this.juce.getNativeFunction('getTuningIntervals')();
+            this.intervals = JSON.parse(intervalsJson);
 
-        if (fileButtons) fileButtons.style.display = mode === 1 ? 'flex' : 'none';
-        if (mtsStatus) mtsStatus.style.display = mode === 2 ? 'flex' : 'none';
+            // Get scale name
+            this.scaleName = await this.juce.getNativeFunction('getTuningName')();
 
-        // Load appropriate preset
-        if (mode === 0) {
-            this.loadPreset('12tet');
-        } else if (mode === 1) {
-            this.loadPreset('just');
-        }
+            // Get tonic
+            this.tonic = await this.juce.getNativeFunction('getTonicNote')();
 
-        this._updateIntervalList();
-        this.onModeChanged(mode);
-    }
+            // Get octave stretch
+            const stretch = await this.juce.getNativeFunction('getOctaveStretch')();
+            this.container.querySelector('#octave-stretch').value = stretch;
+            this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
 
-    /**
-     * Load a built-in scale preset.
-     */
-    loadPreset(presetKey) {
-        const preset = SCALE_PRESETS[presetKey];
-        if (!preset) return;
+            // Update UI
+            this.updateIntervalList();
+            this.updateVisualization();
+            this.updateScaleNameDisplay();
 
-        this.currentScaleName = preset.name;
-        this.currentIntervals = [...preset.intervals];
-
-        this._updateScaleNameDisplay();
-        this._updateIntervalList();
-        this._updatePitchCircle();
-        this._applyTuning();
-    }
-
-    /**
-     * Set intervals directly.
-     */
-    setIntervals(intervals, name = 'Custom') {
-        this.currentIntervals = [0, ...intervals];  // Add unison
-        this.currentScaleName = name;
-
-        this._updateScaleNameDisplay();
-        this._updateIntervalList();
-        this._updatePitchCircle();
-        this._applyTuning();
-    }
-
-    /**
-     * Set tonic (transposition).
-     */
-    setTonic(tonicIndex) {
-        this.currentTonic = tonicIndex % 12;
-
-        // Update tonic display
-        const tonicDisplay = this.container.querySelector('.tonic-value');
-        if (tonicDisplay) {
-            tonicDisplay.textContent = NOTE_NAMES[this.currentTonic];
-        }
-
-        this._updateIntervalList();
-        this._updatePitchCircle();
-
-        // Send to backend
-        if (this.nativeFunctions.setTonicNote) {
-            this.nativeFunctions.setTonicNote(this.currentTonic);
+        } catch (e) {
+            console.error('[TuningPanel] Failed to load initial state:', e);
         }
     }
 
-    /**
-     * Update interval list UI.
-     */
-    _updateIntervalList() {
-        const list = this.container.querySelector('.interval-list');
-        if (!list) return;
+    async refreshState() {
+        await this.loadInitialState();
+    }
 
-        const total = this.currentIntervals.length;
-        const isEditable = this.currentMode === 1;
+    // ═══════════════════════════════════════════════════════════════════
+    // INTERVAL LIST
+    // ═══════════════════════════════════════════════════════════════════
 
-        // Tonic selector (12-note scales only)
-        let tonicHtml = '';
-        if (total === 12) {
-            tonicHtml = `
-                <div class="tonic-selector">
-                    <span class="tonic-arrow" data-dir="-1">◀</span>
-                    <span class="tonic-label">Tonic:</span>
-                    <span class="tonic-value">${NOTE_NAMES[this.currentTonic]}</span>
-                    <span class="tonic-arrow" data-dir="1">▶</span>
-                </div>
-            `;
-        }
+    updateIntervalList() {
+        const listEl = this.container.querySelector('#interval-list');
+        const countEl = this.container.querySelector('#interval-count');
 
-        let html = `<div class="interval-list-header">Intervals (${total} notes)</div>${tonicHtml}`;
+        if (!listEl) return;
 
-        for (let i = 0; i < total; i++) {
-            const cents = this.currentIntervals[i] || 0;
-            const isUnison = i === 0;
-            const displayValue = isUnison ? '0' : cents.toFixed(1);
-            const label = this._getDegreeLabel(i, total);
-            const isDisabled = isUnison || !isEditable;
+        const count = this.intervals.length - 1; // Exclude period
+        if (countEl) countEl.textContent = count;
 
+        let html = `<div class="interval-list-header">Intervals (${count} notes)</div>`;
+
+        // Tonic selector
+        html += `
+            <div class="tonic-selector">
+                <span class="tonic-label">Tonic</span>
+                <button class="tonic-arrow" id="tonic-down">◄</button>
+                <span class="tonic-value" id="tonic-value">${this.noteNames[this.tonic]}</span>
+                <button class="tonic-arrow" id="tonic-up">►</button>
+            </div>
+        `;
+
+        // Interval rows
+        for (let i = 0; i < this.intervals.length; i++) {
+            const cents = this.intervals[i];
+            const isOctave = i === this.intervals.length - 1;
             html += `
-                <div class="interval-item">
-                    <span class="interval-degree">${label}</span>
+                <div class="interval-item ${isOctave ? 'octave' : ''}">
+                    <span class="interval-degree">${i}</span>
                     <input type="text" class="interval-input" data-index="${i}"
-                           value="${displayValue}" ${isDisabled ? 'disabled' : ''}>
+                           value="${cents.toFixed(2)}" ${isOctave ? 'readonly' : ''}>
+                    <span class="interval-unit">c</span>
                 </div>
             `;
         }
 
-        list.innerHTML = html;
+        listEl.innerHTML = html;
 
-        // Attach interval input handlers
-        list.querySelectorAll('.interval-input:not([disabled])').forEach(input => {
-            input.addEventListener('change', (e) => this._handleIntervalChange(e));
+        // Attach event listeners for intervals
+        listEl.querySelectorAll('.interval-input:not([readonly])').forEach(input => {
+            input.addEventListener('change', (e) => this.handleIntervalChange(e));
             input.addEventListener('keydown', (e) => {
                 if (e.key === 'Enter') e.target.blur();
             });
         });
 
-        // Attach tonic arrow handlers
-        list.querySelectorAll('.tonic-arrow').forEach(arrow => {
-            arrow.addEventListener('click', (e) => {
-                const dir = parseInt(e.target.dataset.dir);
-                this.setTonic((this.currentTonic + dir + 12) % 12);
-            });
+        // Tonic buttons
+        listEl.querySelector('#tonic-down')?.addEventListener('click', () => this.decrementTonic());
+        listEl.querySelector('#tonic-up')?.addEventListener('click', () => this.incrementTonic());
+    }
+
+    async handleIntervalChange(e) {
+        const index = parseInt(e.target.dataset.index);
+        const cents = parseFloat(e.target.value);
+
+        if (isNaN(cents)) {
+            e.target.value = this.intervals[index].toFixed(2);
+            return;
+        }
+
+        try {
+            await this.juce.getNativeFunction('setSingleInterval')(index, cents);
+            this.intervals[index] = cents;
+            this.updateVisualization();
+        } catch (err) {
+            console.error('[TuningPanel] Failed to set interval:', err);
+        }
+    }
+
+    async incrementTonic() {
+        this.tonic = (this.tonic + 1) % 12;
+        await this.setTonic(this.tonic);
+    }
+
+    async decrementTonic() {
+        this.tonic = (this.tonic - 1 + 12) % 12;
+        await this.setTonic(this.tonic);
+    }
+
+    async setTonic(tonic) {
+        try {
+            await this.juce.getNativeFunction('setTonicNote')(tonic);
+            this.container.querySelector('#tonic-value').textContent = this.noteNames[tonic];
+            this.updateVisualization();
+        } catch (err) {
+            console.error('[TuningPanel] Failed to set tonic:', err);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // VISUALIZATION
+    // ═══════════════════════════════════════════════════════════════════
+
+    setVizMode(mode) {
+        this.currentVizMode = mode;
+
+        // Update button states
+        this.container.querySelectorAll('.viz-btn').forEach(btn => {
+            btn.classList.toggle('active', btn.dataset.mode === mode);
+        });
+
+        // Show/hide views
+        this.container.querySelectorAll('.viz-view').forEach(view => {
+            view.classList.toggle('active', view.id === `${mode}-view`);
+        });
+
+        this.updateVisualization();
+    }
+
+    updateVisualization() {
+        switch (this.currentVizMode) {
+            case 'circle':
+                this.drawPitchCircle();
+                break;
+            case 'polar':
+                this.drawPolarPlot();
+                break;
+            case 'matrix':
+                this.drawIntervalMatrix();
+                break;
+            case 'truekeys':
+                this.drawTrueKeys();
+                break;
+            case 'rotation':
+                this.drawRotationTable();
+                break;
+        }
+    }
+
+    drawPitchCircle() {
+        const linesGroup = this.container.querySelector('#interval-lines');
+        const labelsGroup = this.container.querySelector('#degree-labels');
+        if (!linesGroup || !labelsGroup) return;
+
+        linesGroup.innerHTML = '';
+        labelsGroup.innerHTML = '';
+
+        const cx = 94, cy = 94, radius = 73;
+        const count = this.intervals.length - 1; // Exclude period
+        const period = this.intervals[this.intervals.length - 1] || 1200;
+
+        for (let i = 0; i < count; i++) {
+            const cents = this.intervals[i];
+            const angle = (cents / period) * 2 * Math.PI - Math.PI / 2;
+
+            const x = cx + Math.cos(angle) * radius;
+            const y = cy + Math.sin(angle) * radius;
+
+            // Line from center
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', cx);
+            line.setAttribute('y1', cy);
+            line.setAttribute('x2', x);
+            line.setAttribute('y2', y);
+            line.setAttribute('stroke', '#5C4033');
+            line.setAttribute('stroke-width', '1.5');
+            linesGroup.appendChild(line);
+
+            // Dot at interval position
+            const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            dot.setAttribute('cx', x);
+            dot.setAttribute('cy', y);
+            dot.setAttribute('r', '4');
+            dot.setAttribute('fill', '#8B7355');
+            linesGroup.appendChild(dot);
+
+            // Degree label
+            const labelRadius = radius + 12;
+            const lx = cx + Math.cos(angle) * labelRadius;
+            const ly = cy + Math.sin(angle) * labelRadius;
+
+            const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            label.setAttribute('x', lx);
+            label.setAttribute('y', ly);
+            label.setAttribute('text-anchor', 'middle');
+            label.setAttribute('dominant-baseline', 'middle');
+            label.textContent = i.toString();
+            labelsGroup.appendChild(label);
+        }
+    }
+
+    drawPolarPlot() {
+        const canvas = this.container.querySelector('#polar-canvas');
+        if (!canvas) return;
+
+        const ctx = canvas.getContext('2d');
+        const w = canvas.width, h = canvas.height;
+        const cx = w / 2, cy = h / 2;
+        const radius = Math.min(cx, cy) - 10;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Background circles
+        ctx.strokeStyle = '#d4c9b5';
+        ctx.lineWidth = 0.5;
+        for (let r = radius / 4; r <= radius; r += radius / 4) {
+            ctx.beginPath();
+            ctx.arc(cx, cy, r, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        // Plot intervals
+        const count = this.intervals.length - 1;
+        const period = this.intervals[this.intervals.length - 1] || 1200;
+
+        ctx.fillStyle = '#8B7355';
+        ctx.strokeStyle = '#5C4033';
+        ctx.lineWidth = 1;
+
+        for (let i = 0; i < count; i++) {
+            const cents = this.intervals[i];
+            const angle = (cents / period) * 2 * Math.PI - Math.PI / 2;
+            const r = (cents / period) * radius;
+
+            const x = cx + Math.cos(angle) * r;
+            const y = cy + Math.sin(angle) * r;
+
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+        }
+    }
+
+    drawIntervalMatrix() {
+        const container = this.container.querySelector('#matrix-view');
+        if (!container) return;
+
+        const count = this.intervals.length - 1;
+        const period = this.intervals[this.intervals.length - 1] || 1200;
+
+        let html = '<table class="matrix-table"><tr><th></th>';
+
+        // Header row
+        for (let i = 0; i < count; i++) {
+            html += `<th>${i}</th>`;
+        }
+        html += '</tr>';
+
+        // Data rows
+        for (let i = 0; i < count; i++) {
+            html += `<tr><th>${i}</th>`;
+            for (let j = 0; j < count; j++) {
+                let diff = this.intervals[j] - this.intervals[i];
+                if (diff < 0) diff += period;
+                html += `<td>${diff.toFixed(1)}</td>`;
+            }
+            html += '</tr>';
+        }
+
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    drawTrueKeys() {
+        const container = this.container.querySelector('#truekeys-view');
+        if (!container) return;
+
+        if (this.heldNotes.size < 2) {
+            container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+            return;
+        }
+
+        const notes = Array.from(this.heldNotes).sort((a, b) => a - b);
+        let html = '<div class="tk-intervals">';
+
+        for (let i = 1; i < notes.length; i++) {
+            const interval = notes[i] - notes[0];
+            const scaleDegree = interval % (this.intervals.length - 1);
+            const cents = this.intervals[scaleDegree] || (interval * 100);
+            html += `<div class="tk-interval">${notes[0]}→${notes[i]}: ${cents.toFixed(1)}c</div>`;
+        }
+
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    drawRotationTable() {
+        const container = this.container.querySelector('#rotation-view');
+        if (!container) return;
+
+        const count = this.intervals.length - 1;
+        const period = this.intervals[this.intervals.length - 1] || 1200;
+
+        let html = '<table class="rotation-table"><tr><th>Mode</th>';
+
+        for (let i = 0; i < count; i++) {
+            html += `<th>${i}</th>`;
+        }
+        html += '</tr>';
+
+        for (let mode = 0; mode < count; mode++) {
+            const isCurrentTonic = mode === this.tonic;
+            html += `<tr class="${isCurrentTonic ? 'current-tonic' : ''}"><th>${this.noteNames[mode % 12]}</th>`;
+
+            for (let i = 0; i < count; i++) {
+                const srcIdx = (mode + i) % count;
+                let cents = this.intervals[srcIdx] - this.intervals[mode];
+                if (cents < 0) cents += period;
+                html += `<td>${cents.toFixed(1)}</td>`;
+            }
+            html += '</tr>';
+        }
+
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    // Called by host when notes change
+    setHeldNotes(notes) {
+        this.heldNotes = new Set(notes);
+        if (this.currentVizMode === 'truekeys') {
+            this.drawTrueKeys();
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // TUNING LIBRARY
+    // ═══════════════════════════════════════════════════════════════════
+
+    toggleLibrary() {
+        const content = this.container.querySelector('#library-content');
+        const toggle = this.container.querySelector('#library-toggle');
+        if (content && toggle) {
+            content.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
+
+            if (content.classList.contains('expanded') && this.embeddedTunings.length === 0) {
+                this.loadEmbeddedTunings();
+            }
+        }
+    }
+
+    async loadEmbeddedTunings() {
+        if (!this.juce) return;
+
+        try {
+            const jsonStr = await this.juce.getNativeFunction('getEmbeddedTuningList')();
+            this.embeddedTunings = JSON.parse(jsonStr);
+            this.renderLibraryList();
+        } catch (e) {
+            console.error('[TuningPanel] Failed to load embedded tunings:', e);
+        }
+    }
+
+    filterLibrary(category) {
+        this.libraryFilter = category;
+        this.renderLibraryList();
+    }
+
+    renderLibraryList() {
+        const listEl = this.container.querySelector('#library-list');
+        if (!listEl) return;
+
+        const filtered = this.libraryFilter === 'all'
+            ? this.embeddedTunings
+            : this.embeddedTunings.filter(t => t.category === this.libraryFilter);
+
+        let html = '';
+        for (const tuning of filtered) {
+            html += `
+                <div class="library-item" data-id="${tuning.id}">
+                    <div class="library-item-name">${tuning.name}</div>
+                    <div class="library-item-desc">${tuning.noteCount} notes</div>
+                </div>
+            `;
+        }
+
+        listEl.innerHTML = html;
+
+        // Attach click handlers
+        listEl.querySelectorAll('.library-item').forEach(item => {
+            item.addEventListener('click', () => this.loadEmbeddedTuning(item.dataset.id));
         });
     }
 
-    /**
-     * Get degree label for display.
-     */
-    _getDegreeLabel(index, total) {
-        if (total === 12) {
-            const noteIndex = (index + this.currentTonic) % 12;
-            return NOTE_NAMES[noteIndex];
-        }
-        return String(index + 1);
-    }
+    async loadEmbeddedTuning(tuningId) {
+        if (!this.juce) return;
 
-    /**
-     * Handle interval input change.
-     */
-    _handleIntervalChange(e) {
-        const index = parseInt(e.target.dataset.index);
-        const parsed = this._parseIntervalInput(e.target.value);
-
-        if (parsed !== null) {
-            this.currentIntervals[index] = parsed;
-            e.target.value = parsed.toFixed(1);
-            this.currentScaleName = 'Custom';
-            this._updateScaleNameDisplay();
-            this._updatePitchCircle();
-            this._applyTuning();
-        } else {
-            e.target.value = (this.currentIntervals[index] || 0).toFixed(1);
+        try {
+            const success = await this.juce.getNativeFunction('loadEmbeddedTuning')(tuningId);
+            if (success) {
+                await this.refreshState();
+            }
+        } catch (e) {
+            console.error('[TuningPanel] Failed to load embedded tuning:', e);
         }
     }
 
-    /**
-     * Parse interval input (cents or ratio).
-     */
-    _parseIntervalInput(value) {
-        value = value.trim();
-        if (!value) return null;
+    // ═══════════════════════════════════════════════════════════════════
+    // SCALE GENERATOR
+    // ═══════════════════════════════════════════════════════════════════
 
-        if (value.includes('/')) {
-            const parts = value.split('/');
-            if (parts.length === 2) {
-                const num = parseFloat(parts[0]);
-                const den = parseFloat(parts[1]);
-                if (!isNaN(num) && !isNaN(den) && den !== 0) {
-                    return 1200 * Math.log2(num / den);
+    toggleGenerator() {
+        const content = this.container.querySelector('#generator-content');
+        const toggle = this.container.querySelector('#generator-toggle');
+        if (content && toggle) {
+            content.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
+        }
+    }
+
+    setGeneratorType(type) {
+        this.generatorType = type;
+        const inputsDiv = this.container.querySelector('#generator-inputs');
+        if (!inputsDiv) return;
+
+        switch (type) {
+            case 'edo':
+                inputsDiv.innerHTML = `
+                    <div class="gen-row">
+                        <label>Divisions</label>
+                        <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                    </div>
+                    <div class="gen-row">
+                        <label>Period (c)</label>
+                        <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                    </div>
+                `;
+                break;
+            case 'harmonic':
+                inputsDiv.innerHTML = `
+                    <div class="gen-row">
+                        <label>Start Harmonic</label>
+                        <input type="number" id="gen-start" value="8" min="1" max="32">
+                    </div>
+                    <div class="gen-row">
+                        <label>End Harmonic</label>
+                        <input type="number" id="gen-end" value="16" min="2" max="64">
+                    </div>
+                `;
+                break;
+            case 'rank2':
+                inputsDiv.innerHTML = `
+                    <div class="gen-row">
+                        <label>Generator (c)</label>
+                        <input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1">
+                    </div>
+                    <div class="gen-row">
+                        <label>Period (c)</label>
+                        <input type="number" id="gen-r2-period" value="1200" min="100" max="2400">
+                    </div>
+                    <div class="gen-row">
+                        <label>Notes</label>
+                        <input type="number" id="gen-count" value="12" min="3" max="31">
+                    </div>
+                `;
+                break;
+        }
+    }
+
+    async generate() {
+        if (!this.juce) return;
+
+        try {
+            let intervalsJson, scaleName;
+
+            switch (this.generatorType) {
+                case 'edo': {
+                    const divisions = parseInt(this.container.querySelector('#gen-divisions').value);
+                    const period = parseFloat(this.container.querySelector('#gen-period').value);
+                    intervalsJson = await this.juce.getNativeFunction('generateEDO')(divisions, period);
+                    scaleName = `${divisions}-EDO`;
+                    if (Math.abs(period - 1200) > 0.1) {
+                        scaleName += ` (${period.toFixed(0)}c)`;
+                    }
+                    break;
+                }
+                case 'harmonic': {
+                    const start = parseInt(this.container.querySelector('#gen-start').value);
+                    const end = parseInt(this.container.querySelector('#gen-end').value);
+                    intervalsJson = await this.juce.getNativeFunction('generateHarmonicSeries')(start, end);
+                    scaleName = `Harmonics ${start}-${end}`;
+                    break;
+                }
+                case 'rank2': {
+                    const generator = parseFloat(this.container.querySelector('#gen-generator').value);
+                    const period = parseFloat(this.container.querySelector('#gen-r2-period').value);
+                    const count = parseInt(this.container.querySelector('#gen-count').value);
+                    intervalsJson = await this.juce.getNativeFunction('generateRank2')(generator, period, count);
+                    scaleName = `Rank-2 (${generator.toFixed(1)}c, ${count} notes)`;
+                    break;
                 }
             }
-            return null;
-        }
 
-        const cents = parseFloat(value);
-        return isNaN(cents) ? null : cents;
-    }
-
-    /**
-     * Update scale name display.
-     */
-    _updateScaleNameDisplay() {
-        const display = this.container.querySelector('.scale-name-display');
-        if (display) {
-            display.textContent = this.currentScaleName;
+            const success = await this.juce.getNativeFunction('applyGeneratedScale')(intervalsJson, scaleName);
+            if (success) {
+                await this.refreshState();
+            }
+        } catch (e) {
+            console.error('[TuningPanel] Generate failed:', e);
         }
     }
 
-    /**
-     * Update pitch circle visualization.
-     */
-    _updatePitchCircle() {
-        if (this.pitchCircle) {
-            this.pitchCircle.setIntervals(this.currentIntervals, this.currentTonic);
+    // ═══════════════════════════════════════════════════════════════════
+    // FILE OPERATIONS
+    // ═══════════════════════════════════════════════════════════════════
+
+    async loadSCL() {
+        if (!this.juce) return;
+        try {
+            const name = await this.juce.getNativeFunction('loadScalaFile')();
+            if (name) {
+                await this.refreshState();
+            }
+        } catch (e) {
+            console.error('[TuningPanel] Load SCL failed:', e);
         }
     }
 
-    /**
-     * Apply tuning to backend.
-     */
-    _applyTuning() {
-        const intervalsToSend = this.currentIntervals.slice(1);  // Exclude unison
-
-        if (this.nativeFunctions.setTuningIntervals) {
-            this.nativeFunctions.setTuningIntervals(intervalsToSend, this.currentScaleName);
-        }
-
-        this.onTuningChanged(this.currentIntervals, this.currentScaleName);
-    }
-
-    /**
-     * Handle file button actions.
-     */
-    _handleFileAction(action) {
-        switch (action) {
-            case 'load-scl':
-                this.nativeFunctions.loadScalaFile?.();
-                break;
-            case 'load-kbm':
-                this.nativeFunctions.loadKBMFile?.();
-                break;
-            case 'save-scl':
-                this.nativeFunctions.saveScalaFile?.();
-                break;
-            case 'save-kbm':
-                this.nativeFunctions.saveKBMFile?.();
-                break;
+    async loadKBM() {
+        if (!this.juce) return;
+        try {
+            await this.juce.getNativeFunction('loadKBMFile')();
+        } catch (e) {
+            console.error('[TuningPanel] Load KBM failed:', e);
         }
     }
 
-    /**
-     * Callback when Scala file is loaded (called from C++).
-     */
-    onScalaLoaded(scaleName, intervals) {
-        this.currentScaleName = scaleName;
-        this.currentIntervals = intervals;
-
-        this._updateScaleNameDisplay();
-        this._updateIntervalList();
-        this._updatePitchCircle();
+    async saveSCL() {
+        if (!this.juce) return;
+        try {
+            await this.juce.getNativeFunction('saveScalaFile')();
+        } catch (e) {
+            console.error('[TuningPanel] Save SCL failed:', e);
+        }
     }
 
-    /**
-     * Get current state for preset saving.
-     */
-    getState() {
-        return {
-            mode: this.currentMode,
-            intervals: [...this.currentIntervals],
-            scaleName: this.currentScaleName,
-            tonic: this.currentTonic,
-            referencePitch: this.referencePitch
+    async saveKBM() {
+        if (!this.juce) return;
+        try {
+            await this.juce.getNativeFunction('saveKBMFile')();
+        } catch (e) {
+            console.error('[TuningPanel] Save KBM failed:', e);
+        }
+    }
+
+    async exportHTML() {
+        if (!this.juce) return;
+        try {
+            await this.juce.getNativeFunction('exportTuningHTML')();
+        } catch (e) {
+            console.error('[TuningPanel] Export HTML failed:', e);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // OCTAVE STRETCH
+    // ═══════════════════════════════════════════════════════════════════
+
+    async setOctaveStretch(value) {
+        const stretch = parseFloat(value);
+        this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
+
+        if (!this.juce) return;
+        try {
+            await this.juce.getNativeFunction('setOctaveStretch')(stretch);
+        } catch (e) {
+            console.error('[TuningPanel] Set octave stretch failed:', e);
+        }
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // REFERENCE PITCH KNOB
+    // ═══════════════════════════════════════════════════════════════════
+
+    setupRefPitchKnob() {
+        const knob = this.container.querySelector('#ref-pitch-knob');
+        if (!knob) return;
+
+        let isDragging = false;
+        let startY = 0;
+        let startValue = 440;
+
+        const updateKnob = (hz) => {
+            const indicator = this.container.querySelector('#ref-pitch-indicator');
+            const valueEl = this.container.querySelector('#ref-pitch-value');
+            if (indicator) {
+                const angle = ((hz - 400) / 80) * 270 - 135;
+                indicator.style.transform = `rotate(${angle}deg)`;
+            }
+            if (valueEl) {
+                valueEl.textContent = `${hz.toFixed(1)} Hz`;
+            }
         };
+
+        knob.addEventListener('mousedown', (e) => {
+            isDragging = true;
+            startY = e.clientY;
+            document.body.style.cursor = 'ns-resize';
+        });
+
+        document.addEventListener('mousemove', async (e) => {
+            if (!isDragging) return;
+
+            const delta = (startY - e.clientY) * 0.5;
+            const newHz = Math.max(400, Math.min(480, startValue + delta));
+            updateKnob(newHz);
+
+            if (this.juce) {
+                try {
+                    await this.juce.getNativeFunction('setMasterTune')(newHz);
+                } catch (err) {
+                    // Throttled errors expected
+                }
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (isDragging) {
+                isDragging = false;
+                document.body.style.cursor = '';
+            }
+        });
     }
 
-    /**
-     * Restore state from preset.
-     */
-    setState(state) {
-        if (state.mode !== undefined) this.setMode(state.mode);
-        if (state.intervals) this.currentIntervals = [...state.intervals];
-        if (state.scaleName) this.currentScaleName = state.scaleName;
-        if (state.tonic !== undefined) this.setTonic(state.tonic);
-        if (state.referencePitch) this.referencePitch = state.referencePitch;
+    // ═══════════════════════════════════════════════════════════════════
+    // HELPERS
+    // ═══════════════════════════════════════════════════════════════════
 
-        this._updateScaleNameDisplay();
-        this._updateIntervalList();
-        this._updatePitchCircle();
+    updateScaleNameDisplay() {
+        const el = this.container.querySelector('#scale-name-display');
+        if (el) {
+            el.textContent = this.scaleName;
+        }
     }
 }
 
-// Export presets for external use
-export { SCALE_PRESETS, NOTE_NAMES };
-
-// Global export for non-module usage
-if (typeof window !== 'undefined') {
-    window.OuariconTuningPanel = TuningPanel;
-    window.SCALE_PRESETS = SCALE_PRESETS;
-}
+// Default export for convenience
+export default TuningPanel;

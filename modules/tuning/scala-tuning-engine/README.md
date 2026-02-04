@@ -1,400 +1,208 @@
-# scala-tuning-engine
+# scala-tuning-engine v2.0.0
 
-Complete microtonal tuning system with Scala file support for Ouaricon plugins.
+Complete microtonal tuning system for WebView-based JUCE plugins.
 
 ## Features
 
-- **Three Tuning Modes**: 12-TET, Custom (Scala), MTS-ESP (stubbed)
-- **Scala File Support**: Load/save .scl and .kbm files
-- **Thread-Safe**: Atomic frequency table for real-time audio
-- **Linear Mapping for Any Scale Size**: Works with 7, 12, 19, 31, or any number of notes
-- **Non-Octave Scale Support**: Bohlen-Pierce (tritave), Carlos Alpha/Beta/Gamma, etc.
-- **Tonic Transposition**: Shift anchor by 12-TET semitones (works for all scales)
-- **Visual Components**: Pitch circle, interval list, tonic selector
+### Tuning Modes
+- **12-TET**: Standard 12-tone equal temperament
+- **Custom/Scala**: Load .scl files or edit intervals directly
+- **MTS-ESP**: Placeholder for future MTS-ESP integration
+
+### Visualizations (5 modes)
+- **Circle**: Traditional pitch circle with intervals as spokes
+- **Polar**: Radial plot showing interval positions
+- **Matrix**: Grid showing interval cents between all scale degrees
+- **TrueKeys**: Real-time display of intervals between held notes
+- **Rotation**: Modal rotation table for all tonics
+
+### Scale Generator
+- **EDO**: Equal Division of Octave (2-72 divisions, custom period)
+- **Harmonic Series**: Generate from overtone ratios (harmonics 1-64)
+- **Rank-2 Temperaments**: Meantone-style scales with custom generator
+
+### Factory Library (24+ presets)
+| Category | Tunings |
+|----------|---------|
+| Historical | Young 1799, Neidhardt III, Kellner Bach, Bach/Lehman, Valotti |
+| Just Intonation | Ptolemy, 5-Limit JI, 7-Limit JI, Partch 43-Tone |
+| Equal Divisions | 17-EDO, 19-EDO, 22-EDO, 31-EDO, 41-EDO, 53-EDO |
+| Non-Octave | Bohlen-Pierce, Carlos Alpha/Beta/Gamma |
+| World | Arabic 24-TET, Turkish Makam, Indian 22-Shruti, Gamelan |
+
+### File I/O
+- Load/Save Scala .scl files
+- Load/Save Keyboard Mapping .kbm files
+- Export HTML documentation with SVG pitch circle
+
+### Additional Features
+- Editable intervals table with tonic selector
+- Octave stretch (0.95-1.25) for physical modeling
+- Reference pitch (A4) control (400-480 Hz)
+- Thread-safe frequency table for lock-free audio access
+- Per-note pitch bend support
 
 ## Installation
 
+### 1. Copy C++ Files
+
+Copy from `cpp/` to your plugin's Source folder:
+```
+TuningEngine.h / TuningEngine.cpp
+ScaleGenerator.h / ScaleGenerator.cpp
+TuningExporter.h / TuningExporter.cpp
+EmbeddedTunings.h / EmbeddedTunings.cpp
+```
+
+### 2. Add to CMakeLists.txt
+
 ```cmake
-include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
-ouaricon_add_module(MyPlugin scala-tuning-engine)
+target_sources(${PROJECT_NAME} PRIVATE
+    Source/TuningEngine.cpp
+    Source/ScaleGenerator.cpp
+    Source/TuningExporter.cpp
+    Source/EmbeddedTunings.cpp
+)
 ```
 
-## C++ Usage
-
-### Basic Setup
+### 3. Create APVTS Parameters
 
 ```cpp
-#include "OuariconTuningEngine.h"
-
-class MySynthProcessor : public juce::AudioProcessor
+juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
 {
-public:
-    OuariconTuningEngine tuning;
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // In synthesizer voice:
-    void noteOn(int midiNote, float velocity)
-    {
-        double frequency = tuning.getFrequency(midiNote);
-        oscillator.setFrequency(frequency);
-    }
-};
+    // Reference pitch (A4)
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "tuning_masterTune", "Master Tune",
+        juce::NormalisableRange<float>(400.0f, 480.0f, 0.1f),
+        440.0f));
+
+    // Tuning mode
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "tuning_tuningMode", "Tuning Mode",
+        juce::StringArray{"12-TET", "Custom", "MTS-ESP"}, 0));
+
+    // Octave stretch
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        "tuning_octaveStretch", "Octave Stretch",
+        juce::NormalisableRange<float>(0.95f, 1.25f, 0.01f),
+        1.0f));
+
+    // Temperament preset
+    params.push_back(std::make_unique<juce::AudioParameterChoice>(
+        "tuning_temperamentPreset", "Temperament",
+        juce::StringArray{"12-TET", "Pythagorean", "Zarlino", "Meantone",
+                          "Werckmeister III", "Kirnberger III", "Vallotti",
+                          "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom"},
+        0));
+
+    return { params.begin(), params.end() };
+}
 ```
 
-### Register Native Functions
+### 4. Add Native Functions to PluginEditor
 
 ```cpp
-// In PluginEditor constructor:
-webView = std::make_unique<juce::WebBrowserComponent>(
-    juce::WebBrowserComponent::Options{}
-        .withNativeIntegrationEnabled()
+void PluginEditor::setupNativeFunctions()
+{
+    // Tuning intervals
+    webView->bind("getTuningIntervals", [this]() {
+        auto intervals = processor.tuningEngine.getIntervals();
+        juce::String json = "[";
+        for (size_t i = 0; i < intervals.size(); ++i) {
+            if (i > 0) json += ",";
+            json += juce::String(intervals[i]);
+        }
+        json += "]";
+        return json;
+    });
 
-        .withNativeFunction("loadScalaFile", [this](auto& args, auto complete) {
-            // Open file chooser and load .scl file
-            fileChooser = std::make_unique<juce::FileChooser>(
-                "Load Scala File", juce::File{}, "*.scl");
-            fileChooser->launchAsync(juce::FileBrowserComponent::openMode, [this, complete](const auto& fc) {
-                if (fc.getResult().existsAsFile()) {
-                    bool success = processorRef.tuning.loadScalaFile(fc.getResult());
-                    if (success) {
-                        // Notify UI
-                        auto name = processorRef.tuning.getActiveTuningName();
-                        webView->evaluateJavascript(
-                            "onScalaLoaded('" + name + "');", nullptr);
-                    }
-                    complete(success);
-                } else {
-                    complete(false);
-                }
-            });
-        })
+    webView->bind("setTuningIntervals", [this](const juce::var& args) {
+        // Parse JSON array and apply
+        // ...
+    });
 
-        .withNativeFunction("setTuningIntervals", [this](auto& args, auto complete) {
-            if (args.size() >= 2) {
-                std::vector<double> cents;
-                if (auto* arr = args[0].getArray()) {
-                    for (const auto& v : *arr)
-                        cents.push_back(static_cast<double>(v));
-                }
-                juce::String name = args[1].toString();
-                processorRef.tuning.setCustomIntervals(cents, name);
-                complete(true);
-            } else {
-                complete(false);
-            }
-        })
+    webView->bind("setSingleInterval", [this](int index, double cents) {
+        processor.tuningEngine.setSingleInterval(index, cents);
+        return true;
+    });
 
-        .withNativeFunction("getTuningIntervals", [this](auto&, auto complete) {
-            auto* result = new juce::DynamicObject();
-            juce::Array<juce::var> intervals;
-            for (double c : processorRef.tuning.getIntervals())
-                intervals.add(c);
-            result->setProperty("intervals", juce::var(intervals));
-            result->setProperty("name", processorRef.tuning.getActiveTuningName());
-            complete(juce::var(result));
-        })
-
-        .withNativeFunction("setTonicNote", [this](auto& args, auto complete) {
-            if (args.size() > 0) {
-                processorRef.tuning.setTonicNote(static_cast<int>(args[0]));
-                complete(true);
-            } else {
-                complete(false);
-            }
-        })
-
-        // ... other options
-);
+    // ... Add all native functions from module.yaml
+}
 ```
 
-### APVTS Parameters
+### 5. Include JavaScript Module
 
-```cpp
-auto layout = std::make_unique<juce::AudioProcessorValueTreeState::ParameterLayout>();
+Copy `js/tuning-panel.js` to your Resources/ui/js/ folder.
 
-layout->add(std::make_unique<juce::AudioParameterChoice>(
-    juce::ParameterID { "TUNING_MODE", 1 },
-    "Tuning Mode",
-    juce::StringArray { "12-TET", "Custom", "MTS-ESP" },
-    0));
-
-layout->add(std::make_unique<juce::AudioParameterFloat>(
-    juce::ParameterID { "REFERENCE_PITCH", 1 },
-    "Reference Pitch",
-    juce::NormalisableRange<float>(400.0f, 480.0f),
-    440.0f,
-    juce::AudioParameterFloatAttributes().withLabel("Hz")));
-```
-
-## JavaScript Usage
-
-### Complete Tuning Panel
-
+In your index.html:
 ```html
 <div id="tuning-container"></div>
-<div id="pitch-circle"></div>
 
 <script type="module">
-    import { TuningPanel } from './modules/tuning-panel.js';
-    import { PitchCircle } from './modules/pitch-circle.js';
+    import { TuningPanel } from './js/tuning-panel.js';
 
-    // Create pitch circle
-    const circle = new PitchCircle({
-        container: document.getElementById('pitch-circle'),
-        size: 150,
-        showLabels: true
-    });
+    const panel = new TuningPanel(
+        document.getElementById('tuning-container'),
+        window.__JUCE__
+    );
 
-    // Create tuning panel with pitch circle
-    const panel = new TuningPanel({
-        container: document.getElementById('tuning-container'),
-        pitchCircle: circle,
-        onTuningChanged: (intervals, name) => {
-            console.log('Tuning changed:', name, intervals);
-        }
-    });
-
-    panel.initialize();
-
-    // Callback from C++ when Scala file is loaded
-    window.onScalaLoaded = async function(scaleName) {
-        const result = await window.__JUCE__.backend.getTuningIntervals();
-        if (result && result.intervals) {
-            panel.onScalaLoaded(scaleName, result.intervals);
-        }
-    };
+    panel.init();
 </script>
 ```
 
-### Pitch Circle Only
+## Usage in Audio Processing
 
-```javascript
-import { PitchCircle } from './modules/pitch-circle.js';
+```cpp
+void PluginProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midi)
+{
+    for (const auto metadata : midi) {
+        auto msg = metadata.getMessage();
 
-const circle = new PitchCircle({
-    container: document.getElementById('circle'),
-    size: 150,
-    lineColor: '#6B8E4E',
-    activeColor: '#DC0000'
-});
-
-// Update intervals
-circle.setIntervals([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100]);
-
-// Highlight active notes (called from C++)
-window.setNoteActive = (midiNote, velocity) => circle.setNoteActive(midiNote, velocity);
-window.setNoteInactive = (midiNote) => circle.setNoteInactive(midiNote);
-```
-
-## Built-in Scale Presets
-
-| Preset | Description |
-|--------|-------------|
-| `12tet` | Standard 12-tone equal temperament |
-| `just` | Just Intonation (5-limit) |
-| `pythagorean` | Pythagorean tuning |
-| `meantone` | Quarter-comma meantone |
-
-## CSS Styling
-
-The module uses these CSS classes that you can customize:
-
-```css
-.tuning-panel { /* Main container */ }
-.tuning-mode-buttons { /* Mode selection buttons */ }
-.scale-name-display { /* Current scale name */ }
-.interval-list { /* Interval editing list */ }
-.interval-item { /* Single interval row */ }
-.interval-input { /* Cents/ratio input */ }
-.tonic-selector { /* Tonic transposition control */ }
-.file-buttons { /* Scala file load/save buttons */ }
-.pitch-circle-svg { /* SVG pitch circle */ }
+        if (msg.isNoteOn()) {
+            int note = msg.getNoteNumber();
+            double freq = tuningEngine.getFrequency(note);
+            // Use freq for synthesis...
+        }
+    }
+}
 ```
 
 ## State Persistence
 
-Save/restore tuning state with presets:
+The tuning engine state should be saved with your plugin's session:
 
-```javascript
-// Get current state
-const state = panel.getState();
-// Returns: { mode, intervals, scaleName, tonic, referencePitch }
+```cpp
+void PluginProcessor::getStateInformation(juce::MemoryBlock& destData)
+{
+    auto state = apvts.copyState();
 
-// Restore state
-panel.setState(savedState);
-```
+    // Add tuning custom state
+    auto tuningState = state.getOrCreateChildWithName("tuning", nullptr);
 
-## Common Pitfalls
+    auto intervals = tuningEngine.getIntervals();
+    juce::String intervalsStr;
+    for (size_t i = 0; i < intervals.size(); ++i) {
+        if (i > 0) intervalsStr += ",";
+        intervalsStr += juce::String(intervals[i]);
+    }
+    tuningState.setProperty("intervals", intervalsStr, nullptr);
+    tuningState.setProperty("scaleName", tuningEngine.getActiveTuningName(), nullptr);
+    tuningState.setProperty("tonic", tuningEngine.getTonicNote(), nullptr);
 
-### 1. Wrong ComboBox API Method Names (Critical)
-
-**Symptom:** Tuning tab appears but intervals don't load, keyboard doesn't play, Scala files don't affect tuning. No visible error - everything just silently fails.
-
-**Root Cause:** JUCE 8 WebComboBoxRelay uses `getChoiceIndex()`/`setChoiceIndex()`, but it's easy to mistakenly use `getChosenIndex()`/`setChosenIndex()`.
-
-```javascript
-// WRONG - will silently crash the module
-const mode = tuningModeState.getChosenIndex();
-tuningModeState.setChosenIndex(1);
-
-// CORRECT - JUCE 8 API
-const mode = tuningModeState.getChoiceIndex();
-tuningModeState.setChoiceIndex(1);
-```
-
-**Why it's dangerous:** ES6 modules abort on uncaught errors with no visible indication. If this error occurs early in the module, everything after it (interval loading, keyboard setup, etc.) never runs.
-
-**Debugging tip:** If native functions aren't being called but other parts of the UI work, add try-catch blocks with native logging to find where the module is aborting:
-
-```javascript
-try {
-    await Juce.getNativeFunction('debugLog')('Checkpoint 1');
-    // ... code ...
-    await Juce.getNativeFunction('debugLog')('Checkpoint 2');
-} catch (e) {
-    await Juce.getNativeFunction('debugLog')('ERROR: ' + e.message);
+    std::unique_ptr<juce::XmlElement> xml(state.createXml());
+    copyXmlToBinary(*xml, destData);
 }
 ```
 
-### 2. APVTS Parameter Override in processBlock
+## Breaking Changes from v1.0.0
 
-**Symptom:** Loading a Scala file works initially, but tuning reverts to 12-TET on the next audio block.
+- **New API**: TuningEngine class has expanded methods
+- **New classes**: Added ScaleGenerator, TuningExporter, EmbeddedTunings
+- **JavaScript**: Rewritten as ES6 module (was inline script)
+- **Parameters**: Now use configurable prefix (default `tuning_`)
 
-**Root Cause:** If `processBlock()` reads the APVTS tuning mode parameter and calls `tuningEngine.setMode()` every block, it will override any mode changes made directly to the TuningEngine.
+## License
 
-**Solution:** When loading a Scala file via native function, also update the APVTS parameter:
-
-```cpp
-.withNativeFunction("loadScalaFile", [this](auto& args, auto complete) {
-    // ... file chooser code ...
-    if (processorRef.tuning.loadScalaFile(result)) {
-        // CRITICAL: Also update APVTS so processBlock doesn't override
-        if (auto* param = processorRef.getAPVTS().getParameter("TUNING_MODE"))
-            param->setValueNotifyingHost(0.5f); // Index 1 = Custom (normalized)
-
-        complete(juce::var(processorRef.tuning.getActiveTuningName()));
-    }
-});
-```
-
-### 3. Module Script Execution Order
-
-**Symptom:** Global handlers (like `window.handleLoadSCL`) throw "JUCE not ready" errors.
-
-**Root Cause:** Non-module `<script>` blocks run before `<script type="module">` blocks. If global handlers are defined in non-module scripts but rely on the Juce import from the module, they'll fail.
-
-**Solution:** Expose the Juce API to global scope from the module:
-
-```javascript
-// In module script
-import * as Juce from '/js/juce/index.js';
-window.JuceAPI = Juce;  // Expose to global handlers
-
-// In non-module script (runs first, but handlers called later)
-window.handleLoadSCL = async function() {
-    if (!window.JuceAPI) { console.error('JUCE not ready'); return; }
-    await window.JuceAPI.getNativeFunction('loadScalaFile')();
-};
-```
-
-## Linear Mapping for Non-12-Note Scales (v1.13.0)
-
-This module supports **any scale size** (7, 12, 19, 31, etc.) with proper linear keyboard mapping.
-
-### Key Principle
-
-Each MIDI key plays the next scale degree in sequence. The scale wraps at `scaleSize` keys.
-
-### Anchor Point
-
-The anchor point is `MIDI 60 (middle C) + tonic offset`:
-- Tonic = C: MIDI 60 = degree 0
-- Tonic = D: MIDI 62 = degree 0
-
-### Example: 19-Note Scale with Tonic = C
-
-```
-MIDI 60 = degree 0  (anchor freq = C4 = 261.63 Hz)
-MIDI 61 = degree 1
-MIDI 62 = degree 2
-...
-MIDI 78 = degree 18
-MIDI 79 = degree 0  (next scale octave, 2× freq of MIDI 60)
-```
-
-### Example: 19-Note Scale with Tonic = D
-
-```
-MIDI 62 = degree 0  (anchor freq = D4 = 293.66 Hz)
-MIDI 63 = degree 1
-...
-MIDI 80 = degree 18
-MIDI 81 = degree 0  (next scale octave)
-```
-
-### Algorithm
-
-```cpp
-anchorNote = 60 + tonic
-scaleDegree = (midiNote - anchorNote) mod scaleSize
-scaleOctave = floor((midiNote - anchorNote) / scaleSize)
-frequency = 12TET(anchorNote) × 2^((scaleOctave × period + intervals[scaleDegree]) / 1200)
-```
-
-### Non-Octave Scales
-
-The algorithm works for non-octave scales too (e.g., Bohlen-Pierce with 1902¢ tritave):
-- Scale wraps every `scaleSize` keys
-- Each wrap multiplies frequency by `2^(period/1200)`
-- For Bohlen-Pierce: 13 keys = 3× frequency (tritave)
-
-### Tonic Selection
-
-Tonic transposes by 12-TET semitones:
-- **Tonic = C**: MIDI 60 is degree 0 at C4 frequency
-- **Tonic = D**: MIDI 62 is degree 0 at D4 frequency
-
-The interval **pattern** stays the same - tonic just shifts where it starts on the keyboard.
-
-### Common Mistake (DON'T DO THIS)
-
-Using MIDI note 0 as the reference point causes non-12 scales to break:
-
-```cpp
-// WRONG - uses MIDI 0 as reference
-int degree = (midiNote - tonic) % scaleSize;  // Breaks for non-12 scales!
-```
-
-This causes the scale to jump at unexpected points (e.g., at MIDI 76 for 19-note scales).
-
-### Correct Implementation
-
-The `calculateScala()` method correctly uses `MIDI 60 + tonic` as the anchor:
-
-```cpp
-const int anchorNote = 60 + tonic;
-int noteRelativeToAnchor = midiNote - anchorNote;
-// ... proper modulo and octave calculation
-```
-
-See `OuariconLyrica/improvements/non-12-scale-linear-mapping.md` for full details.
-
-## Version History
-
-### 1.13.0 (2026-01-23)
-- **Linear mapping for non-12-note scales** - works for 7, 19, 31, or any scale size
-- Anchor point changed from MIDI 0 to `MIDI 60 + tonic` for correct behavior
-- Tonic transposition now works for all scale sizes (12-TET semitone shift)
-- Non-octave scales (Bohlen-Pierce, etc.) now work correctly
-- Updated documentation with non-12-scale examples
-- Algorithm verified against OuariconLyrica v1.13.0
-
-### 1.1.0 (2026-01-23)
-- Added comprehensive tonic selection documentation
-- Verified algorithm against OuariconLyrica v1.12.3
-- Added inline comments explaining the tonic anchoring algorithm
-
-### 1.0.0 (2026-01-12)
-- Initial extraction from OuariconMarimba
-- Genericized C++ TuningEngine
-- Modular JavaScript components (TuningPanel, PitchCircle)
-- Built-in scale presets
+Part of the Ouaricon Audio module library.
