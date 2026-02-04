@@ -82,11 +82,8 @@ private:
     juce::Random random;
     bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
 
-    // Smoothed drift (prevents clicking from discontinuous grain positions)
-    float currentDriftOffset = 0.0f;   // Current smoothed offset (0 to 1)
-    float targetDriftOffset = 0.0f;    // Target offset to drift toward
-    int driftUpdateCounter = 0;        // Counter for picking new targets
-    int driftUpdateInterval = 0;       // How often to pick new target (samples)
+    // Drift offset (locked at freeze engage, shared by all grains for COLA)
+    float frozenDriftOffset = 0.0f;    // Offset locked at freeze moment (0 to 1)
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;

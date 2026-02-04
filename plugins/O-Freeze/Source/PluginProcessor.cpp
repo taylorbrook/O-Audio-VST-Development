@@ -36,7 +36,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreezeAudioProcessor::creat
         juce::StringArray { "Manual", "Threshold" },
         0));
 
-    // DRIFT - Grain position randomization
+    // DRIFT - Grain position randomization range
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "DRIFT", 1 },
         "Drift",
@@ -137,11 +137,8 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     nextGrainIndex = 0;
     stopTriggeringNewGrains = false;
 
-    // Initialize smoothed drift (update target every ~3 seconds for slow organic wandering)
-    currentDriftOffset = 0.0f;
-    targetDriftOffset = 0.0f;
-    driftUpdateCounter = 0;
-    driftUpdateInterval = static_cast<int>(sampleRate * 3.0); // 3 seconds
+    // Initialize drift state
+    frozenDriftOffset = 0.0f;
 }
 
 void OFreezeAudioProcessor::releaseResources()
@@ -234,6 +231,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             freezeGain.reset(currentSampleRate, 0.050); // 50ms fade-in
             freezeGain.setTargetValue(1.0f);
 
+            // LOCK drift offset at freeze moment - all grains share this for COLA
+            // Pick a random offset (adds variation between freeze engages)
+            frozenDriftOffset = random.nextFloat();
+
             // Staggered activation: only activate FIRST grain immediately
             // Subsequent grains will be activated by normal trigger mechanism
             const int freezeBufLen = freezeBuffer.getNumSamples();
@@ -278,19 +279,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // Only trigger new grains if frozen AND not in soft release mode
         if (bufferFrozen && !stopTriggeringNewGrains)
         {
-            // Update smoothed drift offset (glacially slow for phase coherence)
-            // At 44.1kHz, coefficient of 0.000005 gives ~5 second convergence
-            // This ensures overlapping grains stay phase-aligned
-            const float driftSmoothCoeff = 0.000005f;
-            currentDriftOffset += (targetDriftOffset - currentDriftOffset) * driftSmoothCoeff;
-
-            // Periodically pick a new random target for organic wandering (every ~3 seconds)
-            driftUpdateCounter++;
-            if (driftUpdateCounter >= driftUpdateInterval)
-            {
-                targetDriftOffset = random.nextFloat(); // New target (0 to 1)
-                driftUpdateCounter = 0;
-            }
+            // IMPORTANT: Drift offset is LOCKED when freeze engages (set in freeze activation)
+            // Do NOT update drift while frozen - all grains must share the same offset
+            // for COLA phase alignment to work correctly
 
             if (grainTriggerCounter >= grainTriggerInterval)
             {
@@ -299,12 +290,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 newGrain.active = true;
                 newGrain.startSample = 0;
 
-                // Calculate grain position with SMOOTHED drift
-                // All grains use the same slowly-wandering offset for phase coherence
+                // Store BASE position only - drift applied at read time for COLA
                 int basePos = (writePosition - grainSize + freezeBufferLength) % freezeBufferLength;
-                int driftRange = static_cast<int>(grainSize * driftValue); // Drift range from parameter
-                int driftOffset = static_cast<int>(currentDriftOffset * driftRange); // Smoothed offset
-                newGrain.position = (basePos + driftOffset) % freezeBufferLength;
+                newGrain.position = basePos;
 
                 // Advance grain index (round-robin)
                 nextGrainIndex = (nextGrainIndex + 1) % NUM_GRAINS;
@@ -318,6 +306,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             }
         }
 
+        // Calculate shared drift offset (all grains use same offset for COLA)
+        int driftRange = static_cast<int>(grainSize * driftValue);
+        int sharedDriftOffset = static_cast<int>(frozenDriftOffset * driftRange);
+
         // Get current window values and positions for all active grains (before advancing)
         float windowValues[NUM_GRAINS] = {0};
         int grainPositions[NUM_GRAINS] = {0};
@@ -327,7 +319,8 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             if (grains[g].active)
             {
                 windowValues[g] = hannWindow[grains[g].startSample];
-                grainPositions[g] = grains[g].position;
+                // Apply shared drift offset at READ time (maintains COLA phase alignment)
+                grainPositions[g] = (grains[g].position + sharedDriftOffset + freezeBufferLength) % freezeBufferLength;
             }
         }
 

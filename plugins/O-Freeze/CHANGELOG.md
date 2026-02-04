@@ -5,17 +5,19 @@ All notable changes to O-Freeze will be documented in this file.
 ## [1.2.2] - 2026-02-03
 
 ### Fixed
-- **Drift clicking eliminated** - Removed per-sample normalization that caused amplitude modulation
-  - Root cause: Dividing each sample by `windowSum` created periodic amplitude fluctuations as grains phased through their envelopes, producing "evenly spaced clicks" at the grain trigger rate
-  - Solution: Use true Hann window with COLA (Constant Overlap-Add) property - 8 Hann windows at 87.5% overlap mathematically sum to constant amplitude, eliminating the need for normalization
+- **Drift clicking eliminated** - Two-part fix for granular synthesis artifacts
+  1. Removed per-sample normalization that caused amplitude modulation (dividing by fluctuating `windowSum`)
+  2. Lock drift offset when freeze engages - all grains now share identical position offset for proper COLA phase alignment
+  - Root cause: Drift smoothing continued while frozen, causing each new grain to start at a slightly different buffer position. This broke COLA's phase alignment requirement, creating progressively worse clicking as drift wandered.
 
 ### Changed
 - Replaced custom trapezoidal window with standard Hann window (pre-scaled by 0.25 for unit COLA sum)
+- Drift applied at READ time (not activation time) so all grains shift together
 
 ### Technical Notes
 - COLA identity: 8 Hann windows offset by N/8 each sum to exactly 4.0 at every sample point
 - Window scaled by 0.25 so overlapping grains sum to 1.0 without per-sample division
-- This is a mathematically guaranteed constant-amplitude solution vs the previous heuristic normalization
+- All grains must read from phase-aligned positions - shared drift offset ensures this
 
 ## [1.2.1] - 2026-02-03
 

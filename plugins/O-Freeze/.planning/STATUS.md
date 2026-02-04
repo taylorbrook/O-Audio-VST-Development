@@ -185,7 +185,12 @@ Progress: [####################] 100%
 
 ## Known Issues
 
-None - drift clicking resolved in v1.2.2
+**Drift still causes clicking** - v1.2.2 fix was insufficient
+- COLA-based approach (true Hann window, locked drift offset) did not fully resolve the clicking
+- Clicking persists when drift parameter is used
+- Auto-drift LFO feature was attempted but made sound too static
+- Needs deeper investigation into granular synthesis approach
+- **Not ready for release**
 
 ## Next Steps
 
