@@ -1,0 +1,313 @@
+/**
+ * Ouaricon Instrument Footer Panel - CSS Styles
+ *
+ * Sticky footer component for VST instruments containing:
+ * - Master volume slider (left)
+ * - Playable keyboard (center)
+ * - Branding (right)
+ *
+ * Customization:
+ *   Override CSS variables to theme the footer:
+ *
+ *   .instrument-footer {
+ *     --footer-bg: rgba(245, 230, 211, 0.9);
+ *     --footer-border: rgba(139, 115, 85, 0.5);
+ *     --footer-text: #3C2F2F;
+ *     --footer-text-muted: #8B7355;
+ *     --key-white-bg: #FAF0E6;
+ *     --key-black-bg: #3C2F2F;
+ *     --key-active-bg: #8BC34A;
+ *     --key-border: #8B7355;
+ *   }
+ */
+
+/* ============================================================================
+   CSS Variables (Theming)
+   ============================================================================ */
+
+.instrument-footer {
+    /* Background and borders */
+    --footer-bg: rgba(245, 230, 211, 0.9);
+    --footer-border: rgba(139, 115, 85, 0.5);
+
+    /* Text colors */
+    --footer-text: #3C2F2F;
+    --footer-text-muted: #8B7355;
+    --footer-text-light: #5C4033;
+
+    /* Keyboard colors */
+    --key-white-bg: #FAF0E6;
+    --key-white-hover: #FFF8DC;
+    --key-black-bg: #3C2F2F;
+    --key-black-hover: #5A3A3A;
+    --key-active-bg: #8BC34A;
+    --key-border: #8B7355;
+    --key-mapped-bg: rgba(139, 168, 112, 0.35);
+    --key-mapped-black-bg: #4A6B2A;
+
+    /* Slider colors */
+    --slider-track-bg: linear-gradient(to bottom, #D4C4B0 0%, #E8D5B7 50%, #D4C4B0 100%);
+    --slider-thumb-bg: radial-gradient(circle at 30% 30%, #FFF8DC 0%, #F5DEB3 40%, #D4C4B0 100%);
+}
+
+
+/* ============================================================================
+   Footer Container
+   ============================================================================ */
+
+.instrument-footer {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 55px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 20px;
+    border-top: 1px solid var(--footer-border);
+    z-index: 10;
+    background: var(--footer-bg);
+    box-sizing: border-box;
+}
+
+/* Allow height customization */
+.instrument-footer[data-height] {
+    height: attr(data-height px);
+}
+
+
+/* ============================================================================
+   Master Volume (Left)
+   ============================================================================ */
+
+.footer-master-volume {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    flex-shrink: 0;
+    min-width: 180px;
+}
+
+.footer-master-label {
+    font-size: 9px;
+    color: var(--footer-text);
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+.footer-master-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 120px;
+    height: 6px;
+    background: var(--slider-track-bg);
+    border: 1px solid var(--key-border);
+    border-radius: 3px;
+    cursor: pointer;
+    box-shadow: inset 1px 1px 2px rgba(0, 0, 0, 0.15);
+}
+
+.footer-master-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    background: var(--slider-thumb-bg);
+    border: 2px solid var(--key-border);
+    border-radius: 50%;
+    cursor: pointer;
+    box-shadow: 1px 1px 3px rgba(0, 0, 0, 0.25);
+    transition: transform 0.1s;
+}
+
+.footer-master-slider::-webkit-slider-thumb:hover {
+    transform: scale(1.1);
+}
+
+.footer-master-slider::-webkit-slider-thumb:active {
+    transform: scale(0.95);
+}
+
+.footer-master-value {
+    font-size: 10px;
+    color: var(--footer-text-light);
+    min-width: 50px;
+}
+
+
+/* ============================================================================
+   Keyboard (Center)
+   ============================================================================ */
+
+.footer-keyboard {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    flex: 1;
+    max-width: 420px;
+    min-width: 200px;
+    margin: 0 15px;
+}
+
+.footer-keyboard-viz {
+    width: 100%;
+    height: 42px;
+    background: var(--key-white-bg);
+    border: 1px solid var(--key-border);
+    border-radius: 3px;
+    display: flex;
+    overflow: visible;
+    position: relative;
+}
+
+/* White keys */
+.footer-keyboard .white-key {
+    flex: 1;
+    background: var(--key-white-bg);
+    border-right: 1px solid rgba(139, 115, 85, 0.6);
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+    align-items: center;
+    padding-bottom: 2px;
+    transition: background 0.15s, transform 0.1s;
+    cursor: pointer;
+    z-index: 1;
+    min-width: 0;
+}
+
+.footer-keyboard .white-key:last-of-type {
+    border-right: none;
+}
+
+.footer-keyboard .white-key.mapped {
+    background: var(--key-mapped-bg);
+}
+
+.footer-keyboard .white-key span {
+    font-size: 6px;
+    color: var(--footer-text-light);
+    pointer-events: none;
+    opacity: 0.7;
+}
+
+.footer-keyboard .white-key:hover:not(.pressed) {
+    background: var(--key-white-hover);
+}
+
+.footer-keyboard .white-key.mapped:hover:not(.pressed) {
+    background: rgba(139, 168, 112, 0.5);
+}
+
+.footer-keyboard .white-key:active,
+.footer-keyboard .white-key.pressed {
+    background: var(--key-active-bg) !important;
+    transform: translateY(1px);
+    z-index: 2;
+}
+
+/* Black keys */
+.footer-keyboard .black-key {
+    position: absolute;
+    width: 14px;
+    height: 28px;
+    background: var(--key-black-bg);
+    border-radius: 0 0 2px 2px;
+    top: 0;
+    z-index: 10;
+    transition: background 0.15s, transform 0.1s;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.footer-keyboard .black-key.mapped {
+    background: var(--key-mapped-black-bg);
+}
+
+.footer-keyboard .black-key:hover:not(.pressed) {
+    background: var(--key-black-hover);
+}
+
+.footer-keyboard .black-key.mapped:hover:not(.pressed) {
+    background: #5A8B3A;
+}
+
+.footer-keyboard .black-key:active,
+.footer-keyboard .black-key.pressed {
+    background: var(--key-active-bg) !important;
+    transform: translateY(1px);
+    box-shadow: 0 0 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Help text */
+.footer-keyboard-help {
+    font-size: 7px;
+    color: var(--footer-text-muted);
+    text-align: center;
+}
+
+
+/* ============================================================================
+   Branding (Right)
+   ============================================================================ */
+
+.footer-brand {
+    font-size: 8px;
+    color: var(--footer-text-muted);
+    letter-spacing: 1px;
+    text-transform: uppercase;
+    flex-shrink: 0;
+}
+
+
+/* ============================================================================
+   Responsive Adjustments
+   ============================================================================ */
+
+/* Narrow plugins (< 500px width) */
+@container (max-width: 500px) {
+    .footer-keyboard {
+        max-width: 280px;
+    }
+
+    .footer-master-slider {
+        width: 80px;
+    }
+
+    .footer-master-value {
+        display: none;
+    }
+}
+
+/* Wide plugins (> 800px width) */
+@container (min-width: 800px) {
+    .footer-keyboard {
+        max-width: 520px;
+    }
+
+    .footer-master-slider {
+        width: 150px;
+    }
+}
+
+
+/* ============================================================================
+   Dark Theme Override Example
+   ============================================================================ */
+
+.instrument-footer.dark-theme {
+    --footer-bg: rgba(30, 30, 30, 0.95);
+    --footer-border: rgba(60, 60, 60, 0.8);
+    --footer-text: #E0E0E0;
+    --footer-text-muted: #888;
+    --footer-text-light: #AAA;
+    --key-white-bg: #2A2A2A;
+    --key-white-hover: #3A3A3A;
+    --key-black-bg: #1A1A1A;
+    --key-black-hover: #333;
+    --key-border: #444;
+    --key-mapped-bg: rgba(139, 195, 74, 0.25);
+    --key-mapped-black-bg: #2A4A1A;
+}

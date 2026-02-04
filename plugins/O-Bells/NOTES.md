@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.5.2
+- **Version:** 2.1.0
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -18,6 +18,12 @@
 - **2026-02-03 (v1.5.0):** Bloom Fine Controls - per-band independent speed/amount (6 new params)
 - **2026-02-03 (v1.5.1):** Bloom speed readouts now display milliseconds instead of percentages
 - **2026-02-03 (v1.5.2):** Attack Amount slider added to UI (was missing), parameter renamed for clarity
+- **2026-02-03 (v1.5.3):** Fixed Strike parameter producing no sound at 0%/100% extremes
+- **2026-02-03 (v1.5.4):** UI reorganization - Onsets section consolidates strike/transient controls
+- **2026-02-03 (v1.6.0):** Complete factory preset redesign - 25 research-informed presets with new names
+- **2026-02-03 (v1.6.1):** Brightness parameter range expanded [0.1, 2.0] for wider tonal control
+- **2026-02-03 (v2.0.0):** BREAKING - Split brightness into Overtone + Acoustic brightness (31 params)
+- **2026-02-03 (v2.1.0):** Air Absorption parameter - time-varying lowpass filter for acoustic realism (32 params)
 
 ## Known Issues
 
@@ -33,7 +39,7 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - **Ensemble section** with unison, detune, and octave layering
 - **Built-in reverb** for spacious, ambient bell tones
 
-## Parameters (23 total)
+## Parameters (32 total)
 
 ### Synthesis (6)
 - Strike Position (0-100%) - Center to edge strike point

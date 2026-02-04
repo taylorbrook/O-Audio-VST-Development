@@ -70,6 +70,9 @@ target_compile_definitions(O-Bells
         JUCE_USE_CURL=0
 )
 
+# Module system integration
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # WebView UI Resources
 juce_add_binary_data(O-Bells_UIResources
     SOURCES
@@ -77,6 +80,8 @@ juce_add_binary_data(O-Bells_UIResources
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
         Resources/ui/img/snail.png
+        Resources/ui/modules/instrument-footer-panel.js
+        Resources/ui/css/instrument-footer-panel.css
 )
 
 target_link_libraries(O-Bells

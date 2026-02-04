@@ -728,11 +728,18 @@
                         <div class="param-value" data-value="damping">70%</div>
                     </div>
                     <div class="param-control">
-                        <div class="param-label">Brightness</div>
-                        <div class="slider" data-param="brightness">
+                        <div class="param-label">Overtone Brightness</div>
+                        <div class="slider" data-param="overtoneBrightness">
                             <div class="slider-thumb"></div>
                         </div>
-                        <div class="param-value" data-value="brightness">50%</div>
+                        <div class="param-value" data-value="overtoneBrightness">50%</div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Acoustic Brightness</div>
+                        <div class="slider" data-param="acousticBrightness">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="acousticBrightness">70%</div>
                     </div>
                     <div class="param-control">
                         <div class="param-label">Material</div>
@@ -751,10 +758,18 @@
                         <div class="param-value" data-value="inharmonicity">50%</div>
                     </div>
                     <div class="param-control">
-                        <!-- Spacer -->
+                        <div class="param-label">Air Absorption</div>
+                        <div class="slider" data-param="airAbsorption">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="airAbsorption">0%</div>
                     </div>
                     <div class="param-control">
-                        <!-- Spacer -->
+                        <div class="param-label">Air Time</div>
+                        <div class="slider" data-param="airAbsorptionTime">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="airAbsorptionTime">2.0 s</div>
                     </div>
                 </div>
                 <div class="param-row" id="bloom-main-row">
@@ -1100,7 +1115,14 @@
             { id: 'strikePosition', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
             { id: 'malletHardness', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
             { id: 'damping', min: 0, max: 1, default: 0.7, format: v => `${Math.round(v * 100)}%` },
-            { id: 'brightness', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'overtoneBrightness', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            { id: 'acousticBrightness', min: 0, max: 1, default: 0.7, format: v => `${Math.round(v * 100)}%` },
+            { id: 'airAbsorption', min: 0, max: 1, default: 0, format: v => `${Math.round(v * 100)}%` },
+            { id: 'airAbsorptionTime', min: 0.1, max: 10, default: 2, format: v => {
+                // Display as ms for < 1s, seconds for >= 1s
+                if (v < 1) return `${Math.round(v * 1000)} ms`;
+                return `${v.toFixed(1)} s`;
+            }},
             { id: 'material', min: 0, max: 1, default: 0.25, format: v => {
                 // 5-material system: Bronze (0) → Brass (0.25) → Steel (0.5) → Aluminum (0.75) → Cast Iron (1.0)
                 if (v < 0.125) return 'Bronze';
@@ -1323,7 +1345,7 @@
             meterRight.style.setProperty('--level', `${rightPercent}%`);
         };
 
-        console.log('O-Bells v1.5.4 UI initialized - 30 sliders + 2 choice params bound');
+        console.log('O-Bells v2.1.0 UI initialized - 31 sliders + 2 choice params bound');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY

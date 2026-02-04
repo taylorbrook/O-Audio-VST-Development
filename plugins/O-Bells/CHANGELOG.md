@@ -2,6 +2,130 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [2.1.0] - 2026-02-03
+
+### Added
+- **Air Absorption parameter** - Time-varying lowpass filter simulating realistic acoustic propagation
+  - Simulates progressive high-frequency loss as bell sound decays (air absorption, distance effect)
+  - 0%: No filtering (transparent, preserves existing sound)
+  - 50%: Subtle darkening over decay
+  - 100%: Progressive HF rolloff from 18kHz → 2kHz as bell decays
+  - Default: 0% (non-breaking, preserves all existing presets)
+  - Located in Synthesis section, next to Inharmonicity slider
+
+### Technical Notes
+- Domain: DSP + UI (BellVoice.cpp, PluginProcessor.cpp, PluginEditor.cpp, index.html)
+- Total parameters: 32 (was 31)
+- Implementation: One-pole lowpass filter per voice, cutoff modulated by decay progress
+- Filter coefficient: `coeff = 1 - exp(-2π * cutoff / sampleRate)`
+- Cutoff formula: `cutoff = 18000 - (18000 - minCutoff) * decayProgress` where `minCutoff = 18000 - 16000 * airAbsorption`
+- CPU overhead: Negligible (~2 multiplies + 1 exp per sample, only when parameter > 0)
+- Research basis: [Modal synthesis frequency-dependent damping](https://nathan.ho.name/posts/exploring-modal-synthesis/), [bell damping studies](https://www.acoustics.asn.au/conference_proceedings/ICSVS-1997/pdf/scan/sv970230.pdf)
+
+### Compatibility
+- Preset compatibility: Fully compatible (new param defaults to 0%, no audible change to existing presets)
+- DAW session compatibility: Sessions saved with older versions will load with Air=0%
+
+## [2.0.0] - 2026-02-03
+
+### Breaking Changes
+- **Parameter ID renamed:** `brightness` → `overtoneBrightness`
+  - Existing presets will NOT load brightness values correctly
+  - DAW automation lanes referencing "brightness" will break
+  - Users must re-save presets after loading in v2.0.0
+
+### Added
+- **Acoustic Brightness parameter** - Controls frequency-dependent decay rate (new)
+  - Simulates air absorption and natural bell physics where higher frequencies fade first
+  - 0%: Higher partials decay 4× faster (very warm, dark sustain)
+  - 50%: Moderate HF decay (natural bell character)
+  - 100%: Normal decay rates (bright, synthetic)
+  - Default: 70% (slightly natural)
+  - Research: Based on [Stanford CCRMA frequency-dependent damping](https://ccrma.stanford.edu/~jos/pasp/Frequency_Dependent_Damping.html) and [bell damping studies](https://www.acoustics.asn.au/conference_proceedings/ICSVS-1997/pdf/scan/sv970230.pdf)
+
+### Changed
+- **Brightness parameter split into two controls:**
+  - **Overtone Brightness** (renamed from "Brightness"): Controls initial partial amplitudes
+    - Expanded range: [0.1×, 2.0×] for highest partial (was [1.0×, 2.0×])
+    - 0%: Dark attack (upper partials attenuated)
+    - 50%: Neutral
+    - 100%: Bright attack (upper partials boosted)
+  - **Acoustic Brightness** (new): Controls how fast upper partials decay over time
+
+### Technical Notes
+- Domain: DSP + UI (BellVoice.cpp, PluginProcessor.cpp, index.html)
+- Total parameters: 31 (was 30)
+- Acoustic brightness formula: `acousticDecayMult = 1.0 - (1.0 - acousticBrightness) * partialRatio * 0.75`
+- Applied to both standard decay and multi-stage body phase decay
+- All factory presets updated with acousticBrightness=70% default
+
+### Migration Notes
+To migrate existing presets:
+1. Load preset in v2.0.0 (brightness value will be lost)
+2. Manually set "Overtone" slider to desired initial brightness
+3. Adjust "Acoustic" slider for decay character
+4. Re-save preset
+
+## [1.6.0] - 2026-02-03
+
+### Changed
+- **Complete factory preset redesign** - All 25 presets remade with research-informed parameter values
+  - New preset names reflecting real instruments and sonic characteristics
+  - Full utilization of bloom, shimmer, multi-stage decay, and ensemble features
+  - Acoustically accurate parameters based on bell physics research
+
+### Research Sources
+Presets designed using acoustic research on real bells:
+- Church bell partial ratios: Hum(0.25):Prime(0.5):Tierce(0.6):Quint(0.75):Nominal(1.0)
+- Gamelan inharmonicity derived from bronze metallophone spectra (sléndro tuning)
+- Singing bowl beating frequencies (~2-3Hz monaural beats from asymmetric modes)
+- Tubular bell strike pitch phenomenon (4th/5th/6th partials in 2:3:4 ratio)
+- Steel pan harmonic generation through nonlinear vibration
+- Vibraphone modal frequency ratios (1:2.76:5.4 for bar instruments)
+
+### New Preset List
+
+**Orchestral (5):**
+- Westminster Chimes - Steel tubular bells with characteristic twangy brightness
+- Crystal Glockenspiel - Pure, high steel bars with suppressed overtones
+- Jazz Vibes - Warm aluminum vibraphone with motor-like shimmer
+- Antique Crotales - Sustaining bronze discs with harmonic purity
+- Nutcracker Celesta - Gentle hammered steel with wooden warmth
+
+**Sacred (5):**
+- Flemish Carillon - True-harmonic bronze with minor third partial
+- Russian Zvon - Cast iron with intentionally beating partials
+- Himalayan Bowl - Bronze singing bowl with monaural beat texture
+- Temple Tam-Tam - Large gong with complex inharmonic bloom
+- Sanctus Handbell - Clear brass with prominent octave partial
+
+**World (5):**
+- Javanese Saron - Extreme inharmonicity bronze bar (sléndro-informed)
+- Balinese Bonang - Knobbed gong essential to gamelan tuning
+- Trinidad Tenor Pan - Steel pan with nonlinear harmonic generation
+- West African Balafon - Warm woody tone with subtle buzzing texture
+- Temple Woodblock - Dry percussive with emphasis on attack
+
+**Ambient (5):**
+- Spectral Bloom - Slowly evolving texture with maximum bloom
+- Ice Crystals - High shimmering harmonics with crystalline character
+- Subterranean Drone - Deep, dark texture with extreme sub presence
+- Wind Chimes - Delicate, spacious aluminum chimes
+- Sunken Cathedral - Filtered, underwater-like bell atmosphere
+
+**Cinematic (5):**
+- Trailer Impact - Massive hit bell for epic moments
+- Dread Toll - Dissonant, tense bell for suspense/horror
+- Ascension - Ethereal, angelic bell for emotional peaks
+- Harbinger - Dark, ominous bell with deep sub weight
+- Victory Peal - Bright, triumphant celebratory bell
+
+### Technical Notes
+- Domain: Preset data only (no DSP changes)
+- Previous presets must be deleted manually: `~/Library/O-Bells/Presets/Factory/`
+- New presets will be created on next plugin load after clearing old presets
+- All parameters now properly utilized (bloom, shimmer, multi-stage decay, reverb, attack)
+
 ## [1.5.4] - 2026-02-03
 
 ### Changed

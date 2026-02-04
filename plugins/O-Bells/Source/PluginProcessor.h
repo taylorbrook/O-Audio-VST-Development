@@ -73,7 +73,10 @@ private:
     std::atomic<float>* strikePositionParam = nullptr;
     std::atomic<float>* malletHardnessParam = nullptr;
     std::atomic<float>* dampingParam = nullptr;
-    std::atomic<float>* brightnessParam = nullptr;
+    std::atomic<float>* overtoneBrightnessParam = nullptr;  // v2.0.0: renamed from brightnessParam
+    std::atomic<float>* acousticBrightnessParam = nullptr;  // v2.0.0: new - controls HF decay rate
+    std::atomic<float>* airAbsorptionParam = nullptr;       // v2.1.0: time-varying lowpass filter
+    std::atomic<float>* airAbsorptionTimeParam = nullptr;  // v2.2.0: independent time control
     std::atomic<float>* materialParam = nullptr;
     std::atomic<float>* inharmonicityParam = nullptr;
     std::atomic<float>* bloomSpeedParam = nullptr;   // v1.4.0: Split bloom

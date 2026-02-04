@@ -41,7 +41,10 @@ private:
     std::unique_ptr<juce::WebSliderRelay> strikePositionRelay;
     std::unique_ptr<juce::WebSliderRelay> malletHardnessRelay;
     std::unique_ptr<juce::WebSliderRelay> dampingRelay;
-    std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
+    std::unique_ptr<juce::WebSliderRelay> overtoneBrightnessRelay;   // v2.0.0: renamed from brightnessRelay
+    std::unique_ptr<juce::WebSliderRelay> acousticBrightnessRelay;   // v2.0.0: new
+    std::unique_ptr<juce::WebSliderRelay> airAbsorptionRelay;       // v2.1.0: new
+    std::unique_ptr<juce::WebSliderRelay> airAbsorptionTimeRelay;  // v2.2.0: independent time
     std::unique_ptr<juce::WebSliderRelay> inharmonicityRelay;
     std::unique_ptr<juce::WebSliderRelay> bloomSpeedRelay;   // v1.4.0: Split bloom
     std::unique_ptr<juce::WebSliderRelay> bloomAmountRelay;
@@ -85,7 +88,10 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> strikePositionAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> malletHardnessAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> dampingAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> overtoneBrightnessAttachment;   // v2.0.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> acousticBrightnessAttachment;   // v2.0.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> airAbsorptionAttachment;       // v2.1.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> airAbsorptionTimeAttachment;  // v2.2.0
     std::unique_ptr<juce::WebSliderParameterAttachment> inharmonicityAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bloomSpeedAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> bloomAmountAttachment;

@@ -31,7 +31,8 @@ public:
     void prepare(double sampleRate, int samplesPerBlock);
 
     // Parameter update (called from processor's prepareToPlay or processBlock)
-    void updateParameters(float inharmonicity, float damping, float brightness,
+    void updateParameters(float inharmonicity, float damping, float overtoneBrightness, float acousticBrightness,
+                         float airAbsorption, float airAbsorptionTime,
                          float strikePosition, float malletHardness, float material,
                          float bloomSpeed, float bloomAmount,
                          bool bloomFineEnabled,
@@ -152,7 +153,10 @@ private:
     // Current parameters (updated from processor)
     float currentInharmonicity = 0.5f;
     float currentDamping = 0.7f;
-    float currentBrightness = 0.5f;
+    float currentOvertoneBrightness = 0.5f;   // v2.0.0: renamed from currentBrightness
+    float currentAcousticBrightness = 0.7f;   // v2.0.0: new - controls HF decay rate
+    float currentAirAbsorption = 0.0f;       // v2.1.0: time-varying lowpass filter
+    float currentAirAbsorptionTime = 2.0f;   // v2.2.0: independent time in seconds
     float currentStrikePosition = 0.5f;
     float currentMalletHardness = 0.5f;
     float currentMaterial = 0.25f;
@@ -215,6 +219,14 @@ private:
     // Mallet attack ramp state (v1.2.0)
     int attackRampSamples = 0;       // Total samples for attack ramp
     int attackRampPosition = 0;      // Current position in ramp
+
+    // Air absorption lowpass filter state (v2.1.0)
+    // Two-pole filter (12dB/octave) - cascaded one-poles
+    float airLPFilterStateL1 = 0.0f;  // Left channel filter state (pole 1)
+    float airLPFilterStateL2 = 0.0f;  // Left channel filter state (pole 2)
+    float airLPFilterStateR1 = 0.0f;  // Right channel filter state (pole 1)
+    float airLPFilterStateR2 = 0.0f;  // Right channel filter state (pole 2)
+    int airAbsorptionElapsedSamples = 0;  // v2.2.0: independent time tracking
 
     // Helper functions
     float calculatePartialFrequency(int partialIndex, float fundamental, float inharmonicity);

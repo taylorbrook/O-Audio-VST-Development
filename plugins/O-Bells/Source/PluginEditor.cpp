@@ -18,7 +18,10 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     strikePositionRelay = std::make_unique<juce::WebSliderRelay>("strikePosition");
     malletHardnessRelay = std::make_unique<juce::WebSliderRelay>("malletHardness");
     dampingRelay = std::make_unique<juce::WebSliderRelay>("damping");
-    brightnessRelay = std::make_unique<juce::WebSliderRelay>("brightness");
+    overtoneBrightnessRelay = std::make_unique<juce::WebSliderRelay>("overtoneBrightness");
+    acousticBrightnessRelay = std::make_unique<juce::WebSliderRelay>("acousticBrightness");
+    airAbsorptionRelay = std::make_unique<juce::WebSliderRelay>("airAbsorption");
+    airAbsorptionTimeRelay = std::make_unique<juce::WebSliderRelay>("airAbsorptionTime");
     inharmonicityRelay = std::make_unique<juce::WebSliderRelay>("inharmonicity");
     bloomSpeedRelay = std::make_unique<juce::WebSliderRelay>("bloomSpeed");
     bloomAmountRelay = std::make_unique<juce::WebSliderRelay>("bloomAmount");
@@ -62,7 +65,10 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*strikePositionRelay)
             .withOptionsFrom(*malletHardnessRelay)
             .withOptionsFrom(*dampingRelay)
-            .withOptionsFrom(*brightnessRelay)
+            .withOptionsFrom(*overtoneBrightnessRelay)
+            .withOptionsFrom(*acousticBrightnessRelay)
+            .withOptionsFrom(*airAbsorptionRelay)
+            .withOptionsFrom(*airAbsorptionTimeRelay)
             .withOptionsFrom(*materialRelay)
             .withOptionsFrom(*inharmonicityRelay)
             .withOptionsFrom(*bloomSpeedRelay)
@@ -239,8 +245,14 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("malletHardness"), *malletHardnessRelay, nullptr);
     dampingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("damping"), *dampingRelay, nullptr);
-    brightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("brightness"), *brightnessRelay, nullptr);
+    overtoneBrightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("overtoneBrightness"), *overtoneBrightnessRelay, nullptr);
+    acousticBrightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("acousticBrightness"), *acousticBrightnessRelay, nullptr);
+    airAbsorptionAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("airAbsorption"), *airAbsorptionRelay, nullptr);
+    airAbsorptionTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("airAbsorptionTime"), *airAbsorptionTimeRelay, nullptr);
     inharmonicityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("inharmonicity"), *inharmonicityRelay, nullptr);
     bloomSpeedAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

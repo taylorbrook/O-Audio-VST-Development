@@ -41,7 +41,8 @@ void BellVoice::prepare(double sampleRate, int samplesPerBlock)
     }
 }
 
-void BellVoice::updateParameters(float inharmonicity, float damping, float brightness,
+void BellVoice::updateParameters(float inharmonicity, float damping, float overtoneBrightness, float acousticBrightness,
+                                 float airAbsorption, float airAbsorptionTime,
                                  float strikePosition, float malletHardness, float material,
                                  float bloomSpeed, float bloomAmount,
                                  bool bloomFineEnabled,
@@ -57,7 +58,10 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float brigh
 {
     currentInharmonicity = inharmonicity;
     currentDamping = damping;
-    currentBrightness = brightness;
+    currentOvertoneBrightness = overtoneBrightness;
+    currentAcousticBrightness = acousticBrightness;
+    currentAirAbsorption = airAbsorption;
+    currentAirAbsorptionTime = airAbsorptionTime;
     currentStrikePosition = strikePosition;
     currentMalletHardness = malletHardness;
     currentMaterial = material;
@@ -103,6 +107,13 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     releaseRate = 1.0f;
     samplesSinceNoteOn = 0;  // Reset sample counter for multi-stage envelope
     decayProgress = 0.0f;    // Reset decay progress for shimmer
+
+    // Reset air absorption filter state (v2.1.0)
+    airLPFilterStateL1 = 0.0f;
+    airLPFilterStateL2 = 0.0f;
+    airLPFilterStateR1 = 0.0f;
+    airLPFilterStateR2 = 0.0f;
+    airAbsorptionElapsedSamples = 0;  // v2.2.0: reset independent time
 
     // Calculate fundamental frequency
     float fundamental = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
@@ -532,6 +543,44 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
         leftOutput *= totalNorm;
         rightOutput *= totalNorm;
 
+        // Apply air absorption lowpass filter (v2.1.0, enhanced v2.2.0)
+        // Two-pole filter (12dB/octave) simulating progressive HF loss
+        // v2.2.0: Independent time control with exponential curve (fast initial darkening)
+        if (currentAirAbsorption > 0.0f)
+        {
+            // Calculate time-based progress (v2.2.0: independent of decay envelope)
+            float totalSamples = currentAirAbsorptionTime * static_cast<float>(currentSampleRate);
+            float timeProgress = juce::jlimit(0.0f, 1.0f,
+                static_cast<float>(airAbsorptionElapsedSamples) / totalSamples);
+            airAbsorptionElapsedSamples++;  // Increment time tracker
+
+            // Exponential curve: fast initial darkening, slows toward end
+            // y = 1 - (1-x)^2  (quadratic ease-out)
+            float t = 1.0f - timeProgress;
+            float shapedProgress = 1.0f - (t * t);
+
+            // Calculate cutoff frequency
+            // At start: 18kHz (transparent), at end: scales down with air absorption
+            // airAbsorption=1: 18kHz -> 800Hz over time
+            float minCutoff = 18000.0f - (17200.0f * currentAirAbsorption);  // 800Hz at max absorption
+            float cutoff = 18000.0f - (18000.0f - minCutoff) * shapedProgress;
+            cutoff = juce::jlimit(400.0f, 18000.0f, cutoff);  // Safety clamp
+
+            // One-pole coefficient (used twice for two-pole / 12dB/octave)
+            float coeff = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * cutoff / static_cast<float>(currentSampleRate));
+
+            // Apply cascaded two-pole filter to both channels (12dB/octave)
+            // First pole
+            airLPFilterStateL1 += coeff * (leftOutput - airLPFilterStateL1);
+            airLPFilterStateR1 += coeff * (rightOutput - airLPFilterStateR1);
+            // Second pole
+            airLPFilterStateL2 += coeff * (airLPFilterStateL1 - airLPFilterStateL2);
+            airLPFilterStateR2 += coeff * (airLPFilterStateR1 - airLPFilterStateR2);
+
+            leftOutput = airLPFilterStateL2;
+            rightOutput = airLPFilterStateR2;
+        }
+
         // Apply output gain (after normalization so 0dB = unity)
         float outputGainLinear = juce::Decibels::decibelsToGain(currentOutputGain);
         leftOutput *= outputGainLinear;
@@ -603,13 +652,18 @@ float BellVoice::calculateStrikePositionGain(int partialIndex, float position)
     return lowPartialGain + normalizedPartial * (highPartialGain - lowPartialGain);
 }
 
-float BellVoice::calculatePartialAmplitude(int partialIndex, float brightness)
+float BellVoice::calculatePartialAmplitude(int partialIndex, float overtoneBrightness)
 {
     // Base amplitude decreases with partial number
     float baseAmp = 1.0f / (partialIndex + 1.0f);
 
-    // Brightness scales upper partials
-    float brightnessScale = 1.0f + brightness * (partialIndex / static_cast<float>(NUM_PARTIALS));
+    // Overtone brightness scales upper partials with expanded range [0.1, 2.0]
+    // v2.0.0: Renamed from "brightness" to clarify it controls initial partial balance
+    // overtoneBrightness=0: highest partial scaled to 0.1x (dark)
+    // overtoneBrightness=0.5: neutral (1.0x scaling)
+    // overtoneBrightness=1: highest partial scaled to 2.0x (bright)
+    float partialRatio = partialIndex / static_cast<float>(NUM_PARTIALS);
+    float brightnessScale = 1.0f + partialRatio * (1.9f * overtoneBrightness - 0.9f);
 
     return baseAmp * brightnessScale;
 }
@@ -703,7 +757,7 @@ void BellVoice::initializePartials(float fundamental, float velocity)
         partial.phase = 0.0f;
 
         // Calculate initial amplitude with material brightness offset
-        float effectiveBrightness = currentBrightness + materialProps.brightnessOffset;
+        float effectiveBrightness = currentOvertoneBrightness + materialProps.brightnessOffset;
         effectiveBrightness = juce::jlimit(0.0f, 1.0f, effectiveBrightness);
 
         float baseAmplitude = calculatePartialAmplitude(p, effectiveBrightness);
@@ -720,7 +774,15 @@ void BellVoice::initializePartials(float fundamental, float velocity)
 
         // Calculate decay rate (exponential decay) with material multiplier
         float baseDecayTime = juce::jmap(currentDamping, 0.5f, 5.0f);  // 0.5s to 5s
-        float partialDecayTime = baseDecayTime * DECAY_MULTIPLIERS[p] * materialProps.decayMultiplier;
+
+        // v2.0.0: Acoustic brightness - higher partials decay faster when acousticBrightness is low
+        // This simulates air absorption and natural bell physics where HF content fades first
+        // acousticBrightness=0: highest partial decays 4x faster (partialRatio * 0.75 = 0.75 reduction)
+        // acousticBrightness=1: no additional decay (normal behavior)
+        float partialRatio = static_cast<float>(p) / NUM_PARTIALS;
+        float acousticDecayMultiplier = 1.0f - (1.0f - currentAcousticBrightness) * partialRatio * 0.75f;
+
+        float partialDecayTime = baseDecayTime * DECAY_MULTIPLIERS[p] * materialProps.decayMultiplier * acousticDecayMultiplier;
         partial.decayRate = std::exp(-1.0f / (partialDecayTime * static_cast<float>(currentSampleRate)));
 
         partial.active = partial.amplitude > 0.001f;
@@ -848,7 +910,10 @@ void BellVoice::calculateMultiStageCoefficients(float fundamental)
 
         // === BODY PHASE coefficients ===
         // Use Risset-style duration ratios already in DECAY_MULTIPLIERS
-        float bodyDecayTime = bodyTimeSec * DECAY_MULTIPLIERS[p] * materialMult;
+        // v2.0.0: Apply acoustic brightness - higher partials decay faster when acousticBrightness is low
+        float partialRatio = static_cast<float>(p) / NUM_PARTIALS;
+        float acousticDecayMult = 1.0f - (1.0f - currentAcousticBrightness) * partialRatio * 0.75f;
+        float bodyDecayTime = bodyTimeSec * DECAY_MULTIPLIERS[p] * materialMult * acousticDecayMult;
         bodyDecayCoeffs[p] = std::exp(-1.0f / (bodyDecayTime * static_cast<float>(currentSampleRate)));
 
         // === HUM PHASE coefficients ===
