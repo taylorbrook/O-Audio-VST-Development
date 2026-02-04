@@ -58,6 +58,10 @@ public:
     // Public access to preset manager
     OuariconPresetManager& getPresetManager() { return presetManager; }
 
+    // v2.2.0: GUI keyboard note triggering
+    void triggerNoteOn(int midiNote, float velocity);
+    void triggerNoteOff(int midiNote);
+
     // Output level metering (peak values, 0.0 to 1.0)
     std::atomic<float> outputLevelLeft { 0.0f };
     std::atomic<float> outputLevelRight { 0.0f };

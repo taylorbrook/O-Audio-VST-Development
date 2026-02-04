@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.1.0
+- **Version:** 2.2.0
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -24,6 +24,7 @@
 - **2026-02-03 (v1.6.1):** Brightness parameter range expanded [0.1, 2.0] for wider tonal control
 - **2026-02-03 (v2.0.0):** BREAKING - Split brightness into Overtone + Acoustic brightness (31 params)
 - **2026-02-03 (v2.1.0):** Air Absorption parameter - time-varying lowpass filter for acoustic realism (32 params)
+- **2026-02-03 (v2.2.0):** GUI keyboard in footer panel with Gain slider relocated
 
 ## Known Issues
 
@@ -159,3 +160,83 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - Resources/ui/index.html - New Envelope section with show/hide logic
 
 **Validation:** pluginval SUCCESS (strictness 5), auval PASS
+
+### v2.2.0 (2026-02-03)
+**Request:** Add GUI keyboard to footer panel, move Gain slider to footer
+
+**Implementation:**
+- Expanded footer from 40px to 55px height
+- Added 2-octave interactive keyboard (C3-B4) with QWERTY support
+- Moved Gain slider from Output section to footer
+- Added `sendMidiNote` native function for keyboard → synth communication
+- Added `triggerNoteOn`/`triggerNoteOff` methods to PluginProcessor
+
+**Files Modified:**
+- PluginProcessor.h/cpp - Added note trigger methods
+- PluginEditor.cpp - Added sendMidiNote native function
+- Resources/ui/index.html - Footer expansion, keyboard CSS/JS
+
+**Validation:** Manual DAW testing confirmed
+
+---
+
+## Footer Module Integration Notes (v2.2.0 Lessons Learned)
+
+When integrating the `instrument-footer-panel` module (from `modules/ui/instrument-footer-panel/`) into a plugin, **DO NOT** use the module's JS file directly. Instead, follow this surgical approach:
+
+### What Works
+
+1. **Add CSS inline** - Copy only the CSS styles you need into the plugin's `<style>` block. Don't replace existing footer CSS entirely.
+
+2. **Modify existing footer HTML** - Expand the existing `<div class="footer">` to include:
+   - Gain slider (with same `data-param` binding pattern as other sliders)
+   - Keyboard container `<div class="footer-keyboard-viz" id="keyboard-viz">`
+   - Branding text
+
+3. **Add keyboard JS after existing bindings** - The keyboard JS must come AFTER the slider parameter binding code so `parameterStates.get('outputGain')` is available.
+
+4. **Adjust tab-content height** - Change `calc(100% - 130px)` to `calc(100% - 145px)` for 55px footer.
+
+### What Breaks
+
+1. **Replacing footer CSS entirely** - This can accidentally remove styles for expandable sections, bloom fine controls, etc. that share CSS with the footer area.
+
+2. **Using the module's standalone JS** - The module expects its own initialization pattern. Instead, inline the keyboard-building code and use the plugin's existing JUCE binding pattern.
+
+3. **Reordering HTML sections** - Moving the Output section or changing its structure can break meter bindings.
+
+### C++ Requirements
+
+Add to PluginProcessor.h:
+```cpp
+void triggerNoteOn(int midiNote, float velocity);
+void triggerNoteOff(int midiNote);
+```
+
+Add to PluginProcessor.cpp:
+```cpp
+void MyProcessor::triggerNoteOn(int midiNote, float velocity) {
+    midiNote = juce::jlimit(0, 127, midiNote);
+    velocity = juce::jlimit(0.0f, 1.0f, velocity);
+    synthesiser.noteOn(1, midiNote, velocity);
+}
+
+void MyProcessor::triggerNoteOff(int midiNote) {
+    midiNote = juce::jlimit(0, 127, midiNote);
+    synthesiser.noteOff(1, midiNote, 0.0f, true);
+}
+```
+
+Add native function in PluginEditor.cpp WebView options:
+```cpp
+.withNativeFunction("sendMidiNote", [this](const juce::Array<juce::var>& args,
+                                            std::function<void(juce::var)> complete) {
+    if (args.size() >= 3) {
+        int midiNote = static_cast<int>(args[0]);
+        float velocity = static_cast<float>(args[1]);
+        bool isNoteOn = static_cast<bool>(args[2]);
+        if (isNoteOn) processorRef.triggerNoteOn(midiNote, velocity);
+        else processorRef.triggerNoteOff(midiNote);
+    }
+    complete({});
+})

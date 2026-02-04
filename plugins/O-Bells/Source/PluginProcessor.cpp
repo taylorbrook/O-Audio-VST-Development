@@ -612,6 +612,26 @@ void OBellsAudioProcessor::setStateInformation(const void* data, int sizeInBytes
 }
 
 //==============================================================================
+// v2.2.0: GUI keyboard note triggering
+void OBellsAudioProcessor::triggerNoteOn(int midiNote, float velocity)
+{
+    // Clamp values to valid MIDI ranges
+    midiNote = juce::jlimit(0, 127, midiNote);
+    velocity = juce::jlimit(0.0f, 1.0f, velocity);
+
+    // Use channel 1 for UI-triggered notes
+    synthesiser.noteOn(1, midiNote, velocity);
+}
+
+void OBellsAudioProcessor::triggerNoteOff(int midiNote)
+{
+    midiNote = juce::jlimit(0, 127, midiNote);
+
+    // allowTailOff = true for natural release
+    synthesiser.noteOff(1, midiNote, 0.0f, true);
+}
+
+//==============================================================================
 void OBellsAudioProcessor::initializeFactoryPresets()
 {
     // Only initialize if factory presets don't exist yet

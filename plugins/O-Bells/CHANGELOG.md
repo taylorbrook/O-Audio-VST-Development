@@ -2,6 +2,33 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [2.2.0] - 2026-02-03
+
+### Added
+- **GUI Keyboard in footer** - 2-octave interactive keyboard (C3-B4) for auditioning sounds
+  - Click or touch keys to play notes
+  - QWERTY keyboard support (Z-M for C3-B3, Q-P for C4-B4)
+  - Visual feedback on key press
+  - Sends MIDI to synth engine via `sendMidiNote` native function
+
+### Changed
+- **Footer panel expanded** - New layout: Gain Fader | GUI Keyboard | Branding
+  - Gain slider moved from Output section to sticky footer for quick access
+  - Footer height increased from 40px to 55px
+  - Output section now contains only Reverb slider and stereo meters
+
+### Technical Notes
+- Domain: UI + C++ (index.html, PluginEditor.cpp, PluginProcessor.cpp/.h)
+- New C++ methods: `triggerNoteOn(int, float)`, `triggerNoteOff(int)`
+- New native function: `sendMidiNote(note, velocity, isNoteOn)`
+- Keyboard uses `juce::Synthesiser::noteOn()`/`noteOff()` (thread-safe)
+- Tab content height adjusted: `calc(100% - 145px)`
+- **Integration approach:** Inline CSS/JS additions rather than using standalone module files (see NOTES.md for details)
+
+### Compatibility
+- Preset compatibility: Fully compatible (no parameter changes)
+- DAW session compatibility: Fully compatible
+
 ## [2.1.0] - 2026-02-03
 
 ### Added

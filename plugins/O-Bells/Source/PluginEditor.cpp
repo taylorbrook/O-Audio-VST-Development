@@ -104,6 +104,25 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             // decayShapeRelay removed in v1.2.0
 
             // ═══════════════════════════════════════════════════════════════════
+            // v2.2.0: GUI KEYBOARD NATIVE FUNCTION
+            // ═══════════════════════════════════════════════════════════════════
+
+            .withNativeFunction("sendMidiNote", [this](const juce::Array<juce::var>& args,
+                                                        std::function<void(juce::var)> complete) {
+                if (args.size() >= 3) {
+                    int midiNote = static_cast<int>(args[0]);
+                    float velocity = static_cast<float>(args[1]);
+                    bool isNoteOn = static_cast<bool>(args[2]);
+
+                    if (isNoteOn)
+                        processorRef.triggerNoteOn(midiNote, velocity);
+                    else
+                        processorRef.triggerNoteOff(midiNote);
+                }
+                complete({});
+            })
+
+            // ═══════════════════════════════════════════════════════════════════
             // PRESET NATIVE FUNCTIONS
             // ═══════════════════════════════════════════════════════════════════
 

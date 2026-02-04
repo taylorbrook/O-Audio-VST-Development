@@ -161,7 +161,7 @@
             top: 90px;
             left: 0;
             width: 100%;
-            height: calc(100% - 130px);
+            height: calc(100% - 145px);  /* v2.2.0: Adjusted for 55px footer */
             display: none;
             padding: 14px 30px;
             z-index: 0;
@@ -173,7 +173,7 @@
         }
 
         /* ====================================================================
-           FOOTER
+           FOOTER (v2.2.0: Expanded with keyboard)
            ==================================================================== */
 
         .footer {
@@ -181,21 +181,127 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 40px;
+            height: 55px;
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
+            padding: 0 20px;
             background: linear-gradient(to bottom, #F5E6D3, #EBD9C7);
             border-top: 2px solid #8B7355;
             z-index: 2;
         }
 
         .footer p {
-            font-size: 11px;
+            font-size: 8px;
             font-weight: 300;
-            letter-spacing: 2px;
-            color: #5C4033;
+            letter-spacing: 1px;
+            color: #8B7355;
             text-transform: uppercase;
+            flex-shrink: 0;
+        }
+
+        /* Footer Gain Slider */
+        .footer-gain {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .footer-gain-label {
+            font-size: 9px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .footer-gain .slider {
+            width: 70px;
+        }
+
+        .footer-gain .param-value {
+            min-width: 35px;
+        }
+
+        /* Footer Keyboard */
+        .footer-keyboard {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+            max-width: 380px;
+            margin: 0 15px;
+        }
+
+        .footer-keyboard-viz {
+            width: 100%;
+            height: 38px;
+            background: #FAF0E6;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            display: flex;
+            overflow: visible;
+            position: relative;
+        }
+
+        .footer-keyboard .white-key {
+            flex: 1;
+            background: rgba(139, 168, 112, 0.35);
+            border-right: 1px solid rgba(139, 115, 85, 0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 2px;
+            transition: background 0.15s;
+            cursor: pointer;
+            z-index: 1;
+        }
+
+        .footer-keyboard .white-key:last-of-type {
+            border-right: none;
+        }
+
+        .footer-keyboard .white-key span {
+            font-size: 6px;
+            color: #5C4033;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .footer-keyboard .white-key:hover:not(.pressed) {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .footer-keyboard .white-key.pressed {
+            background: #8BC34A !important;
+        }
+
+        .footer-keyboard .black-key {
+            position: absolute;
+            width: 12px;
+            height: 24px;
+            background: #4A6B2A;
+            border-radius: 0 0 2px 2px;
+            top: 0;
+            z-index: 10;
+            transition: background 0.15s;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        }
+
+        .footer-keyboard .black-key:hover:not(.pressed) {
+            background: #5A8B3A;
+        }
+
+        .footer-keyboard .black-key.pressed {
+            background: #8BC34A !important;
+        }
+
+        .footer-keyboard-help {
+            font-size: 7px;
+            color: #8B7355;
         }
 
         /* ====================================================================
@@ -1027,7 +1133,7 @@
                 </div>
             </div>
 
-            <!-- Output Section -->
+            <!-- Output Section (v2.2.0: Gain moved to footer) -->
             <div class="section">
                 <div class="section-title">Output</div>
                 <div class="param-row output-row">
@@ -1037,13 +1143,6 @@
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="reverbMix">30%</div>
-                    </div>
-                    <div class="param-control output-control">
-                        <div class="param-label">Gain</div>
-                        <div class="slider" data-param="outputGain">
-                            <div class="slider-thumb"></div>
-                        </div>
-                        <div class="param-value" data-value="outputGain">0dB</div>
                     </div>
                     <div class="meter-control">
                         <div class="param-label">Level</div>
@@ -1065,8 +1164,24 @@
             <div class="placeholder">Coming Soon</div>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer (v2.2.0: Added Gain slider and keyboard) -->
         <div class="footer">
+            <!-- Gain Slider -->
+            <div class="footer-gain">
+                <span class="footer-gain-label">Gain</span>
+                <div class="slider" data-param="outputGain" id="footer-gain-slider">
+                    <div class="slider-thumb"></div>
+                </div>
+                <span class="param-value" data-value="outputGain" id="footer-gain-value">0dB</span>
+            </div>
+
+            <!-- Keyboard -->
+            <div class="footer-keyboard">
+                <div class="footer-keyboard-viz" id="keyboard-viz"></div>
+                <div class="footer-keyboard-help">Click or use Z-M, Q-P keys</div>
+            </div>
+
+            <!-- Branding -->
             <p>Ouaricon Audio</p>
         </div>
     </div>
@@ -1345,7 +1460,159 @@
             meterRight.style.setProperty('--level', `${rightPercent}%`);
         };
 
-        console.log('O-Bells v2.1.0 UI initialized - 31 sliders + 2 choice params bound');
+        // ====================================================================
+        // v2.2.0: FOOTER GAIN SLIDER BINDING
+        // ====================================================================
+
+        const footerGainSlider = document.getElementById('footer-gain-slider');
+        const footerGainThumb = footerGainSlider.querySelector('.slider-thumb');
+        const footerGainValue = document.getElementById('footer-gain-value');
+        const outputGainState = parameterStates.get('outputGain');
+
+        function updateFooterGainVisual(value) {
+            const position = value * 100;
+            footerGainThumb.style.left = `calc(${position}% - 7px)`;
+            footerGainValue.textContent = `${Math.round((value - 0.67) * 36 / 0.33)}dB`;
+        }
+
+        if (outputGainState) {
+            updateFooterGainVisual(outputGainState.getNormalisedValue());
+
+            let footerGainDragging = false;
+            footerGainSlider.addEventListener('mousedown', (e) => {
+                footerGainDragging = true;
+                updateFooterGainFromMouse(e);
+            });
+            document.addEventListener('mousemove', (e) => {
+                if (footerGainDragging) updateFooterGainFromMouse(e);
+            });
+            document.addEventListener('mouseup', () => footerGainDragging = false);
+
+            function updateFooterGainFromMouse(e) {
+                const rect = footerGainSlider.getBoundingClientRect();
+                const x = Math.max(0, Math.min(rect.width, e.clientX - rect.left));
+                const value = x / rect.width;
+                outputGainState.setNormalisedValue(value);
+                updateFooterGainVisual(value);
+            }
+
+            outputGainState.valueChangedEvent.addListener(() => {
+                updateFooterGainVisual(outputGainState.getNormalisedValue());
+            });
+        }
+
+        // ====================================================================
+        // v2.2.0: FOOTER KEYBOARD
+        // ====================================================================
+
+        const OCTAVES = 2;
+        const START_NOTE = 48;  // C3
+        const WHITE_KEY_SEMITONES = [0, 2, 4, 5, 7, 9, 11];
+        const BLACK_KEY_POSITIONS = [0, 1, 3, 4, 5];
+        const BLACK_KEY_SEMITONES = [1, 3, 6, 8, 10];
+        const NOTE_NAMES = ['C', 'D', 'E', 'F', 'G', 'A', 'B'];
+
+        const QWERTY_MAP = {
+            'z': 48, 's': 49, 'x': 50, 'd': 51, 'c': 52,
+            'v': 53, 'g': 54, 'b': 55, 'h': 56, 'n': 57, 'j': 58, 'm': 59,
+            'q': 60, '2': 61, 'w': 62, '3': 63, 'e': 64,
+            'r': 65, '5': 66, 't': 67, '6': 68, 'y': 69, '7': 70, 'u': 71
+        };
+
+        const keyboardViz = document.getElementById('keyboard-viz');
+        const keyElements = new Map();
+        const playingKeys = new Set();
+        const qwertyPressedKeys = new Set();
+        const velocity = 0.8;
+
+        const sendMidiNote = Juce.getNativeFunction('sendMidiNote');
+
+        // Build white keys
+        const whiteKeysPerOctave = 7;
+        const totalWhiteKeys = OCTAVES * whiteKeysPerOctave;
+
+        for (let octave = 0; octave < OCTAVES; octave++) {
+            for (let i = 0; i < whiteKeysPerOctave; i++) {
+                const semitone = WHITE_KEY_SEMITONES[i];
+                const midiNote = START_NOTE + octave * 12 + semitone;
+
+                const key = document.createElement('div');
+                key.className = 'white-key';
+                key.dataset.note = midiNote;
+
+                const label = document.createElement('span');
+                if (i === 0) {
+                    const octaveNum = Math.floor(midiNote / 12) - 1;
+                    label.textContent = `C${octaveNum}`;
+                } else {
+                    label.textContent = NOTE_NAMES[i];
+                }
+                key.appendChild(label);
+                keyboardViz.appendChild(key);
+                keyElements.set(midiNote, key);
+            }
+        }
+
+        // Build black keys
+        for (let octave = 0; octave < OCTAVES; octave++) {
+            for (let i = 0; i < BLACK_KEY_POSITIONS.length; i++) {
+                const whiteKeyIndex = octave * whiteKeysPerOctave + BLACK_KEY_POSITIONS[i];
+                const midiNote = START_NOTE + octave * 12 + BLACK_KEY_SEMITONES[i];
+
+                const key = document.createElement('div');
+                key.className = 'black-key';
+                key.dataset.note = midiNote;
+                key.style.left = `calc(100% / ${totalWhiteKeys} * ${whiteKeyIndex + 1} - 6px)`;
+
+                keyboardViz.appendChild(key);
+                keyElements.set(midiNote, key);
+            }
+        }
+
+        function keyboardNoteOn(midiNote) {
+            if (playingKeys.has(midiNote)) return;
+            playingKeys.add(midiNote);
+            const el = keyElements.get(midiNote);
+            if (el) el.classList.add('pressed');
+            sendMidiNote(midiNote, velocity, true);
+        }
+
+        function keyboardNoteOff(midiNote) {
+            if (!playingKeys.has(midiNote)) return;
+            playingKeys.delete(midiNote);
+            const el = keyElements.get(midiNote);
+            if (el) el.classList.remove('pressed');
+            sendMidiNote(midiNote, 0, false);
+        }
+
+        keyElements.forEach((element, midiNote) => {
+            element.addEventListener('mousedown', (e) => { e.preventDefault(); keyboardNoteOn(midiNote); });
+            element.addEventListener('mouseup', () => keyboardNoteOff(midiNote));
+            element.addEventListener('mouseleave', () => { if (playingKeys.has(midiNote)) keyboardNoteOff(midiNote); });
+            element.addEventListener('touchstart', (e) => { e.preventDefault(); keyboardNoteOn(midiNote); });
+            element.addEventListener('touchend', (e) => { e.preventDefault(); keyboardNoteOff(midiNote); });
+        });
+
+        document.addEventListener('mouseup', () => playingKeys.forEach(n => keyboardNoteOff(n)));
+
+        document.addEventListener('keydown', (e) => {
+            if (e.repeat || e.target.tagName === 'INPUT') return;
+            const note = QWERTY_MAP[e.key.toLowerCase()];
+            if (note !== undefined && !qwertyPressedKeys.has(e.key)) {
+                qwertyPressedKeys.add(e.key);
+                keyboardNoteOn(note);
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            const note = QWERTY_MAP[e.key.toLowerCase()];
+            if (note !== undefined) {
+                qwertyPressedKeys.delete(e.key);
+                keyboardNoteOff(note);
+            }
+        });
+
+        console.log('O-Bells v2.2.0 UI initialized - 31 sliders + 2 choice params + keyboard');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY
