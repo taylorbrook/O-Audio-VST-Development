@@ -38,9 +38,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> wobbleDepthRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonDetuneRelay;
     std::unique_ptr<juce::WebSliderRelay> unisonSpreadRelay;
-    std::unique_ptr<juce::WebSliderRelay> driveRelay;
-    std::unique_ptr<juce::WebSliderRelay> colorRelay;
-    std::unique_ptr<juce::WebSliderRelay> ageRelay;
     std::unique_ptr<juce::WebSliderRelay> widthRelay;
     std::unique_ptr<juce::WebSliderRelay> mixRelay;
     std::unique_ptr<juce::WebSliderRelay> focusLowRelay;
@@ -72,9 +69,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> wobbleDepthAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonDetuneAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> unisonSpreadAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> driveAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> colorAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> ageAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> widthAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> focusLowAttachment;

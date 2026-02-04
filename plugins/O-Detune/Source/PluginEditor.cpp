@@ -24,9 +24,6 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
     wobbleDepthRelay = std::make_unique<juce::WebSliderRelay>("wobble_depth");
     unisonDetuneRelay = std::make_unique<juce::WebSliderRelay>("unison_detune");
     unisonSpreadRelay = std::make_unique<juce::WebSliderRelay>("unison_spread");
-    driveRelay = std::make_unique<juce::WebSliderRelay>("drive");
-    colorRelay = std::make_unique<juce::WebSliderRelay>("color");
-    ageRelay = std::make_unique<juce::WebSliderRelay>("age");
     widthRelay = std::make_unique<juce::WebSliderRelay>("width");
     mixRelay = std::make_unique<juce::WebSliderRelay>("mix");
     focusLowRelay = std::make_unique<juce::WebSliderRelay>("focus_low");
@@ -59,9 +56,6 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
             .withOptionsFrom(*wobbleDepthRelay)
             .withOptionsFrom(*unisonDetuneRelay)
             .withOptionsFrom(*unisonSpreadRelay)
-            .withOptionsFrom(*driveRelay)
-            .withOptionsFrom(*colorRelay)
-            .withOptionsFrom(*ageRelay)
             .withOptionsFrom(*widthRelay)
             .withOptionsFrom(*mixRelay)
             .withOptionsFrom(*focusLowRelay)
@@ -94,12 +88,6 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
         *processorRef.parameters.getParameter("unison_detune"), *unisonDetuneRelay, nullptr);
     unisonSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("unison_spread"), *unisonSpreadRelay, nullptr);
-    driveAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *processorRef.parameters.getParameter("drive"), *driveRelay, nullptr);
-    colorAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *processorRef.parameters.getParameter("color"), *colorRelay, nullptr);
-    ageAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *processorRef.parameters.getParameter("age"), *ageRelay, nullptr);
     widthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.parameters.getParameter("width"), *widthRelay, nullptr);
     mixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -137,8 +125,8 @@ ODetuneAudioProcessorEditor::ODetuneAudioProcessorEditor(ODetuneAudioProcessor& 
 
     addAndMakeVisible(*webView);
 
-    // Set editor size (600x520 for Ouaricon Naturalist aesthetic)
-    setSize(600, 520);
+    // Set editor size (600x480 for streamlined UI)
+    setSize(600, 480);
 }
 
 ODetuneAudioProcessorEditor::~ODetuneAudioProcessorEditor()

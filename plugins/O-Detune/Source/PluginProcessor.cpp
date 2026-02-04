@@ -104,34 +104,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout ODetuneAudioProcessor::creat
         "%"
     ));
 
-    // Character Section (3 parameters)
-
-    // drive - Saturation intensity
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "drive", 1 },
-        "Drive",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
-        20.0f,
-        "%"
-    ));
-
-    // color - Dark to Bright tone shaping
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "color", 1 },
-        "Color",
-        juce::NormalisableRange<float>(-100.0f, 100.0f, 0.1f),
-        0.0f
-    ));
-
-    // age - Combined degradation
-    layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "age", 1 },
-        "Age",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
-        0.0f,
-        "%"
-    ));
-
     // Output Section (5 parameters)
 
     // width - Stereo spread
@@ -287,21 +259,12 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     preDelayL.reset();
     preDelayR.reset();
 
-    // Initialize color filters
-    colorFilterL.prepare(spec);
-    colorFilterR.prepare(spec);
-    colorFilterL.reset();
-    colorFilterR.reset();
-
     // Initialize parameter smoothing (50ms ramp)
     const double smoothingTime = 0.05;
     smoothedBlend.reset(sampleRate, smoothingTime);
     smoothedWobbleRate.reset(sampleRate, smoothingTime);
     smoothedWobbleDepth.reset(sampleRate, smoothingTime);
     smoothedUnisonDetune.reset(sampleRate, smoothingTime);
-    smoothedDrive.reset(sampleRate, smoothingTime);
-    smoothedColor.reset(sampleRate, smoothingTime);
-    smoothedAge.reset(sampleRate, smoothingTime);
     smoothedWidth.reset(sampleRate, smoothingTime);
     smoothedDelay.reset(sampleRate, smoothingTime);
     smoothedFeedback.reset(sampleRate, smoothingTime);
@@ -312,7 +275,6 @@ void ODetuneAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     lfoPhase = 0.0f;
     noiseHeldValue = 0.0f;
     noiseLastQuarter = -1;
-    filterDriftPhase = 0.0f;
     randomRefreshCounter = 0;
     feedbackStateL = 0.0f;
     feedbackStateR = 0.0f;
@@ -374,29 +336,6 @@ float ODetuneAudioProcessor::generateLFO(float phase, int shapeType, float& nois
         default:
             return std::sin(phase * juce::MathConstants<float>::twoPi);
     }
-}
-
-// Tube-style saturation processor
-float ODetuneAudioProcessor::processDrive(float input, float driveAmount)
-{
-    if (driveAmount < 0.5f) return input;  // Lower threshold
-
-    float driveMix = driveAmount / 100.0f;
-    float gain = 1.0f + driveMix * 3.0f;  // 1.0 to 4.0
-    float driven = input * gain;
-
-    // Tube-style asymmetric soft clipping
-    float saturated;
-    if (driven >= 0.0f)
-        saturated = driven / (1.0f + std::abs(driven));
-    else
-        saturated = std::tanh(driven * 1.5f) / 1.5f;
-
-    // Add subtle even harmonics
-    float x2 = saturated * saturated;
-    saturated = saturated + 0.1f * x2 * ((saturated > 0) ? 1.0f : -1.0f);
-
-    return input * (1.0f - driveMix) + saturated * driveMix;
 }
 
 // Stereo width processor (M/S processing)
@@ -494,14 +433,6 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     const int voiceCounts[] = { 2, 3, 4, 5, 7 };
     int activeVoices = voiceCounts[unisonVoicesIndex];
 
-    // Character section
-    auto* driveParam = parameters.getRawParameterValue("drive");
-    auto* colorParam = parameters.getRawParameterValue("color");
-    auto* ageParam = parameters.getRawParameterValue("age");
-    float driveValue = driveParam->load();
-    float colorValue = colorParam->load();
-    float ageValue = ageParam->load();
-
     // Output section
     auto* widthParam = parameters.getRawParameterValue("width");
     auto* monoSafeParam = parameters.getRawParameterValue("mono_safe");
@@ -527,9 +458,6 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     smoothedWobbleRate.setTargetValue(wobbleRate);
     smoothedWobbleDepth.setTargetValue(wobbleDepth);
     smoothedUnisonDetune.setTargetValue(unisonDetune);
-    smoothedDrive.setTargetValue(driveValue);
-    smoothedColor.setTargetValue(colorValue);
-    smoothedAge.setTargetValue(ageValue);
     // Mono-safe forces width to 0 (mono) - parameter value preserved for restoration
     smoothedWidth.setTargetValue(monoSafe ? 0.0f : widthValue);
     smoothedDelay.setTargetValue(delayMs);
@@ -667,107 +595,7 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 4. Drive processing (tube saturation)
-    float currentDrive = smoothedDrive.getCurrentValue();
-    if (currentDrive > 0.5f)  // Process if drive > 0.5%
-    {
-        auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
-        auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            float drive = smoothedDrive.getNextValue();
-            if (dataL) dataL[sample] = processDrive(dataL[sample], drive);
-            if (dataR) dataR[sample] = processDrive(dataR[sample], drive);
-        }
-    }
-
-    //==============================================================================
-    // 5. Color + Age drift processing
-    // Always advance the smoothed Color value (even if not processing) to maintain state
-    {
-        auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
-        auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            float color = smoothedColor.getNextValue();
-            float ageForDrift = smoothedAge.getCurrentValue();  // Read current (Age is advanced later)
-
-            // Only process if color value is significant
-            if (std::abs(color) > 0.5f)
-            {
-                // Calculate drift modulation from age
-                float driftMod = std::sin(filterDriftPhase * juce::MathConstants<float>::twoPi) * (ageForDrift / 100.0f) * 0.2f;
-
-                // Update filter coefficients per-sample for smooth automation
-                if (color < 0)
-                {
-                    // Negative: Low-pass filter to darken
-                    float cutoff = juce::jmap(color, -100.0f, 0.0f, 1000.0f, 18000.0f);
-                    cutoff = std::max(200.0f, cutoff * (1.0f + driftMod));
-                    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoff, 0.707f);
-                    *colorFilterL.coefficients = *coeffs;
-                    *colorFilterR.coefficients = *coeffs;
-                }
-                else
-                {
-                    // Positive: High-shelf boost (bright)
-                    float cutoff = 2500.0f * (1.0f + driftMod);
-                    float gainDb = 9.0f * (color / 100.0f);
-                    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeHighShelf(
-                        currentSampleRate, cutoff, 0.707f, juce::Decibels::decibelsToGain(gainDb));
-                    *colorFilterL.coefficients = *coeffs;
-                    *colorFilterR.coefficients = *coeffs;
-                }
-
-                // Process both channels
-                if (dataL) dataL[sample] = colorFilterL.processSample(dataL[sample]);
-                if (dataR) dataR[sample] = colorFilterR.processSample(dataR[sample]);
-            }
-        }
-    }
-
-    //==============================================================================
-    // 6. Age hiss processing
-    // Always advance the smoothed Age value (even if not processing) to maintain state
-    {
-        auto* dataL = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
-        auto* dataR = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
-        float eraDrift = eraPresets[wobbleEra].drift;
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            float age = smoothedAge.getNextValue();
-
-            // Only process if age value is significant
-            if (age > 0.5f)
-            {
-                float ageMix = age / 100.0f;
-
-                // Hiss: Audible broadband noise
-                float hissLevel = ageMix * 0.05f;
-                float noiseL = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
-                float noiseR = (random.nextFloat() * 2.0f - 1.0f) * hissLevel;
-
-                if (dataL) dataL[sample] += noiseL;
-                if (dataR) dataR[sample] += noiseR;
-            }
-        }
-
-        // Filter drift: Update phase for next block (affects color filter modulation)
-        float currentAge = smoothedAge.getCurrentValue();
-        if (currentAge > 0.5f)
-        {
-            float ageMix = currentAge / 100.0f;
-            float effectiveAgeDrift = ageMix * (eraDrift * 10.0f);
-            filterDriftPhase += 0.5f * numSamples / static_cast<float>(currentSampleRate) * (1.0f + effectiveAgeDrift);
-            if (filterDriftPhase >= 1.0f) filterDriftPhase -= 1.0f;
-        }
-    }
-
-    //==============================================================================
-    // 7. Process Wobble Engine (delay-based pitch modulation)
+    // 4. Process Wobble Engine (delay-based pitch modulation)
 
     wobbleBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
 
@@ -812,7 +640,7 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 8. Process Unison Engine (chorus-style LFO modulation - click-free)
+    // 5. Process Unison Engine (chorus-style LFO modulation - click-free)
 
     unisonBuffer.makeCopyOf(buffer, true);  // Copy filtered signal
     unisonBuffer.clear();  // Clear for voice accumulation
@@ -915,7 +743,7 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 9. Blend dual engines (crossfade)
+    // 6. Blend dual engines (crossfade)
     // blend = 0: wobble only, blend = 1: unison only
 
     for (int channel = 0; channel < numChannels; ++channel)
@@ -932,12 +760,12 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 10. Blend with dry signal (final mix)
+    // 7. Blend with dry signal (final mix)
     dryWetMixer.setWetMixProportion(mixValue);
     dryWetMixer.mixWetSamples(buffer);
 
     //==============================================================================
-    // 11. Width processing (stereo spread)
+    // 8. Width processing (stereo spread)
     float currentWidth = smoothedWidth.getCurrentValue();
     if (std::abs(currentWidth - 100.0f) > 1.0f)  // Not default
     {
@@ -956,7 +784,7 @@ void ODetuneAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     //==============================================================================
-    // 12. Mono Safe processing (prevent phase cancellation)
+    // 9. Mono Safe processing (prevent phase cancellation)
     if (monoSafe && numChannels >= 2)
     {
         for (int sample = 0; sample < numSamples; ++sample)

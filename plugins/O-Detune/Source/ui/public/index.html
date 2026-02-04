@@ -31,7 +31,7 @@
 
         html, body {
             width: 600px;
-            height: 520px;
+            height: 480px;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
@@ -41,7 +41,7 @@
 
         #app {
             width: 600px;
-            height: 520px;
+            height: 480px;
             position: relative;
             background-image: url('assets/paper1.jpg');
             background-size: cover;
@@ -186,6 +186,11 @@
             height: 64px;
         }
 
+        .knob-visual.small {
+            width: 44px;
+            height: 44px;
+        }
+
         .knob-visual svg {
             width: 100%;
             height: 100%;
@@ -203,7 +208,6 @@
             stroke: var(--knob-vine);
             stroke-width: 3;
             stroke-linecap: round;
-            /* Smooth animation handled by JS interpolation loop */
         }
 
         .knob-label {
@@ -268,19 +272,11 @@
             color: var(--text-primary);
         }
 
-        /* Character Section */
-        .character-row {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            justify-items: center;
-        }
-
         /* Output Row */
         .output-row {
             display: grid;
-            grid-template-columns: 1fr auto 1fr;
-            gap: 20px;
+            grid-template-columns: 1fr auto auto auto 1fr;
+            gap: 16px;
             align-items: center;
         }
 
@@ -344,15 +340,26 @@
             gap: 8px;
         }
 
+        .toggle-container.vertical {
+            flex-direction: column;
+            gap: 4px;
+        }
+
         .toggle {
-            width: 44px;
-            height: 22px;
+            width: 36px;
+            height: 18px;
             background: var(--knob-track);
             border: 1px solid var(--border-walnut);
-            border-radius: 11px;
+            border-radius: 9px;
             position: relative;
             cursor: pointer;
             transition: background 0.2s, border-color 0.2s;
+        }
+
+        .toggle.large {
+            width: 44px;
+            height: 22px;
+            border-radius: 11px;
         }
 
         .toggle.active {
@@ -361,8 +368,8 @@
         }
 
         .toggle-knob {
-            width: 16px;
-            height: 16px;
+            width: 12px;
+            height: 12px;
             background: var(--paper-bg);
             border: 1px solid var(--border-walnut);
             border-radius: 50%;
@@ -373,73 +380,50 @@
             box-shadow: 0 1px 2px rgba(0, 0, 0, 0.15);
         }
 
+        .toggle.large .toggle-knob {
+            width: 16px;
+            height: 16px;
+            left: 2px;
+        }
+
         .toggle.active .toggle-knob {
-            left: 24px;
+            left: 20px;
             border-color: var(--accent-green-dark);
         }
 
+        .toggle.large.active .toggle-knob {
+            left: 24px;
+        }
+
         .toggle-label {
-            font-size: 10px;
-            color: var(--text-primary);
-            letter-spacing: 0.3px;
-        }
-
-        /* Advanced Panel */
-        .advanced-header {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            cursor: pointer;
-            padding: 2px 0;
-            transition: color 0.2s;
-        }
-
-        .advanced-header:hover {
-            color: var(--accent-green);
-        }
-
-        .advanced-arrow {
+            font-size: 9px;
             color: var(--text-secondary);
-            font-size: 10px;
-            transition: transform 0.2s;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
         }
 
-        .advanced-arrow.open {
-            transform: rotate(90deg);
+        /* Rate knob with sync toggle underneath */
+        .rate-knob-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
         }
 
-        .advanced-content {
+        /* Conditional visibility for Random knob */
+        .random-knob-container {
             display: none;
-            margin-top: 12px;
-            padding-top: 12px;
-            border-top: 1px solid var(--panel-border);
         }
 
-        .advanced-content.open {
-            display: grid;
-            grid-template-columns: repeat(4, 1fr);
+        .random-knob-container.visible {
+            display: flex;
+        }
+
+        /* Output knobs row */
+        .output-knobs {
+            display: flex;
             gap: 12px;
-            align-items: start;
-        }
-
-        /* Value input for direct entry */
-        .knob-input {
-            width: 50px;
-            margin-top: 2px;
-            font-size: 10px;
-            font-family: 'Georgia', 'Times New Roman', serif;
-            color: var(--text-primary);
-            background: rgba(245, 230, 211, 0.95);
-            border: 1px solid var(--border-walnut);
-            border-radius: 3px;
-            padding: 2px 4px;
-            text-align: center;
-            outline: none;
-        }
-
-        .knob-input:focus {
-            border-color: var(--accent-green);
-            box-shadow: 0 0 0 2px rgba(90, 122, 106, 0.2);
+            align-items: flex-start;
         }
     </style>
 </head>
@@ -478,7 +462,7 @@
                                 <option value="2">Random</option>
                             </select>
                         </div>
-                        <div class="knob-container">
+                        <div class="rate-knob-group">
                             <div class="knob" id="wobble_rate_knob">
                                 <div class="knob-visual">
                                     <svg viewBox="0 0 52 52">
@@ -489,6 +473,12 @@
                                 </div>
                                 <span class="knob-label">Rate</span>
                                 <span class="knob-value" id="wobble_rate_value">2.0 Hz</span>
+                            </div>
+                            <div class="toggle-container vertical">
+                                <div class="toggle" id="wobble_sync">
+                                    <div class="toggle-knob"></div>
+                                </div>
+                                <span class="toggle-label">Sync</span>
                             </div>
                         </div>
                         <div class="knob-container">
@@ -557,7 +547,7 @@
                                 <span class="knob-value" id="unison_detune_value">15 ct</span>
                             </div>
                         </div>
-                        <div class="knob-container">
+                        <div class="knob-container" id="unison_spread_container">
                             <div class="knob" id="unison_spread_knob">
                                 <div class="knob-visual">
                                     <svg viewBox="0 0 52 52">
@@ -570,51 +560,19 @@
                                 <span class="knob-value" id="unison_spread_value">75%</span>
                             </div>
                         </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Character Section -->
-            <div class="panel">
-                <div class="panel-label">Character</div>
-                <div class="character-row">
-                    <div class="knob-container">
-                        <div class="knob" id="drive_knob">
-                            <div class="knob-visual">
-                                <svg viewBox="0 0 52 52">
-                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
-                                    <circle class="knob-vine" id="drive_vine" cx="26" cy="26" r="22"
-                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
-                                </svg>
+                        <!-- Random knob - only visible when Dist = Random -->
+                        <div class="knob-container random-knob-container" id="random_amt_container">
+                            <div class="knob" id="random_amt_knob">
+                                <div class="knob-visual">
+                                    <svg viewBox="0 0 52 52">
+                                        <circle class="knob-track" cx="26" cy="26" r="22"/>
+                                        <circle class="knob-vine" id="random_amt_vine" cx="26" cy="26" r="22"
+                                            stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+                                    </svg>
+                                </div>
+                                <span class="knob-label">Random</span>
+                                <span class="knob-value" id="random_amt_value">15%</span>
                             </div>
-                            <span class="knob-label">Drive</span>
-                            <span class="knob-value" id="drive_value">20%</span>
-                        </div>
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob" id="color_knob">
-                            <div class="knob-visual">
-                                <svg viewBox="0 0 52 52">
-                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
-                                    <circle class="knob-vine" id="color_vine" cx="26" cy="26" r="22"
-                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
-                                </svg>
-                            </div>
-                            <span class="knob-label">Color</span>
-                            <span class="knob-value" id="color_value">0</span>
-                        </div>
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob" id="age_knob">
-                            <div class="knob-visual">
-                                <svg viewBox="0 0 52 52">
-                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
-                                    <circle class="knob-vine" id="age_vine" cx="26" cy="26" r="22"
-                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
-                                </svg>
-                            </div>
-                            <span class="knob-label">Age</span>
-                            <span class="knob-value" id="age_value">0%</span>
                         </div>
                     </div>
                 </div>
@@ -628,8 +586,37 @@
                         <input type="range" class="slider" id="width" min="0" max="200" value="100">
                     </div>
 
+                    <div class="output-knobs">
+                        <div class="knob-container">
+                            <div class="knob" id="delay_knob">
+                                <div class="knob-visual small">
+                                    <svg viewBox="0 0 44 44">
+                                        <circle class="knob-track" cx="22" cy="22" r="18"/>
+                                        <circle class="knob-vine" id="delay_vine" cx="22" cy="22" r="18"
+                                            stroke-dasharray="113.1" stroke-dashoffset="113.1"/>
+                                    </svg>
+                                </div>
+                                <span class="knob-label">Pre-Dly</span>
+                                <span class="knob-value" id="delay_value">0 ms</span>
+                            </div>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="feedback_knob">
+                                <div class="knob-visual small">
+                                    <svg viewBox="0 0 44 44">
+                                        <circle class="knob-track" cx="22" cy="22" r="18"/>
+                                        <circle class="knob-vine" id="feedback_vine" cx="22" cy="22" r="18"
+                                            stroke-dasharray="113.1" stroke-dashoffset="113.1"/>
+                                    </svg>
+                                </div>
+                                <span class="knob-label">Feedback</span>
+                                <span class="knob-value" id="feedback_value">0%</span>
+                            </div>
+                        </div>
+                    </div>
+
                     <div class="toggle-container">
-                        <div class="toggle active" id="mono_safe">
+                        <div class="toggle large active" id="mono_safe">
                             <div class="toggle-knob"></div>
                         </div>
                         <span class="toggle-label">Mono-Safe</span>
@@ -650,61 +637,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- Advanced Panel -->
-            <div class="panel">
-                <div class="advanced-header" onclick="toggleAdvanced()">
-                    <span class="advanced-arrow" id="advancedArrow">&#9654;</span>
-                    <span class="panel-label" style="margin: 0;">Advanced</span>
-                </div>
-                <div class="advanced-content" id="advancedContent">
-                    <div class="knob-container">
-                        <div class="knob" id="delay_knob">
-                            <div class="knob-visual">
-                                <svg viewBox="0 0 52 52">
-                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
-                                    <circle class="knob-vine" id="delay_vine" cx="26" cy="26" r="22"
-                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
-                                </svg>
-                            </div>
-                            <span class="knob-label">Pre-Delay</span>
-                            <span class="knob-value" id="delay_value">0 ms</span>
-                        </div>
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob" id="feedback_knob">
-                            <div class="knob-visual">
-                                <svg viewBox="0 0 52 52">
-                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
-                                    <circle class="knob-vine" id="feedback_vine" cx="26" cy="26" r="22"
-                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
-                                </svg>
-                            </div>
-                            <span class="knob-label">Feedback</span>
-                            <span class="knob-value" id="feedback_value">0%</span>
-                        </div>
-                    </div>
-                    <div class="knob-container">
-                        <div class="knob" id="random_amt_knob">
-                            <div class="knob-visual">
-                                <svg viewBox="0 0 52 52">
-                                    <circle class="knob-track" cx="26" cy="26" r="22"/>
-                                    <circle class="knob-vine" id="random_amt_vine" cx="26" cy="26" r="22"
-                                        stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
-                                </svg>
-                            </div>
-                            <span class="knob-label">Random</span>
-                            <span class="knob-value" id="random_amt_value">15%</span>
-                        </div>
-                    </div>
-                    <div class="toggle-container" style="flex-direction: column; align-items: center; gap: 6px;">
-                        <div class="toggle" id="wobble_sync">
-                            <div class="toggle-knob"></div>
-                        </div>
-                        <span class="toggle-label">Tempo Sync</span>
-                    </div>
-                </div>
-            </div>
         </div>
     </div>
 
@@ -718,9 +650,6 @@
             wobble_depth: getSliderState('wobble_depth'),
             unison_detune: getSliderState('unison_detune'),
             unison_spread: getSliderState('unison_spread'),
-            drive: getSliderState('drive'),
-            color: getSliderState('color'),
-            age: getSliderState('age'),
             width: getSliderState('width'),
             mix: getSliderState('mix'),
             focus_low: getSliderState('focus_low'),
@@ -744,9 +673,40 @@
             mono_safe: getToggleState('mono_safe')
         };
 
+        // Musical divisions for tempo sync display
+        // Maps normalized rate value to note division name
+        const musicalDivisions = [
+            { norm: 0.0, name: '4 bars' },
+            { norm: 0.1, name: '2 bars' },
+            { norm: 0.2, name: '1 bar' },
+            { norm: 0.3, name: '1/2' },
+            { norm: 0.4, name: '1/4' },
+            { norm: 0.5, name: '1/8' },
+            { norm: 0.6, name: '1/8T' },
+            { norm: 0.7, name: '1/16' },
+            { norm: 0.8, name: '1/16T' },
+            { norm: 0.9, name: '1/32' },
+            { norm: 1.0, name: '1/32' }
+        ];
+
+        // Find closest musical division for a normalized value
+        const getMusicalDivision = (norm) => {
+            let closest = musicalDivisions[0];
+            let minDist = Math.abs(norm - closest.norm);
+            for (const div of musicalDivisions) {
+                const dist = Math.abs(norm - div.norm);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closest = div;
+                }
+            }
+            return closest.name;
+        };
+
         // Knob configurations for SVG arc rendering
         // Arc uses 270 degrees (0.75 of circumference)
-        // Small knobs: r=22, circumference = 2*PI*22 = 138.23, arc = 103.67
+        // Small knobs: r=18, circumference = 2*PI*18 = 113.1, arc = 84.82
+        // Medium knobs: r=22, circumference = 2*PI*22 = 138.23, arc = 103.67
         // Large knobs: r=27, circumference = 2*PI*27 = 169.65, arc = 127.24
         const knobConfigs = {
             wobble_rate: { vineId: 'wobble_rate_vine', valueId: 'wobble_rate_value', arcLength: 103.67 },
@@ -754,25 +714,19 @@
             blend: { vineId: 'blend_vine', valueId: 'blend_value', arcLength: 127.24 },
             unison_detune: { vineId: 'unison_detune_vine', valueId: 'unison_detune_value', arcLength: 103.67 },
             unison_spread: { vineId: 'unison_spread_vine', valueId: 'unison_spread_value', arcLength: 103.67 },
-            drive: { vineId: 'drive_vine', valueId: 'drive_value', arcLength: 103.67 },
-            color: { vineId: 'color_vine', valueId: 'color_value', arcLength: 103.67 },
-            age: { vineId: 'age_vine', valueId: 'age_value', arcLength: 103.67 },
             mix: { vineId: 'mix_vine', valueId: 'mix_value', arcLength: 127.24 },
-            delay: { vineId: 'delay_vine', valueId: 'delay_value', arcLength: 103.67 },
-            feedback: { vineId: 'feedback_vine', valueId: 'feedback_value', arcLength: 103.67 },
+            delay: { vineId: 'delay_vine', valueId: 'delay_value', arcLength: 84.82 },
+            feedback: { vineId: 'feedback_vine', valueId: 'feedback_value', arcLength: 84.82 },
             random_amt: { vineId: 'random_amt_vine', valueId: 'random_amt_value', arcLength: 103.67 }
         };
 
-        // Value formatters
+        // Value formatters (wobble_rate is dynamic based on sync state)
         const formatters = {
             blend: v => Math.round(v * 100) + '%',
-            wobble_rate: v => v.toFixed(1) + ' Hz',
+            wobble_rate: v => v.toFixed(1) + ' Hz',  // Default, overridden when sync is on
             wobble_depth: v => Math.round(v) + ' ct',
             unison_detune: v => Math.round(v) + ' ct',
             unison_spread: v => Math.round(v) + '%',
-            drive: v => Math.round(v) + '%',
-            color: v => Math.round(v),
-            age: v => Math.round(v) + '%',
             width: v => Math.round(v) + '%',
             mix: v => Math.round(v) + '%',
             focus_low: v => Math.round(v) + ' Hz',
@@ -792,10 +746,10 @@
 
         // Animation state for smooth knob movement
         const animationState = {
-            targets: {},      // { knobId: { current: 0, target: 0, vine: element, valueDisplay: element, config: obj } }
+            targets: {},
             frameId: null,
             isRunning: false,
-            smoothingFactor: 0.15  // Exponential smoothing (0-1, lower = smoother but slower)
+            smoothingFactor: 0.15
         };
 
         // Animation loop for smooth knob interpolation
@@ -805,19 +759,15 @@
             Object.entries(animationState.targets).forEach(([id, state]) => {
                 const delta = state.target - state.current;
 
-                // Only update if there's meaningful difference
                 if (Math.abs(delta) > 0.0001) {
-                    // Exponential easing toward target
                     state.current += delta * animationState.smoothingFactor;
                     needsUpdate = true;
 
-                    // Update vine arc visual
                     const offset = state.config.arcLength - (state.current * state.config.arcLength);
                     state.vine.style.strokeDashoffset = offset;
                 }
             });
 
-            // Continue loop if any knob needs updating
             if (needsUpdate) {
                 animationState.frameId = requestAnimationFrame(animationLoop);
             } else {
@@ -826,7 +776,6 @@
             }
         };
 
-        // Start animation loop if not already running
         const startAnimationLoop = () => {
             if (!animationState.isRunning) {
                 animationState.isRunning = true;
@@ -834,14 +783,12 @@
             }
         };
 
-        // Panel opacity based on blend - visual feedback for engine mix
+        // Panel opacity based on blend
         const wobblePanel = document.getElementById('wobble_panel');
         const unisonPanel = document.getElementById('unison_panel');
-        const MIN_OPACITY = 0.35;  // Keep panels visible even when not active
+        const MIN_OPACITY = 0.35;
 
         const updatePanelOpacity = (blendNorm) => {
-            // blend = 0: 100% wobble, blend = 1: 100% unison
-            // Wobble fades out as blend increases, Unison fades in
             const wobbleOpacity = 1 - (blendNorm * (1 - MIN_OPACITY));
             const unisonOpacity = MIN_OPACITY + (blendNorm * (1 - MIN_OPACITY));
 
@@ -849,13 +796,50 @@
             unisonPanel.style.opacity = unisonOpacity;
         };
 
-        // Initialize panel opacity from blend state
         if (sliderStates.blend) {
             updatePanelOpacity(sliderStates.blend.getNormalisedValue());
             sliderStates.blend.valueChangedEvent.addListener(() => {
                 updatePanelOpacity(sliderStates.blend.getNormalisedValue());
             });
         }
+
+        // Random knob visibility based on Distribution dropdown
+        const randomContainer = document.getElementById('random_amt_container');
+        const spreadContainer = document.getElementById('unison_spread_container');
+
+        const updateRandomVisibility = () => {
+            if (!comboStates.unison_dist) return;
+            const isRandom = comboStates.unison_dist.getChoiceIndex() === 2;  // 2 = Random
+
+            if (isRandom) {
+                randomContainer.classList.add('visible');
+            } else {
+                randomContainer.classList.remove('visible');
+            }
+        };
+
+        if (comboStates.unison_dist) {
+            comboStates.unison_dist.valueChangedEvent.addListener(updateRandomVisibility);
+            updateRandomVisibility();
+        }
+
+        // Wobble Rate display - changes based on Tempo Sync state
+        const updateRateDisplay = () => {
+            const state = sliderStates.wobble_rate;
+            const valueDisplay = document.getElementById('wobble_rate_value');
+            if (!state || !valueDisplay) return;
+
+            const syncOn = toggleStates.wobble_sync?.getValue() || false;
+
+            if (syncOn) {
+                // Show musical division
+                const norm = state.getNormalisedValue();
+                valueDisplay.textContent = getMusicalDivision(norm);
+            } else {
+                // Show Hz
+                valueDisplay.textContent = state.getScaledValue().toFixed(1) + ' Hz';
+            }
+        };
 
         // Setup SVG knobs with smooth animation
         Object.entries(knobConfigs).forEach(([id, config]) => {
@@ -868,7 +852,6 @@
 
             if (!knobEl || !vine || !valueDisplay) return;
 
-            // Initialize animation state for this knob
             const initialNorm = state.getNormalisedValue();
             animationState.targets[id] = {
                 current: initialNorm,
@@ -878,31 +861,32 @@
                 config: config
             };
 
-            // Set initial visual state (no animation needed for initial render)
             const initialOffset = config.arcLength - (initialNorm * config.arcLength);
             vine.style.strokeDashoffset = initialOffset;
-            if (formatters[id]) {
+
+            // Special handling for wobble_rate (sync-aware display)
+            if (id === 'wobble_rate') {
+                updateRateDisplay();
+            } else if (formatters[id]) {
                 valueDisplay.textContent = formatters[id](state.getScaledValue());
             }
 
-            // Listen for JUCE parameter changes - update target and text
             state.valueChangedEvent.addListener(() => {
                 const normalised = state.getNormalisedValue();
                 const scaledValue = state.getScaledValue();
 
-                // Update animation target (will be smoothly interpolated)
                 animationState.targets[id].target = normalised;
 
-                // Update value display immediately (text updates feel better without lag)
-                if (formatters[id]) {
+                // Special handling for wobble_rate
+                if (id === 'wobble_rate') {
+                    updateRateDisplay();
+                } else if (formatters[id]) {
                     valueDisplay.textContent = formatters[id](scaledValue);
                 }
 
-                // Start animation loop if not running
                 startAnimationLoop();
             });
 
-            // Mouse drag interaction
             const knobVisual = knobEl.querySelector('.knob-visual');
             knobVisual.addEventListener('mousedown', (e) => {
                 e.preventDefault();
@@ -941,7 +925,7 @@
             dragState.target = null;
         });
 
-        // Add mouse wheel support for knobs
+        // Mouse wheel support for knobs
         Object.keys(knobConfigs).forEach(id => {
             const knobEl = document.getElementById(id + '_knob');
             const state = sliderStates[id];
@@ -950,7 +934,6 @@
             knobEl.addEventListener('wheel', (e) => {
                 e.preventDefault();
                 const currentNorm = state.getNormalisedValue();
-                // Wheel delta: positive = scroll up = increase value
                 const delta = e.deltaY < 0 ? 0.02 : -0.02;
                 const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
                 state.setNormalisedValue(newNorm);
@@ -962,8 +945,6 @@
         const widthState = sliderStates.width;
         if (widthSlider && widthState) {
             widthState.valueChangedEvent.addListener(() => {
-                // Ignore JUCE parameter changes while mono-safe is active
-                // (width is forced to 0 in processor, slider stays disabled at 0)
                 if (toggleStates.mono_safe?.getValue()) return;
 
                 const props = widthState.properties;
@@ -978,7 +959,6 @@
                 widthState.setNormalisedValue(norm);
             });
 
-            // Initial value (will be overridden by mono-safe check below if active)
             const props = widthState.properties;
             const value = props.start + widthState.getNormalisedValue() * (props.end - props.start);
             widthSlider.value = value;
@@ -1021,18 +1001,21 @@
             });
         });
 
-        // Mono-safe disables width slider (forces width to 0)
+        // Tempo Sync toggle also updates rate display format
+        if (toggleStates.wobble_sync) {
+            toggleStates.wobble_sync.valueChangedEvent.addListener(updateRateDisplay);
+        }
+
+        // Mono-safe disables width slider
         const widthSliderContainer = widthSlider?.parentElement;
         if (toggleStates.mono_safe && widthSliderContainer && widthSlider) {
             const updateWidthSliderState = () => {
                 const monoSafeOn = toggleStates.mono_safe.getValue();
                 if (monoSafeOn) {
-                    // Disable slider visually, show 0%
                     widthSliderContainer.classList.add('disabled');
                     widthSlider.value = 0;
                     document.getElementById('width_value').textContent = '0%';
                 } else {
-                    // Re-enable slider, restore actual parameter value
                     widthSliderContainer.classList.remove('disabled');
                     if (widthState) {
                         const props = widthState.properties;
@@ -1044,17 +1027,8 @@
             };
 
             toggleStates.mono_safe.valueChangedEvent.addListener(updateWidthSliderState);
-            // Set initial state
             updateWidthSliderState();
         }
-
-        // Advanced panel toggle
-        window.toggleAdvanced = () => {
-            const content = document.getElementById('advancedContent');
-            const arrow = document.getElementById('advancedArrow');
-            content.classList.toggle('open');
-            arrow.classList.toggle('open');
-        };
     </script>
 </body>
 </html>

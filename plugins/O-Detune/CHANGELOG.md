@@ -1,5 +1,62 @@
 # O-Detune Changelog
 
+## [1.4.0] - 2026-02-03
+
+### Changed
+
+- **UI streamlined - Advanced panel removed**
+  - Pre-Delay and Feedback knobs moved to Output section (as smaller knobs)
+  - Randomization knob now appears in Unison panel only when Distribution = "Random"
+  - Advanced section completely removed for cleaner interface
+
+- **Tempo Sync moved under Wobble Rate knob**
+  - Sync toggle now directly below the Rate knob in Wobble panel
+  - When Sync enabled, Rate display shows musical divisions (1/4, 1/8, 1/16, etc.) instead of Hz
+  - Same tempo sync behavior as O-Tremolo
+
+### Technical Notes
+
+- Window height reduced from 520px to 480px
+- Output row now uses 5-column grid layout
+- New small knob size class (44px) for Pre-Delay and Feedback
+- Musical divisions mapped from normalized rate value (0.0 = 4 bars, 1.0 = 1/32)
+
+## [1.3.9] - 2026-02-03
+
+### Removed
+
+- **Character panel completely removed** (Drive, Color, Age parameters)
+  - User-requested simplification of plugin interface
+  - Removes 3 APVTS parameters: `drive`, `color`, `age`
+  - Removes tube saturation, tone shaping, and tape hiss/drift processing
+  - Reduces CPU usage by eliminating character DSP processing chain
+
+### Technical Notes
+
+- Removed from PluginProcessor.cpp: Character parameter definitions, `processDrive()` helper, color filter processing, age hiss/envelope follower, filter drift modulation
+- Removed from PluginProcessor.h: `smoothedDrive`, `smoothedColor`, `smoothedAge`, `colorFilterL/R`, `filterDriftPhase`, `envelopeL/R`, `processDrive()` declaration
+- Removed from PluginEditor: `driveRelay`, `colorRelay`, `ageRelay` and their attachments
+- Removed from UI: Character panel HTML, CSS styles, JavaScript knob configs and formatters
+- Parameter count reduced from 21 to 18
+
+## [1.3.8] - 2026-02-03
+
+### Fixed
+
+- **Age hiss is now dynamic (envelope-following)** - No more constant hiss
+  - Root cause: Hiss noise was generated at constant level based only on Age parameter value
+  - The noise did not respond to input signal level, creating constant background hiss
+  - Fix: Added envelope follower that tracks input signal amplitude
+  - Hiss is now proportional to signal level (silent when no audio passes through)
+  - Fast attack (~1ms) catches transients, slower release (~50ms) provides natural decay
+
+### Technical Notes
+
+- Added `envelopeL` and `envelopeR` state variables for per-channel envelope tracking
+- Envelope follower uses asymmetric attack/release coefficients
+- Envelope scaled by 3x for sensitivity, clamped to 1.0 max
+- Hiss level = `ageMix * 0.05 * envScale` (was just `ageMix * 0.05`)
+
 ## [1.3.7] - 2026-02-03
 
 ### Fixed
