@@ -2,6 +2,26 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.18.2] - 2026-02-03
+
+### Changed
+
+- **Tuning panel simplified** - Removed redundant controls for cleaner workflow
+  - Removed Temperament dropdown (was duplicating library functionality)
+  - Removed mode buttons (12-TET, Custom, MTS-ESP) - unnecessary switching
+  - Moved Tuning Library from bottom to top of panel (now primary interface)
+  - File operation buttons (Load/Save .SCL/.KBM, Export HTML) now always visible
+  - 12-TET remains default tuning for new instances
+
+### Technical Details
+
+- Files modified: Resources/ui/index.html (HTML structure, CSS, JavaScript)
+- Removed HTML elements: `.tuning-preset-section`, `.tuning-mode-section`
+- Removed CSS classes: `.tuning-preset-*`, `.tuning-mode-*` styles
+- Added CSS class: `.library-section-top` for top-positioned library
+- JavaScript cleanup: Removed mode button handlers, preset dropdown references
+- Backend unchanged: `tuningMode` APVTS parameter still exists for state persistence
+
 ## [1.18.1] - 2026-02-03
 
 ### Changed

@@ -814,46 +814,10 @@
             display: flex;
             flex-direction: column;
             gap: 15px;
+            padding-bottom: 70px; /* v1.18.2: Space for sticky footer */
         }
 
-        .tuning-mode-section {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 10px;
-        }
-
-        /* Mode buttons */
-        .tuning-mode-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .tuning-mode-btn {
-            padding: 8px 12px;
-            font-family: 'Garamond', 'Times New Roman', serif;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #5C4033;
-            background: rgba(212, 196, 176, 0.8);
-            border: 1px solid #8B7355;
-            border-radius: 4px;
-            cursor: pointer;
-            transition: background 0.15s, color 0.15s, border-color 0.15s;
-            min-width: 55px;
-        }
-
-        .tuning-mode-btn:hover {
-            background: rgba(139, 168, 112, 0.3);
-        }
-
-        .tuning-mode-btn.active {
-            background: rgba(139, 168, 112, 0.5);
-            color: #3C2F2F;
-            border-color: #3C5C1A;
-            font-weight: 500;
-        }
+        /* v1.18.2: Mode buttons removed - tuning-mode-section, tuning-mode-buttons, tuning-mode-btn CSS deleted */
 
         /* A4 Reference Knob */
         .tuning-ref-section {
@@ -1090,42 +1054,7 @@
             transform: scale(0.97);
         }
 
-        /* v1.9.0: Temperament Preset Dropdown */
-        .tuning-preset-section {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-            width: 100%;
-        }
-
-        .tuning-preset-label {
-            font-size: 8px;
-            color: #5C4033;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            text-align: center;
-        }
-
-        .tuning-preset-select {
-            width: 100%;
-            padding: 6px 8px;
-            font-family: 'Garamond', 'Times New Roman', serif;
-            font-size: 10px;
-            color: #3C2F2F;
-            background: rgba(245, 230, 211, 0.9);
-            border: 1px solid #8B7355;
-            border-radius: 3px;
-            cursor: pointer;
-            outline: none;
-        }
-
-        .tuning-preset-select:focus {
-            border-color: #6B8E4E;
-        }
-
-        .tuning-preset-select:hover {
-            background: rgba(139, 168, 112, 0.2);
-        }
+        /* v1.18.2: Temperament preset dropdown removed - tuning-preset-section CSS deleted */
 
         /* v1.9.0: Octave Stretch Slider */
         .octave-stretch-section {
@@ -1430,10 +1359,17 @@
         .deviation.flat { color: #2196F3; }
 
         /* v1.15.0: Tuning Library Section */
+        /* v1.18.2: When at top, no margin/border needed */
         .library-section {
             margin-top: 8px;
             border-top: 1px solid rgba(139, 115, 85, 0.3);
             padding-top: 8px;
+        }
+
+        .library-section.library-section-top {
+            margin-top: 0;
+            border-top: none;
+            padding-top: 0;
         }
 
         .library-header {
@@ -1943,30 +1879,27 @@
 
             <!-- RIGHT SIDE: Tuning Controls -->
             <div class="tuning-controls-panel">
-                <!-- v1.9.0: Temperament Preset Dropdown -->
-                <div class="tuning-preset-section" data-tooltip="Temperament: Select a built-in historical temperament or load a custom Scala file. Affects the tuning of all notes.">
-                    <label class="tuning-preset-label">Temperament</label>
-                    <select id="temperament-preset" class="tuning-preset-select" onchange="window.handlePresetChange && window.handlePresetChange(this.value)">
-                        <option value="0">Equal 12-TET</option>
-                        <option value="1">Pythagorean</option>
-                        <option value="2">Zarlino</option>
-                        <option value="3">Meantone (1/4 comma)</option>
-                        <option value="4">Werckmeister III</option>
-                        <option value="5">Kirnberger III</option>
-                        <option value="6">Vallotti</option>
-                        <option value="7">Well Tempered</option>
-                        <option value="8">Just Intonation</option>
-                        <option value="9">Bohlen-Pierce</option>
-                        <option value="10" id="custom-preset-option" style="display:none">Custom</option>
-                    </select>
-                </div>
-
-                <!-- Mode Selection -->
-                <div class="tuning-mode-section" data-tooltip="Tuning Mode: 12-TET uses standard equal temperament; Custom enables Scala file loading; MTS-ESP connects to external tuning masters.">
-                    <div class="tuning-mode-buttons">
-                        <button class="tuning-mode-btn active" id="btn-12tet" data-mode="0" onclick="window.handleModeClick && window.handleModeClick(0, this)">12-TET</button>
-                        <button class="tuning-mode-btn" id="btn-custom" data-mode="1" onclick="window.handleModeClick && window.handleModeClick(1, this)">Custom</button>
-                        <button class="tuning-mode-btn" id="btn-mts" data-mode="2" onclick="window.handleModeClick && window.handleModeClick(2, this)">MTS-ESP</button>
+                <!-- v1.18.2: Tuning Library moved to top (was at bottom) -->
+                <!-- Dropdown and mode buttons removed - library is the primary interface -->
+                <div class="library-section library-section-top" id="library-section">
+                    <div class="library-header" onclick="window.toggleLibrary && window.toggleLibrary()">
+                        <span class="library-header-text">Tuning Library</span>
+                        <span class="library-toggle" id="library-toggle">▼</span>
+                    </div>
+                    <div class="library-content" id="library-content">
+                        <div class="library-filter">
+                            <select id="library-filter" class="library-filter-select" onchange="window.handleLibraryFilter && window.handleLibraryFilter(this.value)">
+                                <option value="all">All Categories</option>
+                                <option value="Historical">Historical</option>
+                                <option value="Just Intonation">Just Intonation</option>
+                                <option value="Equal Divisions">Equal Divisions</option>
+                                <option value="Non-Octave">Non-Octave</option>
+                                <option value="World">World</option>
+                            </select>
+                        </div>
+                        <div class="library-list" id="library-list">
+                            <!-- Populated by JavaScript -->
+                        </div>
                     </div>
                 </div>
 
@@ -1995,10 +1928,9 @@
                     </div>
                 </div>
 
-                <!-- File operation buttons - v1.7.1: Only show when Custom mode selected -->
-                <!-- v1.7.3: Using inline onclick handlers (same fix as mode buttons) -->
+                <!-- File operation buttons - v1.18.2: Always visible (mode buttons removed) -->
                 <!-- v1.16.0: Added Export HTML button -->
-                <div class="tuning-file-section" id="scala-buttons" style="display: none;">
+                <div class="tuning-file-section" id="scala-buttons">
                     <div class="tuning-file-buttons">
                         <button class="tuning-file-btn" id="btn-load-scl" onclick="window.handleLoadSCL && window.handleLoadSCL()">Load .SCL</button>
                         <button class="tuning-file-btn" id="btn-load-kbm" onclick="window.handleLoadKBM && window.handleLoadKBM()">Load .KBM</button>
@@ -2037,28 +1969,6 @@
                     </div>
                 </div>
 
-                <!-- v1.15.0: Tuning Library Section -->
-                <div class="library-section" id="library-section">
-                    <div class="library-header" onclick="window.toggleLibrary && window.toggleLibrary()">
-                        <span class="library-header-text">Tuning Library</span>
-                        <span class="library-toggle" id="library-toggle">▼</span>
-                    </div>
-                    <div class="library-content" id="library-content">
-                        <div class="library-filter">
-                            <select id="library-filter" class="library-filter-select" onchange="window.handleLibraryFilter && window.handleLibraryFilter(this.value)">
-                                <option value="all">All Categories</option>
-                                <option value="Historical">Historical</option>
-                                <option value="Just Intonation">Just Intonation</option>
-                                <option value="Equal Divisions">Equal Divisions</option>
-                                <option value="Non-Octave">Non-Octave</option>
-                                <option value="World">World</option>
-                            </select>
-                        </div>
-                        <div class="library-list" id="library-list">
-                            <!-- Populated by JavaScript -->
-                        </div>
-                    </div>
-                </div>
             </div>
 
             <!-- v1.18.1: Keyboard moved to footer -->
@@ -2120,38 +2030,17 @@
     </div>
 
     <!-- JUCE Bridge -->
-    <!-- v1.7.2: Global click handler for tuning mode buttons -->
+    <!-- v1.18.2: Mode buttons removed - library is primary interface -->
     <!-- v1.7.3: Added global handlers for SCL/KBM file operations -->
     <script>
         // Store current tuning mode globally for module access
-        window.currentTuningMode = 0;
+        // v1.18.2: Default to Custom mode (1) since library is now primary
+        window.currentTuningMode = 1;
 
+        // v1.18.2: Simplified - mode buttons removed, this is now just for internal state
         window.handleModeClick = function(mode, btn) {
-            var scaleNameEl = document.getElementById('scale-name-display');
-            var scalaButtonsEl = document.getElementById('scala-buttons');
-            var allBtns = document.querySelectorAll('.tuning-mode-btn');
-
-            // Update global state
             window.currentTuningMode = mode;
-
-            // Update button highlights
-            allBtns.forEach(function(b) {
-                b.classList.remove('active');
-            });
-            btn.classList.add('active');
-
-            // Update scale name display
-            var names = ['12-TET Standard', 'Custom (Edit intervals below)', 'MTS-ESP (Not Connected)'];
-            if (scaleNameEl) {
-                scaleNameEl.textContent = names[mode];
-            }
-
-            // Show/hide SCL/KBM buttons (only visible in Custom mode)
-            if (scalaButtonsEl) {
-                scalaButtonsEl.style.display = (mode === 1) ? 'flex' : 'none';
-            }
-
-            // Notify the module to sync with JUCE and update UI
+            // Notify the module to sync with JUCE
             if (window.onTuningModeChanged) {
                 window.onTuningModeChanged(mode);
             }
@@ -2266,15 +2155,12 @@
             }
         };
 
-        // v1.9.0: When .scl file loaded, show Custom option and select it
+        // v1.18.2: When .scl file loaded, update scale name display
         window.onScalaLoaded = function(filename) {
-            var customOption = document.getElementById('custom-preset-option');
-            if (customOption) {
-                customOption.style.display = 'block';
-                customOption.textContent = 'Custom (' + filename + ')';
+            var scaleNameEl = document.getElementById('scale-name-display');
+            if (scaleNameEl) {
+                scaleNameEl.textContent = filename;
             }
-            var presetSelect = document.getElementById('temperament-preset');
-            if (presetSelect) presetSelect.value = '10';
         };
 
         // v1.14.0: Scale Generator handlers
@@ -2383,20 +2269,11 @@
                 if (success) {
                     console.log('[Generator] Applied scale:', scaleName);
 
-                    // Switch to Custom mode in UI
-                    var customBtn = document.getElementById('btn-custom');
-                    if (customBtn) {
-                        window.handleModeClick(1, customBtn);
+                    // v1.18.2: Update scale name display and refresh
+                    var scaleNameEl = document.getElementById('scale-name-display');
+                    if (scaleNameEl) {
+                        scaleNameEl.textContent = scaleName;
                     }
-
-                    // Show Custom option in preset dropdown
-                    var customOption = document.getElementById('custom-preset-option');
-                    if (customOption) {
-                        customOption.style.display = 'block';
-                        customOption.textContent = 'Custom (' + scaleName + ')';
-                    }
-                    var presetSelect = document.getElementById('temperament-preset');
-                    if (presetSelect) presetSelect.value = '10';
 
                     // Refresh tuning display
                     if (window.refreshTuningState) {
@@ -2490,20 +2367,11 @@
                         item.classList.toggle('selected', item.dataset.id === tuningId);
                     });
 
-                    // Switch to Custom mode in UI
-                    var customBtn = document.getElementById('btn-custom');
-                    if (customBtn) {
-                        window.handleModeClick(1, customBtn);
+                    // v1.18.2: Update scale name display
+                    var scaleNameEl = document.getElementById('scale-name-display');
+                    if (scaleNameEl && tuning) {
+                        scaleNameEl.textContent = tuning.name;
                     }
-
-                    // Show Custom option in preset dropdown
-                    var customOption = document.getElementById('custom-preset-option');
-                    if (customOption && tuning) {
-                        customOption.style.display = 'block';
-                        customOption.textContent = 'Custom (' + tuning.name + ')';
-                    }
-                    var presetSelect = document.getElementById('temperament-preset');
-                    if (presetSelect) presetSelect.value = '10';
 
                     // Refresh tuning display
                     if (window.refreshTuningState) {
@@ -2875,7 +2743,7 @@
         const intervalList = document.getElementById('interval-list');
         const pitchCircleSvg = document.getElementById('pitch-circle-svg');
         const scaleNameDisplay = document.getElementById('scale-name-display');
-        const modeButtons = document.querySelectorAll('.tuning-mode-btn');
+        // v1.18.2: modeButtons removed - library is primary interface
         const refPitchKnob = document.getElementById('ref-pitch-knob');
         const refPitchIndicator = document.getElementById('ref-pitch-indicator');
         const refPitchValue = document.getElementById('ref-pitch-value');
@@ -3479,13 +3347,10 @@
             if (!isNaN(value) && value >= 0 && value <= 1200) {
                 currentIntervals[index] = value;
 
-                // v1.11.1: Switch UI to Custom mode when user manually edits intervals
+                // v1.18.2: Switch to Custom mode when user manually edits intervals
                 if (currentTuningMode !== 1) {
                     currentTuningMode = 1;
                     window.currentTuningMode = 1;
-                    document.querySelectorAll('.tuning-mode-btn').forEach(btn => {
-                        btn.classList.toggle('active', parseInt(btn.dataset.mode) === 1);
-                    });
                     const scaleNameEl = document.getElementById('scale-name-display');
                     if (scaleNameEl) scaleNameEl.textContent = 'Custom';
                 }
@@ -3615,29 +3480,16 @@
         });
 
         // ====================================================================
-        // Tuning Mode Buttons
+        // Tuning Mode State (v1.18.2: Mode buttons removed, state kept for backend sync)
         // ====================================================================
         const tuningModeState = Juce.getComboBoxState('tuningMode');
-        const scalaButtons = document.getElementById('scala-buttons');
-
-        // v1.7.1: Update file buttons visibility based on mode
-        function updateFileButtonsVisibility(mode) {
-            if (scalaButtons) {
-                scalaButtons.style.display = (mode === 1) ? 'flex' : 'none';
-            }
-        }
 
         if (tuningModeState && tuningModeState.valueChangedEvent) {
             tuningModeState.valueChangedEvent.addListener(async () => {
                 currentTuningMode = tuningModeState.getChoiceIndex();
-                modeButtons.forEach(btn => {
-                    btn.classList.toggle('active', parseInt(btn.dataset.mode) === currentTuningMode);
-                });
                 await updateIntervalListUI(); // Re-render to update editable state
-                updateFileButtonsVisibility(currentTuningMode); // v1.7.1
             });
             currentTuningMode = tuningModeState.getChoiceIndex();
-            updateFileButtonsVisibility(currentTuningMode); // v1.7.1: Initialize
         }
 
         // v1.7.2: Callback for global click handler - syncs with JUCE and updates UI
@@ -3763,22 +3615,7 @@
                 // Ignore - use default tonic
             }
 
-            // v1.9.0: Load current preset and octave stretch
-            try {
-                const presetIndex = await Juce.getNativeFunction('getTemperamentPreset')();
-                const presetSelect = document.getElementById('temperament-preset');
-                if (presetSelect && presetIndex !== undefined) {
-                    // Show custom option if preset is Custom (10)
-                    if (presetIndex === 10) {
-                        const customOption = document.getElementById('custom-preset-option');
-                        if (customOption) customOption.style.display = 'block';
-                    }
-                    presetSelect.value = String(presetIndex);
-                }
-            } catch (e) {
-                console.warn('[Tuning] Failed to get preset:', e);
-            }
-
+            // v1.18.2: Preset dropdown removed - octave stretch still needed
             try {
                 const stretch = await Juce.getNativeFunction('getOctaveStretch')();
                 const stretchSlider = document.getElementById('octave-stretch');
