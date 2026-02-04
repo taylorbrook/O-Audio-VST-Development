@@ -1,8 +1,19 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-Freeze",
+  "focused": "O-FreqPulse",
   "plugins": {
+    "O-FreqPulse": {
+      "path": "plugins/O-FreqPulse",
+      "stage": "1-foundation",
+      "phase": "plan",
+      "status": "active",
+      "created": "2026-02-03",
+      "lastActivity": "2026-02-03T12:00:00Z",
+      "modules": [],
+      "expressMode": false,
+      "blockedBy": null
+    },
     "O-Bells": {
       "path": "plugins/O-Bells",
       "stage": "4-polish",
@@ -10,7 +21,16 @@
       "status": "complete",
       "created": "2026-02-01",
       "lastActivity": "2026-02-03T10:45:00Z",
-      "modules": [],
+      "modules": [
+        {
+          "name": "instrument-footer-panel",
+          "version": "1.0.0",
+          "installedAt": "2026-02-03T18:30:00Z",
+          "modified": false,
+          "contentHash": "sha256:2da87230d7662bef",
+          "originalHash": "sha256:2da87230d7662bef"
+        }
+      ],
       "expressMode": false,
       "blockedBy": null
     },
@@ -238,19 +258,17 @@
       }
     },
     "scala-tuning-engine": {
-      "version": "1.0.0",
+      "version": "2.0.0",
       "path": "modules/tuning/scala-tuning-engine",
       "category": "tuning",
-      "description": "Complete microtonal tuning system supporting 12-TET, custom scales via Scala (.scl/.kbm) files, and MTS-ESP integration (stubbed). Includes thread-safe atomic frequency table for real-time audio, interval editing UI, pitch circle visualization, and tonic transposition.",
+      "description": "Complete microtonal tuning system extracted from O-Lyrica with 5 visualization modes, scale generator, 24+ factory presets, editable intervals, HTML export, and octave stretch.",
       "author": "Ouaricon Audio",
       "changelogUrl": null,
-      "compatibilityNotes": null,
-      "dependents": [
-        "OuariconMarimba"
-      ],
-      "lastUpdated": "2026-02-01T15:08:35Z",
+      "compatibilityNotes": "v2.0.0 is a breaking change from v1.0.0. New API, new C++ classes, ES6 JavaScript module.",
+      "dependents": [],
+      "lastUpdated": "2026-02-03T20:00:00Z",
       "usageStats": {
-        "addCount": 1,
+        "addCount": 0,
         "removeCount": 0
       }
     },
@@ -300,6 +318,23 @@
         "OuariconMarimba"
       ],
       "lastUpdated": "2026-02-01T15:08:35Z",
+      "usageStats": {
+        "addCount": 1,
+        "removeCount": 0
+      }
+    },
+    "instrument-footer-panel": {
+      "version": "1.0.0",
+      "path": "modules/ui/instrument-footer-panel",
+      "category": "ui",
+      "description": "Complete sticky footer panel for VST instruments with master volume slider, playable keyboard, and branding text. Responsive layout with QWERTY keyboard support.",
+      "author": "Ouaricon Audio",
+      "changelogUrl": null,
+      "compatibilityNotes": null,
+      "dependents": [
+        "O-Bells"
+      ],
+      "lastUpdated": "2026-02-03T18:30:00Z",
       "usageStats": {
         "addCount": 1,
         "removeCount": 0
