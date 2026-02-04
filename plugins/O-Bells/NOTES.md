@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.2.0
+- **Version:** 2.3.0
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -25,6 +25,8 @@
 - **2026-02-03 (v2.0.0):** BREAKING - Split brightness into Overtone + Acoustic brightness (31 params)
 - **2026-02-03 (v2.1.0):** Air Absorption parameter - time-varying lowpass filter for acoustic realism (32 params)
 - **2026-02-03 (v2.2.0):** GUI keyboard in footer panel with Gain slider relocated
+- **2026-02-03 (v2.2.1):** Complete factory preset redesign with descriptive names
+- **2026-02-03 (v2.3.0):** 16-voice polyphony (increased from 8 voices)
 
 ## Known Issues
 

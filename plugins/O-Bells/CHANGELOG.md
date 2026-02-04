@@ -2,6 +2,13 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [2.3.0] - 2026-02-03
+
+### Added
+- **16-voice polyphony** - Increased from 8 to 16 simultaneous voices
+  - Allows more complex chord voicings and sustained passages
+  - Voice stealing now triggers at 17th note instead of 9th
+
 ## [2.2.1] - 2026-02-03
 
 ### Changed

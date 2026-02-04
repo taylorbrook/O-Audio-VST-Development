@@ -391,8 +391,8 @@ OBellsAudioProcessor::OBellsAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-Bells")
 {
-    // Add 8 bell voices
-    for (int i = 0; i < 8; ++i)
+    // Add 16 bell voices
+    for (int i = 0; i < 16; ++i)
         synthesiser.addVoice(new BellVoice());
 
     // Add one sound (all notes trigger bell sounds)
