@@ -22,6 +22,12 @@ public:
     void resized() override;
     void parentHierarchyChanged() override;
 
+    // Event handlers for curve communication (Phase 3.2)
+    void handleAttackCurveUpdate(const juce::Array<juce::var>& args);
+    void handleSustainCurveUpdate(const juce::Array<juce::var>& args);
+    void sendAttackCurveToJS();
+    void sendSustainCurveToJS();
+
 private:
     OSpectralShaperAudioProcessor& processorRef;
 

@@ -1,0 +1,238 @@
+/**
+ * FreehandCurve - Freehand drawing mode with Catmull-Rom smoothing
+ *
+ * User drags to draw a freehand curve, which is smoothed using
+ * Catmull-Rom splines and sampled at 32 logarithmic band centers.
+ */
+
+import { CurveEditor } from './CurveEditor.js';
+
+export class FreehandCurve extends CurveEditor {
+    constructor(canvasId, config = {}) {
+        super(canvasId, config);
+
+        // Freehand-specific state
+        this.isDrawing = false;
+        this.rawPoints = []; // Raw mouse coordinates during drag
+        this.smoothedPoints = []; // Catmull-Rom smoothed points
+
+        // Bind event handlers
+        this.onMouseDown = this.onMouseDown.bind(this);
+        this.onMouseMove = this.onMouseMove.bind(this);
+        this.onMouseUp = this.onMouseUp.bind(this);
+
+        // Attach listeners
+        this.canvas.addEventListener('mousedown', this.onMouseDown);
+
+        // Throttle updates to 30fps during drag
+        this.lastUpdateTime = 0;
+        this.updateThrottle = 1000 / 30; // 33ms
+    }
+
+    onMouseDown(e) {
+        e.preventDefault();
+        this.isDrawing = true;
+
+        // Start new curve
+        this.rawPoints = [];
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+        this.rawPoints.push({ x, y });
+
+        // Attach global listeners
+        document.addEventListener('mousemove', this.onMouseMove);
+        document.addEventListener('mouseup', this.onMouseUp);
+    }
+
+    onMouseMove(e) {
+        if (!this.isDrawing) return;
+
+        const rect = this.canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Add point
+        this.rawPoints.push({ x, y });
+
+        // Throttle updates
+        const now = performance.now();
+        if (now - this.lastUpdateTime < this.updateThrottle) return;
+        this.lastUpdateTime = now;
+
+        // Smooth and sample
+        this.smoothAndSample();
+
+        // Render
+        this.render();
+
+        // Notify (throttled)
+        this.notifyCurveChange();
+    }
+
+    onMouseUp(e) {
+        if (!this.isDrawing) return;
+
+        this.isDrawing = false;
+
+        // Final smooth and sample
+        this.smoothAndSample();
+        this.render();
+
+        // Final notification
+        this.notifyCurveChange();
+
+        // Remove global listeners
+        document.removeEventListener('mousemove', this.onMouseMove);
+        document.removeEventListener('mouseup', this.onMouseUp);
+    }
+
+    /**
+     * Catmull-Rom spline smoothing (tension 0.5)
+     */
+    smoothAndSample() {
+        if (this.rawPoints.length < 2) return;
+
+        // Sort points by X coordinate
+        this.rawPoints.sort((a, b) => a.x - b.x);
+
+        // Generate smoothed points using Catmull-Rom
+        this.smoothedPoints = [];
+        const tension = 0.5;
+
+        for (let i = 0; i < this.rawPoints.length - 1; i++) {
+            const p0 = this.rawPoints[Math.max(0, i - 1)];
+            const p1 = this.rawPoints[i];
+            const p2 = this.rawPoints[i + 1];
+            const p3 = this.rawPoints[Math.min(this.rawPoints.length - 1, i + 2)];
+
+            // Interpolate between p1 and p2
+            const steps = 10;
+            for (let t = 0; t < steps; t++) {
+                const tt = t / steps;
+                const tt2 = tt * tt;
+                const tt3 = tt2 * tt;
+
+                // Catmull-Rom formula
+                const x = tension * (
+                    (-tt3 + 2 * tt2 - tt) * p0.x +
+                    (3 * tt3 - 5 * tt2 + 2) * p1.x +
+                    (-3 * tt3 + 4 * tt2 + tt) * p2.x +
+                    (tt3 - tt2) * p3.x
+                ) / 2;
+
+                const y = tension * (
+                    (-tt3 + 2 * tt2 - tt) * p0.y +
+                    (3 * tt3 - 5 * tt2 + 2) * p1.y +
+                    (-3 * tt3 + 4 * tt2 + tt) * p2.y +
+                    (tt3 - tt2) * p3.y
+                ) / 2;
+
+                this.smoothedPoints.push({ x, y });
+            }
+        }
+
+        // Sample at 32 band centers
+        this.sampleAtBands();
+    }
+
+    /**
+     * Sample smoothed curve at 32 logarithmic band centers
+     */
+    sampleAtBands() {
+        const bandFreqs = this.getBandFrequencies();
+
+        for (let i = 0; i < this.numBands; i++) {
+            const freq = bandFreqs[i];
+            const x = this.freqToX(freq);
+
+            // Find closest smoothed point
+            let closestY = this.height / 2; // Default to center (0dB)
+            let minDist = Infinity;
+
+            for (const point of this.smoothedPoints) {
+                const dist = Math.abs(point.x - x);
+                if (dist < minDist) {
+                    minDist = dist;
+                    closestY = point.y;
+                }
+            }
+
+            // Convert Y to gain (-1 to +1)
+            this.curveData[i] = this.yToGain(closestY);
+        }
+    }
+
+    /**
+     * Draw the freehand curve
+     */
+    drawCurve() {
+        if (this.smoothedPoints.length < 2) {
+            // Draw current data as curve
+            this.drawDataCurve();
+            return;
+        }
+
+        // Draw smoothed curve
+        this.ctx.strokeStyle = this.accentColor;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+
+        this.smoothedPoints.forEach((point, i) => {
+            if (i === 0) {
+                this.ctx.moveTo(point.x, point.y);
+            } else {
+                this.ctx.lineTo(point.x, point.y);
+            }
+        });
+
+        this.ctx.stroke();
+
+        // Draw sample points
+        this.drawSamplePoints();
+    }
+
+    /**
+     * Draw curve from data (when not actively drawing)
+     */
+    drawDataCurve() {
+        const bandFreqs = this.getBandFrequencies();
+
+        this.ctx.strokeStyle = this.accentColor;
+        this.ctx.lineWidth = 2;
+        this.ctx.beginPath();
+
+        bandFreqs.forEach((freq, i) => {
+            const x = this.freqToX(freq);
+            const y = this.gainToY(this.curveData[i]);
+
+            if (i === 0) {
+                this.ctx.moveTo(x, y);
+            } else {
+                this.ctx.lineTo(x, y);
+            }
+        });
+
+        this.ctx.stroke();
+
+        // Draw sample points
+        this.drawSamplePoints();
+    }
+
+    /**
+     * Draw sample points at band centers
+     */
+    drawSamplePoints() {
+        const bandFreqs = this.getBandFrequencies();
+
+        this.ctx.fillStyle = this.accentColor;
+        bandFreqs.forEach((freq, i) => {
+            const x = this.freqToX(freq);
+            const y = this.gainToY(this.curveData[i]);
+
+            this.ctx.beginPath();
+            this.ctx.arc(x, y, 2, 0, Math.PI * 2);
+            this.ctx.fill();
+        });
+    }
+}

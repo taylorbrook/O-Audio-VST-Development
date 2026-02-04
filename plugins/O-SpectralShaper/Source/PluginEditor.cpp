@@ -97,6 +97,12 @@ void OSpectralShaperAudioProcessorEditor::parentHierarchyChanged()
     {
         webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
         hasNavigated = true;
+
+        // Send initial curve data to JavaScript after a short delay
+        juce::Timer::callAfterDelay(100, [this]() {
+            sendAttackCurveToJS();
+            sendSustainCurveToJS();
+        });
     }
 }
 
@@ -158,6 +164,27 @@ OSpectralShaperAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
+    if (url == "/js/components/CurveEditor.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::CurveEditor_js, BinaryData::CurveEditor_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    if (url == "/js/components/FreehandCurve.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::FreehandCurve_js, BinaryData::FreehandCurve_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    if (url == "/js/components/NodeCurve.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::NodeCurve_js, BinaryData::NodeCurve_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
     // Images
     if (url == "/images/paper-bg.webp") {
         return juce::WebBrowserComponent::Resource {
@@ -176,4 +203,62 @@ OSpectralShaperAudioProcessorEditor::getResource(const juce::String& url)
     // Resource not found
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
+}
+
+void OSpectralShaperAudioProcessorEditor::handleAttackCurveUpdate(const juce::Array<juce::var>& args)
+{
+    if (args.size() != 32) return;
+
+    std::array<float, 32> curveData;
+    for (int i = 0; i < 32; ++i)
+        curveData[i] = static_cast<float>(args[i]);
+
+    processorRef.setAttackCurve(curveData);
+}
+
+void OSpectralShaperAudioProcessorEditor::handleSustainCurveUpdate(const juce::Array<juce::var>& args)
+{
+    if (args.size() != 32) return;
+
+    std::array<float, 32> curveData;
+    for (int i = 0; i < 32; ++i)
+        curveData[i] = static_cast<float>(args[i]);
+
+    processorRef.setSustainCurve(curveData);
+}
+
+void OSpectralShaperAudioProcessorEditor::sendAttackCurveToJS()
+{
+    if (!webView) return;
+
+    const auto& curve = processorRef.getAttackCurve();
+
+    // Build JavaScript array string
+    juce::String jsArray = "[";
+    for (size_t i = 0; i < curve.size(); ++i) {
+        jsArray += juce::String(curve[i]);
+        if (i < curve.size() - 1) jsArray += ",";
+    }
+    jsArray += "]";
+
+    // Call JavaScript function
+    webView->evaluateJavascript("if (window.setAttackCurveFromCPP) window.setAttackCurveFromCPP(" + jsArray + ");");
+}
+
+void OSpectralShaperAudioProcessorEditor::sendSustainCurveToJS()
+{
+    if (!webView) return;
+
+    const auto& curve = processorRef.getSustainCurve();
+
+    // Build JavaScript array string
+    juce::String jsArray = "[";
+    for (size_t i = 0; i < curve.size(); ++i) {
+        jsArray += juce::String(curve[i]);
+        if (i < curve.size() - 1) jsArray += ",";
+    }
+    jsArray += "]";
+
+    // Call JavaScript function
+    webView->evaluateJavascript("if (window.setSustainCurveFromCPP) window.setSustainCurveFromCPP(" + jsArray + ");");
 }

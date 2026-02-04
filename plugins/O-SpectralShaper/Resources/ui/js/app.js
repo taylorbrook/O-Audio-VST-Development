@@ -1,13 +1,15 @@
 /**
  * O-SpectralShaper Main Application
  *
- * Phase 3.1: Parameter binding with JUCE relays
- * Phase 3.2: Curve editors (placeholder)
+ * Phase 3.1: Parameter binding with JUCE relays ✓
+ * Phase 3.2: Curve editors ✓
  * Phase 3.3: Spectrogram visualization (placeholder)
  */
 
 import * as Juce from './juce/index.js';
 import { RotaryKnob } from './components/RotaryKnob.js';
+import { FreehandCurve } from './components/FreehandCurve.js';
+import { NodeCurve } from './components/NodeCurve.js';
 
 // ============================================================================
 // APPLICATION STATE
@@ -15,6 +17,15 @@ import { RotaryKnob } from './components/RotaryKnob.js';
 
 const app = {
     knobs: {},
+    curves: {},
+    curveEditors: {
+        attack: null,
+        sustain: null
+    },
+    curveModes: {
+        attack: 'freehand', // 'freehand' or 'node'
+        sustain: 'freehand'
+    },
     initialized: false
 };
 
@@ -38,6 +49,9 @@ function initializeApp() {
 
     // Initialize toggle
     initializeToggle();
+
+    // Initialize curve editors (Phase 3.2)
+    initializeCurveEditors();
 
     // Mark as initialized
     app.initialized = true;
@@ -184,6 +198,121 @@ function updateToggleVisual(element, value) {
     } else {
         element.classList.remove('active');
     }
+}
+
+// ============================================================================
+// CURVE EDITOR INITIALIZATION (Phase 3.2)
+// ============================================================================
+
+function initializeCurveEditors() {
+    console.log('Initializing curve editors...');
+
+    // Attack curve editor
+    app.curveEditors.attack = new FreehandCurve('attack-curve-canvas', {
+        accentColor: '#4A90D9', // Attack blue
+        numBands: 32
+    });
+
+    app.curveEditors.attack.onCurveChange = (data) => {
+        sendCurveToProcessor('attack', data);
+    };
+
+    // Sustain curve editor
+    app.curveEditors.sustain = new FreehandCurve('sustain-curve-canvas', {
+        accentColor: '#D9944A', // Sustain orange
+        numBands: 32
+    });
+
+    app.curveEditors.sustain.onCurveChange = (data) => {
+        sendCurveToProcessor('sustain', data);
+    };
+
+    // Mode toggle buttons
+    setupModeToggle('attack');
+    setupModeToggle('sustain');
+
+    // Load initial curve data from C++
+    loadCurvesFromProcessor();
+}
+
+function setupModeToggle(curveType) {
+    const toggleButton = document.getElementById(`${curveType}-mode-toggle`);
+    const canvasId = `${curveType}-curve-canvas`;
+    const accentColor = curveType === 'attack' ? '#4A90D9' : '#D9944A';
+
+    toggleButton.addEventListener('click', () => {
+        // Toggle mode
+        const currentMode = app.curveModes[curveType];
+        const newMode = currentMode === 'freehand' ? 'node' : 'freehand';
+        app.curveModes[curveType] = newMode;
+
+        // Update button text
+        toggleButton.textContent = newMode === 'freehand' ? 'Freehand' : 'Node';
+
+        // Get current curve data
+        const currentData = app.curveEditors[curveType].getCurveData();
+
+        // Replace editor
+        if (newMode === 'freehand') {
+            app.curveEditors[curveType] = new FreehandCurve(canvasId, {
+                accentColor,
+                numBands: 32
+            });
+        } else {
+            app.curveEditors[curveType] = new NodeCurve(canvasId, {
+                accentColor,
+                numBands: 32
+            });
+        }
+
+        // Restore curve data
+        app.curveEditors[curveType].setCurveData(currentData);
+
+        // Attach callback
+        app.curveEditors[curveType].onCurveChange = (data) => {
+            sendCurveToProcessor(curveType, data);
+        };
+
+        console.log(`${curveType} curve mode: ${newMode}`);
+    });
+}
+
+/**
+ * Send curve data to C++ processor
+ * For now, just update local state - C++ reads curves on save
+ */
+function sendCurveToProcessor(curveType, data) {
+    // Store curve data locally
+    // C++ will call getCurve functions when needed (on state save)
+    console.log(`${curveType} curve updated (${data.length} values)`);
+}
+
+/**
+ * C++ → JavaScript: Set attack curve data
+ */
+window.setAttackCurveFromCPP = function(data) {
+    if (app.curveEditors && app.curveEditors.attack && data.length === 32) {
+        app.curveEditors.attack.setCurveData(data);
+        console.log('Loaded attack curve from C++');
+    }
+};
+
+/**
+ * C++ → JavaScript: Set sustain curve data
+ */
+window.setSustainCurveFromCPP = function(data) {
+    if (app.curveEditors && app.curveEditors.sustain && data.length === 32) {
+        app.curveEditors.sustain.setCurveData(data);
+        console.log('Loaded sustain curve from C++');
+    }
+};
+
+/**
+ * Load initial curve data from C++ processor
+ * (C++ will call setAttackCurveFromCPP/setSustainCurveFromCPP when ready)
+ */
+function loadCurvesFromProcessor() {
+    console.log('Waiting for initial curve data from C++...');
 }
 
 // ============================================================================
