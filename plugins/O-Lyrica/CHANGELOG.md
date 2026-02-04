@@ -2,6 +2,22 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.18.3] - 2026-02-03
+
+### Changed
+
+- **Code cleanup and simplification** - Reduced verbosity without functional changes
+  - Removed ~100 lines of DBG logging from preset manager callbacks (development diagnostics)
+  - Removed redundant null checks in processBlock (APVTS guarantees non-null for registered params)
+  - Added section comments to organize native functions in PluginEditor.cpp
+
+### Technical Details
+
+- Root cause: DBG statements were added during tuning state debugging (v1.12.0-1.13.3) but left in production
+- Pattern matches HarpSynthVoice cleanup from v1.3.2 (same null check removal)
+- Files modified: PluginProcessor.cpp, PluginEditor.cpp
+- No functional changes - pure code quality improvement
+
 ## [1.18.2] - 2026-02-03
 
 ### Changed

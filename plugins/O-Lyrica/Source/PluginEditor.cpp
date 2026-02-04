@@ -54,19 +54,23 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     tuningModeRelay = std::make_unique<juce::WebComboBoxRelay>("tuningMode");
 
     // 2️⃣ CREATE WEBVIEW with all relays registered
+    // v1.18.3: Added section comments for native function organization
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
             .withNativeIntegrationEnabled()
             .withResourceProvider([this](const juce::String& url) {
                 return getResource(url);
             })
-            // Phase 3.3: Native function to get voice count
-            // JUCE 8 async callback pattern: (args, complete) -> void
+            // ─────────────────────────────────────────────────────────────────
+            // VOICE COUNT
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("getVoiceCount", [this](const juce::Array<juce::var>&,
                                                          std::function<void(juce::var)> complete) {
                 complete(juce::var(processorRef.getActiveVoiceCount()));
             })
-            // v1.5.0: Preset Management Native Functions
+            // ─────────────────────────────────────────────────────────────────
+            // PRESET MANAGEMENT (v1.5.0)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("savePreset", [this](const juce::Array<juce::var>& args,
                                                       std::function<void(juce::var)> complete) {
                 if (args.isEmpty()) { complete(juce::var(false)); return; }
@@ -189,7 +193,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                     }
                 );
             })
-            // v1.6.0: Tuning Native Functions
+            // ─────────────────────────────────────────────────────────────────
+            // TUNING SYSTEM (v1.6.0+)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&,
                                                               std::function<void(juce::var)> complete) {
                 auto intervals = processorRef.getTuningEngine()->getIntervals();
@@ -409,7 +415,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                     }
                 );
             })
-            // v1.9.0: Temperament Preset Functions
+            // ─────────────────────────────────────────────────────────────────
+            // TEMPERAMENT PRESETS (v1.9.0)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args,
                                                                 std::function<void(juce::var)> complete) {
                 if (args.isEmpty()) { complete(juce::var(false)); return; }
@@ -464,7 +472,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 complete(juce::var(true));
             })
-            // v1.14.0: Scale Generator Functions
+            // ─────────────────────────────────────────────────────────────────
+            // SCALE GENERATORS (v1.14.0)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("generateEDO", [](const juce::Array<juce::var>& args,
                                                        std::function<void(juce::var)> complete) {
                 if (args.size() < 2) { complete(juce::var("[]")); return; }
@@ -559,7 +569,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
 
                 complete(juce::var(true));
             })
-            // v1.15.0: Embedded Tuning Library Functions
+            // ─────────────────────────────────────────────────────────────────
+            // EMBEDDED TUNING LIBRARY (v1.15.0)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&,
                                                             std::function<void(juce::var)> complete) {
                 // Build JSON array of all tunings
@@ -628,7 +640,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 json += "]";
                 complete(juce::var(json));
             })
-            // v1.16.0: HTML Export for Tuning Documentation
+            // ─────────────────────────────────────────────────────────────────
+            // HTML EXPORT (v1.16.0)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&,
                                                            std::function<void(juce::var)> complete) {
                 // Generate HTML content
@@ -665,7 +679,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                     }
                 );
             })
-            // v1.18.0: Tooltip system native functions
+            // ─────────────────────────────────────────────────────────────────
+            // TOOLTIP SYSTEM (v1.18.0)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("setTooltipsEnabled", [this](const juce::Array<juce::var>& args,
                                                               std::function<void(juce::var)> complete) {
                 if (args.isEmpty()) { complete(juce::var(false)); return; }
@@ -677,7 +693,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                                                               std::function<void(juce::var)> complete) {
                 complete(juce::var(processorRef.getTooltipsEnabled()));
             })
-            // v1.7.4: Note triggering for WebView keyboard visualization
+            // ─────────────────────────────────────────────────────────────────
+            // NOTE TRIGGERING (v1.7.4)
+            // ─────────────────────────────────────────────────────────────────
             .withNativeFunction("triggerNoteOn", [this](const juce::Array<juce::var>& args,
                                                          std::function<void(juce::var)> complete) {
                 if (args.size() < 2) { complete(juce::var(false)); return; }
@@ -693,7 +711,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
                 processorRef.triggerNoteOff(midiNote);
                 complete(juce::var(true));
             })
-            // Register all slider relays
+            // ─────────────────────────────────────────────────────────────────
+            // RELAY REGISTRATION
+            // ─────────────────────────────────────────────────────────────────
             .withOptionsFrom(*masterVolumeRelay)
             .withOptionsFrom(*brightnessRelay)
             .withOptionsFrom(*timbreRelay)
