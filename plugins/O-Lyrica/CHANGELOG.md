@@ -2,6 +2,25 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.18.1] - 2026-02-03
+
+### Changed
+
+- **Keyboard moved from Tuning tab to sticky footer panel**
+  - Keyboard now visible at all times, positioned between Master fader and "Ouaricon Audio" branding
+  - Expanded from 1 octave (C4-B4) to 2 octaves (C3-B4) for more playable range
+  - Compact design: 42px height to fit in 55px footer
+  - Footer height increased from 40px to 55px to accommodate keyboard
+  - Click-to-play functionality preserved with all existing event handlers
+
+### Technical Details
+
+- Files modified: Resources/ui/index.html (CSS restructure + HTML relocation)
+- New CSS classes: `.footer-keyboard`, `.footer-keyboard-viz`, `.footer-keyboard-help`
+- Old `.keyboard-section` CSS removed (was in Tuning tab)
+- Keyboard ID unchanged (`keyboard-viz`) for JavaScript compatibility
+- Black key positioning uses `calc()` for responsive layout across 14 white keys
+
 ## [1.18.0] - 2026-01-26
 
 ### Added

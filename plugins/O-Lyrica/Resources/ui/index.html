@@ -470,12 +470,13 @@
            FOOTER
            ==================================================================== */
 
+        /* v1.18.1: Footer expanded to include keyboard */
         .footer {
             position: absolute;
             bottom: 0;
             left: 0;
             width: 100%;
-            height: 40px;
+            height: 55px;
             display: flex;
             align-items: center;
             justify-content: space-between;
@@ -489,6 +490,7 @@
             display: flex;
             align-items: center;
             gap: 10px;
+            flex-shrink: 0;
         }
 
         .master-label {
@@ -508,11 +510,115 @@
             min-width: 50px;
         }
 
+        /* v1.18.1: Footer keyboard - compact 2-octave layout */
+        .footer-keyboard {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2px;
+            flex: 1;
+            max-width: 380px;
+            margin: 0 15px;
+        }
+
+        .footer-keyboard-viz {
+            width: 100%;
+            height: 42px;
+            background: #FAF0E6;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            display: flex;
+            overflow: visible;
+            position: relative;
+        }
+
+        .footer-keyboard .white-key {
+            flex: 1;
+            background: #FAF0E6;
+            border-right: 1px solid rgba(139, 115, 85, 0.6);
+            display: flex;
+            flex-direction: column;
+            justify-content: flex-end;
+            align-items: center;
+            padding-bottom: 2px;
+            transition: background 0.15s, transform 0.1s;
+            cursor: pointer;
+            z-index: 1;
+            min-width: 0;
+        }
+
+        .footer-keyboard .white-key:last-of-type {
+            border-right: none;
+        }
+
+        .footer-keyboard .white-key.mapped {
+            background: rgba(139, 168, 112, 0.35);
+        }
+
+        .footer-keyboard .white-key span {
+            font-size: 6px;
+            color: #5C4033;
+            pointer-events: none;
+            opacity: 0.7;
+        }
+
+        .footer-keyboard .white-key:hover:not(.pressed) {
+            background: #FFF8DC;
+        }
+
+        .footer-keyboard .white-key.mapped:hover:not(.pressed) {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .footer-keyboard .white-key:active, .footer-keyboard .white-key.pressed {
+            background: #8BC34A !important;
+            transform: translateY(1px);
+            z-index: 2;
+        }
+
+        .footer-keyboard .black-key {
+            position: absolute;
+            width: 14px;
+            height: 28px;
+            background: #3C2F2F;
+            border-radius: 0 0 2px 2px;
+            top: 0;
+            z-index: 10;
+            transition: background 0.15s, transform 0.1s;
+            cursor: pointer;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+        }
+
+        .footer-keyboard .black-key.mapped {
+            background: #4A6B2A;
+        }
+
+        .footer-keyboard .black-key:hover {
+            background: #5A3A3A;
+        }
+
+        .footer-keyboard .black-key.mapped:hover {
+            background: #5A8B3A;
+        }
+
+        .footer-keyboard .black-key:active, .footer-keyboard .black-key.pressed {
+            background: #8BC34A !important;
+            transform: translateY(1px);
+            box-shadow: 0 0 2px rgba(0,0,0,0.3);
+        }
+
+        .footer-keyboard-help {
+            font-size: 7px;
+            color: #8B7355;
+            text-align: center;
+        }
+
         .brand {
             font-size: 8px;
             color: #8B7355;
             letter-spacing: 1px;
             text-transform: uppercase;
+            flex-shrink: 0;
         }
 
         /* ====================================================================
@@ -1087,115 +1193,7 @@
             text-align: right;
         }
 
-        /* Bottom: Keyboard visualization - v1.7.1: Compact centered like Marimba */
-        /* v1.7.7: Shifted 40px left to avoid overlap with SCL/KBM buttons in Custom mode */
-        .keyboard-section {
-            position: absolute;
-            bottom: 15px;
-            left: calc(50% - 40px);
-            transform: translateX(-50%);
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            gap: 4px;
-        }
-
-        .keyboard-viz {
-            width: 280px;
-            height: 70px;
-            background: #FAF0E6;
-            border: 1px solid #8B7355;
-            border-radius: 4px;
-            display: flex;
-            overflow: visible;
-            position: relative;
-        }
-
-        .white-key {
-            flex: 1;
-            background: #FAF0E6;
-            border-right: 1px solid #8B7355;
-            display: flex;
-            flex-direction: column;
-            justify-content: flex-end;
-            align-items: center;
-            padding-bottom: 4px;
-            transition: background 0.15s, transform 0.1s;
-            cursor: pointer;
-            z-index: 1;
-        }
-
-        .white-key:last-child {
-            border-right: none;
-        }
-
-        .white-key.mapped {
-            background: rgba(139, 168, 112, 0.4);
-        }
-
-        .white-key span {
-            font-size: 7px;
-            color: #3C2F2F;
-            pointer-events: none;
-        }
-
-        .white-key:hover:not(.pressed) {
-            background: #FFF8DC;
-        }
-
-        .white-key.mapped:hover:not(.pressed) {
-            background: rgba(139, 168, 112, 0.55);
-        }
-
-        .white-key:active, .white-key.pressed {
-            background: #8BC34A !important;
-            transform: translateY(2px);
-            z-index: 2;
-        }
-
-        .black-key {
-            position: absolute;
-            width: 22px;
-            height: 50px;
-            background: #3C2F2F;
-            border-radius: 0 0 3px 3px;
-            top: 0;
-            z-index: 10;
-            transition: background 0.15s, transform 0.1s;
-            cursor: pointer;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.3);
-        }
-
-        /* Black key positions: 280px / 7 white keys = 40px per key */
-        .black-key#key-cs1 { left: 29px; }
-        .black-key#key-ds1 { left: 69px; }
-        .black-key#key-fs1 { left: 149px; }
-        .black-key#key-gs1 { left: 189px; }
-        .black-key#key-as1 { left: 229px; }
-
-        .black-key.mapped {
-            background: #4A6B2A;
-        }
-
-        .black-key:hover {
-            background: #5A3A3A;
-        }
-
-        .black-key.mapped:hover {
-            background: #5A8B3A;
-        }
-
-        .black-key:active, .black-key.pressed {
-            background: #8BC34A !important;
-            transform: translateY(2px);
-            box-shadow: 0 1px 2px rgba(0,0,0,0.3);
-        }
-
-        .keyboard-help {
-            font-size: 8px;
-            color: #5C4033;
-            text-align: center;
-        }
+        /* v1.18.1: Old keyboard-section CSS removed - keyboard now in footer */
 
         /* ====================================================================
            v1.10.0: VISUALIZATION MODE STYLES - Phase 2
@@ -2063,26 +2061,7 @@
                 </div>
             </div>
 
-            <!-- BOTTOM: Keyboard Visualization (1 octave) - v1.7.1: Compact centered -->
-            <div class="keyboard-section">
-                <div class="keyboard-viz" id="keyboard-viz">
-                    <!-- Single Octave: C4-B4 - White keys -->
-                    <div class="white-key mapped" id="key-c1" data-note="60"><span>C</span></div>
-                    <div class="white-key mapped" id="key-d1" data-note="62"><span>D</span></div>
-                    <div class="white-key mapped" id="key-e1" data-note="64"><span>E</span></div>
-                    <div class="white-key mapped" id="key-f1" data-note="65"><span>F</span></div>
-                    <div class="white-key mapped" id="key-g1" data-note="67"><span>G</span></div>
-                    <div class="white-key mapped" id="key-a1" data-note="69"><span>A</span></div>
-                    <div class="white-key mapped" id="key-b1" data-note="71"><span>B</span></div>
-                    <!-- Black keys positioned by CSS ID selectors -->
-                    <div class="black-key mapped" id="key-cs1" data-note="61"></div>
-                    <div class="black-key mapped" id="key-ds1" data-note="63"></div>
-                    <div class="black-key mapped" id="key-fs1" data-note="66"></div>
-                    <div class="black-key mapped" id="key-gs1" data-note="68"></div>
-                    <div class="black-key mapped" id="key-as1" data-note="70"></div>
-                </div>
-                <div class="keyboard-help">Click keys to play notes</div>
-            </div>
+            <!-- v1.18.1: Keyboard moved to footer -->
         </div>
 
         <!-- ================================================================
@@ -2095,12 +2074,46 @@
             </div>
         </div>
 
-        <!-- Footer -->
+        <!-- Footer - v1.18.1: Keyboard moved here from Tuning tab -->
         <div class="footer">
             <div class="master-volume" data-tooltip="Master Volume: The final output level of the instrument. Shown in dB. 0 dB is unity gain (no change).">
                 <span class="master-label">Master</span>
                 <input type="range" id="masterVolume" class="master-slider" min="0" max="1" step="0.001" value="0.909">
                 <span class="master-value" id="masterVolumeValue">0.0 dB</span>
+            </div>
+            <!-- v1.18.1: 2-octave keyboard in footer -->
+            <div class="footer-keyboard">
+                <div class="footer-keyboard-viz" id="keyboard-viz">
+                    <!-- 2 Octaves: C3-B4 (MIDI 48-71) - 14 White keys -->
+                    <div class="white-key mapped" data-note="48"><span>C3</span></div>
+                    <div class="white-key mapped" data-note="50"><span>D</span></div>
+                    <div class="white-key mapped" data-note="52"><span>E</span></div>
+                    <div class="white-key mapped" data-note="53"><span>F</span></div>
+                    <div class="white-key mapped" data-note="55"><span>G</span></div>
+                    <div class="white-key mapped" data-note="57"><span>A</span></div>
+                    <div class="white-key mapped" data-note="59"><span>B</span></div>
+                    <div class="white-key mapped" data-note="60"><span>C4</span></div>
+                    <div class="white-key mapped" data-note="62"><span>D</span></div>
+                    <div class="white-key mapped" data-note="64"><span>E</span></div>
+                    <div class="white-key mapped" data-note="65"><span>F</span></div>
+                    <div class="white-key mapped" data-note="67"><span>G</span></div>
+                    <div class="white-key mapped" data-note="69"><span>A</span></div>
+                    <div class="white-key mapped" data-note="71"><span>B</span></div>
+                    <!-- Black keys - 10 total for 2 octaves -->
+                    <!-- Octave 1 (C3-B3): positioned as percentages of 14 white keys -->
+                    <div class="black-key mapped" data-note="49" style="left: calc(100% / 14 * 1 - 7px);"></div>
+                    <div class="black-key mapped" data-note="51" style="left: calc(100% / 14 * 2 - 7px);"></div>
+                    <div class="black-key mapped" data-note="54" style="left: calc(100% / 14 * 4 - 7px);"></div>
+                    <div class="black-key mapped" data-note="56" style="left: calc(100% / 14 * 5 - 7px);"></div>
+                    <div class="black-key mapped" data-note="58" style="left: calc(100% / 14 * 6 - 7px);"></div>
+                    <!-- Octave 2 (C4-B4) -->
+                    <div class="black-key mapped" data-note="61" style="left: calc(100% / 14 * 8 - 7px);"></div>
+                    <div class="black-key mapped" data-note="63" style="left: calc(100% / 14 * 9 - 7px);"></div>
+                    <div class="black-key mapped" data-note="66" style="left: calc(100% / 14 * 11 - 7px);"></div>
+                    <div class="black-key mapped" data-note="68" style="left: calc(100% / 14 * 12 - 7px);"></div>
+                    <div class="black-key mapped" data-note="70" style="left: calc(100% / 14 * 13 - 7px);"></div>
+                </div>
+                <div class="footer-keyboard-help">Click to play</div>
             </div>
             <span class="brand">Ouaricon Audio</span>
         </div>
