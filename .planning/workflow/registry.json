@@ -1,18 +1,32 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-FreqPulse",
+  "focused": "O-SpectralShaper",
   "plugins": {
-    "O-FreqPulse": {
-      "path": "plugins/O-FreqPulse",
+    "O-SpectralShaper": {
+      "path": "plugins/O-SpectralShaper",
       "stage": "3-gui",
-      "phase": "complete",
-      "status": "active",
+      "phase": "3.3-debugging",
+      "status": "issues",
       "created": "2026-02-03",
-      "lastActivity": "2026-02-04T08:10:00Z",
+      "lastActivity": "2026-02-04T12:00:00Z",
       "modules": [],
       "expressMode": false,
-      "blockedBy": null
+      "blockedBy": null,
+      "version": "0.3.0",
+      "notes": "Audio artifacts at 100% mix - 4 STFT bugs fixed, residual issues remain"
+    },
+    "O-FreqPulse": {
+      "path": "plugins/O-FreqPulse",
+      "stage": "4-polish",
+      "phase": "complete",
+      "status": "complete",
+      "created": "2026-02-03",
+      "lastActivity": "2026-02-04T08:45:00Z",
+      "modules": [],
+      "expressMode": false,
+      "blockedBy": null,
+      "version": "1.0.0"
     },
     "O-Bells": {
       "path": "plugins/O-Bells",

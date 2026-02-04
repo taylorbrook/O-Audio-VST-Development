@@ -24,23 +24,50 @@ export class CurveEditor {
         // Curve data (32 values, -1.0 to +1.0)
         this.curveData = new Array(this.numBands).fill(0.0);
 
-        // Setup canvas size
-        this.resizeCanvas();
-
         // Callback for curve updates
         this.onCurveChange = null;
 
-        // Render loop
+        // Setup canvas size (may need to wait for layout)
+        this.resizeCanvas();
+
+        // Handle window resize
+        window.addEventListener('resize', () => this.handleResize());
+
+        // Initial render (deferred to ensure layout is complete)
+        requestAnimationFrame(() => {
+            this.resizeCanvas();
+            this.render();
+        });
+    }
+
+    handleResize() {
+        this.resizeCanvas();
         this.render();
     }
 
     resizeCanvas() {
         const rect = this.canvas.getBoundingClientRect();
-        this.canvas.width = rect.width * window.devicePixelRatio;
-        this.canvas.height = rect.height * window.devicePixelRatio;
-        this.ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
-        this.width = rect.width;
-        this.height = rect.height;
+
+        // Ensure we have valid dimensions (fallback to parent or minimum)
+        const width = rect.width > 0 ? rect.width : (this.canvas.parentElement?.clientWidth || 400);
+        const height = rect.height > 0 ? rect.height : (this.canvas.parentElement?.clientHeight || 100);
+
+        // Only resize if dimensions changed
+        if (this.width === width && this.height === height) return;
+
+        this.width = width;
+        this.height = height;
+
+        // Set canvas buffer size (high-DPI support)
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+
+        // Reset and scale context
+        this.ctx.setTransform(1, 0, 0, 1, 0, 0);
+        this.ctx.scale(dpr, dpr);
+
+        console.log(`CurveEditor resized: ${width}x${height} (canvas: ${this.canvas.width}x${this.canvas.height})`);
     }
 
     /**

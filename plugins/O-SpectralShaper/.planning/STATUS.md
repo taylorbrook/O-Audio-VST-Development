@@ -1,14 +1,14 @@
 ---
 plugin: O-SpectralShaper
 stage: 3
-phase: null
-status: complete
+phase: 3.3-debugging
+status: issues
 last_updated: 2026-02-04
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: begin_stage_4
-next_stage: 4
+next_action: debug_audio_artifacts
+next_stage: 3
 contract_checksums:
   brief: sha256:2e7cbc1752e5cd3c12fc44079e5ef5d8267db3e9b24c6e3428228c6957eec5ff
   requirements: sha256:baed708486afead047c6715e09eaa86a6ed4d2714392ae2190d2d1b970193dc8
@@ -21,9 +21,36 @@ ready_for_implementation: true
 
 ## Current Position
 
-Stage: 3 of 5 (GUI Implementation) — COMPLETE
-Status: All 3 phases (Layout, Curves, Spectrogram) implemented and verified
-Progress: [####################] 100%
+Stage: 3 of 5 (GUI Implementation) — DEBUGGING
+Status: Phase 3.3 implemented, audio artifacts remaining
+Progress: [##################--] 90%
+
+## ⚠️ KNOWN ISSUES (Handoff)
+
+**Audio artifacts in STFT processing at 100% mix**
+- Audio passes through (previously silent - fixed)
+- User reports: "introducing all sorts of artifacts through the fft process"
+- Root cause under investigation - may be residual overlap-add or windowing issue
+
+## 🔧 BUGS FIXED (This Session)
+
+Four critical STFT bugs were identified and fixed:
+
+### Bug 1: Input FIFO Write Location
+**Problem:** Input samples written to `inputFIFO[fifoIndex]` (indices 0-255) which overwrote previously-shifted overlap data from the prior frame.
+**Fix:** Changed to `inputFIFO[HOP_SIZE + fifoIndex]` to write to second half while preserving overlap in first half.
+
+### Bug 2: Output FIFO Overlap-Add Timing
+**Problem:** Output FIFO shift happened AFTER processFrame(), destroying freshly-overlapped synthesis data before it could be read.
+**Fix:** Moved shift to BEFORE processFrame() - shift [256..511]→[0..255], clear [256..511], then run processFrame().
+
+### Bug 3: FFT Data Layout (CRITICAL)
+**Problem:** Input written as interleaved `fftData[i*2] = sample` and output read as `fftData[i*2]`. JUCE's `performRealOnlyForwardTransform` expects **sequential** real samples in `fftData[0..FFT_SIZE-1]`.
+**Fix:** Changed both input/output loops to use sequential indexing `fftData[i]`.
+
+### Bug 4: Catmull-Rom Spline Formula
+**Problem:** Original formula used `tension * (...) / 2` with tension=0.5, causing 0.25× Y-scaling (curves nearly invisible).
+**Fix:** Replaced with standard centripetal Catmull-Rom formula with 0.5× coefficient.
 
 ## Completed So Far
 
@@ -80,12 +107,13 @@ Progress: [####################] 100%
 - 19 requirements verified complete
 - 0 requirements failed
 
-**Stage 3:** ✓ Complete (all 3 phases)
-- Phase 3.1: Layout & Controls (dark botanical theme, 7 parameter controls)
-- Phase 3.2: Curve Editors (freehand + node modes with C++ sync)
-- Phase 3.3: Real-Time Spectrogram (WebGL renderer with transient overlay)
-- All 23 tasks completed
-- Full WebView GUI operational
+**Stage 3:** ⚠️ Debugging (3 phases implemented, audio issues)
+- Phase 3.1: ✓ Layout & Controls (dark botanical theme, 7 parameter controls)
+- Phase 3.2: ✓ Curve Editors (freehand + node modes with C++ sync)
+- Phase 3.3: ⚠️ Real-Time Spectrogram (implemented, audio artifacts present)
+- All 23 tasks code-complete
+- WebView GUI operational
+- **ISSUE:** Audio artifacts at 100% mix require debugging
 
 ## Stage 2 Phases
 
@@ -139,16 +167,25 @@ Progress: [####################] 100%
 
 ## Next Steps
 
-1. **Stage 3: GUI Implementation** ✓ COMPLETE
+1. **Debug Audio Artifacts** (IMMEDIATE - NEXT SESSION)
+   - Investigate remaining FFT/STFT artifacts at 100% mix
+   - Possible areas to check:
+     - Window overlap coefficient (COLA_SCALE = 2.0)
+     - Frequency bin processing in detectTransients()/applyEnvelopeShaping()
+     - Gain smoothing interaction with per-frame processing
+     - Phase discontinuities in magnitude-only processing
+   - Use bypass toggle to A/B test clean vs processed signal
+   - Consider adding null-test mode for debugging
+
+2. **Stage 3: GUI Implementation** ⚠️ DEBUGGING
    - ✓ DISCUSS phase complete (CONTEXT.md)
    - ✓ RESEARCH phase complete (RESEARCH.md)
    - ✓ PLAN phase complete (PLAN.md - 23 tasks)
    - ✓ Phase 3.1 complete: WebView layout with parameter controls
    - ✓ Phase 3.2 complete: Drawable curve editors
-   - ✓ Phase 3.3 complete: Real-time spectrogram with transient overlay
-   - ✓ All 23 tasks implemented and verified
+   - ⚠️ Phase 3.3 code-complete: Spectrogram working, audio artifacts present
 
-2. **Stage 4: Documentation & Polish** (NEXT)
+3. **Stage 4: Documentation & Polish** (AFTER DEBUG)
    - Create user manual
    - Write preset collection
    - Optimize performance
@@ -241,10 +278,11 @@ Key findings from Stage 3 research:
 
 ## Last Updated
 
-2026-02-04 - Stage 3 COMPLETE (All 3 phases)
+2026-02-04 - Stage 3 DEBUGGING (Phase 3.3 audio issues)
 - Commits: 3 (Phase 3.1, Phase 3.2, Phase 3.3)
 - Build status: ✅ VST3 + AU
 - Installation: ✅ System plugin folders
-- Verification: ✅ All 23 tasks complete
+- 4 critical bugs fixed this session (see above)
 - GUI: ✅ Full WebView operational (controls, curves, spectrogram)
-- Next: Stage 4 (Documentation & Polish)
+- **Issue:** Audio artifacts at 100% mix - requires debugging
+- Next: Debug STFT artifacts before Stage 4

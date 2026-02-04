@@ -6,7 +6,30 @@
 
 ## Verification Scope
 
-**Important:** This verification covers **Phases 3.1 and 3.2 only**. Phase 3.3 (Real-Time Spectrogram) is pending and will require a separate verification pass after implementation.
+**All three phases implemented.** Phase 3.3 (Real-Time Spectrogram) is code-complete but has audio artifact issues requiring debugging.
+
+## ⚠️ CRITICAL ISSUES (Session Handoff)
+
+### Audio Artifacts at 100% Mix
+
+**Status:** DEBUGGING REQUIRED
+**User Report:** "introducing all sorts of artifacts through the fft process"
+**Context:** Audio passes through (4 critical bugs were fixed), but quality issues remain
+
+### Bugs Fixed This Session
+
+1. **Input FIFO Write Location** - Changed from `inputFIFO[fifoIndex]` to `inputFIFO[HOP_SIZE + fifoIndex]`
+2. **Output FIFO Timing** - Moved shift to BEFORE processFrame()
+3. **FFT Data Layout** - Changed interleaved to sequential indexing for JUCE FFT
+4. **Catmull-Rom Formula** - Fixed 0.25× scaling bug in freehand curve smoothing
+
+### Next Debug Steps
+
+1. Check COLA_SCALE value (currently 2.0) against window overlap
+2. Verify magnitude-only processing isn't causing phase issues
+3. Test with bypass to isolate artifact source
+4. Check if gain smoothing interacts poorly with per-frame processing
+5. Consider adding debug output to compare input vs output energy
 
 ---
 
@@ -48,7 +71,7 @@
 | Sustain curve editor | ✅ Achieved | Same components, different accent color (#D9944A) |
 | Mode toggle buttons | ✅ Achieved | app.js:238-278, index.html lines 27, 34 |
 | C++ → JS curves | ✅ Achieved | PluginEditor.cpp:230-264, window.setAttackCurveFromCPP/setSustainCurveFromCPP |
-| Real-time spectrogram | ⏳ Pending | Phase 3.3 not yet implemented |
+| Real-time spectrogram | ⚠️ Issues | Spectrogram.js implemented, audio artifacts present |
 
 ---
 
@@ -180,27 +203,37 @@
 
 ---
 
-## Phase 3.3 Prerequisites (Pending Work)
+## Phase 3.3 Implementation Status
 
-The following items are required for Phase 3.3 completion:
+All planned items have been implemented:
 
-1. **juce::Timer** inheritance in PluginEditor
-2. **juce::AbstractFifo** in PluginProcessor for lock-free visualization data
-3. **VisualizationFrame** struct with FFT magnitudes and transient activity
-4. **60fps timerCallback()** reading FIFO and emitting to WebView
-5. **WebGL spectrogram renderer** with circular buffer texture
-6. **Transient heat overlay** blending with spectrogram
-7. **JS→C++ curve communication** during visualization update cycle
+1. ✅ **juce::Timer** inheritance in PluginEditor
+2. ✅ **juce::AbstractFifo** in PluginProcessor for lock-free visualization data
+3. ✅ **VisualizationFrame** struct with FFT magnitudes and transient activity
+4. ✅ **60fps timerCallback()** reading FIFO and emitting to WebView
+5. ✅ **WebGL spectrogram renderer** with circular buffer texture (Spectrogram.js)
+6. ✅ **Transient heat overlay** blending with spectrogram (inferno + heat colormaps)
+7. ✅ **JS→C++ curve communication** via native functions
+
+### Files Modified for Phase 3.3
+
+- `PluginProcessor.h/cpp` - VisualizationFrame, AbstractFifo, FIFO write
+- `PluginEditor.h/cpp` - Timer inheritance, timerCallback, native functions
+- `STFTProcessor.h/cpp` - lastMagnitudes storage, processFrame fixes
+- `Resources/ui/js/components/Spectrogram.js` - WebGL renderer
+- `Resources/ui/js/components/CurveEditor.js` - resize handling
+- `Resources/ui/js/components/FreehandCurve.js` - Catmull-Rom fix
+- `Resources/ui/js/app.js` - event listeners, render loop
 
 ---
 
 ## Stage Verdict
 
-**Status:** ⚠️ **PARTIAL** (Phases 3.1 & 3.2 Complete, Phase 3.3 Pending)
+**Status:** ⚠️ **DEBUGGING** (All phases code-complete, audio artifacts present)
 
-**Ready for Phase 3.3:** Yes
+**Ready for Stage 4:** No - must resolve audio quality issues first
 
-**Blockers:** None for Phase 3.3 implementation
+**Blockers:** Audio artifacts in STFT processing at 100% mix
 
 ---
 
@@ -215,18 +248,23 @@ The following items are required for Phase 3.3 completion:
 | Parameter Binding | ✅ 7 parameters | N/A |
 | Curve Editing | N/A | ✅ Freehand + Node |
 | C++ → JS | ✅ evaluateJavascript | ✅ Curve initialization |
-| JS → C++ | N/A | ⏳ Phase 3.3 |
+| JS → C++ | N/A | ✅ Phase 3.3 |
 
-### Phase 3.3: PENDING ⏳
+### Phase 3.3: CODE-COMPLETE, DEBUGGING ⚠️
 
-Required for Stage 3 completion:
-- Real-time WebGL spectrogram
-- Transient heat overlay
-- Bidirectional curve communication
-- 60fps visualization pipeline
+Implemented (with bugs fixed):
+- ✅ Real-time WebGL spectrogram (Spectrogram.js)
+- ✅ Transient heat overlay (inferno + heat colormaps)
+- ✅ Bidirectional curve communication
+- ✅ 60fps visualization pipeline (AbstractFifo + Timer)
+
+Issues remaining:
+- ⚠️ Audio artifacts at 100% mix (user-reported)
+- 4 critical STFT bugs were fixed this session
+- Additional debugging required before Stage 4
 
 ---
 
-*Verification completed: 2026-02-04*
+*Verification updated: 2026-02-04*
 *Verifier: Claude (gsd-verifier)*
-*Next action: `/plugin-execute O-SpectralShaper 3-gui` for Phase 3.3*
+*Next action: Debug audio artifacts in STFTProcessor*

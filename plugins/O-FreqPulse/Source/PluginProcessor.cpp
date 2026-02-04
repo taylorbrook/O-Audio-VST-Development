@@ -672,6 +672,279 @@ void OFreqPulseAudioProcessor::setStateInformation(const void* data, int sizeInB
 }
 
 //==============================================================================
+// Factory Presets
+//==============================================================================
+
+// Preset names
+static const juce::StringArray presetNames = {
+    "Init",                    // 0: Default starting point
+    "Classic Sidechain",       // 1: Sub solid, mids pump at 1/4
+    "Trance Gate 16th",        // 2: All bands 16th note gating
+    "Dubstep Pulse",           // 3: Heavy sub gate, minimal highs
+    "Ambient Shimmer",         // 4: Slow Euclidean on highs, high smoothing
+    "Polyrhythm 5-7-11",       // 5: Different Euclidean ratios per band
+    "Bass Foundation",         // 6: Sub always on, others gated
+    "Hi-Hat Chop",             // 7: Only high band gated fast
+    "Full Spectrum Gate",      // 8: Unified gating across all bands
+    "Euclidean Groove",        // 9: All bands Euclidean, musical ratios
+    "Half-Time Feel",          // 10: Slower rate, dramatic pumping
+    "Triplet Bounce"           // 11: Triplet timing groove
+};
+
+int OFreqPulseAudioProcessor::getNumPrograms()
+{
+    return numPresets;
+}
+
+int OFreqPulseAudioProcessor::getCurrentProgram()
+{
+    return currentProgram;
+}
+
+void OFreqPulseAudioProcessor::setCurrentProgram(int index)
+{
+    // Factory presets are available but not auto-loaded when program changes
+    // This prevents interference with DAW state restoration and automation
+    // Preset loading is triggered explicitly via UI or initial selection
+    if (index >= 0 && index < numPresets)
+        currentProgram = index;
+}
+
+const juce::String OFreqPulseAudioProcessor::getProgramName(int index)
+{
+    if (index >= 0 && index < numPresets)
+        return presetNames[index];
+    return {};
+}
+
+void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
+{
+    auto* mix = parameters.getParameter("mix");
+    auto* steps = parameters.getParameter("steps");
+    auto* rate = parameters.getParameter("rate");
+    auto* swing = parameters.getParameter("swing");
+    auto* smoothing = parameters.getParameter("smoothing");
+
+    // Helper lambda to set step pattern for a band
+    auto setStepPattern = [this](int band, const std::array<bool, 32>& pattern) {
+        for (int i = 0; i < 32; ++i)
+        {
+            juce::String stepID = "step_b" + juce::String(band) + "_s" + juce::String(i);
+            if (auto* param = parameters.getParameter(stepID))
+                param->setValueNotifyingHost(pattern[i] ? 1.0f : 0.0f);
+        }
+    };
+
+    // Helper lambda for band parameters
+    auto setBandParams = [this](int band, bool enable, bool eucOn, int eucSteps, int eucPulses, int eucOffset, float depth) {
+        juce::String bandID = "band" + juce::String(band);
+
+        if (auto* p = parameters.getParameter(bandID + "_enable"))
+            p->setValueNotifyingHost(enable ? 1.0f : 0.0f);
+        if (auto* p = parameters.getParameter(bandID + "_euc_on"))
+            p->setValueNotifyingHost(eucOn ? 1.0f : 0.0f);
+        if (auto* p = parameters.getParameter(bandID + "_euc_steps"))
+            p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucSteps)));
+        if (auto* p = parameters.getParameter(bandID + "_euc_pulses"))
+            p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucPulses)));
+        if (auto* p = parameters.getParameter(bandID + "_euc_offset"))
+            p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucOffset)));
+        if (auto* p = parameters.getParameter(bandID + "_depth"))
+            p->setValueNotifyingHost(depth);
+    };
+
+    // Default step pattern (alternating 8th notes)
+    std::array<bool, 32> patternAlt8th = {true, false, true, false, true, false, true, false,
+                                          true, false, true, false, true, false, true, false,
+                                          true, false, true, false, true, false, true, false,
+                                          true, false, true, false, true, false, true, false};
+
+    // 16th note pattern (all on)
+    std::array<bool, 32> patternAll = {true, true, true, true, true, true, true, true,
+                                        true, true, true, true, true, true, true, true,
+                                        true, true, true, true, true, true, true, true,
+                                        true, true, true, true, true, true, true, true};
+
+    // Quarter note pattern
+    std::array<bool, 32> patternQuarter = {true, false, false, false, true, false, false, false,
+                                           true, false, false, false, true, false, false, false,
+                                           true, false, false, false, true, false, false, false,
+                                           true, false, false, false, true, false, false, false};
+
+    // Empty pattern
+    std::array<bool, 32> patternEmpty = {};
+
+    switch (presetIndex)
+    {
+        case 0:  // Init - Clean starting point
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+
+            for (int b = 0; b < 4; ++b)
+            {
+                setBandParams(b, true, false, 16, 8, 0, 1.0f);
+                setStepPattern(b, patternEmpty);
+            }
+            break;
+
+        case 1:  // Classic Sidechain - Sub solid, mids pump at 1/4
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));    // 1/4
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(20.0f));
+
+            setBandParams(0, true, false, 16, 16, 0, 0.0f);  // Sub: no gating
+            setBandParams(1, true, false, 16, 8, 0, 0.8f);   // Low: pumping
+            setBandParams(2, true, false, 16, 8, 0, 1.0f);   // Mid: full pump
+            setBandParams(3, true, false, 16, 8, 0, 0.6f);   // High: subtle
+
+            setStepPattern(0, patternAll);
+            setStepPattern(1, patternQuarter);
+            setStepPattern(2, patternQuarter);
+            setStepPattern(3, patternQuarter);
+            break;
+
+        case 2:  // Trance Gate 16th
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(3.0f));
+
+            for (int b = 0; b < 4; ++b)
+            {
+                setBandParams(b, true, false, 16, 8, 0, 1.0f);
+                setStepPattern(b, patternAlt8th);
+            }
+            break;
+
+        case 3:  // Dubstep Pulse - Heavy sub gate
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(1.0f));  // 8 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));    // 1/8
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(2.0f));
+
+            setBandParams(0, true, true, 8, 5, 0, 1.0f);     // Sub: Euclidean 5/8
+            setBandParams(1, true, true, 8, 3, 0, 0.9f);     // Low: Euclidean 3/8
+            setBandParams(2, true, false, 8, 8, 0, 0.3f);    // Mid: subtle
+            setBandParams(3, true, false, 8, 8, 0, 0.1f);    // High: minimal
+            break;
+
+        case 4:  // Ambient Shimmer - Slow highs
+            mix->setValueNotifyingHost(0.7f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(3.0f));  // 32 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(1.0f));    // 1/2
+            swing->setValueNotifyingHost(0.2f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(50.0f));
+
+            setBandParams(0, true, false, 32, 32, 0, 0.0f);  // Sub: no gating
+            setBandParams(1, true, false, 32, 32, 0, 0.0f);  // Low: no gating
+            setBandParams(2, true, true, 32, 7, 0, 0.5f);    // Mid: slow Euclidean
+            setBandParams(3, true, true, 32, 11, 3, 0.7f);   // High: sparse Euclidean
+            break;
+
+        case 5:  // Polyrhythm 5-7-11
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+
+            setBandParams(0, true, true, 16, 5, 0, 1.0f);    // Sub: 5 pulses
+            setBandParams(1, true, true, 16, 7, 2, 1.0f);    // Low: 7 pulses, offset
+            setBandParams(2, true, true, 16, 11, 5, 1.0f);   // Mid: 11 pulses, offset
+            setBandParams(3, true, true, 16, 13, 1, 0.8f);   // High: 13 pulses
+            break;
+
+        case 6:  // Bass Foundation - Sub always on
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+
+            setBandParams(0, false, false, 16, 8, 0, 0.0f);  // Sub: bypass (always on)
+            setBandParams(1, true, true, 16, 12, 0, 0.8f);   // Low: Euclidean
+            setBandParams(2, true, true, 16, 8, 0, 1.0f);    // Mid: Euclidean
+            setBandParams(3, true, true, 16, 8, 2, 1.0f);    // High: Euclidean offset
+            break;
+
+        case 7:  // Hi-Hat Chop - Only highs gated
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(3.0f));  // 32 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(5.0f));    // 1/32
+            swing->setValueNotifyingHost(0.3f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(1.0f));
+
+            setBandParams(0, false, false, 16, 8, 0, 0.0f);  // Sub: bypass
+            setBandParams(1, false, false, 16, 8, 0, 0.0f);  // Low: bypass
+            setBandParams(2, false, false, 16, 8, 0, 0.0f);  // Mid: bypass
+            setBandParams(3, true, true, 32, 12, 0, 1.0f);   // High: fast Euclidean
+            break;
+
+        case 8:  // Full Spectrum Gate - Unified gating
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(3.0f));
+
+            for (int b = 0; b < 4; ++b)
+            {
+                setBandParams(b, true, true, 16, 8, 0, 1.0f);
+            }
+            break;
+
+        case 9:  // Euclidean Groove - Musical ratios
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));    // 1/8
+            swing->setValueNotifyingHost(0.15f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(8.0f));
+
+            setBandParams(0, true, true, 16, 4, 0, 1.0f);    // Sub: 4/16 (quarter feel)
+            setBandParams(1, true, true, 16, 6, 1, 0.9f);    // Low: 6/16
+            setBandParams(2, true, true, 16, 9, 0, 0.85f);   // Mid: 9/16
+            setBandParams(3, true, true, 16, 11, 2, 0.8f);   // High: 11/16
+            break;
+
+        case 10:  // Half-Time Feel - Slower, dramatic
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(1.0f));  // 8 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));    // 1/4
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(30.0f));
+
+            for (int b = 0; b < 4; ++b)
+            {
+                setBandParams(b, true, true, 8, 2, 0, 1.0f);  // Only 2 pulses in 8
+            }
+            break;
+
+        case 11:  // Triplet Bounce
+            mix->setValueNotifyingHost(1.0f);
+            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(6.0f));    // 1/8T (triplet)
+            swing->setValueNotifyingHost(0.0f);
+            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+
+            setBandParams(0, true, true, 12, 4, 0, 1.0f);    // Sub: 4/12
+            setBandParams(1, true, true, 12, 5, 1, 0.9f);    // Low: 5/12
+            setBandParams(2, true, true, 12, 7, 0, 1.0f);    // Mid: 7/12
+            setBandParams(3, true, true, 12, 8, 2, 0.8f);    // High: 8/12
+            break;
+
+        default:
+            break;
+    }
+}
+
+//==============================================================================
 // Plugin Factory
 //==============================================================================
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

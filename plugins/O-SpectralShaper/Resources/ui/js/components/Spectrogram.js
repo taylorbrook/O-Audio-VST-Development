@@ -26,8 +26,34 @@ export class Spectrogram {
         this.writeOffset = 0;
         this.isReady = false;
 
-        // Initialize WebGL
-        this.initWebGL();
+        // Size the canvas to fit its container
+        this.resizeCanvas();
+
+        // Initialize WebGL after sizing
+        requestAnimationFrame(() => {
+            this.resizeCanvas();
+            this.initWebGL();
+        });
+
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            this.resizeCanvas();
+            if (this.gl) {
+                this.gl.viewport(0, 0, this.canvas.width, this.canvas.height);
+            }
+        });
+    }
+
+    resizeCanvas() {
+        const rect = this.canvas.getBoundingClientRect();
+        const width = rect.width > 0 ? rect.width : 400;
+        const height = rect.height > 0 ? rect.height : 150;
+
+        const dpr = window.devicePixelRatio || 1;
+        this.canvas.width = width * dpr;
+        this.canvas.height = height * dpr;
+
+        console.log(`Spectrogram canvas sized: ${width}x${height} (buffer: ${this.canvas.width}x${this.canvas.height})`);
     }
 
     // ============================================================================

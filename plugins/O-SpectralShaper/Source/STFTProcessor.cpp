@@ -93,17 +93,31 @@ float STFTProcessor::processSample(float input)
     if (bypass)
         return input;
 
-    // Write to input FIFO
-    inputFIFO[fifoIndex] = input;
+    // Write new sample to SECOND HALF of input FIFO (current frame's samples)
+    // The first half contains the previous frame's samples (from the shift)
+    inputFIFO[static_cast<size_t>(HOP_SIZE + fifoIndex)] = input;
 
-    // Read from output FIFO
-    float output = outputFIFO[fifoIndex];
+    // Read from output FIFO (completed overlap-added samples)
+    float output = outputFIFO[static_cast<size_t>(fifoIndex)];
 
     // Increment FIFO index
     if (++fifoIndex >= HOP_SIZE)
     {
-        // Process a new frame when we've accumulated HOP_SIZE samples
+        // CRITICAL: Shift output FIFO BEFORE processFrame()
+        // The [0..255] samples have been read during this hop.
+        // Move [256..511] (previous frame's tail) to [0..255] for overlap-add.
+        std::copy(outputFIFO.begin() + HOP_SIZE, outputFIFO.end(), outputFIFO.begin());
+        // Clear second half for new IFFT output
+        std::fill(outputFIFO.begin() + HOP_SIZE, outputFIFO.end(), 0.0f);
+
+        // Process frame: adds IFFT to the shifted output FIFO
+        // outputFIFO[0..255] gets: previous_tail + current_first_half (overlap!)
+        // outputFIFO[256..511] gets: current_second_half (tail for next frame)
         processFrame();
+
+        // Shift input FIFO: [256..511] → [0..255] for next frame's overlap
+        std::copy(inputFIFO.begin() + HOP_SIZE, inputFIFO.end(), inputFIFO.begin());
+
         fifoIndex = 0;
     }
 
@@ -116,46 +130,35 @@ float STFTProcessor::processSample(float input)
 
 void STFTProcessor::processFrame()
 {
-    // Copy input FIFO to FFT buffer and apply window
+    // Copy input FIFO to FFT buffer and apply analysis window
+    // JUCE's performRealOnlyForwardTransform expects REAL samples in fftData[0..FFT_SIZE-1]
     for (int i = 0; i < FFT_SIZE; ++i)
     {
-        fftData[static_cast<size_t>(i * 2)] = inputFIFO[static_cast<size_t>(i)] * windowTable[static_cast<size_t>(i)];
-        fftData[static_cast<size_t>(i * 2 + 1)] = 0.0f;  // Imaginary part
+        fftData[static_cast<size_t>(i)] = inputFIFO[static_cast<size_t>(i)] * windowTable[static_cast<size_t>(i)];
     }
 
-    // Forward FFT
+    // Forward FFT: transforms real input to interleaved complex output
+    // Output: fftData[0..NUM_BINS*2-1] as (real, imag) pairs for each bin
     forwardFFT.performRealOnlyForwardTransform(fftData.data(), true);
 
-    // Phase 2.2: Per-band transient detection
+    // Phase 2.2: Per-band transient detection (reads complex magnitudes)
     detectTransients();
 
-    // Phase 2.3: Per-band envelope shaping
+    // Phase 2.3: Per-band envelope shaping (modifies complex magnitudes)
     applyEnvelopeShaping();
 
-    // Inverse FFT
+    // Inverse FFT: transforms interleaved complex back to real
+    // Output: fftData[0..FFT_SIZE-1] as real samples
     inverseFFT.performRealOnlyInverseTransform(fftData.data());
 
-    // Overlap-add: Add windowed output to output FIFO
+    // Overlap-add: Add IFFT output to output FIFO with synthesis window
+    // JUCE's inverse transform outputs REAL samples in fftData[0..FFT_SIZE-1]
     for (int i = 0; i < FFT_SIZE; ++i)
     {
-        // Apply window and COLA scaling factor
-        float windowed = fftData[static_cast<size_t>(i * 2)] * windowTable[static_cast<size_t>(i)] * COLA_SCALE;
-
-        if (i < HOP_SIZE)
-        {
-            // Add to existing output FIFO (overlap region)
-            outputFIFO[static_cast<size_t>(i)] += windowed;
-        }
-        else
-        {
-            // Write to future output FIFO
-            outputFIFO[static_cast<size_t>(i - HOP_SIZE)] = windowed;
-        }
+        // Apply synthesis window and COLA scaling factor
+        float windowed = fftData[static_cast<size_t>(i)] * windowTable[static_cast<size_t>(i)] * COLA_SCALE;
+        outputFIFO[static_cast<size_t>(i)] += windowed;
     }
-
-    // Shift input FIFO by HOP_SIZE (move second half to first half)
-    std::copy(inputFIFO.begin() + HOP_SIZE, inputFIFO.end(), inputFIFO.begin());
-    std::fill(inputFIFO.begin() + HOP_SIZE, inputFIFO.end(), 0.0f);
 }
 
 // ============================================================================

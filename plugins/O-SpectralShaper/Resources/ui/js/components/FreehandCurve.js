@@ -88,7 +88,7 @@ export class FreehandCurve extends CurveEditor {
     }
 
     /**
-     * Catmull-Rom spline smoothing (tension 0.5)
+     * Catmull-Rom spline smoothing
      */
     smoothAndSample() {
         if (this.rawPoints.length < 2) return;
@@ -98,7 +98,6 @@ export class FreehandCurve extends CurveEditor {
 
         // Generate smoothed points using Catmull-Rom
         this.smoothedPoints = [];
-        const tension = 0.5;
 
         for (let i = 0; i < this.rawPoints.length - 1; i++) {
             const p0 = this.rawPoints[Math.max(0, i - 1)];
@@ -113,20 +112,21 @@ export class FreehandCurve extends CurveEditor {
                 const tt2 = tt * tt;
                 const tt3 = tt2 * tt;
 
-                // Catmull-Rom formula
-                const x = tension * (
-                    (-tt3 + 2 * tt2 - tt) * p0.x +
-                    (3 * tt3 - 5 * tt2 + 2) * p1.x +
-                    (-3 * tt3 + 4 * tt2 + tt) * p2.x +
-                    (tt3 - tt2) * p3.x
-                ) / 2;
+                // Standard Catmull-Rom formula (centripetal)
+                // P(t) = 0.5 * [(2*P1) + (-P0+P2)*t + (2*P0-5*P1+4*P2-P3)*t² + (-P0+3*P1-3*P2+P3)*t³]
+                const x = 0.5 * (
+                    (2 * p1.x) +
+                    (-p0.x + p2.x) * tt +
+                    (2 * p0.x - 5 * p1.x + 4 * p2.x - p3.x) * tt2 +
+                    (-p0.x + 3 * p1.x - 3 * p2.x + p3.x) * tt3
+                );
 
-                const y = tension * (
-                    (-tt3 + 2 * tt2 - tt) * p0.y +
-                    (3 * tt3 - 5 * tt2 + 2) * p1.y +
-                    (-3 * tt3 + 4 * tt2 + tt) * p2.y +
-                    (tt3 - tt2) * p3.y
-                ) / 2;
+                const y = 0.5 * (
+                    (2 * p1.y) +
+                    (-p0.y + p2.y) * tt +
+                    (2 * p0.y - 5 * p1.y + 4 * p2.y - p3.y) * tt2 +
+                    (-p0.y + 3 * p1.y - 3 * p2.y + p3.y) * tt3
+                );
 
                 this.smoothedPoints.push({ x, y });
             }
