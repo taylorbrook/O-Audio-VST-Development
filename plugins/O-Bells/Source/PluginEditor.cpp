@@ -44,6 +44,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     pitchEnvTimeRelay = std::make_unique<juce::WebSliderRelay>("pitchEnvTime");
     nonlinearEffectsRelay = std::make_unique<juce::WebSliderRelay>("nonlinearEffects");
     attackLevelRelay = std::make_unique<juce::WebSliderRelay>("attackLevel");
+    humanizeRelay = std::make_unique<juce::WebSliderRelay>("humanize");  // v2.4.0
     reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("outputGain");
     // Multi-stage envelope relays
@@ -92,6 +93,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*pitchEnvTimeRelay)
             .withOptionsFrom(*nonlinearEffectsRelay)
             .withOptionsFrom(*attackLevelRelay)
+            .withOptionsFrom(*humanizeRelay)  // v2.4.0
             .withOptionsFrom(*reverbMixRelay)
             .withOptionsFrom(*outputGainRelay)
             // Multi-stage envelope relays
@@ -315,6 +317,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("nonlinearEffects"), *nonlinearEffectsRelay, nullptr);
     attackLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("attackLevel"), *attackLevelRelay, nullptr);
+    humanizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanize"), *humanizeRelay, nullptr);  // v2.4.0
     reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

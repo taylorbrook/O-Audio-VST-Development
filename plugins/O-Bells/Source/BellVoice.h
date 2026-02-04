@@ -44,7 +44,8 @@ public:
                          float partialTuning, float pitchEnvelope, float pitchEnvTime,
                          int velocityCurve, float nonlinearEffects,
                          int strikeNoiseChar, float attackLevel, float outputGain,
-                         float strikeTime, float brilliance, float bodyTime, float humSustain);
+                         float strikeTime, float brilliance, float bodyTime, float humSustain,
+                         float humanize);
 
 private:
     // Modal synthesis configuration
@@ -190,6 +191,17 @@ private:
     float currentBrilliance = 50.0f;      // %
     float currentBodyTime = 1500.0f;      // ms
     float currentHumSustain = 50.0f;      // %
+
+    // Humanize parameter (v2.4.0)
+    float currentHumanize = 0.3f;         // 0-1, per-note variation amount
+
+    // Per-note variation state (calculated in startNote, applied during note)
+    // These represent variation factors (1.0 = no change)
+    float noteVariationStrikePos = 1.0f;      // ±5% variation
+    float noteVariationMalletHardness = 1.0f; // ±10% variation
+    float noteVariationDecay = 1.0f;          // ±15% variation
+    float noteVariationAttack = 1.0f;         // ±20% variation
+    float noteVariationInharmonicity = 1.0f;  // ±3% variation
 
     // Voice state
     int currentMidiNote = 0;

@@ -2,6 +2,31 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [2.4.0] - 2026-02-04
+
+### Added
+- **Humanize parameter** (0-100%) - Per-note random variation for organic bell realism
+  - Varies strike position (±5%) per note - simulates hitting different spots on bell
+  - Varies mallet hardness (±10%) per note - simulates varying strike force
+  - Varies decay time (±15%) per note - each ring is slightly different
+  - Varies attack time (±20%) per note - soft mallet bounces vary
+  - Varies inharmonicity (±3%) per note - bell shape micro-variations
+  - Uses Gaussian distribution (Central Limit Theorem approximation) for natural variation
+  - Default 30% humanization for subtle organic character
+  - Set to 0% for deterministic/mechanical behavior (backwards compatible)
+
+### Technical Details
+- New APVTS parameter: `humanize` (0.0-1.0)
+- Per-note variation state stored in BellVoice (calculated once per note-on)
+- Variations applied multiplicatively to base parameter values
+- UI slider added to Advanced section in WebView interface
+- No impact on CPU when humanize = 0% (variations all equal 1.0)
+
+### Research Sources
+- [AAS Chromaphone](https://www.applied-acoustics.com/chromaphone-3/) physical modeling techniques
+- [Noise Engineering humanization](https://noiseengineering.us/blogs/loquelic-literitas-the-blog/humanization-and-variation/) principles
+- Gaussian distribution for natural variation (CLT approximation already existed in codebase)
+
 ## [2.3.0] - 2026-02-03
 
 ### Added

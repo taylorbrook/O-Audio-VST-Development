@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.3.0
+- **Version:** 2.4.0
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -27,6 +27,7 @@
 - **2026-02-03 (v2.2.0):** GUI keyboard in footer panel with Gain slider relocated
 - **2026-02-03 (v2.2.1):** Complete factory preset redesign with descriptive names
 - **2026-02-03 (v2.3.0):** 16-voice polyphony (increased from 8 voices)
+- **2026-02-04 (v2.4.0):** Humanize parameter for per-note organic variation (strike, mallet, decay, attack, inharmonicity)
 
 ## Known Issues
 
@@ -42,7 +43,7 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - **Ensemble section** with unison, detune, and octave layering
 - **Built-in reverb** for spacious, ambient bell tones
 
-## Parameters (32 total)
+## Parameters (33 total)
 
 ### Synthesis (6)
 - Strike Position (0-100%) - Center to edge strike point
@@ -64,11 +65,12 @@ O-Bells is a physical modeling bell synthesizer that creates realistic tubular b
 - Velocity Curve: Linear / Exponential / Logarithmic
 - Decay Shape: Linear / Exponential / Multi-stage
 
-### Advanced (4)
+### Advanced (5)
 - Partial Tuning (-100 to +100 cents) - Minor-third partial adjustment
 - Pitch Envelope (0-100%) - Initial pitch drop
 - Pitch Env Time (5-200ms) - Pitch envelope return time
 - Nonlinear Effects (0-100%) - Bell warping/distortion
+- Humanize (0-100%) - Per-note organic variation [v2.4.0]
 
 ### Multi-Stage Envelope (4) - visible when Decay Shape = Multi-stage [v1.2.0]
 - Strike Time (5-100ms) - Duration of bright metallic transient

@@ -54,7 +54,8 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float overt
                                  float partialTuning, float pitchEnvelope, float pitchEnvTime,
                                  int velocityCurve, float nonlinearEffects,
                                  int strikeNoiseChar, float attackLevel, float outputGain,
-                                 float strikeTime, float brilliance, float bodyTime, float humSustain)
+                                 float strikeTime, float brilliance, float bodyTime, float humSustain,
+                                 float humanize)
 {
     currentInharmonicity = inharmonicity;
     currentDamping = damping;
@@ -95,6 +96,8 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float overt
     currentBrilliance = brilliance;
     currentBodyTime = bodyTime;
     currentHumSustain = humSustain;
+    // Humanize (v2.4.0)
+    currentHumanize = humanize;
 }
 
 void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserSound*, int)
@@ -107,6 +110,41 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     releaseRate = 1.0f;
     samplesSinceNoteOn = 0;  // Reset sample counter for multi-stage envelope
     decayProgress = 0.0f;    // Reset decay progress for shimmer
+
+    // ========== v2.4.0: Calculate per-note humanization variations ==========
+    // Each note gets random variations scaled by the humanize parameter
+    // Variations are multiplicative factors around 1.0
+    if (currentHumanize > 0.0f)
+    {
+        // Strike position: ±5% variation (subtle position change)
+        noteVariationStrikePos = 1.0f + gaussianApprox() * 0.05f * currentHumanize;
+        noteVariationStrikePos = juce::jlimit(0.8f, 1.2f, noteVariationStrikePos);
+
+        // Mallet hardness: ±10% variation (strike force varies)
+        noteVariationMalletHardness = 1.0f + gaussianApprox() * 0.10f * currentHumanize;
+        noteVariationMalletHardness = juce::jlimit(0.7f, 1.3f, noteVariationMalletHardness);
+
+        // Decay time: ±15% variation (each ring is slightly different)
+        noteVariationDecay = 1.0f + gaussianApprox() * 0.15f * currentHumanize;
+        noteVariationDecay = juce::jlimit(0.6f, 1.4f, noteVariationDecay);
+
+        // Attack time: ±20% variation (soft mallet bounces vary)
+        noteVariationAttack = 1.0f + gaussianApprox() * 0.20f * currentHumanize;
+        noteVariationAttack = juce::jlimit(0.5f, 1.5f, noteVariationAttack);
+
+        // Inharmonicity: ±3% variation (bell shape micro-variations)
+        noteVariationInharmonicity = 1.0f + gaussianApprox() * 0.03f * currentHumanize;
+        noteVariationInharmonicity = juce::jlimit(0.9f, 1.1f, noteVariationInharmonicity);
+    }
+    else
+    {
+        // No humanization - deterministic behavior
+        noteVariationStrikePos = 1.0f;
+        noteVariationMalletHardness = 1.0f;
+        noteVariationDecay = 1.0f;
+        noteVariationAttack = 1.0f;
+        noteVariationInharmonicity = 1.0f;
+    }
 
     // Reset air absorption filter state (v2.1.0)
     airLPFilterStateL1 = 0.0f;
@@ -744,7 +782,8 @@ void BellVoice::initializePartials(float fundamental, float velocity)
         auto& partial = fundamentalVoices[0].partials[p];
 
         // Apply material inharmonicity offset to base inharmonicity
-        float effectiveInharmonicity = currentInharmonicity + materialProps.inharmonicity;
+        // v2.4.0: Apply per-note inharmonicity variation for humanization
+        float effectiveInharmonicity = currentInharmonicity * noteVariationInharmonicity + materialProps.inharmonicity;
         effectiveInharmonicity = juce::jlimit(0.0f, 1.0f, effectiveInharmonicity);
 
         partial.frequency = calculatePartialFrequency(p, fundamental, effectiveInharmonicity);
@@ -760,9 +799,13 @@ void BellVoice::initializePartials(float fundamental, float velocity)
         float effectiveBrightness = currentOvertoneBrightness + materialProps.brightnessOffset;
         effectiveBrightness = juce::jlimit(0.0f, 1.0f, effectiveBrightness);
 
+        // v2.4.0: Apply per-note strike position and mallet hardness variations
+        float effectiveStrikePosition = juce::jlimit(0.0f, 1.0f, currentStrikePosition * noteVariationStrikePos);
+        float effectiveMalletHardness = juce::jlimit(0.0f, 1.0f, currentMalletHardness * noteVariationMalletHardness);
+
         float baseAmplitude = calculatePartialAmplitude(p, effectiveBrightness);
-        float strikeGain = calculateStrikePositionGain(p, currentStrikePosition);
-        float malletGain = 1.0f + currentMalletHardness * (p / static_cast<float>(NUM_PARTIALS));
+        float strikeGain = calculateStrikePositionGain(p, effectiveStrikePosition);
+        float malletGain = 1.0f + effectiveMalletHardness * (p / static_cast<float>(NUM_PARTIALS));
 
         partial.amplitude = baseAmplitude * strikeGain * malletGain * velocity;
 
@@ -782,7 +825,8 @@ void BellVoice::initializePartials(float fundamental, float velocity)
         float partialRatio = static_cast<float>(p) / NUM_PARTIALS;
         float acousticDecayMultiplier = 1.0f - (1.0f - currentAcousticBrightness) * partialRatio * 0.75f;
 
-        float partialDecayTime = baseDecayTime * DECAY_MULTIPLIERS[p] * materialProps.decayMultiplier * acousticDecayMultiplier;
+        // v2.4.0: Apply per-note decay variation for humanization
+        float partialDecayTime = baseDecayTime * DECAY_MULTIPLIERS[p] * materialProps.decayMultiplier * acousticDecayMultiplier * noteVariationDecay;
         partial.decayRate = std::exp(-1.0f / (partialDecayTime * static_cast<float>(currentSampleRate)));
 
         partial.active = partial.amplitude > 0.001f;
@@ -1127,7 +1171,12 @@ void BellVoice::initializeMalletAttack()
 {
     // Soft mallets (0.0) have gradual attack (up to 50ms)
     // Hard mallets (1.0) have instant attack (0ms)
-    float attackTimeMs = juce::jmap(currentMalletHardness, 50.0f, 0.0f);
+    // v2.4.0: Apply per-note mallet hardness and attack variation for humanization
+    float effectiveMalletHardness = juce::jlimit(0.0f, 1.0f, currentMalletHardness * noteVariationMalletHardness);
+    float attackTimeMs = juce::jmap(effectiveMalletHardness, 50.0f, 0.0f);
+
+    // v2.4.0: Apply per-note attack variation
+    attackTimeMs *= noteVariationAttack;
 
     if (attackTimeMs > 0.0f)
     {

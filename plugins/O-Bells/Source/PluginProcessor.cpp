@@ -571,7 +571,8 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 partialTuning, pitchEnvelope, pitchEnvTime,
                 velocityCurve, nonlinearEffects,
                 strikeNoiseChar, attackLevel, outputGain,
-                strikeTime, brilliance, bodyTime, humSustain
+                strikeTime, brilliance, bodyTime, humSustain,
+                humanize
             );
         }
     }
