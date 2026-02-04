@@ -44,6 +44,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     sympatheticQRelay = std::make_unique<juce::WebSliderRelay>("sympatheticQ");
     bodyModeSpreadRelay = std::make_unique<juce::WebSliderRelay>("bodyModeSpread");
     bridgeBrightnessRelay = std::make_unique<juce::WebSliderRelay>("bridgeBrightness");
+    // v1.19.0: Humanize (per-note randomization)
+    humanizeRelay = std::make_unique<juce::WebSliderRelay>("humanize");
 
     stringMaterialRelay = std::make_unique<juce::WebComboBoxRelay>("stringMaterial");
     woodTypeRelay = std::make_unique<juce::WebComboBoxRelay>("woodType");
@@ -736,6 +738,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*sympatheticQRelay)
             .withOptionsFrom(*bodyModeSpreadRelay)
             .withOptionsFrom(*bridgeBrightnessRelay)
+            // v1.19.0: Humanize relay
+            .withOptionsFrom(*humanizeRelay)
             // Register all choice relays
             .withOptionsFrom(*stringMaterialRelay)
             .withOptionsFrom(*woodTypeRelay)
@@ -792,6 +796,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
         *apvts.getParameter("bodyModeSpread"), *bodyModeSpreadRelay, nullptr);
     bridgeBrightnessAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("bridgeBrightness"), *bridgeBrightnessRelay, nullptr);
+    // v1.19.0: Humanize attachment
+    humanizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("humanize"), *humanizeRelay, nullptr);
 
     stringMaterialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("stringMaterial"), *stringMaterialRelay, nullptr);
