@@ -435,7 +435,7 @@
         }
 
         .output-control {
-            flex: 0 0 30%;
+            flex: 0 0 28%;
         }
 
         .meter-control {
@@ -443,6 +443,12 @@
             display: flex;
             flex-direction: column;
             align-items: center;
+        }
+
+        /* v2.4.1: Compact meter for 3-column output layout */
+        .meter-control-compact {
+            flex: 0 0 35%;
+            min-width: 0;
         }
 
         .output-meter {
@@ -1095,22 +1101,6 @@
                         <div class="param-value" data-value="nonlinearEffects">0%</div>
                     </div>
                 </div>
-                <!-- v2.4.0: Humanize for per-note organic variation -->
-                <div class="param-row">
-                    <div class="param-control">
-                        <div class="param-label">Humanize</div>
-                        <div class="slider" data-param="humanize">
-                            <div class="slider-thumb"></div>
-                        </div>
-                        <div class="param-value" data-value="humanize">30%</div>
-                    </div>
-                    <div class="param-control">
-                        <!-- Spacer -->
-                    </div>
-                    <div class="param-control">
-                        <!-- Spacer -->
-                    </div>
-                </div>
             </div>
 
             <!-- Multi-Stage Envelope Section (visible when decayShape == Multi) -->
@@ -1149,7 +1139,7 @@
                 </div>
             </div>
 
-            <!-- Output Section (v2.2.0: Gain moved to footer) -->
+            <!-- Output Section (v2.2.0: Gain moved to footer, v2.4.1: Humanize added) -->
             <div class="section">
                 <div class="section-title">Output</div>
                 <div class="param-row output-row">
@@ -1160,7 +1150,14 @@
                         </div>
                         <div class="param-value" data-value="reverbMix">30%</div>
                     </div>
-                    <div class="meter-control">
+                    <div class="param-control output-control">
+                        <div class="param-label">Humanize</div>
+                        <div class="slider" data-param="humanize">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="humanize">30%</div>
+                    </div>
+                    <div class="meter-control meter-control-compact">
                         <div class="param-label">Level</div>
                         <div class="output-meter">
                             <div class="meter-bar meter-left" id="meterLeft"></div>
@@ -1630,7 +1627,7 @@
             }
         });
 
-        console.log('O-Bells v2.2.0 UI initialized - 31 sliders + 2 choice params + keyboard');
+        console.log('O-Bells v2.4.1 UI initialized - 31 sliders + 2 choice params + keyboard');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY

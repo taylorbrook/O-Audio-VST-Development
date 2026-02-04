@@ -2,6 +2,18 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [2.4.1] - 2026-02-04
+
+### Changed
+- **Moved Humanize slider to Output section** - Relocated from Advanced section to Output section
+  - Now positioned between Reverb slider and output meters for better workflow
+  - Output meters compressed slightly to accommodate the new layout
+  - More logical grouping with final output stage controls
+
+### Technical Details
+- UI-only change (HTML/CSS), no DSP or parameter changes
+- Output section now uses 28% width for Reverb/Humanize, 35% for compact meters
+
 ## [2.4.0] - 2026-02-04
 
 ### Added
