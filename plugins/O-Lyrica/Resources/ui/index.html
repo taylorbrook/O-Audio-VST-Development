@@ -1639,6 +1639,13 @@
                             <span class="slider-value" id="attackNoiseValue">50%</span>
                         </div>
                     </div>
+                    <div class="slider-group" data-tooltip="Humanize: Adds natural per-note variation to pluck position, finger hardness, pitch, and attack noise. Creates realistic, organic performances where no two notes sound exactly alike.">
+                        <span class="slider-label">Humanize</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="humanize" min="0" max="1" step="0.001" value="0">
+                            <span class="slider-value" id="humanizeValue">0%</span>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -2442,6 +2449,7 @@
                 return seconds < 1 ? `${(seconds * 1000).toFixed(0)}ms` : `${seconds.toFixed(1)}s`;
             }},
             { id: 'attackNoise', format: v => `${Math.round(v * 100)}%` },
+            { id: 'humanize', format: v => `${Math.round(v * 100)}%` },
             { id: 'bodySize', format: v => `${Math.round(v * 100)}%` },
             { id: 'bodyResonance', format: v => `${Math.round(v * 100)}%` },
             { id: 'bodyModeSpread', format: v => `${Math.round((v - 0.5) * 200)}%` },

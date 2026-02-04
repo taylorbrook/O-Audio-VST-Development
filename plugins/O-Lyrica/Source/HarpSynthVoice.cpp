@@ -82,6 +82,21 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         currentFrequency = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
     }
 
+    // v1.19.0: Apply micro-tuning humanization (±3 cents variation)
+    // Read humanize parameter early for frequency variation
+    if (parameters != nullptr)
+    {
+        float humanizeAmount = parameters->getRawParameterValue("humanize")->load();
+        if (humanizeAmount > 0.0f)
+        {
+            // Random cents deviation: ±3 cents at full humanization
+            float centsDeviation = (humanizeRandom.nextFloat() * 2.0f - 1.0f) * 3.0f * humanizeAmount;
+            // Convert cents to frequency ratio: 2^(cents/1200)
+            double freqRatio = std::pow(2.0, centsDeviation / 1200.0);
+            currentFrequency *= freqRatio;
+        }
+    }
+
     // Default pluck parameters
     float pluckPosition = 0.5f;
     float fingerHardness = 0.5f;
@@ -90,6 +105,9 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     // v1.3.2: Removed per-parameter null checks - APVTS guarantees non-null for registered params
     if (parameters != nullptr)
     {
+        // v1.19.0: Read humanize amount for per-note variation
+        float humanizeAmount = parameters->getRawParameterValue("humanize")->load();
+
         // Phase 2.5: Read and apply string material
         int materialIndex = static_cast<int>(parameters->getRawParameterValue("stringMaterial")->load() + 0.5f);
         MaterialType materialType = StringMaterial::typeFromIndex(materialIndex);
@@ -98,7 +116,10 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         stringModel.setMaterial(currentMaterial);
 
         // Core string parameters
-        stringModel.setBrightness(parameters->getRawParameterValue("brightness")->load());
+        // v1.19.0: Apply humanization to brightness (±4% variation)
+        float brightness = parameters->getRawParameterValue("brightness")->load();
+        brightness = applyHumanization(brightness, 0.04f, humanizeAmount);
+        stringModel.setBrightness(brightness);
 
         // v1.1.0: Renamed from sustain to timbre - controls tonal damping
         // Invert so timbre=1.0 means bright (low damping), timbre=0.0 means dark
@@ -106,12 +127,19 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         stringModel.setDamping(damping);
 
         // v1.1.0: New decay time parameter - controls overall sustain duration
-        stringModel.setDecayTime(parameters->getRawParameterValue("decayTime")->load());
+        // v1.19.0: Apply humanization to decay time (±3% variation)
+        float decayTime = parameters->getRawParameterValue("decayTime")->load();
+        decayTime = applyHumanization(decayTime / 20.0f, 0.03f, humanizeAmount) * 20.0f; // Normalize to 0-1 range for humanization
+        stringModel.setDecayTime(decayTime);
 
+        // v1.19.0: Apply humanization to pluck position (±5% variation)
         pluckPosition = parameters->getRawParameterValue("pluckPosition")->load();
+        pluckPosition = applyHumanization(pluckPosition, 0.05f, humanizeAmount);
         stringModel.setPluckPosition(pluckPosition);
 
+        // v1.19.0: Apply humanization to finger hardness (±8% variation)
         fingerHardness = parameters->getRawParameterValue("fingerHardness")->load();
+        fingerHardness = applyHumanization(fingerHardness, 0.08f, humanizeAmount);
 
         int techniqueIndex = static_cast<int>(parameters->getRawParameterValue("technique")->load());
         stringModel.setTechnique(techniqueFromIndex(techniqueIndex));
@@ -125,7 +153,10 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         stringModel.setLength(parameters->getRawParameterValue("stringLength")->load());
 
         // v1.3.0: Set advanced physical modeling parameters
-        stringModel.setAttackNoise(parameters->getRawParameterValue("attackNoise")->load());
+        // v1.19.0: Apply humanization to attack noise (±10% variation)
+        float attackNoise = parameters->getRawParameterValue("attackNoise")->load();
+        attackNoise = applyHumanization(attackNoise, 0.10f, humanizeAmount);
+        stringModel.setAttackNoise(attackNoise);
         stringModel.setBridgeBrightness(parameters->getRawParameterValue("bridgeBrightness")->load());
 
         // Phase 2.6: Set body resonance parameters

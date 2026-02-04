@@ -2,6 +2,47 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.19.0] - 2026-02-04
+
+### Added
+
+- **Humanize parameter** - Per-note randomization for realistic, organic performance variation
+  - New "Humanize" slider in SOUND tab → Main section (0-100%)
+  - At 0%: Deterministic behavior preserved (every note identical)
+  - At 100%: Full randomization creates natural variation
+
+### Humanization Details
+
+The Humanize parameter applies subtle per-note variation to simulate the natural inconsistencies of human performance:
+
+| Parameter | Randomization Range | Effect |
+|-----------|---------------------|--------|
+| Pluck Position | ±5% | Finger placement varies between plucks |
+| Finger Hardness | ±8% | Contact angle/pressure varies |
+| Attack Noise | ±10% | Nail/skin contact character varies |
+| Brightness | ±4% | Harmonic content micro-variation |
+| Decay Time | ±3% | String damping micro-variation |
+| Pitch | ±3 cents | Micro-tuning variation (string non-uniformity) |
+
+### Technical Details
+
+- New APVTS parameter: `humanize` (0.0-1.0, default 0.0)
+- Randomization applied in `HarpSynthVoice::startNote()` after reading base values
+- Per-voice `juce::Random` generator ensures independent variation per voice
+- `applyHumanization()` helper method clamps results to valid 0-1 range
+- Micro-tuning uses cents-to-frequency ratio: `2^(cents/1200)`
+- Files modified: PluginProcessor.cpp, HarpSynthVoice.h, HarpSynthVoice.cpp, index.html
+
+### Why This Matters
+
+Real harps exhibit natural variation because:
+- Finger placement never lands exactly the same spot twice
+- Contact pressure/angle varies between strokes
+- String tuning drifts microscopically
+- Attack noise characteristics vary per pluck
+
+This feature brings O-Lyrica closer to the organic, living quality of a real harp performance.
+
 ## [1.18.4] - 2026-02-03
 
 ### Changed
