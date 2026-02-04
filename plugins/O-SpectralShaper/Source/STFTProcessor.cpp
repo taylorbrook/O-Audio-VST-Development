@@ -198,6 +198,14 @@ void STFTProcessor::setupBandBoundaries(double sampleRate)
 
 void STFTProcessor::detectTransients()
 {
+    // Phase 3.3: Store FFT magnitudes for visualization
+    for (int bin = 0; bin < NUM_BINS; ++bin)
+    {
+        float real = fftData[bin * 2];
+        float imag = fftData[bin * 2 + 1];
+        lastMagnitudes[bin] = std::sqrt(real * real + imag * imag);
+    }
+
     // Process each frequency band independently
     for (int band = 0; band < NUM_BANDS; ++band)
     {

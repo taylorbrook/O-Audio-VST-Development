@@ -12,7 +12,8 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OSpectralShaperAudioProcessorEditor : public juce::AudioProcessorEditor
+class OSpectralShaperAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                             private juce::Timer
 {
 public:
     explicit OSpectralShaperAudioProcessorEditor(OSpectralShaperAudioProcessor&);
@@ -21,6 +22,9 @@ public:
     void paint(juce::Graphics&) override;
     void resized() override;
     void parentHierarchyChanged() override;
+
+    // Timer callback for 60fps visualization updates
+    void timerCallback() override;
 
     // Event handlers for curve communication (Phase 3.2)
     void handleAttackCurveUpdate(const juce::Array<juce::var>& args);

@@ -42,6 +42,12 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
             .withOptionsFrom(*lookaheadEnabledRelay)
             .withOptionsFrom(*lookaheadTimeRelay)
             .withOptionsFrom(*outputGainRelay)
+            .withNativeFunction("setAttackCurve", [this](const juce::Array<juce::var>& args, auto) {
+                handleAttackCurveUpdate(args);
+            })
+            .withNativeFunction("setSustainCurve", [this](const juce::Array<juce::var>& args, auto) {
+                handleSustainCurveUpdate(args);
+            })
     );
 
     // ============================================================================
@@ -71,10 +77,15 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
 
     // Set editor size (700x500 for Stage 3 full UI)
     setSize(700, 500);
+
+    // Start 60fps timer for visualization updates (Phase 3.3)
+    startTimerHz(60);
 }
 
 OSpectralShaperAudioProcessorEditor::~OSpectralShaperAudioProcessorEditor()
 {
+    // Stop timer before destruction (CRITICAL for thread safety)
+    stopTimer();
 }
 
 void OSpectralShaperAudioProcessorEditor::paint(juce::Graphics& g)
@@ -185,6 +196,13 @@ OSpectralShaperAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
+    if (url == "/js/components/Spectrogram.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::Spectrogram_js, BinaryData::Spectrogram_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
     // Images
     if (url == "/images/paper-bg.webp") {
         return juce::WebBrowserComponent::Resource {
@@ -261,4 +279,79 @@ void OSpectralShaperAudioProcessorEditor::sendSustainCurveToJS()
 
     // Call JavaScript function
     webView->evaluateJavascript("if (window.setSustainCurveFromCPP) window.setSustainCurveFromCPP(" + jsArray + ");");
+}
+
+void OSpectralShaperAudioProcessorEditor::timerCallback()
+{
+    // Read visualization frames from FIFO and send to WebView
+    auto& fifo = processorRef.getVisualizationFifo();
+    const auto& buffer = processorRef.getVisualizationBuffer();
+
+    // Process all available frames (batch to reduce overhead)
+    while (fifo.getNumReady() > 0)
+    {
+        int start1, size1, start2, size2;
+        fifo.prepareToRead(1, start1, size1, start2, size2);
+
+        if (size1 > 0)
+        {
+            const auto& frame = buffer[static_cast<size_t>(start1)];
+
+            // Build JSON payload: { fft: [...], transients: [...] }
+            juce::String json = "{\"fft\":[";
+
+            // FFT magnitudes (257 bins)
+            for (size_t i = 0; i < frame.fftMagnitudes.size(); ++i)
+            {
+                json += juce::String(frame.fftMagnitudes[i], 6);
+                if (i < frame.fftMagnitudes.size() - 1) json += ",";
+            }
+
+            json += "],\"transients\":[";
+
+            // Transient activity (32 bands)
+            for (size_t i = 0; i < frame.transientActivity.size(); ++i)
+            {
+                json += juce::String(frame.transientActivity[i], 6);
+                if (i < frame.transientActivity.size() - 1) json += ",";
+            }
+
+            json += "]}";
+
+            // Emit event to JavaScript
+            if (webView)
+            {
+                webView->emitEventIfBrowserIsVisible("visualizationUpdate", json);
+            }
+        }
+
+        fifo.finishedRead(size1);
+
+        // Handle wraparound case (should be rare)
+        if (size2 > 0)
+        {
+            const auto& frame = buffer[static_cast<size_t>(start2)];
+
+            juce::String json = "{\"fft\":[";
+            for (size_t i = 0; i < frame.fftMagnitudes.size(); ++i)
+            {
+                json += juce::String(frame.fftMagnitudes[i], 6);
+                if (i < frame.fftMagnitudes.size() - 1) json += ",";
+            }
+            json += "],\"transients\":[";
+            for (size_t i = 0; i < frame.transientActivity.size(); ++i)
+            {
+                json += juce::String(frame.transientActivity[i], 6);
+                if (i < frame.transientActivity.size() - 1) json += ",";
+            }
+            json += "]}";
+
+            if (webView)
+            {
+                webView->emitEventIfBrowserIsVisible("visualizationUpdate", json);
+            }
+
+            fifo.finishedRead(size2);
+        }
+    }
 }

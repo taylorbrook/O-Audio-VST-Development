@@ -53,6 +53,17 @@ int HarpSynthVoice::getVoiceId() const
     return voiceId;
 }
 
+// v1.19.0: Apply humanization offset to a parameter value
+float HarpSynthVoice::applyHumanization(float baseValue, float maxOffset, float humanizeAmount)
+{
+    if (humanizeAmount <= 0.0f)
+        return baseValue;
+
+    // Generate random offset in range [-maxOffset, +maxOffset]
+    float offset = (humanizeRandom.nextFloat() * 2.0f - 1.0f) * maxOffset * humanizeAmount;
+    return juce::jlimit(0.0f, 1.0f, baseValue + offset);
+}
+
 void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
                                 juce::SynthesiserSound*,
                                 int /*currentPitchWheelPosition*/)

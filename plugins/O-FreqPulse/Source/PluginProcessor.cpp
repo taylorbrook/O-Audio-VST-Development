@@ -188,7 +188,6 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
 
     // Reset buffer positions
     inputWritePos = 0;
-    outputReadPos = 0;
     hopCounter = 0;
 
     // Pre-compute Hann window
@@ -403,8 +402,13 @@ void OFreqPulseAudioProcessor::processFrame(int channel)
     auto& inFifo = inputFifo[channel];
     auto& outFifo = outputFifo[channel];
 
-    // Copy input samples to FFT buffer
-    std::copy(inFifo.begin(), inFifo.end(), fftBuffer.begin());
+    // Copy input samples from circular buffer to FFT buffer
+    // inputWritePos points to where the NEXT sample will go (oldest position)
+    // Extract fftSize samples in correct order: oldest to newest
+    for (int i = 0; i < fftSize; ++i)
+    {
+        fftBuffer[static_cast<size_t>(i)] = inFifo[static_cast<size_t>((inputWritePos + i) % fftSize)];
+    }
 
     // Apply analysis window (Hann)
     for (int i = 0; i < fftSize; ++i)
@@ -601,11 +605,10 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         for (int ch = 0; ch < numChannels; ++ch)
         {
             // Push sample to input FIFO
-            inputFifo[ch][inputWritePos] = buffer.getSample(ch, sample);
+            inputFifo[ch][static_cast<size_t>(inputWritePos)] = buffer.getSample(ch, sample);
         }
 
         inputWritePos = (inputWritePos + 1) % fftSize;
-        hopCounter++;
 
         // Process FFT frame when we've accumulated enough samples
         if (hopCounter >= hopSize)
@@ -615,25 +618,26 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
             {
                 processFrame(ch);
 
-                // Shift output FIFO by hop size
+                // Shift output FIFO by hop size (discards first hopSize samples)
                 std::rotate(outputFifo[ch].begin(),
                            outputFifo[ch].begin() + hopSize,
                            outputFifo[ch].end());
 
-                // Zero the end part
+                // Zero the end part for next overlap-add
                 std::fill(outputFifo[ch].end() - hopSize, outputFifo[ch].end(), 0.0f);
             }
 
             hopCounter = 0;
         }
 
-        // Read output from FIFO
+        // Read output from FIFO - use hopCounter which cycles [0, hopSize)
+        // After rotation, valid output is always at positions [0, hopSize-1]
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            buffer.setSample(ch, sample, outputFifo[ch][outputReadPos]);
+            buffer.setSample(ch, sample, outputFifo[ch][static_cast<size_t>(hopCounter)]);
         }
 
-        outputReadPos = (outputReadPos + 1) % fftSize;
+        hopCounter++;
     }
 
     // Mix dry/wet

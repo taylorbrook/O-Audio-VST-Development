@@ -3,9 +3,24 @@
 ## Current State
 - **Stage:** 3 (GUI Implementation) ✅ VERIFIED
 - **Phase:** COMPLETE
-- **Last Updated:** 2026-02-03
+- **Last Updated:** 2026-02-04
 - **Workflow Mode:** orchestration
-- **Next Action:** /plugin-execute O-FreqPulse 4-polish (or /continue)
+- **Next Action:** /plugin-execute O-FreqPulse 4-polish
+
+## Resolved Bugs
+
+### BUG-001: Audio Clicks (FIXED)
+- **Reported:** 2026-02-04
+- **Fixed:** 2026-02-04
+- **Symptom:** Plugin caused audio clicks/pops during playback
+- **Root Cause:** Two bugs in STFT overlap-add implementation:
+  1. **Input frame assembly**: `processFrame()` copied from index 0 of the circular input buffer instead of starting at `inputWritePos`. This scrambled the input frame.
+  2. **Output read position**: `outputReadPos` cycled through all 2048 positions instead of staying within [0, 512). After rotation, only positions 0-511 contained valid data.
+- **Fix Applied:**
+  - Fixed circular buffer extraction to properly read from `inputWritePos`
+  - Changed output to read from `hopCounter` (cycles 0-511) instead of `outputReadPos`
+  - Removed unused `outputReadPos` variable
+- **Validation:** pluginval Level 5 PASSED, auval PASSED
 
 ## Stage 0 Completion
 - [x] BRIEF.md created (ideation)

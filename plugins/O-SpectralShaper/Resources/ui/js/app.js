@@ -3,13 +3,14 @@
  *
  * Phase 3.1: Parameter binding with JUCE relays ✓
  * Phase 3.2: Curve editors ✓
- * Phase 3.3: Spectrogram visualization (placeholder)
+ * Phase 3.3: Spectrogram visualization ✓
  */
 
 import * as Juce from './juce/index.js';
 import { RotaryKnob } from './components/RotaryKnob.js';
 import { FreehandCurve } from './components/FreehandCurve.js';
 import { NodeCurve } from './components/NodeCurve.js';
+import { Spectrogram } from './components/Spectrogram.js';
 
 // ============================================================================
 // APPLICATION STATE
@@ -26,6 +27,8 @@ const app = {
         attack: 'freehand', // 'freehand' or 'node'
         sustain: 'freehand'
     },
+    spectrogram: null,
+    animationFrameId: null,
     initialized: false
 };
 
@@ -52,6 +55,9 @@ function initializeApp() {
 
     // Initialize curve editors (Phase 3.2)
     initializeCurveEditors();
+
+    // Initialize spectrogram (Phase 3.3)
+    initializeSpectrogram();
 
     // Mark as initialized
     app.initialized = true;
@@ -278,13 +284,25 @@ function setupModeToggle(curveType) {
 }
 
 /**
- * Send curve data to C++ processor
- * For now, just update local state - C++ reads curves on save
+ * Send curve data to C++ processor (Phase 3.3: Native function binding)
  */
 function sendCurveToProcessor(curveType, data) {
-    // Store curve data locally
-    // C++ will call getCurve functions when needed (on state save)
-    console.log(`${curveType} curve updated (${data.length} values)`);
+    // Call C++ native function
+    try {
+        if (window.__JUCE__ && window.__JUCE__.backend) {
+            const functionName = curveType === 'attack' ? 'setAttackCurve' : 'setSustainCurve';
+            const nativeFunction = window.__JUCE__.backend[functionName];
+
+            if (nativeFunction && typeof nativeFunction === 'function') {
+                nativeFunction(...data);
+                console.log(`${curveType} curve sent to C++ (${data.length} values)`);
+            } else {
+                console.warn(`Native function not found: ${functionName}`);
+            }
+        }
+    } catch (error) {
+        console.error(`Failed to send ${curveType} curve to C++:`, error);
+    }
 }
 
 /**
@@ -316,6 +334,63 @@ function loadCurvesFromProcessor() {
 }
 
 // ============================================================================
+// SPECTROGRAM INITIALIZATION (Phase 3.3)
+// ============================================================================
+
+function initializeSpectrogram() {
+    console.log('Initializing spectrogram...');
+
+    // Create WebGL spectrogram renderer
+    app.spectrogram = new Spectrogram('spectrogram-canvas', {
+        width: 512,
+        height: 257,
+        heatIntensity: 0.5
+    });
+
+    // Listen for visualization events from C++
+    if (window.__JUCE__ && window.__JUCE__.backend) {
+        window.__JUCE__.backend.addEventListener('visualizationUpdate', (event) => {
+            try {
+                const data = JSON.parse(event);
+
+                if (data.fft && data.transients) {
+                    // Add frame to spectrogram
+                    app.spectrogram.addFrame(data.fft, data.transients);
+                }
+            } catch (error) {
+                console.error('Failed to parse visualization data:', error);
+            }
+        });
+
+        console.log('Listening for visualizationUpdate events');
+    }
+
+    // Start render loop
+    startRenderLoop();
+}
+
+function startRenderLoop() {
+    function render() {
+        if (app.spectrogram) {
+            app.spectrogram.draw();
+        }
+
+        app.animationFrameId = requestAnimationFrame(render);
+    }
+
+    // Start loop
+    render();
+    console.log('Render loop started');
+}
+
+function stopRenderLoop() {
+    if (app.animationFrameId) {
+        cancelAnimationFrame(app.animationFrameId);
+        app.animationFrameId = null;
+    }
+}
+
+// ============================================================================
 // ENTRY POINT
 // ============================================================================
 
@@ -325,3 +400,11 @@ if (document.readyState === 'loading') {
 } else {
     initializeApp();
 }
+
+// Cleanup on unload
+window.addEventListener('beforeunload', () => {
+    stopRenderLoop();
+    if (app.spectrogram) {
+        app.spectrogram.destroy();
+    }
+});

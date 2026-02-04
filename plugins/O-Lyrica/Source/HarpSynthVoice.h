@@ -104,5 +104,17 @@ private:
     // Track current material type to avoid unnecessary DSP updates
     MaterialType currentMaterialType = MaterialType::Nylon;
 
+    // v1.19.0: Random generator for humanization (per-note variation)
+    juce::Random humanizeRandom;
+
+    /**
+     * v1.19.0: Apply humanization offset to a parameter value
+     * @param baseValue Original parameter value (0.0-1.0)
+     * @param maxOffset Maximum offset range (e.g., 0.05 = ±5%)
+     * @param humanizeAmount Humanize intensity (0.0 = none, 1.0 = full)
+     * @return Humanized value clamped to 0.0-1.0
+     */
+    float applyHumanization(float baseValue, float maxOffset, float humanizeAmount);
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarpSynthVoice)
 };

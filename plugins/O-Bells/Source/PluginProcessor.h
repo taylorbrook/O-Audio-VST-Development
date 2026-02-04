@@ -114,6 +114,8 @@ private:
     std::atomic<float>* brillianceParam = nullptr;
     std::atomic<float>* bodyTimeParam = nullptr;
     std::atomic<float>* humSustainParam = nullptr;
+    // Realism (v2.4.0)
+    std::atomic<float>* humanizeParam = nullptr;
     // Output
     std::atomic<float>* reverbMixParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;

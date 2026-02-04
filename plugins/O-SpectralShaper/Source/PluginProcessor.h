@@ -51,6 +51,17 @@ public:
     void setAttackCurve(const std::array<float, 32>& curve);
     void setSustainCurve(const std::array<float, 32>& curve);
 
+    // Visualization data structures (Phase 3.3)
+    struct VisualizationFrame
+    {
+        std::array<float, STFTProcessor::NUM_BINS> fftMagnitudes {};
+        std::array<float, STFTProcessor::NUM_BANDS> transientActivity {};
+    };
+
+    // Visualization FIFO access (read from GUI thread)
+    juce::AbstractFifo& getVisualizationFifo() { return visualizationFifo; }
+    const std::vector<VisualizationFrame>& getVisualizationBuffer() const { return visualizationBuffer; }
+
 private:
     // DSP Components (declared BEFORE parameters for correct initialization order)
     STFTProcessor stftProcessor[2];  // L/R stereo
@@ -70,6 +81,11 @@ private:
     // Sample rate (cached for lookahead calculation)
     double currentSampleRate = 44100.0;
 
+    // Visualization FIFO (Phase 3.3)
+    juce::AbstractFifo visualizationFifo { 60 };  // 60 frames buffered (~1 second at 60fps)
+    std::vector<VisualizationFrame> visualizationBuffer { 60 };
+    int hopCounter = 0;  // Track when to push frames (once per FFT hop)
+
     // APVTS (declared AFTER DSP components)
     juce::AudioProcessorValueTreeState parameters;
 
@@ -80,6 +96,7 @@ private:
     float getDryDelayedSample(int channel, float input);
     void advanceDryDelay();
     float getLookaheadDelayedSample(int channel, float input);
+    void writeVisualizationFrame(const VisualizationFrame& frame);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSpectralShaperAudioProcessor)
 };

@@ -363,6 +363,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
+    // ========== Realism Parameters (v2.4.0) ==========
+
+    // HUMANIZE - Per-note variation for organic realism
+    // Applies subtle random variation to: strike position, mallet hardness, decay, attack, inharmonicity
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "humanize", 1 },
+        "Humanize",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.3f,  // Default: moderate humanization
+        "%"
+    ));
+
     // REVERB_MIX - Spaciousness control (0-100%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "reverbMix", 1 },
@@ -479,6 +491,8 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     brillianceParam = parameters.getRawParameterValue("brilliance");
     bodyTimeParam = parameters.getRawParameterValue("bodyTime");
     humSustainParam = parameters.getRawParameterValue("humSustain");
+    // Realism (v2.4.0)
+    humanizeParam = parameters.getRawParameterValue("humanize");
     // Output
     reverbMixParam = parameters.getRawParameterValue("reverbMix");
     outputGainParam = parameters.getRawParameterValue("outputGain");
@@ -536,6 +550,8 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float brilliance = brillianceParam->load();
     float bodyTime = bodyTimeParam->load();
     float humSustain = humSustainParam->load();
+    // Realism (v2.4.0)
+    float humanize = humanizeParam->load();
     float outputGain = outputGainParam->load();
 
     // Update all voice parameters

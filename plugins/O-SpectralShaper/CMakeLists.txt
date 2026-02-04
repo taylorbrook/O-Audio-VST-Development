@@ -62,6 +62,7 @@ juce_add_binary_data(O-SpectralShaper_UIResources
         Resources/ui/js/components/CurveEditor.js
         Resources/ui/js/components/FreehandCurve.js
         Resources/ui/js/components/NodeCurve.js
+        Resources/ui/js/components/Spectrogram.js
         Resources/ui/images/paper-bg.webp
         Resources/ui/images/slug-overlay.webp
 )

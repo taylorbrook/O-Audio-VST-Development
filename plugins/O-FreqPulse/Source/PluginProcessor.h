@@ -36,10 +36,10 @@ public:
     bool isMidiEffect() const override { return false; }
     double getTailLengthSeconds() const override { return 0.0; }
 
-    int getNumPrograms() override { return 1; }
-    int getCurrentProgram() override { return 0; }
-    void setCurrentProgram(int) override {}
-    const juce::String getProgramName(int) override { return {}; }
+    int getNumPrograms() override;
+    int getCurrentProgram() override;
+    void setCurrentProgram(int index) override;
+    const juce::String getProgramName(int index) override;
     void changeProgramName(int, const juce::String&) override {}
 
     void getStateInformation(juce::MemoryBlock& destData) override;
@@ -89,7 +89,6 @@ private:
 
     // STFT Tracking
     int inputWritePos = 0;
-    int outputReadPos = 0;
     int hopCounter = 0;
 
     // Dry/Wet Mixer
@@ -119,6 +118,11 @@ private:
 
     // DSP state
     double currentSampleRate = 44100.0;
+
+    // Factory Presets
+    int currentProgram = 0;
+    static constexpr int numPresets = 12;
+    void loadPreset(int presetIndex);
 
     // Helper Methods
     void recalculateBinMapping();

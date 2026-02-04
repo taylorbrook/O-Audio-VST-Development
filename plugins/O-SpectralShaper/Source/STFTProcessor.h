@@ -39,6 +39,9 @@ public:
     // Transient detection output (read by processor for UI updates)
     const std::array<float, NUM_BANDS>& getTransientActivity() const { return transientActivity; }
 
+    // Visualization data access (Phase 3.3)
+    const std::array<float, NUM_BINS>& getLastMagnitudes() const { return lastMagnitudes; }
+
     // Parameter setters (called from processBlock)
     void setAttackCurve(const std::array<float, NUM_BANDS>& curve);
     void setSustainCurve(const std::array<float, NUM_BANDS>& curve);
@@ -82,6 +85,9 @@ private:
 
     // Transient activity output (for UI visualization)
     std::array<float, NUM_BANDS> transientActivity {};
+
+    // FFT magnitude storage for visualization (Phase 3.3)
+    std::array<float, NUM_BINS> lastMagnitudes {};
 
     // Parameters
     float sensitivity = 0.5f;

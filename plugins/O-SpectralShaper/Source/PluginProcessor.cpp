@@ -217,6 +217,19 @@ void OSpectralShaperAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         }
 
         advanceDryDelay();
+
+        // Phase 3.3: Push visualization data once per FFT hop
+        if (++hopCounter >= STFTProcessor::HOP_SIZE)
+        {
+            hopCounter = 0;
+
+            // Build visualization frame from left channel (mono visualization)
+            VisualizationFrame frame;
+            frame.fftMagnitudes = stftProcessor[0].getLastMagnitudes();
+            frame.transientActivity = stftProcessor[0].getTransientActivity();
+
+            writeVisualizationFrame(frame);
+        }
     }
 
     // Clear unused channels
@@ -360,6 +373,23 @@ float OSpectralShaperAudioProcessor::getLookaheadDelayedSample(int channel, floa
     lookaheadWritePosition = (lookaheadWritePosition + 1) % lookaheadBuffer.getNumSamples();
 
     return delayed;
+}
+
+void OSpectralShaperAudioProcessor::writeVisualizationFrame(const VisualizationFrame& frame)
+{
+    // Write to FIFO if space available (audio thread, lock-free)
+    if (visualizationFifo.getFreeSpace() > 0)
+    {
+        int start1, size1, start2, size2;
+        visualizationFifo.prepareToWrite(1, start1, size1, start2, size2);
+
+        if (size1 > 0)
+        {
+            visualizationBuffer[static_cast<size_t>(start1)] = frame;
+        }
+
+        visualizationFifo.finishedWrite(size1);
+    }
 }
 
 // ============================================================================

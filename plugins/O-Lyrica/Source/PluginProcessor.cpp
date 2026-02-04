@@ -224,6 +224,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         0.5f  // Default: Neutral bridge reflection
     ));
 
+    // v1.19.0: Humanize - per-note randomization for realistic variation
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "humanize", 1 },
+        "Humanize",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f  // Default: No humanization (deterministic behavior)
+    ));
+
     return layout;
 }
 
