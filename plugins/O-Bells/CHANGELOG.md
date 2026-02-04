@@ -2,6 +2,46 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [2.2.1] - 2026-02-03
+
+### Changed
+- **Complete factory preset redesign** - 25 new presets with descriptive, evocative names
+  - Replaced culturally-specific names with descriptive acoustic character names
+  - Full utilization of v2.2.0 parameters: airAbsorption, airAbsorptionTime, acousticBrightness
+  - All 5 material types exercised across preset library
+  - Research-informed parameter values based on modal synthesis bell research
+
+### New Preset Categories & Names
+
+**Large Bells (5):** Deep, long-sustaining tones
+- Deep Bronze Tower, Massive Iron Bell, Cavernous Brass, Grand Cathedral Bell, Slow Tolling Bell
+
+**Bright Bells (5):** Clear, articulate tones
+- Bright Clear Crotale, Crystalline Steel Chime, Sparkling Aluminum, Brilliant Bronze Plate, Crisp Steel Bar
+
+**Warm Bells (5):** Mellow, soft attack
+- Soft Mallet Bronze, Mellow Brass Bowl, Warm Aluminum Bars, Gentle Hand Bell, Velvet Bronze Tone
+
+**Metallic (5):** Complex spectra with inharmonicity
+- Dense Bronze Gamelan, Clanging Steel Plate, Beating Bronze Gong, Shimmering Bell Tree, Dark Iron Resonance
+
+**Ambient (5):** Atmospheric, evolving textures
+- Distant Cathedral, Underwater Bell, Evolving Bronze Wash, Frozen Steel Shimmer, Ethereal Chime Pad
+
+### Research Sources
+Based on `research/modal-synthesis-bells-academic-research.md`:
+- Church bell partial ratios (Hum:Prime:Tierce:Quint:Nominal)
+- Frequency-dependent damping: R_k = b_1 + b_3 * f_k^2
+- Multi-stage envelope structures (strike → body → hum tail)
+- Fletcher & Rossing bell physics data
+- Risset bell inharmonicity ratios
+
+### Technical Notes
+- Domain: Preset data only (no DSP changes)
+- Previous presets must be deleted manually: `rm -rf ~/Library/O-Bells/Presets/Factory/`
+- New presets created on next plugin load after clearing old presets
+- Preset compatibility: BREAKING - old preset files incompatible with new parameter format
+
 ## [2.2.0] - 2026-02-03
 
 ### Added
