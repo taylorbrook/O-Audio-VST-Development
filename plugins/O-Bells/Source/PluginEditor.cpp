@@ -56,7 +56,6 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     materialRelay = std::make_unique<juce::WebComboBoxRelay>("material");
     strikeNoiseCharRelay = std::make_unique<juce::WebComboBoxRelay>("strikeNoiseChar");
     velocityCurveRelay = std::make_unique<juce::WebComboBoxRelay>("velocityCurve");
-    // decayShapeRelay removed in v1.2.0 - always multi-stage
 
     // 2️⃣ CREATE WEBVIEW WITH OPTIONS
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -103,7 +102,6 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*humSustainRelay)
             .withOptionsFrom(*strikeNoiseCharRelay)
             .withOptionsFrom(*velocityCurveRelay)
-            // decayShapeRelay removed in v1.2.0
 
             // ═══════════════════════════════════════════════════════════════════
             // v2.2.0: GUI KEYBOARD NATIVE FUNCTION

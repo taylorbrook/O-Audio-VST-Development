@@ -105,7 +105,6 @@ private:
     std::atomic<float>* nonlinearEffectsParam = nullptr;
     std::atomic<float>* strikeNoiseCharParam = nullptr;
     std::atomic<float>* attackLevelParam = nullptr;
-    // decayShapeParam removed in v1.2.0 - always multi-stage
     std::atomic<float>* velocityCurveParam = nullptr;
     std::atomic<float>* pitchEnvelopeParam = nullptr;
     std::atomic<float>* pitchEnvTimeParam = nullptr;

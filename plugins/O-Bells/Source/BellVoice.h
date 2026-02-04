@@ -11,7 +11,6 @@
 #pragma once
 #include <juce_audio_basics/juce_audio_basics.h>
 #include <juce_dsp/juce_dsp.h>
-#include <cstdlib>
 #include "BellSound.h"
 
 class BellVoice : public juce::SynthesiserVoice
@@ -145,11 +144,8 @@ private:
     UnisonVoice upperOctaveVoices[MAX_UNISON];
     StrikeExciter strikeNoise;
 
-    // Stereo enhancement (v1.2.0)
+    // Stereo enhancement
     PartialStereoState partialStereo[NUM_PARTIALS];
-    juce::AudioBuffer<float> haasDelayBuffer;
-    int haasDelayLength = 0;
-    int haasWritePosition = 0;
 
     // Current parameters (updated from processor)
     float currentInharmonicity = 0.5f;
@@ -160,7 +156,7 @@ private:
     float currentAirAbsorptionTime = 2.0f;   // v2.2.0: independent time in seconds
     float currentStrikePosition = 0.5f;
     float currentMalletHardness = 0.5f;
-    float currentMaterial = 0.25f;
+    float currentMaterial = 0.0f;  // Default to Bronze (matches parameter default)
     float currentBloomSpeed = 0.0f;    // v1.4.0: Split bloom into speed/amount
     float currentBloomAmount = 0.0f;
     // v1.5.0: Bloom fine controls (per-band override)
@@ -180,7 +176,6 @@ private:
     float currentPartialTuning = 0.0f;
     float currentPitchEnvelope = 0.0f;
     float currentPitchEnvTime = 50.0f;
-    // currentDecayShape removed - always multi-stage in v1.2.0
     int currentVelocityCurve = 0;  // Linear
     float currentNonlinearEffects = 0.0f;
     int currentStrikeNoiseChar = 0;  // Click
@@ -256,22 +251,19 @@ private:
     float getPartialPan(int partialIndex);
     void initializeStereoMovement();
     float getModulatedPan(int partialIndex);
-    void prepareHaasDelay(double sampleRate);
-    void setHaasDelay(float delayMs);
-    void processHaasDelay(float& leftSample, float& rightSample);
     float generateStrikeNoise();
     float processPitchEnvelope();
-    float processPartial(ModalPartial& partial);
     void calculateMultiStageCoefficients(float fundamental);
     void applyMultiStageDecay(ModalPartial& partial, int partialIndex);
 
-    // Gaussian random number generator (v1.3.0 - CLT approximation)
+    // Thread-safe Gaussian random number generator (CLT approximation)
     float gaussianApprox()
     {
         // Sum of 3 uniform randoms approximates Gaussian (Central Limit Theorem)
+        auto& rng = juce::Random::getSystemRandom();
         float sum = 0.0f;
         for (int i = 0; i < 3; ++i)
-            sum += (static_cast<float>(rand()) / RAND_MAX) * 2.0f - 1.0f;
+            sum += rng.nextFloat() * 2.0f - 1.0f;
         return sum / 1.73f;  // Scale to ~unit variance
     }
 };

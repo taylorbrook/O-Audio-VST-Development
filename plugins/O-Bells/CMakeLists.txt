@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells"
-    PLUGIN_VERSION "1.3.0"
+    PLUGIN_VERSION "2.5.0"
 
     # Synthesizer configuration
     IS_SYNTH TRUE

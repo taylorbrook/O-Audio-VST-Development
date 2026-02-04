@@ -296,8 +296,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
-    // DECAY_SHAPE parameter removed in v1.2.0 - always use multi-stage decay
-
     // VELOCITY_CURVE - Velocity response shaping
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "velocityCurve", 1 },
@@ -482,7 +480,6 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     nonlinearEffectsParam = parameters.getRawParameterValue("nonlinearEffects");
     strikeNoiseCharParam = parameters.getRawParameterValue("strikeNoiseChar");
     attackLevelParam = parameters.getRawParameterValue("attackLevel");
-    // decayShapeParam removed in v1.2.0 - always use multi-stage
     velocityCurveParam = parameters.getRawParameterValue("velocityCurve");
     pitchEnvelopeParam = parameters.getRawParameterValue("pitchEnvelope");
     pitchEnvTimeParam = parameters.getRawParameterValue("pitchEnvTime");

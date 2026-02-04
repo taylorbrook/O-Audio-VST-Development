@@ -25,10 +25,7 @@ void BellVoice::prepare(double sampleRate, int samplesPerBlock)
     juce::ignoreUnused(samplesPerBlock);
     currentSampleRate = sampleRate;
 
-    // Prepare Haas delay buffer (v1.2.0)
-    prepareHaasDelay(sampleRate);
-
-    // Prepare resonator filters (v1.3.0)
+    // Prepare resonator filters
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
@@ -85,7 +82,6 @@ void BellVoice::updateParameters(float inharmonicity, float damping, float overt
     currentPartialTuning = partialTuning;
     currentPitchEnvelope = pitchEnvelope;
     currentPitchEnvTime = pitchEnvTime;
-    // currentDecayShape removed - always multi-stage in v1.2.0
     currentVelocityCurve = velocityCurve;
     currentNonlinearEffects = nonlinearEffects;
     currentStrikeNoiseChar = strikeNoiseChar;
@@ -878,29 +874,6 @@ float BellVoice::processPitchEnvelope()
     return std::pow(2.0f, -currentPitchDrop / 1200.0f) - 1.0f;
 }
 
-float BellVoice::processPartial(ModalPartial& partial)
-{
-    if (!partial.active)
-        return 0.0f;
-
-    // Generate sine wave
-    float output = std::sin(partial.phase * juce::MathConstants<float>::twoPi) * partial.amplitude;
-
-    // Advance phase
-    partial.phase += partial.phaseIncrement;
-    if (partial.phase >= 1.0f)
-        partial.phase -= 1.0f;
-
-    // Apply decay
-    partial.amplitude *= partial.decayRate;
-
-    // Deactivate if amplitude too low
-    if (partial.amplitude < 0.001f)
-        partial.active = false;
-
-    return output;
-}
-
 // ============================================================================
 // Multi-Stage Envelope Implementation (Research-Based)
 // Based on: CCRMA modal synthesis, Chaigne frequency-dependent damping,
@@ -1253,44 +1226,4 @@ float BellVoice::getModulatedPan(int partialIndex)
     float finalPan = stereo.basePan + modulation;
 
     return juce::jlimit(-1.0f, 1.0f, finalPan);
-}
-
-void BellVoice::prepareHaasDelay(double sampleRate)
-{
-    // Max Haas delay: 30ms (for stereo width)
-    haasDelayLength = static_cast<int>((30.0f / 1000.0f) * sampleRate);
-    haasDelayBuffer.setSize(2, haasDelayLength);
-    haasDelayBuffer.clear();
-    haasWritePosition = 0;
-}
-
-void BellVoice::setHaasDelay(float delayMs)
-{
-    // Currently unused - could be parameter-driven in future
-    juce::ignoreUnused(delayMs);
-}
-
-void BellVoice::processHaasDelay(float& leftSample, float& rightSample)
-{
-    // Haas delay: delay right channel by ~10ms for stereo width
-    static constexpr float haasDelayMs = 10.0f;
-    int delaySamples = static_cast<int>((haasDelayMs / 1000.0f) * currentSampleRate);
-    delaySamples = juce::jmin(delaySamples, haasDelayLength - 1);
-
-    if (delaySamples == 0)
-        return;
-
-    // Write current samples to delay buffer
-    haasDelayBuffer.setSample(0, haasWritePosition, leftSample);
-    haasDelayBuffer.setSample(1, haasWritePosition, rightSample);
-
-    // Read delayed right channel
-    int readPos = (haasWritePosition - delaySamples + haasDelayLength) % haasDelayLength;
-    float delayedRight = haasDelayBuffer.getSample(1, readPos);
-
-    // Replace right channel with delayed version (subtle mix)
-    rightSample = rightSample * 0.7f + delayedRight * 0.3f;
-
-    // Advance write position
-    haasWritePosition = (haasWritePosition + 1) % haasDelayLength;
 }
