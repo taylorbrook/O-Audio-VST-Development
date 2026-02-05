@@ -70,6 +70,9 @@ public:
     // v3.0.0: Tuning engine access
     TuningEngine& getTuningEngine() { return tuningEngine; }
 
+    // v3.1.0: Get held notes and their actual frequencies for TrueKeys visualization
+    void getHeldNotesData(std::vector<int>& notes, std::vector<double>& frequencies);
+
     // APVTS::Listener override for tuning parameter changes
     void parameterChanged(const juce::String& parameterID, float newValue) override;
 

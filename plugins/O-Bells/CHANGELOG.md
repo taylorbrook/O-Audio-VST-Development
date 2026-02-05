@@ -2,6 +2,23 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [3.1.0] - 2026-02-05
+
+### Added
+- **TrueKeys interval reporting** - The True Keys visualization now displays real-time interval analysis between held notes, matching O-Lyrica's implementation
+  - Shows note names with interval labels (e.g., `C3 → G3 (P5) 702.0¢`)
+  - Calculates intervals from actual TuningEngine frequencies (not scale degree approximations)
+  - Recognizes common interval names (m2, M2, m3, M3, P4, TT, P5, m6, M6, m7, M7, P8) within ±15¢ tolerance
+  - Shows total span when 3+ notes are held
+  - Works accurately with all tuning systems (12-TET, Scala, temperaments, EDOs)
+
+### Technical Details
+- C++ Processor: Added `getHeldNotesData()` — iterates active synthesiser voices, returns MIDI notes + frequencies from TuningEngine
+- C++ Editor: Timer callback now polls held notes and sends JSON arrays to WebView via `window.updateHeldNotes(notes, freqs)`
+- JavaScript: Rewrote `drawTrueKeys()` to use frequency-ratio cent calculation (`1200 * log₂(f₂/f₁)`) instead of scale-degree lookup
+- CSS: Added `.tk-grid`, `.tk-cents`, `.tk-total` styles for proper interval display layout
+- No parameter changes; backward-compatible
+
 ## [3.0.1] - 2026-02-04
 
 ### Changed

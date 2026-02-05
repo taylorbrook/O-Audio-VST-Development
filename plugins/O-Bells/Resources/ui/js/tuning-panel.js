@@ -33,6 +33,8 @@ export class TuningPanel {
         this.libraryFilter = 'all';
         this.generatorType = 'edo';
         this.heldNotes = new Set();
+        this.heldNotesMidi = [];   // v3.1.0: MIDI note numbers from C++ backend
+        this.heldNotesFreqs = [];  // v3.1.0: Actual frequencies from TuningEngine
         this.activeScaleDegrees = new Set(); // Track which scale degrees are currently sounding
 
         // Note names for display
@@ -523,23 +525,71 @@ export class TuningPanel {
         const container = this.container.querySelector('#truekeys-view');
         if (!container) return;
 
-        if (this.heldNotes.size < 2) {
+        if (!this.heldNotesMidi || this.heldNotesMidi.length < 2) {
             container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
             return;
         }
 
-        const notes = Array.from(this.heldNotes).sort((a, b) => a - b);
-        let html = '<div class="tk-intervals">';
+        // Sort by pitch for consistent display
+        const sorted = this.heldNotesMidi
+            .map((note, i) => ({ note, freq: this.heldNotesFreqs[i] }))
+            .sort((a, b) => a.note - b.note);
 
-        for (let i = 1; i < notes.length; i++) {
-            const interval = notes[i] - notes[0];
-            const scaleDegree = interval % (this.intervals.length - 1);
-            const cents = this.intervals[scaleDegree] || (interval * 100);
-            html += `<div class="tk-interval">${notes[0]}→${notes[i]}: ${cents.toFixed(1)}c</div>`;
+        let html = '<div class="tk-grid">';
+
+        // Calculate interval between each pair of adjacent notes
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const lower = sorted[i];
+            const upper = sorted[i + 1];
+            const cents = 1200 * Math.log2(upper.freq / lower.freq);
+
+            const intervalName = this.identifyInterval(cents);
+
+            html += `
+                <div class="tk-interval">
+                    <span>${this.midiToNoteName(lower.note)} → ${this.midiToNoteName(upper.note)} ${intervalName}</span>
+                    <span class="tk-cents">${cents.toFixed(1)}¢</span>
+                </div>
+            `;
+        }
+
+        // Total span for 3+ notes
+        if (sorted.length > 2) {
+            const lowest = sorted[0];
+            const highest = sorted[sorted.length - 1];
+            const totalCents = 1200 * Math.log2(highest.freq / lowest.freq);
+            html += `
+                <div class="tk-interval tk-total">
+                    <span><strong>Total span</strong></span>
+                    <span class="tk-cents">${totalCents.toFixed(1)}¢</span>
+                </div>
+            `;
         }
 
         html += '</div>';
         container.innerHTML = html;
+    }
+
+    /**
+     * Convert MIDI note number to readable note name (e.g., 60 → "C4")
+     */
+    midiToNoteName(midi) {
+        return this.noteNames[midi % 12] + (Math.floor(midi / 12) - 1);
+    }
+
+    /**
+     * Identify common interval name from cents value (±15c tolerance)
+     */
+    identifyInterval(cents) {
+        const intervals = [
+            [100, 'm2'], [200, 'M2'], [300, 'm3'], [400, 'M3'],
+            [500, 'P4'], [600, 'TT'], [700, 'P5'], [800, 'm6'],
+            [900, 'M6'], [1000, 'm7'], [1100, 'M7'], [1200, 'P8']
+        ];
+        for (const [target, name] of intervals) {
+            if (Math.abs(cents - target) < 15) return `(${name})`;
+        }
+        return '';
     }
 
     drawRotationTable() {
@@ -574,9 +624,14 @@ export class TuningPanel {
         container.innerHTML = html;
     }
 
-    // Called by host when notes change
-    setHeldNotes(notes) {
-        this.heldNotes = new Set(notes);
+    /**
+     * v3.1.0: Called by host via window.updateHeldNotes with MIDI notes + actual frequencies.
+     * Enables accurate interval reporting using real tuning engine frequencies.
+     */
+    updateHeldNotes(notes, freqs) {
+        this.heldNotesMidi = notes || [];
+        this.heldNotesFreqs = freqs || [];
+        this.heldNotes = new Set(notes || []);
         if (this.currentVizMode === 'truekeys') {
             this.drawTrueKeys();
         }

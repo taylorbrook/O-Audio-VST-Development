@@ -273,18 +273,40 @@
 .tk-hint {
     color: var(--tuning-text-muted);
     font-style: italic;
+    font-size: 11px;
 }
 
-.tk-intervals {
+.tk-grid {
     display: flex;
     flex-direction: column;
     gap: 4px;
+    padding: 4px;
 }
 
 .tk-interval {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
     padding: 4px 8px;
     background: var(--tuning-input-bg);
     border-radius: 3px;
+    border-left: 2px solid var(--tuning-accent, #8B7355);
+}
+
+.tk-interval span:first-child {
+    font-size: 10px;
+    color: var(--tuning-text, #3C2F2F);
+}
+
+.tk-cents {
+    font-family: monospace;
+    font-size: 11px;
+    color: var(--tuning-accent, #8B7355);
+}
+
+.tk-total {
+    border-left-color: #6B8E4E;
+    margin-top: 4px;
 }
 
 /* Rotation View */

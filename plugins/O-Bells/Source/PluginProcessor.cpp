@@ -838,6 +838,27 @@ void OBellsAudioProcessor::triggerNoteOff(int midiNote)
     synthesiser.noteOff(1, midiNote, 0.0f, true);
 }
 
+// v3.1.0: Get held notes and their actual frequencies for TrueKeys visualization
+void OBellsAudioProcessor::getHeldNotesData(std::vector<int>& notes, std::vector<double>& frequencies)
+{
+    notes.clear();
+    frequencies.clear();
+
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (auto* voice = synthesiser.getVoice(i))
+        {
+            if (voice->isVoiceActive())
+            {
+                int midiNote = voice->getCurrentlyPlayingNote();
+                double freq = tuningEngine.getFrequency(midiNote);
+                notes.push_back(midiNote);
+                frequencies.push_back(freq);
+            }
+        }
+    }
+}
+
 //==============================================================================
 void OBellsAudioProcessor::initializeFactoryPresets()
 {

@@ -1928,6 +1928,9 @@
                 window.tuningNoteOn = (midiNote) => tuningPanel.noteOn(midiNote);
                 window.tuningNoteOff = (midiNote) => tuningPanel.noteOff(midiNote);
 
+                // v3.1.0: Expose held notes + frequencies for TrueKeys interval reporting
+                window.updateHeldNotes = (notes, freqs) => tuningPanel.updateHeldNotes(notes, freqs);
+
                 console.log('[Tuning] Panel initialized successfully');
             } catch (err) {
                 console.error('[Tuning] Failed to initialize panel:', err);

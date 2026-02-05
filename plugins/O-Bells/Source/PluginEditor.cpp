@@ -775,6 +775,30 @@ void OBellsAudioProcessorEditor::timerCallback()
         prevActiveNotesLow = notesLow;
         prevActiveNotesHigh = notesHigh;
     }
+
+    // v3.1.0: Send held notes + frequencies for TrueKeys interval display
+    std::vector<int> heldNotes;
+    std::vector<double> heldFreqs;
+    processorRef.getHeldNotesData(heldNotes, heldFreqs);
+
+    juce::String notesJson = "[";
+    juce::String freqsJson = "[";
+    for (size_t i = 0; i < heldNotes.size(); ++i)
+    {
+        if (i > 0)
+        {
+            notesJson += ",";
+            freqsJson += ",";
+        }
+        notesJson += juce::String(heldNotes[i]);
+        freqsJson += juce::String(heldFreqs[i], 4);
+    }
+    notesJson += "]";
+    freqsJson += "]";
+
+    juce::String heldJs = "if (typeof window.updateHeldNotes === 'function') window.updateHeldNotes("
+        + notesJson + "," + freqsJson + ");";
+    webView->evaluateJavascript(heldJs);
 }
 
 void OBellsAudioProcessorEditor::paint(juce::Graphics& g)
