@@ -571,8 +571,12 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     juce::String tuningId = args[0].toString();
                     auto* tuning = EmbeddedTunings::getTuningById(tuningId.toStdString());
                     if (tuning != nullptr && !tuning->intervals.empty()) {
+                        // Append the period to intervals so setCustomIntervals()
+                        // correctly identifies the octave/period boundary
+                        auto intervals = tuning->intervals;
+                        intervals.push_back(tuning->period);
                         processorRef.getTuningEngine().setCustomIntervals(
-                            tuning->intervals, juce::String(tuning->name));
+                            intervals, juce::String(tuning->name));
                         complete(true);
                         return;
                     }

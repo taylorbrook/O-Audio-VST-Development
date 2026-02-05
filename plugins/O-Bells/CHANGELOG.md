@@ -2,6 +2,19 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [3.1.1] - 2026-02-05
+
+### Fixed
+- **Tuning library missing octave scale degree** - Embedded tunings now correctly include the period (1200 cents for octave-based tunings) when loaded into the TuningEngine
+  - Root cause: `loadEmbeddedTuning` passed `tuning->intervals` directly to `setCustomIntervals()` without appending the period, causing `scaleIntervals.back()` to return the wrong value as the octave boundary
+  - 12-note-per-octave tunings (Historical, Just Intonation) showed 11 scale degrees instead of 12
+  - EDO, World, and Non-Octave tunings were similarly affected
+  - Scala file loading was unaffected because `.scl` files include the period as the last pitch line
+
+### Technical Notes
+- Domain: C++ (PluginEditor.cpp loadEmbeddedTuning native function)
+- No parameter changes; backward-compatible
+
 ## [3.1.0] - 2026-02-05
 
 ### Added

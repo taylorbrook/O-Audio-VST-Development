@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 3.1.0
+- **Version:** 3.1.1
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
