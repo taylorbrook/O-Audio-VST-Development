@@ -1,3 +1,20 @@
+---
+title: "FFT Audio Artifact Prevention Guide"
+summary: "Comprehensive reference for understanding, diagnosing, and preventing artifacts in FFT-based audio processing, covering spectral leakage, discontinuity artifacts, phase issues, transient smearing, modulation artifacts, and diagnostic techniques."
+domain: dsp
+type: reference
+keywords:
+  - fft
+  - spectral-leakage
+  - audio-artifacts
+  - phase-coherence
+  - windowing
+  - overlap-add
+  - transient-smearing
+stages: [2, 3]
+agents: [dsp]
+---
+
 # FFT Audio Artifact Prevention Guide
 
 A comprehensive reference for understanding, diagnosing, and preventing artifacts in FFT-based audio processing.

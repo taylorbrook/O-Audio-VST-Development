@@ -1,3 +1,21 @@
+---
+title: "Generative Audio Algorithms Technical Reference"
+summary: "Technical deep-dive into algorithmic techniques for generative audio plugins, covering Markov chains, L-systems, cellular automata, Euclidean rhythms, stochastic granular synthesis, chaos systems, advanced LFO variations, and JUCE implementation considerations."
+domain: dsp
+type: reference
+keywords:
+  - generative
+  - markov-chains
+  - euclidean-rhythms
+  - granular-synthesis
+  - cellular-automata
+  - l-systems
+  - procedural-audio
+  - algorithmic-composition
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Generative Audio Algorithms: Technical Reference
 
 A comprehensive technical deep-dive into algorithmic techniques used in generative audio and music plugins.

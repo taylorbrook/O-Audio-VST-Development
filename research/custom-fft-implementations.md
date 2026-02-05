@@ -1,3 +1,21 @@
+---
+title: "Custom FFT Implementations for Audio Plugins"
+summary: "Guide to FFT libraries beyond JUCE's built-in implementation, comparing Apple Accelerate/vDSP, Intel IPP, FFTW3, PFFFT, and KissFFT with integration patterns, performance benchmarks, and real-time safety considerations."
+domain: dsp
+type: guide
+keywords:
+  - fft
+  - accelerate
+  - vdsp
+  - fftw
+  - pffft
+  - kissfft
+  - spectral-processing
+  - performance
+stages: [2]
+agents: [dsp]
+---
+
 # Custom FFT Implementations for Audio Plugins
 
 A guide to FFT libraries beyond JUCE's built-in implementation, with integration patterns and performance comparisons.

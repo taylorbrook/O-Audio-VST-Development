@@ -1,3 +1,23 @@
+---
+title: "Circuit Modeling Fundamentals for Analog Audio Effects"
+summary: "Research report covering primary techniques for digitally recreating analog audio circuits, including Wave Digital Filters, nodal analysis, distortion/saturation modeling, tape saturation, transformer modeling, and compressor/limiter emulation with C++ implementations."
+domain: dsp
+type: algorithm
+keywords:
+  - circuit-modeling
+  - wave-digital-filters
+  - analog-emulation
+  - distortion
+  - saturation
+  - tape-modeling
+  - transformer
+  - compressor
+  - waveshaping
+  - newton-raphson
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Circuit Modeling Fundamentals for Analog Audio Effects
 
 ## Research Report: Physical Modeling Techniques for Hardware Emulation

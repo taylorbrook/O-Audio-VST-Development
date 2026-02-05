@@ -1,3 +1,22 @@
+---
+title: "Delay Effects Comprehensive Implementation Guide"
+summary: "Complete knowledge base for delay effect implementation in JUCE audio plugins, covering circular buffers, fractional delay interpolation, ping-pong, tape, analog/BBD, multi-tap, and reverse delays with feedback networks, modulation, tempo sync, and ducking techniques."
+domain: dsp
+type: guide
+keywords:
+  - delay
+  - circular-buffer
+  - interpolation
+  - tape-delay
+  - ping-pong
+  - feedback
+  - modulation
+  - tempo-sync
+  - juce-dsp
+stages: [0, 1, 2]
+agents: [dsp, research]
+---
+
 # Delay Effects - Comprehensive Implementation Guide
 
 **Complete Knowledge Base for Delay Effect Implementation in JUCE Audio Plugins**

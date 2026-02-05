@@ -1,3 +1,21 @@
+---
+title: "DSP Click Prevention and Debugging Guide"
+summary: "Reference for understanding, preventing, and debugging audio clicks and pops in JUCE audio plugins, covering signal discontinuities, buffer boundary issues, parameter smoothing, and JUCE-specific patterns with diagnostic techniques."
+domain: dsp
+type: reference
+keywords:
+  - clicks
+  - pops
+  - audio-artifacts
+  - parameter-smoothing
+  - buffer-boundaries
+  - debugging
+  - discontinuities
+  - juce-dsp
+stages: [1, 2, 3, 4]
+agents: [dsp, build]
+---
+
 # DSP Click Prevention and Debugging Guide
 
 A comprehensive reference for understanding, preventing, and debugging audio clicks and pops in JUCE audio plugins.

@@ -1,3 +1,21 @@
+---
+title: "FFT Processing Best Practices in JUCE"
+summary: "Comprehensive guide to implementing high-quality FFT-based audio processing in JUCE plugins, covering STFT architecture, buffer management, window functions, overlap-add synthesis, COLA compliance, and performance optimization strategies."
+domain: dsp
+type: guide
+keywords:
+  - fft
+  - stft
+  - spectral-processing
+  - windowing
+  - overlap-add
+  - juce-dsp
+  - buffer-management
+  - artifact-prevention
+stages: [1, 2, 3]
+agents: [dsp]
+---
+
 # FFT Processing Best Practices in JUCE
 
 A comprehensive guide to implementing high-quality FFT-based audio processing in JUCE plugins, with focus on artifact prevention and performance optimization.
