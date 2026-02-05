@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 10 ready to plan
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 10 in progress
 
 ## Current Position
 
 Phase: 10 of 13 (Resource Index & Discovery)
-Plan: 0 of ? in current phase
-Status: Ready to plan
-Last activity: 2026-02-04 — Roadmap created for v1.2 (Phases 10-13)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-05 — Completed 10-01-PLAN.md (Schema & Validation Infrastructure)
 
-Progress: [█████████████████████░░░░] 86% overall (25/29+ plans)
-v1.2:    [░░░░░░░░░░░░░░░░░░░░░░░░] 0% (0/? plans)
+Progress: [██████████████████████░░░] 90% overall (26/29 plans)
+v1.2:    [██████░░░░░░░░░░░░░░░░░░░] 25% (1/4 plans)
 
 ## Performance Metrics
 
@@ -47,6 +47,9 @@ Recent decisions affecting current work:
 - v1.2 Roadmap: Warning-level accountability (not blocking) for resource usage
 - v1.2 Roadmap: Orchestrator-level discovery (not hook-level) to avoid timeout constraints
 - v1.2 Roadmap: 4,000 token budget cap for injected research context per agent
+- 10-01: Co-located schema at .claude/resource-index.schema.json (not .planning/workflow/schemas/)
+- 10-01: Frontmatter validator uses only PyYAML (no jsonschema) to stay within hook timeout
+- 10-01: Validator self-filters non-research files; broad write|edit matcher is safe
 
 ### Pending Todos
 
@@ -61,11 +64,11 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-02-04
-Stopped at: Created v1.2 roadmap (Phases 10-13, 15 requirements mapped)
+Last session: 2026-02-05
+Stopped at: Completed 10-01-PLAN.md (Schema & Validation Infrastructure)
 Resume file: None
 
-Next: `/gsd:plan-phase 10`
+Next: Execute 10-02-PLAN.md (Frontmatter Retrofit)
 
 ---
-*v1.2 roadmap complete. Ready to plan Phase 10.*
+*Phase 10 plan 01 complete. Schema and validation infrastructure ready for frontmatter retrofit.*
