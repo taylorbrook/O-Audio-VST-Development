@@ -184,6 +184,12 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
         inputFifo[ch].resize(fftSize, 0.0f);
         outputFifo[ch].resize(fftSize, 0.0f);
         fftData[ch].resize(fftSize * 2, 0.0f);  // FFT needs 2x size for real/imag
+
+        // Per-band output FIFOs for time-domain gain application (v1.2.0)
+        for (int band = 0; band < 4; ++band)
+            bandOutputFifo[band][ch].resize(fftSize, 0.0f);
+        passthroughOutputFifo[ch].resize(fftSize, 0.0f);
+        fftBandTemp[ch].resize(fftSize * 2, 0.0f);
     }
 
     // Reset buffer positions
@@ -240,6 +246,11 @@ void OFreqPulseAudioProcessor::releaseResources()
         std::fill(inputFifo[ch].begin(), inputFifo[ch].end(), 0.0f);
         std::fill(outputFifo[ch].begin(), outputFifo[ch].end(), 0.0f);
         std::fill(fftData[ch].begin(), fftData[ch].end(), 0.0f);
+
+        for (int band = 0; band < 4; ++band)
+            std::fill(bandOutputFifo[band][ch].begin(), bandOutputFifo[band][ch].end(), 0.0f);
+        std::fill(passthroughOutputFifo[ch].begin(), passthroughOutputFifo[ch].end(), 0.0f);
+        std::fill(fftBandTemp[ch].begin(), fftBandTemp[ch].end(), 0.0f);
     }
 
     // Reset step tracking
@@ -396,15 +407,13 @@ float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentS
         return 1.0f - depth;  // Step OFF: reduce by depth amount
 }
 
-void OFreqPulseAudioProcessor::processFrame(int channel, const float* bandGains)
+void OFreqPulseAudioProcessor::processFrame(int channel)
 {
     auto& fftBuffer = fftData[channel];
     auto& inFifo = inputFifo[channel];
-    auto& outFifo = outputFifo[channel];
+    auto& tempBuffer = fftBandTemp[channel];
 
     // Copy input samples from circular buffer to FFT buffer
-    // inputWritePos points to where the NEXT sample will go (oldest position)
-    // Extract fftSize samples in correct order: oldest to newest
     for (int i = 0; i < fftSize; ++i)
     {
         fftBuffer[static_cast<size_t>(i)] = inFifo[static_cast<size_t>((inputWritePos + i) % fftSize)];
@@ -419,36 +428,77 @@ void OFreqPulseAudioProcessor::processFrame(int channel, const float* bandGains)
     // Forward FFT (real-only)
     fft.performRealOnlyForwardTransform(fftBuffer.data());
 
-    // Apply band gains to frequency bins
-    // Uses pre-computed per-band gains (same value for all bins in a band)
-    for (int bin = 0; bin < numBins; ++bin)
+    // v1.2.0: Reconstruct each band separately into its own time-domain FIFO.
+    // This allows per-sample gain application in the time domain, avoiding
+    // inter-frame modulation artifacts (~86Hz buzz) that occurred when applying
+    // gain in the spectral domain with overlapping STFT frames.
+
+    // For each band: extract only that band's bins, IFFT, window, overlap-add
+    for (int band = 0; band < 4; ++band)
     {
-        int band = bandForBin[bin];
-        float gain = (band >= 0 && band < 4) ? bandGains[band] : 1.0f;
+        // Zero the temp buffer
+        std::fill(tempBuffer.begin(), tempBuffer.end(), 0.0f);
 
-        // Scale both real and imaginary parts (phase preservation)
-        int realIndex = bin * 2;
-        int imagIndex = bin * 2 + 1;
+        // Copy only bins belonging to this band
+        for (int bin = 0; bin < numBins; ++bin)
+        {
+            if (bandForBin[bin] == band)
+            {
+                int realIndex = bin * 2;
+                int imagIndex = bin * 2 + 1;
 
-        if (realIndex < fftSize * 2)
-            fftBuffer[realIndex] *= gain;
-        if (imagIndex < fftSize * 2)
-            fftBuffer[imagIndex] *= gain;
+                if (realIndex < fftSize * 2)
+                    tempBuffer[realIndex] = fftBuffer[realIndex];
+                if (imagIndex < fftSize * 2)
+                    tempBuffer[imagIndex] = fftBuffer[imagIndex];
+            }
+        }
+
+        // Inverse FFT for this band
+        fft.performRealOnlyInverseTransform(tempBuffer.data());
+
+        // Apply synthesis window and COLA correction
+        for (int i = 0; i < fftSize; ++i)
+        {
+            tempBuffer[static_cast<size_t>(i)] *= hannWindow[static_cast<size_t>(i)] * windowCorrection;
+        }
+
+        // Overlap-add to this band's output FIFO
+        for (int i = 0; i < fftSize; ++i)
+        {
+            bandOutputFifo[band][channel][i] += tempBuffer[i];
+        }
     }
 
-    // Inverse FFT
-    fft.performRealOnlyInverseTransform(fftBuffer.data());
-
-    // Apply synthesis window and COLA correction
-    for (int i = 0; i < fftSize; ++i)
+    // Reconstruct passthrough bins (bins not assigned to any band)
     {
-        fftBuffer[static_cast<size_t>(i)] *= hannWindow[static_cast<size_t>(i)] * windowCorrection;
-    }
+        std::fill(tempBuffer.begin(), tempBuffer.end(), 0.0f);
 
-    // Overlap-add to output FIFO
-    for (int i = 0; i < fftSize; ++i)
-    {
-        outFifo[i] += fftBuffer[i];
+        for (int bin = 0; bin < numBins; ++bin)
+        {
+            if (bandForBin[bin] < 0 || bandForBin[bin] >= 4)
+            {
+                int realIndex = bin * 2;
+                int imagIndex = bin * 2 + 1;
+
+                if (realIndex < fftSize * 2)
+                    tempBuffer[realIndex] = fftBuffer[realIndex];
+                if (imagIndex < fftSize * 2)
+                    tempBuffer[imagIndex] = fftBuffer[imagIndex];
+            }
+        }
+
+        fft.performRealOnlyInverseTransform(tempBuffer.data());
+
+        for (int i = 0; i < fftSize; ++i)
+        {
+            tempBuffer[static_cast<size_t>(i)] *= hannWindow[static_cast<size_t>(i)] * windowCorrection;
+        }
+
+        for (int i = 0; i < fftSize; ++i)
+        {
+            passthroughOutputFifo[channel][i] += tempBuffer[i];
+        }
     }
 }
 
@@ -625,36 +675,56 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         // Process FFT frame when we've accumulated enough samples
         if (hopCounter >= hopSize)
         {
-            // Snapshot band gains once per frame (same value for all bins and both channels)
-            float frameGains[4];
-            for (int band = 0; band < 4; ++band)
-            {
-                frameGains[band] = bandGainSmooth[band].getCurrentValue();
-                bandGainSmooth[band].skip(hopSize);
-            }
-
-            // Process each channel
+            // Process each channel — no spectral gain applied here (v1.2.0)
             for (int ch = 0; ch < numChannels; ++ch)
             {
-                processFrame(ch, frameGains);
+                processFrame(ch);
 
-                // Shift output FIFO by hop size (discards first hopSize samples)
-                std::rotate(outputFifo[ch].begin(),
-                           outputFifo[ch].begin() + hopSize,
-                           outputFifo[ch].end());
+                // Shift per-band output FIFOs by hop size
+                for (int band = 0; band < 4; ++band)
+                {
+                    std::rotate(bandOutputFifo[band][ch].begin(),
+                               bandOutputFifo[band][ch].begin() + hopSize,
+                               bandOutputFifo[band][ch].end());
+                    std::fill(bandOutputFifo[band][ch].end() - hopSize,
+                             bandOutputFifo[band][ch].end(), 0.0f);
+                }
 
-                // Zero the end part for next overlap-add
-                std::fill(outputFifo[ch].end() - hopSize, outputFifo[ch].end(), 0.0f);
+                // Shift passthrough output FIFO
+                std::rotate(passthroughOutputFifo[ch].begin(),
+                           passthroughOutputFifo[ch].begin() + hopSize,
+                           passthroughOutputFifo[ch].end());
+                std::fill(passthroughOutputFifo[ch].end() - hopSize,
+                         passthroughOutputFifo[ch].end(), 0.0f);
             }
 
             hopCounter = 0;
         }
 
-        // Read output from FIFO - use hopCounter which cycles [0, hopSize)
-        // After rotation, valid output is always at positions [0, hopSize-1]
+        // v1.2.0: Apply per-sample smoothed gain in the TIME DOMAIN
+        // This eliminates the ~86Hz inter-frame modulation buzz that occurred
+        // when applying gain per-frame in the spectral domain.
+        float bandGainValues[4];
+        for (int band = 0; band < 4; ++band)
+        {
+            bandGainValues[band] = bandGainSmooth[band].getNextValue();
+        }
+
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            buffer.setSample(ch, sample, outputFifo[ch][static_cast<size_t>(hopCounter)]);
+            float outputSample = 0.0f;
+
+            // Sum per-band contributions with per-sample gain
+            for (int band = 0; band < 4; ++band)
+            {
+                outputSample += bandOutputFifo[band][ch][static_cast<size_t>(hopCounter)]
+                              * bandGainValues[band];
+            }
+
+            // Add passthrough (unmodified bins not in any band)
+            outputSample += passthroughOutputFifo[ch][static_cast<size_t>(hopCounter)];
+
+            buffer.setSample(ch, sample, outputSample);
         }
 
         hopCounter++;

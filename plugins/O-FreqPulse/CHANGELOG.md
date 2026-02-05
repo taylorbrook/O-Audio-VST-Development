@@ -2,6 +2,21 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.2.0] - 2026-02-05
+
+### Fixed
+
+- **Eliminated buzzing artifact at step on/off transitions** - Moved band gain application from spectral domain (per-FFT-frame) to time domain (per-sample), eliminating the ~86Hz amplitude modulation caused by applying different gains to overlapping STFT frames.
+
+### Technical Notes
+
+- Root cause: with 75% overlap (hopSize=512), applying band gain once per FFT frame meant overlapping frames received different gain values, creating amplitude modulation at the frame rate (44100/512 ≈ 86Hz = audible buzz)
+- Fix: each band's frequency bins are now reconstructed separately via IFFT into per-band time-domain output FIFOs, then per-sample `SmoothedValue::getNextValue()` gain is applied in the time domain before summing
+- Added per-band output FIFO buffers (`bandOutputFifo[4][2]`), passthrough FIFO for unassigned bins, and temporary FFT buffer for per-band IFFT
+- `processFrame()` now produces 5 separate overlap-add outputs (4 bands + passthrough) instead of a single gain-weighted output
+- Passthrough bins (frequencies not assigned to any band) are reconstructed once and passed through at unity gain
+- COLA (Constant Overlap-Add) compliance maintained: Hann synthesis window + correction factor applied per-band
+
 ## [1.1.2] - 2026-02-04
 
 ### Fixed

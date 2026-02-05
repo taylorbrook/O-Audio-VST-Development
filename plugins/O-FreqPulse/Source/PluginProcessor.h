@@ -88,6 +88,15 @@ private:
     std::array<std::vector<float>, 2> outputFifo;
     std::array<std::vector<float>, 2> fftData;
 
+    // Per-band STFT output FIFOs for time-domain gain application (v1.2.0)
+    // Each band gets its own reconstructed time-domain signal to avoid inter-frame modulation artifacts
+    // bandOutputFifo[band][channel] = time-domain samples for that band
+    std::array<std::array<std::vector<float>, 2>, 4> bandOutputFifo;
+    // Passthrough FIFO for frequency bins not assigned to any band
+    std::array<std::vector<float>, 2> passthroughOutputFifo;
+    // Temporary FFT buffer for per-band IFFT reconstruction
+    std::array<std::vector<float>, 2> fftBandTemp;
+
     // STFT Tracking
     int inputWritePos = 0;
     int hopCounter = 0;
@@ -134,7 +143,7 @@ private:
     void updateEuclideanPatterns();
     int calculateCurrentStep(double ppq, int numSteps, int rateIndex, float swing);
     float getTargetGainForBand(int bandIndex, int currentStep);
-    void processFrame(int channel, const float* bandGains);
+    void processFrame(int channel);
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
