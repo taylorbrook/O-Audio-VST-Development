@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-02)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins
-**Current focus:** Planning next milestone (v1.2 Windows Distribution)
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration
 
 ## Current Position
 
-Phase: 9 of 9 complete (v1.1 shipped)
-Plan: N/A — between milestones
-Status: Ready for next milestone
-Last activity: 2026-02-03 — Completed quick task 003: handoff format consistency
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.2
+Last activity: 2026-02-04 — Milestone v1.2 started
 
-Progress: [########################] 100% (25/25 total plans across v1.0 + v1.1)
+Progress: [░░░░░░░░░░░░░░░░░░░░░░░░] 0% (v1.2 not yet planned)
 
 ## Performance Metrics
 
@@ -68,4 +68,4 @@ Resume file: None
 | 003 | Standardize handoff format with GSD-style separators | 2026-02-03 |
 
 ---
-*v1.1 SHIPPED. Start next milestone with `/gsd:new-milestone`*
+*v1.2 milestone started. Continue with `/gsd:plan-phase` after requirements defined.*

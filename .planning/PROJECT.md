@@ -11,7 +11,19 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 ## Current State
 
 **Latest shipped:** v1.1 Cleanup & Workflow Polish (2026-02-02)
-**Next milestone:** v1.2 Windows Distribution (planned)
+**Current milestone:** v1.2 Agent Intelligence & Resource Orchestration
+
+## Current Milestone: v1.2 Agent Intelligence & Resource Orchestration
+
+**Goal:** Ensure all agents are invoked appropriately, have access to the full knowledge base, and are required to use relevant resources with full traceability.
+
+**Target features:**
+- Resource discovery (auto-detect relevant docs based on task context)
+- Mandatory resource injection (agents receive relevant resources before execution)
+- Usage accountability (agents report what resources they consulted)
+- Agent invocation audit (verify agents are called when they should be)
+- Hook system (pre-inject context, post-validate usage)
+- Full knowledge base access (research, patterns, templates, plugins, modules)
 
 **System overview:**
 - 9 phases completed across 2 milestones
@@ -41,6 +53,16 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 - ✓ Express mode bypass (--no-plan flag) — v1.1
 
 ### Active
+
+- [ ] Resource discovery system (auto-detect relevant docs from task context)
+- [ ] Mandatory resource injection for all stage agents
+- [ ] Agent usage accountability (report resources consulted)
+- [ ] Agent invocation audit (verify agents called when needed)
+- [ ] Pre-agent hooks for context injection
+- [ ] Post-agent hooks for usage validation
+- [ ] Full knowledge base access (research, patterns, templates, plugins, modules)
+
+### Deferred (v1.3+)
 
 - [ ] Windows installer automation (NSIS via GitHub Actions)
 - [ ] Add/Remove Programs integration
@@ -150,4 +172,4 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | Outcome-focused planning tasks | Resilient to code restructuring | ✓ Good — adopted in v1.1 |
 
 ---
-*Last updated: 2026-02-02 after v1.1 milestone*
+*Last updated: 2026-02-04 after v1.2 milestone start*
