@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconDigitalDelay
-    COMPANY_NAME "Ouaricon Development"
-    PLUGIN_MANUFACTURER_CODE OuDv
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "O-DigiDelay"
+    PRODUCT_NAME "O-DigiDelay${OUARICON_DEV_SUFFIX}"
     VERSION 1.2.1
     NEEDS_WEB_BROWSER TRUE
 )

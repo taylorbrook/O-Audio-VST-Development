@@ -3,11 +3,11 @@ cmake_minimum_required(VERSION 3.15)
 # O-Bells - Physical Modeling Bell Synthesizer
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Bells
-    COMPANY_NAME "Ouaricon Development"
-    PLUGIN_MANUFACTURER_CODE OuDv
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "O-Bells"
+    PRODUCT_NAME "O-Bells${OUARICON_DEV_SUFFIX}"
     PLUGIN_VERSION "3.1.1"
 
     # Synthesizer configuration

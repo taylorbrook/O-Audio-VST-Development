@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-IntonationPad
-    COMPANY_NAME "Ouaricon Development"
-    PLUGIN_MANUFACTURER_CODE OuDv
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuIP
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "O-IntonationPad"
+    PRODUCT_NAME "O-IntonationPad${OUARICON_DEV_SUFFIX}"
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE

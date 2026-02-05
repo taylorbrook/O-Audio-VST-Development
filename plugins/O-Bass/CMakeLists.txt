@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Bass
-    COMPANY_NAME "Ouaricon Development"
-    PLUGIN_MANUFACTURER_CODE OuDv
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OBas
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "O-Bass"
+    PRODUCT_NAME "O-Bass${OUARICON_DEV_SUFFIX}"
     NEEDS_WEB_BROWSER TRUE
 )
 

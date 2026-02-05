@@ -2,11 +2,11 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin Configuration
 juce_add_plugin(O-MultiBandCompressor
-    COMPANY_NAME "Ouaricon Development"
-    PLUGIN_MANUFACTURER_CODE OuDv
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OMbc
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "O-MultiBandCompressor"
+    PRODUCT_NAME "O-MultiBandCompressor${OUARICON_DEV_SUFFIX}"
     NEEDS_WEB_BROWSER TRUE
 )
 

@@ -5,11 +5,11 @@ include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconTremolo
-    COMPANY_NAME "Ouaricon Development"
-    PLUGIN_MANUFACTURER_CODE OuDv
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuTr
     FORMATS VST3 AU Standalone
-    PRODUCT_NAME "O-Tremolo"
+    PRODUCT_NAME "O-Tremolo${OUARICON_DEV_SUFFIX}"
     VERSION 1.3.1
     NEEDS_WEB_BROWSER TRUE
 )
