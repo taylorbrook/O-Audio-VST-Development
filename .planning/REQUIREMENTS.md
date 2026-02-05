@@ -7,10 +7,10 @@
 
 ### Resource Discovery
 
-- [ ] **DISC-01**: System has a static JSON manifest indexing all research docs with keywords, categories, applicable stages, and summaries
-- [ ] **DISC-02**: Python discovery script matches task context keywords against manifest entries and returns ranked relevant resources
-- [ ] **DISC-03**: Discovery filters results by current plugin stage (Stage 0/1/2/3/4) using stage metadata in manifest
-- [ ] **DISC-04**: Discovery includes agent affinity mapping (dsp-agent gets DSP resources, gui-agent gets UI resources)
+- [x] **DISC-01**: System has a static JSON manifest indexing all research docs with keywords, categories, applicable stages, and summaries
+- [x] **DISC-02**: Python discovery script matches task context keywords against manifest entries and returns ranked relevant resources
+- [x] **DISC-03**: Discovery filters results by current plugin stage (Stage 0/1/2/3/4) using stage metadata in manifest
+- [x] **DISC-04**: Discovery includes agent affinity mapping (dsp-agent gets DSP resources, gui-agent gets UI resources)
 
 ### Context Injection
 
@@ -62,10 +62,10 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISC-01 | Phase 10 | Pending |
-| DISC-02 | Phase 10 | Pending |
-| DISC-03 | Phase 10 | Pending |
-| DISC-04 | Phase 10 | Pending |
+| DISC-01 | Phase 10 | Complete |
+| DISC-02 | Phase 10 | Complete |
+| DISC-03 | Phase 10 | Complete |
+| DISC-04 | Phase 10 | Complete |
 | INJT-01 | Phase 11 | Pending |
 | INJT-02 | Phase 11 | Pending |
 | INJT-03 | Phase 11 | Pending |
@@ -85,4 +85,4 @@
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-04 — traceability updated with phase mappings*
+*Last updated: 2026-02-05 — DISC-01 through DISC-04 complete (Phase 10)*

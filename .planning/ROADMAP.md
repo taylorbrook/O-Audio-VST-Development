@@ -37,7 +37,7 @@
 
 **Milestone Goal:** Ensure all agents are invoked with relevant knowledge base resources and report what they consulted, with full traceability and graceful degradation.
 
-- [ ] **Phase 10: Resource Index & Discovery** - Static manifest and keyword-based discovery engine
+- [x] **Phase 10: Resource Index & Discovery** - Static manifest and keyword-based discovery engine — completed 2026-02-05
 - [ ] **Phase 11: Context Injection Pipeline** - Deliver discovered resources to agents before execution
 - [ ] **Phase 12: Accountability & Validation** - Agents report resources consulted; hooks validate usage
 - [ ] **Phase 13: Maintenance Tooling & Hardening** - Auto-generation, freshness tracking, graceful degradation
@@ -57,10 +57,10 @@
 **Plans**: 4 plans
 
 Plans:
-- [ ] 10-01-PLAN.md — Schema & validation infrastructure (JSON Schema, frontmatter validator, jsonschema install)
-- [ ] 10-02-PLAN.md — Frontmatter retrofit batch 1 (13 DSP-core research docs)
-- [ ] 10-03-PLAN.md — Frontmatter retrofit batch 2 (9 remaining root docs + 4 stutter-effects)
-- [ ] 10-04-PLAN.md — Generator & discovery scripts + integration verification
+- [x] 10-01-PLAN.md — Schema & validation infrastructure (JSON Schema, frontmatter validator, jsonschema install)
+- [x] 10-02-PLAN.md — Frontmatter retrofit batch 1 (13 DSP-core research docs)
+- [x] 10-03-PLAN.md — Frontmatter retrofit batch 2 (9 remaining root docs + 4 stutter-effects)
+- [x] 10-04-PLAN.md — Generator & discovery scripts + integration verification
 
 ### Phase 11: Context Injection Pipeline
 **Goal**: Agents automatically receive relevant research resources as part of their execution context, without manual prompt construction
@@ -122,7 +122,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 7. Module System | v1.0 | 4/4 | Complete | 2026-02-01 |
 | 8. Repository Cleanup | v1.1 | 2/2 | Complete | 2026-02-01 |
 | 9. Workflow Planning Phase | v1.1 | 2/2 | Complete | 2026-02-02 |
-| 10. Resource Index & Discovery | v1.2 | 0/? | Not started | - |
+| 10. Resource Index & Discovery | v1.2 | 4/4 | Complete | 2026-02-05 |
 | 11. Context Injection Pipeline | v1.2 | 0/? | Not started | - |
 | 12. Accountability & Validation | v1.2 | 0/? | Not started | - |
 | 13. Maintenance Tooling & Hardening | v1.2 | 0/? | Not started | - |
@@ -155,4 +155,4 @@ See `.planning/milestones/v1.X-REQUIREMENTS.md` for archived requirement details
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-02-04 — v1.2 milestone phases added*
+*Last updated: 2026-02-05 — Phase 10 complete*
