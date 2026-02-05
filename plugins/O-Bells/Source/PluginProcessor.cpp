@@ -373,6 +373,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         "%"
     ));
 
+    // ========== Lowpass Filter (v2.6.0) ==========
+
+    // LP_FILTER_ENABLED - Toggle lowpass filter on/off
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "lpFilterEnabled", 1 },
+        "LP Filter",
+        false  // Default: off
+    ));
+
+    // LP_FILTER_CUTOFF - One-pole lowpass cutoff frequency
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lpFilterCutoff", 1 },
+        "LP Cutoff",
+        juce::NormalisableRange<float>(200.0f, 20000.0f, 1.0f, 0.3f),  // Skewed toward low frequencies
+        20000.0f,  // Default: wide open
+        juce::AudioParameterFloatAttributes()
+            .withStringFromValueFunction([](float value, int) {
+                if (value >= 1000.0f)
+                    return juce::String(value / 1000.0f, 1) + " kHz";
+                return juce::String(juce::roundToInt(value)) + " Hz";
+            })
+    ));
+
     // REVERB_MIX - Spaciousness control (0-100%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "reverbMix", 1 },
@@ -419,6 +442,12 @@ OBellsAudioProcessor::~OBellsAudioProcessor()
 //==============================================================================
 void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    currentSampleRate = sampleRate;
+
+    // Reset lowpass filter state
+    lpFilterStateL = 0.0f;
+    lpFilterStateR = 0.0f;
+
     // Prepare synthesiser with sample rate
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
 
@@ -490,6 +519,9 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     humSustainParam = parameters.getRawParameterValue("humSustain");
     // Realism (v2.4.0)
     humanizeParam = parameters.getRawParameterValue("humanize");
+    // Lowpass Filter (v2.6.0)
+    lpFilterEnabledParam = parameters.getRawParameterValue("lpFilterEnabled");
+    lpFilterCutoffParam = parameters.getRawParameterValue("lpFilterCutoff");
     // Output
     reverbMixParam = parameters.getRawParameterValue("reverbMix");
     outputGainParam = parameters.getRawParameterValue("outputGain");
@@ -576,6 +608,30 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
     // Process MIDI and render audio
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // Apply one-pole lowpass filter (v2.6.0) - post-synth, pre-reverb
+    bool lpEnabled = lpFilterEnabledParam->load() > 0.5f;
+    if (lpEnabled)
+    {
+        float cutoff = lpFilterCutoffParam->load();
+        float coeff = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * cutoff / static_cast<float>(currentSampleRate));
+
+        const int numSamplesLP = buffer.getNumSamples();
+        float* leftChannel = buffer.getWritePointer(0);
+        float* rightChannel = buffer.getNumChannels() > 1 ? buffer.getWritePointer(1) : nullptr;
+
+        for (int i = 0; i < numSamplesLP; ++i)
+        {
+            lpFilterStateL += coeff * (leftChannel[i] - lpFilterStateL);
+            leftChannel[i] = lpFilterStateL;
+
+            if (rightChannel != nullptr)
+            {
+                lpFilterStateR += coeff * (rightChannel[i] - lpFilterStateR);
+                rightChannel[i] = lpFilterStateR;
+            }
+        }
+    }
 
     // Read reverb mix parameter and apply reverb
     float reverbMix = reverbMixParam->load();

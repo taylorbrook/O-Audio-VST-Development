@@ -543,6 +543,46 @@
             margin-top: -4px;
         }
 
+        .lp-filter-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding: 6px 10px;
+            background: rgba(139, 168, 112, 0.15);
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .lp-filter-toggle:hover {
+            background: rgba(139, 168, 112, 0.25);
+        }
+
+        .lp-filter-toggle .toggle-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #3C5C1A;
+            border-radius: 3px;
+            background: #E8D5B7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #3C5C1A;
+        }
+
+        .lp-filter-toggle.active .toggle-checkbox {
+            background: rgba(107, 142, 35, 0.6);
+        }
+
+        .lp-filter-toggle .toggle-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+        }
+
         .bloom-fine-toggle {
             display: flex;
             align-items: center;
@@ -1139,6 +1179,26 @@
                 </div>
             </div>
 
+            <!-- Lowpass Filter Section (v2.6.0) -->
+            <div class="section">
+                <div class="section-title">Filter</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="lp-filter-toggle" id="lp-filter-toggle">
+                            <div class="toggle-checkbox" id="lp-filter-checkbox"></div>
+                            <div class="toggle-label">LP Filter</div>
+                        </div>
+                    </div>
+                    <div class="param-control">
+                        <div class="param-label">Cutoff</div>
+                        <div class="slider" data-param="lpFilterCutoff">
+                            <div class="slider-thumb"></div>
+                        </div>
+                        <div class="param-value" data-value="lpFilterCutoff">20.0 kHz</div>
+                    </div>
+                </div>
+            </div>
+
             <!-- Output Section (v2.2.0: Gain moved to footer, v2.4.1: Humanize added) -->
             <div class="section">
                 <div class="section-title">Output</div>
@@ -1290,6 +1350,13 @@
                 return ms >= 1000 ? `${(ms/1000).toFixed(1)}s` : `${Math.round(ms)}ms`;
             }},
             { id: 'humSustain', min: 0, max: 1, default: 0.5, format: v => `${Math.round(v * 100)}%` },
+            // Lowpass Filter (v2.6.0)
+            { id: 'lpFilterCutoff', min: 0, max: 1, default: 1.0, format: v => {
+                // Decode skewed range: 200-20000 Hz with skew 0.3
+                const freq = 200 + Math.pow(v, 1/0.3) * (20000 - 200);
+                if (freq >= 1000) return `${(freq/1000).toFixed(1)} kHz`;
+                return `${Math.round(freq)} Hz`;
+            }},
             // Output
             { id: 'reverbMix', min: 0, max: 1, default: 0.3, format: v => `${Math.round(v * 100)}%` },
             { id: 'outputGain', min: 0, max: 1, default: 0.67, format: v => `${Math.round((v - 0.67) * 36 / 0.33)}dB` }
@@ -1448,6 +1515,41 @@
         bloomFineEnabledState.valueChangedEvent.addListener(() => {
             const enabled = bloomFineEnabledState.getNormalisedValue() > 0.5;
             updateBloomFineControlsUI(enabled);
+        });
+
+        // ====================================================================
+        // LOWPASS FILTER TOGGLE (v2.6.0)
+        // ====================================================================
+
+        const lpFilterToggle = document.getElementById('lp-filter-toggle');
+        const lpFilterCheckbox = document.getElementById('lp-filter-checkbox');
+
+        const lpFilterEnabledState = Juce.getSliderState('lpFilterEnabled');
+        parameterStates.set('lpFilterEnabled', lpFilterEnabledState);
+
+        function updateLPFilterToggleUI(enabled) {
+            if (enabled) {
+                lpFilterToggle.classList.add('active');
+                lpFilterCheckbox.textContent = '\u2713';
+            } else {
+                lpFilterToggle.classList.remove('active');
+                lpFilterCheckbox.textContent = '';
+            }
+        }
+
+        const initialLPEnabled = lpFilterEnabledState.getNormalisedValue() > 0.5;
+        updateLPFilterToggleUI(initialLPEnabled);
+
+        lpFilterToggle.addEventListener('click', () => {
+            const currentValue = lpFilterEnabledState.getNormalisedValue() > 0.5;
+            const newValue = !currentValue;
+            lpFilterEnabledState.setNormalisedValue(newValue ? 1.0 : 0.0);
+            updateLPFilterToggleUI(newValue);
+        });
+
+        lpFilterEnabledState.valueChangedEvent.addListener(() => {
+            const enabled = lpFilterEnabledState.getNormalisedValue() > 0.5;
+            updateLPFilterToggleUI(enabled);
         });
 
         // ====================================================================
@@ -1627,7 +1729,7 @@
             }
         });
 
-        console.log('O-Bells v2.5.0 UI initialized - 31 sliders + 2 choice params + keyboard');
+        console.log('O-Bells v2.6.0 UI initialized - 32 sliders + 2 choice params + keyboard');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY

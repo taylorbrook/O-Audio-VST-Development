@@ -45,6 +45,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     nonlinearEffectsRelay = std::make_unique<juce::WebSliderRelay>("nonlinearEffects");
     attackLevelRelay = std::make_unique<juce::WebSliderRelay>("attackLevel");
     humanizeRelay = std::make_unique<juce::WebSliderRelay>("humanize");  // v2.4.0
+    lpFilterEnabledRelay = std::make_unique<juce::WebSliderRelay>("lpFilterEnabled");  // v2.6.0
+    lpFilterCutoffRelay = std::make_unique<juce::WebSliderRelay>("lpFilterCutoff");    // v2.6.0
     reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("outputGain");
     // Multi-stage envelope relays
@@ -93,6 +95,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*nonlinearEffectsRelay)
             .withOptionsFrom(*attackLevelRelay)
             .withOptionsFrom(*humanizeRelay)  // v2.4.0
+            .withOptionsFrom(*lpFilterEnabledRelay)  // v2.6.0
+            .withOptionsFrom(*lpFilterCutoffRelay)    // v2.6.0
             .withOptionsFrom(*reverbMixRelay)
             .withOptionsFrom(*outputGainRelay)
             // Multi-stage envelope relays
@@ -317,6 +321,10 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("attackLevel"), *attackLevelRelay, nullptr);
     humanizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("humanize"), *humanizeRelay, nullptr);  // v2.4.0
+    lpFilterEnabledAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("lpFilterEnabled"), *lpFilterEnabledRelay, nullptr);  // v2.6.0
+    lpFilterCutoffAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("lpFilterCutoff"), *lpFilterCutoffRelay, nullptr);    // v2.6.0
     reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -337,7 +345,6 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("strikeNoiseChar"), *strikeNoiseCharRelay, nullptr);
     velocityCurveAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("velocityCurve"), *velocityCurveRelay, nullptr);
-    // decayShapeAttachment removed in v1.2.0 - always multi-stage
 
     // Add WebView to editor
     addAndMakeVisible(*webView);

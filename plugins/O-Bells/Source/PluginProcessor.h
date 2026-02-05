@@ -72,6 +72,11 @@ private:
     juce::dsp::Reverb reverb;
     juce::dsp::Reverb::Parameters reverbParams;
 
+    // One-pole lowpass filter state (v2.6.0)
+    float lpFilterStateL = 0.0f;
+    float lpFilterStateR = 0.0f;
+    double currentSampleRate = 44100.0;
+
     // Cached parameter pointers (atomic reads, real-time safe)
     // Main Panel (8 params in v1.2.0)
     std::atomic<float>* strikePositionParam = nullptr;
@@ -115,6 +120,9 @@ private:
     std::atomic<float>* humSustainParam = nullptr;
     // Realism (v2.4.0)
     std::atomic<float>* humanizeParam = nullptr;
+    // Lowpass Filter (v2.6.0)
+    std::atomic<float>* lpFilterEnabledParam = nullptr;
+    std::atomic<float>* lpFilterCutoffParam = nullptr;
     // Output
     std::atomic<float>* reverbMixParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
