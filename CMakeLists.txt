@@ -8,6 +8,21 @@ project(JUCEPlugins VERSION 1.0.0)
 # Licensing: OFF for local dev, ON in GitHub Actions publish builds
 option(OUARICON_LICENSING "Enable license checking in plugins" OFF)
 
+# Release branding: OFF for local dev, ON in GitHub Actions publish builds
+option(OUARICON_RELEASE "Use production branding (no -dev suffix)" OFF)
+
+if(OUARICON_RELEASE)
+    set(OUARICON_COMPANY_NAME "Ouaricon Audio")
+    set(OUARICON_MANUFACTURER_CODE OuAu)
+    set(OUARICON_DEV_SUFFIX "")
+    message(STATUS "[Ouaricon] Release branding — COMPANY: Ouaricon Audio, CODE: OuAu")
+else()
+    set(OUARICON_COMPANY_NAME "Ouaricon Audio Development")
+    set(OUARICON_MANUFACTURER_CODE OuDv)
+    set(OUARICON_DEV_SUFFIX "-dev")
+    message(STATUS "[Ouaricon] Dev branding — COMPANY: Ouaricon Audio Development, CODE: OuDv, SUFFIX: -dev")
+endif()
+
 if(OUARICON_LICENSING)
     message(STATUS "[Ouaricon] Licensing ENABLED — plugins will require activation")
     add_compile_definitions(OUARICON_LICENSING_ENABLED=1)
