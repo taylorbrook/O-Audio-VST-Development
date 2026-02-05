@@ -76,6 +76,12 @@ Recent decisions affecting current work:
 
 None currently.
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 004 | Distinguish dev vs release plugin naming (company name + "-dev" suffix) | 2026-02-05 | a425664 | [004-dev-vs-release-plugin-naming](./quick/004-dev-vs-release-plugin-naming/) |
+
 ## Session Continuity
 
 Last session: 2026-02-05
