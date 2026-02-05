@@ -134,7 +134,7 @@ private:
     void updateEuclideanPatterns();
     int calculateCurrentStep(double ppq, int numSteps, int rateIndex, float swing);
     float getTargetGainForBand(int bandIndex, int currentStep);
-    void processFrame(int channel);
+    void processFrame(int channel, const float* bandGains);
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

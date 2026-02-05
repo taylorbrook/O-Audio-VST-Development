@@ -15,10 +15,10 @@ class OuariconAnalogEQAudioProcessor : public juce::AudioProcessor
 {
 public:
     OuariconAnalogEQAudioProcessor();
-    ~OuariconAnalogEQAudioProcessor() override;
+    ~OuariconAnalogEQAudioProcessor() override = default;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
-    void releaseResources() override;
+    void releaseResources() override {}
     void processBlock(juce::AudioBuffer<float>&, juce::MidiBuffer&) override;
 
     juce::AudioProcessorEditor* createEditor() override;
@@ -45,38 +45,21 @@ public:
     std::atomic<float> outputLevelDB { -100.0f };
 
 private:
-    // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // DSP Components (declare BEFORE parameters for initialization order)
-    juce::dsp::ProcessSpec spec;
-
-    // EQ Band Filters (4 bands: LF shelf, LMF bell, HMF bell, HF shelf)
     using IIRFilter = juce::dsp::IIR::Filter<float>;
     using IIRCoefficients = juce::dsp::IIR::Coefficients<float>;
+    using StereoFilter = juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients>;
 
-    juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients> lfFilter;   // Low shelf
-    juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients> lmfFilter;  // Low-mid bell
-    juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients> hmfFilter;  // High-mid bell
-    juce::dsp::ProcessorDuplicator<IIRFilter, IIRCoefficients> hfFilter;   // High shelf
+    // EQ Band Filters (4 bands: LF shelf, LMF bell, HMF bell, HF shelf)
+    StereoFilter lfFilter, lmfFilter, hmfFilter, hfFilter;
 
-    // Analog Saturation
     juce::dsp::WaveShaper<float> saturation;
-
-    // Output Gain
     juce::dsp::Gain<float> outputGain;
 
-    // Helper functions
-    void updateFilterCoefficients();
-    float getQValueFromChoice(int choiceIndex);
+    double currentSampleRate = 44100.0;
 
-    // Previous parameter values (for change detection)
-    float previousLfFreq = 0.0f, previousLfGain = 0.0f;
-    float previousLmfFreq = 0.0f, previousLmfGain = 0.0f;
-    int previousLmfQ = -1;
-    float previousHmfFreq = 0.0f, previousHmfGain = 0.0f;
-    int previousHmfQ = -1;
-    float previousHfFreq = 0.0f, previousHfGain = 0.0f;
+    static constexpr float qValues[] = { 0.5f, 1.0f, 2.0f }; // WIDE, MED, TIGHT
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconAnalogEQAudioProcessor)
 };

@@ -2,6 +2,15 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.5.1] - 2026-02-04
+
+### Fixed
+
+- **Real-time safety:** Pre-allocate dry/wet buffers as persistent members instead of allocating on the audio thread every processBlock call
+- **Dead code removed:** Unused `allPassStateL/R` arrays (declared but never read in all-pass processing), unused `modDelaySamples` variable
+- **Cached parameter pointers:** `getRawParameterValue()` results cached in constructor instead of looked up every processBlock
+- **Cleaner initialization:** `shimmerFreq` initialized at declaration to `kDefaultShimmerFreq`, destructor defaulted
+
 ## [1.5.0] - 2026-01-24
 
 ### Changed

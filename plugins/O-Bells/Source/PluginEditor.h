@@ -78,10 +78,17 @@ private:
     std::unique_ptr<juce::WebSliderRelay> bodyTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> humSustainRelay;
 
+    // v3.0.0: Tuning parameter relays
+    std::unique_ptr<juce::WebSliderRelay> tuningMasterTuneRelay;
+    std::unique_ptr<juce::WebSliderRelay> tuningOctaveStretchRelay;
+    std::unique_ptr<juce::WebSliderRelay> tuningPitchBendRangeRelay;
+
     // Choice parameter relays (3 combo boxes in v1.3.0 - material added)
     std::unique_ptr<juce::WebComboBoxRelay> materialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> strikeNoiseCharRelay;
     std::unique_ptr<juce::WebComboBoxRelay> velocityCurveRelay;
+    // v3.0.0: Tuning temperament combo relay
+    std::unique_ptr<juce::WebComboBoxRelay> tuningTemperamentPresetRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -128,16 +135,30 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> bodyTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> humSustainAttachment;
 
+    // v3.0.0: Tuning parameter attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> tuningMasterTuneAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tuningOctaveStretchAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tuningPitchBendRangeAttachment;
+
     // Choice parameter attachments (3 combo boxes in v1.3.0 - material added)
     std::unique_ptr<juce::WebComboBoxParameterAttachment> materialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> strikeNoiseCharAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> velocityCurveAttachment;
+    // v3.0.0: Tuning temperament combo attachment
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> tuningTemperamentPresetAttachment;
+
+    // v2.7.0: Previous note state for change detection
+    uint64_t prevActiveNotesLow = 0;
+    uint64_t prevActiveNotesHigh = 0;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
     // File chooser for preset save/load dialogs
     std::shared_ptr<juce::FileChooser> fileChooser;
+
+    // v3.0.0: File chooser for tuning file dialogs
+    std::shared_ptr<juce::FileChooser> tuningFileChooser;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBellsAudioProcessorEditor)
 };

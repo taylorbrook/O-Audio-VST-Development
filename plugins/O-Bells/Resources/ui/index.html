@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=800, height=600">
     <title>Ouaricon Bells</title>
+    <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
         /* ====================================================================
            CRITICAL CSS CONSTRAINTS
@@ -836,6 +837,28 @@
         .preset-action-btn:active {
             background: rgba(139, 168, 112, 0.7);
         }
+
+        /* ====================================================================
+           v3.0.0: TUNING PANEL THEME OVERRIDES
+           O-Bells botanical aesthetic: warm amber, dark goldenrod accents
+           ==================================================================== */
+
+        #tuning-container .tuning-panel {
+            --tuning-bg: rgba(245, 230, 211, 0.95);
+            --tuning-border: rgba(139, 115, 85, 0.5);
+            --tuning-text: #3C2F2F;
+            --tuning-text-muted: #8B7355;
+            --tuning-accent: #B8860B;
+            --tuning-input-bg: rgba(255, 248, 230, 0.9);
+            --tuning-hover: rgba(184, 134, 11, 0.2);
+            --tuning-active: rgba(184, 134, 11, 0.3);
+            font-family: 'Garamond', 'Times New Roman', serif;
+            height: 100%;
+        }
+
+        #tuning-container {
+            height: 100%;
+        }
     </style>
 </head>
 <body>
@@ -1232,9 +1255,9 @@
             </div>
         </div>
 
-        <!-- Tab Content: Tuning -->
+        <!-- Tab Content: Tuning (v3.0.0) -->
         <div class="tab-content" id="tuning-tab">
-            <div class="placeholder">Coming Soon</div>
+            <div id="tuning-container"></div>
         </div>
 
         <!-- Footer (v2.2.0: Added Gain slider and keyboard) -->
@@ -1729,7 +1752,7 @@
             }
         });
 
-        console.log('O-Bells v2.6.0 UI initialized - 32 sliders + 2 choice params + keyboard');
+        console.log('O-Bells v3.0.0 UI initialized - 36 sliders + 3 choice params + keyboard + tuning');
 
         // ====================================================================
         // PRESET BROWSER FUNCTIONALITY
@@ -1889,6 +1912,27 @@
         })();
 
         console.log('Ouaricon Bells preset browser initialized');
+
+        // ====================================================================
+        // v3.0.0: TUNING PANEL INITIALIZATION
+        // ====================================================================
+
+        (async () => {
+            try {
+                const { TuningPanel } = await import('./js/tuning-panel.js');
+                const container = document.getElementById('tuning-container');
+                const tuningPanel = new TuningPanel(container, Juce);
+                await tuningPanel.init();
+
+                // Expose note highlighting for C++ evaluateJavascript calls
+                window.tuningNoteOn = (midiNote) => tuningPanel.noteOn(midiNote);
+                window.tuningNoteOff = (midiNote) => tuningPanel.noteOff(midiNote);
+
+                console.log('[Tuning] Panel initialized successfully');
+            } catch (err) {
+                console.error('[Tuning] Failed to initialize panel:', err);
+            }
+        })();
     </script>
 </body>
 </html>

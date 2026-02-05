@@ -99,13 +99,14 @@ private:
     float slowCoeff = 0.0f;
     float releaseCoeff = 0.0f;
 
-    // Curves (double-buffered for thread-safe updates)
+    // Curves (double-buffered for thread-safe updates — separate indices)
     std::array<float, NUM_BANDS> attackCurve[2] {};
     std::array<float, NUM_BANDS> sustainCurve[2] {};
-    std::atomic<int> activeCurveBuffer { 0 };
+    std::atomic<int> activeAttackBuffer { 0 };
+    std::atomic<int> activeSustainBuffer { 0 };
 
-    // COLA scaling factor (for Hann window with 50% overlap)
-    static constexpr float COLA_SCALE = 2.0f;
+    // Maximum gain range for curve shaping (±18dB at curve extremes)
+    static constexpr float MAX_SHAPE_DB = 18.0f;
 
     // Bypass mode
     bool bypass = false;

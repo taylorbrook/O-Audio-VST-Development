@@ -284,22 +284,22 @@ function setupModeToggle(curveType) {
 }
 
 /**
- * Send curve data to C++ processor (Phase 3.3: Native function binding)
+ * Native function references (obtained once via Juce.getNativeFunction)
+ */
+const nativeFunctions = {
+    setAttackCurve: Juce.getNativeFunction('setAttackCurve'),
+    setSustainCurve: Juce.getNativeFunction('setSustainCurve')
+};
+
+/**
+ * Send curve data to C++ processor via JUCE native function bridge
  */
 function sendCurveToProcessor(curveType, data) {
-    // Call C++ native function
     try {
-        if (window.__JUCE__ && window.__JUCE__.backend) {
-            const functionName = curveType === 'attack' ? 'setAttackCurve' : 'setSustainCurve';
-            const nativeFunction = window.__JUCE__.backend[functionName];
-
-            if (nativeFunction && typeof nativeFunction === 'function') {
-                nativeFunction(...data);
-                console.log(`${curveType} curve sent to C++ (${data.length} values)`);
-            } else {
-                console.warn(`Native function not found: ${functionName}`);
-            }
-        }
+        const fn = curveType === 'attack'
+            ? nativeFunctions.setAttackCurve
+            : nativeFunctions.setSustainCurve;
+        fn(...data);
     } catch (error) {
         console.error(`Failed to send ${curveType} curve to C++:`, error);
     }

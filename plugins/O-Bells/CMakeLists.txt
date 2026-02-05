@@ -8,7 +8,7 @@ juce_add_plugin(O-Bells
     PLUGIN_CODE OBls
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Bells"
-    PLUGIN_VERSION "2.6.0"
+    PLUGIN_VERSION "3.0.1"
 
     # Synthesizer configuration
     IS_SYNTH TRUE
@@ -29,6 +29,10 @@ target_sources(O-Bells
         Source/BellSound.h
         Source/BellVoice.h
         Source/BellVoice.cpp
+        Source/TuningEngine.cpp
+        Source/ScaleGenerator.cpp
+        Source/TuningExporter.cpp
+        Source/EmbeddedTunings.cpp
 )
 
 # Include paths
@@ -82,6 +86,8 @@ juce_add_binary_data(O-Bells_UIResources
         Resources/ui/img/snail.png
         Resources/ui/modules/instrument-footer-panel.js
         Resources/ui/css/instrument-footer-panel.css
+        Resources/ui/js/tuning-panel.js
+        Resources/ui/css/tuning-panel.css
 )
 
 target_link_libraries(O-Bells

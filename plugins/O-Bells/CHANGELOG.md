@@ -2,6 +2,21 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [3.0.1] - 2026-02-04
+
+### Changed
+- **Tuning tab layout refined** - Circle and polar visualizations no longer have panel backgrounds; they appear directly against the paper background for a cleaner look (matching O-Lyrica's approach)
+- **Pitch circle enlarged** - SVG viewBox increased from 188x188 to 320x320 with proportionally larger radii for better readability
+- **Polar canvas enlarged** - Canvas increased from 180x180 to 300x300
+
+### Added
+- **Spoke highlighting on note play** - When a MIDI note is played (from DAW or GUI keyboard), the corresponding spoke on the pitch circle turns red with an enlarged dot, providing real-time visual feedback of which scale degrees are active
+- **Note event forwarding** - C++ processor now tracks active MIDI notes via atomic bitfields and the editor forwards note-on/off events to the WebView tuning panel
+
+### Technical Details
+- UI + C++ change: CSS panel removal, SVG enlargement, JS note-highlighting, C++ note tracking
+- No DSP changes; pluginval Level 5 validated
+
 ## [2.4.1] - 2026-02-04
 
 ### Changed

@@ -9,6 +9,7 @@
 */
 
 #include "BellVoice.h"
+#include "TuningEngine.h"
 #include <cmath>
 
 BellVoice::BellVoice()
@@ -149,8 +150,10 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
     airLPFilterStateR2 = 0.0f;
     airAbsorptionElapsedSamples = 0;  // v2.2.0: reset independent time
 
-    // Calculate fundamental frequency
-    float fundamental = juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber);
+    // Calculate fundamental frequency (v3.0.0: use TuningEngine if available)
+    float fundamental = tuningEngine
+        ? static_cast<float>(tuningEngine->getFrequency(midiNoteNumber))
+        : static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
 
     // Pre-calculate multi-stage coefficients (always active in v1.2.0)
     calculateMultiStageCoefficients(fundamental);
@@ -362,6 +365,21 @@ void BellVoice::stopNote(float velocity, bool allowTailOff)
         tailOff = true;
         float quickReleaseTime = 0.05f;
         releaseRate = std::exp(-1.0f / (quickReleaseTime * static_cast<float>(currentSampleRate)));
+    }
+
+    // v3.0.0: Clear pitch bend for this note
+    if (tuningEngine)
+        tuningEngine->clearPitchBend(currentMidiNote);
+}
+
+// v3.0.0: Pitch wheel support for tuning engine
+void BellVoice::pitchWheelMoved(int newPitchWheelValue)
+{
+    if (tuningEngine && noteActive)
+    {
+        // Convert 14-bit MIDI pitch wheel (0-16383, center 8192) to -1.0..+1.0
+        float bendNormalized = (static_cast<float>(newPitchWheelValue) - 8192.0f) / 8192.0f;
+        tuningEngine->setPitchBend(currentMidiNote, bendNormalized);
     }
 }
 

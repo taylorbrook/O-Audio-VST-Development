@@ -13,6 +13,8 @@
 #include <juce_dsp/juce_dsp.h>
 #include "BellSound.h"
 
+class TuningEngine;
+
 class BellVoice : public juce::SynthesiserVoice
 {
 public:
@@ -22,8 +24,11 @@ public:
     bool canPlaySound(juce::SynthesiserSound*) override;
     void startNote(int midiNoteNumber, float velocity, juce::SynthesiserSound*, int) override;
     void stopNote(float velocity, bool allowTailOff) override;
-    void pitchWheelMoved(int) override {}
+    void pitchWheelMoved(int newPitchWheelValue) override;
     void controllerMoved(int, int) override {}
+
+    // v3.0.0: Tuning engine integration
+    void setTuningEngine(TuningEngine* engine) { tuningEngine = engine; }
     void renderNextBlock(juce::AudioBuffer<float>&, int startSample, int numSamples) override;
 
     // Prepare DSP components
@@ -197,6 +202,9 @@ private:
     float noteVariationDecay = 1.0f;          // ±15% variation
     float noteVariationAttack = 1.0f;         // ±20% variation
     float noteVariationInharmonicity = 1.0f;  // ±3% variation
+
+    // v3.0.0: Tuning engine (owned by processor)
+    TuningEngine* tuningEngine = nullptr;
 
     // Voice state
     int currentMidiNote = 0;
