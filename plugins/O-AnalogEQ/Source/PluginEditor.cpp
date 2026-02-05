@@ -53,8 +53,15 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
     // 2️⃣ Create WebView with relay options (depends on relays)
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
+            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options(
+                juce::WebBrowserComponent::Options::WinWebView2{}
+                    .withUserDataFolder(juce::File::getSpecialLocation(
+                        juce::File::SpecialLocationType::tempDirectory)))
             .withNativeIntegrationEnabled()
+#if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
             .withResourceProvider([this](const auto& url) { return getResource(url); })
+#endif
             .withOptionsFrom(*lfFreqRelay)
             .withOptionsFrom(*lfGainRelay)
             .withOptionsFrom(*lfOnRelay)
@@ -116,7 +123,9 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
         *audioProcessor.parameters.getParameter("analog"), *analogRelay, nullptr);
 
     // Load UI from resource provider
+#if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+#endif
 
     // Start timer for VU meter updates (30 Hz)
     startTimerHz(30);

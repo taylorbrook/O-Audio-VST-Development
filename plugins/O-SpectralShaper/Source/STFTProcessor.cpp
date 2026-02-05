@@ -53,9 +53,12 @@ void STFTProcessor::prepare(double sr)
     releaseCoeff = calculateEnvelopeCoefficient(50.0f, srFloat, HOP_SIZE);  // 50ms release
 
     // Prepare smoothed gain values (50ms ramp time)
+    // SmoothedValue is called once per FFT frame (at hop rate), NOT per sample.
+    // Use frame rate (sr/HOP_SIZE) so 50ms ramp takes the correct number of frames.
+    double frameRate = sr / static_cast<double>(HOP_SIZE);
     for (auto& band : bands)
     {
-        band.gainSmoothed.reset(sr, 0.05);  // 50ms ramp
+        band.gainSmoothed.reset(frameRate, 0.05);  // 50ms ramp at frame rate
         band.gainSmoothed.setCurrentAndTargetValue(1.0f);
     }
 
@@ -269,7 +272,13 @@ void STFTProcessor::applyEnvelopeShaping()
     const auto& attackCurveData = attackCurve[activeAttack];
     const auto& sustainCurveData = sustainCurve[activeSustain];
 
-    // Process each frequency band independently
+    // Build per-bin gain array FIRST, then apply once.
+    // This prevents low-frequency bands that share the same FFT bin from
+    // multiplying their gains together (bands 0-6 all map to bin 0 at 44.1kHz
+    // with 512-point FFT, causing up to 7× multiplicative gain stacking).
+    std::array<float, NUM_BINS> binGains;
+    binGains.fill(1.0f);
+
     for (int band = 0; band < NUM_BANDS; ++band)
     {
         const int startBin = bandBoundaries[band].startBin;
@@ -295,12 +304,18 @@ void STFTProcessor::applyEnvelopeShaping()
         bands[band].gainSmoothed.setTargetValue(targetGain);
         float smoothedGain = bands[band].gainSmoothed.getNextValue();
 
-        // Apply gain to FFT bins in this band (magnitude-only, preserve phase)
+        // ASSIGN gain per bin (last band wins for shared bins — highest freq takes priority)
         for (int bin = startBin; bin < endBin; ++bin)
         {
-            fftData[bin * 2] *= smoothedGain;      // Real component
-            fftData[bin * 2 + 1] *= smoothedGain;  // Imaginary component
+            binGains[static_cast<size_t>(bin)] = smoothedGain;
         }
+    }
+
+    // Apply per-bin gains to FFT data (each bin processed exactly once)
+    for (int bin = 0; bin < NUM_BINS; ++bin)
+    {
+        fftData[bin * 2] *= binGains[static_cast<size_t>(bin)];
+        fftData[bin * 2 + 1] *= binGains[static_cast<size_t>(bin)];
     }
 }
 

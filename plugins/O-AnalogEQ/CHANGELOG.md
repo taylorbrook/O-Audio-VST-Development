@@ -1,5 +1,13 @@
 # O-AnalogEQ Changelog
 
+## [1.1.3] - 2026-02-05
+
+### Fixed
+- **Windows CI build failure** - `withResourceProvider` is not available when WebView2 SDK is missing
+  - Added `#if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE` preprocessor guards around `withResourceProvider` and `getResourceProviderRoot()` calls in PluginEditor.cpp
+  - Added WebView2 NuGet package installation step to Windows CI build workflow
+  - No functional change on macOS/Linux where resource provider is always available
+
 ## [1.1.2] - 2026-02-05
 
 ### Changed

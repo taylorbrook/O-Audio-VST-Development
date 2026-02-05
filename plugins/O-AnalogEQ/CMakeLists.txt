@@ -7,8 +7,9 @@ juce_add_plugin(OuariconAnalogEQ
     PLUGIN_CODE OuAE
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-AnalogEQ"
-    VERSION 1.1.2
+    VERSION 1.1.3
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
 # Source files
@@ -69,5 +70,6 @@ target_compile_definitions(OuariconAnalogEQ
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2=1
         JUCE_USE_CURL=0
 )
