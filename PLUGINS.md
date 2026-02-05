@@ -30,7 +30,7 @@ Ouaricon Plugins:
 | O-AnalogSaturation | 📦 Installed | 1.1.0 | Audio Effect (Saturation) | 2026-01-24 |
 | O-Marimba | 📦 Installed | 1.11.0 | Synth (Physical Model) | 2026-01-26 |
 | O-Comp | 📦 Installed | 1.2.0 | Audio Effect (Compressor) | 2026-01-24 |
-| O-AnalogEQ | 📦 Installed | 1.1.1 | Audio Effect (EQ) | 2026-02-04 |
+| O-AnalogEQ | 📦 Installed | 1.1.2 | Audio Effect (EQ) | 2026-02-05 |
 | O-DigiDelay | 📦 Installed | 1.2.1 | Audio Effect (Delay) | 2026-01-24 |
 | O-SimpleReverb | 📦 Installed | 1.5.1 | Audio Effect (Reverb) | 2026-02-04 |
 | O-Polystutter | 📦 Installed | 1.8.0 | Audio Effect (Beat Repeater) | 2026-01-26 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |

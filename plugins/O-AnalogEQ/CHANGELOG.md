@@ -1,5 +1,10 @@
 # O-AnalogEQ Changelog
 
+## [1.1.2] - 2026-02-05
+
+### Changed
+- Published release with code signing and Apple notarization via GitHub Actions CI/CD
+
 ## [1.1.1] - 2026-02-04
 
 ### Changed
