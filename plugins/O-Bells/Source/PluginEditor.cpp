@@ -10,6 +10,10 @@
 
 #include "PluginEditor.h"
 #include "BinaryData.h"
+#include "TuningEngine.h"
+#include "ScaleGenerator.h"
+#include "TuningExporter.h"
+#include "EmbeddedTunings.h"
 
 OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
@@ -55,9 +59,15 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     bodyTimeRelay = std::make_unique<juce::WebSliderRelay>("bodyTime");
     humSustainRelay = std::make_unique<juce::WebSliderRelay>("humSustain");
 
+    // v3.0.0: Tuning relays
+    tuningMasterTuneRelay = std::make_unique<juce::WebSliderRelay>("tuning_masterTune");
+    tuningOctaveStretchRelay = std::make_unique<juce::WebSliderRelay>("tuning_octaveStretch");
+    tuningPitchBendRangeRelay = std::make_unique<juce::WebSliderRelay>("tuning_pitchBendRange");
+
     materialRelay = std::make_unique<juce::WebComboBoxRelay>("material");
     strikeNoiseCharRelay = std::make_unique<juce::WebComboBoxRelay>("strikeNoiseChar");
     velocityCurveRelay = std::make_unique<juce::WebComboBoxRelay>("velocityCurve");
+    tuningTemperamentPresetRelay = std::make_unique<juce::WebComboBoxRelay>("tuning_temperamentPreset");
 
     // 2️⃣ CREATE WEBVIEW WITH OPTIONS
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -106,6 +116,11 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*humSustainRelay)
             .withOptionsFrom(*strikeNoiseCharRelay)
             .withOptionsFrom(*velocityCurveRelay)
+            // v3.0.0: Tuning relays
+            .withOptionsFrom(*tuningMasterTuneRelay)
+            .withOptionsFrom(*tuningOctaveStretchRelay)
+            .withOptionsFrom(*tuningPitchBendRangeRelay)
+            .withOptionsFrom(*tuningTemperamentPresetRelay)
 
             // ═══════════════════════════════════════════════════════════════════
             // v2.2.0: GUI KEYBOARD NATIVE FUNCTION
@@ -257,6 +272,334 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
                     }
                 );
             })
+
+            // ═══════════════════════════════════════════════════════════════════
+            // v3.0.0: TUNING NATIVE FUNCTIONS (24 functions)
+            // ═══════════════════════════════════════════════════════════════════
+
+            // --- Tuning Intervals ---
+            .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
+                auto intervals = processorRef.getTuningEngine().getIntervals();
+                juce::String json = "[";
+                for (size_t i = 0; i < intervals.size(); ++i) {
+                    if (i > 0) json += ",";
+                    json += juce::String(intervals[i], 6);
+                }
+                json += "]";
+                complete(json);
+            })
+
+            .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    auto jsonArray = juce::JSON::parse(args[0].toString());
+                    if (auto* arr = jsonArray.getArray()) {
+                        std::vector<double> intervals;
+                        for (const auto& val : *arr)
+                            intervals.push_back(static_cast<double>(val));
+                        processorRef.getTuningEngine().setCustomIntervals(intervals, "Custom");
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(processorRef.getTuningEngine().getActiveTuningName());
+            })
+
+            .withNativeFunction("setSingleInterval", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int index = static_cast<int>(args[0]);
+                    double cents = static_cast<double>(args[1]);
+                    processorRef.getTuningEngine().setSingleInterval(index, cents);
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("setSingleIntervalEncoded", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int index = static_cast<int>(args[0]);
+                    double cents = static_cast<double>(args[1]);
+                    processorRef.getTuningEngine().setSingleInterval(index, cents);
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            // --- Tonic / Rotation ---
+            .withNativeFunction("setTonicNote", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    int tonic = static_cast<int>(args[0]);
+                    processorRef.getTuningEngine().setTonicNote(tonic);
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("getTonicNote", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(processorRef.getTuningEngine().getTonicNote());
+            })
+
+            // --- Octave Stretch ---
+            .withNativeFunction("getOctaveStretch", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(processorRef.getTuningEngine().getOctaveStretch());
+            })
+
+            .withNativeFunction("setOctaveStretch", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    float stretch = static_cast<float>(args[0]);
+                    processorRef.getTuningEngine().setOctaveStretch(stretch);
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            // --- Master Tune ---
+            .withNativeFunction("getMasterTune", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(processorRef.getTuningEngine().getMasterTune());
+            })
+
+            .withNativeFunction("setMasterTune", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    double hz = static_cast<double>(args[0]);
+                    processorRef.getTuningEngine().setMasterTune(hz);
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            // --- Temperament Presets ---
+            .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    int preset = static_cast<int>(args[0]);
+                    processorRef.getTuningEngine().setBuiltInPreset(
+                        static_cast<TuningEngine::BuiltInPreset>(preset));
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("getTemperamentPreset", [this](const juce::Array<juce::var>&, auto complete) {
+                complete(static_cast<int>(processorRef.getTuningEngine().getBuiltInPreset()));
+            })
+
+            // --- Scala File I/O ---
+            .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                tuningFileChooser = std::make_shared<juce::FileChooser>(
+                    "Load Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                    "*.scl");
+                tuningFileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto file = fc.getResult();
+                        if (file.existsAsFile()) {
+                            bool success = processorRef.getTuningEngine().loadScalaFile(file);
+                            complete(success ? juce::var(processorRef.getTuningEngine().getActiveTuningName())
+                                            : juce::var());
+                        } else {
+                            complete(juce::var());
+                        }
+                    });
+            })
+
+            .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+                tuningFileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Scala File",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("scale.scl"),
+                    "*.scl");
+                tuningFileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto content = processorRef.getTuningEngine().generateScalaFileContent();
+                            file.replaceWithText(content);
+                            complete(true);
+                        } else {
+                            complete(false);
+                        }
+                    });
+            })
+
+            .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                tuningFileChooser = std::make_shared<juce::FileChooser>(
+                    "Load Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                    "*.kbm");
+                tuningFileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto file = fc.getResult();
+                        if (file.existsAsFile()) {
+                            bool success = processorRef.getTuningEngine().loadKBMFile(file);
+                            complete(success);
+                        } else {
+                            complete(false);
+                        }
+                    });
+            })
+
+            .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+                tuningFileChooser = std::make_shared<juce::FileChooser>(
+                    "Save Keyboard Mapping",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("mapping.kbm"),
+                    "*.kbm");
+                tuningFileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto content = processorRef.getTuningEngine().generateKBMFileContent();
+                            file.replaceWithText(content);
+                            complete(true);
+                        } else {
+                            complete(false);
+                        }
+                    });
+            })
+
+            // --- Scale Generator ---
+            .withNativeFunction("generateEDO", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int divisions = static_cast<int>(args[0]);
+                    double period = static_cast<double>(args[1]);
+                    auto intervals = ScaleGenerator::generateEDO(divisions, period);
+                    juce::String json = "[";
+                    for (size_t i = 0; i < intervals.size(); ++i) {
+                        if (i > 0) json += ",";
+                        json += juce::String(intervals[i], 6);
+                    }
+                    json += "]";
+                    complete(json);
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("generateHarmonicSeries", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int startHarmonic = static_cast<int>(args[0]);
+                    int endHarmonic = static_cast<int>(args[1]);
+                    auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
+                    juce::String json = "[";
+                    for (size_t i = 0; i < intervals.size(); ++i) {
+                        if (i > 0) json += ",";
+                        json += juce::String(intervals[i], 6);
+                    }
+                    json += "]";
+                    complete(json);
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("generateRank2", [](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 3) {
+                    double generator = static_cast<double>(args[0]);
+                    double period = static_cast<double>(args[1]);
+                    int count = static_cast<int>(args[2]);
+                    auto intervals = ScaleGenerator::generateRank2(generator, period, count);
+                    juce::String json = "[";
+                    for (size_t i = 0; i < intervals.size(); ++i) {
+                        if (i > 0) json += ",";
+                        json += juce::String(intervals[i], 6);
+                    }
+                    json += "]";
+                    complete(json);
+                    return;
+                }
+                complete(juce::var());
+            })
+
+            .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    auto jsonArray = juce::JSON::parse(args[0].toString());
+                    juce::String scaleName = args[1].toString();
+                    if (auto* arr = jsonArray.getArray()) {
+                        std::vector<double> intervals;
+                        for (const auto& val : *arr)
+                            intervals.push_back(static_cast<double>(val));
+                        processorRef.getTuningEngine().setCustomIntervals(intervals, scaleName);
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            // --- Embedded Tuning Library ---
+            .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&, auto complete) {
+                const auto& tunings = EmbeddedTunings::getAllTunings();
+                juce::String json = "[";
+                for (size_t i = 0; i < tunings.size(); ++i) {
+                    if (i > 0) json += ",";
+                    json += "{";
+                    json += "\"id\":\"" + juce::String(tunings[i].id) + "\",";
+                    json += "\"name\":\"" + juce::String(tunings[i].name) + "\",";
+                    json += "\"category\":\"" + juce::String(tunings[i].category) + "\",";
+                    json += "\"noteCount\":" + juce::String(static_cast<int>(tunings[i].intervals.size()));
+                    json += "}";
+                }
+                json += "]";
+                complete(json);
+            })
+
+            .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&, auto complete) {
+                auto categories = EmbeddedTunings::getCategories();
+                juce::String json = "[";
+                for (size_t i = 0; i < categories.size(); ++i) {
+                    if (i > 0) json += ",";
+                    json += "\"" + juce::String(categories[i]) + "\"";
+                }
+                json += "]";
+                complete(json);
+            })
+
+            .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 1) {
+                    juce::String tuningId = args[0].toString();
+                    auto* tuning = EmbeddedTunings::getTuningById(tuningId.toStdString());
+                    if (tuning != nullptr && !tuning->intervals.empty()) {
+                        processorRef.getTuningEngine().setCustomIntervals(
+                            tuning->intervals, juce::String(tuning->name));
+                        complete(true);
+                        return;
+                    }
+                }
+                complete(false);
+            })
+
+            // --- HTML Export ---
+            .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&, auto complete) {
+                tuningFileChooser = std::make_shared<juce::FileChooser>(
+                    "Export Tuning Documentation",
+                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                        .getChildFile("tuning-export.html"),
+                    "*.html");
+                tuningFileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto file = fc.getResult();
+                        if (file != juce::File()) {
+                            auto html = TuningExporter::toHTML(processorRef.getTuningEngine(), "O-Bells");
+                            file.replaceWithText(html);
+                            complete(true);
+                        } else {
+                            complete(false);
+                        }
+                    });
+            })
     );
 
     // 3️⃣ CREATE ATTACHMENTS LAST
@@ -339,12 +682,22 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     humSustainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("humSustain"), *humSustainRelay, nullptr);
 
+    // v3.0.0: Tuning attachments
+    tuningMasterTuneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("tuning_masterTune"), *tuningMasterTuneRelay, nullptr);
+    tuningOctaveStretchAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("tuning_octaveStretch"), *tuningOctaveStretchRelay, nullptr);
+    tuningPitchBendRangeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("tuning_pitchBendRange"), *tuningPitchBendRangeRelay, nullptr);
+
     materialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("material"), *materialRelay, nullptr);
     strikeNoiseCharAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("strikeNoiseChar"), *strikeNoiseCharRelay, nullptr);
     velocityCurveAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("velocityCurve"), *velocityCurveRelay, nullptr);
+    tuningTemperamentPresetAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("tuning_temperamentPreset"), *tuningTemperamentPresetRelay, nullptr);
 
     // Add WebView to editor
     addAndMakeVisible(*webView);
@@ -385,6 +738,43 @@ void OBellsAudioProcessorEditor::timerCallback()
         leftPercent, rightPercent
     );
     webView->evaluateJavascript(js);
+
+    // v2.7.0: Send note state changes for tuning spoke highlighting
+    uint64_t notesLow = processorRef.activeNotesLow.load();
+    uint64_t notesHigh = processorRef.activeNotesHigh.load();
+
+    if (notesLow != prevActiveNotesLow || notesHigh != prevActiveNotesHigh)
+    {
+        // Find notes that turned on
+        uint64_t newOnLow = notesLow & ~prevActiveNotesLow;
+        uint64_t newOnHigh = notesHigh & ~prevActiveNotesHigh;
+        uint64_t newOffLow = prevActiveNotesLow & ~notesLow;
+        uint64_t newOffHigh = prevActiveNotesHigh & ~notesHigh;
+
+        juce::String noteJs;
+
+        // Process note-ons
+        for (int i = 0; i < 64; ++i)
+            if (newOnLow & (uint64_t(1) << i))
+                noteJs += juce::String::formatted("if(window.tuningNoteOn)window.tuningNoteOn(%d);", i);
+        for (int i = 0; i < 64; ++i)
+            if (newOnHigh & (uint64_t(1) << i))
+                noteJs += juce::String::formatted("if(window.tuningNoteOn)window.tuningNoteOn(%d);", i + 64);
+
+        // Process note-offs
+        for (int i = 0; i < 64; ++i)
+            if (newOffLow & (uint64_t(1) << i))
+                noteJs += juce::String::formatted("if(window.tuningNoteOff)window.tuningNoteOff(%d);", i);
+        for (int i = 0; i < 64; ++i)
+            if (newOffHigh & (uint64_t(1) << i))
+                noteJs += juce::String::formatted("if(window.tuningNoteOff)window.tuningNoteOff(%d);", i + 64);
+
+        if (noteJs.isNotEmpty())
+            webView->evaluateJavascript(noteJs);
+
+        prevActiveNotesLow = notesLow;
+        prevActiveNotesHigh = notesHigh;
+    }
 }
 
 void OBellsAudioProcessorEditor::paint(juce::Graphics& g)
@@ -436,6 +826,21 @@ OBellsAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::snail_png, BinaryData::snail_pngSize),
             juce::String("image/png")
+        };
+    }
+
+    // v3.0.0: Tuning panel resources
+    if (url == "/js/tuning-panel.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::tuningpanel_js, BinaryData::tuningpanel_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
+    if (url == "/css/tuning-panel.css") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::tuningpanel_css, BinaryData::tuningpanel_cssSize),
+            juce::String("text/css")
         };
     }
 

@@ -396,7 +396,7 @@ float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentS
         return 1.0f - depth;  // Step OFF: reduce by depth amount
 }
 
-void OFreqPulseAudioProcessor::processFrame(int channel)
+void OFreqPulseAudioProcessor::processFrame(int channel, const float* bandGains)
 {
     auto& fftBuffer = fftData[channel];
     auto& inFifo = inputFifo[channel];
@@ -420,21 +420,11 @@ void OFreqPulseAudioProcessor::processFrame(int channel)
     fft.performRealOnlyForwardTransform(fftBuffer.data());
 
     // Apply band gains to frequency bins
+    // Uses pre-computed per-band gains (same value for all bins in a band)
     for (int bin = 0; bin < numBins; ++bin)
     {
         int band = bandForBin[bin];
-        float gain;
-
-        if (band >= 0 && band < 4)
-        {
-            // Get smoothed gain for this band
-            gain = bandGainSmooth[band].getNextValue();
-        }
-        else
-        {
-            // Passthrough (gap between bands)
-            gain = 1.0f;
-        }
+        float gain = (band >= 0 && band < 4) ? bandGains[band] : 1.0f;
 
         // Scale both real and imaginary parts (phase preservation)
         int realIndex = bin * 2;
@@ -635,10 +625,18 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         // Process FFT frame when we've accumulated enough samples
         if (hopCounter >= hopSize)
         {
+            // Snapshot band gains once per frame (same value for all bins and both channels)
+            float frameGains[4];
+            for (int band = 0; band < 4; ++band)
+            {
+                frameGains[band] = bandGainSmooth[band].getCurrentValue();
+                bandGainSmooth[band].skip(hopSize);
+            }
+
             // Process each channel
             for (int ch = 0; ch < numChannels; ++ch)
             {
-                processFrame(ch);
+                processFrame(ch, frameGains);
 
                 // Shift output FIFO by hop size (discards first hopSize samples)
                 std::rotate(outputFifo[ch].begin(),

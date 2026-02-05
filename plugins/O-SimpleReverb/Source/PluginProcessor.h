@@ -5,7 +5,7 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.5.0 - Renamed from OuariconSimpleReverb
+    v1.5.1 - Code simplification and real-time safety fixes
 
   ==============================================================================
 */
@@ -104,8 +104,6 @@ private:
     std::array<juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear>, numAllPassFilters> allPassR;
     std::array<float, numAllPassFilters> allPassDelayMs = { 1.5f, 2.3f, 3.7f };  // Prime-ish ratios
     float allPassCoeff = 0.6f;  // Feedback coefficient
-    std::array<float, numAllPassFilters> allPassStateL = { 0.0f, 0.0f, 0.0f };
-    std::array<float, numAllPassFilters> allPassStateR = { 0.0f, 0.0f, 0.0f };
 
     // Modulation LFO for Spring flutter and Ambient movement
     float lfoPhase = 0.0f;
@@ -120,7 +118,21 @@ private:
 
     // Shimmer for Plate (octave-up pitch shift approximation via ring modulation)
     float shimmerPhase = 0.0f;
-    float shimmerFreq = 0.0f;
+    float shimmerFreq = kDefaultShimmerFreq;
+
+    // Pre-allocated buffers (avoids audio-thread allocation)
+    juce::AudioBuffer<float> dryBuffer;
+    juce::AudioBuffer<float> wetBuffer;
+
+    // Cached parameter pointers (never change after construction)
+    std::atomic<float>* typeParam = nullptr;
+    std::atomic<float>* characterParam = nullptr;
+    std::atomic<float>* sizeParam = nullptr;
+    std::atomic<float>* decayParam = nullptr;
+    std::atomic<float>* wetParam = nullptr;
+    std::atomic<float>* dryParam = nullptr;
+    std::atomic<float>* lpFreqParam = nullptr;
+    std::atomic<float>* lpOnParam = nullptr;
 
     // State tracking
     int previousType = -1;

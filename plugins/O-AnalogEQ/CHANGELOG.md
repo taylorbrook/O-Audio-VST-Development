@@ -1,5 +1,22 @@
 # O-AnalogEQ Changelog
 
+## [1.1.1] - 2026-02-04
+
+### Changed
+- **Eliminated duplicated filter coefficient logic** - Removed `updateFilterCoefficients()` and 8 `previous*` change-detection members; coefficients now set directly in `processBlock()` via a shared `dBtoGain` lambda and a `constexpr qValues[]` lookup table
+- **Replaced `ProcessSpec` member with `double currentSampleRate`** - Only the sample rate was needed between `prepareToPlay` and `processBlock`; `ProcessSpec` is now a local in `prepareToPlay`
+- **Defaulted empty destructor and `releaseResources()`** - Removed boilerplate empty bodies
+- **Added `StereoFilter` type alias** - Shortened repeated `ProcessorDuplicator<IIR::Filter<float>, IIR::Coefficients<float>>` declarations to a single alias
+- **Removed unused `needsUpdate` variable** from `processBlock()`
+- **Consolidated parameter layout** - Reduced verbose per-parameter comments to band-level comments; one `layout.add` call per line
+- **Merged `setupBandLabelToggle` and `setupToggle`** in index.html into a single `setupToggle(element, state, className, activeWhen)` function
+- **Removed `getQValueFromChoice()` helper** - Replaced with `constexpr qValues[]` array indexed directly
+
+### Code metrics
+- PluginProcessor.cpp: 399 → 195 lines (51% reduction)
+- PluginProcessor.h: 82 → 55 lines (33% reduction)
+- index.html JS: removed 15 lines of duplicate toggle logic
+
 ## [1.1.0] - 2026-01-24
 
 ### Changed

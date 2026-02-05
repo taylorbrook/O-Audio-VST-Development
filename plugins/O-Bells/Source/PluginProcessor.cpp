@@ -396,6 +396,54 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
             })
     ));
 
+    // ========== Tuning Parameters (v3.0.0) ==========
+
+    // MASTER TUNE - A4 reference frequency (400-480 Hz, default 440)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "tuning_masterTune", 1 },
+        "Master Tune",
+        juce::NormalisableRange<float>(400.0f, 480.0f, 0.1f),
+        440.0f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")
+    ));
+
+    // OCTAVE STRETCH - Physical modeling octave stretch (0.95-1.25, default 1.0)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "tuning_octaveStretch", 1 },
+        "Octave Stretch",
+        juce::NormalisableRange<float>(0.95f, 1.25f, 0.001f),
+        1.0f
+    ));
+
+    // PITCH BEND RANGE - Pitch bend range in semitones (1-48, default 2)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "tuning_pitchBendRange", 1 },
+        "Pitch Bend Range",
+        juce::NormalisableRange<float>(1.0f, 48.0f, 1.0f),
+        2.0f,
+        juce::AudioParameterFloatAttributes().withLabel("st")
+    ));
+
+    // TEMPERAMENT PRESET - Built-in temperament selection
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "tuning_temperamentPreset", 1 },
+        "Temperament",
+        juce::StringArray {
+            "Equal 12-TET",
+            "Pythagorean",
+            "Zarlino",
+            "Meantone (1/4)",
+            "Werckmeister III",
+            "Kirnberger III",
+            "Vallotti",
+            "Well Tempered",
+            "Just Intonation",
+            "Bohlen-Pierce",
+            "Custom"
+        },
+        0  // Default: Equal 12-TET
+    ));
+
     // REVERB_MIX - Spaciousness control (0-100%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "reverbMix", 1 },
@@ -426,10 +474,55 @@ OBellsAudioProcessor::OBellsAudioProcessor()
 {
     // Add 16 bell voices
     for (int i = 0; i < 16; ++i)
-        synthesiser.addVoice(new BellVoice());
+    {
+        auto* voice = new BellVoice();
+        voice->setTuningEngine(&tuningEngine);
+        synthesiser.addVoice(voice);
+    }
 
     // Add one sound (all notes trigger bell sounds)
     synthesiser.addSound(new BellSound());
+
+    // Register tuning parameter listeners (v3.0.0)
+    parameters.addParameterListener("tuning_masterTune", this);
+    parameters.addParameterListener("tuning_octaveStretch", this);
+    parameters.addParameterListener("tuning_pitchBendRange", this);
+    parameters.addParameterListener("tuning_temperamentPreset", this);
+
+    // Register custom state callbacks for tuning persistence
+    presetManager.setCustomStateCallbacks(
+        // Save callback
+        [this]() -> juce::var
+        {
+            auto* obj = new juce::DynamicObject();
+            auto intervals = tuningEngine.getIntervals();
+            juce::Array<juce::var> intervalsArr;
+            for (auto val : intervals)
+                intervalsArr.add(val);
+            obj->setProperty("intervals", juce::var(intervalsArr));
+            obj->setProperty("scaleName", tuningEngine.getActiveTuningName());
+            obj->setProperty("tonic", tuningEngine.getTonicNote());
+            return juce::var(obj);
+        },
+        // Load callback
+        [this](const juce::var& state)
+        {
+            if (auto* obj = state.getDynamicObject())
+            {
+                if (auto* intervalsArr = obj->getProperty("intervals").getArray())
+                {
+                    std::vector<double> intervals;
+                    for (const auto& val : *intervalsArr)
+                        intervals.push_back(static_cast<double>(val));
+                    juce::String scaleName = obj->getProperty("scaleName").toString();
+                    if (!intervals.empty())
+                        tuningEngine.setCustomIntervals(intervals, scaleName.isEmpty() ? "Custom" : scaleName);
+                }
+                int tonic = obj->getProperty("tonic");
+                tuningEngine.setTonicNote(tonic);
+            }
+        }
+    );
 
     // Initialize factory presets (only on first run)
     initializeFactoryPresets();
@@ -437,6 +530,11 @@ OBellsAudioProcessor::OBellsAudioProcessor()
 
 OBellsAudioProcessor::~OBellsAudioProcessor()
 {
+    // Remove tuning parameter listeners (v3.0.0)
+    parameters.removeParameterListener("tuning_masterTune", this);
+    parameters.removeParameterListener("tuning_octaveStretch", this);
+    parameters.removeParameterListener("tuning_pitchBendRange", this);
+    parameters.removeParameterListener("tuning_temperamentPreset", this);
 }
 
 //==============================================================================
@@ -522,6 +620,11 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     // Lowpass Filter (v2.6.0)
     lpFilterEnabledParam = parameters.getRawParameterValue("lpFilterEnabled");
     lpFilterCutoffParam = parameters.getRawParameterValue("lpFilterCutoff");
+    // Tuning (v3.0.0)
+    tuningMasterTuneParam = parameters.getRawParameterValue("tuning_masterTune");
+    tuningOctaveStretchParam = parameters.getRawParameterValue("tuning_octaveStretch");
+    tuningPitchBendRangeParam = parameters.getRawParameterValue("tuning_pitchBendRange");
+    tuningTemperamentPresetParam = parameters.getRawParameterValue("tuning_temperamentPreset");
     // Output
     reverbMixParam = parameters.getRawParameterValue("reverbMix");
     outputGainParam = parameters.getRawParameterValue("outputGain");
@@ -603,6 +706,28 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
                 strikeTime, brilliance, bodyTime, humSustain,
                 humanize
             );
+        }
+    }
+
+    // v2.7.0: Track MIDI notes for UI spoke highlighting
+    for (const auto metadata : midiMessages)
+    {
+        auto msg = metadata.getMessage();
+        if (msg.isNoteOn())
+        {
+            int note = msg.getNoteNumber();
+            if (note < 64)
+                activeNotesLow.fetch_or(uint64_t(1) << note);
+            else
+                activeNotesHigh.fetch_or(uint64_t(1) << (note - 64));
+        }
+        else if (msg.isNoteOff())
+        {
+            int note = msg.getNoteNumber();
+            if (note < 64)
+                activeNotesLow.fetch_and(~(uint64_t(1) << note));
+            else
+                activeNotesHigh.fetch_and(~(uint64_t(1) << (note - 64)));
         }
     }
 
@@ -689,6 +814,12 @@ void OBellsAudioProcessor::triggerNoteOn(int midiNote, float velocity)
     midiNote = juce::jlimit(0, 127, midiNote);
     velocity = juce::jlimit(0.0f, 1.0f, velocity);
 
+    // Track active note for UI spoke highlighting
+    if (midiNote < 64)
+        activeNotesLow.fetch_or(uint64_t(1) << midiNote);
+    else
+        activeNotesHigh.fetch_or(uint64_t(1) << (midiNote - 64));
+
     // Use channel 1 for UI-triggered notes
     synthesiser.noteOn(1, midiNote, velocity);
 }
@@ -696,6 +827,12 @@ void OBellsAudioProcessor::triggerNoteOn(int midiNote, float velocity)
 void OBellsAudioProcessor::triggerNoteOff(int midiNote)
 {
     midiNote = juce::jlimit(0, 127, midiNote);
+
+    // Clear active note for UI spoke highlighting
+    if (midiNote < 64)
+        activeNotesLow.fetch_and(~(uint64_t(1) << midiNote));
+    else
+        activeNotesHigh.fetch_and(~(uint64_t(1) << (midiNote - 64)));
 
     // allowTailOff = true for natural release
     synthesiser.noteOff(1, midiNote, 0.0f, true);
@@ -1059,6 +1196,29 @@ void OBellsAudioProcessor::initializeFactoryPresets()
     }, {} });
 
     presetManager.initializeFactoryPresets(presets);
+}
+
+//==============================================================================
+// v3.0.0: Tuning parameter change callback
+void OBellsAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    if (parameterID == "tuning_masterTune")
+    {
+        tuningEngine.setMasterTune(static_cast<double>(newValue));
+    }
+    else if (parameterID == "tuning_octaveStretch")
+    {
+        tuningEngine.setOctaveStretch(newValue);
+    }
+    else if (parameterID == "tuning_pitchBendRange")
+    {
+        tuningEngine.setPitchBendRange(newValue);
+    }
+    else if (parameterID == "tuning_temperamentPreset")
+    {
+        int preset = static_cast<int>(newValue);
+        tuningEngine.setBuiltInPreset(static_cast<TuningEngine::BuiltInPreset>(preset));
+    }
 }
 
 //==============================================================================

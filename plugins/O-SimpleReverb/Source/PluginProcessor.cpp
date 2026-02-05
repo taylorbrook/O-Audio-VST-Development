@@ -5,7 +5,7 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    v1.5.0 - Renamed from OuariconSimpleReverb
+    v1.5.1 - Code simplification and real-time safety fixes
 
     Each reverb type now has distinct sonic character:
     - Booth: Tight, immediate, minimal reflections
@@ -205,6 +205,16 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-SimpleReverb")
 {
+    // Cache parameter pointers (these never change after construction)
+    typeParam = parameters.getRawParameterValue("TYPE");
+    characterParam = parameters.getRawParameterValue("CHARACTER");
+    sizeParam = parameters.getRawParameterValue("SIZE");
+    decayParam = parameters.getRawParameterValue("DECAY");
+    wetParam = parameters.getRawParameterValue("WET");
+    dryParam = parameters.getRawParameterValue("DRY");
+    lpFreqParam = parameters.getRawParameterValue("LPFREQ");
+    lpOnParam = parameters.getRawParameterValue("LPON");
+
     // Initialize factory presets (4 per reverb type = 24 total)
     initializeFactoryPresets();
     // Initialize early reflection delay lines
@@ -220,9 +230,7 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
         delay.setMaximumDelayInSamples(kMaxAllPassSamples);
 }
 
-OSimpleReverbAudioProcessor::~OSimpleReverbAudioProcessor()
-{
-}
+OSimpleReverbAudioProcessor::~OSimpleReverbAudioProcessor() = default;
 
 void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -261,14 +269,9 @@ void OSimpleReverbAudioProcessor::prepareToPlay(double sampleRate, int samplesPe
     prepareDelayContainer(allPassL, spec);
     prepareDelayContainer(allPassR, spec);
 
-    // Reset all-pass state
-    allPassStateL.fill(0.0f);
-    allPassStateR.fill(0.0f);
-
     // Reset modulation
     lfoPhase = 0.0f;
     shimmerPhase = 0.0f;
-    shimmerFreq = kDefaultShimmerFreq;
 
     // Force type update on first block
     previousType = -1;
@@ -335,7 +338,6 @@ void OSimpleReverbAudioProcessor::updateTypeSpecificDSP(int typeIndex)
 float OSimpleReverbAudioProcessor::processAllPassChain(float input, bool isLeft)
 {
     float output = input;
-    auto& states = isLeft ? allPassStateL : allPassStateR;
     auto& delays = isLeft ? allPassL : allPassR;
 
     for (int i = 0; i < numAllPassFilters; ++i) {
@@ -360,16 +362,7 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Read parameters
-    auto* typeParam = parameters.getRawParameterValue("TYPE");
-    auto* characterParam = parameters.getRawParameterValue("CHARACTER");
-    auto* sizeParam = parameters.getRawParameterValue("SIZE");
-    auto* decayParam = parameters.getRawParameterValue("DECAY");
-    auto* wetParam = parameters.getRawParameterValue("WET");
-    auto* dryParam = parameters.getRawParameterValue("DRY");
-    auto* lpFreqParam = parameters.getRawParameterValue("LPFREQ");
-    auto* lpOnParam = parameters.getRawParameterValue("LPON");
-
+    // Read parameters (pointers cached in constructor)
     int typeValue = static_cast<int>(typeParam->load());
     float characterValue = characterParam->load();
     float sizeValue = sizeParam->load();
@@ -407,9 +400,8 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float wetGain = wetValue / 100.0f;
     float dryGain = dryValue / 100.0f;
 
-    // Store dry signal
-    juce::AudioBuffer<float> dryBuffer;
-    dryBuffer.makeCopyOf(buffer);
+    // Store dry signal (using pre-allocated buffer)
+    dryBuffer.makeCopyOf(buffer, true);
 
     // Process sample-by-sample for type-specific DSP
     const int numSamples = buffer.getNumSamples();
@@ -424,8 +416,8 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     preDelayL.setDelay(preDelaySamples);
     preDelayR.setDelay(preDelaySamples);
 
-    // Create wet buffer for processing
-    juce::AudioBuffer<float> wetBuffer(buffer.getNumChannels(), numSamples);
+    // Prepare wet buffer (using pre-allocated buffer, resize only if needed)
+    wetBuffer.setSize(buffer.getNumChannels(), numSamples, false, false, true);
     wetBuffer.clear();
 
     for (int sample = 0; sample < numSamples; ++sample) {
@@ -466,7 +458,6 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 lfoPhase -= 2.0f * juce::MathConstants<float>::pi;
 
             float lfoValue = std::sin(lfoPhase);
-            float modDelaySamples = (preset.modDepth / 1000.0f) * static_cast<float>(currentSampleRate);
 
             // Apply subtle pitch modulation by varying gain (simpler than true pitch shift)
             float modGain = 1.0f + (lfoValue * kLfoAmplitudeModulation);

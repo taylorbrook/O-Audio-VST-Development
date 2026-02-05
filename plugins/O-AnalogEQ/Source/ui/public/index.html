@@ -668,31 +668,13 @@
       updateTooltip();
     }
 
-    // Band label toggle (label acts as on/off button)
-    function setupBandLabelToggle(element, state) {
-      element.addEventListener('click', () => {
-        const currentValue = state.getValue();
-        state.setValue(!currentValue);
-      });
+    // Toggle helper: className applied when state matches activeWhen
+    function setupToggle(element, state, className = 'active', activeWhen = true) {
+      element.addEventListener('click', () => state.setValue(!state.getValue()));
 
-      state.valueChangedEvent.addListener(() => {
-        element.classList.toggle('inactive', !state.getValue());
-      });
-
-      element.classList.toggle('inactive', !state.getValue());
-    }
-
-    function setupToggle(element, state) {
-      element.addEventListener('click', () => {
-        const currentValue = state.getValue();
-        state.setValue(!currentValue);
-      });
-
-      state.valueChangedEvent.addListener(() => {
-        element.classList.toggle('active', state.getValue());
-      });
-
-      element.classList.toggle('active', state.getValue());
+      const update = () => element.classList.toggle(className, state.getValue() === activeWhen);
+      state.valueChangedEvent.addListener(update);
+      update();
     }
 
     function setupThreeWayToggle(container, state) {
@@ -807,11 +789,11 @@
       hfFreqState, hfGainState, 'hf_tooltip', 'hf_freq', 'hf_gain'
     );
 
-    // Band labels as toggles
-    setupBandLabelToggle(document.getElementById('lf_on'), lfOnState);
-    setupBandLabelToggle(document.getElementById('lmf_on'), lmfOnState);
-    setupBandLabelToggle(document.getElementById('hmf_on'), hmfOnState);
-    setupBandLabelToggle(document.getElementById('hf_on'), hfOnState);
+    // Band labels: show 'inactive' when OFF
+    setupToggle(document.getElementById('lf_on'), lfOnState, 'inactive', false);
+    setupToggle(document.getElementById('lmf_on'), lmfOnState, 'inactive', false);
+    setupToggle(document.getElementById('hmf_on'), hmfOnState, 'inactive', false);
+    setupToggle(document.getElementById('hf_on'), hfOnState, 'inactive', false);
 
     setupToggle(document.getElementById('analog'), analogState);
 
@@ -820,7 +802,7 @@
 
     animateVUMeter();
 
-    console.log('OuariconAnalogEQ v1.0.10 UI initialized');
+    console.log('OuariconAnalogEQ v1.1.1 UI initialized');
   </script>
 </body>
 </html>

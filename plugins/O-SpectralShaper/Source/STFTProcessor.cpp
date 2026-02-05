@@ -151,13 +151,13 @@ void STFTProcessor::processFrame()
     // Output: fftData[0..FFT_SIZE-1] as real samples
     inverseFFT.performRealOnlyInverseTransform(fftData.data());
 
-    // Overlap-add: Add IFFT output to output FIFO with synthesis window
-    // JUCE's inverse transform outputs REAL samples in fftData[0..FFT_SIZE-1]
+    // Overlap-add: Add IFFT output directly to output FIFO (no synthesis window).
+    // Analysis-only Hann windowing satisfies COLA at 50% overlap: w(n) + w(n+N/2) = 1.0
+    // Applying a second (synthesis) window breaks COLA — Hann^2 sum is NOT constant,
+    // creating amplitude modulation at the hop rate (~172Hz) which introduces low-freq artifacts.
     for (int i = 0; i < FFT_SIZE; ++i)
     {
-        // Apply synthesis window and COLA scaling factor
-        float windowed = fftData[static_cast<size_t>(i)] * windowTable[static_cast<size_t>(i)] * COLA_SCALE;
-        outputFIFO[static_cast<size_t>(i)] += windowed;
+        outputFIFO[static_cast<size_t>(i)] += fftData[static_cast<size_t>(i)];
     }
 }
 
@@ -263,10 +263,11 @@ void STFTProcessor::detectTransients()
 
 void STFTProcessor::applyEnvelopeShaping()
 {
-    // Read active curve buffer (atomic, lock-free)
-    int activeCurve = activeCurveBuffer.load(std::memory_order_acquire);
-    const auto& attackCurveData = attackCurve[activeCurve];
-    const auto& sustainCurveData = sustainCurve[activeCurve];
+    // Read active curve buffers (atomic, lock-free — separate indices)
+    int activeAttack = activeAttackBuffer.load(std::memory_order_acquire);
+    int activeSustain = activeSustainBuffer.load(std::memory_order_acquire);
+    const auto& attackCurveData = attackCurve[activeAttack];
+    const auto& sustainCurveData = sustainCurve[activeSustain];
 
     // Process each frequency band independently
     for (int band = 0; band < NUM_BANDS; ++band)
@@ -278,14 +279,13 @@ void STFTProcessor::applyEnvelopeShaping()
         float transient = bands[band].transientActivity;
         float sustain = 1.0f - transient;
 
-        // Attack shaping: Apply curve value scaled by attack time
-        // Curve range: -1.0 to +1.0 → dB range: -attackTime*0.1 to +attackTime*0.1
-        float attackDB = attackCurveData[band] * attackTimeMs * 0.1f;
+        // Attack shaping: curve value maps directly to gain range
+        // Curve -1.0 → -18dB, 0.0 → 0dB, +1.0 → +18dB (weighted by transient activity)
+        float attackDB = attackCurveData[band] * MAX_SHAPE_DB;
         float attackGain = juce::Decibels::decibelsToGain(attackDB * transient);
 
-        // Sustain shaping: Apply curve value scaled by sustain time
-        // Curve range: -1.0 to +1.0 → dB range: -sustainTime*0.01 to +sustainTime*0.01
-        float sustainDB = sustainCurveData[band] * sustainTimeMs * 0.01f;
+        // Sustain shaping: same range, weighted by sustain (1 - transient)
+        float sustainDB = sustainCurveData[band] * MAX_SHAPE_DB;
         float sustainGain = juce::Decibels::decibelsToGain(sustainDB * sustain);
 
         // Combined target gain (multiplicative)
@@ -310,18 +310,18 @@ void STFTProcessor::applyEnvelopeShaping()
 
 void STFTProcessor::setAttackCurve(const std::array<float, NUM_BANDS>& curve)
 {
-    // Write to inactive buffer, then swap
-    int inactive = 1 - activeCurveBuffer.load(std::memory_order_relaxed);
+    // Write to inactive buffer, then swap (separate index from sustain)
+    int inactive = 1 - activeAttackBuffer.load(std::memory_order_relaxed);
     std::copy(curve.begin(), curve.end(), attackCurve[inactive].begin());
-    activeCurveBuffer.store(inactive, std::memory_order_release);
+    activeAttackBuffer.store(inactive, std::memory_order_release);
 }
 
 void STFTProcessor::setSustainCurve(const std::array<float, NUM_BANDS>& curve)
 {
-    // Write to inactive buffer, then swap
-    int inactive = 1 - activeCurveBuffer.load(std::memory_order_relaxed);
+    // Write to inactive buffer, then swap (separate index from attack)
+    int inactive = 1 - activeSustainBuffer.load(std::memory_order_relaxed);
     std::copy(curve.begin(), curve.end(), sustainCurve[inactive].begin());
-    activeCurveBuffer.store(inactive, std::memory_order_release);
+    activeSustainBuffer.store(inactive, std::memory_order_release);
 }
 
 void STFTProcessor::setAttackTime(float ms)

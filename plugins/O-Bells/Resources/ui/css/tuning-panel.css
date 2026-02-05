@@ -1,0 +1,628 @@
+/* ===== scala-tuning-engine - Tuning Panel Styles =====
+ * Add these styles to your plugin's <style> block or as a separate CSS file.
+ * These styles work with tuning-panel.js to create the complete tuning UI.
+ *
+ * Theming: Override CSS variables to match your plugin's aesthetic.
+ */
+
+/* ═══════════════════════════════════════════════════════════════════
+   CSS VARIABLES (Theming)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.tuning-panel {
+    --tuning-bg: rgba(245, 230, 211, 0.95);
+    --tuning-border: rgba(139, 115, 85, 0.5);
+    --tuning-text: #3C2F2F;
+    --tuning-text-muted: #8B7355;
+    --tuning-accent: #8BC34A;
+    --tuning-input-bg: rgba(255, 255, 255, 0.8);
+    --tuning-hover: rgba(139, 168, 112, 0.3);
+    --tuning-active: rgba(139, 195, 74, 0.4);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   MAIN CONTAINER
+   ═══════════════════════════════════════════════════════════════════ */
+
+.tuning-panel {
+    display: grid;
+    grid-template-columns: 160px 1fr 220px;
+    gap: 15px;
+    padding: 15px;
+    background: var(--tuning-bg);
+    border-radius: 8px;
+    font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+    font-size: 11px;
+    color: var(--tuning-text);
+}
+
+/* Left column: Intervals */
+.tuning-intervals-column {
+    display: flex;
+    flex-direction: column;
+}
+
+/* Center column: Viz toggle + visualization stacked */
+.tuning-center-column {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   LEFT: INTERVAL LIST
+   ═══════════════════════════════════════════════════════════════════ */
+
+.interval-list {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--tuning-border);
+    border-radius: 6px;
+    padding: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.interval-list-header {
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 8px;
+    color: var(--tuning-text-muted);
+}
+
+.tonic-selector {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 10px;
+    padding: 6px;
+    background: var(--tuning-input-bg);
+    border-radius: 4px;
+}
+
+.tonic-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: var(--tuning-text-muted);
+}
+
+.tonic-arrow {
+    background: none;
+    border: 1px solid var(--tuning-border);
+    border-radius: 3px;
+    padding: 2px 6px;
+    cursor: pointer;
+    font-size: 10px;
+    color: var(--tuning-text);
+}
+
+.tonic-arrow:hover {
+    background: var(--tuning-hover);
+}
+
+.tonic-value {
+    font-weight: 600;
+    min-width: 24px;
+    text-align: center;
+}
+
+.interval-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+}
+
+.interval-item:last-child {
+    border-bottom: none;
+}
+
+.interval-item.octave {
+    background: rgba(139, 195, 74, 0.15);
+    margin: 4px -8px 0;
+    padding: 6px 8px;
+    border-radius: 0 0 5px 5px;
+}
+
+.interval-degree {
+    width: 24px;
+    font-size: 9px;
+    color: var(--tuning-text-muted);
+    text-align: right;
+    flex-shrink: 0;
+}
+
+.interval-input {
+    flex: 1;
+    background: var(--tuning-input-bg);
+    border: 1px solid var(--tuning-border);
+    border-radius: 3px;
+    padding: 3px 6px;
+    font-size: 10px;
+    text-align: right;
+    width: 60px;
+}
+
+.interval-input:focus {
+    outline: none;
+    border-color: var(--tuning-accent);
+}
+
+.interval-input[readonly] {
+    background: transparent;
+    border-color: transparent;
+    font-weight: 600;
+}
+
+.interval-unit {
+    font-size: 9px;
+    color: var(--tuning-text-muted);
+    width: 12px;
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   CENTER: VISUALIZATION
+   ═══════════════════════════════════════════════════════════════════ */
+
+.viz-mode-toggle {
+    display: flex;
+    gap: 4px;
+}
+
+.viz-btn {
+    flex: 1;
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--tuning-border);
+    border-radius: 4px;
+    font-size: 9px;
+    cursor: pointer;
+    color: var(--tuning-text);
+    transition: all 0.15s;
+}
+
+.viz-btn:hover {
+    background: var(--tuning-hover);
+}
+
+.viz-btn.active {
+    background: var(--tuning-active);
+    border-color: var(--tuning-accent);
+    font-weight: 600;
+}
+
+.viz-container {
+    background: transparent;
+    border: none;
+    border-radius: 0;
+    padding: 15px;
+    flex: 1;
+    min-height: 200px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.viz-view {
+    display: none;
+    width: 100%;
+    height: 100%;
+}
+
+.viz-view.active {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* Pitch Circle */
+.pitch-circle {
+    text-align: center;
+}
+
+.pitch-circle svg {
+    max-width: 320px;
+    max-height: 320px;
+    width: 100%;
+    height: auto;
+}
+
+.pitch-circle-label {
+    font-size: 9px;
+    color: var(--tuning-text-muted);
+    margin-top: 8px;
+}
+
+/* Matrix View */
+.matrix-view {
+    overflow: auto;
+}
+
+.matrix-table {
+    border-collapse: collapse;
+    font-size: 8px;
+}
+
+.matrix-table th,
+.matrix-table td {
+    padding: 3px 5px;
+    border: 1px solid var(--tuning-border);
+    text-align: center;
+}
+
+.matrix-table th {
+    background: rgba(139, 115, 85, 0.15);
+    font-weight: 600;
+}
+
+.matrix-table td {
+    background: var(--tuning-input-bg);
+}
+
+/* True Keys View */
+.truekeys-view {
+    flex-direction: column;
+}
+
+.tk-hint {
+    color: var(--tuning-text-muted);
+    font-style: italic;
+}
+
+.tk-intervals {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tk-interval {
+    padding: 4px 8px;
+    background: var(--tuning-input-bg);
+    border-radius: 3px;
+}
+
+/* Rotation View */
+.rotation-view {
+    overflow: auto;
+}
+
+.rotation-table {
+    border-collapse: collapse;
+    font-size: 8px;
+}
+
+.rotation-table th,
+.rotation-table td {
+    padding: 3px 5px;
+    border: 1px solid var(--tuning-border);
+    text-align: center;
+}
+
+.rotation-table th {
+    background: rgba(139, 115, 85, 0.15);
+}
+
+.rotation-table .current-tonic {
+    background: var(--tuning-active);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   RIGHT: CONTROLS PANEL
+   ═══════════════════════════════════════════════════════════════════ */
+
+.tuning-controls-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+/* Library Section */
+.library-section,
+.generator-section {
+    background: rgba(255, 255, 255, 0.5);
+    border: 1px solid var(--tuning-border);
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.library-header,
+.generator-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 10px;
+    background: rgba(139, 115, 85, 0.1);
+    cursor: pointer;
+    user-select: none;
+}
+
+.library-header:hover,
+.generator-header:hover {
+    background: rgba(139, 115, 85, 0.2);
+}
+
+.library-header-text,
+.generator-header-text {
+    font-weight: 600;
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.library-toggle,
+.generator-toggle {
+    font-size: 10px;
+    transition: transform 0.2s;
+}
+
+.library-toggle.expanded,
+.generator-toggle.expanded {
+    transform: rotate(180deg);
+}
+
+.library-content,
+.generator-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.3s ease;
+}
+
+.library-content.expanded,
+.generator-content.expanded {
+    max-height: 300px;
+    padding: 10px;
+}
+
+.library-filter-select,
+.generator-type-select {
+    width: 100%;
+    padding: 6px;
+    border: 1px solid var(--tuning-border);
+    border-radius: 4px;
+    background: var(--tuning-input-bg);
+    font-size: 10px;
+    margin-bottom: 8px;
+}
+
+.library-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.library-item {
+    padding: 6px 8px;
+    border-radius: 4px;
+    cursor: pointer;
+    margin-bottom: 4px;
+}
+
+.library-item:hover {
+    background: var(--tuning-hover);
+}
+
+.library-item-name {
+    font-weight: 500;
+}
+
+.library-item-desc {
+    font-size: 9px;
+    color: var(--tuning-text-muted);
+}
+
+/* Generator Inputs */
+.generator-inputs {
+    margin-bottom: 10px;
+}
+
+.gen-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 6px;
+}
+
+.gen-row label {
+    font-size: 10px;
+    color: var(--tuning-text-muted);
+}
+
+.gen-row input {
+    width: 80px;
+    padding: 4px 6px;
+    border: 1px solid var(--tuning-border);
+    border-radius: 3px;
+    background: var(--tuning-input-bg);
+    font-size: 10px;
+    text-align: right;
+}
+
+.generator-btn {
+    width: 100%;
+    padding: 8px;
+    background: var(--tuning-accent);
+    border: none;
+    border-radius: 4px;
+    color: white;
+    font-weight: 600;
+    font-size: 10px;
+    cursor: pointer;
+}
+
+.generator-btn:hover {
+    filter: brightness(1.1);
+}
+
+/* Reference Pitch Knob */
+.tuning-ref-section {
+    text-align: center;
+    padding: 10px;
+}
+
+.ref-knob-container {
+    display: inline-block;
+}
+
+.ref-knob {
+    width: 50px;
+    height: 50px;
+    background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0);
+    border: 2px solid var(--tuning-border);
+    border-radius: 50%;
+    position: relative;
+    cursor: ns-resize;
+}
+
+.ref-knob-indicator {
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 2px;
+    height: 12px;
+    background: var(--tuning-text);
+    transform-origin: bottom center;
+    margin-left: -1px;
+}
+
+.ref-knob-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: var(--tuning-text-muted);
+    margin-top: 6px;
+}
+
+.ref-knob-value {
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* Scale Name Display */
+.scale-name-display {
+    text-align: center;
+    padding: 8px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--tuning-border);
+    border-radius: 4px;
+    font-weight: 500;
+    font-size: 11px;
+}
+
+/* Octave Stretch */
+.octave-stretch-section {
+    padding: 8px;
+}
+
+.octave-stretch-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.octave-stretch-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    color: var(--tuning-text-muted);
+}
+
+.octave-stretch-slider {
+    flex: 1;
+    height: 4px;
+    -webkit-appearance: none;
+    background: linear-gradient(to right, var(--tuning-border), var(--tuning-accent));
+    border-radius: 2px;
+}
+
+.octave-stretch-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    background: radial-gradient(circle at 30% 30%, #FFF8DC, #D4C4B0);
+    border: 1px solid var(--tuning-border);
+    border-radius: 50%;
+    cursor: pointer;
+}
+
+.octave-stretch-value {
+    font-size: 10px;
+    min-width: 30px;
+    text-align: right;
+}
+
+/* File Buttons */
+.tuning-file-section {
+    padding: 8px;
+}
+
+.tuning-file-buttons {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 6px;
+}
+
+.tuning-file-btn {
+    padding: 6px 8px;
+    background: rgba(255, 255, 255, 0.6);
+    border: 1px solid var(--tuning-border);
+    border-radius: 4px;
+    font-size: 9px;
+    cursor: pointer;
+    color: var(--tuning-text);
+}
+
+.tuning-file-btn:hover {
+    background: var(--tuning-hover);
+}
+
+.tuning-export-btn {
+    grid-column: span 2;
+    background: var(--tuning-accent);
+    border-color: var(--tuning-accent);
+    color: white;
+    font-weight: 600;
+}
+
+.tuning-export-btn:hover {
+    filter: brightness(1.1);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   DARK THEME
+   ═══════════════════════════════════════════════════════════════════ */
+
+.tuning-panel.dark-theme {
+    --tuning-bg: rgba(30, 30, 30, 0.95);
+    --tuning-border: rgba(80, 80, 80, 0.8);
+    --tuning-text: #E0E0E0;
+    --tuning-text-muted: #888;
+    --tuning-accent: #8BC34A;
+    --tuning-input-bg: rgba(50, 50, 50, 0.9);
+    --tuning-hover: rgba(139, 195, 74, 0.2);
+    --tuning-active: rgba(139, 195, 74, 0.3);
+}
+
+
+/* ═══════════════════════════════════════════════════════════════════
+   COMPACT LAYOUT (for smaller plugins)
+   ═══════════════════════════════════════════════════════════════════ */
+
+.tuning-panel.compact {
+    grid-template-columns: 140px 1fr 180px;
+    gap: 10px;
+    padding: 10px;
+    font-size: 10px;
+}
+
+.tuning-panel.compact .interval-list {
+    max-height: 200px;
+}
+
+.tuning-panel.compact .viz-container {
+    min-height: 150px;
+}

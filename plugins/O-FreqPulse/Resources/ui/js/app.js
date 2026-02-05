@@ -563,7 +563,9 @@ function updateEuclideanGrid(bandId) {
             cell.classList.add('euclidean-mode');
             cell.classList.remove('active');
 
-            if (step < eucSteps && pattern[step]) {
+            // Wrap via modulo to match C++ getTargetGainForBand() behavior
+            const wrappedStep = step % eucSteps;
+            if (pattern[wrappedStep]) {
                 cell.classList.add('euclidean-active');
             } else {
                 cell.classList.remove('euclidean-active');

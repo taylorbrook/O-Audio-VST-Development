@@ -14,6 +14,10 @@
 #include "BellSound.h"
 #include "BellVoice.h"
 #include "OuariconPresetManager.h"
+#include "TuningEngine.h"
+#include "ScaleGenerator.h"
+#include "TuningExporter.h"
+#include "EmbeddedTunings.h"
 
 // Reverb spec for spacious bell sound
 struct BellReverbSpec
@@ -24,7 +28,8 @@ struct BellReverbSpec
     static constexpr float freezeMode = 0.0f;    // No freeze
 };
 
-class OBellsAudioProcessor : public juce::AudioProcessor
+class OBellsAudioProcessor : public juce::AudioProcessor,
+                              public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     OBellsAudioProcessor();
@@ -62,15 +67,29 @@ public:
     void triggerNoteOn(int midiNote, float velocity);
     void triggerNoteOff(int midiNote);
 
+    // v3.0.0: Tuning engine access
+    TuningEngine& getTuningEngine() { return tuningEngine; }
+
+    // APVTS::Listener override for tuning parameter changes
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
+
     // Output level metering (peak values, 0.0 to 1.0)
     std::atomic<float> outputLevelLeft { 0.0f };
     std::atomic<float> outputLevelRight { 0.0f };
+
+    // v2.7.0: Note event tracking for UI spoke highlighting
+    // Bitfield: 128 bits for MIDI notes 0-127 (2 x uint64)
+    std::atomic<uint64_t> activeNotesLow { 0 };   // notes 0-63
+    std::atomic<uint64_t> activeNotesHigh { 0 };   // notes 64-127
 
 private:
     // DSP Components (BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
     juce::dsp::Reverb reverb;
     juce::dsp::Reverb::Parameters reverbParams;
+
+    // v3.0.0: Tuning engine
+    TuningEngine tuningEngine;
 
     // One-pole lowpass filter state (v2.6.0)
     float lpFilterStateL = 0.0f;
@@ -123,6 +142,11 @@ private:
     // Lowpass Filter (v2.6.0)
     std::atomic<float>* lpFilterEnabledParam = nullptr;
     std::atomic<float>* lpFilterCutoffParam = nullptr;
+    // Tuning (v3.0.0)
+    std::atomic<float>* tuningMasterTuneParam = nullptr;
+    std::atomic<float>* tuningOctaveStretchParam = nullptr;
+    std::atomic<float>* tuningPitchBendRangeParam = nullptr;
+    std::atomic<float>* tuningTemperamentPresetParam = nullptr;
     // Output
     std::atomic<float>* reverbMixParam = nullptr;
     std::atomic<float>* outputGainParam = nullptr;
