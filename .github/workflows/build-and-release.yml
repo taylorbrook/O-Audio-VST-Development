@@ -67,6 +67,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \
             -DOUARICON_LICENSING=ON \
+            -DOUARICON_RELEASE=ON \
             -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
@@ -284,8 +285,8 @@ jobs:
           ${PRODUCT_NAME} has been successfully installed.
 
           FIND ${PRODUCT_NAME} IN YOUR DAW:
-          VST3: Plugin browser under "Ouaricon Development"
-          AU: Audio Units > Ouaricon Development > ${PRODUCT_NAME}
+          VST3: Plugin browser under "Ouaricon Audio"
+          AU: Audio Units > Ouaricon Audio > ${PRODUCT_NAME}
 
           Thank you for using ${PRODUCT_NAME}!
           — Ouaricon Audio | oaudio.io
@@ -410,7 +411,7 @@ jobs:
 
       - name: Configure CMake
         run: |
-          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_LICENSING=ON -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
+          cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_LICENSING=ON -DOUARICON_RELEASE=ON -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
       - name: Resolve CMake Target
         id: resolve
@@ -503,6 +504,7 @@ jobs:
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DOUARICON_LICENSING=ON \
+            -DOUARICON_RELEASE=ON \
             -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
