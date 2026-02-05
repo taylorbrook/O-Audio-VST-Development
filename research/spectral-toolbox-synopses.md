@@ -1,3 +1,20 @@
+---
+title: "SpectralToolbox Plugin Synopses"
+summary: "Product synopses for spectral processing plugins including O-SpectralShaper, O-FreqPulse, and related tools, covering target users, competitive landscape, key differentiators, and estimated pricing."
+domain: workflow
+type: reference
+keywords:
+  - spectral-toolbox
+  - product-planning
+  - plugin-synopses
+  - competitive-analysis
+  - spectral-shaper
+  - freq-pulse
+  - market-positioning
+stages: [0]
+agents: [research]
+---
+
 # SpectralToolbox Plugin Synopses
 
 *Generated from deep research: 2026-02-02*

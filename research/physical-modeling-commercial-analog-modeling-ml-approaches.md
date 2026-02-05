@@ -1,3 +1,21 @@
+---
+title: "Commercial Analog Modeling and Modern ML Approaches"
+summary: "Analysis of commercial analog modeling landscape including Universal Audio, Slate Digital, Softube, and neural network/ML-based approaches for tape emulation, compressor dynamics, and distortion modeling."
+domain: dsp
+type: reference
+keywords:
+  - analog-modeling
+  - neural-network
+  - machine-learning
+  - tape-emulation
+  - component-modeling
+  - commercial-analysis
+  - distortion
+  - compressor
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Commercial Analog Modeling and Modern ML Approaches
 
 ## Research Agent 3 Report

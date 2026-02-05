@@ -1,3 +1,20 @@
+---
+title: "Multi-Stage Decay Envelopes for Bell and Metallic Sounds"
+summary: "Comparison of multi-stage decay envelope implementations across commercial synthesizers including Ableton Collision, Kontakt, Arturia Pigments, AAS Chromaphone, and Modartt Pianoteq for bell and metallic sound design."
+domain: dsp
+type: algorithm
+keywords:
+  - decay-envelopes
+  - bell-synthesis
+  - metallic-sounds
+  - physical-modeling
+  - per-partial-decay
+  - frequency-dependent-damping
+  - modal-synthesis
+stages: [2]
+agents: [dsp]
+---
+
 # Multi-Stage Decay Envelopes for Bell/Metallic Sounds
 
 ## Research Summary

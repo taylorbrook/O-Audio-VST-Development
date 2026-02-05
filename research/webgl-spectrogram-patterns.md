@@ -1,3 +1,21 @@
+---
+title: "WebGL Spectrogram Implementation Patterns"
+summary: "Implementation patterns for real-time WebGL spectrograms with heat overlay blending for JUCE 8 WebView plugins, including fragment shader colormaps, circular buffer textures, and lock-free audio-to-GUI communication."
+domain: ui
+type: pattern
+keywords:
+  - webgl
+  - spectrogram
+  - visualization
+  - webview
+  - fragment-shader
+  - real-time-rendering
+  - juce
+  - colormap
+stages: [3]
+agents: [ui]
+---
+
 # WebGL Spectrogram Implementation Patterns for Real-Time Audio Visualization
 
 **Researched:** 2026-02-03

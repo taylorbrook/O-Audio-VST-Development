@@ -1,3 +1,21 @@
+---
+title: "Spectral Sequencer / Spectral Trance Gate Research"
+summary: "Deep research on FFT-based spectral sequencing combining rhythmic gating with per-frequency pattern control, covering prior art, algorithm design, JUCE implementation, and differentiation opportunities."
+domain: dsp
+type: reference
+keywords:
+  - spectral-processing
+  - sequencer
+  - trance-gate
+  - fft
+  - rhythmic-effects
+  - per-frequency
+  - step-sequencer
+  - juce
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Spectral Sequencer / Spectral Trance Gate - Deep Research Report
 
 **Date:** February 2026

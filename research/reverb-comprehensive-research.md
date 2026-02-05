@@ -1,3 +1,22 @@
+---
+title: "Comprehensive Reverb Research"
+summary: "Complete technical reference for reverb algorithm design and JUCE implementation covering Schroeder, Freeverb, FDN, and Dattorro architectures, convolution reverb theory, and spatialization techniques."
+domain: dsp
+type: guide
+keywords:
+  - reverb
+  - algorithmic-reverb
+  - convolution
+  - fdn
+  - dattorro
+  - schroeder
+  - freeverb
+  - spatialization
+  - juce
+stages: [0, 1, 2]
+agents: [dsp, research]
+---
+
 # Comprehensive Reverb Research Document
 
 **Version:** 1.0

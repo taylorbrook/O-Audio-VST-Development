@@ -1,3 +1,21 @@
+---
+title: "Spectral Transient Shaper Research"
+summary: "Deep research on frequency-selective transient processing combining FFT spectral analysis with per-band transient detection, covering oeksound Spiff, MolecularBytes AtomicTransient, and JUCE implementation strategies."
+domain: dsp
+type: reference
+keywords:
+  - transient-shaper
+  - spectral-processing
+  - fft
+  - per-band
+  - dynamics
+  - envelope-follower
+  - transient-detection
+  - juce
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Spectral Transient Shaper - Deep Research Report
 
 **Project:** Spectral Transient Shaper - Frequency-Selective Transient Processing Plugin

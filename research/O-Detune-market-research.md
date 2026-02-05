@@ -1,3 +1,20 @@
+---
+title: "O-Detune Market Research"
+summary: "Competitive landscape analysis of detuning and pitch thickening plugins, covering Soundtoys MicroShift, Eventide MicroPitch, and identifying market gaps for analog-style wobble with unison detuning."
+domain: workflow
+type: reference
+keywords:
+  - market-research
+  - detuning
+  - pitch-thickening
+  - competitive-analysis
+  - product-planning
+  - stereo-widening
+  - chorus
+stages: [0]
+agents: [research]
+---
+
 # O-Detune Market Research
 
 **Project:** O-Detune - Analog-Style Detuning/Pitch Thickening Plugin

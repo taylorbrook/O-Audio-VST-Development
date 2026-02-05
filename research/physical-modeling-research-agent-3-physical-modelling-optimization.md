@@ -1,3 +1,21 @@
+---
+title: "Physical Modelling Synthesis: Performance Optimization and Production Guide"
+summary: "Practical guide to CPU optimization, SIMD vectorization, algorithm complexity analysis, and hybrid approaches for physical modelling synthesis in real-time audio plugins."
+domain: dsp
+type: guide
+keywords:
+  - physical-modeling
+  - cpu-optimization
+  - simd
+  - performance
+  - delay-lines
+  - waveguide
+  - real-time
+  - benchmarks
+stages: [2]
+agents: [dsp]
+---
+
 # Physical Modelling Synthesis: Performance Optimization and Production Guide
 
 ## Research Agent 3 Report
