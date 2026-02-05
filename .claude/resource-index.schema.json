@@ -1,0 +1,48 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./resource-index.schema.json",
+  "title": "Resource Index",
+  "description": "Manifest cataloging all research documents with discovery metadata",
+  "type": "object",
+  "required": ["$schema", "version", "generated", "documents"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": { "type": "string" },
+    "version": { "type": "string", "const": "1.0.0" },
+    "generated": { "type": "string", "format": "date-time" },
+    "documents": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/DocumentEntry" }
+    }
+  },
+  "$defs": {
+    "DocumentEntry": {
+      "type": "object",
+      "required": ["path", "title", "summary", "domain", "type", "keywords", "stages", "agents"],
+      "additionalProperties": false,
+      "properties": {
+        "path": { "type": "string", "pattern": "^research/.+\\.md$" },
+        "title": { "type": "string", "minLength": 1, "maxLength": 150 },
+        "summary": { "type": "string", "minLength": 10, "maxLength": 500 },
+        "domain": { "type": "string", "enum": ["dsp", "ui", "build", "workflow"] },
+        "type": { "type": "string", "enum": ["algorithm", "pattern", "guide", "reference"] },
+        "keywords": {
+          "type": "array",
+          "items": { "type": "string", "pattern": "^[a-z0-9-]+$" },
+          "minItems": 3,
+          "maxItems": 15
+        },
+        "stages": {
+          "type": "array",
+          "items": { "type": "integer", "minimum": 0, "maximum": 4 },
+          "minItems": 1
+        },
+        "agents": {
+          "type": "array",
+          "items": { "type": "string", "enum": ["dsp", "ui", "build", "research"] },
+          "minItems": 1
+        }
+      }
+    }
+  }
+}
