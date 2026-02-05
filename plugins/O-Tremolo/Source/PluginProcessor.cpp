@@ -12,6 +12,40 @@
 #include "PluginEditor.h"
 
 //==============================================================================
+// Constants
+//==============================================================================
+static constexpr float kTransitionWidth = 0.02f;  // 2% of cycle for smooth waveform transitions
+
+struct MusicalDivision {
+    const char* name;
+    float beatMultiplier;
+};
+
+static constexpr MusicalDivision kMusicalDivisions[] = {
+    // Straight divisions
+    { "1/1",   4.0f },      // Whole note
+    { "1/2",   2.0f },      // Half note
+    { "1/4",   1.0f },      // Quarter note
+    { "1/8",   0.5f },      // Eighth note
+    { "1/16",  0.25f },     // Sixteenth note
+    { "1/32",  0.125f },    // Thirty-second note
+    // Triplet divisions (3 notes in space of 2)
+    { "1/2T",  1.333333f }, // Half note triplet
+    { "1/4T",  0.666667f }, // Quarter triplet
+    { "1/8T",  0.333333f }, // Eighth triplet
+    { "1/16T", 0.166667f }, // Sixteenth triplet
+    { "1/32T", 0.083333f }, // Thirty-second triplet
+    // Quintuplet divisions (5 notes in space of 4)
+    { "1/2Q",  1.6f },      // Half note quintuplet
+    { "1/4Q",  0.8f },      // Quarter quintuplet
+    { "1/8Q",  0.4f },      // Eighth quintuplet
+    { "1/16Q", 0.2f },      // Sixteenth quintuplet
+    { "1/32Q", 0.1f }       // Thirty-second quintuplet
+};
+
+static constexpr int kNumMusicalDivisions = static_cast<int>(std::size(kMusicalDivisions));
+
+//==============================================================================
 // Parameter Layout Creation
 //==============================================================================
 juce::AudioProcessorValueTreeState::ParameterLayout OuariconTremoloAudioProcessor::createParameterLayout()
@@ -115,6 +149,14 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
     };
 
     presetManager.initializeFactoryPresets(factoryPresets);
+
+    // Cache parameter pointers (stable for processor lifetime)
+    speedParam = parameters.getRawParameterValue("SPEED_PARAM");
+    depthParam = parameters.getRawParameterValue("DEPTH_PARAM");
+    waveformParam = parameters.getRawParameterValue("WAVEFORM_PARAM");
+    smoothingParam = parameters.getRawParameterValue("SMOOTHING_PARAM");
+    panSyncParam = parameters.getRawParameterValue("PAN_SYNC_PARAM");
+    tempoSyncParam = parameters.getRawParameterValue("TEMPO_SYNC_PARAM");
 }
 
 OuariconTremoloAudioProcessor::~OuariconTremoloAudioProcessor()
@@ -135,7 +177,6 @@ void OuariconTremoloAudioProcessor::prepareToPlay(double sampleRate, int samples
     lfoPhase = 0.0f;
 
     // Calculate initial phase increment
-    auto* speedParam = parameters.getRawParameterValue("SPEED_PARAM");
     float speedHz = speedParam->load();
     lfoPhaseIncrement = speedHz / static_cast<float>(currentSampleRate);
 
@@ -158,14 +199,7 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Read parameters (atomic, real-time safe)
-    auto* speedParam = parameters.getRawParameterValue("SPEED_PARAM");
-    auto* depthParam = parameters.getRawParameterValue("DEPTH_PARAM");
-    auto* waveformParam = parameters.getRawParameterValue("WAVEFORM_PARAM");
-    auto* smoothingParam = parameters.getRawParameterValue("SMOOTHING_PARAM");
-    auto* panSyncParam = parameters.getRawParameterValue("PAN_SYNC_PARAM");
-    auto* tempoSyncParam = parameters.getRawParameterValue("TEMPO_SYNC_PARAM");
-
+    // Read parameters (atomic, real-time safe — pointers cached in constructor)
     float speedHz = speedParam->load();
     float depth = depthParam->load() / 100.0f;  // Convert 0-100% to 0-1
     int waveformType = static_cast<int>(waveformParam->load());
@@ -186,51 +220,18 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
                     double bpm = *positionInfo->getBpm();
                     double beatsPerSecond = bpm / 60.0;
 
-                    // Musical divisions table: beat multipliers
-                    // Straight divisions
-                    struct MusicalDivision {
-                        const char* name;
-                        float beatMultiplier;
-                    };
-
-                    const MusicalDivision divisions[] = {
-                        // Straight divisions
-                        { "1/1",   4.0f },      // Whole note
-                        { "1/2",   2.0f },      // Half note
-                        { "1/4",   1.0f },      // Quarter note
-                        { "1/8",   0.5f },      // Eighth note
-                        { "1/16",  0.25f },     // Sixteenth note
-                        { "1/32",  0.125f },    // Thirty-second note
-
-                        // Triplet divisions (3 notes in space of 2)
-                        { "1/2T",  1.333333f }, // Half note triplet
-                        { "1/4T",  0.666667f }, // Quarter triplet
-                        { "1/8T",  0.333333f }, // Eighth triplet
-                        { "1/16T", 0.166667f }, // Sixteenth triplet
-                        { "1/32T", 0.083333f }, // Thirty-second triplet
-
-                        // Quintuplet divisions (5 notes in space of 4)
-                        { "1/2Q",  1.6f },      // Half note quintuplet
-                        { "1/4Q",  0.8f },      // Quarter quintuplet
-                        { "1/8Q",  0.4f },      // Eighth quintuplet
-                        { "1/16Q", 0.2f },      // Sixteenth quintuplet
-                        { "1/32Q", 0.1f }       // Thirty-second quintuplet
-                    };
-
-                    const int numDivisions = sizeof(divisions) / sizeof(divisions[0]);
-
-                    // Find closest division based on current speed
+                    // Find closest musical division based on current speed
                     float closestDivision = 1.0f;
                     float minDiff = 1000.0f;
 
-                    for (int i = 0; i < numDivisions; ++i)
+                    for (int i = 0; i < kNumMusicalDivisions; ++i)
                     {
-                        float divFreq = static_cast<float>(beatsPerSecond / divisions[i].beatMultiplier);
+                        float divFreq = static_cast<float>(beatsPerSecond / kMusicalDivisions[i].beatMultiplier);
                         float diff = std::abs(speedHz - divFreq);
                         if (diff < minDiff)
                         {
                             minDiff = diff;
-                            closestDivision = divisions[i].beatMultiplier;
+                            closestDivision = kMusicalDivisions[i].beatMultiplier;
                         }
                     }
 
@@ -262,13 +263,7 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     if (totalInputChannels == 1 && totalOutputChannels == 2 && numChannels == 2)
     {
         // Duplicate mono input (channel 0) to channel 1 for centered output
-        auto* leftData = buffer.getWritePointer(0);
-        auto* rightData = buffer.getWritePointer(1);
-
-        for (int sample = 0; sample < numSamples; ++sample)
-        {
-            rightData[sample] = leftData[sample];
-        }
+        buffer.copyFrom(1, 0, buffer.getReadPointer(0), numSamples);
     }
 
     // Process audio
@@ -314,6 +309,11 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     else
     {
         // Mono tremolo (both channels modulated identically)
+        // Hoist channel pointers outside sample loop
+        float* channelPtrs[2] = { nullptr, nullptr };
+        for (int channel = 0; channel < numChannels && channel < 2; ++channel)
+            channelPtrs[channel] = buffer.getWritePointer(channel);
+
         for (int sample = 0; sample < numSamples; ++sample)
         {
             // Generate raw waveform value
@@ -329,11 +329,8 @@ void OuariconTremoloAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
             float gainMultiplier = 1.0f - (lfoValue * depth);
 
             // Apply gain modulation to all channels
-            for (int channel = 0; channel < numChannels; ++channel)
-            {
-                auto* channelData = buffer.getWritePointer(channel);
-                channelData[sample] *= gainMultiplier;
-            }
+            for (int channel = 0; channel < numChannels && channel < 2; ++channel)
+                channelPtrs[channel][sample] *= gainMultiplier;
 
             // Update LFO phase
             lfoPhase += lfoPhaseIncrement;
@@ -395,28 +392,23 @@ float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformT
 
         case 2: // Phasor (Sawtooth) with smooth reset
         {
-            // Add polynomial transition zones at wrap point (end→start)
-            const float transitionWidth = 0.02f;  // 2% of cycle for smooth transition
-
             // Normal ramp: phase * 2 - 1 maps [0,1] to [-1,+1]
             float rampValue = phase * 2.0f - 1.0f;
 
             // Last 2% of cycle: smooth down preparing for wrap to -1
-            if (phase > 1.0f - transitionWidth)
+            if (phase > 1.0f - kTransitionWidth)
             {
-                float t = (phase - (1.0f - transitionWidth)) / transitionWidth;
+                float t = (phase - (1.0f - kTransitionWidth)) / kTransitionWidth;
                 float smoothed = smoothTransition(t);
-                // Interpolate from current ramp value to -1
-                float endValue = (1.0f - transitionWidth) * 2.0f - 1.0f;  // Value at start of transition
+                float endValue = (1.0f - kTransitionWidth) * 2.0f - 1.0f;
                 return endValue + smoothed * (-1.0f - endValue);
             }
             // First 2% of cycle: smooth up from -1
-            else if (phase < transitionWidth)
+            else if (phase < kTransitionWidth)
             {
-                float t = phase / transitionWidth;
+                float t = phase / kTransitionWidth;
                 float smoothed = smoothTransition(t);
-                // Interpolate from -1 to ramp value at end of transition
-                float startRamp = transitionWidth * 2.0f - 1.0f;
+                float startRamp = kTransitionWidth * 2.0f - 1.0f;
                 return -1.0f + smoothed * (startRamp - (-1.0f));
             }
             else
@@ -440,13 +432,12 @@ float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformT
             }
 
             // Apply smooth transition at quarter boundaries
-            const float transitionWidth = 0.02f;  // 2% of cycle
             float quarterPhase = mainLfoPhase * 4.0f - currentQuarter;  // Phase within current quarter (0.0-1.0)
 
             // First 2% of each quarter: smooth from previous to current value
-            if (quarterPhase < transitionWidth)
+            if (quarterPhase < kTransitionWidth)
             {
-                float t = quarterPhase / transitionWidth;
+                float t = quarterPhase / kTransitionWidth;
                 float smoothed = smoothTransition(t);
                 return noisePrevHeldValue + smoothed * (noiseHeldValue - noisePrevHeldValue);
             }
@@ -456,25 +447,21 @@ float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformT
 
         case 4: // Square with smooth transitions
         {
-            const float transitionWidth = 0.02f;  // 2% of cycle for smooth transition
-
             if (phase < 0.5f)
             {
-                // High state, check for transition at start
-                if (phase < transitionWidth)
+                if (phase < kTransitionWidth)
                 {
-                    float t = phase / transitionWidth;
-                    return -1.0f + smoothTransition(t) * 2.0f;  // -1 to +1
+                    float t = phase / kTransitionWidth;
+                    return -1.0f + smoothTransition(t) * 2.0f;
                 }
                 return 1.0f;
             }
             else
             {
-                // Low state, check for transition at midpoint
-                if (phase < 0.5f + transitionWidth)
+                if (phase < 0.5f + kTransitionWidth)
                 {
-                    float t = (phase - 0.5f) / transitionWidth;
-                    return 1.0f - smoothTransition(t) * 2.0f;  // +1 to -1
+                    float t = (phase - 0.5f) / kTransitionWidth;
+                    return 1.0f - smoothTransition(t) * 2.0f;
                 }
                 return -1.0f;
             }
@@ -483,25 +470,22 @@ float OuariconTremoloAudioProcessor::generateWaveform(float phase, int waveformT
         case 5: // Pulse (20% duty cycle) with smooth transitions
         {
             const float dutyCycle = 0.2f;
-            const float transitionWidth = 0.02f;
 
             if (phase < dutyCycle)
             {
-                // High state, check for transition at start
-                if (phase < transitionWidth)
+                if (phase < kTransitionWidth)
                 {
-                    float t = phase / transitionWidth;
-                    return -1.0f + smoothTransition(t) * 2.0f;  // -1 to +1
+                    float t = phase / kTransitionWidth;
+                    return -1.0f + smoothTransition(t) * 2.0f;
                 }
                 return 1.0f;
             }
             else
             {
-                // Low state, check for transition at duty cycle end
-                if (phase < dutyCycle + transitionWidth)
+                if (phase < dutyCycle + kTransitionWidth)
                 {
-                    float t = (phase - dutyCycle) / transitionWidth;
-                    return 1.0f - smoothTransition(t) * 2.0f;  // +1 to -1
+                    float t = (phase - dutyCycle) / kTransitionWidth;
+                    return 1.0f - smoothTransition(t) * 2.0f;
                 }
                 return -1.0f;
             }

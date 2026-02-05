@@ -217,6 +217,15 @@ export class CurveEditor {
     }
 
     /**
+     * Reset curve to flat (0dB across all bands)
+     */
+    resetCurve() {
+        this.curveData = new Array(this.numBands).fill(0.0);
+        this.render();
+        this.notifyCurveChange();
+    }
+
+    /**
      * Notify listeners of curve change
      */
     notifyCurveChange() {

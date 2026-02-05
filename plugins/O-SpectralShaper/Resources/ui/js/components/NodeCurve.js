@@ -211,6 +211,15 @@ export class NodeCurve extends CurveEditor {
     }
 
     /**
+     * Reset curve to flat, resetting nodes to default positions
+     */
+    resetCurve() {
+        this.selectedNode = null;
+        this.initializeDefaultNodes();
+        this.notifyCurveChange();
+    }
+
+    /**
      * Set curve data from C++ and rebuild nodes
      */
     setCurveData(data) {

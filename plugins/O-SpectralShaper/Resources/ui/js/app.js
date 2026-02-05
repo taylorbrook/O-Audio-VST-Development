@@ -237,6 +237,10 @@ function initializeCurveEditors() {
     setupModeToggle('attack');
     setupModeToggle('sustain');
 
+    // Reset buttons
+    setupResetButton('attack');
+    setupResetButton('sustain');
+
     // Load initial curve data from C++
     loadCurvesFromProcessor();
 }
@@ -280,6 +284,15 @@ function setupModeToggle(curveType) {
         };
 
         console.log(`${curveType} curve mode: ${newMode}`);
+    });
+}
+
+function setupResetButton(curveType) {
+    const resetButton = document.getElementById(`${curveType}-reset-btn`);
+
+    resetButton.addEventListener('click', () => {
+        app.curveEditors[curveType].resetCurve();
+        console.log(`${curveType} curve reset to flat`);
     });
 }
 

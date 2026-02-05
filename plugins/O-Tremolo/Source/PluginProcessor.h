@@ -68,6 +68,14 @@ private:
     float noisePrevHeldValue = 0.0f;  // Previous value for smooth transitions
     int noiseLastQuarter = -1;
 
+    // Cached parameter pointers (valid for processor lifetime)
+    std::atomic<float>* speedParam = nullptr;
+    std::atomic<float>* depthParam = nullptr;
+    std::atomic<float>* waveformParam = nullptr;
+    std::atomic<float>* smoothingParam = nullptr;
+    std::atomic<float>* panSyncParam = nullptr;
+    std::atomic<float>* tempoSyncParam = nullptr;
+
     // Helper methods
     float generateWaveform(float phase, int waveformType, float mainLfoPhase);
     float applySmoothingFilter(float rawLFO, float& prevSmoothed, float coefficient);

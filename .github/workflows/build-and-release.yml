@@ -72,21 +72,134 @@ jobs:
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
           cmake --build build --target "${PLUGIN}_VST3" "${PLUGIN}_AU" --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
 
+      - name: Import Signing Certificate
+        env:
+          MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
+          MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+        run: |
+          # Decode certificate from base64 secret
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
+
+          # Create a temporary keychain
+          KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PWD="$(openssl rand -hex 24)"
+
+          security create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+
+          # Import certificate into keychain
+          security import certificate.p12 \
+            -P "$MACOS_CERTIFICATE_PWD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+
+          # Allow codesign to access the keychain without UI prompt
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
+
+          # Add temporary keychain to search list
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+
+          # Clean up certificate file
+          rm certificate.p12
+
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
+          echo "KEYCHAIN_PWD=$KEYCHAIN_PWD" >> $GITHUB_ENV
+
+      - name: Codesign Plugins
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+          IDENTITY="Developer ID Application: ${{ secrets.APPLE_IDENTITY_NAME }} ($APPLE_TEAM_ID)"
+
+          echo "Signing with identity: $IDENTITY"
+
+          # Sign VST3 bundle
+          if [ -d "${ARTEFACTS_BASE}/VST3" ]; then
+            for bundle in "${ARTEFACTS_BASE}/VST3/"*.vst3; do
+              echo "Signing VST3: $bundle"
+              codesign --deep --force --options runtime \
+                --sign "$IDENTITY" \
+                --timestamp \
+                "$bundle"
+              echo "Verifying signature..."
+              codesign --verify --verbose=2 "$bundle"
+            done
+          fi
+
+          # Sign AU bundle
+          if [ -d "${ARTEFACTS_BASE}/AU" ]; then
+            for bundle in "${ARTEFACTS_BASE}/AU/"*.component; do
+              echo "Signing AU: $bundle"
+              codesign --deep --force --options runtime \
+                --sign "$IDENTITY" \
+                --timestamp \
+                "$bundle"
+              echo "Verifying signature..."
+              codesign --verify --verbose=2 "$bundle"
+            done
+          fi
+
+      - name: Notarize Plugins
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+
+          # Create a ZIP of all signed bundles for notarization submission
+          mkdir -p notarize_payload
+          if [ -d "${ARTEFACTS_BASE}/VST3" ]; then
+            cp -R "${ARTEFACTS_BASE}/VST3/"*.vst3 notarize_payload/
+          fi
+          if [ -d "${ARTEFACTS_BASE}/AU" ]; then
+            cp -R "${ARTEFACTS_BASE}/AU/"*.component notarize_payload/
+          fi
+
+          ditto -c -k --keepParent notarize_payload notarize_payload.zip
+
+          # Submit for notarization and wait for result
+          echo "Submitting for notarization..."
+          xcrun notarytool submit notarize_payload.zip \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 30m
+
+          # Staple the notarization ticket to each bundle
+          echo "Stapling notarization tickets..."
+          if [ -d "${ARTEFACTS_BASE}/VST3" ]; then
+            for bundle in "${ARTEFACTS_BASE}/VST3/"*.vst3; do
+              echo "Stapling: $bundle"
+              xcrun stapler staple "$bundle"
+            done
+          fi
+          if [ -d "${ARTEFACTS_BASE}/AU" ]; then
+            for bundle in "${ARTEFACTS_BASE}/AU/"*.component; do
+              echo "Stapling: $bundle"
+              xcrun stapler staple "$bundle"
+            done
+          fi
+
+          # Clean up
+          rm -rf notarize_payload notarize_payload.zip
+
       - name: Package Artifacts
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
           VERSION="${{ needs.parse-tag.outputs.version }}"
-
-          # Find artefacts directory (handle spaces in plugin names)
           ARTEFACTS_BASE="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
-
-          # Find product name from CMakeLists.txt
-          PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/')
-          echo "Product Name: $PRODUCT_NAME"
 
           mkdir -p dist
 
-          # Copy VST3 and AU (handle product names with spaces)
+          # Copy signed and notarized bundles
           if [ -d "${ARTEFACTS_BASE}/VST3" ]; then
             cp -R "${ARTEFACTS_BASE}/VST3/"*.vst3 dist/ || true
           fi
@@ -94,7 +207,6 @@ jobs:
             cp -R "${ARTEFACTS_BASE}/AU/"*.component dist/ || true
           fi
 
-          # List what we packaged
           echo "Packaged artifacts:"
           ls -la dist/
 
@@ -103,6 +215,13 @@ jobs:
           tar -czf "../${PLUGIN}-${VERSION}-macos.tar.gz" .
           cd ..
           echo "Created: ${PLUGIN}-${VERSION}-macos.tar.gz"
+
+      - name: Cleanup Keychain
+        if: always()
+        run: |
+          if [ -n "$KEYCHAIN_PATH" ]; then
+            security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true
+          fi
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4

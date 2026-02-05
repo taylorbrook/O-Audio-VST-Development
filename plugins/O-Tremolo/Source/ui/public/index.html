@@ -1020,6 +1020,8 @@
         }
 
         // Waveform visualization
+        let smoothedY = 0;  // Smoothing state for waveform visualizer
+
         function drawWaveform() {
             if (!canvas || !ctx || !waveformState || !smoothingState || !depthState) return;
 
@@ -1148,10 +1150,9 @@
                 }
 
                 if (smoothing > 0 && x > 0) {
-                    const prevY = ctx.lastY || 0;
-                    y = prevY + (y - prevY) * (1 - smoothing * 0.9);
+                    y = smoothedY + (y - smoothedY) * (1 - smoothing * 0.9);
                 }
-                ctx.lastY = y;
+                smoothedY = y;
 
                 const plotY = centerY - (y * amplitude);
                 x === 0 ? ctx.moveTo(x, plotY) : ctx.lineTo(x, plotY);

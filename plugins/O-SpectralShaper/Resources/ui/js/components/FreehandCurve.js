@@ -3,6 +3,9 @@
  *
  * User drags to draw a freehand curve, which is smoothed using
  * Catmull-Rom splines and sampled at 32 logarithmic band centers.
+ *
+ * Supports partial drawing: releasing the mouse and re-clicking
+ * only updates the frequency range covered by the new stroke.
  */
 
 import { CurveEditor } from './CurveEditor.js';
@@ -13,8 +16,8 @@ export class FreehandCurve extends CurveEditor {
 
         // Freehand-specific state
         this.isDrawing = false;
-        this.rawPoints = []; // Raw mouse coordinates during drag
-        this.smoothedPoints = []; // Catmull-Rom smoothed points
+        this.rawPoints = []; // Raw mouse coordinates for current stroke
+        this.smoothedPoints = []; // Catmull-Rom smoothed points for current stroke
 
         // Bind event handlers
         this.onMouseDown = this.onMouseDown.bind(this);
@@ -33,8 +36,9 @@ export class FreehandCurve extends CurveEditor {
         e.preventDefault();
         this.isDrawing = true;
 
-        // Start new curve
+        // Start new stroke (curveData is preserved from previous strokes)
         this.rawPoints = [];
+        this.smoothedPoints = [];
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -60,7 +64,7 @@ export class FreehandCurve extends CurveEditor {
         if (now - this.lastUpdateTime < this.updateThrottle) return;
         this.lastUpdateTime = now;
 
-        // Smooth and sample
+        // Smooth and sample (only within stroke range)
         this.smoothAndSample();
 
         // Render
@@ -81,6 +85,10 @@ export class FreehandCurve extends CurveEditor {
 
         // Final notification
         this.notifyCurveChange();
+
+        // Clear stroke data (curveData is preserved)
+        this.rawPoints = [];
+        this.smoothedPoints = [];
 
         // Remove global listeners
         document.removeEventListener('mousemove', this.onMouseMove);
@@ -132,22 +140,37 @@ export class FreehandCurve extends CurveEditor {
             }
         }
 
-        // Sample at 32 band centers
+        // Sample at 32 band centers (only within stroke range)
         this.sampleAtBands();
     }
 
     /**
-     * Sample smoothed curve at 32 logarithmic band centers
+     * Sample smoothed curve at 32 logarithmic band centers.
+     * Only updates bands within the X range of the current stroke,
+     * preserving all other band values from previous strokes.
      */
     sampleAtBands() {
+        if (this.smoothedPoints.length === 0) return;
+
         const bandFreqs = this.getBandFrequencies();
+
+        // Determine the X range of the current stroke
+        let strokeMinX = Infinity;
+        let strokeMaxX = -Infinity;
+        for (const point of this.smoothedPoints) {
+            if (point.x < strokeMinX) strokeMinX = point.x;
+            if (point.x > strokeMaxX) strokeMaxX = point.x;
+        }
 
         for (let i = 0; i < this.numBands; i++) {
             const freq = bandFreqs[i];
             const x = this.freqToX(freq);
 
+            // Only update bands within the stroke's X range
+            if (x < strokeMinX || x > strokeMaxX) continue;
+
             // Find closest smoothed point
-            let closestY = this.height / 2; // Default to center (0dB)
+            let closestY = this.gainToY(this.curveData[i]);
             let minDist = Infinity;
 
             for (const point of this.smoothedPoints) {
@@ -164,36 +187,15 @@ export class FreehandCurve extends CurveEditor {
     }
 
     /**
-     * Draw the freehand curve
+     * Draw the freehand curve - always renders from curveData
+     * so partial strokes are visually consistent
      */
     drawCurve() {
-        if (this.smoothedPoints.length < 2) {
-            // Draw current data as curve
-            this.drawDataCurve();
-            return;
-        }
-
-        // Draw smoothed curve
-        this.ctx.strokeStyle = this.accentColor;
-        this.ctx.lineWidth = 2;
-        this.ctx.beginPath();
-
-        this.smoothedPoints.forEach((point, i) => {
-            if (i === 0) {
-                this.ctx.moveTo(point.x, point.y);
-            } else {
-                this.ctx.lineTo(point.x, point.y);
-            }
-        });
-
-        this.ctx.stroke();
-
-        // Draw sample points
-        this.drawSamplePoints();
+        this.drawDataCurve();
     }
 
     /**
-     * Draw curve from data (when not actively drawing)
+     * Draw curve from band data
      */
     drawDataCurve() {
         const bandFreqs = this.getBandFrequencies();
@@ -234,5 +236,14 @@ export class FreehandCurve extends CurveEditor {
             this.ctx.arc(x, y, 2, 0, Math.PI * 2);
             this.ctx.fill();
         });
+    }
+
+    /**
+     * Reset curve to flat, clearing all stroke data
+     */
+    resetCurve() {
+        this.rawPoints = [];
+        this.smoothedPoints = [];
+        super.resetCurve();
     }
 }

@@ -178,10 +178,17 @@ body::after {
     pointer-events: none;
 }
 
-.curve-mode-toggle {
+.curve-controls {
     position: absolute;
     top: 6px;
     right: 8px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+}
+
+.curve-mode-toggle,
+.curve-reset-btn {
     padding: 4px 10px;
     font-size: 9px;
     font-family: 'Georgia', serif;
@@ -194,12 +201,14 @@ body::after {
     transition: all 0.2s ease;
 }
 
-.curve-mode-toggle:hover {
+.curve-mode-toggle:hover,
+.curve-reset-btn:hover {
     background: rgba(40, 40, 40, 0.9);
     border-color: rgba(232, 224, 212, 0.5);
 }
 
-.curve-mode-toggle:active {
+.curve-mode-toggle:active,
+.curve-reset-btn:active {
     background: rgba(20, 20, 20, 0.9);
 }
 

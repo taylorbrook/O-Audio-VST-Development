@@ -24,14 +24,20 @@
         <div class="curve-container attack-curve-container">
             <canvas id="attack-curve-canvas" class="curve-canvas"></canvas>
             <div class="curve-label">Attack Curve</div>
-            <button id="attack-mode-toggle" class="curve-mode-toggle">Freehand</button>
+            <div class="curve-controls">
+                <button id="attack-reset-btn" class="curve-reset-btn" title="Reset curve to flat">Reset</button>
+                <button id="attack-mode-toggle" class="curve-mode-toggle">Freehand</button>
+            </div>
         </div>
 
         <!-- SUSTAIN CURVE EDITOR -->
         <div class="curve-container sustain-curve-container">
             <canvas id="sustain-curve-canvas" class="curve-canvas"></canvas>
             <div class="curve-label">Sustain Curve</div>
-            <button id="sustain-mode-toggle" class="curve-mode-toggle">Freehand</button>
+            <div class="curve-controls">
+                <button id="sustain-reset-btn" class="curve-reset-btn" title="Reset curve to flat">Reset</button>
+                <button id="sustain-mode-toggle" class="curve-mode-toggle">Freehand</button>
+            </div>
         </div>
 
         <!-- KNOB SIDEBAR -->
