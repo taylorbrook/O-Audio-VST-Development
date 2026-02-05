@@ -67,10 +67,18 @@ jobs:
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
             -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
 
-      - name: Build Plugin
+      - name: Resolve CMake Target
+        id: resolve
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          cmake --build build --target "${PLUGIN}_VST3" "${PLUGIN}_AU" --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
+          CMAKE_TARGET=$(grep 'juce_add_plugin(' "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*juce_add_plugin(\([^ )]*\).*/\1/')
+          echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
+          echo "Resolved CMake target: $CMAKE_TARGET (from directory: $PLUGIN)"
+
+      - name: Build Plugin
+        run: |
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          cmake --build build --target "${TARGET}_VST3" "${TARGET}_AU" --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
 
       - name: Import Signing Certificate
         env:
@@ -113,7 +121,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}"
           IDENTITY="Developer ID Application: ${{ secrets.APPLE_IDENTITY_NAME }} ($APPLE_TEAM_ID)"
 
           echo "Signing with identity: $IDENTITY"
@@ -151,7 +160,8 @@ jobs:
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}"
 
           # Create a ZIP of all signed bundles for notarization submission
           mkdir -p notarize_payload
@@ -195,7 +205,8 @@ jobs:
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
           VERSION="${{ needs.parse-tag.outputs.version }}"
-          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          ARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}"
 
           mkdir -p dist
 
@@ -257,16 +268,26 @@ jobs:
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
+      - name: Resolve CMake Target
+        id: resolve
+        shell: bash
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          CMAKE_TARGET=$(grep 'juce_add_plugin(' "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*juce_add_plugin(\([^ )]*\).*/\1/')
+          echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
+          echo "Resolved CMake target: $CMAKE_TARGET (from directory: $PLUGIN)"
+
       - name: Build Plugin
         run: |
-          $PLUGIN = "${{ needs.parse-tag.outputs.plugin_name }}"
-          cmake --build build --target "${PLUGIN}_VST3" --config ${{ env.BUILD_TYPE }}
+          $TARGET = "${{ steps.resolve.outputs.cmake_target }}"
+          cmake --build build --target "${TARGET}_VST3" --config ${{ env.BUILD_TYPE }}
 
       - name: Package Artifacts
         run: |
           $PLUGIN = "${{ needs.parse-tag.outputs.plugin_name }}"
           $VERSION = "${{ needs.parse-tag.outputs.version }}"
-          $ARTEFACTS = "build\plugins\$PLUGIN\${PLUGIN}_artefacts\${{ env.BUILD_TYPE }}"
+          $TARGET = "${{ steps.resolve.outputs.cmake_target }}"
+          $ARTEFACTS = "build\plugins\$PLUGIN\${TARGET}_artefacts\${{ env.BUILD_TYPE }}"
 
           New-Item -ItemType Directory -Force -Path dist
 
@@ -338,16 +359,25 @@ jobs:
           cmake -B build \
             -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}
 
-      - name: Build Plugin
+      - name: Resolve CMake Target
+        id: resolve
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          cmake --build build --target "${PLUGIN}_VST3" --config ${{ env.BUILD_TYPE }} -j$(nproc)
+          CMAKE_TARGET=$(grep 'juce_add_plugin(' "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*juce_add_plugin(\([^ )]*\).*/\1/')
+          echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
+          echo "Resolved CMake target: $CMAKE_TARGET (from directory: $PLUGIN)"
+
+      - name: Build Plugin
+        run: |
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          cmake --build build --target "${TARGET}_VST3" --config ${{ env.BUILD_TYPE }} -j$(nproc)
 
       - name: Package Artifacts
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
           VERSION="${{ needs.parse-tag.outputs.version }}"
-          ARTEFACTS="build/plugins/${PLUGIN}/${PLUGIN}_artefacts/${{ env.BUILD_TYPE }}"
+          TARGET="${{ steps.resolve.outputs.cmake_target }}"
+          ARTEFACTS="build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}"
 
           mkdir -p dist
 
