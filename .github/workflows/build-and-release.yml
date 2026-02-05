@@ -80,14 +80,13 @@ jobs:
           TARGET="${{ steps.resolve.outputs.cmake_target }}"
           cmake --build build --target "${TARGET}_VST3" "${TARGET}_AU" --config ${{ env.BUILD_TYPE }} -j$(sysctl -n hw.ncpu)
 
-      - name: Import Signing Certificate
+      - name: Import Signing Certificates
         env:
           MACOS_CERTIFICATE: ${{ secrets.MACOS_CERTIFICATE }}
           MACOS_CERTIFICATE_PWD: ${{ secrets.MACOS_CERTIFICATE_PWD }}
+          MACOS_INSTALLER_CERTIFICATE: ${{ secrets.MACOS_INSTALLER_CERTIFICATE }}
+          MACOS_INSTALLER_CERTIFICATE_PWD: ${{ secrets.MACOS_INSTALLER_CERTIFICATE_PWD }}
         run: |
-          # Decode certificate from base64 secret
-          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
-
           # Create a temporary keychain
           KEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"
           KEYCHAIN_PWD="$(openssl rand -hex 24)"
@@ -96,22 +95,31 @@ jobs:
           security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
           security unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
 
-          # Import certificate into keychain
+          # Import Developer ID Application certificate
+          echo "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12
           security import certificate.p12 \
             -P "$MACOS_CERTIFICATE_PWD" \
             -A \
             -t cert \
             -f pkcs12 \
             -k "$KEYCHAIN_PATH"
+          rm certificate.p12
 
-          # Allow codesign to access the keychain without UI prompt
+          # Import Developer ID Installer certificate
+          echo "$MACOS_INSTALLER_CERTIFICATE" | base64 --decode > installer-certificate.p12
+          security import installer-certificate.p12 \
+            -P "$MACOS_INSTALLER_CERTIFICATE_PWD" \
+            -A \
+            -t cert \
+            -f pkcs12 \
+            -k "$KEYCHAIN_PATH"
+          rm installer-certificate.p12
+
+          # Allow codesign/productsign to access the keychain without UI prompt
           security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"
 
           # Add temporary keychain to search list
           security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
-
-          # Clean up certificate file
-          rm certificate.p12
 
           echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV
           echo "KEYCHAIN_PWD=$KEYCHAIN_PWD" >> $GITHUB_ENV
@@ -201,31 +209,159 @@ jobs:
           # Clean up
           rm -rf notarize_payload notarize_payload.zip
 
-      - name: Package Artifacts
+      - name: Create PKG Installer
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
           VERSION="${{ needs.parse-tag.outputs.version }}"
           TARGET="${{ steps.resolve.outputs.cmake_target }}"
           ARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}"
 
-          mkdir -p dist
+          # Get PRODUCT_NAME from CMakeLists.txt
+          PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/')
+          PRODUCT_NAME="${PRODUCT_NAME:-$PLUGIN}"
+          BUNDLE_ID="io.oaudio.$(echo "$PLUGIN" | tr '[:upper:]' '[:lower:]')"
 
-          # Copy signed and notarized bundles
+          echo "Building PKG for: $PRODUCT_NAME v$VERSION"
+
+          # Setup directories
+          PKG_DIR="$RUNNER_TEMP/pkg-build"
+          mkdir -p "$PKG_DIR/payload/${PLUGIN}" "$PKG_DIR/scripts" "$PKG_DIR/resources"
+
+          # Copy signed+notarized bundles to payload
           if [ -d "${ARTEFACTS_BASE}/VST3" ]; then
-            cp -R "${ARTEFACTS_BASE}/VST3/"*.vst3 dist/ || true
+            cp -R "${ARTEFACTS_BASE}/VST3/"*.vst3 "$PKG_DIR/payload/${PLUGIN}/"
           fi
           if [ -d "${ARTEFACTS_BASE}/AU" ]; then
-            cp -R "${ARTEFACTS_BASE}/AU/"*.component dist/ || true
+            cp -R "${ARTEFACTS_BASE}/AU/"*.component "$PKG_DIR/payload/${PLUGIN}/"
           fi
 
-          echo "Packaged artifacts:"
-          ls -la dist/
+          # Create postinstall script
+          cat > "$PKG_DIR/scripts/postinstall" << 'POSTINSTALL'
+          #!/bin/bash
+          ACTUAL_USER=$(stat -f '%Su' /dev/console)
+          USER_HOME=$(eval echo ~$ACTUAL_USER)
+          mkdir -p "$USER_HOME/Library/Audio/Plug-Ins/VST3"
+          mkdir -p "$USER_HOME/Library/Audio/Plug-Ins/Components"
+          for vst3 in /tmp/__PLUGIN__/*.vst3; do
+            [ -e "$vst3" ] && cp -R "$vst3" "$USER_HOME/Library/Audio/Plug-Ins/VST3/"
+          done
+          for au in /tmp/__PLUGIN__/*.component; do
+            [ -e "$au" ] && cp -R "$au" "$USER_HOME/Library/Audio/Plug-Ins/Components/"
+          done
+          chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Audio/Plug-Ins/VST3/" 2>/dev/null || true
+          chown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Audio/Plug-Ins/Components/" 2>/dev/null || true
+          rm -rf "/tmp/__PLUGIN__"
+          exit 0
+          POSTINSTALL
+          sed -i '' "s/__PLUGIN__/${PLUGIN}/g" "$PKG_DIR/scripts/postinstall"
+          chmod +x "$PKG_DIR/scripts/postinstall"
 
-          # Create tarball
-          cd dist
-          tar -czf "../${PLUGIN}-${VERSION}-macos.tar.gz" .
-          cd ..
-          echo "Created: ${PLUGIN}-${VERSION}-macos.tar.gz"
+          # Create branding files
+          cat > "$PKG_DIR/resources/Welcome.txt" << EOF
+          ${PRODUCT_NAME} by Ouaricon Audio
+
+          Welcome to the ${PRODUCT_NAME} installer.
+
+          This will install ${PRODUCT_NAME} v${VERSION}.
+
+          What You're Installing:
+          • VST3 format (compatible with most DAWs)
+          • AU format (Logic Pro, GarageBand, and more)
+
+          Click Continue to begin installation.
+
+          oaudio.io
+          EOF
+
+          cat > "$PKG_DIR/resources/Conclusion.txt" << EOF
+          Installation Complete!
+
+          ${PRODUCT_NAME} has been successfully installed.
+
+          FIND ${PRODUCT_NAME} IN YOUR DAW:
+          VST3: Plugin browser under "Ouaricon Development"
+          AU: Audio Units > Ouaricon Development > ${PRODUCT_NAME}
+
+          Thank you for using ${PRODUCT_NAME}!
+          — Ouaricon Audio | oaudio.io
+          EOF
+
+          # Build component package
+          pkgbuild \
+            --root "$PKG_DIR/payload" \
+            --scripts "$PKG_DIR/scripts" \
+            --identifier "$BUNDLE_ID" \
+            --version "$VERSION" \
+            --install-location /tmp \
+            "$PKG_DIR/${PLUGIN}-Installer.pkg"
+
+          # Create distribution XML
+          cat > "$PKG_DIR/Distribution.xml" << EOF
+          <?xml version="1.0" encoding="utf-8"?>
+          <installer-gui-script minSpecVersion="1">
+              <title>${PRODUCT_NAME} by Ouaricon Audio</title>
+              <organization>io.oaudio</organization>
+              <domains enable_localSystem="true"/>
+              <options customize="never" require-scripts="true" rootVolumeOnly="true" />
+              <welcome file="Welcome.txt" mime-type="text/plain" />
+              <conclusion file="Conclusion.txt" mime-type="text/plain" />
+              <pkg-ref id="${BUNDLE_ID}"><bundle-version/></pkg-ref>
+              <choices-outline>
+                  <line choice="default">
+                      <line choice="${BUNDLE_ID}"/>
+                  </line>
+              </choices-outline>
+              <choice id="default"/>
+              <choice id="${BUNDLE_ID}" visible="false">
+                  <pkg-ref id="${BUNDLE_ID}"/>
+              </choice>
+              <pkg-ref id="${BUNDLE_ID}" version="${VERSION}" onConclusion="none">${PLUGIN}-Installer.pkg</pkg-ref>
+          </installer-gui-script>
+          EOF
+
+          # Build branded product
+          productbuild \
+            --distribution "$PKG_DIR/Distribution.xml" \
+            --resources "$PKG_DIR/resources" \
+            --package-path "$PKG_DIR" \
+            "$PKG_DIR/${PLUGIN}-unsigned.pkg"
+
+          # Sign the package
+          INSTALLER_IDENTITY="Developer ID Installer: ${{ secrets.APPLE_IDENTITY_NAME }} ($APPLE_TEAM_ID)"
+          echo "Signing PKG with: $INSTALLER_IDENTITY"
+          productsign \
+            --sign "$INSTALLER_IDENTITY" \
+            "$PKG_DIR/${PLUGIN}-unsigned.pkg" \
+            "${PLUGIN}-${VERSION}-macos.pkg"
+
+          # Verify signature
+          pkgutil --check-signature "${PLUGIN}-${VERSION}-macos.pkg"
+          echo "Created: ${PLUGIN}-${VERSION}-macos.pkg"
+
+      - name: Notarize PKG Installer
+        env:
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_ID_PASSWORD: ${{ secrets.APPLE_ID_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          VERSION="${{ needs.parse-tag.outputs.version }}"
+          PKG_FILE="${PLUGIN}-${VERSION}-macos.pkg"
+
+          echo "Submitting PKG for notarization..."
+          xcrun notarytool submit "$PKG_FILE" \
+            --apple-id "$APPLE_ID" \
+            --password "$APPLE_ID_PASSWORD" \
+            --team-id "$APPLE_TEAM_ID" \
+            --wait \
+            --timeout 30m
+
+          echo "Stapling notarization ticket to PKG..."
+          xcrun stapler staple "$PKG_FILE"
+
+          echo "PKG notarized and stapled successfully"
 
       - name: Cleanup Keychain
         if: always()
@@ -238,7 +374,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: macos-build
-          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-macos.tar.gz
+          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-macos.pkg
 
   # ============================================
   # Windows Build
