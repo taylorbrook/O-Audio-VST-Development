@@ -1,3 +1,20 @@
+---
+title: "Multi-Lane Beat Repeater Architecture"
+summary: "Design for a polyrhythmic beat repeater with 4 independent repeat lanes, envelope follower triggering, Euclidean rhythm patterns, and tape degradation simulation on repeats."
+domain: dsp
+type: algorithm
+keywords:
+  - stutter
+  - stutter-effects
+  - beat-repeat
+  - polyrhythmic
+  - euclidean-rhythm
+  - tape-degradation
+  - multi-lane
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Path B: Multi-Lane Beat Repeater
 
 **Simple Buffer Capture with Polyrhythmic Capabilities**

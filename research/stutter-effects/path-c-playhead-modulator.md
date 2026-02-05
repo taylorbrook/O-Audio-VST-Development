@@ -1,3 +1,20 @@
+---
+title: "Playhead Modulator Architecture"
+summary: "Design for a TimeShaper-style playhead modulator with drawable envelope control, multiband time manipulation, harmonic locking during speed changes, and physics-based envelope behavior."
+domain: dsp
+type: algorithm
+keywords:
+  - stutter
+  - stutter-effects
+  - playhead-modulation
+  - time-stretching
+  - harmonic-locking
+  - multiband
+  - drawable-envelope
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Path C: Playhead Modulator (TimeShaper Style)
 
 **Drawable Envelope Controls Playback Position**

@@ -1,3 +1,20 @@
+---
+title: "Granular Stutter Engine Architecture"
+summary: "Design and implementation plan for a granular stutter engine extending the Scatter plugin with beat-synchronized triggering, 64-voice granular synthesis, and musical scale quantization."
+domain: dsp
+type: algorithm
+keywords:
+  - stutter
+  - stutter-effects
+  - granular
+  - beat-sync
+  - grain-scheduling
+  - scale-quantization
+  - voice-pool
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Path A: Granular Stutter Engine
 
 **Extend Scatter with Beat-Synchronized Triggering**
