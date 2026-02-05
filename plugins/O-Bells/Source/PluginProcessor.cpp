@@ -882,6 +882,9 @@ void OBellsAudioProcessor::initializeFactoryPresets()
     // VelocityCurve Choice: 0=Linear, 1=Exponential, 2=Logarithmic
     //
     // v2.2.0+ parameters utilized: airAbsorption, airAbsorptionTime, acousticBrightness
+    // v3.2.0+ parameters utilized: humanize, lpFilterEnabled, lpFilterCutoff,
+    //   bloomFineEnabled, bloomSpeedLow/Mid/High, bloomAmountLow/Mid/High,
+    //   nonlinearEffects, partialTuning, pitchEnvelope, pitchEnvTime (expanded usage)
     // ==========================================================================
 
     // ========== LARGE BELLS (5 presets) ==========
@@ -894,10 +897,15 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.42f}, {"acousticBrightness", 0.55f}, {"material", 0.0f}, {"inharmonicity", 0.55f},
         {"airAbsorption", 0.35f}, {"airAbsorptionTime", 4.0f},
         {"bloomSpeed", 0.75f}, {"bloomAmount", 0.32f}, {"shimmer", 0.22f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.85f}, {"bloomSpeedMid", 0.7f}, {"bloomSpeedHigh", 0.55f},
+        {"bloomAmountLow", 0.4f}, {"bloomAmountMid", 0.3f}, {"bloomAmountHigh", 0.18f},
         {"unisonCount", 0.33f}, {"unisonDetune", 12.0f},
         {"octaveBlendSub", 0.45f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.85f},
         {"strikeTime", 45.0f}, {"brilliance", 38.0f}, {"bodyTime", 3200.0f}, {"humSustain", 82.0f},
-        {"attackLevel", 0.52f}, {"reverbMix", 0.55f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.52f}, {"reverbMix", 0.55f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.35f}, {"pitchEnvelope", 0.03f}, {"pitchEnvTime", 80.0f}
     }, {} });
 
     // Heavy cast iron bell - dark, industrial quality
@@ -907,10 +915,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.28f}, {"acousticBrightness", 0.45f}, {"material", 4.0f}, {"inharmonicity", 0.65f},
         {"airAbsorption", 0.42f}, {"airAbsorptionTime", 5.5f},
         {"bloomSpeed", 0.88f}, {"bloomAmount", 0.45f}, {"shimmer", 0.18f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.95f}, {"bloomSpeedMid", 0.82f}, {"bloomSpeedHigh", 0.65f},
+        {"bloomAmountLow", 0.55f}, {"bloomAmountMid", 0.4f}, {"bloomAmountHigh", 0.22f},
         {"unisonCount", 0.67f}, {"unisonDetune", 18.0f},
         {"octaveBlendSub", 0.62f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.92f},
         {"strikeTime", 55.0f}, {"brilliance", 22.0f}, {"bodyTime", 4000.0f}, {"humSustain", 90.0f},
-        {"attackLevel", 0.45f}, {"reverbMix", 0.6f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.45f}, {"reverbMix", 0.6f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 6500.0f},
+        {"nonlinearEffects", 0.08f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.3f}, {"pitchEnvelope", 0.04f}, {"pitchEnvTime", 100.0f}
     }, {} });
 
     // Warm brass bell - resonant, musical tone
@@ -923,7 +938,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.33f}, {"unisonDetune", 10.0f},
         {"octaveBlendSub", 0.38f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.78f},
         {"strikeTime", 38.0f}, {"brilliance", 48.0f}, {"bodyTime", 2800.0f}, {"humSustain", 72.0f},
-        {"attackLevel", 0.55f}, {"reverbMix", 0.52f},         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.55f}, {"reverbMix", 0.52f},
+        {"partialTuning", -5.0f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.3f}
     }, {} });
 
     // Classic European church bell - balanced, traditional
@@ -936,8 +954,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.33f}, {"unisonDetune", 8.0f},
         {"octaveBlendSub", 0.42f}, {"octaveBlendOct", 0.18f}, {"stereoSpread", 0.88f},
         {"strikeTime", 42.0f}, {"brilliance", 45.0f}, {"bodyTime", 3500.0f}, {"humSustain", 78.0f},
-        {"attackLevel", 0.58f}, {"reverbMix", 0.58f},         {"partialTuning", -8.0f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.58f}, {"reverbMix", 0.58f},
+        {"partialTuning", -8.0f}, {"pitchEnvelope", 0.02f}, {"pitchEnvTime", 65.0f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.4f}
     }, {} });
 
     // Very slow, meditative bell - extended decay
@@ -947,11 +967,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.38f}, {"acousticBrightness", 0.5f}, {"material", 0.0f}, {"inharmonicity", 0.58f},
         {"airAbsorption", 0.48f}, {"airAbsorptionTime", 6.0f},
         {"bloomSpeed", 0.92f}, {"bloomAmount", 0.52f}, {"shimmer", 0.28f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.98f}, {"bloomSpeedMid", 0.88f}, {"bloomSpeedHigh", 0.72f},
+        {"bloomAmountLow", 0.6f}, {"bloomAmountMid", 0.48f}, {"bloomAmountHigh", 0.3f},
         {"unisonCount", 0.67f}, {"unisonDetune", 15.0f},
         {"octaveBlendSub", 0.55f}, {"octaveBlendOct", 0.08f}, {"stereoSpread", 0.95f},
         {"strikeTime", 60.0f}, {"brilliance", 32.0f}, {"bodyTime", 4500.0f}, {"humSustain", 95.0f},
-        {"attackLevel", 0.38f}, {"reverbMix", 0.65f},         {"pitchEnvelope", 0.05f}, {"pitchEnvTime", 120.0f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.38f}, {"reverbMix", 0.65f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 8000.0f},
+        {"pitchEnvelope", 0.05f}, {"pitchEnvTime", 120.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.45f}
     }, {} });
 
     // ========== BRIGHT BELLS (5 presets) ==========
@@ -967,7 +993,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.2f}, {"stereoSpread", 0.55f},
         {"strikeTime", 12.0f}, {"brilliance", 88.0f}, {"bodyTime", 1800.0f}, {"humSustain", 35.0f},
-        {"attackLevel", 0.65f}, {"reverbMix", 0.38f},         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.65f}, {"reverbMix", 0.38f},
+        {"partialTuning", 3.0f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.15f}
     }, {} });
 
     // Steel tube - bright, tubular bell character
@@ -980,7 +1009,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.1f}, {"stereoSpread", 0.48f},
         {"strikeTime", 18.0f}, {"brilliance", 82.0f}, {"bodyTime", 1400.0f}, {"humSustain", 28.0f},
-        {"attackLevel", 0.62f}, {"reverbMix", 0.32f},         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.62f}, {"reverbMix", 0.32f},
+        {"pitchEnvelope", 0.04f}, {"pitchEnvTime", 25.0f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.2f}
     }, {} });
 
     // Light aluminum - shimmery, delicate
@@ -993,7 +1025,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.33f}, {"unisonDetune", 8.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.28f}, {"stereoSpread", 0.65f},
         {"strikeTime", 10.0f}, {"brilliance", 92.0f}, {"bodyTime", 900.0f}, {"humSustain", 18.0f},
-        {"attackLevel", 0.68f}, {"reverbMix", 0.35f},         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.68f}, {"reverbMix", 0.35f},
+        {"nonlinearEffects", 0.05f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.12f}
     }, {} });
 
     // Bright bronze plate - clear attack, singing sustain
@@ -1005,7 +1040,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.05f}, {"octaveBlendOct", 0.18f}, {"stereoSpread", 0.52f},
         {"strikeTime", 15.0f}, {"brilliance", 78.0f}, {"bodyTime", 1600.0f}, {"humSustain", 32.0f},
-        {"attackLevel", 0.6f}, {"reverbMix", 0.4f},         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.6f}, {"reverbMix", 0.4f},
+        {"partialTuning", 5.0f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.18f}
     }, {} });
 
     // Steel bar - glockenspiel-like, pure fundamental
@@ -1018,7 +1056,11 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.45f},
         {"strikeTime", 8.0f}, {"brilliance", 85.0f}, {"bodyTime", 800.0f}, {"humSustain", 15.0f},
-        {"attackLevel", 0.75f}, {"reverbMix", 0.28f},         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.75f}, {"reverbMix", 0.28f},
+        {"pitchEnvelope", 0.06f}, {"pitchEnvTime", 12.0f},
+        {"nonlinearEffects", 0.03f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.1f}
     }, {} });
 
     // ========== WARM BELLS (5 presets) ==========
@@ -1030,10 +1072,16 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.42f}, {"acousticBrightness", 0.48f}, {"material", 0.0f}, {"inharmonicity", 0.35f},
         {"airAbsorption", 0.25f}, {"airAbsorptionTime", 3.0f},
         {"bloomSpeed", 0.58f}, {"bloomAmount", 0.35f}, {"shimmer", 0.15f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.65f}, {"bloomSpeedMid", 0.55f}, {"bloomSpeedHigh", 0.4f},
+        {"bloomAmountLow", 0.42f}, {"bloomAmountMid", 0.32f}, {"bloomAmountHigh", 0.15f},
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.22f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.55f},
         {"strikeTime", 35.0f}, {"brilliance", 35.0f}, {"bodyTime", 2200.0f}, {"humSustain", 65.0f},
-        {"attackLevel", 0.28f}, {"reverbMix", 0.45f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}
+        {"attackLevel", 0.28f}, {"reverbMix", 0.45f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 7500.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
+        {"humanize", 0.4f}
     }, {} });
 
     // Singing bowl character - meditative, beating
@@ -1046,7 +1094,11 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.33f}, {"unisonDetune", 5.0f},
         {"octaveBlendSub", 0.18f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.6f},
         {"strikeTime", 40.0f}, {"brilliance", 42.0f}, {"bodyTime", 2800.0f}, {"humSustain", 72.0f},
-        {"attackLevel", 0.32f}, {"reverbMix", 0.48f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}
+        {"attackLevel", 0.32f}, {"reverbMix", 0.48f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 9000.0f},
+        {"partialTuning", -12.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
+        {"humanize", 0.35f}
     }, {} });
 
     // Vibraphone-like - warm aluminum with gentle attack
@@ -1059,7 +1111,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.1f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.58f},
         {"strikeTime", 25.0f}, {"brilliance", 48.0f}, {"bodyTime", 1400.0f}, {"humSustain", 52.0f},
-        {"attackLevel", 0.4f}, {"reverbMix", 0.35f},         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 2.0f}
+        {"attackLevel", 0.4f}, {"reverbMix", 0.35f},
+        {"pitchEnvelope", 0.02f}, {"pitchEnvTime", 18.0f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 2.0f},
+        {"humanize", 0.3f}
     }, {} });
 
     // Soft hand bell - gentle, intimate
@@ -1071,7 +1126,11 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.48f},
         {"strikeTime", 22.0f}, {"brilliance", 52.0f}, {"bodyTime", 1200.0f}, {"humSustain", 45.0f},
-        {"attackLevel", 0.35f}, {"reverbMix", 0.38f},         {"strikeNoiseChar", 0.0f}, {"velocityCurve", 2.0f}
+        {"attackLevel", 0.35f}, {"reverbMix", 0.38f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 12000.0f},
+        {"pitchEnvelope", 0.015f}, {"pitchEnvTime", 30.0f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 2.0f},
+        {"humanize", 0.35f}
     }, {} });
 
     // Dark, smooth bronze - velvet character
@@ -1080,10 +1139,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.35f}, {"acousticBrightness", 0.42f}, {"material", 0.0f}, {"inharmonicity", 0.4f},
         {"airAbsorption", 0.32f}, {"airAbsorptionTime", 3.5f},
         {"bloomSpeed", 0.7f}, {"bloomAmount", 0.4f}, {"shimmer", 0.12f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.78f}, {"bloomSpeedMid", 0.65f}, {"bloomSpeedHigh", 0.45f},
+        {"bloomAmountLow", 0.5f}, {"bloomAmountMid", 0.38f}, {"bloomAmountHigh", 0.12f},
         {"unisonCount", 0.33f}, {"unisonDetune", 6.0f},
         {"octaveBlendSub", 0.28f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.62f},
         {"strikeTime", 45.0f}, {"brilliance", 28.0f}, {"bodyTime", 2500.0f}, {"humSustain", 68.0f},
-        {"attackLevel", 0.25f}, {"reverbMix", 0.5f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}
+        {"attackLevel", 0.25f}, {"reverbMix", 0.5f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 5500.0f},
+        {"partialTuning", -6.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
+        {"humanize", 0.45f}
     }, {} });
 
     // ========== METALLIC (5 presets) ==========
@@ -1099,7 +1165,11 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.0f}, {"unisonDetune", 0.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.5f},
         {"strikeTime", 12.0f}, {"brilliance", 62.0f}, {"bodyTime", 600.0f}, {"humSustain", 22.0f},
-        {"attackLevel", 0.72f}, {"reverbMix", 0.25f},         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.72f}, {"reverbMix", 0.25f},
+        {"nonlinearEffects", 0.12f}, {"partialTuning", 15.0f},
+        {"pitchEnvelope", 0.03f}, {"pitchEnvTime", 15.0f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.2f}
     }, {} });
 
     // Industrial steel plate - clanging, harsh
@@ -1111,8 +1181,11 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.33f}, {"unisonDetune", 15.0f},
         {"octaveBlendSub", 0.0f}, {"octaveBlendOct", 0.15f}, {"stereoSpread", 0.72f},
         {"strikeTime", 8.0f}, {"brilliance", 75.0f}, {"bodyTime", 500.0f}, {"humSustain", 15.0f},
-        {"attackLevel", 0.85f}, {"reverbMix", 0.2f},         {"nonlinearEffects", 0.18f},
-        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 1.0f}
+        {"attackLevel", 0.85f}, {"reverbMix", 0.2f},
+        {"nonlinearEffects", 0.18f}, {"partialTuning", 22.0f},
+        {"pitchEnvelope", 0.08f}, {"pitchEnvTime", 10.0f},
+        {"strikeNoiseChar", 0.0f}, {"velocityCurve", 1.0f},
+        {"humanize", 0.15f}
     }, {} });
 
     // Complex gong - beating partials, evolving texture
@@ -1122,10 +1195,16 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.42f}, {"acousticBrightness", 0.52f}, {"material", 0.0f}, {"inharmonicity", 0.78f},
         {"airAbsorption", 0.35f}, {"airAbsorptionTime", 4.0f},
         {"bloomSpeed", 0.82f}, {"bloomAmount", 0.55f}, {"shimmer", 0.32f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.9f}, {"bloomSpeedMid", 0.78f}, {"bloomSpeedHigh", 0.6f},
+        {"bloomAmountLow", 0.65f}, {"bloomAmountMid", 0.5f}, {"bloomAmountHigh", 0.35f},
         {"unisonCount", 0.67f}, {"unisonDetune", 22.0f},
         {"octaveBlendSub", 0.45f}, {"octaveBlendOct", 0.12f}, {"stereoSpread", 0.92f},
         {"strikeTime", 55.0f}, {"brilliance", 35.0f}, {"bodyTime", 3800.0f}, {"humSustain", 85.0f},
-        {"attackLevel", 0.42f}, {"reverbMix", 0.55f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.42f}, {"reverbMix", 0.55f},
+        {"nonlinearEffects", 0.15f}, {"partialTuning", -18.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.25f}
     }, {} });
 
     // Bell tree - multiple resonances, cascading
@@ -1137,7 +1216,11 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 1.0f}, {"unisonDetune", 25.0f},
         {"octaveBlendSub", 0.08f}, {"octaveBlendOct", 0.25f}, {"stereoSpread", 0.88f},
         {"strikeTime", 15.0f}, {"brilliance", 72.0f}, {"bodyTime", 1100.0f}, {"humSustain", 38.0f},
-        {"attackLevel", 0.58f}, {"reverbMix", 0.42f},         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.58f}, {"reverbMix", 0.42f},
+        {"nonlinearEffects", 0.06f},
+        {"pitchEnvelope", 0.05f}, {"pitchEnvTime", 20.0f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.28f}
     }, {} });
 
     // Heavy iron - dark, complex
@@ -1146,11 +1229,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.32f}, {"acousticBrightness", 0.45f}, {"material", 4.0f}, {"inharmonicity", 0.75f},
         {"airAbsorption", 0.4f}, {"airAbsorptionTime", 4.5f},
         {"bloomSpeed", 0.75f}, {"bloomAmount", 0.42f}, {"shimmer", 0.22f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.85f}, {"bloomSpeedMid", 0.7f}, {"bloomSpeedHigh", 0.5f},
+        {"bloomAmountLow", 0.52f}, {"bloomAmountMid", 0.38f}, {"bloomAmountHigh", 0.2f},
         {"unisonCount", 0.33f}, {"unisonDetune", 12.0f},
         {"octaveBlendSub", 0.52f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.82f},
         {"strikeTime", 48.0f}, {"brilliance", 25.0f}, {"bodyTime", 3200.0f}, {"humSustain", 78.0f},
-        {"attackLevel", 0.48f}, {"reverbMix", 0.52f},         {"nonlinearEffects", 0.1f},
-        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.48f}, {"reverbMix", 0.52f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 5000.0f},
+        {"nonlinearEffects", 0.1f}, {"partialTuning", -10.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.22f}
     }, {} });
 
     // ========== AMBIENT (5 presets) ==========
@@ -1162,10 +1251,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.38f}, {"acousticBrightness", 0.42f}, {"material", 0.0f}, {"inharmonicity", 0.52f},
         {"airAbsorption", 0.72f}, {"airAbsorptionTime", 6.0f},
         {"bloomSpeed", 0.78f}, {"bloomAmount", 0.45f}, {"shimmer", 0.28f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.88f}, {"bloomSpeedMid", 0.72f}, {"bloomSpeedHigh", 0.55f},
+        {"bloomAmountLow", 0.55f}, {"bloomAmountMid", 0.4f}, {"bloomAmountHigh", 0.2f},
         {"unisonCount", 0.67f}, {"unisonDetune", 18.0f},
         {"octaveBlendSub", 0.48f}, {"octaveBlendOct", 0.1f}, {"stereoSpread", 0.95f},
         {"strikeTime", 50.0f}, {"brilliance", 28.0f}, {"bodyTime", 4200.0f}, {"humSustain", 88.0f},
-        {"attackLevel", 0.32f}, {"reverbMix", 0.75f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.32f}, {"reverbMix", 0.75f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 4500.0f},
+        {"pitchEnvelope", 0.02f}, {"pitchEnvTime", 90.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.42f}
     }, {} });
 
     // Heavy filtering - muffled, submerged
@@ -1174,10 +1270,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.25f}, {"acousticBrightness", 0.28f}, {"material", 0.0f}, {"inharmonicity", 0.58f},
         {"airAbsorption", 0.88f}, {"airAbsorptionTime", 3.5f},
         {"bloomSpeed", 0.85f}, {"bloomAmount", 0.55f}, {"shimmer", 0.35f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.92f}, {"bloomSpeedMid", 0.8f}, {"bloomSpeedHigh", 0.6f},
+        {"bloomAmountLow", 0.65f}, {"bloomAmountMid", 0.5f}, {"bloomAmountHigh", 0.25f},
         {"unisonCount", 1.0f}, {"unisonDetune", 20.0f},
         {"octaveBlendSub", 0.58f}, {"octaveBlendOct", 0.0f}, {"stereoSpread", 0.88f},
         {"strikeTime", 55.0f}, {"brilliance", 18.0f}, {"bodyTime", 3500.0f}, {"humSustain", 82.0f},
-        {"attackLevel", 0.25f}, {"reverbMix", 0.72f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.25f}, {"reverbMix", 0.72f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 3000.0f},
+        {"partialTuning", -15.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.38f}
     }, {} });
 
     // Maximum bloom - slowly evolving pad
@@ -1186,10 +1289,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.48f}, {"acousticBrightness", 0.52f}, {"material", 0.0f}, {"inharmonicity", 0.42f},
         {"airAbsorption", 0.35f}, {"airAbsorptionTime", 5.0f},
         {"bloomSpeed", 0.95f}, {"bloomAmount", 0.78f}, {"shimmer", 0.42f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.98f}, {"bloomSpeedMid", 0.92f}, {"bloomSpeedHigh", 0.8f},
+        {"bloomAmountLow", 0.85f}, {"bloomAmountMid", 0.72f}, {"bloomAmountHigh", 0.55f},
         {"unisonCount", 1.0f}, {"unisonDetune", 15.0f},
         {"octaveBlendSub", 0.35f}, {"octaveBlendOct", 0.22f}, {"stereoSpread", 0.98f},
         {"strikeTime", 65.0f}, {"brilliance", 42.0f}, {"bodyTime", 4800.0f}, {"humSustain", 92.0f},
-        {"attackLevel", 0.2f}, {"reverbMix", 0.68f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.2f}, {"reverbMix", 0.68f},
+        {"nonlinearEffects", 0.05f},
+        {"pitchEnvelope", 0.01f}, {"pitchEnvTime", 150.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.5f}
     }, {} });
 
     // Maximum shimmer - icy, crystalline texture
@@ -1201,7 +1311,10 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"unisonCount", 0.67f}, {"unisonDetune", 12.0f},
         {"octaveBlendSub", 0.12f}, {"octaveBlendOct", 0.35f}, {"stereoSpread", 0.92f},
         {"strikeTime", 18.0f}, {"brilliance", 78.0f}, {"bodyTime", 2200.0f}, {"humSustain", 55.0f},
-        {"attackLevel", 0.45f}, {"reverbMix", 0.58f},         {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f}
+        {"attackLevel", 0.45f}, {"reverbMix", 0.58f},
+        {"nonlinearEffects", 0.04f}, {"partialTuning", 8.0f},
+        {"strikeNoiseChar", 2.0f}, {"velocityCurve", 0.0f},
+        {"humanize", 0.2f}
     }, {} });
 
     // Soft, ethereal pad texture
@@ -1210,10 +1323,17 @@ void OBellsAudioProcessor::initializeFactoryPresets()
         {"overtoneBrightness", 0.55f}, {"acousticBrightness", 0.5f}, {"material", 3.0f}, {"inharmonicity", 0.35f},
         {"airAbsorption", 0.45f}, {"airAbsorptionTime", 4.5f},
         {"bloomSpeed", 0.88f}, {"bloomAmount", 0.65f}, {"shimmer", 0.48f},
+        {"bloomFineEnabled", 1.0f},
+        {"bloomSpeedLow", 0.95f}, {"bloomSpeedMid", 0.85f}, {"bloomSpeedHigh", 0.7f},
+        {"bloomAmountLow", 0.72f}, {"bloomAmountMid", 0.6f}, {"bloomAmountHigh", 0.42f},
         {"unisonCount", 1.0f}, {"unisonDetune", 18.0f},
         {"octaveBlendSub", 0.25f}, {"octaveBlendOct", 0.38f}, {"stereoSpread", 1.0f},
         {"strikeTime", 70.0f}, {"brilliance", 52.0f}, {"bodyTime", 4500.0f}, {"humSustain", 85.0f},
-        {"attackLevel", 0.18f}, {"reverbMix", 0.72f},         {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f}
+        {"attackLevel", 0.18f}, {"reverbMix", 0.72f},
+        {"lpFilterEnabled", 1.0f}, {"lpFilterCutoff", 10000.0f},
+        {"pitchEnvelope", 0.01f}, {"pitchEnvTime", 180.0f},
+        {"strikeNoiseChar", 1.0f}, {"velocityCurve", 2.0f},
+        {"humanize", 0.48f}
     }, {} });
 
     presetManager.initializeFactoryPresets(presets);
