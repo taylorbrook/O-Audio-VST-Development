@@ -249,13 +249,14 @@ OFreqPulseAudioProcessorEditor::~OFreqPulseAudioProcessorEditor()
 
 void OFreqPulseAudioProcessorEditor::timerCallback()
 {
-    // Read current step from processor (atomic, thread-safe)
+    // Read current step and signal state from processor (atomic, thread-safe)
     int step = processorRef.getCurrentStep();
+    bool hasSignal = processorRef.getHasAudioSignal();
 
     // Send to WebView via JavaScript
     juce::String js = juce::String::formatted(
-        "if (window.updatePlayhead) window.updatePlayhead(%d);",
-        step
+        "if (window.updatePlayhead) window.updatePlayhead(%d, %s);",
+        step, hasSignal ? "true" : "false"
     );
     webView->evaluateJavascript(js);
 }

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.0
+- **Version:** 1.1.1
 - **Type:** Audio Effect (Spectral Sequencer)
 
 ## Lifecycle Timeline
@@ -13,6 +13,7 @@
 - **2026-02-03 (Stage 3):** GUI complete — WebView UI with 2D step grid, playhead, naturalist aesthetic
 - **2026-02-04 (v1.0.0):** Stage 4 complete — 12 factory presets, pluginval Level 5 passed, auval passed
 - **2026-02-04 (v1.1.0):** Added Clear and Random buttons per lane
+- **2026-02-04 (v1.1.1):** Fixed playhead moving when no audio signal present
 
 ## Concept Summary
 

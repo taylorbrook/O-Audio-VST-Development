@@ -31,6 +31,7 @@ public:
 
     // Thread-safe access for GUI timer
     int getCurrentStep() const { return currentStepAtomic.load(); }
+    bool getHasAudioSignal() const { return hasAudioSignal.load(); }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -108,6 +109,9 @@ private:
 
     // Free-running step counter (for standalone/no-host mode)
     double sampleAccumulator = 0.0;
+
+    // Audio signal detection (gates playhead movement)
+    std::atomic<bool> hasAudioSignal { false };
 
     // Cached parameter values (for change detection)
     float lastBandFreqs[4][2] = { {0, 0}, {0, 0}, {0, 0}, {0, 0} };  // [band][low/high]

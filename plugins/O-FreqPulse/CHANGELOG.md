@@ -2,6 +2,19 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.1.1] - 2026-02-04
+
+### Fixed
+
+- **Playhead no longer moves when no audio is present** - Added input RMS detection (~-60 dB threshold) that gates playhead advancement in both host-sync and standalone modes. Playhead fades out when signal drops below threshold and reappears when audio returns.
+
+### Technical Notes
+
+- Root cause: playhead step counter advanced unconditionally in processBlock regardless of input signal level
+- RMS computed per buffer across all channels; threshold at 0.001f (~-60 dB)
+- Signal state communicated to WebView via existing timer callback (30 Hz)
+- Playhead opacity animated with 150ms CSS ease transition for smooth fade
+
 ## [1.1.0] - 2026-02-04
 
 ### Added

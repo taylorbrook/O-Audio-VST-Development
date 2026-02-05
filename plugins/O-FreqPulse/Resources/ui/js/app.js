@@ -326,11 +326,19 @@ function updateStepVisibility() {
 // Playhead Update (called from C++ timer)
 // ============================================================================
 
-window.updatePlayhead = function (step) {
+window.updatePlayhead = function (step, hasSignal) {
     const playhead = document.getElementById('playhead');
     const gridArea = document.querySelector('.grid-area');
 
     if (!playhead || !gridArea) return;
+
+    // Hide playhead when no audio signal is present
+    if (!hasSignal) {
+        playhead.style.opacity = '0';
+        return;
+    }
+
+    playhead.style.opacity = '1';
 
     // Find the actual cell at this step position (use band 0, all bands align)
     const cell = document.querySelector(`.step-cell[data-band="0"][data-step="${step}"]`);

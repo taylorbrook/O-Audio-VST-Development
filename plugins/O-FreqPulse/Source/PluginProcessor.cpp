@@ -529,6 +529,22 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     if (euclideanParamsChanged)
         updateEuclideanPatterns();
 
+    // Detect whether audio signal is present (RMS check across all channels)
+    {
+        float sumSquares = 0.0f;
+        for (int ch = 0; ch < numChannels; ++ch)
+        {
+            const float* data = buffer.getReadPointer(ch);
+            for (int i = 0; i < numSamples; ++i)
+                sumSquares += data[i] * data[i];
+        }
+        float rms = std::sqrt(sumSquares / static_cast<float>(numSamples * juce::jmax(numChannels, 1)));
+        constexpr float silenceThreshold = 0.001f;  // ~-60 dB
+        hasAudioSignal.store(rms >= silenceThreshold);
+    }
+
+    bool signalPresent = hasAudioSignal.load();
+
     // Get playhead position for tempo sync
     bool gotValidPosition = false;
     juce::AudioPlayHead* playHead = getPlayHead();
@@ -544,19 +560,22 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
                 double ppq = *posInfo->getPpqPosition();
                 gotValidPosition = true;
 
-                // Calculate current step directly from PPQ (loops via modulo in calculateCurrentStep)
-                currentStep = calculateCurrentStep(ppq, numSteps, rateIndex, swing);
-                currentStepAtomic.store(currentStep);
-
-                // Update target gains when PPQ changes
-                if (std::abs(ppq - lastPpqPosition) > 0.001)
+                if (signalPresent)
                 {
-                    for (int band = 0; band < 4; ++band)
+                    // Calculate current step directly from PPQ (loops via modulo in calculateCurrentStep)
+                    currentStep = calculateCurrentStep(ppq, numSteps, rateIndex, swing);
+                    currentStepAtomic.store(currentStep);
+
+                    // Update target gains when PPQ changes
+                    if (std::abs(ppq - lastPpqPosition) > 0.001)
                     {
-                        float targetGain = getTargetGainForBand(band, currentStep);
-                        bandGainSmooth[band].setTargetValue(targetGain);
+                        for (int band = 0; band < 4; ++band)
+                        {
+                            float targetGain = getTargetGainForBand(band, currentStep);
+                            bandGainSmooth[band].setTargetValue(targetGain);
+                        }
+                        lastPpqPosition = ppq;
                     }
-                    lastPpqPosition = ppq;
                 }
             }
         }
@@ -565,31 +584,34 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     // Fallback: free-running step counter when no valid host position (e.g., Standalone)
     if (!gotValidPosition)
     {
-        // Use sample-based timing at assumed 120 BPM
-        // PPQ per step at different rates
-        const double ppqPerStep[] = {
-            4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 0.333333, 0.166666, 1.5, 0.75
-        };
-        double stepLength = ppqPerStep[juce::jlimit(0, 9, rateIndex)];
-
-        // Samples per beat at 120 BPM
-        double samplesPerBeat = currentSampleRate * 60.0 / 120.0;
-        double samplesPerStep = samplesPerBeat * stepLength;
-
-        // Accumulate samples and advance step
-        sampleAccumulator += static_cast<double>(numSamples);
-
-        if (sampleAccumulator >= samplesPerStep)
+        if (signalPresent)
         {
-            sampleAccumulator -= samplesPerStep;
-            currentStep = (currentStep + 1) % numSteps;
-            currentStepAtomic.store(currentStep);
+            // Use sample-based timing at assumed 120 BPM
+            // PPQ per step at different rates
+            const double ppqPerStep[] = {
+                4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 0.333333, 0.166666, 1.5, 0.75
+            };
+            double stepLength = ppqPerStep[juce::jlimit(0, 9, rateIndex)];
 
-            // Update target gains
-            for (int band = 0; band < 4; ++band)
+            // Samples per beat at 120 BPM
+            double samplesPerBeat = currentSampleRate * 60.0 / 120.0;
+            double samplesPerStep = samplesPerBeat * stepLength;
+
+            // Accumulate samples and advance step
+            sampleAccumulator += static_cast<double>(numSamples);
+
+            if (sampleAccumulator >= samplesPerStep)
             {
-                float targetGain = getTargetGainForBand(band, currentStep);
-                bandGainSmooth[band].setTargetValue(targetGain);
+                sampleAccumulator -= samplesPerStep;
+                currentStep = (currentStep + 1) % numSteps;
+                currentStepAtomic.store(currentStep);
+
+                // Update target gains
+                for (int band = 0; band < 4; ++band)
+                {
+                    float targetGain = getTargetGainForBand(band, currentStep);
+                    bandGainSmooth[band].setTargetValue(targetGain);
+                }
             }
         }
     }
