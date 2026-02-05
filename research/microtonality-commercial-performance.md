@@ -1,3 +1,19 @@
+---
+title: "Microtonality in VST Plugins: Commercial Products, Performance, and Modern Approaches"
+summary: "Commercial product analysis and modern approaches for microtonal VST plugins, covering MTS-ESP integration, MPE maturation, MIDI 2.0 emergence, performance optimization, UI/UX design patterns, and testing methodologies."
+domain: workflow
+type: reference
+keywords:
+  - microtonality
+  - mts-esp
+  - mpe
+  - midi-2
+  - commercial-analysis
+  - tuning-systems
+stages: [0]
+agents: [research]
+---
+
 # Microtonality in VST Plugins: Commercial Products, Performance, and Modern Approaches
 
 **Research Date:** January 2026

@@ -1,3 +1,19 @@
+---
+title: "Generative Audio Plugins Research Synthesis Report"
+summary: "Synthesis of findings from 4 parallel research agents investigating the generative audio plugin landscape, covering commercial market analysis, AI/ML approaches, algorithmic techniques, community pain points, and identified market gaps."
+domain: dsp
+type: reference
+keywords:
+  - generative
+  - market-research
+  - ai-audio
+  - gap-analysis
+  - plugin-landscape
+  - competitive-analysis
+stages: [0]
+agents: [research]
+---
+
 # Generative Audio Plugins: Research Synthesis Report
 
 *Compiled January 2026*

@@ -1,3 +1,21 @@
+---
+title: "Comprehensive Microtonality Theory and File Formats for VST Development"
+summary: "Foundational reference covering tuning system theory (12-TET, just intonation, N-TET, historical temperaments, xenharmonic scales), file formats (Scala SCL, KBM, AnaMark TUN, MTS-ESP, MIDI 2.0), mathematical foundations, and scale classification."
+domain: dsp
+type: reference
+keywords:
+  - microtonality
+  - tuning-systems
+  - scala
+  - just-intonation
+  - temperament
+  - xenharmonic
+  - cents
+  - frequency-ratios
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Comprehensive Microtonality Theory and File Formats for VST Development
 
 ## Table of Contents

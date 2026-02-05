@@ -1,3 +1,21 @@
+---
+title: "Comprehensive Microtonality Database for VST Development"
+summary: "Consolidated 4,683-line database covering tuning system theory, file formats (Scala, KBM, TUN, MTS-ESP), JUCE implementation patterns for synthesizers/samplers/effects, performance optimization, UI/UX design, and testing/validation approaches."
+domain: dsp
+type: reference
+keywords:
+  - microtonality
+  - tuning-systems
+  - scala
+  - mts-esp
+  - just-intonation
+  - xenharmonic
+  - juce-dsp
+  - temperament
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Comprehensive Microtonality Database for VST Development
 
 **Version:** 1.0

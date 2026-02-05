@@ -1,3 +1,20 @@
+---
+title: "Microtonality Implementation in JUCE VST Plugins"
+summary: "Complete implementation guide for microtonal support in JUCE plugins, covering MTS-ESP client integration, Surge tuning library, custom tuning tables, MPE integration, practical code patterns, and common pitfalls with solutions."
+domain: dsp
+type: guide
+keywords:
+  - microtonality
+  - juce-dsp
+  - mts-esp
+  - mpe
+  - tuning-tables
+  - synthesizer
+  - pitch-mapping
+stages: [1, 2]
+agents: [dsp]
+---
+
 # Microtonality Implementation in JUCE VST Plugins
 
 ## Complete Implementation Guide

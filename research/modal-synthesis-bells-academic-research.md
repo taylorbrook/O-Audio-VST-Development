@@ -1,3 +1,21 @@
+---
+title: "Modal Synthesis for Bells and Metallic Percussion: Academic Research Compilation"
+summary: "Academic research compilation from CCRMA Stanford, IRCAM, and key papers on modal synthesis for bell and metallic percussion sounds, including frequency-dependent damping formulas, multi-stage decay envelopes, and specific parameter values for implementation."
+domain: dsp
+type: algorithm
+keywords:
+  - modal-synthesis
+  - bells
+  - metallic-percussion
+  - physical-modeling
+  - frequency-damping
+  - decay-envelopes
+  - partials
+  - ccrma
+stages: [0, 2]
+agents: [dsp, research]
+---
+
 # Modal Synthesis for Bells and Metallic Percussion: Academic Research Compilation
 
 ## Executive Summary
