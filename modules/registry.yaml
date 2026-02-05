@@ -44,6 +44,32 @@ modules:
   # CORE MODULES
   # ============================================================================
 
+  - name: licensing
+    path: core/licensing
+    version: 1.0.0
+    description: |
+      License activation, offline JWT token validation, and native overlay UI
+      for Ouaricon plugin distribution. Integrates with Supabase licensing backend.
+      Compile-flag gated via OUARICON_LICENSING_ENABLED.
+    category: core
+    provides:
+      - cpp-class: OuariconLicense
+      - cpp-class: OuariconLicenseOverlay
+    config:
+      supabase_url:
+        type: string
+        required: true
+      supabase_anon_key:
+        type: string
+        required: true
+      product_id:
+        type: string
+        required: true
+    dependencies: []
+    tags: [licensing, activation, jwt, offline]
+    reuse_score: 10
+    used_by: []
+
   - name: webview-relay-manager
     path: core/webview-relay-manager
     version: 1.0.0
