@@ -47,7 +47,7 @@
 .tuning-center-column {
     display: flex;
     flex-direction: column;
-    gap: 10px;
+    gap: 2px;
 }
 
 
@@ -201,11 +201,11 @@
     background: transparent;
     border: none;
     border-radius: 0;
-    padding: 15px;
+    padding: 4px;
     flex: 1;
     min-height: 200px;
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: center;
 }
 
