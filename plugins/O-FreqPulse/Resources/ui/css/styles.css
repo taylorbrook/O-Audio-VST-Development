@@ -158,8 +158,25 @@ html, body {
     background: var(--step-on);
 }
 
+.step-cell.euclidean-active {
+    background: #7a6a5a;  /* warm brown for euclidean-generated steps */
+}
+
+.step-cell.euclidean-mode {
+    cursor: default;
+    opacity: 0.85;
+}
+
 .step-cell:hover {
     background: var(--step-hover);
+}
+
+.step-cell.euclidean-mode:hover {
+    background: var(--step-off);
+}
+
+.step-cell.euclidean-mode.euclidean-active:hover {
+    background: #7a6a5a;
 }
 
 .band-mode {

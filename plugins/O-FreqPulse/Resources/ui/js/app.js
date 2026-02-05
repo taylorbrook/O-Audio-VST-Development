@@ -7,6 +7,7 @@ const state = {
     currentBand: null,  // Expanded Euclidean panel band
     numSteps: 16,       // Current step count (4, 8, 16, or 32)
     stepStates: {},     // SliderState/ToggleState objects by parameter ID
+    euclideanActive: [false, false, false, false],  // Per-band euclidean mode state
 };
 
 // Band configuration
@@ -34,6 +35,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderGrid();
     setupGlobalControls();
     setupEuclideanPanel();
+    initializeEuclideanListeners();
 
     console.log('O-FreqPulse UI initialized');
 });
@@ -285,6 +287,9 @@ function renderGrid() {
 }
 
 function toggleStep(band, step) {
+    // Ignore clicks when euclidean mode is active for this band
+    if (state.euclideanActive[band]) return;
+
     const paramId = `step_b${band}_s${step}`;
     const toggleState = state.stepStates[paramId];
     const newValue = !toggleState.getValue();
@@ -294,6 +299,9 @@ function toggleStep(band, step) {
 }
 
 function updateStepVisual(band, step, active) {
+    // Skip manual step visual updates when euclidean mode controls the display
+    if (state.euclideanActive[band]) return;
+
     const cell = document.querySelector(`.step-cell[data-band="${band}"][data-step="${step}"]`);
     if (cell) {
         if (active) {
@@ -474,6 +482,8 @@ function updateBandModeIndicator(bandId, isEuclidean) {
 // ============================================================================
 
 function clearBand(bandId) {
+    if (state.euclideanActive[bandId]) return;
+
     for (let step = 0; step < 32; step++) {
         const paramId = `step_b${bandId}_s${step}`;
         const toggleState = state.stepStates[paramId];
@@ -485,6 +495,8 @@ function clearBand(bandId) {
 }
 
 function randomizeBand(bandId) {
+    if (state.euclideanActive[bandId]) return;
+
     for (let step = 0; step < 32; step++) {
         const paramId = `step_b${bandId}_s${step}`;
         const toggleState = state.stepStates[paramId];
@@ -494,6 +506,112 @@ function randomizeBand(bandId) {
             toggleState.setValue(active);
             updateStepVisual(bandId, step, active);
         }
+    }
+}
+
+// ============================================================================
+// Euclidean Pattern Generation (mirrors C++ Bresenham algorithm)
+// ============================================================================
+
+function generateEuclidean(steps, pulses, offset) {
+    const pattern = new Array(32).fill(false);
+
+    if (pulses > steps) pulses = steps;
+    if (pulses <= 0 || steps <= 0) return pattern;
+
+    // Bresenham bucket-fill
+    let bucket = 0;
+    for (let i = 0; i < steps; i++) {
+        bucket += pulses;
+        if (bucket >= steps) {
+            bucket -= steps;
+            pattern[i] = true;
+        }
+    }
+
+    // Apply rotation offset
+    if (offset > 0 && offset < steps) {
+        const head = pattern.slice(0, steps);
+        const rotated = head.slice(offset).concat(head.slice(0, offset));
+        for (let i = 0; i < steps; i++) {
+            pattern[i] = rotated[i];
+        }
+    }
+
+    return pattern;
+}
+
+function updateEuclideanGrid(bandId) {
+    const eucOnState = state.stepStates[`band${bandId}_euc_on`];
+    const isEuclidean = eucOnState && eucOnState.getValue();
+
+    state.euclideanActive[bandId] = isEuclidean;
+    updateBandModeIndicator(bandId, isEuclidean);
+
+    const cells = document.querySelectorAll(`.step-cell[data-band="${bandId}"]`);
+
+    if (isEuclidean) {
+        // Compute euclidean pattern
+        const eucSteps = Math.round(state.stepStates[`band${bandId}_euc_steps`].getScaledValue());
+        const eucPulses = Math.round(state.stepStates[`band${bandId}_euc_pulses`].getScaledValue());
+        const eucOffset = Math.round(state.stepStates[`band${bandId}_euc_offset`].getScaledValue());
+
+        const pattern = generateEuclidean(eucSteps, eucPulses, eucOffset);
+
+        cells.forEach((cell) => {
+            const step = parseInt(cell.dataset.step);
+            cell.classList.add('euclidean-mode');
+            cell.classList.remove('active');
+
+            if (step < eucSteps && pattern[step]) {
+                cell.classList.add('euclidean-active');
+            } else {
+                cell.classList.remove('euclidean-active');
+            }
+        });
+    } else {
+        // Restore manual step display
+        cells.forEach((cell) => {
+            const step = parseInt(cell.dataset.step);
+            cell.classList.remove('euclidean-mode', 'euclidean-active');
+
+            const paramId = `step_b${bandId}_s${step}`;
+            const toggleState = state.stepStates[paramId];
+            if (toggleState && toggleState.getValue()) {
+                cell.classList.add('active');
+            } else {
+                cell.classList.remove('active');
+            }
+        });
+    }
+}
+
+function initializeEuclideanListeners() {
+    for (let bandId = 0; bandId < 4; bandId++) {
+        const bid = bandId;  // Capture for closure
+
+        // Listen for euclidean on/off changes
+        const eucOnState = state.stepStates[`band${bid}_euc_on`];
+        if (eucOnState) {
+            eucOnState.valueChangedEvent.addListener(() => {
+                updateEuclideanGrid(bid);
+            });
+        }
+
+        // Listen for euclidean parameter changes
+        for (const param of ['euc_steps', 'euc_pulses', 'euc_offset']) {
+            const paramState = state.stepStates[`band${bid}_${param}`];
+            if (paramState) {
+                paramState.valueChangedEvent.addListener(() => {
+                    if (state.euclideanActive[bid]) {
+                        updateEuclideanGrid(bid);
+                    }
+                });
+            }
+        }
+
+        // Sync initial euclidean state
+        updateEuclideanGrid(bid);
     }
 }
 

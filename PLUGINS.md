@@ -30,9 +30,9 @@ Ouaricon Plugins:
 | O-AnalogSaturation | 📦 Installed | 1.1.0 | Audio Effect (Saturation) | 2026-01-24 |
 | O-Marimba | 📦 Installed | 1.11.0 | Synth (Physical Model) | 2026-01-26 |
 | O-Comp | 📦 Installed | 1.2.0 | Audio Effect (Compressor) | 2026-01-24 |
-| O-AnalogEQ | 📦 Installed | 1.1.0 | Audio Effect (EQ) | 2026-01-24 |
+| O-AnalogEQ | 📦 Installed | 1.1.1 | Audio Effect (EQ) | 2026-02-04 |
 | O-DigiDelay | 📦 Installed | 1.2.1 | Audio Effect (Delay) | 2026-01-24 |
-| O-SimpleReverb | 📦 Installed | 1.5.0 | Audio Effect (Reverb) | 2026-01-24 |
+| O-SimpleReverb | 📦 Installed | 1.5.1 | Audio Effect (Reverb) | 2026-02-04 |
 | O-Polystutter | 📦 Installed | 1.8.0 | Audio Effect (Beat Repeater) | 2026-01-26 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
 | O-Lyrica | 📦 Installed | 1.19.0 | Synth (Physical Modeling Harp) | 2026-02-04 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
@@ -40,8 +40,8 @@ Ouaricon Plugins:
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
 | O-Detune | 📦 Installed | 1.4.1 | Audio Effect (Detuning) | 2026-02-03 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
-| O-Bells | 📦 Installed | 2.6.0 | Synth (Physical Modeling Bells) | 2026-02-04 |
-| O-FreqPulse | 📦 Installed | 1.1.1 | Audio Effect (Spectral Sequencer) | 2026-02-04 |
+| O-Bells | 📦 Installed | 3.0.1 | Synth (Physical Modeling Bells) | 2026-02-04 |
+| O-FreqPulse | 📦 Installed | 1.1.2 | Audio Effect (Spectral Sequencer) | 2026-02-04 |
 | O-SpectralShaper | 🚧 Stage 0 | - | Audio Effect (Spectral Transient Shaper) | 2026-02-03 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**

@@ -2,6 +2,21 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.1.2] - 2026-02-04
+
+### Fixed
+
+- **Euclidean patterns now display on the grid** - When Euclidean mode is enabled for a band, the generated pattern visually populates the step grid cells with a distinct warm brown color. Previously, the C++ processor computed Euclidean patterns internally but never communicated them to the UI, so the grid always showed the stale manual pattern.
+
+### Technical Notes
+
+- Root cause: `euclideanPatterns[band]` array in C++ was used for audio processing but never written to `step_b{N}_s{M}` parameters or sent to the WebView
+- Fix is UI-only: Bresenham euclidean algorithm replicated in JavaScript (`generateEuclidean()`)
+- When euclidean mode is active: grid shows computed pattern, manual step clicking is disabled, clear/random buttons are blocked
+- When euclidean mode is off: manual step parameters are restored to display, clicking re-enabled
+- Manual patterns are preserved in step parameters and never overwritten by euclidean mode
+- Euclidean grid updates reactively when euc_steps, euc_pulses, or euc_offset parameters change
+
 ## [1.1.1] - 2026-02-04
 
 ### Fixed

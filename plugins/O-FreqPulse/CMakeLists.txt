@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-FreqPulse
-    VERSION 1.0.0
+    VERSION 1.1.2
     COMPANY_NAME "Ouaricon Development"
     PLUGIN_MANUFACTURER_CODE OuDv
     PLUGIN_CODE OFPu
