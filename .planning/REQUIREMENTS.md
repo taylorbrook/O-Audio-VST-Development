@@ -62,27 +62,27 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DISC-01 | TBD | Pending |
-| DISC-02 | TBD | Pending |
-| DISC-03 | TBD | Pending |
-| DISC-04 | TBD | Pending |
-| INJT-01 | TBD | Pending |
-| INJT-02 | TBD | Pending |
-| INJT-03 | TBD | Pending |
-| INJT-04 | TBD | Pending |
-| ACCT-01 | TBD | Pending |
-| ACCT-02 | TBD | Pending |
-| ACCT-03 | TBD | Pending |
-| MAINT-01 | TBD | Pending |
-| MAINT-02 | TBD | Pending |
-| MAINT-03 | TBD | Pending |
-| MAINT-04 | TBD | Pending |
+| DISC-01 | Phase 10 | Pending |
+| DISC-02 | Phase 10 | Pending |
+| DISC-03 | Phase 10 | Pending |
+| DISC-04 | Phase 10 | Pending |
+| INJT-01 | Phase 11 | Pending |
+| INJT-02 | Phase 11 | Pending |
+| INJT-03 | Phase 11 | Pending |
+| INJT-04 | Phase 11 | Pending |
+| ACCT-01 | Phase 12 | Pending |
+| ACCT-02 | Phase 12 | Pending |
+| ACCT-03 | Phase 12 | Pending |
+| MAINT-01 | Phase 13 | Pending |
+| MAINT-02 | Phase 13 | Pending |
+| MAINT-03 | Phase 13 | Pending |
+| MAINT-04 | Phase 13 | Pending |
 
 **Coverage:**
 - v1.2 requirements: 15 total
-- Mapped to phases: 0
-- Unmapped: 15 (awaiting roadmap)
+- Mapped to phases: 15
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-04 after initial definition*
+*Last updated: 2026-02-04 — traceability updated with phase mappings*

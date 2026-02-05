@@ -2,19 +2,20 @@
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-02-02)
+See: .planning/PROJECT.md (updated 2026-02-04)
 
-**Core value:** Reliable collaborative workflow producing professional-quality plugins
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration
+**Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 10 ready to plan
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements for v1.2
-Last activity: 2026-02-04 — Milestone v1.2 started
+Phase: 10 of 13 (Resource Index & Discovery)
+Plan: 0 of ? in current phase
+Status: Ready to plan
+Last activity: 2026-02-04 — Roadmap created for v1.2 (Phases 10-13)
 
-Progress: [░░░░░░░░░░░░░░░░░░░░░░░░] 0% (v1.2 not yet planned)
+Progress: [█████████████████████░░░░] 86% overall (25/29+ plans)
+v1.2:    [░░░░░░░░░░░░░░░░░░░░░░░░] 0% (0/? plans)
 
 ## Performance Metrics
 
@@ -31,23 +32,28 @@ Progress: [░░░░░░░░░░░░░░░░░░░░░░░
 - Timeline: 2 days
 
 **Cumulative:**
-- Total phases: 9
-- Total plans: 25
-- Total requirements: 48
+- Total phases completed: 9
+- Total plans completed: 25
+- Total requirements satisfied: 48
 
 ## Accumulated Context
 
 ### Decisions
 
 Decisions are logged in PROJECT.md Key Decisions table.
-See `.planning/milestones/v1.1-ROADMAP.md` for v1.1 decisions archive.
+Recent decisions affecting current work:
+
+- v1.2 Roadmap: Static manifest + keyword matching (not vector search) for 23-doc corpus
+- v1.2 Roadmap: Warning-level accountability (not blocking) for resource usage
+- v1.2 Roadmap: Orchestrator-level discovery (not hook-level) to avoid timeout constraints
+- v1.2 Roadmap: 4,000 token budget cap for injected research context per agent
 
 ### Pending Todos
 
-1. Windows installer automation (v1.2)
-2. Plugin naming standardization (v1.2)
+1. Windows installer automation (deferred to v1.3+)
+2. Plugin naming standardization (deferred to v1.3+)
 3. CI/CD pipeline verification (test tag push)
-4. Fix registry updates during phase transitions (root cause - workflow agents not updating plugin-registry.json)
+4. Fix registry updates during phase transitions
 
 ### Blockers/Concerns
 
@@ -55,17 +61,11 @@ None currently.
 
 ## Session Continuity
 
-Last session: 2026-02-02
-Stopped at: Completed quick task 002 (implement default to manual)
+Last session: 2026-02-04
+Stopped at: Created v1.2 roadmap (Phases 10-13, 15 requirements mapped)
 Resume file: None
 
-## Quick Tasks Completed
-
-| ID | Description | Date |
-|----|-------------|------|
-| 001 | Fix implementation phase handoff consistency | 2026-02-02 |
-| 002 | Fix implement command default to manual mode | 2026-02-03 |
-| 003 | Standardize handoff format with GSD-style separators | 2026-02-03 |
+Next: `/gsd:plan-phase 10`
 
 ---
-*v1.2 milestone started. Continue with `/gsd:plan-phase` after requirements defined.*
+*v1.2 roadmap complete. Ready to plan Phase 10.*
