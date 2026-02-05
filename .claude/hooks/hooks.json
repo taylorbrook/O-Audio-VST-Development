@@ -11,6 +11,17 @@
             "description": "Real-time code quality validation for JUCE best practices"
           }
         ]
+      },
+      {
+        "matcher": "write|edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/validators/validate-research-frontmatter.py \"$FILE_PATH\"",
+            "timeout": 3000,
+            "description": "Validate YAML frontmatter in research documents"
+          }
+        ]
       }
     ],
     "SubagentStop": [
