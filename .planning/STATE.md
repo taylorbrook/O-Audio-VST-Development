@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 10 of 13 (Resource Index & Discovery)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase (plans 01-03 complete)
 Status: In progress
-Last activity: 2026-02-05 — Completed 10-02-PLAN.md (Frontmatter Retrofit Batch 1)
+Last activity: 2026-02-05 — Completed 10-03-PLAN.md (Frontmatter Retrofit Batch 2)
 
-Progress: [███████████████████████░░] 93% overall (27/29 plans)
-v1.2:    [████████████░░░░░░░░░░░░░] 50% (2/4 plans)
+Progress: [████████████████████████░] 97% overall (28/29 plans)
+v1.2:    [██████████████████░░░░░░░] 75% (3/4 plans)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ v1.2:    [████████████░░░░░░░░░░░�
 
 **Cumulative:**
 - Total phases completed: 9
-- Total plans completed: 27
+- Total plans completed: 28
 - Total requirements satisfied: 48
 
 ## Accumulated Context
@@ -50,6 +50,8 @@ Recent decisions affecting current work:
 - 10-01: Co-located schema at .claude/resource-index.schema.json (not .planning/workflow/schemas/)
 - 10-01: Frontmatter validator uses only PyYAML (no jsonschema) to stay within hook timeout
 - 10-01: Validator self-filters non-research files; broad write|edit matcher is safe
+- 10-03: stutter-effects README.md excluded from frontmatter (index file, not research doc)
+- 10-03: All stutter-effects docs share "stutter"/"stutter-effects" keywords for corpus discoverability
 
 ### Pending Todos
 
@@ -65,10 +67,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 10-02-PLAN.md (Frontmatter Retrofit Batch 1)
+Stopped at: Completed 10-03-PLAN.md (Frontmatter Retrofit Batch 2)
 Resume file: None
 
-Next: Execute 10-03-PLAN.md (Frontmatter Retrofit Batch 2)
+Next: Execute 10-04-PLAN.md (Manifest Generator & Discovery Script)
 
 ---
-*Phase 10 plan 02 complete. 13 research documents now have valid YAML frontmatter for discovery indexing.*
+*Phase 10 plans 01-03 complete. Full research corpus (~26 docs) has valid YAML frontmatter. Ready for manifest generation.*
