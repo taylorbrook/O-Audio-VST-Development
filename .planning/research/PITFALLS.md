@@ -813,3 +813,502 @@ Before starting v1.1 improvements:
 
 *v1.1 Addendum Researched: 2026-02-01*
 *Sources: GitHub Docs, git-filter-repo documentation, BFG Repo-Cleaner, GitHub Actions Changelog, XState discussions, local codebase analysis*
+
+---
+
+---
+
+# Addendum: v1.2 Resource Orchestration Pitfalls
+
+**Domain:** Adding resource discovery, injection, and accountability to existing LLM agent system
+**Researched:** 2026-02-04
+**Confidence:** HIGH (grounded in direct codebase inspection + external research on LLM context management, JSON Schema evolution, and RAG retrieval pitfalls)
+
+This addendum covers pitfalls specific to the v1.2 milestone: adding agent intelligence and resource orchestration to the Plugin Freedom System. These pitfalls are about what goes wrong when you ADD resource orchestration to an EXISTING agent system with 13 agents, 6 hooks, and JSON Schema contracts.
+
+**System measurements at time of research:**
+- 13 agents (11 .md files in `.claude/agents/`), 25 skills, 6 hooks
+- 23 research documents in `research/` (118-2,336 lines each, 8KB-72KB)
+- Agent prompts range from 126-1,301 lines (dsp-agent.md is 1,235 lines alone)
+- Hook timeouts: 2s (PostToolUse), 5s (SessionStart, UserPromptSubmit, Stop), 10s (SubagentStop, PreCompact)
+- JSON Schema draft 2020-12 with `additionalProperties: false` on all contracts
+- Subagents spawned via Task tool with isolated 200K-token context windows
+
+---
+
+## Critical Pitfalls (v1.2)
+
+### Pitfall 24: Context Window Budget Exhaustion from Research Doc Injection
+
+**What goes wrong:**
+Injecting research documents into agent prompts pushes total input tokens past the effective performance threshold. The dsp-agent prompt is already 1,235 lines (~25K tokens). Adding even one research doc like `reverb-comprehensive-research.md` (1,580 lines, ~44KB, ~11K tokens) would increase the agent's input by 44%. Injecting 2-3 relevant docs could push a single agent invocation to 60-80K tokens before the agent reads any project files or contracts (ARCHITECTURE.md, parameter-spec.md, ROADMAP.md). Research shows LLM performance degrades non-linearly -- the NoLiMa benchmark found that at 32K tokens, 11 out of 12 tested models dropped below 50% of their short-context performance. Chroma's context rot study measured 18 LLMs and found "models do not use their context uniformly; instead, their performance grows increasingly unreliable as input length grows." Claude's 200K context window is theoretical capacity, not effective capacity.
+
+**Why it happens:**
+The intuition "more context = better output" is wrong for LLMs. Developers assume giving the agent all relevant research will help it make better decisions. In reality, the agent's attention mechanism struggles to find relevant information within large inputs, especially content buried in the middle ("lost in the middle" phenomenon, confirmed by Liu et al. and updated by Veseli et al. 2025). Additionally, research documents were written for human consumption with full prose, tables, and code examples -- they contain far more tokens per actionable insight than a targeted injection needs.
+
+**Warning signs:**
+- Agent output quality decreases after adding resource injection (more generic, less focused)
+- Agent stops referencing specific details from research docs despite having them in context
+- Agent responses become longer but less actionable (padding to seem thorough)
+- Context compaction triggers more frequently during agent workflows
+- Token costs per plugin build increase significantly without quality improvement
+- Agent misses contract requirements (ARCHITECTURE.md, parameter-spec.md) because research docs consumed the attention budget
+
+**How to avoid:**
+1. **Budget per agent:** Set hard token limits for injected resources. A practical ceiling is 2,000-4,000 tokens of injected research per agent invocation (~10-20 focused paragraphs). This keeps total agent input under 40K tokens where performance is strongest.
+2. **Extract, don't inject whole docs:** Instead of injecting full research documents, extract relevant sections. If dsp-agent is building a reverb, inject only the "JUCE Implementation" and "Core DSP Building Blocks" sections from reverb-comprehensive-research.md (~200 lines), not the entire 1,580-line document.
+3. **Summarize for injection:** Create condensed "agent-ready" summaries (200-500 tokens) of each research doc. The full doc stays available for the agent to Read tool into if it needs depth.
+4. **Tiered injection:** Level 1 = summary pointer (50 tokens: "reverb-comprehensive-research.md available -- covers Schroeder, Freeverb, FDN, Dattorro, JUCE integration"). Level 2 = key sections (500 tokens of most relevant content). Level 3 = agent reads full doc via Read tool on demand. Start with Level 1 only.
+
+**Phase to address:** Phase 1 (resource discovery design). The injection strategy must be designed before any injection code is written. Getting this wrong means every subsequent phase inherits the problem.
+
+**Confidence:** HIGH -- based on published research (Chroma context rot study, NoLiMa benchmark, Claude API docs), cross-referenced with actual measured sizes of this system's research docs and agent prompts.
+
+---
+
+### Pitfall 25: False Relevance from DSP Keyword Ambiguity
+
+**What goes wrong:**
+A keyword-based resource discovery system returns wrong documents because audio/DSP terminology is inherently ambiguous. Concrete examples from this codebase:
+
+| Search Term | Intended Doc | False Positive |
+|-------------|-------------|----------------|
+| "frequency" | fft-processing-best-practices.md | Every single research doc (frequency is universal in audio) |
+| "filter" | delay-effects-comprehensive-guide.md (delay filter section) | fft-artifact-prevention.md (window functions), circuit-modeling-fundamentals.md (analog filters) |
+| "modulation" | generative-audio-algorithms-reference.md | microtonality docs (frequency modulation in tuning context) |
+| "spectral" | spectral-sequencer-research.md | spectral-transient-shaper-research.md, spectral-toolbox-synopses.md (3 docs share the word) |
+| "buffer" | Any DSP doc | webgl-spectrogram-patterns.md (WebGL buffer), dsp-click-prevention-debugging.md |
+| "envelope" | multi-stage-decay-envelopes-comparison.md | modal-synthesis-bells-academic-research.md, generative-audio-algorithms-reference.md |
+| "phase" | fft-processing-best-practices.md (phase vocoder) | Every doc (phase is used in "phase of development", "phase accumulator", "phase response") |
+
+The problem is acute because all 23 research docs are in the same narrow domain (audio DSP). Traditional RAG false positive rates are already concerning; in a corpus where every document shares core vocabulary, simple keyword matching is nearly useless for discrimination.
+
+**Why it happens:**
+Audio DSP is a domain where core concepts (frequency, amplitude, phase, buffer, sample, filter, envelope, modulation) appear in virtually every document. Unlike a general knowledge base where "frequency" might disambiguate between audio and radio topics, all 23 docs are audio-focused. Keyword matching cannot distinguish between "FFT frequency bin manipulation" and "filter cutoff frequency parameter" because the word "frequency" carries different meanings at different specificity levels within the same domain.
+
+**Warning signs:**
+- Discovery returns 5+ documents for every query (should return 1-3 for focused tasks)
+- Agents receive research docs they never reference in their output
+- The same documents keep getting injected regardless of the specific plugin being built
+- Discovery returns spectral-toolbox-synopses.md (a short overview) when agent needs spectral-sequencer-research.md (the deep dive)
+
+**How to avoid:**
+1. **Use structured metadata, not content search:** Each research doc should have YAML frontmatter with explicit tags: `topics: [reverb, algorithmic-reverb, fdn, dattorro, juce-reverb]`, `plugin_types: [effect, reverb]`, `dsp_techniques: [allpass, comb-filter, delay-network]`. Match against these tags, not document content.
+2. **Match on plugin BRIEF.md, not generic keywords:** The creative brief already describes what the plugin does. Match brief terms like "algorithmic reverb with Dattorro topology" against doc metadata, not raw keywords.
+3. **Human-curated relevance over automated matching:** With only 23 docs, the research corpus is small enough to curate. A static lookup table mapping DSP technique to relevant docs is more reliable than any automated search:
+   ```
+   reverb -> [reverb-comprehensive-research.md]
+   fft/spectral -> [fft-processing-best-practices.md, fft-artifact-prevention.md, custom-fft-implementations.md]
+   delay -> [delay-effects-comprehensive-guide.md]
+   ```
+4. **Two-stage matching:** First match on high-level topic (e.g., "reverb"), then if multiple docs match, use the plugin's specific technique (e.g., "Dattorro topology") to narrow further.
+
+**Phase to address:** Phase 1 (design tagging scheme) + Phase 2 (build manifest with tags). The scheme must be decided before any matching code is written.
+
+**Confidence:** HIGH -- directly verified by inspecting all 23 research doc filenames and content headers, confirmed by RAG false positive research.
+
+---
+
+### Pitfall 26: Breaking Existing Contracts with `additionalProperties: false`
+
+**What goes wrong:**
+The system uses `additionalProperties: false` on JSON Schema contracts (confirmed in `subagent-report.json` and documented in agent-contracts README). Adding resource orchestration requires new fields in agent input/output contracts (e.g., `resources_injected`, `resources_consulted`, `discovery_metadata`). With `additionalProperties: false`, adding ANY new field to a schema causes validation failures for ALL existing producers that don't include that field.
+
+This is particularly dangerous because `subagent-report.json` is used by 6 agents simultaneously (research-planning-agent, foundation-shell-agent, dsp-agent, gui-agent, ui-design-agent, ui-finalization-agent). Updating the schema without updating ALL 6 agents will cause validation failures. The SubagentStop hook runs `validate-checksums.py` and `validate-cross-contract.py` which parse these schemas -- schema changes may break validators too.
+
+**Why it happens:**
+`additionalProperties: false` was the correct choice for v1.0 -- it prevents typos and unknown fields from silently corrupting data. But it creates a "closed content model" that resists evolution. JSON Schema community research (Creek Service) confirms: in closed models, adding new optional properties is backward compatible (old schemas can read new data), but NOT forward compatible (old schemas reject data with new fields). Since validators run the SCHEMA against AGENT OUTPUT, updating the schema first means old agents fail, and updating agents first means the old schema rejects the new fields. Both directions break.
+
+**Warning signs:**
+- Agents fail with "Additional properties not allowed" validation errors after schema update
+- SubagentStop hook rejects valid agent completions
+- Some agents work (updated ones) while others fail (not yet updated) -- partial rollout breakage
+- Validators crash or return false negatives after schema changes
+
+**How to avoid:**
+1. **Add new fields as optional with defaults:** `"resources_consulted": {"type": "array", "default": [], "description": "..."}` -- NOT added to the `required` array. Old agents that don't produce the field still pass because the default applies.
+2. **Version bump using existing CHANGELOG.md process:** Adding optional fields = MINOR bump (v1.0.0 -> v1.1.0). The system already has this process documented.
+3. **Atomic updates:** Update ALL 6 agent prompts + schema + validators in the same commit. Never deploy a schema change without updating all consumers.
+4. **Consider a separate schema:** Instead of extending `subagent-report.json`, create a new `resource-usage-report.json`. The orchestrator collects both reports from each agent. Zero risk to existing contracts.
+5. **Test with sample data first:** Use the Python `jsonschema` approach already documented in schemas/README.md to verify backward compatibility before touching any agent prompt.
+
+**Phase to address:** Phase 1 (contract evolution planning). Must be decided before any code changes.
+
+**Confidence:** HIGH -- directly verified: `subagent-report.json` has `additionalProperties: false` (line 162), agent-contracts README documents strict validation, CHANGELOG.md shows v1.0.0 with no prior evolution events.
+
+---
+
+### Pitfall 27: Resource Discovery Becoming a Single Point of Failure
+
+**What goes wrong:**
+Every agent invocation now depends on a discovery step. If discovery fails (bug in matching logic, malformed manifest, missing metadata), the agent either: (a) runs without resources (defeating the purpose), or (b) fails entirely (blocking the plugin build workflow). Either outcome is worse than the current state where agents simply don't have resources but work fine.
+
+The risk is amplified by the existing hook architecture. If resource discovery runs in a hook, a failure can either silently exit with code 0 (agent runs without resources, nobody notices) or block the workflow with a non-zero exit (agent can't run at all). Neither is acceptable.
+
+**Why it happens:**
+Resource orchestration introduces two new dependency steps into a working pipeline:
+```
+Current:  User prompt -> Agent prompt -> Agent reads contracts -> Agent executes
+Proposed: User prompt -> Discovery -> Injection -> Agent prompt -> Agent reads contracts -> Agent executes
+```
+The system currently has no precedent for pre-agent context injection that affects prompt construction. `UserPromptSubmit.sh` only injects for `/continue` commands, not for all agent invocations. The infrastructure for reliable pre-agent injection does not exist yet.
+
+**Warning signs:**
+- Agents occasionally run without resources despite the system being "configured" (silent failures)
+- A bug in the manifest/index blocks ALL plugin builds, not just the one being worked on
+- Discovery returns empty results for valid queries, causing agents to produce generic output
+- Error messages don't distinguish "discovery found nothing relevant" from "discovery system crashed"
+
+**How to avoid:**
+1. **Graceful degradation, not hard failure:** If discovery fails or returns empty, the agent runs with its existing prompt (current behavior). Resource injection is purely additive. Log a warning but never block the workflow due to discovery failure.
+2. **Separate discovery from injection:** Discovery produces a list of relevant resource paths. Injection decides what to include. Each step fails independently and gracefully.
+3. **Static fallback over dynamic discovery:** For v1.2, use a static mapping (plugin DSP technique -> relevant research docs) rather than dynamic content analysis. A JSON lookup table cannot crash. Dynamic discovery can be layered on in v1.3+.
+4. **Discovery health check in SessionStart.sh:** Verify the resource manifest is valid and loadable at session start. Catch problems before they affect agent invocations.
+5. **Orchestrator-level discovery (preferred):** Have the plugin-workflow skill run discovery before spawning each subagent, passing results as part of the Task prompt. The skill has no timeout constraint and full error handling capabilities.
+
+**Phase to address:** Phase 2 (implementation). Graceful degradation must be the default from day one.
+
+**Confidence:** HIGH -- based on hook architecture inspection (timeout constraints, exit code behavior) and the absence of pre-agent injection infrastructure.
+
+---
+
+## Moderate Pitfalls (v1.2)
+
+### Pitfall 28: Hook Timeout Violations During Resource Discovery
+
+**What goes wrong:**
+Resource discovery logic added to hooks exceeds the configured timeout, causing silent failure or workflow blocking. Measured current timeout budget:
+
+| Hook | Timeout | Estimated Current Usage | Available Budget |
+|------|---------|------------------------|-----------------|
+| SessionStart.sh | 5,000ms | ~2,000ms (env checks) | ~3,000ms |
+| UserPromptSubmit.sh | 5,000ms | ~500ms (cat files) | ~4,500ms |
+| PostToolUse.sh | 2,000ms | ~1,500ms (regex + python validator) | ~500ms |
+| SubagentStop.sh | 10,000ms | ~3,000ms (3 python validators) | ~7,000ms |
+| PreCompact.sh | 10,000ms | ~2,000ms (cat contracts) | ~8,000ms |
+
+Discovery involves: reading a manifest, matching against task context, reading matched doc metadata, formatting injection payload. With file I/O for 3-5 research doc headers, this takes 1-3 seconds. Adding this to PostToolUse.sh (500ms available) WILL cause timeout failures. Even UserPromptSubmit.sh (4.5s available) is tight if discovery reads multiple files on cold disk cache.
+
+**Why it happens:**
+Hook timeouts were set for validation operations (checksums, regex, parameter checking), not for I/O-intensive discovery across a corpus of 23 files. The existing validators are fast because they operate on predictable, small inputs. Resource discovery operates on variable-size corpus with file I/O that depends on disk cache state.
+
+**Warning signs:**
+- Hooks intermittently time out (works on warm cache, fails on cold)
+- PostToolUse.sh starts failing consistently after adding discovery logic
+- Discovery works during development (testing with 2-3 files) but fails with full corpus (23 files)
+
+**How to avoid:**
+1. **Do NOT add discovery to PostToolUse.sh.** The 2s timeout with ~500ms available is not viable. This hook must remain focused on code validation only.
+2. **Pre-compute discovery results at workflow start** in the orchestrator skill (no timeout constraint). Cache results. Pass to agents as part of Task prompt.
+3. **If hooks must be used, use SessionStart.sh:** Build a cached index at session start (3s available). Store as `.claude/cache/resource-index.json`. Subsequent operations just read the cache (~50ms).
+4. **Benchmark independently before deploying:** `time python3 .claude/scripts/resource-discovery.py --plugin O-Reverb --stage 2`. If it exceeds 1 second, it cannot go in any hook except SubagentStop or PreCompact.
+
+**Phase to address:** Phase 1 (architecture decision: hooks vs. orchestrator for discovery).
+
+**Confidence:** HIGH -- directly measured from hook timeout values in `hooks.json` and `settings.json`, current usage estimated from reading each hook's implementation.
+
+---
+
+### Pitfall 29: Agent Prompt Disruption from Injected Research Content
+
+**What goes wrong:**
+Adding research content to agent prompts changes agent behavior in unexpected ways. The dsp-agent prompt is carefully tuned over 1,235 lines to produce specific JSON reports, follow real-time safety rules (51 rules with code examples), and use prescribed JUCE DSP patterns. Injecting research content can:
+
+1. **Dilute instruction adherence:** The agent adopts code patterns from the research doc instead of its own prescribed patterns. Example: `reverb-comprehensive-research.md` contains C++ code examples that may use different variable naming, class structure, or API patterns than dsp-agent.md specifies.
+2. **Create conflicting instructions:** Research docs may contain recommendations that contradict agent constraints. A research doc might suggest `std::function` for callback patterns, while dsp-agent's real-time safety rules (lines 586-636) explicitly reject ALL `std::function` in processBlock with zero tolerance.
+3. **Shift attention from contracts:** The agent's prompt carefully directs it to read ARCHITECTURE.md, parameter-spec.md, and ROADMAP.md first (lines 228-246). Injected research content competes for the same attention budget.
+
+**Why it happens:**
+LLMs process all input as a flat token stream. They cannot reliably distinguish "this is your core instruction set" from "this is supplementary reference material." The more tokens of reference material, the more attention budget consumed processing it instead of following instructions. Published research on prompt injection confirms LLMs struggle to maintain instruction boundaries when data is co-located with instructions.
+
+**Warning signs:**
+- Agent output format changes (JSON report structure drifts from subagent-report.json)
+- Agent uses code patterns from research docs instead of template library patterns
+- Real-time safety violations increase (agent follows research code examples that aren't processBlock-safe)
+- Agent skips self-validation steps (safety checklist, lines 1136-1150 of dsp-agent.md)
+- Agent references research content but misses contract requirements
+
+**How to avoid:**
+1. **Inject at END of prompt, after all instructions:** Use clear delimiters:
+   ```
+   <agent_instructions>
+   [existing dsp-agent.md content]
+   </agent_instructions>
+   <reference_material>
+   The following research is for reference. Your instructions above take priority.
+   If research content contradicts your real-time safety rules, follow your rules.
+   [injected content]
+   </reference_material>
+   ```
+2. **Prefer file paths over inline content:** Instead of injecting full docs, inject: "Relevant: `research/reverb-comprehensive-research.md` (Sections 6-8 for JUCE patterns)". Agent uses Read tool when needed. Keeps prompt small, gives agent agency.
+3. **Add explicit priority directive to agent prompts:** "If any research document content contradicts your instructions (especially real-time safety rules), your instructions take precedence unconditionally."
+4. **Regression test with known-good plugins:** Inject research for a completed plugin (e.g., O-Bells) and compare output with/without injection. Quality should improve or stay same, never degrade.
+
+**Phase to address:** Phase 2 (injection format) + Phase 4 (regression testing).
+
+**Confidence:** HIGH -- agent prompt sizes measured, research doc sizes measured, instruction-data confusion well documented in LLM research.
+
+---
+
+### Pitfall 30: Accountability Theater (Listing Resources Without Using Them)
+
+**What goes wrong:**
+Agents report `resources_consulted: ["reverb-comprehensive-research.md"]` but produce identical output to non-injected runs. The accountability system shows 100% resource consultation but 0% actual knowledge integration. This creates a false sense that resource orchestration is "working" and prevents investigating why output quality hasn't improved.
+
+**Why it happens:**
+LLMs are trained to comply with instructions. If told "report which resources you consulted," the agent lists whatever resources were in its context. The citation is mechanically easy (copy filenames from the prompt), but meaningful integration is hard (understand content, apply to implementation, adapt patterns). This is structurally identical to students citing sources they didn't read.
+
+**Warning signs:**
+- Agent reports list ALL injected resources every time (100% "consultation" rate is suspicious)
+- Removing research docs from injection produces identical code output
+- Agent's DSP code doesn't reflect techniques from cited research (e.g., reports consulting reverb doc but implements a basic feedback delay)
+- A/B comparison shows no measurable difference between injected and non-injected runs
+
+**How to avoid:**
+1. **Verify by output, not self-report:** Post-agent validation checks: "Does the implementation use techniques from the injected research?" For reverb, check: does code reference Dattorro, FDN, or allpass chains documented in the research?
+2. **Require specific citations:** Instead of `resources_consulted`, require: `resources_applied: [{"file": "reverb-comprehensive-research.md", "section": "Section 2.4 Dattorro Plate", "application": "Used plate topology with input diffusion = 0.75"}]`. Specific citations are harder to fabricate.
+3. **Inject actionable directives, not raw reference:** Instead of the full doc, inject: "Use the Dattorro plate reverb topology (reverb-comprehensive-research.md Section 2.4). Key parameters: input diffusion 1 = 0.75, input diffusion 2 = 0.625, decay diffusion = 0.7." Actionable directives produce verifiable output.
+4. **Prove value before adding accountability:** Focus first on whether injection improves output quality (measure via critic scores). Add reporting only after confirming injection actually helps. If it doesn't help, accountability is waste.
+
+**Phase to address:** Phase 3 (accountability), but only after Phase 2 (injection) proves value.
+
+**Confidence:** MEDIUM -- LLM compliance theater is well-documented but difficult to measure precisely without A/B testing in this specific system.
+
+---
+
+### Pitfall 31: Over-Engineering Discovery for a 23-Document Corpus
+
+**What goes wrong:**
+The team builds a semantic search engine, embedding pipeline, vector store, or NLP classification system to find relevant documents among 23 files. This takes weeks, requires external dependencies, and is less reliable than a hand-written lookup table.
+
+**Why it happens:**
+Semantic search and RAG are the "standard" approach for resource discovery in LLM systems. Tutorials and articles describe embedding-based retrieval as the correct pattern. But those approaches target corpora of thousands to millions of documents. For 23 files in a narrow domain, embeddings add failure modes (similarity thresholds, chunk boundaries, stale embeddings) without solving problems that a 30-line JSON file solves instantly.
+
+**Warning signs:**
+- More code written for discovery system than for agents using it
+- Discovery requires external dependencies (embedding models, vector databases, sentence-transformers)
+- Discovery accuracy lower than a hand-curated lookup table
+- System requires "tuning" (similarity thresholds, chunk sizes, overlap parameters) for 23 documents
+- New research docs require re-indexing/re-embedding
+
+**How to avoid:**
+1. **Start with a static manifest (10 minutes of work):**
+   ```json
+   {
+     "reverb": ["reverb-comprehensive-research.md"],
+     "fft": ["fft-processing-best-practices.md", "fft-artifact-prevention.md", "custom-fft-implementations.md"],
+     "delay": ["delay-effects-comprehensive-guide.md"],
+     "spectral": ["spectral-sequencer-research.md", "spectral-transient-shaper-research.md"],
+     "generative": ["generative-audio-algorithms-reference.md", "generative-plugins-research-synthesis.md"],
+     "microtonality": ["microtonality-implementation-juce.md", "microtonality-comprehensive-database.md", "microtonality-theory-formats.md", "microtonality-commercial-performance.md"],
+     "physical-modeling": ["physical-modeling-commercial-analog-modeling-ml-approaches.md", "physical-modeling-research-agent-3-physical-modelling-optimization.md", "circuit-modeling-fundamentals.md"],
+     "modal-synthesis": ["modal-synthesis-bells-academic-research.md", "multi-stage-decay-envelopes-comparison.md"],
+     "click-prevention": ["dsp-click-prevention-debugging.md"],
+     "webgl": ["webgl-spectrogram-patterns.md"]
+   }
+   ```
+2. **Upgrade to keyword matching only when corpus exceeds 50 docs.**
+3. **Upgrade to semantic search only when corpus exceeds 200 docs.**
+4. **Document the decision explicitly:** "Static manifest chosen because 23 docs. Reassess at 50 docs." This prevents future contributors from prematurely over-engineering.
+
+**Phase to address:** Phase 1 (explicitly choose simple approach as a design decision).
+
+**Confidence:** HIGH -- corpus is exactly 23 documents (verified). Research confirms simple approaches outperform complex ones on small corpora by eliminating tuning overhead and false positives.
+
+---
+
+### Pitfall 32: Stale Research Documents Injected Without Freshness Signal
+
+**What goes wrong:**
+Research docs written months ago contain outdated JUCE API patterns or superseded algorithm recommendations, but the discovery system keeps injecting them because they match topic keywords. Example: `reverb-comprehensive-research.md` (created 2026-01-13) recommends specific JUCE classes. If JUCE 8 deprecates or changes those classes in an update, the research doc still recommends the old approach.
+
+**Why it happens:**
+Research documents are written once and referenced indefinitely. There is no freshness signal in the current file structure -- no creation date in structured metadata, no "last verified" timestamp, no expiration policy. The discovery system treats all docs as equally current.
+
+**Warning signs:**
+- Agent implements patterns from a research doc that reference a different JUCE version than system-config.json (currently 8.0.9)
+- Multiple research docs cover same topic with conflicting recommendations (no way to know which is newer)
+- Code review catches API patterns that were valid when doc was written but are now deprecated
+
+**How to avoid:**
+1. **Add YAML frontmatter with freshness metadata:**
+   ```yaml
+   ---
+   created: 2026-01-13
+   last_verified: 2026-01-13
+   juce_version: 8.0.9
+   status: current  # current | needs-review | deprecated
+   superseded_by: null
+   ---
+   ```
+2. **Discovery checks freshness:** If `last_verified` > 60 days old or `juce_version` differs from system-config.json, add warning: "NOTE: Last verified [date] against JUCE [version]. Current: JUCE [current]. Verify patterns."
+3. **Separate stable theory from volatile implementation:** DSP algorithm theory (FDN reverb, overlap-add) rarely changes. JUCE integration patterns change with JUCE releases. Only flag implementation sections for freshness review.
+4. **Quarterly review trigger in SessionStart.sh:** Non-blocking warning when any doc's `last_verified` exceeds 90 days.
+
+**Phase to address:** Phase 2 (add frontmatter when building manifest).
+
+**Confidence:** MEDIUM -- staleness risk is currently low (system is weeks old, JUCE 8.0.9 is current) but increases over months. Prevention cost is minimal (YAML frontmatter), so worthwhile as preventive measure.
+
+---
+
+### Pitfall 33: Manifest Maintenance Drift
+
+**What goes wrong:**
+Every time a new research document is created (by deep-research skill, research-planning-agent, or manually), someone must update the resource manifest. If forgotten, the new doc is invisible to discovery. Over time, manifest drifts from reality -- some entries reference moved/deleted files, new docs aren't indexed.
+
+**Why it happens:**
+The system already creates research docs through deep-research skill and research-planning-agent. These agents write to `research/` but have no awareness of a resource manifest. Manual maintenance creates a burden that competes with the primary goal.
+
+**Warning signs:**
+- `ls research/*.md | wc -l` (file count) differs from manifest entry count
+- Users bypass discovery and tell agents to "read research/X.md" directly
+- Manifest hasn't been updated in weeks despite new research being created
+- Discovery returns no results for topics with existing research docs
+
+**How to avoid:**
+1. **Auto-generate manifest from file metadata:** If docs have YAML frontmatter with topic tags, scan `research/*.md` and extract frontmatter. Run as part of SessionStart.sh (fast -- under 1s for 23 files):
+   ```bash
+   python3 .claude/scripts/build-resource-manifest.py --dir research/ --output .claude/cache/resource-manifest.json
+   ```
+2. **Default tags from filename:** If frontmatter missing, derive tags from filename: `reverb-comprehensive-research.md` -> `["reverb"]`. Ensures basic discoverability without explicit tagging.
+3. **Make generation idempotent:** Running twice produces identical output. No corruption risk.
+4. **Update deep-research skill to include frontmatter:** When creating new research docs, include the YAML template. Zero-cost maintenance for new docs.
+5. **Validation in SessionStart.sh:** After generating manifest, verify every `research/*.md` file has an entry and every manifest entry points to existing file. Log warnings for mismatches.
+
+**Phase to address:** Phase 2 (build auto-generation) + Phase 3 (update deep-research skill to emit frontmatter).
+
+**Confidence:** HIGH -- maintenance drift is a predictable consequence of manual processes. Auto-generation from metadata is proven and cheap for 23 files.
+
+---
+
+## v1.2 Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Inject full research docs into prompts | No extraction logic needed | Context exhaustion, attention dilution, higher token costs | Never -- even for testing, use extracts or paths |
+| Hard-code resource mappings in agent .md files | Quick per-agent | Unmaintainable as corpus grows, agents updated independently | Only as <1 week prototype |
+| Skip schema versioning for resource fields | Faster deployment | Cascading failures when fields change again, no rollback path | Never -- CHANGELOG.md process exists |
+| Put discovery in PostToolUse.sh | Runs on every Write/Edit | 2s timeout insufficient, slows every file operation | Never -- PostToolUse is for validation only |
+| Use `additionalProperties: true` to avoid schema issues | No validation failures | Loses typo detection, data integrity | Only for explicitly extensible metadata objects |
+| Copy-paste research into agent prompts manually | Works immediately | Inconsistent, no freshness tracking, no automation | Only during initial proof-of-concept |
+| Build semantic search for 23 docs | "Proper" architecture | Weeks of work, more failure modes than static lookup | Never for current corpus size |
+
+## v1.2 Integration Gotchas
+
+| Integration Point | Common Mistake | Correct Approach |
+|-------------------|----------------|------------------|
+| PostToolUse.sh (2s timeout) | Adding discovery logic | Keep as validation-only; discovery goes in orchestrator |
+| Agent prompt construction | Injecting research before instructions | Inject after instructions with `<reference_material>` delimiter and priority directive |
+| SubagentStop.sh (10s timeout) | Validating resource usage here | Validate in agent's own self-check (prompt-based), not external hook |
+| subagent-report.json schema | Adding required resource fields | Add optional fields with defaults; MINOR version bump |
+| PreCompact.sh | Not preserving resource state | Add manifest path to PreCompact preservation list |
+| Contract checksums | Resource injection triggering checksum failures | Resource injection is separate from contracts; checksums cover contract files only |
+| UserPromptSubmit.sh | Making discovery part of `/continue` flow | Discovery runs at agent invocation time in orchestrator skill |
+| deep-research skill | Creating docs without manifest metadata | Update skill to emit YAML frontmatter in new docs |
+
+## v1.2 Performance Traps
+
+| Trap | Symptoms | Prevention | When It Breaks |
+|------|----------|------------|----------------|
+| Full-text search over all 23 research docs | Slow, false positives everywhere | Use metadata tags or static manifest | Immediate for keyword ambiguity; O(n) at 50+ docs |
+| Injecting all matched docs into agent | Context overflow, quality drop | Cap at 2-3 docs max, extract sections only | Immediate -- even 2 full docs (~22K tokens) overwhelm |
+| Synchronous discovery in hooks | Timeout failures | Cache results or run in orchestrator | Immediate for PostToolUse; risky for UserPromptSubmit |
+| Re-discovering per file write | Redundant work | Discover once per agent invocation, cache for session | Immediate -- discovery runs once, not per-operation |
+| Embedding all 23 docs for vector search | Slow startup, stale embeddings | Static manifest (no embeddings needed for 23 docs) | Immediate -- over-engineering from day one |
+
+## v1.2 "Looks Done But Isn't" Checklist
+
+- [ ] **Discovery returns right docs:** Test with 5+ plugin types (reverb, delay, spectral, generative, microtonality). Check each result is relevant, not just "some result."
+- [ ] **Agents use resources meaningfully:** Compare output with and without injection for same plugin. If identical, injection isn't working regardless of what agents report.
+- [ ] **ALL 6 subagent-report.json consumers updated:** Schema + foundation-shell-agent + dsp-agent + gui-agent + ui-design-agent + ui-finalization-agent + research-planning-agent. Partial updates cause silent failures.
+- [ ] **Hooks don't timeout under load:** Test with warm AND cold disk cache. Test with all 23 docs in corpus. Time each hook independently.
+- [ ] **Manifest covers all docs:** `ls research/*.md | wc -l` must equal manifest entry count.
+- [ ] **Freshness metadata present:** Every doc has YAML frontmatter with `created`, `last_verified`, `juce_version`.
+- [ ] **Backward compatibility preserved:** Run plugin-testing skill on a known-good plugin with new resource code. Must pass identically.
+- [ ] **Context budget verified:** Measure tokens: agent prompt + injected resources + contracts. Must be < 40K tokens total.
+- [ ] **Graceful degradation works:** Rename manifest file. Verify agents still run and produce valid output. If they crash, you built a hard dependency.
+- [ ] **No PostToolUse.sh timeout:** PostToolUse must complete in < 2s with resource code active. Benchmark: `time .claude/hooks/PostToolUse.sh < test-input.json`.
+
+## v1.2 Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| Context window exhaustion | LOW | Reduce injection to paths only, revert to no injection temporarily |
+| False relevance / wrong docs | LOW | Update manifest tags, switch to curated lookup, add exclusion rules |
+| Broken schemas | MEDIUM | Revert schema, update all 6 agents atomically, re-deploy |
+| Hook timeout failures | LOW | Move discovery from hook to orchestrator skill |
+| Agent prompt disruption | MEDIUM | A/B test, adjust injection format, add priority directive, revert if needed |
+| Accountability theater | LOW | Remove reporting, focus on output-based verification instead |
+| Over-engineered discovery | HIGH | Tear down complex system, replace with static manifest (sunk cost lost) |
+| Stale docs injected | LOW | Add freshness warning, update `last_verified` dates |
+| Manifest drift | LOW | Run auto-generation script, fix deep-research skill |
+| Discovery SPOF | MEDIUM | Add graceful degradation, ensure agents work without discovery |
+
+## v1.2 Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| #24 Context exhaustion | Phase 1 (design injection budget) | Measure tokens per agent invocation; must be < 40K |
+| #25 False relevance | Phase 1 (design tags) + Phase 2 (build manifest) | Test with 5+ plugin types, verify precision |
+| #26 Breaking schemas | Phase 1 (plan schema evolution) | jsonschema validation with old AND new sample data |
+| #27 Discovery SPOF | Phase 2 (implement graceful degradation) | Break discovery intentionally, verify agents still work |
+| #28 Hook timeouts | Phase 1 (choose hooks vs. orchestrator) | Benchmark discovery; must complete < 1s |
+| #29 Prompt disruption | Phase 2 (injection format) + Phase 4 (regression test) | A/B test on known-good plugin |
+| #30 Accountability theater | Phase 3 (only after injection proven useful) | Compare output with/without injection |
+| #31 Over-engineering | Phase 1 (explicitly choose static manifest) | Decision documented: "static because 23 docs" |
+| #32 Stale resources | Phase 2 (add frontmatter to all docs) | All 23 docs have YAML frontmatter with dates |
+| #33 Manifest drift | Phase 2 (auto-gen script) + Phase 3 (update deep-research) | Add new test doc; verify it appears without manual steps |
+
+## v1.2 Pre-Implementation Checklist
+
+Before starting v1.2 resource orchestration:
+
+- [ ] Inventory all 23 research docs with sizes (DONE -- see measurements above)
+- [ ] Measure all agent prompt sizes in tokens (DONE -- ranges 126-1,301 lines)
+- [ ] Document all hook timeout budgets (DONE -- see table above)
+- [ ] Decide: hooks vs. orchestrator-level discovery (Phase 1 decision)
+- [ ] Decide: schema extension vs. parallel schema (Phase 1 decision)
+- [ ] Decide: static manifest vs. dynamic discovery (Phase 1 decision -- recommend static)
+- [ ] Set token budget ceiling per agent (recommend: 4,000 tokens max injected research)
+- [ ] Identify test plugins for regression testing (recommend: O-Bells, O-Freeze)
+- [ ] Review `additionalProperties: false` implications for ALL schemas being modified
+
+---
+
+## v1.2 Sources
+
+**Context Window Management (HIGH confidence):**
+- [Chroma Research: Context Rot](https://research.trychroma.com/context-rot) -- 18 LLMs measured, performance degrades with input length
+- [NoLiMa Benchmark / Towards Data Science](https://towardsdatascience.com/your-1m-context-window-llm-is-less-powerful-than-you-think/) -- 11/12 models below 50% at 32K tokens
+- [Claude API: Context Windows](https://platform.claude.com/docs/en/build-with-claude/context-windows) -- 200K token window documentation
+- [Claude Code Best Practices](https://code.claude.com/docs/en/best-practices) -- /compact at 70%, subagent isolation
+
+**Resource Discovery & RAG (MEDIUM-HIGH confidence):**
+- [InfoQ: Reducing RAG False Positives](https://www.infoq.com/articles/reducing-false-positives-retrieval-augmented-generation/) -- Banking case study, 99% to 3.8%
+- [Label Studio: Seven RAG Pitfalls](https://labelstud.io/blog/seven-ways-your-rag-system-could-be-failing-and-how-to-fix-them/) -- Chunking, ranking failures
+- [Elastic: Context Engineering for AI Agents](https://www.elastic.co/search-labs/blog/context-engineering-relevance-ai-agents-elasticsearch) -- Hybrid search, context rot defense
+- [Towards Data Science: Over-Engineered Retrieval](https://towardsdatascience.com/how-to-build-an-overengineered-retrieval-system/) -- Complexity vs. simplicity tradeoffs
+
+**Schema Evolution (HIGH confidence):**
+- [Creek Service: Evolving JSON Schemas Part I](https://www.creekservice.org/articles/2024/01/08/json-schema-evolution-part-1.html) -- Closed/open model evolution rules
+- [Creek Service: Evolving JSON Schemas Part II](https://www.creekservice.org/articles/2024/01/09/json-schema-evolution-part-2.html) -- Partially open models
+
+**Agent Prompt Engineering (MEDIUM confidence):**
+- [Simon Willison: Prompt Injection Design Patterns](https://simonwillison.net/2025/Jun/13/prompt-injection-design-patterns/) -- Context minimization, instruction boundaries
+- [LangChain: Context Engineering in Agents](https://docs.langchain.com/oss/python/langchain/context-engineering) -- Middleware injection patterns
+
+**Claude Code Specific (HIGH confidence):**
+- [Factory.ai: Context Window Problem](https://factory.ai/news/context-window-problem) -- Agent token accumulation
+- [Claude Code Dynamic Context Injection](https://www.365iwebdesign.co.uk/news/2026/01/23/claude-code-dynamic-context-injection/) -- DCI patterns
+- [Medium: Claude Code MCP Context Bloat Reduction](https://medium.com/@joe.njenga/claude-code-just-cut-mcp-context-bloat-by-46-9-51k-tokens-down-to-8-5k-with-new-tool-search-ddf9e905f734) -- Tool search reducing 51K to 8.5K tokens
+
+**Direct Codebase Inspection (HIGH confidence -- primary source):**
+- `.claude/agents/*.md` -- all 11 agent prompts measured
+- `.claude/hooks/*.sh` + `hooks.json` + `settings.json` -- all 6 hooks with timeouts
+- `.claude/schemas/subagent-report.json` -- confirmed `additionalProperties: false`
+- `research/*.md` -- all 23 documents sized (lines and KB)
+
+---
+
+*v1.2 Addendum Researched: 2026-02-04*
+*Focus: Pitfalls specific to adding resource orchestration to an existing 13-agent system with JSON Schema contracts and hook-based validation*

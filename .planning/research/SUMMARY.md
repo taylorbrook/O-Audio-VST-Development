@@ -1,213 +1,294 @@
-# Research Summary: v1.1 Cleanup & Workflow Polish
+# Project Research Summary
 
-**Project:** Plugin Freedom System
-**Milestone:** v1.1
-**Researched:** 2026-02-01
+**Project:** Plugin Freedom System v1.2 - Agent Intelligence & Resource Orchestration
+**Domain:** AI agent resource discovery and context injection for JUCE audio plugin development
+**Researched:** 2026-02-04
 **Confidence:** HIGH
 
 ## Executive Summary
 
-Milestone v1.1 addresses two distinct but complementary improvements to the Plugin Freedom System: (1) repository cleanup to remove ~500MB of build artifacts from git history, and (2) adding a planning phase to the plugin-improve workflow for complex (Tier 2/3) improvements. Both improvements are well-understood with established tooling and patterns.
+The Plugin Freedom System has 23 research documents, 11 agents, 25 skills, and rich plugin planning artifacts — but no mechanism connects research knowledge to agent execution. Research docs exist only when a human manually adds them to prompts. The v1.2 milestone solves this by adding **resource discovery** (which docs are relevant?), **context injection** (deliver resources to agents before execution), and **usage accountability** (verify agents consulted appropriate resources).
 
-**Repository cleanup** should use git-filter-repo (not BFG or deprecated filter-branch) because it supports path-based filtering needed to target `build/` directories specifically. The current `.git` directory is 584MB with 557MB in packs, primarily from 30-55MB static library archives accidentally committed. Expected reduction is 80-90%, bringing the repository to a manageable ~50-80MB. The critical coordination requirement is that all existing clones become invalid after history rewrite - this is a solo project so the impact is minimal, but CI/CD caches must be cleared.
+The key technical insight: **static manifest + keyword matching beats semantic search for a 23-document corpus**. Vector databases and embedding pipelines are over-engineering. A JSON index mapping topics to file paths, combined with keyword matching against agent prompts, delivers 100ms discovery with zero external dependencies. Context injection happens via **SubagentStart hooks** (guaranteed delivery to subagents) or **skill orchestrator prompt augmentation** (for main workflow agents). Accountability is **warning-level, not blocking** — agents self-report resources consulted in JSON reports, validated by SubagentStop hooks, but missing resources trigger warnings not workflow failures.
 
-**Workflow enhancement** should follow the conditional middleware pattern already established in the plugin-improve skill (e.g., Phase 5.5 regression testing). A new Phase 0.6 Planning triggers only for Tier 2/3 investigations, preserving the fast path for simple fixes. This matches existing phase numbering (0.3, 0.4, 0.45, 0.5, 0.9) and requires minimal changes: one new reference file, one template, and a SKILL.md update.
+The main risks: (1) **context window budget exhaustion** if full documents are injected instead of summaries + paths, (2) **false relevance** from DSP keyword ambiguity (every doc mentions "frequency" and "filter"), and (3) **breaking existing JSON Schema contracts** with `additionalProperties: false`. Prevention: inject 2,000-4,000 token summaries maximum, use structured metadata tags not content search, and make all new schema fields optional with defaults.
 
 ## Key Findings
 
-### Repository Cleanup
+### Recommended Stack
 
-**From STACK.md:**
-- git-filter-repo is the recommended tool (Python-based, path filtering, actively maintained)
-- Current `.git` size: 584MB with 557MB in packs
-- Largest offenders: `build/plugins/*/lib*.a` files (30-55MB each)
-- System git version (2.50.1) exceeds requirements (2.36.0+)
-- BFG Repo-Cleaner rejected: requires Java, filename-only filtering, skips HEAD by default
+The existing system has the right infrastructure bones: 6 hooks, 11 agents, 24 skills, 23 research documents, and JSON Schema contracts. This milestone adds intelligence on top of that infrastructure without external services, vector databases, or runtime dependencies. Everything is bash/Python scripts, JSON index files, and hook configuration.
 
-**From FEATURES.md:**
-- Table stakes: backup creation, large file detection, garbage collection, verification report
-- Differentiators: dry-run mode, pattern-based cleanup, .gitignore validation
-- Anti-features: automatic cleanup without backup, force-push automation
+**Core technologies:**
+- **Python 3.9+ with stdlib only** — Index builder, resource matcher, usage tracker. Already a dependency for validators. No new packages needed except optionally `bm25s` if keyword matching proves insufficient (defer to v1.3+).
+- **JSON manifest (`.claude/resource-index.json`)** — Static catalog of all resources with keywords, categories, agents, summaries. Follows `plugin-registry.json` pattern. Native to system (schemas, contracts, registry all use JSON). Parseable by both bash (`jq`) and Python.
+- **Bash hooks** — SubagentStart for context injection, SubagentStop for usage validation, SessionStart for index freshness. Consistent with existing hook infrastructure.
+- **jq 1.6+** — JSON parsing in hook scripts. Already validated by SessionStart hook. Used for extracting agent_type, prompt text from hook stdin.
 
-**From PITFALLS.md (Pitfalls 14-19):**
-- Pitfall 14: Breaking existing clones (HIGH impact) - all clones invalid after rewrite
-- Pitfall 15: git-filter-repo removes origin remote intentionally - must re-add
-- Pitfall 17: CI/CD pipeline failures from cached SHA references
-- Pitfall 18: Size not reduced immediately - requires aggressive gc and waiting for GitHub
-- Pitfall 19: Using deprecated filter-branch - 10-720x slower and error-prone
+### Expected Features
 
-### Workflow Planning Phase
+**Must have (table stakes):**
+- Keyword-based resource discovery matching task prompts against manifest
+- SubagentStart context injection (guaranteed delivery mechanism)
+- Resource injection as file paths + summaries (not full content)
+- Agent usage reporting in JSON reports (`resources_consulted` field)
+- Agent invocation audit (SubagentStop validates usage)
+- Static resource manifest with keywords, categories, stages, summaries
+- Hook-based pre-agent context loading for guaranteed injection
 
-**From STACK.md:**
-- Recommended pattern: Conditional Middleware (matches existing Phase 5.5)
-- Trigger condition: Tier 2 or Tier 3 investigation complexity
-- Skip planning for Tier 1 (simple fixes don't need overhead)
-- GSD methodology emphasizes atomic tasks with verification
+**Should have (differentiators):**
+- Stage-aware resource filtering (FFT research relevant at Stage 2, not Stage 3)
+- Freshness tracking with stale-doc warnings (YAML frontmatter with `last_verified` dates)
+- Auto-generated manifest from document frontmatter (no manual maintenance drift)
+- Pattern auto-injection (stage-specific patterns like `stage-2-patterns.md` injected via hooks)
+- Resource gap detection ("No research found for granular synthesis — consider /plugin-research")
+- Automatic resource recommendation at `/start` command (surfaces docs based on BRIEF.md)
 
-**From FEATURES.md:**
-- Table stakes: implementation plan document, task decomposition, architecture decisions, verification criteria
-- Differentiators: affected component analysis, backward compatibility check, complexity estimation
-- Anti-features: planning without investigation, overly detailed plans, auto-generated code from plans
+**Defer (v2+):**
+- Cross-plugin knowledge transfer (requires knowledge graph, only valuable after 10+ completed plugins)
+- Decision provenance chain (track which resource influenced which ARCHITECTURE.md decision)
+- Module-research cross-referencing (extend manifest to include module associations)
+- Adaptive injection depth based on agent usage patterns (learn whether summaries suffice or full docs needed)
 
-**From ARCHITECTURE.md:**
-- Insert Phase 0.6 between Phase 0.5 (Investigation) and Phase 0.9 (Backup)
-- Deep-research handoff (Phase 0.45) skips planning - research already includes recommendations
-- New artifacts: `references/planning-protocol.md`, `assets/planning-template.md`
-- Pattern: Generator-Critic validation recommended for complex improvements
+### Architecture Approach
 
-**From PITFALLS.md (Pitfalls 20-23):**
-- Pitfall 20: Complexity creep (HIGH impact) - preserve simple path for quick fixes
-- Pitfall 21: In-flight plugins (O-IntonationPad Stage 4, O-Freeze Stage 0) - new phases must be additive
-- Pitfall 22: GitHub Actions trigger compatibility - test in fork first
-- Pitfall 23: Workflow schema drift - update schemas when adding fields
+Discovery happens in the **skill orchestrator** before Task() invocation, not in hooks or agents themselves. Orchestrators already construct prompts with contracts; adding resource discovery is a natural extension. A Python script (`resource-discovery.py`) matches task context (plugin name, stage, agent type, extracted keywords) against the resource index and returns ranked results. The orchestrator appends discovered resources to the agent prompt as file paths with summaries and read instructions. The agent uses Read tool to load full content on demand.
 
-## Recommended Stack
+**Major components:**
+1. **Resource Index (`.claude/resource-index.json`)** — Static catalog with metadata: path, keywords, tags, dsp_topics, relevant_agents, relevant_plugins, summary, size_kb. Regenerated when docs change via `build-resource-index.py` script.
+2. **Discovery Script (`resource-discovery.py`)** — Scores resources against task context using keyword overlap, agent affinity, and domain matching. Returns ranked list (MUST-READ vs SHOULD-READ) in <100ms.
+3. **Skill Orchestrator (modified `plugin-workflow`, `plugin-improve`, `plugin-planning`)** — Calls discovery script, formats results, appends to Task() prompt before spawning agent.
+4. **SubagentStop Hook (extended)** — Validates agent JSON report for `resources_consulted` field. Warns if MUST-READ resources skipped but does not block workflow (warning-level accountability).
+5. **SessionStart Hook (extended)** — Checks if resource index is stale (source files newer than index). Rebuilds automatically if needed.
 
-### Git Cleanup
-| Tool | Version | Purpose |
-|------|---------|---------|
-| git-filter-repo | 2.47.0+ | Path-based history rewriting |
-| Python 3 | Already installed | git-filter-repo dependency |
-| Git | 2.50.1 (installed) | Exceeds 2.36.0+ requirement |
+### Critical Pitfalls
 
-**Install:** `brew install git-filter-repo`
+1. **Context Window Budget Exhaustion (Pitfall 24)** — Injecting full research docs (10-72KB each) pushes agents past effective performance threshold. Agent prompts already 25K tokens (dsp-agent). Research shows LLM performance drops below 50% at 32K tokens. **Avoid:** Inject summaries + paths only (2,000-4,000 token budget max). Agent reads full docs via Read tool on demand.
 
-### Workflow Enhancement
-| Component | Purpose |
-|-----------|---------|
-| SKILL.md modification | Add Phase 0.6 section with conditional trigger |
-| planning-protocol.md | Reference file documenting planning process |
-| planning-template.md | Asset template for improvement plans |
-| Existing tier detection | Reuse Phase 0.5 tier detection unchanged |
+2. **False Relevance from DSP Keyword Ambiguity (Pitfall 25)** — Every research doc mentions "frequency", "filter", "envelope", "phase" because all are audio DSP. Simple keyword matching returns wrong documents. **Avoid:** Use structured metadata tags (not content search), match on plugin BRIEF.md context (not generic keywords), curate static mapping for 23-doc corpus.
 
-## Critical Pitfalls
+3. **Breaking Existing Contracts with `additionalProperties: false` (Pitfall 26)** — JSON Schema contracts use strict validation. Adding `resources_consulted` field breaks ALL agents unless ALL updated atomically. **Avoid:** Make new fields optional with defaults. Never add to `required` array. Update all 6 consumer agents + schema + validators in same commit.
 
-**Top 5 pitfalls to watch for in v1.1:**
+4. **Resource Discovery Becoming Single Point of Failure (Pitfall 27)** — If discovery crashes, agents either run without resources (silent failure) or can't run at all (workflow blocked). **Avoid:** Graceful degradation — discovery failures never block agents. Log warnings. Static fallback mapping ensures basic functionality if dynamic discovery fails.
 
-1. **Breaking existing clones after history rewrite** (Pitfall 14) - Announce cleanup, clear CI caches, document re-clone requirement. Since this is a solo project, impact is limited to CI/CD pipelines.
-
-2. **Complexity creep in plugin-improve** (Pitfall 20) - Design for simple path first. Tier 1 fixes must remain as fast as before. Planning phase is conditional, not mandatory.
-
-3. **In-flight plugin incompatibility** (Pitfall 21) - O-IntonationPad (Stage 4) and O-Freeze (Stage 0) are active. New phases must be additive only, not modify existing stage definitions.
-
-4. **Using wrong cleanup tool** (Pitfall 19) - Explicitly document git-filter-repo requirement. Reject any suggestion to use deprecated filter-branch.
-
-5. **Remote origin removed by git-filter-repo** (Pitfall 15) - Document the expected post-rewrite step to re-add origin. This is intentional safety behavior, not a bug.
+5. **Hook Timeout Violations (Pitfall 28)** — PostToolUse.sh has 2s timeout with ~500ms available budget. Adding discovery (1-3s with file I/O) will cause failures. **Avoid:** Do NOT add discovery to PostToolUse.sh. Run discovery in orchestrator skill (no timeout constraint) or SessionStart.sh (3s available). Benchmark: discovery must complete <1s.
 
 ## Implications for Roadmap
 
-Based on research, suggested phase structure:
+Based on research, suggested **4-phase build order** with linear dependencies:
 
-### Phase 1: Git Repository Cleanup
-
-**Rationale:** Independent of workflow changes, can be done first. High impact (reduced clone times, smaller repo). Low complexity with well-documented tooling.
-
-**Delivers:**
-- Repository reduced from ~584MB to ~50-80MB
-- Clean history without build artifacts
-- Updated .gitignore validation
-
-**Tasks:**
-1. Install git-filter-repo (`brew install git-filter-repo`)
-2. Create backup branch and document current state
-3. Execute cleanup (remove build/, *.o, .DS_Store from history)
-4. Re-add origin remote and force push
-5. Clear GitHub Actions caches
-6. Verify size reduction
-
-**Avoids:** Pitfalls 14, 15, 17, 18, 19
-
-**Research needed:** None - patterns well-documented
-
-### Phase 2: Planning Phase Implementation
-
-**Rationale:** Builds on existing plugin-improve workflow. Minimal changes required. High value for complex improvements (reduces rework).
+### Phase 1: Resource Index & Discovery Foundation
+**Rationale:** All subsequent phases depend on a working index and discovery script. This must exist before any injection or accountability code is written.
 
 **Delivers:**
-- Phase 0.6 Planning in plugin-improve workflow
-- Conditional trigger on Tier 2/3 investigations
-- Planning template and protocol documentation
-- Preserved fast path for Tier 1 fixes
+- `.claude/resource-index.json` with all 23 research docs manually cataloged
+- `.claude/scripts/resource-discovery.py` matching keywords to resources
+- `.claude/schemas/resource-index.schema.json` validation
+- Decision documentation: static manifest (not vector search), keyword matching (not semantic), orchestrator-level discovery (not hooks)
 
-**Tasks:**
-1. Create `references/planning-protocol.md` with:
-   - Planning trigger conditions (Tier 2/3 only)
-   - Planning process steps
-   - Decision menu format (Approve/Revise/Skip/Cancel)
+**Addresses:**
+- TS-5 (Resource manifest file) — foundational for all other features
+- TS-1 (Keyword-based resource discovery) — basic matching engine
+- Pitfall 31 (over-engineering) — explicitly choose static manifest as design decision
 
-2. Create `assets/planning-template.md` with:
-   - Plan structure (objective, architecture decisions, tasks)
-   - Risk assessment section
-   - Testing checklist
+**Avoids:**
+- Pitfall 31 — No vector databases or embedding pipelines for 23 documents
+- Pitfall 25 — Structured tags prevent keyword ambiguity
+- Pitfall 32 — YAML frontmatter with freshness metadata included from start
 
-3. Update SKILL.md:
-   - Add Phase 0.6 section after Phase 0.5
-   - Add conditional branch based on tier
-   - Update workflow diagram
-   - Update progress checklist
+**Research flag:** No additional research needed — pattern well-documented (follows `plugin-registry.json`).
 
-4. Test the three paths:
-   - Tier 1 improvement (should skip planning)
-   - Tier 2 improvement (should trigger planning)
-   - Deep-research handoff (should skip both investigation AND planning)
+---
 
-**Avoids:** Pitfalls 20, 21, 22, 23
+### Phase 2: Context Injection (Skill Orchestrators)
+**Rationale:** Once discovery works, modify orchestrators to inject discovered resources into agent prompts. This is where context delivery happens. Depends on Phase 1 (index + script must exist).
 
-**Research needed:** None - patterns documented in existing SKILL.md
+**Delivers:**
+- Modified `.claude/skills/plugin-workflow/SKILL.md` with discovery + injection in execute/research phases
+- Modified `.claude/skills/plugin-planning/SKILL.md` with discovery before research-planning-agent
+- Modified `.claude/skills/plugin-improve/SKILL.md` with discovery in Phase 0.5 investigation
+- Injection format: file paths + summaries in `<reference_material>` section at end of prompt
+
+**Addresses:**
+- TS-2 (SubagentStart context injection) — guaranteed delivery via hooks
+- TS-3 (Resource injection into agent prompts) — summary + path strategy
+- TS-7 (Hook-based pre-agent context loading) — extension of existing patterns
+- D-7 (Pattern auto-injection) — stage-specific patterns via SubagentStart
+
+**Uses:**
+- Python 3 keyword extraction from ARCHITECTURE.md and parameter-spec.md
+- Bash hook infrastructure for SubagentStart integration
+- Existing prompt construction patterns in plugin-workflow
+
+**Implements:**
+- Discovery in orchestrator (before Task() invocation)
+- Prompt augmentation (append resources after agent instructions)
+- SubagentStart hook for guaranteed subagent injection
+
+**Avoids:**
+- Pitfall 24 — Token budget enforced: 2,000-4,000 tokens max injected content
+- Pitfall 27 — Graceful degradation: agents run without resources if discovery fails
+- Pitfall 28 — Discovery in orchestrator (no timeout) not PostToolUse.sh
+- Pitfall 29 — Resources injected at end with priority directive to preserve instruction adherence
+
+**Research flag:** Moderate — needs testing with known-good plugins (O-Bells) to verify injection doesn't disrupt output quality.
+
+---
+
+### Phase 3: Accountability (Schema + Validation)
+**Rationale:** After agents receive resources (Phase 2), add reporting and validation. This phase depends on injection working so there's something to report on.
+
+**Delivers:**
+- Extended `.claude/schemas/subagent-report.json` with optional `resources_consulted` field
+- Modified agent definitions (dsp-agent, gui-agent, research-planning-agent, foundation-shell-agent, polish-agent) documenting `resources_consulted` in JSON reports
+- Extended `.claude/hooks/SubagentStop.sh` with resource usage validation case
+- `.claude/hooks/validators/validate-resource-usage.py` comparing injected vs consulted resources
+
+**Addresses:**
+- TS-6 (Agent usage reporting in JSON reports) — self-reporting field
+- TS-4 (Agent invocation audit) — SubagentStop validation
+- D-4 (Decision provenance) — foundation for tracking resource influence (full implementation deferred to v1.3+)
+
+**Implements:**
+- Optional schema field with default (backward compatible)
+- Warning-level validation (not blocking)
+- Transcript parsing for Read tool calls (usage detection)
+- Per-session usage logs (`.claude/usage-logs/{session_id}.json`)
+
+**Avoids:**
+- Pitfall 26 — Optional fields with defaults, MINOR version bump, atomic updates to all 6 consumers
+- Pitfall 30 — Focus on output-based verification not just self-reports (validate agents use content, not just list filenames)
+
+**Research flag:** Low — JSON Schema evolution pattern well-documented, validation follows existing `validate-checksums.py` pattern.
+
+---
+
+### Phase 4: Maintenance Tooling & Enhancements
+**Rationale:** Once core discovery + injection + accountability works (Phases 1-3), add automation to reduce manual maintenance burden. This is quality-of-life, not blocking for core functionality.
+
+**Delivers:**
+- `.claude/scripts/generate-resource-index.py` auto-generating manifest from YAML frontmatter
+- `.claude/scripts/extract-context-terms.py` extracting keywords from plugin artifacts
+- Modified `deep-research` skill to emit YAML frontmatter in new research docs
+- SessionStart.sh index freshness check and auto-rebuild
+
+**Addresses:**
+- D-3 (Freshness tracking) — auto-warn on stale docs
+- D-5 (Auto resource recommendation) — surface docs at `/start` command
+- D-6 (Resource gap detection) — warn when no docs match plugin type
+- Pitfall 33 (manifest maintenance drift) — auto-generation prevents manual updates
+
+**Implements:**
+- YAML frontmatter extraction (created, last_verified, juce_version, topics, plugins)
+- Default tags from filename if frontmatter missing
+- Validation: all research/*.md files indexed, all manifest entries reference existing files
+- Non-blocking warnings for freshness and coverage gaps
+
+**Avoids:**
+- Pitfall 33 — Auto-generation from metadata prevents manual maintenance drift
+- Pitfall 32 — Frontmatter standardization with freshness dates
+
+**Research flag:** Low — maintenance scripting is straightforward (scan files, parse frontmatter, write JSON).
+
+---
 
 ### Phase Ordering Rationale
 
-1. **Git cleanup first** because it's independent and provides immediate benefit (faster clones, smaller repo). No dependencies on workflow changes.
+```
+Phase 1 (Index + Discovery)
+  |
+  +--- Foundation for all other phases. Testable independently via CLI.
+  |
+Phase 2 (Injection)
+  |
+  +--- Requires Phase 1. Delivers value to agents. Testable via agent output comparison.
+  |
+Phase 3 (Accountability)
+  |
+  +--- Requires Phase 2. No value without injection working first. Testable via usage logs.
+  |
+Phase 4 (Maintenance)
+  |
+  +--- Quality-of-life improvements. Not blocking for core functionality.
+```
 
-2. **Workflow enhancement second** because it builds on existing patterns and is safer to test after repository cleanup is complete.
+**Dependency justification:**
+- Phase 2 cannot proceed without Phase 1 (no index = no discovery results)
+- Phase 3 cannot validate usage without Phase 2 (agents don't receive resources yet)
+- Phase 4 is parallel/independent (can start anytime after Phase 1)
 
-3. **Both phases are low-to-medium complexity** with well-established patterns. Neither requires `/gsd:research-phase` during planning - the research is already complete.
+**Grouping justification:**
+- Each phase delivers independently testable value
+- Each phase has clear success criteria
+- Linear dependencies prevent partial-completion confusion
+
+**Pitfall avoidance:**
+- Building in order prevents rework (e.g., don't validate usage before injection works)
+- Static manifest first prevents over-engineering temptation (semantic search)
+- Graceful degradation designed-in from Phase 1 (not retrofitted)
 
 ### Research Flags
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Git Cleanup):** Tool usage is well-documented, commands verified in STACK.md
-- **Phase 2 (Workflow):** Pattern matches existing Phase 5.5, implementation path clear from ARCHITECTURE.md
+**Phases needing deeper research during planning:**
+- **Phase 2 (Injection):** Needs A/B testing with known-good plugins to verify injection format doesn't disrupt agent behavior. Moderate complexity — prompt engineering requires validation.
 
-**No phases need additional research** - this milestone is incremental improvement using established tools and patterns.
+**Phases with standard patterns (skip research-phase):**
+- **Phase 1 (Index):** Follows `plugin-registry.json` pattern exactly. No novel patterns.
+- **Phase 3 (Accountability):** Follows existing validator patterns (`validate-checksums.py`, `validate-dsp-components.py`). JSON Schema evolution well-documented.
+- **Phase 4 (Maintenance):** Straightforward file scanning and YAML parsing. No research needed.
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | git-filter-repo verified, version requirements checked |
-| Features | HIGH | Table stakes clear, derived from existing codebase patterns |
-| Architecture | HIGH | Conditional phase pattern matches existing Phase 5.5 |
-| Pitfalls | HIGH | Multiple authoritative sources, including tool maintainers |
+| Stack | HIGH | Verified against official Claude Code docs (SubagentStart additionalContext, SubagentStop agent_transcript_path). All dependencies already present (Python 3.9+, jq 1.6+). No new packages required. |
+| Features | HIGH | Table stakes validated via direct codebase inspection (11 agents, 6 hooks, 23 docs measured). Differentiators grounded in comparable systems (Superpowers, AGENTS.md standard). Anti-features based on RAG false positive research + Claude context window studies. |
+| Architecture | HIGH | Discovery location (orchestrator), injection mechanism (prompt append), and validation approach (SubagentStop) all follow existing system patterns. Static manifest follows `plugin-registry.json` pattern. No novel architectural primitives. |
+| Pitfalls | HIGH | Context exhaustion, false relevance, and schema breaking verified via direct measurement (agent prompt sizes, research doc sizes, `additionalProperties: false` in schemas). Hook timeouts measured from `hooks.json`. DSP keyword ambiguity confirmed by inspecting all 23 doc filenames and headers. |
 
 **Overall confidence:** HIGH
 
+All core claims verified via:
+1. Direct codebase inspection (measured prompts, hooks, schemas, research docs)
+2. Official Claude Code documentation (SubagentStart/SubagentStop hooks, context windows)
+3. Published research (Chroma context rot, NoLiMa benchmark, RAG false positives)
+
 ### Gaps to Address
 
-1. **CI/CD cache clearing:** Exact GitHub Actions cache clearing process should be verified during Phase 1 execution (Settings > Actions > Caches)
+**Transcript parsing for usage detection:** The exact JSONL schema for subagent transcripts (how Read tool calls appear) needs validation during Phase 3 implementation. Inferred from Claude Code's general transcript format but not verified against actual subagent transcript file. **Handle:** Early validation in Phase 3 — spawn test subagent, inspect transcript structure before building validator.
 
-2. **Express mode interaction:** The ARCHITECTURE.md research asks whether express mode should skip planning. Recommendation: Yes, but defer decision to implementation since express mode is not currently active.
+**Score threshold tuning (MUST-READ vs SHOULD-READ):** Starting at score >= 8 for MUST-READ classification. May need adjustment after observing real discovery results across multiple plugins. **Handle:** Monitor discovery precision in Phase 1 testing. Tune threshold based on false positive/negative rates.
 
-3. **Plan persistence threshold:** Should Tier 2 plans persist to files or only Tier 3? Recommendation: Tier 3 only (or user request). Simple enough to adjust later.
+**Agent behavior regression risk:** Injecting research content may subtly change agent output in unexpected ways (different code patterns, shifted attention from contracts). **Handle:** A/B testing in Phase 2 with completed plugins (O-Bells, O-Freeze). Compare output with/without injection. Reject injection format if quality degrades.
+
+**Maximum resources per agent:** Starting with 5-resource limit via `--limit` flag. May need per-agent tuning (dsp-agent might benefit from more, foundation-shell-agent from fewer). **Handle:** Monitor token usage and agent feedback in Phase 2. Adjust limits per-agent if needed.
+
+**Cross-plugin research visibility:** Should discovery consider research from other plugins' `.planning/research/` folders? Currently scoped to shared `research/` only. **Handle:** Defer to v1.3+ after validating shared research orchestration works. Per-plugin research is already loaded via contract injection.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [git-filter-repo GitHub](https://github.com/newren/git-filter-repo) - Official tool documentation
-- [BFG vs git-filter-repo comparison](https://github.com/newren/git-filter-repo/blob/main/Documentation/converting-from-bfg-repo-cleaner.md)
-- [GitHub Docs: Removing Sensitive Data](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/removing-sensitive-data-from-a-repository)
-- Local codebase: `.claude/skills/plugin-improve/SKILL.md` - Existing phase patterns
+- [Claude Code Hooks Reference](https://code.claude.com/docs/en/hooks) — Official documentation for all hook events, SubagentStart additionalContext, SubagentStop agent_transcript_path
+- [Claude Code Subagents Documentation](https://code.claude.com/docs/en/sub-agents) — Official docs on subagent creation, frontmatter, skills preloading, lifecycle
+- Direct codebase analysis — `.claude/hooks/*.sh`, `.claude/agents/*.md`, `.claude/schemas/`, `research/*.md` (measured 11 agents, 6 hooks, 23 docs)
+- [Claude API: Context Windows](https://platform.claude.com/docs/en/build-with-claude/context-windows) — 200K token window documentation
+- [Creek Service: Evolving JSON Schemas](https://www.creekservice.org/articles/2024/01/08/json-schema-evolution-part-1.html) — `additionalProperties: false` evolution rules
 
 ### Secondary (MEDIUM confidence)
-- [Architecture Decision Records](https://adr.github.io/) - ADR format for planning template
-- [Addy Osmani's LLM Coding Workflow](https://addyosmani.com/blog/ai-coding-workflow/) - Planning-first approach
-- [GitHub Actions Breaking Changes](https://github.blog/changelog/2025-02-12-notice-of-upcoming-deprecations-and-breaking-changes-for-github-actions/)
+- [Chroma Research: Context Rot](https://research.trychroma.com/context-rot) — 18 LLMs measured, performance degrades with input length
+- [NoLiMa Benchmark / Towards Data Science](https://towardsdatascience.com/your-1m-context-window-llm-is-less-powerful-than-you-think/) — 11/12 models below 50% at 32K tokens
+- [InfoQ: Reducing RAG False Positives](https://www.infoq.com/articles/reducing-false-positives-retrieval-augmented-generation/) — Banking case study showing keyword ambiguity in narrow domains
+- [DEV Community: Guaranteed Context Injection](https://dev.to/sasha_podles/claude-code-using-hooks-for-guaranteed-context-injection-2jg) — Skills skipped 56% of time (Vercel research), hooks are guaranteed
+- [Claude Code Context Optimization](https://gist.github.com/johnlindquist/849b813e76039a908d962b2f0923dc9a) — 54% context reduction via trigger-based routing
+- [bm25s Library](https://github.com/xhluca/bm25s) — Lightweight Python BM25 implementation (verified library capabilities)
+- [Anthropic: Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) — Tool management (10-20 tools maximum), progressive disclosure, cache strategically
 
-### Local Analysis
-- `registry.json` - Verified in-flight plugins (O-IntonationPad Stage 4, O-Freeze Stage 0)
-- `.git` directory analysis - 584MB total, 557MB pack size
-- `git count-objects -v` - Object statistics confirming cleanup targets
+### Tertiary (LOW confidence, patterns only)
+- [Augment Code: Why Multi-Agent LLM Systems Fail](https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them) — Specification ambiguity 41.77%, coordination failures 36.94%, verification gaps 21.30%
+- [Composio: The 2025 AI Agent Report](https://composio.dev/blog/why-ai-agent-pilots-fail-2026-integration-roadmap) — Cost explosion, "many teams only notice pitfalls when the bill arrives"
+- [WolfSound: Don't Use AI for Audio Programming](https://thewolfsound.com/dont-use-ai-for-audio-programming/) — "Not enough training data for real-time-safe audio DSP"
+- Various community patterns on multi-agent orchestration, RAG retrieval, and context engineering (used for pattern validation, not specific claims)
 
 ---
-*Research synthesized: 2026-02-01*
+*Research completed: 2026-02-04*
 *Ready for roadmap: yes*

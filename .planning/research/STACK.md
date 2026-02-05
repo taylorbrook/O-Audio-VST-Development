@@ -8,7 +8,7 @@
 
 GSD (Get Shit Done) is a context engineering framework by TACHES that orchestrates Claude Code for spec-driven development. The core insight: **context rot is the enemy**. As conversations lengthen, LLMs "forget" previous decisions and generate inconsistent code. GSD solves this through phase-based isolation, atomic task execution in fresh 200k-token subagent contexts, and file-based state persistence.
 
-For multi-agent systems in 2026, the field is undergoing its "microservices revolution." Single all-purpose agents are being replaced by orchestrated teams of specialized agents. The key is **simplicity with constraints**—successful implementations use surprisingly few tools (10-20), delegate complexity to code execution, and treat context as a finite resource to be carefully managed.
+For multi-agent systems in 2026, the field is undergoing its "microservices revolution." Single all-purpose agents are being replaced by orchestrated teams of specialized agents. The key is **simplicity with constraints**--successful implementations use surprisingly few tools (10-20), delegate complexity to code execution, and treat context as a finite resource to be carefully managed.
 
 ## GSD Framework Deep Dive
 
@@ -20,7 +20,7 @@ GSD is a meta-prompting and context engineering system for Claude Code that prov
 
 | Component | Purpose | How It Works |
 |-----------|---------|--------------|
-| Phase workflow | Structure work | discuss → research → plan → execute → verify |
+| Phase workflow | Structure work | discuss > research > plan > execute > verify |
 | Subagent isolation | Prevent context rot | Each task runs in fresh 200k token window |
 | File-based state | Cross-session persistence | PROJECT.md, ROADMAP.md, STATE.md track everything |
 | Atomic commits | Traceability | Every task = one revertable commit |
@@ -29,10 +29,10 @@ GSD is a meta-prompting and context engineering system for Claude Code that prov
 ### GSD Phase Model
 
 ```
-/gsd:discuss-phase [N]  → Capture implementation preferences
-/gsd:plan-phase [N]     → Research + create atomic tasks (max 3 per plan)
-/gsd:execute-phase [N]  → Parallel execution, fresh contexts
-/gsd:verify-work [N]    → Manual UAT + automated diagnostics
+/gsd:discuss-phase [N]  -> Capture implementation preferences
+/gsd:plan-phase [N]     -> Research + create atomic tasks (max 3 per plan)
+/gsd:execute-phase [N]  -> Parallel execution, fresh contexts
+/gsd:verify-work [N]    -> Manual UAT + automated diagnostics
 ```
 
 **Critical principle:** Plans contain maximum 3 tasks. Each task runs in isolation. This prevents the cascading confusion that occurs when Claude tries to track too much in one context window.
@@ -57,11 +57,11 @@ GSD is a meta-prompting and context engineering system for Claude Code that prov
 
 | Pattern | When to Use | Your System's Application |
 |---------|-------------|---------------------------|
-| **Sequential Pipeline** | Linear, deterministic workflows | Stage progression (foundation → DSP → GUI → polish) |
+| **Sequential Pipeline** | Linear, deterministic workflows | Stage progression (foundation > DSP > GUI > polish) |
 | **Coordinator/Dispatcher** | Route to specialists by intent | Phase commands dispatching to stage-specific agents |
 | **Parallel Fan-out/Gather** | Independent investigations | Research agents investigating stack, features, architecture in parallel |
 | **Generator/Critic** | Output reliability critical | Execute then verify pattern (DSP agent + validation agent) |
-| **Hierarchical Decomposition** | Complex goals needing breakdown | Main orchestrator → stage agents → task subagents |
+| **Hierarchical Decomposition** | Complex goals needing breakdown | Main orchestrator > stage agents > task subagents |
 
 ### Subagent Design Principles
 
@@ -172,7 +172,7 @@ skills:
   - juce-audio-threading
 ```
 
-This injects full skill content at startup—agent doesn't need to discover and load during execution. Better for consistent behavior.
+This injects full skill content at startup--agent doesn't need to discover and load during execution. Better for consistent behavior.
 
 ## Production Readiness Checklist
 
@@ -484,7 +484,6 @@ Phase 0.5: Investigation (Tier 1/2/3)
    - Rollback complexity
 
 3. **Present plan for approval:**
-   ```
    ## Implementation Plan
 
    ### Tasks
@@ -501,7 +500,6 @@ Phase 0.5: Investigation (Tier 1/2/3)
    - Estimated complexity: [LOW/MEDIUM/HIGH]
 
    Proceed with this plan? (y/n): _
-   ```
 
 4. **On approval:** Continue to Phase 0.9
 5. **On rejection:** Return to Phase 0.5 with refinements
@@ -635,3 +633,576 @@ workflow.registerHook('after:investigation', (context) => {
 
 *v1.1 Research conducted: 2026-02-01*
 *Confidence: HIGH for git cleanup (verified tool versions), HIGH for workflow (matches existing patterns)*
+
+---
+
+# v1.2 Stack Research: Agent Intelligence & Resource Orchestration
+
+**Milestone:** v1.2 - Agent Intelligence & Resource Orchestration
+**Domain:** Resource discovery, context injection, usage accountability, hook-based orchestration
+**Researched:** 2026-02-04
+**Overall confidence:** HIGH
+
+---
+
+## Executive Summary
+
+The Plugin Freedom System already has the right infrastructure bones: 6 hooks, 11 agents, 24 skills, 23 research documents, and JSON Schema contracts. This milestone adds intelligence on top of that infrastructure -- making agents automatically discover relevant resources, injecting those resources into agent context, tracking what was used, and validating usage through hooks.
+
+The key technical insight: **Claude Code's hook system already supports every integration point needed.** `SubagentStart` can inject `additionalContext` into spawned agents. `UserPromptSubmit` can inject context into the main conversation. `SubagentStop` can validate that agents used appropriate resources. No external services, vector databases, or runtime dependencies are needed. The entire system can be built with bash/Python scripts, JSON index files, and hook configuration.
+
+The recommended approach is a **keyword-based resource index** (a static JSON manifest mapping topics to file paths) combined with **hook-driven context injection** (SubagentStart reads the manifest, matches against the task description, and injects relevant file paths as additionalContext). This is pragmatic, debuggable, and fits the file-based communication pattern the system already uses.
+
+---
+
+## v1.2 Recommended Stack
+
+### Core Technologies
+
+| Technology | Version | Purpose | Why Recommended |
+|------------|---------|---------|-----------------|
+| Python 3 | 3.9+ (already required) | Index builder, resource matcher, usage tracker | Already a dependency for validators; all hook scripts can leverage it. No new runtime required. |
+| JSON | N/A | Resource index format, usage logs, manifest files | Native to the existing system (schemas, contracts, registry all use JSON). Parseable by both bash (`jq`) and Python natively. |
+| Bash hooks | N/A | Hook entry points for SubagentStart, SubagentStop | Existing hook infrastructure is bash-based. Keeps consistency. Delegates to Python for complex logic. |
+| jq | 1.6+ (already required) | JSON parsing in hook scripts | Already validated by SessionStart hook. Used for extracting agent_type, prompt text from hook stdin. |
+
+### Supporting Libraries
+
+| Library | Version | Purpose | When to Use |
+|---------|---------|---------|-------------|
+| `bm25s` | 0.2+ | Lightweight BM25 keyword scoring for resource matching | Optional upgrade path if keyword matching needs sophistication beyond exact match. Pure Python, scipy-based sparse matrices, no database. Install only if simple keyword matching proves insufficient. |
+| `re` (stdlib) | N/A | Regex-based keyword extraction from agent prompts | Always -- extracting topic keywords from Task tool prompt text. |
+| `hashlib` (stdlib) | N/A | SHA256 checksums for resource index staleness detection | Detect when research documents change and index needs rebuilding. |
+| `pathlib` (stdlib) | N/A | Cross-platform path handling for resource discovery | Always -- scanning research/, skills/, templates/ directories. |
+| `json` (stdlib) | N/A | Reading/writing resource index and usage logs | Always -- core data format. |
+
+### New Scripts (to create)
+
+| Script | Purpose | Called By |
+|--------|---------|-----------|
+| `.claude/scripts/build-resource-index.py` | Rebuild the resource index from current files | SessionStart hook (if stale) or manually |
+| `.claude/scripts/match-resources.py` | Given agent type and context, return ranked resource matches | SubagentStart hook |
+| `.claude/scripts/track-usage.py` | Parse subagent transcript, log resource usage | SubagentStop hook |
+| `.claude/scripts/usage-report.py` | Generate accountability report from usage logs | Manual invocation or SessionEnd |
+
+---
+
+## Architecture: How the Pieces Fit
+
+### Resource Index (Static JSON Manifest)
+
+The cornerstone is a **resource index file** at `.claude/resource-index.json`. This is a pre-built JSON file that maps keywords/topics to resource file paths. It is NOT a database -- it is a flat file regenerated whenever documents change.
+
+**Structure:**
+
+```json
+{
+  "version": 1,
+  "generated": "2026-02-04T12:00:00Z",
+  "checksum": "sha256:abc123...",
+  "resources": [
+    {
+      "path": "research/fft-processing-best-practices.md",
+      "type": "research",
+      "keywords": ["fft", "fourier", "spectral", "frequency", "stft", "windowing", "overlap-add"],
+      "title": "FFT Processing Best Practices in JUCE",
+      "summary": "Comprehensive guide to implementing high-quality FFT-based audio processing",
+      "size_lines": 753,
+      "domain": "dsp"
+    },
+    {
+      "path": "research/reverb-comprehensive-research.md",
+      "type": "research",
+      "keywords": ["reverb", "reverberation", "room", "convolution", "algorithmic", "diffusion"],
+      "title": "Reverb Comprehensive Research",
+      "summary": "Comprehensive reverb implementation techniques and algorithms",
+      "size_lines": 1580,
+      "domain": "dsp"
+    }
+  ],
+  "skills": [
+    {
+      "path": ".claude/skills/plugin-planning/",
+      "name": "plugin-planning",
+      "keywords": ["plan", "planning", "architecture", "roadmap", "stage-0", "research"],
+      "domain": "workflow"
+    }
+  ],
+  "agent_affinities": {
+    "dsp-agent": {
+      "domain": "dsp",
+      "always_include": ["troubleshooting/patterns/stage-2-patterns.md"],
+      "keyword_boost": ["processblock", "filter", "gain", "delay", "synthesis", "oscillator"]
+    },
+    "research-planning-agent": {
+      "domain": "dsp",
+      "always_include": ["troubleshooting/patterns/juce8-critical-patterns.md"],
+      "keyword_boost": ["architecture", "planning", "research", "complexity"]
+    },
+    "gui-agent": {
+      "domain": "ui",
+      "always_include": ["troubleshooting/patterns/stage-3-patterns.md"],
+      "keyword_boost": ["webview", "html", "javascript", "relay", "binding", "ui"]
+    },
+    "foundation-shell-agent": {
+      "domain": "build",
+      "always_include": ["troubleshooting/patterns/stage-1-patterns.md"],
+      "keyword_boost": ["cmake", "build", "apvts", "parameter", "foundation"]
+    }
+  }
+}
+```
+
+**Why this approach (not vector embeddings):**
+
+1. **Debuggability.** You can open `resource-index.json` and see exactly what will match. No black-box similarity scores.
+2. **Zero dependencies.** No vector database, no embedding model, no GPU. Just JSON + Python.
+3. **Fits Claude Code's model.** Claude Code agents communicate through files. A JSON index is a file. Hooks read files. This is consistent.
+4. **The corpus is small.** 23 research docs, 24 skills, 11 agents. BM25 or vector search adds complexity for a corpus that fits in a single grep. Keyword matching with a curated index is sufficient and more reliable for this scale.
+5. **Keyword extraction is reliable for this domain.** DSP topics have distinctive vocabulary: "FFT", "reverb", "delay", "microtonality", "physical modeling". These are not ambiguous terms that need semantic understanding.
+6. **Agent affinities are predictable.** dsp-agent always needs DSP resources. gui-agent always needs UI resources. This domain knowledge can be encoded directly rather than inferred.
+
+### Hook Integration Points
+
+**1. SubagentStart -- Resource Injection (PRIMARY)**
+
+This is the main integration point. When any subagent is spawned, the hook:
+- Reads the agent type (from `agent_type` field in stdin JSON)
+- Reads the main session transcript to extract the Task prompt
+- Matches keywords from the prompt against the resource index
+- Combines keyword matches with agent-type affinity (always_include + boosted keywords)
+- Returns `additionalContext` with relevant resource paths and summaries
+
+```json
+{
+  "hookSpecificOutput": {
+    "hookEventName": "SubagentStart",
+    "additionalContext": "RELEVANT RESOURCES (auto-discovered for dsp-agent):\n\nALWAYS READ:\n- troubleshooting/patterns/stage-2-patterns.md -- Stage 2 specific JUCE patterns\n\nTASK-RELEVANT (matched: fft, spectral, frequency):\n- research/fft-processing-best-practices.md -- FFT implementation guide (753 lines)\n- research/fft-artifact-prevention.md -- Artifact prevention techniques (788 lines)\n- research/custom-fft-implementations.md -- Custom FFT approaches (875 lines)\n\nYou SHOULD read the ALWAYS READ files. Read TASK-RELEVANT files if they match your work. Report which resources you used in your JSON output under resources_used."
+  }
+}
+```
+
+**Why SubagentStart, not UserPromptSubmit:**
+- SubagentStart fires when agents are spawned via Task tool, which is when resource context matters most
+- UserPromptSubmit fires on EVERY prompt (including casual questions). Over-injection wastes context tokens
+- SubagentStart has access to `agent_type`, enabling per-agent resource matching
+- The existing UserPromptSubmit hook already handles `/continue` context injection. Adding resource injection there creates conflicts
+- SubagentStart can inject `additionalContext` into the subagent's context (verified in official Claude Code docs)
+
+**2. SubagentStop -- Usage Validation (SECONDARY)**
+
+When a subagent finishes, the hook:
+- Reads the agent's transcript (from `agent_transcript_path` in stdin JSON)
+- Parses JSONL transcript for Read tool calls to identify files actually read
+- Compares against resources recommended in SubagentStart
+- Logs usage to `.claude/usage-logs/{session_id}.json`
+- Warns (stderr) if always_include resources were NOT read
+
+**Integration with existing SubagentStop.sh:**
+The existing SubagentStop.sh runs contract validators for foundation/dsp/gui agents. Resource tracking should be added as an ADDITIONAL step, not a replacement. The dispatch pattern:
+
+```bash
+# In SubagentStop.sh, AFTER existing validation:
+
+# Resource usage tracking (non-blocking)
+python3 "$CLAUDE_PROJECT_DIR/.claude/scripts/track-usage.py" \
+  --agent-type "$AGENT_TYPE" \
+  --agent-id "$AGENT_ID" \
+  --transcript "$AGENT_TRANSCRIPT" \
+  --session "$SESSION_ID" 2>/dev/null || true
+# Non-blocking: exit 0 even if tracking fails (don't break workflow)
+```
+
+**3. SessionStart -- Index Freshness Check**
+
+On session start, check if the resource index is stale:
+- Compare file modification times in research/ and skills/ against index generation timestamp
+- If any source file is newer than the index, rebuild automatically
+- Report status to stdout (becomes session context)
+
+**Integration with existing SessionStart.sh:**
+Add after the existing dependency validation (python3, jq, cmake, etc.):
+
+```bash
+# Resource index freshness check
+if [ -f ".claude/resource-index.json" ]; then
+  STALE=$(python3 .claude/scripts/build-resource-index.py --check-only 2>/dev/null)
+  if [ "$STALE" = "stale" ]; then
+    echo "Rebuilding resource index..."
+    python3 .claude/scripts/build-resource-index.py
+    echo "Resource index rebuilt"
+  else
+    echo "Resource index up to date"
+  fi
+else
+  echo "Building initial resource index..."
+  python3 .claude/scripts/build-resource-index.py
+  echo "Resource index created"
+fi
+```
+
+**4. PreCompact -- Resource Context Preservation**
+
+Before compaction, output which resources have been referenced in the current conversation. This prevents resource awareness from being lost during context compaction.
+
+**Integration with existing PreCompact.sh:**
+Add after the existing contract preservation:
+
+```bash
+# Resource context preservation
+if [ -f ".claude/resource-index.json" ]; then
+  echo "=== Resource Context ==="
+  echo "Available resources: $(jq '.resources | length' .claude/resource-index.json) research docs"
+  echo "Resource index location: .claude/resource-index.json"
+  echo ""
+fi
+```
+
+---
+
+## Keyword Extraction Strategy
+
+The matching algorithm does NOT need to be sophisticated. The domain vocabulary is specific enough that simple keyword overlap works.
+
+### Extraction from Agent Prompts
+
+When SubagentStart fires, extract keywords from the task prompt using:
+
+1. **Direct keyword matching** -- compare prompt words against index keywords (case-insensitive)
+2. **Agent type affinity** -- if agent_type is "dsp-agent", include `always_include` resources and boost DSP-domain keywords
+3. **Plugin name matching** -- if prompt contains a plugin name (e.g., "O-Spectral"), also check for that plugin's `.planning/research/ARCHITECTURE.md`
+
+```python
+import re
+import json
+from pathlib import Path
+
+AGENT_DOMAIN_MAP = {
+    "dsp-agent": "dsp",
+    "gui-agent": "ui",
+    "foundation-shell-agent": "build",
+    "research-planning-agent": "dsp",
+    "music-theory-agent": "dsp",
+    "aesthetics-agent": "ui",
+    "ui-design-agent": "ui",
+    "ui-finalization-agent": "ui",
+    "validation-agent": "workflow",
+    "troubleshoot-agent": "dsp",
+    "polish-agent": "workflow",
+}
+
+def match_resources(prompt_text: str, agent_type: str, index: dict) -> dict:
+    """Match resources against prompt keywords and agent type."""
+    prompt_words = set(re.findall(r'\b\w+\b', prompt_text.lower()))
+
+    # Get agent affinity config
+    affinity = index.get("agent_affinities", {}).get(agent_type, {})
+    always_include = affinity.get("always_include", [])
+    keyword_boost = set(k.lower() for k in affinity.get("keyword_boost", []))
+
+    scored = []
+    for resource in index.get("resources", []):
+        keywords = set(k.lower() for k in resource["keywords"])
+
+        # Base score: keyword overlap
+        overlap = len(prompt_words & keywords)
+
+        # Boost for agent-affinity keywords
+        boost_overlap = len(prompt_words & keyword_boost & keywords)
+        overlap += boost_overlap
+
+        # Domain match bonus
+        agent_domain = AGENT_DOMAIN_MAP.get(agent_type)
+        if agent_domain and resource.get("domain") == agent_domain:
+            overlap += 1
+
+        if overlap > 0:
+            scored.append((overlap, resource))
+
+    scored.sort(key=lambda x: x[0], reverse=True)
+    task_relevant = [r for _, r in scored[:5]]
+
+    return {
+        "always_read": always_include,
+        "task_relevant": task_relevant,
+    }
+```
+
+### Index Building from Documents
+
+The index builder scans each document and extracts keywords using:
+
+1. **Title extraction** -- parse first H1 heading from markdown
+2. **Header keywords** -- extract H2/H3 headings as secondary keywords
+3. **DSP vocabulary matching** -- check content against a curated domain vocabulary list
+4. **Manual overrides** -- a `resource-keywords-override.json` file can supplement auto-extracted keywords
+
+The domain vocabulary list covers standard audio/DSP terms:
+
+```python
+DSP_VOCABULARY = {
+    "fft", "fourier", "spectral", "frequency", "stft", "windowing",
+    "reverb", "reverberation", "convolution", "diffusion",
+    "delay", "echo", "feedback", "tap",
+    "filter", "lowpass", "highpass", "bandpass", "notch", "eq",
+    "compressor", "dynamics", "threshold", "ratio", "attack", "release",
+    "oscillator", "synthesis", "wavetable", "additive", "subtractive",
+    "distortion", "saturation", "waveshaper", "overdrive",
+    "modulation", "lfo", "envelope", "tremolo", "vibrato", "chorus",
+    "pitch", "detune", "harmonics", "overtone",
+    "microtonality", "tuning", "temperament", "scala",
+    "granular", "grain", "stochastic",
+    "physical", "modeling", "modal", "waveguide",
+    "circuit", "analog", "emulation",
+    # ... extended as needed
+}
+```
+
+---
+
+## Usage Tracking Format
+
+Usage data is logged to `.claude/usage-logs/` as JSON files per session:
+
+```json
+{
+  "session_id": "abc123",
+  "date": "2026-02-04",
+  "agents": [
+    {
+      "agent_type": "dsp-agent",
+      "agent_id": "def456",
+      "timestamp": "2026-02-04T12:05:00Z",
+      "resources_recommended": {
+        "always_read": ["troubleshooting/patterns/stage-2-patterns.md"],
+        "task_relevant": [
+          "research/fft-processing-best-practices.md",
+          "research/fft-artifact-prevention.md",
+          "research/custom-fft-implementations.md"
+        ]
+      },
+      "resources_read": [
+        "research/fft-processing-best-practices.md",
+        "research/fft-artifact-prevention.md",
+        "troubleshooting/patterns/stage-2-patterns.md"
+      ],
+      "resources_ignored": [
+        "research/custom-fft-implementations.md"
+      ],
+      "always_read_compliance": true,
+      "task_relevant_coverage_pct": 66.7
+    }
+  ]
+}
+```
+
+### Transcript Parsing for Usage Detection
+
+The SubagentStop hook receives `agent_transcript_path`, which is a JSONL file. Each line is a JSON object representing a conversation turn. Read tool calls appear as tool_use events with `tool_name: "Read"` and `tool_input.file_path`.
+
+```python
+import json
+
+def extract_files_read(transcript_path: str) -> list:
+    """Parse subagent transcript JSONL to find all files Read by the agent."""
+    files_read = []
+    with open(transcript_path, 'r') as f:
+        for line in f:
+            try:
+                entry = json.loads(line)
+                # Look for tool_use entries with Read tool
+                if entry.get("type") == "tool_use" and entry.get("tool_name") == "Read":
+                    file_path = entry.get("tool_input", {}).get("file_path", "")
+                    if file_path:
+                        files_read.append(file_path)
+            except json.JSONDecodeError:
+                continue
+    return files_read
+```
+
+**Confidence note:** The exact transcript JSONL schema for subagents needs validation during implementation. The tool_use entry structure is inferred from Claude Code's general transcript format but may differ for subagent transcripts. This should be validated against an actual subagent transcript file early in implementation.
+
+---
+
+## Schema Extensions
+
+### Subagent Report Schema
+
+The existing schema at `.claude/schemas/subagent-report.json` uses `additionalProperties: false`. To add resource tracking, the schema must be updated to include:
+
+```json
+{
+  "resources_used": {
+    "type": "array",
+    "items": {
+      "type": "object",
+      "properties": {
+        "path": { "type": "string", "description": "File path of the resource" },
+        "relevance": {
+          "type": "string",
+          "enum": ["high", "medium", "low"],
+          "description": "How relevant the resource was to the task"
+        },
+        "used_for": { "type": "string", "description": "What the resource was used for" }
+      },
+      "required": ["path"]
+    },
+    "description": "Resources read by the agent during execution (auto-tracked + self-reported)"
+  }
+}
+```
+
+### Agent Prompt Updates
+
+Each agent markdown file should include a section instructing agents to report resource usage:
+
+```markdown
+## Resource Reporting
+
+When you receive auto-discovered resource recommendations, include a `resources_used`
+field in your JSON report listing which resources you actually read and how they
+informed your work. This enables usage tracking and continuous improvement of
+resource recommendations.
+
+Example:
+"resources_used": [
+  {"path": "research/fft-processing-best-practices.md", "relevance": "high", "used_for": "STFT overlap-add pattern"},
+  {"path": "research/fft-artifact-prevention.md", "relevance": "medium", "used_for": "Windowing function selection"}
+]
+```
+
+---
+
+## Alternatives Considered
+
+| Recommended | Alternative | When to Use Alternative |
+|-------------|-------------|-------------------------|
+| Keyword matching (JSON index) | BM25 scoring (`bm25s` library) | If the resource collection grows beyond ~100 documents and keyword overlap becomes unreliable. BM25 adds TF-IDF-style weighting and document length normalization. Currently overkill for 23 docs. |
+| Static JSON manifest | SQLite FTS5 | If you need full-text search across document CONTENT, not just keywords. FTS5 is built into Python's sqlite3 module. Only needed if matching on document headers/keywords proves insufficient. |
+| SubagentStart hook injection | Agent frontmatter `skills` field | If resource needs are completely predictable per agent type. The skills field preloads content at startup. But it cannot adapt to task-specific context (e.g., "this specific DSP task needs FFT docs, not reverb docs"). |
+| File-based usage logs (JSON) | SQLite usage database | If you need to query usage patterns across many sessions (e.g., "which resources are most used?"). JSON files are simpler but harder to aggregate. Cross that bridge when the data justifies it. |
+| Python keyword matcher | LLM-based routing (`type: "prompt"` hook) | If keyword matching has too many false negatives. A prompt hook could ask a small model "which resources are relevant?" But adds latency (LLM call per agent spawn) and cost. Reserve for complex routing only. |
+
+---
+
+## What NOT to Use
+
+| Avoid | Why | Use Instead |
+|-------|-----|-------------|
+| Vector databases (Chroma, Pinecone, Weaviate) | Massive overkill for 23 documents. Adds infrastructure, dependencies, and complexity that provide no benefit at this scale. The domain vocabulary is distinctive enough that keyword matching is more reliable than semantic similarity. | Static JSON keyword index |
+| Embedding models (OpenAI, sentence-transformers) | Requires API calls or local model loading. Adds latency, cost, and a dependency. Keyword matching is faster, free, and more predictable for a curated corpus. | Python keyword extraction from headers and domain vocabulary |
+| LangChain / LlamaIndex | Heavy frameworks designed for general-purpose RAG pipelines. The Plugin Freedom System has its own orchestration (hooks + agents). Adding a second orchestration layer creates conflicts and confusion. | Direct Python scripts called by hooks |
+| UserPromptSubmit for resource injection | Fires on EVERY prompt, not just agent spawning. Would inject research doc references when the user asks "how do I build?" Context pollution. The existing UserPromptSubmit already handles `/continue`. | SubagentStart hook (fires only when agents spawn) |
+| Automatic full-document injection | Injecting full document content into agent context wastes tokens. Research docs range from 425 to 2,336 lines. | Inject file PATHS and one-line summaries. Let the agent Read the files it needs. |
+| Complex NLP for keyword extraction | NLTK, spaCy for topic extraction from research docs. Over-engineering for a domain with clear vocabulary. "FFT", "reverb", "microtonality" do not need lemmatization. | Simple regex tokenization + curated DSP vocabulary list |
+| Real-time index rebuilding per SubagentStart | Rebuilding the index on every agent spawn adds latency. The research corpus changes rarely. | Rebuild on SessionStart if stale, or manually via script |
+| `type: "agent"` hooks for resource matching | Agent hooks spawn a full subagent (with multi-turn tool access) to make routing decisions. Extreme overkill for keyword matching. Adds seconds of latency. | `type: "command"` hooks running Python scripts (milliseconds) |
+
+---
+
+## Integration with Existing Hooks
+
+The existing hook system has specific hooks that must NOT be disrupted:
+
+| Hook | Current Function | Integration Strategy |
+|------|-----------------|---------------------|
+| `SessionStart.sh` | Environment validation (python3, jq, cmake, JUCE) | APPEND index freshness check at end (after existing validation). Non-blocking. |
+| `UserPromptSubmit.sh` | `/continue` context injection | DO NOT MODIFY. Resource injection happens in SubagentStart instead. |
+| `PostToolUse.sh` | Real-time safety validation, contract immutability | DO NOT MODIFY. No resource injection needed here. |
+| `SubagentStop.sh` | Contract validation (checksums, cross-contract, foundation, DSP, GUI) | APPEND usage tracking after existing validators. Non-blocking (exit 0 even if tracking fails). |
+| `Stop.sh` | Stage enforcement | DO NOT MODIFY. |
+| `PreCompact.sh` | Contract preservation | APPEND resource context note after existing contract output. |
+
+**New hook to ADD in hooks.json:**
+
+```json
+{
+  "SubagentStart": [
+    {
+      "matcher": ".*",
+      "hooks": [
+        {
+          "type": "command",
+          "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/SubagentStart-resources.sh",
+          "timeout": 3,
+          "description": "Auto-discover and inject relevant resources for subagents"
+        }
+      ]
+    }
+  ]
+}
+```
+
+**Important:** The SubagentStart hook timeout should be short (3 seconds). The Python keyword matching script should complete in under 500ms for the current corpus size. If it exceeds timeout, the hook is silently skipped and the agent proceeds without resource injection (graceful degradation).
+
+---
+
+## Version Compatibility
+
+| Component | Compatible With | Notes |
+|-----------|-----------------|-------|
+| Python 3.9+ | All existing validators | Already required by validate-checksums.py, validate-cross-contract.py |
+| jq 1.6+ | All existing hooks | Already required by SubagentStop.sh, PostToolUse.sh |
+| hooks.json SubagentStart | Claude Code v2.1+ | SubagentStart event and additionalContext verified in official docs |
+| agent_transcript_path | Claude Code v2.1.16+ | Required for usage tracking (reading which files the agent Read) |
+| additionalProperties: false schema | Existing subagent-report.json | Must be updated to include resources_used before agents can report |
+
+---
+
+## Installation
+
+No new packages to install. Everything uses existing dependencies:
+
+```bash
+# Verify existing dependencies (already checked by SessionStart.sh)
+python3 --version  # 3.9+
+jq --version       # 1.6+
+
+# Build the initial resource index
+python3 .claude/scripts/build-resource-index.py
+
+# Verify the index
+python3 -c "import json; d=json.load(open('.claude/resource-index.json')); print(f'{len(d[\"resources\"])} resources indexed')"
+# Expected: ~23 (one per research doc)
+```
+
+**Optional future upgrade (only if keyword matching proves insufficient):**
+```bash
+pip install "bm25s[full]"  # Lightweight BM25 scoring, no database
+```
+
+---
+
+## v1.2 Confidence Assessment
+
+| Area | Confidence | Reason |
+|------|------------|--------|
+| Hook integration points (SubagentStart, SubagentStop) | HIGH | Verified against official Claude Code docs. additionalContext injection confirmed. agent_transcript_path confirmed. |
+| Keyword matching approach | HIGH | Domain vocabulary is distinctive (DSP terms). Corpus is small (23 docs). No evidence that semantic search would outperform curated keywords at this scale. |
+| Usage tracking via transcript parsing | MEDIUM | Transcript JSONL format exists but exact schema for Read tool calls in subagent transcripts needs validation during implementation. |
+| Schema extension for resources_used | HIGH | Current schema uses additionalProperties: false, so change is required. The pattern is established (other optional fields already exist). |
+| Index freshness detection | HIGH | SHA256 and mtime checking is standard Python. Already used for contract checksums in existing validators. |
+| Python script performance (<500ms) | HIGH | 23 documents with keyword matching is trivially fast. json.load + set intersection on small data. |
+
+---
+
+## v1.2 Sources
+
+### Primary (HIGH Confidence)
+- [Claude Code Hooks Reference](https://code.claude.com/docs/en/hooks) -- Official documentation for all hook events, input schemas, output formats. Verified SubagentStart additionalContext, SubagentStop agent_transcript_path.
+- [Claude Code Subagents Documentation](https://code.claude.com/docs/en/sub-agents) -- Official docs on subagent creation, frontmatter fields, tool restrictions, skills preloading, lifecycle.
+- Existing system analysis: `.claude/hooks/hooks.json`, `.claude/hooks/*.sh`, `.claude/agents/*.md`, `.claude/schemas/` -- Direct analysis of the current codebase.
+
+### Secondary (MEDIUM Confidence)
+- [Claude Code Hooks Mastery](https://github.com/disler/claude-code-hooks-mastery) -- Community patterns for hook-based agent orchestration
+- [bm25s Library](https://github.com/xhluca/bm25s) -- Lightweight Python BM25 implementation (verified library capabilities)
+- [Claude Code Context Optimization](https://gist.github.com/johnlindquist/849b813e76039a908d962b2f0923dc9a) -- 54% context reduction case study showing trigger-based routing
+- [DEV Community: Claude Code Context Injection](https://dev.to/sasha_podles/claude-code-using-hooks-for-guaranteed-context-injection-2jg) -- Practical patterns for guaranteed context injection
+- [Botpress: AI Agent Routing](https://botpress.com/blog/ai-agent-routing) -- Keyword-based routing patterns for multi-agent systems
+- [BM25 for Developers](https://medium.com/@kimdoil1211/bm25-for-developers-a-guide-to-smarter-keyword-search-e6d83e8c8c8c) -- BM25 algorithm explanation and comparison with TF-IDF
+- [DigitalOcean: RAG Without Embeddings](https://www.digitalocean.com/community/tutorials/beyond-vector-databases-rag-without-embeddings) -- Alternative retrieval approaches without vector databases
+
+---
+
+*v1.2 Research conducted: 2026-02-04*
+*Confidence: HIGH for hook integration, HIGH for keyword matching, MEDIUM for transcript parsing*

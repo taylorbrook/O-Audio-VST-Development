@@ -1,639 +1,1058 @@
-# Architecture Patterns for Multi-Agent Quality Systems
+# Architecture Research: Resource Discovery & Context Injection
 
-**Domain:** Multi-agent AI systems for professional audio plugin development
-**Researched:** 2026-01-29
-**Overall Confidence:** HIGH (Context7 + official docs + industry sources)
+**Domain:** Agent intelligence - resource discovery and context injection for multi-agent JUCE plugin development system
+**Researched:** 2026-02-04
+**Confidence:** HIGH (based on thorough analysis of existing codebase, not external sources)
+
+---
 
 ## Executive Summary
 
-Multi-agent systems that produce professional-quality output follow distinct architectural patterns that differ fundamentally from amateur approaches. The key insight from 2026 research: **quality comes from constraints, contracts, and verification loops** - not from more powerful models alone.
+The existing system has 23 research documents, 11 agent definitions, 25 skills, and rich per-plugin planning artifacts -- but no mechanism connects research knowledge to agent execution. Research docs are only referenced when a human or agent happens to know they exist. The dsp-agent implementing a bell plugin never sees `modal-synthesis-bells-academic-research.md` unless someone manually adds it to the prompt.
 
-The dominant pattern emerging in 2026 is the **Planner-Executor-Verifier triad** with specialized agents, clear handoff contracts, and quality gates at each transition. Systems without these patterns produce "10x more tokens but only marginally better output" (Anthropic research: multi-agent outperformed single-agent by 90.2% but consumed 15x more tokens).
+The architecture must solve three problems:
+1. **Discovery:** Given a task context, which resources are relevant?
+2. **Injection:** How do relevant resources reach the agent before execution?
+3. **Accountability:** Did the agent actually use the resources, and can we verify it?
 
-For professional audio plugin development specifically, quality requires:
-1. **Domain expertise encoded in agent specs** (DSP real-time constraints, UI thread safety)
-2. **Verification agents that understand the domain** (not generic code review)
-3. **Quality gates with measurable criteria** (pluginval, auval, crash-free operation)
+The recommended architecture follows the existing system's patterns: a static index file (like plugin-registry.json), a discovery script (like template-lookup.py), prompt augmentation in the skill orchestrator (like how contracts are already injected), and validation in SubagentStop (like existing contract validation). No new architectural primitives needed -- just new components following established patterns.
+
+**Critical design constraint:** Claude Code agents communicate through markdown files and the Task tool prompt string. There is no runtime API, no shared memory, no message bus. Context injection must happen through prompt construction or file reading instructions.
 
 ---
 
-## Recommended Architecture
-
-### System Overview
+## System Overview
 
 ```
-+---------------------------------------------------------------------+
-|                         ORCHESTRATOR                                 |
-|   (routes work, maintains state, enforces quality gates)            |
-+---------------------------------------------------------------------+
-          |                    |                    |
-          v                    v                    v
-+-----------------+  +-----------------+  +-----------------+
-|   DISCUSS       |  |   RESEARCH      |  |     PLAN        |
-|   PHASE         |  |   PHASE         |  |     PHASE       |
-|                 |  |                 |  |                 |
-| - Clarify scope |  | - Context7 docs |  | - Task breakdown|
-| - Validate req  |  | - Domain survey |  | - Complexity    |
-| - User approval |  | - Pattern match |  | - Dependencies  |
-+--------+--------+  +--------+--------+  +--------+--------+
-         |                    |                    |
-         v                    v                    v
-         +--------------------+--------------------+
+                        SKILL ORCHESTRATOR
+                     (plugin-workflow, plugin-improve, etc.)
+                              |
+                   1. Load task context
+                   (plugin name, stage, agent type)
+                              |
+                   2. Invoke DISCOVERY SCRIPT
+                   (python3 .claude/scripts/resource-discovery.py)
                               |
                               v
-         +----------------------------------------+
-         |           EXECUTE PHASE                 |
-         |                                         |
-         |  +---------+  +---------+  +---------+ |
-         |  | DSP     |  | GUI     |  | Polish  | |
-         |  | Agent   |  | Agent   |  | Agent   | |
-         |  +----+----+  +----+----+  +----+----+ |
-         |       |            |            |      |
-         +-------+------------+------------+------+
-                 |            |            |
-                 v            v            v
-         +----------------------------------------+
-         |           VERIFY PHASE                  |
-         |                                         |
-         |  +-------------------------------------+|
-         |  |     VALIDATION AGENT                ||
-         |  |                                     ||
-         |  | - Contract compliance               ||
-         |  | - Domain-specific checks            ||
-         |  | - Runtime validation (pluginval)    ||
-         |  | - Quality gate enforcement          ||
-         |  +-------------------------------------+|
-         |                                         |
-         +--------------+-------------------------+
-                       |
-                       v
-              QUALITY GATE DECISION
-              +-- PASS -> Next Stage
-              +-- FAIL -> Return to Execute with feedback
+              +-------------------------------+
+              |    RESOURCE INDEX             |
+              |    (.claude/resource-index.json)|
+              |                               |
+              |  { "research/modal-...md":    |
+              |    { "tags": ["bells",        |
+              |      "modal-synthesis",       |
+              |      "physical-modeling"],     |
+              |    "agents": ["dsp-agent",    |
+              |      "research-planning-agent"],|
+              |    "plugins": ["O-Bells"],    |
+              |    "dsp_topics": ["synthesis", |
+              |      "envelopes", "damping"]  |
+              |    }                          |
+              |  }                            |
+              +-------------------------------+
+                              |
+                   3. Score & rank matches
+                              |
+                              v
+              +-------------------------------+
+              |    CONTEXT INJECTION          |
+              |    (in skill orchestrator)     |
+              |                               |
+              |  Append to agent prompt:       |
+              |  "Relevant resources to READ:  |
+              |   - research/modal-synthesis..."|
+              |   - research/fft-processing..." |
+              |  Priority: MUST-READ / SHOULD  |
+              +-------------------------------+
+                              |
+                   4. Agent executes with
+                      resource awareness
+                              |
+                              v
+              +-------------------------------+
+              |    AGENT EXECUTION            |
+              |    (dsp-agent, gui-agent, etc.)|
+              |                               |
+              |  - Reads injected resources   |
+              |  - Uses content in work       |
+              |  - Reports resources_consulted|
+              |    in JSON output             |
+              +-------------------------------+
+                              |
+                   5. SubagentStop validates
+                      resource usage
+                              |
+                              v
+              +-------------------------------+
+              |    USAGE VALIDATION           |
+              |    (SubagentStop.sh +          |
+              |     validate-resource-usage.py)|
+              |                               |
+              |  - Parse agent JSON report    |
+              |  - Check resources_consulted  |
+              |    against injected resources |
+              |  - Warn if MUST-READ skipped  |
+              +-------------------------------+
 ```
 
-### Component Boundaries
+### Component Responsibilities
 
-| Component | Responsibility | Communicates With | Quality Constraint |
-|-----------|---------------|-------------------|-------------------|
-| Orchestrator | Route work, maintain state, enforce gates | All agents | Never executes domain work |
-| Research Agent | Survey patterns, verify capabilities | Context7, WebSearch, Orchestrator | Must cite sources, confidence levels |
-| Planning Agent | Decompose tasks, estimate complexity | Research output, Orchestrator | Must produce measurable milestones |
-| DSP Agent | Implement audio processing | Planning contracts, Validator | Must follow real-time safety rules |
-| GUI Agent | Implement user interface | Planning contracts, Validator | Must follow thread-safety rules |
-| Validation Agent | Verify all quality criteria | All execution outputs | Cannot implement, only verify |
+| Component | Responsibility | Existing Pattern It Follows | New/Modified |
+|-----------|----------------|----------------------------|-------------|
+| Resource Index | Static catalog of all resources with tags | plugin-registry.json | NEW file |
+| Discovery Script | Match task context to relevant resources | template-lookup.py | NEW script |
+| Skill Orchestrator | Inject discovered resources into agent prompt | Contract injection in plugin-workflow | MODIFIED (3 skills) |
+| Agent Definitions | Declare `resources_consulted` in output report | JSON report format already exists | MODIFIED (output section) |
+| SubagentStop Hook | Validate resource usage after agent completion | Existing SubagentStop.sh pattern | MODIFIED (add case) |
+| Usage Validator | Compare injected vs consulted resources | validate-dsp-components.py pattern | NEW validator |
 
-### Data Flow
+---
 
-**Contract Flow (Upstream):**
+## Question 1: Where Does Resource Discovery Happen?
+
+**Answer: In the skill orchestrator, before agent spawning.**
+
+### Why the Skill Orchestrator (Not a Hook, Not the Agent)
+
+**Option A: In a hook (UserPromptSubmit or custom PreAgentSpawn)**
+- Hooks have tight timeouts (2-10s)
+- Hooks output to stderr/stdout, which is injected as system context
+- Hooks cannot modify the Task() prompt that the skill constructs
+- Hooks run AFTER the skill has already built the prompt
+- **Verdict: Wrong layer.** Hooks validate/inject at the conversation level, not at the agent spawning level.
+
+**Option B: In the agent itself (agent reads index, discovers own resources)**
+- Agents run in fresh contexts with limited initial knowledge
+- Would require every agent to have Bash/Read tools to run discovery
+- Wastes agent execution time on discovery instead of domain work
+- Discovery logic duplicated across 11 agent definitions
+- **Verdict: Wrong responsibility.** Agents should execute domain work, not meta-work about resource discovery.
+
+**Option C: In the skill orchestrator, before Task() invocation** (RECOMMENDED)
+- Orchestrators already load contracts, state, and context before spawning agents
+- Orchestrators already construct the prompt string for Task()
+- Adding resource discovery is a natural extension of prompt construction
+- Centralized logic, not duplicated across agents
+- Matches existing pattern: `load_contracts(plugin_name)` then `invoke_task(prompt=...)`
+- **Verdict: Correct layer.** This is where context assembly already happens.
+
+### Integration Point: plugin-workflow
+
+Current code (from `run_execute_phase`):
+```python
+# Current: contracts loaded and injected into prompt
+contracts = load_contracts(plugin_name)
+plan = read_file(f"plugins/{plugin_name}/.planning/stages/{stage}/PLAN.md")
+
+result = invoke_task(
+    subagent_type=agent,
+    prompt=f"""
+    Implement {stage} for {plugin_name}.
+
+    Contracts:
+    - BRIEF.md: {contracts.brief_summary}
+    - ARCHITECTURE.md: {contracts.arch_summary}
+    ...
+    """
+)
 ```
-BRIEF.md -> parameter-spec.md -> ARCHITECTURE.md -> ROADMAP.md
-    |              |                  |               |
-    |              |                  |               +-- Task breakdown per phase
-    |              |                  +-- Technical implementation plan
-    |              +-- Parameter definitions with DSP mappings
-    +-- Creative intent, sonic goals, user requirements
+
+Proposed change:
+```python
+# New: discover resources THEN inject into prompt
+contracts = load_contracts(plugin_name)
+plan = read_file(f"plugins/{plugin_name}/.planning/stages/{stage}/PLAN.md")
+
+# NEW: Resource discovery
+resources = discover_resources(plugin_name, stage, agent)
+
+result = invoke_task(
+    subagent_type=agent,
+    prompt=f"""
+    Implement {stage} for {plugin_name}.
+
+    Contracts:
+    - BRIEF.md: {contracts.brief_summary}
+    - ARCHITECTURE.md: {contracts.arch_summary}
+    ...
+
+    ## Relevant Resources (READ BEFORE IMPLEMENTING)
+
+    **MUST-READ:** These contain directly relevant algorithms and patterns:
+    {format_must_read(resources)}
+
+    **SHOULD-READ:** These may contain useful context:
+    {format_should_read(resources)}
+
+    Read these files using the Read tool before starting implementation.
+    Report which resources you consulted in your JSON output.
+    """
+)
 ```
 
-**Execution Flow (Downstream):**
+### Integration Point: plugin-improve
+
+The plugin-improve skill has a different flow (Phase 0.5 investigation, not staged execution). Resource discovery should happen at Phase 0.5 (Investigation) where the skill already searches for relevant context:
+
+```python
+# Phase 0.5: Investigation
+# NEW: Before investigating, discover relevant research
+resources = discover_resources(plugin_name, improvement_context, "plugin-improve")
+
+# Present to user or pass to Tier 2/3 investigation
 ```
-ROADMAP.md -> Agent Invocation -> Code Output -> Validation -> Gate Decision
-                    |                |             |
-                    |                |             +-- JSON report with pass/fail
-                    |                +-- Modified files list
-                    +-- Contract files + complexity score
+
+### Integration Point: plugin-planning (research-planning-agent)
+
+The research-planning-agent already does external research via WebSearch and Context7. Resource discovery would surface existing research docs to avoid duplicate investigation:
+
+```python
+# Before spawning research-planning-agent
+resources = discover_resources(plugin_name, "stage-0-research", "research-planning-agent")
+
+# Inject into prompt: "These research docs already exist for related topics..."
 ```
 
 ---
 
-## Patterns to Follow
+## Question 2: How Does Context Flow from Discovery to Injection?
 
-### Pattern 1: Generator-Critic Loop
+**Answer: Appended to the agent prompt as file paths with read instructions.**
 
-**What:** One agent creates, another validates, with iterative refinement.
+### Why Prompt Injection (Not Context Files, Not Hook Injection)
 
-**When:**
-- Complex implementations where first-pass quality is insufficient
-- High-stakes outputs (DSP that must be real-time safe)
-- Outputs requiring domain expertise to evaluate
+**Option A: Write a context file, agent reads it**
+- Adds a write-then-read step (slower)
+- Creates file clutter in `.planning/`
+- Agent might not read it (no enforcement)
+- **Verdict: Unnecessary indirection.** The prompt IS the context delivery mechanism.
 
-**Why it produces professional output:**
-Research shows "first-pass AI outputs are rarely optimal." The Generator-Critic pattern "converts AI from a generator into a self-correcting system, dramatically improving reliability."
+**Option B: Hook injects via stderr/stdout**
+- Hooks inject at conversation level, not agent level
+- Cannot target specific Task() invocations
+- Timeout constraints limit processing
+- **Verdict: Wrong mechanism.** Hooks are for conversation-level context, not agent-level.
 
-**Implementation:**
+**Option C: Append to Task() prompt string** (RECOMMENDED)
+- Direct delivery to agent context
+- Agent sees resources as part of its instructions
+- No intermediate files
+- Orchestrator controls exactly what's injected
+- Matches existing pattern (contracts are already prompt-injected)
+- **Verdict: Correct mechanism.** This is how the system already delivers context.
+
+### Context Format
+
+The injected context should be:
+
+1. **File paths** (not file contents) -- agent uses Read tool to load
+2. **Priority classification** (MUST-READ vs SHOULD-READ)
+3. **Relevance summary** (why this resource matches)
+4. **Read instruction** (explicit directive to use Read tool)
+
+```markdown
+## Relevant Resources
+
+**MUST-READ** (directly relevant to your task):
+1. `research/modal-synthesis-bells-academic-research.md`
+   - Contains: Frequency-dependent damping formulas, multi-stage decay envelopes
+   - Relevance: Core algorithm reference for bell modal synthesis
+
+2. `research/multi-stage-decay-envelopes-comparison.md`
+   - Contains: Comparison of decay envelope approaches
+   - Relevance: Implementation options for bell decay behavior
+
+**SHOULD-READ** (potentially useful context):
+3. `research/custom-fft-implementations.md`
+   - Contains: FFT library comparison, integration patterns
+   - Relevance: May be useful if spectral analysis needed
+
+**Instructions:** Read MUST-READ resources using Read tool before starting implementation.
+Include `resources_consulted` array in your JSON output report listing files you read.
 ```
-1. Generator Agent produces output
-2. Critic Agent evaluates against contract + domain rules
-3. If FAIL: Critic returns specific feedback
-4. Generator incorporates feedback, produces revision
-5. Loop until PASS or max iterations reached
-6. Human escalation if iterations exhausted
-```
 
-**Example for DSP:**
+### Why File Paths Not Contents
+
+- Research docs are 10-70KB each (modal-synthesis is 12KB, microtonality-implementation is 72KB)
+- Injecting full content would consume significant context window budget
+- Agent can selectively read sections (Read tool with offset/limit)
+- Agent decides what depth of reading is needed
+- Prevents context window overflow on multiple large docs
+
+---
+
+## Question 3: What New Components Are Needed?
+
+### Component 1: Resource Index (NEW)
+
+**File:** `.claude/resource-index.json`
+**Purpose:** Static catalog of all resources with searchable metadata
+**Follows pattern of:** `.claude/plugin-registry.json`
+
 ```json
 {
-  "generator": "dsp-agent",
-  "critic_checks": [
-    "real_time_safety: No allocations in processBlock()",
-    "parameter_connection: All params from spec connected",
-    "domain_correctness: DSP matches ARCHITECTURE.md",
-    "denormal_protection: ScopedNoDenormals present"
-  ],
-  "max_iterations": 3,
-  "on_iteration_exhausted": "escalate_to_human"
+  "$schema": "./schemas/resource-index.schema.json",
+  "version": "1.0.0",
+  "generated": "2026-02-04",
+  "resources": {
+    "research/modal-synthesis-bells-academic-research.md": {
+      "title": "Modal Synthesis for Bells and Metallic Percussion",
+      "type": "algorithm-reference",
+      "tags": ["modal-synthesis", "bells", "metallic", "percussion", "physical-modeling", "damping", "envelopes"],
+      "dsp_topics": ["synthesis", "envelopes", "frequency-dependent-damping", "modal-analysis"],
+      "relevant_agents": ["dsp-agent", "research-planning-agent"],
+      "relevant_plugins": ["O-Bells"],
+      "keywords": ["CCRMA", "decay", "partials", "resonance", "modes", "inharmonicity"],
+      "summary": "Academic compilation from CCRMA Stanford and IRCAM on modal synthesis. Includes mathematical formulas for frequency-dependent damping, multi-stage decay envelopes, and specific parameter values.",
+      "size_kb": 12
+    },
+    "research/custom-fft-implementations.md": {
+      "title": "Custom FFT Implementations for Audio Plugins",
+      "type": "technology-comparison",
+      "tags": ["fft", "spectral", "performance", "libraries"],
+      "dsp_topics": ["fft", "spectral-processing", "convolution", "frequency-domain"],
+      "relevant_agents": ["dsp-agent", "research-planning-agent"],
+      "relevant_plugins": ["O-SpectralShaper", "O-FreqPulse"],
+      "keywords": ["vDSP", "Accelerate", "FFTW", "PFFFT", "KissFFT", "AudioFFT"],
+      "summary": "Comparison of FFT libraries (Apple Accelerate, Intel IPP, FFTW3, PFFFT, KissFFT) with benchmarks, licensing, and JUCE integration patterns.",
+      "size_kb": 21
+    }
+  }
 }
 ```
 
-### Pattern 2: Contract-Driven Handoffs
+**Index structure rationale:**
+- `tags`: Broad category labels for fuzzy matching
+- `dsp_topics`: DSP-specific classification for dsp-agent matching
+- `relevant_agents`: Which agents would benefit from this resource
+- `relevant_plugins`: Direct plugin association (from past usage)
+- `keywords`: Fine-grained terms for keyword matching against task context
+- `summary`: One-paragraph description for the agent to assess relevance
+- `size_kb`: Helps agent decide whether to read full file or skim
 
-**What:** Each agent receives explicit input contracts and produces explicit output contracts.
+**Maintenance:** Static file, manually updated when new research docs are added. Could be regenerated by a maintenance script, but not auto-generated on every invocation (too slow for hook timeouts).
 
-**When:** Always. This is foundational.
+### Component 2: Discovery Script (NEW)
 
-**Why it produces professional output:**
-"Each agent has clear constraints (Planner can't write code, Implementer can't redesign) and produces structured documents that create an audit trail." This prevents scope creep and ensures accountability.
+**File:** `.claude/scripts/resource-discovery.py`
+**Purpose:** Given task context, return ranked list of relevant resources
+**Follows pattern of:** `.claude/scripts/template-lookup.py`
 
-**Contract Structure:**
-```yaml
-# Input Contract for DSP Agent
-input_contract:
-  required_files:
-    - path: ".planning/research/ARCHITECTURE.md"
-      must_contain: ["DSP Components", "Processing Chain"]
-    - path: ".planning/parameter-spec.md"
-      must_contain: ["Parameter Mappings"]
-    - path: ".planning/ROADMAP.md"
-      must_contain: ["complexity_score"]
-
-  precondition_checks:
-    - "Stage 1 complete (APVTS exists)"
-    - "All parameters defined in foundation"
-
-# Output Contract from DSP Agent
-output_contract:
-  modified_files:
-    - "Source/PluginProcessor.cpp"
-    - "Source/PluginProcessor.h"
-
-  verification_criteria:
-    - "All DSP components from ARCHITECTURE.md implemented"
-    - "All parameters connected to processing"
-    - "Real-time safety maintained"
-
-  json_report:
-    required_fields: ["agent", "status", "outputs", "issues", "ready_for_next_stage"]
-```
-
-### Pattern 3: Quality Gates with Measurable Criteria
-
-**What:** Stage transitions blocked until specific, measurable quality criteria pass.
-
-**When:** Every stage boundary.
-
-**Why it produces professional output:**
-"To keep prompt or model changes from breaking production, you need versioning, eval gates, and safe rollout." Quality gates make problems visible before they cascade.
-
-**Audio Plugin Quality Gate Example:**
-
-| Stage | Gate Criteria | Verification Method | Blocking? |
-|-------|--------------|---------------------|-----------|
-| 0 (Research) | ARCHITECTURE.md complete | Contract validator | Yes |
-| 1 (Foundation) | Plugin loads without crash | pluginval smoke test | Yes |
-| 2 (DSP) | Audio processes correctly | pluginval functional test | Yes |
-| 3 (GUI) | UI operates without crash | pluginval GUI test | Yes |
-| 4 (Polish) | DAW compatibility verified | Multi-DAW test suite | Yes |
-
-**Implementation:**
 ```python
-# Quality gate enforcement
-def quality_gate(stage: int, plugin_path: str) -> dict:
+#!/usr/bin/env python3
+"""Resource discovery for agent context injection.
+
+Usage:
+  python3 .claude/scripts/resource-discovery.py \
+    --plugin O-Bells \
+    --agent dsp-agent \
+    --stage 2-dsp \
+    --context "modal synthesis, bell sounds, decay envelopes" \
+    [--limit 5]
+
+Output: JSON array of matched resources with priority and relevance.
+"""
+
+import json
+import sys
+import argparse
+from pathlib import Path
+
+def load_index():
+    index_path = Path(".claude/resource-index.json")
+    if not index_path.exists():
+        return {"resources": {}}
+    with open(index_path) as f:
+        return json.load(f)
+
+def score_resource(resource_meta, plugin, agent, stage, context_terms):
+    """Score a resource's relevance to the current task.
+
+    Scoring weights:
+    - Direct plugin match: +10
+    - Agent relevance: +5
+    - Tag match: +3 per matching tag
+    - DSP topic match: +3 per matching topic
+    - Keyword match: +1 per matching keyword
+    - Context term match: +2 per matching term
     """
-    Returns: {"passed": bool, "checks": [...], "blocking": bool}
-    """
-    checks = []
+    score = 0
 
-    if stage == 2:  # DSP
-        # Semantic checks
-        checks.append(verify_realtime_safety(plugin_path))
-        checks.append(verify_parameter_connections(plugin_path))
-        checks.append(verify_contract_compliance(plugin_path))
+    # Direct plugin match (highest signal)
+    if plugin and plugin in resource_meta.get("relevant_plugins", []):
+        score += 10
 
-        # Runtime checks (only if binary exists)
-        if binary_exists(plugin_path):
-            checks.append(run_pluginval_functional(plugin_path))
+    # Agent relevance
+    if agent and agent in resource_meta.get("relevant_agents", []):
+        score += 5
 
-    passed = all(c["passed"] for c in checks)
-    return {"passed": passed, "checks": checks, "blocking": True}
+    # Tag matching
+    tags = set(resource_meta.get("tags", []))
+    for term in context_terms:
+        term_lower = term.lower().strip()
+        if term_lower in tags:
+            score += 3
+
+    # DSP topic matching
+    dsp_topics = set(resource_meta.get("dsp_topics", []))
+    for term in context_terms:
+        term_lower = term.lower().strip()
+        if term_lower in dsp_topics:
+            score += 3
+
+    # Keyword matching (broader)
+    keywords = set(resource_meta.get("keywords", []))
+    for term in context_terms:
+        term_lower = term.lower().strip()
+        for keyword in keywords:
+            if term_lower in keyword.lower() or keyword.lower() in term_lower:
+                score += 1
+
+    return score
+
+def discover(plugin, agent, stage, context, limit=5):
+    index = load_index()
+    results = []
+
+    context_terms = [t.strip() for t in context.split(",") if t.strip()]
+
+    # Also extract terms from stage name
+    if stage:
+        stage_terms = stage.replace("-", " ").split()
+        context_terms.extend(stage_terms)
+
+    for path, meta in index.get("resources", {}).items():
+        score = score_resource(meta, plugin, agent, stage, context_terms)
+        if score > 0:
+            priority = "MUST-READ" if score >= 8 else "SHOULD-READ"
+            results.append({
+                "path": path,
+                "title": meta.get("title", path),
+                "summary": meta.get("summary", ""),
+                "score": score,
+                "priority": priority,
+                "size_kb": meta.get("size_kb", 0)
+            })
+
+    # Sort by score descending
+    results.sort(key=lambda r: r["score"], reverse=True)
+
+    return results[:limit]
+
+def main():
+    parser = argparse.ArgumentParser(description="Discover relevant resources")
+    parser.add_argument("--plugin", default="")
+    parser.add_argument("--agent", default="")
+    parser.add_argument("--stage", default="")
+    parser.add_argument("--context", default="")
+    parser.add_argument("--limit", type=int, default=5)
+    parser.add_argument("--format", choices=["json", "markdown"], default="json")
+
+    args = parser.parse_args()
+    results = discover(args.plugin, args.agent, args.stage, args.context, args.limit)
+
+    if args.format == "json":
+        print(json.dumps(results, indent=2))
+    else:
+        # Markdown format for direct prompt injection
+        must_read = [r for r in results if r["priority"] == "MUST-READ"]
+        should_read = [r for r in results if r["priority"] == "SHOULD-READ"]
+
+        if must_read:
+            print("**MUST-READ** (directly relevant to your task):")
+            for i, r in enumerate(must_read, 1):
+                print(f"{i}. `{r['path']}`")
+                print(f"   - {r['summary']}")
+                print()
+
+        if should_read:
+            print("**SHOULD-READ** (potentially useful context):")
+            for i, r in enumerate(should_read, len(must_read) + 1):
+                print(f"{i}. `{r['path']}`")
+                print(f"   - {r['summary']}")
+                print()
+
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
 ```
 
-### Pattern 4: Tiered Verification Depth
+**Performance constraint:** This script must complete in under 2 seconds. With a static JSON index and simple scoring, it will run in ~50ms for 23 resources. No external calls, no file scanning, no LLM inference.
 
-**What:** Different verification depths for different complexity levels.
+### Component 3: Context Extraction Helper (NEW, optional)
 
-**When:** Allocating verification resources.
+**File:** `.claude/scripts/extract-context-terms.py`
+**Purpose:** Extract context terms from plugin planning files for discovery input
+**When needed:** When the skill orchestrator needs to build the `--context` argument
 
-**Why it produces professional output:**
-Prevents over-verification of simple tasks and under-verification of complex ones. "Complexity score" drives verification depth.
+```python
+#!/usr/bin/env python3
+"""Extract searchable context terms from plugin planning artifacts.
 
-**Implementation:**
-```yaml
-verification_tiers:
-  complexity_1_2:  # Simple plugins
-    dsp_verification: "single-pass"
-    pluginval_level: "smoke_test"
-    human_review: "optional"
+Usage:
+  python3 .claude/scripts/extract-context-terms.py plugins/O-Bells/.planning/
 
-  complexity_3:    # Moderate plugins
-    dsp_verification: "generator-critic (2 iterations)"
-    pluginval_level: "functional_test"
-    human_review: "recommended"
+Output: Comma-separated context terms suitable for resource-discovery.py --context
+"""
 
-  complexity_4_5:  # Complex plugins
-    dsp_verification: "generator-critic (3 iterations)"
-    pluginval_level: "full_gui_test"
-    human_review: "required"
-    extended_thinking: true
+import sys
+import re
+from pathlib import Path
+
+def extract_from_brief(brief_path):
+    """Extract plugin type, sonic goals, key features from BRIEF.md"""
+    terms = []
+    if brief_path.exists():
+        content = brief_path.read_text()
+        # Extract plugin type
+        for line in content.split("\n"):
+            if "type:" in line.lower():
+                terms.extend(line.split(":")[-1].strip().split())
+            # Extract key features mentioned
+            if any(kw in line.lower() for kw in ["feature", "algorithm", "technique", "synthesis", "effect"]):
+                words = re.findall(r'\b[a-z]{3,}\b', line.lower())
+                terms.extend(words)
+    return terms
+
+def extract_from_architecture(arch_path):
+    """Extract DSP components, algorithms from ARCHITECTURE.md"""
+    terms = []
+    if arch_path.exists():
+        content = arch_path.read_text()
+        # Extract section headers as topics
+        headers = re.findall(r'^#{1,3}\s+(.+)$', content, re.MULTILINE)
+        for h in headers:
+            terms.extend(h.lower().split())
+        # Extract JUCE class names
+        juce_classes = re.findall(r'juce::dsp::(\w+)', content)
+        terms.extend([c.lower() for c in juce_classes])
+    return terms
+
+def main():
+    planning_dir = Path(sys.argv[1]) if len(sys.argv) > 1 else Path(".")
+
+    terms = set()
+    terms.update(extract_from_brief(planning_dir / "BRIEF.md"))
+    terms.update(extract_from_architecture(planning_dir / "research" / "ARCHITECTURE.md"))
+
+    # Deduplicate and filter noise words
+    noise = {"the", "and", "for", "with", "from", "this", "that", "are", "was", "will", "has", "been"}
+    filtered = [t for t in terms if t not in noise and len(t) > 2]
+
+    print(",".join(sorted(set(filtered))))
+
+if __name__ == "__main__":
+    main()
 ```
 
-### Pattern 5: Specialized Domain Agents
+### Component 4: Usage Validator (NEW)
 
-**What:** Agents with deeply encoded domain expertise, not generic capabilities.
+**File:** `.claude/hooks/validators/validate-resource-usage.py`
+**Purpose:** Parse agent JSON report for `resources_consulted` field, compare against injected resources
+**Follows pattern of:** `validate-dsp-components.py`, `validate-parameters.py`
 
-**When:** Tasks requiring professional-grade domain knowledge.
+```python
+#!/usr/bin/env python3
+"""Validate that agent consulted injected resources.
 
-**Why it produces professional output:**
-"The reflection pattern enables an agent to critically evaluate its own output." But generic reflection misses domain-specific issues. Specialized agents catch domain-specific problems.
+Reads agent JSON report and compares resources_consulted against
+the MUST-READ resources that were injected.
 
-**Amateur Pattern (Generic):**
+Exit codes:
+  0 = All MUST-READ resources consulted
+  1 = MUST-READ resources skipped (blocking)
+  2 = SHOULD-READ resources skipped (warning only)
+"""
+
+import json
+import sys
+
+def main():
+    # Read agent report from stdin or argument
+    report = json.loads(sys.stdin.read())
+
+    consulted = set(report.get("resources_consulted", []))
+    injected_must = set(report.get("_injected_must_read", []))
+    injected_should = set(report.get("_injected_should_read", []))
+
+    # Check MUST-READ compliance
+    must_missed = injected_must - consulted
+    should_missed = injected_should - consulted
+
+    if must_missed:
+        print(f"WARNING: Agent skipped {len(must_missed)} MUST-READ resources:", file=sys.stderr)
+        for path in must_missed:
+            print(f"  - {path}", file=sys.stderr)
+        # WARNING not BLOCKING -- agent may have valid reason
+        # (e.g., resource turned out to be irrelevant after reading summary)
+        return 2
+
+    if should_missed:
+        print(f"INFO: Agent skipped {len(should_missed)} SHOULD-READ resources (acceptable)", file=sys.stderr)
+        return 0
+
+    print("Resource usage validated: all MUST-READ resources consulted", file=sys.stderr)
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(main())
 ```
-Agent: "Generate audio plugin DSP code"
-Output: Code that compiles but has:
-  - Allocations in processBlock()
-  - Missing denormal protection
-  - Parameter zipper noise
-  - CPU spikes
-Result: "Works" but sounds amateur
+
+**Design decision: Warning, not blocking.** The validator issues warnings for skipped MUST-READ resources but does not block the workflow (exit code 2, not 1). Rationale:
+- The agent may determine after reading the summary that a resource is not relevant
+- Blocking on resource usage would create false positives
+- The traceability value comes from the report, not from enforcement
+- Blocking should be reserved for contract violations, not resource suggestions
+
+### Component 5: Resource Index Schema (NEW)
+
+**File:** `.claude/schemas/resource-index.schema.json`
+**Purpose:** Validate resource-index.json structure
+
+---
+
+## Question 4: How Do Post-Agent Hooks Validate Resource Usage?
+
+**Answer: Parse the agent's JSON report for a `resources_consulted` field.**
+
+### Modified SubagentStop.sh
+
+Add a new case to the existing SubagentStop.sh:
+
+```bash
+# After existing agent validation cases...
+
+# Resource usage validation (all agents)
+if [ -n "$PLUGIN_NAME" ]; then
+  echo "Validating resource usage..." >&2
+  python3 .claude/hooks/validators/validate-resource-usage.py
+  RESOURCE_RESULT=$?
+  if [ $RESOURCE_RESULT -eq 2 ]; then
+    echo "WARNING: Some MUST-READ resources were not consulted" >&2
+    # Continue but warn -- not blocking
+  fi
+fi
 ```
 
-**Professional Pattern (Specialized):**
-```
-DSP Agent Spec includes:
-  - Real-time safety rules (no allocation, no locks)
-  - JUCE 8 specific patterns (ScopedNoDenormals, SmoothedValue)
-  - Parameter smoothing requirements
-  - DSP quality checklist (denormals, DC offset, numerical stability)
+**Why SubagentStop and not a separate hook:**
+- SubagentStop already runs after every agent completion
+- Already has access to agent output and plugin context
+- Adding a case follows the existing pattern
+- No need for a new hook type
 
-Output: Code that follows all domain constraints
-Result: Professional-quality audio processing
+### What Gets Validated
+
+| Check | Severity | Exit Code | Blocks Workflow |
+|-------|----------|-----------|-----------------|
+| All MUST-READ consulted | Info | 0 | No |
+| Some MUST-READ skipped | Warning | 2 | No |
+| `resources_consulted` field missing entirely | Warning | 2 | No |
+| SHOULD-READ skipped | Info | 0 | No |
+
+**Rationale for non-blocking:** Resource usage is advisory, not contractual. The primary value is traceability -- knowing which resources were available and which were actually used. Blocking would be appropriate only if we're certain the resources are relevant, but discovery scoring is heuristic.
+
+---
+
+## Question 5: What Changes to Existing Agent Contracts?
+
+### New Output Field: `resources_consulted`
+
+Add to the unified subagent report schema (`.claude/schemas/subagent-report.json`):
+
+```json
+{
+  "resources_consulted": {
+    "type": "array",
+    "items": { "type": "string" },
+    "description": "File paths of research/reference resources the agent read during execution. Include only resources actually loaded via Read tool.",
+    "default": []
+  }
+}
 ```
+
+**This field is optional, not required.** Agents that receive no resource injection (because discovery found nothing relevant) will omit it or return an empty array.
+
+### New Input Context: Resource Section in Prompt
+
+This is not a schema change -- it is a prompt augmentation. The orchestrator appends a `## Relevant Resources` section to the agent prompt. No schema change needed for this because the prompt is a free-form string.
+
+### Modified Agent Definitions
+
+Each agent definition (`.claude/agents/*.md`) should document the `resources_consulted` field in its JSON report section. Example addition to dsp-agent.md:
+
+```markdown
+**Extended success report (with resource tracking):**
+
+```json
+{
+  "agent": "dsp-agent",
+  "status": "success",
+  "outputs": {
+    "plugin_name": "[PluginName]",
+    "dsp_components": [...],
+    "processing_chain": "Input -> Filter -> Gain -> Output"
+  },
+  "resources_consulted": [
+    "research/modal-synthesis-bells-academic-research.md",
+    "research/multi-stage-decay-envelopes-comparison.md"
+  ],
+  "issues": [],
+  "ready_for_next_stage": true
+}
+```
+
+### Agents Affected
+
+| Agent | Receives Resources | Reports Usage | Priority |
+|-------|-------------------|---------------|----------|
+| dsp-agent | Yes (DSP research) | Yes | HIGH |
+| research-planning-agent | Yes (existing research to avoid re-research) | Yes | HIGH |
+| gui-agent | Yes (UI patterns, WebGL research) | Yes | MEDIUM |
+| foundation-shell-agent | Rarely (mostly template-driven) | Yes | LOW |
+| polish-agent | Occasionally (optimization patterns) | Yes | LOW |
+| music-theory-agent | Yes (microtonality, theory docs) | Yes | MEDIUM |
+| troubleshoot-agent | Yes (debugging patterns) | Yes | MEDIUM |
+
+---
+
+## Question 6: How Does the research/ Folder Get Indexed?
+
+**Answer: Static manifest with manual maintenance, plus a regeneration script for bulk updates.**
+
+### Why Static Manifest (Not Dynamic Scanning)
+
+**Option A: Dynamic scanning at discovery time**
+- Must scan 23 files, parse frontmatter, extract metadata on every invocation
+- Hook timeout constraints (2-10s) make this risky with larger research folders
+- File parsing is fragile (research docs have no standardized frontmatter)
+- Would need NLP or keyword extraction to generate tags
+- **Verdict: Too slow, too fragile.**
+
+**Option B: Dynamic scanning at session start (SessionStart hook)**
+- SessionStart already validates environment
+- Could scan research/ and rebuild index
+- But SessionStart has 5s timeout -- marginal for 23 files, problematic at 50+
+- Would run on every session, even when research/ hasn't changed
+- **Verdict: Workable but wasteful.**
+
+**Option C: Static manifest with regeneration script** (RECOMMENDED)
+- Index is a JSON file that gets committed to git
+- Updated when research docs are added/modified
+- Regeneration script available for bulk rebuilds
+- Discovery reads a single JSON file (fast, predictable)
+- **Verdict: Simple, fast, reliable.**
+
+### Index Generation Script
+
+**File:** `.claude/scripts/generate-resource-index.py`
+**Purpose:** Scan research/ folder and generate/update resource-index.json
+**When to run:** Manually after adding new research docs, or as part of commit process
+
+The script:
+1. Scans `research/` recursively for `.md` files
+2. For each file, extracts: title (first H1), size, headings
+3. Generates initial tags from headings and content keywords
+4. Merges with existing index to preserve manual tag refinements
+5. Outputs updated `.claude/resource-index.json`
+
+**Human curation expected:** Auto-generated tags are a starting point. The `relevant_agents`, `relevant_plugins`, `summary`, and refined `tags` should be human-curated for best discovery quality.
+
+### Per-Plugin Research
+
+Some research lives in `plugins/[Name]/.planning/research/` (per-plugin ARCHITECTURE.md). These should also be indexed but are already loaded via contract injection. The resource index focuses on the shared `research/` folder that contains cross-cutting knowledge.
+
+---
+
+## Recommended Project Structure (New/Modified Files)
+
+```
+.claude/
+  resource-index.json          # NEW: Static resource catalog
+  schemas/
+    resource-index.schema.json # NEW: Schema for resource index
+  scripts/
+    resource-discovery.py      # NEW: Discovery script
+    extract-context-terms.py   # NEW: Context extraction helper
+    generate-resource-index.py # NEW: Index regeneration
+    template-lookup.py         # EXISTING (unchanged)
+    plugin-registry.py         # EXISTING (unchanged)
+  hooks/
+    hooks.json                 # MODIFIED: Add resource validation
+    SubagentStop.sh            # MODIFIED: Add resource usage check
+    validators/
+      validate-resource-usage.py # NEW: Resource usage validator
+  agents/
+    dsp-agent.md               # MODIFIED: Add resources_consulted to report
+    gui-agent.md               # MODIFIED: Add resources_consulted to report
+    research-planning-agent.md # MODIFIED: Add resources_consulted to report
+    (other agents similarly)   # MODIFIED: Add resources_consulted to report
+  skills/
+    plugin-workflow/
+      SKILL.md                 # MODIFIED: Add discovery call before Task()
+    plugin-improve/
+      SKILL.md                 # MODIFIED: Add discovery in Phase 0.5
+    plugin-planning/
+      SKILL.md                 # MODIFIED: Add discovery before research-planning-agent
+```
+
+---
+
+## Data Flow: End-to-End Example
+
+**Scenario:** User runs `/implement O-Bells` and system reaches Stage 2 (DSP execute phase).
+
+```
+1. plugin-workflow reads O-Bells state
+   - Plugin: O-Bells
+   - Stage: 2-dsp
+   - Agent: dsp-agent
+   - ARCHITECTURE.md mentions: "modal synthesis", "frequency-dependent damping"
+
+2. Skill extracts context terms
+   $ python3 .claude/scripts/extract-context-terms.py plugins/O-Bells/.planning/
+   > "modal,synthesis,bells,damping,envelopes,partials,decay,metallic"
+
+3. Skill runs resource discovery
+   $ python3 .claude/scripts/resource-discovery.py \
+       --plugin O-Bells \
+       --agent dsp-agent \
+       --stage 2-dsp \
+       --context "modal,synthesis,bells,damping,envelopes,partials,decay,metallic" \
+       --format markdown
+
+   > **MUST-READ:**
+   > 1. `research/modal-synthesis-bells-academic-research.md`
+   >    - Contains frequency-dependent damping formulas, modal analysis
+   > 2. `research/multi-stage-decay-envelopes-comparison.md`
+   >    - Contains decay envelope implementation comparison
+
+   > **SHOULD-READ:**
+   > 3. `research/generative-audio-algorithms-reference.md`
+   >    - Contains algorithmic patterns for generative audio
+
+4. Skill constructs agent prompt with resources appended
+   Task(
+     subagent_type="dsp-agent",
+     prompt="""
+       Read these contracts:
+       - plugins/O-Bells/.planning/BRIEF.md
+       - plugins/O-Bells/.planning/research/ARCHITECTURE.md
+       - plugins/O-Bells/.planning/parameter-spec.md
+
+       ## Relevant Resources (READ BEFORE IMPLEMENTING)
+
+       **MUST-READ:**
+       1. `research/modal-synthesis-bells-academic-research.md`
+          - Frequency-dependent damping formulas and modal analysis parameters
+       2. `research/multi-stage-decay-envelopes-comparison.md`
+          - Decay envelope approaches for bell synthesis
+
+       **SHOULD-READ:**
+       3. `research/generative-audio-algorithms-reference.md`
+          - Algorithmic patterns for generative audio
+
+       Read MUST-READ resources before implementing.
+       Report resources_consulted in your JSON output.
+
+       Implement Stage 2 DSP for O-Bells...
+     """
+   )
+
+5. dsp-agent executes
+   - Reads ARCHITECTURE.md (contract)
+   - Reads modal-synthesis-bells-academic-research.md (MUST-READ)
+   - Reads multi-stage-decay-envelopes-comparison.md (MUST-READ)
+   - Implements modal synthesis using formulas from research
+   - Returns JSON report with resources_consulted
+
+6. SubagentStop validates
+   - Contract validation passes
+   - Resource usage: 2/2 MUST-READ consulted (PASS)
+   - DSP component validation passes
+```
+
+---
+
+## Architectural Patterns
+
+### Pattern 1: Static Index with Heuristic Scoring
+
+**What:** Pre-computed resource metadata with runtime keyword matching instead of semantic search.
+
+**Why this over semantic/embedding search:**
+- No external API calls (works offline, no latency)
+- Deterministic results (same query = same results)
+- Human-curated tags are more reliable than auto-embeddings for a 23-doc corpus
+- Script runs in <100ms
+- No dependencies beyond Python stdlib
+
+**Trade-offs:**
+- Requires manual index maintenance when docs change
+- Keyword matching misses semantic similarity ("reverb" won't match "room acoustics" unless tagged)
+- Quality depends on tag curation
+
+**When to upgrade:** If the research folder grows beyond ~100 docs, consider adding embedding-based search. At 23 docs, keyword matching with curated tags is optimal.
+
+### Pattern 2: Priority-Classified Injection
+
+**What:** Resources classified as MUST-READ or SHOULD-READ, not just a flat list.
+
+**Why:**
+- Agents have limited context window budget
+- MUST-READ signals "this directly affects your work quality"
+- SHOULD-READ signals "skim if you have capacity"
+- Prevents information overload while ensuring critical resources aren't missed
+
+**Classification threshold:** Score >= 8 = MUST-READ, lower = SHOULD-READ.
+The threshold is tunable -- start here and adjust based on observed agent behavior.
+
+### Pattern 3: Report-Based Accountability
+
+**What:** Agents self-report which resources they consulted via JSON output field.
+
+**Why not file access logs:**
+- Claude Code agents use the Read tool, but tracking which Read calls were for "resource consultation" vs "contract reading" vs "code inspection" requires parsing all Read call paths
+- Self-reporting is simpler and more reliable
+- Aligns with existing JSON report pattern
+- Agent has incentive to report accurately (it's in the instructions)
+
+**Trade-off:** Agent could lie (report reading something it didn't). This is acceptable because:
+- The value is traceability, not enforcement
+- If agent reports reading a doc but doesn't use its content, that's an agent quality issue, not an architecture issue
+- The SubagentStop validator catches the case where agent doesn't report at all
 
 ---
 
 ## Anti-Patterns to Avoid
 
-### Anti-Pattern 1: Single Monolithic Agent
+### Anti-Pattern 1: Full Content Injection
 
-**What:** One agent handles all phases (research, plan, execute, verify).
+**What people do:** Inject entire research doc contents into agent prompt.
+**Why it's wrong:** Research docs are 10-72KB. Injecting 3 docs at 30KB each uses 90KB of context window -- nearly the entire budget for a Sonnet agent.
+**Do this instead:** Inject file paths with summaries. Agent reads what it needs via Read tool.
 
-**Why bad:**
-- No separation of concerns
-- Verification bias (agent validates own work)
-- Context window explosion
-- No audit trail
+### Anti-Pattern 2: Real-Time Index Generation
 
-**Instead:** Use specialized agents with clear boundaries.
+**What people do:** Scan and parse all research files during discovery.
+**Why it's wrong:** Hook timeout constraints (2-10s), fragile parsing of unstructured markdown, slow for growing corpus.
+**Do this instead:** Static index file, generated offline, read at discovery time.
 
-### Anti-Pattern 2: Generic Verification
+### Anti-Pattern 3: Mandatory Enforcement
 
-**What:** Using a generic "code review" agent instead of domain-specific validation.
+**What people do:** Block workflow if agent doesn't read all suggested resources.
+**Why it's wrong:** Discovery is heuristic. False positives in resource matching would block valid agent work. Resources may become irrelevant once agent reads the summary.
+**Do this instead:** Warning-level validation. Log what was suggested vs consulted. Let humans audit the gap.
 
-**Why bad:**
-- Misses domain-specific quality issues
-- DSP real-time violations undetected
-- UI thread-safety issues undetected
-- "Looks correct" but crashes in production
+### Anti-Pattern 4: Discovery in Every Agent
 
-**Instead:** Domain-specific validation agents with encoded expertise.
+**What people do:** Put discovery logic in each agent definition so agents self-discover resources.
+**Why it's wrong:** Duplicates logic across 11 agents. Agents waste execution time on discovery instead of domain work. Discovery logic changes require updating all agents.
+**Do this instead:** Centralize discovery in the orchestrator. Agents receive pre-discovered resources.
 
-### Anti-Pattern 3: Trust-Based Handoffs
+### Anti-Pattern 5: Over-Indexing
 
-**What:** Assuming previous stage output is correct without verification.
-
-**Why bad:**
-- Errors cascade and compound
-- Late detection = expensive fixes
-- "Works on my machine" syndrome
-
-**Instead:** Verify contracts at every boundary.
-
-### Anti-Pattern 4: Unlimited Iteration Loops
-
-**What:** Generator-Critic loops without max iterations or escalation.
-
-**Why bad:**
-- Infinite loops possible
-- Token budget explosion
-- Diminishing returns after ~3 iterations
-
-**Instead:** Max 3 iterations, then escalate to human.
-
-### Anti-Pattern 5: Premature Optimization
-
-**What:** Adding complexity (more agents, more patterns) before validating simpler approaches work.
-
-**Why bad:**
-- "Latency accumulation" from multi-hop communication
-- "Resource constraints ignored"
-- Harder to debug
-
-**Instead:** Start with simplest pattern that might work, add complexity only when needed.
+**What people do:** Add 50 metadata fields per resource to catch every possible match.
+**Why it's wrong:** Maintenance burden grows linearly with field count. Most fields add marginal discovery value. Index becomes stale quickly.
+**Do this instead:** 7 fields (title, type, tags, dsp_topics, relevant_agents, relevant_plugins, keywords, summary). Expand only if discovery quality proves insufficient.
 
 ---
 
-## Professional Audio Plugin Quality Standards
+## Build Order (Suggested Implementation Phases)
 
-### Real-Time Audio Constraints
+### Phase 1: Foundation (Resource Index + Discovery Script)
 
-**Absolute Requirements (violations = catastrophic failure):**
+**Dependencies:** None (greenfield)
+**Creates:**
+- `.claude/resource-index.json` -- Manually create with all 23 research docs
+- `.claude/scripts/resource-discovery.py` -- Discovery script
+- `.claude/schemas/resource-index.schema.json` -- Validation schema
 
-| Constraint | Reason | Detection |
-|------------|--------|-----------|
-| No allocations in processBlock() | Causes audio dropouts | Static analysis |
-| No locks/mutex | Causes priority inversion | Static analysis |
-| No file I/O | Unbounded latency | Static analysis |
-| No exceptions | Unwinds audio stack | Compiler flags |
-| Bounded execution time | Buffer underrun | Runtime profiling |
+**Testable independently:** Run discovery script from CLI and verify results make sense for known plugin/research combinations.
 
-**Best Practices (violations = amateur quality):**
+**Estimated effort:** 1 phase, moderate complexity
 
-| Practice | Reason | Detection |
-|----------|--------|-----------|
-| ScopedNoDenormals | 10-100x CPU spikes | Pattern matching |
-| SmoothedValue for params | Zipper noise | Pattern matching |
-| Pre-allocated buffers | Runtime allocation | prepareToPlay() audit |
-| Atomic parameter reads | Thread safety | APVTS usage patterns |
+### Phase 2: Injection (Modify Skill Orchestrators)
 
-### DSP Quality Indicators
+**Dependencies:** Phase 1 (index and script must exist)
+**Modifies:**
+- `.claude/skills/plugin-workflow/SKILL.md` -- Add discovery + injection in execute phase
+- `.claude/skills/plugin-planning/SKILL.md` -- Add discovery before research-planning-agent
+- `.claude/skills/plugin-improve/SKILL.md` -- Add discovery in investigation phase
 
-**Professional Quality:**
-- Transparent when bypassed (no coloration)
-- Smooth parameter transitions (no clicks/pops)
-- Consistent across sample rates (44.1k to 192k)
-- CPU efficient (measured, profiled)
-- Numerically stable (no DC offset accumulation)
+**Testable:** Run a plugin workflow and verify agent prompt includes resource section.
 
-**Amateur Indicators:**
-- Zipper noise on parameter changes
-- CPU spikes with certain parameter values
-- Different behavior at different sample rates
-- Audible noise floor
-- Crashes with extreme parameter values
+**Estimated effort:** 1 phase, moderate complexity (careful SKILL.md editing)
 
-### UI Quality Indicators
+### Phase 3: Accountability (Agent Contracts + Validation)
 
-**Professional Quality:**
-- Responsive (< 16ms update latency)
-- Thread-safe (no audio thread access from UI)
-- State-consistent (UI matches audio state)
-- Accessible (keyboard navigation, contrast ratios)
-- Polished (consistent spacing, alignment, typography)
+**Dependencies:** Phase 2 (agents must receive resources to report on them)
+**Modifies:**
+- `.claude/agents/dsp-agent.md` -- Add resources_consulted to report format
+- `.claude/agents/gui-agent.md` -- Add resources_consulted to report format
+- `.claude/agents/research-planning-agent.md` -- Add resources_consulted to report format
+- (5 more agent definitions)
+- `.claude/hooks/SubagentStop.sh` -- Add resource usage validation case
+- `.claude/schemas/subagent-report.json` -- Add optional resources_consulted field
 
-**Amateur Indicators:**
-- UI freezes during audio processing
-- Parameters don't match visual state
-- Inconsistent visual styling
-- Crashes on rapid parameter changes
-- No keyboard navigation
+**Creates:**
+- `.claude/hooks/validators/validate-resource-usage.py`
 
-### Stability Quality Indicators
+**Testable:** Run a full plugin workflow and verify SubagentStop reports resource usage.
 
-**Professional Quality:**
-- Passes pluginval at strictness level 10
-- Works in all major DAWs (Logic, Ableton, Pro Tools, Reaper)
-- Handles edge cases (zero-length buffers, extreme parameters)
-- Clean shutdown (no crash on close)
-- State save/restore works perfectly
+**Estimated effort:** 1 phase, low-moderate complexity
 
-**Amateur Indicators:**
-- Fails pluginval tests
-- Works in some DAWs but not others
-- Crashes with certain parameter combinations
-- Crashes on plugin close
-- Preset recall doesn't match saved state
+### Phase 4: Tooling (Index Maintenance)
 
----
+**Dependencies:** Phase 1 (index format must be stable)
+**Creates:**
+- `.claude/scripts/generate-resource-index.py` -- Index regeneration from research/ scan
+- `.claude/scripts/extract-context-terms.py` -- Context extraction helper
 
-## Verification Strategies
+**Testable:** Run generation script, verify output matches manual index, verify context extraction produces reasonable terms.
 
-### Semantic Verification (Code Analysis)
+**Estimated effort:** 1 phase, low complexity
 
-**What to check:**
+### Phase Ordering Rationale
 
-```python
-semantic_checks = {
-    "realtime_safety": {
-        "forbidden_patterns": [
-            r"new\s+\w+",           # heap allocation
-            r"malloc|realloc",      # C allocation
-            r"std::mutex",          # locks
-            r"std::lock_guard",     # locks
-            r"File::",              # file I/O
-            r"throw\s+\w+",         # exceptions
-        ],
-        "required_patterns": [
-            r"ScopedNoDenormals",   # denormal protection
-        ],
-        "scope": "processBlock() method only"
-    },
-    "parameter_smoothing": {
-        "check": "All parameters in signal path use SmoothedValue",
-        "exceptions": ["bypass", "choice parameters"]
-    },
-    "buffer_preallocation": {
-        "check": "All buffers allocated in prepareToPlay()",
-        "verify": "No setSize() calls in processBlock()"
-    }
-}
 ```
-
-### Runtime Verification (Binary Testing)
-
-**Tiered pluginval testing:**
-
-| Stage | Test Level | Timeout | Flags |
-|-------|-----------|---------|-------|
-| 1 (Foundation) | Smoke | 10s | `--skip-gui-tests --validate-in-process` |
-| 2 (DSP) | Functional | 3min | `--skip-gui-tests --strictness-level 10` |
-| 3 (GUI) | Full | 10min | `--strictness-level 10` |
-
-**Critical pluginval checks:**
-- Plugin loads/unloads without crash
-- Parameters are automatable
-- State save/restore is idempotent
-- Thread safety (no allocations in audio thread)
-- GUI opens/closes without crash
-
-### Cross-Contract Verification
-
-**What to check:**
-
-```python
-cross_contract_checks = {
-    "parameter_count_match": {
-        "sources": ["parameter-spec.md", "ARCHITECTURE.md", "PluginProcessor.cpp"],
-        "rule": "All three must have same parameter count"
-    },
-    "parameter_id_match": {
-        "sources": ["parameter-spec.md", "APVTS definition"],
-        "rule": "IDs must match exactly (zero drift)"
-    },
-    "complexity_score_valid": {
-        "sources": ["ROADMAP.md"],
-        "rule": "Score matches formula: params/8 + algorithms + features"
-    },
-    "dsp_components_match": {
-        "sources": ["ARCHITECTURE.md", "PluginProcessor.h"],
-        "rule": "All specified components declared"
-    }
-}
+Phase 1 (Index + Script)
+    |
+    +--- Must exist before orchestrators can discover resources
+    |
+Phase 2 (Injection)
+    |
+    +--- Must exist before agents receive resources
+    |
+Phase 3 (Accountability)
+    |
+    +--- Must exist after agents receive resources (otherwise nothing to validate)
+    |
+Phase 4 (Tooling)
+    |
+    +--- Maintenance tooling, not blocking for core functionality
 ```
 
 ---
 
-## Build Order Implications
+## Integration Points Summary
 
-### Phase Dependencies
-
-```
-Stage 0 (Research/Plan)
-    |
-    +-- ARCHITECTURE.md defines DSP components
-    +-- parameter-spec.md defines all parameters
-    +-- ROADMAP.md defines complexity and phases
-
-Stage 1 (Foundation) [depends on Stage 0]
-    |
-    +-- CMakeLists.txt builds correctly
-    +-- APVTS has all parameters from spec
-    +-- Plugin loads without crash
-
-Stage 2 (DSP) [depends on Stage 1]
-    |
-    +-- All DSP components from ARCHITECTURE.md implemented
-    +-- All parameters connected to DSP
-    +-- Plugin processes audio correctly
-
-Stage 3 (GUI) [depends on Stage 2]
-    |
-    +-- WebView loads and displays
-    +-- All parameters have UI controls
-    +-- Parameters bidirectionally synced
-
-Stage 4 (Polish) [depends on Stage 3]
-    |
-    +-- All pluginval tests pass
-    +-- DAW compatibility verified
-    +-- Presets work correctly
-```
-
-### Critical Ordering Constraints
-
-| Constraint | Reason | Violation Consequence |
-|------------|--------|----------------------|
-| APVTS before DSP | DSP reads from APVTS | Crash or undefined behavior |
-| DSP before GUI | GUI displays DSP state | UI shows wrong values |
-| Relays before WebView (in editor) | WebView binds to relays | Crash on binding |
-| WebView before Attachments (in editor) | Attachments connect to WebView | Crash on connect |
-
----
-
-## Agent Contract Design
-
-### Input Contract Template
-
-```yaml
-agent: "[agent-name]"
-version: "1.0"
-
-input_contract:
-  # Required files that MUST exist
-  required_files:
-    - path: ".planning/ARCHITECTURE.md"
-      validation: "contains 'DSP Components' section"
-    - path: ".planning/parameter-spec.md"
-      validation: "JSON parseable with 'parameters' array"
-
-  # Preconditions that MUST pass
-  preconditions:
-    - name: "previous_stage_complete"
-      check: "STATUS.md shows stage N-1 complete"
-    - name: "contracts_consistent"
-      check: "Cross-contract validation passes"
-
-  # On precondition failure
-  on_failure: "return_error_immediately"
-```
-
-### Output Contract Template
-
-```yaml
-agent: "[agent-name]"
-version: "1.0"
-
-output_contract:
-  # Files that WILL be modified/created
-  outputs:
-    - path: "Source/PluginProcessor.cpp"
-      type: "modified"
-    - path: "Source/PluginProcessor.h"
-      type: "modified"
-
-  # Verification criteria for outputs
-  verification:
-    - name: "compiles"
-      method: "build_check"
-      blocking: true
-    - name: "realtime_safe"
-      method: "semantic_analysis"
-      blocking: true
-    - name: "contract_compliant"
-      method: "cross_contract_check"
-      blocking: true
-
-  # Report format
-  report:
-    format: "json"
-    schema: ".claude/schemas/subagent-report.json"
-    required_fields:
-      - "agent"
-      - "status"
-      - "outputs"
-      - "issues"
-      - "ready_for_next_stage"
-```
-
----
-
-## Sources
-
-### HIGH Confidence (Context7, Official Docs)
-
-- [JUCE Framework Documentation](https://juce.com/documentation) - AudioProcessor patterns, real-time safety
-- Context7 `/juce-framework/juce` - JUCE 8 API patterns, SmoothedValue usage
-- [JUCE Audio Plugin Development Protocol](https://deepwiki.com/cline/prompts/4.3-juce-audio-plugin-development) - Professional development standards
-
-### MEDIUM Confidence (Verified Multiple Sources)
-
-- [Google's Eight Multi-Agent Design Patterns](https://www.infoq.com/news/2026/01/multi-agent-design-patterns/) - Generator-Critic, Coordinator patterns
-- [Azure AI Agent Orchestration Patterns](https://learn.microsoft.com/en-us/azure/architecture/ai-ml/guide/ai-agent-design-patterns) - Sequential, Concurrent, Group Chat patterns
-- [Anthropic Agent Evaluations](https://www.anthropic.com/engineering/demystifying-evals-for-ai-agents) - Verification strategies, grader types
-- [Addy Osmani LLM Coding Workflow](https://addyosmani.com/blog/ai-coding-workflow/) - Professional vs amateur patterns
-
-### LOW Confidence (Single Source, Unverified)
-
-- Multi-agent 90.2% performance improvement claim (Anthropic internal research, cited but not primary source)
-- 15x token consumption statistic (same source)
+| Existing Component | Integration Type | Change Description |
+|-------------------|-----------------|-------------------|
+| `plugin-workflow/SKILL.md` | MODIFY | Add discovery call + prompt section in `run_execute_phase` and `run_research_phase` |
+| `plugin-improve/SKILL.md` | MODIFY | Add discovery in Phase 0.5 investigation |
+| `plugin-planning/SKILL.md` | MODIFY | Add discovery before research-planning-agent spawn |
+| `SubagentStop.sh` | MODIFY | Add resource-usage validation case after existing validation |
+| `hooks.json` | NO CHANGE | SubagentStop already runs for all agents |
+| `dsp-agent.md` | MODIFY | Add `resources_consulted` to JSON report docs |
+| `gui-agent.md` | MODIFY | Add `resources_consulted` to JSON report docs |
+| `research-planning-agent.md` | MODIFY | Add `resources_consulted` to JSON report docs |
+| `foundation-shell-agent.md` | MODIFY | Add `resources_consulted` to JSON report docs |
+| `polish-agent.md` | MODIFY | Add `resources_consulted` to JSON report docs |
+| `plugin-registry.json` | NO CHANGE | Resource index is separate file |
+| `SessionStart.sh` | NO CHANGE | Index is static, no session-start scanning needed |
+| `PostToolUse.sh` | NO CHANGE | Resource validation happens at agent stop, not tool use |
+| `UserPromptSubmit.sh` | NO CHANGE | Resource injection is at agent level, not user prompt level |
 
 ---
 
@@ -641,369 +1060,29 @@ output_contract:
 
 | Area | Confidence | Reason |
 |------|------------|--------|
-| Multi-agent patterns | HIGH | Multiple authoritative sources (Google, Microsoft, Anthropic) |
-| Audio plugin quality standards | HIGH | Context7 + JUCE official docs + industry practice |
-| Quality gate patterns | HIGH | Azure architecture + Anthropic engineering blog |
-| Agent contract design | MEDIUM | Synthesized from patterns, not single authoritative source |
-| Build order implications | HIGH | Direct from JUCE documentation and project experience |
+| Discovery location (orchestrator) | HIGH | Clear from codebase analysis -- orchestrators already construct prompts with contracts |
+| Injection mechanism (prompt append) | HIGH | Matches existing contract injection pattern exactly |
+| Index format (static JSON) | HIGH | Follows plugin-registry.json pattern, proven in this system |
+| Scoring algorithm | MEDIUM | Heuristic -- will need tuning based on real usage |
+| Accountability approach | MEDIUM | Self-reporting has inherent trust assumptions |
+| Build order | HIGH | Dependencies are clear and linear |
 
 ---
 
-## Roadmap Implications
+## Open Questions
 
-Based on this research, the Plugin Freedom System overhaul should prioritize:
+1. **Score threshold for MUST-READ vs SHOULD-READ:** Starting at score >= 8. May need adjustment after observing real discovery results across multiple plugins.
 
-### Phase 1: Contract Foundation
-- Define explicit input/output contracts for all 9 agents
-- Implement contract validation at every boundary
-- Add precondition checking before agent invocation
+2. **Maximum resources injected:** Currently limited to 5 via `--limit`. May need per-agent tuning (dsp-agent might benefit from more, foundation-shell-agent from fewer).
 
-### Phase 2: Verification Layer
-- Enhance validation-agent with domain-specific checks
-- Implement tiered pluginval testing
-- Add Generator-Critic loops for complex stages
+3. **Cross-plugin research:** Should discovery consider research from other plugin's `.planning/research/` folders? Currently scoped to shared `research/` only. Could expand later.
 
-### Phase 3: Quality Gates
-- Implement blocking quality gates at stage transitions
-- Add measurable criteria for each gate
-- Create escalation paths for gate failures
+4. **Research doc frontmatter standardization:** If research docs adopted YAML frontmatter with tags, the index generation script could auto-extract metadata. Currently, metadata is human-curated in the index. Worth considering for future research docs.
 
-### Phase 4: Agent Specialization
-- Audit each agent for domain expertise encoding
-- Add real-time safety rules to DSP agent
-- Add thread-safety rules to GUI agent
-- Add professional UI standards to design agent
-
-### Research Flags for Later Phases
-
-- **DSP Agent Enhancement:** Needs deeper research into specific algorithm quality (compression curves, filter resonance, saturation harmonics)
-- **UI Design Agent:** Needs research into audio plugin aesthetic standards (skeuomorphism vs flat, readability under stage lighting)
-- **Cross-DAW Compatibility:** Needs testing research for DAW-specific quirks (Logic AU cache, Ableton sample rate handling)
+5. **Discovery for improvement workflows:** plugin-improve has no explicit stage context. How to extract context terms from a freeform improvement request? The `--context` flag accepts freeform text, but quality depends on term extraction from the user's request.
 
 ---
 
-## v1.1 Improvements: Plugin-Improve Planning Phase Integration
-
-**Added:** 2026-02-01
-**Purpose:** Architecture for adding planning phase to plugin-improve workflow
-
-### Current Workflow (Phase 0.5 Investigation)
-
-```
-Phase 0: Specificity Detection
-  |
-Phase 0.3: Clarification Questions
-  |
-Phase 0.4: Decision Gate
-  |
-Phase 0.45: Research Detection (MANDATORY - scan for deep-research handoff)
-  |
-  +-- [Research found?] ----YES----> Skip to Phase 0.9
-  |
-Phase 0.5: Investigation (Tier 1/2/3 auto-detected)
-  |           |
-  |           +-- Tier 1: Basic Code Inspection (5-10 min)
-  |           +-- Tier 2: Root Cause Analysis (15-30 min)
-  |           +-- Tier 3: Deep Research Delegation (30-60 min)
-  |
-  v
-Phase 0.9: Backup Verification (CRITICAL GATE)
-  |
-Phase 1: Pre-Implementation Checks
-  |
-[...remaining phases...]
-```
-
-### Proposed Changes (With Planning Phase)
-
-```
-Phase 0.5: Investigation (Tier 1/2/3 auto-detected)
-  |
-  +-- Tier 1 -----> Skip planning, proceed to Phase 0.9
-  |
-  +-- Tier 2/3 ---> PHASE 0.6: PLANNING (NEW)
-                      |
-                      +-- Read investigation findings
-                      +-- Generate implementation plan
-                      +-- Present plan for approval
-                      +-- Create IMPROVEMENT-PLAN.md (optional artifact)
-                      |
-                      v
-                    Phase 0.9: Backup Verification
-```
-
-### Decision: Planning Phase Trigger
-
-**Trigger Condition:** Tier 2 or Tier 3 investigation completed
-
-**Rationale:**
-- Tier 1 fixes are simple (5-10 min) - planning overhead not justified
-- Tier 2/3 improvements are complex and benefit from explicit planning
-- Aligns with existing tier detection logic in Phase 0.5
-
-**Implementation:** Add conditional branch after Phase 0.5 that checks investigation tier.
-
----
-
-### New Artifacts Required
-
-#### 1. Reference File: `references/planning-protocol.md`
-
-**Location:** `.claude/skills/plugin-improve/references/planning-protocol.md`
-
-**Purpose:** Define the planning phase process, decision gates, and output format.
-
-**Contents:**
-- When planning is triggered (Tier 2/3 only)
-- Planning process steps
-- Plan approval workflow
-- Skip conditions (user can decline planning)
-
-**Pattern:** Matches existing reference files (`investigation-tiers.md`, `regression-testing.md`)
-
-#### 2. Template File: `assets/planning-template.md`
-
-**Location:** `.claude/skills/plugin-improve/assets/planning-template.md`
-
-**Purpose:** Structured format for improvement plans.
-
-**Contents:**
-```markdown
-# Improvement Plan: [PluginName] v[X.Y.Z]
-
-## Summary
-[One-sentence description of the improvement]
-
-## Investigation Findings
-**Root Cause:** [From Phase 0.5]
-**Affected Files:** [List]
-**Complexity:** Tier [2/3]
-
-## Implementation Steps
-1. [Step with specific file and changes]
-2. [Step with specific file and changes]
-...
-
-## Risk Assessment
-- Breaking changes: [Yes/No - if yes, details]
-- Regression risk: [Low/Medium/High]
-- Rollback complexity: [Simple/Moderate/Complex]
-
-## Testing Strategy
-- [ ] Unit tests needed: [Yes/No]
-- [ ] Manual verification: [Description]
-- [ ] Regression tests: [If baseline exists]
-
-## Estimated Duration
-[X minutes/hours]
-```
-
-#### 3. Optional: Plugin-Local Plan File
-
-**Location:** `plugins/[PluginName]/.planning/improvements/IMPROVEMENT-PLAN-[version].md`
-
-**Purpose:** Persist complex plans for reference during implementation.
-
-**When created:**
-- Tier 3 improvements only (complex enough to warrant persistence)
-- User requests plan persistence
-- Multi-session improvements
-
-**When skipped:**
-- Tier 2 improvements (plan presented inline, not persisted)
-- User declines planning
-
----
-
-### Data Flow Through Planning Phase
-
-```
-INPUTS (from Phase 0.5 Investigation):
-  |
-  +-- Investigation tier (2 or 3)
-  +-- Root cause analysis
-  +-- Affected files list
-  +-- Recommended approach
-  +-- Alternative approaches
-  +-- Breaking change assessment
-  |
-  v
-PHASE 0.6: PLANNING PROCESS
-  |
-  +-- 1. Validate investigation tier >= 2
-  +-- 2. Structure implementation steps from investigation
-  +-- 3. Assess risks (breaking changes, regressions)
-  +-- 4. Define testing strategy
-  +-- 5. Estimate duration
-  +-- 6. Generate plan (inline or file)
-  |
-  v
-OUTPUTS (to Phase 0.9 and beyond):
-  |
-  +-- Structured implementation plan
-  +-- Risk assessment
-  +-- Testing checklist
-  +-- (Optional) IMPROVEMENT-PLAN.md artifact
-  |
-  v
-USER APPROVAL GATE
-  |
-  +-- Present plan
-  +-- Options: Approve, Revise, Skip planning
-  +-- Wait for user decision
-```
-
----
-
-### SKILL.md Modifications Required
-
-**File:** `.claude/skills/plugin-improve/SKILL.md`
-
-**Changes Required:**
-
-1. **Add Phase 0.6 definition** after Phase 0.5
-2. **Add conditional branch** in Phase 0.5 to trigger planning
-3. **Update workflow diagram** in Overview section
-4. **Update progress checklist** to include Phase 0.6
-5. **Add reference link** to new `planning-protocol.md`
-
-**Minimal Insertion Pattern:**
-
-Insert between Phase 0.5 and Phase 0.9:
-
-```markdown
-## Phase 0.6: Planning (Tier 2/3 Only)
-
-**CONDITIONAL:** Only executes if Phase 0.5 detected Tier 2 or Tier 3 complexity.
-
-**Purpose:** Structure implementation approach before proceeding.
-
-**Workflow:**
-
-1. **Generate plan** from investigation findings using template
-2. **Present plan** with decision menu
-3. **Wait for approval** before proceeding
-
-**See**: [references/planning-protocol.md](references/planning-protocol.md) for detailed process and plan template.
-
-**If Tier 1:** Skip this phase, proceed directly to Phase 0.9.
-
-**Decision Menu:**
-```
-Implementation plan ready.
-
-1. Approve plan - Proceed to Phase 0.9 (Backup)
-2. Revise plan - Adjust approach
-3. Skip planning - Proceed without formal plan
-4. Cancel - Stop improvement workflow
-
-Choose (1-4): _
-```
-```
-
----
-
-### Integration Points With Existing System
-
-#### 1. Phase 0.5 Investigation Output
-
-**Current behavior:** Investigation findings presented inline, user approves before proceeding.
-
-**New behavior:** If Tier 2/3, investigation findings flow into Phase 0.6 planning.
-
-**Interface:** No schema change needed - investigation output is already structured in SKILL.md.
-
-#### 2. Handoff Protocol Compatibility
-
-**deep-research handoff:** Phase 0.45 detection still works. If research detected:
-- Skip Phase 0.5 (investigation)
-- Skip Phase 0.6 (planning) - research already includes recommendations
-- Proceed to Phase 0.9
-
-**Rationale:** Deep research (Opus + extended thinking) already produces structured recommendations. Adding planning phase would be redundant.
-
-#### 3. Tier Detection Enhancement
-
-**Current tier detection** (in Phase 0.5):
-- Tier 1: Simple fixes, single file, obvious cause
-- Tier 2: Root cause analysis, integration issues
-- Tier 3: Complex bugs, multi-component, unclear cause
-
-**Planning trigger:** `tier >= 2`
-
-**No change needed** to tier detection logic - just conditional branch after.
-
-#### 4. Backup Verification (Phase 0.9)
-
-**Unchanged.** Planning phase completes before backup verification.
-
-**Dependency:** Phase 0.9 MUST NOT execute until Phase 0.6 approves plan (or skips).
-
----
-
-### Implementation Order for v1.1
-
-#### Phase 1: Reference Documentation (30 min)
-
-1. Create `references/planning-protocol.md` with:
-   - Planning trigger conditions
-   - Planning process steps
-   - Decision menu format
-   - Skip conditions
-
-2. Create `assets/planning-template.md` with:
-   - Plan structure template
-   - Risk assessment section
-   - Testing checklist
-
-#### Phase 2: SKILL.md Update (20 min)
-
-1. Add Phase 0.6 section to SKILL.md
-2. Update workflow diagram
-3. Update progress checklist
-4. Add conditional branch in Phase 0.5
-
-#### Phase 3: Testing (15 min)
-
-1. Test Tier 1 improvement (should skip planning)
-2. Test Tier 2 improvement (should trigger planning)
-3. Test deep-research handoff (should skip both investigation AND planning)
-
----
-
-### Patterns Followed (Not Invented)
-
-| Pattern | Source | Applied |
-|---------|--------|---------|
-| Phase numbering (0.X) | Existing phases 0.3, 0.4, 0.45, 0.5, 0.9 | Phase 0.6 |
-| Reference file structure | `references/investigation-tiers.md` | `references/planning-protocol.md` |
-| Asset templates | `assets/backup-template.sh` | `assets/planning-template.md` |
-| Conditional phases | Phase 0.45 skip logic, Phase 5.5 conditional | Planning conditional on tier |
-| Decision menus | All checkpoint protocols | Planning approval menu |
-| Handoff compatibility | Phase 0.45 research detection | Deep-research skips planning |
-
-### Anti-Patterns Avoided
-
-| Anti-Pattern | Why Avoided |
-|--------------|-------------|
-| New skill creation | Planning is a phase, not a separate skill |
-| Schema changes | Existing investigation output sufficient |
-| Breaking handoff protocol | Deep-research integration preserved |
-| Mandatory planning | Made conditional (skip option available) |
-| Tier detection modification | Leverages existing tier detection unchanged |
-
----
-
-### Open Questions
-
-1. **Plan persistence threshold:** Should Tier 2 plans be persisted to files, or only Tier 3? Current recommendation: Tier 3 only (or user request).
-
-2. **Plan revision workflow:** If user selects "Revise plan", should this loop back to Phase 0.5 or allow inline editing? Recommendation: Allow inline revision without re-investigation.
-
-3. **Express mode interaction:** If plugin is in express mode (registry.json `expressMode: true`), should planning be skipped entirely? Recommendation: Yes, express mode skips planning.
-
----
-
-*Architecture research: 2026-01-29*
-*v1.1 addition: 2026-02-01*
+*Architecture research for: Resource Discovery & Context Injection*
+*Researched: 2026-02-04*
 *Researcher: gsd-project-researcher agent*
