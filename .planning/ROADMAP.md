@@ -54,11 +54,13 @@
   3. Discovery results change based on the current plugin stage (e.g., Stage 2 surfaces DSP research, Stage 3 surfaces UI research)
   4. Discovery results change based on the invoking agent (dsp-agent receives DSP resources, gui-agent receives UI resources, not vice versa)
   5. Discovery script validates the manifest against its JSON schema before use
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 10-01: TBD
-- [ ] 10-02: TBD
+- [ ] 10-01-PLAN.md — Schema & validation infrastructure (JSON Schema, frontmatter validator, jsonschema install)
+- [ ] 10-02-PLAN.md — Frontmatter retrofit batch 1 (13 DSP-core research docs)
+- [ ] 10-03-PLAN.md — Frontmatter retrofit batch 2 (9 remaining root docs + 4 stutter-effects)
+- [ ] 10-04-PLAN.md — Generator & discovery scripts + integration verification
 
 ### Phase 11: Context Injection Pipeline
 **Goal**: Agents automatically receive relevant research resources as part of their execution context, without manual prompt construction
