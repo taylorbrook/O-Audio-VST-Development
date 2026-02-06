@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 Phase: 11 of 13 (Context Injection Pipeline)
 Plan: 2 of 2 in current phase
 Status: Phase complete
-Last activity: 2026-02-05 — Completed 11-02-PLAN.md (Skill Integration + ROADMAP Update)
+Last activity: 2026-02-06 — Completed quick-005 (gui-agent cross-platform WebView update)
 
 Progress: [███████████████████████░░] 94% overall (32/34 plans)
 v1.2:    [████████████████░░░░░░░░] 44% (7/~16 plans — Phase 11 complete, Phase 12 next)
@@ -72,6 +72,8 @@ Recent decisions affecting current work:
 - quick-004: OUARICON_RELEASE option (OFF=dev, ON=release) controls COMPANY_NAME, MANUFACTURER_CODE, and PRODUCT_NAME suffix
 - quick-004: Dev branding is "Ouaricon Audio Development" / OuDv / "-dev" suffix; Release is "Ouaricon Audio" / OuAu / no suffix
 - quick-004: All 17 plugin CMakeLists.txt use variables; new plugins must follow same pattern
+- quick-005: All WebView members use std::unique_ptr with constructor-body initialization (enables #if JUCE_WINDOWS blocks)
+- quick-005: 4 new critical patterns (#4-7) added for cross-platform WebView awareness
 
 ### Pending Todos
 
@@ -89,14 +91,15 @@ None currently.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 004 | Distinguish dev vs release plugin naming (company name + "-dev" suffix) | 2026-02-05 | a425664 | [004-dev-vs-release-plugin-naming](./quick/004-dev-vs-release-plugin-naming/) |
+| 005 | Update gui-agent with cross-platform WebView best practices | 2026-02-06 | 8aa1636 | [005-update-gui-agent-cross-platform-webview](./quick/005-update-gui-agent-cross-platform-webview/) |
 
 ## Session Continuity
 
-Last session: 2026-02-05
-Stopped at: Completed 11-02-PLAN.md (Skill Integration + ROADMAP Update) -- Phase 11 complete
+Last session: 2026-02-06
+Stopped at: Completed quick-005 (gui-agent cross-platform WebView update)
 Resume file: None
 
 Next: Phase 12 (Accountability & Validation) planning needed -- `/gsd:plan-phase` for Phase 12
 
 ---
-*Phase 11 complete. All 4 INJT requirements satisfied. inject-context.py integrated into all 8 skill/reference files. Phase 12 next.*
+*Quick-005 complete. gui-agent updated with cross-platform WebView best practices (NEEDS_WEBVIEW2, static linking, unique_ptr, 4 new patterns). Phase 12 next.*
