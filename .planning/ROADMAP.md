@@ -100,11 +100,13 @@ Plans:
   2. All research documents have YAML frontmatter with created date, last_verified date, and JUCE version fields
   3. Discovery warns visibly when injecting a resource whose last_verified date is older than 90 days
   4. Agents proceed normally if the manifest is missing, the discovery script fails, or no resources match — with a logged warning but no workflow interruption
-**Plans**: TBD
+**Plans**: 4 plans
 
 Plans:
-- [ ] 13-01: TBD
-- [ ] 13-02: TBD
+- [ ] 13-01-PLAN.md — Schema + validator + generator extension with temporal fields, graceful degradation, atomic writes
+- [ ] 13-02-PLAN.md — Frontmatter retrofit (add created, last_verified, juce_version to all 27 research docs)
+- [ ] 13-03-PLAN.md — Staleness detection, auto-regeneration hook, batch verification script
+- [ ] 13-04-PLAN.md — Agent instruction updates for frontmatter auto-population
 
 ## Progress
 
@@ -125,7 +127,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Resource Index & Discovery | v1.2 | 4/4 | Complete | 2026-02-05 |
 | 11. Context Injection Pipeline | v1.2 | 2/2 | Complete | 2026-02-05 |
 | 12. Accountability & Validation | v1.2 | 2/2 | Complete | 2026-02-06 |
-| 13. Maintenance Tooling & Hardening | v1.2 | 0/? | Not started | - |
+| 13. Maintenance Tooling & Hardening | v1.2 | 0/4 | Not started | - |
 
 ## Coverage Summary
 
@@ -155,4 +157,4 @@ See `.planning/milestones/v1.X-REQUIREMENTS.md` for archived requirement details
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-02-06 — Phase 12 complete (2/2 plans, ACCT-01 through ACCT-03 satisfied)*
+*Last updated: 2026-02-06 — Phase 13 planned (4 plans in 3 waves)*
