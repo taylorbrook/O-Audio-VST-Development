@@ -67,15 +67,15 @@ Plans:
 **Depends on**: Phase 10
 **Requirements**: INJT-01, INJT-02, INJT-03, INJT-04
 **Success Criteria** (what must be TRUE):
-  1. When a subagent spawns via Task(), it receives discovered resource paths and summaries as additionalContext through the SubagentStart hook
-  2. Skill orchestrators (plugin-workflow, plugin-planning, plugin-improve) include a resource section in agent prompts before Task() calls
-  3. Stage-specific troubleshooting patterns (e.g., stage-2-patterns.md) are auto-injected for the corresponding agent without manual configuration
+  1. When a skill orchestrator spawns a stage agent via Task(), the prompt includes discovered resource summaries and excerpted content via inject-context.py
+  2. Skill orchestrators (plugin-workflow, plugin-planning, improve-milestone) include a resource section in agent prompts before Task() calls
+  3. Stage-specific troubleshooting patterns (e.g., stage-2-patterns.md) are auto-injected inline by inject-context.py for the corresponding agent without manual configuration
   4. Total injected research context stays within 4,000 tokens per agent invocation (no context window budget exhaustion)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 11-01: TBD
-- [ ] 11-02: TBD
+- [ ] 11-01-PLAN.md — Context injection utility script (inject-context.py with content extraction, budget management, CLI)
+- [ ] 11-02-PLAN.md — Skill integration + ROADMAP update (modify all 7+ skill files, end-to-end verification)
 
 ### Phase 12: Accountability & Validation
 **Goal**: The system tracks which resources agents actually consulted and warns when expected resources were skipped
@@ -123,7 +123,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Repository Cleanup | v1.1 | 2/2 | Complete | 2026-02-01 |
 | 9. Workflow Planning Phase | v1.1 | 2/2 | Complete | 2026-02-02 |
 | 10. Resource Index & Discovery | v1.2 | 4/4 | Complete | 2026-02-05 |
-| 11. Context Injection Pipeline | v1.2 | 0/? | Not started | - |
+| 11. Context Injection Pipeline | v1.2 | 0/2 | Not started | - |
 | 12. Accountability & Validation | v1.2 | 0/? | Not started | - |
 | 13. Maintenance Tooling & Hardening | v1.2 | 0/? | Not started | - |
 
@@ -155,4 +155,4 @@ See `.planning/milestones/v1.X-REQUIREMENTS.md` for archived requirement details
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-02-05 — Phase 10 complete*
+*Last updated: 2026-02-05 — Phase 11 planned (2 plans)*
