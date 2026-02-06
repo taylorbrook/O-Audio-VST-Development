@@ -85,14 +85,14 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
     // Licensing: activation overlay (visible until licensed)
     // Native WebView renders on top of JUCE components, so we must
     // hide the WebView while the overlay is showing.
-    licenseManager = std::make_unique<OuariconLicense>(
-        "ouaricon-analog-eq", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(*licenseManager);
+    // License manager lives on the processor (persists across editor open/close).
+    auto& license = audioProcessor.getLicenseManager();
+    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
     addAndMakeVisible(licenseOverlay.get());
 
-    licenseManager->addListener(this);
+    license.addListener(this);
 
-    if (! licenseManager->isLicensed())
+    if (! license.isLicensed())
         webView->setVisible(false);
     else
         licenseOverlay->setVisible(false);
@@ -157,8 +157,7 @@ OuariconAnalogEQAudioProcessorEditor::~OuariconAnalogEQAudioProcessorEditor()
     stopTimer();
 
 #if OUARICON_LICENSING_ENABLED
-    if (licenseManager)
-        licenseManager->removeListener(this);
+    audioProcessor.getLicenseManager().removeListener(this);
 #endif
 
     // Members destroyed in REVERSE order of declaration:

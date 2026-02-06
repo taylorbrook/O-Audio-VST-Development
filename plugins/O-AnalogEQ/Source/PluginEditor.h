@@ -5,7 +5,6 @@
 #include "PluginProcessor.h"
 
 #if OUARICON_LICENSING_ENABLED
-  #include "OuariconLicense.h"
   #include "OuariconLicenseUI.h"
 #endif
 
@@ -102,7 +101,6 @@ private:
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
 #if OUARICON_LICENSING_ENABLED
-    std::unique_ptr<OuariconLicense> licenseManager;
     std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
     void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
 #endif

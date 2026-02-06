@@ -65,10 +65,17 @@ OuariconLicense::~OuariconLicense()
 
 void OuariconLicense::checkStoredLicense()
 {
+    juce::Logger::writeToLog ("[License] Checking stored license for: " + productId);
+    juce::Logger::writeToLog ("[License] Storage dir: " + getStorageDir().getFullPathName());
+    juce::Logger::writeToLog ("[License] Machine ID: " + machineId);
+
     if (loadStoredLicense())
     {
+        juce::Logger::writeToLog ("[License] Loaded license.json OK, key=" + licenseKey.substring (0, 8) + "...");
+
         if (validateOfflineToken (offlineToken))
         {
+            juce::Logger::writeToLog ("[License] Token valid — setting Licensed");
             setStatus (Status::Licensed, "License valid (offline)");
             // Start periodic re-validation
             startTimer (kRevalidationIntervalMs);
@@ -83,12 +90,33 @@ void OuariconLicense::checkStoredLicense()
         else
         {
             // Token expired or invalid — try online refresh
+            juce::Logger::writeToLog ("[License] Token validation FAILED — trying online refresh");
+
+            // Log why it failed
+            auto payload = decodeJwtPayload (offlineToken);
+            if (payload.isObject())
+            {
+                auto exp = static_cast<juce::int64> (payload.getProperty ("exp", 0));
+                auto now2 = juce::Time::currentTimeMillis() / 1000;
+                juce::Logger::writeToLog ("[License]   exp=" + juce::String (exp) + " now=" + juce::String (now2)
+                                          + " expired=" + juce::String (now2 >= exp ? "YES" : "no"));
+                juce::Logger::writeToLog ("[License]   iss=" + payload.getProperty ("iss", "").toString());
+                juce::Logger::writeToLog ("[License]   lic=" + payload.getProperty ("lic", "").toString());
+                juce::Logger::writeToLog ("[License]   mid=" + payload.getProperty ("mid", "").toString());
+                juce::Logger::writeToLog ("[License]   pid=" + payload.getProperty ("pid", "").toString());
+            }
+            else
+            {
+                juce::Logger::writeToLog ("[License]   Could not decode JWT payload");
+            }
+
             setStatus (Status::Expired, "License token expired, refreshing...");
             refreshOnline();
         }
     }
     else
     {
+        juce::Logger::writeToLog ("[License] No stored license found");
         setStatus (Status::Unlicensed, "No license found");
     }
 }
@@ -322,7 +350,17 @@ bool OuariconLicense::loadStoredLicense()
 void OuariconLicense::saveToken (const juce::String& token, const juce::String& key)
 {
     auto dir = getStorageDir();
-    dir.createDirectory();
+    auto dirResult = dir.createDirectory();
+
+    juce::Logger::writeToLog ("[License] Saving token to: " + dir.getFullPathName());
+    juce::Logger::writeToLog ("[License]   Directory create: " + dirResult.getErrorMessage().isEmpty()
+                              ? "OK" : ("FAILED: " + dirResult.getErrorMessage()));
+
+    if (token.isEmpty())
+    {
+        juce::Logger::writeToLog ("[License]   WARNING: token is empty — skipping save");
+        return;
+    }
 
     juce::DynamicObject::Ptr obj = new juce::DynamicObject();
     obj->setProperty ("key",       key);
@@ -332,7 +370,10 @@ void OuariconLicense::saveToken (const juce::String& token, const juce::String& 
     obj->setProperty ("saved_at",  juce::Time::getCurrentTime().toISO8601 (true));
 
     auto tokenFile = dir.getChildFile ("license.json");
-    tokenFile.replaceWithText (juce::JSON::toString (juce::var (obj.get())));
+    bool writeOk = tokenFile.replaceWithText (juce::JSON::toString (juce::var (obj.get())));
+
+    juce::Logger::writeToLog ("[License]   File write: " + juce::String (writeOk ? "OK" : "FAILED"));
+    juce::Logger::writeToLog ("[License]   File exists: " + juce::String (tokenFile.existsAsFile() ? "YES" : "NO"));
 }
 
 void OuariconLicense::clearStoredLicense()

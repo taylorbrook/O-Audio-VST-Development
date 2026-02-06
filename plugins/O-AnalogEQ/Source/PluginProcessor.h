@@ -11,6 +11,10 @@
 #pragma once
 #include <JuceHeader.h>
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
+
 class OuariconAnalogEQAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -44,6 +48,10 @@ public:
     // VU Meter - output level for WebView (thread-safe)
     std::atomic<float> outputLevelDB { -100.0f };
 
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
+
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -60,6 +68,10 @@ private:
     double currentSampleRate = 44100.0;
 
     static constexpr float qValues[] = { 0.5f, 1.0f, 2.0f }; // WIDE, MED, TIGHT
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconAnalogEQAudioProcessor)
 };
