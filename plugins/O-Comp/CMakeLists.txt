@@ -8,6 +8,7 @@ juce_add_plugin(O-Comp
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Comp${OUARICON_DEV_SUFFIX}"
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
 # Source files
@@ -65,5 +66,6 @@ target_compile_definitions(O-Comp
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )

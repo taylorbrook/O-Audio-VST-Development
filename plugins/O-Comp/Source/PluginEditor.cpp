@@ -36,8 +36,15 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
     // 2️⃣ Create WebView with relay options and preset native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
+            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options(
+                juce::WebBrowserComponent::Options::WinWebView2{}
+                    .withUserDataFolder(juce::File::getSpecialLocation(
+                        juce::File::SpecialLocationType::tempDirectory)))
             .withNativeIntegrationEnabled()
+#if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
             .withResourceProvider([this](const auto& url) { return getResource(url); })
+#endif
             .withOptionsFrom(*thresholdRelay)
             .withOptionsFrom(*ratioRelay)
             .withOptionsFrom(*attackTimeRelay)
@@ -149,7 +156,6 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
             })
     );
 
-    // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);
 
     // 3️⃣ Create attachments LAST (depend on relays and webView)
@@ -170,8 +176,12 @@ OCompAudioProcessorEditor::OCompAudioProcessorEditor(OCompAudioProcessor& p)
     autoGainAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.parameters.getParameter("auto_gain"), *autoGainRelay, nullptr);
 
+    // Load UI from resource provider
+#if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
+    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+#endif
+
     // Set window size from mockup dimensions (620x360px)
-    // Navigation happens in parentHierarchyChanged (prevents scanner crashes)
     setSize(620, 360);
 
     // Start meter update timer (30fps = ~33ms)
@@ -202,19 +212,6 @@ void OCompAudioProcessorEditor::resized()
     webView->setBounds(getLocalBounds());
 }
 
-void OCompAudioProcessorEditor::parentHierarchyChanged()
-{
-    // Navigate WebView only after editor is attached to a window (JUCE 8 requirement)
-    // This prevents crashes during plugin scanning when no window context exists
-    // FIX: Use member variable instead of static to allow GUI reload on reopen
-    if (isShowing() && webView != nullptr && !hasNavigated)
-    {
-        webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
-        hasNavigated = true;
-    }
-}
-
-//==============================================================================
 void OCompAudioProcessorEditor::timerCallback()
 {
     // Get meter values from processor (thread-safe atomic reads)

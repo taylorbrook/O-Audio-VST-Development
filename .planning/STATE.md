@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 12 complete
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 13 in progress
 
 ## Current Position
 
-Phase: 12 of 13 (Accountability & Validation)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 — Completed 12-02-PLAN.md (Agent Instructions & Hook Integration)
+Phase: 13 of 13 (Maintenance Tooling & Hardening)
+Plan: 1 of 4 in current phase
+Status: In progress
+Last activity: 2026-02-06 — Completed 13-01-PLAN.md (Schema/Generator/Validator/Discovery Temporal Fields)
 
-Progress: [█████████████████████████] 100% overall (34/34 plans)
-v1.2:    [████████████████████░░░░] 56% (9/~16 plans — Phase 12 complete)
+Progress: [█████████████████████████] 100% overall (35/38 plans)
+v1.2:    [█████████████████████░░░] 63% (10/~16 plans — Phase 13 plan 1 of 4 complete)
 
 ## Performance Metrics
 
@@ -32,14 +32,14 @@ v1.2:    [████████████████████░░░�
 - Timeline: 2 days
 
 **v1.2 In Progress:**
-- Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans)
-- Plans completed: 9
-- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 through ACCT-03 (3/3)
+- Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans), 13 (in progress, 1/4 plans)
+- Plans completed: 10
+- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 through ACCT-03 (3/3), MAINT partial
 - Timeline: ongoing
 
 **Cumulative:**
 - Total phases completed: 12
-- Total plans completed: 34
+- Total plans completed: 35
 - Total requirements satisfied: 59+
 
 ## Accumulated Context
@@ -80,6 +80,9 @@ Recent decisions affecting current work:
 - 12-02: Accountability instructions placed BEFORE JSON report section in each agent
 - 12-02: Hook accountability runs BEFORE relevance check (covers all 5 AGENT_STAGE_MAP agents)
 - 12-02: Separate PLUGIN_NAME_ACCT variable to avoid collision with Layer 0/1 PLUGIN_NAME
+- 13-01: parse_frontmatter returns (data, skip_reason) tuple for structured bug reports
+- 13-01: Atomic writes via tempfile.mkstemp + os.replace for manifest corruption prevention
+- 13-01: frontmatter-issues.txt overwritten on each run (idempotent, not append-only)
 
 ### Pending Todos
 
@@ -102,10 +105,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 12-02-PLAN.md (Agent Instructions & Hook Integration)
+Stopped at: Completed 13-01-PLAN.md (Schema/Generator/Validator/Discovery Temporal Fields)
 Resume file: None
 
-Next: Phase 13 (Maintenance Tooling & Hardening) -- needs planning first via `/gsd:plan-phase 13`
+Next: 13-02-PLAN.md (Frontmatter Retrofit)
 
 ---
-*Phase 12 complete (2/2 plans). Full accountability pipeline operational: schema extended, validator created, all 11 agents instructed, hook integrated with real-time stderr warnings. Phase 13 next.*
+*Phase 13 plan 1 of 4 complete. Schema/generator/validator/discovery updated with 3 temporal fields, atomic writes, and graceful degradation. All 28 research docs awaiting frontmatter retrofit in Plan 02.*
