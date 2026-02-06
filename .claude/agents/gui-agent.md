@@ -140,6 +140,7 @@ This is a focused subset (14 patterns) covering Stage 3 (GUI/WebView) requiremen
 5. ES6 module loading requires `type="module"` on script tags
 6. valueChangedEvent callbacks receive no parameters - use getNormalisedValue() inside
 7. Always install to system folders before testing in DAW
+8. **Cross-platform WebView best practices:** `research/cross-platform-webview-best-practices.md` - CRITICAL for Windows compatibility
 </required_reading>
 
 <template_library>
@@ -428,7 +429,7 @@ function bindParameter(paramId, type) {
 **Generate relay declarations from parameter-spec.md:**
 
 ```python
-# Pseudo-code for generating relay declarations
+# Pseudo-code for generating relay declarations (ALL use unique_ptr)
 for param in parameters:
     if param.type in ["float", "int"]:  # Slider/Knob
         print(f"std::unique_ptr<juce::WebSliderRelay> {param.id.lower()}Relay;")
@@ -441,6 +442,7 @@ for param in parameters:
 **Generate attachment declarations:**
 
 ```python
+# ALL attachments use unique_ptr
 for param in parameters:
     if param.type in ["float", "int"]:
         print(f"std::unique_ptr<juce::WebSliderParameterAttachment> {param.id.lower()}Attachment;")
@@ -451,6 +453,8 @@ for param in parameters:
 ```
 
 **Write `Source/PluginEditor.h`:**
+
+**ALL WebView members MUST use `std::unique_ptr`** to prevent initialization order issues and enable constructor-body initialization (required for cross-platform `#if JUCE_WINDOWS` blocks).
 
 ```cpp
 #pragma once
@@ -470,23 +474,23 @@ private:
 
     // ⚠️ MEMBER DECLARATION ORDER IS CRITICAL ⚠️
     // Members are destroyed in REVERSE order of declaration
-    // Declare dependencies AFTER what they depend on
+    // ALL WebView members use std::unique_ptr for constructor-body initialization
 
     // 1️⃣ RELAYS FIRST (no dependencies)
-    juce::WebSliderRelay gainRelay;
-    juce::WebSliderRelay cutoffRelay;
-    juce::WebToggleButtonRelay bypassRelay;
-    juce::WebComboBoxRelay filterTypeRelay;
+    std::unique_ptr<juce::WebSliderRelay> gainRelay;
+    std::unique_ptr<juce::WebSliderRelay> cutoffRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> bypassRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> filterTypeRelay;
     // Add one relay per parameter from parameter-spec.md
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via withOptionsFrom)
-    juce::WebBrowserComponent webView;
+    std::unique_ptr<juce::WebBrowserComponent> webView;
 
     // 3️⃣ ATTACHMENTS LAST (depend on both relays and webView)
-    juce::WebSliderParameterAttachment gainAttachment;
-    juce::WebSliderParameterAttachment cutoffAttachment;
-    juce::WebToggleButtonParameterAttachment bypassAttachment;
-    juce::WebComboBoxParameterAttachment filterTypeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> gainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> cutoffAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> bypassAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> filterTypeAttachment;
     // Add one attachment per parameter
 
     // Helper for resource serving
@@ -524,6 +528,32 @@ When plugin reloads (DAW closes editor):
 - juce_add_binary_data for UI files
 - Link juce::juce_gui_extra
 - Define JUCE_WEB_BROWSER=1
+- `NEEDS_WEBVIEW2 TRUE` + `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` for Windows
+
+**Pattern #4: Silent IE fallback on Windows:**
+- Without `NEEDS_WEBVIEW2 TRUE` + `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`, Windows silently falls back to IE backend
+- IE backend does NOT support resource providers -- plugin shows blank white rectangle
+- No error or warning is shown
+- Builds succeed, plugin loads in DAW, but WebView area is completely blank
+
+**Pattern #5: URL scheme differences (do NOT hard-code):**
+- macOS/iOS/Linux: `juce://juce.backend/` (custom URL scheme)
+- Windows/Android: `https://juce.backend/` (intercepted by WebView2)
+- Always use `getResourceProviderRoot()` in C++ and `getBackendResourceAddress()` in JavaScript
+- Never hard-code `juce://` or `https://juce.backend/`
+
+**Pattern #6: evaluateJavascript() error handling asymmetry:**
+- macOS/Linux: returns detailed errors (type, message, source URL, line/column)
+- Windows/Android: errors are indistinguishable from success returning null
+- Mitigation: use defensive JavaScript with try/catch and console logging
+- Never rely on evaluateJavascript() error callbacks for flow control
+
+**Pattern #7: Options builder returns new objects:**
+- `Options` builder methods return NEW objects, do NOT modify in-place
+- Must chain calls or capture return value
+- Wrong: `options.withBackend(...)` (return value discarded silently)
+- Correct: `options = options.withBackend(...)` or chain in constructor
+- Use `WebBrowserComponent::areOptionsSupported(options)` to verify before instantiation
 </critical_patterns>
 
 ### 7. Generate PluginEditor.cpp from parameter-spec.md
@@ -531,20 +561,20 @@ When plugin reloads (DAW closes editor):
 **Generate relay creation from parameter-spec.md:**
 
 ```python
-# Pseudo-code for generating relay initialization
+# Pseudo-code for generating relay initialization (constructor body, NOT initializer list)
 for param in parameters:
     if param.type in ["float", "int"]:
-        print(f', {param.id.lower()}Relay(std::make_unique<juce::WebSliderRelay>("{param.id}"))')
+        print(f'{param.id.lower()}Relay = std::make_unique<juce::WebSliderRelay>("{param.id}");')
     elif param.type == "bool":
-        print(f', {param.id.lower()}Relay(std::make_unique<juce::WebToggleButtonRelay>("{param.id}"))')
+        print(f'{param.id.lower()}Relay = std::make_unique<juce::WebToggleButtonRelay>("{param.id}");')
     elif param.type == "choice":
-        print(f', {param.id.lower()}Relay(std::make_unique<juce::WebComboBoxRelay>("{param.id}"))')
+        print(f'{param.id.lower()}Relay = std::make_unique<juce::WebComboBoxRelay>("{param.id}");')
 ```
 
 **Generate relay registration from parameter-spec.md:**
 
 ```python
-# Pseudo-code for generating .withOptionsFrom() calls
+# Pseudo-code for generating .withOptionsFrom() calls (dereference unique_ptr)
 for param in parameters:
     print(f'        .withOptionsFrom(*{param.id.lower()}Relay)')
 ```
@@ -552,16 +582,17 @@ for param in parameters:
 **Generate attachment creation from parameter-spec.md:**
 
 ```python
-# Pseudo-code for generating attachment initialization
+# Pseudo-code for generating attachment initialization (constructor body, 3 params for JUCE 8)
 for param in parameters:
     attachment_type = get_attachment_type(param.type)  # WebSliderParameterAttachment, etc.
-    print(f', {param.id.lower()}Attachment(std::make_unique<{attachment_type}>(')
+    print(f'{param.id.lower()}Attachment = std::make_unique<juce::{attachment_type}>(')
     print(f'    *processorRef.apvts.getParameter("{param.id}"),')
-    print(f'    *{param.id.lower()}Relay')
-    print(f'))')
+    print(f'    *{param.id.lower()}Relay, nullptr);')
 ```
 
 **Write `Source/PluginEditor.cpp`:**
+
+**CRITICAL:** Use constructor-body initialization (NOT initializer list) for all WebView members. This enables `#if JUCE_WINDOWS` blocks for platform-specific options.
 
 ```cpp
 #include "PluginEditor.h"
@@ -569,34 +600,52 @@ for param in parameters:
 [PluginName]AudioProcessorEditor::[PluginName]AudioProcessorEditor([PluginName]AudioProcessor& p)
     : AudioProcessorEditor(&p)
     , processorRef(p)
+{
+    // 1. Create relays FIRST (MUST match APVTS parameter IDs exactly)
+    gainRelay = std::make_unique<juce::WebSliderRelay>("gain");
+    cutoffRelay = std::make_unique<juce::WebSliderRelay>("cutoff");
+    bypassRelay = std::make_unique<juce::WebToggleButtonRelay>("bypass");
+    filterTypeRelay = std::make_unique<juce::WebComboBoxRelay>("filterType");
 
-    // Initialize relays with parameter IDs (MUST match APVTS IDs exactly)
-    , gainRelay("gain")
-    , cutoffRelay("cutoff")
-    , bypassRelay("bypass")
-    , filterTypeRelay("filterType")
-
-    // Initialize WebView with options
-    , webView(juce::WebBrowserComponent::Options{}
+    // 2. Build options and create WebView
+    auto options = juce::WebBrowserComponent::Options{}
         .withNativeIntegrationEnabled()  // CRITICAL: Enables JUCE JavaScript library
         .withResourceProvider([this](const auto& url) { return getResource(url); })
-        .withOptionsFrom(gainRelay)      // Register each relay
-        .withOptionsFrom(cutoffRelay)
-        .withOptionsFrom(bypassRelay)
-        .withOptionsFrom(filterTypeRelay)
-    )
+        .withKeepPageLoadedWhenBrowserIsHidden()  // Prevents about:blank in FL Studio
+        .withOptionsFrom(*gainRelay)      // Register each relay (dereference unique_ptr)
+        .withOptionsFrom(*cutoffRelay)
+        .withOptionsFrom(*bypassRelay)
+        .withOptionsFrom(*filterTypeRelay);
 
-    // Initialize attachments (connect parameters to relays)
-    , gainAttachment(*processorRef.parameters.getParameter("gain"), gainRelay)
-    , cutoffAttachment(*processorRef.parameters.getParameter("cutoff"), cutoffRelay)
-    , bypassAttachment(*processorRef.parameters.getParameter("bypass"), bypassRelay)
-    , filterTypeAttachment(*processorRef.parameters.getParameter("filterType"), filterTypeRelay)
-{
-    // Add WebView to editor
-    addAndMakeVisible(webView);
+    // Windows-specific: set user data folder for plugin host compatibility
+   #if JUCE_WINDOWS
+    options = options.withWinWebView2Options(
+        juce::WebBrowserComponent::Options::WinWebView2{}
+            .withUserDataFolder(
+                juce::File::getSpecialLocation(juce::File::tempDirectory)
+                    .getChildFile("[PluginName]_WebView"))
+            .withStatusBarDisabled()
+            .withBuiltInErrorPageDisabled()
+    );
+   #endif
+
+    webView = std::make_unique<juce::WebBrowserComponent>(options);
+
+    // 3. Create attachments LAST (3 params required in JUCE 8: parameter, relay, undoManager)
+    gainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("gain"), *gainRelay, nullptr);
+    cutoffAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.parameters.getParameter("cutoff"), *cutoffRelay, nullptr);
+    bypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.parameters.getParameter("bypass"), *bypassRelay, nullptr);
+    filterTypeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.parameters.getParameter("filterType"), *filterTypeRelay, nullptr);
+
+    // Add WebView to editor (dereference unique_ptr)
+    addAndMakeVisible(*webView);
 
     // Navigate to UI
-    webView.goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
+    webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
     // Set editor size (from UI mockup dimensions)
     setSize(600, 400);  // Adjust to match mockup
@@ -605,10 +654,14 @@ for param in parameters:
 
 **Key points:**
 
-- Initialize members in SAME order as declaration
-- Register ALL relays with `.withOptionsFrom(relay)`
+- ALL members use `std::unique_ptr` with constructor-body initialization
+- Register ALL relays with `.withOptionsFrom(*relay)` (dereference unique_ptr)
 - Use exact parameter IDs from APVTS
 - Enable native integration (required for JUCE JavaScript library)
+- `withKeepPageLoadedWhenBrowserIsHidden()` prevents blank page in FL Studio
+- Windows-specific `withUserDataFolder()` prevents permission denied in DAW hosts
+- `withStatusBarDisabled()` and `withBuiltInErrorPageDisabled()` for clean Windows UI
+- 3-parameter attachment constructors (JUCE 8 requires nullptr for undoManager)
 
 ### 8. Implement Resource Provider
 
@@ -671,6 +724,18 @@ std::optional<juce::WebBrowserComponent::Resource>
 
 **Add WebView configuration to existing CMakeLists.txt:**
 
+Ensure the `juce_add_plugin()` call includes both web browser flags:
+
+```cmake
+juce_add_plugin(${PRODUCT_NAME}
+    # ... existing plugin settings ...
+    NEEDS_WEB_BROWSER TRUE      # Links webkit2gtk on Linux
+    NEEDS_WEBVIEW2 TRUE         # Links WebView2LoaderStatic.lib on Windows
+)
+```
+
+Add binary data, linking, and compile definitions:
+
 ```cmake
 # WebView UI Resources
 juce_add_binary_data(${PRODUCT_NAME}_UIResources
@@ -686,21 +751,25 @@ target_link_libraries(${PRODUCT_NAME}
         juce::juce_gui_extra  # Required for WebBrowserComponent
 )
 
-# Enable WebView
+# Enable WebView (cross-platform)
 target_compile_definitions(${PRODUCT_NAME}
     PUBLIC
         JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1  # CRITICAL: static linking for Windows
         JUCE_USE_CURL=0
 )
 ```
 
 **Key points:**
 
+- `NEEDS_WEB_BROWSER TRUE` -- links webkit2gtk on Linux via pkg-config
+- `NEEDS_WEBVIEW2 TRUE` -- links WebView2LoaderStatic.lib on Windows, adds WebView2 headers
+- `JUCE_WEB_BROWSER=1` -- enables WebBrowserComponent class compilation (all platforms)
+- `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` -- static linking for Windows (auto-defines JUCE_USE_WIN_WEBVIEW2=1); prevents silent blank WebView from missing DLL
+- `JUCE_USE_CURL=0` -- not needed for local HTML serving
 - Use `${PRODUCT_NAME}_UIResources` naming convention
 - File paths start with `Source/ui/public/`
 - Include `juce::juce_gui_extra` module (contains WebBrowserComponent)
-- Enable `JUCE_WEB_BROWSER=1` compile definition
-- Disable `JUCE_USE_CURL=0` (not needed for WebView)
 
 ### 10. Update resized() for Layout
 
@@ -709,8 +778,8 @@ target_compile_definitions(${PRODUCT_NAME}
 ```cpp
 void [PluginName]AudioProcessorEditor::resized()
 {
-    // WebView fills entire editor
-    webView.setBounds(getLocalBounds());
+    // WebView fills entire editor (dereference unique_ptr)
+    webView->setBounds(getLocalBounds());
 }
 ```
 
@@ -738,6 +807,12 @@ void [PluginName]AudioProcessorEditor::paint(juce::Graphics& g)
 - [ ] CMakeLists.txt includes `juce_add_binary_data`
 - [ ] CMakeLists.txt includes `juce::juce_gui_extra` module
 - [ ] CMakeLists.txt defines `JUCE_WEB_BROWSER=1`
+- [ ] CMakeLists.txt includes `NEEDS_WEBVIEW2 TRUE` in juce_add_plugin()
+- [ ] CMakeLists.txt defines `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`
+- [ ] WebView constructor includes `withKeepPageLoadedWhenBrowserIsHidden()`
+- [ ] WebView constructor includes Windows-specific `withUserDataFolder()` block (`#if JUCE_WINDOWS`)
+- [ ] All WebView members use `std::unique_ptr` (not direct members)
+- [ ] No hard-coded URL schemes (`juce://` or `https://juce.backend/`)
 - [ ] No CSS contains viewport units (`100vh`, `100vw`)
 - [ ] HTML includes native feel CSS (`user-select: none`)
 - [ ] All UI files copied to `Source/ui/public/`
@@ -986,6 +1061,35 @@ See `.claude/schemas/README.md` for validation details.
 
 - Missing `valueChangedEvent.addListener()` in JavaScript
 - Event listener not updating HTML element
+
+**Issue 6: Blank WebView on Windows:**
+
+- Symptom: Plugin builds and loads but shows blank white rectangle on Windows
+- Cause: Missing `NEEDS_WEBVIEW2 TRUE` and/or `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1`
+- Resolution: Add both flags to CMakeLists.txt (see Section 9)
+- Note: Silent -- no errors or warnings in build or runtime logs
+
+**Issue 7: WebView2 permission denied in plugin host (Windows):**
+
+- Symptom: WebView fails to create in certain DAW hosts on Windows
+- Cause: Default user data folder location not writable in plugin context
+- Resolution: Use `withUserDataFolder()` with temp directory path:
+  ```cpp
+  #if JUCE_WINDOWS
+  options = options.withWinWebView2Options(
+      juce::WebBrowserComponent::Options::WinWebView2{}
+          .withUserDataFolder(
+              juce::File::getSpecialLocation(juce::File::tempDirectory)
+                  .getChildFile("[PluginName]_WebView")));
+  #endif
+  ```
+
+**Issue 8: Page goes blank when plugin window hidden (FL Studio):**
+
+- Symptom: WebView navigates to about:blank when editor is hidden/shown
+- Cause: Missing `withKeepPageLoadedWhenBrowserIsHidden()` option
+- Resolution: Add the option to WebView construction options chain
+- Impact: Particularly affects FL Studio which hides/shows plugin windows frequently
 </troubleshooting>
 
 <state_management>
@@ -1206,23 +1310,23 @@ Parse PluginEditor.h private section:
 3. Find all Attachment declarations
 4. Verify order: ALL relays before WebView, WebView before ALL attachments
 
-**Example Correct Order:**
+**Example Correct Order (all unique_ptr):**
 ```cpp
 private:
     PluginProcessor& processorRef;
 
     // 1. RELAYS FIRST (no dependencies)
-    juce::WebSliderRelay gainRelay;
-    juce::WebSliderRelay cutoffRelay;
-    juce::WebToggleButtonRelay bypassRelay;
+    std::unique_ptr<juce::WebSliderRelay> gainRelay;
+    std::unique_ptr<juce::WebSliderRelay> cutoffRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> bypassRelay;
 
     // 2. WEBVIEW SECOND (depends on relays via withOptionsFrom)
-    juce::WebBrowserComponent webView;
+    std::unique_ptr<juce::WebBrowserComponent> webView;
 
     // 3. ATTACHMENTS LAST (depend on both relays and webView)
-    juce::WebSliderParameterAttachment gainAttachment;
-    juce::WebSliderParameterAttachment cutoffAttachment;
-    juce::WebToggleButtonParameterAttachment bypassAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> gainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> cutoffAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> bypassAttachment;
 ```
 
 ### WebView Relay Lifecycle
