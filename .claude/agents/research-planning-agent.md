@@ -807,6 +807,26 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 
 </success_criteria>
 
+<resource_accountability>
+### Resource Accountability
+
+If you received a `<research_context>` block in your prompt, include `resources_consulted` in your JSON report listing the research resources you actually read and used during this task:
+
+```json
+"resources_consulted": [
+  {"path": "research/circuit-modeling-fundamentals.md", "relevance": "Used waveshaper algorithm from section 3"},
+  {"path": "research/dsp-click-prevention-debugging.md"}
+]
+```
+
+Rules:
+- Only list resources you actually consulted -- do not list resources you ignored
+- `path` is required (relative path to the research document)
+- `relevance` is optional (brief note on how the resource informed your work)
+- If no `<research_context>` was provided in your prompt, omit this field entirely
+- Do NOT include stage pattern files (stage-1-patterns.md, etc.) -- only research documents from the `<research_context>` block
+</resource_accountability>
+
 ## JSON Report Format
 
 **Schema:** `.claude/schemas/subagent-report.json`
@@ -848,6 +868,10 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
     "stage_count": 4,
     "staged_implementation": true
   },
+  "resources_consulted": [
+    {"path": "research/reverb-algorithm-comparison.md", "relevance": "Compared FDN vs Schroeder approaches"},
+    {"path": "research/dsp-click-prevention-debugging.md"}
+  ],
   "issues": [],
   "ready_for_next_stage": true
 }

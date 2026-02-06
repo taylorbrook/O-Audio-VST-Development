@@ -922,6 +922,26 @@ If state update fails:
 4. Orchestrator will attempt manual state update
 </state_management>
 
+<resource_accountability>
+### Resource Accountability
+
+If you received a `<research_context>` block in your prompt, include `resources_consulted` in your JSON report listing the research resources you actually read and used during this task:
+
+```json
+"resources_consulted": [
+  {"path": "research/circuit-modeling-fundamentals.md", "relevance": "Used waveshaper algorithm from section 3"},
+  {"path": "research/dsp-click-prevention-debugging.md"}
+]
+```
+
+Rules:
+- Only list resources you actually consulted -- do not list resources you ignored
+- `path` is required (relative path to the research document)
+- `relevance` is optional (brief note on how the resource informed your work)
+- If no `<research_context>` was provided in your prompt, omit this field entirely
+- Do NOT include stage pattern files (stage-1-patterns.md, etc.) -- only research documents from the `<research_context>` block
+</resource_accountability>
+
 <json_report>
 ## JSON Report Format
 

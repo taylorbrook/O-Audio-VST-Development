@@ -643,6 +643,26 @@ AudioParameter(?:Float|Bool|Choice)\s*\(\s*ParameterID\s*\{\s*"(\w+)"
 
 **Note:** Build verification is handled by plugin-workflow via build-automation skill after foundation-shell-agent completes. This agent only creates/modifies code.
 
+<resource_accountability>
+### Resource Accountability
+
+If you received a `<research_context>` block in your prompt, include `resources_consulted` in your JSON report listing the research resources you actually read and used during this task:
+
+```json
+"resources_consulted": [
+  {"path": "research/circuit-modeling-fundamentals.md", "relevance": "Used waveshaper algorithm from section 3"},
+  {"path": "research/dsp-click-prevention-debugging.md"}
+]
+```
+
+Rules:
+- Only list resources you actually consulted -- do not list resources you ignored
+- `path` is required (relative path to the research document)
+- `relevance` is optional (brief note on how the resource informed your work)
+- If no `<research_context>` was provided in your prompt, omit this field entirely
+- Do NOT include stage pattern files (stage-1-patterns.md, etc.) -- only research documents from the `<research_context>` block
+</resource_accountability>
+
 ### 10. Return Report
 
 ## JSON Report Format
@@ -689,6 +709,10 @@ All reports MUST conform to the unified subagent report schema. This ensures con
     "apvts_created": true,
     "state_management_implemented": true
   },
+  "resources_consulted": [
+    {"path": "research/juce-plugin-architecture-guide.md", "relevance": "Referenced CMake patterns"},
+    {"path": "research/parameter-design-best-practices.md"}
+  ],
   "issues": [],
   "ready_for_next_stage": true
 }

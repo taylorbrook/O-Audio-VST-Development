@@ -876,6 +876,26 @@ After implementation completes, return JSON report to plugin-workflow skill orch
 Build verification handled by build-automation skill after you complete.
 </validation>
 
+<resource_accountability>
+### Resource Accountability
+
+If you received a `<research_context>` block in your prompt, include `resources_consulted` in your JSON report listing the research resources you actually read and used during this task:
+
+```json
+"resources_consulted": [
+  {"path": "research/circuit-modeling-fundamentals.md", "relevance": "Used waveshaper algorithm from section 3"},
+  {"path": "research/dsp-click-prevention-debugging.md"}
+]
+```
+
+Rules:
+- Only list resources you actually consulted -- do not list resources you ignored
+- `path` is required (relative path to the research document)
+- `relevance` is optional (brief note on how the resource informed your work)
+- If no `<research_context>` was provided in your prompt, omit this field entirely
+- Do NOT include stage pattern files (stage-1-patterns.md, etc.) -- only research documents from the `<research_context>` block
+</resource_accountability>
+
 <output_format>
 ## JSON Report Format
 
@@ -903,6 +923,10 @@ This ensures consistent parsing by plugin-workflow skill orchestrator. Non-compl
     "relays_created": 5,
     "attachments_created": 5
   },
+  "resources_consulted": [
+    {"path": "research/cross-platform-webview-best-practices.md", "relevance": "Applied Windows WebView2 patterns"},
+    {"path": "research/ui-performance-optimization.md"}
+  ],
   "issues": [],
   "ready_for_next_stage": true
 }
