@@ -85,11 +85,11 @@ Plans:
   1. Subagent report JSON schema includes an optional `resources_consulted` field that all existing agents can populate without breaking backward compatibility
   2. All five stage agents (dsp-agent, gui-agent, foundation-shell-agent, research-planning-agent, polish-agent) include `resources_consulted` in their reports when resources were injected
   3. SubagentStop hook logs a warning when an agent received MUST-READ resources but did not report consulting them (warning only, never blocks workflow)
-**Plans**: TBD
+**Plans**: 2 plans
 
 Plans:
-- [ ] 12-01: TBD
-- [ ] 12-02: TBD
+- [ ] 12-01-PLAN.md — Schema extension + accountability validator script (ACCT-01, infrastructure)
+- [ ] 12-02-PLAN.md — Agent instruction updates + SubagentStop hook integration (ACCT-02, ACCT-03)
 
 ### Phase 13: Maintenance Tooling & Hardening
 **Goal**: The resource system maintains itself with minimal manual effort and degrades gracefully when components are missing or stale
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 9. Workflow Planning Phase | v1.1 | 2/2 | Complete | 2026-02-02 |
 | 10. Resource Index & Discovery | v1.2 | 4/4 | Complete | 2026-02-05 |
 | 11. Context Injection Pipeline | v1.2 | 2/2 | Complete | 2026-02-05 |
-| 12. Accountability & Validation | v1.2 | 0/? | Not started | - |
+| 12. Accountability & Validation | v1.2 | 0/2 | Not started | - |
 | 13. Maintenance Tooling & Hardening | v1.2 | 0/? | Not started | - |
 
 ## Coverage Summary
@@ -155,4 +155,4 @@ See `.planning/milestones/v1.X-REQUIREMENTS.md` for archived requirement details
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-02-05 — Phase 11 complete (2/2 plans, INJT-01 through INJT-04 satisfied)*
+*Last updated: 2026-02-05 — Phase 12 planned (2 plans in 2 waves, ACCT-01 through ACCT-03)*
