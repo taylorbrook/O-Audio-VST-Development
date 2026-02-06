@@ -427,33 +427,73 @@ jobs:
           $TARGET = "${{ steps.resolve.outputs.cmake_target }}"
           cmake --build build --target "${TARGET}_VST3" --config ${{ env.BUILD_TYPE }}
 
-      - name: Package Artifacts
+      - name: Get Product Name
+        id: product
+        shell: bash
+        run: |
+          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
+          PRODUCT_NAME=$(grep -oP 'PRODUCT_NAME\s+"\K[^"]+' "plugins/${PLUGIN}/CMakeLists.txt" | head -1)
+          # Strip CMake variable references like ${OUARICON_DEV_SUFFIX}
+          PRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/\${[^}]*}//g')
+          echo "name=${PRODUCT_NAME:-$PLUGIN}" >> $GITHUB_OUTPUT
+
+      - name: Create Inno Setup Installer
         run: |
           $PLUGIN = "${{ needs.parse-tag.outputs.plugin_name }}"
           $VERSION = "${{ needs.parse-tag.outputs.version }}"
           $TARGET = "${{ steps.resolve.outputs.cmake_target }}"
+          $PRODUCT_NAME = "${{ steps.product.outputs.name }}"
           $ARTEFACTS = "build\plugins\$PLUGIN\${TARGET}_artefacts\${{ env.BUILD_TYPE }}"
 
-          New-Item -ItemType Directory -Force -Path dist
-
-          # Copy VST3
+          # Stage the VST3 bundle
+          New-Item -ItemType Directory -Force -Path staging
           if (Test-Path "$ARTEFACTS\VST3") {
-            Copy-Item -Recurse "$ARTEFACTS\VST3\*" dist\
+            Copy-Item -Recurse "$ARTEFACTS\VST3\*" staging\
           }
 
-          # List packaged artifacts
-          Write-Host "Packaged artifacts:"
-          Get-ChildItem dist
+          Write-Host "Staged artifacts:"
+          Get-ChildItem -Recurse staging
 
-          # Create ZIP
-          Compress-Archive -Path dist\* -DestinationPath "$PLUGIN-$VERSION-windows.zip"
-          Write-Host "Created: $PLUGIN-$VERSION-windows.zip"
+          # Generate Inno Setup script
+          $ISS = @"
+          [Setup]
+          AppName=$PRODUCT_NAME
+          AppVersion=$VERSION
+          AppPublisher=Ouaricon Audio
+          AppPublisherURL=https://oaudio.io
+          DefaultDirName={commonpf}\Common Files\VST3
+          DirExistsWarning=no
+          DisableProgramGroupPage=yes
+          OutputDir=.
+          OutputBaseFilename=$PLUGIN-$VERSION-windows
+          Compression=lzma2
+          SolidCompression=yes
+          ArchitecturesAllowed=x64compatible
+          ArchitecturesInstallIn64BitMode=x64compatible
+          UninstallDisplayName=$PRODUCT_NAME (VST3)
+          WizardStyle=modern
+
+          [Files]
+          Source: "staging\*.vst3"; DestDir: "{app}"; Flags: recursesubdirs
+
+          [Messages]
+          WelcomeLabel1=$PRODUCT_NAME v$VERSION
+          WelcomeLabel2=This will install $PRODUCT_NAME (VST3) by Ouaricon Audio.%n%nThe plugin will be installed to:%n  C:\Program Files\Common Files\VST3%n%nClick Next to continue.
+          FinishedLabel=$PRODUCT_NAME has been installed successfully.%n%nOpen your DAW and scan for new plugins to find $PRODUCT_NAME.
+          "@
+
+          Set-Content -Path "installer.iss" -Value $ISS
+          Write-Host "Generated installer.iss"
+
+          # Compile with Inno Setup
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" installer.iss
+          Write-Host "Created: $PLUGIN-$VERSION-windows.exe"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: windows-build
-          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-windows.zip
+          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-windows.exe
 
   # ============================================
   # Linux Build
