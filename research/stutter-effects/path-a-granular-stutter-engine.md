@@ -1,5 +1,8 @@
 ---
 title: "Granular Stutter Engine Architecture"
+created: 2026-01-15
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Design and implementation plan for a granular stutter engine extending the Scatter plugin with beat-synchronized triggering, 64-voice granular synthesis, and musical scale quantization."
 domain: dsp
 type: algorithm

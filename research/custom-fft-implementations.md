@@ -1,5 +1,8 @@
 ---
 title: "Custom FFT Implementations for Audio Plugins"
+created: 2026-02-04
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Guide to FFT libraries beyond JUCE's built-in implementation, comparing Apple Accelerate/vDSP, Intel IPP, FFTW3, PFFFT, and KissFFT with integration patterns, performance benchmarks, and real-time safety considerations."
 domain: dsp
 type: guide

@@ -1,5 +1,8 @@
 ---
 title: "FFT Processing Best Practices in JUCE"
+created: 2026-02-04
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Comprehensive guide to implementing high-quality FFT-based audio processing in JUCE plugins, covering STFT architecture, buffer management, window functions, overlap-add synthesis, COLA compliance, and performance optimization strategies."
 domain: dsp
 type: guide

@@ -1,5 +1,8 @@
 ---
 title: "FFT Audio Artifact Prevention Guide"
+created: 2026-02-04
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Comprehensive reference for understanding, diagnosing, and preventing artifacts in FFT-based audio processing, covering spectral leakage, discontinuity artifacts, phase issues, transient smearing, modulation artifacts, and diagnostic techniques."
 domain: dsp
 type: reference

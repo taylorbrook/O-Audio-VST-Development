@@ -1,3 +1,24 @@
+---
+title: "Cross-Platform WebView UI for JUCE Plugins: Best Practices Guide"
+created: 2026-02-05
+last_verified: 2026-02-06
+juce_version: "8.0.4"
+summary: "Best practices guide for cross-platform WebView UI in JUCE 8 plugins, covering WebView2 static linking on Windows, URL scheme differences, user data folder configuration, resource provider patterns, and CMake configuration for macOS/Windows/Linux."
+domain: ui
+type: guide
+keywords:
+  - webview
+  - cross-platform
+  - webview2
+  - juce-gui
+  - windows
+  - macos
+  - resource-provider
+  - cmake
+stages: [1, 3]
+agents: [ui, build]
+---
+
 # Cross-Platform WebView UI for JUCE Plugins: Best Practices Guide
 
 **Date:** 2026-02-06

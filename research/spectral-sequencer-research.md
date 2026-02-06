@@ -1,5 +1,8 @@
 ---
 title: "Spectral Sequencer / Spectral Trance Gate Research"
+created: 2026-02-03
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Deep research on FFT-based spectral sequencing combining rhythmic gating with per-frequency pattern control, covering prior art, algorithm design, JUCE implementation, and differentiation opportunities."
 domain: dsp
 type: reference

@@ -1,5 +1,8 @@
 ---
 title: "Generative Audio Plugins Research Synthesis Report"
+created: 2026-01-26
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Synthesis of findings from 4 parallel research agents investigating the generative audio plugin landscape, covering commercial market analysis, AI/ML approaches, algorithmic techniques, community pain points, and identified market gaps."
 domain: dsp
 type: reference

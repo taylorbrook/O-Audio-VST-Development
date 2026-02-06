@@ -1,5 +1,8 @@
 ---
 title: "Playhead Modulator Architecture"
+created: 2026-01-15
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Design for a TimeShaper-style playhead modulator with drawable envelope control, multiband time manipulation, harmonic locking during speed changes, and physics-based envelope behavior."
 domain: dsp
 type: algorithm

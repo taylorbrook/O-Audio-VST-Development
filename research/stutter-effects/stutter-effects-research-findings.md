@@ -1,5 +1,8 @@
 ---
 title: "Stutter Audio Effects Research Findings"
+created: 2026-01-15
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Overview of stutter effect implementation patterns comparing buffer capture and loop, granular engine, and playhead modulation architectures with CPU and latency trade-offs for JUCE plugins."
 domain: dsp
 type: reference

@@ -1,5 +1,8 @@
 ---
 title: "O-Detune Market Research"
+created: 2026-02-01
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Competitive landscape analysis of detuning and pitch thickening plugins, covering Soundtoys MicroShift, Eventide MicroPitch, and identifying market gaps for analog-style wobble with unison detuning."
 domain: workflow
 type: reference

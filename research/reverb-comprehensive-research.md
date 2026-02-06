@@ -1,5 +1,8 @@
 ---
 title: "Comprehensive Reverb Research"
+created: 2026-01-13
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Complete technical reference for reverb algorithm design and JUCE implementation covering Schroeder, Freeverb, FDN, and Dattorro architectures, convolution reverb theory, and spatialization techniques."
 domain: dsp
 type: guide

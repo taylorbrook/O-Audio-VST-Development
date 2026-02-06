@@ -1,5 +1,8 @@
 ---
 title: "Microtonality Implementation in JUCE VST Plugins"
+created: 2026-01-09
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Complete implementation guide for microtonal support in JUCE plugins, covering MTS-ESP client integration, Surge tuning library, custom tuning tables, MPE integration, practical code patterns, and common pitfalls with solutions."
 domain: dsp
 type: guide

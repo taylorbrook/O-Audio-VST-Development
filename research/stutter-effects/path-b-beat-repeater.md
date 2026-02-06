@@ -1,5 +1,8 @@
 ---
 title: "Multi-Lane Beat Repeater Architecture"
+created: 2026-01-15
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Design for a polyrhythmic beat repeater with 4 independent repeat lanes, envelope follower triggering, Euclidean rhythm patterns, and tape degradation simulation on repeats."
 domain: dsp
 type: algorithm

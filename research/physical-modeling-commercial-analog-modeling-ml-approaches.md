@@ -1,5 +1,8 @@
 ---
 title: "Commercial Analog Modeling and Modern ML Approaches"
+created: 2026-01-09
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Analysis of commercial analog modeling landscape including Universal Audio, Slate Digital, Softube, and neural network/ML-based approaches for tape emulation, compressor dynamics, and distortion modeling."
 domain: dsp
 type: reference

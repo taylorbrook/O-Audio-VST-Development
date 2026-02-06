@@ -1,5 +1,8 @@
 ---
 title: "Circuit Modeling Fundamentals for Analog Audio Effects"
+created: 2026-01-09
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Research report covering primary techniques for digitally recreating analog audio circuits, including Wave Digital Filters, nodal analysis, distortion/saturation modeling, tape saturation, transformer modeling, and compressor/limiter emulation with C++ implementations."
 domain: dsp
 type: algorithm

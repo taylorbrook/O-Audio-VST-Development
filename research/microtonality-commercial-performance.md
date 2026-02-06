@@ -1,5 +1,8 @@
 ---
 title: "Microtonality in VST Plugins: Commercial Products, Performance, and Modern Approaches"
+created: 2026-01-09
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Commercial product analysis and modern approaches for microtonal VST plugins, covering MTS-ESP integration, MPE maturation, MIDI 2.0 emergence, performance optimization, UI/UX design patterns, and testing methodologies."
 domain: workflow
 type: reference

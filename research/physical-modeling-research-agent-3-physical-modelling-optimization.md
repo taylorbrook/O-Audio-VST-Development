@@ -1,5 +1,8 @@
 ---
 title: "Physical Modelling Synthesis: Performance Optimization and Production Guide"
+created: 2026-01-09
+last_verified: 2026-02-06
+juce_version: "8.0.4"
 summary: "Practical guide to CPU optimization, SIMD vectorization, algorithm complexity analysis, and hybrid approaches for physical modelling synthesis in real-time audio plugins."
 domain: dsp
 type: guide
