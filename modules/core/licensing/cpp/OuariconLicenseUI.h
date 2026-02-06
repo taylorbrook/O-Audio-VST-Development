@@ -63,7 +63,7 @@ public:
                             juce::Colours::white);
         keyInput.setColour (juce::TextEditor::focusedOutlineColourId,
                             juce::Colour (0xff6a9fd8));
-        keyInput.setInputRestrictions (16, "OUAoua-0123456789ABCDEFabcdef");
+        keyInput.setInputRestrictions (18, "OUAoua-0123456789ABCDEFabcdef");
         addAndMakeVisible (keyInput);
 
         // Activate button

@@ -1,7 +1,7 @@
 # GitHub Actions Workflow for Cross-Platform Plugin Builds
 #
 # Triggers on tags matching: *-v* (e.g., OuariconTremolo-v1.4.0)
-# Builds: macOS (Universal), Windows, Linux
+# Builds: macOS (Universal), Windows
 # Creates: GitHub Release with all artifacts
 
 name: Build and Release
@@ -496,106 +496,10 @@ jobs:
           path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-windows.exe
 
   # ============================================
-  # Linux Build
-  # ============================================
-  build-linux:
-    needs: parse-tag
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Install Dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            libasound2-dev \
-            libjack-jackd2-dev \
-            ladspa-sdk \
-            libcurl4-openssl-dev \
-            libfreetype6-dev \
-            libx11-dev \
-            libxcomposite-dev \
-            libxcursor-dev \
-            libxext-dev \
-            libxinerama-dev \
-            libxrandr-dev \
-            libxrender-dev \
-            libwebkit2gtk-4.0-dev \
-            libglu1-mesa-dev \
-            mesa-common-dev
-
-      - name: Setup JUCE
-        run: |
-          # Download and extract JUCE
-          curl -L "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-linux.zip" -o juce.zip
-          unzip -q juce.zip
-          # JUCE extracts to JUCE/ directory
-
-      - name: Patch CMakeLists for CI
-        run: |
-          # Replace hardcoded JUCE path with relative path for CI
-          sed -i 's|add_subdirectory(/Users/taylorbrook/JUCE JUCE)|add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/JUCE JUCE)|' CMakeLists.txt
-
-      - name: Configure CMake
-        run: |
-          cmake -B build \
-            -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} \
-            -DOUARICON_LICENSING=ON \
-            -DOUARICON_RELEASE=ON \
-            -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
-            -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
-
-      - name: Resolve CMake Target
-        id: resolve
-        run: |
-          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          CMAKE_TARGET=$(grep 'juce_add_plugin(' "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*juce_add_plugin(\([^ )]*\).*/\1/')
-          echo "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT
-          echo "Resolved CMake target: $CMAKE_TARGET (from directory: $PLUGIN)"
-
-      - name: Build Plugin
-        run: |
-          TARGET="${{ steps.resolve.outputs.cmake_target }}"
-          cmake --build build --target "${TARGET}_VST3" --config ${{ env.BUILD_TYPE }} -j$(nproc)
-
-      - name: Package Artifacts
-        run: |
-          PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
-          VERSION="${{ needs.parse-tag.outputs.version }}"
-          TARGET="${{ steps.resolve.outputs.cmake_target }}"
-          ARTEFACTS="build/plugins/${PLUGIN}/${TARGET}_artefacts/${{ env.BUILD_TYPE }}"
-
-          mkdir -p dist
-
-          # Copy VST3
-          if [ -d "${ARTEFACTS}/VST3" ]; then
-            cp -R "${ARTEFACTS}/VST3/"*.vst3 dist/ || true
-          fi
-
-          # List packaged artifacts
-          echo "Packaged artifacts:"
-          ls -la dist/
-
-          # Create tarball
-          cd dist
-          tar -czf "../${PLUGIN}-${VERSION}-linux.tar.gz" .
-          cd ..
-          echo "Created: ${PLUGIN}-${VERSION}-linux.tar.gz"
-
-      - name: Upload Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: linux-build
-          path: ${{ needs.parse-tag.outputs.plugin_name }}-${{ needs.parse-tag.outputs.version }}-linux.tar.gz
-
-  # ============================================
   # Create GitHub Release
   # ============================================
   create-release:
-    needs: [parse-tag, build-macos, build-windows, build-linux]
+    needs: [parse-tag, build-macos, build-windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -655,6 +559,5 @@ jobs:
           files: |
             artifacts/macos-build/*
             artifacts/windows-build/*
-            artifacts/linux-build/*
           draft: false
           prerelease: false
