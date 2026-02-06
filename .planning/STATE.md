@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 13 of 13 (Maintenance Tooling & Hardening)
-Plan: 1 of 4 in current phase
+Plan: 2 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-06 — Completed 13-01-PLAN.md (Schema/Generator/Validator/Discovery Temporal Fields)
+Last activity: 2026-02-06 — Completed 13-02-PLAN.md (Frontmatter Retrofit & Manifest Regeneration)
 
-Progress: [█████████████████████████] 100% overall (35/38 plans)
-v1.2:    [█████████████████████░░░] 63% (10/~16 plans — Phase 13 plan 1 of 4 complete)
+Progress: [█████████████████████████] 100% overall (36/38 plans)
+v1.2:    [██████████████████████░░] 69% (11/~16 plans — Phase 13 plan 2 of 4 complete)
 
 ## Performance Metrics
 
@@ -32,14 +32,14 @@ v1.2:    [█████████████████████░░�
 - Timeline: 2 days
 
 **v1.2 In Progress:**
-- Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans), 13 (in progress, 1/4 plans)
-- Plans completed: 10
+- Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans), 13 (in progress, 2/4 plans)
+- Plans completed: 11
 - Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 through ACCT-03 (3/3), MAINT partial
 - Timeline: ongoing
 
 **Cumulative:**
 - Total phases completed: 12
-- Total plans completed: 35
+- Total plans completed: 36
 - Total requirements satisfied: 59+
 
 ## Accumulated Context
@@ -83,6 +83,9 @@ Recent decisions affecting current work:
 - 13-01: parse_frontmatter returns (data, skip_reason) tuple for structured bug reports
 - 13-01: Atomic writes via tempfile.mkstemp + os.replace for manifest corruption prevention
 - 13-01: frontmatter-issues.txt overwritten on each run (idempotent, not append-only)
+- 13-02: Historical created dates from git log --follow (11 unique dates, 2026-01-09 to 2026-02-05)
+- 13-02: cross-platform-webview-best-practices.md received full 10-field frontmatter (was missing entirely)
+- 13-02: Field ordering: title > created > last_verified > juce_version > summary > domain > type > keywords > stages > agents
 
 ### Pending Todos
 
@@ -105,10 +108,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 13-01-PLAN.md (Schema/Generator/Validator/Discovery Temporal Fields)
+Stopped at: Completed 13-02-PLAN.md (Frontmatter Retrofit & Manifest Regeneration)
 Resume file: None
 
-Next: 13-02-PLAN.md (Frontmatter Retrofit)
+Next: 13-03-PLAN.md
 
 ---
-*Phase 13 plan 1 of 4 complete. Schema/generator/validator/discovery updated with 3 temporal fields, atomic writes, and graceful degradation. All 28 research docs awaiting frontmatter retrofit in Plan 02.*
+*Phase 13 plan 2 of 4 complete. All 27 research docs retrofitted with temporal frontmatter (created/last_verified/juce_version). Manifest regenerated with 27 documents indexed. cross-platform-webview-best-practices.md received full frontmatter (was missing entirely).*
