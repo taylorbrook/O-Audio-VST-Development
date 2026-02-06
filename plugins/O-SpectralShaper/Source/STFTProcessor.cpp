@@ -154,10 +154,8 @@ void STFTProcessor::processFrame()
     // Output: fftData[0..FFT_SIZE-1] as real samples
     inverseFFT.performRealOnlyInverseTransform(fftData.data());
 
-    // Overlap-add: Add IFFT output directly to output FIFO (no synthesis window).
-    // Analysis-only Hann windowing satisfies COLA at 50% overlap: w(n) + w(n+N/2) = 1.0
-    // Applying a second (synthesis) window breaks COLA — Hann^2 sum is NOT constant,
-    // creating amplitude modulation at the hop rate (~172Hz) which introduces low-freq artifacts.
+    // Overlap-add: JUCE's inverse FFT already includes 1/N normalization,
+    // and Hann COLA at 50% overlap sums to 1.0 — no additional scaling needed.
     for (int i = 0; i < FFT_SIZE; ++i)
     {
         outputFIFO[static_cast<size_t>(i)] += fftData[static_cast<size_t>(i)];
