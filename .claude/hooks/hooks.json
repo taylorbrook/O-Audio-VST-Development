@@ -22,6 +22,17 @@
             "description": "Validate YAML frontmatter in research documents"
           }
         ]
+      },
+      {
+        "matcher": "write|edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/regenerate-manifest.sh",
+            "timeout": 3000,
+            "description": "Auto-regenerate resource-index.json on research file writes"
+          }
+        ]
       }
     ],
     "SubagentStop": [
