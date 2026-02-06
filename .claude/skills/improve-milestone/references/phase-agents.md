@@ -166,6 +166,18 @@ Read `execute_agent` from PLAN.md frontmatter:
 | polish-agent | Polish specialist | Presets, optimization, validation |
 | general-purpose | Flexible | Mixed domain or unclear |
 
+### Research Context Injection
+
+Before invoking the domain-specific execute agent, retrieve research context:
+
+```bash
+# Map agent to primary stage for discovery
+# dsp-agent -> stage 2, gui-agent -> stage 3, polish-agent -> stage 4
+python3 .claude/scripts/inject-context.py --stage {stage_number} --agent {execute_agent} --plugin [PluginName]
+```
+
+Include the output in the Task prompt after the "Critical Rules" section. If the script returns empty, the prompt works without modification.
+
 ### Invocation (dsp-agent example)
 
 ```
@@ -188,6 +200,8 @@ Task: Execute DSP improvement plan for [PluginName]
 - Use atomic operations for cross-thread communication
 - Prefer juce::dsp module utilities
 - Smooth parameter changes to avoid clicks
+
+{research_context}
 
 ## Instructions
 1. Read PLAN.md task breakdown

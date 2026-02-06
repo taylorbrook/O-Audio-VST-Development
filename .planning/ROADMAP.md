@@ -38,7 +38,7 @@
 **Milestone Goal:** Ensure all agents are invoked with relevant knowledge base resources and report what they consulted, with full traceability and graceful degradation.
 
 - [x] **Phase 10: Resource Index & Discovery** - Static manifest and keyword-based discovery engine — completed 2026-02-05
-- [ ] **Phase 11: Context Injection Pipeline** - Deliver discovered resources to agents before execution
+- [x] **Phase 11: Context Injection Pipeline** - Deliver discovered resources to agents before execution — completed 2026-02-05
 - [ ] **Phase 12: Accountability & Validation** - Agents report resources consulted; hooks validate usage
 - [ ] **Phase 13: Maintenance Tooling & Hardening** - Auto-generation, freshness tracking, graceful degradation
 
@@ -74,8 +74,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 11-01-PLAN.md — Context injection utility script (inject-context.py with content extraction, budget management, CLI)
-- [ ] 11-02-PLAN.md — Skill integration + ROADMAP update (modify all 7+ skill files, end-to-end verification)
+- [x] 11-01-PLAN.md — Context injection utility script (inject-context.py with content extraction, budget management, CLI)
+- [x] 11-02-PLAN.md — Skill integration + ROADMAP update (modify all 8 skill files, end-to-end verification)
 
 ### Phase 12: Accountability & Validation
 **Goal**: The system tracks which resources agents actually consulted and warns when expected resources were skipped
@@ -123,7 +123,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 8. Repository Cleanup | v1.1 | 2/2 | Complete | 2026-02-01 |
 | 9. Workflow Planning Phase | v1.1 | 2/2 | Complete | 2026-02-02 |
 | 10. Resource Index & Discovery | v1.2 | 4/4 | Complete | 2026-02-05 |
-| 11. Context Injection Pipeline | v1.2 | 0/2 | Not started | - |
+| 11. Context Injection Pipeline | v1.2 | 2/2 | Complete | 2026-02-05 |
 | 12. Accountability & Validation | v1.2 | 0/? | Not started | - |
 | 13. Maintenance Tooling & Hardening | v1.2 | 0/? | Not started | - |
 
@@ -155,4 +155,4 @@ See `.planning/milestones/v1.X-REQUIREMENTS.md` for archived requirement details
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-02-05 — Phase 11 planned (2 plans)*
+*Last updated: 2026-02-05 — Phase 11 complete (2/2 plans, INJT-01 through INJT-04 satisfied)*

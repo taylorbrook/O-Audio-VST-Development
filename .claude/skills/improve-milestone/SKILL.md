@@ -394,6 +394,27 @@ Before any implementation:
 2. Verify backup integrity
 3. HALT if backup fails
 
+**Research Context Injection:**
+
+Before invoking the domain-specific execute agent, retrieve research context:
+
+```python
+# Determine stage number from domain for discovery context
+domain_stage_map = {
+    "dsp-agent": 2,
+    "gui-agent": 3,
+    "polish-agent": 4,
+    "general-purpose": 0
+}
+execute_agent = read_status_yaml(plugin_name, slug)["executeAgent"]
+stage_for_discovery = domain_stage_map.get(execute_agent, 0)
+
+# Get research context via injection utility
+research_context = run_bash(
+    f"python3 .claude/scripts/inject-context.py --stage {stage_for_discovery} --agent {execute_agent} --plugin {plugin_name}"
+)
+```
+
 **Invocation:**
 ```
 Task: Execute improvement plan for [PluginName]
@@ -414,6 +435,8 @@ Important:
 - Follow real-time safety rules for DSP changes
 - Maintain member declaration order for WebView (relays before attachments)
 - Test incrementally after each task
+
+{research_context}
 ```
 
 **Output template:** See `assets/summary-template.md`
