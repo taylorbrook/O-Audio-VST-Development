@@ -41,9 +41,14 @@ console.log(
 
 **If complexity ≤2 OR no phases defined:**
 
-Invoke dsp-agent once for complete DSP implementation with minimal prompt:
+Get research context and invoke dsp-agent once for complete DSP implementation with minimal prompt:
 
 ```typescript
+// Get research context (auto-discovered resources + stage patterns)
+const researchContext = bash(
+    `python3 .claude/scripts/inject-context.py --stage 2 --agent dsp-agent --plugin ${pluginName}`
+);
+
 const dspResult = Task({
   subagent_type: "dsp-agent",
   description: `Stage 2 - ${pluginName}`,
@@ -60,18 +65,16 @@ You are dsp-agent implementing Stage 2 for ${pluginName}.
 - architecture.md: plugins/${pluginName}/.planning/architecture.md
 - plan.md: plugins/${pluginName}/.planning/plan.md
 - parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
-- Required Reading: troubleshooting/patterns/stage-2-patterns.md
 
-**CRITICAL: Read Required Reading BEFORE implementation.**
+${researchContext}
 
 **Implementation steps:**
 1. Read all contract files listed above
-2. Read Required Reading (MANDATORY)
-3. Add DSP member variables to PluginProcessor.h
-4. Implement prepareToPlay() - initialize DSP at sample rate
-5. Implement processBlock() with all DSP components
-6. Connect parameters to DSP controls
-7. Return JSON report with components list and real-time safety status
+2. Add DSP member variables to PluginProcessor.h
+3. Implement prepareToPlay() - initialize DSP at sample rate
+4. Implement processBlock() with all DSP components
+5. Connect parameters to DSP controls
+6. Return JSON report with components list and real-time safety status
 
 Build verification handled by orchestrator after you complete.
   `
@@ -138,6 +141,11 @@ phases.forEach((phase) => {
 **Execute each phase sequentially (with minimal prompts):**
 
 ```typescript
+// Get research context once for all phases (same stage)
+const researchContext = bash(
+    `python3 .claude/scripts/inject-context.py --stage 2 --agent dsp-agent --plugin ${pluginName}`
+);
+
 for (let i = 0; i < phases.length; i++) {
   const phase = phases[i];
 
@@ -163,19 +171,17 @@ You are dsp-agent implementing Phase ${phase.number} for ${pluginName}.
 - architecture.md: plugins/${pluginName}/.planning/architecture.md
 - plan.md: plugins/${pluginName}/.planning/plan.md
 - parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
-- Required Reading: troubleshooting/patterns/stage-2-patterns.md
 
-**CRITICAL: Read Required Reading BEFORE implementation.**
+${researchContext}
 
 **Phase implementation steps:**
 1. Read all contract files listed above
-2. Read Required Reading (MANDATORY)
-3. Extract Phase ${phase.number} components from plan.md
-4. Add member variables for this phase's DSP components
-5. Implement this phase's components in processBlock()
-6. Build on existing code from previous phases (preserve all)
-7. Connect this phase's parameters only
-8. Return JSON report with phase_completed: "${phase.number}"
+2. Extract Phase ${phase.number} components from plan.md
+3. Add member variables for this phase's DSP components
+4. Implement this phase's components in processBlock()
+5. Build on existing code from previous phases (preserve all)
+6. Connect this phase's parameters only
+7. Return JSON report with phase_completed: "${phase.number}"
 
 **CRITICAL:** Implement ONLY Phase ${phase.number} components, preserve all previous phase code.
 

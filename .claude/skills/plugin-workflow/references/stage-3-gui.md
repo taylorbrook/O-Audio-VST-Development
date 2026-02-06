@@ -82,10 +82,15 @@ console.log(
 
 **If complexity ≤2 OR no phases defined:**
 
-Invoke gui-agent once for complete UI integration with minimal prompt:
+Get research context and invoke gui-agent once for complete UI integration with minimal prompt:
 
 ```typescript
 const mockupPath = findLatestMockup(pluginName);
+
+// Get research context (auto-discovered resources + stage patterns)
+const researchContext = bash(
+    `python3 .claude/scripts/inject-context.py --stage 3 --agent gui-agent --plugin ${pluginName}`
+);
 
 const guiResult = Task({
   subagent_type: "gui-agent",
@@ -105,21 +110,19 @@ You are gui-agent implementing Stage 3 for ${pluginName}.
 - architecture.md: plugins/${pluginName}/.planning/architecture.md
 - plan.md: plugins/${pluginName}/.planning/plan.md
 - parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
-- Required Reading: troubleshooting/patterns/stage-3-patterns.md
 
-**CRITICAL: Read Required Reading BEFORE implementation.**
+${researchContext}
 
 **Implementation steps:**
 1. Read all contract files listed above
-2. Read Required Reading (MANDATORY)
-3. Read finalized UI mockup from ${mockupPath}
-4. Create ui/public/ directory and copy mockup
-5. Download JUCE frontend library to ui/public/juce-framework.js
-6. Add relay members to PluginEditor.h (CRITICAL ORDER: Relays → WebView → Attachments)
-7. Implement parameter bindings in PluginEditor.cpp
-8. Add WebView initialization in constructor
-9. Update CMakeLists.txt to enable JUCE_WEB_BROWSER=1
-10. Return JSON report with binding count and member order verification
+2. Read finalized UI mockup from ${mockupPath}
+3. Create ui/public/ directory and copy mockup
+4. Download JUCE frontend library to ui/public/juce-framework.js
+5. Add relay members to PluginEditor.h (CRITICAL ORDER: Relays → WebView → Attachments)
+6. Implement parameter bindings in PluginEditor.cpp
+7. Add WebView initialization in constructor
+8. Update CMakeLists.txt to enable JUCE_WEB_BROWSER=1
+9. Return JSON report with binding count and member order verification
 
 ⚠️ CRITICAL: Member declaration order (Relays → WebView → Attachments) prevents 90% of release build crashes.
 
@@ -189,6 +192,11 @@ phases.forEach((phase) => {
 
 **Execute each phase sequentially (with minimal prompts):**
 
+// Get research context once for all phases (same stage)
+const researchContext = bash(
+    `python3 .claude/scripts/inject-context.py --stage 3 --agent gui-agent --plugin ${pluginName}`
+);
+
 // Execute each phase sequentially
 for (let i = 0; i < phases.length; i++) {
   const phase = phases[i];
@@ -215,19 +223,17 @@ You are gui-agent implementing Phase ${phase.number} for ${pluginName}.
 - architecture.md: plugins/${pluginName}/.planning/architecture.md
 - plan.md: plugins/${pluginName}/.planning/plan.md
 - parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
-- Required Reading: troubleshooting/patterns/stage-3-patterns.md
 
-**CRITICAL: Read Required Reading BEFORE implementation.**
+${researchContext}
 
 **Phase implementation steps:**
 1. Read all contract files listed above
-2. Read Required Reading (MANDATORY)
-3. Extract Phase ${phase.number} components from plan.md
-4. Implement this phase's UI elements only
-5. Build on existing code from previous phases (preserve all)
-6. Connect this phase's parameters only
-7. Maintain member order (Relays → WebView → Attachments)
-8. Return JSON report with phase_completed: "${phase.number}"
+2. Extract Phase ${phase.number} components from plan.md
+3. Implement this phase's UI elements only
+4. Build on existing code from previous phases (preserve all)
+5. Connect this phase's parameters only
+6. Maintain member order (Relays → WebView → Attachments)
+7. Return JSON report with phase_completed: "${phase.number}"
 
 Build verification handled by orchestrator after you complete.
     `

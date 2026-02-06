@@ -247,6 +247,12 @@ def run_execute_phase(plugin_name, stage):
     contracts = load_contracts(plugin_name)
     plan = read_file(f"plugins/{plugin_name}/.planning/stages/{stage}/PLAN.md")
 
+    # Get research context via injection utility
+    stage_number = int(stage[0])
+    research_context = run_bash(
+        f"python3 .claude/scripts/inject-context.py --stage {stage_number} --agent {agent} --plugin {plugin_name}"
+    )
+
     # Invoke agent
     result = invoke_task(
         subagent_type=agent,
@@ -261,7 +267,7 @@ def run_execute_phase(plugin_name, stage):
         - ARCHITECTURE.md: {contracts.arch_summary}
         - parameter-spec.md: {contracts.params}
 
-        Required Reading: Load stage-{stage[0]}-patterns.md
+        {research_context}
 
         After implementation, create stages/{stage}/SUMMARY.md.
         """

@@ -37,9 +37,14 @@ Orchestrator does NOT read contracts - subagent will read them from files.
 
 ### 3. Invoke foundation-shell-agent via Task Tool
 
-Call foundation-shell-agent subagent with minimal prompt:
+Get research context and call foundation-shell-agent subagent with minimal prompt:
 
 ```typescript
+// Get research context (auto-discovered resources + stage patterns)
+const researchContext = bash(
+    `python3 .claude/scripts/inject-context.py --stage 1 --agent foundation-shell-agent --plugin ${pluginName}`
+);
+
 const foundationShellResult = Task({
   subagent_type: "foundation-shell-agent",
   description: `Stage 1 - ${pluginName}`,
@@ -56,18 +61,18 @@ You are foundation-shell-agent implementing Stage 1 for ${pluginName}.
 - plan.md: plugins/${pluginName}/.planning/plan.md
 - parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 - branding.json: .claude/branding.json
-- Required Reading: troubleshooting/patterns/stage-1-patterns.md
 
-**CRITICAL: Read Required Reading AND branding.json BEFORE implementation.**
+${researchContext}
+
+**CRITICAL: Read branding.json BEFORE implementation.**
 
 **Implementation steps:**
 1. Read all contract files listed above
 2. Read branding.json for company metadata
-3. Read Required Reading (MANDATORY)
-4. Create CMakeLists.txt with JUCE 8 integration and branding
-5. Create Source/PluginProcessor.{h,cpp} with APVTS and file headers
-6. Implement ALL parameters from parameter-spec.md
-7. Return JSON report with status and file list
+3. Create CMakeLists.txt with JUCE 8 integration and branding
+4. Create Source/PluginProcessor.{h,cpp} with APVTS and file headers
+5. Implement ALL parameters from parameter-spec.md
+6. Return JSON report with status and file list
 
 Build verification handled by orchestrator after you complete.
   `

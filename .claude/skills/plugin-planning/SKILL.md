@@ -84,14 +84,21 @@ DISCUSS (BRIEF.md exists) → RESEARCH → PLAN → outputs: ARCHITECTURE.md, RO
    - plugins/[Name]/.planning/parameter-spec.md OR parameter-spec-draft.md
    - plugins/[Name]/.planning/mockups/*.yaml (if exists)
 
-2. Invoke subagent:
+2. Get research context for Stage 0:
+   ```python
+   research_context = run_bash(
+       f"python3 .claude/scripts/inject-context.py --stage 0 --agent research-planning-agent --plugin {plugin_name}"
+   )
    ```
-   Task(subagent_type="research-planning-agent", description="[prompt with contracts]", model="sonnet")
+
+3. Invoke subagent (include research_context in prompt):
+   ```
+   Task(subagent_type="research-planning-agent", description="[prompt with contracts and {research_context}]", model="sonnet")
    ```
 
    See [references/subagent-invocation.md](references/subagent-invocation.md) for detailed prompt construction.
 
-3. After subagent returns, execute checkpoint protocol:
+4. After subagent returns, execute checkpoint protocol:
    - Read subagent's return message
    - Verify ARCHITECTURE.md and ROADMAP.md created
    - Present decision menu (use assets/decision-menu-stage-0.md template)

@@ -20,6 +20,17 @@ Read tools (in parallel):
 
 **Performance:** Use parallel Read calls in single tool invocation block to minimize round trips.
 
+## Research Context Injection
+
+Before constructing the prompt, retrieve research context for Stage 0:
+
+```bash
+# Get auto-discovered research resources for this agent
+python3 .claude/scripts/inject-context.py --stage 0 --agent research-planning-agent --plugin [PluginName]
+```
+
+Store the output as `research_context`. If the script fails or returns empty, proceed with an empty string (harmless when embedded in prompt).
+
 ## Prompt Construction
 
 Construct prompt with contracts prepended to provide full context:
@@ -56,6 +67,8 @@ PART 3 - State:
 1. Create plugins/[Name]/.planning/stages/0-ideation/CONTEXT.md with discuss findings
 2. Update plugins/[Name]/.planning/STATUS.md with stage progress
 3. Commit changes
+
+{research_context}
 
 Return JSON report with file locations and status.
 ```
