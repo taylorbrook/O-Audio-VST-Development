@@ -4,6 +4,11 @@
 #include <juce_gui_extra/juce_gui_extra.h>
 #include "PluginProcessor.h"
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+  #include "OuariconLicenseUI.h"
+#endif
+
 //==============================================================================
 /**
  * OuariconAnalogEQ Plugin Editor with WebView UI
@@ -92,6 +97,11 @@ private:
 
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconAnalogEQAudioProcessorEditor)
 };

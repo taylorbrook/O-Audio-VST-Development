@@ -81,6 +81,14 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
 
     addAndMakeVisible(*webView);
 
+#if OUARICON_LICENSING_ENABLED
+    // Licensing: activation overlay (visible until licensed)
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-analog-eq", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(*licenseManager);
+    addAndMakeVisible(licenseOverlay.get());
+#endif
+
     // 3️⃣ Create attachments LAST (depend on relays and webView)
     // LF Band
     lfFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -156,6 +164,11 @@ void OuariconAnalogEQAudioProcessorEditor::resized()
 {
     // WebView fills entire editor window
     webView->setBounds(getLocalBounds());
+
+#if OUARICON_LICENSING_ENABLED
+    if (licenseOverlay != nullptr)
+        licenseOverlay->setBounds(getLocalBounds());
+#endif
 }
 
 //==============================================================================

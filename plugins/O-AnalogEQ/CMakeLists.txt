@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconAnalogEQ
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -49,6 +51,12 @@ target_link_libraries(OuariconAnalogEQ
 
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconAnalogEQ)
+
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(OuariconAnalogEQ licensing)
+    target_compile_definitions(OuariconAnalogEQ PRIVATE OUARICON_LICENSING_ENABLED=1)
+endif()
 
 # WebView UI Resources
 juce_add_binary_data(OuariconAnalogEQ_UIResources
