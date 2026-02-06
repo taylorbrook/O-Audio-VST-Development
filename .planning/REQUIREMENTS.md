@@ -14,10 +14,10 @@
 
 ### Context Injection
 
-- [ ] **INJT-01**: SubagentStart hook injects discovered resource paths and summaries as additionalContext when agents spawn
-- [ ] **INJT-02**: Skill orchestrators (plugin-workflow, plugin-planning, plugin-improve) add resource section to agent prompts before Task() calls
-- [ ] **INJT-03**: Stage-specific troubleshooting patterns auto-injected via SubagentStart hook (e.g., stage-2-patterns.md for dsp-agent)
-- [ ] **INJT-04**: Injected content stays within token budget (max 4,000 tokens of research context per agent)
+- [x] **INJT-01**: Skill orchestrators inject discovered resource summaries and excerpted content via inject-context.py when stage agents spawn
+- [x] **INJT-02**: Skill orchestrators (plugin-workflow, plugin-planning, improve-milestone) add resource section to agent prompts before Task() calls
+- [x] **INJT-03**: Stage-specific troubleshooting patterns auto-injected inline by inject-context.py for the corresponding agent without manual configuration
+- [x] **INJT-04**: Injected content stays within token budget (max 4,000 tokens of research context per agent)
 
 ### Accountability
 
@@ -66,10 +66,10 @@
 | DISC-02 | Phase 10 | Complete |
 | DISC-03 | Phase 10 | Complete |
 | DISC-04 | Phase 10 | Complete |
-| INJT-01 | Phase 11 | Pending |
-| INJT-02 | Phase 11 | Pending |
-| INJT-03 | Phase 11 | Pending |
-| INJT-04 | Phase 11 | Pending |
+| INJT-01 | Phase 11 | Complete |
+| INJT-02 | Phase 11 | Complete |
+| INJT-03 | Phase 11 | Complete |
+| INJT-04 | Phase 11 | Complete |
 | ACCT-01 | Phase 12 | Pending |
 | ACCT-02 | Phase 12 | Pending |
 | ACCT-03 | Phase 12 | Pending |
@@ -85,4 +85,4 @@
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-05 — DISC-01 through DISC-04 complete (Phase 10)*
+*Last updated: 2026-02-05 — INJT-01 through INJT-04 complete (Phase 11)*
