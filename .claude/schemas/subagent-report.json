@@ -157,6 +157,25 @@
     "stateUpdateError": {
       "type": "string",
       "description": "Error message if state update failed (optional)"
+    },
+    "resources_consulted": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["path"],
+        "properties": {
+          "path": {
+            "type": "string",
+            "description": "Relative path to the research document that was consulted"
+          },
+          "relevance": {
+            "type": "string",
+            "description": "Optional note on how the resource informed implementation"
+          }
+        },
+        "additionalProperties": false
+      },
+      "description": "Research resources the agent actually consulted from injected context. Absence from this list means the resource was not consulted."
     }
   },
   "additionalProperties": false
