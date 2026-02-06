@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 10 complete, Phase 11 next
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 11 in progress
 
 ## Current Position
 
-Phase: 10 of 13 (Resource Index & Discovery) - COMPLETE
-Plan: 4 of 4 in current phase (all plans complete)
-Status: Phase complete
-Last activity: 2026-02-05 — Completed quick-004 (Dev vs Release Plugin Naming)
+Phase: 11 of 13 (Context Injection Pipeline)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-05 — Completed 11-01-PLAN.md (Context Injection Utility)
 
-Progress: [██████████████████████░░░] 88% overall (29/29+ plans)
-v1.2:    [██████░░░░░░░░░░░░░░░░░░] 25% (4/~16 plans — Phase 10 of 13)
+Progress: [██████████████████████░░░] 91% overall (30/33 plans)
+v1.2:    [████████████░░░░░░░░░░░░] 31% (5/~16 plans — Phase 11 of 13)
 
 ## Performance Metrics
 
@@ -31,16 +31,16 @@ v1.2:    [██████░░░░░░░░░░░░░░░░░�
 - Requirements: 13/13
 - Timeline: 2 days
 
-**v1.2 Complete:**
-- Phases: 10
-- Plans completed: 4
-- Requirements: DISC-01 through DISC-04 (4/4)
-- Timeline: 1 day
+**v1.2 In Progress:**
+- Phases: 10 (complete), 11 (1/2 plans complete)
+- Plans completed: 5
+- Requirements: DISC-01 through DISC-04 (4/4), INJT-04 (token budget) partial
+- Timeline: ongoing
 
 **Cumulative:**
 - Total phases completed: 10
-- Total plans completed: 29
-- Total requirements satisfied: 52
+- Total plans completed: 30
+- Total requirements satisfied: 52+
 
 ## Accumulated Context
 
@@ -61,6 +61,10 @@ Recent decisions affecting current work:
 - 10-04: Scoring weights stage(0.4) > role(0.35) > keyword(0.25) with primary tier at >= 0.75
 - 10-04: Agent name-to-role mapping covers all 11 pipeline agent names to 4 roles
 - 10-04: Hyphenated script filenames matching plugin-registry.py convention
+- 11-01: 80-token framing overhead for XML context blocks
+- 11-01: Stage pattern files get first priority in token budget (up to 2,500 tokens)
+- 11-01: Primary resources capped at 800 tokens each, supplementary reserve 200 tokens
+- 11-01: Graceful failure returns empty string (no workflow interruption)
 - quick-004: OUARICON_RELEASE option (OFF=dev, ON=release) controls COMPANY_NAME, MANUFACTURER_CODE, and PRODUCT_NAME suffix
 - quick-004: Dev branding is "Ouaricon Audio Development" / OuDv / "-dev" suffix; Release is "Ouaricon Audio" / OuAu / no suffix
 - quick-004: All 17 plugin CMakeLists.txt use variables; new plugins must follow same pattern
@@ -85,10 +89,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed quick-004 (Dev vs Release Plugin Naming)
+Stopped at: Completed 11-01-PLAN.md (Context Injection Utility)
 Resume file: None
 
-Next: `/gsd:discuss-phase 11` or `/gsd:plan-phase 11`
+Next: `/gsd:execute-plan .planning/phases/11-context-injection-pipeline/11-02-PLAN.md`
 
 ---
-*Phase 10 complete. Quick-004 resolved plugin naming standardization. Phase 11 next.*
+*Phase 11 plan 01 complete. inject-context.py created and verified. Plan 02 (skill integration) next.*
