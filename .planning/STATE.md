@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 12 in progress
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 12 complete
 
 ## Current Position
 
 Phase: 12 of 13 (Accountability & Validation)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-06 — Completed 12-01-PLAN.md (Schema Extension & Accountability Validator)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-06 — Completed 12-02-PLAN.md (Agent Instructions & Hook Integration)
 
-Progress: [████████████████████████░] 97% overall (33/34 plans)
-v1.2:    [██████████████████░░░░░░] 50% (8/~16 plans — Phase 12 plan 1 complete)
+Progress: [█████████████████████████] 100% overall (34/34 plans)
+v1.2:    [████████████████████░░░░] 56% (9/~16 plans — Phase 12 complete)
 
 ## Performance Metrics
 
@@ -32,15 +32,15 @@ v1.2:    [██████████████████░░░░░�
 - Timeline: 2 days
 
 **v1.2 In Progress:**
-- Phases: 10 (complete), 11 (complete), 12 (in progress, 1/2 plans)
-- Plans completed: 8
-- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 (1/1 partial)
+- Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans)
+- Plans completed: 9
+- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 through ACCT-03 (3/3)
 - Timeline: ongoing
 
 **Cumulative:**
-- Total phases completed: 11
-- Total plans completed: 33
-- Total requirements satisfied: 56+
+- Total phases completed: 12
+- Total plans completed: 34
+- Total requirements satisfied: 59+
 
 ## Accumulated Context
 
@@ -77,6 +77,9 @@ Recent decisions affecting current work:
 - 12-01: resources_consulted as top-level property (not inside outputs) -- agent-level metadata
 - 12-01: Multi-strategy transcript parsing (direct JSON, code blocks, embedded objects)
 - 12-01: Tolerate plain string entries in resources_consulted alongside object entries
+- 12-02: Accountability instructions placed BEFORE JSON report section in each agent
+- 12-02: Hook accountability runs BEFORE relevance check (covers all 5 AGENT_STAGE_MAP agents)
+- 12-02: Separate PLUGIN_NAME_ACCT variable to avoid collision with Layer 0/1 PLUGIN_NAME
 
 ### Pending Todos
 
@@ -99,10 +102,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 12-01-PLAN.md (Schema Extension & Accountability Validator)
+Stopped at: Completed 12-02-PLAN.md (Agent Instructions & Hook Integration)
 Resume file: None
 
-Next: Phase 12 Plan 02 (Hook Integration) -- `/gsd:execute-phase` for 12-02
+Next: Phase 13 or project completion -- `/gsd:execute-phase` for next phase
 
 ---
-*12-01 complete. Subagent schema extended with optional resources_consulted field. Accountability validator created with warning-only guarantee and JSONL transcript parsing. Ready for 12-02 hook integration.*
+*Phase 12 complete (2/2 plans). Full accountability pipeline operational: schema extended, validator created, all 11 agents instructed, hook integrated with real-time stderr warnings. Ready for Phase 13.*
