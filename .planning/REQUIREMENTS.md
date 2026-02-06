@@ -21,9 +21,9 @@
 
 ### Accountability
 
-- [ ] **ACCT-01**: Subagent report JSON schema extended with optional resources_consulted field
-- [ ] **ACCT-02**: All stage agents (dsp-agent, gui-agent, foundation-shell-agent, research-planning-agent, polish-agent) updated to report resources consulted
-- [ ] **ACCT-03**: SubagentStop hook validates resource usage reporting at warning level (logs gaps, does not block)
+- [x] **ACCT-01**: Subagent report JSON schema extended with optional resources_consulted field
+- [x] **ACCT-02**: All stage agents (dsp-agent, gui-agent, foundation-shell-agent, research-planning-agent, polish-agent) updated to report resources consulted
+- [x] **ACCT-03**: SubagentStop hook validates resource usage reporting at warning level (logs gaps, does not block)
 
 ### Maintenance
 
@@ -70,9 +70,9 @@
 | INJT-02 | Phase 11 | Complete |
 | INJT-03 | Phase 11 | Complete |
 | INJT-04 | Phase 11 | Complete |
-| ACCT-01 | Phase 12 | Pending |
-| ACCT-02 | Phase 12 | Pending |
-| ACCT-03 | Phase 12 | Pending |
+| ACCT-01 | Phase 12 | Complete |
+| ACCT-02 | Phase 12 | Complete |
+| ACCT-03 | Phase 12 | Complete |
 | MAINT-01 | Phase 13 | Pending |
 | MAINT-02 | Phase 13 | Pending |
 | MAINT-03 | Phase 13 | Pending |
@@ -85,4 +85,4 @@
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-05 — INJT-01 through INJT-04 complete (Phase 11)*
+*Last updated: 2026-02-06 — ACCT-01 through ACCT-03 complete (Phase 12)*

@@ -105,7 +105,7 @@ Last session: 2026-02-06
 Stopped at: Completed 12-02-PLAN.md (Agent Instructions & Hook Integration)
 Resume file: None
 
-Next: Phase 13 or project completion -- `/gsd:execute-phase` for next phase
+Next: Phase 13 (Maintenance Tooling & Hardening) -- needs planning first via `/gsd:plan-phase 13`
 
 ---
-*Phase 12 complete (2/2 plans). Full accountability pipeline operational: schema extended, validator created, all 11 agents instructed, hook integrated with real-time stderr warnings. Ready for Phase 13.*
+*Phase 12 complete (2/2 plans). Full accountability pipeline operational: schema extended, validator created, all 11 agents instructed, hook integrated with real-time stderr warnings. Phase 13 next.*
