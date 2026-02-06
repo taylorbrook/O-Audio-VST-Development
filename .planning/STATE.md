@@ -10,12 +10,12 @@ See: .planning/PROJECT.md (updated 2026-02-04)
 ## Current Position
 
 Phase: 13 of 13 (Maintenance Tooling & Hardening)
-Plan: 2 of 4 in current phase
+Plan: 3 of 4 in current phase
 Status: In progress
-Last activity: 2026-02-06 — Completed 13-02-PLAN.md (Frontmatter Retrofit & Manifest Regeneration)
+Last activity: 2026-02-06 — Completed 13-04-PLAN.md (Agent Frontmatter Auto-Population)
 
-Progress: [█████████████████████████] 100% overall (36/38 plans)
-v1.2:    [██████████████████████░░] 69% (11/~16 plans — Phase 13 plan 2 of 4 complete)
+Progress: [█████████████████████████] 100% overall (37/38 plans)
+v1.2:    [███████████████████████░] 75% (12/~16 plans — Phase 13 plan 3 of 4 complete)
 
 ## Performance Metrics
 
@@ -32,14 +32,14 @@ v1.2:    [██████████████████████░�
 - Timeline: 2 days
 
 **v1.2 In Progress:**
-- Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans), 13 (in progress, 2/4 plans)
-- Plans completed: 11
+- Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans), 13 (in progress, 3/4 plans)
+- Plans completed: 12
 - Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 through ACCT-03 (3/3), MAINT partial
 - Timeline: ongoing
 
 **Cumulative:**
 - Total phases completed: 12
-- Total plans completed: 36
+- Total plans completed: 37
 - Total requirements satisfied: 59+
 
 ## Accumulated Context
@@ -86,6 +86,9 @@ Recent decisions affecting current work:
 - 13-02: Historical created dates from git log --follow (11 unique dates, 2026-01-09 to 2026-02-05)
 - 13-02: cross-platform-webview-best-practices.md received full 10-field frontmatter (was missing entirely)
 - 13-02: Field ordering: title > created > last_verified > juce_version > summary > domain > type > keywords > stages > agents
+- 13-04: research-planning-agent is the only agent writing to research/ -- receives frontmatter requirement section
+- 13-04: deep-research is read-only skill -- receives frontmatter_template in output contract (forward-looking, optional)
+- 13-04: gsd-phase-researcher writes to .planning/ not research/ -- no update needed
 
 ### Pending Todos
 
@@ -108,10 +111,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed 13-02-PLAN.md (Frontmatter Retrofit & Manifest Regeneration)
+Stopped at: Completed 13-04-PLAN.md (Agent Frontmatter Auto-Population)
 Resume file: None
 
 Next: 13-03-PLAN.md
 
 ---
-*Phase 13 plan 2 of 4 complete. All 27 research docs retrofitted with temporal frontmatter (created/last_verified/juce_version). Manifest regenerated with 27 documents indexed. cross-platform-webview-best-practices.md received full frontmatter (was missing entirely).*
+*Phase 13 plan 3 of 4 complete. research-planning-agent updated with 10-field frontmatter template requirement. deep-research output contract extended with forward-looking frontmatter_template property. Frontmatter auto-population chain now complete: validator (13-01) + retrofit (13-02) + agent instructions (13-04).*
