@@ -251,7 +251,9 @@ def inject_context(plugin_name, stage, agent_type, keywords=None, token_budget=D
         Formatted context block string, or empty string on failure.
     """
     try:
-        remaining_budget = token_budget
+        # Reserve tokens for XML framing overhead (tags, headers, section labels)
+        FRAMING_OVERHEAD = 80
+        remaining_budget = token_budget - FRAMING_OVERHEAD
 
         # 1. Load stage pattern file (first priority)
         pattern_content = get_stage_pattern_content(stage, max_tokens=min(PATTERN_TOKEN_CAP, remaining_budget))
