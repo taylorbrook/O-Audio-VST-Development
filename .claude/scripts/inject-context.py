@@ -19,6 +19,7 @@ Usage:
 import argparse
 import re
 import sys
+from datetime import date
 from pathlib import Path
 
 try:
@@ -42,6 +43,30 @@ _discover_module = importlib.util.module_from_spec(_discover_spec)
 _discover_spec.loader.exec_module(_discover_module)
 discover = _discover_module.discover
 resolve_role = _discover_module.resolve_role
+
+# Staleness detection
+STALENESS_THRESHOLD_DAYS = 90
+
+
+def check_staleness(last_verified_str):
+    """Check if a resource is stale based on its last_verified date.
+
+    Args:
+        last_verified_str: ISO date string or datetime.date object.
+
+    Returns:
+        (is_stale, days_old) tuple. days_old is -1 if date is unparseable.
+    """
+    try:
+        if isinstance(last_verified_str, date):
+            verified_date = last_verified_str
+        else:
+            verified_date = date.fromisoformat(str(last_verified_str))
+        days_old = (date.today() - verified_date).days
+        return days_old > STALENESS_THRESHOLD_DAYS, days_old
+    except (ValueError, TypeError):
+        return True, -1
+
 
 # Stage pattern file mapping
 STAGE_PATTERN_MAP = {
@@ -212,7 +237,19 @@ def format_context_block(primary_resources, supplementary_resources, pattern_con
         parts.append("### MUST-READ (Primary Tier)")
         for result, content in primary_resources:
             parts.append("")
-            parts.append(f"**{result['title']}** (relevance: {result['relevance']})")
+            title_line = f"**{result['title']}** (relevance: {result['relevance']})"
+            # Staleness annotation for primary resources
+            last_verified = result.get("last_verified", "")
+            if last_verified:
+                is_stale, days_old = check_staleness(last_verified)
+                if is_stale:
+                    if days_old >= 0:
+                        title_line += f" (verified: {last_verified}, {days_old} days ago)"
+                        print(f"Warning: Stale resource ({days_old} days): {result['path']}", file=sys.stderr)
+                    else:
+                        title_line += " (verified: unknown date)"
+                        print(f"Warning: Stale resource (unparseable date): {result['path']}", file=sys.stderr)
+            parts.append(title_line)
             parts.append(content)
 
     # Supplementary tier
@@ -220,7 +257,19 @@ def format_context_block(primary_resources, supplementary_resources, pattern_con
         parts.append("")
         parts.append("### Supplementary")
         for result in supplementary_resources:
-            parts.append(f"- **{result['title']}**: {result['summary']}")
+            mention_line = f"- **{result['title']}**: {result['summary']}"
+            # Staleness annotation for supplementary resources
+            last_verified = result.get("last_verified", "")
+            if last_verified:
+                is_stale, days_old = check_staleness(last_verified)
+                if is_stale:
+                    if days_old >= 0:
+                        mention_line += f" (verified: {last_verified}, {days_old} days ago)"
+                        print(f"Warning: Stale resource ({days_old} days): {result['path']}", file=sys.stderr)
+                    else:
+                        mention_line += " (verified: unknown date)"
+                        print(f"Warning: Stale resource (unparseable date): {result['path']}", file=sys.stderr)
+            parts.append(mention_line)
             parts.append(f"  _Path: {result['path']}_")
 
     # Stage patterns

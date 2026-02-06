@@ -208,6 +208,7 @@ def discover(
             "path": doc["path"],
             "title": doc["title"],
             "summary": doc["summary"],
+            "last_verified": doc.get("last_verified", ""),
             "relevance": round(score, 4),
             "tier": tier,
             "match_reasons": reasons,
