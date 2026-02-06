@@ -1,6 +1,7 @@
 #!/bin/bash
 # SubagentStop hook - Deterministic validation after each subagent completes
 # Layer 1 validation: Fast pattern matching (1-3s), blocks workflow on failure
+# Layer 2 accountability: Resource usage tracking (warning-only, never blocks)
 
 INPUT=$(cat)
 SUBAGENT=$(echo "$INPUT" | jq -r '.subagent_name // empty' 2>/dev/null)
@@ -9,6 +10,21 @@ SUBAGENT=$(echo "$INPUT" | jq -r '.subagent_name // empty' 2>/dev/null)
 if [ -z "$SUBAGENT" ]; then
   echo "Hook not relevant: no subagent_name in input, skipping gracefully"
   exit 0
+fi
+
+# Resource accountability validation (warning-only, NEVER blocks workflow)
+# Phase 12: Validates that agents report consulting MUST-READ injected resources
+# Runs for ALL agents (validator silently skips unknown agents via AGENT_STAGE_MAP)
+AGENT_TYPE=$(echo "$INPUT" | jq -r '.agent_type // .subagent_name // empty' 2>/dev/null)
+TRANSCRIPT_PATH=$(echo "$INPUT" | jq -r '.agent_transcript_path // empty' 2>/dev/null)
+PLUGIN_NAME_ACCT=$(echo "$INPUT" | jq -r '.plugin_name // empty' 2>/dev/null)
+
+if [ -n "$AGENT_TYPE" ]; then
+  python3 .claude/hooks/validators/validate-resource-accountability.py \
+    "$AGENT_TYPE" "${PLUGIN_NAME_ACCT:-}" "${TRANSCRIPT_PATH:-}" 2>&1 >/dev/null | while IFS= read -r line; do
+    echo "$line" >&2
+  done
+  # Intentionally ignore exit code -- accountability NEVER blocks workflow
 fi
 
 # Check relevance FIRST - only validate our implementation subagents
