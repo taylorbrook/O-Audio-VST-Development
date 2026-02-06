@@ -5,7 +5,7 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 13 in progress
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — complete (shipped 2026-02-06)
 
 ## Current Position
 
@@ -34,7 +34,7 @@ v1.2:    [███████████████████████�
 **v1.2 Complete:**
 - Phases: 10 (complete), 11 (complete), 12 (complete, 2/2 plans), 13 (complete, 4/4 plans)
 - Plans completed: 16
-- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 through ACCT-03 (3/3), MAINT-01 through MAINT-03 (3/3)
+- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 through ACCT-03 (3/3), MAINT-01 through MAINT-04 (4/4)
 - Timeline: 2 days
 
 **Cumulative:**

@@ -4,7 +4,7 @@
 
 - ✅ **v1.0 MVP** - Phases 1-7 (shipped 2026-02-01)
 - ✅ **v1.1 Cleanup & Workflow Polish** - Phases 8-9 (shipped 2026-02-02)
-- 🚧 **v1.2 Agent Intelligence & Resource Orchestration** - Phases 10-13 (in progress)
+- ✅ **v1.2 Agent Intelligence & Resource Orchestration** - Phases 10-13 (shipped 2026-02-06)
 
 ## Phases
 
@@ -33,14 +33,14 @@
 
 </details>
 
-### 🚧 v1.2 Agent Intelligence & Resource Orchestration (In Progress)
+### ✅ v1.2 Agent Intelligence & Resource Orchestration — SHIPPED 2026-02-06
 
 **Milestone Goal:** Ensure all agents are invoked with relevant knowledge base resources and report what they consulted, with full traceability and graceful degradation.
 
 - [x] **Phase 10: Resource Index & Discovery** - Static manifest and keyword-based discovery engine — completed 2026-02-05
 - [x] **Phase 11: Context Injection Pipeline** - Deliver discovered resources to agents before execution — completed 2026-02-05
 - [x] **Phase 12: Accountability & Validation** - Agents report resources consulted; hooks validate usage — completed 2026-02-06
-- [ ] **Phase 13: Maintenance Tooling & Hardening** - Auto-generation, freshness tracking, graceful degradation
+- [x] **Phase 13: Maintenance Tooling & Hardening** - Auto-generation, freshness tracking, graceful degradation — completed 2026-02-06
 
 ## Phase Details
 
@@ -103,10 +103,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 13-01-PLAN.md — Schema + validator + generator extension with temporal fields, graceful degradation, atomic writes
-- [ ] 13-02-PLAN.md — Frontmatter retrofit (add created, last_verified, juce_version to all 27 research docs)
-- [ ] 13-03-PLAN.md — Staleness detection, auto-regeneration hook, batch verification script
-- [ ] 13-04-PLAN.md — Agent instruction updates for frontmatter auto-population
+- [x] 13-01-PLAN.md — Schema + validator + generator extension with temporal fields, graceful degradation, atomic writes
+- [x] 13-02-PLAN.md — Frontmatter retrofit (add created, last_verified, juce_version to all 27 research docs)
+- [x] 13-03-PLAN.md — Staleness detection, auto-regeneration hook, batch verification script
+- [x] 13-04-PLAN.md — Agent instruction updates for frontmatter auto-population
 
 ## Progress
 
@@ -127,7 +127,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6 → 7 → 8 →
 | 10. Resource Index & Discovery | v1.2 | 4/4 | Complete | 2026-02-05 |
 | 11. Context Injection Pipeline | v1.2 | 2/2 | Complete | 2026-02-05 |
 | 12. Accountability & Validation | v1.2 | 2/2 | Complete | 2026-02-06 |
-| 13. Maintenance Tooling & Hardening | v1.2 | 0/4 | Not started | - |
+| 13. Maintenance Tooling & Hardening | v1.2 | 4/4 | Complete | 2026-02-06 |
 
 ## Coverage Summary
 
@@ -157,4 +157,4 @@ See `.planning/milestones/v1.X-REQUIREMENTS.md` for archived requirement details
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-02-06 — Phase 13 planned (4 plans in 3 waves)*
+*Last updated: 2026-02-06 — Phase 13 complete, v1.2 milestone shipped*

@@ -27,10 +27,10 @@
 
 ### Maintenance
 
-- [ ] **MAINT-01**: Index auto-generation script rebuilds manifest from research/ folder metadata
-- [ ] **MAINT-02**: Research docs have YAML frontmatter with created date, last_verified date, and JUCE version
-- [ ] **MAINT-03**: Discovery warns when injecting stale resources (last_verified > 90 days)
-- [ ] **MAINT-04**: Graceful degradation — agents proceed normally if manifest missing or discovery fails
+- [x] **MAINT-01**: Index auto-generation script rebuilds manifest from research/ folder metadata
+- [x] **MAINT-02**: Research docs have YAML frontmatter with created date, last_verified date, and JUCE version
+- [x] **MAINT-03**: Discovery warns when injecting stale resources (last_verified > 90 days)
+- [x] **MAINT-04**: Graceful degradation — agents proceed normally if manifest missing or discovery fails
 
 ## Future Requirements (v1.3+)
 
@@ -73,10 +73,10 @@
 | ACCT-01 | Phase 12 | Complete |
 | ACCT-02 | Phase 12 | Complete |
 | ACCT-03 | Phase 12 | Complete |
-| MAINT-01 | Phase 13 | Pending |
-| MAINT-02 | Phase 13 | Pending |
-| MAINT-03 | Phase 13 | Pending |
-| MAINT-04 | Phase 13 | Pending |
+| MAINT-01 | Phase 13 | Complete |
+| MAINT-02 | Phase 13 | Complete |
+| MAINT-03 | Phase 13 | Complete |
+| MAINT-04 | Phase 13 | Complete |
 
 **Coverage:**
 - v1.2 requirements: 15 total
@@ -85,4 +85,4 @@
 
 ---
 *Requirements defined: 2026-02-04*
-*Last updated: 2026-02-06 — ACCT-01 through ACCT-03 complete (Phase 12)*
+*Last updated: 2026-02-06 — All v1.2 requirements complete (15/15)*
