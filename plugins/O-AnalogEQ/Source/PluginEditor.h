@@ -18,6 +18,9 @@
  */
 class OuariconAnalogEQAudioProcessorEditor : public juce::AudioProcessorEditor,
                                             private juce::Timer
+#if OUARICON_LICENSING_ENABLED
+                                          , private OuariconLicense::Listener
+#endif
 {
 public:
     OuariconAnalogEQAudioProcessorEditor(OuariconAnalogEQAudioProcessor&);
@@ -101,6 +104,7 @@ private:
 #if OUARICON_LICENSING_ENABLED
     std::unique_ptr<OuariconLicense> licenseManager;
     std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
+    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
 #endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconAnalogEQAudioProcessorEditor)

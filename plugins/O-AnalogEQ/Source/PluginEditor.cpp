@@ -83,10 +83,19 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
 
 #if OUARICON_LICENSING_ENABLED
     // Licensing: activation overlay (visible until licensed)
+    // Native WebView renders on top of JUCE components, so we must
+    // hide the WebView while the overlay is showing.
     licenseManager = std::make_unique<OuariconLicense>(
         "ouaricon-analog-eq", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
     licenseOverlay = std::make_unique<OuariconLicenseOverlay>(*licenseManager);
     addAndMakeVisible(licenseOverlay.get());
+
+    licenseManager->addListener(this);
+
+    if (! licenseManager->isLicensed())
+        webView->setVisible(false);
+    else
+        licenseOverlay->setVisible(false);
 #endif
 
     // 3️⃣ Create attachments LAST (depend on relays and webView)
@@ -146,6 +155,11 @@ OuariconAnalogEQAudioProcessorEditor::~OuariconAnalogEQAudioProcessorEditor()
 {
     // Stop timer before destruction
     stopTimer();
+
+#if OUARICON_LICENSING_ENABLED
+    if (licenseManager)
+        licenseManager->removeListener(this);
+#endif
 
     // Members destroyed in REVERSE order of declaration:
     // 1. Attachments destroyed FIRST (can safely call webView methods)
@@ -238,3 +252,19 @@ void OuariconAnalogEQAudioProcessorEditor::timerCallback()
     const float outputDB = audioProcessor.outputLevelDB.load(std::memory_order_relaxed);
     webView->emitEventIfBrowserIsVisible("outputLevel", outputDB);
 }
+
+#if OUARICON_LICENSING_ENABLED
+//==============================================================================
+void OuariconAnalogEQAudioProcessorEditor::licenseStatusChanged(
+    OuariconLicense&, OuariconLicense::Status newStatus)
+{
+    juce::MessageManager::callAsync([this, newStatus]()
+    {
+        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
+        webView->setVisible(licensed);
+
+        if (licenseOverlay)
+            licenseOverlay->setVisible(! licensed);
+    });
+}
+#endif
