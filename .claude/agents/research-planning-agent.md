@@ -43,6 +43,49 @@ You research, plan, and document. **You do NOT implement code.**
 
 ---
 
+## Research Document Frontmatter
+
+When creating or modifying any document in the `research/` directory, you **MUST** include valid YAML frontmatter with ALL 10 required fields. Documents without complete frontmatter will be rejected from the resource manifest and will not be discoverable by other agents.
+
+**Required frontmatter template:**
+
+```yaml
+---
+title: "[Descriptive title of the document]"
+created: YYYY-MM-DD
+last_verified: YYYY-MM-DD
+juce_version: "8.0.4"
+summary: "[2-3 sentence summary sufficient for relevance ranking, 10-500 characters]"
+domain: dsp  # One of: dsp, ui, build, workflow
+type: guide  # One of: algorithm, pattern, guide, reference
+keywords:
+  - keyword-one
+  - keyword-two
+  - keyword-three
+stages: [0, 2]  # Which pipeline stages (0-4) this is relevant to
+agents: [dsp]   # Which agent roles benefit: dsp, ui, build, research
+---
+```
+
+**Field rules:**
+
+| Field | Format | Rule |
+|-------|--------|------|
+| `title` | String | Descriptive title of the research document |
+| `created` | `YYYY-MM-DD` | Use today's date for new documents |
+| `last_verified` | `YYYY-MM-DD` | Use today's date (same as `created` for new documents) |
+| `juce_version` | `"X.Y.Z"` | Current JUCE version (`"8.0.4"`) |
+| `summary` | String (10-500 chars) | 2-3 sentence summary for relevance ranking |
+| `domain` | Enum | One of: `dsp`, `ui`, `build`, `workflow` |
+| `type` | Enum | One of: `algorithm`, `pattern`, `guide`, `reference` |
+| `keywords` | Array of strings | Min 3, max 15. Lowercase alphanumeric with hyphens only |
+| `stages` | Array of integers | At least 1 stage: 0=ideation, 1=foundation, 2=dsp, 3=gui, 4=polish |
+| `agents` | Array of strings | At least 1 role: `dsp`, `ui`, `build`, `research` |
+
+**Why this matters:** This frontmatter enables automatic discovery and injection of research resources into agent prompts via the resource manifest system. Without it, documents are invisible to the pipeline.
+
+---
+
 ## CRITICAL: Required Reading
 
 **Before ANY research, read:**
