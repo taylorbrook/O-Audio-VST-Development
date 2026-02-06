@@ -10,6 +10,7 @@
 */
 
 #include "OuariconLicense.h"
+#include <juce_cryptography/juce_cryptography.h>
 
 #if JUCE_MAC
  #include <IOKit/IOKitLib.h>
@@ -146,7 +147,6 @@ void OuariconLicense::activate (const juce::String& key,
                 if (code == "activation_limit_reached")
                 {
                     auto details = response.body.getProperty ("details", juce::var());
-                    auto used = (int) details.getProperty ("activations_used", 0);
                     auto max  = (int) details.getProperty ("max_activations", 3);
                     message = "All " + juce::String (max) + " activations used. "
                               "Deactivate a machine at oaudio.io/member";
@@ -359,7 +359,7 @@ bool OuariconLicense::validateOfflineToken (const juce::String& jwt)
         return false;
 
     // Check expiry
-    auto exp = (int64_t) payload.getProperty ("exp", 0);
+    auto exp = static_cast<juce::int64> (payload.getProperty ("exp", 0));
     auto now = juce::Time::currentTimeMillis() / 1000;
 
     if (now >= exp)
@@ -387,7 +387,7 @@ int64_t OuariconLicense::getTokenExpiryTime (const juce::String& jwt) const
     auto payload = decodeJwtPayload (jwt);
 
     if (payload.isObject())
-        return (int64_t) payload.getProperty ("exp", 0);
+        return static_cast<juce::int64> (payload.getProperty ("exp", 0));
 
     return 0;
 }
@@ -417,8 +417,9 @@ juce::String OuariconLicense::base64UrlDecode (const juce::String& input)
         standardBase64 += "=";
 
     juce::MemoryBlock decoded;
+    juce::MemoryOutputStream mos (decoded, false);
 
-    if (juce::Base64::convertFromBase64 (decoded, standardBase64))
+    if (juce::Base64::convertFromBase64 (mos, standardBase64))
         return juce::String::fromUTF8 ((const char*) decoded.getData(),
                                        (int) decoded.getSize());
 
@@ -435,8 +436,16 @@ juce::String OuariconLicense::generateMachineId()
 
    #if JUCE_MAC
     // macOS: IOKit hardware serial number
+    mach_port_t mainPort = 0;
+   #if defined (kIOMainPortDefault)
+    if (__builtin_available (macOS 12.0, *))
+        mainPort = kIOMainPortDefault;
+   #else
+    mainPort = kIOMasterPortDefault;
+   #endif
+
     io_service_t platformExpert = IOServiceGetMatchingService (
-        kIOMainPortDefault,
+        mainPort,
         IOServiceMatching ("IOPlatformExpertDevice"));
 
     if (platformExpert != 0)
@@ -528,9 +537,11 @@ OuariconLicense::HttpResponse OuariconLicense::postJsonSync (
     auto extraHeaders = "Content-Type: application/json\r\n"
                         "apikey: " + supabaseAnonKey;
 
-    auto options = juce::URL::InputStreamOptions (juce::URL::ParameterHandling::inPostBody)
+    int httpStatusCode = 0;
+    auto options = juce::URL::InputStreamOptions (juce::URL::ParameterHandling::inPostData)
                        .withExtraHeaders (extraHeaders)
-                       .withConnectionTimeoutMs (15000);
+                       .withConnectionTimeoutMs (15000)
+                       .withStatusCode (&httpStatusCode);
 
     auto stream = url.createInputStream (options);
 
@@ -540,7 +551,7 @@ OuariconLicense::HttpResponse OuariconLicense::postJsonSync (
         return result;
     }
 
-    result.statusCode = stream->getStatusCode();
+    result.statusCode = httpStatusCode;
     auto responseText = stream->readEntireStreamAsString();
     result.body = juce::JSON::parse (responseText);
 

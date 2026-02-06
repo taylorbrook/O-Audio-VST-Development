@@ -154,7 +154,7 @@ private:
         }
 
         // Basic format validation: OUA-XXXX-XXXX-XXXX
-        if (! key.matchesWildcard ("OUA-????-????-????", false))
+        if (! key.matchesWildcard ("OUA-" "????" "-" "????" "-" "????", false))
         {
             showStatus ("Invalid format. Expected: OUA-XXXX-XXXX-XXXX", true);
             return;

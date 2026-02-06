@@ -56,6 +56,7 @@ juce_generate_juce_header(OuariconAnalogEQ)
 if(OUARICON_LICENSING)
     ouaricon_add_module(OuariconAnalogEQ licensing)
     target_compile_definitions(OuariconAnalogEQ PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(OuariconAnalogEQ PRIVATE juce::juce_cryptography)
 endif()
 
 # WebView UI Resources
