@@ -21,9 +21,9 @@ from pathlib import Path
 
 try:
     import jsonschema
+    HAS_JSONSCHEMA = True
 except ImportError:
-    print("Error: jsonschema package required. Install with: pip install jsonschema", file=sys.stderr)
-    sys.exit(1)
+    HAS_JSONSCHEMA = False
 
 # Paths (follows plugin-registry.py conventions)
 SCRIPT_DIR = Path(__file__).parent
@@ -78,6 +78,7 @@ def load_and_validate_manifest():
 
     Returns the manifest dict, or None if missing/invalid.
     Per decision: empty results returned silently on failure.
+    Degrades gracefully when jsonschema is not available (loads without validation).
     """
     if not MANIFEST_PATH.exists():
         return None
@@ -88,19 +89,22 @@ def load_and_validate_manifest():
     except (json.JSONDecodeError, OSError):
         return None
 
-    if not SCHEMA_PATH.exists():
-        return None
+    if HAS_JSONSCHEMA:
+        if not SCHEMA_PATH.exists():
+            return None
 
-    try:
-        with open(SCHEMA_PATH) as f:
-            schema = json.load(f)
-    except (json.JSONDecodeError, OSError):
-        return None
+        try:
+            with open(SCHEMA_PATH) as f:
+                schema = json.load(f)
+        except (json.JSONDecodeError, OSError):
+            return None
 
-    try:
-        jsonschema.validate(manifest, schema)
-    except jsonschema.ValidationError:
-        return None
+        try:
+            jsonschema.validate(manifest, schema)
+        except jsonschema.ValidationError:
+            return None
+    else:
+        print("Warning: jsonschema not available, skipping manifest validation", file=sys.stderr)
 
     return manifest
 

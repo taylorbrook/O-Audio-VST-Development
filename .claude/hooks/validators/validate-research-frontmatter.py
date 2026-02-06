@@ -15,6 +15,7 @@ Usage:
 """
 import sys
 import re
+from datetime import date
 from pathlib import Path
 from dataclasses import dataclass, field
 from typing import List, Optional
@@ -30,7 +31,8 @@ except ImportError:
 # Constants
 # ---------------------------------------------------------------------------
 
-REQUIRED_FIELDS = {"title", "summary", "domain", "type", "keywords", "stages", "agents"}
+REQUIRED_FIELDS = {"title", "summary", "domain", "type", "keywords", "stages", "agents",
+                   "created", "last_verified", "juce_version"}
 
 VALID_DOMAINS = {"dsp", "ui", "build", "workflow"}
 VALID_TYPES = {"algorithm", "pattern", "guide", "reference"}
@@ -38,6 +40,7 @@ VALID_AGENTS = {"dsp", "ui", "build", "research"}
 
 KEYWORD_PATTERN = re.compile(r"^[a-z0-9-]+$")
 FRONTMATTER_PATTERN = re.compile(r"^---\n(.*?)\n---", re.DOTALL)
+JUCE_VERSION_PATTERN = re.compile(r"^\d+\.\d+\.\d+$")
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +77,35 @@ def parse_frontmatter(content: str) -> Optional[dict]:
     if not match:
         return None
     return yaml.safe_load(match.group(1))
+
+
+def validate_date_field(fm: dict, field_name: str, errors: list):
+    """Validate a date field (created or last_verified).
+
+    Handles both datetime.date objects (PyYAML auto-parsed) and strings.
+    """
+    value = fm.get(field_name)
+    if value is None:
+        return  # Missing field caught by required check
+    if isinstance(value, date):
+        return  # PyYAML parsed as date object -- valid
+    if isinstance(value, str):
+        try:
+            date.fromisoformat(value)
+        except ValueError:
+            errors.append(f"Invalid {field_name} date '{value}' (must be YYYY-MM-DD)")
+    else:
+        errors.append(f"'{field_name}' must be a date (YYYY-MM-DD)")
+
+
+def validate_juce_version(fm: dict, errors: list):
+    """Validate juce_version field matches semver pattern."""
+    value = fm.get("juce_version")
+    if value is None:
+        return  # Missing field caught by required check
+    value_str = str(value)
+    if not JUCE_VERSION_PATTERN.match(value_str):
+        errors.append(f"Invalid juce_version '{value}' (must be semver like 8.0.4)")
 
 
 def validate_frontmatter(filepath: Path) -> ValidationResult:
@@ -184,6 +216,13 @@ def validate_frontmatter(filepath: Path) -> ValidationResult:
             errors.append(f"'summary' too short ({len(summary)} chars); minimum is 10")
         if len(summary) > 500:
             errors.append(f"'summary' too long ({len(summary)} chars); maximum is 500")
+
+    # ---- Validate date fields ----
+    validate_date_field(fm, "created", errors)
+    validate_date_field(fm, "last_verified", errors)
+
+    # ---- Validate juce_version ----
+    validate_juce_version(fm, errors)
 
     if errors:
         result.passed = False
