@@ -1,5 +1,16 @@
 # O-AnalogEQ Changelog
 
+## [1.1.4] - 2026-02-05
+
+### Changed
+- Added licensing module integration (compile-flag gated, OFF for local dev)
+- Added branding variables for company name, manufacturer code, and dev suffix
+- Added WebView2 backend support for Windows compatibility
+
+### Fixed
+- Windows CI build failure - added preprocessor guards for `withResourceProvider` when WebView2 SDK is missing
+- Added `JUCE_USE_WIN_WEBVIEW2=1` compile definition
+
 ## [1.1.3] - 2026-02-05
 
 ### Fixed
