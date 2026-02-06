@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 11 in progress
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 11 complete, Phase 12 next
 
 ## Current Position
 
 Phase: 11 of 13 (Context Injection Pipeline)
-Plan: 1 of 2 in current phase
-Status: In progress
-Last activity: 2026-02-05 — Completed 11-01-PLAN.md (Context Injection Utility)
+Plan: 2 of 2 in current phase
+Status: Phase complete
+Last activity: 2026-02-05 — Completed 11-02-PLAN.md (Skill Integration + ROADMAP Update)
 
-Progress: [██████████████████████░░░] 91% overall (30/33 plans)
-v1.2:    [████████████░░░░░░░░░░░░] 31% (5/~16 plans — Phase 11 of 13)
+Progress: [███████████████████████░░] 94% overall (32/34 plans)
+v1.2:    [████████████████░░░░░░░░] 44% (7/~16 plans — Phase 11 complete, Phase 12 next)
 
 ## Performance Metrics
 
@@ -32,15 +32,15 @@ v1.2:    [████████████░░░░░░░░░░░�
 - Timeline: 2 days
 
 **v1.2 In Progress:**
-- Phases: 10 (complete), 11 (1/2 plans complete)
-- Plans completed: 5
-- Requirements: DISC-01 through DISC-04 (4/4), INJT-04 (token budget) partial
+- Phases: 10 (complete), 11 (complete)
+- Plans completed: 7
+- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4)
 - Timeline: ongoing
 
 **Cumulative:**
-- Total phases completed: 10
-- Total plans completed: 30
-- Total requirements satisfied: 52+
+- Total phases completed: 11
+- Total plans completed: 32
+- Total requirements satisfied: 56+
 
 ## Accumulated Context
 
@@ -65,6 +65,10 @@ Recent decisions affecting current work:
 - 11-01: Stage pattern files get first priority in token budget (up to 2,500 tokens)
 - 11-01: Primary resources capped at 800 tokens each, supplementary reserve 200 tokens
 - 11-01: Graceful failure returns empty string (no workflow interruption)
+- 11-02: research_context embedded inline in Task() prompt string (not separate parameter)
+- 11-02: Single injection per stage loop for phased implementations
+- 11-02: Domain-to-stage mapping in improve-milestone: dsp->2, gui->3, polish->4, general->0
+- 11-02: Required Reading instructions completely replaced by inline injection
 - quick-004: OUARICON_RELEASE option (OFF=dev, ON=release) controls COMPANY_NAME, MANUFACTURER_CODE, and PRODUCT_NAME suffix
 - quick-004: Dev branding is "Ouaricon Audio Development" / OuDv / "-dev" suffix; Release is "Ouaricon Audio" / OuAu / no suffix
 - quick-004: All 17 plugin CMakeLists.txt use variables; new plugins must follow same pattern
@@ -89,10 +93,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-05
-Stopped at: Completed 11-01-PLAN.md (Context Injection Utility)
+Stopped at: Completed 11-02-PLAN.md (Skill Integration + ROADMAP Update) -- Phase 11 complete
 Resume file: None
 
-Next: `/gsd:execute-plan .planning/phases/11-context-injection-pipeline/11-02-PLAN.md`
+Next: Phase 12 (Accountability & Validation) planning needed -- `/gsd:plan-phase` for Phase 12
 
 ---
-*Phase 11 plan 01 complete. inject-context.py created and verified. Plan 02 (skill integration) next.*
+*Phase 11 complete. All 4 INJT requirements satisfied. inject-context.py integrated into all 8 skill/reference files. Phase 12 next.*
