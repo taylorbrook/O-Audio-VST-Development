@@ -5,17 +5,17 @@
 See: .planning/PROJECT.md (updated 2026-02-04)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 11 complete, Phase 12 next
+**Current focus:** v1.2 Agent Intelligence & Resource Orchestration — Phase 12 in progress
 
 ## Current Position
 
-Phase: 11 of 13 (Context Injection Pipeline)
-Plan: 2 of 2 in current phase
-Status: Phase complete
-Last activity: 2026-02-06 — Completed quick-005 (gui-agent cross-platform WebView update)
+Phase: 12 of 13 (Accountability & Validation)
+Plan: 1 of 2 in current phase
+Status: In progress
+Last activity: 2026-02-06 — Completed 12-01-PLAN.md (Schema Extension & Accountability Validator)
 
-Progress: [███████████████████████░░] 94% overall (32/34 plans)
-v1.2:    [████████████████░░░░░░░░] 44% (7/~16 plans — Phase 11 complete, Phase 12 next)
+Progress: [████████████████████████░] 97% overall (33/34 plans)
+v1.2:    [██████████████████░░░░░░] 50% (8/~16 plans — Phase 12 plan 1 complete)
 
 ## Performance Metrics
 
@@ -32,14 +32,14 @@ v1.2:    [████████████████░░░░░░░�
 - Timeline: 2 days
 
 **v1.2 In Progress:**
-- Phases: 10 (complete), 11 (complete)
-- Plans completed: 7
-- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4)
+- Phases: 10 (complete), 11 (complete), 12 (in progress, 1/2 plans)
+- Plans completed: 8
+- Requirements: DISC-01 through DISC-04 (4/4), INJT-01 through INJT-04 (4/4), ACCT-01 (1/1 partial)
 - Timeline: ongoing
 
 **Cumulative:**
 - Total phases completed: 11
-- Total plans completed: 32
+- Total plans completed: 33
 - Total requirements satisfied: 56+
 
 ## Accumulated Context
@@ -74,6 +74,9 @@ Recent decisions affecting current work:
 - quick-004: All 17 plugin CMakeLists.txt use variables; new plugins must follow same pattern
 - quick-005: All WebView members use std::unique_ptr with constructor-body initialization (enables #if JUCE_WINDOWS blocks)
 - quick-005: 4 new critical patterns (#4-7) added for cross-platform WebView awareness
+- 12-01: resources_consulted as top-level property (not inside outputs) -- agent-level metadata
+- 12-01: Multi-strategy transcript parsing (direct JSON, code blocks, embedded objects)
+- 12-01: Tolerate plain string entries in resources_consulted alongside object entries
 
 ### Pending Todos
 
@@ -96,10 +99,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-06
-Stopped at: Completed quick-005 (gui-agent cross-platform WebView update)
+Stopped at: Completed 12-01-PLAN.md (Schema Extension & Accountability Validator)
 Resume file: None
 
-Next: Phase 12 (Accountability & Validation) planning needed -- `/gsd:plan-phase` for Phase 12
+Next: Phase 12 Plan 02 (Hook Integration) -- `/gsd:execute-phase` for 12-02
 
 ---
-*Quick-005 complete. gui-agent updated with cross-platform WebView best practices (NEEDS_WEBVIEW2, static linking, unique_ptr, 4 new patterns). Phase 12 next.*
+*12-01 complete. Subagent schema extended with optional resources_consulted field. Accountability validator created with warning-only guarantee and JSONL transcript parsing. Ready for 12-02 hook integration.*
