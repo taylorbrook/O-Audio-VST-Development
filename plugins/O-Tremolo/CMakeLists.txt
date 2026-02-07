@@ -60,6 +60,7 @@ juce_generate_juce_header(OuariconTremolo)
 if(OUARICON_LICENSING)
     ouaricon_add_module(OuariconTremolo licensing)
     target_compile_definitions(OuariconTremolo PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(OuariconTremolo PRIVATE juce::juce_cryptography)
 endif()
 
 # Compile definitions
