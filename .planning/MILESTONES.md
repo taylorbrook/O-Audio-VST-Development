@@ -1,5 +1,35 @@
 # Project Milestones: Plugin Freedom System
 
+## v1.2 Agent Intelligence & Resource Orchestration (Shipped: 2026-02-06)
+
+**Delivered:** Resource discovery, context injection, accountability tracking, and self-maintaining manifest system — agents now automatically receive relevant research with full traceability and graceful degradation
+
+**Phases completed:** 10-13 (12 plans total)
+
+**Key accomplishments:**
+
+- Built resource discovery engine with weighted scoring (stage/role/keyword) completing in 63ms
+- Created context injection pipeline delivering relevant research to all agents within 4,000 token budget
+- Implemented resource accountability tracking across all 11 agents with warning-level validation
+- Established self-maintaining manifest with auto-regeneration hooks and staleness detection (90-day threshold)
+- Retrofitted 27 research documents with 10-field YAML frontmatter including temporal tracking
+- Achieved graceful degradation — agents proceed normally if any component is missing or fails
+
+**Stats:**
+
+- 102 files created/modified
+- 8,806 lines added
+- 4 phases, 12 plans
+- 15 requirements satisfied (100% coverage)
+- 2 days from start to ship
+- 40 commits in milestone range
+
+**Git range:** `6fc6330` → `3e86dfc`
+
+**What's next:** Cross-plugin intelligence, decision provenance, or Windows distribution (v1.3)
+
+---
+
 ## v1.1 Cleanup & Workflow Polish (Shipped: 2026-02-02)
 
 **Delivered:** Repository cleanup (91% size reduction) and structured planning workflow for complex plugin improvements

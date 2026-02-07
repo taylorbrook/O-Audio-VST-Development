@@ -10,26 +10,17 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 
 ## Current State
 
-**Latest shipped:** v1.1 Cleanup & Workflow Polish (2026-02-02)
-**Current milestone:** v1.2 Agent Intelligence & Resource Orchestration
-
-## Current Milestone: v1.2 Agent Intelligence & Resource Orchestration
-
-**Goal:** Ensure all agents are invoked appropriately, have access to the full knowledge base, and are required to use relevant resources with full traceability.
-
-**Target features:**
-- Resource discovery (auto-detect relevant docs based on task context)
-- Mandatory resource injection (agents receive relevant resources before execution)
-- Usage accountability (agents report what resources they consulted)
-- Agent invocation audit (verify agents are called when they should be)
-- Hook system (pre-inject context, post-validate usage)
-- Full knowledge base access (research, patterns, templates, plugins, modules)
+**Latest shipped:** v1.2 Agent Intelligence & Resource Orchestration (2026-02-06)
+**Next milestone:** TBD (use `/gsd:new-milestone` to start)
 
 **System overview:**
-- 9 phases completed across 2 milestones
-- 25 plans executed
+- 13 phases completed across 3 milestones
+- 38 plans executed
+- 62+ requirements satisfied
 - Repository: 58MB (91% reduction from 636MB)
 - Clone time: 4 seconds
+- 27 research documents indexed with 10-field frontmatter
+- Resource discovery, injection, and accountability operational
 
 ## Requirements
 
@@ -51,19 +42,22 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 - ✓ Phase 0.6 Implementation Planning workflow — v1.1
 - ✓ Conditional planning for Tier 2/3 improvements — v1.1
 - ✓ Express mode bypass (--no-plan flag) — v1.1
+- ✓ Resource discovery system (weighted scoring, 63ms, stage/role/keyword matching) — v1.2
+- ✓ Context injection pipeline (auto-inject relevant research within 4K token budget) — v1.2
+- ✓ Agent usage accountability (resources_consulted field, warning-level validation) — v1.2
+- ✓ Self-maintaining manifest (auto-regeneration hooks, 90-day staleness detection) — v1.2
+- ✓ 27 research documents with 10-field YAML frontmatter — v1.2
+- ✓ Graceful degradation (agents proceed if manifest/discovery fails) — v1.2
 
 ### Active
 
-- [ ] Resource discovery system (auto-detect relevant docs from task context)
-- [ ] Mandatory resource injection for all stage agents
-- [ ] Agent usage accountability (report resources consulted)
-- [ ] Agent invocation audit (verify agents called when needed)
-- [ ] Pre-agent hooks for context injection
-- [ ] Post-agent hooks for usage validation
-- [ ] Full knowledge base access (research, patterns, templates, plugins, modules)
+(None — use `/gsd:new-milestone` to define next milestone requirements)
 
 ### Deferred (v1.3+)
 
+- [ ] Cross-plugin knowledge transfer (reference successful implementations)
+- [ ] Decision provenance chains (trace decisions to source research docs)
+- [ ] Module-research cross-referencing
 - [ ] Windows installer automation (NSIS via GitHub Actions)
 - [ ] Add/Remove Programs integration
 - [ ] Plugin naming standardization
@@ -124,27 +118,34 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 - O-Detune (in development)
 - O-Bells (in development)
 
-### v1.0 → v1.1 Progress
+### Progress Summary
 
-**Resolved in v1.0:**
-- Agent contracts now explicit with JSON Schema validation
-- State tracking reliable with checkpoints and recovery
-- Structured handoffs with schema validation
-- Quality gates at stage boundaries
-- Domain expertise encoded (DSP real-time safety, UI thread safety)
-- Module system reliable with tracking and semver
+**v1.0 — Foundation (Phases 1-7):**
+- 13 specialized agents with JSON Schema contracts
+- State tracking with checkpoints and recovery
+- Quality gates and structured handoffs
+- Module system with semver and dependency tracking
 
-**Resolved in v1.1:**
-- Repository bloat eliminated (636MB → 58MB)
-- Clone time reduced (2 min → 4 sec)
+**v1.1 — Cleanup (Phases 8-9):**
+- Repository 636MB → 58MB (91% reduction)
 - Planning workflow for complex improvements
-- Conditional triggers preserve fast path for simple fixes
+
+**v1.2 — Intelligence (Phases 10-13):**
+- Resource discovery with weighted scoring (63ms)
+- Auto-injection of research context to agents (4K token budget)
+- Accountability tracking across 11 agents
+- Self-maintaining manifest with staleness detection
+- 27 research docs with 10-field YAML frontmatter
 
 ### Remaining Concerns
 
 **Deployment:**
 - Windows installer automation not yet implemented
 - Cross-platform CI/CD incomplete
+
+**Intelligence:**
+- No cross-plugin knowledge transfer yet
+- Decision provenance chains not implemented
 
 **Future Enhancements:**
 - Automated performance benchmarking for DSP
@@ -170,6 +171,12 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | git-filter-repo over BFG | Path filtering required for plugin builds | ✓ Good — 91% size reduction |
 | Phase 0.6 for Tier 2/3 only | Preserve fast path for simple fixes | ✓ Good — no overhead for Tier 1 |
 | Outcome-focused planning tasks | Resilient to code restructuring | ✓ Good — adopted in v1.1 |
+| Static manifest + keyword matching | Faster, simpler, more reliable than vector search for 27 docs | ✓ Good — 63ms discovery |
+| Warning-level accountability | False positives would block valid work | ✓ Good — no workflow interruption |
+| Orchestrator-level discovery | Avoids hook timeout constraints | ✓ Good — integrated in 8 skill files |
+| 4,000 token budget cap | Prevent context window exhaustion | ✓ Good — max observed 3,478 tokens |
+| Co-located schema at .claude/ | Discovery system is a .claude concern, not .planning/ | ✓ Good — clean separation |
+| PostToolUse hook for manifest | Auto-regeneration on research file writes | ✓ Good — zero manual maintenance |
 
 ---
-*Last updated: 2026-02-04 after v1.2 milestone start*
+*Last updated: 2026-02-06 after v1.2 milestone complete*
