@@ -554,7 +554,6 @@
   </div>
 
   <!-- JUCE WebView Integration -->
-  <script type="module" src="./js/juce/index.js"></script>
   <script type="module">
     import { getSliderState, getToggleState, getNativeFunction } from './js/juce/index.js';
     import { PresetManager } from './modules/preset-manager.js';
@@ -624,6 +623,21 @@
       }
     }
 
+    // Shared drag state — single mousemove/mouseup pair for all knobs
+    let activeKnob = null;  // { sliderState, lastY }
+
+    document.addEventListener('mousemove', (e) => {
+      if (!activeKnob) return;
+      const deltaY = activeKnob.lastY - e.clientY;
+      const current = activeKnob.sliderState.getNormalisedValue();
+      activeKnob.sliderState.setNormalisedValue(
+        Math.max(0, Math.min(1, current + deltaY / 200))
+      );
+      activeKnob.lastY = e.clientY;
+    });
+
+    document.addEventListener('mouseup', () => { activeKnob = null; });
+
     // Setup knob interactions
     function setupKnob(knobId, paramId) {
       const knob = document.getElementById(knobId);
@@ -636,45 +650,22 @@
 
       // Listen to parameter changes from C++
       sliderState.valueChangedEvent.addListener(() => {
-        const normalized = sliderState.getNormalisedValue();
-        updateKnob(paramId, normalized);
+        updateKnob(paramId, sliderState.getNormalisedValue());
       });
 
-      // Mouse drag handler - RELATIVE DRAG (frame-delta)
-      let isDragging = false;
-      let lastY = 0;
-
+      // Mouse drag — delegates to shared handler
       knob.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        lastY = e.clientY;
+        activeKnob = { sliderState, lastY: e.clientY };
         e.preventDefault();
-      });
-
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-
-        const deltaY = lastY - e.clientY;  // Frame-delta, not total distance
-        const currentNormalized = sliderState.getNormalisedValue();
-        let newNormalized = currentNormalized + (deltaY / 200);  // 200px = full range
-        newNormalized = Math.max(0, Math.min(1, newNormalized));
-
-        sliderState.setNormalisedValue(newNormalized);
-        lastY = e.clientY;  // Update for next frame
-      });
-
-      document.addEventListener('mouseup', () => {
-        isDragging = false;
       });
 
       // Double-click to reset to default
       knob.addEventListener('dblclick', () => {
-        const defaultNormalized = paramDefaults[paramId] || 0.5;
-        sliderState.setNormalisedValue(defaultNormalized);
+        sliderState.setNormalisedValue(paramDefaults[paramId] || 0.5);
       });
 
       // Initialize visual state
-      const initialNormalized = sliderState.getNormalisedValue();
-      updateKnob(paramId, initialNormalized);
+      updateKnob(paramId, sliderState.getNormalisedValue());
     }
 
     // Setup toggle button
@@ -763,11 +754,9 @@
           // Above knee - full compression
           outputDb = threshold + (inputDb - threshold) / ratio;
         } else {
-          // Within knee - soft transition
-          const kneeInput = inputDb - (threshold - knee / 2);
-          const kneeRange = knee;
-          const kneePos = kneeInput / kneeRange;
-          outputDb = inputDb + (kneePos * kneePos) * ((inputDb - threshold) / ratio - (inputDb - threshold));
+          // Within knee - standard quadratic soft-knee formula
+          const kneeInput = inputDb - threshold + knee / 2;
+          outputDb = inputDb - (1 - 1 / ratio) * (kneeInput * kneeInput) / (2 * knee);
         }
 
         const y = canvas.height - ((outputDb + 60) / 60) * canvas.height;
@@ -782,16 +771,18 @@
       ctx.stroke();
     }
 
-    // Metering state
+    // Metering state with circular buffer
+    const HISTORY_SIZE = 300;  // ~10 seconds at 30fps
     let meterState = {
       inputLevel: -60,
       outputLevel: -60,
       gainReduction: 0,
       envelope: -60,
-      envelopeHistory: [],  // Rolling history for envelope display
-      grHistory: []         // Rolling history for gain reduction
+      envelopeHistory: new Float32Array(HISTORY_SIZE).fill(-60),
+      grHistory: new Float32Array(HISTORY_SIZE).fill(0),
+      historyIndex: 0,
+      historyCount: 0
     };
-    const HISTORY_SIZE = 300;  // ~10 seconds at 30fps
 
     // Global function called from C++ via evaluateJavascript
     window.updateMeters = function(inputLevel, outputLevel, gainReduction, envelope) {
@@ -800,96 +791,17 @@
       meterState.gainReduction = gainReduction;
       meterState.envelope = envelope;
 
-      // Add to history (rolling buffer)
-      meterState.envelopeHistory.push(envelope);
-      meterState.grHistory.push(gainReduction);
-
-      if (meterState.envelopeHistory.length > HISTORY_SIZE) {
-        meterState.envelopeHistory.shift();
-      }
-      if (meterState.grHistory.length > HISTORY_SIZE) {
-        meterState.grHistory.shift();
-      }
+      meterState.envelopeHistory[meterState.historyIndex] = envelope;
+      meterState.grHistory[meterState.historyIndex] = gainReduction;
+      meterState.historyIndex = (meterState.historyIndex + 1) % HISTORY_SIZE;
+      if (meterState.historyCount < HISTORY_SIZE) meterState.historyCount++;
     };
-
-    // Envelope display visualization (real data)
-    function drawEnvelopeDisplay() {
-      const canvas = document.getElementById('envelopeCanvas');
-      const ctx = canvas.getContext('2d');
-
-      function draw() {
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const history = meterState.envelopeHistory;
-        const grHistory = meterState.grHistory;
-
-        // Draw envelope history (top half - green line)
-        if (history.length > 1) {
-          ctx.strokeStyle = '#6B8E4E';
-          ctx.lineWidth = 2;
-          ctx.beginPath();
-
-          for (let i = 0; i < history.length; i++) {
-            const x = (i / HISTORY_SIZE) * canvas.width;
-            // Map -60dB to 0dB to canvas height (top half)
-            const normalizedLevel = (history[i] + 60) / 60;
-            const y = (canvas.height / 2) - (normalizedLevel * (canvas.height / 2 - 20));
-
-            if (i === 0) ctx.moveTo(x, y);
-            else ctx.lineTo(x, y);
-          }
-          ctx.stroke();
-        }
-
-        // Draw gain reduction histogram (bottom half - amber bars)
-        if (grHistory.length > 0) {
-          ctx.fillStyle = 'rgba(201, 162, 123, 0.6)';
-
-          const barWidth = canvas.width / HISTORY_SIZE;
-          for (let i = 0; i < grHistory.length; i++) {
-            const x = i * barWidth;
-            // GR is positive in dB, map 0-30dB to bar height
-            const barHeight = (grHistory[i] / 30) * (canvas.height / 2 - 40);
-            const y = canvas.height / 2 + 20;
-
-            ctx.fillRect(x, y, barWidth, barHeight);
-          }
-        }
-
-        // Draw current GR value text
-        ctx.fillStyle = '#3C2F2F';
-        ctx.font = '11px Garamond, serif';
-        const grText = meterState.gainReduction > 0
-          ? `GR: -${meterState.gainReduction.toFixed(1)} dB`
-          : 'GR: 0.0 dB';
-        ctx.fillText(grText, 10, canvas.height - 25);
-
-        // Draw dividing line
-        ctx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
-        ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, canvas.height / 2 + 10);
-        ctx.lineTo(canvas.width, canvas.height / 2 + 10);
-        ctx.stroke();
-
-        // Labels
-        ctx.fillStyle = '#5C4033';
-        ctx.font = '9px Garamond, serif';
-        ctx.fillText('Envelope', 10, 15);
-        ctx.fillText('Gain Reduction', 10, canvas.height / 2 + 35);
-
-        requestAnimationFrame(draw);
-      }
-
-      draw();
-    }
 
     // Update LED meter with real level data
     function updateMeterDisplay(meterId, levelDB) {
       const meter = document.getElementById(meterId);
       const segments = meter.querySelectorAll('.led-segment');
 
-      // Map -60dB to 0dB to 0-1 range
       const normalized = Math.max(0, Math.min(1, (levelDB + 60) / 60));
 
       segments.forEach((segment, index) => {
@@ -908,14 +820,76 @@
       });
     }
 
-    // Animate meters with real data
-    function startMeterAnimation() {
-      function update() {
+    // Single unified rAF loop for all meter/envelope rendering
+    function startRenderLoop() {
+      const envCanvas = document.getElementById('envelopeCanvas');
+      const envCtx = envCanvas.getContext('2d');
+
+      function frame() {
+        // LED meters
         updateMeterDisplay('input-meter', meterState.inputLevel);
         updateMeterDisplay('output-meter', meterState.outputLevel);
-        requestAnimationFrame(update);
+
+        // Envelope/GR canvas
+        envCtx.clearRect(0, 0, envCanvas.width, envCanvas.height);
+
+        const count = meterState.historyCount;
+        const idx = meterState.historyIndex;
+
+        // Envelope history (top half - green line)
+        if (count > 1) {
+          envCtx.strokeStyle = '#6B8E4E';
+          envCtx.lineWidth = 2;
+          envCtx.beginPath();
+          for (let i = 0; i < count; i++) {
+            const ri = (idx - count + i + HISTORY_SIZE) % HISTORY_SIZE;
+            const x = (i / HISTORY_SIZE) * envCanvas.width;
+            const normalizedLevel = (meterState.envelopeHistory[ri] + 60) / 60;
+            const y = (envCanvas.height / 2) - (normalizedLevel * (envCanvas.height / 2 - 20));
+            if (i === 0) envCtx.moveTo(x, y);
+            else envCtx.lineTo(x, y);
+          }
+          envCtx.stroke();
+        }
+
+        // Gain reduction histogram (bottom half - amber bars)
+        if (count > 0) {
+          envCtx.fillStyle = 'rgba(201, 162, 123, 0.6)';
+          const barWidth = envCanvas.width / HISTORY_SIZE;
+          for (let i = 0; i < count; i++) {
+            const ri = (idx - count + i + HISTORY_SIZE) % HISTORY_SIZE;
+            const barHeight = (meterState.grHistory[ri] / 30) * (envCanvas.height / 2 - 40);
+            envCtx.fillRect(i * barWidth, envCanvas.height / 2 + 20, barWidth, barHeight);
+          }
+        }
+
+        // GR value text
+        envCtx.fillStyle = '#3C2F2F';
+        envCtx.font = '11px Garamond, serif';
+        envCtx.fillText(
+          meterState.gainReduction > 0
+            ? `GR: -${meterState.gainReduction.toFixed(1)} dB`
+            : 'GR: 0.0 dB',
+          10, envCanvas.height - 25
+        );
+
+        // Dividing line
+        envCtx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
+        envCtx.lineWidth = 1;
+        envCtx.beginPath();
+        envCtx.moveTo(0, envCanvas.height / 2 + 10);
+        envCtx.lineTo(envCanvas.width, envCanvas.height / 2 + 10);
+        envCtx.stroke();
+
+        // Labels
+        envCtx.fillStyle = '#5C4033';
+        envCtx.font = '9px Garamond, serif';
+        envCtx.fillText('Envelope', 10, 15);
+        envCtx.fillText('Gain Reduction', 10, envCanvas.height / 2 + 35);
+
+        requestAnimationFrame(frame);
       }
-      update();
+      frame();
     }
 
     // Initialize on load
@@ -1023,8 +997,7 @@
 
       // Start visualizations
       updateTransferCurve();
-      drawEnvelopeDisplay();
-      startMeterAnimation();
+      startRenderLoop();
 
       console.log('O-Comp v1.2.0 UI loaded - preset dropdown enabled');
     });

@@ -53,8 +53,6 @@ private:
     struct BandParams
     {
         std::atomic<float>* enable = nullptr;
-        std::atomic<float>* low = nullptr;
-        std::atomic<float>* high = nullptr;
         std::atomic<float>* depth = nullptr;
         std::atomic<float>* eucOn = nullptr;
         std::atomic<float>* eucSteps = nullptr;
@@ -69,6 +67,11 @@ private:
     std::atomic<float>* rateParam = nullptr;
     std::atomic<float>* swingParam = nullptr;
     std::atomic<float>* smoothingParam = nullptr;
+
+    // Crossover frequency cached pointers (3 crossover points for 4 bands)
+    std::atomic<float>* crossover1Param = nullptr;
+    std::atomic<float>* crossover2Param = nullptr;
+    std::atomic<float>* crossover3Param = nullptr;
 
     std::array<BandParams, 4> bandParams;  // 4 bands
 
@@ -123,7 +126,7 @@ private:
     std::atomic<bool> hasAudioSignal { false };
 
     // Cached parameter values (for change detection)
-    float lastBandFreqs[4][2] = { {0, 0}, {0, 0}, {0, 0}, {0, 0} };  // [band][low/high]
+    float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };
     int lastEuclideanParams[4][3] = { {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0} };  // [band][steps/pulses/offset]
 
     // APVTS (declared after cached pointers)
@@ -143,7 +146,7 @@ private:
     void updateEuclideanPatterns();
     int calculateCurrentStep(double ppq, int numSteps, int rateIndex, float swing);
     float getTargetGainForBand(int bandIndex, int currentStep);
-    void processFrame(int channel, const float* bandGains);
+    void processFrame(int channel);
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

@@ -96,6 +96,7 @@ private:
     float getDryDelayedSample(int channel, float input);
     void advanceDryDelay();
     float getLookaheadDelayedSample(int channel, float input);
+    void advanceLookahead();
     void writeVisualizationFrame(const VisualizationFrame& frame);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSpectralShaperAudioProcessor)

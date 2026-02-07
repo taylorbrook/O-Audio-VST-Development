@@ -369,6 +369,14 @@ function initializeSpectrogram() {
                 if (data.fft && data.transients) {
                     // Add frame to spectrogram
                     app.spectrogram.addFrame(data.fft, data.transients);
+
+                    // Route transient data to curve editors for glow animation
+                    if (app.curveEditors.attack) {
+                        app.curveEditors.attack.setTransientActivity(data.transients);
+                    }
+                    if (app.curveEditors.sustain) {
+                        app.curveEditors.sustain.setTransientActivity(data.transients);
+                    }
                 }
             } catch (error) {
                 console.error('Failed to parse visualization data:', error);
@@ -386,6 +394,14 @@ function startRenderLoop() {
     function render() {
         if (app.spectrogram) {
             app.spectrogram.draw();
+        }
+
+        // Re-render curve editors when transients are active (glow animation)
+        if (app.curveEditors.attack && app.curveEditors.attack.hasActiveTransients) {
+            app.curveEditors.attack.render();
+        }
+        if (app.curveEditors.sustain && app.curveEditors.sustain.hasActiveTransients) {
+            app.curveEditors.sustain.render();
         }
 
         app.animationFrameId = requestAnimationFrame(render);

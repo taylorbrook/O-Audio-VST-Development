@@ -12,11 +12,48 @@ const state = {
 
 // Band configuration
 const bands = [
-    { id: 0, name: 'SUB', freq: '20Hz-120Hz' },
-    { id: 1, name: 'LOW', freq: '120Hz-500Hz' },
-    { id: 2, name: 'MID', freq: '500Hz-4kHz' },
-    { id: 3, name: 'HIGH', freq: '4kHz-20kHz' },
+    { id: 0, name: 'SUB' },
+    { id: 1, name: 'LOW' },
+    { id: 2, name: 'MID' },
+    { id: 3, name: 'HIGH' },
 ];
+
+// Format Hz value to readable string (e.g. 120 -> "120 Hz", 4000 -> "4.0 kHz")
+function formatFreq(hz) {
+    if (hz >= 1000) {
+        const khz = hz / 1000;
+        return khz % 1 === 0 ? `${khz} kHz` : `${khz.toFixed(1)} kHz`;
+    }
+    return `${Math.round(hz)} Hz`;
+}
+
+// Update all band frequency labels derived from crossover values
+function updateAllBandFreqDisplays() {
+    const c1 = state.stepStates['crossover_1'];
+    const c2 = state.stepStates['crossover_2'];
+    const c3 = state.stepStates['crossover_3'];
+    if (!c1 || !c2 || !c3) return;
+
+    const v1 = c1.getScaledValue();
+    const v2 = c2.getScaledValue();
+    const v3 = c3.getScaledValue();
+
+    // Derive band ranges (sorted)
+    const sorted = [v1, v2, v3].sort((a, b) => a - b);
+    const ranges = [
+        { low: 20, high: sorted[0] },
+        { low: sorted[0], high: sorted[1] },
+        { low: sorted[1], high: sorted[2] },
+        { low: sorted[2], high: 20000 },
+    ];
+
+    for (let i = 0; i < 4; i++) {
+        const labelEl = document.getElementById(`freq-${i}`);
+        if (labelEl) {
+            labelEl.textContent = `${formatFreq(ranges[i].low)} - ${formatFreq(ranges[i].high)}`;
+        }
+    }
+}
 
 // ============================================================================
 // Initialization
@@ -139,6 +176,12 @@ function initializeGlobalParameters() {
 // ============================================================================
 
 function initializeBandParameters() {
+    // Crossover parameters (3 global crossover points)
+    for (const id of ['crossover_1', 'crossover_2', 'crossover_3']) {
+        const crossoverState = Juce.getSliderState(id);
+        state.stepStates[id] = crossoverState;
+    }
+
     for (const band of bands) {
         const bandId = band.id;
 
@@ -162,12 +205,6 @@ function initializeBandParameters() {
         state.stepStates[`band${bandId}_euc_steps`] = eucStepsState;
         state.stepStates[`band${bandId}_euc_pulses`] = eucPulsesState;
         state.stepStates[`band${bandId}_euc_offset`] = eucOffsetState;
-
-        // Frequency bands (bound but not editable in v1.0)
-        const lowState = Juce.getSliderState(`band${bandId}_low`);
-        const highState = Juce.getSliderState(`band${bandId}_high`);
-        state.stepStates[`band${bandId}_low`] = lowState;
-        state.stepStates[`band${bandId}_high`] = highState;
     }
 }
 
@@ -204,10 +241,10 @@ function renderGrid() {
         bandRow.className = 'band-row';
         bandRow.dataset.band = band.id;
 
-        // Band label
+        // Band label with derived frequency range (read-only)
         const label = document.createElement('div');
         label.className = 'band-label';
-        label.innerHTML = `<strong>${band.name}</strong><br>${band.freq}`;
+        label.innerHTML = `<strong>${band.name}</strong><br><span class="freq-range" id="freq-${band.id}"></span>`;
         bandRow.appendChild(label);
 
         // Steps container
@@ -615,6 +652,20 @@ function initializeEuclideanListeners() {
         // Sync initial euclidean state
         updateEuclideanGrid(bid);
     }
+
+    // Listen for crossover parameter changes to update all band labels
+    for (const id of ['crossover_1', 'crossover_2', 'crossover_3']) {
+        const crossoverState = state.stepStates[id];
+        if (crossoverState) {
+            crossoverState.valueChangedEvent.addListener(() => {
+                updateAllBandFreqDisplays();
+                updateCrossoverSliders();
+            });
+        }
+    }
+
+    // Initial frequency label update
+    updateAllBandFreqDisplays();
 }
 
 // ============================================================================
@@ -624,4 +675,73 @@ function initializeEuclideanListeners() {
 function setupGlobalControls() {
     // Already initialized in initializeGlobalParameters()
     console.log('Global controls bound to JUCE parameters');
+
+    // Setup crossover bar sliders
+    setupCrossoverBar();
+}
+
+// ============================================================================
+// Crossover Bar
+// ============================================================================
+
+function setupCrossoverBar() {
+    const bar = document.getElementById('crossover-bar');
+    if (!bar) return;
+
+    bar.innerHTML = '';
+
+    const crossoverDefs = [
+        { id: 'crossover_1', label: 'Sub | Low' },
+        { id: 'crossover_2', label: 'Low | Mid' },
+        { id: 'crossover_3', label: 'Mid | High' },
+    ];
+
+    for (const def of crossoverDefs) {
+        const paramState = state.stepStates[def.id];
+        if (!paramState) continue;
+
+        const group = document.createElement('div');
+        group.className = 'crossover-group';
+
+        const label = document.createElement('span');
+        label.className = 'crossover-label';
+        label.textContent = def.label;
+        group.appendChild(label);
+
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.className = 'crossover-slider';
+        slider.min = '0';
+        slider.max = '1000';
+        slider.value = paramState.getNormalisedValue() * 1000;
+        slider.id = `crossover-slider-${def.id}`;
+        group.appendChild(slider);
+
+        const val = document.createElement('span');
+        val.className = 'crossover-val';
+        val.id = `crossover-val-${def.id}`;
+        val.textContent = formatFreq(paramState.getScaledValue());
+        group.appendChild(val);
+
+        // Bind slider to APVTS
+        slider.addEventListener('input', (e) => {
+            paramState.setNormalisedValue(e.target.value / 1000);
+            val.textContent = formatFreq(paramState.getScaledValue());
+            updateAllBandFreqDisplays();
+        });
+
+        bar.appendChild(group);
+    }
+}
+
+function updateCrossoverSliders() {
+    for (const id of ['crossover_1', 'crossover_2', 'crossover_3']) {
+        const paramState = state.stepStates[id];
+        if (!paramState) continue;
+
+        const slider = document.getElementById(`crossover-slider-${id}`);
+        const val = document.getElementById(`crossover-val-${id}`);
+        if (slider) slider.value = paramState.getNormalisedValue() * 1000;
+        if (val) val.textContent = formatFreq(paramState.getScaledValue());
+    }
 }

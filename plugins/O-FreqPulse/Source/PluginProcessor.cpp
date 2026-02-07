@@ -51,12 +51,29 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         5.0f));
 
+    // Crossover frequency parameters (3 crossover points for 4 bands)
+    globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "crossover_1", 1 },
+        "Crossover 1 (Sub|Low)",
+        juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
+        120.0f));
+
+    globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "crossover_2", 1 },
+        "Crossover 2 (Low|Mid)",
+        juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
+        500.0f));
+
+    globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "crossover_3", 1 },
+        "Crossover 3 (Mid|High)",
+        juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
+        4000.0f));
+
     layout.add(std::move(globalGroup));
 
     // Per-Band Parameters (4 bands)
     const juce::String bandNames[4] = { "Sub", "Low", "Mid", "High" };
-    const float lowDefaults[4] = { 20.0f, 120.0f, 500.0f, 4000.0f };
-    const float highDefaults[4] = { 120.0f, 500.0f, 4000.0f, 20000.0f };
 
     for (int n = 0; n < 4; ++n)
     {
@@ -71,18 +88,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
             juce::ParameterID { bandID + "_enable", 1 },
             bandName + " Enable",
             true));
-
-        bandGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID { bandID + "_low", 1 },
-            bandName + " Low",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
-            lowDefaults[n]));
-
-        bandGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
-            juce::ParameterID { bandID + "_high", 1 },
-            bandName + " High",
-            juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
-            highDefaults[n]));
 
         bandGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
             juce::ParameterID { bandID + "_depth", 1 },
@@ -144,14 +149,17 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
     swingParam = parameters.getRawParameterValue("swing");
     smoothingParam = parameters.getRawParameterValue("smoothing");
 
+    // Cache crossover parameter pointers
+    crossover1Param = parameters.getRawParameterValue("crossover_1");
+    crossover2Param = parameters.getRawParameterValue("crossover_2");
+    crossover3Param = parameters.getRawParameterValue("crossover_3");
+
     // Cache per-band parameter pointers
     for (int n = 0; n < 4; ++n)
     {
         juce::String bandID = "band" + juce::String(n);
 
         bandParams[n].enable = parameters.getRawParameterValue(bandID + "_enable");
-        bandParams[n].low = parameters.getRawParameterValue(bandID + "_low");
-        bandParams[n].high = parameters.getRawParameterValue(bandID + "_high");
         bandParams[n].depth = parameters.getRawParameterValue(bandID + "_depth");
         bandParams[n].eucOn = parameters.getRawParameterValue(bandID + "_euc_on");
         bandParams[n].eucSteps = parameters.getRawParameterValue(bandID + "_euc_steps");
@@ -266,15 +274,18 @@ void OFreqPulseAudioProcessor::releaseResources()
 
 void OFreqPulseAudioProcessor::recalculateBinMapping()
 {
-    // Read band frequency parameters
-    float bandLows[4];
-    float bandHighs[4];
+    // Derive 4 band boundaries from 3 crossover points
+    float c1 = crossover1Param->load();
+    float c2 = crossover2Param->load();
+    float c3 = crossover3Param->load();
 
-    for (int band = 0; band < 4; ++band)
-    {
-        bandLows[band] = bandParams[band].low->load();
-        bandHighs[band] = bandParams[band].high->load();
-    }
+    // Sort to guarantee ordering (handles automation edge cases)
+    if (c1 > c2) std::swap(c1, c2);
+    if (c2 > c3) std::swap(c2, c3);
+    if (c1 > c2) std::swap(c1, c2);
+
+    float bandLows[4]  = { 20.0f, c1, c2, c3 };
+    float bandHighs[4] = { c1, c2, c3, 20000.0f };
 
     // Map each FFT bin to a band
     for (int bin = 0; bin < numBins; ++bin)
@@ -528,23 +539,25 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     const int stepCounts[] = { 4, 8, 16, 32 };
     int numSteps = stepCounts[juce::jlimit(0, 3, stepsIndex)];
 
-    // Check for parameter changes (Task 10)
-    bool bandFreqsChanged = false;
+    // Check for parameter changes
+    bool crossoversChanged = false;
     bool euclideanParamsChanged = false;
+
+    // Check crossover changes (3 values instead of 8 per-band freqs)
+    {
+        float c[3] = { crossover1Param->load(), crossover2Param->load(), crossover3Param->load() };
+        for (int i = 0; i < 3; ++i)
+        {
+            if (std::abs(c[i] - lastCrossovers[i]) > 0.1f)
+            {
+                lastCrossovers[i] = c[i];
+                crossoversChanged = true;
+            }
+        }
+    }
 
     for (int band = 0; band < 4; ++band)
     {
-        float low = bandParams[band].low->load();
-        float high = bandParams[band].high->load();
-
-        if (std::abs(low - lastBandFreqs[band][0]) > 0.1f ||
-            std::abs(high - lastBandFreqs[band][1]) > 0.1f)
-        {
-            lastBandFreqs[band][0] = low;
-            lastBandFreqs[band][1] = high;
-            bandFreqsChanged = true;
-        }
-
         int eucSteps = static_cast<int>(bandParams[band].eucSteps->load());
         int eucPulses = static_cast<int>(bandParams[band].eucPulses->load());
         int eucOffset = static_cast<int>(bandParams[band].eucOffset->load());
@@ -563,7 +576,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         bandGainSmooth[band].reset(currentSampleRate, smoothingMs / 1000.0);
     }
 
-    if (bandFreqsChanged)
+    if (crossoversChanged)
         recalculateBinMapping();
 
     if (euclideanParamsChanged)

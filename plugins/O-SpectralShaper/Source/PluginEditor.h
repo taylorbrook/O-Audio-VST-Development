@@ -26,7 +26,6 @@ public:
     // Timer callback for 60fps visualization updates
     void timerCallback() override;
 
-    // Event handlers for curve communication (Phase 3.2)
     void handleAttackCurveUpdate(const juce::Array<juce::var>& args);
     void handleSustainCurveUpdate(const juce::Array<juce::var>& args);
     void sendAttackCurveToJS();
@@ -62,8 +61,9 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> lookaheadTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
 
-    // Helper for resource serving
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
+    void sendCurveToJS(const char* functionName, const std::array<float, 32>& curve);
+    void emitVisualizationFrame(const OSpectralShaperAudioProcessor::VisualizationFrame& frame);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSpectralShaperAudioProcessorEditor)
 };

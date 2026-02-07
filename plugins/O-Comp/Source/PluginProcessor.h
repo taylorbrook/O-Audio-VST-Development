@@ -10,14 +10,13 @@
 
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
-#include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
 
 class OCompAudioProcessor : public juce::AudioProcessor
 {
 public:
     OCompAudioProcessor();
-    ~OCompAudioProcessor() override;
+    ~OCompAudioProcessor() override = default;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -50,8 +49,17 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // DSP Components (BEFORE APVTS for initialization order)
-    juce::dsp::ProcessSpec spec;
+    // DSP state
+    double currentSampleRate = 0.0;
+
+    // Cached parameter pointers (set once in constructor, never change)
+    std::atomic<float>* thresholdParam = nullptr;
+    std::atomic<float>* ratioParam = nullptr;
+    std::atomic<float>* attackParam = nullptr;
+    std::atomic<float>* releaseParam = nullptr;
+    std::atomic<float>* kneeParam = nullptr;
+    std::atomic<float>* outputGainParam = nullptr;
+    std::atomic<float>* autoGainParam = nullptr;
 
     // Compressor state
     float envelopeDB = -60.0f;  // Current envelope level in dB

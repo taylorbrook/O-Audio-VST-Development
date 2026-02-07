@@ -43,10 +43,13 @@ private:
     std::unique_ptr<juce::WebSliderRelay> swingRelay;
     std::unique_ptr<juce::WebSliderRelay> smoothingRelay;
 
-    // Per-band parameter relays (32 total: 8 params × 4 bands)
+    // Crossover parameter relays (3 total)
+    std::unique_ptr<juce::WebSliderRelay> crossover1Relay;
+    std::unique_ptr<juce::WebSliderRelay> crossover2Relay;
+    std::unique_ptr<juce::WebSliderRelay> crossover3Relay;
+
+    // Per-band parameter relays (24 total: 6 params x 4 bands)
     std::unique_ptr<juce::WebToggleButtonRelay> band0EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band0LowRelay;
-    std::unique_ptr<juce::WebSliderRelay> band0HighRelay;
     std::unique_ptr<juce::WebSliderRelay> band0DepthRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> band0EucOnRelay;
     std::unique_ptr<juce::WebSliderRelay> band0EucStepsRelay;
@@ -54,8 +57,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> band0EucOffsetRelay;
 
     std::unique_ptr<juce::WebToggleButtonRelay> band1EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band1LowRelay;
-    std::unique_ptr<juce::WebSliderRelay> band1HighRelay;
     std::unique_ptr<juce::WebSliderRelay> band1DepthRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> band1EucOnRelay;
     std::unique_ptr<juce::WebSliderRelay> band1EucStepsRelay;
@@ -63,8 +64,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> band1EucOffsetRelay;
 
     std::unique_ptr<juce::WebToggleButtonRelay> band2EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band2LowRelay;
-    std::unique_ptr<juce::WebSliderRelay> band2HighRelay;
     std::unique_ptr<juce::WebSliderRelay> band2DepthRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> band2EucOnRelay;
     std::unique_ptr<juce::WebSliderRelay> band2EucStepsRelay;
@@ -72,8 +71,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> band2EucOffsetRelay;
 
     std::unique_ptr<juce::WebToggleButtonRelay> band3EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band3LowRelay;
-    std::unique_ptr<juce::WebSliderRelay> band3HighRelay;
     std::unique_ptr<juce::WebSliderRelay> band3DepthRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> band3EucOnRelay;
     std::unique_ptr<juce::WebSliderRelay> band3EucStepsRelay;
@@ -94,10 +91,13 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> swingAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> smoothingAttachment;
 
-    // Per-band parameter attachments (32 total)
+    // Crossover parameter attachments (3 total)
+    std::unique_ptr<juce::WebSliderParameterAttachment> crossover1Attachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> crossover2Attachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> crossover3Attachment;
+
+    // Per-band parameter attachments (24 total)
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band0EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band0LowAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band0HighAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band0DepthAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band0EucOnAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band0EucStepsAttachment;
@@ -105,8 +105,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> band0EucOffsetAttachment;
 
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band1EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band1LowAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band1HighAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band1DepthAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band1EucOnAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band1EucStepsAttachment;
@@ -114,8 +112,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> band1EucOffsetAttachment;
 
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band2EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band2LowAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band2HighAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band2DepthAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band2EucOnAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band2EucStepsAttachment;
@@ -123,8 +119,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> band2EucOffsetAttachment;
 
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band3EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band3LowAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band3HighAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band3DepthAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band3EucOnAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> band3EucStepsAttachment;

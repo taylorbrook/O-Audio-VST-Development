@@ -245,13 +245,11 @@ void OSpectralShaperAudioProcessorEditor::handleSustainCurveUpdate(const juce::A
     processorRef.setSustainCurve(curveData);
 }
 
-void OSpectralShaperAudioProcessorEditor::sendAttackCurveToJS()
+void OSpectralShaperAudioProcessorEditor::sendCurveToJS(
+    const char* functionName, const std::array<float, 32>& curve)
 {
     if (!webView) return;
 
-    const auto& curve = processorRef.getAttackCurve();
-
-    // Build JavaScript array string
     juce::String jsArray = "[";
     for (size_t i = 0; i < curve.size(); ++i) {
         jsArray += juce::String(curve[i]);
@@ -259,99 +257,55 @@ void OSpectralShaperAudioProcessorEditor::sendAttackCurveToJS()
     }
     jsArray += "]";
 
-    // Call JavaScript function
-    webView->evaluateJavascript("if (window.setAttackCurveFromCPP) window.setAttackCurveFromCPP(" + jsArray + ");");
+    webView->evaluateJavascript(
+        juce::String("if (window.") + functionName + ") window." + functionName + "(" + jsArray + ");");
+}
+
+void OSpectralShaperAudioProcessorEditor::sendAttackCurveToJS()
+{
+    sendCurveToJS("setAttackCurveFromCPP", processorRef.getAttackCurve());
 }
 
 void OSpectralShaperAudioProcessorEditor::sendSustainCurveToJS()
 {
+    sendCurveToJS("setSustainCurveFromCPP", processorRef.getSustainCurve());
+}
+
+void OSpectralShaperAudioProcessorEditor::emitVisualizationFrame(
+    const OSpectralShaperAudioProcessor::VisualizationFrame& frame)
+{
     if (!webView) return;
 
-    const auto& curve = processorRef.getSustainCurve();
-
-    // Build JavaScript array string
-    juce::String jsArray = "[";
-    for (size_t i = 0; i < curve.size(); ++i) {
-        jsArray += juce::String(curve[i]);
-        if (i < curve.size() - 1) jsArray += ",";
+    juce::String json = "{\"fft\":[";
+    for (size_t i = 0; i < frame.fftMagnitudes.size(); ++i)
+    {
+        json += juce::String(frame.fftMagnitudes[i], 6);
+        if (i < frame.fftMagnitudes.size() - 1) json += ",";
     }
-    jsArray += "]";
+    json += "],\"transients\":[";
+    for (size_t i = 0; i < frame.transientActivity.size(); ++i)
+    {
+        json += juce::String(frame.transientActivity[i], 6);
+        if (i < frame.transientActivity.size() - 1) json += ",";
+    }
+    json += "]}";
 
-    // Call JavaScript function
-    webView->evaluateJavascript("if (window.setSustainCurveFromCPP) window.setSustainCurveFromCPP(" + jsArray + ");");
+    webView->emitEventIfBrowserIsVisible("visualizationUpdate", json);
 }
 
 void OSpectralShaperAudioProcessorEditor::timerCallback()
 {
-    // Read visualization frames from FIFO and send to WebView
     auto& fifo = processorRef.getVisualizationFifo();
     const auto& buffer = processorRef.getVisualizationBuffer();
 
-    // Process all available frames (batch to reduce overhead)
     while (fifo.getNumReady() > 0)
     {
         int start1, size1, start2, size2;
         fifo.prepareToRead(1, start1, size1, start2, size2);
 
         if (size1 > 0)
-        {
-            const auto& frame = buffer[static_cast<size_t>(start1)];
+            emitVisualizationFrame(buffer[static_cast<size_t>(start1)]);
 
-            // Build JSON payload: { fft: [...], transients: [...] }
-            juce::String json = "{\"fft\":[";
-
-            // FFT magnitudes (257 bins)
-            for (size_t i = 0; i < frame.fftMagnitudes.size(); ++i)
-            {
-                json += juce::String(frame.fftMagnitudes[i], 6);
-                if (i < frame.fftMagnitudes.size() - 1) json += ",";
-            }
-
-            json += "],\"transients\":[";
-
-            // Transient activity (32 bands)
-            for (size_t i = 0; i < frame.transientActivity.size(); ++i)
-            {
-                json += juce::String(frame.transientActivity[i], 6);
-                if (i < frame.transientActivity.size() - 1) json += ",";
-            }
-
-            json += "]}";
-
-            // Emit event to JavaScript
-            if (webView)
-            {
-                webView->emitEventIfBrowserIsVisible("visualizationUpdate", json);
-            }
-        }
-
-        fifo.finishedRead(size1);
-
-        // Handle wraparound case (should be rare)
-        if (size2 > 0)
-        {
-            const auto& frame = buffer[static_cast<size_t>(start2)];
-
-            juce::String json = "{\"fft\":[";
-            for (size_t i = 0; i < frame.fftMagnitudes.size(); ++i)
-            {
-                json += juce::String(frame.fftMagnitudes[i], 6);
-                if (i < frame.fftMagnitudes.size() - 1) json += ",";
-            }
-            json += "],\"transients\":[";
-            for (size_t i = 0; i < frame.transientActivity.size(); ++i)
-            {
-                json += juce::String(frame.transientActivity[i], 6);
-                if (i < frame.transientActivity.size() - 1) json += ",";
-            }
-            json += "]}";
-
-            if (webView)
-            {
-                webView->emitEventIfBrowserIsVisible("visualizationUpdate", json);
-            }
-
-            fifo.finishedRead(size2);
-        }
+        fifo.finishedRead(size1 + size2);
     }
 }

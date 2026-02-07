@@ -24,6 +24,10 @@ export class CurveEditor {
         // Curve data (32 values, -1.0 to +1.0)
         this.curveData = new Array(this.numBands).fill(0.0);
 
+        // Transient activity data (32 values, 0.0-1.0) for glow animation
+        this.transientActivity = new Float32Array(this.numBands);
+        this.hasActiveTransients = false;
+
         // Callback for curve updates
         this.onCurveChange = null;
 
@@ -184,6 +188,79 @@ export class CurveEditor {
     }
 
     /**
+     * Set transient activity data from visualization pipeline
+     * @param {number[]} data - 32 float values (0.0 to 1.0)
+     */
+    setTransientActivity(data) {
+        let hasActive = false;
+        for (let i = 0; i < this.numBands; i++) {
+            this.transientActivity[i] = data[i] || 0;
+            if (this.transientActivity[i] > 0.02) hasActive = true;
+        }
+        this.hasActiveTransients = hasActive;
+    }
+
+    /**
+     * Draw transient glow overlay behind the curve.
+     * Renders per-band vertical glow strips whose opacity tracks transient activity.
+     * Color ramps from deep red (low activity) through orange to bright yellow (peak).
+     */
+    drawTransientGlow() {
+        if (!this.hasActiveTransients) return;
+
+        const bandFreqs = this.getBandFrequencies();
+        const ctx = this.ctx;
+
+        ctx.save();
+        ctx.globalCompositeOperation = 'lighter'; // Additive blending for glow
+
+        for (let i = 0; i < this.numBands; i++) {
+            const activity = this.transientActivity[i];
+            if (activity < 0.02) continue;
+
+            // Band center X position
+            const x = this.freqToX(bandFreqs[i]);
+
+            // Band width: distance to neighbors (log-spaced, so wider at high freq)
+            let bandWidth;
+            if (i < this.numBands - 1) {
+                bandWidth = this.freqToX(bandFreqs[i + 1]) - x;
+            } else {
+                bandWidth = this.width - x;
+            }
+            // Minimum visible width
+            bandWidth = Math.max(bandWidth, 4);
+
+            // Glow Y position centered on the curve value for this band
+            const curveGain = this.curveData[i] || 0;
+            const curveY = this.gainToY(curveGain);
+
+            // Glow radius scales with activity
+            const glowRadius = (this.height * 0.35) * activity;
+
+            // Heat colormap: red → orange → yellow based on activity level
+            const r = 255;
+            const g = Math.round(60 + activity * 160); // 60 at low, 220 at peak
+            const b = Math.round(activity * 40);        // Subtle warm tint at peak
+            const alpha = activity * 0.4;                // Max 40% opacity
+
+            // Radial glow centered on curve position
+            const grad = ctx.createRadialGradient(
+                x, curveY, 0,
+                x, curveY, glowRadius
+            );
+            grad.addColorStop(0, `rgba(${r}, ${g}, ${b}, ${alpha})`);
+            grad.addColorStop(0.5, `rgba(${r}, ${g}, ${b}, ${alpha * 0.4})`);
+            grad.addColorStop(1, `rgba(${r}, ${g}, ${b}, 0)`);
+
+            ctx.fillStyle = grad;
+            ctx.fillRect(x - bandWidth * 0.6, curveY - glowRadius, bandWidth * 1.2, glowRadius * 2);
+        }
+
+        ctx.restore();
+    }
+
+    /**
      * Main render loop
      */
     render() {
@@ -192,6 +269,9 @@ export class CurveEditor {
 
         // Draw grid
         this.drawGrid();
+
+        // Draw transient glow (behind curve)
+        this.drawTransientGlow();
 
         // Draw curve (subclass implementation)
         this.drawCurve();

@@ -5,6 +5,30 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.0] - 2026-02-06
+
+### Added
+
+- **5 new factory presets** expanding the preset library from 5 to 10:
+  - **Helicopter** - Fast triangle wave at ~12 Hz, 90% depth, minimal smoothing for stuttery blade effect
+  - **Vintage Amp** - Medium sine at ~5.5 Hz, 55% depth, heavy smoothing for classic amp tremolo
+  - **Synced Sidechain** - Tempo-synced pulse wave at full depth, mimics sidechain compression pumping
+  - **Wide Stereo** - Slow triangle at ~2 Hz with pan sync for gentle stereo widening
+  - **Glitch** - Fast noise at ~18 Hz, full depth, zero smoothing for experimental textures
+
+- **Windows WebView2 cross-platform support** - Plugin now works correctly on Windows:
+  - Added `NEEDS_WEBVIEW2 TRUE` for static linking of WebView2Loader
+  - Added `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` compile definition
+  - Explicitly requests WebView2 backend (prevents silent IE fallback)
+  - Sets user data folder to temp directory (prevents access denied in DAW hosts)
+  - Guards resource provider with `JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE`
+
+### Technical Notes
+
+- Factory presets use normalized parameter values (0-1 range matching APVTS)
+- WebView2 configuration follows O-AnalogEQ reference pattern
+- No breaking changes - existing macOS sessions and presets remain compatible
+
 ## [1.3.1] - 2026-01-24
 
 ### Changed

@@ -11,6 +11,9 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "OuariconPresetManager.h"
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
 
 class OuariconTremoloAudioProcessor : public juce::AudioProcessor
 {
@@ -46,6 +49,10 @@ public:
     // Preset management
     OuariconPresetManager presetManager;
 
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
+
 private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -80,6 +87,10 @@ private:
     float generateWaveform(float phase, int waveformType, float mainLfoPhase);
     float applySmoothingFilter(float rawLFO, float& prevSmoothed, float coefficient);
     float smoothTransition(float t);  // Polynomial smoothing for sharp transitions
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconTremoloAudioProcessor)
 };

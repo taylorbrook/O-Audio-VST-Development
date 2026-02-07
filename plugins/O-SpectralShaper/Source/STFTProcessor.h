@@ -93,7 +93,7 @@ private:
     float sensitivity = 0.5f;
     float attackTimeMs = 10.0f;
     float sustainTimeMs = 100.0f;
-    float sampleRate = 44100.0;
+    float sampleRate = 44100.0f;
     float hopTime = 0.0f;  // HOP_SIZE / sampleRate
     float fastCoeff = 0.0f;
     float slowCoeff = 0.0f;
@@ -105,8 +105,8 @@ private:
     std::atomic<int> activeAttackBuffer { 0 };
     std::atomic<int> activeSustainBuffer { 0 };
 
-    // Maximum gain range for curve shaping (±18dB at curve extremes)
-    static constexpr float MAX_SHAPE_DB = 18.0f;
+    // Maximum gain range for curve shaping (±12dB at curve extremes, matches UI grid labels)
+    static constexpr float MAX_SHAPE_DB = 12.0f;
 
     // Bypass mode
     bool bypass = false;

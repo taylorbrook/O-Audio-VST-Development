@@ -145,6 +145,36 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
             {{"SPEED_PARAM", 0.20f}, {"DEPTH_PARAM", 0.35f}, {"WAVEFORM_PARAM", 0.0f},
              {"SMOOTHING_PARAM", 0.60f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
             juce::var()
+        },
+        {
+            "Helicopter",
+            {{"SPEED_PARAM", 0.598f}, {"DEPTH_PARAM", 0.90f}, {"WAVEFORM_PARAM", 0.2f},
+             {"SMOOTHING_PARAM", 0.05f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        },
+        {
+            "Vintage Amp",
+            {{"SPEED_PARAM", 0.271f}, {"DEPTH_PARAM", 0.55f}, {"WAVEFORM_PARAM", 0.0f},
+             {"SMOOTHING_PARAM", 0.70f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        },
+        {
+            "Synced Sidechain",
+            {{"SPEED_PARAM", 0.397f}, {"DEPTH_PARAM", 1.0f}, {"WAVEFORM_PARAM", 1.0f},
+             {"SMOOTHING_PARAM", 0.15f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 1.0f}},
+            juce::var()
+        },
+        {
+            "Wide Stereo",
+            {{"SPEED_PARAM", 0.095f}, {"DEPTH_PARAM", 0.60f}, {"WAVEFORM_PARAM", 0.2f},
+             {"SMOOTHING_PARAM", 0.45f}, {"PAN_SYNC_PARAM", 1.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
+        },
+        {
+            "Glitch",
+            {{"SPEED_PARAM", 0.899f}, {"DEPTH_PARAM", 1.0f}, {"WAVEFORM_PARAM", 0.6f},
+             {"SMOOTHING_PARAM", 0.0f}, {"PAN_SYNC_PARAM", 0.0f}, {"TEMPO_SYNC_PARAM", 0.0f}},
+            juce::var()
         }
     };
 
@@ -157,6 +187,11 @@ OuariconTremoloAudioProcessor::OuariconTremoloAudioProcessor()
     smoothingParam = parameters.getRawParameterValue("SMOOTHING_PARAM");
     panSyncParam = parameters.getRawParameterValue("PAN_SYNC_PARAM");
     tempoSyncParam = parameters.getRawParameterValue("TEMPO_SYNC_PARAM");
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-tremolo", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OuariconTremoloAudioProcessor::~OuariconTremoloAudioProcessor()

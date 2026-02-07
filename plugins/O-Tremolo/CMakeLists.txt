@@ -10,8 +10,9 @@ juce_add_plugin(OuariconTremolo
     PLUGIN_CODE OuTr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Tremolo${OUARICON_DEV_SUFFIX}"
-    VERSION 1.3.1
+    VERSION 1.4.0
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
 # Add preset-manager module
@@ -55,11 +56,18 @@ target_link_libraries(OuariconTremolo
 # Must come AFTER target_link_libraries, BEFORE target_compile_definitions
 juce_generate_juce_header(OuariconTremolo)
 
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(OuariconTremolo licensing)
+    target_compile_definitions(OuariconTremolo PRIVATE OUARICON_LICENSING_ENABLED=1)
+endif()
+
 # Compile definitions
 target_compile_definitions(OuariconTremolo
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
 

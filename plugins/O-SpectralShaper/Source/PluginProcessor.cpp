@@ -217,6 +217,7 @@ void OSpectralShaperAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         }
 
         advanceDryDelay();
+        advanceLookahead();
 
         // Phase 3.3: Push visualization data once per FFT hop
         if (++hopCounter >= STFTProcessor::HOP_SIZE)
@@ -359,20 +360,19 @@ void OSpectralShaperAudioProcessor::advanceDryDelay()
 float OSpectralShaperAudioProcessor::getLookaheadDelayedSample(int channel, float input)
 {
     if (lookaheadDelayLength == 0)
-        return input;  // No lookahead, pass through
+        return input;
 
-    // Write current input to lookahead buffer
     lookaheadBuffer.setSample(channel, lookaheadWritePosition, input);
 
-    // Read delayed sample (lookaheadDelayLength samples ago)
     int readPosition = (lookaheadWritePosition - lookaheadDelayLength + lookaheadBuffer.getNumSamples())
                        % lookaheadBuffer.getNumSamples();
-    float delayed = lookaheadBuffer.getSample(channel, readPosition);
+    return lookaheadBuffer.getSample(channel, readPosition);
+}
 
-    // Advance write position
-    lookaheadWritePosition = (lookaheadWritePosition + 1) % lookaheadBuffer.getNumSamples();
-
-    return delayed;
+void OSpectralShaperAudioProcessor::advanceLookahead()
+{
+    if (lookaheadDelayLength > 0)
+        lookaheadWritePosition = (lookaheadWritePosition + 1) % lookaheadBuffer.getNumSamples();
 }
 
 void OSpectralShaperAudioProcessor::writeVisualizationFrame(const VisualizationFrame& frame)

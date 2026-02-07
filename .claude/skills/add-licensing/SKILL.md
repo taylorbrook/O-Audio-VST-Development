@@ -20,6 +20,12 @@ The licensing module lives at `modules/core/licensing/` and provides:
 - `OuariconLicense` — license manager (activation, offline JWT tokens, periodic re-validation)
 - `OuariconLicenseOverlay` — native JUCE overlay UI that blocks the editor until licensed
 
+### Architecture: License Manager on Processor
+
+The license manager lives on the **Processor** (not the Editor). This is critical because DAWs destroy and recreate the Editor whenever the plugin window is closed/reopened, but the Processor persists for the entire plugin lifetime. If the license manager lived on the Editor, activation state would be lost on every UI reload, causing the activation window to reappear even after successful activation.
+
+The Editor gets a reference to the Processor's license manager and listens for status changes.
+
 ## Pre-flight Checks
 
 Before making any edits, perform these checks. Stop and report if any fail.
@@ -28,6 +34,8 @@ Before making any edits, perform these checks. Stop and report if any fail.
 
 ```
 plugins/{PluginFolder}/CMakeLists.txt
+plugins/{PluginFolder}/Source/PluginProcessor.h
+plugins/{PluginFolder}/Source/PluginProcessor.cpp
 plugins/{PluginFolder}/Source/PluginEditor.h
 plugins/{PluginFolder}/Source/PluginEditor.cpp
 ```
@@ -38,7 +46,11 @@ If any file is missing, stop: `"Plugin folder '{PluginFolder}' not found or miss
 
 Open `plugins/{PluginFolder}/CMakeLists.txt` and find the first argument to `juce_add_plugin()`. This is the **Target** name (e.g., `OuariconTremolo`, `OuariconDigitalDelay`). Folder names don't match targets, so always read it from the file.
 
-### 3. Check for existing integration
+### 3. Read the Editor and Processor class names
+
+Open `PluginEditor.h` and `PluginProcessor.h` to find the actual class names. Never assume — always read.
+
+### 4. Check for existing integration
 
 Search `plugins/{PluginFolder}/Source/PluginEditor.h` for the string `OUARICON_LICENSING_ENABLED`. If found, stop: `"Licensing is already integrated into {PluginFolder}."`
 
@@ -64,45 +76,52 @@ endif()
 
 Replace `{Target}` with the actual CMake target name read in pre-flight step 2.
 
-## Edit 2: PluginEditor.h
+## Edit 2: PluginProcessor.h
 
-Open `plugins/{PluginFolder}/Source/PluginEditor.h`.
+Open `plugins/{PluginFolder}/Source/PluginProcessor.h`.
 
-### 2a. Add guarded includes
+### 2a. Add guarded include
 
 Find the last `#include` line in the file. **After** it, add:
 
 ```cpp
 #if OUARICON_LICENSING_ENABLED
   #include "OuariconLicense.h"
-  #include "OuariconLicenseUI.h"
 #endif
 ```
 
-### 2b. Add member declarations
+### 2b. Add public getter
+
+Find a suitable location in the `public:` section (after parameter declarations like `juce::AudioProcessorValueTreeState parameters;` or after any atomic meter variables). Add:
+
+```cpp
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
+```
+
+### 2c. Add private member
 
 Find the line `JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR`. **Before** it, add:
 
 ```cpp
 #if OUARICON_LICENSING_ENABLED
     std::unique_ptr<OuariconLicense> licenseManager;
-    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
 #endif
 ```
 
-## Edit 3: PluginEditor.cpp — Constructor
+## Edit 3: PluginProcessor.cpp
 
-Open `plugins/{PluginFolder}/Source/PluginEditor.cpp`.
+Open `plugins/{PluginFolder}/Source/PluginProcessor.cpp`.
 
-Find the `addAndMakeVisible(*webView)` call in the constructor. **After** it (but **before** `setSize()`), insert:
+### 3a. Initialize license manager in constructor
+
+Find the Processor constructor body. At the **end** of the constructor body (before the closing `}`), add:
 
 ```cpp
 #if OUARICON_LICENSING_ENABLED
-    // Licensing: activation overlay (visible until licensed)
     licenseManager = std::make_unique<OuariconLicense>(
         "{product-id}", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
-    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(*licenseManager);
-    addAndMakeVisible(licenseOverlay.get());
 #endif
 ```
 
@@ -110,7 +129,92 @@ Replace `{product-id}` with the actual product-id argument (e.g., `"ouaricon-tre
 
 **Note:** `OUARICON_SUPABASE_URL` and `OUARICON_SUPABASE_ANON_KEY` are CMake defines injected by CI (repo secrets). They don't need to exist locally since the entire block is gated by `OUARICON_LICENSING_ENABLED`.
 
-## Edit 4: PluginEditor.cpp — resized()
+## Edit 4: PluginEditor.h
+
+Open `plugins/{PluginFolder}/Source/PluginEditor.h`.
+
+### 4a. Add guarded include
+
+Find the last `#include` line in the file. **After** it, add:
+
+```cpp
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicenseUI.h"
+#endif
+```
+
+Note: Only `OuariconLicenseUI.h` is needed here (not `OuariconLicense.h`) — the Editor accesses the license manager through the Processor header which already includes it.
+
+### 4b. Add Listener inheritance
+
+Find the Editor class declaration. It will look something like:
+
+```cpp
+class {EditorClass} : public juce::AudioProcessorEditor,
+                      private juce::Timer
+```
+
+Add the licensing listener as a conditional base class:
+
+```cpp
+class {EditorClass} : public juce::AudioProcessorEditor,
+                      private juce::Timer
+#if OUARICON_LICENSING_ENABLED
+                    , private OuariconLicense::Listener
+#endif
+```
+
+### 4c. Add member declarations
+
+Find the line `JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR`. **Before** it, add:
+
+```cpp
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
+    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
+#endif
+```
+
+## Edit 5: PluginEditor.cpp — Constructor
+
+Open `plugins/{PluginFolder}/Source/PluginEditor.cpp`.
+
+Find the `addAndMakeVisible(*webView)` call in the constructor. **After** it (but **before** attachments or `setSize()`), insert:
+
+```cpp
+#if OUARICON_LICENSING_ENABLED
+    // Licensing: activation overlay (visible until licensed)
+    // Native WebView renders on top of JUCE components, so we must
+    // hide the WebView while the overlay is showing.
+    // License manager lives on the processor (persists across editor open/close).
+    auto& license = audioProcessor.getLicenseManager();
+    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
+    addAndMakeVisible(licenseOverlay.get());
+
+    license.addListener(this);
+
+    if (! license.isLicensed())
+        webView->setVisible(false);
+    else
+        licenseOverlay->setVisible(false);
+#endif
+```
+
+**Important:** The reference name `audioProcessor` must match the actual member variable name that references the Processor. Read the constructor to confirm.
+
+## Edit 6: PluginEditor.cpp — Destructor
+
+Find the Editor destructor. **Before** any existing cleanup (typically before `stopTimer()` or at the top of the destructor body), add:
+
+```cpp
+#if OUARICON_LICENSING_ENABLED
+    audioProcessor.getLicenseManager().removeListener(this);
+#endif
+```
+
+This prevents dangling listener callbacks after the editor is destroyed.
+
+## Edit 7: PluginEditor.cpp — resized()
 
 In the same file, find the `resized()` method. Find the `webView->setBounds(...)` line. **After** it, add:
 
@@ -121,9 +225,33 @@ In the same file, find the `resized()` method. Find the `webView->setBounds(...)
 #endif
 ```
 
+## Edit 8: PluginEditor.cpp — licenseStatusChanged callback
+
+At the **bottom** of the file (before the closing of any namespace, or at the end), add:
+
+```cpp
+#if OUARICON_LICENSING_ENABLED
+//==============================================================================
+void {EditorClass}::licenseStatusChanged(
+    OuariconLicense&, OuariconLicense::Status newStatus)
+{
+    juce::MessageManager::callAsync([this, newStatus]()
+    {
+        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
+        webView->setVisible(licensed);
+
+        if (licenseOverlay)
+            licenseOverlay->setVisible(! licensed);
+    });
+}
+#endif
+```
+
+Replace `{EditorClass}` with the actual Editor class name read in pre-flight step 3.
+
 ## Post-edit Verification
 
-After all 4 edits are complete:
+After all 8 edits are complete:
 
 1. **Review the diff** — Confirm all `#if OUARICON_LICENSING_ENABLED` guards are properly closed with `#endif`.
 
@@ -141,6 +269,10 @@ ninja {Target}_VST3 {Target}_AU
 | File | What was added |
 |------|---------------|
 | `CMakeLists.txt` | `if(OUARICON_LICENSING)` block after `juce_generate_juce_header()` |
-| `PluginEditor.h` | Guarded `#include` and member declarations |
-| `PluginEditor.cpp` (constructor) | `licenseManager` + `licenseOverlay` init after `addAndMakeVisible(*webView)` |
+| `PluginProcessor.h` | Guarded `#include`, public `getLicenseManager()` getter, private `licenseManager` member |
+| `PluginProcessor.cpp` | License manager initialization in constructor |
+| `PluginEditor.h` | Guarded `#include`, `OuariconLicense::Listener` inheritance, `licenseOverlay` member + callback declaration |
+| `PluginEditor.cpp` (constructor) | Get license ref from processor, create overlay, add listener, set initial visibility |
+| `PluginEditor.cpp` (destructor) | `removeListener(this)` cleanup |
 | `PluginEditor.cpp` (resized) | Overlay bounds after `webView->setBounds()` |
+| `PluginEditor.cpp` (bottom) | `licenseStatusChanged` callback implementation |

@@ -86,25 +86,23 @@ OCompAudioProcessor::OCompAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-Comp")
 {
-}
-
-OCompAudioProcessor::~OCompAudioProcessor()
-{
+    thresholdParam = parameters.getRawParameterValue("threshold");
+    ratioParam = parameters.getRawParameterValue("ratio");
+    attackParam = parameters.getRawParameterValue("attack_time");
+    releaseParam = parameters.getRawParameterValue("release_time");
+    kneeParam = parameters.getRawParameterValue("knee");
+    outputGainParam = parameters.getRawParameterValue("output_gain");
+    autoGainParam = parameters.getRawParameterValue("auto_gain");
 }
 
 void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Configure DSP spec
-    spec.sampleRate = sampleRate;
-    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
-    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+    currentSampleRate = sampleRate;
 
     // Initialize envelope state
     envelopeDB = -60.0f;
 
     // Calculate initial coefficients
-    auto* attackParam = parameters.getRawParameterValue("attack_time");
-    auto* releaseParam = parameters.getRawParameterValue("release_time");
     updateCoefficients(attackParam->load(), releaseParam->load(), sampleRate);
 }
 
@@ -123,15 +121,7 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     for (int i = getTotalNumInputChannels(); i < getTotalNumOutputChannels(); ++i)
         buffer.clear(i, 0, buffer.getNumSamples());
 
-    // Read parameters (atomic, real-time safe)
-    auto* thresholdParam = parameters.getRawParameterValue("threshold");
-    auto* ratioParam = parameters.getRawParameterValue("ratio");
-    auto* attackParam = parameters.getRawParameterValue("attack_time");
-    auto* releaseParam = parameters.getRawParameterValue("release_time");
-    auto* kneeParam = parameters.getRawParameterValue("knee");
-    auto* outputGainParam = parameters.getRawParameterValue("output_gain");
-    auto* autoGainParam = parameters.getRawParameterValue("auto_gain");
-
+    // Read parameters (atomic, real-time safe — pointers cached in constructor)
     float thresholdDB = thresholdParam->load();
     float ratio = ratioParam->load();
     float attackTimeMs = attackParam->load();
@@ -141,7 +131,7 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     bool autoGainEnabled = autoGainParam->load() > 0.5f;
 
     // Update attack/release coefficients (lightweight calculation, real-time safe)
-    updateCoefficients(attackTimeMs, releaseTimeMs, spec.sampleRate);
+    updateCoefficients(attackTimeMs, releaseTimeMs, currentSampleRate);
 
     // Calculate makeup gain
     float autoGainDB = 0.0f;
@@ -161,14 +151,18 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float peakOutputLevel = 0.0f;
     float peakGainReduction = 0.0f;
 
+    // Hoist channel pointers outside per-sample loop
+    float* channelPtrs[2] = {};
+    for (int ch = 0; ch < numChannels && ch < 2; ++ch)
+        channelPtrs[ch] = buffer.getWritePointer(ch);
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
         // Stereo-linked detection: use max of all channels
         float maxInputLevel = 0.0f;
-        for (int channel = 0; channel < numChannels; ++channel)
+        for (int ch = 0; ch < numChannels; ++ch)
         {
-            auto* channelData = buffer.getWritePointer(channel);
-            float inputLevel = std::abs(channelData[sample]);
+            float inputLevel = std::abs(channelPtrs[ch][sample]);
             maxInputLevel = std::max(maxInputLevel, inputLevel);
         }
 
@@ -180,15 +174,9 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
         // Envelope follower (attack/release ballistics)
         if (inputLevelDBLocal > envelopeDB)
-        {
-            // Attack (signal increasing)
             envelopeDB += (inputLevelDBLocal - envelopeDB) * attackCoeff;
-        }
         else
-        {
-            // Release (signal decreasing)
             envelopeDB += (inputLevelDBLocal - envelopeDB) * releaseCoeff;
-        }
 
         // Calculate gain reduction
         float gainReductionDBLocal = calculateGainReduction(envelopeDB, thresholdDB, ratio, kneeDB);
@@ -199,11 +187,10 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
         // Apply same gain to all channels (stereo-linked)
         float maxOutputLevel = 0.0f;
-        for (int channel = 0; channel < numChannels; ++channel)
+        for (int ch = 0; ch < numChannels; ++ch)
         {
-            auto* channelData = buffer.getWritePointer(channel);
-            channelData[sample] *= gainLinear;
-            maxOutputLevel = std::max(maxOutputLevel, std::abs(channelData[sample]));
+            channelPtrs[ch][sample] *= gainLinear;
+            maxOutputLevel = std::max(maxOutputLevel, std::abs(channelPtrs[ch][sample]));
         }
         peakOutputLevel = std::max(peakOutputLevel, maxOutputLevel);
     }
@@ -254,10 +241,9 @@ float OCompAudioProcessor::calculateGainReduction(float inputLevel, float thresh
     }
     else
     {
-        // Inside knee - smooth transition (quadratic curve)
-        float kneeFactor = (x + kneeDB / 2.0f) / kneeDB;
-        float fullReduction = x - (x / ratio);
-        return kneeFactor * kneeFactor * fullReduction;
+        // Inside knee - standard quadratic soft-knee formula
+        float kneeInput = x + kneeDB / 2.0f;
+        return (1.0f - 1.0f / ratio) * (kneeInput * kneeInput) / (2.0f * kneeDB);
     }
 }
 

@@ -25,8 +25,15 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
     // 2. Create WebView SECOND with all relay options and preset native functions
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
+            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options(
+                juce::WebBrowserComponent::Options::WinWebView2{}
+                    .withUserDataFolder(juce::File::getSpecialLocation(
+                        juce::File::SpecialLocationType::tempDirectory)))
             .withNativeIntegrationEnabled()
+#if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
             .withResourceProvider([this](auto& url) { return getResource(url); })
+#endif
             .withOptionsFrom(*speedRelay)
             .withOptionsFrom(*depthRelay)
             .withOptionsFrom(*waveformRelay)
@@ -162,12 +169,32 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
     // Add WebView (navigation happens in parentHierarchyChanged)
     addAndMakeVisible(*webView);
 
+#if OUARICON_LICENSING_ENABLED
+    // Licensing: activation overlay (visible until licensed)
+    // Native WebView renders on top of JUCE components, so we must
+    // hide the WebView while the overlay is showing.
+    // License manager lives on the processor (persists across editor open/close).
+    auto& license = processorRef.getLicenseManager();
+    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
+    addAndMakeVisible(licenseOverlay.get());
+
+    license.addListener(this);
+
+    if (! license.isLicensed())
+        webView->setVisible(false);
+    else
+        licenseOverlay->setVisible(false);
+#endif
+
     // Set size AFTER all components are created (CRITICAL: prevents crash)
     setSize(600, 400);
 }
 
 OuariconTremoloAudioProcessorEditor::~OuariconTremoloAudioProcessorEditor()
 {
+#if OUARICON_LICENSING_ENABLED
+    processorRef.getLicenseManager().removeListener(this);
+#endif
     // Members destroyed in REVERSE order of declaration (automatic cleanup)
 }
 
@@ -181,6 +208,10 @@ void OuariconTremoloAudioProcessorEditor::resized()
 {
     // WebView fills entire editor
     webView->setBounds(getLocalBounds());
+#if OUARICON_LICENSING_ENABLED
+    if (licenseOverlay != nullptr)
+        licenseOverlay->setBounds(getLocalBounds());
+#endif
 }
 
 void OuariconTremoloAudioProcessorEditor::parentHierarchyChanged()
@@ -259,3 +290,19 @@ OuariconTremoloAudioProcessorEditor::getResource(const juce::String& url)
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
 }
+
+#if OUARICON_LICENSING_ENABLED
+//==============================================================================
+void OuariconTremoloAudioProcessorEditor::licenseStatusChanged(
+    OuariconLicense&, OuariconLicense::Status newStatus)
+{
+    juce::MessageManager::callAsync([this, newStatus]()
+    {
+        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
+        webView->setVisible(licensed);
+
+        if (licenseOverlay)
+            licenseOverlay->setVisible(! licensed);
+    });
+}
+#endif

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.3.1
+- **Version:** 1.4.0
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline
@@ -84,6 +84,12 @@
 - **2026-01-24 (v1.3.1):** Renamed plugin from "Ouaricon Tremolo" to "O-Tremolo"
   - DAW display name, binary files, preset folder, and source folder all renamed
   - Plugin codes unchanged (OuTr) for session compatibility
+
+- **2026-02-06 (v1.4.0):** Pre-release cleanup
+  - Added 5 new factory presets: Helicopter, Vintage Amp, Synced Sidechain, Wide Stereo, Glitch
+  - Added Windows WebView2 cross-platform support (NEEDS_WEBVIEW2, static linking, user data folder)
+  - Guards resource provider with JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
+  - Total factory presets now: 10
 
 - **2026-01-04:** Design refinement session
   - **Typography updated**: Changed from Garamond to Baskerville (1757, authentic 18th-century botanical publication typeface)
