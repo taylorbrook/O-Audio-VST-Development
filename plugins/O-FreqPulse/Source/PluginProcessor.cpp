@@ -238,11 +238,19 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
     dryWetMixer.reset();
 
     // Configure gain smoothers (one per band)
-    for (int band = 0; band < 4; ++band)
     {
-        bandGainSmooth[band].reset(sampleRate, smoothingParam->load() / 1000.0);  // Convert ms to seconds
-        bandGainSmooth[band].setCurrentAndTargetValue(1.0f);
+        float smoothMs = std::max(2.0f, smoothingParam->load());  // Enforce 2ms minimum
+        for (int band = 0; band < 4; ++band)
+        {
+            bandGainSmooth[band].reset(sampleRate, smoothMs / 1000.0);
+            bandGainSmooth[band].setCurrentAndTargetValue(1.0f);
+            bandGainFiltered[band] = 1.0f;
+        }
+        lastSmoothingMs = smoothMs;
     }
+
+    // One-pole lowpass coefficient to soften linear ramp corners (~1.5ms time constant)
+    gainFilterCoeff = 1.0f - std::exp(-1.0f / (0.0015f * static_cast<float>(sampleRate)));
 
     // Calculate bin-to-band mapping
     recalculateBinMapping();
@@ -606,6 +614,9 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         }
     }
 
+    // Enforce minimum 2ms smoothing to prevent instant jumps
+    smoothingMs = std::max(2.0f, smoothingMs);
+
     // Only reconfigure smoothing ramp when the parameter actually changes.
     // reset() calls setCurrentAndTargetValue(target) internally, which snaps
     // the current value to the target and kills any in-progress ramp.
@@ -758,11 +769,16 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
             hopCounter = 0;
         }
 
-        // v1.2.0: Apply per-sample smoothed gain in the TIME DOMAIN
+        // Apply per-sample smoothed gain in the TIME DOMAIN.
+        // Two-stage smoothing: SmoothedValue (linear ramp) → one-pole LPF (softens corners).
+        // The LPF rounds the discontinuous first derivative at ramp start/end into a
+        // smooth S-curve, preventing transient clicks in STFT-reconstructed audio.
         float bandGainValues[4];
         for (int band = 0; band < 4; ++band)
         {
-            bandGainValues[band] = bandGainSmooth[band].getNextValue();
+            float rawGain = bandGainSmooth[band].getNextValue();
+            bandGainFiltered[band] += gainFilterCoeff * (rawGain - bandGainFiltered[band]);
+            bandGainValues[band] = bandGainFiltered[band];
         }
 
         for (int ch = 0; ch < numChannels; ++ch)

@@ -2,6 +2,19 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.3.2] - 2026-02-06
+
+### Fixed
+
+- **Two-stage gain smoothing eliminates residual step-transition clicks** - Added a one-pole lowpass filter after the SmoothedValue linear ramp to soften the discontinuous first derivative at ramp start/end into a smooth S-curve. Also enforced a 2ms minimum smoothing time to prevent instant gain jumps when the user sets smoothing to zero.
+
+### Technical Notes
+
+- SmoothedValue produces a linear ramp with sharp corners at onset/offset — in STFT-reconstructed audio these corners can produce brief transient clicks
+- One-pole LPF with ~1.5ms time constant (`1 - exp(-1 / (0.0015 * sampleRate))`) applied per-sample after `getNextValue()` rounds the ramp into an S-curve
+- `bandGainFiltered[4]` array tracks the filtered gain state per band, initialized to 1.0 in `prepareToPlay()`
+- Minimum smoothing floor of 2ms prevents degenerate zero-length ramps
+
 ## [1.3.1] - 2026-02-06
 
 ### Fixed

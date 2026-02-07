@@ -113,6 +113,8 @@ private:
 
     // Band Processing
     std::array<juce::SmoothedValue<float>, 4> bandGainSmooth;
+    std::array<float, 4> bandGainFiltered = { 1.0f, 1.0f, 1.0f, 1.0f };  // One-pole LPF on gain to soften ramp corners
+    float gainFilterCoeff = 0.0f;  // One-pole coefficient, set in prepareToPlay
     std::array<int, numBins> bandForBin;  // Maps bin index to band index (-1 = passthrough)
 
     // Euclidean Patterns
