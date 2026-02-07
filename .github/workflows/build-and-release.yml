@@ -224,6 +224,8 @@ jobs:
 
           # Get PRODUCT_NAME from CMakeLists.txt
           PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/')
+          # Strip CMake variable references like ${OUARICON_DEV_SUFFIX}
+          PRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/\${[^}]*}//g')
           PRODUCT_NAME="${PRODUCT_NAME:-$PLUGIN}"
           BUNDLE_ID="io.oaudio.$(echo "$PLUGIN" | tr '[:upper:]' '[:lower:]')"
 
@@ -543,6 +545,8 @@ jobs:
         run: |
           PLUGIN="${{ needs.parse-tag.outputs.plugin_name }}"
           PRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/' || echo "$PLUGIN")
+          # Strip CMake variable references like ${OUARICON_DEV_SUFFIX}
+          PRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/\${[^}]*}//g')
           echo "name=$PRODUCT_NAME" >> $GITHUB_OUTPUT
           echo "Product name: $PRODUCT_NAME"
 

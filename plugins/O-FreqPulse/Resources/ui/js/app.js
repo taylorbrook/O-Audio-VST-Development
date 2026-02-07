@@ -293,16 +293,23 @@ function createBandRow(band) {
 
     bandRow.appendChild(laneActions);
 
-    // Band mode indicator
+    // Band mode toggle (clickable Manual/Euclidean)
     const modeIndicator = document.createElement('div');
     modeIndicator.className = 'band-mode';
     modeIndicator.textContent = 'Manual';
     modeIndicator.id = `mode-${band.id}`;
+    modeIndicator.addEventListener('click', () => {
+        const eucOnState = state.stepStates[`band${band.id}_euc_on`];
+        if (eucOnState) {
+            eucOnState.setValue(!eucOnState.getValue());
+        }
+    });
     bandRow.appendChild(modeIndicator);
 
-    // Expand button
+    // Expand button (visible only in euclidean mode)
     const expandBtn = document.createElement('button');
     expandBtn.className = 'band-expand-btn';
+    expandBtn.id = `expand-${band.id}`;
     expandBtn.textContent = '▶';
     expandBtn.addEventListener('click', () => {
         openEuclideanPanel(band.id);
@@ -510,27 +517,6 @@ function openEuclideanPanel(bandId) {
 }
 
 function syncEuclideanControls(bandId) {
-    // Mode toggle (euclidean on/off)
-    const eucOnState = state.stepStates[`band${bandId}_euc_on`];
-    const modeToggle = document.getElementById('euc-mode-toggle');
-    const modeLabels = modeToggle.querySelectorAll('.mode-label');
-
-    modeLabels.forEach((label, index) => {
-        if (index === (eucOnState.getValue() ? 1 : 0)) {
-            label.classList.add('active');
-        } else {
-            label.classList.remove('active');
-        }
-    });
-
-    modeLabels.forEach((label, index) => {
-        label.onclick = () => {
-            eucOnState.setValue(index === 1);
-            syncEuclideanControls(bandId);
-            updateBandModeIndicator(bandId, index === 1);
-        };
-    });
-
     // Euclidean steps
     const eucStepsState = state.stepStates[`band${bandId}_euc_steps`];
     const eucStepsSlider = document.getElementById('euc-steps');
@@ -592,6 +578,12 @@ function updateBandModeIndicator(bandId, isEuclidean) {
     const indicator = document.getElementById(`mode-${bandId}`);
     if (indicator) {
         indicator.textContent = isEuclidean ? 'Euclidean' : 'Manual';
+        indicator.classList.toggle('euclidean', isEuclidean);
+    }
+
+    const expandBtn = document.getElementById(`expand-${bandId}`);
+    if (expandBtn) {
+        expandBtn.classList.toggle('visible', isEuclidean);
     }
 }
 
@@ -665,6 +657,13 @@ function updateEuclideanGrid(bandId) {
 
     state.euclideanActive[bandId] = isEuclidean;
     updateBandModeIndicator(bandId, isEuclidean);
+
+    // Close euclidean panel if switching this band to manual while panel is open
+    if (!isEuclidean && state.currentBand === bandId) {
+        const panel = document.getElementById('euclidean-panel');
+        panel.classList.remove('visible');
+        state.currentBand = null;
+    }
 
     const cells = document.querySelectorAll(`.step-cell[data-band="${bandId}"]`);
 

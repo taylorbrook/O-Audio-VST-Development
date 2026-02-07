@@ -71,10 +71,13 @@ Find the line `juce_generate_juce_header({Target})`. **Immediately after** that 
 if(OUARICON_LICENSING)
     ouaricon_add_module({Target} licensing)
     target_compile_definitions({Target} PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries({Target} PRIVATE juce::juce_cryptography)
 endif()
 ```
 
 Replace `{Target}` with the actual CMake target name read in pre-flight step 2.
+
+**Critical:** The `juce_cryptography` link is required because the licensing module uses `juce::SHA256` for machine ID hashing. Without it, CI builds (which enable `OUARICON_LICENSING`) will fail with unresolved `SHA256` linker errors.
 
 ## Edit 2: PluginProcessor.h
 
@@ -268,7 +271,7 @@ ninja {Target}_VST3 {Target}_AU
 
 | File | What was added |
 |------|---------------|
-| `CMakeLists.txt` | `if(OUARICON_LICENSING)` block after `juce_generate_juce_header()` |
+| `CMakeLists.txt` | `if(OUARICON_LICENSING)` block after `juce_generate_juce_header()` — includes `juce_cryptography` link |
 | `PluginProcessor.h` | Guarded `#include`, public `getLicenseManager()` getter, private `licenseManager` member |
 | `PluginProcessor.cpp` | License manager initialization in constructor |
 | `PluginEditor.h` | Guarded `#include`, `OuariconLicense::Listener` inheritance, `licenseOverlay` member + callback declaration |

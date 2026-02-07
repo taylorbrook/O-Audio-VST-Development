@@ -228,6 +228,11 @@ OSimpleReverbAudioProcessor::OSimpleReverbAudioProcessor()
         delay.setMaximumDelayInSamples(kMaxAllPassSamples);
     for (auto& delay : allPassR)
         delay.setMaximumDelayInSamples(kMaxAllPassSamples);
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-simple-reverb", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OSimpleReverbAudioProcessor::~OSimpleReverbAudioProcessor() = default;
@@ -400,8 +405,10 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float wetGain = wetValue / 100.0f;
     float dryGain = dryValue / 100.0f;
 
-    // Store dry signal (using pre-allocated buffer)
-    dryBuffer.makeCopyOf(buffer, true);
+    // Store dry signal (pre-allocated buffer, no reallocation)
+    dryBuffer.setSize(buffer.getNumChannels(), buffer.getNumSamples(), false, false, true);
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        dryBuffer.copyFrom(ch, 0, buffer, ch, 0, buffer.getNumSamples());
 
     // Process sample-by-sample for type-specific DSP
     const int numSamples = buffer.getNumSamples();
@@ -514,22 +521,29 @@ void OSimpleReverbAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (currentMode != previousMode) {
         characterFilter.reset();
         previousMode = currentMode;
+        previousCharacterValue = characterValue - 1.0f; // Force coefficient update on mode change
     }
 
     if (currentMode == CharacterMode::Warm) {
-        float warmValue = (characterValue + 100.0f) / 99.0f;
-        warmValue = juce::jlimit(0.0f, 1.0f, warmValue);
-        float cutoffHz = 2000.0f + (18000.0f * warmValue);
-        cutoffHz = juce::jlimit(2000.0f, 20000.0f, cutoffHz);
-        *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoffHz);
+        if (std::abs(characterValue - previousCharacterValue) > 0.1f) {
+            float warmValue = (characterValue + 100.0f) / 99.0f;
+            warmValue = juce::jlimit(0.0f, 1.0f, warmValue);
+            float cutoffHz = 2000.0f + (18000.0f * warmValue);
+            cutoffHz = juce::jlimit(2000.0f, 20000.0f, cutoffHz);
+            *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeLowPass(currentSampleRate, cutoffHz);
+            previousCharacterValue = characterValue;
+        }
         characterFilter.process(wetContext);
     }
     else if (currentMode == CharacterMode::Bright) {
-        float brightValue = characterValue / 100.0f;
-        brightValue = juce::jlimit(0.0f, 1.0f, brightValue);
-        float gainDb = brightValue * 6.0f;
-        float gainLinear = juce::Decibels::decibelsToGain(gainDb);
-        *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(currentSampleRate, 4000.0f, 0.707f, gainLinear);
+        if (std::abs(characterValue - previousCharacterValue) > 0.1f) {
+            float brightValue = characterValue / 100.0f;
+            brightValue = juce::jlimit(0.0f, 1.0f, brightValue);
+            float gainDb = brightValue * 6.0f;
+            float gainLinear = juce::Decibels::decibelsToGain(gainDb);
+            *characterFilter.state = *juce::dsp::IIR::Coefficients<float>::makeHighShelf(currentSampleRate, 4000.0f, 0.707f, gainLinear);
+            previousCharacterValue = characterValue;
+        }
         characterFilter.process(wetContext);
     }
 

@@ -11,6 +11,7 @@ juce_add_plugin(O-SimpleReverb
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-SimpleReverb${OUARICON_DEV_SUFFIX}"
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
 # Source files
@@ -51,6 +52,13 @@ target_link_libraries(O-SimpleReverb
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-SimpleReverb)
 
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(O-SimpleReverb licensing)
+    target_compile_definitions(O-SimpleReverb PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(O-SimpleReverb PRIVATE juce::juce_cryptography)
+endif()
+
 # Add Ouaricon Preset Manager module
 ouaricon_add_module(O-SimpleReverb preset-manager)
 
@@ -60,7 +68,6 @@ juce_add_binary_data(O-SimpleReverb_UIResources
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
-        Source/ui/public/modules/preset-manager.js
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/flora.png
 )
@@ -76,4 +83,5 @@ target_compile_definitions(O-SimpleReverb
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
         JUCE_USE_CURL=0
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
 )

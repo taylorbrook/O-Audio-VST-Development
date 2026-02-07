@@ -135,6 +135,7 @@ void OuariconLicense::activate (const juce::String& key,
         juce::DynamicObject::Ptr body = new juce::DynamicObject();
         body->setProperty ("license_key",  key);
         body->setProperty ("machine_id",   machineId);
+        body->setProperty ("product_id",   productId);
         body->setProperty ("machine_name", juce::SystemStats::getComputerName());
         body->setProperty ("os_info",      getOsInfo());
 

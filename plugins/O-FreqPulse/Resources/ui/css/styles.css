@@ -238,6 +238,27 @@ html, body {
     font-size: 9px;
     color: var(--text-secondary);
     text-align: center;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 3px;
+    border: 1px solid transparent;
+    transition: background 0.2s, border-color 0.2s;
+}
+
+.band-mode:hover {
+    border-color: var(--border-accent);
+    background: rgba(139, 115, 85, 0.15);
+}
+
+.band-mode.euclidean {
+    background: var(--step-on);
+    color: var(--bg-paper);
+    border-color: var(--step-on);
+}
+
+.band-mode.euclidean:hover {
+    background: var(--step-hover);
+    border-color: var(--step-hover);
 }
 
 .band-expand-btn {
@@ -249,10 +270,14 @@ html, body {
     height: 28px;
     font-size: 16px;
     cursor: pointer;
-    display: flex;
+    display: none;
     align-items: center;
     justify-content: center;
     transition: background 0.2s;
+}
+
+.band-expand-btn.visible {
+    display: flex;
 }
 
 .band-expand-btn:hover {
@@ -424,23 +449,3 @@ html, body {
     text-align: center;
 }
 
-/* Toggle Container (for mode switch) */
-.toggle-container {
-    display: flex;
-    background: #E8D5B7;
-    border: 1px solid var(--border-accent);
-    border-radius: 3px;
-    overflow: hidden;
-}
-
-.mode-label {
-    padding: 4px 12px;
-    font-size: 10px;
-    cursor: pointer;
-    transition: background 0.2s;
-}
-
-.mode-label.active {
-    background: var(--step-on);
-    color: var(--bg-paper);
-}

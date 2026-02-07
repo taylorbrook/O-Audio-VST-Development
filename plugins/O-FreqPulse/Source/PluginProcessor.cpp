@@ -604,9 +604,16 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
             lastEuclideanParams[band][2] = eucOffset;
             euclideanParamsChanged = true;
         }
+    }
 
-        // Update smoothing time if changed
-        bandGainSmooth[band].reset(currentSampleRate, smoothingMs / 1000.0);
+    // Only reconfigure smoothing ramp when the parameter actually changes.
+    // reset() calls setCurrentAndTargetValue(target) internally, which snaps
+    // the current value to the target and kills any in-progress ramp.
+    if (std::abs(smoothingMs - lastSmoothingMs) > 0.01f)
+    {
+        for (int band = 0; band < 4; ++band)
+            bandGainSmooth[band].reset(currentSampleRate, smoothingMs / 1000.0);
+        lastSmoothingMs = smoothingMs;
     }
 
     if (crossoversChanged)
@@ -631,8 +638,10 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     bool signalPresent = hasAudioSignal.load();
 
-    // Get playhead position for tempo sync
+    // Get playhead position for tempo sync and sample-accurate step tracking
     bool gotValidPosition = false;
+    double blockStartPpq = 0.0;
+    double ppqPerSample = 0.0;
     juce::AudioPlayHead* playHead = getPlayHead();
 
     if (playHead != nullptr)
@@ -643,62 +652,41 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
             if (isPlaying && posInfo->getPpqPosition().hasValue())
             {
-                double ppq = *posInfo->getPpqPosition();
+                blockStartPpq = *posInfo->getPpqPosition();
                 gotValidPosition = true;
 
-                if (signalPresent)
+                // Calculate PPQ increment per sample for interpolation
+                if (posInfo->getBpm().hasValue())
                 {
-                    // Calculate current step directly from PPQ (loops via modulo in calculateCurrentStep)
-                    currentStep = calculateCurrentStep(ppq, numSteps, rateIndex, swing);
-                    currentStepAtomic.store(currentStep);
-
-                    // Update target gains when PPQ changes
-                    if (std::abs(ppq - lastPpqPosition) > 0.001)
-                    {
-                        for (int band = 0; band < 4; ++band)
-                        {
-                            float targetGain = getTargetGainForBand(band, currentStep);
-                            bandGainSmooth[band].setTargetValue(targetGain);
-                        }
-                        lastPpqPosition = ppq;
-                    }
+                    double bpm = *posInfo->getBpm();
+                    ppqPerSample = bpm / (60.0 * currentSampleRate);
+                }
+                else
+                {
+                    ppqPerSample = 120.0 / (60.0 * currentSampleRate);  // Fallback 120 BPM
                 }
             }
         }
     }
 
-    // Fallback: free-running step counter when no valid host position (e.g., Standalone)
-    if (!gotValidPosition)
+    // Fallback: free-running PPQ when no valid host position (e.g., Standalone)
+    if (!gotValidPosition && signalPresent)
     {
-        if (signalPresent)
+        ppqPerSample = 120.0 / (60.0 * currentSampleRate);  // 120 BPM
+        blockStartPpq = lastPpqPosition >= 0.0 ? lastPpqPosition : 0.0;
+        gotValidPosition = true;  // Use free-running mode
+    }
+
+    // Set initial step and gain targets at block start
+    if (gotValidPosition && signalPresent)
+    {
+        currentStep = calculateCurrentStep(blockStartPpq, numSteps, rateIndex, swing);
+        currentStepAtomic.store(currentStep);
+
+        for (int band = 0; band < 4; ++band)
         {
-            // Use sample-based timing at assumed 120 BPM
-            // PPQ per step at different rates
-            const double ppqPerStep[] = {
-                4.0, 2.0, 1.0, 0.5, 0.25, 0.125, 0.333333, 0.166666, 1.5, 0.75
-            };
-            double stepLength = ppqPerStep[juce::jlimit(0, 9, rateIndex)];
-
-            // Samples per beat at 120 BPM
-            double samplesPerBeat = currentSampleRate * 60.0 / 120.0;
-            double samplesPerStep = samplesPerBeat * stepLength;
-
-            // Accumulate samples and advance step
-            sampleAccumulator += static_cast<double>(numSamples);
-
-            if (sampleAccumulator >= samplesPerStep)
-            {
-                sampleAccumulator -= samplesPerStep;
-                currentStep = (currentStep + 1) % numSteps;
-                currentStepAtomic.store(currentStep);
-
-                // Update target gains
-                for (int band = 0; band < 4; ++band)
-                {
-                    float targetGain = getTargetGainForBand(band, currentStep);
-                    bandGainSmooth[band].setTargetValue(targetGain);
-                }
-            }
+            float targetGain = getTargetGainForBand(band, currentStep);
+            bandGainSmooth[band].setTargetValue(targetGain);
         }
     }
 
@@ -707,9 +695,32 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     juce::dsp::ProcessContextReplacing<float> context(block);
     dryWetMixer.pushDrySamples(block);
 
-    // Process each sample through STFT
+    // Process each sample through STFT with sample-accurate step tracking
+    int prevStep = currentStep;
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
+        // Sample-accurate step tracking: interpolate PPQ and detect transitions
+        if (gotValidPosition && signalPresent)
+        {
+            double samplePpq = blockStartPpq + ppqPerSample * static_cast<double>(sample);
+            int stepAtSample = calculateCurrentStep(samplePpq, numSteps, rateIndex, swing);
+
+            if (stepAtSample != prevStep)
+            {
+                // Step transition detected at this exact sample — update gain targets
+                currentStep = stepAtSample;
+                currentStepAtomic.store(currentStep);
+                prevStep = stepAtSample;
+
+                for (int band = 0; band < 4; ++band)
+                {
+                    float targetGain = getTargetGainForBand(band, currentStep);
+                    bandGainSmooth[band].setTargetValue(targetGain);
+                }
+            }
+        }
+
         for (int ch = 0; ch < numChannels; ++ch)
         {
             // Push sample to input FIFO
@@ -748,8 +759,6 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         }
 
         // v1.2.0: Apply per-sample smoothed gain in the TIME DOMAIN
-        // This eliminates the ~86Hz inter-frame modulation buzz that occurred
-        // when applying gain per-frame in the spectral domain.
         float bandGainValues[4];
         for (int band = 0; band < 4; ++band)
         {
@@ -775,6 +784,10 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
         hopCounter++;
     }
+
+    // Update lastPpqPosition for next block
+    if (gotValidPosition)
+        lastPpqPosition = blockStartPpq + ppqPerSample * static_cast<double>(numSamples);
 
     // Mix dry/wet
     dryWetMixer.setWetMixProportion(mix);

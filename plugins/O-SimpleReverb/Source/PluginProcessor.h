@@ -14,6 +14,9 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
 
 class OSimpleReverbAudioProcessor : public juce::AudioProcessor
 {
@@ -72,6 +75,10 @@ public:
 
     // VU Meter - output level for WebView (thread-safe)
     std::atomic<float> outputLevelDB { kVuMeterFloorDB };
+
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
 
 private:
     // Parameter layout creation
@@ -137,6 +144,7 @@ private:
     // State tracking
     int previousType = -1;
     double currentSampleRate = 44100.0;
+    float previousCharacterValue = 0.0f;
 
     // Type preset structure (expanded)
     struct TypePreset {
@@ -178,6 +186,10 @@ private:
         filter.reset();
         *filter.state = *juce::dsp::IIR::Coefficients<float>::makeAllPass(sampleRate, 1000.0f);
     }
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSimpleReverbAudioProcessor)
 };

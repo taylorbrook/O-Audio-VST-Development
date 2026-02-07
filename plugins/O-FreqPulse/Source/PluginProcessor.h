@@ -133,6 +133,7 @@ private:
     float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };
     float lastFreqBounds[2] = { 0.0f, 0.0f };
     int lastEuclideanParams[4][3] = { {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0} };  // [band][steps/pulses/offset]
+    float lastSmoothingMs = -1.0f;  // Track smoothing parameter to avoid reset() every block
 
     // APVTS (declared after cached pointers)
     juce::AudioProcessorValueTreeState parameters;

@@ -2,6 +2,29 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.3.1] - 2026-02-06
+
+### Fixed
+
+- **Eliminated clicks at step onset/offset transitions** - Two root causes addressed:
+  1. `SmoothedValue::reset()` was called every processBlock, which internally calls `setCurrentAndTargetValue(target)` — instantly snapping the gain to its target and killing any in-progress smoothing ramp. Now only called when the smoothing parameter actually changes.
+  2. Step transitions were detected once per block boundary, not at the exact sample. Added sample-accurate PPQ interpolation within the processBlock loop so gain target changes align precisely with beat positions.
+
+### Technical Notes
+
+- `SmoothedValue::reset(sampleRate, rampLength)` calls `setCurrentAndTargetValue(target)` which sets `currentValue = target` and `countdown = 0`. Calling this every block truncated ramps shorter than the buffer size (e.g., 5ms = 220 samples truncated at 128-sample buffers).
+- PPQ is now interpolated per-sample using host BPM: `samplePpq = blockStartPpq + ppqPerSample * sampleIndex`. Step transitions detected within the sample loop trigger immediate `setTargetValue()` calls at the exact transition sample.
+- Free-running standalone mode also benefits from the same per-sample PPQ tracking.
+
+## [1.3.0] - 2026-02-06
+
+### Changed
+
+- **Inline Manual/Euclidean mode toggle** - The "Manual" label on each band lane is now a clickable toggle that switches between Manual and Euclidean modes directly in the main UI. No longer requires opening the popup panel just to change modes.
+- **Expand button visibility** - The `▶` button to open euclidean controls (Steps, Pulses, Offset, Depth) is now hidden when a band is in Manual mode and only appears when Euclidean mode is active.
+- **Removed mode toggle from popup panel** - The euclidean controls panel now only shows the pattern parameters (Steps, Pulses, Offset, Depth) since mode switching is handled inline.
+- **Auto-close panel** - Switching a band back to Manual mode automatically closes the euclidean panel if it was open for that band.
+
 ## [1.2.0] - 2026-02-05
 
 ### Fixed

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>O-SimpleReverb</title>
+    <title>Ouaricon Simple Reverb</title>
     <style>
         * {
             margin: 0;
@@ -438,7 +438,7 @@
 
         <div class="content">
             <div class="header">
-                <h1 class="title">O-SimpleReverb</h1>
+                <h1 class="title">Ouaricon Simple Reverb</h1>
                 <div class="preset-bar">
                     <button class="preset-nav-btn" id="preset-prev" title="Previous preset">&lt;</button>
                     <div class="preset-display" id="preset-display">
@@ -799,7 +799,7 @@
             smoothingFactor: 0.15
         };
 
-        const animationLoop = (timestamp) => {
+        const animationLoop = () => {
             let needsUpdate = false;
 
             Object.entries(animationState.targets).forEach(([id, state]) => {
@@ -1032,9 +1032,19 @@
             }
         }
 
+        let vuAnimationRunning = false;
+
+        function startVUAnimation() {
+            if (!vuAnimationRunning) {
+                vuAnimationRunning = true;
+                requestAnimationFrame(animateVUMeter);
+            }
+        }
+
         if (window.__JUCE__ && window.__JUCE__.backend) {
             window.__JUCE__.backend.addEventListener("outputLevel", (dbLevel) => {
                 targetVUAngle = mapDBToAngle(dbLevel);
+                startVUAnimation();
             });
         }
 
@@ -1051,10 +1061,15 @@
 
             vuNeedle.style.transform = `translateX(-50%) rotate(${currentVUAngle}deg)`;
             vuNeedle.style.background = needleColor;
-            requestAnimationFrame(animateVUMeter);
+
+            if (Math.abs(currentVUAngle - targetVUAngle) > 0.5) {
+                requestAnimationFrame(animateVUMeter);
+            } else {
+                vuAnimationRunning = false;
+            }
         }
 
-        animateVUMeter();
+        startVUAnimation();
 
         // ====================================================================
         // TYPE PARAMETER (ComboBox)
@@ -1079,7 +1094,7 @@
         // ====================================================================
         // INITIALIZATION COMPLETE
         // ====================================================================
-        console.log("O-SimpleReverb v1.5.1 UI initialized");
+        console.log("Ouaricon Simple Reverb v1.5.1 UI initialized");
     </script>
 </body>
 </html>

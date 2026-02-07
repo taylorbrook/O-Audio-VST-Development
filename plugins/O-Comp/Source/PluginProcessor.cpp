@@ -93,6 +93,11 @@ OCompAudioProcessor::OCompAudioProcessor()
     kneeParam = parameters.getRawParameterValue("knee");
     outputGainParam = parameters.getRawParameterValue("output_gain");
     autoGainParam = parameters.getRawParameterValue("auto_gain");
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-compressor", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 void OCompAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
