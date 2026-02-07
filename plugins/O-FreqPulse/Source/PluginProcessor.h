@@ -79,34 +79,12 @@ private:
 
     std::array<BandParams, 4> bandParams;  // 4 bands
 
-    // FFT Configuration Constants
-    static constexpr int fftOrder = 11;
-    static constexpr int fftSize = 2048;  // 2^11
-    static constexpr int hopSize = 512;   // 75% overlap (fftSize / 4)
-    static constexpr int numBins = 1025;  // fftSize / 2 + 1
-    static constexpr float windowCorrection = 2.0f / 3.0f;  // COLA correction for Hann + 75% overlap
-
-    // FFT Objects
-    juce::dsp::FFT fft { fftOrder };
-    std::vector<float> hannWindow;  // Pre-computed Hann window
-
-    // STFT Buffers (stereo)
-    std::array<std::vector<float>, 2> inputFifo;
-    std::array<std::vector<float>, 2> outputFifo;
-    std::array<std::vector<float>, 2> fftData;
-
-    // Per-band STFT output FIFOs for time-domain gain application (v1.2.0)
-    // Each band gets its own reconstructed time-domain signal to avoid inter-frame modulation artifacts
-    // bandOutputFifo[band][channel] = time-domain samples for that band
-    std::array<std::array<std::vector<float>, 2>, 4> bandOutputFifo;
-    // Passthrough FIFO for frequency bins not assigned to any band
-    std::array<std::vector<float>, 2> passthroughOutputFifo;
-    // Temporary FFT buffer for per-band IFFT reconstruction
-    std::array<std::vector<float>, 2> fftBandTemp;
-
-    // STFT Tracking
-    int inputWritePos = 0;
-    int hopCounter = 0;
+    // Linkwitz-Riley crossover filter bank (LR4, -24 dB/oct)
+    // Binary tree topology: split at c2 → split low-half at c1, split high-half at c3
+    // Produces 4 bands: Sub [DC..c1], Low [c1..c2], Mid [c2..c3], High [c3..Nyquist]
+    juce::dsp::LinkwitzRileyFilter<float> crossoverMid;   // splits at c2
+    juce::dsp::LinkwitzRileyFilter<float> crossoverLow;   // splits low-half at c1
+    juce::dsp::LinkwitzRileyFilter<float> crossoverHigh;  // splits high-half at c3
 
     // Dry/Wet Mixer
     juce::dsp::DryWetMixer<float> dryWetMixer { 10 };  // 10ms max latency for mixer
@@ -115,7 +93,6 @@ private:
     std::array<juce::SmoothedValue<float>, 4> bandGainSmooth;
     std::array<float, 4> bandGainFiltered = { 1.0f, 1.0f, 1.0f, 1.0f };  // One-pole LPF on gain to soften ramp corners
     float gainFilterCoeff = 0.0f;  // One-pole coefficient, set in prepareToPlay
-    std::array<int, numBins> bandForBin;  // Maps bin index to band index (-1 = passthrough)
 
     // Euclidean Patterns
     std::array<std::array<bool, 32>, 4> euclideanPatterns;
@@ -133,7 +110,6 @@ private:
 
     // Cached parameter values (for change detection)
     float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };
-    float lastFreqBounds[2] = { 0.0f, 0.0f };
     int lastEuclideanParams[4][3] = { {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0} };  // [band][steps/pulses/offset]
     float lastSmoothingMs = -1.0f;  // Track smoothing parameter to avoid reset() every block
 
@@ -149,12 +125,11 @@ private:
     void loadPreset(int presetIndex);
 
     // Helper Methods
-    void recalculateBinMapping();
+    void updateCrossoverFrequencies();
     std::array<bool, 32> generateEuclidean(int steps, int pulses, int offset);
     void updateEuclideanPatterns();
     int calculateCurrentStep(double ppq, int numSteps, int rateIndex, float swing);
     float getTargetGainForBand(int bandIndex, int currentStep);
-    void processFrame(int channel);
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

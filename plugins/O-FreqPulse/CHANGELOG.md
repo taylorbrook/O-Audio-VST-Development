@@ -2,6 +2,21 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.4.0] - 2026-02-06
+
+### Changed
+
+- **Variable step count (2-32)** - Steps parameter changed from a fixed 4-option dropdown (4, 8, 16, 32) to a continuous slider allowing any integer from 2 to 32. Enables odd time signatures and non-power-of-two patterns like 5, 7, 12, etc.
+
+### Technical Notes
+
+- Parameter type changed from `AudioParameterChoice` to `AudioParameterInt` (range 2-32, default 16)
+- Parameter version bumped to 2 for the "steps" ID to handle state migration
+- UI changed from `<select>` dropdown to range slider with live value display
+- Editor relay changed from `WebComboBoxRelay`/`WebComboBoxParameterAttachment` to `WebSliderRelay`/`WebSliderParameterAttachment`
+- All 12 factory presets updated to use direct step count values
+- Processor reads step count directly (`jlimit(2, 32, ...)`) instead of indexing into a lookup array
+
 ## [1.3.2] - 2026-02-06
 
 ### Fixed

@@ -59,12 +59,8 @@
                 </div>
                 <div class="control">
                     <label>Steps</label>
-                    <select class="dropdown" id="steps">
-                        <option value="0">4</option>
-                        <option value="1">8</option>
-                        <option value="2" selected>16</option>
-                        <option value="3">32</option>
-                    </select>
+                    <input type="range" class="slider" id="steps" min="2" max="32" value="16">
+                    <span class="value-display" id="steps-value">16</span>
                 </div>
                 <div class="control">
                     <label>Rate</label>

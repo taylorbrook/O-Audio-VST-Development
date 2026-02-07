@@ -27,11 +27,10 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         1.0f));
 
-    globalGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "steps", 1 },
+    globalGroup->addChild(std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID { "steps", 2 },
         "Steps",
-        juce::StringArray { "4", "8", "16", "32" },
-        2));  // Default index 2 = "16"
+        2, 32, 16));
 
     globalGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "rate", 1 },
@@ -203,37 +202,20 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
 {
     currentSampleRate = sampleRate;
 
-    // Prepare STFT buffers for stereo
-    for (int ch = 0; ch < 2; ++ch)
-    {
-        inputFifo[ch].resize(fftSize, 0.0f);
-        outputFifo[ch].resize(fftSize, 0.0f);
-        fftData[ch].resize(fftSize * 2, 0.0f);  // FFT needs 2x size for real/imag
-
-        // Per-band output FIFOs for time-domain gain application (v1.2.0)
-        for (int band = 0; band < 4; ++band)
-            bandOutputFifo[band][ch].resize(fftSize, 0.0f);
-        passthroughOutputFifo[ch].resize(fftSize, 0.0f);
-        fftBandTemp[ch].resize(fftSize * 2, 0.0f);
-    }
-
-    // Reset buffer positions
-    inputWritePos = 0;
-    hopCounter = 0;
-
-    // Pre-compute Hann window
-    hannWindow.resize(static_cast<size_t>(fftSize));
-    for (int i = 0; i < fftSize; ++i)
-    {
-        double phase = static_cast<double>(i) / static_cast<double>(fftSize);
-        hannWindow[static_cast<size_t>(i)] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * juce::MathConstants<double>::pi * phase)));
-    }
-
-    // Configure DryWetMixer
+    // Configure Linkwitz-Riley crossover filter bank
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
     spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     spec.numChannels = 2;
+
+    crossoverMid.prepare(spec);
+    crossoverLow.prepare(spec);
+    crossoverHigh.prepare(spec);
+
+    // Set initial crossover frequencies
+    updateCrossoverFrequencies();
+
+    // Configure DryWetMixer
     dryWetMixer.prepare(spec);
     dryWetMixer.reset();
 
@@ -252,9 +234,6 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
     // One-pole lowpass coefficient to soften linear ramp corners (~1.5ms time constant)
     gainFilterCoeff = 1.0f - std::exp(-1.0f / (0.0015f * static_cast<float>(sampleRate)));
 
-    // Calculate bin-to-band mapping
-    recalculateBinMapping();
-
     // Generate initial Euclidean patterns
     updateEuclideanPatterns();
 
@@ -264,27 +243,17 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
     lastPpqPosition = -1.0;
     sampleAccumulator = 0.0;
 
-    // Report latency to DAW
-    setLatencySamples(fftSize);
+    // IIR crossover filters have zero latency
+    setLatencySamples(0);
 }
 
 void OFreqPulseAudioProcessor::releaseResources()
 {
-    // Reset DryWetMixer
+    // Reset filters
     dryWetMixer.reset();
-
-    // Clear STFT buffers
-    for (int ch = 0; ch < 2; ++ch)
-    {
-        std::fill(inputFifo[ch].begin(), inputFifo[ch].end(), 0.0f);
-        std::fill(outputFifo[ch].begin(), outputFifo[ch].end(), 0.0f);
-        std::fill(fftData[ch].begin(), fftData[ch].end(), 0.0f);
-
-        for (int band = 0; band < 4; ++band)
-            std::fill(bandOutputFifo[band][ch].begin(), bandOutputFifo[band][ch].end(), 0.0f);
-        std::fill(passthroughOutputFifo[ch].begin(), passthroughOutputFifo[ch].end(), 0.0f);
-        std::fill(fftBandTemp[ch].begin(), fftBandTemp[ch].end(), 0.0f);
-    }
+    crossoverMid.reset();
+    crossoverLow.reset();
+    crossoverHigh.reset();
 
     // Reset step tracking
     currentStep = 0;
@@ -297,9 +266,8 @@ void OFreqPulseAudioProcessor::releaseResources()
 // Helper Methods
 //==============================================================================
 
-void OFreqPulseAudioProcessor::recalculateBinMapping()
+void OFreqPulseAudioProcessor::updateCrossoverFrequencies()
 {
-    // Derive 4 band boundaries from 3 crossover points
     float c1 = crossover1Param->load();
     float c2 = crossover2Param->load();
     float c3 = crossover3Param->load();
@@ -309,30 +277,10 @@ void OFreqPulseAudioProcessor::recalculateBinMapping()
     if (c2 > c3) std::swap(c2, c3);
     if (c1 > c2) std::swap(c1, c2);
 
-    float fLow = freqLowParam->load();
-    float fHigh = freqHighParam->load();
-
-    float bandLows[4]  = { fLow, c1, c2, c3 };
-    float bandHighs[4] = { c1, c2, c3, fHigh };
-
-    // Map each FFT bin to a band
-    for (int bin = 0; bin < numBins; ++bin)
-    {
-        // Calculate frequency for this bin
-        float freq = static_cast<float>(bin) * static_cast<float>(currentSampleRate) / static_cast<float>(fftSize);
-
-        // Find which band this bin belongs to
-        bandForBin[bin] = -1;  // Default: passthrough (no band)
-
-        for (int band = 0; band < 4; ++band)
-        {
-            if (freq >= bandLows[band] && freq < bandHighs[band])
-            {
-                bandForBin[bin] = band;
-                break;
-            }
-        }
-    }
+    // Binary tree: split at c2, then split halves at c1 and c3
+    crossoverMid.setCutoffFrequency(c2);
+    crossoverLow.setCutoffFrequency(c1);
+    crossoverHigh.setCutoffFrequency(c3);
 }
 
 std::array<bool, 32> OFreqPulseAudioProcessor::generateEuclidean(int steps, int pulses, int offset)
@@ -446,101 +394,6 @@ float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentS
         return 1.0f - depth;  // Step OFF: reduce by depth amount
 }
 
-void OFreqPulseAudioProcessor::processFrame(int channel)
-{
-    auto& fftBuffer = fftData[channel];
-    auto& inFifo = inputFifo[channel];
-    auto& tempBuffer = fftBandTemp[channel];
-
-    // Copy input samples from circular buffer to FFT buffer
-    for (int i = 0; i < fftSize; ++i)
-    {
-        fftBuffer[static_cast<size_t>(i)] = inFifo[static_cast<size_t>((inputWritePos + i) % fftSize)];
-    }
-
-    // Apply analysis window (Hann)
-    for (int i = 0; i < fftSize; ++i)
-    {
-        fftBuffer[static_cast<size_t>(i)] *= hannWindow[static_cast<size_t>(i)];
-    }
-
-    // Forward FFT (real-only)
-    fft.performRealOnlyForwardTransform(fftBuffer.data());
-
-    // v1.2.0: Reconstruct each band separately into its own time-domain FIFO.
-    // This allows per-sample gain application in the time domain, avoiding
-    // inter-frame modulation artifacts (~86Hz buzz) that occurred when applying
-    // gain in the spectral domain with overlapping STFT frames.
-
-    // For each band: extract only that band's bins, IFFT, window, overlap-add
-    for (int band = 0; band < 4; ++band)
-    {
-        // Zero the temp buffer
-        std::fill(tempBuffer.begin(), tempBuffer.end(), 0.0f);
-
-        // Copy only bins belonging to this band
-        for (int bin = 0; bin < numBins; ++bin)
-        {
-            if (bandForBin[bin] == band)
-            {
-                int realIndex = bin * 2;
-                int imagIndex = bin * 2 + 1;
-
-                if (realIndex < fftSize * 2)
-                    tempBuffer[realIndex] = fftBuffer[realIndex];
-                if (imagIndex < fftSize * 2)
-                    tempBuffer[imagIndex] = fftBuffer[imagIndex];
-            }
-        }
-
-        // Inverse FFT for this band
-        fft.performRealOnlyInverseTransform(tempBuffer.data());
-
-        // Apply synthesis window and COLA correction
-        for (int i = 0; i < fftSize; ++i)
-        {
-            tempBuffer[static_cast<size_t>(i)] *= hannWindow[static_cast<size_t>(i)] * windowCorrection;
-        }
-
-        // Overlap-add to this band's output FIFO
-        for (int i = 0; i < fftSize; ++i)
-        {
-            bandOutputFifo[band][channel][i] += tempBuffer[i];
-        }
-    }
-
-    // Reconstruct passthrough bins (bins not assigned to any band)
-    {
-        std::fill(tempBuffer.begin(), tempBuffer.end(), 0.0f);
-
-        for (int bin = 0; bin < numBins; ++bin)
-        {
-            if (bandForBin[bin] < 0 || bandForBin[bin] >= 4)
-            {
-                int realIndex = bin * 2;
-                int imagIndex = bin * 2 + 1;
-
-                if (realIndex < fftSize * 2)
-                    tempBuffer[realIndex] = fftBuffer[realIndex];
-                if (imagIndex < fftSize * 2)
-                    tempBuffer[imagIndex] = fftBuffer[imagIndex];
-            }
-        }
-
-        fft.performRealOnlyInverseTransform(tempBuffer.data());
-
-        for (int i = 0; i < fftSize; ++i)
-        {
-            tempBuffer[static_cast<size_t>(i)] *= hannWindow[static_cast<size_t>(i)] * windowCorrection;
-        }
-
-        for (int i = 0; i < fftSize; ++i)
-        {
-            passthroughOutputFifo[channel][i] += tempBuffer[i];
-        }
-    }
-}
-
 //==============================================================================
 // Audio Processing
 //==============================================================================
@@ -558,20 +411,15 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     // Read global parameters
     float mix = mixParam->load();
-    int stepsIndex = static_cast<int>(stepsParam->load());
+    int numSteps = juce::jlimit(2, 32, static_cast<int>(stepsParam->load()));
     int rateIndex = static_cast<int>(rateParam->load());
     float swing = swingParam->load();
     float smoothingMs = smoothingParam->load();
-
-    // Map steps index to actual step count
-    const int stepCounts[] = { 4, 8, 16, 32 };
-    int numSteps = stepCounts[juce::jlimit(0, 3, stepsIndex)];
 
     // Check for parameter changes
     bool crossoversChanged = false;
     bool euclideanParamsChanged = false;
 
-    // Check crossover changes (3 values instead of 8 per-band freqs)
     {
         float c[3] = { crossover1Param->load(), crossover2Param->load(), crossover3Param->load() };
         for (int i = 0; i < 3; ++i)
@@ -579,19 +427,6 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
             if (std::abs(c[i] - lastCrossovers[i]) > 0.1f)
             {
                 lastCrossovers[i] = c[i];
-                crossoversChanged = true;
-            }
-        }
-    }
-
-    // Check frequency boundary changes
-    {
-        float fb[2] = { freqLowParam->load(), freqHighParam->load() };
-        for (int i = 0; i < 2; ++i)
-        {
-            if (std::abs(fb[i] - lastFreqBounds[i]) > 0.1f)
-            {
-                lastFreqBounds[i] = fb[i];
                 crossoversChanged = true;
             }
         }
@@ -617,9 +452,6 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     // Enforce minimum 2ms smoothing to prevent instant jumps
     smoothingMs = std::max(2.0f, smoothingMs);
 
-    // Only reconfigure smoothing ramp when the parameter actually changes.
-    // reset() calls setCurrentAndTargetValue(target) internally, which snaps
-    // the current value to the target and kills any in-progress ramp.
     if (std::abs(smoothingMs - lastSmoothingMs) > 0.01f)
     {
         for (int band = 0; band < 4; ++band)
@@ -628,7 +460,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     }
 
     if (crossoversChanged)
-        recalculateBinMapping();
+        updateCrossoverFrequencies();
 
     if (euclideanParamsChanged)
         updateEuclideanPatterns();
@@ -666,7 +498,6 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
                 blockStartPpq = *posInfo->getPpqPosition();
                 gotValidPosition = true;
 
-                // Calculate PPQ increment per sample for interpolation
                 if (posInfo->getBpm().hasValue())
                 {
                     double bpm = *posInfo->getBpm();
@@ -674,7 +505,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
                 }
                 else
                 {
-                    ppqPerSample = 120.0 / (60.0 * currentSampleRate);  // Fallback 120 BPM
+                    ppqPerSample = 120.0 / (60.0 * currentSampleRate);
                 }
             }
         }
@@ -683,9 +514,9 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     // Fallback: free-running PPQ when no valid host position (e.g., Standalone)
     if (!gotValidPosition && signalPresent)
     {
-        ppqPerSample = 120.0 / (60.0 * currentSampleRate);  // 120 BPM
+        ppqPerSample = 120.0 / (60.0 * currentSampleRate);
         blockStartPpq = lastPpqPosition >= 0.0 ? lastPpqPosition : 0.0;
-        gotValidPosition = true;  // Use free-running mode
+        gotValidPosition = true;
     }
 
     // Set initial step and gain targets at block start
@@ -703,15 +534,14 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     // Push dry samples to mixer
     juce::dsp::AudioBlock<float> block(buffer);
-    juce::dsp::ProcessContextReplacing<float> context(block);
     dryWetMixer.pushDrySamples(block);
 
-    // Process each sample through STFT with sample-accurate step tracking
+    // Per-sample processing: LR crossover → per-band gain → sum
     int prevStep = currentStep;
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Sample-accurate step tracking: interpolate PPQ and detect transitions
+        // Sample-accurate step tracking
         if (gotValidPosition && signalPresent)
         {
             double samplePpq = blockStartPpq + ppqPerSample * static_cast<double>(sample);
@@ -719,7 +549,6 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
             if (stepAtSample != prevStep)
             {
-                // Step transition detected at this exact sample — update gain targets
                 currentStep = stepAtSample;
                 currentStepAtomic.store(currentStep);
                 prevStep = stepAtSample;
@@ -732,47 +561,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
             }
         }
 
-        for (int ch = 0; ch < numChannels; ++ch)
-        {
-            // Push sample to input FIFO
-            inputFifo[ch][static_cast<size_t>(inputWritePos)] = buffer.getSample(ch, sample);
-        }
-
-        inputWritePos = (inputWritePos + 1) % fftSize;
-
-        // Process FFT frame when we've accumulated enough samples
-        if (hopCounter >= hopSize)
-        {
-            // Process each channel — no spectral gain applied here (v1.2.0)
-            for (int ch = 0; ch < numChannels; ++ch)
-            {
-                processFrame(ch);
-
-                // Shift per-band output FIFOs by hop size
-                for (int band = 0; band < 4; ++band)
-                {
-                    std::rotate(bandOutputFifo[band][ch].begin(),
-                               bandOutputFifo[band][ch].begin() + hopSize,
-                               bandOutputFifo[band][ch].end());
-                    std::fill(bandOutputFifo[band][ch].end() - hopSize,
-                             bandOutputFifo[band][ch].end(), 0.0f);
-                }
-
-                // Shift passthrough output FIFO
-                std::rotate(passthroughOutputFifo[ch].begin(),
-                           passthroughOutputFifo[ch].begin() + hopSize,
-                           passthroughOutputFifo[ch].end());
-                std::fill(passthroughOutputFifo[ch].end() - hopSize,
-                         passthroughOutputFifo[ch].end(), 0.0f);
-            }
-
-            hopCounter = 0;
-        }
-
-        // Apply per-sample smoothed gain in the TIME DOMAIN.
-        // Two-stage smoothing: SmoothedValue (linear ramp) → one-pole LPF (softens corners).
-        // The LPF rounds the discontinuous first derivative at ramp start/end into a
-        // smooth S-curve, preventing transient clicks in STFT-reconstructed audio.
+        // Two-stage gain smoothing: SmoothedValue (linear ramp) → one-pole LPF (softens corners)
         float bandGainValues[4];
         for (int band = 0; band < 4; ++band)
         {
@@ -783,22 +572,28 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
         for (int ch = 0; ch < numChannels; ++ch)
         {
-            float outputSample = 0.0f;
+            float inputSample = buffer.getSample(ch, sample);
 
-            // Sum per-band contributions with per-sample gain
-            for (int band = 0; band < 4; ++band)
-            {
-                outputSample += bandOutputFifo[band][ch][static_cast<size_t>(hopCounter)]
-                              * bandGainValues[band];
-            }
+            // Stage 1: Split at crossover 2 (c2) into low-half and high-half
+            float lowHalf, highHalf;
+            crossoverMid.processSample(ch, inputSample, lowHalf, highHalf);
 
-            // Add passthrough (unmodified bins not in any band)
-            outputSample += passthroughOutputFifo[ch][static_cast<size_t>(hopCounter)];
+            // Stage 2: Split low-half at crossover 1 (c1) into Sub and Low
+            float sub, low;
+            crossoverLow.processSample(ch, lowHalf, sub, low);
+
+            // Stage 3: Split high-half at crossover 3 (c3) into Mid and High
+            float mid, high;
+            crossoverHigh.processSample(ch, highHalf, mid, high);
+
+            // Apply per-band gain and sum
+            float outputSample = sub  * bandGainValues[0]
+                               + low  * bandGainValues[1]
+                               + mid  * bandGainValues[2]
+                               + high * bandGainValues[3];
 
             buffer.setSample(ch, sample, outputSample);
         }
-
-        hopCounter++;
     }
 
     // Update lastPpqPosition for next block
@@ -943,8 +738,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
     {
         case 0:  // Init - Clean starting point
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
 
@@ -957,8 +752,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 1:  // Classic Sidechain - Sub solid, mids pump at 1/4
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));    // 1/4
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));     // 1/4
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(20.0f));
 
@@ -975,8 +770,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 2:  // Trance Gate 16th
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(3.0f));
 
@@ -989,7 +784,7 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 3:  // Dubstep Pulse - Heavy sub gate
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(1.0f));  // 8 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));  // 8 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));    // 1/8
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(2.0f));
@@ -1002,8 +797,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 4:  // Ambient Shimmer - Slow highs
             mix->setValueNotifyingHost(0.7f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(3.0f));  // 32 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(1.0f));    // 1/2
+            steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));  // 32 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(1.0f));     // 1/2
             swing->setValueNotifyingHost(0.2f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(50.0f));
 
@@ -1015,8 +810,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 5:  // Polyrhythm 5-7-11
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
 
@@ -1028,8 +823,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 6:  // Bass Foundation - Sub always on
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
 
@@ -1041,8 +836,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 7:  // Hi-Hat Chop - Only highs gated
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(3.0f));  // 32 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(5.0f));    // 1/32
+            steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));  // 32 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(5.0f));     // 1/32
             swing->setValueNotifyingHost(0.3f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(1.0f));
 
@@ -1054,8 +849,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 8:  // Full Spectrum Gate - Unified gating
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));    // 1/16
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(3.0f));
 
@@ -1067,8 +862,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 9:  // Euclidean Groove - Musical ratios
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));    // 1/8
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));     // 1/8
             swing->setValueNotifyingHost(0.15f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(8.0f));
 
@@ -1080,7 +875,7 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 10:  // Half-Time Feel - Slower, dramatic
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(1.0f));  // 8 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));  // 8 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));    // 1/4
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(30.0f));
@@ -1093,8 +888,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
 
         case 11:  // Triplet Bounce
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(2.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(6.0f));    // 1/8T (triplet)
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            rate->setValueNotifyingHost(rate->convertTo0to1(6.0f));     // 1/8T (triplet)
             swing->setValueNotifyingHost(0.0f);
             smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
 

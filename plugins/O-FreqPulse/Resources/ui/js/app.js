@@ -104,21 +104,28 @@ function initializeGlobalParameters() {
         mixValue.textContent = `${Math.round(mixSlider.value)}%`;
     });
 
-    // Steps dropdown
-    const stepsState = Juce.getComboBoxState('steps');
-    const stepsDropdown = document.getElementById('steps');
+    // Steps slider (2-32)
+    const stepsState = Juce.getSliderState('steps');
+    const stepsSlider = document.getElementById('steps');
+    const stepsValue = document.getElementById('steps-value');
 
-    stepsDropdown.selectedIndex = stepsState.getChoiceIndex();
-    updateStepCount(stepsState.getChoiceIndex());
+    stepsSlider.value = Math.round(stepsState.getScaledValue());
+    stepsValue.textContent = stepsSlider.value;
+    updateStepCount(parseInt(stepsSlider.value));
 
-    stepsDropdown.addEventListener('change', (e) => {
-        stepsState.setChoiceIndex(e.target.selectedIndex);
-        updateStepCount(e.target.selectedIndex);
+    stepsSlider.addEventListener('input', (e) => {
+        const val = parseInt(e.target.value);
+        const normalized = (val - 2) / 30;  // 2-32 → 0-1
+        stepsState.setNormalisedValue(normalized);
+        stepsValue.textContent = val;
+        updateStepCount(val);
     });
 
     stepsState.valueChangedEvent.addListener(() => {
-        stepsDropdown.selectedIndex = stepsState.getChoiceIndex();
-        updateStepCount(stepsState.getChoiceIndex());
+        const val = Math.round(stepsState.getScaledValue());
+        stepsSlider.value = val;
+        stepsValue.textContent = val;
+        updateStepCount(val);
     });
 
     // Rate dropdown
@@ -437,9 +444,8 @@ function updateStepVisual(band, step, active) {
     }
 }
 
-function updateStepCount(stepsIndex) {
-    const stepCounts = [4, 8, 16, 32];
-    state.numSteps = stepCounts[stepsIndex] || 16;
+function updateStepCount(count) {
+    state.numSteps = Math.max(2, Math.min(32, count || 16));
     updateStepVisibility();
 }
 

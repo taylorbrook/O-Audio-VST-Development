@@ -38,7 +38,7 @@ private:
     // 1️⃣ RELAYS FIRST (no dependencies)
     // Global parameter relays (5 total)
     std::unique_ptr<juce::WebSliderRelay> mixRelay;
-    std::unique_ptr<juce::WebComboBoxRelay> stepsRelay;
+    std::unique_ptr<juce::WebSliderRelay> stepsRelay;
     std::unique_ptr<juce::WebComboBoxRelay> rateRelay;
     std::unique_ptr<juce::WebSliderRelay> swingRelay;
     std::unique_ptr<juce::WebSliderRelay> smoothingRelay;
@@ -90,7 +90,7 @@ private:
     // 3️⃣ ATTACHMENTS LAST (depend on both relays and webView)
     // Global parameter attachments (5 total)
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
-    std::unique_ptr<juce::WebComboBoxParameterAttachment> stepsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> stepsAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> rateAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> swingAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> smoothingAttachment;

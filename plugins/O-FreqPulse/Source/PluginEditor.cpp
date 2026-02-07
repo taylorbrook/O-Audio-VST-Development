@@ -17,7 +17,7 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
     // 1️⃣ CREATE RELAYS FIRST
     // Global parameter relays (5 total)
     mixRelay = std::make_unique<juce::WebSliderRelay>("mix");
-    stepsRelay = std::make_unique<juce::WebComboBoxRelay>("steps");
+    stepsRelay = std::make_unique<juce::WebSliderRelay>("steps");
     rateRelay = std::make_unique<juce::WebComboBoxRelay>("rate");
     swingRelay = std::make_unique<juce::WebSliderRelay>("swing");
     smoothingRelay = std::make_unique<juce::WebSliderRelay>("smoothing");
@@ -131,7 +131,7 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
     // Global parameter attachments
     mixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("mix"), *mixRelay, nullptr);
-    stepsAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+    stepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("steps"), *stepsRelay, nullptr);
     rateAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("rate"), *rateRelay, nullptr);
