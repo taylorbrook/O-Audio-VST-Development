@@ -1,6 +1,7 @@
 /* O-FreqPulse - Main Application */
 
 import * as Juce from './juce/index.js';
+import { PresetManager } from '../modules/preset-manager.js';
 
 // State
 const state = {
@@ -8,6 +9,7 @@ const state = {
     numSteps: 16,       // Current step count (4, 8, 16, or 32)
     stepStates: {},     // SliderState/ToggleState objects by parameter ID
     euclideanActive: [false, false, false, false],  // Per-band euclidean mode state
+    tooltipsEnabled: false,  // v1.5.0: Tooltip toggle state
 };
 
 // Band configuration
@@ -76,6 +78,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setupGlobalControls();
     setupEuclideanPanel();
     initializeEuclideanListeners();
+
+    // v1.5.0: Initialize tooltip system
+    initializeTooltips();
+
+    // v1.6.0: Initialize preset manager
+    initializePresetManager();
 
     console.log('O-FreqPulse UI initialized');
 });
@@ -255,6 +263,7 @@ function createBandRow(band) {
     const label = document.createElement('div');
     label.className = 'band-label';
     label.innerHTML = `<strong>${band.name}</strong><br><span class="freq-range" id="freq-${band.id}"></span>`;
+    label.setAttribute('data-tooltip', `${band.name} band: Shows the frequency range for this band. Frequencies are set by the crossover sliders between bands.`);
     bandRow.appendChild(label);
 
     // Steps container
@@ -284,6 +293,7 @@ function createBandRow(band) {
     clearBtn.className = 'lane-btn clear-btn';
     clearBtn.textContent = '⌀';
     clearBtn.title = 'Clear all steps';
+    clearBtn.setAttribute('data-tooltip', 'Clear: Resets all steps in this band to OFF.');
     clearBtn.addEventListener('click', () => {
         clearBand(band.id);
     });
@@ -293,6 +303,7 @@ function createBandRow(band) {
     randomBtn.className = 'lane-btn random-btn';
     randomBtn.textContent = '⚄';
     randomBtn.title = 'Randomize steps';
+    randomBtn.setAttribute('data-tooltip', 'Random: Fills steps with a random pattern (50% probability per step).');
     randomBtn.addEventListener('click', () => {
         randomizeBand(band.id);
     });
@@ -305,6 +316,7 @@ function createBandRow(band) {
     modeIndicator.className = 'band-mode';
     modeIndicator.textContent = 'Manual';
     modeIndicator.id = `mode-${band.id}`;
+    modeIndicator.setAttribute('data-tooltip', 'Mode: Click to toggle between Manual (draw your own pattern) and Euclidean (algorithmically generated rhythm).');
     modeIndicator.addEventListener('click', () => {
         const eucOnState = state.stepStates[`band${band.id}_euc_on`];
         if (eucOnState) {
@@ -318,6 +330,7 @@ function createBandRow(band) {
     expandBtn.className = 'band-expand-btn';
     expandBtn.id = `expand-${band.id}`;
     expandBtn.textContent = '▶';
+    expandBtn.setAttribute('data-tooltip', 'Expand: Opens the Euclidean controls panel for this band (Steps, Pulses, Offset, Depth).');
     expandBtn.addEventListener('click', () => {
         openEuclideanPanel(band.id);
     });
@@ -349,9 +362,10 @@ function clampFreqSlider(paramId, newNorm) {
     return Math.max(minNorm, Math.min(maxNorm, newNorm));
 }
 
-function createDividerSlider(paramId, cssClass) {
+function createDividerSlider(paramId, cssClass, tooltipText) {
     const divider = document.createElement('div');
     divider.className = cssClass;
+    if (tooltipText) divider.setAttribute('data-tooltip', tooltipText);
 
     const slider = document.createElement('input');
     slider.type = 'range';
@@ -395,15 +409,15 @@ function renderGrid() {
     // 8. HIGH band row
     // 9. freq_high boundary (top)
 
-    container.appendChild(createDividerSlider('freq_low', 'freq-boundary'));
+    container.appendChild(createDividerSlider('freq_low', 'freq-boundary', 'Low Boundary: Sets the lowest frequency included in processing. Frequencies below this are unaffected.'));
     container.appendChild(createBandRow(bands[0]));  // SUB
-    container.appendChild(createDividerSlider('crossover_1', 'crossover-divider'));
+    container.appendChild(createDividerSlider('crossover_1', 'crossover-divider', 'Crossover 1: Split point between Sub and Low bands. Drag to adjust where sub frequencies end and low frequencies begin.'));
     container.appendChild(createBandRow(bands[1]));  // LOW
-    container.appendChild(createDividerSlider('crossover_2', 'crossover-divider'));
+    container.appendChild(createDividerSlider('crossover_2', 'crossover-divider', 'Crossover 2: Split point between Low and Mid bands. Drag to adjust the frequency boundary.'));
     container.appendChild(createBandRow(bands[2]));  // MID
-    container.appendChild(createDividerSlider('crossover_3', 'crossover-divider'));
+    container.appendChild(createDividerSlider('crossover_3', 'crossover-divider', 'Crossover 3: Split point between Mid and High bands. Drag to adjust where mid frequencies end and highs begin.'));
     container.appendChild(createBandRow(bands[3]));  // HIGH
-    container.appendChild(createDividerSlider('freq_high', 'freq-boundary'));
+    container.appendChild(createDividerSlider('freq_high', 'freq-boundary', 'High Boundary: Sets the highest frequency included in processing. Frequencies above this are unaffected.'));
 
     // Update step visibility based on current step count
     updateStepVisibility();
@@ -760,4 +774,169 @@ function initializeEuclideanListeners() {
 function setupGlobalControls() {
     // Already initialized in initializeGlobalParameters()
     console.log('Global controls bound to JUCE parameters');
+}
+
+// ============================================================================
+// v1.5.0: Tooltip System
+// ============================================================================
+
+function initializeTooltips() {
+    const tooltipToggle = document.getElementById('tooltip-toggle');
+    const tooltip = document.getElementById('tooltip');
+    const pluginContainer = document.getElementById('plugin-container');
+
+    if (!tooltipToggle || !tooltip || !pluginContainer) return;
+
+    // Toggle button click handler
+    tooltipToggle.addEventListener('click', function() {
+        state.tooltipsEnabled = !state.tooltipsEnabled;
+        tooltipToggle.classList.toggle('active', state.tooltipsEnabled);
+        pluginContainer.classList.toggle('tooltips-enabled', state.tooltipsEnabled);
+
+        // Hide tooltip when disabling
+        if (!state.tooltipsEnabled) {
+            tooltip.classList.remove('visible');
+        }
+
+        // Persist state to C++ (if native function available)
+        if (window.__JUCE__ && window.__JUCE__.backend && window.__JUCE__.backend.getNativeFunction) {
+            try {
+                window.__JUCE__.backend.getNativeFunction('setTooltipsEnabled')(state.tooltipsEnabled);
+            } catch (e) {
+                // Silently ignore if not available
+            }
+        }
+    });
+
+    // Show tooltip on hover over elements with data-tooltip
+    pluginContainer.addEventListener('mouseover', function(e) {
+        if (!state.tooltipsEnabled) return;
+
+        const target = e.target.closest('[data-tooltip]');
+        if (!target) return;
+
+        const text = target.getAttribute('data-tooltip');
+        if (!text) return;
+
+        tooltip.textContent = text;
+        tooltip.classList.add('visible');
+
+        // Position tooltip above the element
+        const rect = target.getBoundingClientRect();
+        const containerRect = pluginContainer.getBoundingClientRect();
+
+        let left = rect.left - containerRect.left + rect.width / 2;
+        let top = rect.top - containerRect.top - 8;
+
+        // Constrain within container bounds
+        const tooltipWidth = tooltip.offsetWidth || 200;
+        const tooltipHeight = tooltip.offsetHeight || 40;
+
+        // Keep tooltip within horizontal bounds
+        if (left - tooltipWidth / 2 < 10) {
+            left = tooltipWidth / 2 + 10;
+        } else if (left + tooltipWidth / 2 > containerRect.width - 10) {
+            left = containerRect.width - tooltipWidth / 2 - 10;
+        }
+
+        // If tooltip would go above container, show below instead
+        if (top - tooltipHeight < 0) {
+            top = rect.bottom - containerRect.top + 8;
+        }
+
+        tooltip.style.left = left + 'px';
+        tooltip.style.top = top + 'px';
+        tooltip.style.transform = 'translateX(-50%)';
+    });
+
+    // Hide tooltip on mouseout
+    pluginContainer.addEventListener('mouseout', function(e) {
+        const target = e.target.closest('[data-tooltip]');
+        if (target) {
+            tooltip.classList.remove('visible');
+        }
+    });
+}
+
+// v1.5.0: Restore tooltip state from C++ (called via evaluateJavascript)
+window.restoreTooltipState = function(enabled) {
+    state.tooltipsEnabled = !!enabled;
+    const tooltipToggle = document.getElementById('tooltip-toggle');
+    const pluginContainer = document.getElementById('plugin-container');
+    if (tooltipToggle) tooltipToggle.classList.toggle('active', state.tooltipsEnabled);
+    if (pluginContainer) pluginContainer.classList.toggle('tooltips-enabled', state.tooltipsEnabled);
+};
+
+// ============================================================================
+// v1.6.0: Preset Manager
+// ============================================================================
+
+function initializePresetManager() {
+    const presetNameDisplay = document.getElementById('presetName');
+    const presetDropdown = document.getElementById('presetDropdown');
+
+    if (!presetNameDisplay) return;
+
+    const presetManager = new PresetManager({
+        displayElement: presetNameDisplay,
+        prevButton: document.getElementById('prevPreset'),
+        nextButton: document.getElementById('nextPreset'),
+        saveButton: document.getElementById('savePreset'),
+        loadButton: document.getElementById('loadPreset'),
+        getNativeFunction: Juce.getNativeFunction,
+        onPresetChanged: (name) => {
+            console.log('Preset loaded:', name);
+            hidePresetDropdown();
+        },
+        onPresetListUpdated: (list) => {
+            console.log('Preset list updated:', list.length, 'presets');
+        }
+    });
+    presetManager.initialize();
+
+    // Preset dropdown (click preset name to show list)
+    function showPresetDropdown() {
+        const presets = presetManager.getPresetList();
+        presetDropdown.innerHTML = '';
+
+        if (presets.length === 0) {
+            presetDropdown.innerHTML = '<div class="preset-dropdown-item" style="opacity:0.5">No presets</div>';
+            presetDropdown.classList.add('show');
+            return;
+        }
+
+        const currentName = presetManager.getCurrentPreset();
+        presets.forEach((name) => {
+            const item = document.createElement('div');
+            item.className = 'preset-dropdown-item';
+            if (name === currentName) item.classList.add('active');
+            item.textContent = name;
+            item.addEventListener('click', (e) => {
+                e.stopPropagation();
+                presetManager.loadPreset(name);
+                hidePresetDropdown();
+            });
+            presetDropdown.appendChild(item);
+        });
+
+        presetDropdown.classList.add('show');
+    }
+
+    function hidePresetDropdown() {
+        presetDropdown.classList.remove('show');
+    }
+
+    presetNameDisplay.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (presetDropdown.classList.contains('show')) {
+            hidePresetDropdown();
+        } else {
+            showPresetDropdown();
+        }
+    });
+
+    // Close dropdown when clicking elsewhere
+    document.addEventListener('click', () => {
+        hidePresetDropdown();
+    });
 }

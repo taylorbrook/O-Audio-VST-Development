@@ -11,6 +11,7 @@ import { RotaryKnob } from './components/RotaryKnob.js';
 import { FreehandCurve } from './components/FreehandCurve.js';
 import { NodeCurve } from './components/NodeCurve.js';
 import { Spectrogram } from './components/Spectrogram.js';
+import { PresetManager } from '../modules/preset-manager.js';
 
 // ============================================================================
 // APPLICATION STATE
@@ -28,6 +29,7 @@ const app = {
         sustain: 'freehand'
     },
     spectrogram: null,
+    presetManager: null,
     animationFrameId: null,
     initialized: false
 };
@@ -58,6 +60,9 @@ function initializeApp() {
 
     // Initialize spectrogram (Phase 3.3)
     initializeSpectrogram();
+
+    // Initialize preset manager
+    initializePresetManager();
 
     // Mark as initialized
     app.initialized = true;
@@ -344,6 +349,28 @@ window.setSustainCurveFromCPP = function(data) {
  */
 function loadCurvesFromProcessor() {
     console.log('Waiting for initial curve data from C++...');
+}
+
+// ============================================================================
+// PRESET MANAGER INITIALIZATION
+// ============================================================================
+
+function initializePresetManager() {
+    console.log('Initializing preset manager...');
+
+    app.presetManager = new PresetManager({
+        displayElement: document.getElementById('preset-name'),
+        prevButton: document.getElementById('preset-prev'),
+        nextButton: document.getElementById('preset-next'),
+        saveButton: document.getElementById('preset-save'),
+        loadButton: document.getElementById('preset-load'),
+        getNativeFunction: Juce.getNativeFunction,
+        onPresetChanged: (name) => {
+            console.log('Preset changed:', name);
+        }
+    });
+
+    app.presetManager.initialize();
 }
 
 // ============================================================================

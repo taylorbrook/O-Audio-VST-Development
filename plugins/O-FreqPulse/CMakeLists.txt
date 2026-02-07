@@ -1,8 +1,11 @@
 cmake_minimum_required(VERSION 3.15)
 
+# Include Ouaricon Module System
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-FreqPulse
-    VERSION 1.4.0
+    VERSION 1.6.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFPu
@@ -22,6 +25,7 @@ target_sources(O-FreqPulse
 target_include_directories(O-FreqPulse
     PRIVATE
         Source
+        ${CMAKE_SOURCE_DIR}/modules/persistence/preset-manager/cpp
 )
 
 # Required JUCE modules
@@ -58,6 +62,7 @@ juce_add_binary_data(O-FreqPulse_UIResources
         Resources/ui/js/app.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js
+        Resources/ui/modules/preset-manager.js
 )
 
 # Compile definitions

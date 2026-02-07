@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "OuariconPresetManager.h"
 
 class ODetuneAudioProcessor : public juce::AudioProcessor
 {
@@ -45,6 +46,9 @@ public:
 
     // APVTS (public for editor access)
     juce::AudioProcessorValueTreeState parameters;
+
+    // Preset management
+    OuariconPresetManager presetManager;
 
 private:
     //==============================================================================

@@ -79,10 +79,11 @@
         /* Header */
         .header {
             display: flex;
-            justify-content: center;
+            justify-content: space-between;
             align-items: center;
             padding: 4px 0 8px 0;
             border-bottom: 1px solid var(--panel-border);
+            position: relative;
         }
 
         .logo {
@@ -425,6 +426,117 @@
             gap: 12px;
             align-items: flex-start;
         }
+
+        /* Preset Bar */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .preset-nav-btn {
+            width: 20px;
+            height: 20px;
+            background: rgba(90, 122, 106, 0.3);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            color: var(--text-primary);
+            font-size: 11px;
+            font-family: 'Georgia', serif;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            line-height: 1;
+            padding: 0;
+        }
+
+        .preset-nav-btn:hover {
+            background: rgba(90, 122, 106, 0.5);
+        }
+
+        .preset-name {
+            font-size: 11px;
+            color: var(--text-primary);
+            min-width: 100px;
+            text-align: center;
+            cursor: pointer;
+            padding: 2px 8px;
+            border: 1px solid transparent;
+            border-radius: 3px;
+            transition: border-color 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 140px;
+        }
+
+        .preset-name:hover {
+            border-color: var(--panel-border);
+        }
+
+        .preset-action-btn {
+            padding: 2px 8px;
+            background: rgba(90, 122, 106, 0.2);
+            border: 1px solid var(--panel-border);
+            border-radius: 3px;
+            color: var(--text-secondary);
+            font-size: 9px;
+            font-family: 'Georgia', serif;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .preset-action-btn:hover {
+            background: rgba(90, 122, 106, 0.4);
+            color: var(--text-primary);
+        }
+
+        .preset-dropdown {
+            display: none;
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            background: var(--paper-bg);
+            border: 1px solid var(--border-walnut);
+            border-radius: 4px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+            z-index: 100;
+            min-width: 160px;
+            max-height: 200px;
+            overflow-y: auto;
+            margin-top: 4px;
+        }
+
+        .preset-dropdown.open {
+            display: block;
+        }
+
+        .preset-dropdown-item {
+            padding: 6px 12px;
+            font-size: 11px;
+            color: var(--text-primary);
+            cursor: pointer;
+            font-family: 'Georgia', serif;
+            transition: background 0.1s;
+        }
+
+        .preset-dropdown-item:hover {
+            background: rgba(90, 122, 106, 0.15);
+        }
+
+        .preset-dropdown-item.active {
+            color: var(--accent-green);
+            font-weight: 600;
+        }
+
+        .preset-dropdown-item.factory {
+            font-style: italic;
+        }
     </style>
 </head>
 <body>
@@ -437,7 +549,15 @@
         <div class="container">
             <!-- Header -->
             <div class="header">
-                <div class="logo">O-<span>Detune</span></div>
+                <div class="logo">Ouaricon <span>Detune</span></div>
+                <div class="preset-bar">
+                    <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&#8249;</button>
+                    <span class="preset-name" id="presetName" title="Click to see all presets">Default</span>
+                    <button class="preset-nav-btn" id="nextPreset" title="Next preset">&#8250;</button>
+                    <button class="preset-action-btn" id="loadPreset" title="Load preset from file">Load</button>
+                    <button class="preset-action-btn" id="savePreset" title="Save current settings">Save</button>
+                    <div class="preset-dropdown" id="presetDropdown"></div>
+                </div>
             </div>
 
             <!-- Engines Row -->
@@ -641,7 +761,8 @@
     </div>
 
     <script type="module">
-        import { getSliderState, getToggleState, getComboBoxState } from '/js/juce/index.js';
+        import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from '/js/juce/index.js';
+        import { PresetManager } from '/modules/preset-manager.js';
 
         // Get slider states from JUCE
         const sliderStates = {
@@ -1028,6 +1149,68 @@
 
             toggleStates.mono_safe.valueChangedEvent.addListener(updateWidthSliderState);
             updateWidthSliderState();
+        }
+
+        // ======================================================================
+        // Preset Manager
+        // ======================================================================
+        const presetNameDisplay = document.getElementById('presetName');
+        const presetDropdown = document.getElementById('presetDropdown');
+
+        const presetMgr = new PresetManager({
+            displayElement: presetNameDisplay,
+            prevButton: document.getElementById('prevPreset'),
+            nextButton: document.getElementById('nextPreset'),
+            saveButton: document.getElementById('savePreset'),
+            loadButton: document.getElementById('loadPreset'),
+            getNativeFunction: getNativeFunction,
+            onPresetChanged: (name) => {
+                updatePresetDropdown();
+            },
+            onPresetListUpdated: (list) => {
+                updatePresetDropdown();
+            }
+        });
+
+        presetMgr.initialize();
+
+        // Dropdown toggle on preset name click
+        presetNameDisplay.addEventListener('click', () => {
+            presetDropdown.classList.toggle('open');
+            if (presetDropdown.classList.contains('open')) {
+                updatePresetDropdown();
+            }
+        });
+
+        // Close dropdown when clicking outside
+        document.addEventListener('click', (e) => {
+            if (!e.target.closest('.preset-bar')) {
+                presetDropdown.classList.remove('open');
+            }
+        });
+
+        // Build dropdown items from preset list
+        async function updatePresetDropdown() {
+            const presets = presetMgr.getPresetList();
+            const current = presetMgr.getCurrentPreset();
+
+            presetDropdown.innerHTML = '';
+            for (const name of presets) {
+                const item = document.createElement('div');
+                item.className = 'preset-dropdown-item';
+                item.textContent = name;
+
+                if (name === current) {
+                    item.classList.add('active');
+                }
+
+                item.addEventListener('click', async () => {
+                    await presetMgr.loadPreset(name);
+                    presetDropdown.classList.remove('open');
+                });
+
+                presetDropdown.appendChild(item);
+            }
         }
     </script>
 </body>

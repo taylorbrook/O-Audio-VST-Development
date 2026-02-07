@@ -106,6 +106,79 @@ body::after {
 }
 
 /* ============================================================================
+   PRESET BAR
+   ============================================================================ */
+
+.preset-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+}
+
+.preset-name {
+    min-width: 100px;
+    max-width: 140px;
+    text-align: center;
+    font-size: 12px;
+    letter-spacing: 0.5px;
+    color: #E8E0D4;
+    padding: 3px 8px;
+    background: rgba(232, 224, 212, 0.08);
+    border: 1px solid rgba(232, 224, 212, 0.2);
+    border-radius: 3px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    cursor: default;
+}
+
+.preset-nav-btn {
+    width: 22px;
+    height: 22px;
+    font-size: 16px;
+    line-height: 20px;
+    text-align: center;
+    padding: 0;
+    color: #E8E0D4;
+    background: rgba(232, 224, 212, 0.08);
+    border: 1px solid rgba(232, 224, 212, 0.2);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    font-family: 'Georgia', serif;
+}
+
+.preset-nav-btn:hover {
+    background: rgba(232, 224, 212, 0.15);
+    border-color: rgba(232, 224, 212, 0.4);
+}
+
+.preset-nav-btn:active {
+    background: rgba(232, 224, 212, 0.05);
+}
+
+.preset-action-btn {
+    padding: 3px 8px;
+    font-size: 9px;
+    font-family: 'Georgia', serif;
+    letter-spacing: 0.5px;
+    color: #A89888;
+    background: transparent;
+    border: 1px solid rgba(232, 224, 212, 0.15);
+    border-radius: 3px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-transform: uppercase;
+}
+
+.preset-action-btn:hover {
+    color: #E8E0D4;
+    border-color: rgba(232, 224, 212, 0.35);
+    background: rgba(232, 224, 212, 0.08);
+}
+
+/* ============================================================================
    SPECTROGRAM AREA
    ============================================================================ */
 

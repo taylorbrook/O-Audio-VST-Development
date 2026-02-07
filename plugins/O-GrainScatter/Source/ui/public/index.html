@@ -1,0 +1,425 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-GrainScatter</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body { width: 100%; height: 100%; overflow: hidden; }
+        body {
+            font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+            background: linear-gradient(135deg, #F5E6D3 0%, #EBD9C7 40%, #E8D0B8 100%);
+            color: #3C2F2F;
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* ── Layout ── */
+        .plugin-container {
+            width: 900px; height: 700px;
+            position: relative;
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* ── Header ── */
+        .header {
+            padding: 10px 24px 6px;
+            display: flex;
+            align-items: baseline;
+            gap: 12px;
+            border-bottom: 1px solid rgba(139,115,85,0.25);
+        }
+        .header h1 {
+            font-size: 22px;
+            font-weight: 400;
+            letter-spacing: 3px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+        }
+        .header .tagline {
+            font-size: 10px;
+            color: #8B7355;
+            letter-spacing: 1.5px;
+            font-style: italic;
+        }
+
+        /* ── Visualization Area ── */
+        .viz-area {
+            display: flex;
+            height: 240px;
+            padding: 8px 16px;
+            gap: 12px;
+        }
+        .viz-panel {
+            background: rgba(255,248,220,0.3);
+            border: 1px solid rgba(139,115,85,0.3);
+            border-radius: 4px;
+            position: relative;
+        }
+        .viz-panel .viz-label {
+            position: absolute;
+            top: 4px; left: 8px;
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #8B7355;
+            opacity: 0.7;
+        }
+        .grain-viz { flex: 65; }
+        .euclidean-viz { flex: 35; }
+        .grain-viz canvas, .euclidean-viz canvas {
+            width: 100%; height: 100%;
+            display: block;
+        }
+
+        /* ── Freeze Toggle (between viz and controls) ── */
+        .freeze-bar {
+            display: flex;
+            justify-content: center;
+            padding: 4px 0 2px;
+        }
+
+        /* ── Controls Area ── */
+        .controls-area {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: 1fr 1fr;
+            gap: 6px;
+            padding: 4px 16px 10px;
+        }
+
+        /* ── Control Groups ── */
+        .group {
+            background: rgba(255,248,220,0.2);
+            border: 1px solid rgba(139,115,85,0.2);
+            border-radius: 4px;
+            padding: 6px 10px;
+        }
+        .group-label {
+            font-size: 9px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: #8B7355;
+            margin-bottom: 6px;
+            font-variant: small-caps;
+        }
+        .group-controls {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: flex-start;
+        }
+
+        /* ── Knob ── */
+        .knob-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 62px;
+        }
+        .knob-name {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5C4033;
+            margin-bottom: 3px;
+            text-align: center;
+            line-height: 1.1;
+            height: 18px;
+            display: flex;
+            align-items: center;
+        }
+        .knob {
+            width: 48px;
+            height: 48px;
+            border-radius: 50%;
+            border: 2px solid #8B7355;
+            position: relative;
+            cursor: pointer;
+            background:
+                radial-gradient(circle, transparent 86%, #C9A27B 86%, #C9A27B 90%, #8B7355 90%, #8B7355 92%, transparent 92%),
+                conic-gradient(from 0deg,
+                    #F5DEB3 0deg, #F5DEB3 18deg, #8B7355 18deg, #8B7355 19deg,
+                    #E8D5B7 19deg, #E8D5B7 36deg, #8B7355 36deg, #8B7355 37deg,
+                    #F5DEB3 37deg, #F5DEB3 54deg, #8B7355 54deg, #8B7355 55deg,
+                    #E8D5B7 55deg, #E8D5B7 72deg, #8B7355 72deg, #8B7355 73deg,
+                    #F5DEB3 73deg, #F5DEB3 90deg, #8B7355 90deg, #8B7355 91deg,
+                    #E8D5B7 91deg, #E8D5B7 108deg, #8B7355 108deg, #8B7355 109deg,
+                    #F5DEB3 109deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 127deg,
+                    #E8D5B7 127deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 145deg,
+                    #F5DEB3 145deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 163deg,
+                    #E8D5B7 163deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 181deg,
+                    #F5DEB3 181deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 199deg,
+                    #E8D5B7 199deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 217deg,
+                    #F5DEB3 217deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 235deg,
+                    #E8D5B7 235deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 253deg,
+                    #F5DEB3 253deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 271deg,
+                    #E8D5B7 271deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 289deg,
+                    #F5DEB3 289deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 307deg,
+                    #E8D5B7 307deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 325deg,
+                    #F5DEB3 325deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 343deg,
+                    #E8D5B7 343deg, #E8D5B7 360deg
+                ),
+                radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+            box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3),
+                        inset -1px -1px 2px rgba(255,248,220,0.5),
+                        2px 2px 6px rgba(0,0,0,0.2);
+        }
+        .knob-indicator {
+            position: absolute;
+            top: 2px;
+            left: 50%;
+            width: 0;
+            height: 0;
+            border-left: 4px solid transparent;
+            border-right: 4px solid transparent;
+            border-top: 18px solid #8B6914;
+            transform: translateX(-50%) rotate(0deg);
+            transform-origin: center 22px;
+            pointer-events: none;
+        }
+        .knob-value {
+            font-size: 9px;
+            color: #5C4033;
+            margin-top: 2px;
+            text-align: center;
+            min-width: 40px;
+        }
+
+        /* ── Dropdown ── */
+        .dropdown-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 80px;
+        }
+        .dropdown-name {
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #5C4033;
+            margin-bottom: 3px;
+            text-align: center;
+            height: 18px;
+            display: flex;
+            align-items: center;
+        }
+        .dropdown {
+            width: 100%;
+            background: #E8D5B7;
+            border: 1px solid #8B7355;
+            font-family: 'Georgia', 'Times New Roman', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            padding: 4px 6px;
+            border-radius: 3px;
+            appearance: none;
+            -webkit-appearance: none;
+            cursor: pointer;
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%238B7355'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: right 5px center;
+            padding-right: 18px;
+        }
+        .dropdown:focus { outline: 1px solid #6B8E4E; }
+
+        /* ── Toggle ── */
+        .toggle {
+            background: rgba(139,168,112,0.2);
+            border: 2px solid #5C7A3A;
+            border-radius: 4px;
+            padding: 6px 14px;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: #2C3E10;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+        .toggle.active {
+            background: rgba(107,142,35,0.5);
+            border-color: #2C3E10;
+        }
+        .toggle.freeze-toggle.active {
+            box-shadow: 0 0 12px rgba(107,142,78,0.5), 0 0 24px rgba(107,142,78,0.2);
+            animation: freezePulse 2s ease-in-out infinite;
+        }
+        @keyframes freezePulse {
+            0%, 100% { box-shadow: 0 0 12px rgba(107,142,78,0.5), 0 0 24px rgba(107,142,78,0.2); }
+            50% { box-shadow: 0 0 20px rgba(107,142,78,0.7), 0 0 32px rgba(107,142,78,0.3); }
+        }
+
+        /* ── Fleuron ── */
+        .fleuron {
+            font-size: 11px;
+            color: rgba(92,64,51,0.3);
+            text-align: center;
+            padding: 2px 0;
+        }
+    </style>
+</head>
+<body>
+<div class="plugin-container">
+    <!-- Header -->
+    <div class="header">
+        <h1>O-GrainScatter</h1>
+        <span class="tagline">Harmonic Stutter Engine</span>
+    </div>
+
+    <!-- Visualization -->
+    <div class="viz-area">
+        <div class="viz-panel grain-viz">
+            <span class="viz-label">Grain Scatter</span>
+            <canvas id="grain-canvas"></canvas>
+        </div>
+        <div class="viz-panel euclidean-viz">
+            <span class="viz-label">Euclidean</span>
+            <canvas id="euclidean-canvas"></canvas>
+        </div>
+    </div>
+
+    <!-- Freeze bar -->
+    <div class="freeze-bar">
+        <button class="toggle freeze-toggle" data-param="freeze">Freeze</button>
+    </div>
+
+    <div class="fleuron">&#10087;</div>
+
+    <!-- Controls -->
+    <div class="controls-area">
+        <!-- Group 1: Core Engine -->
+        <div class="group">
+            <div class="group-label">Core Engine</div>
+            <div class="group-controls">
+                <div class="knob-container">
+                    <span class="knob-name">Grain Size</span>
+                    <div class="knob" data-param="grain_size"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="grain_size">100 ms</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Density</span>
+                    <div class="knob" data-param="density"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="density">50%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Spread</span>
+                    <div class="knob" data-param="spread"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="spread">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Reverse</span>
+                    <div class="knob" data-param="reverse"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="reverse">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Feedback</span>
+                    <div class="knob" data-param="feedback"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="feedback">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Dry/Wet</span>
+                    <div class="knob" data-param="dry_wet"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="dry_wet">50%</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group 2: Pitch & Scale -->
+        <div class="group">
+            <div class="group-label">Pitch &amp; Scale</div>
+            <div class="group-controls">
+                <div class="knob-container">
+                    <span class="knob-name">Pitch Rnd</span>
+                    <div class="knob" data-param="pitch_random"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="pitch_random">0%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Pan Rnd</span>
+                    <div class="knob" data-param="pan_random"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="pan_random">0%</span>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name">Scale</span>
+                    <select class="dropdown" data-param="scale">
+                        <option>Chromatic</option>
+                        <option>Major</option>
+                        <option>Minor</option>
+                        <option>Pentatonic</option>
+                        <option>Whole Tone</option>
+                    </select>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name">Root Note</span>
+                    <select class="dropdown" data-param="root_note">
+                        <option>C</option><option>C#</option><option>D</option><option>D#</option>
+                        <option>E</option><option>F</option><option>F#</option><option>G</option>
+                        <option>G#</option><option>A</option><option>A#</option><option>B</option>
+                    </select>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name">Pitch Mode</span>
+                    <select class="dropdown" data-param="pitch_mode">
+                        <option>Random</option>
+                        <option>Ladder Up</option>
+                        <option>Ladder Down</option>
+                        <option>Pendulum</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group 3: Beat Sync -->
+        <div class="group">
+            <div class="group-label">Beat Sync</div>
+            <div class="group-controls">
+                <div class="dropdown-container">
+                    <span class="dropdown-name">Sync Mode</span>
+                    <select class="dropdown" data-param="sync_mode">
+                        <option>Free</option>
+                        <option>1/4</option><option>1/8</option><option>1/16</option>
+                        <option>1/32</option><option>1/8T</option><option>1/16T</option>
+                    </select>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Probability</span>
+                    <div class="knob" data-param="probability"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="probability">100%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Repeats</span>
+                    <div class="knob" data-param="repeats"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="repeats">4</span>
+                </div>
+                <div style="display:flex;align-items:flex-end;padding-bottom:4px;">
+                    <button class="toggle" data-param="stutter_gate">Stutter Gate</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Group 4: Euclidean -->
+        <div class="group">
+            <div class="group-label">Euclidean Rhythm</div>
+            <div class="group-controls">
+                <div class="knob-container">
+                    <span class="knob-name">Pulses</span>
+                    <div class="knob" data-param="euclidean_pulses"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="euclidean_pulses">4</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Steps</span>
+                    <div class="knob" data-param="euclidean_steps"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="euclidean_steps">8</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script type="module" src="./js/juce/index.js"></script>
+<script src="./js/app.js"></script>
+</body>
+</html>

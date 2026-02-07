@@ -3,20 +3,30 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>O-FreqPulse</title>
+    <title>Ouaricon Frequency Pulse</title>
     <link rel="stylesheet" href="/css/styles.css">
     <script type="module" src="/js/app.js"></script>
 </head>
 <body>
-    <div class="container">
+    <div class="container" id="plugin-container">
         <!-- Header -->
         <header class="header">
-            <h1>O-FreqPulse</h1>
+            <div class="header-top">
+                <h1>Ouaricon Frequency Pulse</h1>
+                <div class="preset-bar">
+                    <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
+                    <span class="preset-name" id="presetName" title="Click to see all presets">Init</span>
+                    <button class="preset-nav-btn" id="nextPreset" title="Next preset">&gt;</button>
+                    <button class="preset-action-btn" id="loadPreset" title="Load preset from file">Load</button>
+                    <button class="preset-action-btn" id="savePreset" title="Save current settings">Save</button>
+                    <div class="preset-dropdown" id="presetDropdown"></div>
+                </div>
+            </div>
             <p class="tagline">Frequency Band Step Sequencer</p>
         </header>
 
         <!-- Grid Area -->
-        <div class="grid-area">
+        <div class="grid-area" data-tooltip="Step sequencer grid. Each row is a frequency band; click cells to toggle steps on/off. The green playhead shows the current position.">
             <div class="playhead" id="playhead"></div>
             <div id="grid-container"></div>
         </div>
@@ -25,22 +35,22 @@
         <div class="euclidean-panel" id="euclidean-panel">
             <h3 id="euc-band-title">Band Controls</h3>
             <div class="euc-controls">
-                <div class="control-group">
+                <div class="control-group" data-tooltip="Euclidean Steps: The total length of the Euclidean pattern. Steps beyond this wrap around.">
                     <label>Steps</label>
                     <input type="range" class="slider" id="euc-steps" min="1" max="32" value="16">
                     <span class="value-display" id="euc-steps-value">16</span>
                 </div>
-                <div class="control-group">
+                <div class="control-group" data-tooltip="Euclidean Pulses: The number of active beats distributed as evenly as possible across the pattern length.">
                     <label>Pulses</label>
                     <input type="range" class="slider" id="euc-pulses" min="1" max="32" value="8">
                     <span class="value-display" id="euc-pulses-value">8</span>
                 </div>
-                <div class="control-group">
+                <div class="control-group" data-tooltip="Euclidean Offset: Rotates the generated pattern by this many steps, shifting where the rhythm starts.">
                     <label>Offset</label>
                     <input type="range" class="slider" id="euc-offset" min="0" max="31" value="0">
                     <span class="value-display" id="euc-offset-value">0</span>
                 </div>
-                <div class="control-group">
+                <div class="control-group" data-tooltip="Depth: Controls how much the volume drops on OFF steps. At 100%, OFF steps are fully silent. At 0%, no gating occurs.">
                     <label>Depth</label>
                     <input type="range" class="slider" id="euc-depth" min="0" max="100" value="100">
                     <span class="value-display" id="euc-depth-value">100%</span>
@@ -49,20 +59,26 @@
             <button class="close-btn" id="euc-close">×</button>
         </div>
 
+        <!-- v1.5.0: Tooltip toggle button -->
+        <button class="tooltip-toggle" id="tooltip-toggle" title="Toggle tooltips">?</button>
+
+        <!-- Tooltip element (positioned dynamically by JS) -->
+        <div class="tooltip" id="tooltip"></div>
+
         <!-- Footer Controls -->
         <footer class="footer">
             <div class="global-controls">
-                <div class="control">
+                <div class="control" data-tooltip="Mix: Blends between the dry (unprocessed) and wet (gated) signal. At 0% you hear only dry; at 100% only the gated output.">
                     <label>Mix</label>
                     <input type="range" class="slider" id="mix" min="0" max="100" value="100">
                     <span class="value-display" id="mix-value">100%</span>
                 </div>
-                <div class="control">
+                <div class="control" data-tooltip="Steps: Sets the number of active steps in the sequence (2-32). Higher values create longer, more complex patterns.">
                     <label>Steps</label>
                     <input type="range" class="slider" id="steps" min="2" max="32" value="16">
                     <span class="value-display" id="steps-value">16</span>
                 </div>
-                <div class="control">
+                <div class="control" data-tooltip="Rate: Sets the tempo-synced note division for each step. Smaller values (1/32) create faster patterns; larger values (1/1) create slower ones. T = triplet, D = dotted.">
                     <label>Rate</label>
                     <select class="dropdown" id="rate">
                         <option value="0">1/1</option>
@@ -77,12 +93,12 @@
                         <option value="9">1/8D</option>
                     </select>
                 </div>
-                <div class="control">
+                <div class="control" data-tooltip="Swing: Delays every other step to create a shuffle/groove feel. At 0% timing is straight; higher values push odd steps later.">
                     <label>Swing</label>
                     <input type="range" class="slider" id="swing" min="0" max="100" value="0">
                     <span class="value-display" id="swing-value">0%</span>
                 </div>
-                <div class="control">
+                <div class="control" data-tooltip="Smoothing: Controls how quickly volume transitions between ON and OFF steps (in milliseconds). Lower values create sharper gates; higher values create smoother fades.">
                     <label>Smoothing</label>
                     <input type="range" class="slider" id="smoothing" min="0" max="100" value="5">
                     <span class="value-display" id="smoothing-value">5ms</span>

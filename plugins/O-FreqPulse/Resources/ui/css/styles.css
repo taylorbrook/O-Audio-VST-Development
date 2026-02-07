@@ -50,9 +50,17 @@ html, body {
 /* Header */
 .header {
     background: var(--bg-header);
-    padding: 12px 20px;
+    padding: 10px 20px 6px;
     border-bottom: 2px solid var(--border-accent);
     text-align: center;
+    position: relative;
+}
+
+.header-top {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
 }
 
 .header h1 {
@@ -67,6 +75,115 @@ html, body {
     color: var(--text-secondary);
     margin-top: 2px;
     letter-spacing: 1px;
+}
+
+/* v1.6.0: Preset Bar */
+.preset-bar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    position: relative;
+}
+
+.preset-nav-btn {
+    background: var(--border-accent);
+    color: var(--bg-paper);
+    border: none;
+    border-radius: 3px;
+    width: 22px;
+    height: 22px;
+    font-size: 11px;
+    font-family: inherit;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.preset-nav-btn:hover {
+    background: var(--step-on);
+}
+
+.preset-name {
+    min-width: 100px;
+    max-width: 160px;
+    text-align: center;
+    font-size: 12px;
+    color: var(--text-primary);
+    cursor: pointer;
+    padding: 3px 8px;
+    border: 1px solid var(--border-accent);
+    border-radius: 3px;
+    background: rgba(232, 213, 183, 0.6);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: background 0.2s;
+}
+
+.preset-name:hover {
+    background: rgba(232, 213, 183, 1.0);
+}
+
+.preset-action-btn {
+    background: var(--border-accent);
+    color: var(--bg-paper);
+    border: none;
+    border-radius: 3px;
+    padding: 3px 8px;
+    font-size: 10px;
+    font-family: inherit;
+    cursor: pointer;
+    transition: background 0.2s;
+    letter-spacing: 0.5px;
+}
+
+.preset-action-btn:hover {
+    background: var(--step-on);
+}
+
+/* Preset Dropdown Menu */
+.preset-dropdown {
+    display: none;
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    margin-top: 4px;
+    background: rgba(245, 230, 211, 0.98);
+    border: 2px solid var(--border-accent);
+    border-radius: 4px;
+    box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 9999;
+}
+
+.preset-dropdown.show {
+    display: block;
+}
+
+.header:has(.preset-dropdown.show) {
+    z-index: 9999;
+}
+
+.preset-dropdown-item {
+    padding: 5px 10px;
+    cursor: pointer;
+    font-size: 11px;
+    font-family: inherit;
+    color: var(--text-primary);
+    transition: background 0.15s;
+}
+
+.preset-dropdown-item:hover {
+    background: rgba(90, 122, 106, 0.2);
+}
+
+.preset-dropdown-item.active {
+    background: rgba(90, 122, 106, 0.3);
+    font-weight: bold;
 }
 
 /* Grid Area */
@@ -447,5 +564,67 @@ html, body {
     color: var(--text-secondary);
     min-width: 40px;
     text-align: center;
+}
+
+/* v1.5.0: Tooltip System */
+.tooltip-toggle {
+    position: absolute;
+    bottom: 50px;
+    right: 15px;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: rgba(212, 196, 176, 0.7);
+    border: 1px solid var(--border-accent);
+    color: var(--text-primary);
+    font-size: 12px;
+    font-weight: bold;
+    font-family: 'Georgia', serif;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 150ms ease;
+    z-index: 100;
+}
+
+.tooltip-toggle:hover {
+    background: rgba(90, 122, 106, 0.5);
+    border-color: var(--step-on);
+}
+
+.tooltip-toggle.active {
+    background: rgba(90, 122, 106, 0.7);
+    color: #F5E6D3;
+    border-color: #3C5C1A;
+    box-shadow: 0 0 6px rgba(90, 122, 106, 0.4);
+}
+
+.tooltip {
+    position: absolute;
+    background: rgba(60, 47, 47, 0.95);
+    color: #F5E6D3;
+    padding: 6px 10px;
+    border: 1px solid rgba(139, 115, 85, 0.6);
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: 'Georgia', 'Times New Roman', serif;
+    line-height: 1.4;
+    max-width: 220px;
+    z-index: 1000;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 150ms ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    white-space: normal;
+}
+
+.tooltip.visible {
+    opacity: 1;
+}
+
+.tooltips-enabled [data-tooltip]:hover {
+    outline: 1px dashed rgba(90, 122, 106, 0.4);
+    outline-offset: 2px;
 }
 

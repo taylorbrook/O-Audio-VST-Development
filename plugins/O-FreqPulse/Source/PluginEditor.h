@@ -136,6 +136,12 @@ private:
     // Step grid attachments (128 total)
     std::array<std::unique_ptr<juce::WebToggleButtonParameterAttachment>, 128> stepAttachments;
 
+    // v1.5.0: Tooltip state sync flag (ensures one-time sync from processor to WebView)
+    bool tooltipStateSynced = false;
+
+    // v1.6.0: File chooser for preset save/load dialogs (must persist across async callbacks)
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 

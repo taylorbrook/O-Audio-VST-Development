@@ -186,7 +186,60 @@ ODetuneAudioProcessor::ODetuneAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "O-Detune")
 {
+    // Initialize factory presets (written to ~/Library/O-Detune/Presets/Factory/)
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        {"Default", {
+            {"blend", 0.500000f}, {"wobble_era", 0.500000f}, {"wobble_rate", 0.036833f},
+            {"wobble_depth", 0.250000f}, {"wobble_shape", 0.000000f}, {"wobble_sync", 0.000000f},
+            {"unison_voices", 0.250000f}, {"unison_detune", 0.300000f}, {"unison_dist", 0.000000f},
+            {"unison_spread", 0.750000f}, {"width", 0.500000f}, {"mix", 0.500000f},
+            {"focus_low", 0.000000f}, {"focus_high", 1.000000f}, {"mono_safe", 1.000000f},
+            {"delay", 0.000000f}, {"feedback", 0.000000f}, {"random_amt", 0.150000f}
+        }, juce::var()},
+        {"70s Tape Wobble", {
+            {"blend", 0.000000f}, {"wobble_era", 0.500000f}, {"wobble_rate", 0.019998f},
+            {"wobble_depth", 0.400000f}, {"wobble_shape", 0.000000f}, {"wobble_sync", 0.000000f},
+            {"unison_voices", 0.250000f}, {"unison_detune", 0.300000f}, {"unison_dist", 0.000000f},
+            {"unison_spread", 0.750000f}, {"width", 0.500000f}, {"mix", 0.600000f},
+            {"focus_low", 0.000000f}, {"focus_high", 0.361339f}, {"mono_safe", 1.000000f},
+            {"delay", 0.000000f}, {"feedback", 0.000000f}, {"random_amt", 0.150000f}
+        }, juce::var()},
+        {"Cassette Lo-Fi", {
+            {"blend", 0.300000f}, {"wobble_era", 1.000000f}, {"wobble_rate", 0.085808f},
+            {"wobble_depth", 0.500000f}, {"wobble_shape", 1.000000f}, {"wobble_sync", 0.000000f},
+            {"unison_voices", 0.000000f}, {"unison_detune", 0.160000f}, {"unison_dist", 0.000000f},
+            {"unison_spread", 0.500000f}, {"width", 0.450000f}, {"mix", 0.550000f},
+            {"focus_low", 0.000253f}, {"focus_high", 0.082851f}, {"mono_safe", 1.000000f},
+            {"delay", 0.060000f}, {"feedback", 0.187500f}, {"random_amt", 0.300000f}
+        }, juce::var()},
+        {"Hybrid Wobble Unison", {
+            {"blend", 0.500000f}, {"wobble_era", 0.500000f}, {"wobble_rate", 0.058770f},
+            {"wobble_depth", 0.300000f}, {"wobble_shape", 0.500000f}, {"wobble_sync", 0.000000f},
+            {"unison_voices", 0.500000f}, {"unison_detune", 0.400000f}, {"unison_dist", 0.000000f},
+            {"unison_spread", 0.800000f}, {"width", 0.650000f}, {"mix", 0.550000f},
+            {"focus_low", 0.000000f}, {"focus_high", 0.690215f}, {"mono_safe", 0.000000f},
+            {"delay", 0.160000f}, {"feedback", 0.250000f}, {"random_amt", 0.250000f}
+        }, juce::var()},
+        {"Supersaw Synth", {
+            {"blend", 1.000000f}, {"wobble_era", 0.500000f}, {"wobble_rate", 0.036833f},
+            {"wobble_depth", 0.000000f}, {"wobble_shape", 0.000000f}, {"wobble_sync", 0.000000f},
+            {"unison_voices", 0.750000f}, {"unison_detune", 0.500000f}, {"unison_dist", 0.000000f},
+            {"unison_spread", 0.900000f}, {"width", 0.750000f}, {"mix", 0.700000f},
+            {"focus_low", 0.000000f}, {"focus_high", 1.000000f}, {"mono_safe", 0.000000f},
+            {"delay", 0.100000f}, {"feedback", 0.125000f}, {"random_amt", 0.200000f}
+        }, juce::var()},
+        {"Thick Vocals", {
+            {"blend", 1.000000f}, {"wobble_era", 0.500000f}, {"wobble_rate", 0.036833f},
+            {"wobble_depth", 0.000000f}, {"wobble_shape", 0.000000f}, {"wobble_sync", 0.000000f},
+            {"unison_voices", 0.250000f}, {"unison_detune", 0.200000f}, {"unison_dist", 0.000000f},
+            {"unison_spread", 0.600000f}, {"width", 0.600000f}, {"mix", 0.450000f},
+            {"focus_low", 0.000977f}, {"focus_high", 0.161732f}, {"mono_safe", 1.000000f},
+            {"delay", 0.000000f}, {"feedback", 0.000000f}, {"random_amt", 0.100000f}
+        }, juce::var()}
+    };
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 ODetuneAudioProcessor::~ODetuneAudioProcessor()
@@ -810,17 +863,14 @@ juce::AudioProcessorEditor* ODetuneAudioProcessor::createEditor()
 
 void ODetuneAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void ODetuneAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+        presetManager.setStateFromXml(xml.get());
 }
 
 // Factory function

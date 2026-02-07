@@ -2,7 +2,7 @@ cmake_minimum_required(VERSION 3.15)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-SpectralShaper
-    VERSION 1.0.0
+    VERSION 1.1.0
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OSpS
@@ -66,6 +66,7 @@ juce_add_binary_data(O-SpectralShaper_UIResources
         Resources/ui/js/components/Spectrogram.js
         Resources/ui/images/paper-bg.webp
         Resources/ui/images/slug-overlay.webp
+        Resources/ui/modules/preset-manager.js
 )
 
 target_link_libraries(O-SpectralShaper

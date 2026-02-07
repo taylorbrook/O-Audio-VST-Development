@@ -153,6 +153,7 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "O-FreqPulse")
 {
     // Cache global parameter pointers
     mixParam = parameters.getRawParameterValue("mix");
@@ -189,6 +190,9 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
             bandParams[n].stepStates[m] = parameters.getRawParameterValue(stepID);
         }
     }
+
+    // v1.6.0: Initialize factory presets using preset manager
+    initializeFactoryPresets();
 }
 
 OFreqPulseAudioProcessor::~OFreqPulseAudioProcessor()
@@ -618,9 +622,14 @@ juce::AudioProcessorEditor* OFreqPulseAudioProcessor::createEditor()
 //==============================================================================
 void OFreqPulseAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    // v1.6.0: Delegate to preset manager for full state (APVTS + custom)
+    if (auto xml = presetManager.getStateAsXml())
+    {
+        // v1.5.0: Save tooltip enabled state
+        xml->setAttribute("tooltipsEnabled", tooltipsEnabled.load(std::memory_order_acquire));
+
+        copyXmlToBinary(*xml, destData);
+    }
 }
 
 void OFreqPulseAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
@@ -628,7 +637,17 @@ void OFreqPulseAudioProcessor::setStateInformation(const void* data, int sizeInB
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    {
+        // v1.5.0: Restore tooltip enabled state
+        if (xmlState->hasAttribute("tooltipsEnabled"))
+        {
+            bool enabled = xmlState->getBoolAttribute("tooltipsEnabled", false);
+            tooltipsEnabled.store(enabled, std::memory_order_release);
+        }
+
+        // v1.6.0: Delegate to preset manager for full state restoration
+        presetManager.setStateFromXml(xmlState.get());
+    }
 }
 
 //==============================================================================
@@ -902,6 +921,56 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
         default:
             break;
     }
+}
+
+//==============================================================================
+// v1.6.0: Factory Preset Initialization (Preset Manager)
+//==============================================================================
+void OFreqPulseAudioProcessor::initializeFactoryPresets()
+{
+    auto factoryDir = presetManager.getFactoryPresetsDirectory();
+
+    // Only initialize if factory directory doesn't exist yet
+    if (factoryDir.isDirectory() && factoryDir.getNumberOfChildFiles(juce::File::findFiles) > 0)
+        return;
+
+    factoryDir.createDirectory();
+
+    // For each of the 12 presets: load via existing loadPreset(), capture state, save as JSON
+    for (int i = 0; i < numPresets; ++i)
+    {
+        // Apply preset parameters
+        loadPreset(i);
+
+        // Capture current state as JSON
+        auto presetJson = juce::var();
+        {
+            auto* preset = new juce::DynamicObject();
+            auto* paramsObj = new juce::DynamicObject();
+
+            for (auto* param : getParameters())
+            {
+                if (auto* paramWithID = dynamic_cast<juce::RangedAudioParameter*>(param))
+                {
+                    paramsObj->setProperty(paramWithID->getParameterID(),
+                                           paramWithID->getValue());
+                }
+            }
+            preset->setProperty("parameters", juce::var(paramsObj));
+            preset->setProperty("version", "1.0.0");
+            preset->setProperty("plugin", "O-FreqPulse");
+            preset->setProperty("factory", true);
+            presetJson = juce::var(preset);
+        }
+
+        auto presetFile = factoryDir.getChildFile(presetNames[i] + ".json");
+        presetFile.replaceWithText(juce::JSON::toString(presetJson, true));
+    }
+
+    // Reset back to Init preset (index 0)
+    loadPreset(0);
+
+    juce::Logger::writeToLog("[O-FreqPulse] Factory presets initialized: " + juce::String(numPresets));
 }
 
 //==============================================================================

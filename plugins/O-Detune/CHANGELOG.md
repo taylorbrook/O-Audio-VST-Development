@@ -1,5 +1,17 @@
 # O-Detune Changelog
 
+## [1.5.0] - 2026-02-07
+
+### Added
+
+- **Full preset system** using Ouaricon preset-manager module
+  - Preset bar in header with prev/next navigation, save, and load buttons
+  - Dropdown preset browser (click preset name to see all presets)
+  - 6 factory presets: Default, 70s Tape Wobble, Cassette Lo-Fi, Hybrid Wobble Unison, Supersaw Synth, Thick Vocals
+  - Save/load user presets via native file dialogs
+  - Factory presets are read-only; user presets stored in ~/Library/O-Detune/Presets/User/
+  - DAW session state now includes preset name (restored on project reload)
+
 ## [1.4.1] - 2026-02-03
 
 ### Fixed

@@ -3,6 +3,9 @@ cmake_minimum_required(VERSION 3.15)
 # O-Detune - Colorful lo-fi detuning plugin
 # Combines tape wobble with unison thickness
 
+# Ouaricon Module System
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin configuration
 juce_add_plugin(O-Detune
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -25,6 +28,9 @@ target_include_directories(O-Detune
     PRIVATE
         Source
 )
+
+# Ouaricon Modules
+ouaricon_add_module(O-Detune preset-manager)
 
 # Required JUCE modules
 target_link_libraries(O-Detune
@@ -65,6 +71,7 @@ juce_add_binary_data(O-Detune_UIResources
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/modules/preset-manager.js
         Source/ui/public/assets/paper1.jpg
         Source/ui/public/assets/slug.png
 )

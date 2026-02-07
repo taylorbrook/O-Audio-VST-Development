@@ -12,6 +12,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
 #include "STFTProcessor.h"
+#include "OuariconPresetManager.h"
 #include <array>
 
 class OSpectralShaperAudioProcessor : public juce::AudioProcessor
@@ -44,6 +45,9 @@ public:
 
     // Public APVTS access for editor
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
+
+    // Preset manager (public for editor native function access)
+    OuariconPresetManager presetManager;
 
     // Curve access for UI (thread-safe via STFTProcessor)
     const std::array<float, 32>& getAttackCurve() const { return attackCurve; }

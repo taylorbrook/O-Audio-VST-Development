@@ -61,6 +61,9 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> lookaheadTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
 
+    // File chooser for preset save/load dialogs (must persist during async operation)
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
     void sendCurveToJS(const char* functionName, const std::array<float, 32>& curve);
     void emitVisualizationFrame(const OSpectralShaperAudioProcessor::VisualizationFrame& frame);

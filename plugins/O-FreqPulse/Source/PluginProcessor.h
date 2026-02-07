@@ -11,6 +11,7 @@
 #pragma once
 #include <juce_audio_processors/juce_audio_processors.h>
 #include <juce_dsp/juce_dsp.h>
+#include "OuariconPresetManager.h"
 #include <array>
 #include <atomic>
 
@@ -32,6 +33,10 @@ public:
     // Thread-safe access for GUI timer
     int getCurrentStep() const { return currentStepAtomic.load(); }
     bool getHasAudioSignal() const { return hasAudioSignal.load(); }
+
+    // v1.5.0: Tooltip system state (saved with plugin state)
+    bool getTooltipsEnabled() const { return tooltipsEnabled.load(std::memory_order_acquire); }
+    void setTooltipsEnabled(bool enabled) { tooltipsEnabled.store(enabled, std::memory_order_release); }
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
@@ -47,6 +52,10 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
+
+    // v1.6.0: Preset management
+    juce::AudioProcessorValueTreeState parameters;
+    OuariconPresetManager presetManager;
 
 private:
     // Per-band parameter cache structure
@@ -108,13 +117,13 @@ private:
     // Audio signal detection (gates playhead movement)
     std::atomic<bool> hasAudioSignal { false };
 
+    // v1.5.0: Tooltip enabled state (saved with plugin state)
+    std::atomic<bool> tooltipsEnabled { false };
+
     // Cached parameter values (for change detection)
     float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };
     int lastEuclideanParams[4][3] = { {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0} };  // [band][steps/pulses/offset]
     float lastSmoothingMs = -1.0f;  // Track smoothing parameter to avoid reset() every block
-
-    // APVTS (declared after cached pointers)
-    juce::AudioProcessorValueTreeState parameters;
 
     // DSP state
     double currentSampleRate = 44100.0;
@@ -123,6 +132,7 @@ private:
     int currentProgram = 0;
     static constexpr int numPresets = 12;
     void loadPreset(int presetIndex);
+    void initializeFactoryPresets();
 
     // Helper Methods
     void updateCrossoverFrequencies();

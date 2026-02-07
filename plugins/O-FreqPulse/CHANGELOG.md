@@ -2,6 +2,28 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.5.1] - 2026-02-07
+
+### Changed
+
+- **UI title updated** - Header and page title changed from "O-FreqPulse" to "Ouaricon Frequency Pulse" for consistent branding.
+
+## [1.5.0] - 2026-02-07
+
+### Added
+
+- **Tooltip toggle system** - A `?` button in the bottom-right corner toggles tooltips on/off. When enabled, hovering over any UI element displays a descriptive tooltip explaining what it does. Tooltip state is saved with the plugin preset and restored on load.
+- Tooltips for all UI elements: Mix, Steps, Rate, Swing, Smoothing, crossover dividers, frequency boundaries, band labels, clear/random buttons, mode toggles, expand buttons, Euclidean panel controls (Steps, Pulses, Offset, Depth), and the step grid area.
+
+### Technical Notes
+
+- Tooltip toggle state persisted via `tooltipsEnabled` atomic<bool> in PluginProcessor, saved/restored in XML state
+- C++ native function `setTooltipsEnabled` registered via `withNativeFunction()` for JS→C++ communication
+- State synced from processor to WebView on first timer callback via `restoreTooltipState()` JS function
+- Smart tooltip positioning: appears above element by default, falls below if too close to top edge, constrained within container bounds horizontally
+- CSS uses naturalist theme colors (dark brown bg, warm paper text, green accent for active state)
+- `data-tooltip` attributes on both static HTML elements and dynamically created elements in `createBandRow()` and `createDividerSlider()`
+
 ## [1.4.0] - 2026-02-06
 
 ### Changed

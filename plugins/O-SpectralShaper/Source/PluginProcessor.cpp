@@ -93,10 +93,105 @@ OSpectralShaperAudioProcessor::OSpectralShaperAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "O-SpectralShaper")
 {
     // Initialize curves to neutral (no shaping)
     std::fill(attackCurve.begin(), attackCurve.end(), 0.0f);
     std::fill(sustainCurve.begin(), sustainCurve.end(), 0.0f);
+
+    // Custom state callbacks for curve data (not in APVTS)
+    presetManager.setCustomStateCallbacks(
+        // Save callback
+        [this]() -> juce::var {
+            auto* obj = new juce::DynamicObject();
+            // Encode curves as arrays
+            juce::Array<juce::var> attackArr, sustainArr;
+            for (int i = 0; i < 32; ++i)
+            {
+                attackArr.add(static_cast<double>(attackCurve[i]));
+                sustainArr.add(static_cast<double>(sustainCurve[i]));
+            }
+            obj->setProperty("attackCurve", juce::var(attackArr));
+            obj->setProperty("sustainCurve", juce::var(sustainArr));
+            return juce::var(obj);
+        },
+        // Load callback
+        [this](const juce::var& data) {
+            if (auto* obj = data.getDynamicObject())
+            {
+                if (obj->hasProperty("attackCurve"))
+                {
+                    auto* arr = obj->getProperty("attackCurve").getArray();
+                    if (arr != nullptr && arr->size() == 32)
+                    {
+                        std::array<float, 32> curve;
+                        for (int i = 0; i < 32; ++i)
+                            curve[i] = static_cast<float>((*arr)[i]);
+                        setAttackCurve(curve);
+                    }
+                }
+                if (obj->hasProperty("sustainCurve"))
+                {
+                    auto* arr = obj->getProperty("sustainCurve").getArray();
+                    if (arr != nullptr && arr->size() == 32)
+                    {
+                        std::array<float, 32> curve;
+                        for (int i = 0; i < 32; ++i)
+                            curve[i] = static_cast<float>((*arr)[i]);
+                        setSustainCurve(curve);
+                    }
+                }
+            }
+        }
+    );
+
+    // Initialize factory presets
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        {
+            "Default",
+            {{"MIX", 1.0f}, {"ATTACK_TIME", 0.198f}, {"SUSTAIN_TIME", 0.184f},
+             {"SENSITIVITY", 0.5f}, {"LOOKAHEAD_ENABLED", 0.0f},
+             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.5f}},
+            juce::var()
+        },
+        {
+            "Transient Tamer",
+            {{"MIX", 0.75f}, {"ATTACK_TIME", 0.05f}, {"SUSTAIN_TIME", 0.10f},
+             {"SENSITIVITY", 0.7f}, {"LOOKAHEAD_ENABLED", 1.0f},
+             {"LOOKAHEAD_TIME", 0.30f}, {"OUTPUT_GAIN", 0.5f}},
+            juce::var()
+        },
+        {
+            "Punch Enhancer",
+            {{"MIX", 0.85f}, {"ATTACK_TIME", 0.30f}, {"SUSTAIN_TIME", 0.05f},
+             {"SENSITIVITY", 0.6f}, {"LOOKAHEAD_ENABLED", 0.0f},
+             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.54f}},
+            juce::var()
+        },
+        {
+            "Gentle Shaping",
+            {{"MIX", 0.50f}, {"ATTACK_TIME", 0.25f}, {"SUSTAIN_TIME", 0.30f},
+             {"SENSITIVITY", 0.35f}, {"LOOKAHEAD_ENABLED", 0.0f},
+             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.5f}},
+            juce::var()
+        },
+        {
+            "Aggressive Bite",
+            {{"MIX", 1.0f}, {"ATTACK_TIME", 0.10f}, {"SUSTAIN_TIME", 0.02f},
+             {"SENSITIVITY", 0.85f}, {"LOOKAHEAD_ENABLED", 1.0f},
+             {"LOOKAHEAD_TIME", 0.50f}, {"OUTPUT_GAIN", 0.46f}},
+            juce::var()
+        },
+        {
+            "Sustain Lift",
+            {{"MIX", 0.70f}, {"ATTACK_TIME", 0.40f}, {"SUSTAIN_TIME", 0.60f},
+             {"SENSITIVITY", 0.45f}, {"LOOKAHEAD_ENABLED", 0.0f},
+             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.52f}},
+            juce::var()
+        }
+    };
+
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 OSpectralShaperAudioProcessor::~OSpectralShaperAudioProcessor()
@@ -253,69 +348,14 @@ juce::AudioProcessorEditor* OSpectralShaperAudioProcessor::createEditor()
 
 void OSpectralShaperAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-
-    // Add curve data as child nodes
-    auto curvesXml = state.getOrCreateChildWithName("Curves", nullptr);
-
-    // Encode attack curve as hex string
-    juce::String attackHex = juce::String::toHexString(
-        reinterpret_cast<const juce::uint8*>(attackCurve.data()),
-        static_cast<int>(attackCurve.size() * sizeof(float))
-    );
-    curvesXml.setProperty("attackCurve", attackHex, nullptr);
-
-    // Encode sustain curve as hex string
-    juce::String sustainHex = juce::String::toHexString(
-        reinterpret_cast<const juce::uint8*>(sustainCurve.data()),
-        static_cast<int>(sustainCurve.size() * sizeof(float))
-    );
-    curvesXml.setProperty("sustainCurve", sustainHex, nullptr);
-
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void OSpectralShaperAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-    {
-        auto state = juce::ValueTree::fromXml(*xmlState);
-        parameters.replaceState(state);
-
-        // Restore curve data
-        auto curves = state.getChildWithName("Curves");
-        if (curves.isValid())
-        {
-            // Decode attack curve from hex string
-            juce::String attackHex = curves.getProperty("attackCurve", "");
-            if (attackHex.isNotEmpty())
-            {
-                juce::MemoryBlock attackBlock;
-                attackBlock.loadFromHexString(attackHex);
-                if (attackBlock.getSize() == attackCurve.size() * sizeof(float))
-                {
-                    std::memcpy(attackCurve.data(), attackBlock.getData(), attackBlock.getSize());
-                    setAttackCurve(attackCurve);  // Update STFT processors
-                }
-            }
-
-            // Decode sustain curve from hex string
-            juce::String sustainHex = curves.getProperty("sustainCurve", "");
-            if (sustainHex.isNotEmpty())
-            {
-                juce::MemoryBlock sustainBlock;
-                sustainBlock.loadFromHexString(sustainHex);
-                if (sustainBlock.getSize() == sustainCurve.size() * sizeof(float))
-                {
-                    std::memcpy(sustainCurve.data(), sustainBlock.getData(), sustainBlock.getSize());
-                    setSustainCurve(sustainCurve);  // Update STFT processors
-                }
-            }
-        }
-    }
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+        presetManager.setStateFromXml(xml.get());
 }
 
 // ============================================================================

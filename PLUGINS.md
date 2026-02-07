@@ -38,11 +38,11 @@ Ouaricon Plugins:
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
-| O-Detune | 📦 Installed | 1.4.1 | Audio Effect (Detuning) | 2026-02-03 |
+| O-Detune | 📦 Installed | 1.5.0 | Audio Effect (Detuning) | 2026-02-07 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
 | O-Bells | 📦 Installed | 3.1.1 | Synth (Physical Modeling Bells) | 2026-02-05 |
-| O-FreqPulse | 📦 Installed | 1.4.0 | Audio Effect (Spectral Sequencer) | 2026-02-06 |
-| O-SpectralShaper | 🚧 Stage 0 | - | Audio Effect (Spectral Transient Shaper) | 2026-02-03 |
+| O-FreqPulse | 📦 Installed | 1.5.1 | Audio Effect (Spectral Sequencer) | 2026-02-07 |
+| O-SpectralShaper | 📦 Installed | 1.0.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
 | O-GrainScatter | 🚧 Stage 0 | - | Audio Effect (Granular Stutter Engine) | 2026-02-06 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
