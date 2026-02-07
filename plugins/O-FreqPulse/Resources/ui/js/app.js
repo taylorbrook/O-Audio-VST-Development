@@ -38,13 +38,16 @@ function updateAllBandFreqDisplays() {
     const v2 = c2.getScaledValue();
     const v3 = c3.getScaledValue();
 
+    const freqLow = state.stepStates['freq_low']?.getScaledValue() ?? 20;
+    const freqHigh = state.stepStates['freq_high']?.getScaledValue() ?? 20000;
+
     // Derive band ranges (sorted)
     const sorted = [v1, v2, v3].sort((a, b) => a - b);
     const ranges = [
-        { low: 20, high: sorted[0] },
+        { low: freqLow, high: sorted[0] },
         { low: sorted[0], high: sorted[1] },
         { low: sorted[1], high: sorted[2] },
-        { low: sorted[2], high: 20000 },
+        { low: sorted[2], high: freqHigh },
     ];
 
     for (let i = 0; i < 4; i++) {
@@ -182,6 +185,10 @@ function initializeBandParameters() {
         state.stepStates[id] = crossoverState;
     }
 
+    // Frequency boundary parameters
+    state.stepStates['freq_low'] = Juce.getSliderState('freq_low');
+    state.stepStates['freq_high'] = Juce.getSliderState('freq_high');
+
     for (const band of bands) {
         const bandId = band.id;
 
@@ -232,83 +239,157 @@ function initializeStepGrid() {
 // Grid Rendering
 // ============================================================================
 
+function createBandRow(band) {
+    const bandRow = document.createElement('div');
+    bandRow.className = 'band-row';
+    bandRow.dataset.band = band.id;
+
+    // Band label with derived frequency range (read-only)
+    const label = document.createElement('div');
+    label.className = 'band-label';
+    label.innerHTML = `<strong>${band.name}</strong><br><span class="freq-range" id="freq-${band.id}"></span>`;
+    bandRow.appendChild(label);
+
+    // Steps container
+    const stepsContainer = document.createElement('div');
+    stepsContainer.className = 'steps-container';
+
+    for (let step = 0; step < 32; step++) {
+        const cell = document.createElement('div');
+        cell.className = 'step-cell';
+        cell.dataset.band = band.id;
+        cell.dataset.step = step;
+
+        cell.addEventListener('click', () => {
+            toggleStep(band.id, step);
+        });
+
+        stepsContainer.appendChild(cell);
+    }
+
+    bandRow.appendChild(stepsContainer);
+
+    // Lane action buttons (Clear/Random)
+    const laneActions = document.createElement('div');
+    laneActions.className = 'lane-actions';
+
+    const clearBtn = document.createElement('button');
+    clearBtn.className = 'lane-btn clear-btn';
+    clearBtn.textContent = '⌀';
+    clearBtn.title = 'Clear all steps';
+    clearBtn.addEventListener('click', () => {
+        clearBand(band.id);
+    });
+    laneActions.appendChild(clearBtn);
+
+    const randomBtn = document.createElement('button');
+    randomBtn.className = 'lane-btn random-btn';
+    randomBtn.textContent = '⚄';
+    randomBtn.title = 'Randomize steps';
+    randomBtn.addEventListener('click', () => {
+        randomizeBand(band.id);
+    });
+    laneActions.appendChild(randomBtn);
+
+    bandRow.appendChild(laneActions);
+
+    // Band mode indicator
+    const modeIndicator = document.createElement('div');
+    modeIndicator.className = 'band-mode';
+    modeIndicator.textContent = 'Manual';
+    modeIndicator.id = `mode-${band.id}`;
+    bandRow.appendChild(modeIndicator);
+
+    // Expand button
+    const expandBtn = document.createElement('button');
+    expandBtn.className = 'band-expand-btn';
+    expandBtn.textContent = '▶';
+    expandBtn.addEventListener('click', () => {
+        openEuclideanPanel(band.id);
+    });
+    bandRow.appendChild(expandBtn);
+
+    return bandRow;
+}
+
+// Ordered list of frequency parameters from low to high for clamping
+const freqParamOrder = ['freq_low', 'crossover_1', 'crossover_2', 'crossover_3', 'freq_high'];
+
+function clampFreqSlider(paramId, newNorm) {
+    const idx = freqParamOrder.indexOf(paramId);
+    if (idx < 0) return newNorm;
+
+    // Get neighbour normalised values
+    let minNorm = 0;
+    let maxNorm = 1;
+
+    if (idx > 0) {
+        const lowerState = state.stepStates[freqParamOrder[idx - 1]];
+        if (lowerState) minNorm = lowerState.getNormalisedValue();
+    }
+    if (idx < freqParamOrder.length - 1) {
+        const upperState = state.stepStates[freqParamOrder[idx + 1]];
+        if (upperState) maxNorm = upperState.getNormalisedValue();
+    }
+
+    return Math.max(minNorm, Math.min(maxNorm, newNorm));
+}
+
+function createDividerSlider(paramId, cssClass) {
+    const divider = document.createElement('div');
+    divider.className = cssClass;
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.min = '0';
+    slider.max = '1000';
+    slider.id = `divider-slider-${paramId}`;
+
+    const paramState = state.stepStates[paramId];
+    if (paramState) {
+        slider.value = paramState.getNormalisedValue() * 1000;
+
+        slider.addEventListener('input', (e) => {
+            const rawNorm = e.target.value / 1000;
+            const clamped = clampFreqSlider(paramId, rawNorm);
+            slider.value = clamped * 1000;
+            paramState.setNormalisedValue(clamped);
+            updateAllBandFreqDisplays();
+        });
+
+        paramState.valueChangedEvent.addListener(() => {
+            slider.value = paramState.getNormalisedValue() * 1000;
+        });
+    }
+
+    divider.appendChild(slider);
+    return divider;
+}
+
 function renderGrid() {
     const container = document.getElementById('grid-container');
     container.innerHTML = '';
 
-    for (const band of bands) {
-        const bandRow = document.createElement('div');
-        bandRow.className = 'band-row';
-        bandRow.dataset.band = band.id;
+    // DOM order (column-reverse means first child = bottom visually):
+    // 1. freq_low boundary (bottom)
+    // 2. SUB band row
+    // 3. Crossover 1 divider (Sub|Low)
+    // 4. LOW band row
+    // 5. Crossover 2 divider (Low|Mid)
+    // 6. MID band row
+    // 7. Crossover 3 divider (Mid|High)
+    // 8. HIGH band row
+    // 9. freq_high boundary (top)
 
-        // Band label with derived frequency range (read-only)
-        const label = document.createElement('div');
-        label.className = 'band-label';
-        label.innerHTML = `<strong>${band.name}</strong><br><span class="freq-range" id="freq-${band.id}"></span>`;
-        bandRow.appendChild(label);
-
-        // Steps container
-        const stepsContainer = document.createElement('div');
-        stepsContainer.className = 'steps-container';
-
-        for (let step = 0; step < 32; step++) {
-            const cell = document.createElement('div');
-            cell.className = 'step-cell';
-            cell.dataset.band = band.id;
-            cell.dataset.step = step;
-
-            // Click handler for step toggle
-            cell.addEventListener('click', () => {
-                toggleStep(band.id, step);
-            });
-
-            stepsContainer.appendChild(cell);
-        }
-
-        bandRow.appendChild(stepsContainer);
-
-        // Lane action buttons (Clear/Random)
-        const laneActions = document.createElement('div');
-        laneActions.className = 'lane-actions';
-
-        const clearBtn = document.createElement('button');
-        clearBtn.className = 'lane-btn clear-btn';
-        clearBtn.textContent = '⌀';
-        clearBtn.title = 'Clear all steps';
-        clearBtn.addEventListener('click', () => {
-            clearBand(band.id);
-        });
-        laneActions.appendChild(clearBtn);
-
-        const randomBtn = document.createElement('button');
-        randomBtn.className = 'lane-btn random-btn';
-        randomBtn.textContent = '⚄';
-        randomBtn.title = 'Randomize steps';
-        randomBtn.addEventListener('click', () => {
-            randomizeBand(band.id);
-        });
-        laneActions.appendChild(randomBtn);
-
-        bandRow.appendChild(laneActions);
-
-        // Band mode indicator
-        const modeIndicator = document.createElement('div');
-        modeIndicator.className = 'band-mode';
-        modeIndicator.textContent = 'Manual';
-        modeIndicator.id = `mode-${band.id}`;
-        bandRow.appendChild(modeIndicator);
-
-        // Expand button
-        const expandBtn = document.createElement('button');
-        expandBtn.className = 'band-expand-btn';
-        expandBtn.textContent = '▶';
-        expandBtn.addEventListener('click', () => {
-            openEuclideanPanel(band.id);
-        });
-        bandRow.appendChild(expandBtn);
-
-        container.appendChild(bandRow);
-    }
+    container.appendChild(createDividerSlider('freq_low', 'freq-boundary'));
+    container.appendChild(createBandRow(bands[0]));  // SUB
+    container.appendChild(createDividerSlider('crossover_1', 'crossover-divider'));
+    container.appendChild(createBandRow(bands[1]));  // LOW
+    container.appendChild(createDividerSlider('crossover_2', 'crossover-divider'));
+    container.appendChild(createBandRow(bands[2]));  // MID
+    container.appendChild(createDividerSlider('crossover_3', 'crossover-divider'));
+    container.appendChild(createBandRow(bands[3]));  // HIGH
+    container.appendChild(createDividerSlider('freq_high', 'freq-boundary'));
 
     // Update step visibility based on current step count
     updateStepVisibility();
@@ -653,13 +734,12 @@ function initializeEuclideanListeners() {
         updateEuclideanGrid(bid);
     }
 
-    // Listen for crossover parameter changes to update all band labels
-    for (const id of ['crossover_1', 'crossover_2', 'crossover_3']) {
-        const crossoverState = state.stepStates[id];
-        if (crossoverState) {
-            crossoverState.valueChangedEvent.addListener(() => {
+    // Listen for crossover and boundary parameter changes to update all band labels
+    for (const id of ['crossover_1', 'crossover_2', 'crossover_3', 'freq_low', 'freq_high']) {
+        const paramState = state.stepStates[id];
+        if (paramState) {
+            paramState.valueChangedEvent.addListener(() => {
                 updateAllBandFreqDisplays();
-                updateCrossoverSliders();
             });
         }
     }
@@ -675,73 +755,4 @@ function initializeEuclideanListeners() {
 function setupGlobalControls() {
     // Already initialized in initializeGlobalParameters()
     console.log('Global controls bound to JUCE parameters');
-
-    // Setup crossover bar sliders
-    setupCrossoverBar();
-}
-
-// ============================================================================
-// Crossover Bar
-// ============================================================================
-
-function setupCrossoverBar() {
-    const bar = document.getElementById('crossover-bar');
-    if (!bar) return;
-
-    bar.innerHTML = '';
-
-    const crossoverDefs = [
-        { id: 'crossover_1', label: 'Sub | Low' },
-        { id: 'crossover_2', label: 'Low | Mid' },
-        { id: 'crossover_3', label: 'Mid | High' },
-    ];
-
-    for (const def of crossoverDefs) {
-        const paramState = state.stepStates[def.id];
-        if (!paramState) continue;
-
-        const group = document.createElement('div');
-        group.className = 'crossover-group';
-
-        const label = document.createElement('span');
-        label.className = 'crossover-label';
-        label.textContent = def.label;
-        group.appendChild(label);
-
-        const slider = document.createElement('input');
-        slider.type = 'range';
-        slider.className = 'crossover-slider';
-        slider.min = '0';
-        slider.max = '1000';
-        slider.value = paramState.getNormalisedValue() * 1000;
-        slider.id = `crossover-slider-${def.id}`;
-        group.appendChild(slider);
-
-        const val = document.createElement('span');
-        val.className = 'crossover-val';
-        val.id = `crossover-val-${def.id}`;
-        val.textContent = formatFreq(paramState.getScaledValue());
-        group.appendChild(val);
-
-        // Bind slider to APVTS
-        slider.addEventListener('input', (e) => {
-            paramState.setNormalisedValue(e.target.value / 1000);
-            val.textContent = formatFreq(paramState.getScaledValue());
-            updateAllBandFreqDisplays();
-        });
-
-        bar.appendChild(group);
-    }
-}
-
-function updateCrossoverSliders() {
-    for (const id of ['crossover_1', 'crossover_2', 'crossover_3']) {
-        const paramState = state.stepStates[id];
-        if (!paramState) continue;
-
-        const slider = document.getElementById(`crossover-slider-${id}`);
-        const val = document.getElementById(`crossover-val-${id}`);
-        if (slider) slider.value = paramState.getNormalisedValue() * 1000;
-        if (val) val.textContent = formatFreq(paramState.getScaledValue());
-    }
 }

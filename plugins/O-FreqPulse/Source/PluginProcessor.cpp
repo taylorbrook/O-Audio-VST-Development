@@ -70,6 +70,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
         juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
         4000.0f));
 
+    // Frequency boundary parameters
+    globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "freq_low", 1 },
+        "Freq Low",
+        juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
+        20.0f));
+
+    globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "freq_high", 1 },
+        "Freq High",
+        juce::NormalisableRange<float>(20.0f, 20000.0f, 1.0f, 0.3f),
+        20000.0f));
+
     layout.add(std::move(globalGroup));
 
     // Per-Band Parameters (4 bands)
@@ -153,6 +166,10 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
     crossover1Param = parameters.getRawParameterValue("crossover_1");
     crossover2Param = parameters.getRawParameterValue("crossover_2");
     crossover3Param = parameters.getRawParameterValue("crossover_3");
+
+    // Cache frequency boundary parameter pointers
+    freqLowParam = parameters.getRawParameterValue("freq_low");
+    freqHighParam = parameters.getRawParameterValue("freq_high");
 
     // Cache per-band parameter pointers
     for (int n = 0; n < 4; ++n)
@@ -284,8 +301,11 @@ void OFreqPulseAudioProcessor::recalculateBinMapping()
     if (c2 > c3) std::swap(c2, c3);
     if (c1 > c2) std::swap(c1, c2);
 
-    float bandLows[4]  = { 20.0f, c1, c2, c3 };
-    float bandHighs[4] = { c1, c2, c3, 20000.0f };
+    float fLow = freqLowParam->load();
+    float fHigh = freqHighParam->load();
+
+    float bandLows[4]  = { fLow, c1, c2, c3 };
+    float bandHighs[4] = { c1, c2, c3, fHigh };
 
     // Map each FFT bin to a band
     for (int bin = 0; bin < numBins; ++bin)
@@ -551,6 +571,19 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
             if (std::abs(c[i] - lastCrossovers[i]) > 0.1f)
             {
                 lastCrossovers[i] = c[i];
+                crossoversChanged = true;
+            }
+        }
+    }
+
+    // Check frequency boundary changes
+    {
+        float fb[2] = { freqLowParam->load(), freqHighParam->load() };
+        for (int i = 0; i < 2; ++i)
+        {
+            if (std::abs(fb[i] - lastFreqBounds[i]) > 0.1f)
+            {
+                lastFreqBounds[i] = fb[i];
                 crossoversChanged = true;
             }
         }

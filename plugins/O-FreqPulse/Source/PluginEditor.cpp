@@ -27,6 +27,10 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
     crossover2Relay = std::make_unique<juce::WebSliderRelay>("crossover_2");
     crossover3Relay = std::make_unique<juce::WebSliderRelay>("crossover_3");
 
+    // Frequency boundary relays (2 total)
+    freqLowRelay = std::make_unique<juce::WebSliderRelay>("freq_low");
+    freqHighRelay = std::make_unique<juce::WebSliderRelay>("freq_high");
+
     // Per-band parameter relays (24 total: 6 params x 4 bands)
     band0EnableRelay = std::make_unique<juce::WebToggleButtonRelay>("band0_enable");
     band0DepthRelay = std::make_unique<juce::WebSliderRelay>("band0_depth");
@@ -81,6 +85,9 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
         .withOptionsFrom(*crossover1Relay)
         .withOptionsFrom(*crossover2Relay)
         .withOptionsFrom(*crossover3Relay)
+        // Frequency boundary relays
+        .withOptionsFrom(*freqLowRelay)
+        .withOptionsFrom(*freqHighRelay)
         // Band 0 relays
         .withOptionsFrom(*band0EnableRelay)
         .withOptionsFrom(*band0DepthRelay)
@@ -140,6 +147,12 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
         *apvts.getParameter("crossover_2"), *crossover2Relay, nullptr);
     crossover3Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("crossover_3"), *crossover3Relay, nullptr);
+
+    // Frequency boundary attachments
+    freqLowAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("freq_low"), *freqLowRelay, nullptr);
+    freqHighAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("freq_high"), *freqHighRelay, nullptr);
 
     // Band 0 attachments
     band0EnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(

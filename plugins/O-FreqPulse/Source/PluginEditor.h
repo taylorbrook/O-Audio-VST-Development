@@ -48,6 +48,10 @@ private:
     std::unique_ptr<juce::WebSliderRelay> crossover2Relay;
     std::unique_ptr<juce::WebSliderRelay> crossover3Relay;
 
+    // Frequency boundary relays (2 total)
+    std::unique_ptr<juce::WebSliderRelay> freqLowRelay;
+    std::unique_ptr<juce::WebSliderRelay> freqHighRelay;
+
     // Per-band parameter relays (24 total: 6 params x 4 bands)
     std::unique_ptr<juce::WebToggleButtonRelay> band0EnableRelay;
     std::unique_ptr<juce::WebSliderRelay> band0DepthRelay;
@@ -95,6 +99,10 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> crossover1Attachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> crossover2Attachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> crossover3Attachment;
+
+    // Frequency boundary attachments (2 total)
+    std::unique_ptr<juce::WebSliderParameterAttachment> freqLowAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> freqHighAttachment;
 
     // Per-band parameter attachments (24 total)
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> band0EnableAttachment;

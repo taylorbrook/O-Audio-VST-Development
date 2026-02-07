@@ -75,7 +75,7 @@ html, body {
     position: relative;
     background: var(--grid-bg);
     margin: 0 10px 10px 10px;
-    border-radius: 0 0 4px 4px;
+    border-radius: 4px;
     overflow: hidden;
 }
 
@@ -88,78 +88,59 @@ html, body {
     gap: 2px;
 }
 
-/* Crossover Bar */
-.crossover-bar {
-    display: flex;
-    justify-content: space-around;
-    align-items: center;
-    background: var(--grid-bg);
-    margin: 0 10px;
-    padding: 6px 16px;
-    border-radius: 4px 4px 0 0;
-    gap: 16px;
-}
-
-.crossover-group {
+/* Crossover Dividers (between band lanes) */
+.crossover-divider, .freq-boundary {
+    flex: 0 0 12px;
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex: 1;
+    width: 80px;
+    padding: 0 4px 0 8px;
 }
 
-.crossover-label {
-    font-size: 9px;
-    color: var(--text-secondary);
-    white-space: nowrap;
-    min-width: 50px;
-}
-
-.crossover-slider {
-    flex: 1;
+.crossover-divider input[type="range"],
+.freq-boundary input[type="range"] {
+    width: 100%;
     height: 4px;
-    min-width: 0;
-    background: rgba(232, 213, 183, 0.3);
-    border: 1px solid rgba(139, 115, 85, 0.4);
+    background: rgba(232, 213, 183, 0.2);
+    border: none;
     border-radius: 2px;
     outline: none;
     appearance: none;
     -webkit-appearance: none;
     cursor: grab;
+    margin: 0;
 }
 
-.crossover-slider:active {
+.crossover-divider input[type="range"]:active,
+.freq-boundary input[type="range"]:active {
     cursor: grabbing;
 }
 
-.crossover-slider::-webkit-slider-thumb {
+.crossover-divider input[type="range"]::-webkit-slider-thumb,
+.freq-boundary input[type="range"]::-webkit-slider-thumb {
     -webkit-appearance: none;
     appearance: none;
-    width: 10px;
-    height: 14px;
+    width: 12px;
+    height: 12px;
     background: #C9A27B;
     border: 1px solid var(--border-accent);
-    border-radius: 2px;
+    border-radius: 50%;
     cursor: grab;
 }
 
-.crossover-slider:active::-webkit-slider-thumb {
+.crossover-divider input[type="range"]:active::-webkit-slider-thumb,
+.freq-boundary input[type="range"]:active::-webkit-slider-thumb {
     cursor: grabbing;
 }
 
-.crossover-slider::-moz-range-thumb {
-    width: 10px;
-    height: 14px;
+.crossover-divider input[type="range"]::-moz-range-thumb,
+.freq-boundary input[type="range"]::-moz-range-thumb {
+    width: 12px;
+    height: 12px;
     background: #C9A27B;
     border: 1px solid var(--border-accent);
-    border-radius: 2px;
+    border-radius: 50%;
     cursor: grab;
-}
-
-.crossover-val {
-    font-size: 9px;
-    color: var(--text-secondary);
-    min-width: 44px;
-    text-align: right;
 }
 
 .band-row {

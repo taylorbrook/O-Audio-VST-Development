@@ -73,6 +73,10 @@ private:
     std::atomic<float>* crossover2Param = nullptr;
     std::atomic<float>* crossover3Param = nullptr;
 
+    // Frequency boundary cached pointers
+    std::atomic<float>* freqLowParam = nullptr;
+    std::atomic<float>* freqHighParam = nullptr;
+
     std::array<BandParams, 4> bandParams;  // 4 bands
 
     // FFT Configuration Constants
@@ -127,6 +131,7 @@ private:
 
     // Cached parameter values (for change detection)
     float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };
+    float lastFreqBounds[2] = { 0.0f, 0.0f };
     int lastEuclideanParams[4][3] = { {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0} };  // [band][steps/pulses/offset]
 
     // APVTS (declared after cached pointers)
