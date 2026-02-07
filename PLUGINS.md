@@ -43,6 +43,7 @@ Ouaricon Plugins:
 | O-Bells | 📦 Installed | 3.1.1 | Synth (Physical Modeling Bells) | 2026-02-05 |
 | O-FreqPulse | 📦 Installed | 1.3.2 | Audio Effect (Spectral Sequencer) | 2026-02-06 |
 | O-SpectralShaper | 🚧 Stage 0 | - | Audio Effect (Spectral Transient Shaper) | 2026-02-03 |
+| O-GrainScatter | 🚧 Stage 0 | - | Audio Effect (Granular Stutter Engine) | 2026-02-06 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
