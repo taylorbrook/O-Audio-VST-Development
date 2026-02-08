@@ -42,6 +42,7 @@ void ChorusEngine::prepare (double newSampleRate, int samplesPerBlock)
     // Init smoothed values (50ms ramp, 100ms for tone)
     smoothedRate.reset (sampleRate, 0.05);
     smoothedDepth.reset (sampleRate, 0.05);
+    smoothedSpread.reset (sampleRate, 0.05);
     smoothedWidth.reset (sampleRate, 0.05);
     smoothedMix.reset (sampleRate, 0.05);
     smoothedDrive.reset (sampleRate, 0.05);
@@ -131,7 +132,7 @@ float ChorusEngine::mapToneParamToCutoff (float toneParam)
 }
 
 void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
-                            float rate, float depth, int numVoices,
+                            float rate, float depth, int numVoices, float spread,
                             float width, float tone, float mix, float drive)
 {
     const int numSamples = buffer.getNumSamples();
@@ -143,6 +144,7 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
     // Set smoothed parameter targets
     smoothedRate.setTargetValue (rate);
     smoothedDepth.setTargetValue (depth);
+    smoothedSpread.setTargetValue (spread);
     smoothedWidth.setTargetValue (width);
     smoothedMix.setTargetValue (mix);
     smoothedDrive.setTargetValue (drive);
@@ -166,6 +168,7 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
         // Read smoothed params per sample
         float curRate = smoothedRate.getNextValue();
         float curDepth = smoothedDepth.getNextValue();
+        float curSpread = smoothedSpread.getNextValue();
         float curWidth = smoothedWidth.getNextValue();
         float curMix = smoothedMix.getNextValue();
         float curDrive = smoothedDrive.getNextValue();
@@ -198,9 +201,17 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
                 float voicePhase = lfoPhase + voice.lfoPhaseOffset;
                 float lfoValue = std::sin (voicePhase);
 
-                // Modulated delay time
+                // Per-voice base delay offset from spread parameter
+                // Distributes voices symmetrically around baseDelayMs: ±spreadRangeMs
+                float voiceOffset = 0.0f;
+                if (count > 1)
+                    voiceOffset = curSpread * spreadRangeMs
+                                  * (2.0f * static_cast<float> (v) / static_cast<float> (count - 1) - 1.0f);
+
+                // Modulated delay time with per-voice spread offset
                 float effectiveDepth = curDepth * voice.depthVariation;
-                float modulatedDelayMs = baseDelayMs + (lfoValue * effectiveDepth * delayRangeMs);
+                float voiceBaseDelayMs = baseDelayMs + voiceOffset;
+                float modulatedDelayMs = voiceBaseDelayMs + (lfoValue * effectiveDepth * delayRangeMs);
                 float modulatedDelaySamples = (modulatedDelayMs / 1000.0f) * static_cast<float> (sampleRate);
 
                 // Read from delay line

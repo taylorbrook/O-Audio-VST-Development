@@ -13,7 +13,7 @@
  * O-Chorus Plugin Editor with WebView UI
  *
  * Stage 1 (Foundation) - Placeholder UI
- * Parameters: 7 total (rate, depth, voices, width, tone, mix, drive)
+ * Parameters: 8 total (rate, depth, voices, spread, width, tone, mix, drive)
  */
 class OChorusAudioProcessorEditor : public juce::AudioProcessorEditor
 #if OUARICON_LICENSING_ENABLED
@@ -42,6 +42,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> rateRelay;
     std::unique_ptr<juce::WebSliderRelay> depthRelay;
     std::unique_ptr<juce::WebSliderRelay> voicesRelay;
+    std::unique_ptr<juce::WebSliderRelay> spreadRelay;
     std::unique_ptr<juce::WebSliderRelay> widthRelay;
     std::unique_ptr<juce::WebSliderRelay> toneRelay;
     std::unique_ptr<juce::WebSliderRelay> mixRelay;
@@ -54,6 +55,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> rateAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> depthAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> voicesAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> spreadAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> widthAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> toneAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;

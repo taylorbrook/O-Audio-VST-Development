@@ -20,7 +20,7 @@ public:
     void prepare (double sampleRate, int samplesPerBlock);
     void reset();
     void process (juce::AudioBuffer<float>& buffer,
-                  float rate, float depth, int voices,
+                  float rate, float depth, int voices, float spread,
                   float width, float tone, float mix, float drive);
 
 private:
@@ -42,6 +42,7 @@ private:
     static constexpr float baseDelayMs = 10.0f;
     static constexpr float delayRangeMs = 5.0f;
     static constexpr float maxDelayMs = 50.0f;
+    static constexpr float spreadRangeMs = 15.0f;
 
     std::array<ChorusVoice, maxVoices> voices;
 
@@ -62,6 +63,7 @@ private:
     // Smoothed parameters
     juce::SmoothedValue<float> smoothedRate;
     juce::SmoothedValue<float> smoothedDepth;
+    juce::SmoothedValue<float> smoothedSpread;
     juce::SmoothedValue<float> smoothedWidth;
     juce::SmoothedValue<float> smoothedMix;
     juce::SmoothedValue<float> smoothedDrive;

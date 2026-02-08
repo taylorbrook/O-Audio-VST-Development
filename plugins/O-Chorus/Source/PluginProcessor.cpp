@@ -26,6 +26,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout OChorusAudioProcessor::creat
         juce::ParameterID{"voices", 1}, "Voices", 1, 8, 4));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID{"spread", 1}, "Spread", 0.0f, 1.0f, 0.0f));
+
+    params.push_back(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID{"width", 1}, "Width", 0.0f, 1.0f, 0.7f));
 
     params.push_back(std::make_unique<juce::AudioParameterFloat>(
@@ -71,12 +74,13 @@ void OChorusAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     float rate   = parameters.getRawParameterValue("rate")->load();
     float depth  = parameters.getRawParameterValue("depth")->load();
     int   voices = static_cast<int>(parameters.getRawParameterValue("voices")->load());
+    float spread = parameters.getRawParameterValue("spread")->load();
     float width  = parameters.getRawParameterValue("width")->load();
     float tone   = parameters.getRawParameterValue("tone")->load();
     float mix    = parameters.getRawParameterValue("mix")->load();
     float drive  = parameters.getRawParameterValue("drive")->load();
 
-    chorusEngine.process(buffer, rate, depth, voices, width, tone, mix, drive);
+    chorusEngine.process(buffer, rate, depth, voices, spread, width, tone, mix, drive);
 }
 
 juce::AudioProcessorEditor* OChorusAudioProcessor::createEditor()

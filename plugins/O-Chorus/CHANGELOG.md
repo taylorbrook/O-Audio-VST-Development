@@ -1,5 +1,21 @@
 # O-Chorus Changelog
 
+## v1.1.0 (2026-02-08)
+
+### Added
+
+- **Spread parameter** (0.0–1.0): Offsets each voice's base delay time across ±15ms range
+  - At 0%: All voices share the same base delay (original behavior)
+  - At 100%: Voices are distributed symmetrically across a 30ms delay range
+  - Makes the Voices parameter audibly meaningful — more voices = richer, thicker sound
+  - Inspired by classic multi-voice chorus designs (Juno-60, Dimension D)
+
+### Root Cause
+
+- The Voices parameter previously had minimal audible effect because all voices shared
+  the same 10ms base delay time. Only LFO phase offset and tiny depth variation (0.85–1.15x)
+  differentiated voices, producing nearly identical tonal results regardless of voice count.
+
 ## v1.0.1 (2026-02-08)
 
 ### Changed

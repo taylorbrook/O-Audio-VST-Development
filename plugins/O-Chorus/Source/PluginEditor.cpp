@@ -28,6 +28,7 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
     rateRelay = std::make_unique<juce::WebSliderRelay>("rate");
     depthRelay = std::make_unique<juce::WebSliderRelay>("depth");
     voicesRelay = std::make_unique<juce::WebSliderRelay>("voices");
+    spreadRelay = std::make_unique<juce::WebSliderRelay>("spread");
     widthRelay = std::make_unique<juce::WebSliderRelay>("width");
     toneRelay = std::make_unique<juce::WebSliderRelay>("tone");
     mixRelay = std::make_unique<juce::WebSliderRelay>("mix");
@@ -48,6 +49,7 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
             .withOptionsFrom(*rateRelay)
             .withOptionsFrom(*depthRelay)
             .withOptionsFrom(*voicesRelay)
+            .withOptionsFrom(*spreadRelay)
             .withOptionsFrom(*widthRelay)
             .withOptionsFrom(*toneRelay)
             .withOptionsFrom(*mixRelay)
@@ -77,6 +79,8 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
         *audioProcessor.parameters.getParameter("depth"), *depthRelay, nullptr);
     voicesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("voices"), *voicesRelay, nullptr);
+    spreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("spread"), *spreadRelay, nullptr);
     widthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("width"), *widthRelay, nullptr);
     toneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
