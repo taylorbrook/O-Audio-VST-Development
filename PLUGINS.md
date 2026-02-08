@@ -29,7 +29,7 @@ Ouaricon Plugins:
 | O-Tremolo | 📦 Installed | 1.4.0 | Audio Effect (Tremolo) | 2026-02-06 |
 | O-AnalogSaturation | 📦 Installed | 1.1.0 | Audio Effect (Saturation) | 2026-01-24 |
 | O-Marimba | 📦 Installed | 1.11.0 | Synth (Physical Model) | 2026-01-26 |
-| O-Comp | 📦 Installed | 1.2.1 | Audio Effect (Compressor) | 2026-02-06 |
+| O-Comp | 📦 Installed | 1.4.0 | Audio Effect (Compressor) | 2026-02-07 |
 | O-AnalogEQ | 📦 Installed | 1.1.4 | Audio Effect (EQ) | 2026-02-05 |
 | O-DigiDelay | 📦 Installed | 1.2.1 | Audio Effect (Delay) | 2026-01-24 |
 | O-SimpleReverb | 📦 Installed | 1.5.1 | Audio Effect (Reverb) | 2026-02-04 |
@@ -41,9 +41,10 @@ Ouaricon Plugins:
 | O-Detune | 📦 Installed | 1.5.0 | Audio Effect (Detuning) | 2026-02-07 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
 | O-Bells | 📦 Installed | 3.1.1 | Synth (Physical Modeling Bells) | 2026-02-05 |
-| O-FreqPulse | 📦 Installed | 1.5.1 | Audio Effect (Spectral Sequencer) | 2026-02-07 |
-| O-SpectralShaper | 📦 Installed | 1.0.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
-| O-GrainScatter | 🚧 Stage 0 | - | Audio Effect (Granular Stutter Engine) | 2026-02-06 |
+| O-FreqPulse | 📦 Installed | 1.6.0 | Audio Effect (Spectral Sequencer) | 2026-02-07 |
+| O-SpectralShaper | 📦 Installed | 1.1.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
+| O-GrainScatter | 📦 Installed | 1.0.0 | Audio Effect (Granular Stutter Engine) | 2026-02-07 |
+| O-Chorus | 🚧 Stage 0 | - | Audio Effect (Chorus) | 2026-02-07 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
