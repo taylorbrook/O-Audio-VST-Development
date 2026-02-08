@@ -64,15 +64,6 @@ OAnalogSaturationAudioProcessor::~OAnalogSaturationAudioProcessor()
 
 void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    // Prepare DSP spec
-    spec.sampleRate = sampleRate;
-    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
-    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
-
-    // Initialize oversampling systems (Phase 2.1)
-    // LOW quality: No oversampling (factor=1, no actual oversampling object needed)
-    oversamplingLow = nullptr;
-
     // MID quality: 2x oversampling with FIR equiripple filter
     oversamplingMid = std::make_unique<juce::dsp::Oversampling<float>>(
         getTotalNumOutputChannels(),
@@ -93,15 +84,12 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
     );
     oversamplingHigh->initProcessing(static_cast<size_t>(samplesPerBlock));
 
-    // Initialize DIODE model state (per-channel previous voltage)
-    diodePrevVoltage.resize(getTotalNumOutputChannels(), 0.0f);
-
-    // Initialize TRANSFORMER model filters (Phase 2.2)
+    // Initialize TRANSFORMER model filters
     const int numChannels = getTotalNumOutputChannels();
     transformerLFBumpFilters.resize(numChannels);
     transformerHFSheenFilters.resize(numChannels);
 
-    // Configure TRANSFORMER frequency response filters
+    // TRANSFORMER frequency response filters
     // LF bump: Peak filter at 60Hz, Q=0.7, +2.0dB
     auto lfBumpCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
         sampleRate, 60.0f, 0.7f, juce::Decibels::decibelsToGain(2.0f));
@@ -120,11 +108,10 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
         transformerHFSheenFilters[ch].reset();
     }
 
-    // Initialize TUBE model filters (Phase 2.3)
+    // Initialize TUBE model filters
     tubePresenceFilters.resize(numChannels);
-    tubePrevPlateVoltage.resize(numChannels, TUBE_VSUPPLY * 0.5f);  // Initial guess: Vsupply/2
 
-    // Configure TUBE frequency response filter
+    // TUBE presence filter
     // Presence boost: Peak filter at 3000Hz, Q=0.7, +1.5dB
     auto presenceCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
         sampleRate, 3000.0f, 0.7f, juce::Decibels::decibelsToGain(1.5f));
@@ -136,13 +123,13 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
         tubePresenceFilters[ch].reset();
     }
 
-    // Initialize MAGNETIC model filters (Phase 2.4)
+    // Initialize MAGNETIC model filters
     magneticHeadBumpFilters.resize(numChannels);
     magneticHFRolloffFilters.resize(numChannels);
     magneticM.resize(numChannels, 0.0f);      // Initialize magnetization to zero
     magneticHPrev.resize(numChannels, 0.0f);  // Initialize previous field to zero
 
-    // Configure MAGNETIC frequency response filters
+    // MAGNETIC frequency response filters
     // Head bump: Peak filter at 80Hz, Q=0.7, +2.5dB
     auto headBumpCoeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter(
         sampleRate, 80.0f, 0.7f, juce::Decibels::decibelsToGain(2.5f));
@@ -161,7 +148,7 @@ void OAnalogSaturationAudioProcessor::prepareToPlay(double sampleRate, int sampl
         magneticHFRolloffFilters[ch].reset();
     }
 
-    // Initialize Auto-Gain system (Phase 2.4)
+    // Initialize Auto-Gain system
     inputRMSEnvelope.resize(numChannels, 0.0f);
     outputRMSEnvelope.resize(numChannels, 0.0f);
 
@@ -192,21 +179,17 @@ void OAnalogSaturationAudioProcessor::releaseResources()
     if (oversamplingHigh)
         oversamplingHigh->reset();
 
-    // Clear DIODE state
-    std::fill(diodePrevVoltage.begin(), diodePrevVoltage.end(), 0.0f);
-
-    // Reset TRANSFORMER filters (Phase 2.2)
+    // Reset TRANSFORMER filters
     for (auto& filter : transformerLFBumpFilters)
         filter.reset();
     for (auto& filter : transformerHFSheenFilters)
         filter.reset();
 
-    // Reset TUBE model state (Phase 2.3)
-    std::fill(tubePrevPlateVoltage.begin(), tubePrevPlateVoltage.end(), TUBE_VSUPPLY * 0.5f);
+    // Reset TUBE filters
     for (auto& filter : tubePresenceFilters)
         filter.reset();
 
-    // Reset MAGNETIC model state (Phase 2.4)
+    // Reset MAGNETIC model state
     std::fill(magneticM.begin(), magneticM.end(), 0.0f);
     std::fill(magneticHPrev.begin(), magneticHPrev.end(), 0.0f);
     for (auto& filter : magneticHeadBumpFilters)
@@ -214,7 +197,7 @@ void OAnalogSaturationAudioProcessor::releaseResources()
     for (auto& filter : magneticHFRolloffFilters)
         filter.reset();
 
-    // Reset Auto-Gain envelopes (Phase 2.4)
+    // Reset Auto-Gain envelopes
     std::fill(inputRMSEnvelope.begin(), inputRMSEnvelope.end(), 0.0f);
     std::fill(outputRMSEnvelope.begin(), outputRMSEnvelope.end(), 0.0f);
 }
@@ -253,9 +236,6 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
             oversamplingHigh->reset();
     }
 
-    // Determine iteration count based on quality
-    const int iterations = (quality == 0) ? 4 : (quality == 1) ? 6 : 8;
-
     // Capture input peak level for VU meter
     inputLevelDB.store(calculatePeakDB(buffer), std::memory_order_relaxed);
 
@@ -266,7 +246,7 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
     if (quality == 0)
     {
         // LOW quality: No oversampling
-        processSaturationDirect(buffer, model, intensity, iterations);
+        processSaturationDirect(buffer, model, intensity);
     }
     else
     {
@@ -276,7 +256,7 @@ void OAnalogSaturationAudioProcessor::processBlock(juce::AudioBuffer<float>& buf
         if (oversampler != nullptr)
         {
             auto oversampledBlock = oversampler->processSamplesUp(buffer);
-            processSaturationBlock(oversampledBlock, model, intensity, iterations);
+            processSaturationBlock(oversampledBlock, model, intensity);
 
             juce::dsp::AudioBlock<float> outputBlock(buffer);
             oversampler->processSamplesDown(outputBlock);
@@ -348,7 +328,7 @@ void OAnalogSaturationAudioProcessor::captureInputRMS(const juce::AudioBuffer<fl
 }
 
 void OAnalogSaturationAudioProcessor::processSaturationDirect(
-    juce::AudioBuffer<float>& buffer, int model, float intensity, int iterations)
+    juce::AudioBuffer<float>& buffer, int model, float intensity)
 {
     const int numChannels = buffer.getNumChannels();
     const int numSamples = buffer.getNumSamples();
@@ -359,13 +339,13 @@ void OAnalogSaturationAudioProcessor::processSaturationDirect(
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            channelData[sample] = processSample(channelData[sample], model, intensity, iterations, channel);
+            channelData[sample] = processSample(channelData[sample], model, intensity, channel);
         }
     }
 }
 
 void OAnalogSaturationAudioProcessor::processSaturationBlock(
-    juce::dsp::AudioBlock<float>& block, int model, float intensity, int iterations)
+    juce::dsp::AudioBlock<float>& block, int model, float intensity)
 {
     const int numChannels = static_cast<int>(block.getNumChannels());
     const int numSamples = static_cast<int>(block.getNumSamples());
@@ -376,20 +356,20 @@ void OAnalogSaturationAudioProcessor::processSaturationBlock(
 
         for (int sample = 0; sample < numSamples; ++sample)
         {
-            channelData[sample] = processSample(channelData[sample], model, intensity, iterations, channel);
+            channelData[sample] = processSample(channelData[sample], model, intensity, channel);
         }
     }
 }
 
 float OAnalogSaturationAudioProcessor::processSample(
-    float input, int model, float intensity, int iterations, int channel)
+    float input, int model, float intensity, int channel)
 {
     switch (model)
     {
         case 0: return processMagneticSample(input, intensity, channel);
-        case 1: return processTubeSample(input, intensity, iterations, channel, tubePrevPlateVoltage[channel]);
+        case 1: return processTubeSample(input, intensity, channel);
         case 2: return processTransformerSample(input, intensity, channel);
-        case 3: return processDiodeSample(input, intensity, iterations, diodePrevVoltage[channel]);
+        case 3: return processDiodeSample(input, intensity);
         default: return input;
     }
 }
@@ -434,10 +414,8 @@ void OAnalogSaturationAudioProcessor::applyAutoGain(juce::AudioBuffer<float>& bu
 // DIODE Model Implementation (Symmetric Soft Clipping)
 // ============================================================================
 
-float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float intensity, int iterations, float& prevVoltage)
+float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float intensity)
 {
-    juce::ignoreUnused(iterations, prevVoltage);  // Not needed for simplified model
-
     // At 0% intensity, return dry signal (no processing)
     if (intensity < 0.1f)
         return input;
@@ -469,7 +447,7 @@ float OAnalogSaturationAudioProcessor::processDiodeSample(float input, float int
 }
 
 // ============================================================================
-// TRANSFORMER Model Implementation (Phase 2.2)
+// TRANSFORMER Model Implementation (Soft Tanh Saturation)
 // ============================================================================
 
 float OAnalogSaturationAudioProcessor::processTransformerSample(float input, float intensity, int channel)
@@ -509,13 +487,11 @@ float OAnalogSaturationAudioProcessor::processTransformerSample(float input, flo
 }
 
 // ============================================================================
-// TUBE Model Implementation (Asymmetric Soft Saturation) - Phase 2.3
+// TUBE Model Implementation (Asymmetric Soft Saturation)
 // ============================================================================
 
-float OAnalogSaturationAudioProcessor::processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage)
+float OAnalogSaturationAudioProcessor::processTubeSample(float input, float intensity, int channel)
 {
-    juce::ignoreUnused(iterations, prevPlateVoltage);  // Not needed for simplified model
-
     // At 0% intensity, return dry signal (no processing)
     if (intensity < 0.1f)
         return input;
@@ -564,7 +540,7 @@ float OAnalogSaturationAudioProcessor::processTubeSample(float input, float inte
 }
 
 // ============================================================================
-// MAGNETIC Model Implementation (Jiles-Atherton Hysteresis) - Phase 2.4
+// MAGNETIC Model Implementation (Jiles-Atherton Hysteresis)
 // ============================================================================
 
 float OAnalogSaturationAudioProcessor::langevinFunction(float x)

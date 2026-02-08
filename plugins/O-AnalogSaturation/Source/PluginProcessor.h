@@ -53,26 +53,19 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
-    // Oversampling (LOW=none, MID=2x, HIGH=4x)
-    std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingLow;
+    // Oversampling (MID=2x, HIGH=4x, LOW=none)
     std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingMid;
     std::unique_ptr<juce::dsp::Oversampling<float>> oversamplingHigh;
 
-    juce::dsp::ProcessSpec spec;
     int currentQuality = 1;  // Track current quality mode (0=LOW, 1=MID, 2=HIGH)
-
-    // DIODE model state (per-channel previous voltage)
-    std::vector<float> diodePrevVoltage;
 
     // TRANSFORMER model filters and parameters
     std::vector<juce::dsp::IIR::Filter<float>> transformerLFBumpFilters;
     std::vector<juce::dsp::IIR::Filter<float>> transformerHFSheenFilters;
     static constexpr float TRANSFORMER_CORE_SATURATION = 0.8f;
 
-    // TUBE model filters and state
+    // TUBE model filters
     std::vector<juce::dsp::IIR::Filter<float>> tubePresenceFilters;
-    std::vector<float> tubePrevPlateVoltage;
-    static constexpr float TUBE_VSUPPLY = 250.0f;
 
     // MAGNETIC model (Jiles-Atherton hysteresis)
     std::vector<juce::dsp::IIR::Filter<float>> magneticHeadBumpFilters;
@@ -90,18 +83,18 @@ private:
     std::vector<float> outputRMSEnvelope;
     float autoGainCoeff = 0.0f;
 
-    // Processing helpers (consolidated from processBlock)
+    // Processing helpers
     float calculatePeakDB(const juce::AudioBuffer<float>& buffer);
     void captureInputRMS(const juce::AudioBuffer<float>& buffer);
-    void processSaturationDirect(juce::AudioBuffer<float>& buffer, int model, float intensity, int iterations);
-    void processSaturationBlock(juce::dsp::AudioBlock<float>& block, int model, float intensity, int iterations);
-    float processSample(float input, int model, float intensity, int iterations, int channel);
+    void processSaturationDirect(juce::AudioBuffer<float>& buffer, int model, float intensity);
+    void processSaturationBlock(juce::dsp::AudioBlock<float>& block, int model, float intensity);
+    float processSample(float input, int model, float intensity, int channel);
     void applyAutoGain(juce::AudioBuffer<float>& buffer, bool enabled);
 
     // Saturation model implementations
-    float processDiodeSample(float input, float intensity, int iterations, float& prevVoltage);
+    float processDiodeSample(float input, float intensity);
     float processTransformerSample(float input, float intensity, int channel);
-    float processTubeSample(float input, float intensity, int iterations, int channel, float& prevPlateVoltage);
+    float processTubeSample(float input, float intensity, int channel);
     float processMagneticSample(float input, float intensity, int channel);
     float langevinFunction(float x);
 

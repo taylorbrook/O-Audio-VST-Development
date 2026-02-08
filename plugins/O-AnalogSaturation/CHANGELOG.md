@@ -2,6 +2,17 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.1.1] - 2026-02-07
+
+### Changed
+- Removed dead state variables: `diodePrevVoltage`, `tubePrevPlateVoltage`, `TUBE_VSUPPLY`, `oversamplingLow`, `spec`
+- Removed unused `iterations` parameter threading through DSP functions
+- Cleaned function signatures to match actual usage
+- Removed stale phase comments from implementation era
+
+### Fixed
+- Added `NEEDS_WEBVIEW2 TRUE` and `JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1` for Windows WebView2 support
+
 ## [1.1.0] - 2026-01-24
 
 ### Changed

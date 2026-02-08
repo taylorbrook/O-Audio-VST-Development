@@ -8,6 +8,7 @@ juce_add_plugin(O-AnalogSaturation
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-AnalogSaturation${OUARICON_DEV_SUFFIX}"
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
 # Source files
@@ -70,6 +71,7 @@ target_link_libraries(O-AnalogSaturation
 target_compile_definitions(O-AnalogSaturation
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
-        JUCE_WEB_BROWSER=1  # Pattern 3: Enable WebView
-        JUCE_USE_CURL=0     # Pattern 3: Disable CURL (not needed for local resources)
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_CURL=0
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
 )
