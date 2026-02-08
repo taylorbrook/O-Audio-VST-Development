@@ -5,14 +5,14 @@
 See: .planning/PROJECT.md (updated 2026-02-06)
 
 **Core value:** Reliable collaborative workflow producing professional-quality plugins — agents use relevant knowledge with full traceability
-**Current focus:** Planning next milestone
+**Current focus:** v1.3 System Modernization (Opus 4.6 + GSD Alignment)
 
 ## Current Position
 
-Phase: Milestone boundary
-Plan: N/A
-Status: v1.2 shipped, ready for next milestone
-Last activity: 2026-02-06 — v1.2 milestone archived
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-02-08 — Milestone v1.3 started
 
 Progress: [█████████████████████████] 100% overall (38/38 plans across 3 milestones)
 
@@ -70,7 +70,7 @@ Last session: 2026-02-06
 Stopped at: v1.2 milestone archived
 Resume file: None
 
-Next: `/gsd:new-milestone` to start next milestone cycle
+Next: Research phase — auditing Opus 4.6 capabilities and GSD 1.18.0 features
 
 ---
 *v1.2 Agent Intelligence & Resource Orchestration shipped. All 13 phases, 38 plans complete across 3 milestones.*

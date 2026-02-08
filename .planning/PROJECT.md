@@ -11,7 +11,7 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 ## Current State
 
 **Latest shipped:** v1.2 Agent Intelligence & Resource Orchestration (2026-02-06)
-**Next milestone:** TBD (use `/gsd:new-milestone` to start)
+**Current milestone:** v1.3 System Modernization (Opus 4.6 + GSD Alignment)
 
 **System overview:**
 - 13 phases completed across 3 milestones
@@ -51,7 +51,12 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 
 ### Active
 
-(None — use `/gsd:new-milestone` to define next milestone requirements)
+- [ ] Opus 4.6 agent teams — leverage multi-agent orchestration for parallel/collaborative workflows
+- [ ] Agent quality improvements — use improved reasoning for better first-pass output
+- [ ] Context persistence — reduce information loss between sessions and across agents
+- [ ] GSD feature adoption — integrate new GSD 1.18.0 features the system doesn't use yet
+- [ ] GSD deduplication — remove custom code that GSD now handles natively
+- [ ] System audit — thorough review of all agents, workflows, skills against current capabilities
 
 ### Deferred (v1.3+)
 
@@ -159,6 +164,17 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 - **Platform**: macOS primary, cross-platform via GitHub Actions CI/CD
 - **UI Tech**: WebView-based (open to alternatives but working)
 - **Tooling**: Claude Code with slash commands and specialized agents
+- **Model**: Claude Opus 4.6 — primary model for all agents
+
+## Current Milestone: v1.3 System Modernization (Opus 4.6 + GSD Alignment)
+
+**Goal:** Audit and modernize the Plugin Freedom System to leverage Opus 4.6 capabilities (agent teams, improved reasoning) and align with GSD 1.18.0 features, eliminating custom code where the framework now provides native support.
+
+**Target improvements:**
+- Opus 4.6 agent teams for parallel/collaborative agent workflows
+- Smarter agents with less rework needed
+- Better context persistence across sessions
+- GSD feature adoption and deduplication of custom overlapping code
 
 ## Key Decisions
 
@@ -179,4 +195,4 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | PostToolUse hook for manifest | Auto-regeneration on research file writes | ✓ Good — zero manual maintenance |
 
 ---
-*Last updated: 2026-02-06 after v1.2 milestone complete*
+*Last updated: 2026-02-08 after v1.3 milestone started*
