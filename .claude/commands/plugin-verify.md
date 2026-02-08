@@ -184,6 +184,66 @@ pluginval --strictness-level 10 --validate "build/plugins/[Name]/[Name]_artefact
 auval -v aufx [code] [manu]
 ```
 
+## MANDATORY Completion Handoff
+
+**After completing the verify phase, you MUST present the two-step handoff and STOP. Do NOT skip this.**
+
+**If verification PASSES — stage is complete, handoff to next stage:**
+
+```
+━━━ STAGE COMPLETE ━━━
+
+**[PluginName]** — Stage [N] ([StageName]) verified
+
+| Phase | Status |
+|-------|--------|
+| discuss | ✓ |
+| research | ✓ |
+| plan | ✓ |
+| execute | ✓ |
+| verify | ✓ |
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## ▶ Next Up
+
+**Stage [N+1]: [NextStageName]** — [objective]
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/implement [PluginName]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Also available:**
+
+- `/test [PluginName]` → Run additional tests
+- `/plugin-status [PluginName]` → Review stage artifacts
+- Save for later (handoff file created)
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**If this is Stage 4 (final stage) and verification passes:**
+
+```
+━━━ PLUGIN COMPLETE ━━━
+
+**[PluginName]** — All stages verified
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/install-plugin [PluginName]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Rules:**
+1. Always include full plugin name in commands (copy-paste ready)
+2. Always include `/clear` as Step 1 before the next command
+3. Present the handoff and STOP — do NOT auto-invoke the next stage
+4. Do NOT relegate `/clear` to a footnote or omit it
+
+See: `.claude/references/handoff-protocol.md`
+
 ## Integration
 
 **Follows:** SUMMARY.md (execute phase output)

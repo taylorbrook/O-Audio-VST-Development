@@ -117,6 +117,47 @@ Ready for: [research/plan] phase
 - Packaging format (installer, zip)?
 - Release targets (internal, beta, public)?
 
+## MANDATORY Completion Handoff
+
+**After completing the discuss phase, you MUST present the two-step handoff and STOP. Do NOT skip this.**
+
+```
+━━━ PHASE COMPLETE ━━━
+
+**[PluginName]** — Stage [N] ([StageName]) / discuss phase
+
+CONTEXT.md created with:
+- [Key point 1]
+- [Key point 2]
+- [Key point 3]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## ▶ Next Up
+
+**research phase** — Investigate implementation approach
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/plugin-research [PluginName] [N]-[stage]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Also available:**
+
+- `/plugin-plan [PluginName] [N]-[stage]` → Skip research, go to planning
+- `/plugin-status [PluginName]` → Check status
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Rules:**
+1. Always include full plugin name in commands (copy-paste ready)
+2. Always include `/clear` as Step 1 before the next command
+3. Present the handoff and STOP — do NOT auto-invoke the next phase
+4. Do NOT relegate `/clear` to a footnote or omit it
+
+See: `.claude/references/handoff-protocol.md`
+
 ## Integration
 
 **Follows:** Previous stage VERIFICATION.md (except Stage 0)

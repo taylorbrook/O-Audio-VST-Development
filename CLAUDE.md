@@ -32,6 +32,22 @@ ninja [PluginName]_VST3 [PluginName]_AU
 - Verify AU appears with `auval -a | grep -i [pluginname]`
 - If plugin shows stale behavior, close DAW completely and restart
 
+## CRITICAL: Phase/Stage Completion Handoffs
+
+**After completing ANY plugin workflow phase or stage, you MUST present a two-step handoff message and STOP.**
+
+The handoff format is:
+1. Show what was completed (phase name, artifacts created)
+2. Present "Next Up" with **Step 1:** `/clear` and **Step 2:** the next command with full plugin name
+3. List alternative options
+4. **STOP** — do NOT auto-invoke the next phase/command
+
+This applies to ALL of these commands: `/plugin-discuss`, `/plugin-research`, `/plugin-plan`, `/plugin-execute`, `/plugin-verify`, `/plugin-handoff`, `/implement`.
+
+See `.claude/references/handoff-protocol.md` for the full format specification.
+
+**If you forget: the user MUST see `/clear` as Step 1 and the next command as Step 2 before you stop.**
+
 ## Project Structure
 - Plugins are in `plugins/[PluginName]/`
 - Build output is in `build/plugins/[PluginName]/[PluginName]_artefacts/Release/`

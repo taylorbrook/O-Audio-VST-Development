@@ -176,6 +176,47 @@ Options:
 4. Pause for manual fix
 ```
 
+## MANDATORY Completion Handoff
+
+**After completing the execute phase, you MUST present the two-step handoff and STOP. Do NOT skip this.**
+
+```
+━━━ PHASE COMPLETE ━━━
+
+**[PluginName]** — Stage [N] ([StageName]) / execute phase
+
+SUMMARY.md created with implementation results:
+- [Key result 1]
+- [Key result 2]
+- [Key result 3]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## ▶ Next Up
+
+**verify phase** — Validate goal achievement
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/plugin-verify [PluginName] [N]-[stage]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Also available:**
+
+- `/plugin-status [PluginName]` → Check status
+- `/test [PluginName]` → Run tests before verifying
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Rules:**
+1. Always include full plugin name in commands (copy-paste ready)
+2. Always include `/clear` as Step 1 before the next command
+3. Present the handoff and STOP — do NOT auto-invoke the next phase
+4. Do NOT relegate `/clear` to a footnote or omit it
+
+See: `.claude/references/handoff-protocol.md`
+
 ## Related Commands
 
 - `/plugin-plan` - Previous phase

@@ -76,6 +76,47 @@ Research Findings:
 Next: /plugin-plan O-IntonationPad 2-dsp
 ```
 
+## MANDATORY Completion Handoff
+
+**After completing the research phase, you MUST present the two-step handoff and STOP. Do NOT skip this.**
+
+```
+━━━ PHASE COMPLETE ━━━
+
+**[PluginName]** — Stage [N] ([StageName]) / research phase
+
+RESEARCH.md created with:
+- [Key finding 1]
+- [Key finding 2]
+- [Key finding 3]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## ▶ Next Up
+
+**plan phase** — Create execution plan
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/plugin-plan [PluginName] [N]-[stage]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Also available:**
+
+- `/plugin-status [PluginName]` → Check status
+- Re-run research with different focus
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Rules:**
+1. Always include full plugin name in commands (copy-paste ready)
+2. Always include `/clear` as Step 1 before the next command
+3. Present the handoff and STOP — do NOT auto-invoke the next phase
+4. Do NOT relegate `/clear` to a footnote or omit it
+
+See: `.claude/references/handoff-protocol.md`
+
 ## Skip Flag
 
 To skip research and go directly to planning:

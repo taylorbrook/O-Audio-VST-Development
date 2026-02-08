@@ -331,6 +331,45 @@ Schema errors:
 Fix handoff and retry, or use --force to bypass (not recommended).
 ```
 
+## MANDATORY Completion Handoff
+
+**After creating the handoff, you MUST present the two-step handoff and STOP. Do NOT skip this.**
+
+```
+━━━ HANDOFF COMPLETE ━━━
+
+**[PluginName]** — Stage [N] ([StageName]) handoff validated
+
+HANDOFF.json created and validated.
+Decisions logged to DECISIONS.md.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+## ▶ Next Up
+
+**Stage [N+1]: [NextStageName]** — [objective]
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/implement [PluginName]`
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Also available:**
+
+- `/plugin-status [PluginName]` → Check status
+- `/test [PluginName]` → Run tests
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+**Rules:**
+1. Always include full plugin name in commands (copy-paste ready)
+2. Always include `/clear` as Step 1 before the next command
+3. Present the handoff and STOP — do NOT auto-invoke the next stage
+4. Do NOT relegate `/clear` to a footnote or omit it
+
+See: `.claude/references/handoff-protocol.md`
+
 ## Related Commands
 
 - `/plugin-execute` - Execute stage (produces content for handoff)
