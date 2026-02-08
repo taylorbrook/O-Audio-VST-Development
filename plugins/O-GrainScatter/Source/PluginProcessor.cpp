@@ -248,11 +248,11 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         cachedPitchMode = pitchMode;
     }
 
-    // Freeze engage/release
+    // Freeze engage/release (with crossfade on both transitions)
     if (freeze && !wasFrozen)
         freezeManager.engage(delayBuffer, grainSizeSamples);
     else if (!freeze && wasFrozen)
-        freezeManager.release();
+        freezeManager.release();  // Starts release crossfade; active stays true until crossfade completes
     wasFrozen = freeze;
 
     // Set SmoothedValue targets (never reset() here!)
@@ -325,8 +325,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // Reverse probability
             gp.reverse = grainRng.nextFloat() < (reverseProb / 100.0f);
 
-            // Freeze: new grains read from frozen buffer
-            gp.readFromFrozen = freezeManager.isActive();
+            // Freeze: new grains read from frozen buffer (but not during release crossfade)
+            gp.readFromFrozen = freezeManager.isActive() && !freezeManager.isReleasing();
 
             grainPool.spawnGrain(gp);
             ++spawnIdx;
@@ -335,6 +335,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         // Process grain pool
         float wetL = 0.0f, wetR = 0.0f;
         grainPool.processSample(delayBuffer, freezeManager, wetL, wetR);
+
+        // Soft-clip wet output to prevent digital clipping from many overlapping grains
+        wetL = std::tanh(wetL);
+        wetR = std::tanh(wetR);
 
         // Feedback: soft clip BEFORE writing back
         float fbAmount = feedbackSmoothed.getNextValue();

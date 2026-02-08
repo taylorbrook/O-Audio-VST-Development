@@ -2,6 +2,37 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.4.0] - 2026-02-07
+
+### Changed
+
+- **Replaced seed-knob dials with SVG vine-arc knobs** matching O-Detune's style
+  - Knobs now render as animated SVG circular arcs instead of CSS radial-gradient circles
+  - Smooth `requestAnimationFrame` interpolation for vine fill animation
+  - Added mouse wheel support for fine control
+  - Knob size increased from 40px to 52px for better visibility
+  - Colors: walnut track (`rgba(139,115,85,0.3)`) with accent green vine (`#5a7a6a`)
+
+## [1.3.0] - 2026-02-07
+
+### Added
+
+- **8 Factory presets** initialized on startup via `initializeFactoryPresets()`:
+  - Gentle Glue - subtle bus compression with soft knee
+  - Vocal Smooth - medium vocal compression with auto-gain
+  - Drum Punch - punchy drums with fast release
+  - Bass Control - tight bass control with moderate ratio
+  - Mastering Touch - light mastering-style compression
+  - Aggressive Smash - heavy limiting-style compression
+  - Natural Dynamics - transparent compression for natural sources
+  - Parallel Crush - heavy compression for parallel processing (no auto-gain, +12 dB output)
+
+### Technical Details
+
+- Factory presets written to `~/Library/O-Comp/Presets/Factory/` as JSON files
+- All presets use auto-gain except Parallel Crush (designed for parallel mix blending)
+- Preset values stored as normalized (0.0-1.0) per APVTS convention
+
 ## [1.2.0] - 2026-01-24
 
 ### Changed

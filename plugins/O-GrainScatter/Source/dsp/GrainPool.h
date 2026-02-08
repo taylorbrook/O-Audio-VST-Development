@@ -106,7 +106,12 @@ public:
             }
             else
             {
-                float delaySamples = v.positionOffset + v.readPosition;
+                // Compensate for the advancing write head: elapsed tracks how many
+                // samples have passed since grain spawn, so (elapsed - readPosition)
+                // cancels out the write-head drift at playbackRate 1.0, yielding a
+                // constant delay tap that streams real audio through the grain window.
+                float elapsed = static_cast<float> (v.grainLengthSamples - v.samplesRemaining);
+                float delaySamples = v.positionOffset + elapsed - v.readPosition;
                 sample  = delayBuf.readSample (0, delaySamples);
                 sampleR = delayBuf.readSample (1, delaySamples);
             }

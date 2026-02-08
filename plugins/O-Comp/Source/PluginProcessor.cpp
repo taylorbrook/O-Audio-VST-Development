@@ -94,6 +94,90 @@ OCompAudioProcessor::OCompAudioProcessor()
     outputGainParam = parameters.getRawParameterValue("output_gain");
     autoGainParam = parameters.getRawParameterValue("auto_gain");
 
+    // Initialize factory presets (only writes files if they don't already exist on disk)
+    presetManager.initializeFactoryPresets({
+        // Gentle Glue - subtle bus compression with soft knee
+        { "Gentle Glue", {
+            { "threshold",    0.8f },      // -12 dB
+            { "ratio",        0.05263f },   // 2:1
+            { "attack_time",  0.29930f },   // 30 ms
+            { "release_time", 0.29293f },   // 300 ms
+            { "knee",         0.6f },       // 12 dB
+            { "output_gain",  0.33333f },   // 0 dB
+            { "auto_gain",    1.0f },       // on
+        }, {} },
+        // Vocal Smooth - medium vocal compression with auto-gain
+        { "Vocal Smooth", {
+            { "threshold",    0.7f },       // -18 dB
+            { "ratio",        0.10526f },   // 3:1
+            { "attack_time",  0.14915f },   // 15 ms
+            { "release_time", 0.19192f },   // 200 ms
+            { "knee",         0.4f },       // 8 dB
+            { "output_gain",  0.33333f },   // 0 dB
+            { "auto_gain",    1.0f },       // on
+        }, {} },
+        // Drum Punch - punchy drums with fast release
+        { "Drum Punch", {
+            { "threshold",    0.75f },      // -15 dB
+            { "ratio",        0.15789f },   // 4:1
+            { "attack_time",  0.00901f },   // 1 ms
+            { "release_time", 0.04040f },   // 50 ms
+            { "knee",         0.2f },       // 4 dB
+            { "output_gain",  0.33333f },   // 0 dB
+            { "auto_gain",    1.0f },       // on
+        }, {} },
+        // Bass Control - tight bass control with moderate ratio
+        { "Bass Control", {
+            { "threshold",    0.66667f },   // -20 dB
+            { "ratio",        0.15789f },   // 4:1
+            { "attack_time",  0.04905f },   // 5 ms
+            { "release_time", 0.14141f },   // 150 ms
+            { "knee",         0.3f },       // 6 dB
+            { "output_gain",  0.33333f },   // 0 dB
+            { "auto_gain",    1.0f },       // on
+        }, {} },
+        // Mastering Touch - light mastering-style compression
+        { "Mastering Touch", {
+            { "threshold",    0.83333f },   // -10 dB
+            { "ratio",        0.02632f },   // 1.5:1
+            { "attack_time",  0.19920f },   // 20 ms
+            { "release_time", 0.39394f },   // 400 ms
+            { "knee",         0.5f },       // 10 dB
+            { "output_gain",  0.33333f },   // 0 dB
+            { "auto_gain",    1.0f },       // on
+        }, {} },
+        // Aggressive Smash - heavy limiting-style compression
+        { "Aggressive Smash", {
+            { "threshold",    0.5f },       // -30 dB
+            { "ratio",        0.47368f },   // 10:1
+            { "attack_time",  0.00400f },   // 0.5 ms
+            { "release_time", 0.07071f },   // 80 ms
+            { "knee",         0.1f },       // 2 dB
+            { "output_gain",  0.33333f },   // 0 dB
+            { "auto_gain",    1.0f },       // on
+        }, {} },
+        // Natural Dynamics - transparent compression for natural sources
+        { "Natural Dynamics", {
+            { "threshold",    0.73333f },   // -16 dB
+            { "ratio",        0.07895f },   // 2.5:1
+            { "attack_time",  0.24925f },   // 25 ms
+            { "release_time", 0.24242f },   // 250 ms
+            { "knee",         0.7f },       // 14 dB
+            { "output_gain",  0.33333f },   // 0 dB
+            { "auto_gain",    1.0f },       // on
+        }, {} },
+        // Parallel Crush - heavy compression for parallel processing
+        { "Parallel Crush", {
+            { "threshold",    0.33333f },   // -40 dB
+            { "ratio",        1.0f },       // 20:1
+            { "attack_time",  0.0f },       // 0.1 ms (minimum)
+            { "release_time", 0.05051f },   // 60 ms
+            { "knee",         0.0f },       // 0 dB (hard knee)
+            { "output_gain",  0.66667f },   // 12 dB
+            { "auto_gain",    0.0f },       // off
+        }, {} },
+    });
+
 #if OUARICON_LICENSING_ENABLED
     licenseManager = std::make_unique<OuariconLicense>(
         "ouaricon-compressor", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);

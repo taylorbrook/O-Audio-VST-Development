@@ -2,6 +2,25 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.6.0] - 2026-02-07
+
+### Added
+
+- **Preset manager module** - Full preset save/load system using the Ouaricon preset-manager module. Users can save custom presets, browse factory presets via a dropdown menu, navigate with prev/next buttons, and import/export preset files via native system dialogs.
+- **Preset bar in header** - Compact preset navigation bar with prev/next arrows, clickable preset name (opens dropdown), Load and Save buttons.
+- **12 factory presets** - All existing factory presets (Init, Classic Sidechain, Trance Gate 16th, Dubstep Pulse, Ambient Shimmer, Polyrhythm 5-7-11, Bass Foundation, Hi-Hat Chop, Full Spectrum Gate, Euclidean Groove, Half-Time Feel, Triplet Bounce) are now available as JSON files in `~/Library/O-FreqPulse/Presets/Factory/`.
+- **User presets** - Save your own presets to `~/Library/O-FreqPulse/Presets/User/`. Factory presets are read-only.
+
+### Technical Notes
+
+- Integrated `OuariconPresetManager` from `modules/persistence/preset-manager/` (v1.0.0)
+- 9 native functions registered: `savePreset`, `loadPreset`, `getPresetList`, `getCurrentPreset`, `selectNextPreset`, `selectPreviousPreset`, `deletePreset`, `isFactoryPreset`, `savePresetWithDialog`, `loadPresetFromFile`
+- Factory presets generated dynamically from existing `loadPreset()` method on first run
+- State save/load delegates to preset manager's `getStateAsXml()`/`setStateFromXml()` while preserving tooltip state
+- `FileChooser` used for native save/load dialogs (async, non-blocking)
+- Preset dropdown uses `:has()` CSS selector to escape stacking context and appear above other UI elements
+- JavaScript `PresetManager` class imported as ES module from `preset-manager.js`
+
 ## [1.5.1] - 2026-02-07
 
 ### Changed

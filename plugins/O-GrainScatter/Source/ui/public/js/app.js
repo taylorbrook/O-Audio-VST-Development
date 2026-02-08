@@ -1,11 +1,7 @@
 // O-GrainScatter — Parameter binding, grain visualization, Euclidean circle
 // JUCE 8 WebView integration
 
-(function () {
-    'use strict';
-
-    const Juce = window.__JUCE__;
-    if (!Juce) { console.warn('JUCE not available'); return; }
+import * as Juce from './juce/index.js';
 
     // ════════════════════════════════════════════════════════════════════
     // Knob drag system
@@ -16,7 +12,7 @@
     const ANGLE_MAX = 140;
     const ANGLE_RANGE = ANGLE_MAX - ANGLE_MIN;
 
-    function setupKnob(paramId, state, formatter) {
+    function setupKnob(paramId, state, formatter, defaultNorm) {
         const knobEl = document.querySelector(`.knob[data-param="${paramId}"]`);
         const indicator = knobEl ? knobEl.querySelector('.knob-indicator') : null;
         const valueEl = document.querySelector(`[data-value="${paramId}"]`);
@@ -61,6 +57,16 @@
                 isDragging = false;
             }
         });
+
+        // Double-click to reset to default
+        if (defaultNorm !== undefined) {
+            knobEl.addEventListener('dblclick', (e) => {
+                e.preventDefault();
+                state.sliderDragStarted();
+                state.setNormalisedValue(defaultNorm);
+                state.sliderDragEnded();
+            });
+        }
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -147,19 +153,19 @@
     // ════════════════════════════════════════════════════════════════════
 
     function initParams() {
-        // Sliders (12)
-        setupKnob('grain_size',       Juce.getSliderState('grain_size'),       grainSizeFormatter);
-        setupKnob('density',          Juce.getSliderState('density'),          densityFormatter);
-        setupKnob('spread',           Juce.getSliderState('spread'),           pctFormatter);
-        setupKnob('reverse',          Juce.getSliderState('reverse'),          pctFormatter);
-        setupKnob('feedback',         Juce.getSliderState('feedback'),         pctFormatter);
-        setupKnob('dry_wet',          Juce.getSliderState('dry_wet'),          pctFormatter);
-        setupKnob('pitch_random',     Juce.getSliderState('pitch_random'),     pctFormatter);
-        setupKnob('pan_random',       Juce.getSliderState('pan_random'),       pctFormatter);
-        setupKnob('probability',      Juce.getSliderState('probability'),      probabilityFormatter);
-        setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter);
-        setupKnob('euclidean_pulses', Juce.getSliderState('euclidean_pulses'), eucPulsesFormatter);
-        setupKnob('euclidean_steps',  Juce.getSliderState('euclidean_steps'),  eucStepsFormatter);
+        // Sliders (12) — last arg is normalized default for double-click reset
+        setupKnob('grain_size',       Juce.getSliderState('grain_size'),       grainSizeFormatter, 0.4286);
+        setupKnob('density',          Juce.getSliderState('density'),          densityFormatter,   0.4949);
+        setupKnob('spread',           Juce.getSliderState('spread'),           pctFormatter,       0.0);
+        setupKnob('reverse',          Juce.getSliderState('reverse'),          pctFormatter,       0.0);
+        setupKnob('feedback',         Juce.getSliderState('feedback'),         pctFormatter,       0.0);
+        setupKnob('dry_wet',          Juce.getSliderState('dry_wet'),          pctFormatter,       0.5);
+        setupKnob('pitch_random',     Juce.getSliderState('pitch_random'),     pctFormatter,       0.0);
+        setupKnob('pan_random',       Juce.getSliderState('pan_random'),       pctFormatter,       0.0);
+        setupKnob('probability',      Juce.getSliderState('probability'),      probabilityFormatter, 1.0);
+        setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter,   0.2);
+        setupKnob('euclidean_pulses', Juce.getSliderState('euclidean_pulses'), eucPulsesFormatter, 0.2);
+        setupKnob('euclidean_steps',  Juce.getSliderState('euclidean_steps'),  eucStepsFormatter,  0.4286);
 
         // ComboBoxes (4)
         setupComboBox('scale',      Juce.getComboBoxState('scale'));
@@ -421,14 +427,14 @@
         if (eucCanvas) euclideanViz = new EuclideanCircleViz(eucCanvas);
 
         // Event listeners for C++ data push
-        Juce.backend.addEventListener('grainUpdate', (event) => {
+        window.__JUCE__.backend.addEventListener('grainUpdate', (event) => {
             try {
                 const data = JSON.parse(event);
                 if (grainViz) grainViz.update(data);
             } catch (e) { /* ignore parse errors */ }
         });
 
-        Juce.backend.addEventListener('euclideanUpdate', (event) => {
+        window.__JUCE__.backend.addEventListener('euclideanUpdate', (event) => {
             try {
                 const data = JSON.parse(event);
                 if (euclideanViz) euclideanViz.update(data);
@@ -450,10 +456,5 @@
         });
     }
 
-    // Wait for JUCE interop to be ready
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', init);
-    } else {
-        init();
-    }
-})();
+// ES modules are deferred — DOM is ready when this runs
+init();

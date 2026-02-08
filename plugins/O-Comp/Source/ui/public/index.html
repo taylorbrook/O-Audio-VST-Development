@@ -198,7 +198,7 @@
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 5px;
+      gap: 2px;
     }
 
     /* Parameter labels */
@@ -219,73 +219,37 @@
       white-space: nowrap;
     }
 
-    /* Seed knob container */
+    /* SVG Vine-Arc Knobs */
     .knob-container {
-      width: 40px;
-      height: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
       cursor: pointer;
+    }
+
+    .knob-visual {
+      width: 52px;
+      height: 52px;
       position: relative;
     }
 
-    /* Seed knob - botanical aesthetic */
-    .seed-knob {
+    .knob-visual svg {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
-      background: radial-gradient(circle at 30% 30%, #C9A27B, #8B7355);
-      border: 2px solid #6B5847;
-      position: relative;
-      box-shadow:
-        inset 0 2px 4px rgba(255, 255, 255, 0.3),
-        inset 0 -2px 4px rgba(0, 0, 0, 0.3),
-        0 2px 6px rgba(0, 0, 0, 0.2);
+      transform: rotate(-135deg);
     }
 
-    /* Seed center dot */
-    .seed-knob::before {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 8px;
-      height: 8px;
-      background: #4A3728;
-      border-radius: 50%;
-      transform: translate(-50%, -50%);
-      box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.5);
+    .knob-track {
+      fill: none;
+      stroke: rgba(139, 115, 85, 0.3);
+      stroke-width: 2;
     }
 
-    /* Seed radial lines */
-    .seed-knob::after {
-      content: '';
-      position: absolute;
-      top: 50%;
-      left: 50%;
-      width: 90%;
-      height: 90%;
-      transform: translate(-50%, -50%);
-      border-radius: 50%;
-      background:
-        repeating-conic-gradient(
-          from 0deg,
-          transparent 0deg,
-          transparent 15deg,
-          rgba(107, 88, 71, 0.1) 15deg,
-          rgba(107, 88, 71, 0.1) 18deg
-        );
-    }
-
-    /* Knob indicator line */
-    .knob-indicator {
-      position: absolute;
-      top: 8%;
-      left: 50%;
-      width: 2px;
-      height: 40%;
-      background: #3C2F2F;
-      transform-origin: bottom center;
-      transform: translateX(-50%);
-      border-radius: 1px;
+    .knob-vine {
+      fill: none;
+      stroke: #5a7a6a;
+      stroke-width: 3;
+      stroke-linecap: round;
     }
 
     /* Auto-Gain toggle button */
@@ -428,73 +392,97 @@
 
     <!-- Top Row Controls -->
     <!-- Threshold -->
-    <div class="control-group" style="left: 10px; top: 22px;">
-      <div class="param-label">Threshold</div>
+    <div class="control-group" style="left: 10px; top: 28px;">
       <div class="knob-container" id="threshold-knob" data-param="threshold">
-        <div class="seed-knob">
-          <div class="knob-indicator" id="threshold-indicator"></div>
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="threshold-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
         </div>
       </div>
+      <div class="param-label">Threshold</div>
       <div class="value-display" id="threshold-value">-20.0 dB</div>
     </div>
 
     <!-- Ratio -->
-    <div class="control-group" style="left: 90px; top: 22px;">
-      <div class="param-label">Ratio</div>
+    <div class="control-group" style="left: 85px; top: 28px;">
       <div class="knob-container" id="ratio-knob" data-param="ratio">
-        <div class="seed-knob">
-          <div class="knob-indicator" id="ratio-indicator"></div>
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="ratio-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
         </div>
       </div>
+      <div class="param-label">Ratio</div>
       <div class="value-display" id="ratio-value">4.0:1</div>
     </div>
 
     <!-- Attack -->
-    <div class="control-group" style="left: 170px; top: 22px;">
-      <div class="param-label">Attack</div>
+    <div class="control-group" style="left: 160px; top: 28px;">
       <div class="knob-container" id="attack-knob" data-param="attack_time">
-        <div class="seed-knob">
-          <div class="knob-indicator" id="attack-indicator"></div>
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="attack-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
         </div>
       </div>
+      <div class="param-label">Attack</div>
       <div class="value-display" id="attack-value">10.0 ms</div>
     </div>
 
     <!-- Release -->
-    <div class="control-group" style="left: 250px; top: 22px;">
-      <div class="param-label">Release</div>
+    <div class="control-group" style="left: 235px; top: 28px;">
       <div class="knob-container" id="release-knob" data-param="release_time">
-        <div class="seed-knob">
-          <div class="knob-indicator" id="release-indicator"></div>
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="release-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
         </div>
       </div>
+      <div class="param-label">Release</div>
       <div class="value-display" id="release-value">100 ms</div>
     </div>
 
     <!-- Knee -->
-    <div class="control-group" style="left: 330px; top: 22px;">
-      <div class="param-label">Knee</div>
+    <div class="control-group" style="left: 315px; top: 28px;">
       <div class="knob-container" id="knee-knob" data-param="knee">
-        <div class="seed-knob">
-          <div class="knob-indicator" id="knee-indicator"></div>
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="knee-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
         </div>
       </div>
+      <div class="param-label">Knee</div>
       <div class="value-display" id="knee-value">6.0 dB</div>
     </div>
 
     <!-- Output -->
-    <div class="control-group" style="left: 410px; top: 22px;">
-      <div class="param-label">Output</div>
+    <div class="control-group" style="left: 395px; top: 28px;">
       <div class="knob-container" id="output-knob" data-param="output_gain">
-        <div class="seed-knob">
-          <div class="knob-indicator" id="output-indicator"></div>
+        <div class="knob-visual">
+          <svg viewBox="0 0 52 52">
+            <circle class="knob-track" cx="26" cy="26" r="22"/>
+            <circle class="knob-vine" id="output-vine" cx="26" cy="26" r="22"
+              stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+          </svg>
         </div>
       </div>
+      <div class="param-label">Output</div>
       <div class="value-display" id="output-value">0.0 dB</div>
     </div>
 
     <!-- Auto-Gain Toggle -->
-    <div class="control-group" style="left: 485px; top: 22px;">
+    <div class="control-group" style="left: 475px; top: 28px;">
       <div class="param-label">Auto-Gain</div>
       <div class="toggle-button" id="auto-gain-toggle" data-param="auto_gain">OFF</div>
     </div>
@@ -530,7 +518,6 @@
     <!-- Envelope Display Panel -->
     <div class="viz-panel" style="left: 266px; top: 105px; width: 308px; height: 240px;">
       <canvas id="envelopeCanvas" width="308" height="240"></canvas>
-      <div class="viz-label">Envelope and Gain Reduction</div>
     </div>
 
     <!-- Output Meter (Right) -->
@@ -581,14 +568,53 @@
       return param.format(value) + param.unit;
     }
 
-    // Map parameter IDs to element base names
-    const paramToElementId = {
-      threshold: 'threshold',
-      ratio: 'ratio',
-      attack_time: 'attack',
-      release_time: 'release',
-      knee: 'knee',
-      output_gain: 'output'
+    // SVG vine-arc knob configs (r=22, circumference=138.23, 270deg arc=103.67)
+    const ARC_LENGTH = 103.67;
+    const knobConfigs = {
+      threshold: { vineId: 'threshold-vine', valueId: 'threshold-value' },
+      ratio: { vineId: 'ratio-vine', valueId: 'ratio-value' },
+      attack_time: { vineId: 'attack-vine', valueId: 'attack-value' },
+      release_time: { vineId: 'release-vine', valueId: 'release-value' },
+      knee: { vineId: 'knee-vine', valueId: 'knee-value' },
+      output_gain: { vineId: 'output-vine', valueId: 'output-value' }
+    };
+
+    // Animation state for smooth knob movement
+    const animationState = {
+      targets: {},
+      frameId: null,
+      isRunning: false,
+      smoothingFactor: 0.15
+    };
+
+    const animationLoop = () => {
+      let needsUpdate = false;
+
+      Object.entries(animationState.targets).forEach(([id, state]) => {
+        const delta = state.target - state.current;
+
+        if (Math.abs(delta) > 0.0001) {
+          state.current += delta * animationState.smoothingFactor;
+          needsUpdate = true;
+
+          const offset = ARC_LENGTH - (state.current * ARC_LENGTH);
+          state.vine.style.strokeDashoffset = offset;
+        }
+      });
+
+      if (needsUpdate) {
+        animationState.frameId = requestAnimationFrame(animationLoop);
+      } else {
+        animationState.isRunning = false;
+        animationState.frameId = null;
+      }
+    };
+
+    const startAnimationLoop = () => {
+      if (!animationState.isRunning) {
+        animationState.isRunning = true;
+        animationState.frameId = requestAnimationFrame(animationLoop);
+      }
     };
 
     // Default normalized values for double-click reset (matches processor defaults)
@@ -601,18 +627,19 @@
       output_gain: (0.0 - (-12.0)) / (24.0 - (-12.0))     // 0 dB default
     };
 
-    // Update knob rotation and value display
+    // Update SVG vine-arc knob and value display
     function updateKnob(paramId, normalized) {
-      const rotation = (normalized * 270) - 135; // -135deg to +135deg range
+      const config = knobConfigs[paramId];
+      if (!config) return;
 
-      const elementBase = paramToElementId[paramId] || paramId;
-      const indicator = document.getElementById(`${elementBase}-indicator`);
-      if (indicator) {
-        indicator.style.transform = `translateX(-50%) rotate(${rotation}deg)`;
+      // Animate the vine arc
+      if (animationState.targets[paramId]) {
+        animationState.targets[paramId].target = normalized;
+        startAnimationLoop();
       }
 
       // Update value display
-      const valueDisplay = document.getElementById(`${elementBase}-value`);
+      const valueDisplay = document.getElementById(config.valueId);
       if (valueDisplay) {
         valueDisplay.textContent = formatValue(paramId, normalized);
       }
@@ -648,13 +675,32 @@
         return;
       }
 
+      // Initialize animation state for this knob
+      const config = knobConfigs[paramId];
+      if (config) {
+        const vine = document.getElementById(config.vineId);
+        const initialNorm = sliderState.getNormalisedValue();
+
+        animationState.targets[paramId] = {
+          current: initialNorm,
+          target: initialNorm,
+          vine: vine,
+          config: config
+        };
+
+        // Set initial arc position
+        const initialOffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
+        vine.style.strokeDashoffset = initialOffset;
+      }
+
       // Listen to parameter changes from C++
       sliderState.valueChangedEvent.addListener(() => {
         updateKnob(paramId, sliderState.getNormalisedValue());
       });
 
       // Mouse drag — delegates to shared handler
-      knob.addEventListener('mousedown', (e) => {
+      const knobVisual = knob.querySelector('.knob-visual');
+      (knobVisual || knob).addEventListener('mousedown', (e) => {
         activeKnob = { sliderState, lastY: e.clientY };
         e.preventDefault();
       });
@@ -663,6 +709,15 @@
       knob.addEventListener('dblclick', () => {
         sliderState.setNormalisedValue(paramDefaults[paramId] || 0.5);
       });
+
+      // Mouse wheel support
+      knob.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const currentNorm = sliderState.getNormalisedValue();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+        sliderState.setNormalisedValue(newNorm);
+      }, { passive: false });
 
       // Initialize visual state
       updateKnob(paramId, sliderState.getNormalisedValue());
@@ -999,7 +1054,7 @@
       updateTransferCurve();
       startRenderLoop();
 
-      console.log('O-Comp v1.2.0 UI loaded - preset dropdown enabled');
+      console.log('O-Comp v1.4.0 UI loaded - vine-arc knobs');
     });
   </script>
 </body>
