@@ -77,6 +77,23 @@
     }
 
     /* ============================================
+       BUTTERFLY FEEDBACK ECHOES
+       ============================================ */
+    .butterfly-echo {
+      position: absolute;
+      left: calc(50% - 400px);
+      width: 800px;
+      height: 1280px;
+      background-image: url('img/butterfly2_Black and white.png');
+      background-size: 800px 1280px;
+      background-position: center;
+      background-repeat: no-repeat;
+      opacity: 0;
+      z-index: 1;
+      pointer-events: none;
+    }
+
+    /* ============================================
        HEADER ROW (Title + Preset Bar)
        ============================================ */
     .header {
@@ -450,6 +467,9 @@
 
     <!-- LAYER 1: Butterfly overlay -->
     <div class="butterfly-overlay"></div>
+
+    <!-- LAYER 1b: Butterfly feedback echoes -->
+    <div id="butterfly-echoes"></div>
 
     <!-- LAYER 2+: UI Elements -->
     <div class="header">
@@ -880,12 +900,95 @@
       }, { passive: false });
     }
 
+    // ============================================
+    // BUTTERFLY FEEDBACK ECHO EFFECT
+    // ============================================
+    const ECHO_COUNT = 20;
+    const ECHO_SHIFT_MIN = 5;       // min px shift per copy (short delay time)
+    const ECHO_SHIFT_MAX = 30;      // max px shift per copy (long delay time)
+    const ECHO_OPACITY = 0.02;      // each copy ~2% — accumulation creates density
+    const BUTTERFLY_BASE_TOP = -520; // original butterfly top position
+
+    function setupButterflyEchoes() {
+      const feedbackState = getSliderState('feedback');
+      const timeState = getSliderState('time');
+      const wetState = getSliderState('wet');
+      const divisionState = getComboBoxState('division');
+      if (!feedbackState) return;
+
+      const container = document.getElementById('butterfly-echoes');
+      const echoes = [];
+      let currentShift = ECHO_SHIFT_MIN;
+      let currentOpacity = ECHO_OPACITY;
+
+      for (let i = 0; i < ECHO_COUNT; i++) {
+        const echo = document.createElement('div');
+        echo.className = 'butterfly-echo';
+        container.appendChild(echo);
+        echoes.push(echo);
+      }
+
+      const repositionEchoes = () => {
+        for (let i = 0; i < ECHO_COUNT; i++) {
+          echoes[i].style.top = `${BUTTERFLY_BASE_TOP + (i + 1) * currentShift}px`;
+        }
+      };
+
+      const updateEchoes = () => {
+        const norm = feedbackState.getNormalisedValue(); // 0–1
+        const numCopies = norm * ECHO_COUNT;             // 0–20 (continuous)
+        const fullCopies = Math.floor(numCopies);
+        const fractional = numCopies - fullCopies;
+
+        for (let i = 0; i < ECHO_COUNT; i++) {
+          if (i < fullCopies) {
+            echoes[i].style.opacity = currentOpacity;
+          } else if (i === fullCopies) {
+            echoes[i].style.opacity = fractional * currentOpacity;
+          } else {
+            echoes[i].style.opacity = 0;
+          }
+        }
+      };
+
+      const updateShift = () => {
+        let timeNorm;
+        if (syncState?.getValue() && divisionState) {
+          // Sync mode: use division factor to derive spacing
+          const divIndex = Math.max(0, Math.min(11, (() => {
+            try { return divisionState.getChoiceIndex(); } catch { return 0; }
+          })()));
+          timeNorm = musicalDivisions[divIndex].factor; // 0.167–1.5, clamped below
+          timeNorm = Math.min(1, timeNorm); // clamp dotted values to 1
+        } else {
+          timeNorm = timeState ? timeState.getNormalisedValue() : 0;
+        }
+        currentShift = ECHO_SHIFT_MIN + timeNorm * (ECHO_SHIFT_MAX - ECHO_SHIFT_MIN);
+        repositionEchoes();
+      };
+
+      const updateOpacity = () => {
+        const wetNorm = wetState ? wetState.getNormalisedValue() : 0;
+        currentOpacity = ECHO_OPACITY + wetNorm * (1.0 - ECHO_OPACITY); // 0.02 → 1.0
+        updateEchoes();
+      };
+
+      feedbackState.valueChangedEvent.addListener(updateEchoes);
+      if (wetState) wetState.valueChangedEvent.addListener(updateOpacity);
+      if (timeState) timeState.valueChangedEvent.addListener(updateShift);
+      if (divisionState) divisionState.valueChangedEvent.addListener(updateShift);
+      if (syncState) syncState.valueChangedEvent.addListener(updateShift);
+      updateShift();    // set initial positions
+      updateOpacity();  // set initial opacity + visibility
+    }
+
     document.addEventListener("DOMContentLoaded", () => {
       setupLEDMeter();
 
       setupToggle();
       setupTimeKnob();
       setupStandardKnob('feedback', 0.0, 100.0, v => `${Math.round(v)}%`);
+      setupButterflyEchoes();
       setupStandardKnob('spread', 0.0, 100.0, v => `${Math.round(v)}%`);
       setupStandardKnob('mod', 0.0, 100.0, v => `${Math.round(v)}%`);
       setupStandardKnob('wet', 0.0, 100.0, v => `${Math.round(v)}%`);

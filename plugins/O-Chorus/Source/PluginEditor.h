@@ -13,7 +13,7 @@
  * O-Chorus Plugin Editor with WebView UI
  *
  * Stage 1 (Foundation) - Placeholder UI
- * Parameters: 6 total (rate, depth, voices, width, tone, mix)
+ * Parameters: 7 total (rate, depth, voices, width, tone, mix, drive)
  */
 class OChorusAudioProcessorEditor : public juce::AudioProcessorEditor
 #if OUARICON_LICENSING_ENABLED

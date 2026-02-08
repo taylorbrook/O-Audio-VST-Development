@@ -8,6 +8,8 @@
 #include "dsp/ScaleQuantizer.h"
 #include "dsp/EuclideanGenerator.h"
 #include "dsp/FreezeManager.h"
+#include "dsp/BinauralDecoder.h"
+#include "dsp/GrainTrajectory.h"
 
 struct GrainVizSnapshot
 {
@@ -20,6 +22,10 @@ struct GrainVizSnapshot
         float envelope = 0.0f;
         bool reverse = false;
         bool frozen = false;
+        // Spatial visualization
+        float azimuth = 0.0f;
+        float elevation = 0.0f;
+        float distance = 0.5f;
     };
     std::array<Voice, 64> voices {};
     int activeCount = 0;
@@ -92,6 +98,16 @@ private:
     std::atomic<float>* euclideanStepsParam = nullptr;
     std::atomic<float>* stutterGateParam = nullptr;
 
+    // Spatial parameters (8 new)
+    std::atomic<float>* spatialModeParam = nullptr;
+    std::atomic<float>* azimuthParam = nullptr;
+    std::atomic<float>* elevationParam = nullptr;
+    std::atomic<float>* azSpreadParam = nullptr;
+    std::atomic<float>* elSpreadParam = nullptr;
+    std::atomic<float>* distanceParam = nullptr;
+    std::atomic<float>* spatialWidthParam = nullptr;
+    std::atomic<float>* trajectoryParam = nullptr;
+
     // DSP components
     DelayBuffer delayBuffer;
     GrainPool grainPool;
@@ -99,6 +115,13 @@ private:
     TempoTracker tempoTracker;
     ScaleQuantizer scaleQuantizer;
     FreezeManager freezeManager;
+    BinauralDecoder binauralDecoder;
+
+    // HOA3 internal accumulation bus (16 channels)
+    juce::AudioBuffer<float> hoaBus;
+
+    // Distance LPF (1-pole per channel for air absorption approximation)
+    float distanceLpfState[2] = { 0.0f, 0.0f };
 
     // SmoothedValues
     juce::SmoothedValue<float> dryWetSmoothed;

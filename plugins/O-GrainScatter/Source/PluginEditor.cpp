@@ -23,6 +23,15 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
     stutterGateRelay    = std::make_unique<juce::WebToggleButtonRelay>("stutter_gate");
     euclideanPulsesRelay = std::make_unique<juce::WebSliderRelay>("euclidean_pulses");
     euclideanStepsRelay  = std::make_unique<juce::WebSliderRelay>("euclidean_steps");
+    // Spatial
+    spatialModeRelay     = std::make_unique<juce::WebComboBoxRelay>("spatial_mode");
+    azimuthRelay         = std::make_unique<juce::WebSliderRelay>("azimuth");
+    elevationRelay       = std::make_unique<juce::WebSliderRelay>("elevation");
+    azSpreadRelay        = std::make_unique<juce::WebSliderRelay>("az_spread");
+    elSpreadRelay        = std::make_unique<juce::WebSliderRelay>("el_spread");
+    distanceRelay        = std::make_unique<juce::WebSliderRelay>("distance");
+    spatialWidthRelay    = std::make_unique<juce::WebSliderRelay>("spatial_width");
+    trajectoryRelay      = std::make_unique<juce::WebComboBoxRelay>("trajectory");
 
     // 2. Create WebView with relay options
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -55,6 +64,14 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
             .withOptionsFrom(*stutterGateRelay)
             .withOptionsFrom(*euclideanPulsesRelay)
             .withOptionsFrom(*euclideanStepsRelay)
+            .withOptionsFrom(*spatialModeRelay)
+            .withOptionsFrom(*azimuthRelay)
+            .withOptionsFrom(*elevationRelay)
+            .withOptionsFrom(*azSpreadRelay)
+            .withOptionsFrom(*elSpreadRelay)
+            .withOptionsFrom(*distanceRelay)
+            .withOptionsFrom(*spatialWidthRelay)
+            .withOptionsFrom(*trajectoryRelay)
     );
 
     addAndMakeVisible(*webView);
@@ -96,6 +113,23 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
         *audioProcessor.parameters.getParameter("euclidean_pulses"), *euclideanPulsesRelay, nullptr);
     euclideanStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("euclidean_steps"), *euclideanStepsRelay, nullptr);
+    // Spatial
+    spatialModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *audioProcessor.parameters.getParameter("spatial_mode"), *spatialModeRelay, nullptr);
+    azimuthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("azimuth"), *azimuthRelay, nullptr);
+    elevationAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("elevation"), *elevationRelay, nullptr);
+    azSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("az_spread"), *azSpreadRelay, nullptr);
+    elSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("el_spread"), *elSpreadRelay, nullptr);
+    distanceAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("distance"), *distanceRelay, nullptr);
+    spatialWidthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("spatial_width"), *spatialWidthRelay, nullptr);
+    trajectoryAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *audioProcessor.parameters.getParameter("trajectory"), *trajectoryRelay, nullptr);
 
     // Load UI from resource provider
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE
@@ -103,7 +137,7 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
 #endif
 
     startTimerHz(30);
-    setSize(900, 700);
+    setSize(900, 850);
 }
 
 GrainScatterEditor::~GrainScatterEditor()
@@ -138,7 +172,10 @@ void GrainScatterEditor::timerCallback()
                    + ",\"pn\":" + juce::String (v.pan, 2)
                    + ",\"e\":" + juce::String (v.envelope, 3)
                    + ",\"r\":" + juce::String (v.reverse ? 1 : 0)
-                   + ",\"f\":" + juce::String (v.frozen ? 1 : 0) + "}";
+                   + ",\"f\":" + juce::String (v.frozen ? 1 : 0)
+                   + ",\"az\":" + juce::String (v.azimuth, 3)
+                   + ",\"el\":" + juce::String (v.elevation, 3)
+                   + ",\"d\":" + juce::String (v.distance, 2) + "}";
     }
     grainJson += "],\"ac\":" + juce::String (snap.activeCount) + "}";
     webView->emitEventIfBrowserIsVisible ("grainUpdate", grainJson);

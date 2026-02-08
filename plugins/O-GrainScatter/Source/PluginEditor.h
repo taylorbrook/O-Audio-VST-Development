@@ -49,6 +49,15 @@ private:
     // Euclidean
     std::unique_ptr<juce::WebSliderRelay> euclideanPulsesRelay;
     std::unique_ptr<juce::WebSliderRelay> euclideanStepsRelay;
+    // Spatial
+    std::unique_ptr<juce::WebComboBoxRelay> spatialModeRelay;
+    std::unique_ptr<juce::WebSliderRelay> azimuthRelay;
+    std::unique_ptr<juce::WebSliderRelay> elevationRelay;
+    std::unique_ptr<juce::WebSliderRelay> azSpreadRelay;
+    std::unique_ptr<juce::WebSliderRelay> elSpreadRelay;
+    std::unique_ptr<juce::WebSliderRelay> distanceRelay;
+    std::unique_ptr<juce::WebSliderRelay> spatialWidthRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> trajectoryRelay;
 
     // 2. WEBVIEW (depends on relays)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -77,6 +86,15 @@ private:
     // Euclidean
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanPulsesAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanStepsAttachment;
+    // Spatial
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> spatialModeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> azimuthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> elevationAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> azSpreadAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> elSpreadAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> distanceAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> spatialWidthAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> trajectoryAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GrainScatterEditor)
 };

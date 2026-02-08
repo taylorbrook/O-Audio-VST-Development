@@ -15,7 +15,7 @@ A lush, analog-inspired chorus plugin with rich multi-voice architecture. Inspir
 - Independent per-voice modulation depth variation for richness
 - Stereo spread across the voice array for wide imaging
 
-## Controls (6 parameters)
+## Controls (7 parameters)
 | Parameter | Range | Description |
 |-----------|-------|-------------|
 | **Rate** | 0.05 - 5.0 Hz | LFO modulation speed |
@@ -24,6 +24,7 @@ A lush, analog-inspired chorus plugin with rich multi-voice architecture. Inspir
 | **Width** | 0 - 100% | Stereo spread of voices |
 | **Tone** | -100% to +100% | High-frequency rolloff/boost on wet signal |
 | **Mix** | 0 - 100% | Dry/wet blend |
+| **Drive** | 0 - 100% | Analog saturation amount |
 
 ## Signal Flow
 ```

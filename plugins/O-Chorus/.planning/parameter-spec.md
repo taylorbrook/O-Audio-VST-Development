@@ -1,7 +1,7 @@
 # O-Chorus Parameter Specification
 
 **Plugin Type:** Effect (Multi-voice BBD-style Chorus)
-**Total Parameters:** 6
+**Total Parameters:** 7
 **APVTS Required:** Yes
 
 ---
@@ -80,6 +80,18 @@
 - **DSP Component:** Mix Stage
 - **Behavior:** Dry/wet blend. 0% = full dry (bypass), 50% = classic chorus mix, 100% = full wet (vibrato mode).
 
+### DRIVE
+- **ID:** `drive`
+- **Type:** Float
+- **Range:** 0.0 - 1.0
+- **Default:** 0.3
+- **Label:** "Drive"
+- **Unit:** "%"
+- **Skew:** Linear
+- **Smoothing:** 50ms
+- **DSP Component:** Saturation Stage
+- **Behavior:** Analog saturation amount. 0% = clean (no saturation), 30% = subtle warmth (default), 100% = heavy saturation for lo-fi character.
+
 ---
 
 ## APVTS Parameter Layout
@@ -120,16 +132,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout()
 | Group | Parameters |
 |-------|------------|
 | **Modulation** | rate, depth, voices |
-| **Character** | width, tone, mix |
+| **Character** | width, tone, mix, drive |
 
 ---
 
 ## Contract Validation
 
-- **Total Float Parameters:** 5
+- **Total Float Parameters:** 6
 - **Total Int Parameters:** 1
 - **Total Choice Parameters:** 0
-- **Total Parameters:** 6
+- **Total Parameters:** 7
 
 **All parameters must:**
 1. Be registered in APVTS during Stage 1 (Foundation)

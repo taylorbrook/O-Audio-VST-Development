@@ -1,13 +1,13 @@
 ---
 plugin: O-Chorus
 stage: 4-polish
-phase: discussed
-status: active
+phase: verified
+status: complete
 last_updated: 2026-02-08
 complexity_score: 2.8
 staged_implementation: false
 orchestration_mode: true
-next_action: research_or_plan_stage_4
+next_action: install
 contract_checksums:
   brief: sha256:ba2a191e2ac696d0414b7f41d8275bc3e4794c1cb8a5234e09a28dc91fbc2362
   architecture: sha256:7323d5554f4930bdb38afeb4c54ed03855bb192faf8abd24abf4959cb9bd3fd8
@@ -18,9 +18,9 @@ contract_checksums:
 
 ## Current Position
 
-**Stage:** 4 of 4 (Polish) -- discuss complete
-**Status:** Stage 4 discuss phase complete, ready for plan
-**Progress:** [##################..] 85%
+**Stage:** 4 of 4 (Polish) -- VERIFIED ✓
+**Status:** All stages complete — plugin ready for installation
+**Progress:** [####################] 100%
 
 ## Completed So Far
 
@@ -71,9 +71,19 @@ contract_checksums:
 - AU detected and installed to system folders
 - VERIFICATION.md: All 14 automated checks passed, 3 info/warning issues noted
 
+**Stage 4:** ✓ Complete (verified 2026-02-08)
+- Fixed documentation drift: parameter count updated to 7 in PluginEditor.h, parameter-spec.md, BRIEF.md
+- Fixed LFO ring frame rate assumption: timestamp-based deltaTime replaces /60 assumption
+- Fixed mouse wheel gesture brackets: debounced sliderDragStarted/sliderDragEnded for DAW undo
+- Created CHANGELOG.md with v1.0.0 release notes
+- Build: zero errors, zero warnings (VST3 + AU + Standalone)
+- Installed to system folders, AU detected
+- pluginval: SUCCESS at strictness level 5 (both VST3 and AU)
+- VERIFICATION.md: All 10 automated checks passed, 1 minor info issue (parameter-spec code example)
+
 ## Next Steps
 
-1. **Stage 4: Polish** — Testing, presets, optimization, pluginval
+1. **Install** — `/install-plugin O-Chorus` for DAW use
 
 ## Files Created
 
@@ -105,6 +115,12 @@ contract_checksums:
 - `plugins/O-Chorus/Source/ui/public/img/paper1.jpg` (copied from O-DigiDelay)
 - `plugins/O-Chorus/.planning/stages/3-gui/SUMMARY.md`
 - `plugins/O-Chorus/.planning/stages/3-gui/VERIFICATION.md`
+
+**Stage 4 (Polish):**
+- `plugins/O-Chorus/.planning/stages/4-polish/PLAN.md`
+- `plugins/O-Chorus/.planning/stages/4-polish/SUMMARY.md`
+- `plugins/O-Chorus/.planning/stages/4-polish/VERIFICATION.md`
+- `plugins/O-Chorus/CHANGELOG.md`
 
 ## Context to Preserve
 

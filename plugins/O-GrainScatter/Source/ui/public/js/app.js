@@ -148,6 +148,28 @@ import * as Juce from './juce/index.js';
         return Math.round(norm * 100) + '%';
     }
 
+    // Spatial formatters
+    function azimuthFormatter(norm) {
+        // 0-360°
+        return Math.round(norm * 360) + '\u00B0';
+    }
+
+    function elevationFormatter(norm) {
+        // -90 to +90° (norm 0=−90, 0.5=0, 1=+90)
+        const val = -90 + norm * 180;
+        return Math.round(val) + '\u00B0';
+    }
+
+    function azSpreadFormatter(norm) {
+        // 0-360°
+        return Math.round(norm * 360) + '\u00B0';
+    }
+
+    function elSpreadFormatter(norm) {
+        // 0-180°
+        return Math.round(norm * 180) + '\u00B0';
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // Initialize all parameter bindings
     // ════════════════════════════════════════════════════════════════════
@@ -176,6 +198,18 @@ import * as Juce from './juce/index.js';
         // Toggles (2)
         setupToggle('freeze',       Juce.getToggleState('freeze'));
         setupToggle('stutter_gate', Juce.getToggleState('stutter_gate'));
+
+        // Spatial knobs (6)
+        setupKnob('azimuth',        Juce.getSliderState('azimuth'),        azimuthFormatter,   0.0);
+        setupKnob('elevation',      Juce.getSliderState('elevation'),      elevationFormatter,  0.5);
+        setupKnob('az_spread',      Juce.getSliderState('az_spread'),      azSpreadFormatter,   0.25);
+        setupKnob('el_spread',      Juce.getSliderState('el_spread'),      elSpreadFormatter,   0.25);
+        setupKnob('distance',       Juce.getSliderState('distance'),       pctFormatter,        0.5);
+        setupKnob('spatial_width',  Juce.getSliderState('spatial_width'),  pctFormatter,        0.5);
+
+        // Spatial comboboxes (2)
+        setupComboBox('spatial_mode', Juce.getComboBoxState('spatial_mode'));
+        setupComboBox('trajectory',   Juce.getComboBoxState('trajectory'));
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -200,6 +234,36 @@ import * as Juce from './juce/index.js';
         }
 
         pitchRandomState.valueChangedEvent.addListener(update);
+        update();
+    }
+
+    // ════════════════════════════════════════════════════════════════════
+    // Spatial gate: dim controls when spatial_mode = Off
+    // ════════════════════════════════════════════════════════════════════
+
+    function setupSpatialGate() {
+        const spatialModeState = Juce.getComboBoxState('spatial_mode');
+        const spatialGroup = document.getElementById('spatial-group');
+        const spatialHint = document.getElementById('spatial-hint');
+
+        if (!spatialGroup) return;
+
+        // All interactive children except the mode dropdown itself
+        const knobs = spatialGroup.querySelectorAll('.knob-container');
+        const trajContainer = spatialGroup.querySelector('select[data-param="trajectory"]')?.closest('.dropdown-container');
+
+        function update() {
+            const isOff = spatialModeState.getChoiceIndex() === 0;
+            knobs.forEach(k => k.style.opacity = isOff ? '0.25' : '1');
+            knobs.forEach(k => k.style.pointerEvents = isOff ? 'none' : 'auto');
+            if (trajContainer) {
+                trajContainer.style.opacity = isOff ? '0.25' : '1';
+                trajContainer.style.pointerEvents = isOff ? 'none' : 'auto';
+            }
+            if (spatialHint) spatialHint.classList.toggle('visible', isOff);
+        }
+
+        spatialModeState.valueChangedEvent.addListener(update);
         update();
     }
 
@@ -444,6 +508,7 @@ import * as Juce from './juce/index.js';
     function init() {
         initParams();
         setupPitchGate();
+        setupSpatialGate();
 
         // Visualizations
         const grainCanvas = document.getElementById('grain-canvas');

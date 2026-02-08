@@ -25,6 +25,16 @@ GrainScatterProcessor::GrainScatterProcessor()
     euclideanPulsesParam = parameters.getRawParameterValue("euclidean_pulses");
     euclideanStepsParam  = parameters.getRawParameterValue("euclidean_steps");
     stutterGateParam     = parameters.getRawParameterValue("stutter_gate");
+
+    // Spatial parameters
+    spatialModeParam     = parameters.getRawParameterValue("spatial_mode");
+    azimuthParam         = parameters.getRawParameterValue("azimuth");
+    elevationParam       = parameters.getRawParameterValue("elevation");
+    azSpreadParam        = parameters.getRawParameterValue("az_spread");
+    elSpreadParam        = parameters.getRawParameterValue("el_spread");
+    distanceParam        = parameters.getRawParameterValue("distance");
+    spatialWidthParam    = parameters.getRawParameterValue("spatial_width");
+    trajectoryParam      = parameters.getRawParameterValue("trajectory");
 }
 
 GrainScatterProcessor::~GrainScatterProcessor() {}
@@ -156,6 +166,59 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
 
     layout.add(std::move(euclideanGroup));
 
+    // === Spatial Audio ===
+    auto spatialGroup = std::make_unique<juce::AudioProcessorParameterGroup>("spatial", "Spatial", "|");
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "spatial_mode", 1 },
+        "Spatial Mode",
+        juce::StringArray { "Off", "Scatter", "Trajectory" },
+        0));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "azimuth", 1 },
+        "Azimuth",
+        juce::NormalisableRange<float>(0.0f, 360.0f, 0.1f),
+        0.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "elevation", 1 },
+        "Elevation",
+        juce::NormalisableRange<float>(-90.0f, 90.0f, 0.1f),
+        0.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "az_spread", 1 },
+        "Az. Spread",
+        juce::NormalisableRange<float>(0.0f, 360.0f, 0.1f),
+        90.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "el_spread", 1 },
+        "El. Spread",
+        juce::NormalisableRange<float>(0.0f, 180.0f, 0.1f),
+        45.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "distance", 1 },
+        "Distance",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        50.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "spatial_width", 1 },
+        "Spatial Width",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        50.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "trajectory", 1 },
+        "Trajectory",
+        juce::StringArray { "Static", "Orbital", "Spiral", "Random" },
+        0));
+
+    layout.add(std::move(spatialGroup));
+
     return layout;
 }
 
@@ -188,6 +251,13 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlo
     wasFrozen = false;
     cachedScaleIndex = -1;
     cachedPitchMode = -1;
+
+    // Spatial audio
+    hoaBus.setSize (kHOA3Channels, static_cast<int> (sampleRate * 0.02) + 1024, false, true, false);
+    binauralDecoder.prepare (sampleRate, static_cast<int> (sampleRate * 0.02) + 1024);
+    grainPool.prepareSpatial (static_cast<float> (sampleRate));
+    distanceLpfState[0] = 0.0f;
+    distanceLpfState[1] = 0.0f;
 }
 
 void GrainScatterProcessor::releaseResources() {}
@@ -228,6 +298,22 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     int   eucSteps       = static_cast<int>(euclideanStepsParam->load());
     int   eucPulses      = static_cast<int>(euclideanPulsesParam->load());
     bool  stutterGate    = stutterGateParam->load() > 0.5f;
+
+    // Spatial parameters
+    int   spatialMode    = static_cast<int>(spatialModeParam->load());
+    float azimuthDeg     = azimuthParam->load();
+    float elevationDeg   = elevationParam->load();
+    float azSpreadDeg    = azSpreadParam->load();
+    float elSpreadDeg    = elSpreadParam->load();
+    float distanceNorm   = distanceParam->load() / 100.0f;
+    float spatialWidth   = spatialWidthParam->load() / 100.0f;
+    int   trajectoryType = static_cast<int>(trajectoryParam->load());
+
+    // Convert degrees to radians for ambisonics math
+    float azimuthRad     = juce::degreesToRadians (azimuthDeg);
+    float elevationRad   = juce::degreesToRadians (elevationDeg);
+    float azSpreadRad    = juce::degreesToRadians (azSpreadDeg);
+    float elSpreadRad    = juce::degreesToRadians (elSpreadDeg);
 
     int grainSizeSamples = juce::jmax(1, static_cast<int>(grainSizeMs * currentSampleRate / 1000.0));
 
@@ -319,7 +405,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             gp.playbackRate = scaleQuantizer.getNextPitch(pitchMode, scaleIndex, rootNote,
                                                           pitchRandom, grainRng);
 
-            // Pan randomization
+            // Pan randomization (used in stereo mode; ignored in spatial mode)
             gp.panPosition = 0.5f + (panRandom / 100.0f) * (grainRng.nextFloat() - 0.5f);
 
             // Reverse probability
@@ -328,39 +414,133 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             // Freeze: new grains read from frozen buffer (but not during release crossfade)
             gp.readFromFrozen = freezeManager.isActive() && !freezeManager.isReleasing();
 
+            // Spatial parameters for scatter cloud
+            if (spatialMode > 0)
+            {
+                gp.azimuth = azimuthRad + azSpreadRad * (grainRng.nextFloat() - 0.5f) * spatialWidth;
+                gp.elevation = elevationRad + elSpreadRad * (grainRng.nextFloat() - 0.5f) * spatialWidth;
+                gp.distance = distanceNorm;
+                gp.trajectoryType = (spatialMode == 2) ? trajectoryType : 0;  // Trajectory only in mode 2
+            }
+
             grainPool.spawnGrain(gp);
             ++spawnIdx;
         }
 
-        // Process grain pool
         float wetL = 0.0f, wetR = 0.0f;
-        grainPool.processSample(delayBuffer, freezeManager, wetL, wetR);
 
-        // Soft-clip wet output to prevent digital clipping from many overlapping grains
-        wetL = std::tanh(wetL);
-        wetR = std::tanh(wetR);
-
-        // Feedback: soft clip BEFORE writing back
-        float fbAmount = feedbackSmoothed.getNextValue();
-        float rawFbL = wetL * fbAmount;
-        float rawFbR = wetR * fbAmount;
-        feedbackL = std::tanh(rawFbL * 3.0f) * 1.00497f * 0.95f;
-        feedbackR = std::tanh(rawFbR * 3.0f) * 1.00497f * 0.95f;
-
-        // Dry/wet mix
-        float mix = dryWetSmoothed.getNextValue();
-        float dryL = inputL;
-        float dryR = inputR;
-
-        // Stutter gate: mute dry signal between repeat bursts
-        if (stutterGate && stutterGateStart >= 0 && i >= stutterGateStart && i < stutterGateEnd)
+        if (spatialMode == 0)
         {
-            dryL = 0.0f;
-            dryR = 0.0f;
+            // === STEREO PATH (original, backwards compatible) ===
+            grainPool.processSample(delayBuffer, freezeManager, wetL, wetR);
+        }
+        else
+        {
+            // === SPATIAL PATH: per-grain HOA3 encoding ===
+            // Update grain trajectories before processing
+            auto& poolVoices = grainPool.getVoices();
+            for (auto& v : poolVoices)
+            {
+                if (!v.active || v.trajectoryType == GrainTrajectory::Static)
+                    continue;
+
+                float t = 1.0f - static_cast<float>(v.samplesRemaining) / static_cast<float>(v.grainLengthSamples);
+                auto [az, el] = GrainTrajectory::update(v.trajectoryType, v.azimuth, v.elevation,
+                                                         t, spatialWidth, v.rngState);
+                v.shCoeffs.setTarget(az, el);
+            }
+
+            // Process into HOA bus (single-sample slice)
+            float hoaSample[kHOA3Channels] = {};
+            grainPool.processSampleSpatial(delayBuffer, freezeManager, hoaSample);
+
+            // Store into HOA bus for this sample
+            for (int ch = 0; ch < kHOA3Channels; ++ch)
+                hoaBus.setSample(ch, i, hoaSample[ch]);
         }
 
-        outBufL[i] = dryL * (1.0f - mix) + wetL * mix;
-        outBufR[i] = dryR * (1.0f - mix) + wetR * mix;
+        if (spatialMode == 0)
+        {
+            // Soft-clip wet output
+            wetL = std::tanh(wetL);
+            wetR = std::tanh(wetR);
+
+            // Feedback
+            float fbAmount = feedbackSmoothed.getNextValue();
+            float rawFbL = wetL * fbAmount;
+            float rawFbR = wetR * fbAmount;
+            feedbackL = std::tanh(rawFbL * 3.0f) * 1.00497f * 0.95f;
+            feedbackR = std::tanh(rawFbR * 3.0f) * 1.00497f * 0.95f;
+
+            // Dry/wet mix
+            float mix = dryWetSmoothed.getNextValue();
+            float dryL = inputL;
+            float dryR = inputR;
+
+            if (stutterGate && stutterGateStart >= 0 && i >= stutterGateStart && i < stutterGateEnd)
+            {
+                dryL = 0.0f;
+                dryR = 0.0f;
+            }
+
+            outBufL[i] = dryL * (1.0f - mix) + wetL * mix;
+            outBufR[i] = dryR * (1.0f - mix) + wetR * mix;
+        }
+        else
+        {
+            // Spatial mode: advance smoothing values to keep them in sync
+            feedbackSmoothed.getNextValue();
+            dryWetSmoothed.getNextValue();
+        }
+    }
+
+    // === SPATIAL POST-PROCESSING: binaural decode HOA bus to stereo ===
+    if (spatialMode > 0)
+    {
+        // Binaural decode: 16ch HOA3 -> stereo
+        const float* hoaChannels[kHOA3Channels];
+        for (int ch = 0; ch < kHOA3Channels; ++ch)
+            hoaChannels[ch] = hoaBus.getReadPointer(ch);
+
+        float binauralL[2048];
+        float binauralR[2048];
+        jassert(numSamples <= 2048);
+
+        binauralDecoder.process(hoaChannels, numSamples, binauralL, binauralR);
+
+        // Distance LPF (1-pole low-pass for air absorption)
+        float lpfCutoff = 20000.0f - distanceNorm * 15000.0f;
+        float lpfCoeff = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * lpfCutoff
+                                          / static_cast<float>(currentSampleRate));
+
+        // Apply dry/wet mix with binaural output
+        for (int i = 0; i < numSamples; ++i)
+        {
+            // LPF
+            distanceLpfState[0] += lpfCoeff * (binauralL[i] - distanceLpfState[0]);
+            distanceLpfState[1] += lpfCoeff * (binauralR[i] - distanceLpfState[1]);
+
+            float wetBinL = std::tanh(distanceLpfState[0]);
+            float wetBinR = std::tanh(distanceLpfState[1]);
+
+            // Feedback from binaural output
+            float fbAmount = feedbackParam->load() / 100.0f;
+            feedbackL = std::tanh(wetBinL * fbAmount * 3.0f) * 1.00497f * 0.95f;
+            feedbackR = std::tanh(wetBinR * fbAmount * 3.0f) * 1.00497f * 0.95f;
+
+            float mix = dryWetParam->load() / 100.0f;
+            float dryL = inL[i];
+            float dryR = inR[i];
+
+            if (stutterGate && stutterGateStart >= 0 && i >= stutterGateStart && i < stutterGateEnd)
+            {
+                dryL = 0.0f;
+                dryR = 0.0f;
+            }
+
+            outBufL[i] = dryL * (1.0f - mix) + wetBinL * mix;
+            outBufR[i] = dryR * (1.0f - mix) + wetBinR * mix;
+        }
     }
 
     // Populate visualization snapshot (lock-free double buffer)
@@ -391,6 +571,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                 sv.envelope = 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * sv.envelope));
                 sv.reverse = gv.reverse;
                 sv.frozen = gv.readFromFrozen;
+                sv.azimuth = gv.azimuth;
+                sv.elevation = gv.elevation;
+                sv.distance = gv.distance;
                 ++activeCount;
             }
         }

@@ -17,7 +17,7 @@
 
         /* ── Layout ── */
         .plugin-container {
-            width: 900px; height: 700px;
+            width: 900px; height: 850px;
             position: relative;
             display: flex;
             flex-direction: column;
@@ -282,6 +282,40 @@
             text-align: center;
             padding: 2px 0;
         }
+
+        /* ── Spatial Section ── */
+        .spatial-section {
+            padding: 4px 16px 6px;
+        }
+        .spatial-section .group {
+            background: rgba(255,248,220,0.2);
+            border: 1px solid rgba(139,115,85,0.2);
+            border-radius: 4px;
+            padding: 6px 10px;
+        }
+        .spatial-controls-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+            align-items: flex-start;
+        }
+        .spatial-section .group.dimmed-spatial {
+            opacity: 0.25;
+            pointer-events: none;
+        }
+        .spatial-hint {
+            font-size: 8px;
+            color: #8B7355;
+            font-style: italic;
+            text-align: center;
+            width: 100%;
+            padding-top: 2px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .spatial-hint.visible {
+            opacity: 1;
+        }
     </style>
 </head>
 <body>
@@ -438,6 +472,63 @@
                     <span class="knob-value" data-value="euclidean_steps">8</span>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Spatial Audio Section -->
+    <div class="spatial-section">
+        <div class="group" id="spatial-group">
+            <div class="group-label">Spatial Audio</div>
+            <div class="spatial-controls-row">
+                <div class="dropdown-container">
+                    <span class="dropdown-name">Mode</span>
+                    <select class="dropdown" data-param="spatial_mode">
+                        <option>Off</option>
+                        <option>Scatter</option>
+                        <option>Trajectory</option>
+                    </select>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Azimuth</span>
+                    <div class="knob" data-param="azimuth"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="azimuth">0&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Elevation</span>
+                    <div class="knob" data-param="elevation"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="elevation">0&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Az Spread</span>
+                    <div class="knob" data-param="az_spread"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="az_spread">90&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">El Spread</span>
+                    <div class="knob" data-param="el_spread"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="el_spread">45&deg;</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Distance</span>
+                    <div class="knob" data-param="distance"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="distance">50%</span>
+                </div>
+                <div class="knob-container">
+                    <span class="knob-name">Width</span>
+                    <div class="knob" data-param="spatial_width"><div class="knob-indicator"></div></div>
+                    <span class="knob-value" data-value="spatial_width">50%</span>
+                </div>
+                <div class="dropdown-container">
+                    <span class="dropdown-name">Trajectory</span>
+                    <select class="dropdown" data-param="trajectory">
+                        <option>Static</option>
+                        <option>Orbital</option>
+                        <option>Spiral</option>
+                        <option>Random</option>
+                    </select>
+                </div>
+            </div>
+            <div class="spatial-hint" id="spatial-hint">Set Mode to Scatter or Trajectory to enable</div>
         </div>
     </div>
 </div>

@@ -5,6 +5,7 @@
 #include <cmath>
 #include "DelayBuffer.h"
 #include "FreezeManager.h"
+#include "SpatialEncoder.h"
 
 struct GrainParams
 {
@@ -14,6 +15,12 @@ struct GrainParams
     int grainLengthSamples = 4410;
     bool reverse = false;
     bool readFromFrozen = false;
+
+    // Spatial (used when spatial_mode != Off)
+    float azimuth = 0.0f;             // radians, 0=front
+    float elevation = 0.0f;           // radians, 0=horizon
+    float distance = 0.5f;            // 0-1 normalized
+    int trajectoryType = 0;           // 0=Static, 1=Orbital, 2=Spiral, 3=Random
 };
 
 struct GrainVoice
@@ -27,6 +34,14 @@ struct GrainVoice
     bool reverse = false;
     bool readFromFrozen = false;
     float positionOffset = 0.0f;      // Base position in delay buffer
+
+    // Spatial state
+    float azimuth = 0.0f;
+    float elevation = 0.0f;
+    float distance = 0.5f;
+    SmoothedSHCoeffs shCoeffs;
+    int trajectoryType = 0;
+    unsigned int rngState = 0;          // LCG state for random trajectory
 };
 
 class GrainPool
@@ -77,7 +92,22 @@ public:
         else
             v.readPosition = 0.0f;
 
+        // Spatial initialization: snap SH coefficients (no smoothing at grain onset)
+        v.azimuth = params.azimuth;
+        v.elevation = params.elevation;
+        v.distance = params.distance;
+        v.trajectoryType = params.trajectoryType;
+        v.shCoeffs.setTarget (params.azimuth, params.elevation);
+        v.shCoeffs.snapToTarget();
+        v.rngState = static_cast<unsigned int> (targetVoice * 7919 + v.grainLengthSamples);
+
         nextVoice = (targetVoice + 1) % MaxVoices;
+    }
+
+    void prepareSpatial (float sampleRate)
+    {
+        for (auto& v : voices)
+            v.shCoeffs.prepare (sampleRate, 5.0f);
     }
 
     void processSample (const DelayBuffer& delayBuf, const FreezeManager& freezeMgr,
@@ -138,6 +168,63 @@ public:
         }
     }
 
+    // Spatial processing: outputs mono per-grain into a 16-channel HOA3 bus.
+    // hoaBus must point to kHOA3Channels (16) float arrays, each of at least 1 sample.
+    // This is the per-sample equivalent for spatial mode.
+    void processSampleSpatial (const DelayBuffer& delayBuf, const FreezeManager& freezeMgr,
+                               float* hoaBus)
+    {
+        for (auto& v : voices)
+        {
+            if (!v.active) continue;
+
+            // Hann window envelope
+            float phase = 1.0f - static_cast<float> (v.samplesRemaining)
+                                / static_cast<float> (v.grainLengthSamples);
+            float envelope = 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * phase));
+
+            // Read sample (stereo -> mono)
+            float sampleL = 0.0f;
+            float sampleR = 0.0f;
+
+            if (v.readFromFrozen && freezeMgr.isActive())
+            {
+                sampleL = freezeMgr.readSample (0, v.readPosition);
+                sampleR = freezeMgr.readSample (1, v.readPosition);
+            }
+            else
+            {
+                float elapsed = static_cast<float> (v.grainLengthSamples - v.samplesRemaining);
+                float delaySamples = v.positionOffset + elapsed - v.readPosition;
+                sampleL = delayBuf.readSample (0, delaySamples);
+                sampleR = delayBuf.readSample (1, delaySamples);
+            }
+
+            float mono = (sampleL + sampleR) * 0.5f * envelope;
+
+            // Distance attenuation
+            float distGain = 1.0f / (1.0f + v.distance * 3.0f);
+            mono *= distGain;
+
+            // Advance SH coefficient smoothing
+            v.shCoeffs.advance();
+
+            // Encode into HOA3 bus
+            for (int ch = 0; ch < kHOA3Channels; ++ch)
+                hoaBus[ch] += mono * v.shCoeffs.current[ch];
+
+            // Advance read position
+            if (v.reverse)
+                v.readPosition -= v.playbackRate;
+            else
+                v.readPosition += v.playbackRate;
+
+            --v.samplesRemaining;
+            if (v.samplesRemaining <= 0)
+                v.active = false;
+        }
+    }
+
     int getActiveCount() const
     {
         int count = 0;
@@ -147,6 +234,7 @@ public:
     }
 
     const std::array<GrainVoice, MaxVoices>& getVoices() const { return voices; }
+    std::array<GrainVoice, MaxVoices>& getVoices() { return voices; }
 
 private:
     std::array<GrainVoice, MaxVoices> voices {};
