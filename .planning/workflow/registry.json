@@ -1,8 +1,19 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-SpectralShaper",
+  "focused": "O-Chorus",
   "plugins": {
+    "O-Chorus": {
+      "path": "plugins/O-Chorus",
+      "stage": "1-foundation",
+      "phase": "discuss-complete",
+      "status": "active",
+      "created": "2026-02-07",
+      "lastActivity": "2026-02-07T12:00:00Z",
+      "modules": [],
+      "expressMode": false,
+      "blockedBy": null
+    },
     "O-SpectralShaper": {
       "path": "plugins/O-SpectralShaper",
       "stage": "complete",

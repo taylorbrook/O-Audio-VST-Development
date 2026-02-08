@@ -543,21 +543,26 @@
                 <!-- VU Meter (center column) -->
                 <div class="vu-meter">
                     <svg class="vu-meter-scale" viewBox="0 0 80 80">
-                        <!-- Arc from -90 to 90 -->
+                        <!-- Arc from -60dB (left) to 0dB (right), center=(40,40) r=35 -->
                         <path d="M 5 40 A 35 35 0 0 1 75 40" fill="none" stroke="#8B7355" stroke-width="1.5"/>
-                        <!-- Tick marks at -60dB, -30dB, -12dB, -6dB, 0dB -->
-                        <line x1="8" y1="40" x2="14" y2="40" stroke="#5C4033" stroke-width="1"/>
-                        <line x1="14.6" y1="20.4" x2="19.3" y2="24.1" stroke="#5C4033" stroke-width="1"/>
-                        <line x1="36" y1="6" x2="37.5" y2="12" stroke="#5C4033" stroke-width="1"/>
-                        <line x1="55" y1="7.5" x2="53.5" y2="13.4" stroke="#5C4033" stroke-width="1"/>
-                        <line x1="72" y1="40" x2="66" y2="40" stroke="#8B0000" stroke-width="1.5"/>
+                        <!-- Tick marks positioned at correct angles for linear dB scale -->
+                        <!-- -60dB at 180° -->
+                        <line x1="5" y1="40" x2="11" y2="40" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -30dB at 90° -->
+                        <line x1="40" y1="5" x2="40" y2="11" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -12dB at 36° -->
+                        <line x1="68.3" y1="19.4" x2="63.5" y2="23.0" stroke="#5C4033" stroke-width="1"/>
+                        <!-- -6dB at 18° -->
+                        <line x1="73.3" y1="29.2" x2="67.6" y2="31.0" stroke="#5C4033" stroke-width="1"/>
+                        <!-- 0dB at 0° -->
+                        <line x1="75" y1="40" x2="69" y2="40" stroke="#8B0000" stroke-width="1.5"/>
                     </svg>
-                    <!-- dB Labels -->
-                    <span class="vu-db-label" style="left: 2px; top: 42px;">-60</span>
-                    <span class="vu-db-label" style="left: 8px; top: 16px;">-30</span>
-                    <span class="vu-db-label" style="left: 32px; top: 0px;">-12</span>
-                    <span class="vu-db-label" style="left: 54px; top: 2px;">-6</span>
-                    <span class="vu-db-label" style="right: 2px; top: 42px; color: #8B0000;">0</span>
+                    <!-- dB labels positioned radially along the arc -->
+                    <span class="vu-db-label" style="left: 0px; top: 36px;">-60</span>
+                    <span class="vu-db-label" style="left: 33px; top: 0px;">-30</span>
+                    <span class="vu-db-label" style="left: 68px; top: 10px;">-12</span>
+                    <span class="vu-db-label" style="right: 1px; top: 22px;">-6</span>
+                    <span class="vu-db-label" style="right: 1px; top: 36px; color: #8B0000;">0</span>
                     <div class="vu-meter-needle" id="vu_needle"></div>
                     <div class="vu-meter-pivot"></div>
                 </div>

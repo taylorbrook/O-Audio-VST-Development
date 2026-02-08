@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>O-DigiDelay</title>
+  <title>Ouaricon Digital Delay</title>
 
   <style>
     /* ============================================
@@ -246,7 +246,7 @@
     }
 
     /* ============================================
-       KNOB STYLES (10-segment botanical seed)
+       KNOB STYLES (SVG Vine-Arc)
        ============================================ */
     .knob-container {
       position: absolute;
@@ -266,57 +266,43 @@
     }
 
     .knob {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .knob-visual {
       width: 60px;
       height: 60px;
       position: relative;
-      cursor: pointer;
-      transform-origin: center center;
     }
 
-    .knob-body {
+    .knob-visual svg {
       width: 100%;
       height: 100%;
-      border-radius: 50%;
-      border: 2px solid #8B7355;
-      background: conic-gradient(
-        from 0deg,
-        #F5DEB3 0deg 36deg,
-        #E8D5B7 36deg 72deg,
-        #F5DEB3 72deg 108deg,
-        #E8D5B7 108deg 144deg,
-        #F5DEB3 144deg 180deg,
-        #E8D5B7 180deg 216deg,
-        #F5DEB3 216deg 252deg,
-        #E8D5B7 252deg 288deg,
-        #F5DEB3 288deg 324deg,
-        #E8D5B7 324deg 360deg
-      );
-      box-shadow: inset 0 1px 2px rgba(0,0,0,0.15);
-      position: relative;
+      transform: rotate(-135deg);
     }
 
-    .knob-indicator {
-      position: absolute;
-      top: 8px;
-      left: 50%;
-      width: 2px;
-      height: 16px;
-      background: #3C2F2F;
-      transform: translateX(-50%);
+    .knob-track {
+      fill: none;
+      stroke: rgba(139, 115, 85, 0.3);
+      stroke-width: 2;
     }
 
-    .value-display {
-      margin-top: 4px;
-      width: 60px;
-      height: 18px;
-      background: transparent;
-      border: none;
-      display: flex;
-      align-items: center;
-      justify-content: center;
+    .knob-vine {
+      fill: none;
+      stroke: #5a7a6a;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
+    .knob-value {
       font-size: 11px;
       color: #3C2F2F;
-      padding: 0;
+      margin-top: 4px;
+      min-width: 60px;
+      text-align: center;
     }
 
     /* ============================================
@@ -467,7 +453,7 @@
 
     <!-- LAYER 2+: UI Elements -->
     <div class="header">
-      <div class="title">O-DIGIDELAY</div>
+      <div class="title">OUARICON DIGITAL DELAY</div>
       <div class="preset-bar">
         <button class="preset-nav-btn" id="prevPreset" title="Previous preset">&lt;</button>
         <span class="preset-name" id="presetName" title="Click to see all presets">Default</span>
@@ -489,66 +475,90 @@
       <div id="time-container" class="knob-container">
         <div class="knob-label">TIME</div>
         <div class="knob" id="time-knob">
-          <div class="knob-body">
-            <div class="knob-indicator"></div>
+          <div class="knob-visual">
+            <svg viewBox="0 0 60 60">
+              <circle class="knob-track" cx="30" cy="30" r="25"/>
+              <circle class="knob-vine" id="time-vine" cx="30" cy="30" r="25"
+                stroke-dasharray="157.08" stroke-dashoffset="157.08"/>
+            </svg>
           </div>
         </div>
-        <div class="value-display" id="time-value">500 ms</div>
+        <span class="knob-value" id="time-value">500 ms</span>
       </div>
 
       <!-- FEEDBACK KNOB -->
       <div id="feedback-container" class="knob-container">
         <div class="knob-label">FEEDBACK</div>
         <div class="knob" id="feedback-knob">
-          <div class="knob-body">
-            <div class="knob-indicator"></div>
+          <div class="knob-visual">
+            <svg viewBox="0 0 60 60">
+              <circle class="knob-track" cx="30" cy="30" r="25"/>
+              <circle class="knob-vine" id="feedback-vine" cx="30" cy="30" r="25"
+                stroke-dasharray="157.08" stroke-dashoffset="157.08"/>
+            </svg>
           </div>
         </div>
-        <div class="value-display" id="feedback-value">30%</div>
+        <span class="knob-value" id="feedback-value">30%</span>
       </div>
 
       <!-- SPREAD KNOB -->
       <div id="spread-container" class="knob-container">
         <div class="knob-label">SPREAD</div>
         <div class="knob" id="spread-knob">
-          <div class="knob-body">
-            <div class="knob-indicator"></div>
+          <div class="knob-visual">
+            <svg viewBox="0 0 60 60">
+              <circle class="knob-track" cx="30" cy="30" r="25"/>
+              <circle class="knob-vine" id="spread-vine" cx="30" cy="30" r="25"
+                stroke-dasharray="157.08" stroke-dashoffset="157.08"/>
+            </svg>
           </div>
         </div>
-        <div class="value-display" id="spread-value">0%</div>
+        <span class="knob-value" id="spread-value">0%</span>
       </div>
 
       <!-- MOD KNOB -->
       <div id="mod-container" class="knob-container">
         <div class="knob-label">MOD</div>
         <div class="knob" id="mod-knob">
-          <div class="knob-body">
-            <div class="knob-indicator"></div>
+          <div class="knob-visual">
+            <svg viewBox="0 0 60 60">
+              <circle class="knob-track" cx="30" cy="30" r="25"/>
+              <circle class="knob-vine" id="mod-vine" cx="30" cy="30" r="25"
+                stroke-dasharray="157.08" stroke-dashoffset="157.08"/>
+            </svg>
           </div>
         </div>
-        <div class="value-display" id="mod-value">0%</div>
+        <span class="knob-value" id="mod-value">0%</span>
       </div>
 
       <!-- WET KNOB -->
       <div id="wet-container" class="knob-container">
         <div class="knob-label">WET</div>
         <div class="knob" id="wet-knob">
-          <div class="knob-body">
-            <div class="knob-indicator"></div>
+          <div class="knob-visual">
+            <svg viewBox="0 0 60 60">
+              <circle class="knob-track" cx="30" cy="30" r="25"/>
+              <circle class="knob-vine" id="wet-vine" cx="30" cy="30" r="25"
+                stroke-dasharray="157.08" stroke-dashoffset="157.08"/>
+            </svg>
           </div>
         </div>
-        <div class="value-display" id="wet-value">30%</div>
+        <span class="knob-value" id="wet-value">30%</span>
       </div>
 
       <!-- DRY KNOB -->
       <div id="dry-container" class="knob-container">
         <div class="knob-label">DRY</div>
         <div class="knob" id="dry-knob">
-          <div class="knob-body">
-            <div class="knob-indicator"></div>
+          <div class="knob-visual">
+            <svg viewBox="0 0 60 60">
+              <circle class="knob-track" cx="30" cy="30" r="25"/>
+              <circle class="knob-vine" id="dry-vine" cx="30" cy="30" r="25"
+                stroke-dasharray="157.08" stroke-dashoffset="157.08"/>
+            </svg>
           </div>
         </div>
-        <div class="value-display" id="dry-value">100%</div>
+        <span class="knob-value" id="dry-value">100%</span>
       </div>
     </div>
 
@@ -584,17 +594,104 @@
       { name: "1/16(5)", factor: 0.2 }
     ];
 
-    // ============================================
-    // DISABLE CONTEXT MENU
-    // ============================================
-    document.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      return false;
-    });
+    document.addEventListener("contextmenu", (e) => { e.preventDefault(); });
 
     // ============================================
-    // LED METER SETUP
+    // SVG VINE-ARC KNOB SYSTEM
     // ============================================
+    // Arc geometry: viewBox 60x60, r=25
+    // circumference = 2 * PI * 25 = 157.08
+    // arcLength (270 deg) = 0.75 * 157.08 = 117.81
+    const ARC_LENGTH = 117.81;
+
+    // Knob configurations
+    const knobConfigs = {
+      time:     { vineId: 'time-vine',     valueId: 'time-value' },
+      feedback: { vineId: 'feedback-vine', valueId: 'feedback-value' },
+      spread:   { vineId: 'spread-vine',   valueId: 'spread-value' },
+      mod:      { vineId: 'mod-vine',      valueId: 'mod-value' },
+      wet:      { vineId: 'wet-vine',      valueId: 'wet-value' },
+      dry:      { vineId: 'dry-vine',      valueId: 'dry-value' }
+    };
+
+    const formatters = {
+      feedback: v => `${Math.round(v)}%`,
+      spread:   v => `${Math.round(v)}%`,
+      mod:      v => `${Math.round(v)}%`,
+      wet:      v => `${Math.round(v)}%`,
+      dry:      v => `${Math.round(v)}%`
+    };
+
+    // Smooth animation state
+    const animState = {
+      targets: {},
+      frameId: null,
+      isRunning: false,
+      smoothing: 0.15
+    };
+
+    const animLoop = () => {
+      let needsUpdate = false;
+      Object.values(animState.targets).forEach(s => {
+        const delta = s.target - s.current;
+        if (Math.abs(delta) > 0.0001) {
+          s.current += delta * animState.smoothing;
+          needsUpdate = true;
+          s.vine.style.strokeDashoffset = ARC_LENGTH - (s.current * ARC_LENGTH);
+        }
+      });
+      if (needsUpdate) {
+        animState.frameId = requestAnimationFrame(animLoop);
+      } else {
+        animState.isRunning = false;
+        animState.frameId = null;
+      }
+    };
+
+    const startAnim = () => {
+      if (!animState.isRunning) {
+        animState.isRunning = true;
+        animState.frameId = requestAnimationFrame(animLoop);
+      }
+    };
+
+    // Global drag state
+    const dragState = { isDragging: false, target: null, startY: 0, startValue: 0 };
+
+    document.addEventListener('mousemove', (e) => {
+      if (!dragState.isDragging || !dragState.target) return;
+      const info = dragState.targetInfo;
+
+      if (info.syncDrag) {
+        // Time knob in sync mode — drag through divisions
+        const deltaY = dragState.startY - e.clientY;
+        info.syncNorm = Math.max(0, Math.min(1, dragState.startValue + deltaY * 0.005));
+        const newDiv = Math.round(info.syncNorm * 11);
+        if (newDiv !== info.getDivisionIndex()) {
+          try { info.divisionState.setChoiceIndex(newDiv); } catch {}
+        }
+      } else {
+        // Normal knob drag
+        const deltaY = dragState.startY - e.clientY;
+        const newNorm = Math.max(0, Math.min(1, dragState.startValue + deltaY * 0.005));
+        info.sliderState.setNormalisedValue(newNorm);
+      }
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!dragState.isDragging) return;
+      const info = dragState.targetInfo;
+      if (info && info.sliderState && info.sliderState.sliderDragEnded) {
+        info.sliderState.sliderDragEnded();
+      }
+      dragState.isDragging = false;
+      dragState.target = null;
+      dragState.targetInfo = null;
+    });
+
+    // LED meter segments (cached after setup)
+    let ledSegments = null;
+
     function setupLEDMeter() {
       const meterContainer = document.getElementById('led-meter');
 
@@ -604,103 +701,30 @@
         segment.dataset.index = i;
         meterContainer.appendChild(segment);
       }
+      ledSegments = meterContainer.querySelectorAll('.led-segment');
     }
 
-    // ============================================
-    // UPDATE LED METER FROM RMS DATA (exposed globally for C++ calls)
-    // ============================================
     window.updateLEDMeter = function(rmsLevel) {
-      const segments = document.getElementById('led-meter').querySelectorAll('.led-segment');
-
-      // Apply gain boost and logarithmic curve for better visual response
+      if (!ledSegments) return;
       const boostedLevel = rmsLevel * 6.0;
       const logLevel = boostedLevel > 0 ? Math.log10(1 + boostedLevel * 9) : 0;
       const activeCount = Math.floor(Math.min(1.0, Math.max(0.0, logLevel)) * 14);
 
-      segments.forEach((segment, index) => {
+      ledSegments.forEach((segment, index) => {
         segment.classList.remove('active-low', 'active-mid', 'active-high');
         if (index < activeCount) {
-          const levelClass = index < 5 ? 'active-low' : index < 10 ? 'active-mid' : 'active-high';
-          segment.classList.add(levelClass);
+          segment.classList.add(index < 5 ? 'active-low' : index < 10 ? 'active-mid' : 'active-high');
         }
       });
     };
 
-    // ============================================
-    // KNOB INTERACTION (Relative drag)
-    // ============================================
-    function setupKnob(paramId, min, max, defaultValue, formatFn) {
-      const knob = document.getElementById(`${paramId}-knob`);
-      const valueDisplay = document.getElementById(`${paramId}-value`);
-      const sliderState = getSliderState(paramId);
-
-      if (!sliderState) {
-        console.error(`Failed to get slider state for ${paramId}`);
-        return;
-      }
-
-      let rotation = -135;
-      let lastY = 0;
-      let isDragging = false;
-
-      // Update visual from normalized value
-      function updateVisual(normalized) {
-        rotation = -135 + (normalized * 270);
-        knob.querySelector('.knob-body').style.transform = `rotate(${rotation}deg)`;
-
-        const value = min + (normalized * (max - min));
-        valueDisplay.textContent = formatFn(value);
-      }
-
-      // Initialize from current state
-      sliderState.valueChangedEvent.addListener(() => {
-        updateVisual(sliderState.getNormalisedValue());
-      });
-      updateVisual(sliderState.getNormalisedValue());
-
-      // Mouse interaction (relative drag)
-      knob.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        lastY = e.clientY;
-        knob.style.cursor = 'grabbing';
-        e.preventDefault();
-      });
-
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-
-        const deltaY = lastY - e.clientY;
-        const rotationDelta = deltaY * 0.5;
-        rotation = Math.max(-135, Math.min(135, rotation + rotationDelta));
-
-        const normalized = (rotation + 135) / 270;
-        sliderState.setNormalisedValue(normalized);
-
-        lastY = e.clientY;
-      });
-
-      document.addEventListener('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          knob.style.cursor = 'pointer';
-        }
-      });
-    }
-
-    // ============================================
-    // TOGGLE INTERACTION (SYNC)
-    // ============================================
     let syncState = null;
     let updateTimeDisplay = null;
 
     function setupToggle() {
       const toggle = document.getElementById('sync');
       syncState = getToggleState('sync');
-
-      if (!syncState) {
-        console.error('Failed to get toggle state for sync');
-        return;
-      }
+      if (!syncState) return;
 
       const updateVisual = (value) => {
         toggle.classList.toggle('active', value);
@@ -713,26 +737,77 @@
       toggle.addEventListener('click', () => syncState.setValue(!syncState.getValue()));
     }
 
-    // ============================================
-    // TIME KNOB SETUP
-    // Sync OFF: controls time in ms (continuous)
-    // Sync ON: controls division selection (snaps to 12 discrete values)
-    // ============================================
-    function setupTimeKnob() {
-      const knob = document.getElementById('time-knob');
-      const knobBody = knob.querySelector('.knob-body');
-      const valueDisplay = document.getElementById('time-value');
-      const timeState = getSliderState('time');
-      const divisionState = getComboBoxState('division');
+    function setupStandardKnob(paramId, min, max, formatFn) {
+      const sliderState = getSliderState(paramId);
+      const config = knobConfigs[paramId];
+      if (!sliderState || !config) return;
 
-      if (!timeState) {
-        console.error('Failed to get slider state for time');
-        return;
+      const vine = document.getElementById(config.vineId);
+      const valueDisplay = document.getElementById(config.valueId);
+      const knobEl = document.getElementById(`${paramId}-knob`);
+      if (!vine || !valueDisplay || !knobEl) return;
+
+      const initialNorm = sliderState.getNormalisedValue();
+      animState.targets[paramId] = {
+        current: initialNorm,
+        target: initialNorm,
+        vine: vine
+      };
+      vine.style.strokeDashoffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
+
+      if (formatFn) {
+        valueDisplay.textContent = formatFn(min + (initialNorm * (max - min)));
       }
 
-      let rotation = -135;
-      let lastY = 0;
-      let isDragging = false;
+      sliderState.valueChangedEvent.addListener(() => {
+        const norm = sliderState.getNormalisedValue();
+        animState.targets[paramId].target = norm;
+        if (formatFn) {
+          valueDisplay.textContent = formatFn(min + (norm * (max - min)));
+        }
+        startAnim();
+      });
+
+      // Drag
+      const knobVisual = knobEl.querySelector('.knob-visual');
+      knobVisual.addEventListener('mousedown', (e) => {
+        e.preventDefault();
+        dragState.isDragging = true;
+        dragState.target = paramId;
+        dragState.startY = e.clientY;
+        dragState.startValue = sliderState.getNormalisedValue();
+        dragState.targetInfo = { sliderState, syncDrag: false };
+        if (sliderState.sliderDragStarted) sliderState.sliderDragStarted();
+      });
+
+      // Mouse wheel
+      knobEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        const newNorm = Math.max(0, Math.min(1, sliderState.getNormalisedValue() + delta));
+        sliderState.setNormalisedValue(newNorm);
+      }, { passive: false });
+    }
+
+    function setupTimeKnob() {
+      const timeState = getSliderState('time');
+      const divisionState = getComboBoxState('division');
+      const config = knobConfigs.time;
+      if (!timeState || !config) return;
+
+      const vine = document.getElementById(config.vineId);
+      const valueDisplay = document.getElementById(config.valueId);
+      const knobEl = document.getElementById('time-knob');
+      if (!vine || !valueDisplay || !knobEl) return;
+
+      const initialNorm = timeState.getNormalisedValue();
+      animState.targets.time = {
+        current: initialNorm,
+        target: initialNorm,
+        vine: vine
+      };
+      vine.style.strokeDashoffset = ARC_LENGTH - (initialNorm * ARC_LENGTH);
+
       let syncNormalized = 0;
 
       const getDivisionIndex = () => {
@@ -740,92 +815,82 @@
         catch { return 0; }
       };
 
-      const setRotation = (normalized) => {
-        rotation = -135 + (normalized * 270);
-        knobBody.style.transform = `rotate(${rotation}deg)`;
-      };
-
       const updateVisual = () => {
-        const isSync = syncState?.getValue();
-
-        if (isSync && divisionState) {
+        if (syncState?.getValue() && divisionState) {
           const divIndex = Math.max(0, Math.min(11, getDivisionIndex()));
           valueDisplay.textContent = musicalDivisions[divIndex].name;
           syncNormalized = divIndex / 11;
-          setRotation(syncNormalized);
+          animState.targets.time.target = syncNormalized;
         } else {
           const normalized = timeState.getNormalisedValue();
-          setRotation(normalized);
+          animState.targets.time.target = normalized;
           valueDisplay.textContent = `${Math.round(1.0 + normalized * 1999.0)} ms`;
         }
+        startAnim();
       };
 
       updateTimeDisplay = updateVisual;
-
       timeState.valueChangedEvent.addListener(updateVisual);
       divisionState?.valueChangedEvent.addListener(updateVisual);
       updateVisual();
 
-      knob.addEventListener('mousedown', (e) => {
-        isDragging = true;
-        lastY = e.clientY;
-        knob.style.cursor = 'grabbing';
-        if (syncState?.getValue() && divisionState) {
-          syncNormalized = getDivisionIndex() / 11;
-        }
+      // Drag
+      const knobVisual = knobEl.querySelector('.knob-visual');
+      knobVisual.addEventListener('mousedown', (e) => {
         e.preventDefault();
+        const isSyncMode = syncState?.getValue() && divisionState;
+        dragState.isDragging = true;
+        dragState.target = 'time';
+
+        if (isSyncMode) {
+          syncNormalized = getDivisionIndex() / 11;
+          dragState.startY = e.clientY;
+          dragState.startValue = syncNormalized;
+          dragState.targetInfo = {
+            sliderState: timeState,
+            syncDrag: true,
+            syncNorm: syncNormalized,
+            divisionState,
+            getDivisionIndex
+          };
+        } else {
+          dragState.startY = e.clientY;
+          dragState.startValue = timeState.getNormalisedValue();
+          dragState.targetInfo = { sliderState: timeState, syncDrag: false };
+        }
+        if (timeState.sliderDragStarted) timeState.sliderDragStarted();
       });
 
-      document.addEventListener('mousemove', (e) => {
-        if (!isDragging) return;
-
-        const deltaY = lastY - e.clientY;
-        const isSync = syncState?.getValue();
-
-        if (isSync && divisionState) {
-          syncNormalized = Math.max(0, Math.min(1, syncNormalized + deltaY * 0.005));
-          const newDiv = Math.round(syncNormalized * 11);
-          if (newDiv !== getDivisionIndex()) {
+      // Mouse wheel
+      knobEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        if (syncState?.getValue() && divisionState) {
+          const currentDiv = getDivisionIndex();
+          const newDiv = e.deltaY < 0
+            ? Math.min(11, currentDiv + 1)
+            : Math.max(0, currentDiv - 1);
+          if (newDiv !== currentDiv) {
             try { divisionState.setChoiceIndex(newDiv); } catch {}
           }
         } else {
-          rotation = Math.max(-135, Math.min(135, rotation + deltaY * 0.5));
-          timeState.setNormalisedValue((rotation + 135) / 270);
+          const delta = e.deltaY < 0 ? 0.02 : -0.02;
+          const newNorm = Math.max(0, Math.min(1, timeState.getNormalisedValue() + delta));
+          timeState.setNormalisedValue(newNorm);
         }
-
-        lastY = e.clientY;
-      });
-
-      document.addEventListener('mouseup', () => {
-        if (isDragging) {
-          isDragging = false;
-          knob.style.cursor = 'pointer';
-        }
-      });
+      }, { passive: false });
     }
 
-    // ============================================
-    // INITIALIZE ALL CONTROLS
-    // ============================================
     document.addEventListener("DOMContentLoaded", () => {
       setupLEDMeter();
 
-      // Setup sync toggle first (needed by time knob)
       setupToggle();
-
-      // Setup time knob with tempo sync support
       setupTimeKnob();
+      setupStandardKnob('feedback', 0.0, 100.0, v => `${Math.round(v)}%`);
+      setupStandardKnob('spread', 0.0, 100.0, v => `${Math.round(v)}%`);
+      setupStandardKnob('mod', 0.0, 100.0, v => `${Math.round(v)}%`);
+      setupStandardKnob('wet', 0.0, 100.0, v => `${Math.round(v)}%`);
+      setupStandardKnob('dry', 0.0, 100.0, v => `${Math.round(v)}%`);
 
-      // Setup other knobs
-      setupKnob('feedback', 0.0, 100.0, 30.0, v => `${Math.round(v)}%`);
-      setupKnob('spread', 0.0, 100.0, 0.0, v => `${Math.round(v)}%`);
-      setupKnob('mod', 0.0, 100.0, 0.0, v => `${Math.round(v)}%`);
-      setupKnob('wet', 0.0, 100.0, 30.0, v => `${Math.round(v)}%`);
-      setupKnob('dry', 0.0, 100.0, 100.0, v => `${Math.round(v)}%`);
-
-      // ============================================
-      // PRESET MANAGER INITIALIZATION
-      // ============================================
       const presetNameDisplay = document.getElementById('presetName');
       const presetDropdown = document.getElementById('presetDropdown');
 
@@ -836,17 +901,11 @@
         saveButton: document.getElementById('savePreset'),
         loadButton: document.getElementById('loadPreset'),
         getNativeFunction: getNativeFunction,
-        onPresetChanged: (name) => {
-          console.log('Preset loaded:', name);
-          hidePresetDropdown();
-        },
-        onPresetListUpdated: (list) => {
-          console.log('Preset list updated:', list.length, 'presets');
-        }
+        onPresetChanged: () => { hidePresetDropdown(); },
+        onPresetListUpdated: () => {}
       });
       presetManager.initialize();
 
-      // Preset dropdown functionality
       function showPresetDropdown() {
         const presets = presetManager.getPresetList();
         presetDropdown.innerHTML = '';
@@ -859,13 +918,11 @@
           empty.style.color = '#888';
           presetDropdown.appendChild(empty);
         } else {
-          // Add Factory section header
-          const factoryHeader = document.createElement('div');
-          factoryHeader.className = 'preset-dropdown-header';
-          factoryHeader.textContent = 'Presets';
-          presetDropdown.appendChild(factoryHeader);
+          const header = document.createElement('div');
+          header.className = 'preset-dropdown-header';
+          header.textContent = 'Presets';
+          presetDropdown.appendChild(header);
 
-          // Add each preset
           presets.forEach(presetName => {
             const item = document.createElement('div');
             item.className = 'preset-dropdown-item';
@@ -888,17 +945,11 @@
         presetDropdown.classList.remove('show');
       }
 
-      // Click on preset name to show dropdown
       presetNameDisplay.addEventListener('click', (e) => {
         e.stopPropagation();
-        if (presetDropdown.classList.contains('show')) {
-          hidePresetDropdown();
-        } else {
-          showPresetDropdown();
-        }
+        presetDropdown.classList.contains('show') ? hidePresetDropdown() : showPresetDropdown();
       });
 
-      // Click outside to close dropdown
       document.addEventListener('click', (e) => {
         if (!presetDropdown.contains(e.target) && e.target !== presetNameDisplay) {
           hidePresetDropdown();

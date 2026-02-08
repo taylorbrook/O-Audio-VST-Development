@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.1] - 2026-02-07
+
+### Improved
+- Scale, Root Note, and Pitch Mode dropdowns now dim when Pitch Random is at 0%, with hint text "Increase Pitch Rnd to activate" — clarifies that pitch randomization must be active for scale controls to have effect
+
 ## [1.0.0] - 2026-02-07
 
 ### Added

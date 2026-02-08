@@ -1,6 +1,6 @@
 {
   "$schema": "./schemas/active-plugin.schema.json",
-  "plugin": "O-SpectralShaper",
-  "focusedAt": "2026-02-04T12:00:00Z",
+  "plugin": "O-Chorus",
+  "focusedAt": "2026-02-07T12:00:00Z",
   "loadedContext": null
 }

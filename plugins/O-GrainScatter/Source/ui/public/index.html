@@ -244,6 +244,28 @@
             background: rgba(107,142,35,0.5);
             border-color: #2C3E10;
         }
+        /* ── Pitch gate dimming ── */
+        .dropdown-container {
+            transition: opacity 0.3s;
+        }
+        .dropdown-container.dimmed {
+            opacity: 0.25;
+            pointer-events: none;
+        }
+        .pitch-hint {
+            font-size: 8px;
+            color: #8B7355;
+            font-style: italic;
+            text-align: center;
+            width: 100%;
+            padding-top: 2px;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .pitch-hint.visible {
+            opacity: 1;
+        }
+
         .toggle.freeze-toggle.active {
             box-shadow: 0 0 12px rgba(107,142,78,0.5), 0 0 24px rgba(107,142,78,0.2);
             animation: freezePulse 2s ease-in-out infinite;
@@ -369,6 +391,7 @@
                         <option>Pendulum</option>
                     </select>
                 </div>
+                <div class="pitch-hint" id="pitch-hint">Increase Pitch Rnd to activate</div>
             </div>
         </div>
 

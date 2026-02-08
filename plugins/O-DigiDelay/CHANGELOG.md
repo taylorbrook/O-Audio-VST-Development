@@ -5,6 +5,24 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.3] - 2026-02-07
+
+### Changed
+- Knobs replaced with SVG vine-arc style (matching O-Detune visual system)
+  - Removed old CSS conic-gradient knobs with physical indicator lines
+  - New SVG circular arc knobs with smooth animated fill
+  - 270-degree arc with stroke-dashoffset rendering
+  - RequestAnimationFrame interpolation (0.15 smoothing factor)
+  - Mouse wheel support added to all knobs
+  - Time knob sync/division logic preserved unchanged
+- Track color: rgba(139, 115, 85, 0.3), vine color: #5a7a6a
+
+## [1.2.2] - 2026-02-07
+
+### Changed
+- UI title changed from "O-DIGIDELAY" to "OUARICON DIGITAL DELAY"
+- HTML document title updated to match
+
 ## [1.2.1] - 2026-01-24
 
 ### Changed

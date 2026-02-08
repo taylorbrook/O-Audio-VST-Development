@@ -1,14 +1,13 @@
 ---
 plugin: O-Chorus
-stage: 0
-status: complete
-last_updated: 2026-02-07
+stage: 4-polish
+phase: discussed
+status: active
+last_updated: 2026-02-08
 complexity_score: 2.8
 staged_implementation: false
 orchestration_mode: true
-next_action: invoke_foundation_shell_agent
-next_stage: 1
-ready_for_implementation: true
+next_action: research_or_plan_stage_4
 contract_checksums:
   brief: sha256:ba2a191e2ac696d0414b7f41d8275bc3e4794c1cb8a5234e09a28dc91fbc2362
   architecture: sha256:7323d5554f4930bdb38afeb4c54ed03855bb192faf8abd24abf4959cb9bd3fd8
@@ -19,9 +18,9 @@ contract_checksums:
 
 ## Current Position
 
-**Stage:** 0 of 4 (Ideation & Research) — complete
-**Status:** Research & Planning complete, ready for implementation
-**Progress:** [##..................] 10%
+**Stage:** 4 of 4 (Polish) -- discuss complete
+**Status:** Stage 4 discuss phase complete, ready for plan
+**Progress:** [##################..] 85%
 
 ## Completed So Far
 
@@ -32,16 +31,49 @@ contract_checksums:
 - DSP feasibility verified: Lagrange3rd interpolation, tanh saturation, one-pole filtering
 - Parameter ranges researched: Rate 0.05-5Hz, Depth 0-100%, Voices 1-8, Width 0-100%, Tone -100 to +100%, Mix 0-100%
 - Complexity score: 2.8 (Moderate, single-pass strategy)
-- Strategy: Single-pass implementation (no phase breakdown needed)
 - ARCHITECTURE.md documented (complete DSP specification with JUCE API mappings)
 - ROADMAP.md documented (stage breakdown, ~3.25 hour timeline)
 
+**Stage 1:** ✓ Complete
+- CMakeLists.txt created (NEEDS_WEB_BROWSER, NEEDS_WEBVIEW2, JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING)
+- PluginProcessor.h/.cpp with APVTS and all 7 parameters (rate, depth, voices, width, tone, mix, drive)
+- PluginEditor.h/.cpp with WebView integration (Relays -> WebView -> Attachments order)
+- Placeholder WebView UI (index.html with JUCE interop scripts)
+- Build verified: VST3 and AU compile with zero errors
+- AU detected: `aufx OuCh OuDv - Ouaricon Audio Development: O-Chorus-dev`
+- Installed to system plugin folders
+
+**Stage 2:** ✓ Complete (verified 2026-02-07)
+- ChorusEngine class created with 8-voice delay line array (Lagrange3rd interpolation)
+- LFO modulation with per-voice phase offset (2pi * i / numVoices)
+- Seeded per-voice depth variation (0.85-1.15 multiplier)
+- Tanh saturation with asymmetric drive for BBD warmth
+- One-pole tone filter (2kHz-20kHz, stereo pair)
+- Equal-power stereo panning with width control
+- Voice count crossfade (50ms) for click-free transitions
+- SmoothedValue on all continuous parameters (50ms rate, 100ms tone)
+- Mono sum input for phase coherence
+- All 7 parameters wired from APVTS to DSP engine
+- Build verified: VST3 + AU, zero errors, zero warnings
+- AU detected and installed to system folders
+
+**Stage 3:** ✓ Complete (verified 2026-02-08)
+- Naturalist-styled WebView GUI (700x250 horizontal strip)
+- Paper texture background (paper1.jpg from O-DigiDelay)
+- 7 conic-gradient knobs with brown indicator lines
+- LFO ring animation (orbiting dot, depth-responsive arc)
+- Left group: Rate, Depth, Voices | Center: LFO ring | Right group: Width, Tone, Mix, Drive
+- Vertical drag (0.005 sensitivity, shift for fine 0.001)
+- Double-click reset, mouse wheel, gesture support (DAW undo)
+- Voices knob snaps to integer positions (1-8)
+- Value formatters: Hz (log), %, integer, bipolar +/-%
+- Build verified: VST3 + AU + Standalone, zero errors, zero warnings
+- AU detected and installed to system folders
+- VERIFICATION.md: All 14 automated checks passed, 3 info/warning issues noted
+
 ## Next Steps
 
-1. **Stage 1: Foundation** (create build system and parameters) - Run `/implement O-Chorus`
-2. Review ARCHITECTURE.md at `plugins/O-Chorus/.planning/research/ARCHITECTURE.md`
-3. Review ROADMAP.md at `plugins/O-Chorus/.planning/ROADMAP.md`
-4. Pause here - ready for orchestrator to invoke foundation-shell-agent
+1. **Stage 4: Polish** — Testing, presets, optimization, pluginval
 
 ## Files Created
 
@@ -50,27 +82,42 @@ contract_checksums:
 - `plugins/O-Chorus/.planning/research/ARCHITECTURE.md` (full DSP specification)
 - `plugins/O-Chorus/.planning/ROADMAP.md` (complexity assessment, stage breakdown)
 - `plugins/O-Chorus/.planning/stages/0-ideation/CONTEXT.md` (research findings)
-- `plugins/O-Chorus/.planning/STATUS.md` (this file)
+- `plugins/O-Chorus/.planning/parameter-spec.md`
+
+**Stage 1 (Foundation):**
+- `plugins/O-Chorus/CMakeLists.txt`
+- `plugins/O-Chorus/Source/PluginProcessor.h`
+- `plugins/O-Chorus/Source/PluginProcessor.cpp`
+- `plugins/O-Chorus/Source/PluginEditor.h`
+- `plugins/O-Chorus/Source/PluginEditor.cpp`
+- `plugins/O-Chorus/Source/ui/public/index.html`
+- `plugins/O-Chorus/Source/ui/public/js/juce/index.js`
+- `plugins/O-Chorus/Source/ui/public/js/juce/check_native_interop.js`
+- `plugins/O-Chorus/.planning/stages/1-foundation/PLAN.md`
+
+**Stage 2 (DSP):**
+- `plugins/O-Chorus/Source/DSP/ChorusEngine.h` (new)
+- `plugins/O-Chorus/Source/DSP/ChorusEngine.cpp` (new)
+- `plugins/O-Chorus/.planning/stages/2-dsp/PLAN.md`
+- `plugins/O-Chorus/.planning/stages/2-dsp/SUMMARY.md`
+
+**Stage 3 (GUI):**
+- `plugins/O-Chorus/Source/ui/public/img/paper1.jpg` (copied from O-DigiDelay)
+- `plugins/O-Chorus/.planning/stages/3-gui/SUMMARY.md`
+- `plugins/O-Chorus/.planning/stages/3-gui/VERIFICATION.md`
 
 ## Context to Preserve
 
-**Architecture highlights:**
-- Multi-voice delay line engine (1-8 voices with Lagrange3rd interpolation)
-- LFO with fixed phase distribution: `(2π * voiceIndex) / numVoices`
-- Per-voice depth randomization: 0.85-1.15 multiplier
-- Tanh saturation with asymmetry for BBD warmth
-- One-pole tone filter: 2kHz-20kHz range (default 8kHz)
-- Equal-power stereo panning across voice array
-- Mono sum input for phase coherence
+**DSP Implementation:**
+- ChorusEngine processes sample-by-sample (LFO needs per-sample phase advance)
+- Signal flow: Stereo In → Mono Sum → N Voices (LFO→Delay→Saturate→Pan) → Sum Wet L/R → Tone Filter → Mix with Dry → Stereo Out
+- Voice normalization: 1/sqrt(N) gain scaling per voice count
+- Crossfade handles voice count changes without clicks
+- Tone filter coefficients update when param changes by > 0.001
 
-**Implementation risks:**
-- HIGH: Delay modulation artifacts (mitigation: Lagrange3rd, 5Hz max rate)
-- MEDIUM: CPU usage with 8 voices (mitigation: optimize saturation, SIMD)
-- MEDIUM: Stereo phase coherence (mitigation: mono sum input)
-
-**JUCE modules required:**
-- `juce_audio_processors` (AudioProcessor, APVTS)
-- `juce_dsp` (DelayLine, IIR filters, ProcessSpec)
-- `juce_core` (MathConstants, Random)
-
-**Timeline estimate:** ~3.25 hours total (Stage 1: 30min, Stage 2: 60min, Stage 3: 45min, Stage 4: 30min)
+**GUI Implementation:**
+- 7 WebSliderRelays bound via WebSliderParameterAttachments
+- Resource provider serves index.html, index.js, check_native_interop.js, paper1.jpg
+- Window size: 700x250
+- Knob interaction: vertical drag with global mousemove/mouseup handlers
+- LFO animation: requestAnimationFrame loop driven by rate/depth params

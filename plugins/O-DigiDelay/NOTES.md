@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.1
+- **Version:** 1.2.3
 - **Type:** Audio Effect (Delay)
 - **Complexity:** 2.4 (Moderate)
 
@@ -17,6 +17,8 @@
 - **2026-01-12 (v1.1.3):** Fixed time dial unresponsive in sync mode - corrected JUCE WebComboBoxState API method names
 - **2026-01-12 (v1.2.0):** Preset Manager integrated - save/load presets, header layout updated (title left, preset bar right)
 - **2026-01-24 (v1.2.1):** Renamed from "Ouaricon Digital Delay" to "O-DigiDelay" (DAW display, binaries, folder, presets)
+- **2026-02-07 (v1.2.2):** UI title changed back to "Ouaricon Digital Delay" (display name only)
+- **2026-02-07 (v1.2.3):** Knobs replaced with SVG vine-arc style from O-Detune (smooth animation, mouse wheel support)
 
 ## Known Issues
 
@@ -161,4 +163,4 @@ Presets are stored in:
 | Clean Repeat | Clean repeats without modulation |
 | Ping Pong Style | Max spread for wide stereo
 
-**Last Updated:** 2026-01-24
+**Last Updated:** 2026-02-07

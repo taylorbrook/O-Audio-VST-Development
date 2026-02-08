@@ -179,6 +179,31 @@ import * as Juce from './juce/index.js';
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // Pitch gate: dim Scale / Root Note / Pitch Mode when Pitch Rnd = 0
+    // ════════════════════════════════════════════════════════════════════
+
+    function setupPitchGate() {
+        const pitchRandomState = Juce.getSliderState('pitch_random');
+        const scaleContainer = document.querySelector('select[data-param="scale"]')?.closest('.dropdown-container');
+        const rootNoteContainer = document.querySelector('select[data-param="root_note"]')?.closest('.dropdown-container');
+        const pitchModeContainer = document.querySelector('select[data-param="pitch_mode"]')?.closest('.dropdown-container');
+        const pitchHint = document.getElementById('pitch-hint');
+
+        if (!scaleContainer || !rootNoteContainer || !pitchModeContainer) return;
+
+        function update() {
+            const isDimmed = pitchRandomState.getNormalisedValue() < 0.01;
+            scaleContainer.classList.toggle('dimmed', isDimmed);
+            rootNoteContainer.classList.toggle('dimmed', isDimmed);
+            pitchModeContainer.classList.toggle('dimmed', isDimmed);
+            if (pitchHint) pitchHint.classList.toggle('visible', isDimmed);
+        }
+
+        pitchRandomState.valueChangedEvent.addListener(update);
+        update();
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // Grain Scatter Visualization (Canvas 2D)
     // ════════════════════════════════════════════════════════════════════
 
@@ -418,6 +443,7 @@ import * as Juce from './juce/index.js';
 
     function init() {
         initParams();
+        setupPitchGate();
 
         // Visualizations
         const grainCanvas = document.getElementById('grain-canvas');

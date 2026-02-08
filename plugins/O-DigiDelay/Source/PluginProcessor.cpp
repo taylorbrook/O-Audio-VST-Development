@@ -95,10 +95,14 @@ OuariconDigitalDelayAudioProcessor::OuariconDigitalDelayAudioProcessor()
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
     , presetManager(parameters, "O-DigiDelay")
 {
-}
-
-OuariconDigitalDelayAudioProcessor::~OuariconDigitalDelayAudioProcessor()
-{
+    timeParam     = parameters.getRawParameterValue("time");
+    syncParam     = parameters.getRawParameterValue("sync");
+    divisionParam = parameters.getRawParameterValue("division");
+    feedbackParam = parameters.getRawParameterValue("feedback");
+    spreadParam   = parameters.getRawParameterValue("spread");
+    modParam      = parameters.getRawParameterValue("mod");
+    wetParam      = parameters.getRawParameterValue("wet");
+    dryParam      = parameters.getRawParameterValue("dry");
 }
 
 void OuariconDigitalDelayAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -160,16 +164,6 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     if (numSamples == 0 || numChannels == 0)
         return;
 
-    // Read parameters (atomic, real-time safe)
-    auto* timeParam = parameters.getRawParameterValue("time");
-    auto* syncParam = parameters.getRawParameterValue("sync");
-    auto* divisionParam = parameters.getRawParameterValue("division");
-    auto* feedbackParam = parameters.getRawParameterValue("feedback");
-    auto* spreadParam = parameters.getRawParameterValue("spread");
-    auto* modParam = parameters.getRawParameterValue("mod");
-    auto* wetParam = parameters.getRawParameterValue("wet");
-    auto* dryParam = parameters.getRawParameterValue("dry");
-
     // Calculate delay time (free mode or synced mode)
     float delayTimeMs = timeParam->load();
     bool isSync = syncParam->load() > 0.5f;
@@ -198,10 +192,12 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
     smoothedWet.setTargetValue(wetParam->load() / 100.0f);
     smoothedDry.setTargetValue(dryParam->load() / 100.0f);
 
-    // Process audio sample-by-sample for feedback loop
+    const float msToSamples = static_cast<float>(spec.sampleRate) / 1000.0f;
+    float* leftChannel = numChannels >= 1 ? buffer.getWritePointer(0) : nullptr;
+    float* rightChannel = numChannels >= 2 ? buffer.getWritePointer(1) : nullptr;
+
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Get smoothed parameter values for this sample
         float currentDelayMs = smoothedTimeMs.getNextValue();
         float currentFeedback = juce::jlimit(0.0f, 0.95f, smoothedFeedback.getNextValue());
         float currentSpread = smoothedSpread.getNextValue();
@@ -209,102 +205,54 @@ void OuariconDigitalDelayAudioProcessor::processBlock(juce::AudioBuffer<float>& 
         float currentWet = smoothedWet.getNextValue();
         float currentDry = smoothedDry.getNextValue();
 
-        // Calculate base delay time in samples
-        float baseDelaySamples = (currentDelayMs / 1000.0f) * static_cast<float>(spec.sampleRate);
+        float baseDelaySamples = currentDelayMs * msToSamples;
+        float spreadSamples = currentSpread * 15.0f * msToSamples;
+        float modSamples = currentMod * 10.0f * msToSamples * lfo.processSample(0.0f);
 
-        // Calculate stereo spread offset for right channel (0-15ms)
-        float spreadMs = currentSpread * 15.0f;
-        float spreadSamples = (spreadMs / 1000.0f) * static_cast<float>(spec.sampleRate);
+        float leftDelaySamples = juce::jmax(1.0f, baseDelaySamples + modSamples);
+        float rightDelaySamples = juce::jmax(1.0f, baseDelaySamples + spreadSamples + modSamples);
 
-        // Get LFO modulation (0-10ms depth)
-        float lfoValue = lfo.processSample(0.0f);  // Returns -1 to +1
-        float modDepthMs = currentMod * 10.0f;
-        float modSamples = (modDepthMs / 1000.0f) * static_cast<float>(spec.sampleRate) * lfoValue;
-
-        // Calculate final delay times for each channel
-        float leftDelaySamples = baseDelaySamples + modSamples;
-        float rightDelaySamples = baseDelaySamples + spreadSamples + modSamples;
-
-        // Clamp to valid range (minimum 1 sample)
-        leftDelaySamples = juce::jmax(1.0f, leftDelaySamples);
-        rightDelaySamples = juce::jmax(1.0f, rightDelaySamples);
-
-        // Process left channel
-        if (numChannels >= 1)
+        if (leftChannel != nullptr)
         {
-            float* leftChannel = buffer.getWritePointer(0);
-            float inputSample = leftChannel[sample];
-            float drySample = inputSample;
-
-            // Add feedback to input
-            inputSample += feedbackLeft;
-
-            // Push to delay line
-            delayLineLeft.pushSample(0, inputSample);
-
-            // Read delayed sample with interpolation
+            float drySample = leftChannel[sample];
+            delayLineLeft.pushSample(0, drySample + feedbackLeft);
             float delayedSample = delayLineLeft.popSample(0, leftDelaySamples);
-
-            // Store feedback for next iteration
             feedbackLeft = delayedSample * currentFeedback;
-
-            // Mix wet and dry
-            float wetSample = delayedSample * currentWet;
-            float dryOutput = drySample * currentDry;
-            leftChannel[sample] = wetSample + dryOutput;
+            leftChannel[sample] = delayedSample * currentWet + drySample * currentDry;
         }
 
-        // Process right channel
-        if (numChannels >= 2)
+        if (rightChannel != nullptr)
         {
-            float* rightChannel = buffer.getWritePointer(1);
-            float inputSample = rightChannel[sample];
-            float drySample = inputSample;
-
-            // Add feedback to input
-            inputSample += feedbackRight;
-
-            // Push to delay line
-            delayLineRight.pushSample(0, inputSample);
-
-            // Read delayed sample with interpolation
+            float drySample = rightChannel[sample];
+            delayLineRight.pushSample(0, drySample + feedbackRight);
             float delayedSample = delayLineRight.popSample(0, rightDelaySamples);
-
-            // Store feedback for next iteration
             feedbackRight = delayedSample * currentFeedback;
-
-            // Mix wet and dry
-            float wetSample = delayedSample * currentWet;
-            float dryOutput = drySample * currentDry;
-            rightChannel[sample] = wetSample + dryOutput;
+            rightChannel[sample] = delayedSample * currentWet + drySample * currentDry;
         }
     }
 
     // Calculate RMS levels for output meter
-    auto calculateRms = [](const float* channel, int samples) {
-        float sumSquares = 0.0f;
-        for (int i = 0; i < samples; ++i)
-            sumSquares += channel[i] * channel[i];
-        return std::sqrt(sumSquares / static_cast<float>(samples));
-    };
-
-    if (numChannels >= 1)
+    if (leftChannel != nullptr)
     {
-        rmsLevelLeft.setTargetValue(calculateRms(buffer.getReadPointer(0), numSamples));
+        float sumSquares = 0.0f;
+        for (int i = 0; i < numSamples; ++i)
+            sumSquares += leftChannel[i] * leftChannel[i];
+        rmsLevelLeft.setTargetValue(std::sqrt(sumSquares / static_cast<float>(numSamples)));
         rmsLevelLeft.skip(numSamples);
     }
 
-    if (numChannels >= 2)
+    if (rightChannel != nullptr)
     {
-        rmsLevelRight.setTargetValue(calculateRms(buffer.getReadPointer(1), numSamples));
+        float sumSquares = 0.0f;
+        for (int i = 0; i < numSamples; ++i)
+            sumSquares += rightChannel[i] * rightChannel[i];
+        rmsLevelRight.setTargetValue(std::sqrt(sumSquares / static_cast<float>(numSamples)));
         rmsLevelRight.skip(numSamples);
     }
 }
 
 double OuariconDigitalDelayAudioProcessor::getTailLengthSeconds() const
 {
-    // Calculate tail length based on delay time and feedback
-    auto* feedbackParam = parameters.getRawParameterValue("feedback");
     float feedbackValue = feedbackParam->load() / 100.0f;
     feedbackValue = juce::jlimit(0.0f, 0.95f, feedbackValue);
 

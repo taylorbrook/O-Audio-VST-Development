@@ -2,6 +2,12 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.5.2] - 2026-02-07
+
+### Fixed
+
+- **VU meter dB label accuracy:** Tick marks and dB labels (-60, -30, -12, -6, 0) repositioned to mathematically correct angles on the arc for the linear dB scale. Previous positions were hand-placed for visual spacing and were up to 61° off from actual dB values.
+
 ## [1.5.1] - 2026-02-04
 
 ### Fixed

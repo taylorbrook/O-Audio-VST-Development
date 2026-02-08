@@ -17,7 +17,7 @@ class OuariconDigitalDelayAudioProcessor : public juce::AudioProcessor
 {
 public:
     OuariconDigitalDelayAudioProcessor();
-    ~OuariconDigitalDelayAudioProcessor() override;
+    ~OuariconDigitalDelayAudioProcessor() override = default;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -75,6 +75,16 @@ private:
     // Feedback state (per-channel)
     float feedbackLeft = 0.0f;
     float feedbackRight = 0.0f;
+
+    // Cached parameter pointers (stable after construction)
+    std::atomic<float>* timeParam = nullptr;
+    std::atomic<float>* syncParam = nullptr;
+    std::atomic<float>* divisionParam = nullptr;
+    std::atomic<float>* feedbackParam = nullptr;
+    std::atomic<float>* spreadParam = nullptr;
+    std::atomic<float>* modParam = nullptr;
+    std::atomic<float>* wetParam = nullptr;
+    std::atomic<float>* dryParam = nullptr;
 
     // RMS level calculation for output meter
     juce::LinearSmoothedValue<float> rmsLevelLeft { 0.0f };
