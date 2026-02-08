@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=700, height=250">
-  <title>O-Chorus</title>
+  <title>Ouaricon Chorus</title>
   <style>
     html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
     *, *::before, *::after { box-sizing: border-box; }
@@ -202,7 +202,7 @@
     <div class="paper-background"></div>
 
     <div class="header">
-      <div class="title">O-Chorus</div>
+      <div class="title">Ouaricon Chorus</div>
       <div class="preset-placeholder">Ouaricon</div>
     </div>
 
@@ -327,6 +327,9 @@
     // Global drag state
     const drag = { active: false, state: null, startY: 0, startNorm: 0, isVoices: false };
 
+    // Wheel gesture tracking: debounced start/end for DAW undo entries
+    const wheelTimers = new Map();
+
     document.addEventListener('mousemove', (e) => {
       if (!drag.active || !drag.state) return;
       const sens = e.shiftKey ? FINE_SENSITIVITY : SENSITIVITY;
@@ -354,6 +357,7 @@
     let lfoPhase = 0;
     let rateState = null;
     let depthState = null;
+    let lastTimestamp = 0;
 
     function lfoLoop(timestamp) {
       const rateNorm = rateState ? rateState.getNormalisedValue() : 0.5;
@@ -362,8 +366,12 @@
       // Convert rate norm to Hz using log skew
       const rateHz = rateFromNorm(rateNorm);
 
-      // Phase advances based on rate (60fps assumed)
-      lfoPhase += (rateHz * 2 * Math.PI) / 60;
+      // Frame-rate-independent phase advance using timestamp delta
+      const deltaTime = (timestamp - lastTimestamp) / 1000;
+      lastTimestamp = timestamp;
+      if (deltaTime > 0 && deltaTime < 0.1) {
+        lfoPhase += rateHz * 2 * Math.PI * deltaTime;
+      }
       if (lfoPhase > 2 * Math.PI) lfoPhase -= 2 * Math.PI;
 
       // Dot position on circle (r=36, center=45,45)
@@ -427,13 +435,27 @@
           if (state.sliderDragStarted) state.sliderDragStarted();
         });
 
-        // Mouse wheel
+        // Mouse wheel with debounced gesture brackets
         knobEl.addEventListener('wheel', (e) => {
           e.preventDefault();
           const delta = e.deltaY < 0 ? 0.02 : -0.02;
           let newNorm = Math.max(0, Math.min(1, state.getNormalisedValue() + delta));
           if (p.isVoices) newNorm = snapVoicesNorm(newNorm);
+
+          // Start gesture on first wheel event
+          if (!wheelTimers.has(p.id)) {
+            state.sliderDragStarted();
+          } else {
+            clearTimeout(wheelTimers.get(p.id));
+          }
+
           state.setNormalisedValue(newNorm);
+
+          // End gesture after 200ms of no scrolling
+          wheelTimers.set(p.id, setTimeout(() => {
+            state.sliderDragEnded();
+            wheelTimers.delete(p.id);
+          }, 200));
         }, { passive: false });
 
         // Double-click reset
