@@ -366,10 +366,10 @@
             align-items: start;
         }
 
-        /* VU Meter - Circular style (larger) */
+        /* VU Meter - Circular style (1.25x) */
         .vu-meter {
-            width: 80px;
-            height: 80px;
+            width: 100px;
+            height: 100px;
             background: rgba(139, 168, 112, 0.2);
             border: 2px solid #3C5C1A;
             border-radius: 50%;
@@ -389,7 +389,7 @@
         .vu-meter-needle {
             position: absolute;
             width: 2px;
-            height: 32px;
+            height: 40px;
             background: linear-gradient(to top, #3C5C1A, #3C5C1A);
             bottom: 50%;
             left: 50%;
@@ -401,18 +401,18 @@
 
         .vu-meter-pivot {
             position: absolute;
-            width: 10px;
-            height: 10px;
+            width: 12px;
+            height: 12px;
             background: #3C2F2F;
             border-radius: 50%;
-            bottom: calc(50% - 5px);
-            left: calc(50% - 5px);
+            bottom: calc(50% - 6px);
+            left: calc(50% - 6px);
             z-index: 10;
         }
 
         .vu-db-label {
             position: absolute;
-            font-size: 7px;
+            font-size: 8px;
             color: #5C4033;
             font-family: 'Garamond', serif;
         }
@@ -542,27 +542,27 @@
 
                 <!-- VU Meter (center column) -->
                 <div class="vu-meter">
-                    <svg class="vu-meter-scale" viewBox="0 0 80 80">
-                        <!-- Arc from -60dB (left) to 0dB (right), center=(40,40) r=35 -->
-                        <path d="M 5 40 A 35 35 0 0 1 75 40" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                    <svg class="vu-meter-scale" viewBox="0 0 100 100">
+                        <!-- Arc from -60dB (left) to 0dB (right), center=(50,50) r=44 -->
+                        <path d="M 6 50 A 44 44 0 0 1 94 50" fill="none" stroke="#8B7355" stroke-width="1.5"/>
                         <!-- Tick marks positioned at correct angles for linear dB scale -->
                         <!-- -60dB at 180° -->
-                        <line x1="5" y1="40" x2="11" y2="40" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="6" y1="50" x2="14" y2="50" stroke="#5C4033" stroke-width="1"/>
                         <!-- -30dB at 90° -->
-                        <line x1="40" y1="5" x2="40" y2="11" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="50" y1="6" x2="50" y2="14" stroke="#5C4033" stroke-width="1"/>
                         <!-- -12dB at 36° -->
-                        <line x1="68.3" y1="19.4" x2="63.5" y2="23.0" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="85.6" y1="24.2" x2="79.6" y2="28.8" stroke="#5C4033" stroke-width="1"/>
                         <!-- -6dB at 18° -->
-                        <line x1="73.3" y1="29.2" x2="67.6" y2="31.0" stroke="#5C4033" stroke-width="1"/>
+                        <line x1="91.8" y1="36.4" x2="84.7" y2="38.7" stroke="#5C4033" stroke-width="1"/>
                         <!-- 0dB at 0° -->
-                        <line x1="75" y1="40" x2="69" y2="40" stroke="#8B0000" stroke-width="1.5"/>
+                        <line x1="94" y1="50" x2="86" y2="50" stroke="#8B0000" stroke-width="1.5"/>
                     </svg>
-                    <!-- dB labels positioned radially along the arc -->
-                    <span class="vu-db-label" style="left: 0px; top: 36px;">-60</span>
-                    <span class="vu-db-label" style="left: 33px; top: 0px;">-30</span>
-                    <span class="vu-db-label" style="left: 68px; top: 10px;">-12</span>
-                    <span class="vu-db-label" style="right: 1px; top: 22px;">-6</span>
-                    <span class="vu-db-label" style="right: 1px; top: 36px; color: #8B0000;">0</span>
+                    <!-- dB labels positioned inward along the arc for legibility -->
+                    <span class="vu-db-label" style="left: 14px; top: 44px;">-60</span>
+                    <span class="vu-db-label" style="left: 40px; top: 14px;">-30</span>
+                    <span class="vu-db-label" style="left: 64px; top: 22px;">-12</span>
+                    <span class="vu-db-label" style="right: 14px; top: 34px;">-6</span>
+                    <span class="vu-db-label" style="right: 14px; top: 44px; color: #8B0000;">0</span>
                     <div class="vu-meter-needle" id="vu_needle"></div>
                     <div class="vu-meter-pivot"></div>
                 </div>
@@ -1099,7 +1099,7 @@
         // ====================================================================
         // INITIALIZATION COMPLETE
         // ====================================================================
-        console.log("Ouaricon Simple Reverb v1.5.1 UI initialized");
+        console.log("Ouaricon Simple Reverb v1.5.3 UI initialized");
     </script>
 </body>
 </html>

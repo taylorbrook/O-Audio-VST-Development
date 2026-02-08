@@ -2,6 +2,13 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.5.3] - 2026-02-08
+
+### Changed
+
+- **VU meter size:** Enlarged from 80px to 100px diameter (1.25x scale) for better readability. Needle, pivot, arc, tick marks, and dB labels all scaled proportionally.
+- **VU meter dB labels:** Repositioned inward along the arc and increased font from 7px to 8px for legibility.
+
 ## [1.5.2] - 2026-02-07
 
 ### Fixed
