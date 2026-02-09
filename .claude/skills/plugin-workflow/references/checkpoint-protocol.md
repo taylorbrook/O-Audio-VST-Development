@@ -60,6 +60,19 @@ commitStage(pluginName, currentStage, result.description)
 Auto-commit all changes (code + state files).
 Verify git commit succeeded (check exit code).
 
+### Step 4b: Update DIGEST.json
+
+After the stage commit, regenerate the plugin's context digest to capture the latest stage decisions:
+
+```bash
+# Update DIGEST.json with stage decisions
+bash .claude/scripts/create-digest.sh ${pluginName}
+git add plugins/${pluginName}/.planning/DIGEST.json
+git commit --amend --no-edit  # Include DIGEST in stage commit
+```
+
+This ensures DIGEST.json is updated at every stage boundary (Stage 0 complete, Stage 1 complete, etc.), providing any future agent with a compact (< 500 token) summary of plugin state, parameters, DSP components, and contract paths.
+
 ### Step 5: Verify Checkpoint
 
 ```javascript
