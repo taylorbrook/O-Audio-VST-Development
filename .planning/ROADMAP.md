@@ -10,7 +10,7 @@ Audit and modernize the Plugin Freedom System to leverage Opus 4.6 capabilities 
 
 ## Phases
 
-- [ ] **Phase 14: Platform Alignment** - Prevent breakage from Opus 4.6 deprecations and adopt effort-based model tuning
+- [x] **Phase 14: Platform Alignment** - Prevent breakage from Opus 4.6 deprecations and adopt effort-based model tuning
 - [ ] **Phase 15: Context Persistence** - Eliminate information loss between sessions and across agents
 - [ ] **Phase 16: GSD Deduplication** - Replace custom code with GSD 1.18.0 native equivalents
 - [ ] **Phase 17: Agent Intelligence** - Adopt agent teams for parallel research/review and fine-grained quality hooks
@@ -29,10 +29,10 @@ Audit and modernize the Plugin Freedom System to leverage Opus 4.6 capabilities 
   5. Canary plugin (O-SimpleReverb) builds and validates successfully after all changes
 **Plans**: 4 plans
 Plans:
-- [ ] 14-01-PLAN.md — Agent & critic definition cleanup (model frontmatter removal + agent-profiles.json)
-- [ ] 14-02-PLAN.md — Skill & command reference updates (effort terminology + Co-Authored-By fix)
-- [ ] 14-03-PLAN.md — Plugin content migration (.ideas/ to .planning/ + .gitignore rules)
-- [ ] 14-04-PLAN.md — Hook/script path updates + canary testing (O-SimpleReverb + O-AnalogEQ)
+- [x] 14-01-PLAN.md — Agent & critic definition cleanup (model frontmatter removal + agent-profiles.json)
+- [x] 14-02-PLAN.md — Skill & command reference updates (effort terminology + Co-Authored-By fix)
+- [x] 14-03-PLAN.md — Plugin content migration (.ideas/ to .planning/ + .gitignore rules)
+- [x] 14-04-PLAN.md — Hook/script path updates + canary testing (O-SimpleReverb + O-AnalogEQ)
 
 ### Phase 15: Context Persistence
 **Goal**: Agents retain critical context across compaction events and sessions — plugin parameters, DSP components, contract paths, and stage decisions survive context loss
@@ -75,7 +75,7 @@ Plans:
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 14. Platform Alignment | v1.3 | 0/4 | Planned | - |
+| 14. Platform Alignment | v1.3 | 4/4 | ✓ Complete | 2026-02-08 |
 | 15. Context Persistence | v1.3 | 0/TBD | Not started | - |
 | 16. GSD Deduplication | v1.3 | 0/TBD | Not started | - |
 | 17. Agent Intelligence | v1.3 | 0/TBD | Not started | - |
@@ -113,4 +113,4 @@ See `.planning/milestones/` for archived roadmaps.
 
 ---
 *Roadmap created: 2026-02-08*
-*Last updated: 2026-02-08*
+*Last updated: 2026-02-08 — Phase 14 complete*
