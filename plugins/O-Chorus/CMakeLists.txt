@@ -53,6 +53,9 @@ target_link_libraries(OuariconChorus
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconChorus)
 
+# Preset Manager module
+ouaricon_add_module(OuariconChorus preset-manager)
+
 # Licensing module (compile-flag gated, OFF for local dev)
 if(OUARICON_LICENSING)
     ouaricon_add_module(OuariconChorus licensing)
@@ -67,6 +70,8 @@ juce_add_binary_data(OuariconChorus_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/img/paper1.jpg
+        Source/ui/public/img/insects.png
+        Source/ui/public/modules/preset-manager.js
 )
 
 target_link_libraries(OuariconChorus

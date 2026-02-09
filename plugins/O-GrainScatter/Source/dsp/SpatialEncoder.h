@@ -94,9 +94,18 @@ struct SmoothedSHCoeffs
 
     void prepare (float sampleRate, float smoothTimeMs = 5.0f)
     {
-        float tau = smoothTimeMs * 0.001f;
-        smoothingCoeff = 1.0f - std::exp (-1.0f / (tau * sampleRate));
+        cachedSampleRate = sampleRate;
+        setSmoothTime (smoothTimeMs);
     }
+
+    void setSmoothTime (float smoothTimeMs)
+    {
+        if (cachedSampleRate <= 0.0f) return;
+        float tau = std::max (smoothTimeMs, 0.5f) * 0.001f;
+        smoothingCoeff = 1.0f - std::exp (-1.0f / (tau * cachedSampleRate));
+    }
+
+    float cachedSampleRate = 0.0f;
 
     void setTarget (float azimuth, float elevation)
     {

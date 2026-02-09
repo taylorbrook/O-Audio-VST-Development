@@ -54,6 +54,111 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
             .withOptionsFrom(*toneRelay)
             .withOptionsFrom(*mixRelay)
             .withOptionsFrom(*driveRelay)
+        .withNativeFunction("savePreset", [this](const juce::Array<juce::var>& args,
+                                                  std::function<void(juce::var)> complete) {
+            if (args.size() > 0)
+                complete(audioProcessor.presetManager.savePreset(args[0].toString()));
+            else
+                complete(false);
+        })
+        .withNativeFunction("loadPreset", [this](const juce::Array<juce::var>& args,
+                                                  std::function<void(juce::var)> complete) {
+            if (args.size() > 0)
+                complete(audioProcessor.presetManager.loadPreset(args[0].toString()));
+            else
+                complete(false);
+        })
+        .withNativeFunction("getPresetList", [this](const juce::Array<juce::var>&,
+                                                     std::function<void(juce::var)> complete) {
+            auto list = audioProcessor.presetManager.getPresetList();
+            juce::Array<juce::var> arr;
+            for (const auto& name : list)
+                arr.add(name);
+            complete(juce::var(arr));
+        })
+        .withNativeFunction("getCurrentPreset", [this](const juce::Array<juce::var>&,
+                                                        std::function<void(juce::var)> complete) {
+            complete(audioProcessor.presetManager.getCurrentPresetName());
+        })
+        .withNativeFunction("selectNextPreset", [this](const juce::Array<juce::var>&,
+                                                        std::function<void(juce::var)> complete) {
+            auto next = audioProcessor.presetManager.getNextPreset();
+            complete(next);
+        })
+        .withNativeFunction("selectPreviousPreset", [this](const juce::Array<juce::var>&,
+                                                            std::function<void(juce::var)> complete) {
+            auto prev = audioProcessor.presetManager.getPreviousPreset();
+            complete(prev);
+        })
+        .withNativeFunction("deletePreset", [this](const juce::Array<juce::var>& args,
+                                                    std::function<void(juce::var)> complete) {
+            if (args.size() > 0)
+                complete(audioProcessor.presetManager.deletePreset(args[0].toString()));
+            else
+                complete(false);
+        })
+        .withNativeFunction("isFactoryPreset", [this](const juce::Array<juce::var>& args,
+                                                       std::function<void(juce::var)> complete) {
+            if (args.size() > 0)
+                complete(audioProcessor.presetManager.isFactoryPreset(args[0].toString()));
+            else
+                complete(false);
+        })
+        .withNativeFunction("savePresetWithDialog", [this](const juce::Array<juce::var>&,
+                                                            std::function<void(juce::var)> complete) {
+            fileChooser = std::make_unique<juce::FileChooser>(
+                "Save Preset",
+                audioProcessor.presetManager.getUserPresetsDirectory(),
+                "*.json"
+            );
+            fileChooser->launchAsync(
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete](const juce::FileChooser& fc) {
+                    auto results = fc.getResults();
+                    if (results.isEmpty()) {
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", false);
+                        result->setProperty("name", juce::String());
+                        complete(juce::var(result));
+                        return;
+                    }
+                    auto file = results.getFirst();
+                    auto presetName = file.getFileNameWithoutExtension();
+                    bool success = audioProcessor.presetManager.savePreset(presetName);
+                    auto* result = new juce::DynamicObject();
+                    result->setProperty("success", success);
+                    result->setProperty("name", success ? presetName : juce::String());
+                    complete(juce::var(result));
+                }
+            );
+        })
+        .withNativeFunction("loadPresetFromFile", [this](const juce::Array<juce::var>&,
+                                                          std::function<void(juce::var)> complete) {
+            fileChooser = std::make_unique<juce::FileChooser>(
+                "Load Preset",
+                audioProcessor.presetManager.getUserPresetsDirectory(),
+                "*.json"
+            );
+            fileChooser->launchAsync(
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete](const juce::FileChooser& fc) {
+                    auto results = fc.getResults();
+                    if (results.isEmpty()) {
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", false);
+                        result->setProperty("name", juce::String());
+                        complete(juce::var(result));
+                        return;
+                    }
+                    auto file = results.getFirst();
+                    bool success = audioProcessor.presetManager.loadPresetFromFile(file);
+                    auto* result = new juce::DynamicObject();
+                    result->setProperty("success", success);
+                    result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
+                    complete(juce::var(result));
+                }
+            );
+        })
     );
 
     addAndMakeVisible(*webView);
@@ -95,7 +200,7 @@ OChorusAudioProcessorEditor::OChorusAudioProcessorEditor(OChorusAudioProcessor& 
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 #endif
 
-    setSize(700, 250);
+    setSize(700, 125);
 }
 
 OChorusAudioProcessorEditor::~OChorusAudioProcessorEditor()
@@ -172,6 +277,20 @@ OChorusAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::paper1_jpg, BinaryData::paper1_jpgSize),
             juce::String("image/jpeg")
+        };
+    }
+
+    if (url == "/img/insects.png") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::insects_png, BinaryData::insects_pngSize),
+            juce::String("image/png")
+        };
+    }
+
+    if (url == "/modules/preset-manager.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
+            juce::String("application/javascript")
         };
     }
 

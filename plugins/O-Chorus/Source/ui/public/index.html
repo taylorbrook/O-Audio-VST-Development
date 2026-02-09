@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=700, height=250">
+  <meta name="viewport" content="width=700, height=125">
   <title>Ouaricon Chorus</title>
   <style>
     html, body { height: 100%; margin: 0; padding: 0; overflow: hidden; }
@@ -19,7 +19,7 @@
 
     .container {
       width: 700px;
-      height: 250px;
+      height: 125px;
       position: relative;
       background: #F5E6D3;
       font-family: Garamond, 'Times New Roman', serif;
@@ -30,12 +30,31 @@
     .paper-background {
       position: absolute;
       top: 0; left: 0;
-      width: 700px; height: 250px;
+      width: 700px; height: 125px;
       background-image: url('img/paper1.jpg');
       background-size: cover;
       background-position: center;
       z-index: 0;
       pointer-events: none;
+    }
+
+    /* Insects illustration overlay */
+    .insects-background {
+      position: absolute;
+      top: 0; left: 0;
+      width: 700px; height: 125px;
+      z-index: 1;
+      pointer-events: none;
+      overflow: hidden;
+      opacity: 0.3;
+    }
+
+    .insects-background img {
+      position: absolute;
+      top: 50%; left: 50%;
+      transform: translate(-50%, -50%) rotate(90deg);
+      height: 700px;
+      width: auto;
     }
 
     /* Header */
@@ -57,19 +76,108 @@
       text-transform: uppercase;
     }
 
-    .preset-placeholder {
+    /* Preset bar */
+    .preset-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      position: relative;
+    }
+
+    .preset-nav {
+      background: none;
+      border: none;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 13px;
+      color: #8B7355;
+      cursor: pointer;
+      padding: 0 3px;
+      opacity: 0.7;
+      transition: opacity 0.15s;
+    }
+
+    .preset-nav:hover {
+      opacity: 1;
+      color: #5a7a6a;
+    }
+
+    .preset-name {
       font-size: 9px;
       letter-spacing: 1px;
       color: #8B7355;
-      opacity: 0.6;
       text-transform: uppercase;
+      cursor: pointer;
+      min-width: 60px;
+      text-align: center;
+      opacity: 0.8;
+      transition: opacity 0.15s;
     }
+
+    .preset-name:hover {
+      opacity: 1;
+      color: #5a7a6a;
+    }
+
+    .preset-action {
+      background: none;
+      border: 1px solid rgba(139, 115, 85, 0.3);
+      border-radius: 2px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 8px;
+      letter-spacing: 0.5px;
+      color: #8B7355;
+      cursor: pointer;
+      padding: 1px 5px;
+      opacity: 0.7;
+      text-transform: uppercase;
+      transition: opacity 0.15s, border-color 0.15s;
+    }
+
+    .preset-action:hover {
+      opacity: 1;
+      border-color: rgba(90, 122, 106, 0.5);
+      color: #5a7a6a;
+    }
+
+    .preset-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 4px;
+      background: rgba(245, 230, 211, 0.97);
+      border: 1px solid rgba(139, 115, 85, 0.4);
+      border-radius: 3px;
+      box-shadow: 1px 2px 8px rgba(0,0,0,0.15);
+      max-height: 160px;
+      overflow-y: auto;
+      z-index: 9999;
+      min-width: 100px;
+    }
+
+    .preset-dropdown.show { display: block; }
+
+    .header:has(.preset-dropdown.show) { z-index: 9999; }
+
+    .preset-dropdown-item {
+      padding: 4px 10px;
+      font-family: Garamond, 'Times New Roman', serif;
+      font-size: 10px;
+      letter-spacing: 0.5px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+    }
+
+    .preset-dropdown-item:hover { background: rgba(90, 122, 106, 0.15); }
+    .preset-dropdown-item.active { background: rgba(90, 122, 106, 0.25); font-weight: bold; }
 
     /* Controls layout */
     .controls {
       position: absolute;
-      top: 40px; left: 0; right: 0;
-      height: 200px;
+      top: 28px; left: 0; right: 0;
+      height: 97px;
       display: flex;
       align-items: flex-start;
       justify-content: center;
@@ -107,7 +215,7 @@
       flex-direction: column;
       align-items: center;
       margin: 0 10px;
-      margin-top: -14px;
+      margin-top: -2px;
       padding-top: 0;
     }
 
@@ -121,8 +229,8 @@
     }
 
     .lfo-ring {
-      width: 90px;
-      height: 90px;
+      width: 65px;
+      height: 65px;
       position: relative;
     }
 
@@ -147,8 +255,8 @@
     }
 
     .knob-visual {
-      width: 52px;
-      height: 52px;
+      width: 48px;
+      height: 48px;
       position: relative;
     }
 
@@ -172,31 +280,39 @@
     }
 
     .knob-label {
-      font-size: 9px;
+      font-size: 8px;
       letter-spacing: 0.8px;
       color: #8B7355;
       text-transform: uppercase;
-      margin-top: 4px;
+      margin-top: 2px;
       text-align: center;
     }
 
     .knob-value {
-      font-size: 10px;
+      font-size: 9px;
       color: #a08870;
-      margin-top: 1px;
+      margin-top: 0;
       text-align: center;
       min-width: 50px;
-      height: 14px;
+      height: 12px;
     }
   </style>
 </head>
 <body>
   <div class="container">
     <div class="paper-background"></div>
+    <div class="insects-background"><img src="img/insects.png" alt=""></div>
 
     <div class="header">
       <div class="title">Ouaricon Chorus</div>
-      <div class="preset-placeholder">Ouaricon</div>
+      <div class="preset-bar">
+        <button class="preset-nav" id="preset-prev" title="Previous preset">&#x25C0;</button>
+        <span class="preset-name" id="preset-display">Default</span>
+        <button class="preset-nav" id="preset-next" title="Next preset">&#x25B6;</button>
+        <button class="preset-action" id="preset-load" title="Load preset from file">Load</button>
+        <button class="preset-action" id="preset-save" title="Save preset">Save</button>
+        <div class="preset-dropdown" id="preset-dropdown"></div>
+      </div>
     </div>
 
     <div class="controls">
@@ -329,7 +445,8 @@
 
   <script type="module" src="./js/juce/index.js"></script>
   <script type="module">
-    import { getSliderState } from './js/juce/index.js';
+    import { getSliderState, getNativeFunction } from './js/juce/index.js';
+    import { PresetManager } from './modules/preset-manager.js';
 
     document.addEventListener("contextmenu", (e) => e.preventDefault());
 
@@ -512,6 +629,55 @@
 
       // Start LFO animation
       requestAnimationFrame(lfoLoop);
+
+      // ════════════════════════════════════════════════════════════════
+      // Preset Manager
+      // ════════════════════════════════════════════════════════════════
+
+      const presetDisplay = document.getElementById('preset-display');
+      const presetDropdown = document.getElementById('preset-dropdown');
+
+      const presetMgr = new PresetManager({
+        displayElement: presetDisplay,
+        prevButton: document.getElementById('preset-prev'),
+        nextButton: document.getElementById('preset-next'),
+        saveButton: document.getElementById('preset-save'),
+        loadButton: document.getElementById('preset-load'),
+        getNativeFunction: getNativeFunction,
+        onPresetListUpdated: (list) => {
+          presetDropdown.innerHTML = '';
+          list.forEach((name) => {
+            const item = document.createElement('div');
+            item.className = 'preset-dropdown-item';
+            if (name === presetMgr.getCurrentPreset()) item.classList.add('active');
+            item.textContent = name;
+            item.addEventListener('click', () => {
+              presetMgr.loadPreset(name);
+              presetDropdown.classList.remove('show');
+            });
+            presetDropdown.appendChild(item);
+          });
+        },
+        onPresetChanged: () => {
+          presetDropdown.querySelectorAll('.preset-dropdown-item').forEach((el) => {
+            el.classList.toggle('active', el.textContent === presetMgr.getCurrentPreset());
+          });
+        }
+      });
+
+      presetMgr.initialize();
+
+      // Toggle dropdown on preset name click
+      presetDisplay.addEventListener('click', () => {
+        presetDropdown.classList.toggle('show');
+      });
+
+      // Close dropdown on outside click
+      document.addEventListener('click', (e) => {
+        if (!e.target.closest('.preset-bar')) {
+          presetDropdown.classList.remove('show');
+        }
+      });
     });
   </script>
 </body>

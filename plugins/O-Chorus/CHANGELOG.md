@@ -1,5 +1,23 @@
 # O-Chorus Changelog
 
+## v1.2.0 (2026-02-08)
+
+### Added
+
+- **Preset system** via Ouaricon preset-manager module
+  - Factory/user preset persistence (JSON-based, stored in ~/Library/O-Chorus/Presets/)
+  - Preset navigation (prev/next arrows) with dropdown menu
+  - Save/load preset dialogs (native file chooser)
+  - DAW session state includes current preset name
+  - Program API (getNumPrograms/setCurrentProgram) for DAW preset browsing
+- **6 factory presets:**
+  - **Classic** — Vintage 2-voice chorus (0.5 Hz, subtle)
+  - **Lush** — Rich 6-voice ensemble (slow, deep, wide spread)
+  - **Shimmer** — Bright sparkling 4-voice chorus (2 Hz, bright tone)
+  - **Ensemble** — Dense 8-voice string ensemble (full spread, full width)
+  - **Vibrato** — Pure vibrato effect (3 Hz, 100% wet, single voice)
+  - **Warm** — Warm analog-style 3-voice chorus (dark tone, high drive)
+
 ## v1.1.0 (2026-02-08)
 
 ### Added

@@ -42,6 +42,7 @@ struct GrainVoice
     SmoothedSHCoeffs shCoeffs;
     int trajectoryType = 0;
     unsigned int rngState = 0;          // LCG state for random trajectory
+    float dopplerFactor = 1.0f;         // Per-grain Doppler pitch mod (computed from angular velocity)
 };
 
 class GrainPool
@@ -213,16 +214,24 @@ public:
             for (int ch = 0; ch < kHOA3Channels; ++ch)
                 hoaBus[ch] += mono * v.shCoeffs.current[ch];
 
-            // Advance read position
+            // Advance read position (with Doppler pitch modulation)
+            float advance = v.playbackRate * v.dopplerFactor;
             if (v.reverse)
-                v.readPosition -= v.playbackRate;
+                v.readPosition -= advance;
             else
-                v.readPosition += v.playbackRate;
+                v.readPosition += advance;
 
             --v.samplesRemaining;
             if (v.samplesRemaining <= 0)
                 v.active = false;
         }
+    }
+
+    // Update SH smoothing time for all voices (call once per block when parameter changes)
+    void setSpatialSmoothTime (float smoothTimeMs)
+    {
+        for (auto& v : voices)
+            v.shCoeffs.setSmoothTime (smoothTimeMs);
     }
 
     int getActiveCount() const

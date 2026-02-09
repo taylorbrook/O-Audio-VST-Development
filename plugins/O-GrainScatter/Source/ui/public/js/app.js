@@ -170,6 +170,19 @@ import * as Juce from './juce/index.js';
         return Math.round(norm * 180) + '\u00B0';
     }
 
+    function trajSpeedFormatter(norm) {
+        // 0-400%
+        return Math.round(norm * 400) + '%';
+    }
+
+    function spatialSmoothFormatter(norm) {
+        // 1-200ms with skew 0.4
+        const skew = 0.4;
+        const proportion = Math.pow(norm, 1.0 / skew);
+        const val = 1 + proportion * (200 - 1);
+        return Math.round(val) + ' ms';
+    }
+
     // ════════════════════════════════════════════════════════════════════
     // Initialize all parameter bindings
     // ════════════════════════════════════════════════════════════════════
@@ -206,6 +219,12 @@ import * as Juce from './juce/index.js';
         setupKnob('el_spread',      Juce.getSliderState('el_spread'),      elSpreadFormatter,   0.25);
         setupKnob('distance',       Juce.getSliderState('distance'),       pctFormatter,        0.5);
         setupKnob('spatial_width',  Juce.getSliderState('spatial_width'),  pctFormatter,        0.5);
+
+        // Spatial extended (4)
+        setupKnob('traj_speed',      Juce.getSliderState('traj_speed'),      trajSpeedFormatter,      0.25);
+        setupKnob('dist_lpf',        Juce.getSliderState('dist_lpf'),        pctFormatter,            1.0);
+        setupKnob('doppler',         Juce.getSliderState('doppler'),         pctFormatter,            0.0);
+        setupKnob('spatial_smooth',  Juce.getSliderState('spatial_smooth'),  spatialSmoothFormatter,  0.1);
 
         // Spatial comboboxes (2)
         setupComboBox('spatial_mode', Juce.getComboBoxState('spatial_mode'));

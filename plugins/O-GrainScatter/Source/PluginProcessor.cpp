@@ -35,6 +35,10 @@ GrainScatterProcessor::GrainScatterProcessor()
     distanceParam        = parameters.getRawParameterValue("distance");
     spatialWidthParam    = parameters.getRawParameterValue("spatial_width");
     trajectoryParam      = parameters.getRawParameterValue("trajectory");
+    trajSpeedParam       = parameters.getRawParameterValue("traj_speed");
+    distLpfParam         = parameters.getRawParameterValue("dist_lpf");
+    dopplerParam         = parameters.getRawParameterValue("doppler");
+    spatialSmoothParam   = parameters.getRawParameterValue("spatial_smooth");
 }
 
 GrainScatterProcessor::~GrainScatterProcessor() {}
@@ -217,6 +221,30 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         juce::StringArray { "Static", "Orbital", "Spiral", "Random" },
         0));
 
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "traj_speed", 1 },
+        "Trajectory Speed",
+        juce::NormalisableRange<float>(0.0f, 400.0f, 0.1f),
+        100.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "dist_lpf", 1 },
+        "Distance LPF",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        100.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "doppler", 1 },
+        "Doppler",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f));
+
+    spatialGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "spatial_smooth", 1 },
+        "Spatial Smooth",
+        juce::NormalisableRange<float>(1.0f, 200.0f, 0.1f, 0.4f),
+        5.0f));
+
     layout.add(std::move(spatialGroup));
 
     return layout;
@@ -308,6 +336,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float distanceNorm   = distanceParam->load() / 100.0f;
     float spatialWidth   = spatialWidthParam->load() / 100.0f;
     int   trajectoryType = static_cast<int>(trajectoryParam->load());
+    float trajSpeed      = trajSpeedParam->load() / 100.0f;   // 0-4.0 multiplier
+    float distLpfAmt     = distLpfParam->load() / 100.0f;     // 0-1.0
+    float dopplerAmt     = dopplerParam->load() / 100.0f;     // 0-1.0
+    float spatialSmooth  = spatialSmoothParam->load();         // 1-200 ms
 
     // Convert degrees to radians for ambisonics math
     float azimuthRad     = juce::degreesToRadians (azimuthDeg);
@@ -437,17 +469,43 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         else
         {
             // === SPATIAL PATH: per-grain HOA3 encoding ===
+            // Update spatial smoothing time (once per block is enough, but fine per-sample)
+            if (i == 0)
+                grainPool.setSpatialSmoothTime(spatialSmooth);
+
             // Update grain trajectories before processing
             auto& poolVoices = grainPool.getVoices();
             for (auto& v : poolVoices)
             {
-                if (!v.active || v.trajectoryType == GrainTrajectory::Static)
+                if (!v.active)
                     continue;
 
-                float t = 1.0f - static_cast<float>(v.samplesRemaining) / static_cast<float>(v.grainLengthSamples);
-                auto [az, el] = GrainTrajectory::update(v.trajectoryType, v.azimuth, v.elevation,
-                                                         t, spatialWidth, v.rngState);
-                v.shCoeffs.setTarget(az, el);
+                if (v.trajectoryType != GrainTrajectory::Static)
+                {
+                    float t = 1.0f - static_cast<float>(v.samplesRemaining) / static_cast<float>(v.grainLengthSamples);
+                    auto [az, el] = GrainTrajectory::update(v.trajectoryType, v.azimuth, v.elevation,
+                                                             t, spatialWidth, trajSpeed, v.rngState);
+
+                    // Doppler: pitch shift from angular velocity
+                    if (dopplerAmt > 0.001f)
+                    {
+                        float prevAz = v.shCoeffs.current[1];  // Y-component tracks sin(az)*cos(el)
+                        float newY = std::sin(az) * std::cos(el);
+                        float dY = newY - prevAz;
+                        // Scale: 50x gives ~1 semitone at moderate movement, clamped to ±1 octave
+                        v.dopplerFactor = juce::jlimit(0.5f, 2.0f, 1.0f + dopplerAmt * dY * 50.0f);
+                    }
+                    else
+                    {
+                        v.dopplerFactor = 1.0f;
+                    }
+
+                    v.shCoeffs.setTarget(az, el);
+                }
+                else
+                {
+                    v.dopplerFactor = 1.0f;
+                }
             }
 
             // Process into HOA bus (single-sample slice)
@@ -509,7 +567,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         binauralDecoder.process(hoaChannels, numSamples, binauralL, binauralR);
 
         // Distance LPF (1-pole low-pass for air absorption)
-        float lpfCutoff = 20000.0f - distanceNorm * 15000.0f;
+        // distLpfAmt scales how much distance affects the cutoff (0=no darkening, 1=full)
+        float lpfCutoff = 20000.0f - distanceNorm * 15000.0f * distLpfAmt;
         float lpfCoeff = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * lpfCutoff
                                           / static_cast<float>(currentSampleRate));
 

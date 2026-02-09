@@ -32,6 +32,10 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
     distanceRelay        = std::make_unique<juce::WebSliderRelay>("distance");
     spatialWidthRelay    = std::make_unique<juce::WebSliderRelay>("spatial_width");
     trajectoryRelay      = std::make_unique<juce::WebComboBoxRelay>("trajectory");
+    trajSpeedRelay       = std::make_unique<juce::WebSliderRelay>("traj_speed");
+    distLpfRelay         = std::make_unique<juce::WebSliderRelay>("dist_lpf");
+    dopplerRelay         = std::make_unique<juce::WebSliderRelay>("doppler");
+    spatialSmoothRelay   = std::make_unique<juce::WebSliderRelay>("spatial_smooth");
 
     // 2. Create WebView with relay options
     webView = std::make_unique<juce::WebBrowserComponent>(
@@ -72,6 +76,10 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
             .withOptionsFrom(*distanceRelay)
             .withOptionsFrom(*spatialWidthRelay)
             .withOptionsFrom(*trajectoryRelay)
+            .withOptionsFrom(*trajSpeedRelay)
+            .withOptionsFrom(*distLpfRelay)
+            .withOptionsFrom(*dopplerRelay)
+            .withOptionsFrom(*spatialSmoothRelay)
     );
 
     addAndMakeVisible(*webView);
@@ -130,6 +138,14 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
         *audioProcessor.parameters.getParameter("spatial_width"), *spatialWidthRelay, nullptr);
     trajectoryAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.parameters.getParameter("trajectory"), *trajectoryRelay, nullptr);
+    trajSpeedAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("traj_speed"), *trajSpeedRelay, nullptr);
+    distLpfAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("dist_lpf"), *distLpfRelay, nullptr);
+    dopplerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("doppler"), *dopplerRelay, nullptr);
+    spatialSmoothAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("spatial_smooth"), *spatialSmoothRelay, nullptr);
 
     // Load UI from resource provider
 #if JUCE_WEB_BROWSER_RESOURCE_PROVIDER_AVAILABLE

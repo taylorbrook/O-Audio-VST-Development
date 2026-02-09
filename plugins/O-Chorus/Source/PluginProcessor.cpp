@@ -49,11 +49,14 @@ OChorusAudioProcessor::OChorusAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "O-Chorus")
 {
 #if OUARICON_LICENSING_ENABLED
     licenseManager = std::make_unique<OuariconLicense>(
         "ouaricon-chorus", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
 #endif
+
+    initializeFactoryPresets();
 }
 
 void OChorusAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -90,17 +93,104 @@ juce::AudioProcessorEditor* OChorusAudioProcessor::createEditor()
 
 void OChorusAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void OChorusAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (xmlState != nullptr)
+        presetManager.setStateFromXml(xmlState.get());
+}
+
+//==============================================================================
+// Program (Preset) API
+//==============================================================================
+int OChorusAudioProcessor::getNumPrograms()
+{
+    auto list = presetManager.getPresetList();
+    return juce::jmax(1, list.size());
+}
+
+int OChorusAudioProcessor::getCurrentProgram()
+{
+    auto list = presetManager.getPresetList();
+    return juce::jmax(0, list.indexOf(presetManager.getCurrentPresetName()));
+}
+
+void OChorusAudioProcessor::setCurrentProgram(int index)
+{
+    auto list = presetManager.getPresetList();
+    if (index >= 0 && index < list.size())
+        presetManager.loadPreset(list[index]);
+}
+
+const juce::String OChorusAudioProcessor::getProgramName(int index)
+{
+    auto list = presetManager.getPresetList();
+    if (index >= 0 && index < list.size())
+        return list[index];
+    return {};
+}
+
+//==============================================================================
+// Factory Presets
+//==============================================================================
+void OChorusAudioProcessor::initializeFactoryPresets()
+{
+    auto factoryDir = presetManager.getFactoryPresetsDirectory();
+
+    if (factoryDir.isDirectory() && factoryDir.getNumberOfChildFiles(juce::File::findFiles) > 0)
+        return;
+
+    std::vector<OuariconPresetManager::FactoryPresetDef> presets = {
+        {
+            "Classic",
+            {{"rate", 0.432f}, {"depth", 0.4f}, {"voices", 0.143f},
+             {"spread", 0.3f}, {"width", 0.7f}, {"tone", 0.5f},
+             {"mix", 0.5f}, {"drive", 0.2f}},
+            juce::var()
+        },
+        {
+            "Lush",
+            {{"rate", 0.352f}, {"depth", 0.6f}, {"voices", 0.714f},
+             {"spread", 0.8f}, {"width", 0.9f}, {"tone", 0.4f},
+             {"mix", 0.6f}, {"drive", 0.3f}},
+            juce::var()
+        },
+        {
+            "Shimmer",
+            {{"rate", 0.722f}, {"depth", 0.3f}, {"voices", 0.429f},
+             {"spread", 0.5f}, {"width", 0.8f}, {"tone", 0.75f},
+             {"mix", 0.4f}, {"drive", 0.15f}},
+            juce::var()
+        },
+        {
+            "Ensemble",
+            {{"rate", 0.517f}, {"depth", 0.5f}, {"voices", 1.0f},
+             {"spread", 1.0f}, {"width", 1.0f}, {"tone", 0.35f},
+             {"mix", 0.55f}, {"drive", 0.25f}},
+            juce::var()
+        },
+        {
+            "Vibrato",
+            {{"rate", 0.834f}, {"depth", 0.7f}, {"voices", 0.0f},
+             {"spread", 0.0f}, {"width", 0.0f}, {"tone", 0.5f},
+             {"mix", 1.0f}, {"drive", 0.0f}},
+            juce::var()
+        },
+        {
+            "Warm",
+            {{"rate", 0.517f}, {"depth", 0.45f}, {"voices", 0.286f},
+             {"spread", 0.4f}, {"width", 0.6f}, {"tone", 0.25f},
+             {"mix", 0.5f}, {"drive", 0.5f}},
+            juce::var()
+        }
+    };
+
+    presetManager.initializeFactoryPresets(presets);
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

@@ -61,6 +61,9 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> driveAttachment;
 
+    // File chooser for preset save/load dialogs (must persist across async callbacks)
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 

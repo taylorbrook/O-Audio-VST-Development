@@ -107,6 +107,10 @@ private:
     std::atomic<float>* distanceParam = nullptr;
     std::atomic<float>* spatialWidthParam = nullptr;
     std::atomic<float>* trajectoryParam = nullptr;
+    std::atomic<float>* trajSpeedParam = nullptr;
+    std::atomic<float>* distLpfParam = nullptr;
+    std::atomic<float>* dopplerParam = nullptr;
+    std::atomic<float>* spatialSmoothParam = nullptr;
 
     // DSP components
     DelayBuffer delayBuffer;

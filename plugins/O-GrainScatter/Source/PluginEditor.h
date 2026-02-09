@@ -58,6 +58,10 @@ private:
     std::unique_ptr<juce::WebSliderRelay> distanceRelay;
     std::unique_ptr<juce::WebSliderRelay> spatialWidthRelay;
     std::unique_ptr<juce::WebComboBoxRelay> trajectoryRelay;
+    std::unique_ptr<juce::WebSliderRelay> trajSpeedRelay;
+    std::unique_ptr<juce::WebSliderRelay> distLpfRelay;
+    std::unique_ptr<juce::WebSliderRelay> dopplerRelay;
+    std::unique_ptr<juce::WebSliderRelay> spatialSmoothRelay;
 
     // 2. WEBVIEW (depends on relays)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -95,6 +99,10 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> distanceAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> spatialWidthAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> trajectoryAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> trajSpeedAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> distLpfAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> dopplerAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> spatialSmoothAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GrainScatterEditor)
 };
