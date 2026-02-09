@@ -74,34 +74,34 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PLAT-01 | TBD | Pending |
-| PLAT-02 | TBD | Pending |
-| PLAT-03 | TBD | Pending |
-| PLAT-04 | TBD | Pending |
-| PLAT-05 | TBD | Pending |
-| PLAT-06 | TBD | Pending |
-| PLAT-07 | TBD | Pending |
-| GSDD-01 | TBD | Pending |
-| GSDD-02 | TBD | Pending |
-| GSDD-03 | TBD | Pending |
-| GSDD-04 | TBD | Pending |
-| CTXP-01 | TBD | Pending |
-| CTXP-02 | TBD | Pending |
-| CTXP-03 | TBD | Pending |
-| CTXP-04 | TBD | Pending |
-| AGNT-01 | TBD | Pending |
-| AGNT-02 | TBD | Pending |
-| AGNT-03 | TBD | Pending |
-| AGNT-04 | TBD | Pending |
-| AGNT-05 | TBD | Pending |
-| AGNT-06 | TBD | Pending |
-| AGNT-07 | TBD | Pending |
+| PLAT-01 | Phase 14 | Pending |
+| PLAT-02 | Phase 14 | Pending |
+| PLAT-03 | Phase 14 | Pending |
+| PLAT-04 | Phase 14 | Pending |
+| PLAT-05 | Phase 15 | Pending |
+| PLAT-06 | Phase 15 | Pending |
+| PLAT-07 | Phase 14 | Pending |
+| GSDD-01 | Phase 16 | Pending |
+| GSDD-02 | Phase 16 | Pending |
+| GSDD-03 | Phase 16 | Pending |
+| GSDD-04 | Phase 16 | Pending |
+| CTXP-01 | Phase 15 | Pending |
+| CTXP-02 | Phase 15 | Pending |
+| CTXP-03 | Phase 15 | Pending |
+| CTXP-04 | Phase 15 | Pending |
+| AGNT-01 | Phase 17 | Pending |
+| AGNT-02 | Phase 17 | Pending |
+| AGNT-03 | Phase 17 | Pending |
+| AGNT-04 | Phase 17 | Pending |
+| AGNT-05 | Phase 17 | Pending |
+| AGNT-06 | Phase 17 | Pending |
+| AGNT-07 | Phase 17 | Pending |
 
 **Coverage:**
 - v1.3 requirements: 22 total
-- Mapped to phases: 0
-- Unmapped: 22 (pending roadmap creation)
+- Mapped to phases: 22
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-02-08*
-*Last updated: 2026-02-08 after initial definition*
+*Last updated: 2026-02-08 — traceability updated with phase mappings*
