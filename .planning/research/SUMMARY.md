@@ -1,294 +1,342 @@
 # Project Research Summary
 
-**Project:** Plugin Freedom System v1.2 - Agent Intelligence & Resource Orchestration
-**Domain:** AI agent resource discovery and context injection for JUCE audio plugin development
-**Researched:** 2026-02-04
+**Project:** Plugin Freedom System v1.3 System Modernization
+**Domain:** AI agent orchestration for audio plugin development
+**Researched:** 2026-02-08
 **Confidence:** HIGH
 
 ## Executive Summary
 
-The Plugin Freedom System has 23 research documents, 11 agents, 25 skills, and rich plugin planning artifacts — but no mechanism connects research knowledge to agent execution. Research docs exist only when a human manually adds them to prompts. The v1.2 milestone solves this by adding **resource discovery** (which docs are relevant?), **context injection** (deliver resources to agents before execution), and **usage accountability** (verify agents consulted appropriate resources).
+The Plugin Freedom System v1.3 modernization is a targeted integration of three capability upgrades into the proven Stage 0-4 workflow that has successfully delivered 35+ production plugins. Opus 4.6 brings adaptive thinking (GA), effort tuning, 1M context (beta), persistent memory, and Agent Teams (experimental). GSD 1.18.0 provides `gsd-tools` CLI for mechanical state operations, verification suite for structural checks, and auto mode for express workflows. The core research finding: this is NOT a rewrite — it is a surgical deduplication of PFS custom code that GSD now handles natively, plus selective adoption of Opus 4.6 capabilities where they solve existing pain points.
 
-The key technical insight: **static manifest + keyword matching beats semantic search for a 23-document corpus**. Vector databases and embedding pipelines are over-engineering. A JSON index mapping topics to file paths, combined with keyword matching against agent prompts, delivers 100ms discovery with zero external dependencies. Context injection happens via **SubagentStart hooks** (guaranteed delivery to subagents) or **skill orchestrator prompt augmentation** (for main workflow agents). Accountability is **warning-level, not blocking** — agents self-report resources consulted in JSON reports, validated by SubagentStop hooks, but missing resources trigger warnings not workflow failures.
+The recommended approach prioritizes (1) preventing breakage from deprecations, (2) reducing custom code maintenance burden, (3) improving agent quality through better model assignments and context persistence. Adaptive thinking migration (T1) and prefill removal audit (T6) prevent future breakage. GSD verification suite adoption (T5) reduces 12 custom validators to 6. Domain-aware compaction (D6) replaces the fragile PreCompact.sh cat-all-files approach with server-side intelligence. Effort parameter adoption (D1) eliminates binary Sonnet/Opus switching for fine-grained cost-quality control. Agent Teams (D2-D5) remain experimental and applicable only for genuinely parallel independent work — the sequential stage pipeline stays primary.
 
-The main risks: (1) **context window budget exhaustion** if full documents are injected instead of summaries + paths, (2) **false relevance** from DSP keyword ambiguity (every doc mentions "frequency" and "filter"), and (3) **breaking existing JSON Schema contracts** with `additionalProperties: false`. Prevention: inject 2,000-4,000 token summaries maximum, use structured metadata tags not content search, and make all new schema fields optional with defaults.
+Key risks: (1) removing PFS-specific custom code that appears duplicate but encodes domain expertise (real-time safety, contract immutability, JUCE quirks), (2) breaking JSON Schema contracts that 11 agents depend on, (3) adopting Agent Teams for inherently sequential work with file conflicts, (4) scope creep beyond the 62-requirement modernization into architectural rewrites. Mitigation: exhaustive classification of all custom code before removal, canary plugin testing after every agent change, parallel suitability matrix to prevent misuse of Agent Teams, strict timebox with must/should/could/won't prioritization.
 
 ## Key Findings
 
-### Recommended Stack
+### Platform Capabilities (Opus 4.6 + GSD 1.18.0)
 
-The existing system has the right infrastructure bones: 6 hooks, 11 agents, 24 skills, 23 research documents, and JSON Schema contracts. This milestone adds intelligence on top of that infrastructure without external services, vector databases, or runtime dependencies. Everything is bash/Python scripts, JSON index files, and hook configuration.
+**Opus 4.6 adds:**
+- **Adaptive thinking (GA):** Replaces deprecated `thinking: {type: "enabled"}` + `budget_tokens`. Migration required before future model release breaks explicit thinking config.
+- **Effort parameter (GA):** Four levels (low/medium/high/max) for fine-grained cost-quality tuning. Eliminates binary model selection logic.
+- **1M context window (beta):** Premium pricing ($10/$37.50 per MTok vs $5/$25). Use selectively for complexity >= 4 DSP agents with cross-reference research needs.
+- **Persistent memory:** `memory: project` in agent YAML creates `.claude/agent-memory/{agent}/MEMORY.md` for cross-session learning.
+- **Agent Teams (experimental):** Parallel agent coordination with debate. Best for read-heavy independent work. NOT viable for sequential stages or file conflicts. 3-5x token cost.
+- **Compaction API (beta):** `instructions` parameter for domain-aware summarization. `pause_after_compaction` for contract injection.
+- **Prefill removal:** Returns 400 error if assistant messages are pre-filled. Audit all skills for format control prefills.
 
-**Core technologies:**
-- **Python 3.9+ with stdlib only** — Index builder, resource matcher, usage tracker. Already a dependency for validators. No new packages needed except optionally `bm25s` if keyword matching proves insufficient (defer to v1.3+).
-- **JSON manifest (`.claude/resource-index.json`)** — Static catalog of all resources with keywords, categories, agents, summaries. Follows `plugin-registry.json` pattern. Native to system (schemas, contracts, registry all use JSON). Parseable by both bash (`jq`) and Python.
-- **Bash hooks** — SubagentStart for context injection, SubagentStop for usage validation, SessionStart for index freshness. Consistent with existing hook infrastructure.
-- **jq 1.6+** — JSON parsing in hook scripts. Already validated by SessionStart hook. Used for extracting agent_type, prompt text from hook stdin.
+**GSD 1.18.0 adds:**
+- **gsd-tools CLI:** 10+ commands for state operations (phase add/complete, milestone complete, progress, validate consistency). Replaces manual markdown parsing.
+- **Frontmatter operations:** get/set/merge/validate for YAML manipulation. Could replace custom Python validators if schema support matches.
+- **Verification suite:** `verify plan-structure`, `verify phase-completeness`, `verify references`, `verify commits`, `verify artifacts`, `verify key-links`. Covers structural concerns PFS custom validators handle.
+- **Auto mode:** `--auto` flag runs research -> requirements -> roadmap without human intervention. Better than PFS's `--no-plan` which skips planning entirely.
+- **Template variants:** Minimal/standard/complex summaries based on task complexity.
+- **Configurable branching:** none/phase/milestone branches with optional squash merge.
 
-### Expected Features
+### Expected Modernizations (Table Stakes vs Differentiators)
 
-**Must have (table stakes):**
-- Keyword-based resource discovery matching task prompts against manifest
-- SubagentStart context injection (guaranteed delivery mechanism)
-- Resource injection as file paths + summaries (not full content)
-- Agent usage reporting in JSON reports (`resources_consulted` field)
-- Agent invocation audit (SubagentStop validates usage)
-- Static resource manifest with keywords, categories, stages, summaries
-- Hook-based pre-agent context loading for guaranteed injection
+**Table Stakes (T1-T7) — prevent breakage, reduce maintenance:**
+1. **T1: Adaptive thinking migration** — All agents using `thinking: {type: "enabled"}` or `budget_tokens` migrate to `thinking: {type: "adaptive"}` with effort parameter
+2. **T2: PreCompact path correction** — Update legacy `.ideas/` and `.continue-here.md` paths to `.planning/` structure
+3. **T3: gsd-tools CLI adoption** — Replace custom state management for structural operations, keep plugin-specific state (PLUGINS.md, per-plugin STATUS.md)
+4. **T4: Frontmatter operations** — Adopt GSD frontmatter get/set if custom schema validation supported, else keep Python validator
+5. **T5: GSD verification suite** — Replace 6 structural validators with GSD equivalents, keep 6 domain validators (DSP real-time safety, APVTS matching, WebView bindings, checksums, cross-contract, resource accountability)
+6. **T6: Prefill removal audit** — Verify no skills prefill assistant messages for format control
+7. **T7: Context compliance** — Add post-plan validation that PLAN.md does not contradict CONTEXT.md user decisions
 
-**Should have (differentiators):**
-- Stage-aware resource filtering (FFT research relevant at Stage 2, not Stage 3)
-- Freshness tracking with stale-doc warnings (YAML frontmatter with `last_verified` dates)
-- Auto-generated manifest from document frontmatter (no manual maintenance drift)
-- Pattern auto-injection (stage-specific patterns like `stage-2-patterns.md` injected via hooks)
-- Resource gap detection ("No research found for granular synthesis — consider /plugin-research")
-- Automatic resource recommendation at `/start` command (surfaces docs based on BRIEF.md)
+**Differentiators — Agent Quality (D1-D5):**
+- **D1: Effort parameter** — Replace Sonnet/Opus binary switch with Opus at varying effort: foundation-shell (medium), simple DSP (high), complex DSP (max), research (high)
+- **D2: Agent Teams for research** — Parallel researchers (DSP algorithms, UI patterns, module reuse) share findings and debate. Read-heavy, no file conflicts. Prove pattern works before expanding.
+- **D3: Agent Teams for review** — Critics (DSP, UI, architecture) review in parallel with debate. Read-only validation. Depends on D2 succeeding first.
+- **D4: Plan approval gates** — Agent Teams lead reviews teammate plans before implementation. Catches architectural mistakes pre-code.
+- **D5: Delegate mode** — Restrict orchestrator to coordination-only tools, no implementation. Press Shift+Tab to enable.
 
-**Defer (v2+):**
-- Cross-plugin knowledge transfer (requires knowledge graph, only valuable after 10+ completed plugins)
-- Decision provenance chain (track which resource influenced which ARCHITECTURE.md decision)
-- Module-research cross-referencing (extend manifest to include module associations)
-- Adaptive injection depth based on agent usage patterns (learn whether summaries suffice or full docs needed)
+**Differentiators — Context Persistence (D6-D9):**
+- **D6: Domain-aware compaction** — Use Compaction API `instructions` parameter: "Preserve plugin name, stage/phase, parameter IDs, DSP components, contract paths, architecture decisions. Discard intermediate file reads, build output, exploration."
+- **D7: 1M context for complex DSP** — Load full research documents for complexity >= 4 plugins instead of 200-word summaries. 2x cost, use selectively.
+- **D8: History digest** — GSD's `history-digest` compiles cross-stage memory: "Stage 0 chose FDN reverb, Stage 1 implemented 13 parameters, Stage 2 added smoothing."
+- **D9: Compaction pause** — Inject STATUS.md, parameter IDs, contract paths after compaction but before response continues. Belt-and-suspenders with D6.
+
+**Differentiators — Workflow (D10-D13):**
+- **D10: GSD auto mode** — Map `/implement --auto` to auto-discuss -> auto-research -> auto-plan -> execute. Better than skip-plan.
+- **D11: TaskCompleted hooks** — Per-task validation within a plan. Exit code 2 prevents completion with feedback. Wire PFS domain validators here.
+- **D12: Configurable branching** — Per-stage branches isolate work. Squash merge at plugin completion.
+- **D13: Template variants** — Simple plugins get concise summaries, complex plugins get detailed summaries.
+
+**Anti-Features (explicitly avoid):**
+- Agent Teams for implementation stages (sequential dependencies, file conflicts, 3-5x cost)
+- Replacing all PFS validators with GSD (domain expertise lost)
+- 1M context for all agents (2x cost, wasted context)
+- Auto-parallelizing serial pipeline (breaks data dependencies)
+- Nested Agent Teams (unsupported)
+- Removing PreCompact entirely (safety net needed)
+- Custom monitoring dashboard (Claude Code has native monitoring)
+- Fast mode for all agents (6x cost for negligible speed gain)
 
 ### Architecture Approach
 
-Discovery happens in the **skill orchestrator** before Task() invocation, not in hooks or agents themselves. Orchestrators already construct prompts with contracts; adding resource discovery is a natural extension. A Python script (`resource-discovery.py`) matches task context (plugin name, stage, agent type, extracted keywords) against the resource index and returns ranked results. The orchestrator appends discovered resources to the agent prompt as file paths with summaries and read instructions. The agent uses Read tool to load full content on demand.
+The v1.3 modernization preserves the Stage 0-4 pipeline with discuss-research-plan-execute-verify workflow. 11 custom PFS agents continue handling domain-specific orchestration. GSD handles mechanical state operations deterministically. Agent Teams are opt-in for genuinely parallel work only.
 
-**Major components:**
-1. **Resource Index (`.claude/resource-index.json`)** — Static catalog with metadata: path, keywords, tags, dsp_topics, relevant_agents, relevant_plugins, summary, size_kb. Regenerated when docs change via `build-resource-index.py` script.
-2. **Discovery Script (`resource-discovery.py`)** — Scores resources against task context using keyword overlap, agent affinity, and domain matching. Returns ranked list (MUST-READ vs SHOULD-READ) in <100ms.
-3. **Skill Orchestrator (modified `plugin-workflow`, `plugin-improve`, `plugin-planning`)** — Calls discovery script, formats results, appends to Task() prompt before spawning agent.
-4. **SubagentStop Hook (extended)** — Validates agent JSON report for `resources_consulted` field. Warns if MUST-READ resources skipped but does not block workflow (warning-level accountability).
-5. **SessionStart Hook (extended)** — Checks if resource index is stale (source files newer than index). Rebuilds automatically if needed.
+**Component boundaries remain stable:**
+- `.claude/commands/` — user-facing CLI, no changes
+- `.claude/agents/` — 11 agent definitions, update model + memory
+- `.planning/` — project state, preserve format
+- `plugins/*/` — plugin source code, no changes
+- `.claude/hooks/` — 6 lifecycle hooks, leverage gsd-tools
+- `.claude/scripts/` — evaluate gsd-tools replacement case-by-case
+- `.claude/schemas/` — preserve contracts, extend with optional fields only
+
+**Integration points:**
+1. **Model assignments:** dsp-agent always-opus, research-planning-agent always-opus, music-theory-agent downgrade to haiku, foundation-shell/gui/ui-finalization stay sonnet
+2. **Persistent memory:** troubleshoot-agent, dsp-agent, gui-agent, research-planning-agent, validation-agent get `memory: project`
+3. **gsd-tools CLI:** Replace manual STATE.md parsing in agents, keep PFS plugin-specific state
+4. **Domain-aware compaction:** Custom `instructions` parameter injecting contract preservation rules
+5. **Agent Teams (optional):** Research phase only initially, expand to review after validation
+
+**Anti-patterns to avoid:**
+- Replacing sequential pipeline with Agent Teams (strict dependencies exist)
+- Universal persistent memory (template execution agents don't learn)
+- Removing PFS orchestration for GSD orchestration (domain expertise lost)
+- Breaking JSON Schema contracts (all 11 agents emit conforming reports)
+- Eager migration of all state updates (plugin-specific state != GSD state)
 
 ### Critical Pitfalls
 
-1. **Context Window Budget Exhaustion (Pitfall 24)** — Injecting full research docs (10-72KB each) pushes agents past effective performance threshold. Agent prompts already 25K tokens (dsp-agent). Research shows LLM performance drops below 50% at 32K tokens. **Avoid:** Inject summaries + paths only (2,000-4,000 token budget max). Agent reads full docs via Read tool on demand.
+**P34: Removing PFS-specific custom code without classification**
+All custom code must be classified as duplicate (GSD handles it), extension (PFS-specific but could use GSD primitives), or workaround (compensating for gap). The 12 validators split 6/6 structural vs domain. Removing domain validators (real-time safety, contract immutability, silent failure detection) loses JUCE expertise. **Avoid:** Exhaustive classification with test cases before removal.
 
-2. **False Relevance from DSP Keyword Ambiguity (Pitfall 25)** — Every research doc mentions "frequency", "filter", "envelope", "phase" because all are audio DSP. Simple keyword matching returns wrong documents. **Avoid:** Use structured metadata tags (not content search), match on plugin BRIEF.md context (not generic keywords), curate static mapping for 23-doc corpus.
+**P35: Breaking agent contracts via required schema fields**
+All 11 agents emit `subagent-report.json` and `validator-report.json` conforming to schemas with `additionalProperties: false`. Adding required fields breaks all agents simultaneously. **Avoid:** New fields are always optional with defaults. Update schemas FIRST, then agents can use new features.
 
-3. **Breaking Existing Contracts with `additionalProperties: false` (Pitfall 26)** — JSON Schema contracts use strict validation. Adding `resources_consulted` field breaks ALL agents unless ALL updated atomically. **Avoid:** Make new fields optional with defaults. Never add to `required` array. Update all 6 consumer agents + schema + validators in same commit.
+**P36: Agent Teams for inherently sequential work**
+Implementation stages (foundation, DSP, GUI) modify overlapping files (PluginProcessor.cpp, PluginEditor.cpp) and have strict dependencies (DSP before GUI). Agent Teams require file ownership separation and parallel independent work. **Avoid:** Parallel suitability matrix classifying all workflows. Use Agent Teams exclusively for research (read-heavy) and review (read-only).
 
-4. **Resource Discovery Becoming Single Point of Failure (Pitfall 27)** — If discovery crashes, agents either run without resources (silent failure) or can't run at all (workflow blocked). **Avoid:** Graceful degradation — discovery failures never block agents. Log warnings. Static fallback mapping ensures basic functionality if dynamic discovery fails.
+**P37: Terminology confusion (subagent vs agent team vs skill vs command)**
+Opus 4.6 docs use "subagent" (single AI invoked via Task tool, can nest) and "agent team" (multiple AIs with coordinator, cannot nest). PFS uses "agent" for both. GSD uses "skill" for reusable workflows. **Avoid:** Create terminology mapping document referenced in all plans.
 
-5. **Hook Timeout Violations (Pitfall 28)** — PostToolUse.sh has 2s timeout with ~500ms available budget. Adding discovery (1-3s with file I/O) will cause failures. **Avoid:** Do NOT add discovery to PostToolUse.sh. Run discovery in orchestrator skill (no timeout constraint) or SessionStart.sh (3s available). Benchmark: discovery must complete <1s.
+**P38: Relaxing token budgets assuming 1M context prevents compaction**
+Auto-compaction fires at ~33K tokens regardless of context window size. Relaxing injection budgets from 4K to 20K increases compaction frequency and cost. **Avoid:** Measure compaction events before/after. Keep 4K budget with smarter injection via D6.
+
+**P39: GSD update silently breaking PFS integration**
+GSD 1.19+ could change gsd-tools CLI signatures, template paths, or config schema. PFS hardcodes paths like `~/.claude/get-shit-done/bin/gsd-tools.js`. **Avoid:** Document all GSD integration points. Use config/environment variables. Test against GSD updates in isolation.
+
+**P40: Plugin build regression from modernization changes**
+Any change to agents, schemas, or orchestration risks breaking the proven workflow. 35 production plugins depend on current behavior. **Avoid:** Canary plugin (simple effect, fast build) passes after EVERY change before committing.
+
+**P41: Persistent memory without hygiene**
+`memory: project` accumulates data indefinitely. Foundation-shell-agent (template execution) doesn't learn meaningfully — memory accumulates noise. **Avoid:** Memory only for agents demonstrating learning (troubleshooting patterns, API quirks, architectural decisions). Consider curation at 100 plugins.
+
+**P42: State file format drift between PFS and GSD**
+gsd-tools manages `.planning/STATE.md` with GSD-specific schema. PFS has `PLUGINS.md` and per-plugin `STATUS.md` with different schema. Blindly adopting gsd-tools for all state loses plugin tracking. **Avoid:** Adopt gsd-tools for GSD state (project STATE.md, phase progression). Keep PFS state management for plugin-specific files.
+
+**P43: Scope creep from 62 requirements to architectural rewrites**
+Feature landscape has 7 table stakes, 13 differentiators. Easy to expand into Agent Teams for all workflows, replacing all validators, 1M context everywhere. **Avoid:** Re-read MVP recommendation. Timebox to 2 days. Must/should/could/won't prioritization enforced.
 
 ## Implications for Roadmap
 
-Based on research, suggested **4-phase build order** with linear dependencies:
+Based on research, suggested four-phase structure prioritizing (1) prevent breakage, (2) reduce maintenance, (3) improve quality, (4) experimental features.
 
-### Phase 1: Resource Index & Discovery Foundation
-**Rationale:** All subsequent phases depend on a working index and discovery script. This must exist before any injection or accountability code is written.
+### Phase 1: Platform Alignment (prevent breakage, reduce maintenance)
+
+**Rationale:** Address deprecations and broken hooks before adding new capabilities. All low-effort, high-value changes.
 
 **Delivers:**
-- `.claude/resource-index.json` with all 23 research docs manually cataloged
-- `.claude/scripts/resource-discovery.py` matching keywords to resources
-- `.claude/schemas/resource-index.schema.json` validation
-- Decision documentation: static manifest (not vector search), keyword matching (not semantic), orchestrator-level discovery (not hooks)
+- All agents migrated to adaptive thinking (T1)
+- Prefill removal audit complete (T6)
+- PreCompact.sh paths updated to `.planning/` structure (T2)
+- Effort parameter adopted for all agents (D1)
 
 **Addresses:**
-- TS-5 (Resource manifest file) — foundational for all other features
-- TS-1 (Keyword-based resource discovery) — basic matching engine
-- Pitfall 31 (over-engineering) — explicitly choose static manifest as design decision
+- Table stakes T1, T2, T6
+- Differentiator D1
 
 **Avoids:**
-- Pitfall 31 — No vector databases or embedding pipelines for 23 documents
-- Pitfall 25 — Structured tags prevent keyword ambiguity
-- Pitfall 32 — YAML frontmatter with freshness metadata included from start
+- P40 (build regression) — via canary testing
+- Future model breakage from deprecated thinking config
 
-**Research flag:** No additional research needed — pattern well-documented (follows `plugin-registry.json`).
+**Research flag:** SKIP — straightforward migration, official docs comprehensive
 
 ---
 
-### Phase 2: Context Injection (Skill Orchestrators)
-**Rationale:** Once discovery works, modify orchestrators to inject discovered resources into agent prompts. This is where context delivery happens. Depends on Phase 1 (index + script must exist).
+### Phase 2: GSD Deduplication (remove custom code GSD handles)
+
+**Rationale:** Reduce PFS maintenance burden by adopting GSD equivalents for structural operations. Keep domain-specific code.
 
 **Delivers:**
-- Modified `.claude/skills/plugin-workflow/SKILL.md` with discovery + injection in execute/research phases
-- Modified `.claude/skills/plugin-planning/SKILL.md` with discovery before research-planning-agent
-- Modified `.claude/skills/plugin-improve/SKILL.md` with discovery in Phase 0.5 investigation
-- Injection format: file paths + summaries in `<reference_material>` section at end of prompt
-
-**Addresses:**
-- TS-2 (SubagentStart context injection) — guaranteed delivery via hooks
-- TS-3 (Resource injection into agent prompts) — summary + path strategy
-- TS-7 (Hook-based pre-agent context loading) — extension of existing patterns
-- D-7 (Pattern auto-injection) — stage-specific patterns via SubagentStart
+- 6 structural validators replaced with GSD verification suite (T5)
+- gsd-tools CLI adopted for state operations (T3)
+- Context compliance verification added (T7)
+- Frontmatter operations evaluated and adopted if applicable (T4)
 
 **Uses:**
-- Python 3 keyword extraction from ARCHITECTURE.md and parameter-spec.md
-- Bash hook infrastructure for SubagentStart integration
-- Existing prompt construction patterns in plugin-workflow
+- GSD 1.18.0 `gsd-tools` CLI
+- GSD verification suite commands
+- GSD frontmatter operations
 
 **Implements:**
-- Discovery in orchestrator (before Task() invocation)
-- Prompt augmentation (append resources after agent instructions)
-- SubagentStart hook for guaranteed subagent injection
+- Integration contract documenting all GSD dependencies
+- Smoke tests validating PFS + GSD integration
+
+**Addresses:**
+- Table stakes T3, T4, T5, T7
 
 **Avoids:**
-- Pitfall 24 — Token budget enforced: 2,000-4,000 tokens max injected content
-- Pitfall 27 — Graceful degradation: agents run without resources if discovery fails
-- Pitfall 28 — Discovery in orchestrator (no timeout) not PostToolUse.sh
-- Pitfall 29 — Resources injected at end with priority directive to preserve instruction adherence
+- P34 (removing domain code) — via exhaustive classification with test cases
+- P39 (GSD update breakage) — via integration contract and smoke tests
+- P42 (state format drift) — via clear ownership (GSD state vs PFS state)
 
-**Research flag:** Moderate — needs testing with known-good plugins (O-Bells) to verify injection doesn't disrupt output quality.
+**Research flag:** MEDIUM DEPTH — needs audit of 12 validators to classify structural vs domain, mapping gsd-tools commands to PFS state operations
 
 ---
 
-### Phase 3: Accountability (Schema + Validation)
-**Rationale:** After agents receive resources (Phase 2), add reporting and validation. This phase depends on injection working so there's something to report on.
+### Phase 3: Context Persistence (address information loss pain point)
+
+**Rationale:** Directly addresses user pain point #2 (context lost between sessions). D6 is highest-value individual feature.
 
 **Delivers:**
-- Extended `.claude/schemas/subagent-report.json` with optional `resources_consulted` field
-- Modified agent definitions (dsp-agent, gui-agent, research-planning-agent, foundation-shell-agent, polish-agent) documenting `resources_consulted` in JSON reports
-- Extended `.claude/hooks/SubagentStop.sh` with resource usage validation case
-- `.claude/hooks/validators/validate-resource-usage.py` comparing injected vs consulted resources
+- Domain-aware compaction via custom instructions (D6)
+- Compaction pause for contract preservation (D9)
+- History digest for cross-stage memory (D8)
+- Auto mode for express plugins (D10)
 
-**Addresses:**
-- TS-6 (Agent usage reporting in JSON reports) — self-reporting field
-- TS-4 (Agent invocation audit) — SubagentStop validation
-- D-4 (Decision provenance) — foundation for tracking resource influence (full implementation deferred to v1.3+)
+**Uses:**
+- Opus 4.6 Compaction API (beta)
+- GSD 1.13 history digest
 
 **Implements:**
-- Optional schema field with default (backward compatible)
-- Warning-level validation (not blocking)
-- Transcript parsing for Read tool calls (usage detection)
-- Per-session usage logs (`.claude/usage-logs/{session_id}.json`)
+- Custom compaction instructions preserving contracts, parameters, decisions
+- Per-plugin history digest compiling Stage 0-4 decisions
+- Express mode that auto-generates plans instead of skipping them
+
+**Addresses:**
+- Differentiators D6, D8, D9, D10
 
 **Avoids:**
-- Pitfall 26 — Optional fields with defaults, MINOR version bump, atomic updates to all 6 consumers
-- Pitfall 30 — Focus on output-based verification not just self-reports (validate agents use content, not just list filenames)
+- P38 (context overconfidence) — measure compaction events before/after, keep 4K budget
+- P41 (memory pollution) — defer persistent memory to Phase 4 evaluation
 
-**Research flag:** Low — JSON Schema evolution pattern well-documented, validation follows existing `validate-checksums.py` pattern.
+**Research flag:** LOW — Compaction API well-documented, history digest straightforward, auto mode maps to existing express workflow
 
 ---
 
-### Phase 4: Maintenance Tooling & Enhancements
-**Rationale:** Once core discovery + injection + accountability works (Phases 1-3), add automation to reduce manual maintenance burden. This is quality-of-life, not blocking for core functionality.
+### Phase 4: Agent Teams (experimental, address serial execution pain)
+
+**Rationale:** Highest impact but highest risk. Prove with research (read-only, no file conflicts) before expanding.
 
 **Delivers:**
-- `.claude/scripts/generate-resource-index.py` auto-generating manifest from YAML frontmatter
-- `.claude/scripts/extract-context-terms.py` extracting keywords from plugin artifacts
-- Modified `deep-research` skill to emit YAML frontmatter in new research docs
-- SessionStart.sh index freshness check and auto-rebuild
+- Agent Teams for parallel research (D2) — DSP + UI + module audit researchers in parallel
+- Agent Teams for cross-stage review (D3) — DSP critic + UI critic + architecture critic with debate
+- Plan approval gates (D4) and delegate mode (D5) if Agent Teams succeed
+- TaskCompleted hooks for fine-grained quality gates (D11)
 
-**Addresses:**
-- D-3 (Freshness tracking) — auto-warn on stale docs
-- D-5 (Auto resource recommendation) — surface docs at `/start` command
-- D-6 (Resource gap detection) — warn when no docs match plugin type
-- Pitfall 33 (manifest maintenance drift) — auto-generation prevents manual updates
+**Uses:**
+- Opus 4.6 Agent Teams (experimental)
+- Claude Code hooks (TaskCompleted)
 
 **Implements:**
-- YAML frontmatter extraction (created, last_verified, juce_version, topics, plugins)
-- Default tags from filename if frontmatter missing
-- Validation: all research/*.md files indexed, all manifest entries reference existing files
-- Non-blocking warnings for freshness and coverage gaps
+- Parallel suitability matrix classifying all PFS workflows
+- Terminology mapping (subagent vs agent team vs skill)
+- Agent Teams opt-in mode (not default)
+
+**Addresses:**
+- Differentiators D2, D3, D4, D5, D11
 
 **Avoids:**
-- Pitfall 33 — Auto-generation from metadata prevents manual maintenance drift
-- Pitfall 32 — Frontmatter standardization with freshness dates
+- P36 (Agent Teams for serial work) — via parallel suitability matrix, Stage 1-4 pipeline marked serial-only
+- P37 (terminology confusion) — via terminology mapping document
+- P43 (scope creep) — Agent Teams research only, do NOT expand to implementation unless validated
 
-**Research flag:** Low — maintenance scripting is straightforward (scan files, parse frontmatter, write JSON).
+**Research flag:** HIGH DEPTH — experimental feature with known limitations (no session resumption, file conflicts). Needs proof-of-concept with canary plugin research phase before production use.
 
 ---
 
 ### Phase Ordering Rationale
 
-```
-Phase 1 (Index + Discovery)
-  |
-  +--- Foundation for all other phases. Testable independently via CLI.
-  |
-Phase 2 (Injection)
-  |
-  +--- Requires Phase 1. Delivers value to agents. Testable via agent output comparison.
-  |
-Phase 3 (Accountability)
-  |
-  +--- Requires Phase 2. No value without injection working first. Testable via usage logs.
-  |
-Phase 4 (Maintenance)
-  |
-  +--- Quality-of-life improvements. Not blocking for core functionality.
-```
+1. **Phase 1 first:** Prevents future breakage from deprecations. Low-effort, immediate value. Establishes canary testing discipline.
+2. **Phase 2 second:** Reduces maintenance burden before adding new capabilities. Creates integration contract that later phases depend on.
+3. **Phase 3 third:** Addresses highest-value pain point (context loss) after platform stabilization. D6 domain-aware compaction depends on T2 PreCompact fix.
+4. **Phase 4 last:** Experimental feature with highest token cost and coordination complexity. Only proceed if Phase 3 reveals need for parallel research.
 
-**Dependency justification:**
-- Phase 2 cannot proceed without Phase 1 (no index = no discovery results)
-- Phase 3 cannot validate usage without Phase 2 (agents don't receive resources yet)
-- Phase 4 is parallel/independent (can start anytime after Phase 1)
-
-**Grouping justification:**
-- Each phase delivers independently testable value
-- Each phase has clear success criteria
-- Linear dependencies prevent partial-completion confusion
-
-**Pitfall avoidance:**
-- Building in order prevents rework (e.g., don't validate usage before injection works)
-- Static manifest first prevents over-engineering temptation (semantic search)
-- Graceful degradation designed-in from Phase 1 (not retrofitted)
+**Dependencies:**
+- Phase 2 depends on Phase 1 (agents must use correct model config before gsd-tools integration)
+- Phase 3 depends on Phase 1 (T2 PreCompact fix) and Phase 2 (state operations aligned)
+- Phase 4 depends on Phases 1-3 (agent config stable, state operations working, terminology mapping exists)
 
 ### Research Flags
 
-**Phases needing deeper research during planning:**
-- **Phase 2 (Injection):** Needs A/B testing with known-good plugins to verify injection format doesn't disrupt agent behavior. Moderate complexity — prompt engineering requires validation.
+**Needs deeper research during planning:**
+- **Phase 2 (GSD Deduplication):** Medium depth — audit 12 validators for structural vs domain classification, map gsd-tools commands to PFS state operations, verify GSD frontmatter schema supports PFS research document 10-field schema
+- **Phase 4 (Agent Teams):** High depth — experimental feature, needs proof-of-concept with canary plugin research phase, measure actual token cost vs quality improvement, document file ownership strategy
 
-**Phases with standard patterns (skip research-phase):**
-- **Phase 1 (Index):** Follows `plugin-registry.json` pattern exactly. No novel patterns.
-- **Phase 3 (Accountability):** Follows existing validator patterns (`validate-checksums.py`, `validate-dsp-components.py`). JSON Schema evolution well-documented.
-- **Phase 4 (Maintenance):** Straightforward file scanning and YAML parsing. No research needed.
+**Standard patterns (skip research):**
+- **Phase 1 (Platform Alignment):** Official Opus 4.6 docs comprehensive, migration path clear
+- **Phase 3 (Context Persistence):** Compaction API well-documented, history digest straightforward GSD feature
+
+### Deferred Features (not in v1.3 scope)
+
+- **D7 (1M context):** Beta, premium pricing, evaluate after GA
+- **D12 (Branching):** Nice-to-have, not blocking any pain point
+- **D13 (Template variants):** Low impact, adopt opportunistically
 
 ## Confidence Assessment
 
 | Area | Confidence | Notes |
 |------|------------|-------|
-| Stack | HIGH | Verified against official Claude Code docs (SubagentStart additionalContext, SubagentStop agent_transcript_path). All dependencies already present (Python 3.9+, jq 1.6+). No new packages required. |
-| Features | HIGH | Table stakes validated via direct codebase inspection (11 agents, 6 hooks, 23 docs measured). Differentiators grounded in comparable systems (Superpowers, AGENTS.md standard). Anti-features based on RAG false positive research + Claude context window studies. |
-| Architecture | HIGH | Discovery location (orchestrator), injection mechanism (prompt append), and validation approach (SubagentStop) all follow existing system patterns. Static manifest follows `plugin-registry.json` pattern. No novel architectural primitives. |
-| Pitfalls | HIGH | Context exhaustion, false relevance, and schema breaking verified via direct measurement (agent prompt sizes, research doc sizes, `additionalProperties: false` in schemas). Hook timeouts measured from `hooks.json`. DSP keyword ambiguity confirmed by inspecting all 23 doc filenames and headers. |
+| Table Stakes (T1-T7) | **HIGH** | Verified against official Opus 4.6 docs (deprecation notices, breaking changes), GSD changelog (v1.10-1.18 features), and PFS codebase analysis (PreCompact.sh legacy paths, 12 validators inventoried) |
+| Effort Parameter (D1) | **HIGH** | GA feature, no beta header, documented with four levels in official API docs |
+| Agent Teams (D2-D5) | **MEDIUM** | Experimental feature with known limitations (no session resumption, no nested teams, file conflicts documented). Feature details verified against official Claude Code docs. Cost and coordination overhead are real risks. |
+| Compaction (D6, D9) | **HIGH** | Beta but comprehensive API documentation with code examples. Custom `instructions` parameter well-documented. PFS use case straightforward. |
+| GSD Integration (D8, D10, D13) | **MEDIUM** | GSD changelog confirms features exist. Integration with PFS's plugin-centric model needs design work — GSD is project-centric. State file schema differences require careful mapping. |
+| 1M Context (D7) | **LOW** | Still in beta. Premium pricing confirmed ($10/$37.50 per MTok). Real-world performance for DSP agents not validated. Deferred to post-v1.3. |
 
-**Overall confidence:** HIGH
-
-All core claims verified via:
-1. Direct codebase inspection (measured prompts, hooks, schemas, research docs)
-2. Official Claude Code documentation (SubagentStart/SubagentStop hooks, context windows)
-3. Published research (Chroma context rot, NoLiMa benchmark, RAG false positives)
+**Overall confidence:** **HIGH**
 
 ### Gaps to Address
 
-**Transcript parsing for usage detection:** The exact JSONL schema for subagent transcripts (how Read tool calls appear) needs validation during Phase 3 implementation. Inferred from Claude Code's general transcript format but not verified against actual subagent transcript file. **Handle:** Early validation in Phase 3 — spawn test subagent, inspect transcript structure before building validator.
+**PFS vs GSD state schema mapping:**
+GSD manages project-centric state (`.planning/STATE.md`). PFS has plugin-centric state (`PLUGINS.md`, per-plugin `plugins/*/STATUS.md`). The relationship is not 1:1. Needs explicit ownership document during Phase 2: GSD owns project STATE.md, PFS owns plugin-specific files. Migration strategy if convergence desired later.
 
-**Score threshold tuning (MUST-READ vs SHOULD-READ):** Starting at score >= 8 for MUST-READ classification. May need adjustment after observing real discovery results across multiple plugins. **Handle:** Monitor discovery precision in Phase 1 testing. Tune threshold based on false positive/negative rates.
+**Agent Teams file ownership strategy:**
+Agent Teams require clear file ownership to prevent conflicts. Research phase is read-only (safe). Review phase is read-only (safe). If expanding beyond research/review, need explicit directory-based ownership model: teammate A owns `plugins/PluginA/`, teammate B owns `plugins/PluginB/`.
 
-**Agent behavior regression risk:** Injecting research content may subtly change agent output in unexpected ways (different code patterns, shifted attention from contracts). **Handle:** A/B testing in Phase 2 with completed plugins (O-Bells, O-Freeze). Compare output with/without injection. Reject injection format if quality degrades.
+**Persistent memory hygiene at scale:**
+At 100 plugins, 5 agents with persistent memory = 5 memory files accumulating data. No curation strategy defined. Needs evaluation during Phase 3 (context persistence): compare value of persistent memory vs existing resource discovery system. If persistent memory adopted, define hygiene rules (max size, auto-summarization, manual curation checkpoints).
 
-**Maximum resources per agent:** Starting with 5-resource limit via `--limit` flag. May need per-agent tuning (dsp-agent might benefit from more, foundation-shell-agent from fewer). **Handle:** Monitor token usage and agent feedback in Phase 2. Adjust limits per-agent if needed.
+**GSD frontmatter schema compatibility:**
+PFS research documents use custom 10-field YAML schema validated by `validate-research-frontmatter.py`. GSD 1.17 added frontmatter operations. Unknown if GSD supports custom schemas or only GSD's own schema format. Needs evaluation during Phase 2 to determine if custom validator can be replaced.
 
-**Cross-plugin research visibility:** Should discovery consider research from other plugins' `.planning/research/` folders? Currently scoped to shared `research/` only. **Handle:** Defer to v1.3+ after validating shared research orchestration works. Per-plugin research is already loaded via contract injection.
+**Compaction instruction effectiveness:**
+Custom compaction instructions are best-effort — the model interprets them. Unknown if "preserve all parameter IDs" actually prevents parameter loss during compaction. Needs measurement during Phase 3: manually verify post-compaction context includes all contract data, compare D6 (instructions) vs D9 (pause) effectiveness.
 
 ## Sources
 
 ### Primary (HIGH confidence)
-- [Claude Code Hooks Reference](https://code.claude.com/docs/en/hooks) — Official documentation for all hook events, SubagentStart additionalContext, SubagentStop agent_transcript_path
-- [Claude Code Subagents Documentation](https://code.claude.com/docs/en/sub-agents) — Official docs on subagent creation, frontmatter, skills preloading, lifecycle
-- Direct codebase analysis — `.claude/hooks/*.sh`, `.claude/agents/*.md`, `.claude/schemas/`, `research/*.md` (measured 11 agents, 6 hooks, 23 docs)
-- [Claude API: Context Windows](https://platform.claude.com/docs/en/build-with-claude/context-windows) — 200K token window documentation
-- [Creek Service: Evolving JSON Schemas](https://www.creekservice.org/articles/2024/01/08/json-schema-evolution-part-1.html) — `additionalProperties: false` evolution rules
+- [Anthropic: Introducing Claude Opus 4.6](https://www.anthropic.com/news/claude-opus-4-6) — agent teams overview, capability summary
+- [Claude API Docs: What's new in Claude 4.6](https://platform.claude.com/docs/en/about-claude/models/whats-new-claude-4-6) — adaptive thinking deprecation, effort GA, prefill removal, output_config migration
+- [Claude Code Docs: Agent Teams](https://code.claude.com/docs/en/agent-teams) — architecture, task coordination, file ownership, delegate mode, plan approval, hooks, limitations
+- [Claude Code Docs: Create custom subagents](https://code.claude.com/docs/en/sub-agents) — subagent configuration including memory, skills, hooks, permissionMode
+- [Claude API Docs: Compaction](https://platform.claude.com/docs/en/build-with-claude/compaction) — API parameters, custom instructions, pause_after_compaction, token budget enforcement
+- [Claude Code Docs: Hooks Reference](https://code.claude.com/docs/en/hooks) — TaskCompleted, TeammateIdle hook specs
+- [GSD Changelog](https://github.com/glittercowboy/get-shit-done/blob/main/CHANGELOG.md) — v1.10-1.18 features: gsd-tools CLI, verification suite, frontmatter ops, history digest, auto mode, branching
 
 ### Secondary (MEDIUM confidence)
-- [Chroma Research: Context Rot](https://research.trychroma.com/context-rot) — 18 LLMs measured, performance degrades with input length
-- [NoLiMa Benchmark / Towards Data Science](https://towardsdatascience.com/your-1m-context-window-llm-is-less-powerful-than-you-think/) — 11/12 models below 50% at 32K tokens
-- [InfoQ: Reducing RAG False Positives](https://www.infoq.com/articles/reducing-false-positives-retrieval-augmented-generation/) — Banking case study showing keyword ambiguity in narrow domains
-- [DEV Community: Guaranteed Context Injection](https://dev.to/sasha_podles/claude-code-using-hooks-for-guaranteed-context-injection-2jg) — Skills skipped 56% of time (Vercel research), hooks are guaranteed
-- [Claude Code Context Optimization](https://gist.github.com/johnlindquist/849b813e76039a908d962b2f0923dc9a) — 54% context reduction via trigger-based routing
-- [bm25s Library](https://github.com/xhluca/bm25s) — Lightweight Python BM25 implementation (verified library capabilities)
-- [Anthropic: Building Effective Agents](https://www.anthropic.com/research/building-effective-agents) — Tool management (10-20 tools maximum), progressive disclosure, cache strategically
+- [GSD Releases](https://github.com/glittercowboy/get-shit-done/releases) — release-level feature summaries
+- [Opus 4.6 vs 4.5 Comparison (ssntpl.com)](https://ssntpl.com/blog-claude-opus-4-6-vs-4-5-benchmarks-testing/) — benchmark comparisons, context window differences
+- [TechCrunch: Opus 4.6 Agent Teams](https://techcrunch.com/2026/02/05/anthropic-releases-opus-4-6-with-new-agent-teams/) — feature overview
+- [VentureBeat: Claude Code Tasks + Agent Coordination](https://venturebeat.com/orchestration/claude-codes-tasks-update-lets-agents-work-longer-and-coordinate-across/) — TaskCompleted/TeammateIdle hooks announcement
+- [Vivek Haldar: Subagents, Commands and Skills Are Converging](https://www.vivekhaldar.com/articles/claude-code-subagents-commands-skills-converging/) — terminology convergence analysis
 
-### Tertiary (LOW confidence, patterns only)
-- [Augment Code: Why Multi-Agent LLM Systems Fail](https://www.augmentcode.com/guides/why-multi-agent-llm-systems-fail-and-how-to-fix-them) — Specification ambiguity 41.77%, coordination failures 36.94%, verification gaps 21.30%
-- [Composio: The 2025 AI Agent Report](https://composio.dev/blog/why-ai-agent-pilots-fail-2026-integration-roadmap) — Cost explosion, "many teams only notice pitfalls when the bill arrives"
-- [WolfSound: Don't Use AI for Audio Programming](https://thewolfsound.com/dont-use-ai-for-audio-programming/) — "Not enough training data for real-time-safe audio DSP"
-- Various community patterns on multi-agent orchestration, RAG retrieval, and context engineering (used for pattern validation, not specific claims)
+### Codebase Analysis (HIGH confidence — direct inspection)
+- `.claude/hooks/PreCompact.sh` — confirmed legacy `.ideas/` paths, `.continue-here.md` references
+- `.claude/hooks/SubagentStop.sh` — 12 validators inventoried, domain vs structural classification
+- `.claude/hooks/hooks.json` — 6 hook event types registered
+- `.claude/agents/dsp-agent.md` — model selection logic, budget_tokens usage pattern
+- `.claude/skills/plugin-workflow/skill.md` — orchestrator pattern, serial phase execution
+- `.claude/skills/session-checkpoint/skill.md` — per-task checkpoints, no cross-stage digest
+- `.claude/skills/context-resume/skill.md` — STATUS.md-based resume, no history aggregation
+- All 11 agent definitions, 44 command files, 6 hooks, 27 research docs analyzed
 
 ---
-*Research completed: 2026-02-04*
+*Research completed: 2026-02-08*
 *Ready for roadmap: yes*

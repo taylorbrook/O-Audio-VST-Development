@@ -1312,3 +1312,562 @@ Before starting v1.2 resource orchestration:
 
 *v1.2 Addendum Researched: 2026-02-04*
 *Focus: Pitfalls specific to adding resource orchestration to an existing 13-agent system with JSON Schema contracts and hook-based validation*
+
+---
+
+---
+
+# Addendum: v1.3 System Modernization Pitfalls (Opus 4.6 + GSD Alignment)
+
+**Domain:** Modernizing an existing AI agent orchestration system (Plugin Freedom System) to leverage Opus 4.6 capabilities and align with GSD 1.18.0
+**Researched:** 2026-02-08
+**Confidence:** HIGH (based on direct codebase analysis of 13 agents, 40+ commands, 12 validators, 6 scripts, 3 hooks; verified against official Claude Code docs and Opus 4.6 release notes)
+
+This addendum covers pitfalls specific to the v1.3 milestone: modernizing the Plugin Freedom System to leverage Opus 4.6 (agent teams, 1M context beta, improved reasoning) and align with GSD 1.18.0 features, eliminating custom code where the framework now provides native support. These pitfalls are about what goes wrong when you MODERNIZE an existing system with extensive custom code layered on top of a framework that has evolved independently.
+
+**System measurements at time of research:**
+- 13 agents in `.claude/agents/` (11 .md files, 2 implicit critics)
+- 40+ commands in `.claude/commands/`
+- 12 Python validators in `.claude/hooks/validators/`
+- 6 Python scripts in `.claude/scripts/`
+- 3 shell hooks (SessionStart, PostToolUse, PreCompact)
+- JSON Schema contracts with `additionalProperties: false` (subagent-report.json, validator-report.json)
+- GSD 1.18.0 installed globally at `~/.claude/get-shit-done/`
+- 35+ completed plugins depending on working workflows
+- 62+ requirements satisfied across 3 milestones (38 plans, 13 phases)
+- Resource discovery system (v1.2) operational with 27 research docs, 4K token budget, 63ms discovery
+
+---
+
+## Critical Pitfalls (v1.3)
+
+### Pitfall 34: Removing Custom Code That Has PFS-Specific Behavior Beyond Framework Duplicates
+
+**What goes wrong:**
+During deduplication, custom PFS code is removed because it appears to duplicate GSD framework features. But the custom code contains domain-specific behavior that the framework does not replicate. The system silently degrades: plugins build but agents produce lower-quality output, skip validation steps, or lose context they previously received.
+
+**Why it happens:**
+The PFS has layered custom code on top of GSD over three milestones (62+ requirements). Much of this code started as workarounds for missing GSD features but accumulated JUCE-specific and plugin-workflow-specific logic over time. Key examples:
+
+- **PostToolUse hook** validates real-time safety violations specific to JUCE `processBlock` (heap allocation, mutex locks, file I/O, console output, ScopedNoDenormals) -- GSD has no concept of "real-time safety"
+- **PostToolUse hook** enforces contract immutability during Stages 1-4 -- GSD phases have no "immutable contracts" concept
+- **PreCompact hook** preserves plugin contracts (creative-brief, parameter-spec, architecture, plan) -- GSD's compaction preserves STATE.md but not domain-specific contract files
+- **Resource discovery system** (`discover-resources.py`, `inject-context.py`) injects domain-specific research into agents within a 4K token budget -- GSD's research phase serves a different purpose (domain exploration, not per-agent context injection)
+- **Handoff protocol** enforces `/clear` + next command patterns specific to the 5-stage serial workflow -- GSD's phase transitions offer `/clear` as a footnote, not a mandatory two-step sequence
+- **Quality gates** (`run-gate.sh`) run stage-specific validators (schema, build, pluginval, DSP critic, UI critic) -- GSD verification is goal-backward checking, not stage-specific validation chains
+
+A naive diff of "custom code vs framework" will flag these as duplicates when they are domain extensions.
+
+**Warning signs:**
+- Agent output quality drops after removing code (less specific, more generic DSP/UI output)
+- Validation gates pass when they should fail (real-time safety violations not caught)
+- Handoff messages lose the `/clear` instruction or full plugin name
+- Resource discovery stops injecting research context (check `resources_consulted` in agent reports -- should not be empty)
+- PostToolUse hook no longer catches `new`/`malloc` in processBlock code
+- Contract modifications silently succeed during implementation stages
+
+**How to avoid:**
+1. Before removing ANY custom code, create a behavior specification documenting exactly what it does, which files it applies to, and what it blocks or enables
+2. Classify each piece of custom code into one of three types:
+   - **Pure duplicate** (safe to remove): Custom code that reimplements a GSD feature identically with no PFS-specific behavior. Example: a custom progress reporting function that GSD now handles
+   - **Extension** (keep, possibly refactor to use framework hooks): Custom code that extends GSD with domain-specific logic. Example: PostToolUse real-time safety validation
+   - **Workaround** (investigate): Custom code that works around a GSD limitation that may now be resolved. Example: custom state recovery logic that GSD checkpoints may now handle
+3. Test each removal individually by running a real plugin through the full pipeline: `/implement --express` on a known-good plugin (e.g., O-SimpleReverb) after each removal
+4. Create a "before/after" comparison for each removal showing the behavior preserved or lost
+
+**Phase to address:**
+Phase 1 (System Audit) -- must classify ALL custom code before any removal happens in later phases. The classification deliverable blocks all subsequent phases.
+
+---
+
+### Pitfall 35: Breaking Agent Contracts During Opus 4.6 Frontmatter Migration
+
+**What goes wrong:**
+Updating agent definitions to use Opus 4.6 frontmatter features (new fields: `skills`, `memory`, `permissionMode`, `maxTurns`, `hooks`, `mcpServers`) while simultaneously changing report schemas creates cascading contract violations. The `/implement` workflow breaks mid-plugin because an agent produces output the orchestrator cannot parse, or the orchestrator invokes agents with unrecognized configuration.
+
+**Why it happens:**
+The PFS uses tight coupling between agent definitions, schemas, and orchestrator code:
+
+1. **Agent enum in schema:** `subagent-report.json` has `"agent": {"enum": ["research-planning-agent", "foundation-shell-agent", "dsp-agent", "gui-agent", "ui-design-agent", "ui-finalization-agent"]}` -- adding or renaming any agent breaks this enum
+2. **`additionalProperties: false`:** Adding even one new field to agent output (like a new `memory_updated` field from persistent memory) breaks validation
+3. **Model routing:** Agents currently specify `model: sonnet` or `model: opus` in frontmatter. The PFS config has `model_profile: "quality"` which GSD uses for its own agents. PFS agent frontmatter and GSD model profiles can conflict
+4. **Orchestrator expectations:** The `plugin-execute.md` command and `implement.md` command reference specific agent names and expect specific report structures. Changes cascade through 8+ skill files that reference agents
+5. **Validator dependencies:** 12 Python validators parse agent output in specific formats. Schema changes require validator updates
+
+**Warning signs:**
+- JSON parse errors in orchestrator output after agent changes
+- Agent reports rejected by `additionalProperties: false` constraint
+- Orchestrator showing "unknown agent" when agents are renamed
+- Model selection producing unexpected results (Sonnet agent running on Opus or vice versa)
+- Validators crashing on new report structure
+
+**How to avoid:**
+1. **Schema changes must be additive only:** Add new optional fields with defaults, never remove or rename existing ones. Use MINOR version bumps per existing CHANGELOG.md process
+2. **Before changing any agent definition, map all references:**
+   ```bash
+   grep -r "foundation-shell-agent" .claude/ --include="*.md" --include="*.json" --include="*.py" --include="*.sh" | wc -l
+   ```
+3. **Atomic updates:** When modifying a schema, update ALL agent definitions + ALL validators + ALL orchestrator references in the same commit
+4. **Keep old frontmatter fields alongside new ones during transition:**
+   ```yaml
+   model: sonnet          # existing (keep)
+   permissionMode: default # new Opus 4.6 field (add)
+   ```
+5. **Run the full `/implement --express` pipeline on a canary plugin after every schema or agent change**
+
+**Phase to address:**
+Phase 2 (Agent Modernization) -- schema compatibility must be the FIRST thing verified before any agent definition changes. Create a schema migration plan as the phase's first deliverable.
+
+---
+
+### Pitfall 36: Agent Teams Applied to the Serial Stage Pipeline
+
+**What goes wrong:**
+The Opus 4.6 agent teams feature is adopted for the PFS stage pipeline (Foundation -> DSP -> GUI -> Polish), but this pipeline is inherently serial with strict file-level dependencies. Agent teams add coordination overhead, increase token costs by 5-10x, and introduce file conflict risks with zero parallelism benefit. Worse, two teammates writing to the same file means "last write wins" per the official docs.
+
+**Why it happens:**
+Agent teams are the headline Opus 4.6 feature. There is natural pressure to adopt them because they are new and prestigious, not because the workflow benefits. The PFS stage pipeline has these properties that make it unsuitable for agent teams:
+
+- **Strict ordering:** Each stage modifies the same files (PluginProcessor.cpp, PluginEditor.cpp, CMakeLists.txt)
+- **Contract dependencies:** DSP agent reads Foundation output; GUI agent reads DSP output
+- **Single-file ownership:** processBlock() is written by DSP agent and later modified by Polish agent
+- **Validation gates:** Each gate requires the previous stage's binary output to exist and pass pluginval
+- **Official limitation:** "No built-in file locking. Two teammates writing to the same file = last write wins" (Claude Code docs)
+- **Official limitation:** "No session resumption with in-process teammates" -- cannot recover mid-plugin
+- **Official limitation:** "No nested teams" -- teammates cannot spawn their own subagents, which PFS agents currently rely on for Context7 queries
+
+**How to avoid:**
+1. Keep the existing serial stage pipeline unchanged -- it works well and has been battle-tested across 35+ plugins
+2. Use agent teams ONLY for genuinely parallel, independent work:
+   - **Research phase:** Multiple researchers investigating different aspects (GSD already does this with 4 parallel researchers via subagents)
+   - **Cross-plugin batch operations:** Auditing, upgrading, or fixing multiple plugins simultaneously (different directories, no file conflicts)
+   - **Competing hypothesis debugging:** When a build fails, spawn multiple investigators exploring different root causes
+3. Use subagents (Task tool) for the existing stage delegation pattern -- this is what the PFS already does successfully and is the recommended approach per official docs for "focused tasks where only the result matters"
+4. Document explicitly in the v1.3 plan: "Agent teams are for parallel independent work; the stage pipeline stays serial with subagents"
+5. Create a decision matrix in the audit phase mapping each PFS workflow to the correct primitive
+
+**Warning signs:**
+- Proposal to run Foundation and DSP agents simultaneously
+- Agent team being used with fewer than 3 independent workers doing independent tasks
+- File conflicts appearing in git (merge markers in source files)
+- Token costs increasing 5-10x without proportional productivity gain
+- Agents failing because they cannot spawn subagents from within a teammate context
+
+**Phase to address:**
+Phase 1 (System Audit) -- create a "parallel suitability matrix" classifying every PFS workflow as serial-only, potentially-parallel, or already-parallel. All subsequent phases reference this matrix.
+
+---
+
+### Pitfall 37: Confusing Subagents, Agent Teams, and Skills (Terminology Collision)
+
+**What goes wrong:**
+The modernization plan conflates three distinct Claude Code primitives with different tradeoffs. The PFS already has its own abstraction layer with overlapping names. The result: Skills used where subagents are needed (no isolation, context bleed into main conversation), agent teams used where subagents suffice (massive token overhead), or subagents used where simple skill injection would suffice (unnecessary context switching).
+
+**Why it happens:**
+The PFS naming and Claude Code naming collide:
+
+| PFS Term | PFS Location | Claude Code Equivalent | Key Difference |
+|----------|-------------|----------------------|----------------|
+| "Agent" | `.claude/agents/*.md` | Subagent | PFS agents ARE Claude Code subagents |
+| "Command" | `.claude/commands/*.md` | Command | Same concept |
+| "Skill" (frontmatter `skill:` in commands) | Command routing | Partial overlap with Claude Code Skills | PFS "skill" routes to orchestration logic; Claude Code "skill" is a prompt + config that can run in forked context |
+| (no equivalent) | -- | Agent Team | Multi-session parallel coordination; experimental |
+| (no equivalent) | -- | Skill (`context: fork`) | Subagent constructor from skill file |
+| (no equivalent) | -- | Persistent Memory (`memory:` frontmatter) | Cross-session agent memory |
+
+Official docs explicitly note: "Subagents, Commands and Skills Are Converging" -- the boundaries are blurring. This means adopting new primitives requires careful mapping to avoid breaking working abstractions.
+
+Additionally, Claude Code subagents have important constraints the PFS depends on:
+- Subagents cannot spawn other subagents (but PFS agents can use Task tool within GSD orchestration)
+- Skills with `context: fork` have a known issue where the fork may not work when invoked via Skill tool (GitHub issue #17283)
+
+**Warning signs:**
+- Plans describing work as "agent team" when it is actually subagent orchestration
+- Skills being loaded into main context adding 50K+ tokens without isolation
+- Agent teams spawned for 2-agent sequential work (overhead exceeds benefit)
+- PFS commands accidentally triggering Claude Code's built-in skill matching instead of PFS routing
+- Confusion about whether `memory:` field goes on a PFS agent or a GSD agent
+
+**How to avoid:**
+1. Create a terminology mapping document as the FIRST deliverable of Phase 1:
+
+   | When you need... | Use this | Not this |
+   |-----------------|---------|----------|
+   | Isolated execution with fresh context, JSON report back | **Subagent** (current PFS pattern) | Agent team (overkill) |
+   | Parallel independent workers that communicate | **Agent team** (new, experimental) | Multiple subagents (can't communicate) |
+   | Reusable prompt injection in current context | **Skill** (new) | Subagent (unnecessary isolation) |
+   | Cross-session learning | **Persistent memory** (evaluate carefully) | Ad-hoc file writing |
+   | User entry point | **Command** (existing pattern) | Skill (wrong abstraction) |
+
+2. Map every existing PFS workflow to its correct primitive before changing anything
+3. Do NOT adopt agent teams or persistent memory until the terminology mapping is complete and validated against real workflows
+
+**Phase to address:**
+Phase 1 (System Audit) -- terminology mapping is a prerequisite for all agent modernization work.
+
+---
+
+### Pitfall 38: Context Window Overconfidence with 1M Token Beta
+
+**What goes wrong:**
+Opus 4.6 offers a 1M token context window (beta), creating a false sense that context management is no longer important. Agent definitions are made larger, skills load more content, research injection budgets are relaxed, and token budgets are treated as obsolete constraints. The result: compaction events occur more frequently during critical implementation steps, agents lose their instructions mid-task, and plugin output quality drops.
+
+**Why it happens:**
+The PFS has carefully managed context budgets based on hard-learned lessons:
+- Research injection: 4,000 token budget cap (max observed: 3,478 tokens)
+- Validation reports: 500-token budget
+- Agent definitions: Already large (foundation-shell-agent is 1,020 lines, dsp-agent is 1,260 lines)
+- PreCompact hook preserves contracts specifically because compaction loses them
+
+With 1M tokens available, the natural instinct is to relax these limits. But:
+- **1M context is in beta** and may not be reliable or available for all deployments
+- **Subagents get fresh 200K context windows** regardless of main context size -- the 1M limit applies to the orchestrator, not to subagents
+- **MCP tools reduce available context:** "Your context window can shrink from 200K to 70K with too many tools" (official docs)
+- **Performance degrades with length:** Published research (NoLiMa, Chroma context rot) shows accuracy drops non-linearly with context size, even in models claiming large windows
+- **Compaction still happens:** Even with 1M tokens, auto-compaction triggers at ~95% capacity. Larger context just means more tokens to lose during compaction
+- **Token costs scale linearly:** 1M tokens of context means higher per-request costs
+
+**Warning signs:**
+- Agents requesting information they should already have (contracts, parameter lists) -- indicates compaction lost them
+- Compaction events occurring during critical implementation steps (mid-processBlock implementation)
+- Agent output becoming generic rather than specific to the plugin being built
+- Token costs per plugin build increasing >50% without quality improvement
+- PreCompact hook output growing beyond 5K tokens (too much contract state to preserve reliably)
+
+**How to avoid:**
+1. **Keep existing token budgets** (4K research injection, 500-token validation reports) -- they work and are proven
+2. **Do NOT increase agent definition size.** If adding Opus 4.6 features (skills, memory), reduce other content proportionally. The constraint drives quality
+3. **Measure before relaxing:** Run `/implement --express` on a canary plugin before and after any context changes. Record compaction event count and locations. Compare
+4. **Keep PreCompact hook** -- even with 1M context, contract preservation during compaction remains critical
+5. **Treat 1M context as a safety margin, not a budget increase:** The extra capacity means fewer emergency compactions, not permission to fill the window
+
+**Phase to address:**
+Phase 3 (Context & Intelligence) -- dedicated phase for context management optimization, but only after agent changes are stable from Phase 2.
+
+---
+
+### Pitfall 39: GSD Framework Updates Breaking PFS Custom Integration Points
+
+**What goes wrong:**
+GSD 1.18.0 (or a future update) changes internal APIs, file paths, or tool interfaces that PFS custom code depends on. Since GSD is installed globally at `~/.claude/get-shit-done/` and can be updated independently of the PFS project, an update can silently break PFS without any PFS code changes.
+
+**Why it happens:**
+The PFS integrates with GSD at multiple fragile points:
+
+1. **Direct tool calls with expected JSON output:**
+   - Commands reference `node ~/.claude/get-shit-done/bin/gsd-tools.js init execute-phase "${PHASE_ARG}"` and parse specific JSON fields (`executor_model`, `phase_found`, `phase_dir`, etc.)
+   - If `gsd-tools.js` changes its output schema, PFS commands break
+
+2. **Absolute path references to GSD templates:**
+   - GSD workflows reference templates with absolute paths: `/Users/taylorbrook/.claude/get-shit-done/templates/summary.md`
+   - These paths are embedded in GSD workflow files, not PFS files, but PFS depends on their existence
+
+3. **Shared config with undocumented contracts:**
+   - `.planning/config.json` is read by both GSD (`model_profile`, `workflow.research`, `parallelization`) and PFS (custom extensions)
+   - No schema defines which fields belong to GSD vs PFS
+
+4. **GSD workflow entry points:**
+   - PFS commands like `/implement` wrap GSD phases but add custom pre/post processing
+   - GSD phase lifecycle changes (new hooks, different step ordering) can break PFS wrappers
+
+5. **Model profile resolution:**
+   - GSD's `references/model-profiles.md` defines model routing for GSD agents (gsd-planner, gsd-executor, etc.)
+   - PFS agents define their own model in frontmatter
+   - If GSD changes how model resolution works, PFS agent model selection may break
+
+**Warning signs:**
+- `gsd-tools.js` commands returning unexpected JSON structure or new required fields
+- Template file-not-found errors referencing `~/.claude/get-shit-done/templates/`
+- `.planning/config.json` gaining new required fields that PFS does not provide
+- GSD workflows calling hooks in a different order than PFS expects
+- Model selection producing unexpected results after GSD update
+
+**How to avoid:**
+1. **Create an integration contract document** listing every GSD interface the PFS depends on (commands, expected JSON schemas, template paths, config fields, hook trigger order)
+2. **Before updating GSD**, diff the old and new versions: `diff -r ~/.claude/get-shit-done/ ~/get-shit-done-backup/`
+3. **Add integration smoke test** that verifies GSD interfaces:
+   ```bash
+   # Verify gsd-tools.js returns expected fields
+   node ~/.claude/get-shit-done/bin/gsd-tools.js init new-milestone 2>&1 | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'roadmapper_model' in d"
+   ```
+4. **Pin GSD version** in documentation and verify the installed version at session start
+5. **Adopt new GSD features incrementally** (one feature at a time) with a canary plugin build after each adoption
+
+**Phase to address:**
+Phase 1 (System Audit) -- catalog all GSD integration points as a deliverable. Phase 4 (GSD Feature Adoption) -- test each adoption against the integration contract.
+
+---
+
+### Pitfall 40: Regression in Plugin Build Quality During Modernization Period
+
+**What goes wrong:**
+During modernization, agent definitions are in a half-updated state. Some agents have new Opus 4.6 features, others use old patterns. A user runs `/implement` on a real plugin during this transition window. The workflow produces a broken plugin because report formats are mismatched, model routing is wrong, or new features interfere with existing prompt behavior. 35+ completed plugins depend on this system.
+
+**Why it happens:**
+The PFS is a live system. Users continue building plugins while the system is modernized. Unlike a greenfield project where breaking things until launch is acceptable, the PFS must maintain backward compatibility throughout the transition.
+
+Specific risk vectors:
+- Agent A updated to Opus 4.6 patterns, Agent B still using old patterns -- orchestrator receives incompatible reports
+- New `permissionMode` setting on an agent changes its tool access, blocking operations that previously worked
+- Persistent memory from one plugin leaks into another plugin's workflow
+- Skills loaded into an agent change its prompt behavior (skills content injected into system prompt, not just "available")
+- GSD model profile resolution conflicts with PFS agent frontmatter `model:` field
+
+Amplifying factors:
+- No automated end-to-end test suite for the plugin workflow
+- Manual testing requires running a full plugin build (20-30 minutes minimum)
+- Agent changes are hard to roll back -- they are markdown files, but their behavioral effects cascade through 8+ orchestrator skills
+
+**Warning signs:**
+- Users reporting "something changed" in plugin output quality
+- Build failures on plugins that previously built successfully
+- Agent model selection not matching expectations (wrong model running)
+- Missing handoff messages or quality gate bypasses
+- Resource accountability field disappearing from agent reports
+
+**How to avoid:**
+1. **Feature-flag approach in config:**
+   ```json
+   {
+     "modernization": {
+       "use_opus_46_agents": false,
+       "use_new_schemas": false,
+       "use_agent_memory": false
+     }
+   }
+   ```
+2. **Canary plugin:** Designate a simple effect plugin (low complexity, fast build, known-good output) as the modernization canary. Run `/implement --express` after every change. Compare output against baseline
+3. **One agent at a time:** Never modify more than one agent definition per commit. Test the full pipeline after each change
+4. **Backup agent definitions:**
+   ```
+   .claude/agents/dsp-agent.md          (active)
+   .claude/agents/dsp-agent.v12.md      (backup -- last known-good)
+   ```
+5. **Gate every change:** No modernization change ships without the canary plugin building successfully end-to-end
+
+**Phase to address:**
+All phases -- this is a cross-cutting concern. Canary testing infrastructure should be established in Phase 1 and used throughout.
+
+---
+
+## Moderate Pitfalls (v1.3)
+
+### Pitfall 41: Adopting Persistent Memory Without Data Hygiene Strategy
+
+**What goes wrong:**
+The `memory` frontmatter field is added to PFS agents, giving them persistent state across sessions. Agents accumulate stale patterns, outdated plugin information, and conflicting recommendations. Over time, memory becomes a liability: agents recommend deprecated JUCE patterns, reference plugins that have been refactored, or apply conventions from one plugin type to another where they do not apply.
+
+**Why it happens:**
+Persistent memory is powerful but requires active curation. The official docs note agents should "curate MEMORY.md if it exceeds 200 lines" but this is passive -- it relies on the agent to decide what to keep. Without a hygiene strategy:
+- DSP patterns from early plugins accumulate and override better patterns discovered later
+- Plugin-specific quirks get generalized as "best practices"
+- Memory grows without bounds, consuming context window space (first 200 lines injected at startup)
+- No mechanism to audit or reset agent memory programmatically
+- The PFS already has a research discovery system with 90-day staleness detection -- agent memory adds a SECOND knowledge system with no staleness detection
+
+**Warning signs:**
+- Agent memory files exceeding 200 lines (triggers automatic curation, which may discard important information)
+- Agents recommending deprecated JUCE patterns (version mismatches between memory and current JUCE 8.0.9)
+- Agents applying one plugin's conventions to a different plugin type (reverb patterns applied to a synthesizer)
+- Memory directories growing unbounded in `.claude/agent-memory/`
+- Conflicting information between agent memory and research discovery injection
+
+**How to avoid:**
+1. **Evaluate value before adopting:** The resource discovery system (v1.2) already provides domain knowledge injection with structured metadata, staleness detection, and token budgets. Persistent memory adds a second, unstructured knowledge channel. Verify memory provides value ABOVE what discovery already delivers before adding it
+2. **If adopting, use `project` scope** (not `user`) so memory is PFS-specific and version-controlled in `.claude/agent-memory/`
+3. **Create memory templates** for each agent type defining what to remember and what to discard
+4. **Add memory auditing to milestone completion:** Review and prune agent memory before starting a new milestone
+5. **Consider NOT using memory initially** -- the resource discovery system may be sufficient. Memory adds complexity without clear incremental benefit in a system that already has structured knowledge management
+
+**Phase to address:**
+Phase 3 (Context & Intelligence) -- evaluate whether memory adds value on top of existing resource discovery before adopting. Do not adopt in Phase 2 (Agent Modernization) alongside other changes.
+
+---
+
+### Pitfall 42: State File Format Drift Between GSD Versions
+
+**What goes wrong:**
+The PFS stores critical state in `.planning/STATE.md`, `.planning/config.json`, `.planning/ROADMAP.md`, and per-plugin `.planning/STATUS.md` files. GSD reads and writes these files through `gsd-tools.js`. A GSD update changes expected file formats (adds required fields, changes section structure, restructures YAML frontmatter). Existing state files become unparsable, and the system either errors out or silently ignores 3 milestones of accumulated state.
+
+**Why it happens:**
+The PFS has accumulated significant state across 3 milestones:
+- STATE.md tracks 38 completed plans, 62+ requirements, quick task history, session continuity
+- ROADMAP.md has phase records from phases 1-13 with completion dates
+- config.json has GSD standard fields (`model_profile`, `parallelization`) plus PFS extensions
+- Per-plugin STATUS.md files track stage completion, contract checksums, build artifact paths
+- MILESTONES.md records 3 shipped milestones with git ranges, stats, and accomplishments
+
+GSD's `gsd-tools.js init` expects specific state file formats. If GSD 1.18.0+ adds a `milestone_version` field to phase entries or changes how `config.json` model profiles work, existing state may break.
+
+The PFS also extends state files with custom fields that GSD does not know about:
+- config.json: `depth`, `commit_docs` (may or may not be GSD fields)
+- STATUS.md: YAML frontmatter with `contract_checksums`, `orchestration_mode`, `phased_implementation` (PFS-specific)
+
+**Warning signs:**
+- `gsd-tools.js` commands failing with JSON parse errors or "missing field" errors
+- STATE.md losing accumulated context (decisions, quick tasks, blockers) after a GSD operation
+- ROADMAP.md phase entries not displaying correctly (phase numbering reset, completion dates lost)
+- config.json losing PFS-specific settings after GSD writes to it
+
+**How to avoid:**
+1. **Snapshot all state files before modernization:**
+   ```bash
+   cp -r .planning/ .planning-v12-backup/
+   ```
+2. **Test GSD state file parsing before making changes:**
+   ```bash
+   node ~/.claude/get-shit-done/bin/gsd-tools.js init new-milestone 2>&1 | python3 -c "import sys,json; print(json.load(sys.stdin))"
+   ```
+3. **Write a migration script** if format changes are needed (read v1.2 format, write v1.3 format)
+4. **Add state file format validation** to SessionStart hook as a non-blocking check
+5. **Never modify state files manually** during modernization -- always use migration tooling
+
+**Phase to address:**
+Phase 1 (System Audit) -- validate state file compatibility as part of the GSD integration contract.
+
+---
+
+### Pitfall 43: Over-Engineering the Modernization
+
+**What goes wrong:**
+Scope creeps to include every Opus 4.6 feature, every new GSD capability, and every possible architectural improvement. The result: a months-long project delivering no value until completion, increasing system complexity, and potentially leaving the system in a worse state because each change interacts with every other change unpredictably.
+
+**Why it happens:**
+The PFS has been remarkably productive: 3 milestones in 6 days, 62+ requirements, 35+ plugins. The temptation is to "make it even better" by adopting everything new. But the system already works well -- it does not need a rewrite.
+
+v1.2 was already an intelligence upgrade (resource discovery, context injection, accountability). v1.3 should be a targeted modernization, not a transformation.
+
+**Warning signs:**
+- Modernization plan has more than 5 phases
+- Changes touching more than 50% of agent definitions in a single phase
+- New abstractions being created rather than simplifying existing ones
+- "While we're at it" additions to the scope
+- Timeline exceeding the 2-day pace of previous milestones
+- Creating new custom code to "modernize" (replacing one custom solution with another custom solution)
+
+**How to avoid:**
+1. **Apply the "real problem" test:** Has a plugin build ever failed because of the thing this change fixes? Has agent output quality suffered because of what this change addresses? If no to both, defer it
+2. **Timebox** to match previous milestone pace (2 days)
+3. **Prioritize ruthlessly:**
+   - **Must have:** Update agent `model:` fields for Opus 4.6. Remove truly redundant custom code
+   - **Should have:** Adopt new GSD features that directly replace custom workarounds
+   - **Could have:** Persistent memory evaluation. Agent teams for cross-plugin operations
+   - **Won't have this milestone:** Rewriting the stage pipeline. Restructuring agent contracts. New state management. Agent teams for the serial pipeline
+4. **If a change requires modifying more than 5 files, it needs its own phase with dedicated canary testing**
+
+**Phase to address:**
+Phase 0 (Requirements) -- scope must be aggressively constrained before any implementation begins.
+
+---
+
+## v1.3 Technical Debt Patterns
+
+| Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
+|----------|-------------------|----------------|-----------------|
+| Updating agent model field without testing | Fast Opus 4.6 adoption | Agents may behave differently (reasoning style, output format, verbosity) | Never -- always test with canary plugin |
+| Removing custom validators without replacement | Cleaner codebase | Loss of JUCE-specific validation (real-time safety, contract immutability, silent failure detection) | Never -- these are domain-critical safety nets |
+| Using agent teams for all orchestration | Uniform architecture, "modern" approach | 5-10x token cost, file conflicts, unnecessary complexity, loss of subagent nesting | Only for genuinely parallel independent tasks in different directories |
+| Skipping schema versioning | Faster iteration | Breaking changes cascade through all 6+ consumers silently | Only for truly additive optional fields with defaults |
+| Relaxing token budgets | Richer agent context | More compaction events, higher costs, potential quality degradation | Only after measuring actual compaction behavior with before/after comparison |
+| Adopting persistent memory before evaluating | Looks "intelligent" | Second unstructured knowledge system competing with structured resource discovery | Only after proving memory adds value above existing discovery system |
+| Hardcoding new GSD paths | Works on this machine | Breaks on GSD update, different user, or different install location | Never -- use config or environment variables |
+| Changing all agents simultaneously | Faster completion | Impossible to isolate which change caused a regression | Never -- one agent per commit with canary test |
+
+## v1.3 Integration Gotchas
+
+| Integration Point | Common Mistake | Correct Approach |
+|-------------------|----------------|------------------|
+| PFS agent `model:` vs GSD `model_profile` | Assuming GSD profile overrides PFS agent frontmatter | PFS agent frontmatter is authoritative for PFS agents; GSD profiles apply to GSD agents only. Document the boundary explicitly |
+| PFS hooks + GSD phase lifecycle | Assuming GSD phases trigger PFS hooks in expected order | Verify hook trigger order by adding debug logging during testing phase |
+| PFS schemas + new Opus 4.6 fields | Adding `memory`, `skills` to agents without updating schemas | Schema must be updated FIRST with optional fields + defaults, THEN agents can use new features |
+| PFS resource discovery + GSD research | Running both PFS discovery AND GSD research phase, doubling context injection | Define ownership: PFS discovery for plugin workflows, GSD research for system-level improvements |
+| PFS handoff protocol + GSD transitions | GSD auto-advancing while PFS expects mandatory `/clear` + next command | Configure GSD mode to respect PFS handoff protocol (manual transitions, explicit two-step) |
+| PFS PreCompact + Opus 4.6 compaction | Assuming 1M context eliminates need for PreCompact | Keep PreCompact hook -- compaction still occurs, contracts still need preservation |
+| PFS SessionStart + persistent memory | Agent memory loading at startup conflicting with SessionStart environment checks | Sequence matters: environment validation BEFORE agent memory is available |
+| PFS `skill:` frontmatter + Claude Code Skills | PFS command `skill:` routing conflicting with Claude Code's skill discovery | Explicitly namespace PFS skill references to avoid collision |
+
+## v1.3 "Looks Done But Isn't" Checklist
+
+- [ ] **Agent model field updated:** Verify the agent ACTUALLY runs on specified model by checking Task invocation, not just frontmatter. Some models may not be available
+- [ ] **Schema backward compatible:** Verify `additionalProperties: false` does not block new fields. Test with actual agent output from both old and new agents
+- [ ] **Custom code removal verified:** The behavior the custom code provided is actually handled by the replacement. Run the same validation scenarios (real-time safety violations, contract immutability, silent failure detection)
+- [ ] **GSD feature works within PFS orchestration:** Feature works in vanilla GSD AND within PFS's custom wrapping (pre/post processing, quality gates, handoffs)
+- [ ] **Handoff protocol preserved:** `/clear` instruction and full plugin name still appear in every handoff message
+- [ ] **Resource accountability intact:** `resources_consulted` field still populated in agent reports
+- [ ] **Contract immutability enforced:** PostToolUse hook still blocks contract modification during Stages 1-4
+- [ ] **Canary plugin passes:** Full `/implement --express` pipeline succeeds end-to-end on a simple plugin, not just individual agent invocations
+- [ ] **No terminology confusion:** Plans and documentation use the correct primitive names (subagent vs agent team vs skill) per the terminology mapping
+- [ ] **Token budgets maintained:** Research injection stays within 4K tokens, validation reports within 500 tokens, even with new features active
+
+## v1.3 Recovery Strategies
+
+| Pitfall | Recovery Cost | Recovery Steps |
+|---------|---------------|----------------|
+| P34: Custom code removed with PFS-specific behavior | MEDIUM | Git revert removal commit; re-classify code; re-add with documentation |
+| P35: Agent contracts broken | HIGH | Revert agent + schema changes; restore from backup; re-run any in-progress plugins from last clean checkpoint |
+| P36: Agent teams used for serial work | LOW | Revert to subagent pattern; no data loss, just wasted tokens |
+| P37: Terminology confusion causing wrong primitive | LOW | Create terminology mapping; refactor plan to use correct names |
+| P38: Context exhaustion from relaxed budgets | LOW | Restore previous token budget constants; re-run affected agent tasks |
+| P39: GSD update breaks PFS | MEDIUM | Restore GSD backup; fix integration points one at a time against contract |
+| P40: Plugin build regression | HIGH | Revert ALL modernization changes since last known-good state; re-introduce one at a time with canary testing |
+| P41: Memory pollution | LOW | Delete `.claude/agent-memory/` directory; agents revert to stateless (resource discovery still works) |
+| P42: State file format drift | MEDIUM | Restore from `.planning-v12-backup/`; write migration script; re-apply |
+| P43: Scope creep | LOW | Re-read pitfalls; cut to must-haves only; timebox remaining work to 2 days |
+
+## v1.3 Pitfall-to-Phase Mapping
+
+| Pitfall | Prevention Phase | Verification |
+|---------|------------------|--------------|
+| P34: Removing PFS-specific custom code | Phase 1 (Audit) | Every custom file classified as duplicate/extension/workaround with test case documenting preserved behavior |
+| P35: Breaking agent contracts | Phase 2 (Agent Modernization) | Schema diff before/after shows only additive optional changes; canary plugin build passes |
+| P36: Agent teams for serial work | Phase 1 (Audit) | Parallel suitability matrix created; stage pipeline explicitly marked "serial only" |
+| P37: Terminology confusion | Phase 1 (Audit) | Terminology mapping document created and referenced in all subsequent phase plans |
+| P38: Context window overconfidence | Phase 3 (Context) | Compaction event count measured before/after; token budgets verified unchanged |
+| P39: GSD framework breaking PFS | Phase 1 (Audit) + Phase 4 (GSD Adoption) | Integration contract document listing all GSD dependencies; smoke tests passing |
+| P40: Plugin build regression | ALL phases | Canary plugin passes after EVERY change |
+| P41: Memory without hygiene | Phase 3 (Context) | Memory evaluation completed comparing value vs resource discovery; if adopted, hygiene strategy documented |
+| P42: State file format drift | Phase 1 (Audit) | State files backed up; format validated against GSD expectations; migration script created if needed |
+| P43: Over-engineering | Phase 0 (Requirements) | Scope document with must/should/could/won't prioritization; timebox enforced |
+
+## v1.3 Pre-Implementation Checklist
+
+Before starting v1.3 modernization:
+
+- [ ] Backup all state files: `cp -r .planning/ .planning-v12-backup/`
+- [ ] Verify GSD version: `cat ~/.claude/get-shit-done/VERSION` -- confirm 1.18.0
+- [ ] Create terminology mapping (subagent vs agent team vs skill vs command)
+- [ ] Create parallel suitability matrix for all PFS workflows
+- [ ] Classify all custom code (duplicate / extension / workaround)
+- [ ] Identify canary plugin for regression testing (simple effect, fast build)
+- [ ] Map all GSD integration points (gsd-tools.js calls, template paths, config fields)
+- [ ] Verify current agent frontmatter against Opus 4.6 frontmatter spec (what fields are new, what changed)
+- [ ] Test current schemas against current agent output (establish known-good baseline)
+- [ ] Set scope boundary: must-have vs should-have vs could-have vs won't-have
+
+## v1.3 Sources
+
+**Opus 4.6 and Agent Teams (HIGH confidence):**
+- [Anthropic: Introducing Claude Opus 4.6](https://www.anthropic.com/news/claude-opus-4-6) -- 1M context beta, agent teams, improved reasoning
+- [Claude Code Docs: Create custom subagents](https://code.claude.com/docs/en/sub-agents) -- Subagent configuration including memory, skills, hooks, permissionMode
+- [Claude Code Docs: Orchestrate teams of Claude Code sessions](https://code.claude.com/docs/en/agent-teams) -- Agent teams architecture, limitations, comparison with subagents
+- [Claude Code Docs: Extend Claude with skills](https://code.claude.com/docs/en/skills) -- Skills vs subagents vs commands, context: fork
+
+**Agent System Modernization (MEDIUM confidence):**
+- [TechCrunch: Anthropic releases Opus 4.6](https://techcrunch.com/2026/02/05/anthropic-releases-opus-4-6-with-new-agent-teams/) -- Feature overview and positioning
+- [VentureBeat: Claude Opus 4.6 brings 1M token context and agent teams](https://venturebeat.com/technology/anthropics-claude-opus-4-6-brings-1m-token-context-and-agent-teams-to-take) -- Extended context capabilities
+- [Vivek Haldar: Subagents, Commands and Skills Are Converging](https://www.vivekhaldar.com/articles/claude-code-subagents-commands-skills-converging/) -- Terminology convergence analysis
+
+**Direct Codebase Analysis (HIGH confidence -- primary source):**
+- `.claude/agents/*.md` -- All 11 agent definitions with frontmatter and prompt content
+- `.claude/commands/*.md` -- All 40+ command definitions with skill routing
+- `.claude/hooks/*.sh` -- All 3 shell hooks with timeout budgets and validation logic
+- `.claude/hooks/validators/*.py` -- All 12 Python validators
+- `.claude/scripts/*.py` -- All 6 custom scripts (discovery, injection, manifest, templates)
+- `.claude/schemas/*.json` -- All schemas with `additionalProperties: false` constraints
+- `.planning/PROJECT.md`, `.planning/STATE.md`, `.planning/MILESTONES.md` -- System history and current state
+- `~/.claude/get-shit-done/` -- GSD 1.18.0 framework: workflows, templates, references, bin
+
+---
+
+*v1.3 Addendum Researched: 2026-02-08*
+*Focus: Pitfalls specific to modernizing a 62+ requirement AI agent orchestration system with Opus 4.6 capabilities and GSD 1.18.0 alignment, while maintaining backward compatibility for 35+ production plugins*
