@@ -27,7 +27,12 @@ Audit and modernize the Plugin Freedom System to leverage Opus 4.6 capabilities 
   3. No skill or agent prefills an assistant message (Opus 4.6 returns 400 on prefilled assistant messages)
   4. Agent effort levels are configured per-agent (dsp-agent and research-planning-agent at max/high, foundation-shell at medium, etc.) replacing the binary Sonnet/Opus model selection
   5. Canary plugin (O-SimpleReverb) builds and validates successfully after all changes
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 14-01-PLAN.md — Agent & critic definition cleanup (model frontmatter removal + agent-profiles.json)
+- [ ] 14-02-PLAN.md — Skill & command reference updates (effort terminology + Co-Authored-By fix)
+- [ ] 14-03-PLAN.md — Plugin content migration (.ideas/ to .planning/ + .gitignore rules)
+- [ ] 14-04-PLAN.md — Hook/script path updates + canary testing (O-SimpleReverb + O-AnalogEQ)
 
 ### Phase 15: Context Persistence
 **Goal**: Agents retain critical context across compaction events and sessions — plugin parameters, DSP components, contract paths, and stage decisions survive context loss
@@ -70,7 +75,7 @@ Audit and modernize the Plugin Freedom System to leverage Opus 4.6 capabilities 
 
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
-| 14. Platform Alignment | v1.3 | 0/TBD | Not started | - |
+| 14. Platform Alignment | v1.3 | 0/4 | Planned | - |
 | 15. Context Persistence | v1.3 | 0/TBD | Not started | - |
 | 16. GSD Deduplication | v1.3 | 0/TBD | Not started | - |
 | 17. Agent Intelligence | v1.3 | 0/TBD | Not started | - |
