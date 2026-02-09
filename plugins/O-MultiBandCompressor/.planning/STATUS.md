@@ -1,3 +1,5 @@
+## Continuation Context (migrated from .continue-here.md)
+
 ---
 plugin: O-MultiBandCompressor
 stage: complete
@@ -31,7 +33,7 @@ The plugin is fully functional with all 56 parameters bound to the WebView UI. I
 ### UI (Stage 3 - All Phases Complete)
 - **WebView-based interface** with Botanical/Ouaricon aesthetic
 - **All 56 parameters bound** via JUCE WebSliderRelay/WebToggleButtonRelay/WebComboBoxRelay
-- **Bidirectional sync**: UI ↔ APVTS (automation/presets work)
+- **Bidirectional sync**: UI <-> APVTS (automation/presets work)
 - **Real-time metering** at 30 Hz via Timer + evaluateJavascript
 - **Crossover position indicators** with log-scale frequency mapping
 - **Responsive knobs** using native HTML range inputs with JUCE module binding
@@ -47,55 +49,24 @@ The UI uses the JUCE WebView module correctly:
 ```javascript
 import * as Juce from './juce/index.js';
 const sliderState = Juce.getSliderState('PARAMETER_ID');
-sliderState.setNormalisedValue(value);  // UI → APVTS
-sliderState.valueChangedEvent.addListener(() => { ... });  // APVTS → UI
+sliderState.setNormalisedValue(value);  // UI -> APVTS
+sliderState.valueChangedEvent.addListener(() => { ... });  // APVTS -> UI
 ```
 
 ### Resource Provider Pattern
 BinaryData lookup must use `originalFilenames[]` (not mangled `namedResourceList[]`):
 ```cpp
-// Extract basename from URL path (e.g., "css/styles.css" → "styles.css")
+// Extract basename from URL path (e.g., "css/styles.css" -> "styles.css")
 if (filename == BinaryData::originalFilenames[i]) {
     // Use BinaryData::namedResourceList[i] to get the data
 }
 ```
 
 ### Metering Pattern
-C++ → JavaScript via evaluateJavascript:
+C++ -> JavaScript via evaluateJavascript:
 ```cpp
 webView->evaluateJavascript("updateGainReductionMeters(0.5, 0.3, 0.2, 0.1)");
 ```
-
-## Files Structure
-
-```
-plugins/O-MultiBandCompressor/
-├── CMakeLists.txt                    # Build config with JUCE 8, WebView resources
-├── Source/
-│   ├── PluginProcessor.h/cpp         # APVTS with 56 params, DryWetMixer, M/S encoding
-│   ├── PluginEditor.h/cpp            # WebView, 56 relays, 56 attachments, Timer metering
-│   └── DSP/
-│       ├── EnvelopeDetector.h        # Peak/RMS blend detection
-│       ├── GainComputer.h            # Soft knee gain calculation
-│       ├── Compressor.h              # Feed-forward compressor with sidechain filters
-│       ├── CrossoverNetwork.h        # Linkwitz-Riley 4th order (cascaded Butterworth)
-│       └── MultiBandProcessor.h      # Orchestrates crossover + 4 compressors
-└── Source/ui/public/
-    ├── index.html                    # Layout structure
-    ├── css/styles.css                # Botanical styling (recently tightened vertically)
-    └── js/
-        ├── app.js                    # Parameter binding, metering functions
-        └── juce/
-            ├── index.js              # JUCE WebView bridge (getSliderState, etc.)
-            └── check_native_interop.js
-```
-
-## Recent Fixes Applied
-
-1. **Resource loading fix**: Changed from comparing against `namedResourceList` to `originalFilenames`
-2. **UI interactivity fix**: Changed from non-existent `window.__JUCE__.initialisers.*` to proper `import * as Juce` module usage
-3. **ComboBox API fix**: Changed from `getSelectedId()`/`setSelectedId()` to `getChoiceIndex()`/`setChoiceIndex()`
-4. **Layout fix**: Tightened vertical spacing so bottom controls (INPUT, MIX, AUTO-MU, M/S MODE, OUTPUT) are visible
 
 ## Parameters (56 Total)
 
@@ -105,28 +76,12 @@ plugins/O-MultiBandCompressor/
 - MS_MODE (choice: Off/Mid/Side/Both)
 - XOVER1, XOVER2, XOVER3 (crossover frequencies)
 
-### Per-Band (12 × 4 = 48)
+### Per-Band (12 x 4 = 48)
 For each band (LOW, LOMID, HIMID, HIGH):
 - {BAND}_THRESHOLD, {BAND}_RATIO, {BAND}_ATTACK, {BAND}_RELEASE
 - {BAND}_KNEE, {BAND}_MAKEUP, {BAND}_PEAK_RMS
 - {BAND}_SOLO, {BAND}_BYPASS, {BAND}_SC_LISTEN (bools)
 - {BAND}_SC_HPF, {BAND}_SC_LPF (sidechain filter frequencies)
-
-## Git History (Recent)
-
-```
-28f9f2f fix: Tighten vertical spacing to fit all controls
-dd597c5 fix: Fix UI interactivity - use correct JUCE API
-8c5749d fix: Fix WebView resource loading
-7e21667 chore: Mark as 📦 Installed
-8237ae9 docs: Mark as ✅ Working - Stage 3 complete
-40aae6a feat: Phase 5.3 - Real-time metering (Stage 3 complete)
-9e2300d feat: Phase 5.2 - Parameter binding (56 params)
-47ab6c7 feat: Phase 5.1 - WebView layout and structure
-3a83f66 feat: Phase 4.3 - Advanced DSP features (Stage 2 complete)
-f7e5b7b feat: Phase 4.2 - Linkwitz-Riley crossover + 4-band
-e3d385e feat: Phase 4.1 - Single-band compressor foundation
-```
 
 ## Ready for Improvements
 

@@ -1,3 +1,5 @@
+## Continuation Context (migrated from .continue-here.md)
+
 ---
 plugin: O-SimpleReverb
 stage: 1
@@ -9,11 +11,6 @@ phased_implementation: true
 orchestration_mode: true
 next_action: invoke_dsp_agent
 next_phase: 3.1
-contract_checksums:
-  creative_brief: sha256:24cd92a3e176a145a5a2329f4377d7df2f8055a7f398e1eba4a122f122b0791b
-  parameter_spec: sha256:e8f5a8c7d9b4c1a2f3e6d4b8a9c1e2f4d6a8b9c1e2f3d4a5b6c7d8e9f1a2b3c4
-  architecture: sha256:20a453909d5cb88c6f42013268192729e7e9fc986180eccd77caaa9265c45077
-  plan: sha256:e514f07c6062edd5441d35206fb542027f213d50dff7c8648169e274a6774e2b
 ---
 
 # Resume Point
@@ -24,7 +21,7 @@ Build system operational with 6 parameters implemented. Ready to proceed to DSP 
 
 ## Completed So Far
 
-**Stage 0:** ✓ Complete
+**Stage 0:** Complete
 - Plugin type defined: Audio Effect (Reverb)
 - Professional examples researched: 5 (Valhalla VintageVerb, Valhalla Room, FabFilter Pro-R, UAD EMT 140, Eventide UltraReverb)
 - JUCE modules identified: juce_dsp (Reverb, IIR::Filter, DryWetMixer)
@@ -34,7 +31,7 @@ Build system operational with 6 parameters implemented. Ready to proceed to DSP 
 - Strategy: Phase-based implementation (3 DSP phases, 2 GUI phases)
 - Plan documented: architecture.md + plan.md created
 
-**Stage 1:** ✓ Complete (2026-01-13)
+**Stage 1:** Complete (2026-01-13)
 - Foundation complete: Build system operational, 6 parameters implemented
 - CMakeLists.txt configured for JUCE 8 (VST3, AU, Standalone)
 - APVTS parameters implemented: TYPE, CHARACTER, WET, DRY, DECAY, SIZE
@@ -71,35 +68,19 @@ Build system operational with 6 parameters implemented. Ready to proceed to DSP 
 - Core: juce::dsp::Reverb (6 type variations)
 - Character: juce::dsp::IIR::Filter (warm/bright/neutral)
 - Mixing: juce::dsp::DryWetMixer (independent dry/wet gains)
-- File: plugins/O-SimpleReverb/.ideas/architecture.md
 
 **Implementation Plan:**
-- DSP Phase 3.1: Core Processing (Room reverb + dry/wet) ← Next
+- DSP Phase 3.1: Core Processing (Room reverb + dry/wet)
 - DSP Phase 3.2: Type Switching (6 types: Booth, Room, Hall, Spring, Plate, Ambient)
 - DSP Phase 3.3: Character Control (warm/bright filter)
 - GUI Phase 4.1: Layout and Basic Controls (Ouaricon Naturalist aesthetic)
 - GUI Phase 4.2: Parameter Binding (6 parameters)
-- File: plugins/O-SimpleReverb/.ideas/plan.md
 
 **Key Decisions:**
 - Use juce::dsp::Reverb for all six types (parameter variations, not separate algorithms)
 - Independent DRY and WET parameters (not single MIX control)
 - Character filter applied post-reverb (shapes tail, not input)
 - CPU target: ~20-30% single core (well within lightweight goal)
-
-## Files Created
-
-**Stage 0:**
-- plugins/O-SimpleReverb/.ideas/architecture.md
-- plugins/O-SimpleReverb/.ideas/plan.md
-- plugins/O-SimpleReverb/.ideas/parameter-spec.md
-
-**Stage 1:**
-- plugins/O-SimpleReverb/CMakeLists.txt
-- plugins/O-SimpleReverb/Source/PluginProcessor.h
-- plugins/O-SimpleReverb/Source/PluginProcessor.cpp
-- plugins/O-SimpleReverb/Source/PluginEditor.h
-- plugins/O-SimpleReverb/Source/PluginEditor.cpp
 
 ## Build Artifacts
 
@@ -112,3 +93,6 @@ Artifacts will be installed to:
 - VST3: ~/Library/Audio/Plug-Ins/VST3/O-SimpleReverb.vst3
 - AU: ~/Library/Audio/Plug-Ins/Components/O-SimpleReverb.component
 - Standalone: build/plugins/O-SimpleReverb/O-SimpleReverb_artefacts/Release/Standalone/O-SimpleReverb.app
+
+---
+*Last updated: 2026-01-13*

@@ -1,3 +1,5 @@
+## Continuation Context (migrated from .continue-here.md)
+
 ---
 plugin: OuariconAnalogEQ
 stage: 3
@@ -8,26 +10,20 @@ complexity_score: 4.0
 phased_implementation: true
 orchestration_mode: true
 next_action: validate_and_test
-next_phase: null
-contract_checksums:
-  creative_brief: sha256:a9349cdebb538270af045b9e6e685fcc33558ae219dcb8aece26e51edd08c5e7
-  parameter_spec: sha256:91aeac4355b90a000055ec882ef5d596c89e542e8783d78916d0abda255e98e8
-  architecture: sha256:aa2a8f9bad909c48887303b8486f7c1d1541e90076ff19f563e46aa77355a909
-  plan: sha256:d28f0339d7b59ee98174cfed0ff64d7da63fca54087596ce4e88af8c16a7eaae
 ---
 
 # Resume Point
 
 ## Current State: Stage 3 - GUI Integration Complete
 
-WebView UI integrated with v3 mockup (920×220px). All 16 parameters bound to UI controls. Ready for build verification.
+WebView UI integrated with v3 mockup (920x220px). All 16 parameters bound to UI controls. Ready for build verification.
 
 ## Completed So Far
 
-**Stage 0:** ✓ Complete
-**Stage 1:** ✓ Complete (Foundation + Shell - build system and parameters created)
-**Stage 2:** ✓ Complete (DSP implementation - EQ filters and saturation)
-**Stage 3:** ✓ Complete (GUI integration - WebView UI with dual-layer knobs)
+**Stage 0:** Complete
+**Stage 1:** Complete (Foundation + Shell - build system and parameters created)
+**Stage 2:** Complete (DSP implementation - EQ filters and saturation)
+**Stage 3:** Complete (GUI integration - WebView UI with dual-layer knobs)
 - Plugin type defined: Audio effect (4-band EQ)
 - Professional examples researched: UAD Neve 1081, Waves V-EQ4, FabFilter Pro-Q
 - JUCE modules identified: juce_dsp (IIR::Filter, WaveShaper, Gain)
@@ -40,7 +36,7 @@ WebView UI integrated with v3 mockup (920×220px). All 16 parameters bound to UI
 ## Next Steps
 
 1. **Build Verification:** Compile plugin and verify WebView loads correctly
-2. **Parameter Testing:** Test all 16 parameter bindings (UI ↔ APVTS sync)
+2. **Parameter Testing:** Test all 16 parameter bindings (UI <-> APVTS sync)
 3. **DAW Testing:** Load in DAW, test automation and preset recall
 4. **Visual Verification:** Confirm paper texture and botanical overlay render correctly
 5. **Dual-layer Knobs:** Test independent rotation of frequency (outer) and gain (inner) knobs
@@ -48,7 +44,7 @@ WebView UI integrated with v3 mockup (920×220px). All 16 parameters bound to UI
 ## Stage 3 Deliverables
 
 **UI Files Created:**
-- `Source/ui/public/index.html` (v3 mockup - 920×220px)
+- `Source/ui/public/index.html` (v3 mockup - 920x220px)
 - `Source/ui/public/js/juce/index.js` (JUCE JavaScript bridge)
 - `Source/ui/public/images/paper1.jpg` (background texture)
 - `Source/ui/public/images/flower_ferdinandibauer00baue_0021.png` (botanical overlay)
@@ -71,26 +67,22 @@ WebView UI integrated with v3 mockup (920×220px). All 16 parameters bound to UI
 - Global: `output_gain`, `analog`
 
 **Critical Patterns Applied:**
-- Member order: Relays → WebView → Attachments (prevents release build crashes)
+- Member order: Relays -> WebView -> Attachments (prevents release build crashes)
 - All relays registered with `.withOptionsFrom()`
 - Correct MIME types in resource provider
 - No viewport units in CSS (`100%` instead of `100vh`)
 - Native feel CSS (`user-select: none`)
-
-## Files Created
-- plugins/OuariconAnalogEQ/.ideas/architecture.md (Complete DSP specification)
-- plugins/OuariconAnalogEQ/.ideas/plan.md (Implementation strategy with phases)
 
 ## Context to Preserve
 
 **Architecture highlights:**
 - 4-band EQ: LF shelf, LMF bell, HMF bell, HF shelf
 - Analog saturation: tanh waveshaping (subtle warmth)
-- Processing order: LF → LMF → HMF → HF → Saturation → Output Gain
+- Processing order: LF -> LMF -> HMF -> HF -> Saturation -> Output Gain
 - All JUCE DSP components: juce::dsp::IIR::Filter, juce::dsp::WaveShaper, juce::dsp::Gain
 
 **Implementation strategy:**
-- Complex plugin (score 4.0) → Phase-based implementation
+- Complex plugin (score 4.0) -> Phase-based implementation
 - DSP Phase 4.1: Single band validation (LF shelf + output gain)
 - DSP Phase 4.2: Full EQ chain (LMF, HMF, HF bands)
 - DSP Phase 4.3: Analog saturation circuit
@@ -99,30 +91,9 @@ WebView UI integrated with v3 mockup (920×220px). All 16 parameters bound to UI
 
 **Key challenges:**
 - Dual-layer knob UI (outer ring = freq, inner dial = gain)
-- Q parameter mapping (Choice 0/1/2 → Q 0.5/1.0/2.0)
+- Q parameter mapping (Choice 0/1/2 -> Q 0.5/1.0/2.0)
 - VU meter visualization (real-time output level display)
 - Filter coefficient updates (non-allocating, ref-counted)
 
-## Research References
-
-**Professional plugins:**
-- UAD Neve 1081: LF/HF shelving (5 frequencies), switchable to bell
-- Waves V-EQ4: Neve 1081 emulation, ±18dB shelving, analog saturation
-- FabFilter Pro-Q: Variable shelf Q (opposite design goal - too surgical)
-
-**JUCE classes:**
-- juce::dsp::IIR::Filter + Coefficients::makeLowShelf/makeHighShelf/makePeakFilter
-- juce::dsp::WaveShaper (tanh soft clipping)
-- juce::dsp::Gain (output trim)
-- juce::dsp::ProcessSpec + AudioBlock + ProcessContextReplacing
-
-**Technical details:**
-- Shelving filters: Fixed Q = 0.707 (Butterworth, musical slope)
-- Parametric filters: Q = 0.5/1.0/2.0 (WIDE/MED/TIGHT)
-- Saturation: tanh(x * 1.5) * 1.1 (gentle drive, post-gain compensation)
-- No oversampling (gentle saturation, band-limited by EQ)
-- Latency: < 5 samples (~0.1ms @ 48kHz, negligible)
-
 ---
-
-**Ready for Stage 1:** Foundation + Shell implementation
+*Last updated: 2026-01-11*

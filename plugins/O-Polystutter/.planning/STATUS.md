@@ -1,3 +1,5 @@
+## Continuation Context (migrated from .continue-here.md)
+
 ---
 plugin: OuariconPolystutter
 stage: complete
@@ -26,7 +28,7 @@ Reverted RepeatLane.cpp and RepeatLane.h to v1.1.4 tag to restore stable beat-sy
 - v1.2.0 prioritizes stable, click-free beat-sync operation
 
 **File changes:**
-- RepeatLane.cpp: 745 lines → 542 lines
+- RepeatLane.cpp: 745 lines -> 542 lines
 - RepeatLane.h: reduced to match v1.1.4 state
 
 ### Known Issues
@@ -42,3 +44,6 @@ Reverted RepeatLane.cpp and RepeatLane.h to v1.1.4 tag to restore stable beat-sy
 3. Play audio and trigger stutters
 4. Verify clean, click-free stutter operation
 5. Optional: Test ENV/Sidechain to confirm known artifacts
+
+---
+*Last updated: 2026-01-17*
