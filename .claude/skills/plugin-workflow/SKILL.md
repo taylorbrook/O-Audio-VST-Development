@@ -81,8 +81,12 @@ Each phase invokes a specialized agent via Task tool:
 ## Main Orchestration Loop
 
 ```python
-def orchestrate_implementation(plugin_name, start_stage, skip_phases, express_mode):
-    """Main orchestration loop for plugin implementation."""
+def orchestrate_implementation(plugin_name, start_stage, skip_phases, workflow_mode):
+    """Main orchestration loop for plugin implementation.
+
+    workflow_mode: "manual" | "express" | "auto"
+    CTXP-03: Auto mode generates all planning artifacts without user interaction.
+    """
 
     stages = ["1-foundation", "2-dsp", "3-gui", "4-polish"]
     phases = ["discuss", "research", "plan", "execute", "verify"]
@@ -116,19 +120,20 @@ def orchestrate_implementation(plugin_name, start_stage, skip_phases, express_mo
             result = run_phase(plugin_name, stage, phase)
 
             if result.status == "error":
-                # Drop to manual mode on error
+                # Drop to manual mode on error (express and auto both fall back)
                 present_error_menu(plugin_name, stage, phase, result.error)
                 return  # Exit, user will /continue
 
             # Phase checkpoint
             commit_phase(plugin_name, stage, phase)
 
-            # Present menu (manual mode) or auto-advance (express mode)
-            if not express_mode:
+            # Present menu (manual mode) or auto-advance (express/auto mode)
+            if workflow_mode == "manual":
                 action = present_phase_menu(plugin_name, stage, phase)
                 if action == "pause":
                     create_handoff(plugin_name, stage, phase)
                     return
+            # express and auto modes always auto-advance at phase checkpoints
 
         # Stage complete - HANDOFF POINT
         mark_stage_complete(plugin_name, stage)
@@ -148,11 +153,24 @@ def orchestrate_implementation(plugin_name, start_stage, skip_phases, express_mo
 
 ### Discuss Phase
 
-Gather context through interactive questioning (or auto-generate from existing docs in express mode).
+Gather context through interactive questioning, auto-generate from existing docs (express mode), or fully auto-generate from contracts (auto mode).
+
+- **Manual mode:** Run interactive questioning via plugin-discuss-agent to produce CONTEXT.md
+- **Express mode:** Auto-advance but still run each phase normally (may pause at decisions)
+- **Auto mode:** Auto-generate CONTEXT.md directly from existing contracts (BRIEF.md, parameter-spec.md, ARCHITECTURE.md, previous stage VERIFICATION.md) without any user interaction. No questions are asked. CONTEXT.md is compiled from existing documents and marked as auto-generated.
 
 ```python
-def run_discuss_phase(plugin_name, stage, express_mode):
-    if express_mode:
+def run_discuss_phase(plugin_name, stage, workflow_mode):
+    if workflow_mode == "auto":
+        # Auto-generate CONTEXT.md from contracts without interaction
+        brief = read_file(f"plugins/{plugin_name}/.planning/BRIEF.md")
+        params = read_file(f"plugins/{plugin_name}/.planning/parameter-spec.md")
+        arch = read_file(f"plugins/{plugin_name}/.planning/research/ARCHITECTURE.md")
+        prev_verification = read_file_safe(f"plugins/{plugin_name}/.planning/stages/{prev_stage}/VERIFICATION.md")
+        context = compile_context_from_contracts(brief, params, arch, prev_verification)
+        context.source = "Auto-Generated from existing contracts (no interactive session)"
+        write_context_md(plugin_name, stage, context)
+    elif workflow_mode == "express":
         # Auto-generate CONTEXT.md from existing docs
         context = compile_context_from_docs(plugin_name, stage)
         write_context_md(plugin_name, stage, context)
@@ -177,10 +195,17 @@ def run_discuss_phase(plugin_name, stage, express_mode):
 
 ### Research Phase
 
-Investigate implementation approach.
+Investigate implementation approach. In auto mode, invoke the research agent non-interactively.
+
+- **Manual/Express mode:** Run research agent normally (may ask clarifying questions in manual)
+- **Auto mode:** Invoke the research agent with an explicit non-interactive directive. The research agent reads CONTEXT.md and produces RESEARCH.md without asking clarifying questions. When workflow mode is auto, append to the research agent prompt: "Mode: Non-interactive (auto mode) -- do not ask clarifying questions."
 
 ```python
-def run_research_phase(plugin_name, stage):
+def run_research_phase(plugin_name, stage, workflow_mode="manual"):
+    auto_directive = ""
+    if workflow_mode == "auto":
+        auto_directive = "\n\nMode: Non-interactive (auto mode) -- do not ask clarifying questions."
+
     invoke_task(
         subagent_type="gsd-phase-researcher",
         prompt=f"""
@@ -195,6 +220,7 @@ def run_research_phase(plugin_name, stage):
         4. Pitfalls from troubleshooting knowledge base
 
         Output: stages/{stage}/RESEARCH.md
+        {auto_directive}
         """
     )
     return PhaseResult(status="success")
@@ -474,6 +500,35 @@ See: `.claude/references/handoff-protocol.md` for handoff format.
 
 **STOP - do not auto-advance across stage boundaries.** Each stage completion presents a handoff.
 
+### Auto Mode Output
+
+**Auto mode auto-generates planning artifacts (CONTEXT.md, RESEARCH.md, PLAN.md) without interaction, then runs execute and verify normally. Like express mode, auto mode STOPS at stage boundaries to present handoff.**
+
+```
+/implement O-IntonationPad --auto
+
+--- Stage 1: Foundation ---
+  [auto] discuss -> Context auto-generated from BRIEF.md + contracts
+  [auto] research -> Research generated non-interactively
+  [auto] plan -> PLAN.md auto-generated
+  [auto] execute -> foundation-shell-agent running...
+         ✓ CMakeLists.txt created
+         ✓ PluginProcessor.cpp created
+         ✓ Parameters implemented
+  [auto] verify -> Build successful, parameters validated
+  ✓ Stage 1 complete
+
+---
+## ▶ Next Up
+**Stage 2: DSP** — Audio processing and algorithms
+
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/implement O-IntonationPad --auto`
+---
+```
+
+**STOP - do not auto-advance across stage boundaries.** Each stage completion presents a handoff.
+
 ## Error Handling
 
 ### Build Failure
@@ -531,6 +586,8 @@ Supported skip flags (from `/implement` command):
 - `--skip-verify` → Skip verify phase (not recommended)
 
 **Cannot skip:** plan, execute
+
+**Note:** `--auto` auto-generates discuss and research phases (producing CONTEXT.md and RESEARCH.md from contracts), unlike `--skip-discuss`/`--skip-research` which skip those phases entirely without producing artifacts.
 
 ## Reference Files
 
