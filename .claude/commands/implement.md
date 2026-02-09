@@ -1,7 +1,7 @@
 ---
 name: implement
 description: Build plugin through implementation stages 1-4 with GSD phase cycles
-argument-hint: "[PluginName?] [--express] [--skip-discuss] [--skip-research] [--skip-verify]"
+argument-hint: "[PluginName?] [--express] [--auto] [--skip-discuss] [--skip-research] [--skip-verify]"
 skill: plugin-workflow
 ---
 
@@ -26,6 +26,7 @@ Build a plugin through implementation stages 1-4, with each stage running a full
 | Flag | Description |
 |------|-------------|
 | `--express` | Auto-progress through all stages and phases |
+| `--auto` | Auto-generate discuss/research/plan without user interaction |
 | `--manual` | Show decision menus at each checkpoint |
 | `--skip-discuss` | Skip discuss phase (use existing context) |
 | `--skip-research` | Skip research phase |
@@ -86,6 +87,14 @@ Each stage runs a full GSD cycle:
 - Interactive discuss phase with questions
 - Full control over progression
 
+**Auto mode (`--auto`):**
+- Auto-generates CONTEXT.md from existing contracts (BRIEF.md, parameter-spec.md)
+- Auto-runs research phase non-interactively
+- Auto-generates PLAN.md from research output
+- Execute and verify phases run normally
+- Falls back to manual mode on any error
+- Different from express: express auto-advances but still runs each phase normally; auto generates planning artifacts without interaction
+
 ## Behavior
 
 1. **Resolve plugin name** (use focused if not specified)
@@ -113,6 +122,9 @@ Each stage runs a full GSD cycle:
 
 # Skip optional phases for faster iteration
 /implement O-IntonationPad --express --skip-discuss --skip-research
+
+# Fully automated: generate plans and implement without interaction
+/implement O-IntonationPad --auto
 
 # Resume from where you left off
 /continue O-IntonationPad --express
