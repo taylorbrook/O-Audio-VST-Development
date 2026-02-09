@@ -49,6 +49,22 @@ const researchContext = bash(
     `python3 .claude/scripts/inject-context.py --stage 2 --agent dsp-agent --plugin ${pluginName}`
 );
 
+// CTXP-01: Complex plugins load full research docs for higher-quality DSP output
+let fullResearchBlock = "";
+if (complexityScore >= 4) {
+  const researchDir = `plugins/${pluginName}/.planning/research`;
+  const fullResearchPaths = listFiles(researchDir, "*").map(f => `${researchDir}/${f}`);
+  const digestPath = `plugins/${pluginName}/.planning/DIGEST.json`;
+
+  fullResearchBlock = `
+**Full Research Documents (complexity >= 4 -- load these entirely):**
+${fullResearchPaths.map(f => `- ${f}`).join('\n')}
+
+**Context Digest:**
+- ${digestPath}
+`;
+}
+
 const dspResult = Task({
   subagent_type: "dsp-agent",
   description: `Stage 2 - ${pluginName}`,
@@ -67,6 +83,7 @@ You are dsp-agent implementing Stage 2 for ${pluginName}.
 - parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 
 ${researchContext}
+${fullResearchBlock}
 
 **Implementation steps:**
 1. Read all contract files listed above
@@ -146,6 +163,22 @@ const researchContext = bash(
     `python3 .claude/scripts/inject-context.py --stage 2 --agent dsp-agent --plugin ${pluginName}`
 );
 
+// CTXP-01: Complex plugins load full research docs for higher-quality DSP output
+let fullResearchBlock = "";
+if (complexityScore >= 4) {
+  const researchDir = `plugins/${pluginName}/.planning/research`;
+  const fullResearchPaths = listFiles(researchDir, "*").map(f => `${researchDir}/${f}`);
+  const digestPath = `plugins/${pluginName}/.planning/DIGEST.json`;
+
+  fullResearchBlock = `
+**Full Research Documents (complexity >= 4 -- load these entirely):**
+${fullResearchPaths.map(f => `- ${f}`).join('\n')}
+
+**Context Digest:**
+- ${digestPath}
+`;
+}
+
 for (let i = 0; i < phases.length; i++) {
   const phase = phases[i];
 
@@ -170,6 +203,7 @@ You are dsp-agent implementing Phase ${phase.number} for ${pluginName}.
 - parameter-spec.md: plugins/${pluginName}/.planning/parameter-spec.md
 
 ${researchContext}
+${fullResearchBlock}
 
 **Phase implementation steps:**
 1. Read all contract files listed above
