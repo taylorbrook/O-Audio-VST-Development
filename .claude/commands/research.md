@@ -81,7 +81,7 @@ The deep-research skill uses a graduated research protocol (3 levels) to efficie
 without over-researching simple problems. Auto-escalates based on confidence.
 
 <graduated_protocol>
-  <level number="1" duration="5-10min" model="Sonnet">
+  <level number="1" duration="5-10min" effort="low">
     <searches>
       - Local troubleshooting/ knowledge base
       - Context7 JUCE documentation (quick lookup)
@@ -90,7 +90,7 @@ without over-researching simple problems. Auto-escalates based on confidence.
     <escalates_if>No confident solution in local/cached sources</escalates_if>
   </level>
 
-  <level number="2" duration="15-30min" model="Sonnet">
+  <level number="2" duration="15-30min" effort="medium">
     <searches>
       - Context7 deep-dive (module-level documentation)
       - JUCE forum discussions
@@ -100,7 +100,7 @@ without over-researching simple problems. Auto-escalates based on confidence.
     <escalates_if>Multiple partial solutions requiring comparison, or novel problem</escalates_if>
   </level>
 
-  <level number="3" duration="30-60min" model="Opus + extended thinking">
+  <level number="3" duration="30-60min" effort="max">
     <approach>Parallel research subagents (2-3 concurrent)</approach>
     <searches>
       - Comprehensive approach comparison
@@ -147,10 +147,10 @@ without over-researching simple problems. Auto-escalates based on confidence.
 </usage_guidance>
 
 <technical_implementation>
-  <models>
-    - Level 1-2: Sonnet (fast, sufficient for documented problems)
-    - Level 3: Opus + extended thinking 15k budget (deep reasoning)
-  </models>
+  <effort_levels>
+    - Level 1-2: low/medium effort (fast, sufficient for documented problems)
+    - Level 3: max effort (deep reasoning)
+  </effort_levels>
 
   <timeout>Max 60 minutes (returns best findings if exceeded)</timeout>
 

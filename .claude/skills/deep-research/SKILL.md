@@ -91,7 +91,7 @@ deep-research MUST invoke plugin-improve via Skill tool.
 
 **Why separation matters:**
 
-- Research uses Opus + extended thinking (expensive)
+- Research uses max effort (expensive)
 - Implementation needs codebase context (different focus)
 - Clear decision gate between "here are options" and "making changes"
 - Research can't break anything (safe exploration)
@@ -138,13 +138,11 @@ ELSE IF confidence = LOW OR novel_problem = true: MUST escalate to Level 3
 
 <goal>Parallel subagent investigation for novel/complex problems</goal>
 
-<model_requirements>
-MUST use: claude-opus-4-1-20250805
-MUST enable: extended-thinking with 15k budget
-NEVER use: Sonnet (insufficient synthesis capacity)
-</model_requirements>
+<effort_requirements>
+Effort: max (deepest reasoning for novel problems)
+</effort_requirements>
 
-<required_steps> 1. Switch to Opus + extended thinking 2. Identify 2-3 research approaches 3. Spawn parallel subagents via Task tool (NOT serial) 4. Synthesize findings with extended thinking 5. Generate comprehensive report
+<required_steps> 1. Use max effort for deep reasoning 2. Identify 2-3 research approaches 3. Spawn parallel subagents via Task tool (NOT serial) 4. Synthesize findings with deep reasoning 5. Generate comprehensive report
 </required_steps>
 
 <exit_conditions>
@@ -156,13 +154,12 @@ ALWAYS: Present decision menu (no further escalation possible)
 
 - NEVER skip Level 1 unless user explicitly requests starting at Level 2/3 (via `/research [topic] --level 2` or "Start with Level 2 investigation of [topic]")
 - NEVER use serial investigation at Level 3 (must be parallel)
-- NEVER use Sonnet at Level 3 (must be Opus)
-- NEVER forget extended thinking at Level 3
+- NEVER use low effort at Level 3 (must be max effort)
 - NEVER implement solutions (always delegate to plugin-improve)
   </enforcement_rules>
   </critical_sequence>
 
-## Level 1: Quick Check (5-10 min, Sonnet, no extended thinking)
+## Level 1: Quick Check (5-10 min, low effort)
 
 **Goal:** Find quick answer from local knowledge base or JUCE API docs
 
@@ -174,7 +171,7 @@ See `references/research-protocol.md#level-1-quick-check` for detailed process.
 
 ---
 
-## Level 2: Moderate Investigation (15-30 min, Sonnet, no extended thinking)
+## Level 2: Moderate Investigation (15-30 min, medium effort)
 
 **Goal:** Deep-dive JUCE docs, forums, GitHub for authoritative answers
 
@@ -186,11 +183,11 @@ See `references/research-protocol.md#level-2-moderate-investigation` for detaile
 
 ---
 
-## Level 3: Deep Research (30-60 min, Opus, extended thinking 15k budget)
+## Level 3: Deep Research (30-60 min, max effort)
 
 **Goal:** Parallel subagent investigation for novel/complex problems
 
-**Model requirements:** claude-opus-4-1-20250805 with extended-thinking (15k budget)
+**Effort:** max (deepest reasoning for novel problems)
 
 **Process:** Spawn 2-3 parallel research subagents via Task tool, synthesize findings
 

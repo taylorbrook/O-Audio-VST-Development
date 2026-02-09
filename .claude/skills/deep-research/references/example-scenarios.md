@@ -58,12 +58,12 @@
 6. Decision: Auto-escalate to Level 3
 
 **Level 3 (Deep Research):**
-1. Model switch: Opus + extended thinking (15k budget)
+1. Max effort for deep reasoning
 2. Spawn 3 parallel subagents:
    - **Subagent A:** JUCE DSP architecture patterns (ProcessorChain, cascading)
    - **Subagent B:** DSP theory (IIR cascade phase distortion, correction techniques)
    - **Subagent C:** JUCE forum + GitHub deep-dive (related implementations)
-3. Synthesis with extended thinking:
+3. Synthesis with deep reasoning:
    - Subagent A: ProcessorChain supports cascading via template composition
    - Subagent B: Allpass filters for phase correction, minimum-phase design theory
    - Subagent C: Found forum post on filter cascade with phase compensation

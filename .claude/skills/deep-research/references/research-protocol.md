@@ -1,6 +1,6 @@
 # Graduated Research Protocol
 
-## Level 1: Quick Check (5-10 min, Sonnet, no extended thinking)
+## Level 1: Quick Check (5-10 min, low effort)
 
 **Sources:**
 
@@ -14,7 +14,7 @@ See SKILL.md for detailed Level 1 process (lines 177-192).
 
 ---
 
-## Level 2: Moderate Investigation (15-30 min, Sonnet, no extended thinking)
+## Level 2: Moderate Investigation (15-30 min, medium effort)
 
 **Sources:**
 
@@ -60,7 +60,7 @@ See SKILL.md for detailed Level 1 process (lines 177-192).
 
 ---
 
-## Level 3: Deep Research (30-60 min, Opus, extended thinking 15k budget)
+## Level 3: Deep Research (30-60 min, max effort)
 
 **Sources:**
 
@@ -73,20 +73,17 @@ See SKILL.md for detailed Level 1 process (lines 177-192).
 
 ### Level 3 Process
 
-1. **Switch to Opus + Extended Thinking**
+1. **Use max effort for deep reasoning**
 
-   - Extended thinking budget: 15,000 tokens
    - Timeout: 60 minutes
 
 2. **Parallel subagent investigation**
 
-   Spawn 2-3 research subagents via Task tool with explicit model override:
+   Spawn 2-3 research subagents via Task tool:
 
    **Task tool syntax:**
    ```
    Task tool with:
-   - model: "claude-opus-4-1-20250805"
-   - extended_thinking: 15000
    - task: "[Focused research goal for this subagent]"
    ```
 
@@ -96,18 +93,12 @@ See SKILL.md for detailed Level 1 process (lines 177-192).
 
    ```
    Task 1:
-   - model: "claude-opus-4-1-20250805"
-   - extended_thinking: 15000
    - task: "Investigate BLEP (Band-Limited Step) anti-aliasing approach. Research implementation complexity, CPU cost, quality assessment, and JUCE integration."
 
    Task 2:
-   - model: "claude-opus-4-1-20250805"
-   - extended_thinking: 15000
    - task: "Investigate oversampling + filtering approach for wavetable anti-aliasing. Research implementation complexity, CPU cost, quality assessment, and juce::dsp::Oversampling API."
 
    Task 3:
-   - model: "claude-opus-4-1-20250805"
-   - extended_thinking: 15000
    - task: "Research commercial wavetable synth implementations. Identify industry standards, common approaches, and best practices for anti-aliasing."
    ```
 
@@ -259,7 +250,7 @@ What's next?
 - GitHub search → Found related issues but no definitive answer
 - **Decision:** MEDIUM confidence but complex algorithm question, escalate to Level 3
 
-**Level 3 (45 min, Opus + extended thinking):**
+**Level 3 (45 min, max effort):**
 
 - Spawn Subagent 1: Research BLEP approach
   - Findings: CPU efficient, good quality, JUCE has helpers
@@ -286,16 +277,14 @@ What's next?
 3. Present decision menu at each level (user controls depth)
 4. Use relative confidence assessment (HIGH/MEDIUM/LOW)
 5. For Level 3, always spawn parallel subagents (don't do serial research)
-6. Switch model to Opus at Level 3 (architecture requirement)
-7. Enable extended thinking at Level 3 (15k token budget)
-8. Timeout at 60 min max (return best findings)
+6. Use max effort at Level 3 (architecture requirement)
+7. Timeout at 60 min max (return best findings)
 
 **Common pitfalls:**
 
 - Skipping Level 1 local docs (always check first, fastest path)
 - Not spawning parallel subagents at Level 3 (defeats purpose)
-- Using wrong model (Sonnet for L1-2, Opus for L3)
-- Forgetting extended thinking at L3 (critical for synthesis)
+- Using wrong effort level (low for L1-2, max for L3)
 - Over-researching simple problems (stop at HIGH confidence)
 
 ---
@@ -306,17 +295,17 @@ Performance expectations and success rates by level.
 
 **Level 1:**
 - Time: 5-10 min
-- Extended thinking: No
+- Effort: low
 - Success rate: 40% of problems (known solutions)
 
 **Level 2:**
 - Time: 15-30 min
-- Extended thinking: No
+- Effort: medium
 - Success rate: 40% of problems (documented solutions)
 
 **Level 3:**
 - Time: 30-60 min
-- Extended thinking: Yes (15k budget)
+- Effort: max
 - Success rate: 20% of problems (novel/complex)
 
 **Overall:**

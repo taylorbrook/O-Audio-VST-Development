@@ -54,7 +54,7 @@ Use this template to track progress through graduated research protocol.
 - [ ] Spawn Subagent 2: [Focus/goal]
 - [ ] Spawn Subagent 3: [Focus/goal] (optional)
 - [ ] Wait for all subagents to complete
-- [ ] Synthesize findings with extended thinking
+- [ ] Synthesize findings with deep reasoning
 - [ ] Generate comprehensive report
 - [ ] Present decision menu with recommendations
 

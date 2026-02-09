@@ -3,8 +3,7 @@
 ## Executive Summary
 - **Research duration:** [X] minutes
 - **Subagents spawned:** [count]
-- **Model used:** claude-opus-4-1-20250805
-- **Extended thinking:** Enabled (15k budget)
+- **Effort level:** max
 - **Confidence level:** HIGH/MEDIUM/LOW
 
 ## Research Approaches
@@ -30,7 +29,7 @@
 - [finding 2]
 **Sources:** [list]
 
-## Extended Thinking Synthesis
+## Deep Reasoning Synthesis
 [Comprehensive synthesis using extended thinking to connect findings]
 
 ## Novel Insights

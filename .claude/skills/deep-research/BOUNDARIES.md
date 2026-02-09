@@ -11,7 +11,7 @@ Multi-level autonomous investigation for complex JUCE plugin development problem
 
 - Conduct Level 1 quick checks (5-10 min, local docs)
 - Conduct Level 2 moderate investigation (15-30 min, JUCE docs/forums)
-- Conduct Level 3 deep research (30-60 min, parallel subagents, Opus + extended thinking)
+- Conduct Level 3 deep research (30-60 min, parallel subagents, max effort)
 - Synthesize findings from multiple sources
 - Generate research reports with confidence assessment
 - Present decision menus at each level completion
@@ -24,7 +24,7 @@ Multi-level autonomous investigation for complex JUCE plugin development problem
 - Modify contracts or configurations
 - Make changes without user decision
 - Skip levels (unless user explicitly requests starting level)
-- Use Sonnet for Level 3 (requires Opus)
+- Use low effort for Level 3 (requires max effort)
 
 ## Input Requirements
 
