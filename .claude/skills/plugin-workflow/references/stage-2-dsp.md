@@ -151,9 +151,6 @@ for (let i = 0; i < phases.length; i++) {
 
   console.log(`\n━━━ Stage ${phase.number} - ${phase.description} ━━━\n`);
 
-  // Determine model based on complexity
-  const model = complexityScore >= 4 ? "opus" : "sonnet";
-
   const phaseResult = Task({
     subagent_type: "dsp-agent",
     description: `Stage 2.${i+1} - ${pluginName}`,

@@ -1,5 +1,7 @@
 # Stage 1: Planning
 
+> **Note:** This is an archived file using legacy conventions. Model selection and extended thinking references below are historical.
+
 **Context:** This file is part of the plugin-planning skill.
 **Invoked by:** Main orchestrator in `SKILL.md` after Stage 0 completion
 **Purpose:** Analyze complexity and create implementation plan with phase breakdown if needed
@@ -10,8 +12,7 @@
 
 **Duration:** 2-5 minutes
 
-**Model Configuration:**
-- Extended thinking: DISABLED
+**Effort:** medium (legacy: was extended thinking disabled)
 
 ---
 

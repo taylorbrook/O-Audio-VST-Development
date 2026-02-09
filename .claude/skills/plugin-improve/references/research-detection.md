@@ -17,7 +17,7 @@
 
 ## Why This Matters
 
-Deep-research Tier 3 uses Opus with extended thinking (expensive, minutes per query). If findings already exist in conversation history, reusing them saves time and cost.
+Deep-research Tier 3 uses max effort (expensive, minutes per query). If findings already exist in conversation history, reusing them saves time and cost.
 
 **Trigger**: After Phase 0.3 or Phase 0.4 completes, BEFORE Phase 0.5 investigation
 
@@ -192,7 +192,7 @@ Phase 0 (Specificity) → Phase 0.3 (Clarification) → Phase 0.4 (Decision Gate
 ## Benefits
 
 - Avoids duplicate investigation (user already ran /research or deep-research auto-invoked)
-- Preserves expensive research context (Opus + extended thinking costs real time and money)
+- Preserves expensive research context (max effort costs real time and money)
 - Maintains separation of concerns: research finds solutions, improve implements them
 - Prevents "re-investigate what we just investigated" anti-pattern
 - Clear handoff: research outputs findings → improve extracts and uses them

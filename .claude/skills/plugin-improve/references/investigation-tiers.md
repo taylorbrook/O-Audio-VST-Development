@@ -149,7 +149,7 @@ No breaking changes - pure bug fix.
    - Use recommended solution in implementation
    - Document research tier in CHANGELOG
 
-**Note**: deep-research uses Opus with extended thinking for complex analysis. If research already performed (Phase 0.45 detection), skip this step.
+**Note**: deep-research uses max effort for complex analysis. If research already performed (Phase 0.45 detection), skip this step.
 
 ---
 

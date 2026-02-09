@@ -82,15 +82,13 @@ Return JSON report with file locations and status.
 ```
 Task(
   subagent_type="research-planning-agent",
-  description="[prompt with contracts prepended]",
-  model="sonnet"
+  description="[prompt with contracts prepended]"
 )
 ```
 
 **Required parameters:**
 - `subagent_type`: Must be "research-planning-agent" (matches .claude/agents/research-planning-agent.md)
 - `description`: Full prompt with contracts included
-- `model`: "sonnet" (Stage 0 requires deep reasoning)
 
 ## Post-Invocation Protocol
 

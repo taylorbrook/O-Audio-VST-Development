@@ -93,7 +93,7 @@ DISCUSS (BRIEF.md exists) → RESEARCH → PLAN → outputs: ARCHITECTURE.md, RO
 
 3. Invoke subagent (include research_context in prompt):
    ```
-   Task(subagent_type="research-planning-agent", description="[prompt with contracts and {research_context}]", model="sonnet")
+   Task(subagent_type="research-planning-agent", description="[prompt with contracts and {research_context}]")
    ```
 
    See [references/subagent-invocation.md](references/subagent-invocation.md) for detailed prompt construction.

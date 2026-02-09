@@ -2,7 +2,7 @@
 
 ## Overview
 
-The plugin-improve skill can receive pre-computed research findings from the deep-research skill, preserving expensive research context (Opus + extended thinking) across skill boundaries.
+The plugin-improve skill can receive pre-computed research findings from the deep-research skill, preserving expensive research context (max effort investigation) across skill boundaries.
 
 ## Handoff Trigger
 
@@ -51,7 +51,7 @@ When handoff detected, extract:
 
 1. **Context preservation:** Research findings carry forward
 2. **Efficiency:** Skip redundant investigation (Phase 0.5)
-3. **Quality:** Deep-research uses Opus + extended thinking
+3. **Quality:** Deep-research uses max effort for deep reasoning
 4. **Separation of concerns:** Investigation vs. implementation
 
 ## Handoff Detection Code
@@ -94,4 +94,4 @@ Proceed to Phase 0.5 (Investigation) - perform fresh root cause analysis
 If Phase 0.45 finds no research findings:
 - Proceed to Phase 0.5 (Investigation)
 - Perform fresh root cause analysis
-- Use current skill context (Sonnet, no extended thinking)
+- Use current skill context (medium effort)

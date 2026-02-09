@@ -48,7 +48,7 @@ See `.claude/skills/contract-validation/SKILL.md` for full validation protocol.
 **Trigger:** deep-research invokes plugin-improve via Skill tool
 **Detection:** Phase 0.45 scans conversation history for research findings (MANDATORY)
 **Action:** Extract research findings, skip investigation (Phase 0.5)
-**Benefits:** Preserve expensive research context (Opus + extended thinking)
+**Benefits:** Preserve expensive research context (max effort investigation)
 </handoff_protocol>
 
 Detection mechanism is implemented in Phase 0.45 below. See `references/handoff-protocols.md` for additional workflow documentation.

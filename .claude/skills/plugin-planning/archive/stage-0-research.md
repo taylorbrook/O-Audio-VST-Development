@@ -1,5 +1,7 @@
 # Stage 0: Research
 
+> **Note:** This is an archived file using legacy conventions. Model selection and extended thinking references below are historical.
+
 **Context:** This file is part of the plugin-planning skill.
 **Invoked by:** Main orchestrator in `SKILL.md` when starting planning workflow
 **Purpose:** Understand what we're building before writing code through research and DSP architecture specification
@@ -10,9 +12,7 @@
 
 **Duration:** 5-30 minutes (graduated by complexity - Tier 1: 5 min, Tier 6: 30 min)
 
-**Model Configuration:**
-- Extended thinking: ENABLED
-- Budget: 10000 tokens
+**Effort:** max (legacy: was extended thinking with 10k budget)
 
 ---
 

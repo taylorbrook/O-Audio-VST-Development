@@ -177,7 +177,7 @@ release([PluginName]): v[NEW_VERSION]
 
 - [Summary of changes from changelog]
 
-Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
+Co-Authored-By: Claude Opus 4.6 <noreply@anthropic.com>
 EOF
 )"
 ```
