@@ -1,0 +1,26 @@
+{
+  "plugin": "O-Chorus",
+  "stage": "4-polish",
+  "phase": "verified",
+  "complexity": 2.8,
+  "parameters": [
+    "depth",
+    "mix",
+    "rate",
+    "tone",
+    "voices",
+    "width"
+  ],
+  "dsp_components": [
+    "DelayLine",
+    "DelayLineInterpolationTypes",
+    "IIR"
+  ],
+  "contracts": {
+    "brief": ".planning/BRIEF.md",
+    "params": ".planning/parameter-spec.md",
+    "arch": ".planning/research/ARCHITECTURE.md",
+    "roadmap": ".planning/ROADMAP.md"
+  },
+  "decisions": {}
+}
