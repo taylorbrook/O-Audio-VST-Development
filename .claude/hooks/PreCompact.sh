@@ -1,60 +1,84 @@
 #!/bin/bash
-# PreCompact - Preserve contracts before context compaction
+# PreCompact - Write domain-aware snapshot before context compaction
+# This script's stdout is NOT injected into post-compaction context.
+# Instead, it writes a snapshot file that SessionStart(compact) reads.
+# Reference: 15-RESEARCH.md Pattern 1, Stage 1
 
-# Preserve global state
-if [ -f "PLUGINS.md" ]; then
-  echo "=== PLUGINS.md (Global State) ==="
-  cat "PLUGINS.md"
+SNAPSHOT=".claude/compaction-snapshot.md"
+
+{
+  echo "# Active Context Snapshot"
+  echo "Generated: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
   echo ""
-fi
 
-# Find all plugins with contracts
-PLUGINS=$(find plugins -type d -maxdepth 1 -mindepth 1 2>/dev/null)
+  # Detect focused plugin from registry
+  FOCUSED=""
+  if [ -f ".claude/plugin-registry.json" ]; then
+    FOCUSED=$(python3 -c "
+import json, sys
+try:
+    with open('.claude/plugin-registry.json') as f:
+        reg = json.load(f)
+    print(reg.get('focused', ''))
+except:
+    pass
+" 2>/dev/null)
+  fi
 
-for PLUGIN in $PLUGINS; do
-  PLUGIN_NAME=$(basename "$PLUGIN")
+  # Find in-progress plugins from PLUGINS.md as fallback
+  IN_PROGRESS=""
+  if [ -z "$FOCUSED" ] && [ -f "PLUGINS.md" ]; then
+    FOCUSED=$(grep -E '🚧' PLUGINS.md 2>/dev/null | head -1 | grep -oE 'O-[A-Za-z]+' | head -1)
+  fi
 
-  echo "=== Plugin: $PLUGIN_NAME ==="
+  # Always gather in-progress list
+  if [ -f "PLUGINS.md" ]; then
+    IN_PROGRESS=$(grep -E '🚧' PLUGINS.md 2>/dev/null | head -5)
+  fi
 
-  # Preserve all contract files
-  if [ -f "$PLUGIN/.planning/creative-brief.md" ]; then
-    echo "--- creative-brief.md ---"
-    cat "$PLUGIN/.planning/creative-brief.md"
+  if [ -n "$FOCUSED" ]; then
+    echo "## Active Plugin: $FOCUSED"
+    echo ""
+
+    PLUGIN_DIR="plugins/$FOCUSED/.planning"
+
+    # Load DIGEST.json if exists (most token-efficient)
+    if [ -f "$PLUGIN_DIR/DIGEST.json" ]; then
+      echo "### Context Digest"
+      echo '```json'
+      cat "$PLUGIN_DIR/DIGEST.json" 2>/dev/null
+      echo '```'
+      echo ""
+    fi
+
+    # Extract STATUS.md frontmatter (stage, phase, workflow_mode)
+    if [ -f "$PLUGIN_DIR/STATUS.md" ]; then
+      echo "### Current State"
+      sed -n '/^---$/,/^---$/p' "$PLUGIN_DIR/STATUS.md" 2>/dev/null
+      echo ""
+    fi
+
+    # Extract parameter IDs from parameter-spec.md (table rows, first 20)
+    if [ -f "$PLUGIN_DIR/parameter-spec.md" ]; then
+      echo "### Parameter IDs"
+      grep -E '^\|.*\|.*\|' "$PLUGIN_DIR/parameter-spec.md" 2>/dev/null | head -20
+      echo ""
+    fi
+
+    # List contract paths that exist
+    echo "### Contract Paths"
+    for f in BRIEF.md parameter-spec.md research/ARCHITECTURE.md ROADMAP.md; do
+      [ -f "$PLUGIN_DIR/$f" ] && echo "- $PLUGIN_DIR/$f"
+    done
     echo ""
   fi
 
-  if [ -f "$PLUGIN/.planning/parameter-spec.md" ]; then
-    echo "--- parameter-spec.md ---"
-    cat "$PLUGIN/.planning/parameter-spec.md"
+  if [ -n "$IN_PROGRESS" ]; then
+    echo "## In-Progress Plugins"
+    echo "$IN_PROGRESS"
     echo ""
   fi
 
-  if [ -f "$PLUGIN/.planning/architecture.md" ]; then
-    echo "--- architecture.md ---"
-    cat "$PLUGIN/.planning/architecture.md"
-    echo ""
-  fi
-
-  if [ -f "$PLUGIN/.planning/plan.md" ]; then
-    echo "--- plan.md ---"
-    cat "$PLUGIN/.planning/plan.md"
-    echo ""
-  fi
-
-  # CRITICAL: Preserve workflow state
-  if [ -f "$PLUGIN/.planning/STATUS.md" ]; then
-    echo "--- STATUS.md (WORKFLOW STATE) ---"
-    cat "$PLUGIN/.planning/STATUS.md"
-    echo ""
-  fi
-
-  # List mockups if they exist
-  if [ -d "$PLUGIN/.planning/mockups" ]; then
-    echo "--- mockups/ ---"
-    ls -lh "$PLUGIN/.planning/mockups"
-    echo "Mockup files preserved in repository"
-    echo ""
-  fi
-done
+} > "$SNAPSHOT"
 
 exit 0
