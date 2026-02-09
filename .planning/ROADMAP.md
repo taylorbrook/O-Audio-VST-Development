@@ -44,7 +44,12 @@ Plans:
   3. A per-plugin history digest file exists that compiles stage decisions into structured JSON, loadable by any agent in under 500 tokens
   4. Express plugin creation (`/implement --auto`) generates plans via auto mode instead of skipping planning entirely
   5. Five agents (troubleshoot, dsp, gui, research-planning, validation) persist learned patterns across sessions via `.claude/agent-memory/`
-**Plans**: TBD
+**Plans**: 4 plans
+Plans:
+- [ ] 15-01-PLAN.md — Compaction context pipeline (PreCompact snapshot + SessionStart injection)
+- [ ] 15-02-PLAN.md — Plugin DIGEST.json + complex DSP full research loading
+- [ ] 15-03-PLAN.md — Agent persistent memory (SubagentStart hooks + memory files)
+- [ ] 15-04-PLAN.md — Express auto mode (--auto flag for /implement)
 
 ### Phase 16: GSD Deduplication
 **Goal**: Custom PFS code that duplicates GSD 1.18.0 functionality is replaced with framework equivalents — reducing maintenance burden while preserving all 6 domain-specific validators
@@ -76,7 +81,7 @@ Plans:
 | Phase | Milestone | Plans Complete | Status | Completed |
 |-------|-----------|----------------|--------|-----------|
 | 14. Platform Alignment | v1.3 | 4/4 | ✓ Complete | 2026-02-08 |
-| 15. Context Persistence | v1.3 | 0/TBD | Not started | - |
+| 15. Context Persistence | v1.3 | 0/4 | Planned | - |
 | 16. GSD Deduplication | v1.3 | 0/TBD | Not started | - |
 | 17. Agent Intelligence | v1.3 | 0/TBD | Not started | - |
 
