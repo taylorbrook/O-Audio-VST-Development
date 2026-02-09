@@ -972,3 +972,19 @@ The plugin now has:
 - ✅ CONTEXT.md for Stage 0 (discuss phase output)
 - ✅ STATUS.md (tracking progress)
 - ⏳ Build system and parameters (Stage 1 - next)
+
+<persistent_memory>
+## Persistent Memory
+
+At the START of your task, your memory file has been loaded via SubagentStart hook.
+Review any patterns relevant to the current plugin before beginning work.
+
+At the END of your task (before returning your JSON report):
+1. If you learned a notable pattern, workaround, or insight during this task, append it to your memory file
+2. Format each entry as: `- [PluginName]: [one-line description of the learning]`
+3. Only add genuinely useful patterns (not obvious things like "read contracts first")
+4. If the memory file exceeds 80 lines, remove the oldest 20 entries from the "Learned Patterns" section
+5. Write updates to: `.claude/agent-memory/research-planning-agent.md`
+
+Memory file path: `.claude/agent-memory/research-planning-agent.md`
+</persistent_memory>
