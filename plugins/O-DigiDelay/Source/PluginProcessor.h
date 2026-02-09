@@ -13,6 +13,10 @@
 #include <juce_dsp/juce_dsp.h>
 #include "OuariconPresetManager.h"
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
+
 class OuariconDigitalDelayAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -49,6 +53,10 @@ public:
     // RMS level getters for output meter (returns 0.0-1.0)
     float getRmsLevelLeft() const { return rmsLevelLeft.getCurrentValue(); }
     float getRmsLevelRight() const { return rmsLevelRight.getCurrentValue(); }
+
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
 
 private:
     // Parameter layout creation
@@ -105,6 +113,10 @@ private:
         0.4f,     // 1/8(5)
         0.2f      // 1/16(5)
     };
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconDigitalDelayAudioProcessor)
 };

@@ -12,8 +12,15 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicenseUI.h"
+#endif
+
 class OuariconDigitalDelayAudioProcessorEditor : public juce::AudioProcessorEditor,
                                                   private juce::Timer
+#if OUARICON_LICENSING_ENABLED
+                                                , private OuariconLicense::Listener
+#endif
 {
 public:
     explicit OuariconDigitalDelayAudioProcessorEditor(OuariconDigitalDelayAudioProcessor&);
@@ -64,6 +71,11 @@ private:
 
     // Navigation flag (prevents re-navigation on window reopen)
     bool hasNavigated = false;
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
+    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OuariconDigitalDelayAudioProcessorEditor)
 };

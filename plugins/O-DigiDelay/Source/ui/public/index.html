@@ -634,14 +634,6 @@
       dry:      { vineId: 'dry-vine',      valueId: 'dry-value' }
     };
 
-    const formatters = {
-      feedback: v => `${Math.round(v)}%`,
-      spread:   v => `${Math.round(v)}%`,
-      mod:      v => `${Math.round(v)}%`,
-      wet:      v => `${Math.round(v)}%`,
-      dry:      v => `${Math.round(v)}%`
-    };
-
     // Smooth animation state
     const animState = {
       targets: {},
@@ -674,6 +666,12 @@
         animState.frameId = requestAnimationFrame(animLoop);
       }
     };
+
+    // Safe combo box index accessor (shared by time knob + butterfly echoes)
+    function getChoiceIndexSafe(comboState) {
+      try { return comboState?.getChoiceIndex() ?? 0; }
+      catch { return 0; }
+    }
 
     // Global drag state
     const dragState = { isDragging: false, target: null, startY: 0, startValue: 0 };
@@ -830,10 +828,7 @@
 
       let syncNormalized = 0;
 
-      const getDivisionIndex = () => {
-        try { return divisionState?.getChoiceIndex() ?? 0; }
-        catch { return 0; }
-      };
+      const getDivisionIndex = () => getChoiceIndexSafe(divisionState);
 
       const updateVisual = () => {
         if (syncState?.getValue() && divisionState) {
@@ -955,9 +950,7 @@
         let timeNorm;
         if (syncState?.getValue() && divisionState) {
           // Sync mode: use division factor to derive spacing
-          const divIndex = Math.max(0, Math.min(11, (() => {
-            try { return divisionState.getChoiceIndex(); } catch { return 0; }
-          })()));
+          const divIndex = Math.max(0, Math.min(11, getChoiceIndexSafe(divisionState)));
           timeNorm = musicalDivisions[divIndex].factor; // 0.167–1.5, clamped below
           timeNorm = Math.min(1, timeNorm); // clamp dotted values to 1
         } else {

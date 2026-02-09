@@ -107,7 +107,8 @@
       flex-direction: column;
       align-items: center;
       margin: 0 10px;
-      padding-top: 8px;
+      margin-top: -14px;
+      padding-top: 0;
     }
 
     .lfo-ring-label {
@@ -115,7 +116,7 @@
       letter-spacing: 1.2px;
       color: #8B7355;
       text-transform: uppercase;
-      margin-bottom: 6px;
+      margin-bottom: 2px;
       opacity: 0.7;
     }
 
@@ -138,59 +139,51 @@
       width: 62px;
     }
 
+    .knob {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+    }
+
+    .knob-visual {
+      width: 52px;
+      height: 52px;
+      position: relative;
+    }
+
+    .knob-visual svg {
+      width: 100%;
+      height: 100%;
+      transform: rotate(-135deg);
+    }
+
+    .knob-track {
+      fill: none;
+      stroke: rgba(139, 115, 85, 0.3);
+      stroke-width: 2;
+    }
+
+    .knob-vine {
+      fill: none;
+      stroke: #5a7a6a;
+      stroke-width: 3;
+      stroke-linecap: round;
+    }
+
     .knob-label {
-      font-size: 8px;
+      font-size: 9px;
       letter-spacing: 0.8px;
-      color: #3C2F2F;
+      color: #8B7355;
       text-transform: uppercase;
-      margin-bottom: 4px;
+      margin-top: 4px;
       text-align: center;
     }
 
-    .knob {
-      width: 52px;
-      height: 52px;
-      border-radius: 50%;
-      border: 2px solid #8B7355;
-      position: relative;
-      cursor: pointer;
-      background:
-        radial-gradient(circle, transparent 86%, #C9A27B 86%, #C9A27B 90%, #8B7355 90%, #8B7355 92%, transparent 92%),
-        conic-gradient(from 0deg,
-          #F5DEB3 0deg, #F5DEB3 36deg, #8B7355 36deg, #8B7355 37deg,
-          #E8D5B7 37deg, #E8D5B7 72deg, #8B7355 72deg, #8B7355 73deg,
-          #F5DEB3 73deg, #F5DEB3 108deg, #8B7355 108deg, #8B7355 109deg,
-          #E8D5B7 109deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 145deg,
-          #F5DEB3 145deg, #F5DEB3 180deg, #8B7355 180deg, #8B7355 181deg,
-          #E8D5B7 181deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 217deg,
-          #F5DEB3 217deg, #F5DEB3 252deg, #8B7355 252deg, #8B7355 253deg,
-          #E8D5B7 253deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 289deg,
-          #F5DEB3 289deg, #F5DEB3 324deg, #8B7355 324deg, #8B7355 325deg,
-          #E8D5B7 325deg, #E8D5B7 360deg
-        ),
-        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
-      box-shadow: inset 1px 1px 3px rgba(0,0,0,0.3),
-                  inset -1px -1px 2px rgba(255,248,220,0.5),
-                  2px 2px 6px rgba(0,0,0,0.2);
-    }
-
-    .knob-indicator {
-      position: absolute;
-      top: 3px;
-      left: 50%;
-      width: 2px;
-      height: 16px;
-      background: #3C2F2F;
-      border-radius: 1px;
-      transform: translateX(-50%) rotate(0deg);
-      transform-origin: center 23px;
-      pointer-events: none;
-    }
-
     .knob-value {
-      font-size: 9px;
-      color: #5C4033;
-      margin-top: 3px;
+      font-size: 10px;
+      color: #a08870;
+      margin-top: 1px;
       text-align: center;
       min-width: 50px;
       height: 14px;
@@ -210,32 +203,56 @@
       <!-- Left group: Modulation -->
       <div class="group left-group">
         <div class="knob-container">
-          <div class="knob-label">Rate</div>
           <div class="knob" data-param="rate">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-rate" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Rate</span>
+            <span class="knob-value" data-value="rate">1.00 Hz</span>
           </div>
-          <div class="knob-value" data-value="rate">1.00 Hz</div>
         </div>
         <div class="knob-container">
-          <div class="knob-label">Depth</div>
           <div class="knob" data-param="depth">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-depth" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Depth</span>
+            <span class="knob-value" data-value="depth">50%</span>
           </div>
-          <div class="knob-value" data-value="depth">50%</div>
         </div>
         <div class="knob-container">
-          <div class="knob-label">Voices</div>
           <div class="knob" data-param="voices">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-voices" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Voices</span>
+            <span class="knob-value" data-value="voices">4</span>
           </div>
-          <div class="knob-value" data-value="voices">4</div>
         </div>
         <div class="knob-container">
-          <div class="knob-label">Spread</div>
           <div class="knob" data-param="spread">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-spread" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Spread</span>
+            <span class="knob-value" data-value="spread">0%</span>
           </div>
-          <div class="knob-value" data-value="spread">0%</div>
         </div>
       </div>
 
@@ -255,32 +272,56 @@
       <!-- Right group: Character -->
       <div class="group right-group">
         <div class="knob-container">
-          <div class="knob-label">Width</div>
           <div class="knob" data-param="width">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-width" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Width</span>
+            <span class="knob-value" data-value="width">70%</span>
           </div>
-          <div class="knob-value" data-value="width">70%</div>
         </div>
         <div class="knob-container">
-          <div class="knob-label">Tone</div>
           <div class="knob" data-param="tone">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-tone" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Tone</span>
+            <span class="knob-value" data-value="tone">0%</span>
           </div>
-          <div class="knob-value" data-value="tone">0%</div>
         </div>
         <div class="knob-container">
-          <div class="knob-label">Mix</div>
           <div class="knob" data-param="mix">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-mix" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Mix</span>
+            <span class="knob-value" data-value="mix">50%</span>
           </div>
-          <div class="knob-value" data-value="mix">50%</div>
         </div>
         <div class="knob-container">
-          <div class="knob-label">Drive</div>
           <div class="knob" data-param="drive">
-            <div class="knob-indicator"></div>
+            <div class="knob-visual">
+              <svg viewBox="0 0 52 52">
+                <circle class="knob-track" cx="26" cy="26" r="22"/>
+                <circle class="knob-vine" id="vine-drive" cx="26" cy="26" r="22"
+                  stroke-dasharray="138.23" stroke-dashoffset="138.23"/>
+              </svg>
+            </div>
+            <span class="knob-label">Drive</span>
+            <span class="knob-value" data-value="drive">30%</span>
           </div>
-          <div class="knob-value" data-value="drive">30%</div>
         </div>
       </div>
     </div>
@@ -293,16 +334,15 @@
     document.addEventListener("contextmenu", (e) => e.preventDefault());
 
     // ════════════════════════════════════════════════════════════════
-    // Knob system — 270-degree arc (-135 to +135)
+    // SVG Vine-Arc Knob system — 270-degree arc
     // ════════════════════════════════════════════════════════════════
 
-    const ANGLE_MIN = -135;
-    const ANGLE_MAX = 135;
-    const ANGLE_RANGE = ANGLE_MAX - ANGLE_MIN;
+    // Arc geometry: r=22, circumference = 2*PI*22 = 138.23, 270° arc = 103.67
+    const ARC_LENGTH = 103.67;
     const SENSITIVITY = 0.005;
     const FINE_SENSITIVITY = 0.001;
 
-    // Parameter configs: { id, formatter, defaultNorm, isVoices }
+    // Parameter configs
     const params = [
       { id: 'rate',   fmt: (n) => { const v = rateFromNorm(n); return v < 1 ? v.toFixed(2) + ' Hz' : v.toFixed(1) + ' Hz'; }, def: rateToNorm(1.0) },
       { id: 'depth',  fmt: (n) => Math.round(n * 100) + '%', def: 0.5 },
@@ -314,8 +354,7 @@
       { id: 'drive',  fmt: (n) => Math.round(n * 100) + '%', def: 0.3 }
     ];
 
-    // Rate parameter uses logarithmic skew (0.35) — convert between norm and Hz
-    // NormalisableRange: 0.05-5.0, skew=0.35
+    // Rate parameter uses logarithmic skew (0.35)
     function rateFromNorm(norm) {
       const min = 0.05, max = 5.0, skew = 0.35;
       return min + (max - min) * Math.pow(norm, 1.0 / skew);
@@ -335,7 +374,7 @@
     // Global drag state
     const drag = { active: false, state: null, startY: 0, startNorm: 0, isVoices: false };
 
-    // Wheel gesture tracking: debounced start/end for DAW undo entries
+    // Wheel gesture tracking
     const wheelTimers = new Map();
 
     document.addEventListener('mousemove', (e) => {
@@ -371,10 +410,8 @@
       const rateNorm = rateState ? rateState.getNormalisedValue() : 0.5;
       const depthNorm = depthState ? depthState.getNormalisedValue() : 0.5;
 
-      // Convert rate norm to Hz using log skew
       const rateHz = rateFromNorm(rateNorm);
 
-      // Frame-rate-independent phase advance using timestamp delta
       const deltaTime = (timestamp - lastTimestamp) / 1000;
       lastTimestamp = timestamp;
       if (deltaTime > 0 && deltaTime < 0.1) {
@@ -382,18 +419,15 @@
       }
       if (lfoPhase > 2 * Math.PI) lfoPhase -= 2 * Math.PI;
 
-      // Dot position on circle (r=36, center=45,45)
       const cx = 45 + 36 * Math.sin(lfoPhase);
       const cy = 45 - 36 * Math.cos(lfoPhase);
       lfoDot.setAttribute('cx', cx);
       lfoDot.setAttribute('cy', cy);
 
-      // Dot size pulses with depth
       const pulse = 3 + depthNorm * 4 + Math.sin(lfoPhase) * depthNorm * 2;
       lfoDot.setAttribute('r', pulse);
 
-      // Arc shows how much of the circle is "active" based on depth
-      const arcLen = 226.19; // 2*PI*36
+      const arcLen = 226.19;
       const activeArc = depthNorm * arcLen;
       lfoArc.style.strokeDashoffset = arcLen - activeArc;
 
@@ -414,13 +448,13 @@
         if (p.id === 'depth') depthState = state;
 
         const knobEl = document.querySelector(`.knob[data-param="${p.id}"]`);
-        const indicator = knobEl ? knobEl.querySelector('.knob-indicator') : null;
+        const vine = document.getElementById(`vine-${p.id}`);
         const valueEl = document.querySelector(`[data-value="${p.id}"]`);
-        if (!knobEl || !indicator) return;
+        if (!knobEl || !vine) return;
 
         function updateDisplay(norm) {
-          const angle = ANGLE_MIN + norm * ANGLE_RANGE;
-          indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+          const offset = ARC_LENGTH - (norm * ARC_LENGTH);
+          vine.style.strokeDashoffset = offset;
           if (valueEl && p.fmt) valueEl.textContent = p.fmt(norm);
         }
 
@@ -432,8 +466,9 @@
         // Initial display
         updateDisplay(state.getNormalisedValue());
 
-        // Drag
-        knobEl.addEventListener('mousedown', (e) => {
+        // Drag on knob-visual
+        const knobVisual = knobEl.querySelector('.knob-visual');
+        knobVisual.addEventListener('mousedown', (e) => {
           e.preventDefault();
           drag.active = true;
           drag.state = state;
@@ -444,13 +479,12 @@
         });
 
         // Mouse wheel with debounced gesture brackets
-        knobEl.addEventListener('wheel', (e) => {
+        knobVisual.addEventListener('wheel', (e) => {
           e.preventDefault();
           const delta = e.deltaY < 0 ? 0.02 : -0.02;
           let newNorm = Math.max(0, Math.min(1, state.getNormalisedValue() + delta));
           if (p.isVoices) newNorm = snapVoicesNorm(newNorm);
 
-          // Start gesture on first wheel event
           if (!wheelTimers.has(p.id)) {
             state.sliderDragStarted();
           } else {
@@ -459,7 +493,6 @@
 
           state.setNormalisedValue(newNorm);
 
-          // End gesture after 200ms of no scrolling
           wheelTimers.set(p.id, setTimeout(() => {
             state.sliderDragEnded();
             wheelTimers.delete(p.id);
@@ -467,7 +500,7 @@
         }, { passive: false });
 
         // Double-click reset
-        knobEl.addEventListener('dblclick', (e) => {
+        knobVisual.addEventListener('dblclick', (e) => {
           e.preventDefault();
           state.sliderDragStarted();
           let def = p.def;

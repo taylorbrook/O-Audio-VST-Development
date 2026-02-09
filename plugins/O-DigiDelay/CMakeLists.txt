@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OuariconDigitalDelay
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -7,7 +9,7 @@ juce_add_plugin(OuariconDigitalDelay
     PLUGIN_CODE OuDD
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-DigiDelay${OUARICON_DEV_SUFFIX}"
-    VERSION 1.2.1
+    VERSION 1.2.3
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )
@@ -49,6 +51,13 @@ target_link_libraries(OuariconDigitalDelay
 
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconDigitalDelay)
+
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(OuariconDigitalDelay licensing)
+    target_compile_definitions(OuariconDigitalDelay PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(OuariconDigitalDelay PRIVATE juce::juce_cryptography)
+endif()
 
 # Compile definitions
 target_compile_definitions(OuariconDigitalDelay
