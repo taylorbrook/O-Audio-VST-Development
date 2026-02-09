@@ -15,15 +15,15 @@ FILE_PATH=$(echo "$INPUT" | jq -r '.tool_input.file_path // empty' 2>/dev/null)
 
 # Layer 0: Contract immutability enforcement (CRITICAL)
 # Block modifications to contract files during Stages 1-4
-if [[ "$FILE_PATH" =~ plugins/([^/]+)/.ideas/(creative-brief|parameter-spec|architecture|plan)\.md$ ]]; then
+if [[ "$FILE_PATH" =~ plugins/([^/]+)/.planning/(creative-brief|parameter-spec|architecture|plan)\.md$ ]]; then
   # Extract plugin name from regex match
   PLUGIN_NAME="${BASH_REMATCH[1]}"
   PLUGIN_PATH="plugins/$PLUGIN_NAME"
 
-  # Check if .continue-here.md exists
-  if [ -f "$PLUGIN_PATH/.continue-here.md" ]; then
+  # Check if STATUS.md exists
+  if [ -f "$PLUGIN_PATH/.planning/STATUS.md" ]; then
     # Extract current stage
-    STAGE=$(grep -E '^stage:' "$PLUGIN_PATH/.continue-here.md" | head -1 | sed 's/stage: *//')
+    STAGE=$(grep -E '^stage:' "$PLUGIN_PATH/.planning/STATUS.md" | head -1 | sed 's/stage: *//')
 
     # Block if in implementation stages (1-4)
     if [[ "$STAGE" =~ ^[1-4]$ ]]; then

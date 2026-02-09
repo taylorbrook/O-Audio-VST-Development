@@ -2,7 +2,7 @@
 """
 Contract Checksum Validator
 
-Verifies contract file checksums match values stored in .continue-here.md.
+Verifies contract file checksums match values stored in STATUS.md.
 Called by SubagentStop hook before stage transitions during Stages 1-4.
 """
 
@@ -17,12 +17,12 @@ sys.path.insert(0, str(Path(__file__).parent))
 from contract_validator import ContractValidator, ValidationResult
 
 
-def extract_checksums_from_continue_here(continue_here_path: Path) -> dict:
+def extract_checksums_from_status(continue_here_path: Path) -> dict:
     """
-    Extract contract checksums from .continue-here.md frontmatter.
+    Extract contract checksums from STATUS.md frontmatter.
 
     Args:
-        continue_here_path: Path to .continue-here.md
+        continue_here_path: Path to STATUS.md
 
     Returns:
         Dict mapping contract names to checksums
@@ -82,7 +82,7 @@ def main():
     # Check if we're in an immutable stage
     stage = validator.get_current_stage()
     if stage is None:
-        print("No stage information found in .continue-here.md", file=sys.stderr)
+        print("No stage information found in STATUS.md", file=sys.stderr)
         return 0
 
     if stage < 1 or stage > 4:
@@ -93,10 +93,10 @@ def main():
 
     # Extract stored checksums
     continue_here_path = validator.continue_here_path
-    stored_checksums = extract_checksums_from_continue_here(continue_here_path)
+    stored_checksums = extract_checksums_from_status(continue_here_path)
 
     if not stored_checksums:
-        print("WARNING: No contract checksums found in .continue-here.md", file=sys.stderr)
+        print("WARNING: No contract checksums found in STATUS.md", file=sys.stderr)
         print("Checksums should be calculated at Stage 0 completion", file=sys.stderr)
         return 2  # Warning level
 

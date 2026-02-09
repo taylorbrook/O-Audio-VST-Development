@@ -152,7 +152,7 @@
     },
     "stateUpdated": {
       "type": "boolean",
-      "description": "True if agent successfully updated .continue-here.md and PLUGINS.md"
+      "description": "True if agent successfully updated STATUS.md and PLUGINS.md"
     },
     "stateUpdateError": {
       "type": "string",

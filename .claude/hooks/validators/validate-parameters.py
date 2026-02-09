@@ -18,7 +18,7 @@ def find_plugin_directory() -> Path:
 
     for plugin_dir in plugins_dir.iterdir():
         if plugin_dir.is_dir():
-            spec_file = plugin_dir / ".ideas" / "parameter-spec.md"
+            spec_file = plugin_dir / ".planning" / "parameter-spec.md"
             if spec_file.exists():
                 return plugin_dir
 
@@ -122,7 +122,7 @@ def main():
     print(f"Validating parameters for: {plugin_dir.name}")
 
     # Parse spec and code
-    spec_path = plugin_dir / ".ideas" / "parameter-spec.md"
+    spec_path = plugin_dir / ".planning" / "parameter-spec.md"
     processor_path = plugin_dir / "Source" / "PluginProcessor.cpp"
 
     spec_params = parse_parameter_spec(spec_path)

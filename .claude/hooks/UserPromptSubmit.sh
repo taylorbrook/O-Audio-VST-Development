@@ -12,9 +12,9 @@ PLUGIN_NAME=$(echo "$USER_PROMPT" | awk '{print $2}')
 
 # Find handoff file
 if [ -n "$PLUGIN_NAME" ]; then
-  HANDOFF="plugins/$PLUGIN_NAME/.continue-here.md"
+  HANDOFF="plugins/$PLUGIN_NAME/.planning/STATUS.md"
 else
-  HANDOFF=$(find plugins -name ".continue-here.md" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)
+  HANDOFF=$(find plugins -name "STATUS.md" -path "*/.planning/*" -type f -printf '%T@ %p\n' 2>/dev/null | sort -rn | head -1 | cut -d' ' -f2)
 fi
 
 if [ ! -f "$HANDOFF" ]; then
@@ -27,10 +27,10 @@ echo "Loading context from $HANDOFF..."
 cat "$HANDOFF"
 
 # Load referenced contracts
-PLUGIN=$(dirname "$HANDOFF" | xargs basename)
+PLUGIN=$(dirname "$HANDOFF" | xargs dirname | xargs basename)
 echo ""
 echo "--- Contracts ---"
-[ -f "plugins/$PLUGIN/.ideas/parameter-spec.md" ] && cat "plugins/$PLUGIN/.ideas/parameter-spec.md"
-[ -f "plugins/$PLUGIN/.ideas/architecture.md" ] && cat "plugins/$PLUGIN/.ideas/architecture.md"
+[ -f "plugins/$PLUGIN/.planning/parameter-spec.md" ] && cat "plugins/$PLUGIN/.planning/parameter-spec.md"
+[ -f "plugins/$PLUGIN/.planning/architecture.md" ] && cat "plugins/$PLUGIN/.planning/architecture.md"
 
 exit 0

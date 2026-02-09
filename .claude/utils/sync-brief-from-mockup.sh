@@ -14,11 +14,12 @@ if [[ -z "$PLUGIN_NAME" ]]; then
   exit 1
 fi
 
-PLUGIN_DIR="/Users/lexchristopherson/Developer/plugin-freedom-system/plugins/${PLUGIN_NAME}"
-IDEAS_DIR="${PLUGIN_DIR}/.ideas"
-MOCKUPS_DIR="${IDEAS_DIR}/mockups"
-BRIEF_FILE="${IDEAS_DIR}/creative-brief.md"
-PARAM_SPEC_FILE="${IDEAS_DIR}/parameter-spec.md"
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PLUGIN_DIR="${SCRIPT_DIR}/plugins/${PLUGIN_NAME}"
+PLANNING_DIR="${PLUGIN_DIR}/.planning"
+MOCKUPS_DIR="${PLANNING_DIR}/mockups"
+BRIEF_FILE="${PLANNING_DIR}/creative-brief.md"
+PARAM_SPEC_FILE="${PLANNING_DIR}/parameter-spec.md"
 
 # Check if creative brief exists
 if [[ ! -f "$BRIEF_FILE" ]]; then

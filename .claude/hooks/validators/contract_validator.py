@@ -64,8 +64,8 @@ class ContractValidator:
             plugin_path: Path to plugin directory (e.g., plugins/PluginName)
         """
         self.plugin_path = Path(plugin_path)
-        self.ideas_path = self.plugin_path / '.ideas'
-        self.continue_here_path = self.ideas_path / '.continue-here.md'
+        self.planning_path = self.plugin_path / '.planning'
+        self.continue_here_path = self.planning_path / 'STATUS.md'
 
     def calculate_checksum(self, contract_file: str) -> Optional[str]:
         """
@@ -77,7 +77,7 @@ class ContractValidator:
         Returns:
             SHA256 checksum string, or None if file doesn't exist
         """
-        file_path = self.ideas_path / contract_file
+        file_path = self.planning_path / contract_file
         if not file_path.exists():
             return None
 
@@ -106,7 +106,7 @@ class ContractValidator:
         Verify current contract checksums match stored checksums.
 
         Args:
-            stored_checksums: Dict from .continue-here.md frontmatter
+            stored_checksums: Dict from STATUS.md frontmatter
 
         Returns:
             List of ValidationResult objects
@@ -163,7 +163,7 @@ class ContractValidator:
         # Read all contracts
         contracts = {}
         for contract_file in self.CONTRACT_FILES:
-            file_path = self.ideas_path / contract_file
+            file_path = self.planning_path / contract_file
             if file_path.exists():
                 with open(file_path, 'r') as f:
                     contracts[contract_file] = f.read()
@@ -309,12 +309,12 @@ class ContractValidator:
             file_path: Absolute or relative file path
 
         Returns:
-            True if file is a contract file in .ideas/ directory
+            True if file is a contract file in .planning/ directory
         """
         path = Path(file_path)
 
-        # Check if it's in an .ideas directory
-        if '.ideas' not in path.parts:
+        # Check if it's in a .planning directory
+        if '.planning' not in path.parts:
             return False
 
         # Check if it's one of the contract files
@@ -322,7 +322,7 @@ class ContractValidator:
 
     def get_current_stage(self) -> Optional[int]:
         """
-        Get current stage from .continue-here.md.
+        Get current stage from STATUS.md.
 
         Returns:
             Stage number, or None if not found
@@ -358,7 +358,7 @@ class ContractValidator:
         """
         from datetime import datetime
 
-        file_path = self.ideas_path / contract_file
+        file_path = self.planning_path / contract_file
         if not file_path.exists():
             return
 

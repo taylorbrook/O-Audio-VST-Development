@@ -17,41 +17,41 @@ for PLUGIN in $PLUGINS; do
   echo "=== Plugin: $PLUGIN_NAME ==="
 
   # Preserve all contract files
-  if [ -f "$PLUGIN/.ideas/creative-brief.md" ]; then
+  if [ -f "$PLUGIN/.planning/creative-brief.md" ]; then
     echo "--- creative-brief.md ---"
-    cat "$PLUGIN/.ideas/creative-brief.md"
+    cat "$PLUGIN/.planning/creative-brief.md"
     echo ""
   fi
 
-  if [ -f "$PLUGIN/.ideas/parameter-spec.md" ]; then
+  if [ -f "$PLUGIN/.planning/parameter-spec.md" ]; then
     echo "--- parameter-spec.md ---"
-    cat "$PLUGIN/.ideas/parameter-spec.md"
+    cat "$PLUGIN/.planning/parameter-spec.md"
     echo ""
   fi
 
-  if [ -f "$PLUGIN/.ideas/architecture.md" ]; then
+  if [ -f "$PLUGIN/.planning/architecture.md" ]; then
     echo "--- architecture.md ---"
-    cat "$PLUGIN/.ideas/architecture.md"
+    cat "$PLUGIN/.planning/architecture.md"
     echo ""
   fi
 
-  if [ -f "$PLUGIN/.ideas/plan.md" ]; then
+  if [ -f "$PLUGIN/.planning/plan.md" ]; then
     echo "--- plan.md ---"
-    cat "$PLUGIN/.ideas/plan.md"
+    cat "$PLUGIN/.planning/plan.md"
     echo ""
   fi
 
   # CRITICAL: Preserve workflow state
-  if [ -f "$PLUGIN/.continue-here.md" ]; then
-    echo "--- .continue-here.md (WORKFLOW STATE) ---"
-    cat "$PLUGIN/.continue-here.md"
+  if [ -f "$PLUGIN/.planning/STATUS.md" ]; then
+    echo "--- STATUS.md (WORKFLOW STATE) ---"
+    cat "$PLUGIN/.planning/STATUS.md"
     echo ""
   fi
 
   # List mockups if they exist
-  if [ -d "$PLUGIN/.ideas/mockups" ]; then
+  if [ -d "$PLUGIN/.planning/mockups" ]; then
     echo "--- mockups/ ---"
-    ls -lh "$PLUGIN/.ideas/mockups"
+    ls -lh "$PLUGIN/.planning/mockups"
     echo "Mockup files preserved in repository"
     echo ""
   fi

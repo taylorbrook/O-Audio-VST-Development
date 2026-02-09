@@ -18,7 +18,7 @@ def find_plugin_directory() -> Path:
 
     for plugin_dir in plugins_dir.iterdir():
         if plugin_dir.is_dir():
-            arch_file = plugin_dir / ".ideas" / "architecture.md"
+            arch_file = plugin_dir / ".planning" / "architecture.md"
             if arch_file.exists():
                 return plugin_dir
 
@@ -110,7 +110,7 @@ def main():
     print(f"Validating DSP components for: {plugin_dir.name}")
 
     # Parse architecture
-    arch_path = plugin_dir / ".ideas" / "architecture.md"
+    arch_path = plugin_dir / ".planning" / "architecture.md"
     components = parse_architecture_components(arch_path)
 
     if not components:

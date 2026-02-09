@@ -3,7 +3,7 @@
 
 check_contracts() {
   local plugin_name=$1
-  local base_path="plugins/${plugin_name}/.ideas"
+  local base_path="plugins/${plugin_name}/.planning"
 
   local missing=()
 
