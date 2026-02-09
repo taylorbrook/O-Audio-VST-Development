@@ -2,7 +2,6 @@
 name: foundation-shell-agent
 description: Creates JUCE plugin project structure AND implements APVTS parameters (Stage 1 - Foundation + Shell). Use when plugin-workflow orchestrator needs to generate initial build system and parameter implementation after Stage 0 planning completes. Invoked automatically during /implement workflow after contracts are validated.
 tools: Read, Write, Edit, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
-model: sonnet
 color: orange
 ---
 

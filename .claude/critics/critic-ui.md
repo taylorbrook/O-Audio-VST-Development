@@ -1,7 +1,6 @@
 ---
 name: critic-ui
 description: UI domain critic for polish and consistency standards validation
-model: opus
 schema: ../../.planning/workflow/schemas/critic-ui-report.schema.json
 ---
 

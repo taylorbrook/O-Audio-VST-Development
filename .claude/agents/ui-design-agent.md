@@ -2,7 +2,6 @@
 name: ui-design-agent
 description: Create WebView UI mockup YAML and test HTML for audio plugins. Use when user requests UI design, mockup creation, or design iteration. Invoked by ui-mockup orchestrator skill.
 tools: Read, Write, Bash
-model: sonnet
 ---
 
 # UI Design Agent - WebView Mockup Generation

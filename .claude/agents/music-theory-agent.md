@@ -2,7 +2,6 @@
 name: music-theory-agent
 description: Music theory specialist for tuning systems, temperament calculations, and harmonic analysis. Consulted by dsp-agent for pitch-related implementations. Provides both design assistance and validation.
 tools: Read, Write
-model: sonnet
 color: purple
 ---
 

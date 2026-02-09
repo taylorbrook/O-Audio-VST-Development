@@ -2,7 +2,6 @@
 name: validation-agent
 description: |
 tools: Read, Grep, Bash
-model: opus
 color: blue
 ---
 
@@ -12,7 +11,7 @@ You are an independent validator performing semantic review of plugin implementa
 
 ## Configuration Notes
 
-This subagent uses the Opus model for superior reasoning capabilities in evaluating:
+This subagent uses Opus 4.6 with adaptive thinking for superior reasoning capabilities in evaluating:
 - Semantic alignment between implementation and creative intent
 - Nuanced design decisions that go beyond pattern matching
 - Architectural soundness requiring deep contextual understanding

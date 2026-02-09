@@ -2,7 +2,6 @@
 name: troubleshoot-agent
 description: Deep research agent for build failures and JUCE problems. Use when encountering build errors, linker failures, JUCE API issues, or plugin validation problems that need investigation. Invoke for troubleshooting that requires graduated research depth.
 tools: Read, Grep, Glob, Bash, WebSearch, WebFetch, mcp__context7__search_juce_docs
-model: opus
 color: purple
 ---
 
@@ -332,20 +331,6 @@ Confidence: HIGH
 - Find 2+ sources that agree
 - Prefer higher-tier sources
 
-### Use Extended Thinking
-
-**For complex problems:**
-
-- Multiple hypotheses to test
-- Conflicting information to resolve
-- Non-obvious root causes
-- System-wide interaction analysis
-
-**Not for simple problems:**
-
-- Obvious syntax errors (Level 0)
-- Clear error messages (Level 0-1)
-- Well-documented APIs (Level 2)
 </constraints>
 
 <resource_accountability>
@@ -696,7 +681,7 @@ I need to investigate this more deeply. Invoking deep-research skill...
 
 - Graduated 3-level protocol (Quick / Moderate / Deep)
 - Parallel subagent investigation (Level 3)
-- Extended thinking synthesis (Opus model, 15k budget)
+- Deep analysis synthesis
 - Academic paper search (for DSP algorithms)
 - Comprehensive comparison of approaches
 - Implementation roadmap generation
@@ -725,7 +710,7 @@ Level 0-3 findings:
 deep-research (Level 3):
 - Spawns 3 parallel subagents (BLEP / Oversampling / Minblep)
 - Investigates each approach thoroughly
-- Synthesizes findings with extended thinking
+- Synthesizes findings with deep analysis
 - Returns comprehensive report with recommendation
 
 Result: Oversampling recommended (complexity 2/5, JUCE native API)

@@ -2,7 +2,6 @@
 name: ui-finalization-agent
 description: Generate WebView implementation files (production HTML, C++ boilerplate, CMake config, integration checklist, parameter-spec.md) after UI design is finalized. Invoked autonomously by ui-mockup orchestrator after creative brief is updated. Black-box subagent with no user interaction.
 tools: Read, Write, Bash
-model: sonnet
 ---
 
 # UI Finalization Agent - Implementation Scaffolding Generator

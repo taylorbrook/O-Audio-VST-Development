@@ -1,7 +1,6 @@
 ---
 name: critic-dsp
 description: DSP domain critic for real-time safety and audio quality validation
-model: opus
 schema: ../../.planning/workflow/schemas/critic-dsp-report.schema.json
 ---
 

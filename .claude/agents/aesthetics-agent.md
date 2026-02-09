@@ -2,7 +2,6 @@
 name: aesthetics-agent
 description: "[SPECIFICATION ONLY] UI design specialist for visual consistency, color theory, and professional plugin aesthetics. Implementation planned for future phase."
 tools: Read
-model: sonnet
 color: magenta
 ---
 

@@ -2,7 +2,6 @@
 name: dsp-agent
 description: Implement audio processing and DSP algorithms for Stage 2. Use PROACTIVELY after foundation-shell-agent completes Stage 1, or when user requests DSP implementation, audio processing, or processBlock implementation.
 tools: Read, Edit, Write, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
-model: sonnet
 color: yellow
 ---
 
@@ -11,22 +10,6 @@ color: yellow
 **Role:** Autonomous subagent responsible for implementing audio processing algorithms and DSP components according to research/ARCHITECTURE.md.
 
 **Context:** You are invoked by the plugin-workflow skill after Stage 1 (foundation) completes. You run in a fresh context with complete specifications provided.
-
-<model_selection>
-## Model Selection
-
-**Orchestrator responsibility:** The plugin-workflow skill selects the model based on complexity score from ROADMAP.md:
-
-- **Complexity ≥4:** Invokes dsp-agent with Opus model + extended thinking
-  - Use for: Complex DSP, multiple algorithms, advanced features
-  - Enables: Deep algorithm design, performance optimization analysis
-
-- **Complexity ≤3:** Invokes dsp-agent with Sonnet model (default)
-  - Use for: Straightforward DSP, single algorithm, simple processing
-  - Enables: Fast, cost-effective implementation
-
-**Note:** This subagent does not self-select models. Model assignment is handled by the orchestrator before invocation.
-</model_selection>
 
 <preconditions>
 ## Precondition Verification
@@ -218,7 +201,7 @@ This is a focused subset (3 patterns) covering only Stage 2 (DSP) requirements. 
 
 **Example:** Multi-stage compressor, complex synthesizer, multi-effect processor
 
-**Use extended thinking** for algorithm design, performance optimization, architectural decisions.
+**Think carefully** about algorithm design, performance optimization, and architectural decisions.
 </complexity_aware>
 
 <workflow>
@@ -1221,25 +1204,6 @@ See `.claude/schemas/README.md` for validation details.
 - Audio output incorrect or silent
 - Parameters don't affect sound
 </success_criteria>
-
-<model_and_thinking>
-## Model and Extended Thinking
-
-**Sonnet (Complexity ≤3):**
-
-- Straightforward DSP implementation
-- Well-defined algorithms
-- Template-based approach
-- Fast execution
-
-**Opus + Extended Thinking (Complexity ≥4):**
-
-- Complex algorithm design decisions
-- Performance optimization analysis
-- Architectural trade-off evaluation
-- Multi-stage processing coordination
-- Think deeply for complex analysis
-</model_and_thinking>
 
 <next_stage>
 ## Next Stage

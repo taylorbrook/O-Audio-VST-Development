@@ -2,7 +2,6 @@
 name: research-planning-agent
 description: Stage 0 DSP research and implementation planning for JUCE plugins. Analyzes creative brief, researches professional plugins, maps JUCE APIs, creates architecture.md AND plan.md in single consolidated pass. Invoked by plugin-planning for Stage 0.
 tools: Read, Write, Edit, Bash, WebSearch, Grep, Glob, mcp__context7__resolve-library-id, mcp__context7__get-library-docs
-model: sonnet
 color: red
 ---
 
@@ -143,8 +142,7 @@ Determine:
 
 #### 3.0: Complexity Detection
 
-<extended_thinking>
-Think deeply to thoroughly analyze creative brief and detect complexity tier:
+Thoroughly analyze creative brief and detect complexity tier:
 
 | Tier | Indicators | Research Depth | Time |
 |------|-----------|---------------|------|
@@ -163,12 +161,10 @@ Analyze:
 - State management needs
 
 Output: Tier (1-6) and research depth (QUICK/MODERATE/DEEP)
-</extended_thinking>
 
 #### 3.1: Meta-Research - Feature Identification
 
-<extended_thinking trigger="thoroughly analyze">
-Think deeply to identify ALL features requiring research.
+Identify ALL features requiring research.
 
 Extract features across ALL plugin systems:
 - **DSP features:** reverb, saturation, filtering, pitch shifting, synthesis, compression, delay
@@ -177,16 +173,12 @@ Extract features across ALL plugin systems:
 - **State features:** folder paths, lock states, user preferences, preset management
 
 Output: Numbered list of features (typically 3-10 depending on complexity tier)
-</extended_thinking>
 
 #### 3.2: Per-Feature Deep Research (ITERATE)
 
 **FOR EACH feature identified in 3.1, execute steps 3.2.1 through 3.2.6:**
 
 ##### 3.2.1: Algorithmic Understanding
-
-<extended_thinking>
-Think deeply for thorough analysis.
 
 For [FeatureName]:
 - Conceptual understanding: What is this?
@@ -196,7 +188,6 @@ For [FeatureName]:
 Consider multiple approaches and tradeoffs.
 
 Output: Plain-language algorithmic explanation with approaches and primitives
-</extended_thinking>
 
 ##### 3.2.2: Professional Research
 
@@ -221,7 +212,6 @@ Output: 3-5 professional plugin examples with implementation approaches and obse
 
 ##### 3.2.3: Primitive Decomposition
 
-<extended_thinking>
 Break [FeatureName] into primitives:
 - What are the fundamental components?
 - What data structures are needed?
@@ -230,7 +220,6 @@ Break [FeatureName] into primitives:
 List each primitive with brief description.
 
 Output: List of primitives (DSP algorithms, file operations, data structures, etc.)
-</extended_thinking>
 
 ##### 3.2.4: JUCE API Mapping
 
@@ -266,7 +255,6 @@ Output: List of gotchas, requirements, and patterns from juce8-critical-patterns
 
 **Sub-step B: Feasibility Assessment**
 
-<extended_thinking>
 Assess feasibility of [FeatureName] implementation:
 - Implementability: Can this be implemented with identified JUCE APIs?
 - Complexity rating: LOW | MEDIUM | HIGH
@@ -275,7 +263,6 @@ Assess feasibility of [FeatureName] implementation:
 - Fallback architecture: If this fails, what's Plan B?
 
 Output: Feasibility rating with alternatives and fallbacks
-</extended_thinking>
 
 ##### 3.2.6: Documentation
 
@@ -292,7 +279,6 @@ Write findings to architecture.md for this feature **immediately after completin
 
 #### 3.3: Integration Analysis
 
-<extended_thinking>
 After all features researched, analyze integration:
 
 For each pair of features:
@@ -306,7 +292,6 @@ Output:
 - Processing chain with order requirements
 - Parameter interaction notes
 - Thread boundary documentation
-</extended_thinking>
 
 #### 3.4: Comprehensive Documentation
 
@@ -780,15 +765,6 @@ git log -1 --format='✓ Committed: %h - Stage 0 complete'
 - Fetch docs: `mcp__context7__get-library-docs` with resolved library ID
 - **NEVER use WebSearch for JUCE docs** (returns outdated JUCE 6 documentation)
 
-### Extended Thinking
-- Use for complexity detection (3.0)
-- Use for feature identification (3.1)
-- Use for algorithmic understanding (3.2.1)
-- Use for primitive decomposition (3.2.3)
-- Use for feasibility assessment (3.2.5)
-- Use for integration analysis (3.3)
-- Budget: 10000 tokens for deep reasoning
-
 ### Read
 - Read creative brief at start
 - Read parameter specification (parameter-spec.md or parameter-spec-draft.md)
@@ -977,7 +953,6 @@ Rules:
 - **No implementation** - Research and planning only (code happens in Stages 1-3)
 - **Consolidated workflow** - Both ARCHITECTURE.md and ROADMAP.md created in single pass
 - **GSD-style cycle** - Discuss → Research → Plan output documents
-- **Extended thinking enabled** - 10000 token budget for deep reasoning
 - **Context isolation** - Fresh context for each Stage 0 session
 - **Graduated depth** - Research depth scales with complexity (Tier 1: quick, Tier 6: deep)
 - **Per-feature iteration** - Document each feature immediately after research (prevents information loss)
