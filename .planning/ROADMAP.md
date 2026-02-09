@@ -11,8 +11,8 @@ Audit and modernize the Plugin Freedom System to leverage Opus 4.6 capabilities 
 ## Phases
 
 - [x] **Phase 14: Platform Alignment** - Prevent breakage from Opus 4.6 deprecations and adopt effort-based model tuning
-- [ ] **Phase 15: Context Persistence** - Eliminate information loss between sessions and across agents
-- [ ] **Phase 16: GSD Deduplication** - Replace custom code with GSD 1.18.0 native equivalents
+- [x] **Phase 15: Context Persistence** - Eliminate information loss between sessions and across agents
+- [x] **Phase 16: GSD Deduplication** - Replace custom code with GSD 1.18.0 native equivalents
 - [ ] **Phase 17: Agent Intelligence** - Adopt agent teams for parallel research/review and fine-grained quality hooks
 
 ## Phase Details
@@ -46,10 +46,10 @@ Plans:
   5. Five agents (troubleshoot, dsp, gui, research-planning, validation) persist learned patterns across sessions via `.claude/agent-memory/`
 **Plans**: 4 plans
 Plans:
-- [ ] 15-01-PLAN.md — Compaction context pipeline (PreCompact snapshot + SessionStart injection)
-- [ ] 15-02-PLAN.md — Plugin DIGEST.json + complex DSP full research loading
-- [ ] 15-03-PLAN.md — Agent persistent memory (SubagentStart hooks + memory files)
-- [ ] 15-04-PLAN.md — Express auto mode (--auto flag for /implement)
+- [x] 15-01-PLAN.md — Compaction context pipeline (PreCompact snapshot + SessionStart injection)
+- [x] 15-02-PLAN.md — Plugin DIGEST.json + complex DSP full research loading
+- [x] 15-03-PLAN.md — Agent persistent memory (SubagentStart hooks + memory files)
+- [x] 15-04-PLAN.md — Express auto mode (--auto flag for /implement)
 
 ### Phase 16: GSD Deduplication
 **Goal**: Custom PFS code that duplicates GSD 1.18.0 functionality is replaced with framework equivalents — reducing maintenance burden while preserving all 6 domain-specific validators
@@ -60,7 +60,11 @@ Plans:
   2. Frontmatter operations use GSD get/set/merge where schema-compatible, with custom Python validator retained only for PFS-specific 10-field research schema
   3. Six structural validators (plan-structure, phase-completeness, references, commits, artifacts, key-links) are replaced by GSD verification suite — six domain validators (DSP safety, APVTS matching, WebView bindings, checksums, cross-contract, resource accountability) remain untouched
   4. Post-plan validation cross-references CONTEXT.md user decisions with PLAN.md tasks, flagging contradictions before execution begins
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [x] 16-01-PLAN.md — Migrate peripheral workflow STATE.md operations to gsd-tools (GSDD-01)
+- [x] 16-02-PLAN.md — Classify validators and replace inline structural checks (GSDD-02 + GSDD-03)
+- [x] 16-03-PLAN.md — Add context-compliance verify command to gsd-tools (GSDD-04)
 
 ### Phase 17: Agent Intelligence
 **Goal**: Parallel agent teams are available for read-heavy research and review workflows, with fine-grained quality hooks and configurable branching — while the sequential Stage 0-4 pipeline remains the primary implementation path
@@ -82,7 +86,7 @@ Plans:
 |-------|-----------|----------------|--------|-----------|
 | 14. Platform Alignment | v1.3 | 4/4 | ✓ Complete | 2026-02-08 |
 | 15. Context Persistence | v1.3 | 4/4 | ✓ Complete | 2026-02-09 |
-| 16. GSD Deduplication | v1.3 | 0/TBD | Not started | - |
+| 16. GSD Deduplication | v1.3 | 3/3 | ✓ Complete | 2026-02-09 |
 | 17. Agent Intelligence | v1.3 | 0/TBD | Not started | - |
 
 ---
@@ -118,4 +122,4 @@ See `.planning/milestones/` for archived roadmaps.
 
 ---
 *Roadmap created: 2026-02-08*
-*Last updated: 2026-02-09 — Phase 15 complete*
+*Last updated: 2026-02-09 — Phase 16 complete*
