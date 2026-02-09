@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 15 of 17 (Context Persistence)
-Plan: 1 of 4
+Plan: 4 of 4
 Status: In Progress
-Last activity: 2026-02-09 -- Completed 15-01-PLAN.md (Compaction Pipeline)
+Last activity: 2026-02-09 -- Completed 15-04-PLAN.md (Auto Mode Flag)
 
-Progress: [██▒▒▒▒▒▒▒▒] 25% (v1.3: 1/4 plans in Phase 15)
+Progress: [██████████] 100% (v1.3: 4/4 plans in Phase 15)
 
 ## Performance Metrics
 
@@ -45,6 +45,7 @@ Progress: [██▒▒▒▒▒▒▒▒] 25% (v1.3: 1/4 plans in Phase 15)
 | 14 | 03 | 4min | 2 | 147 |
 | 14 | 04 | 7min | 2 | 12 |
 | 15 | 01 | 2min | 2 | 3 |
+| 15 | 04 | 3min | 2 | 3 |
 
 ## Accumulated Context
 
@@ -70,6 +71,9 @@ Recent decisions affecting current work:
 - [15-01]: PreCompact writes snapshot via subshell redirect, not stdout (stdout is discarded after compaction)
 - [15-01]: Compact handler placed as second SessionStart entry so environment validation runs first
 - [15-01]: Fallback to PLUGINS.md in-progress markers when no focused plugin in registry
+- [15-04]: Auto mode is a third mode (not a variant of express) -- generates artifacts from contracts
+- [15-04]: Non-interactive research uses prompt directive, not a separate agent or config
+- [15-04]: Auto and express share same error fallback (drop to manual on any error)
 
 ### Pending Todos
 
@@ -83,10 +87,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-09
-Stopped at: Completed 15-01-PLAN.md (Compaction Pipeline)
+Stopped at: Completed 15-04-PLAN.md (Auto Mode Flag)
 Resume file: None
 
-Next: Execute 15-02-PLAN.md (DIGEST.json)
+Next: Execute remaining Phase 15 plans (15-02, 15-03) or proceed to Phase 16
 
 ---
 *v1.3 System Modernization milestone in progress. 4 phases (14-17), 22 requirements.*
