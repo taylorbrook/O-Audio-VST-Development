@@ -10,6 +10,16 @@
             "timeout": 5000
           }
         ]
+      },
+      {
+        "matcher": "compact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PostCompact-SessionStart.sh",
+            "timeout": 5000
+          }
+        ]
       }
     ],
     "PostToolUse": [
