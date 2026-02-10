@@ -577,7 +577,8 @@ OuariconLicense::HttpResponse OuariconLicense::postJsonSync (
                    .withPOSTData (jsonString);
 
     auto extraHeaders = "Content-Type: application/json\r\n"
-                        "apikey: " + supabaseAnonKey;
+                        "apikey: " + supabaseAnonKey + "\r\n"
+                        "Authorization: Bearer " + supabaseAnonKey;
 
     int httpStatusCode = 0;
     auto options = juce::URL::InputStreamOptions (juce::URL::ParameterHandling::inPostData)

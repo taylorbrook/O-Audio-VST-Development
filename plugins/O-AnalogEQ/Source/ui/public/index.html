@@ -157,6 +157,7 @@
       width: 85px;
       height: 85px;
       pointer-events: none;
+      overflow: visible;
     }
 
     .dual-knob-container {
@@ -369,6 +370,16 @@
     .dual-knob-container.dragging .value-tooltip {
       opacity: 1;
     }
+
+    .db-readout {
+      position: absolute;
+      font-family: Garamond, serif;
+      font-size: 9px;
+      text-align: center;
+      color: #3C2F2F;
+      pointer-events: none;
+      letter-spacing: 0.08em;
+    }
   </style>
 </head>
 <body>
@@ -397,6 +408,9 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
+          <text x="8" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">30</text>
+          <text x="42.5" y="-2" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="middle">265</text>
+          <text x="77" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">500</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="lf_freq" data-param-inner="lf_gain">
           <div class="knob-outer" id="lf_freq_knob">
@@ -426,6 +440,9 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
+          <text x="8" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">100</text>
+          <text x="42.5" y="-2" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="middle">1k</text>
+          <text x="77" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">2k</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="lmf_freq" data-param-inner="lmf_gain">
           <div class="knob-outer" id="lmf_freq_knob">
@@ -460,6 +477,9 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
+          <text x="8" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">500</text>
+          <text x="42.5" y="-2" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="middle">4k</text>
+          <text x="77" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">8k</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="hmf_freq" data-param-inner="hmf_gain">
           <div class="knob-outer" id="hmf_freq_knob">
@@ -494,6 +514,9 @@
             <line x1="42.5" y1="5" x2="42.5" y2="8" transform="rotate(108, 42.5, 42.5)"/>
             <line x1="42.5" y1="5" x2="42.5" y2="10" transform="rotate(135, 42.5, 42.5)"/>
           </g>
+          <text x="8" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="end">2k</text>
+          <text x="42.5" y="-2" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="middle">11k</text>
+          <text x="77" y="80" font-size="7" fill="#5C4033" font-family="Garamond, serif" text-anchor="start">20k</text>
         </svg>
         <div class="dual-knob-container" data-param-outer="hf_freq" data-param-inner="hf_gain">
           <div class="knob-outer" id="hf_freq_knob">
@@ -505,6 +528,12 @@
           <div class="value-tooltip" id="hf_tooltip">8000 Hz / 0 dB</div>
         </div>
       </div>
+
+      <!-- dB readouts below each knob -->
+      <div class="db-readout" id="lf_db" style="top: 163px; left: 90px; width: 85px;">0.0 dB</div>
+      <div class="db-readout" id="lmf_db" style="top: 163px; left: 225px; width: 85px;">0.0 dB</div>
+      <div class="db-readout" id="hmf_db" style="top: 163px; left: 360px; width: 85px;">0.0 dB</div>
+      <div class="db-readout" id="hf_db" style="top: 163px; left: 495px; width: 85px;">0.0 dB</div>
 
       <!-- ANALOG toggle - centered between HF dial and VU meter -->
       <div class="toggle toggle-large active" id="analog" style="top: 99px; left: 620px; width: 75px; height: 22px;">ANALOG</div>
@@ -790,6 +819,20 @@
       document.querySelector('[data-param-outer="hf_freq"]'),
       hfFreqState, hfGainState, 'hf_tooltip', 'hf_freq', 'hf_gain'
     );
+
+    // dB readout updates (always visible below knobs)
+    function setupDbReadout(elementId, gainState, paramName) {
+      const el = document.getElementById(elementId);
+      const update = () => {
+        el.textContent = paramRanges[paramName].format(gainState.getNormalisedValue());
+      };
+      gainState.valueChangedEvent.addListener(update);
+      update();
+    }
+    setupDbReadout('lf_db', lfGainState, 'lf_gain');
+    setupDbReadout('lmf_db', lmfGainState, 'lmf_gain');
+    setupDbReadout('hmf_db', hmfGainState, 'hmf_gain');
+    setupDbReadout('hf_db', hfGainState, 'hf_gain');
 
     // Band labels: show 'inactive' when OFF
     setupToggle(document.getElementById('lf_on'), lfOnState, 'inactive', false);
