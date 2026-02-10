@@ -76,7 +76,11 @@ Plans:
   3. Plan approval gates allow the team lead to review and reject teammate plans before any implementation begins
   4. Delegate mode restricts the orchestrator to coordination-only tools (no direct file writes during delegated work)
   5. TaskCompleted hooks enable per-task validation within plans — exit code 2 prevents task completion with feedback, wiring domain validators to individual plan tasks
-**Plans**: TBD
+**Plans**: 3 plans
+Plans:
+- [ ] 17-01-PLAN.md — Research team infrastructure + task validation hooks (AGNT-01, AGNT-04, AGNT-05)
+- [ ] 17-02-PLAN.md — Critic review system + approval gates (AGNT-02, AGNT-03)
+- [ ] 17-03-PLAN.md — Workflow integration + branching + templates + canary test (AGNT-06, AGNT-07)
 
 ## Progress
 
@@ -87,7 +91,7 @@ Plans:
 | 14. Platform Alignment | v1.3 | 4/4 | ✓ Complete | 2026-02-08 |
 | 15. Context Persistence | v1.3 | 4/4 | ✓ Complete | 2026-02-09 |
 | 16. GSD Deduplication | v1.3 | 3/3 | ✓ Complete | 2026-02-09 |
-| 17. Agent Intelligence | v1.3 | 0/TBD | Not started | - |
+| 17. Agent Intelligence | v1.3 | 0/3 | Planned | - |
 
 ---
 
