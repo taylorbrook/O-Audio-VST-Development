@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-02-08)
 ## Current Position
 
 Phase: 17 of 17 (Agent Intelligence)
-Plan: 1 of 3
-Status: Plan 17-01 complete
-Last activity: 2026-02-10 -- Plan 17-01 executed (2/2 tasks, 5 files)
+Plan: 2 of 3
+Status: Plan 17-02 complete
+Last activity: 2026-02-10 -- Plan 17-02 executed (2/2 tasks, 5 files)
 
-Progress: [███.......] 33% (v1.3: 1/3 plans in Phase 17)
+Progress: [██████....] 66% (v1.3: 2/3 plans in Phase 17)
 
 ## Performance Metrics
 
@@ -52,6 +52,7 @@ Progress: [███.......] 33% (v1.3: 1/3 plans in Phase 17)
 | 16 | 02 | 3min | 2 | 2 |
 | 16 | 03 | 4min | 2 | 2 |
 | 17 | 01 | 3min | 2 | 5 |
+| 17 | 02 | 4min | 2 | 5 |
 
 ## Accumulated Context
 
@@ -97,6 +98,10 @@ Recent decisions affecting current work:
 - [17-01]: 7 validators mapped in dispatch (added validate-silent-failures.py for DSP tasks per research recommendation)
 - [17-01]: TaskCompleted hook timeout 15000ms; conflict detection supports JSON + Markdown findings
 - [17-01]: Extended contradiction pairs with audio-domain specifics (FIR/IIR, sample-by-sample/block-based, SIMD/scalar)
+- [17-02]: Subagents for critics (not Agent Teams) since critics are independent read-only reviewers
+- [17-02]: Severity normalization: error -> blocker in unified report for consistent ranking
+- [17-02]: ARCH-NNN and FND-NNN issue ID prefixes for architecture and foundation critics
+- [17-02]: Complexity score formula for plan approval: files*0.2 + dsp*1.0 + modules*0.5 + new_dsp*0.8 + processBlock*0.5
 
 ### Pending Todos
 
@@ -110,10 +115,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-02-10
-Stopped at: Completed 17-01-PLAN.md
+Stopped at: Completed 17-02-PLAN.md
 Resume file: None
 
-Next: Execute 17-02-PLAN.md (Critic orchestrator and parallel review)
+Next: Execute 17-03-PLAN.md (TaskCompleted hooks and integration wiring)
 
 ---
 *v1.3 System Modernization milestone in progress. 4 phases (14-17), 22 requirements.*
