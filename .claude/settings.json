@@ -47,12 +47,23 @@
     ],
     "SubagentStart": [
       {
-        "matcher": "troubleshoot-agent|dsp-agent|gui-agent|research-planning-agent|validation-agent",
+        "matcher": "troubleshoot-agent|dsp-agent|gui-agent|research-planning-agent|validation-agent|research-lead|dynamic-researcher",
         "hooks": [
           {
             "type": "command",
             "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-agent-memory.sh",
             "timeout": 3000
+          }
+        ]
+      }
+    ],
+    "TaskCompleted": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/task-validator-dispatch.sh",
+            "timeout": 15000
           }
         ]
       }
