@@ -145,6 +145,8 @@ private:
     // Lowpass Filter (v2.6.0)
     std::atomic<float>* lpFilterEnabledParam = nullptr;
     std::atomic<float>* lpFilterCutoffParam = nullptr;
+    // High Fidelity (v3.1.2)
+    std::atomic<float>* highFidelityParam = nullptr;
     // Tuning (v3.0.0)
     std::atomic<float>* tuningMasterTuneParam = nullptr;
     std::atomic<float>* tuningOctaveStretchParam = nullptr;

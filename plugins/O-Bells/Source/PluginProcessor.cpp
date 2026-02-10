@@ -444,6 +444,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBellsAudioProcessor::create
         0  // Default: Equal 12-TET
     ));
 
+    // ========== Performance (v3.1.2) ==========
+
+    // HIGH_FIDELITY - Disables voice culling for maximum sustain fidelity
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "highFidelity", 1 },
+        "High Fidelity",
+        false  // Default: off (voice culling active for CPU safety)
+    ));
+
     // REVERB_MIX - Spaciousness control (0-100%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "reverbMix", 1 },
@@ -620,6 +629,8 @@ void OBellsAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
     // Lowpass Filter (v2.6.0)
     lpFilterEnabledParam = parameters.getRawParameterValue("lpFilterEnabled");
     lpFilterCutoffParam = parameters.getRawParameterValue("lpFilterCutoff");
+    // High Fidelity (v3.1.2)
+    highFidelityParam = parameters.getRawParameterValue("highFidelity");
     // Tuning (v3.0.0)
     tuningMasterTuneParam = parameters.getRawParameterValue("tuning_masterTune");
     tuningOctaveStretchParam = parameters.getRawParameterValue("tuning_octaveStretch");
@@ -686,11 +697,15 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
     float humanize = humanizeParam->load();
     float outputGain = outputGainParam->load();
 
+    // v3.1.2: Read high fidelity toggle
+    bool highFidelity = highFidelityParam->load() > 0.5f;
+
     // Update all voice parameters
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
         if (auto* voice = dynamic_cast<BellVoice*>(synthesiser.getVoice(i)))
         {
+            voice->setHighFidelity(highFidelity);
             voice->updateParameters(
                 inharmonicity, damping, overtoneBrightness, acousticBrightness,
                 airAbsorption, airAbsorptionTime,
@@ -733,6 +748,29 @@ void OBellsAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::
 
     // Process MIDI and render audio
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // v3.1.2: Soft limiter - prevents distortion from overlapping voice tails
+    // Transparent below threshold, gentle tanh compression above
+    {
+        constexpr float limiterThreshold = 0.9f;
+        constexpr float limiterCeiling = 1.0f - limiterThreshold;
+
+        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        {
+            float* channelData = buffer.getWritePointer(ch);
+            for (int s = 0; s < buffer.getNumSamples(); ++s)
+            {
+                float sample = channelData[s];
+                float absVal = std::abs(sample);
+                if (absVal > limiterThreshold)
+                {
+                    float sign = sample > 0.0f ? 1.0f : -1.0f;
+                    float over = absVal - limiterThreshold;
+                    channelData[s] = sign * (limiterThreshold + limiterCeiling * std::tanh(over / limiterCeiling));
+                }
+            }
+        }
+    }
 
     // Apply one-pole lowpass filter (v2.6.0) - post-synth, pre-reverb
     bool lpEnabled = lpFilterEnabledParam->load() > 0.5f;

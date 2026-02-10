@@ -70,6 +70,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> humanizeRelay;  // v2.4.0
     std::unique_ptr<juce::WebSliderRelay> lpFilterEnabledRelay;  // v2.6.0
     std::unique_ptr<juce::WebSliderRelay> lpFilterCutoffRelay;   // v2.6.0
+    std::unique_ptr<juce::WebSliderRelay> highFidelityRelay;     // v3.1.2
     std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
     // Multi-stage envelope relays (4 sliders, active when decayShape == 2)
@@ -127,6 +128,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> humanizeAttachment;  // v2.4.0
     std::unique_ptr<juce::WebSliderParameterAttachment> lpFilterEnabledAttachment;  // v2.6.0
     std::unique_ptr<juce::WebSliderParameterAttachment> lpFilterCutoffAttachment;   // v2.6.0
+    std::unique_ptr<juce::WebSliderParameterAttachment> highFidelityAttachment;     // v3.1.2
     std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
     // Multi-stage envelope attachments

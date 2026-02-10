@@ -51,6 +51,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
     humanizeRelay = std::make_unique<juce::WebSliderRelay>("humanize");  // v2.4.0
     lpFilterEnabledRelay = std::make_unique<juce::WebSliderRelay>("lpFilterEnabled");  // v2.6.0
     lpFilterCutoffRelay = std::make_unique<juce::WebSliderRelay>("lpFilterCutoff");    // v2.6.0
+    highFidelityRelay = std::make_unique<juce::WebSliderRelay>("highFidelity");        // v3.1.2
     reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
     outputGainRelay = std::make_unique<juce::WebSliderRelay>("outputGain");
     // Multi-stage envelope relays
@@ -107,6 +108,7 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
             .withOptionsFrom(*humanizeRelay)  // v2.4.0
             .withOptionsFrom(*lpFilterEnabledRelay)  // v2.6.0
             .withOptionsFrom(*lpFilterCutoffRelay)    // v2.6.0
+            .withOptionsFrom(*highFidelityRelay)      // v3.1.2
             .withOptionsFrom(*reverbMixRelay)
             .withOptionsFrom(*outputGainRelay)
             // Multi-stage envelope relays
@@ -672,6 +674,8 @@ OBellsAudioProcessorEditor::OBellsAudioProcessorEditor(OBellsAudioProcessor& p)
         *apvts.getParameter("lpFilterEnabled"), *lpFilterEnabledRelay, nullptr);  // v2.6.0
     lpFilterCutoffAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("lpFilterCutoff"), *lpFilterCutoffRelay, nullptr);    // v2.6.0
+    highFidelityAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("highFidelity"), *highFidelityRelay, nullptr);        // v3.1.2
     reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
     outputGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

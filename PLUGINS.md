@@ -34,13 +34,13 @@ Ouaricon Plugins:
 | O-DigiDelay | 📦 Installed | 1.2.6 | Audio Effect (Delay) | 2026-02-09 |
 | O-SimpleReverb | 📦 Installed | 1.5.4 | Audio Effect (Reverb) | 2026-02-08 |
 | O-Polystutter | 📦 Installed | 1.8.0 | Audio Effect (Beat Repeater) | 2026-01-26 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
-| O-Lyrica | 📦 Installed | 1.19.0 | Synth (Physical Modeling Harp) | 2026-02-04 |
+| O-Lyrica | 📦 Installed | 1.20.0 | Synth (Physical Modeling Harp) | 2026-02-09 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
 | O-Detune | 📦 Installed | 1.5.0 | Audio Effect (Detuning) | 2026-02-07 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
-| O-Bells | 📦 Installed | 3.1.1 | Synth (Physical Modeling Bells) | 2026-02-05 |
+| O-Bells | 📦 Installed | 3.2.0 | Synth (Physical Modeling Bells) | 2026-02-09 |
 | O-FreqPulse | 📦 Installed | 1.6.0 | Audio Effect (Spectral Sequencer) | 2026-02-07 |
 | O-SpectralShaper | 📦 Installed | 1.1.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
 | O-GrainScatter | 📦 Installed | 2.0.1 | Audio Effect (Granular Stutter Engine) | 2026-02-09 |

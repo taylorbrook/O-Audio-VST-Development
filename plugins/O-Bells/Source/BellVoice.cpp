@@ -101,12 +101,19 @@ void BellVoice::startNote(int midiNoteNumber, float velocity, juce::SynthesiserS
 {
     currentMidiNote = midiNoteNumber;
     currentVelocity = applyVelocityCurve(velocity, currentVelocityCurve);
+
+    // v3.2.0: Expanded velocity dynamic range (~18dB wider at low velocities)
+    // Squaring the velocity after curve mapping gives:
+    //   v=1.0 → 1.0 (no change), v=0.5 → 0.25 (-12dB more), v=0.3 → 0.09 (-21dB more)
+    currentVelocity = std::pow(currentVelocity, 2.0f);
+
     noteActive = true;
     tailOff = false;
     releaseEnvelope = 1.0f;
     releaseRate = 1.0f;
     samplesSinceNoteOn = 0;  // Reset sample counter for multi-stage envelope
     decayProgress = 0.0f;    // Reset decay progress for shimmer
+    silentSampleCount = 0;   // v3.1.2: Reset silence gating counter
 
     // ========== v2.4.0: Calculate per-note humanization variations ==========
     // Each note gets random variations scaled by the humanize parameter
@@ -587,7 +594,7 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
 
         // Normalize signal to prevent clipping
         // Account for: partial count (~2.7x from harmonic series), unison voices, and octave layers
-        float partialNorm = 0.4f;  // Compensate for 8 partials summing to ~2.5-3x
+        float partialNorm = 0.2f;  // v3.2.0: -6dB from 0.4f — quieter synthesis baseline
         float unisonNorm = 1.0f / std::sqrt(static_cast<float>(currentUnisonCount));
         float layerNorm = 1.0f / (1.0f + currentOctaveBlendSub + currentOctaveBlendOct);
         float totalNorm = partialNorm * unisonNorm * layerNorm;
@@ -653,6 +660,27 @@ void BellVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int star
             clearCurrentNote();
             noteActive = false;
             break;
+        }
+
+        // v3.1.2: Voice-level silence gating - kill voices whose output is negligible
+        // Bypassed in High Fidelity mode for maximum sustain fidelity
+        if (!currentHighFidelity)
+        {
+            float samplePeak = std::max(std::abs(leftOutput), std::abs(rightOutput));
+            if (samplePeak < VOICE_SILENCE_THRESHOLD)
+            {
+                ++silentSampleCount;
+                if (silentSampleCount >= SILENCE_SAMPLES_TO_KILL)
+                {
+                    clearCurrentNote();
+                    noteActive = false;
+                    break;
+                }
+            }
+            else
+            {
+                silentSampleCount = 0;
+            }
         }
     }
 }

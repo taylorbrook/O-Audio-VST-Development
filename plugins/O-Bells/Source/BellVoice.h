@@ -34,6 +34,9 @@ public:
     // Prepare DSP components
     void prepare(double sampleRate, int samplesPerBlock);
 
+    // v3.1.2: High Fidelity mode toggle (disables voice culling)
+    void setHighFidelity(bool enabled) { currentHighFidelity = enabled; }
+
     // Parameter update (called from processor's prepareToPlay or processBlock)
     void updateParameters(float inharmonicity, float damping, float overtoneBrightness, float acousticBrightness,
                          float airAbsorption, float airAbsorptionTime,
@@ -205,6 +208,12 @@ private:
 
     // v3.0.0: Tuning engine (owned by processor)
     TuningEngine* tuningEngine = nullptr;
+
+    // v3.1.2: Voice-level silence gating
+    bool currentHighFidelity = false;
+    int silentSampleCount = 0;
+    static constexpr float VOICE_SILENCE_THRESHOLD = 0.0005f;
+    static constexpr int SILENCE_SAMPLES_TO_KILL = 1024;  // ~23ms at 44.1kHz
 
     // Voice state
     int currentMidiNote = 0;

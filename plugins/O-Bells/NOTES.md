@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 3.1.1
+- **Version:** 3.2.0
 - **Type:** Synth (Physical Modeling Bells)
 
 ## Lifecycle Timeline
@@ -29,6 +29,7 @@
 - **2026-02-03 (v2.3.0):** 16-voice polyphony (increased from 8 voices)
 - **2026-02-04 (v2.4.0):** Humanize parameter for per-note organic variation (strike, mallet, decay, attack, inharmonicity)
 - **2026-02-05 (v3.1.0):** TrueKeys interval reporting - real-time frequency-based interval display with note names and interval labels (ported from O-Lyrica)
+- **2026-02-09 (v3.2.0):** Gain staging overhaul: -6dB synthesis normalization reduction + expanded velocity dynamic range (~18dB wider at low velocities)
 
 ## Known Issues
 
