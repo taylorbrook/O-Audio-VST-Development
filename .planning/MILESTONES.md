@@ -1,5 +1,36 @@
 # Project Milestones: Plugin Freedom System
 
+## v1.3 System Modernization (Shipped: 2026-02-10)
+
+**Delivered:** Opus 4.6 platform migration, multi-layer context persistence, GSD state deduplication, and agent team infrastructure for parallel research and review — with canary validation protecting 35+ production plugins
+
+**Phases completed:** 14-17 (14 plans total)
+
+**Key accomplishments:**
+
+- Migrated all 13 agents from deprecated model/thinking configs to effort-level tuning (low/medium/max) on Opus 4.6
+- Built multi-layer context persistence: compaction snapshots, per-plugin DIGEST.json with complexity-based research routing, persistent agent memory via SubagentStart hooks
+- Migrated all STATE.md mutations across 8 workflows to gsd-tools CLI, eliminating manual file editing
+- Shipped research team orchestration with debate-format conflict resolution and dynamic domain assignment
+- Created parallel critic review system with severity-ranked unified reporting and approval gates
+- Implemented context compliance verification with tokenized keyword matching and configurable thresholds
+- Connected research teams, critics, branching strategies, and template auto-selection into plugin-workflow
+
+**Stats:**
+
+- 289 files created/modified
+- 12,988 lines added
+- 4 phases, 14 plans
+- 22 requirements satisfied (100% coverage)
+- 3 days from start to ship (2026-02-08 → 2026-02-10)
+- 48 commits in milestone range
+
+**Git range:** `8ae62f4` → `b261f61`
+
+**What's next:** Cross-plugin intelligence, decision provenance, or Windows distribution (v2)
+
+---
+
 ## v1.2 Agent Intelligence & Resource Orchestration (Shipped: 2026-02-06)
 
 **Delivered:** Resource discovery, context injection, accountability tracking, and self-maintaining manifest system — agents now automatically receive relevant research with full traceability and graceful degradation
@@ -87,3 +118,5 @@
 ---
 
 *Milestones archive created: 2026-02-02*
+
+
