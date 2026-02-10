@@ -1,8 +1,8 @@
 # Milestone v1.3: System Modernization (Opus 4.6 + GSD Alignment)
 
-**Status:** In Progress
+**Status:** Complete
 **Phases:** 14-17
-**Total Plans:** TBD
+**Total Plans:** 14
 
 ## Overview
 
@@ -13,7 +13,7 @@ Audit and modernize the Plugin Freedom System to leverage Opus 4.6 capabilities 
 - [x] **Phase 14: Platform Alignment** - Prevent breakage from Opus 4.6 deprecations and adopt effort-based model tuning
 - [x] **Phase 15: Context Persistence** - Eliminate information loss between sessions and across agents
 - [x] **Phase 16: GSD Deduplication** - Replace custom code with GSD 1.18.0 native equivalents
-- [ ] **Phase 17: Agent Intelligence** - Adopt agent teams for parallel research/review and fine-grained quality hooks
+- [x] **Phase 17: Agent Intelligence** - Adopt agent teams for parallel research/review and fine-grained quality hooks
 
 ## Phase Details
 
@@ -78,9 +78,9 @@ Plans:
   5. TaskCompleted hooks enable per-task validation within plans — exit code 2 prevents task completion with feedback, wiring domain validators to individual plan tasks
 **Plans**: 3 plans
 Plans:
-- [ ] 17-01-PLAN.md — Research team infrastructure + task validation hooks (AGNT-01, AGNT-04, AGNT-05)
-- [ ] 17-02-PLAN.md — Critic review system + approval gates (AGNT-02, AGNT-03)
-- [ ] 17-03-PLAN.md — Workflow integration + branching + templates + canary test (AGNT-06, AGNT-07)
+- [x] 17-01-PLAN.md — Research team infrastructure + task validation hooks (AGNT-01, AGNT-04, AGNT-05)
+- [x] 17-02-PLAN.md — Critic review system + approval gates (AGNT-02, AGNT-03)
+- [x] 17-03-PLAN.md — Workflow integration + branching + templates + canary test (AGNT-06, AGNT-07)
 
 ## Progress
 
@@ -91,7 +91,7 @@ Plans:
 | 14. Platform Alignment | v1.3 | 4/4 | ✓ Complete | 2026-02-08 |
 | 15. Context Persistence | v1.3 | 4/4 | ✓ Complete | 2026-02-09 |
 | 16. GSD Deduplication | v1.3 | 3/3 | ✓ Complete | 2026-02-09 |
-| 17. Agent Intelligence | v1.3 | 0/3 | Planned | - |
+| 17. Agent Intelligence | v1.3 | 3/3 | ✓ Complete | 2026-02-10 |
 
 ---
 
@@ -126,4 +126,4 @@ See `.planning/milestones/` for archived roadmaps.
 
 ---
 *Roadmap created: 2026-02-08*
-*Last updated: 2026-02-09 — Phase 16 complete*
+*Last updated: 2026-02-10 — Phase 17 complete, milestone v1.3 complete*
