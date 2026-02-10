@@ -1,5 +1,14 @@
 # O-AnalogEQ Changelog
 
+## [1.1.7] - 2026-02-09
+
+### Added
+- Preset system with save/load functionality
+
+### Changed
+- UI improvements: moved title left, presets right
+- EQ algorithm upgrades
+
 ## [1.1.4] - 2026-02-05
 
 ### Changed
