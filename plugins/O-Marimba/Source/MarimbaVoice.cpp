@@ -127,8 +127,9 @@ void MarimbaVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
             modalSum += modeOutput * mode.amplitude;
         }
 
-        // v1.9.8: Output gain moved to end of chain (after EQ/Compressor in processor)
-        float finalSample = modalSum;
+        // v1.12.0: +6dB synthesis gain applied at modal output (not output scaling)
+        static constexpr float SYNTHESIS_GAIN = 2.0f;  // +6dB
+        float finalSample = modalSum * SYNTHESIS_GAIN;
 
         // v1.6.0: Apply tone lowpass filter (one-pole)
         // y[n] = y[n-1] + coeff * (x[n] - y[n-1])
@@ -224,15 +225,14 @@ double MarimbaVoice::noteToFrequency(int midiNote) const
 
 float MarimbaVoice::applyVelocityCurve(float rawVelocity) const
 {
-    // VEL_CURVE parameter: 0.0 = linear, 1.0 = exponential
-    // Formula: amplitude = velocity^(1 + curve)
-    float exponent = 1.0f + velocityCurve;
+    // VEL_CURVE parameter: 0.0 = linear, 1.0 = steep exponential
+    // v1.12.0: Extended range for wider dynamics (exp 1.0→3.0, was 1.0→2.0)
+    float exponent = 1.0f + velocityCurve * 2.0f;
     float shapedVelocity = std::pow(rawVelocity, exponent);
 
-    // Apply velocity-dependent loudness boost (independent of VEL_CURVE)
-    // Low velocity (1) = 0dB boost, High velocity (127) = +6dB boost
-    // This makes the instrument more dynamically expressive
-    float boostDB = rawVelocity * 6.0f;
+    // v1.12.0: Extended velocity-dependent boost for wider dynamic range
+    // Low velocity = -6dB, High velocity = +6dB (12dB range, was 6dB)
+    float boostDB = -6.0f + rawVelocity * 12.0f;
     float boostMultiplier = std::pow(10.0f, boostDB / 20.0f);
 
     return shapedVelocity * boostMultiplier;

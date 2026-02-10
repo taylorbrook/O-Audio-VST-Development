@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.10.0
+- **Version:** 1.12.0
 - **Type:** Synth (Physical Model)
 - **Complexity:** 5.0 (VERY HIGH - maximum complexity)
 
@@ -113,6 +113,11 @@
 - **2026-01-25 (v1.10.0):** Renamed plugin from "Ouaricon Marimba" to "O-Marimba"
   - Changed: Plugin display name, folder name, class names, preset paths
   - Note: DAW sessions using old name will need to re-load the plugin
+- **2026-02-09 (v1.12.0):** Synthesis loudness and velocity dynamics overhaul
+  - Changed: +6dB synthesis gain applied at modal output (not output scaling)
+  - Changed: Velocity curve exponent range extended (1.0→3.0, was 1.0→2.0) for wider dynamics
+  - Changed: Velocity-dependent boost widened to -6dB→+6dB (12dB range, was 0→+6dB)
+  - Result: +6dB louder at max velocity, -9dB quieter at low velocity, 50dB dynamic range (was 35dB)
 
 ## Known Issues
 
@@ -189,4 +194,4 @@ Physically modeled marimba synthesizer with native microtonal support using moda
 - AU (Audio Unit)
 - Standalone
 
-**Last Updated:** 2026-01-25
+**Last Updated:** 2026-02-09
