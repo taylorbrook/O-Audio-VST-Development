@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "./critic-report-unified.schema.json",
+  "title": "Unified Critic Report",
+  "description": "Merged output from multiple domain critics, sorted by severity, with progression gate decision",
+  "type": "object",
+  "required": [
+    "stage",
+    "plugin",
+    "timestamp",
+    "critics_run",
+    "unified_issues",
+    "progression_allowed",
+    "blocking_count",
+    "warning_count",
+    "note_count"
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "stage": {
+      "type": "string",
+      "description": "Stage that was evaluated (e.g., 1-foundation, 2-dsp, 3-gui, 4-polish)"
+    },
+    "plugin": {
+      "type": "string",
+      "description": "Plugin name that was evaluated"
+    },
+    "timestamp": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Report generation time (ISO 8601)"
+    },
+    "critics_run": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "List of critic identifiers that were run (e.g., dsp-critic, architecture-critic)"
+    },
+    "unified_issues": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/UnifiedIssue"
+      },
+      "description": "All issues from all critics, merged and sorted by severity (blockers first)"
+    },
+    "progression_allowed": {
+      "type": "boolean",
+      "description": "Whether stage progression is allowed (true only if blocking_count == 0)"
+    },
+    "blocking_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of blocker-severity issues (prevents progression)"
+    },
+    "warning_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of warning-severity issues (advisory, does not block)"
+    },
+    "note_count": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Number of note/info-severity issues (informational)"
+    }
+  },
+  "$defs": {
+    "UnifiedIssue": {
+      "type": "object",
+      "required": [
+        "severity",
+        "critic",
+        "id",
+        "category",
+        "location",
+        "description",
+        "fixSuggestion"
+      ],
+      "additionalProperties": false,
+      "properties": {
+        "severity": {
+          "type": "string",
+          "enum": ["blocker", "warning", "note", "info"],
+          "description": "Unified severity level (error normalized to blocker)"
+        },
+        "critic": {
+          "type": "string",
+          "description": "Source critic identifier (e.g., dsp-critic, foundation-critic)"
+        },
+        "id": {
+          "type": "string",
+          "pattern": "^[A-Z]+-[0-9]+$",
+          "description": "Issue identifier from source critic (e.g., DSP-001, ARCH-002, FND-003)"
+        },
+        "category": {
+          "type": "string",
+          "description": "Scoring category this issue affects (e.g., realtime_safety, contract_alignment)"
+        },
+        "location": {
+          "type": "string",
+          "description": "File and line location (e.g., PluginProcessor.cpp:87)"
+        },
+        "description": {
+          "type": "string",
+          "minLength": 10,
+          "description": "What is wrong (minimum 10 characters for meaningful description)"
+        },
+        "fixSuggestion": {
+          "type": "string",
+          "minLength": 10,
+          "description": "Actionable fix approach (minimum 10 characters, not code snippets)"
+        }
+      }
+    }
+  }
+}
