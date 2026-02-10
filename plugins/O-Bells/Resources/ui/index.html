@@ -544,6 +544,81 @@
             margin-top: -4px;
         }
 
+        .hi-fi-toggle {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+            padding: 6px 10px;
+            background: rgba(139, 168, 112, 0.15);
+            border-radius: 4px;
+            cursor: pointer;
+            position: relative;
+        }
+
+        .hi-fi-toggle:hover {
+            background: rgba(139, 168, 112, 0.25);
+        }
+
+        .hi-fi-toggle .toggle-checkbox {
+            width: 14px;
+            height: 14px;
+            border: 2px solid #3C5C1A;
+            border-radius: 3px;
+            background: #E8D5B7;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: #3C5C1A;
+        }
+
+        .hi-fi-toggle.active .toggle-checkbox {
+            background: rgba(107, 142, 35, 0.6);
+        }
+
+        .hi-fi-toggle .toggle-label {
+            font-size: 10px;
+            font-weight: 400;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: #3C2F2F;
+        }
+
+        .hi-fi-toggle .toggle-tooltip {
+            display: none;
+            position: absolute;
+            bottom: calc(100% + 6px);
+            left: 50%;
+            transform: translateX(-50%);
+            background: #3C2F2F;
+            color: #E8D5B7;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+            line-height: 1.4;
+            padding: 6px 10px;
+            border-radius: 4px;
+            width: 220px;
+            text-transform: none;
+            z-index: 100;
+            pointer-events: none;
+        }
+
+        .hi-fi-toggle .toggle-tooltip::after {
+            content: '';
+            position: absolute;
+            top: 100%;
+            left: 50%;
+            transform: translateX(-50%);
+            border: 5px solid transparent;
+            border-top-color: #3C2F2F;
+        }
+
+        .hi-fi-toggle:hover .toggle-tooltip {
+            display: block;
+        }
+
         .lp-filter-toggle {
             display: flex;
             align-items: center;
@@ -859,6 +934,43 @@
         #tuning-container {
             height: 100%;
         }
+
+        /* ====================================================================
+           CPU WARNING BANNER (v3.2.0)
+           ==================================================================== */
+
+        .cpu-warning {
+            display: none;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            margin-bottom: 10px;
+            background: rgba(205, 133, 63, 0.15);
+            border: 1px solid rgba(205, 133, 63, 0.5);
+            border-radius: 4px;
+            font-size: 9px;
+            font-weight: 400;
+            letter-spacing: 0.3px;
+            color: #8B4513;
+            line-height: 1.4;
+        }
+
+        .cpu-warning.visible {
+            display: flex;
+        }
+
+        .cpu-warning-icon {
+            flex-shrink: 0;
+            font-size: 13px;
+        }
+
+        .cpu-warning-text {
+            flex: 1;
+        }
+
+        .cpu-warning-estimate {
+            font-weight: 600;
+        }
     </style>
 </head>
 <body>
@@ -891,6 +1003,15 @@
 
         <!-- Tab Content: Instrument -->
         <div class="tab-content active" id="instrument-tab">
+            <!-- CPU Warning Banner (v3.2.0) -->
+            <div class="cpu-warning" id="cpu-warning">
+                <span class="cpu-warning-icon">&#9888;</span>
+                <span class="cpu-warning-text">
+                    Estimated bell decay: <span class="cpu-warning-estimate" id="cpu-warning-estimate">--</span>.
+                    Long decays with polyphony may cause high CPU usage, distortion, or stuttering.
+                </span>
+            </div>
+
             <!-- Synthesis Section -->
             <div class="section">
                 <div class="section-title">Synthesis</div>
@@ -1218,6 +1339,20 @@
                             <div class="slider-thumb"></div>
                         </div>
                         <div class="param-value" data-value="lpFilterCutoff">20.0 kHz</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Performance Section (v3.1.2) -->
+            <div class="section">
+                <div class="section-title">Performance</div>
+                <div class="param-row">
+                    <div class="param-control">
+                        <div class="hi-fi-toggle" id="hi-fi-toggle">
+                            <div class="toggle-checkbox" id="hi-fi-checkbox"></div>
+                            <div class="toggle-label">High Fidelity</div>
+                            <div class="toggle-tooltip">Disables voice culling for maximum sustain fidelity. May cause CPU overload with long-decay presets and dense polyphony.</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -1574,6 +1709,88 @@
             const enabled = lpFilterEnabledState.getNormalisedValue() > 0.5;
             updateLPFilterToggleUI(enabled);
         });
+
+        // ====================================================================
+        // HIGH FIDELITY TOGGLE (v3.1.2)
+        // ====================================================================
+
+        const hiFiToggle = document.getElementById('hi-fi-toggle');
+        const hiFiCheckbox = document.getElementById('hi-fi-checkbox');
+
+        const hiFiState = Juce.getSliderState('highFidelity');
+        parameterStates.set('highFidelity', hiFiState);
+
+        function updateHiFiToggleUI(enabled) {
+            if (enabled) {
+                hiFiToggle.classList.add('active');
+                hiFiCheckbox.textContent = '\u2713';
+            } else {
+                hiFiToggle.classList.remove('active');
+                hiFiCheckbox.textContent = '';
+            }
+        }
+
+        const initialHiFi = hiFiState.getNormalisedValue() > 0.5;
+        updateHiFiToggleUI(initialHiFi);
+
+        hiFiToggle.addEventListener('click', () => {
+            const currentValue = hiFiState.getNormalisedValue() > 0.5;
+            const newValue = !currentValue;
+            hiFiState.setNormalisedValue(newValue ? 1.0 : 0.0);
+            updateHiFiToggleUI(newValue);
+        });
+
+        hiFiState.valueChangedEvent.addListener(() => {
+            const enabled = hiFiState.getNormalisedValue() > 0.5;
+            updateHiFiToggleUI(enabled);
+        });
+
+        // ====================================================================
+        // CPU WARNING: LONG DECAY ESTIMATION (v3.2.0)
+        // ====================================================================
+
+        const cpuWarning = document.getElementById('cpu-warning');
+        const cpuWarningEstimate = document.getElementById('cpu-warning-estimate');
+
+        const MATERIAL_DECAY_MULTS = [1.0, 0.7, 2.0, 0.5, 1.5]; // Bronze, Brass, Steel, Aluminum, Cast Iron
+
+        function estimateDecayTime() {
+            const dampingNorm = parameterStates.get('damping')?.getNormalisedValue() ?? 0.7;
+            const bodyTimeNorm = parameterStates.get('bodyTime')?.getNormalisedValue() ?? 0.29;
+            const humSustainNorm = parameterStates.get('humSustain')?.getNormalisedValue() ?? 0.5;
+            const materialNorm = parameterStates.get('material')?.getNormalisedValue() ?? 0;
+
+            const bodyTimeSec = (100 + bodyTimeNorm * 4900) / 1000;
+            const materialIndex = Math.round(materialNorm * 4);
+            const materialMult = MATERIAL_DECAY_MULTS[materialIndex] || 1.0;
+            const humExtension = 1 + humSustainNorm * 2;
+            const dampingMult = 1 + dampingNorm * 1.5;
+
+            return bodyTimeSec * materialMult * humExtension * dampingMult;
+        }
+
+        function updateCpuWarning() {
+            const seconds = estimateDecayTime();
+            if (seconds > 10) {
+                cpuWarningEstimate.textContent = `~${Math.round(seconds)}s`;
+                cpuWarning.classList.add('visible');
+            } else {
+                cpuWarning.classList.remove('visible');
+            }
+        }
+
+        // Listen to relevant parameters for decay estimation
+        ['damping', 'bodyTime', 'humSustain'].forEach(id => {
+            const state = parameterStates.get(id);
+            if (state) state.valueChangedEvent.addListener(updateCpuWarning);
+        });
+
+        // Material is a combo box - listen via its relay
+        const materialState = parameterStates.get('material');
+        if (materialState) materialState.valueChangedEvent.addListener(updateCpuWarning);
+
+        // Initial check
+        updateCpuWarning();
 
         // ====================================================================
         // ENVELOPE SECTION VISIBILITY (always visible in v1.2.0 - multi-stage is always on)
