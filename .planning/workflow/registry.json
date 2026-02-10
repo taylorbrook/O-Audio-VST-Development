@@ -98,8 +98,17 @@
       "phase": "complete",
       "status": "complete",
       "created": "2026-02-01",
-      "lastActivity": "2026-02-01T15:04:00Z",
-      "modules": [],
+      "lastActivity": "2026-02-09T12:00:00Z",
+      "modules": [
+        {
+          "name": "preset-manager",
+          "version": "1.0.0",
+          "installedAt": "2026-02-09T12:00:00Z",
+          "modified": false,
+          "contentHash": "sha256:f6613129ed3b5ac0",
+          "originalHash": "sha256:f6613129ed3b5ac0"
+        }
+      ],
       "expressMode": false,
       "blockedBy": null
     },
@@ -255,11 +264,12 @@
       "compatibilityNotes": null,
       "dependents": [
         "OuariconMarimba",
-        "OuariconTremolo"
+        "OuariconTremolo",
+        "OuariconAnalogEQ"
       ],
-      "lastUpdated": "2026-02-01T15:08:35Z",
+      "lastUpdated": "2026-02-09T12:00:00Z",
       "usageStats": {
-        "addCount": 2,
+        "addCount": 3,
         "removeCount": 0
       }
     },

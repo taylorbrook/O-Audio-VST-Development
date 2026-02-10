@@ -9,8 +9,16 @@ arguments:
     required: true
   - name: product-id
     description: Product identifier matching backend (e.g., ouaricon-tremolo, ouaricon-delay)
-    required: true
+    required: false
 ---
+
+## Prompt for Missing Product ID
+
+If `product-id` was NOT provided, you MUST ask the user for it before proceeding. Use `AskUserQuestion` with a text prompt like:
+
+> "What is the Supabase product ID for this plugin? (e.g., `ouaricon-tremolo`, `ouaricon-delay`)"
+
+Do NOT guess or auto-generate the product ID — it must match what exists in the Supabase backend.
 
 ## Overview
 
