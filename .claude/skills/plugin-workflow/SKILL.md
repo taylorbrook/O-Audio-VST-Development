@@ -67,9 +67,10 @@ Each phase invokes a specialized agent via Task tool:
 | Phase | Agent | Output |
 |-------|-------|--------|
 | discuss | plugin-discuss-agent | CONTEXT.md |
-| research | gsd-phase-researcher | RESEARCH.md |
+| research | gsd-phase-researcher (simple) OR research-lead (complex) | RESEARCH.md |
 | plan | gsd-planner | PLAN.md |
 | execute | Stage-specific agent | SUMMARY.md |
+| critic-review | critic-orchestrator (post-execute, pre-verify) | Unified critic report |
 | verify | gsd-verifier + validation-agent | VERIFICATION.md |
 
 **Execute phase agents:**
@@ -589,14 +590,56 @@ Supported skip flags (from `/implement` command):
 
 **Note:** `--auto` auto-generates discuss and research phases (producing CONTEXT.md and RESEARCH.md from contracts), unlike `--skip-discuss`/`--skip-research` which skip those phases entirely without producing artifacts.
 
-## Reference Files
+## Research Team Integration
 
-- [checkpoint-protocol.md](references/checkpoint-protocol.md) - Git commit patterns
-- [dispatcher-pattern.md](references/dispatcher-pattern.md) - Stage dispatch logic
-- [state-management.md](references/state-management.md) - Registry and STATUS.md
-- [validation-integration.md](references/validation-integration.md) - Validation agent
-- [error-handling.md](references/error-handling.md) - Error recovery
-- [workflow-mode.md](references/workflow-mode.md) - Express vs manual
+Research at Stage 0 uses one of two paths based on plugin complexity:
+
+**Simple plugins (complexity 1-3, fewer than 5 parameters, no custom DSP):**
+- Use standard sequential `gsd-phase-researcher` (existing behavior, unchanged)
+- Single researcher produces RESEARCH.md directly
+
+**Complex plugins (complexity 4+, custom DSP algorithms, 10+ parameters, novel techniques):**
+- Use `research-lead` agent which spawns 2-3 parallel researchers via Agent Teams
+- Research-lead analyzes creative brief, assigns domains dynamically at runtime
+- Researchers produce independent findings, then debate conflicts (max 3 rounds)
+- If conflicts unresolved after 3 rounds: BLOCK planning and present both positions to user
+- Output: merged research document with synthesis section
+- Graceful degradation: if Agent Teams experimental feature fails, fall back to sequential subagent research (each researcher runs as subagent, debate via shared files)
+
+The choice is made automatically by the workflow orchestrator based on creative brief analysis during the research phase. See [research-team-protocol.md](references/research-team-protocol.md) for the full protocol.
+
+## Post-Stage Critic Review
+
+After each stage execution (Stage 1, 2, 3, 4), a critic review step runs before the verify phase:
+
+```
+┌─────────┐   ┌──────────┐   ┌──────┐   ┌─────────┐   ┌───────────────┐   ┌────────┐
+│ discuss │ → │ research │ → │ plan │ → │ execute │ → │ critic-review │ → │ verify │
+└─────────┘   └──────────┘   └──────┘   └─────────┘   └───────────────┘   └────────┘
+```
+
+**Flow:**
+1. Execute stage agent (existing behavior)
+2. Invoke `critic-orchestrator` agent to spawn parallel domain critics as subagents
+3. Collect unified review report (severity-ranked: blocker > warning > note)
+4. **If any blocker-severity findings:** Return to execute phase with fix list (do NOT proceed to verify)
+5. **If no blockers:** Proceed to verify phase (existing behavior)
+
+The critic-orchestrator determines which critics to run based on the stage-to-critic mapping table. See [critic-review-protocol.md](references/critic-review-protocol.md) for the full protocol.
+
+## Summary Template Auto-Selection
+
+After plan execution completes, the summary template is selected based on task metrics:
+
+| Template | Conditions |
+|----------|-----------|
+| `summary-minimal.md` | 1-2 tasks AND fewer than 3 files modified AND no DSP/GUI tasks |
+| `summary-standard.md` | 2-3 tasks OR 3-6 files modified (default) |
+| `summary-complex.md` | 3+ tasks AND 7+ files modified OR any task involved DSP algorithm implementation OR task required gap closure |
+
+Template paths: `/Users/taylorbrook/.claude/get-shit-done/templates/summary-{variant}.md`
+
+Selection is automatic based on the metrics collected during execution. If no template variant files exist, fall back to the standard `summary.md` template.
 
 ## Integration Points
 
@@ -606,9 +649,11 @@ Supported skip flags (from `/implement` command):
 
 **Invokes via Task tool:**
 - plugin-discuss-agent (discuss phase)
-- gsd-phase-researcher (research phase)
+- gsd-phase-researcher (research phase, simple plugins)
+- research-lead (research phase, complex plugins -- see Research Team Integration above)
 - gsd-planner (plan phase)
 - foundation-shell-agent, dsp-agent, gui-agent, polish-agent (execute phase)
+- critic-orchestrator (post-execute review -- see Post-Stage Critic Review above)
 - gsd-verifier, validation-agent (verify phase)
 
 **Reads:**
@@ -624,3 +669,15 @@ Supported skip flags (from `/implement` command):
 - `plugins/[Name]/.planning/stages/*/SUMMARY.md`
 - `plugins/[Name]/.planning/stages/*/VERIFICATION.md`
 - `PLUGINS.md`
+
+## Reference Files
+
+- [checkpoint-protocol.md](references/checkpoint-protocol.md) - Git commit patterns
+- [dispatcher-pattern.md](references/dispatcher-pattern.md) - Stage dispatch logic
+- [state-management.md](references/state-management.md) - Registry and STATUS.md
+- [validation-integration.md](references/validation-integration.md) - Validation agent
+- [error-handling.md](references/error-handling.md) - Error recovery
+- [workflow-mode.md](references/workflow-mode.md) - Express vs manual
+- [research-team-protocol.md](references/research-team-protocol.md) - Parallel research team spawning and debate format
+- [critic-review-protocol.md](references/critic-review-protocol.md) - Post-stage critic review and severity enforcement
+- [branching-strategy.md](references/branching-strategy.md) - Configurable branching modes (none/phase/milestone)
