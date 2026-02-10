@@ -94,13 +94,12 @@
     .title {
       position: absolute;
       top: 12px;
-      left: 50%;
-      transform: translateX(-50%);
+      left: 12px;
       width: 400px;
       height: 24px;
       font-family: Garamond, serif;
       font-size: 18px;
-      text-align: center;
+      text-align: left;
       letter-spacing: 0.15em;
       color: #3C2F2F;
       line-height: 24px;
@@ -380,6 +379,110 @@
       pointer-events: none;
       letter-spacing: 0.08em;
     }
+
+    /* Preset Bar */
+    .preset-bar {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      z-index: 10;
+    }
+
+    .preset-bar button {
+      background: #8B7355;
+      border: 1px solid #5C4033;
+      border-radius: 3px;
+      color: #FFF;
+      font-family: Garamond, serif;
+      font-size: 9px;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      padding: 3px 6px;
+      transition: background 100ms;
+    }
+
+    .preset-bar button:hover {
+      background: #6B8E4E;
+      border-color: #3C5C1A;
+    }
+
+    .preset-bar button:active {
+      background: #3C5C1A;
+    }
+
+    .preset-name-display {
+      min-width: 100px;
+      max-width: 140px;
+      text-align: center;
+      font-family: Garamond, serif;
+      font-size: 10px;
+      letter-spacing: 0.08em;
+      color: #3C2F2F;
+      background: rgba(255, 248, 220, 0.6);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      padding: 3px 6px;
+      cursor: pointer;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .preset-dropdown {
+      display: none;
+      position: absolute;
+      top: 100%;
+      left: auto;
+      right: 0;
+      margin-top: 2px;
+      min-width: 160px;
+      max-height: 180px;
+      overflow-y: auto;
+      background: rgba(255, 248, 220, 0.98);
+      border: 2px solid #5C4033;
+      border-radius: 4px;
+      box-shadow: 2px 4px 12px rgba(0,0,0,0.4);
+      z-index: 9999;
+    }
+
+    .preset-dropdown.show {
+      display: block;
+    }
+
+    .preset-bar:has(.preset-dropdown.show) {
+      z-index: 9999;
+    }
+
+    .preset-dropdown-header {
+      padding: 4px 8px 2px;
+      font-family: Garamond, serif;
+      font-size: 8px;
+      letter-spacing: 0.1em;
+      color: #8B7355;
+      text-transform: uppercase;
+      border-bottom: 1px solid #D4C4A0;
+    }
+
+    .preset-dropdown-item {
+      padding: 4px 10px;
+      font-family: Garamond, serif;
+      font-size: 10px;
+      color: #3C2F2F;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .preset-dropdown-item:hover {
+      background: rgba(139, 168, 112, 0.3);
+    }
+
+    .preset-dropdown-item.active {
+      background: rgba(107, 142, 35, 0.3);
+      font-weight: bold;
+    }
   </style>
 </head>
 <body>
@@ -390,6 +493,16 @@
     <div class="content-layer">
       <div class="header-border"></div>
       <div class="title">OUARICON ANALOG EQUALIZER</div>
+
+      <!-- PRESET BAR -->
+      <div class="preset-bar" id="presetBar">
+        <button id="prevPreset" title="Previous preset">&#9664;</button>
+        <div class="preset-name-display" id="presetName" title="Click to browse presets">Default</div>
+        <button id="nextPreset" title="Next preset">&#9654;</button>
+        <button id="savePreset" title="Save preset to file">SAVE</button>
+        <button id="loadPreset" title="Load preset from file">LOAD</button>
+        <div class="preset-dropdown" id="presetDropdown"></div>
+      </div>
 
       <!-- LF BAND -->
       <div class="band-label" id="lf_on" style="top: 52px; left: 90px; width: 85px;">LF SHELF</div>
@@ -568,7 +681,8 @@
   </div>
 
   <script type="module">
-    import { getSliderState, getToggleState, getComboBoxState } from "./js/juce/index.js";
+    import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from "./js/juce/index.js";
+    import { PresetManager } from "./modules/preset-manager.js";
 
     document.addEventListener("contextmenu", (e) => {
       e.preventDefault();
@@ -859,7 +973,76 @@
 
     animateVUMeter();
 
-    console.log('OuariconAnalogEQ v1.1.1 UI initialized');
+    // ========================================================================
+    // PRESET MANAGER
+    // ========================================================================
+    const presetNameDisplay = document.getElementById('presetName');
+    const presetDropdown = document.getElementById('presetDropdown');
+    let dropdownVisible = false;
+
+    function showPresetDropdown() {
+      presetDropdown.innerHTML = '';
+      const list = presetMgr.getPresetList();
+      const current = presetMgr.getCurrentPreset();
+
+      if (list.length === 0) {
+        const empty = document.createElement('div');
+        empty.className = 'preset-dropdown-item';
+        empty.textContent = 'No presets';
+        empty.style.color = '#8B7355';
+        presetDropdown.appendChild(empty);
+      } else {
+        list.forEach(name => {
+          const item = document.createElement('div');
+          item.className = 'preset-dropdown-item';
+          if (name === current) item.classList.add('active');
+          item.textContent = name;
+          item.addEventListener('click', (e) => {
+            e.stopPropagation();
+            presetMgr.loadPreset(name);
+            hidePresetDropdown();
+          });
+          presetDropdown.appendChild(item);
+        });
+      }
+
+      presetDropdown.classList.add('show');
+      dropdownVisible = true;
+    }
+
+    function hidePresetDropdown() {
+      presetDropdown.classList.remove('show');
+      dropdownVisible = false;
+    }
+
+    presetNameDisplay.addEventListener('click', (e) => {
+      e.stopPropagation();
+      if (dropdownVisible) {
+        hidePresetDropdown();
+      } else {
+        presetMgr.refresh().then(() => showPresetDropdown());
+      }
+    });
+
+    document.addEventListener('click', () => {
+      if (dropdownVisible) hidePresetDropdown();
+    });
+
+    const presetMgr = new PresetManager({
+      displayElement: presetNameDisplay,
+      prevButton: document.getElementById('prevPreset'),
+      nextButton: document.getElementById('nextPreset'),
+      saveButton: document.getElementById('savePreset'),
+      loadButton: document.getElementById('loadPreset'),
+      getNativeFunction: getNativeFunction,
+      onPresetChanged: (name) => {
+        hidePresetDropdown();
+      },
+      onPresetListUpdated: (list) => {}
+    });
+    presetMgr.initialize();
+
+    console.log('OuariconAnalogEQ v1.2.0 UI initialized');
   </script>
 </body>
 </html>

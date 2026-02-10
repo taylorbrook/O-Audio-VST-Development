@@ -52,6 +52,9 @@ target_link_libraries(OuariconAnalogEQ
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(OuariconAnalogEQ)
 
+# Preset manager module
+ouaricon_add_module(OuariconAnalogEQ preset-manager)
+
 # Licensing module (compile-flag gated, OFF for local dev)
 if(OUARICON_LICENSING)
     ouaricon_add_module(OuariconAnalogEQ licensing)
@@ -67,6 +70,7 @@ juce_add_binary_data(OuariconAnalogEQ_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/images/paper1.jpg
         Source/ui/public/images/flower_ferdinandibauer00baue_0021.png
+        Source/ui/public/modules/preset-manager.js
 )
 
 target_link_libraries(OuariconAnalogEQ

@@ -10,6 +10,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include "OuariconPresetManager.h"
 
 #if OUARICON_LICENSING_ENABLED
   #include "OuariconLicense.h"
@@ -44,6 +45,7 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState parameters;
+    OuariconPresetManager presetManager;
 
     // VU Meter - output level for WebView (thread-safe)
     std::atomic<float> outputLevelDB { -100.0f };

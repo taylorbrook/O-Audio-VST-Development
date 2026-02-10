@@ -97,6 +97,9 @@ private:
     // Global
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> analogAttachment;
 
+    // File chooser for preset save/load dialogs (must persist during async operation)
+    std::unique_ptr<juce::FileChooser> fileChooser;
+
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 

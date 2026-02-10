@@ -76,11 +76,131 @@ OuariconAnalogEQAudioProcessor::OuariconAnalogEQAudioProcessor()
                         .withInput("Input", juce::AudioChannelSet::stereo(), true)
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
+    , presetManager(parameters, "O-AnalogEQ")
 {
 #if OUARICON_LICENSING_ENABLED
     licenseManager = std::make_unique<OuariconLicense>(
         "ouaricon-analog-eq", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
 #endif
+
+    // Initialize 12 factory presets
+    // Values are normalized 0.0-1.0 (as used by setValueNotifyingHost)
+    // Gain: normalized = (dB + 12) / 24   (e.g. 0dB=0.5, +6dB=0.75, -6dB=0.25)
+    // Q choice: WIDE=0.0, MED=0.5, TIGHT=1.0
+    // Bool: true=1.0, false=0.0
+    // Freq: pow((hz - min) / (max - min), 0.3) due to NormalisableRange skew
+    std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
+        {
+            "Default",
+            {{"lf_freq", 0.577f}, {"lf_gain", 0.5f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.627f}, {"lmf_gain", 0.5f}, {"lmf_q", 0.5f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.617f}, {"hmf_gain", 0.5f}, {"hmf_q", 0.5f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.710f}, {"hf_gain", 0.5f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Vocal Presence",
+            {{"lf_freq", 0.577f}, {"lf_gain", 0.5f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.729f}, {"lmf_gain", 0.417f}, {"lmf_q", 0.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.710f}, {"hmf_gain", 0.667f}, {"hmf_q", 0.5f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.776f}, {"hf_gain", 0.583f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Bass Boost",
+            {{"lf_freq", 0.519f}, {"lf_gain", 0.75f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.480f}, {"lmf_gain", 0.583f}, {"lmf_q", 0.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.617f}, {"hmf_gain", 0.5f}, {"hmf_q", 0.5f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.710f}, {"hf_gain", 0.417f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Bright and Airy",
+            {{"lf_freq", 0.577f}, {"lf_gain", 0.5f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.627f}, {"lmf_gain", 0.458f}, {"lmf_q", 0.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.784f}, {"hmf_gain", 0.583f}, {"hmf_q", 0.0f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.832f}, {"hf_gain", 0.667f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 0.0f}},
+            juce::var()
+        },
+        {
+            "Warm Vintage",
+            {{"lf_freq", 0.663f}, {"lf_gain", 0.625f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.627f}, {"lmf_gain", 0.542f}, {"lmf_q", 0.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.710f}, {"hmf_gain", 0.417f}, {"hmf_q", 0.0f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.635f}, {"hf_gain", 0.333f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Mid Scoop",
+            {{"lf_freq", 0.577f}, {"lf_gain", 0.583f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.627f}, {"lmf_gain", 0.333f}, {"lmf_q", 0.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.617f}, {"hmf_gain", 0.333f}, {"hmf_q", 0.0f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.710f}, {"hf_gain", 0.583f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Telephone",
+            {{"lf_freq", 0.726f}, {"lf_gain", 0.167f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.729f}, {"lmf_gain", 0.625f}, {"lmf_q", 0.5f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.710f}, {"hmf_gain", 0.583f}, {"hmf_q", 0.5f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.524f}, {"hf_gain", 0.167f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 0.0f}},
+            juce::var()
+        },
+        {
+            "De-Mud",
+            {{"lf_freq", 0.577f}, {"lf_gain", 0.5f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.518f}, {"lmf_gain", 0.333f}, {"lmf_q", 0.5f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.617f}, {"hmf_gain", 0.542f}, {"hmf_q", 0.5f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.776f}, {"hf_gain", 0.542f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Hi-Fi Smile",
+            {{"lf_freq", 0.519f}, {"lf_gain", 0.667f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.627f}, {"lmf_gain", 0.417f}, {"lmf_q", 0.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.617f}, {"hmf_gain", 0.458f}, {"hmf_q", 0.0f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.776f}, {"hf_gain", 0.667f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Radio Ready",
+            {{"lf_freq", 0.577f}, {"lf_gain", 0.417f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.789f}, {"lmf_gain", 0.625f}, {"lmf_q", 1.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.710f}, {"hmf_gain", 0.625f}, {"hmf_q", 1.0f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.710f}, {"hf_gain", 0.542f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Dark Ambient",
+            {{"lf_freq", 0.519f}, {"lf_gain", 0.583f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.627f}, {"lmf_gain", 0.542f}, {"lmf_q", 0.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.845f}, {"hmf_gain", 0.375f}, {"hmf_q", 0.0f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.635f}, {"hf_gain", 0.167f}, {"hf_on", 1.0f},
+             {"output_gain", 0.5f}, {"analog", 1.0f}},
+            juce::var()
+        },
+        {
+            "Surgical Cut",
+            {{"lf_freq", 0.444f}, {"lf_gain", 0.375f}, {"lf_on", 1.0f},
+             {"lmf_freq", 0.583f}, {"lmf_gain", 0.25f}, {"lmf_q", 1.0f}, {"lmf_on", 1.0f},
+             {"hmf_freq", 0.710f}, {"hmf_gain", 0.25f}, {"hmf_q", 1.0f}, {"hmf_on", 1.0f},
+             {"hf_freq", 0.710f}, {"hf_gain", 0.5f}, {"hf_on", 1.0f},
+             {"output_gain", 0.542f}, {"analog", 0.0f}},
+            juce::var()
+        }
+    };
+
+    presetManager.initializeFactoryPresets(factoryPresets);
 }
 
 void OuariconAnalogEQAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -180,17 +300,14 @@ juce::AudioProcessorEditor* OuariconAnalogEQAudioProcessor::createEditor()
 
 void OuariconAnalogEQAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
-    auto state = parameters.copyState();
-    std::unique_ptr<juce::XmlElement> xml(state.createXml());
-    copyXmlToBinary(*xml, destData);
+    if (auto xml = presetManager.getStateAsXml())
+        copyXmlToBinary(*xml, destData);
 }
 
 void OuariconAnalogEQAudioProcessor::setStateInformation(const void* data, int sizeInBytes)
 {
-    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
-
-    if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    if (auto xml = getXmlFromBinary(data, sizeInBytes))
+        presetManager.setStateFromXml(xml.get());
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

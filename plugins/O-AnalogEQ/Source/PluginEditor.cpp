@@ -77,6 +77,100 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
             .withOptionsFrom(*hfGainRelay)
             .withOptionsFrom(*hfOnRelay)
             .withOptionsFrom(*analogRelay)
+            // Preset manager native functions
+            .withNativeFunction("savePreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(audioProcessor.presetManager.savePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Save Preset",
+                    audioProcessor.presetManager.getUserPresetsDirectory(),
+                    "*.json"
+                );
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+                        auto file = results.getFirst();
+                        auto presetName = file.getFileNameWithoutExtension();
+                        bool success = audioProcessor.presetManager.savePreset(presetName);
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? presetName : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
+            .withNativeFunction("loadPreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(audioProcessor.presetManager.loadPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Preset",
+                    audioProcessor.presetManager.getPresetsDirectory(),
+                    "*.json"
+                );
+                fileChooser->launchAsync(
+                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                    [this, complete](const juce::FileChooser& fc) {
+                        auto results = fc.getResults();
+                        if (results.isEmpty()) {
+                            auto* result = new juce::DynamicObject();
+                            result->setProperty("success", false);
+                            result->setProperty("name", "");
+                            complete(juce::var(result));
+                            return;
+                        }
+                        auto file = results.getFirst();
+                        bool success = audioProcessor.presetManager.loadPresetFromFile(file);
+                        auto* result = new juce::DynamicObject();
+                        result->setProperty("success", success);
+                        result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
+                        complete(juce::var(result));
+                    }
+                );
+            })
+            .withNativeFunction("getPresetList", [this](auto&, auto complete) {
+                auto list = audioProcessor.presetManager.getPresetList();
+                juce::Array<juce::var> arr;
+                for (const auto& name : list)
+                    arr.add(name);
+                complete(juce::var(arr));
+            })
+            .withNativeFunction("getCurrentPreset", [this](auto&, auto complete) {
+                complete(audioProcessor.presetManager.getCurrentPresetName());
+            })
+            .withNativeFunction("selectNextPreset", [this](auto&, auto complete) {
+                complete(audioProcessor.presetManager.getNextPreset());
+            })
+            .withNativeFunction("selectPreviousPreset", [this](auto&, auto complete) {
+                complete(audioProcessor.presetManager.getPreviousPreset());
+            })
+            .withNativeFunction("deletePreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(audioProcessor.presetManager.deletePreset(args[0].toString()));
+                else
+                    complete(false);
+            })
+            .withNativeFunction("isFactoryPreset", [this](const auto& args, auto complete) {
+                if (args.size() > 0)
+                    complete(audioProcessor.presetManager.isFactoryPreset(args[0].toString()));
+                else
+                    complete(false);
+            })
     );
 
     addAndMakeVisible(*webView);
@@ -236,6 +330,13 @@ OuariconAnalogEQAudioProcessorEditor::getResource(const juce::String& url)
             makeVector(BinaryData::flower_ferdinandibauer00baue_0021_png,
                       BinaryData::flower_ferdinandibauer00baue_0021_pngSize),
             juce::String("image/png")
+        };
+    }
+
+    if (url == "/modules/preset-manager.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::presetmanager_js, BinaryData::presetmanager_jsSize),
+            juce::String("application/javascript")
         };
     }
 
