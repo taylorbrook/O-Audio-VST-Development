@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1] - 2026-02-09
+
+### Fixed
+- Density parameter now uses exponential curve for perceptible control across full knob range
+- Previously: 75% of knob range only varied from ~1 to ~4 grains/sec (linear interval mapping)
+- Now: 50% knob = ~10 grains/sec, smooth exponential scaling from ~1/sec to ~100/sec
+
 ## [1.0.1] - 2026-02-07
 
 ### Improved

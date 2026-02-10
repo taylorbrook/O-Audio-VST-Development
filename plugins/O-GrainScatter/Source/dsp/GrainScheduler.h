@@ -19,12 +19,12 @@ public:
         lastSubdivIndex = -1;
     }
 
-    // Free mode: density (1-100%) → inter-grain interval
+    // Free mode: density (1-100%) → inter-grain interval (exponential curve)
     void processBlockFree (int numSamples, float density, float probability,
                            std::vector<SpawnRequest>& outRequests)
     {
-        // density 100% = ~10ms interval, 1% = ~1000ms interval
-        float intervalMs = 10.0f + (1.0f - density / 100.0f) * 990.0f;
+        // Exponential mapping: density 1% ≈ 955ms (~1/sec), 50% = 100ms (~10/sec), 100% = 10ms (~100/sec)
+        float intervalMs = 1000.0f * std::pow (0.01f, density / 100.0f);
         int intervalSamples = juce::jmax (1, static_cast<int> (sampleRate * intervalMs / 1000.0));
 
         for (int i = 0; i < numSamples; ++i)
