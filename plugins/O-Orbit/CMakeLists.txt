@@ -1,0 +1,80 @@
+cmake_minimum_required(VERSION 3.15)
+
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
+# SAF configuration (BEFORE add_subdirectory)
+set(SAF_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(SAF_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(SAF_ENABLE_SOFA_READER_MODULE OFF CACHE BOOL "" FORCE)
+set(SAF_ENABLE_TRACKER_MODULE OFF CACHE BOOL "" FORCE)
+set(SAF_ENABLE_HADES_MODULE OFF CACHE BOOL "" FORCE)
+
+add_subdirectory(libs/SAF/framework saf_build)
+
+juce_add_plugin(OuariconOrbit
+    COMPANY_NAME "${OUARICON_COMPANY_NAME}"
+    PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
+    PLUGIN_CODE OuOr
+    FORMATS VST3 AU Standalone
+    PRODUCT_NAME "O-Orbit${OUARICON_DEV_SUFFIX}"
+    VERSION 1.0.0
+    NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
+    IS_SYNTH FALSE
+    NEEDS_MIDI_INPUT FALSE
+    IS_MIDI_EFFECT FALSE
+)
+
+target_sources(OuariconOrbit
+    PRIVATE
+        Source/PluginProcessor.cpp
+        Source/PluginEditor.cpp
+        Source/Data/SpeakerLayout.cpp
+        Source/DSP/MotionEngine.cpp
+        Source/DSP/VBAPRenderer.cpp
+        Source/DSP/DistanceModel.cpp
+        Source/DSP/VBAPDataExchange.cpp
+        Source/DSP/PerlinNoise.h
+        Source/DSP/DownmixEngine.h
+        Source/DSP/VBAPDataExchange.h
+)
+
+target_include_directories(OuariconOrbit
+    PRIVATE
+        Source
+        Source/DSP
+        Source/Data
+        libs/SAF/framework/include
+)
+
+target_link_libraries(OuariconOrbit
+    PRIVATE
+        saf
+        juce::juce_audio_basics
+        juce::juce_audio_devices
+        juce::juce_audio_formats
+        juce::juce_audio_plugin_client
+        juce::juce_audio_processors
+        juce::juce_audio_utils
+        juce::juce_core
+        juce::juce_data_structures
+        juce::juce_dsp
+        juce::juce_events
+        juce::juce_graphics
+        juce::juce_gui_basics
+        juce::juce_gui_extra
+    PUBLIC
+        juce::juce_recommended_config_flags
+        juce::juce_recommended_lto_flags
+        juce::juce_recommended_warning_flags
+)
+
+juce_generate_juce_header(OuariconOrbit)
+
+target_compile_definitions(OuariconOrbit
+    PUBLIC
+        JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+        JUCE_USE_CURL=0
+)

@@ -61,7 +61,6 @@ OChorusAudioProcessor::OChorusAudioProcessor()
 
 void OChorusAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
-    currentSampleRate = sampleRate;
     chorusEngine.prepare(sampleRate, samplesPerBlock);
 }
 

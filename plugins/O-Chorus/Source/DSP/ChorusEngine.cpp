@@ -24,7 +24,6 @@ ChorusEngine::ChorusEngine()
 void ChorusEngine::prepare (double newSampleRate, int samplesPerBlock)
 {
     sampleRate = newSampleRate;
-    juce::ignoreUnused (samplesPerBlock);
 
     auto maxDelaySamples = static_cast<int> (sampleRate * maxDelayMs / 1000.0);
 
@@ -48,11 +47,13 @@ void ChorusEngine::prepare (double newSampleRate, int samplesPerBlock)
     smoothedDrive.reset (sampleRate, 0.05);
     smoothedTone.reset (sampleRate, 0.1);
 
-    // Tone filters
+    // Tone filters — pre-allocate coefficient arrays (non-RT, allocation OK here)
+    auto initCoeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass (sampleRate, 8000.0f);
+    *toneFilterL.coefficients = *initCoeffs;
+    *toneFilterR.coefficients = *initCoeffs;
     toneFilterL.reset();
     toneFilterR.reset();
     lastToneParam = 0.0f;
-    updateToneFilter (0.0f);
 
     // Crossfade
     crossfadeIncrement = 1.0f / static_cast<float> (sampleRate * crossfadeDurationMs / 1000.0f);
@@ -93,9 +94,25 @@ void ChorusEngine::setVoiceCount (int newCount)
 void ChorusEngine::updateToneFilter (float toneParam)
 {
     float cutoff = mapToneParamToCutoff (toneParam);
-    auto coeffs = juce::dsp::IIR::Coefficients<float>::makeLowPass (sampleRate, cutoff);
-    *toneFilterL.coefficients = *coeffs;
-    *toneFilterR.coefficients = *coeffs;
+
+    // Butterworth LPF coefficients computed directly (RT-safe, no heap allocation)
+    // Replicates JUCE makeLowPass with Q = 1/sqrt(2)
+    float n = 1.0f / std::tan (juce::MathConstants<float>::pi * cutoff / static_cast<float> (sampleRate));
+    float nSq = n * n;
+    float invQ = juce::MathConstants<float>::sqrt2;
+    float c1 = 1.0f / (1.0f + invQ * n + nSq);
+
+    float b0 = c1;
+    float b1 = c1 * 2.0f;
+    float a1 = c1 * 2.0f * (1.0f - nSq);
+    float a2 = c1 * (1.0f - invQ * n + nSq);
+
+    auto* cL = toneFilterL.coefficients->getRawCoefficients();
+    cL[0] = b0;  cL[1] = b1;  cL[2] = b0;  cL[3] = a1;  cL[4] = a2;
+
+    auto* cR = toneFilterR.coefficients->getRawCoefficients();
+    cR[0] = b0;  cR[1] = b1;  cR[2] = b0;  cR[3] = a1;  cR[4] = a2;
+
     lastToneParam = toneParam;
 }
 
@@ -254,8 +271,18 @@ void ChorusEngine::process (juce::AudioBuffer<float>& buffer,
             processVoices (currentVoiceCount, 1.0f);
         }
 
-        // Normalize by voice count to prevent loudness increase
-        float voiceScale = 1.0f / std::sqrt (static_cast<float> (currentVoiceCount));
+        // Normalize by voice count (interpolate during crossfade to prevent volume bump)
+        float voiceScale;
+        if (crossfadeProgress < 1.0f)
+        {
+            float oldScale = 1.0f / std::sqrt (static_cast<float> (currentVoiceCount));
+            float newScale = 1.0f / std::sqrt (static_cast<float> (targetVoiceCount));
+            voiceScale = oldScale + (newScale - oldScale) * crossfadeProgress;
+        }
+        else
+        {
+            voiceScale = 1.0f / std::sqrt (static_cast<float> (currentVoiceCount));
+        }
         wetL *= voiceScale;
         wetR *= voiceScale;
 

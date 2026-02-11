@@ -62,8 +62,10 @@ void PluckExciter::trigger(float velocity, float position, float hardness, doubl
     noiseBurstSamples = static_cast<int>(burstDurationMs * 0.001f * currentSampleRate);
     noiseBurstRemaining = noiseBurstSamples;
 
-    // Burst amplitude scales with velocity (with slight compression for musicality)
-    burstAmplitude = std::sqrt(velocity) * 0.5f;  // sqrt for velocity curve
+    // v1.20.0: Power curve velocity response with +6dB headroom
+    // v^1.4 gives 28dB dynamic range (was 16dB with sqrt*0.5)
+    // vel=0.1 → -12dB vs old, vel=1.0 → +6dB vs old
+    burstAmplitude = std::pow(velocity, 1.4f);
 
     // Update all filters based on new parameters
     updateFilters();

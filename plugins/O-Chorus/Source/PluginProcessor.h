@@ -34,7 +34,7 @@ public:
     bool acceptsMidi() const override { return false; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override { return 0.05; }
 
     int getNumPrograms() override;
     int getCurrentProgram() override;
@@ -57,7 +57,6 @@ private:
     void initializeFactoryPresets();
 
     ChorusEngine chorusEngine;
-    double currentSampleRate = 44100.0;
 
 #if OUARICON_LICENSING_ENABLED
     std::unique_ptr<OuariconLicense> licenseManager;

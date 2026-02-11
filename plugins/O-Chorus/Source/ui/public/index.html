@@ -89,54 +89,54 @@
       border: none;
       font-family: Garamond, 'Times New Roman', serif;
       font-size: 13px;
-      color: #8B7355;
+      color: #4A3B2A;
       cursor: pointer;
       padding: 0 3px;
-      opacity: 0.7;
+      opacity: 0.85;
       transition: opacity 0.15s;
     }
 
     .preset-nav:hover {
       opacity: 1;
-      color: #5a7a6a;
+      color: #3a5c4a;
     }
 
     .preset-name {
       font-size: 9px;
       letter-spacing: 1px;
-      color: #8B7355;
+      color: #4A3B2A;
       text-transform: uppercase;
       cursor: pointer;
       min-width: 60px;
       text-align: center;
-      opacity: 0.8;
+      opacity: 0.9;
       transition: opacity 0.15s;
     }
 
     .preset-name:hover {
       opacity: 1;
-      color: #5a7a6a;
+      color: #3a5c4a;
     }
 
     .preset-action {
       background: none;
-      border: 1px solid rgba(139, 115, 85, 0.3);
+      border: 1px solid rgba(74, 59, 42, 0.4);
       border-radius: 2px;
       font-family: Garamond, 'Times New Roman', serif;
       font-size: 8px;
       letter-spacing: 0.5px;
-      color: #8B7355;
+      color: #4A3B2A;
       cursor: pointer;
       padding: 1px 5px;
-      opacity: 0.7;
+      opacity: 0.85;
       text-transform: uppercase;
       transition: opacity 0.15s, border-color 0.15s;
     }
 
     .preset-action:hover {
       opacity: 1;
-      border-color: rgba(90, 122, 106, 0.5);
-      color: #5a7a6a;
+      border-color: rgba(58, 92, 74, 0.5);
+      color: #3a5c4a;
     }
 
     .preset-dropdown {
@@ -377,9 +377,7 @@
         <div class="lfo-ring-label">LFO</div>
         <div class="lfo-ring">
           <svg viewBox="0 0 90 90">
-            <circle cx="45" cy="45" r="36" fill="none" stroke="rgba(139,115,85,0.2)" stroke-width="2"/>
-            <circle cx="45" cy="45" r="36" fill="none" stroke="#5a7a6a" stroke-width="2.5"
-              stroke-dasharray="226.19" stroke-dashoffset="226.19" id="lfo-arc"/>
+            <circle cx="45" cy="45" r="36" fill="none" stroke="#5a7a6a" stroke-width="2.5"/>
             <circle id="lfo-dot" cx="45" cy="9" r="5" fill="#5a7a6a" opacity="0.9"/>
           </svg>
         </div>
@@ -517,15 +515,12 @@
     // ════════════════════════════════════════════════════════════════
 
     const lfoDot = document.getElementById('lfo-dot');
-    const lfoArc = document.getElementById('lfo-arc');
     let lfoPhase = 0;
     let rateState = null;
-    let depthState = null;
     let lastTimestamp = 0;
 
     function lfoLoop(timestamp) {
       const rateNorm = rateState ? rateState.getNormalisedValue() : 0.5;
-      const depthNorm = depthState ? depthState.getNormalisedValue() : 0.5;
 
       const rateHz = rateFromNorm(rateNorm);
 
@@ -541,13 +536,6 @@
       lfoDot.setAttribute('cx', cx);
       lfoDot.setAttribute('cy', cy);
 
-      const pulse = 3 + depthNorm * 4 + Math.sin(lfoPhase) * depthNorm * 2;
-      lfoDot.setAttribute('r', pulse);
-
-      const arcLen = 226.19;
-      const activeArc = depthNorm * arcLen;
-      lfoArc.style.strokeDashoffset = arcLen - activeArc;
-
       requestAnimationFrame(lfoLoop);
     }
 
@@ -560,9 +548,8 @@
         const state = getSliderState(p.id);
         if (!state) return;
 
-        // Cache rate/depth for LFO animation
+        // Cache rate for LFO animation
         if (p.id === 'rate') rateState = state;
-        if (p.id === 'depth') depthState = state;
 
         const knobEl = document.querySelector(`.knob[data-param="${p.id}"]`);
         const vine = document.getElementById(`vine-${p.id}`);

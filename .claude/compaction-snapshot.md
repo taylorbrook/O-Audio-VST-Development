@@ -1,7 +1,37 @@
 # Active Context Snapshot
-Generated: 2026-02-09T15:39:43Z
+Generated: 2026-02-10T21:45:13Z
 
 ## Active Plugin: O-Chorus
+
+### Context Digest
+```json
+{
+  "plugin": "O-Chorus",
+  "stage": "4-polish",
+  "phase": "verified",
+  "complexity": 2.8,
+  "parameters": [
+    "depth",
+    "mix",
+    "rate",
+    "tone",
+    "voices",
+    "width"
+  ],
+  "dsp_components": [
+    "DelayLine",
+    "DelayLineInterpolationTypes",
+    "IIR"
+  ],
+  "contracts": {
+    "brief": ".planning/BRIEF.md",
+    "params": ".planning/parameter-spec.md",
+    "arch": ".planning/research/ARCHITECTURE.md",
+    "roadmap": ".planning/ROADMAP.md"
+  },
+  "decisions": {}
+}
+```
 
 ### Current State
 ---
@@ -37,5 +67,5 @@ contract_checksums:
 - If status is 🚧: ONLY plugin-workflow can modify (use `/continue` to resume)
 - plugin-improve blocks if status is 🚧 (must complete workflow first)
 | O-IntonationPad | 🚧 Stage 0 | - | Synth (Wavetable Pad) | 2026-01-29 |
-| MinimalKick | 🚧 Stage 5 | - | Synth | 2025-11-13 |
+| O-Orbit | 🚧 Stage 0 | - | Audio Effect (Spatial Orbiter) | 2026-02-09 |
 
