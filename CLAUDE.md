@@ -21,15 +21,37 @@ cp -R build/plugins/[PluginName]/[PluginName]_artefacts/Release/VST3/[PluginName
 cp -R build/plugins/[PluginName]/[PluginName]_artefacts/Release/AU/[PluginName].component ~/Library/Audio/Plug-Ins/Components/
 ```
 
+### Windows Plugin Management
+**On Windows, AU is not available. Only VST3 is built and installed.**
+
+```powershell
+# Build and install on Windows:
+.\scripts\build-and-install.ps1 [PluginName]
+
+# Remove old and install fresh (manual)
+Remove-Item -Recurse -Force "$env:COMMONPROGRAMFILES\VST3\[PluginName].vst3"
+Copy-Item -Recurse "build\plugins\[PluginName]\[PluginName]_artefacts\Release\VST3\[PluginName].vst3" "$env:COMMONPROGRAMFILES\VST3\"
+
+# Clear Ableton cache on Windows
+Remove-Item "$env:APPDATA\Ableton\*\PluginScanDb.txt" -Force -ErrorAction SilentlyContinue
+```
+
 ### Build Targets
-When building plugins, always build both formats:
+
+**macOS** (VST3 + AU):
 ```bash
 ninja [PluginName]_VST3 [PluginName]_AU
 ```
 
+**Windows** (VST3 only):
+```powershell
+cmake --build build --config Release --target [PluginName]_VST3 --parallel
+```
+
 ## Testing Requirements
-- Always test in DAW (Logic Pro, Ableton, etc.) after installation
-- Verify AU appears with `auval -a | grep -i [pluginname]`
+- Always test in DAW after installation
+- **macOS:** Verify AU appears with `auval -a | grep -i [pluginname]`
+- **Windows:** Verify VST3 appears in DAW plugin scanner (Ableton, FL Studio, Reaper, etc.)
 - If plugin shows stale behavior, close DAW completely and restart
 
 ## CRITICAL: Phase/Stage Completion Handoffs
@@ -51,6 +73,6 @@ See `.claude/references/handoff-protocol.md` for the full format specification.
 ## Project Structure
 - Plugins are in `plugins/[PluginName]/`
 - Build output is in `build/plugins/[PluginName]/[PluginName]_artefacts/Release/`
-- Working directory for builds: `/Users/taylorbrook/Dev/VST-development/build`
+- Working directory for builds: `build/` (relative to project root)
 - **Research documents** go in `research/` (NOT `docs/`) — includes algorithm references, market research, technical deep-dives
 - **Licensing integration** for a plugin: `/add-licensing {PluginFolder} {product-id}`
