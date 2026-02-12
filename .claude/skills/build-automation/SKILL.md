@@ -64,7 +64,11 @@ This skill fails when:
 
 ## Purpose
 
-Orchestrates plugin builds via `scripts/build-and-install.sh` with comprehensive failure handling.
+Orchestrates plugin builds via build scripts with comprehensive failure handling.
+
+**Platform scripts:**
+- **macOS/Linux:** `scripts/build-and-install.sh`
+- **Windows:** `scripts/build-and-install.ps1`
 
 **Invokers:** plugin-workflow (Stages 2-5), plugin-improve (Phase 7), plugin-lifecycle (verification)
 **Invokes:** build script, troubleshooter agent (on failure, user option 1)
@@ -137,8 +141,14 @@ Context-aware flag selection:
 
 Execute build script with appropriate flags:
 
+**macOS/Linux:**
 ```bash
 ./scripts/build-and-install.sh [PluginName] [flags]
+```
+
+**Windows (PowerShell):**
+```powershell
+.\scripts\build-and-install.ps1 [PluginName] [-DryRun] [-NoInstall] [-Reconfigure]
 ```
 
 Display build progress in real-time using Bash tool.
@@ -236,6 +246,7 @@ When build succeeds (exit code 0), follow this workflow:
 
 Use this template:
 
+**macOS:**
 ```
 ✓ Build successful
 
@@ -247,14 +258,25 @@ Build time: [duration]
 Log: logs/[PluginName]/build_TIMESTAMP.log
 ```
 
+**Windows:**
+```
+✓ Build successful
+
+Built and installed:
+- VST3: C:\Program Files\Common Files\VST3\[ProductName].vst3
+
+Build time: [duration]
+Log: logs/[PluginName]/build_TIMESTAMP.log
+```
+
 For `--no-install` builds (Stage 2):
 
 ```
 ✓ Build successful (compilation verified, not installed)
 
 Built artifacts:
-- VST3: plugins/[PluginName]/build/[PluginName]_artefacts/Release/VST3/[ProductName].vst3
-- AU: plugins/[PluginName]/build/[PluginName]_artefacts/Release/AU/[ProductName].component
+- VST3: build/plugins/[PluginName]/[PluginName]_artefacts/Release/VST3/[ProductName].vst3
+- AU (macOS only): build/plugins/[PluginName]/[PluginName]_artefacts/Release/AU/[ProductName].component
 
 Build time: [duration]
 Log: logs/[PluginName]/build_TIMESTAMP.log
@@ -355,7 +377,9 @@ Reuse stored context on retry without re-prompting user.
 If build script fails with dependency errors (CMake, Ninja, JUCE not found):
 
 1. Display specific missing dependency
-2. Provide installation command (e.g., "Install with: brew install ninja")
+2. Provide platform-appropriate installation command:
+   - **macOS:** `brew install ninja`
+   - **Windows:** `winget install Ninja-build.Ninja`
 3. Suggest: "Run /setup command to validate full environment configuration"
 4. After user installs, offer: "Retry build now?"
 

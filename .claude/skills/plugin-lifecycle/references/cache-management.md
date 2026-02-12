@@ -75,18 +75,58 @@ ps aux | grep AudioComponentRegistrar
 # Should show new process (different PID)
 ```
 
+## Windows DAW Caches
+
+### Ableton Live (Windows)
+
+**Cache location:**
+
+```powershell
+$env:APPDATA\Ableton\Live *\PluginScanDb.txt
+```
+
+**Clear cache:**
+
+```powershell
+Get-ChildItem "$env:APPDATA\Ableton" -Recurse -Filter 'PluginScanDb.txt' | Remove-Item -Force
+```
+
+### FL Studio (Windows)
+
+**Cache location:**
+
+```powershell
+$env:APPDATA\Image-Line\FL Studio\Presets\Plugin database\
+```
+
+**Clear cache:**
+
+```powershell
+Get-ChildItem "$env:APPDATA\Image-Line" -Recurse -Filter 'plugin database*' | Remove-Item -Force
+```
+
+### Cubase/Nuendo (Windows)
+
+**Cache location:**
+
+```powershell
+$env:APPDATA\Steinberg\
+```
+
+**Clear cache:** Preferences -> Plug-in Manager -> Reset. Manual rescan (no command-line access).
+
 ## Other DAWs
 
 **Reaper:**
 - No persistent cache (scans on launch)
-- No cache clearing needed
+- No cache clearing needed (macOS and Windows)
 
 **Pro Tools:**
-- Cache location: `~/Library/Application Support/Avid/Audio/Plug-Ins/`
+- macOS cache: `~/Library/Application Support/Avid/Audio/Plug-Ins/`
 - AAX plugins (future support)
 
-**Cubase/Nuendo:**
-- Preferences → Plug-in Manager → Reset
+**Cubase/Nuendo (macOS):**
+- Preferences -> Plug-in Manager -> Reset
 - Manual rescan (no command-line access)
 
 ## Cache Clearing Report

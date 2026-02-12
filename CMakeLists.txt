@@ -1,7 +1,9 @@
 cmake_minimum_required(VERSION 3.22)
 
-# Set deployment target before project
-set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum macOS deployment version")
+# Set deployment target before project (macOS only)
+if(APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET "10.13" CACHE STRING "Minimum macOS deployment version")
+endif()
 
 project(JUCEPlugins VERSION 1.0.0)
 
@@ -40,13 +42,27 @@ else()
     message(STATUS "[Ouaricon] Licensing DISABLED — plugins run without activation")
 endif()
 
-# Add JUCE once at root
-add_subdirectory(/Users/taylorbrook/JUCE JUCE)
+# Add JUCE once at root (env var → platform fallback)
+if(DEFINED ENV{JUCE_DIR})
+    add_subdirectory($ENV{JUCE_DIR} JUCE)
+elseif(WIN32)
+    add_subdirectory(C:/JUCE JUCE)
+else()
+    add_subdirectory(/Users/taylorbrook/JUCE JUCE)
+endif()
+
+# Plugins to skip (e.g. missing platform-specific dependencies)
+set(SKIP_PLUGINS "" CACHE STRING "Semicolon-separated list of plugin directory names to skip")
 
 # Auto-discover plugins
 file(GLOB PLUGIN_DIRS "${CMAKE_CURRENT_SOURCE_DIR}/plugins/*")
 foreach(PLUGIN_DIR ${PLUGIN_DIRS})
+    get_filename_component(PLUGIN_NAME ${PLUGIN_DIR} NAME)
     if(IS_DIRECTORY ${PLUGIN_DIR} AND EXISTS "${PLUGIN_DIR}/CMakeLists.txt")
-        add_subdirectory(${PLUGIN_DIR})
+        if(PLUGIN_NAME IN_LIST SKIP_PLUGINS)
+            message(STATUS "[Ouaricon] Skipping plugin: ${PLUGIN_NAME}")
+        else()
+            add_subdirectory(${PLUGIN_DIR})
+        endif()
     endif()
 endforeach()

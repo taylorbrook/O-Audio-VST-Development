@@ -31,8 +31,8 @@ Invoked by plugin-workflow skill during Stage 4 execute phase.
    - Verify all metadata (manufacturer code, plugin code)
    - Check version string
    - Validate pluginval at strictness 10
-   - Test AU validation (auval)
-   - Verify codesigning (if configured)
+   - Test AU validation via `auval` (**macOS only** - skip on Windows)
+   - Verify codesigning (if configured, macOS only)
 
 ## Input Context
 
@@ -125,13 +125,15 @@ def execute_polish(plugin_name, plan_tasks):
 ## Validation Commands
 
 ```bash
-# pluginval (strictness 10 = most strict)
+# pluginval (strictness 10 = most strict, all platforms)
 pluginval --strictness-level 10 --validate "path/to/Plugin.vst3"
 
-# AU validation
+# AU validation (macOS only - skip on Windows)
 auval -v aumu [plugin_code] [manufacturer_code]  # For instruments
 auval -v aufx [plugin_code] [manufacturer_code]  # For effects
 ```
+
+**Note:** On Windows, `pluginval` is the sole validator. `auval` is not available.
 
 ## Edge Case Test Matrix
 

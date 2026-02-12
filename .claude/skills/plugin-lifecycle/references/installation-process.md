@@ -51,7 +51,7 @@ rm -rf "$VST3_INSTALLED" "$AU_INSTALLED"
 
 ## Step 4: Copy to System Folders
 
-Install plugins to macOS system folders:
+**macOS:**
 
 ```bash
 # VST3
@@ -61,7 +61,16 @@ cp -R "$VST3_PATH" ~/Library/Audio/Plug-Ins/VST3/
 cp -R "$AU_PATH" ~/Library/Audio/Plug-Ins/Components/
 ```
 
-**File structure after copy:**
+**Windows (PowerShell):**
+
+```powershell
+# VST3 only (AU not available on Windows)
+Copy-Item -Recurse "$VST3_PATH" "$env:COMMONPROGRAMFILES\VST3\"
+```
+
+Note: Writing to `C:\Program Files\Common Files\VST3\` may require Administrator elevation. If access is denied, run PowerShell as Administrator or install to a user-local VST3 path.
+
+**File structure after copy (macOS):**
 
 ```
 ~/Library/Audio/Plug-Ins/
@@ -73,9 +82,17 @@ cp -R "$AU_PATH" ~/Library/Audio/Plug-Ins/Components/
         └── Contents/MacOS/[Product Name]
 ```
 
+**File structure after copy (Windows):**
+
+```
+C:\Program Files\Common Files\VST3\
+└── [Product Name].vst3\
+    └── Contents\x86_64-win\[Product Name].vst3
+```
+
 ## Step 5: Permissions Verification
 
-Set correct permissions (755):
+**macOS:** Set correct permissions (755):
 
 ```bash
 chmod -R 755 "$HOME/Library/Audio/Plug-Ins/VST3/${PRODUCT_NAME}.vst3"
@@ -89,6 +106,12 @@ Verify:
 ```bash
 ls -ld "$HOME/Library/Audio/Plug-Ins/VST3/${PRODUCT_NAME}.vst3"
 # Expected: drwxr-xr-x
+```
+
+**Windows:** No chmod equivalent needed. Windows ACLs are inherited from the parent directory. Verify the file is not marked read-only:
+
+```powershell
+Get-Item "$env:COMMONPROGRAMFILES\VST3\${ProductName}.vst3" | Select-Object Attributes
 ```
 
 ## Step 6: Cache Clearing
