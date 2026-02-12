@@ -1,0 +1,1639 @@
+parse-tag	UNKNOWN STEP	﻿2026-02-12T20:00:12.8369351Z Current runner version: '2.331.0'
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8406128Z ##[group]Runner Image Provisioner
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8407438Z Hosted Compute Agent
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8408355Z Version: 20260123.484
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8409439Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8410621Z Build Date: 2026-01-23T19:41:17Z
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8411819Z Worker ID: {438d4eea-7af5-4bc3-afcd-1304473e1909}
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8413483Z Azure Region: westus
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8414480Z ##[endgroup]
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8416842Z ##[group]Operating System
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8417927Z Ubuntu
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8418675Z 24.04.3
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8419463Z LTS
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8420229Z ##[endgroup]
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8421304Z ##[group]Runner Image
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8422314Z Image: ubuntu-24.04
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8423573Z Version: 20260201.15.1
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8425966Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260201.15/images/ubuntu/Ubuntu2404-Readme.md
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8428612Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260201.15
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8430149Z ##[endgroup]
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8431991Z ##[group]GITHUB_TOKEN Permissions
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8435338Z Contents: read
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8436248Z Metadata: read
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8437024Z Packages: read
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8437938Z ##[endgroup]
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8440883Z Secret source: Actions
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.8441949Z Prepare workflow directory
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.9226577Z Prepare all required actions
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:12.9308161Z Complete job name: parse-tag
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1021185Z ##[group]Run TAG="${GITHUB_REF#refs/tags/}"
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1022469Z [36;1mTAG="${GITHUB_REF#refs/tags/}"[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1024101Z [36;1m# Extract plugin name (everything before -v)[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1025205Z [36;1mPLUGIN_NAME="${TAG%-v*}"[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1026284Z [36;1m# Extract version (everything after -v)[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1027504Z [36;1mVERSION="${TAG##*-v}"[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1028615Z [36;1mecho "plugin_name=$PLUGIN_NAME" >> $GITHUB_OUTPUT[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1029884Z [36;1mecho "version=$VERSION" >> $GITHUB_OUTPUT[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1031276Z [36;1mecho "Parsed: Plugin=$PLUGIN_NAME, Version=$VERSION"[0m
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1693995Z shell: /usr/bin/bash -e {0}
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1695661Z env:
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1696479Z   JUCE_VERSION: 8.0.4
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1697307Z   BUILD_TYPE: Release
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.1698182Z ##[endgroup]
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.2092688Z Parsed: Plugin=O-Tremolo, Version=1.4.2
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.2353516Z Evaluate and set job outputs
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.2390427Z Set output 'plugin_name'
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.2392558Z Set output 'version'
+parse-tag	UNKNOWN STEP	2026-02-12T20:00:13.2394273Z Cleaning up orphan processes
+build-macos	UNKNOWN STEP	﻿2026-02-12T20:00:20.1632620Z Current runner version: '2.331.0'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1651540Z ##[group]Runner Image Provisioner
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1652350Z Hosted Compute Agent
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1652760Z Version: 20260123.484
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1653210Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1653710Z Build Date: 2026-01-23T19:41:17Z
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1654180Z Worker ID: {5c8d251a-b14e-42c4-b1f4-98d1bc221eae}
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1654660Z Azure Region: westus
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1655050Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1656110Z ##[group]Operating System
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1656530Z macOS
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1656880Z 14.8.3
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1657220Z 23J220
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1657580Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1657960Z ##[group]Runner Image
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1658410Z Image: macos-14-arm64
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1658830Z Version: 20260209.0115.1
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1659800Z Included Software: https://github.com/actions/runner-images/blob/macos-14-arm64/20260209.0115/images/macos/macos-14-arm64-Readme.md
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1660910Z Image Release: https://github.com/actions/runner-images/releases/tag/macos-14-arm64%2F20260209.0115
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1661610Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1662480Z ##[group]GITHUB_TOKEN Permissions
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1664080Z Contents: read
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1664470Z Metadata: read
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1664880Z Packages: read
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1665270Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1667400Z Secret source: Actions
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1667940Z Prepare workflow directory
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.1969900Z Prepare all required actions
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.2002360Z Getting action download info
+build-macos	UNKNOWN STEP	2026-02-12T20:00:20.6702440Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.2260820Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.5667420Z Complete job name: build-macos
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6172550Z ##[group]Run actions/checkout@v4
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6173300Z with:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6173800Z   submodules: recursive
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6174310Z   repository: taylorbrook/VST-development
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6175160Z   token: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6175530Z   ssh-strict: true
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6175910Z   ssh-user: git
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6176280Z   persist-credentials: true
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6176700Z   clean: true
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6177100Z   sparse-checkout-cone-mode: true
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6177550Z   fetch-depth: 1
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6177930Z   fetch-tags: false
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6178330Z   show-progress: true
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6178730Z   lfs: false
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6179100Z   set-safe-directory: true
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6180040Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6180390Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6180780Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.6181160Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.9473370Z Syncing repository: taylorbrook/VST-development
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.9475310Z ##[group]Getting Git version info
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.9476180Z Working directory is '/Users/runner/work/VST-development/VST-development'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:21.9477410Z [command]/opt/homebrew/bin/git version
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0136840Z git version 2.52.0
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0217380Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0249970Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/93c056da-0042-4d10-99a5-2174f9f27214/.gitconfig'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0252220Z Temporarily overriding HOME='/Users/runner/work/_temp/93c056da-0042-4d10-99a5-2174f9f27214' before making global git config changes
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0254300Z Adding repository directory to the temporary git global config as a safe directory
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0256250Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/VST-development/VST-development
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0522940Z Deleting the contents of '/Users/runner/work/VST-development/VST-development'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0525980Z ##[group]Initializing the repository
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0548070Z [command]/opt/homebrew/bin/git init /Users/runner/work/VST-development/VST-development
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.0994870Z hint: Using 'master' as the name for the initial branch. This default branch name
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1000300Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1006660Z hint: to use in all of your new repositories, which will suppress this warning,
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1010280Z hint: call:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1011390Z hint:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1012400Z hint: 	git config --global init.defaultBranch <name>
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1013600Z hint:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1014690Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1016460Z hint: 'development'. The just-created branch can be renamed via this command:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1017930Z hint:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1018680Z hint: 	git branch -m <name>
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1019610Z hint:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1020780Z hint: Disable this message with "git config set advice.defaultBranchName false"
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1023020Z Initialized empty Git repository in /Users/runner/work/VST-development/VST-development/.git/
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1026470Z [command]/opt/homebrew/bin/git remote add origin https://github.com/taylorbrook/VST-development
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1092120Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1095510Z ##[group]Disabling automatic garbage collection
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1098780Z [command]/opt/homebrew/bin/git config --local gc.auto 0
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1148980Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1152130Z ##[group]Setting up auth
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1155440Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.1233920Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.2280050Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.2344500Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.3223390Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.3306030Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.4856520Z [command]/opt/homebrew/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.4861110Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.4862880Z ##[group]Fetching the repository
+build-macos	UNKNOWN STEP	2026-02-12T20:00:22.4865690Z [command]/opt/homebrew/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +9bb57aba0a9bd16852188087b05a4a948dab6066:refs/tags/O-Tremolo-v1.4.2
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4485070Z From https://github.com/taylorbrook/VST-development
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4487500Z  * [new ref]         9bb57aba0a9bd16852188087b05a4a948dab6066 -> O-Tremolo-v1.4.2
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4579660Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4580420Z ##[group]Determining the checkout info
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4580880Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4586350Z [command]/opt/homebrew/bin/git sparse-checkout disable
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4672120Z [command]/opt/homebrew/bin/git config --local --unset-all extensions.worktreeConfig
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4728540Z ##[group]Checking out the ref
+build-macos	UNKNOWN STEP	2026-02-12T20:00:25.4729790Z [command]/opt/homebrew/bin/git checkout --progress --force refs/tags/O-Tremolo-v1.4.2
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2293950Z HEAD is now at 9bb57ab release(O-Tremolo): v1.4.2
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2338640Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2339950Z ##[group]Setting up auth for fetching submodules
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2341800Z [command]/opt/homebrew/bin/git config --global http.https://github.com/.extraheader AUTHORIZATION: basic ***
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2476850Z [command]/opt/homebrew/bin/git config --global --unset-all url.https://github.com/.insteadOf
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2538360Z [command]/opt/homebrew/bin/git config --global --add url.https://github.com/.insteadOf git@github.com:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2630460Z [command]/opt/homebrew/bin/git config --global --add url.https://github.com/.insteadOf org-52675429@github.com:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2803790Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2817730Z ##[group]Fetching submodules
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.2818410Z [command]/opt/homebrew/bin/git submodule sync --recursive
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.4713700Z [command]/opt/homebrew/bin/git -c protocol.version=2 submodule update --init --force --depth=1 --recursive
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.5644030Z Submodule 'plugins/O-Orbit/libs/SAF' (https://github.com/leomccormack/Spatial_Audio_Framework.git) registered for path 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:26.5785650Z Cloning into '/Users/runner/work/VST-development/VST-development/plugins/O-Orbit/libs/SAF'...
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.3796590Z From https://github.com/leomccormack/Spatial_Audio_Framework
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.3800410Z  * branch            b6fe188288ecd59fef9e46bf6bfe3ed57f0ee9af -> FETCH_HEAD
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.4948210Z Submodule path 'plugins/O-Orbit/libs/SAF': checked out 'b6fe188288ecd59fef9e46bf6bfe3ed57f0ee9af'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.5048060Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local gc.auto 0
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.6113200Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.6342940Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.6363900Z ##[group]Persisting credentials for submodules
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.6369410Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'url\.https\:\/\/github\.com\/\.insteadOf' && git config --local --unset-all 'url.https://github.com/.insteadOf' || :"
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.7333390Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.7507020Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local 'http.https://github.com/.extraheader' 'AUTHORIZATION: basic ***' && git config --local --show-origin --name-only --get-regexp remote.origin.url"
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.8051890Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.8180430Z file:/Users/runner/work/VST-development/VST-development/.git/modules/plugins/O-Orbit/libs/SAF/config	remote.origin.url
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.8300760Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --add 'url.https://github.com/.insteadOf' 'git@github.com:'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.8918820Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.9054270Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --add 'url.https://github.com/.insteadOf' 'org-52675429@github.com:'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.9610870Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.9728230Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.9790980Z [command]/opt/homebrew/bin/git log -1 --format=%H
+build-macos	UNKNOWN STEP	2026-02-12T20:00:29.9832070Z 9bb57aba0a9bd16852188087b05a4a948dab6066
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0081520Z ##[group]Run # Download and extract JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0081950Z [36;1m# Download and extract JUCE[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0082470Z [36;1mcurl -L "https://github.com/juce-framework/JUCE/releases/download/8.0.4/juce-8.0.4-osx.zip" -o juce.zip[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0083320Z [36;1munzip -q juce.zip[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0083800Z [36;1m# Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0084340Z [36;1mecho "JUCE_DIR=/Users/runner/work/VST-development/VST-development/JUCE" >> $GITHUB_ENV[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0163380Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0163740Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0163920Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0164120Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0164320Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0810240Z   % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0851010Z                                  Dload  Upload   Total   Spent    Left  Speed
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.0851320Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.4275400Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.4276240Z   0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0
+build-macos	UNKNOWN STEP	2026-02-12T20:00:30.5937130Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:00:31.5328680Z   0 43.8M    0 40393    0     0  78750      0  0:09:44 --:--:--  0:09:44 78750
+build-macos	UNKNOWN STEP	2026-02-12T20:00:31.8708050Z  72 43.8M   72 31.8M    0     0  21.9M      0  0:00:02  0:00:01  0:00:01 33.8M
+build-macos	UNKNOWN STEP	2026-02-12T20:00:31.8708910Z 100 43.8M  100 43.8M    0     0  24.5M      0  0:00:01  0:00:01 --:--:-- 34.3M
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2261470Z ##[group]Run cmake -B build \
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2262360Z [36;1mcmake -B build \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2262930Z [36;1m  -DCMAKE_BUILD_TYPE=Release \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2264210Z [36;1m  -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2277330Z [36;1m  -DOUARICON_LICENSING=ON \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2278240Z [36;1m  -DOUARICON_RELEASE=ON \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2282660Z [36;1m  -DOUARICON_SUPABASE_URL="***" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2286150Z [36;1m  -DOUARICON_SUPABASE_ANON_KEY="***"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2419220Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2419500Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2419780Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2420000Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2420400Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:00:34.2420840Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:00:37.1113140Z -- The C compiler identification is AppleClang 15.0.0.15000309
+build-macos	UNKNOWN STEP	2026-02-12T20:00:38.1660150Z -- The CXX compiler identification is AppleClang 15.0.0.15000309
+build-macos	UNKNOWN STEP	2026-02-12T20:00:38.2006100Z -- Detecting C compiler ABI info
+build-macos	UNKNOWN STEP	2026-02-12T20:00:38.8292880Z -- Detecting C compiler ABI info - done
+build-macos	UNKNOWN STEP	2026-02-12T20:00:38.8487860Z -- Check for working C compiler: /usr/bin/cc - skipped
+build-macos	UNKNOWN STEP	2026-02-12T20:00:38.8493920Z -- Detecting C compile features
+build-macos	UNKNOWN STEP	2026-02-12T20:00:38.8501720Z -- Detecting C compile features - done
+build-macos	UNKNOWN STEP	2026-02-12T20:00:38.8585830Z -- Detecting CXX compiler ABI info
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.0154220Z -- Detecting CXX compiler ABI info - done
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.0284080Z -- Check for working CXX compiler: /usr/bin/c++ - skipped
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.0285690Z -- Detecting CXX compile features
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.0290290Z -- Detecting CXX compile features - done
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.0313360Z -- [Ouaricon] Release branding — COMPANY: Ouaricon Audio, CODE: OuAu
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.0313880Z -- [Ouaricon] Licensing ENABLED — plugins will require activation
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.1424820Z -- Configuring juceaide
+build-macos	UNKNOWN STEP	2026-02-12T20:00:39.7259740Z -- Building juceaide
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.7152550Z -- Exporting juceaide
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.7160730Z -- Testing juceaide
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8698830Z -- Finished setting up juceaide
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8886760Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8891050Z   Target OuariconAnalogEQ has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8893570Z   Audio.OuariconAnalogEQ', which contains spaces.  Use the BUNDLE_ID option
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8895060Z   to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8896000Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8897400Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8908260Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8908870Z   plugins/O-AnalogEQ/CMakeLists.txt:6 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8909190Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:27.8909190Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.6630380Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9573080Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9596710Z -- Found Threads: TRUE
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9597580Z -- [Ouaricon] Adding module 'preset-manager' from /Users/runner/work/VST-development/VST-development/modules/persistence/preset-manager
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9602180Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-AnalogEQ C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9652370Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9653100Z -- [Ouaricon] Adding module 'licensing' from /Users/runner/work/VST-development/VST-development/modules/core/licensing
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9653790Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-AnalogEQ C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9667530Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9668310Z   Target O-AnalogSaturation has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9669970Z   Audio.O-AnalogSaturation', which contains spaces.  Use the BUNDLE_ID option
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9670620Z   to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9671000Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9671580Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9672250Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9672830Z   plugins/O-AnalogSaturation/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9673320Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:28.9681560Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5694190Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5694990Z   Target O-Bass has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Bass', which
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5695640Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5696070Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5696570Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5697160Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5697620Z   plugins/O-Bass/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5697890Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:29.5697890Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1951430Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1952970Z   Target O-Bells has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Bells', which
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1954110Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1955280Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1956390Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1957690Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1958860Z   plugins/O-Bells/CMakeLists.txt:5 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1959460Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.1959470Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8408180Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8410530Z   Target OuariconChorus has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8412070Z   Audio.OuariconChorus', which contains spaces.  Use the BUNDLE_ID option to
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8413240Z   specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8413840Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8415070Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8416450Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8417490Z   plugins/O-Chorus/CMakeLists.txt:6 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8418090Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:30.8418090Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5601770Z -- [Ouaricon] Adding module 'preset-manager' from /Users/runner/work/VST-development/VST-development/modules/persistence/preset-manager
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5602730Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-Chorus C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5610100Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5612130Z -- [Ouaricon] Adding module 'licensing' from /Users/runner/work/VST-development/VST-development/modules/core/licensing
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5614960Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-Chorus C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5648920Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5650570Z   Target O-Comp has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Comp', which
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5651700Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5652780Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5653920Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5655690Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5656940Z   plugins/O-Comp/CMakeLists.txt:5 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5659750Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:31.5659950Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2574550Z -- [Ouaricon] Adding module 'licensing' from /Users/runner/work/VST-development/VST-development/modules/core/licensing
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2575790Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-Comp C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2606120Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2620450Z   Target O-Detune has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Detune', which
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2628260Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2646400Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2646860Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2647300Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2647760Z   plugins/O-Detune/CMakeLists.txt:10 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2647970Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.2648000Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9956950Z -- [Ouaricon] Adding module 'preset-manager' from /Users/runner/work/VST-development/VST-development/modules/persistence/preset-manager
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9957870Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9958280Z   Target OuariconDigitalDelay has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9958780Z   Audio.OuariconDigitalDelay', which contains spaces.  Use the BUNDLE_ID
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9959280Z   option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9959770Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9960280Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9960910Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9961310Z   plugins/O-DigiDelay/CMakeLists.txt:6 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9961530Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9961540Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9961950Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-Detune C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:32.9962610Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6252110Z -- [Ouaricon] Adding module 'licensing' from /Users/runner/work/VST-development/VST-development/modules/core/licensing
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6354680Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6355370Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-DigiDelay C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6456760Z   Target O-Freeze has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Freeze', which
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6558250Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6657830Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6659360Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6660040Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6660780Z   plugins/O-Freeze/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6661280Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:33.6661410Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2377060Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2377730Z   Target O-FreqPulse has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-FreqPulse',
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2378830Z   which contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2379320Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2379760Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2380240Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2380720Z   plugins/O-FreqPulse/CMakeLists.txt:7 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2380910Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.2380910Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:34.9904670Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0006020Z   Target OuariconGrainScatter has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0027480Z   Audio.OuariconGrainScatter', which contains spaces.  Use the BUNDLE_ID
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0036580Z   option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0039080Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0040420Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0042700Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0044070Z   plugins/O-GrainScatter/CMakeLists.txt:5 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0044640Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.0044650Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7494330Z -- [Ouaricon] Adding module 'licensing' from /Users/runner/work/VST-development/VST-development/modules/core/licensing
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7595040Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7595640Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-GrainScatter C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7623610Z   Target O-IntonationPad has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7624360Z   Audio.O-IntonationPad', which contains spaces.  Use the BUNDLE_ID option to
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7625080Z   specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7625460Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7626110Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7626720Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7627410Z   plugins/O-IntonationPad/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7627880Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:35.7627980Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3441740Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3442410Z   Target OLyrica has JUCE_BUNDLE_ID 'com.Ouaricon Audio.OLyrica', which
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3443090Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3443590Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3444870Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3445380Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3445890Z   plugins/O-Lyrica/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3446250Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.3446350Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9472990Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9473560Z   Target OMarimba has JUCE_BUNDLE_ID 'com.Ouaricon Audio.OMarimba', which
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9474170Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9474680Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9475110Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9475710Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9476160Z   plugins/O-Marimba/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9476380Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:36.9476480Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5301930Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5302440Z   Target O-MultiBandCompressor has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5302950Z   Audio.O-MultiBandCompressor', which contains spaces.  Use the BUNDLE_ID
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5303690Z   option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5304120Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5304600Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5305140Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5305670Z   plugins/O-MultiBandCompressor/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5305960Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:37.5305960Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1417110Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1417630Z -- Configuring the Spatial_Audio_Framework (SAF):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1418170Z      _____     _____     _____
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1418840Z    (  ____ ) (  ___  ) (  ____ )
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1419150Z    | ( __ |/ | ( _ ) | | ( _  |/
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1419490Z    (_____  ) |  ___  | |  __)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1419730Z    /|____) | | |   | | | |
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1420070Z    (_______) |_|   |_| |_|   (Version: 1.3.4, License: ISC)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1420340Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1420580Z -- Platform/Darwin, name: Darwin, arch: arm64, sys: Darwin-23.6.0
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1420990Z -- Configuring saf as a STATIC library...
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1456910Z -- Using Apple Accelerate. Linking against the Accelerate framework...
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1457350Z -- saf_sofa_reader module disabled.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1457680Z -- saf_tracker module disabled.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1457880Z -- saf_hades module disabled.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1470710Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1471170Z   Target OuariconOrbit has JUCE_BUNDLE_ID 'com.Ouaricon Audio.OuariconOrbit',
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1471610Z   which contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1472040Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1472490Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1473060Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1473550Z   plugins/O-Orbit/CMakeLists.txt:14 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1473730Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.1473730Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7231750Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7232290Z   Target OPolystutter has JUCE_BUNDLE_ID 'com.Ouaricon Audio.OPolystutter',
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7232730Z   which contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7233040Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7233500Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7234020Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7234440Z   plugins/O-Polystutter/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7234710Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:38.7234710Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3370200Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3383780Z   Target O-SimpleReverb has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3407430Z   Audio.O-SimpleReverb', which contains spaces.  Use the BUNDLE_ID option to
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3455710Z   specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3466880Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3504310Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3564790Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3666930Z   plugins/O-SimpleReverb/CMakeLists.txt:7 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3752350Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.3853960Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9825400Z -- [Ouaricon] Adding module 'licensing' from /Users/runner/work/VST-development/VST-development/modules/core/licensing
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9826520Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-SimpleReverb C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9827570Z -- [Ouaricon] Adding module 'preset-manager' from /Users/runner/work/VST-development/VST-development/modules/persistence/preset-manager
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9829210Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-SimpleReverb C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9834090Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9866500Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9870660Z   Target O-SpectralShaper has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9871750Z   Audio.O-SpectralShaper', which contains spaces.  Use the BUNDLE_ID option
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9872780Z   to specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9874230Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9875050Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9875800Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9876550Z   plugins/O-SpectralShaper/CMakeLists.txt:4 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9876960Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:39.9877050Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6600970Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6607680Z   Target OuariconTremolo has JUCE_BUNDLE_ID 'com.Ouaricon
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6608970Z   Audio.OuariconTremolo', which contains spaces.  Use the BUNDLE_ID option to
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6634240Z   specify a valid ID.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6655490Z Call Stack (most recent call first):
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6656080Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6656730Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6657410Z   plugins/O-Tremolo/CMakeLists.txt:7 (juce_add_plugin)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6657820Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:40.6657940Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:01:41.2718000Z -- [Ouaricon] Adding module 'preset-manager' from /Users/runner/work/VST-development/VST-development/modules/persistence/preset-manager
+build-macos	UNKNOWN STEP	2026-02-12T20:01:41.2718820Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-Tremolo C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:41.2722520Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-macos	UNKNOWN STEP	2026-02-12T20:01:41.2723760Z -- [Ouaricon] Adding module 'licensing' from /Users/runner/work/VST-development/VST-development/modules/core/licensing
+build-macos	UNKNOWN STEP	2026-02-12T20:01:41.2724460Z -- [Ouaricon]   Added /Users/runner/work/VST-development/VST-development/plugins/O-Tremolo C++ sources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:41.2743810Z -- Configuring done (66.9s)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.0740600Z -- Generating done (0.8s)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.0745950Z -- Build files have been written to: /Users/runner/work/VST-development/VST-development/build
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1027320Z ##[group]Run PLUGIN="O-Tremolo"
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1028450Z [36;1mPLUGIN="O-Tremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1029330Z [36;1mCMAKE_TARGET=$(grep 'juce_add_plugin(' "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*juce_add_plugin(\([^ )]*\).*/\1/')[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1030420Z [36;1mecho "cmake_target=$CMAKE_TARGET" >> $GITHUB_OUTPUT[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1031090Z [36;1mecho "Resolved CMake target: $CMAKE_TARGET (from directory: $PLUGIN)"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1103370Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1103720Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1103940Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1104230Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1104640Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1105060Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.1933660Z Resolved CMake target: OuariconTremolo (from directory: O-Tremolo)
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2034520Z ##[group]Run TARGET="OuariconTremolo"
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2035300Z [36;1mTARGET="OuariconTremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2035860Z [36;1mcmake --build build --target "${TARGET}_VST3" "${TARGET}_AU" --config Release -j$(sysctl -n hw.ncpu)[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2086410Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2086770Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2087090Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2087940Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2088380Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.2088820Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.4682670Z [  0%] Generating juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData1.cpp, juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData2.cpp, juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData3.cpp, juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData4.cpp, juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData5.cpp, juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData6.cpp, juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData.h
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.4824060Z [  0%] Building CXX object plugins/O-AnalogEQ/CMakeFiles/juce_vst3_helper.dir/__/__/JUCE/modules/juce_audio_plugin_client/VST3/juce_VST3ManifestHelper.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.8360500Z [  0%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_UIResources.dir/juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData2.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.8362280Z [  0%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_UIResources.dir/juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData1.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:42.9264950Z [  0%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_UIResources.dir/juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData3.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:43.0368160Z [  0%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_UIResources.dir/juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData4.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:43.0478220Z [  0%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_UIResources.dir/juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData5.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:44.8832480Z [  0%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_UIResources.dir/juce_binarydata_OuariconTremolo_UIResources/JuceLibraryCode/BinaryData6.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:45.3820850Z [  0%] Linking CXX static library libOuariconTremolo_UIResources.a
+build-macos	UNKNOWN STEP	2026-02-12T20:01:46.9711820Z [  0%] Built target OuariconTremolo_UIResources
+build-macos	UNKNOWN STEP	2026-02-12T20:01:46.9861220Z [  0%] Generating OuariconTremolo_artefacts/JuceLibraryCode/JuceHeader.h
+build-macos	UNKNOWN STEP	2026-02-12T20:01:47.1590730Z [  0%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/Source/PluginEditor.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:47.1625500Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/Source/PluginProcessor.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:50.7859580Z [ 33%] Linking CXX executable juce_vst3_helper
+build-macos	UNKNOWN STEP	2026-02-12T20:01:51.1733750Z [ 33%] Built target juce_vst3_helper
+build-macos	UNKNOWN STEP	2026-02-12T20:01:51.1835280Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/modules/core/licensing/cpp/OuariconLicense.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3043060Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:357:64: warning: adding 'bool' to a string does not append to the string [-Wstring-plus-int]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3154450Z     juce::Logger::writeToLog ("[License]   Directory create: " + dirResult.getErrorMessage().isEmpty()
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3265080Z                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3367040Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:357:64: note: use array indexing to silence this warning
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3471470Z     juce::Logger::writeToLog ("[License]   Directory create: " + dirResult.getErrorMessage().isEmpty()
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3573190Z                                                                ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3674680Z                               &                                [                                      ]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3779950Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:358:31: warning: operator '?:' has lower precedence than '+'; '+' will be evaluated first [-Wparentheses]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3885370Z                               ? "OK" : ("FAILED: " + dirResult.getErrorMessage()));
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.3987060Z                               ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.4090840Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:358:31: note: place parentheses around the '+' expression to silence this warning
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.4195050Z                               ? "OK" : ("FAILED: " + dirResult.getErrorMessage()));
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.4301750Z                               ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.4404430Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:358:31: note: place parentheses around the '?:' expression to evaluate it first
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.4507760Z                               ? "OK" : ("FAILED: " + dirResult.getErrorMessage()));
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.4609780Z                               ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:53.4676350Z                                                                                  )
+build-macos	UNKNOWN STEP	2026-02-12T20:01:54.0771170Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_audio_processors/juce_audio_processors_ara.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:54.1557010Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_audio_processors/juce_audio_processors_lv2_libs.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:54.2160900Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_audio_processors/juce_audio_processors.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:54.8405310Z 2 warnings generated.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:55.9168700Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_gui_extra/juce_gui_extra.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.1793360Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:357:64: warning: adding 'bool' to a string does not append to the string [-Wstring-plus-int]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.1891650Z     juce::Logger::writeToLog ("[License]   Directory create: " + dirResult.getErrorMessage().isEmpty()
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.1993130Z                               ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2095120Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:357:64: note: use array indexing to silence this warning
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2201480Z     juce::Logger::writeToLog ("[License]   Directory create: " + dirResult.getErrorMessage().isEmpty()
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2322240Z                                                                ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2444110Z                               &                                [                                      ]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2547790Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:358:31: warning: operator '?:' has lower precedence than '+'; '+' will be evaluated first [-Wparentheses]
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2651100Z                               ? "OK" : ("FAILED: " + dirResult.getErrorMessage()));
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2753810Z                               ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2855860Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:358:31: note: place parentheses around the '+' expression to silence this warning
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.2970300Z                               ? "OK" : ("FAILED: " + dirResult.getErrorMessage()));
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.3072660Z                               ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.3174520Z /Users/runner/work/VST-development/VST-development/modules/core/licensing/cpp/OuariconLicense.cpp:358:31: note: place parentheses around the '?:' expression to evaluate it first
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.3276430Z                               ? "OK" : ("FAILED: " + dirResult.getErrorMessage()));
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.3399700Z                               ^
+build-macos	UNKNOWN STEP	2026-02-12T20:01:56.3503990Z                                                                                  )
+build-macos	UNKNOWN STEP	2026-02-12T20:01:57.3633330Z 2 warnings generated.
+build-macos	UNKNOWN STEP	2026-02-12T20:01:57.4180370Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_gui_basics/juce_gui_basics.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:02:21.8259400Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_graphics/juce_graphics_Harfbuzz.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:02:21.8368280Z [ 33%] Building C object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_graphics/juce_graphics_Sheenbidi.c.o
+build-macos	UNKNOWN STEP	2026-02-12T20:02:23.1666890Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_graphics/juce_graphics.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:02:56.3146850Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_events/juce_events.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:00.8235800Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_core/juce_core_CompilationTime.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:00.9147140Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_core/juce_core.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:02.8832720Z [ 33%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_data_structures/juce_data_structures.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:05.9730370Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_audio_basics/juce_audio_basics.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:08.1006060Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_audio_devices/juce_audio_devices.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:16.7169110Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_audio_formats/juce_audio_formats.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:18.0220560Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_audio_utils/juce_audio_utils.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:20.6875910Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo.dir/__/__/JUCE/modules/juce_cryptography/juce_cryptography.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:33.3592500Z [ 66%] Linking CXX static library OuariconTremolo_artefacts/Release/libO-Tremolo_SharedCode.a
+build-macos	UNKNOWN STEP	2026-02-12T20:03:34.8735080Z [ 66%] Built target OuariconTremolo
+build-macos	UNKNOWN STEP	2026-02-12T20:03:34.8879950Z [ 66%] Generating OuariconTremolo_artefacts/JuceLibraryCode/OuariconTremolo_VST3/PkgInfo
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.1257540Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_ARA.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.1267530Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX_utils.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.1270580Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Standalone.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.2965030Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.3067490Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Unity.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.3202660Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.4024740Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_2.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.4033480Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AUv3.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.4208300Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_LV2.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.5343010Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST2.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:35.5386860Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_VST3.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:03:54.7863330Z [100%] Linking CXX CFBundle shared module OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3/Contents/MacOS/O-Tremolo
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.3450640Z /Users/runner/work/VST-development/VST-development/build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3: code object is not signed at all
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.3451830Z -- Replacing invalid signature with ad-hoc signature
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.3640350Z /Users/runner/work/VST-development/VST-development/build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3: replacing existing signature
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.4573780Z removing moduleinfo.json
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.4859420Z creating /Users/runner/work/VST-development/VST-development/build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3/Contents/Resources/moduleinfo.json
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.5502060Z [PresetManager] Factory presets initialized: 10
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.5503250Z [License] Checking stored license for: ouaricon-tremolo
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.5504470Z [License] Storage dir: /Users/runner/Library/Ouaricon/ouaricon-tremolo
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.5505790Z [License] Machine ID: e272eaf6e239e295b6b86d636a289708820ee3152886d3c79a44daea839bc56b
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.5507600Z [License] No stored license found
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.5873190Z [100%] Built target OuariconTremolo_VST3
+build-macos	UNKNOWN STEP	2026-02-12T20:05:07.7700350Z [  0%] Built target OuariconTremolo_UIResources
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.2418790Z [ 66%] Built target OuariconTremolo
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.2763550Z [ 66%] Generating OuariconTremolo_artefacts/JuceLibraryCode/OuariconTremolo_AU/PkgInfo
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.4916260Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_ARA.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.5120350Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX_utils.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.5224680Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Standalone.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.6598790Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_Unity.cpp.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.6724990Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AAX.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.6927060Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_1.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.8089820Z [ 66%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AU_2.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.8207160Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_AUv3.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:08.9317230Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_LV2.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:09.0544170Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST2.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:09.2108830Z [100%] Building CXX object plugins/O-Tremolo/CMakeFiles/OuariconTremolo_AU.dir/__/__/JUCE/modules/juce_audio_plugin_client/juce_audio_plugin_client_VST3.mm.o
+build-macos	UNKNOWN STEP	2026-02-12T20:05:20.5245740Z [100%] Linking CXX CFBundle shared module OuariconTremolo_artefacts/Release/AU/O-Tremolo.component/Contents/MacOS/O-Tremolo
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7100240Z [100%] Built target OuariconTremolo_AU
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7536280Z ##[group]Run # Create a temporary keychain
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7536970Z [36;1m# Create a temporary keychain[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7537330Z [36;1mKEYCHAIN_PATH="$RUNNER_TEMP/signing.keychain-db"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7537750Z [36;1mKEYCHAIN_PWD="$(openssl rand -hex 24)"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7538080Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7538370Z [36;1msecurity create-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7538860Z [36;1msecurity set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7539300Z [36;1msecurity unlock-keychain -p "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7539850Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7540160Z [36;1m# Import Developer ID Application certificate[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7540550Z [36;1mecho "$MACOS_CERTIFICATE" | base64 --decode > certificate.p12[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7540980Z [36;1msecurity import certificate.p12 \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7541550Z [36;1m  -P "$MACOS_CERTIFICATE_PWD" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7541820Z [36;1m  -A \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7542090Z [36;1m  -t cert \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7542320Z [36;1m  -f pkcs12 \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7542610Z [36;1m  -k "$KEYCHAIN_PATH"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7542920Z [36;1mrm certificate.p12[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7543150Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7543450Z [36;1m# Import Developer ID Installer certificate[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7543900Z [36;1mecho "$MACOS_INSTALLER_CERTIFICATE" | base64 --decode > installer-certificate.p12[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7544420Z [36;1msecurity import installer-certificate.p12 \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7544820Z [36;1m  -P "$MACOS_INSTALLER_CERTIFICATE_PWD" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7545120Z [36;1m  -A \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7545380Z [36;1m  -t cert \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7545590Z [36;1m  -f pkcs12 \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7545880Z [36;1m  -k "$KEYCHAIN_PATH"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7546190Z [36;1mrm installer-certificate.p12[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7546460Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7546820Z [36;1m# Allow codesign/productsign to access the keychain without UI prompt[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7547450Z [36;1msecurity set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PWD" "$KEYCHAIN_PATH"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7547890Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7549190Z [36;1m# Add temporary keychain to search list[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7550030Z [36;1msecurity list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7550530Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7550860Z [36;1mecho "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> $GITHUB_ENV[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.7551250Z [36;1mecho "KEYCHAIN_PWD=$KEYCHAIN_PWD" >> $GITHUB_ENV[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8050610Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8050960Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8051180Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8051490Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8051850Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8069750Z   MACOS_CERTIFICATE: ***
+build-macos	UNKNOWN STEP	
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8070100Z   MACOS_CERTIFICATE_PWD: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8086050Z   MACOS_INSTALLER_CERTIFICATE: ***
+build-macos	UNKNOWN STEP	
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8086440Z   MACOS_INSTALLER_CERTIFICATE_PWD: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:06:38.8086780Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.2998630Z 1 identity imported.
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.3800650Z 1 identity imported.
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4243220Z keychain: "/Users/runner/work/_temp/signing.keychain-db"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4349940Z version: 256
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4428730Z class: 0x00000010 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4429330Z attributes:
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4431150Z     0x00000000 <uint32>=0x00000010 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4432050Z     0x00000001 <blob>="*** 1"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4432450Z     0x00000002 <blob>=<NULL>
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4432940Z     0x00000003 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4433430Z     0x00000004 <uint32>=0x00000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4433830Z     0x00000005 <uint32>=0x00000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4435400Z     0x00000006 <blob>=0x3197CC7409326F3C053A7DA9E7AE0DF1225F8AFA  "1\227\314t\0112o<\005:}\251\347\256\015\361"_\212\372"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4436220Z     0x00000007 <blob>=<NULL>
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4436900Z     0x00000008 <blob>=0x7B38373139316361322D306663392D313164342D383439612D3030303530326235323132327D00  "{87191ca2-0fc9-11d4-849a-000502b52122}\000"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4437750Z     0x00000009 <uint32>=0x0000002A  "\000\000\000*"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4438190Z     0x0000000A <uint32>=0x00000800 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4438740Z     0x0000000B <uint32>=0x00000800 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4439260Z     0x0000000C <blob>=0x0000000000000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4439700Z     0x0000000D <blob>=0x0000000000000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4440210Z     0x0000000E <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4440730Z     0x0000000F <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4441220Z     0x00000010 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4441690Z     0x00000011 <uint32>=0x00000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4442080Z     0x00000012 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4442590Z     0x00000013 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4443050Z     0x00000014 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4443470Z     0x00000015 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4443980Z     0x00000016 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4444350Z     0x00000017 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4444870Z     0x00000018 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4445460Z     0x00000019 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4445860Z     0x0000001A <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4446430Z keychain: "/Users/runner/work/_temp/signing.keychain-db"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4448740Z version: 256
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4451780Z class: 0x00000010 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4452830Z attributes:
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4453330Z     0x00000000 <uint32>=0x00000010 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4454010Z     0x00000001 <blob>="***"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4456160Z     0x00000002 <blob>=<NULL>
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4458110Z     0x00000003 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4492890Z     0x00000004 <uint32>=0x00000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4499610Z     0x00000005 <uint32>=0x00000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4528790Z     0x00000006 <blob>=0x2DE7C4AD371E3762DADCA167A8AF2D36C73641F9  "-\347\304\2557\0367b\332\334\241g\250\257-6\3076A\371"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4584870Z     0x00000007 <blob>=<NULL>
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4596940Z     0x00000008 <blob>=0x7B38373139316361322D306663392D313164342D383439612D3030303530326235323132327D00  "{87191ca2-0fc9-11d4-849a-000502b52122}\000"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4621930Z     0x00000009 <uint32>=0x0000002A  "\000\000\000*"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4640180Z     0x0000000A <uint32>=0x00000800 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4641900Z     0x0000000B <uint32>=0x00000800 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4643200Z     0x0000000C <blob>=0x0000000000000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4703150Z     0x0000000D <blob>=0x0000000000000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4719490Z     0x0000000E <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4721410Z     0x0000000F <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4722060Z     0x00000010 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4722540Z     0x00000011 <uint32>=0x00000000 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4723560Z     0x00000012 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4724090Z     0x00000013 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4724500Z     0x00000014 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4725050Z     0x00000015 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4725770Z     0x00000016 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4726180Z     0x00000017 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4726690Z     0x00000018 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4727190Z     0x00000019 <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4727890Z     0x0000001A <uint32>=0x00000001 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4788600Z ##[group]Run PLUGIN="O-Tremolo"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4788930Z [36;1mPLUGIN="O-Tremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4789130Z [36;1mTARGET="OuariconTremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4789490Z [36;1mARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/Release"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4790380Z [36;1mIDENTITY="Developer ID Application: *** ($APPLE_TEAM_ID)"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4790740Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4790970Z [36;1mecho "Signing with identity: $IDENTITY"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4791200Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4791360Z [36;1m# Sign VST3 bundle[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4791610Z [36;1mif [ -d "${ARTEFACTS_BASE}/VST3" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4792020Z [36;1m  for bundle in "${ARTEFACTS_BASE}/VST3/"*.vst3; do[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4792370Z [36;1m    echo "Signing VST3: $bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4792640Z [36;1m    codesign --deep --force --options runtime \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4792930Z [36;1m      --sign "$IDENTITY" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4793240Z [36;1m      --timestamp \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4793470Z [36;1m      "$bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4796830Z [36;1m    echo "Verifying signature..."[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4797690Z [36;1m    codesign --verify --verbose=2 "$bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4798570Z [36;1m  done[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4799020Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4799430Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4799970Z [36;1m# Sign AU bundle[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4800540Z [36;1mif [ -d "${ARTEFACTS_BASE}/AU" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4801490Z [36;1m  for bundle in "${ARTEFACTS_BASE}/AU/"*.component; do[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4802350Z [36;1m    echo "Signing AU: $bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4803030Z [36;1m    codesign --deep --force --options runtime \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4803850Z [36;1m      --sign "$IDENTITY" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4804400Z [36;1m      --timestamp \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4804950Z [36;1m      "$bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4805630Z [36;1m    echo "Verifying signature..."[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4806370Z [36;1m    codesign --verify --verbose=2 "$bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4807070Z [36;1m  done[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4807520Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4938850Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4939090Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4939260Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4939430Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4939710Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4940090Z   KEYCHAIN_PATH: /Users/runner/work/_temp/signing.keychain-db
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4940440Z   KEYCHAIN_PWD: dd61ae814743ec6a4a8b979744dc31e6d77be77cf0f0f7b5
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4940990Z   APPLE_TEAM_ID: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.4941190Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.5661650Z Signing with identity: Developer ID Application: *** (***)
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.5663740Z Signing VST3: build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3
+build-macos	UNKNOWN STEP	2026-02-12T20:06:39.6117400Z build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3: replacing existing signature
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.0683560Z Verifying signature...
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.1132360Z build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3: valid on disk
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.1182710Z build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3: satisfies its Designated Requirement
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.1183380Z Signing AU: build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/AU/O-Tremolo.component
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.1565050Z build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/AU/O-Tremolo.component: replacing existing signature
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3028420Z Verifying signature...
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3413930Z build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/AU/O-Tremolo.component: valid on disk
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3417580Z build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/AU/O-Tremolo.component: satisfies its Designated Requirement
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3455600Z ##[group]Run PLUGIN="O-Tremolo"
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3455920Z [36;1mPLUGIN="O-Tremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3456130Z [36;1mTARGET="OuariconTremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3456460Z [36;1mARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/Release"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3456780Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3457030Z [36;1m# Create a ZIP of all signed bundles for notarization submission[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3457360Z [36;1mmkdir -p notarize_payload[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3457600Z [36;1mif [ -d "${ARTEFACTS_BASE}/VST3" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3457920Z [36;1m  cp -R "${ARTEFACTS_BASE}/VST3/"*.vst3 notarize_payload/[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3458220Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3458400Z [36;1mif [ -d "${ARTEFACTS_BASE}/AU" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3458710Z [36;1m  cp -R "${ARTEFACTS_BASE}/AU/"*.component notarize_payload/[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3458980Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3459140Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3459440Z [36;1mditto -c -k --keepParent notarize_payload notarize_payload.zip[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3459740Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3459960Z [36;1m# Submit for notarization and wait for result[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3460280Z [36;1mecho "Submitting for notarization..."[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3460620Z [36;1mxcrun notarytool submit notarize_payload.zip \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3460930Z [36;1m  --apple-id "$APPLE_ID" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3461190Z [36;1m  --password "$APPLE_ID_PASSWORD" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3461460Z [36;1m  --team-id "$APPLE_TEAM_ID" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3461670Z [36;1m  --wait \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3461870Z [36;1m  --timeout 30m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3462060Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3462270Z [36;1m# Staple the notarization ticket to each bundle[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3462600Z [36;1mecho "Stapling notarization tickets..."[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3462870Z [36;1mif [ -d "${ARTEFACTS_BASE}/VST3" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3463190Z [36;1m  for bundle in "${ARTEFACTS_BASE}/VST3/"*.vst3; do[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3463510Z [36;1m    echo "Stapling: $bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3463760Z [36;1m    xcrun stapler staple "$bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3463980Z [36;1m  done[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3464140Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3464330Z [36;1mif [ -d "${ARTEFACTS_BASE}/AU" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3464630Z [36;1m  for bundle in "${ARTEFACTS_BASE}/AU/"*.component; do[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3464960Z [36;1m    echo "Stapling: $bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3465200Z [36;1m    xcrun stapler staple "$bundle"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3465460Z [36;1m  done[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3465850Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3466070Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3466360Z [36;1m# Clean up[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3466660Z [36;1mrm -rf notarize_payload notarize_payload.zip[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3552140Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3552570Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3552790Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3553650Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3557110Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3557920Z   KEYCHAIN_PATH: /Users/runner/work/_temp/signing.keychain-db
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3602490Z   KEYCHAIN_PWD: dd61ae814743ec6a4a8b979744dc31e6d77be77cf0f0f7b5
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3603090Z   APPLE_ID: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3603330Z   APPLE_ID_PASSWORD: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3603620Z   APPLE_TEAM_ID: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:06:40.3603820Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:06:41.7033960Z Submitting for notarization...
+build-macos	UNKNOWN STEP	2026-02-12T20:06:43.4958140Z Conducting pre-submission checks for notarize_payload.zip and initiating connection to the Apple notary service...
+build-macos	UNKNOWN STEP	2026-02-12T20:06:44.7171880Z Submission ID received
+build-macos	UNKNOWN STEP	2026-02-12T20:06:44.7173560Z   id: 5bb2a1b0-8b18-4ebf-9a9f-be96b28c4633
+build-macos	UNKNOWN STEP	2026-02-12T20:06:47.7006680Z Successfully uploaded file
+build-macos	UNKNOWN STEP	2026-02-12T20:06:47.7008450Z   id: 5bb2a1b0-8b18-4ebf-9a9f-be96b28c4633
+build-macos	UNKNOWN STEP	2026-02-12T20:06:47.7015840Z   path: /Users/runner/work/VST-development/VST-development/notarize_payload.zip
+build-macos	UNKNOWN STEP	2026-02-12T20:06:47.7023140Z Waiting for processing to complete. Wait timeout is set to 1800.0 second(s).
+build-macos	UNKNOWN STEP	2026-02-12T20:06:53.4746350Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:06:59.0559350Z Current status: In Progress...
+build-macos	UNKNOWN STEP	2026-02-12T20:07:04.8366510Z Current status: In Progress....
+build-macos	UNKNOWN STEP	2026-02-12T20:07:10.2186470Z Current status: In Progress.....
+build-macos	UNKNOWN STEP	2026-02-12T20:07:16.7236480Z Current status: In Progress......
+build-macos	UNKNOWN STEP	2026-02-12T20:07:25.1648800Z Current status: In Progress.......
+build-macos	UNKNOWN STEP	2026-02-12T20:07:25.1658660Z Current status: Accepted........Processing complete
+build-macos	UNKNOWN STEP	2026-02-12T20:07:25.1662980Z   id: 5bb2a1b0-8b18-4ebf-9a9f-be96b28c4633
+build-macos	UNKNOWN STEP	2026-02-12T20:07:25.1663530Z   status: Accepted
+build-macos	UNKNOWN STEP	2026-02-12T20:07:25.1823130Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:07:25.1838460Z Stapling notarization tickets...
+build-macos	UNKNOWN STEP	2026-02-12T20:07:25.1931950Z Stapling: build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.2716670Z Processing: /Users/runner/work/VST-development/VST-development/build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.5345350Z Processing: /Users/runner/work/VST-development/VST-development/build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/VST3/O-Tremolo.vst3
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.5714900Z The staple and validate action worked!
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.5727400Z Stapling: build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/AU/O-Tremolo.component
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.5888440Z Processing: /Users/runner/work/VST-development/VST-development/build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/AU/O-Tremolo.component
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7108310Z Processing: /Users/runner/work/VST-development/VST-development/build/plugins/O-Tremolo/OuariconTremolo_artefacts/Release/AU/O-Tremolo.component
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7291780Z The staple and validate action worked!
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7564550Z ##[group]Run PLUGIN="O-Tremolo"
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7565410Z [36;1mPLUGIN="O-Tremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7565690Z [36;1mVERSION="1.4.2"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7566030Z [36;1mTARGET="OuariconTremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7566440Z [36;1mARTEFACTS_BASE="build/plugins/${PLUGIN}/${TARGET}_artefacts/Release"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7566940Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7567320Z [36;1m# Get PRODUCT_NAME from CMakeLists.txt[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7567910Z [36;1mPRODUCT_NAME=$(grep -E "PRODUCT_NAME" "plugins/${PLUGIN}/CMakeLists.txt" | head -1 | sed 's/.*PRODUCT_NAME "\([^"]*\)".*/\1/')[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7568620Z [36;1m# Strip CMake variable references like ${OUARICON_DEV_SUFFIX}[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7569200Z [36;1mPRODUCT_NAME=$(echo "$PRODUCT_NAME" | sed 's/\${[^}]*}//g')[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7569580Z [36;1mPRODUCT_NAME="${PRODUCT_NAME:-$PLUGIN}"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7570140Z [36;1mBUNDLE_ID="io.oaudio.$(echo "$PLUGIN" | tr '[:upper:]' '[:lower:]')"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7570650Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7571020Z [36;1mecho "Building PKG for: $PRODUCT_NAME v$VERSION"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7571390Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7571690Z [36;1m# Setup directories[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7571970Z [36;1mPKG_DIR="$RUNNER_TEMP/pkg-build"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7572630Z [36;1mmkdir -p "$PKG_DIR/payload/${PLUGIN}" "$PKG_DIR/scripts" "$PKG_DIR/resources"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7573170Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7573440Z [36;1m# Copy signed+notarized bundles to payload[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7573850Z [36;1mif [ -d "${ARTEFACTS_BASE}/VST3" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7574360Z [36;1m  cp -R "${ARTEFACTS_BASE}/VST3/"*.vst3 "$PKG_DIR/payload/${PLUGIN}/"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7574720Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7575080Z [36;1mif [ -d "${ARTEFACTS_BASE}/AU" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7575470Z [36;1m  cp -R "${ARTEFACTS_BASE}/AU/"*.component "$PKG_DIR/payload/${PLUGIN}/"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7575920Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7576230Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7576600Z [36;1m# Create postinstall script[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7577010Z [36;1mcat > "$PKG_DIR/scripts/postinstall" << 'POSTINSTALL'[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7577460Z [36;1m#!/bin/bash[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7604600Z [36;1mACTUAL_USER=$(stat -f '%Su' /dev/console)[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7604980Z [36;1mUSER_HOME=$(eval echo ~$ACTUAL_USER)[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7605460Z [36;1mmkdir -p "$USER_HOME/Library/Audio/Plug-Ins/VST3"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7605850Z [36;1mmkdir -p "$USER_HOME/Library/Audio/Plug-Ins/Components"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7606290Z [36;1mfor vst3 in /tmp/__PLUGIN__/*.vst3; do[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7606740Z [36;1m  [ -e "$vst3" ] && cp -R "$vst3" "$USER_HOME/Library/Audio/Plug-Ins/VST3/"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7607100Z [36;1mdone[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7607590Z [36;1mfor au in /tmp/__PLUGIN__/*.component; do[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7608030Z [36;1m  [ -e "$au" ] && cp -R "$au" "$USER_HOME/Library/Audio/Plug-Ins/Components/"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7608470Z [36;1mdone[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7608950Z [36;1mchown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Audio/Plug-Ins/VST3/" 2>/dev/null || true[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7609550Z [36;1mchown -R "$ACTUAL_USER:staff" "$USER_HOME/Library/Audio/Plug-Ins/Components/" 2>/dev/null || true[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7610100Z [36;1mrm -rf "/tmp/__PLUGIN__"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7610480Z [36;1mexit 0[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7610720Z [36;1mPOSTINSTALL[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7611120Z [36;1msed -i '' "s/__PLUGIN__/${PLUGIN}/g" "$PKG_DIR/scripts/postinstall"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7611520Z [36;1mchmod +x "$PKG_DIR/scripts/postinstall"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7611890Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7612200Z [36;1m# Create branding files[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7612490Z [36;1mcat > "$PKG_DIR/resources/Welcome.txt" << EOF[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7612870Z [36;1m${PRODUCT_NAME} by Ouaricon Audio[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7613140Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7614070Z [36;1mWelcome to the ${PRODUCT_NAME} installer.[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7614490Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7614740Z [36;1mThis will install ${PRODUCT_NAME} v${VERSION}.[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7615080Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7615290Z [36;1mWhat You're Installing:[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7616260Z [36;1m• VST3 format (compatible with most DAWs)[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7616720Z [36;1m• AU format (Logic Pro, GarageBand, and more)[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7617050Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7617360Z [36;1mClick Continue to begin installation.[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7617690Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7617920Z [36;1moaudio.io[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7618190Z [36;1mEOF[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7618380Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7618690Z [36;1mcat > "$PKG_DIR/resources/Conclusion.txt" << EOF[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7619130Z [36;1mInstallation Complete![0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7619380Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7619720Z [36;1m${PRODUCT_NAME} has been successfully installed.[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7620030Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7620350Z [36;1mFIND ${PRODUCT_NAME} IN YOUR DAW:[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7620740Z [36;1mVST3: Plugin browser under "Ouaricon Audio"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7621120Z [36;1mAU: Audio Units > Ouaricon Audio > ${PRODUCT_NAME}[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7621530Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7621780Z [36;1mThank you for using ${PRODUCT_NAME}![0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7622120Z [36;1m— Ouaricon Audio | oaudio.io[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7622460Z [36;1mEOF[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7622650Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7622920Z [36;1m# Build component package[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7623170Z [36;1mpkgbuild \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7623540Z [36;1m  --root "$PKG_DIR/payload" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7623890Z [36;1m  --scripts "$PKG_DIR/scripts" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7624180Z [36;1m  --identifier "$BUNDLE_ID" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7624520Z [36;1m  --version "$VERSION" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7624830Z [36;1m  --install-location /tmp \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7625240Z [36;1m  "$PKG_DIR/${PLUGIN}-Installer.pkg"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7625800Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7626070Z [36;1m# Create distribution XML[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7626460Z [36;1mcat > "$PKG_DIR/Distribution.xml" << EOF[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7627020Z [36;1m<?xml version="1.0" encoding="utf-8"?>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7627460Z [36;1m<installer-gui-script minSpecVersion="1">[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7627890Z [36;1m    <title>${PRODUCT_NAME} by Ouaricon Audio</title>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7628330Z [36;1m    <organization>io.oaudio</organization>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7628740Z [36;1m    <domains enable_localSystem="true"/>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7629250Z [36;1m    <options customize="never" require-scripts="true" rootVolumeOnly="true" />[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7629720Z [36;1m    <welcome file="Welcome.txt" mime-type="text/plain" />[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7656490Z [36;1m    <conclusion file="Conclusion.txt" mime-type="text/plain" />[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7657150Z [36;1m    <pkg-ref id="${BUNDLE_ID}"><bundle-version/></pkg-ref>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7657530Z [36;1m    <choices-outline>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7657930Z [36;1m        <line choice="default">[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7658330Z [36;1m            <line choice="${BUNDLE_ID}"/>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7658680Z [36;1m        </line>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7658870Z [36;1m    </choices-outline>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7659250Z [36;1m    <choice id="default"/>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7659500Z [36;1m    <choice id="${BUNDLE_ID}" visible="false">[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7659760Z [36;1m        <pkg-ref id="${BUNDLE_ID}"/>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7660120Z [36;1m    </choice>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7660610Z [36;1m    <pkg-ref id="${BUNDLE_ID}" version="${VERSION}" onConclusion="none">${PLUGIN}-Installer.pkg</pkg-ref>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7661130Z [36;1m</installer-gui-script>[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7661460Z [36;1mEOF[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7661670Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7662340Z [36;1m# Build branded product[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7662560Z [36;1mproductbuild \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7662790Z [36;1m  --distribution "$PKG_DIR/Distribution.xml" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7663060Z [36;1m  --resources "$PKG_DIR/resources" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7663290Z [36;1m  --package-path "$PKG_DIR" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7663620Z [36;1m  "$PKG_DIR/${PLUGIN}-unsigned.pkg"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7663880Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7664020Z [36;1m# Sign the package[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7665050Z [36;1mINSTALLER_IDENTITY="Developer ID Installer: *** ($APPLE_TEAM_ID)"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7665510Z [36;1mecho "Signing PKG with: $INSTALLER_IDENTITY"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7665850Z [36;1mproductsign \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7666140Z [36;1m  --sign "$INSTALLER_IDENTITY" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7666430Z [36;1m  "$PKG_DIR/${PLUGIN}-unsigned.pkg" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7666790Z [36;1m  "${PLUGIN}-${VERSION}-macos.pkg"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7667000Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7667210Z [36;1m# Verify signature[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7667540Z [36;1mpkgutil --check-signature "${PLUGIN}-${VERSION}-macos.pkg"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7668110Z [36;1mecho "Created: ${PLUGIN}-${VERSION}-macos.pkg"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7784760Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7784980Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7785250Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7785570Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7785890Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7786310Z   KEYCHAIN_PATH: /Users/runner/work/_temp/signing.keychain-db
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7786740Z   KEYCHAIN_PWD: dd61ae814743ec6a4a8b979744dc31e6d77be77cf0f0f7b5
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7787330Z   APPLE_TEAM_ID: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.7787620Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:07:26.8655160Z Building PKG for: O-Tremolo v1.4.2
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.0452010Z pkgbuild: Inferring bundle components from contents of /Users/runner/work/_temp/pkg-build/payload
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.0454080Z pkgbuild: Adding component at O-Tremolo/O-Tremolo.vst3
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.0455620Z pkgbuild: Adding component at O-Tremolo/O-Tremolo.component
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.0457250Z pkgbuild: Adding top-level postinstall script
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.0460880Z pkgbuild: Wrote package to /Users/runner/work/_temp/pkg-build/O-Tremolo-Installer.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.0797330Z productbuild: Wrote product to /Users/runner/work/_temp/pkg-build/O-Tremolo-unsigned.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.0800910Z Signing PKG with: Developer ID Installer: *** (***)
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.3794700Z productsign: using timestamp authority for signature
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.3798960Z productsign: signing product with identity "Developer ID Installer: *** (***)" from keychain /Users/runner/work/_temp/signing.keychain-db
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.3799900Z productsign: adding certificate "Developer ID Certification Authority"
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.3801470Z productsign: adding certificate "Apple Root CA"
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.3802620Z productsign: Wrote signed product archive to O-Tremolo-1.4.2-macos.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5370730Z Package "O-Tremolo-1.4.2-macos.pkg":
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5373090Z    Status: signed by a developer certificate issued by Apple for distribution
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5373620Z    Signed with a trusted timestamp on: 2026-02-12 20:07:28 +0000
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5373940Z    Certificate Chain:
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5375890Z     1. Developer ID Installer: *** (***)
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5376460Z        Expires: 2031-01-28 00:58:50 +0000
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5376710Z        SHA256 Fingerprint:
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5376960Z            DE 1B 84 04 69 BB 88 41 45 FE 7E 22 72 C1 21 E8 25 F2 64 E4 04 66 
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5377290Z            8F 91 9D 2D A5 FC B2 A4 86 0A
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5377640Z        ------------------------------------------------------------------------
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5378030Z     2. Developer ID Certification Authority
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5378310Z        Expires: 2031-09-17 00:00:00 +0000
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5378560Z        SHA256 Fingerprint:
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5379320Z            F1 6C D3 C5 4C 7F 83 CE A4 BF 1A 3E 6A 08 19 C8 AA A8 E4 A1 52 8F 
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5379670Z            D1 44 71 5F 35 06 43 D2 DF 3A
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5379960Z        ------------------------------------------------------------------------
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5380250Z     3. Apple Root CA
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5380450Z        Expires: 2035-02-09 21:40:36 +0000
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5380670Z        SHA256 Fingerprint:
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5380950Z            B0 B1 73 0E CB C7 FF 45 05 14 2C 49 F1 29 5E 6E DA 6B CA ED 7E 2C 
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5381250Z            68 C5 BE 91 B5 A1 10 01 F0 24
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5381410Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5381490Z Created: O-Tremolo-1.4.2-macos.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5412460Z ##[group]Run PLUGIN="O-Tremolo"
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5412770Z [36;1mPLUGIN="O-Tremolo"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5413000Z [36;1mVERSION="1.4.2"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5413260Z [36;1mPKG_FILE="${PLUGIN}-${VERSION}-macos.pkg"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5413500Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5413720Z [36;1mecho "Submitting PKG for notarization..."[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5414010Z [36;1mxcrun notarytool submit "$PKG_FILE" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5414280Z [36;1m  --apple-id "$APPLE_ID" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5414560Z [36;1m  --password "$APPLE_ID_PASSWORD" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5414820Z [36;1m  --team-id "$APPLE_TEAM_ID" \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5415100Z [36;1m  --wait \[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5415310Z [36;1m  --timeout 30m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5415490Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5415710Z [36;1mecho "Stapling notarization ticket to PKG..."[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5416110Z [36;1mxcrun stapler staple "$PKG_FILE"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5416350Z [36;1m[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5416620Z [36;1mecho "PKG notarized and stapled successfully"[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5471320Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5471630Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5471800Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5472010Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5472310Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5472710Z   KEYCHAIN_PATH: /Users/runner/work/_temp/signing.keychain-db
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5473080Z   KEYCHAIN_PWD: dd61ae814743ec6a4a8b979744dc31e6d77be77cf0f0f7b5
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5473960Z   APPLE_ID: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5474160Z   APPLE_ID_PASSWORD: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5474380Z   APPLE_TEAM_ID: ***
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.5474560Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.6119300Z Submitting PKG for notarization...
+build-macos	UNKNOWN STEP	2026-02-12T20:07:28.6411240Z Conducting pre-submission checks for O-Tremolo-1.4.2-macos.pkg and initiating connection to the Apple notary service...
+build-macos	UNKNOWN STEP	2026-02-12T20:07:29.6079940Z Submission ID received
+build-macos	UNKNOWN STEP	2026-02-12T20:07:29.6080720Z   id: 226ebd68-788c-4e5f-b407-14fd6a16f87f
+build-macos	UNKNOWN STEP	2026-02-12T20:07:32.2211230Z Successfully uploaded file
+build-macos	UNKNOWN STEP	2026-02-12T20:07:32.2227590Z   id: 226ebd68-788c-4e5f-b407-14fd6a16f87f
+build-macos	UNKNOWN STEP	2026-02-12T20:07:32.2228800Z   path: /Users/runner/work/VST-development/VST-development/O-Tremolo-1.4.2-macos.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:07:32.2229530Z Waiting for processing to complete. Wait timeout is set to 1800.0 second(s).
+build-macos	UNKNOWN STEP	2026-02-12T20:07:37.9552130Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:07:43.5225090Z Current status: In Progress...
+build-macos	UNKNOWN STEP	2026-02-12T20:07:49.1190970Z Current status: In Progress....
+build-macos	UNKNOWN STEP	2026-02-12T20:07:54.4301550Z Current status: In Progress.....
+build-macos	UNKNOWN STEP	2026-02-12T20:07:59.9070560Z Current status: In Progress......
+build-macos	UNKNOWN STEP	2026-02-12T20:08:08.3964810Z Current status: In Progress.......
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.0349780Z Current status: In Progress........
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.0352630Z Current status: Accepted.........Processing complete
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.0353380Z   id: 226ebd68-788c-4e5f-b407-14fd6a16f87f
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.0353900Z   status: Accepted
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.0362470Z 
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.0389840Z Stapling notarization ticket to PKG...
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.0846300Z Processing: /Users/runner/work/VST-development/VST-development/O-Tremolo-1.4.2-macos.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2118180Z Processing: /Users/runner/work/VST-development/VST-development/O-Tremolo-1.4.2-macos.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2194930Z The staple and validate action worked!
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2203570Z PKG notarized and stapled successfully
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2281440Z ##[group]Run if [ -n "$KEYCHAIN_PATH" ]; then
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2282360Z [36;1mif [ -n "$KEYCHAIN_PATH" ]; then[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2282830Z [36;1m  security delete-keychain "$KEYCHAIN_PATH" 2>/dev/null || true[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2283180Z [36;1mfi[0m
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2442270Z shell: /bin/bash -e {0}
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2442550Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2442860Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2443110Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2443500Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2444020Z   KEYCHAIN_PATH: /Users/runner/work/_temp/signing.keychain-db
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2444400Z   KEYCHAIN_PWD: dd61ae814743ec6a4a8b979744dc31e6d77be77cf0f0f7b5
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.2444780Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3237860Z ##[group]Run actions/upload-artifact@v4
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3238450Z with:
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3238790Z   name: macos-build
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3239230Z   path: O-Tremolo-1.4.2-macos.pkg
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3239540Z   if-no-files-found: warn
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3240080Z   compression-level: 6
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3240510Z   overwrite: false
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3240870Z   include-hidden-files: false
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3241170Z env:
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3241490Z   JUCE_VERSION: 8.0.4
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3241740Z   BUILD_TYPE: Release
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3242160Z   JUCE_DIR: /Users/runner/work/VST-development/VST-development/JUCE
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3242680Z   KEYCHAIN_PATH: /Users/runner/work/_temp/signing.keychain-db
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3243580Z   KEYCHAIN_PWD: dd61ae814743ec6a4a8b979744dc31e6d77be77cf0f0f7b5
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.3244120Z ##[endgroup]
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.7104060Z With the provided path, there will be 1 file uploaded
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.7106760Z Artifact name is valid!
+build-macos	UNKNOWN STEP	2026-02-12T20:08:17.7107290Z Root directory input is valid!
+build-macos	UNKNOWN STEP	2026-02-12T20:08:18.0201800Z Beginning upload of artifact content to blob storage
+build-macos	UNKNOWN STEP	2026-02-12T20:08:21.0205280Z Uploaded bytes 8388608
+build-macos	UNKNOWN STEP	2026-02-12T20:08:23.3161340Z Uploaded bytes 16777216
+build-macos	UNKNOWN STEP	2026-02-12T20:08:23.9022090Z Uploaded bytes 17668897
+build-macos	UNKNOWN STEP	2026-02-12T20:08:23.9940450Z Finished uploading artifact content to blob storage!
+build-macos	UNKNOWN STEP	2026-02-12T20:08:23.9944690Z SHA256 digest of uploaded artifact zip is 297617bb76bf031d0efff03a309e5f3efcc9840baea1926b94394aa5fb837ea5
+build-macos	UNKNOWN STEP	2026-02-12T20:08:23.9975490Z Finalizing artifact upload
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.3174890Z Artifact macos-build.zip successfully finalized. Artifact ID 5489152542
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.3176340Z Artifact macos-build has been successfully uploaded! Final size is 17668897 bytes. Artifact ID is 5489152542
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.3197280Z Artifact download URL: https://github.com/taylorbrook/VST-development/actions/runs/21962190250/artifacts/5489152542
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.3447150Z Post job cleanup.
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.4735710Z [command]/opt/homebrew/bin/git version
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.5038790Z git version 2.52.0
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.5070830Z Copying '/Users/runner/.gitconfig' to '/Users/runner/work/_temp/d5dde7a5-db2e-44c1-bf5e-12eb474b5a3e/.gitconfig'
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.5079910Z Temporarily overriding HOME='/Users/runner/work/_temp/d5dde7a5-db2e-44c1-bf5e-12eb474b5a3e' before making global git config changes
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.5081690Z Adding repository directory to the temporary git global config as a safe directory
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.5091400Z [command]/opt/homebrew/bin/git config --global --add safe.directory /Users/runner/work/VST-development/VST-development
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.5201990Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp core\.sshCommand
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.5263630Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.6151060Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.6339030Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.6383180Z http.https://github.com/.extraheader
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.6392540Z [command]/opt/homebrew/bin/git config --local --unset-all http.https://github.com/.extraheader
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.6454610Z [command]/opt/homebrew/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.7099100Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.7193160Z http.https://github.com/.extraheader
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.7341360Z [command]/opt/homebrew/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.7393430Z [command]/opt/homebrew/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.7973040Z Entering 'plugins/O-Orbit/libs/SAF'
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.8043110Z file:/Users/runner/work/VST-development/VST-development/.git/modules/plugins/O-Orbit/libs/SAF/config	remote.origin.url
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.8108180Z [command]/opt/homebrew/bin/git config --file /Users/runner/work/VST-development/VST-development/.git/modules/plugins/O-Orbit/libs/SAF/config --name-only --get-regexp ^includeIf\.gitdir:
+build-macos	UNKNOWN STEP	2026-02-12T20:08:24.8254170Z Cleaning up orphan processes
+build-windows	UNKNOWN STEP	﻿2026-02-12T20:00:19.8779231Z Current runner version: '2.331.0'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8814940Z ##[group]Runner Image Provisioner
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8816211Z Hosted Compute Agent
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8817018Z Version: 20260123.484
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8817820Z Commit: 6bd6555ca37d84114959e1c76d2c01448ff61c5d
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8819374Z Build Date: 2026-01-23T19:41:17Z
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8820330Z Worker ID: {4fb51a5b-9283-49f2-aeb7-8aed1760c9c2}
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8821377Z Azure Region: eastus
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8822095Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8823885Z ##[group]Operating System
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8825006Z Microsoft Windows Server 2025
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8825842Z 10.0.26100
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8826516Z Datacenter
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8827225Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8827890Z ##[group]Runner Image
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8828667Z Image: windows-2025
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8829410Z Version: 20260209.23.1
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8831421Z Included Software: https://github.com/actions/runner-images/blob/win25/20260209.23/images/windows/Windows2025-Readme.md
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8833844Z Image Release: https://github.com/actions/runner-images/releases/tag/win25%2F20260209.23
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8835310Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8837174Z ##[group]GITHUB_TOKEN Permissions
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8839542Z Contents: read
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8840253Z Metadata: read
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8840991Z Packages: read
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8841781Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8870179Z Secret source: Actions
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.8871191Z Prepare workflow directory
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.9706070Z Prepare all required actions
+build-windows	UNKNOWN STEP	2026-02-12T20:00:19.9759861Z Getting action download info
+build-windows	UNKNOWN STEP	2026-02-12T20:00:20.3110846Z Download action repository 'actions/checkout@v4' (SHA:34e114876b0b11c390a56381ad16ebd13914f8d5)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:20.5390317Z Download action repository 'actions/upload-artifact@v4' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.1810788Z Complete job name: build-windows
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4257277Z ##[group]Run actions/checkout@v4
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4259002Z with:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4259723Z   submodules: recursive
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4260684Z   repository: taylorbrook/VST-development
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4262248Z   token: ***
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4262979Z   ssh-strict: true
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4263790Z   ssh-user: git
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4264574Z   persist-credentials: true
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4265481Z   clean: true
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4266277Z   sparse-checkout-cone-mode: true
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4267307Z   fetch-depth: 1
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4268053Z   fetch-tags: false
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4268842Z   show-progress: true
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4269661Z   lfs: false
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4270476Z   set-safe-directory: true
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4271660Z env:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4272683Z   JUCE_VERSION: 8.0.4
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4273485Z   BUILD_TYPE: Release
+build-windows	UNKNOWN STEP	2026-02-12T20:00:21.4274275Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:23.6422326Z Syncing repository: taylorbrook/VST-development
+build-windows	UNKNOWN STEP	2026-02-12T20:00:23.6424508Z ##[group]Getting Git version info
+build-windows	UNKNOWN STEP	2026-02-12T20:00:23.6425320Z Working directory is 'D:\a\VST-development\VST-development'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:23.6426789Z [command]"C:\Program Files\Git\bin\git.exe" version
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.0953474Z git version 2.53.0.windows.1
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.1108984Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.1141346Z Temporarily overriding HOME='D:\a\_temp\e7425115-d1e8-467a-8f52-a2ad7169327e' before making global git config changes
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.1142862Z Adding repository directory to the temporary git global config as a safe directory
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.1145778Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\VST-development\VST-development
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.1874928Z Deleting the contents of 'D:\a\VST-development\VST-development'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.1882178Z ##[group]Initializing the repository
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.1895809Z [command]"C:\Program Files\Git\bin\git.exe" init D:\a\VST-development\VST-development
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.3114908Z Initialized empty Git repository in D:/a/VST-development/VST-development/.git/
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.3217491Z [command]"C:\Program Files\Git\bin\git.exe" remote add origin https://github.com/taylorbrook/VST-development
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.4976178Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.4982512Z ##[group]Disabling automatic garbage collection
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.5014204Z [command]"C:\Program Files\Git\bin\git.exe" config --local gc.auto 0
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.5415922Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.5418062Z ##[group]Setting up auth
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.5423064Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+build-windows	UNKNOWN STEP	2026-02-12T20:00:24.6163478Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+build-windows	UNKNOWN STEP	2026-02-12T20:00:26.7052386Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+build-windows	UNKNOWN STEP	2026-02-12T20:00:26.7509692Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+build-windows	UNKNOWN STEP	2026-02-12T20:00:27.4100416Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:27.4555273Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+build-windows	UNKNOWN STEP	2026-02-12T20:00:28.1412243Z [command]"C:\Program Files\Git\bin\git.exe" config --local http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+build-windows	UNKNOWN STEP	2026-02-12T20:00:28.1850123Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:28.1873373Z ##[group]Fetching the repository
+build-windows	UNKNOWN STEP	2026-02-12T20:00:28.1901918Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +9bb57aba0a9bd16852188087b05a4a948dab6066:refs/tags/O-Tremolo-v1.4.2
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3004802Z From https://github.com/taylorbrook/VST-development
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3005646Z  * [new ref]         9bb57aba0a9bd16852188087b05a4a948dab6066 -> O-Tremolo-v1.4.2
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3007420Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3007935Z ##[group]Determining the checkout info
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3008515Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3008969Z [command]"C:\Program Files\Git\bin\git.exe" sparse-checkout disable
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3010730Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all extensions.worktreeConfig
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3012100Z ##[group]Checking out the ref
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3012802Z [command]"C:\Program Files\Git\bin\git.exe" checkout --progress --force refs/tags/O-Tremolo-v1.4.2
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3013557Z Updating files:  95% (2027/2120)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3013960Z Updating files:  96% (2036/2120)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3014349Z Updating files:  97% (2057/2120)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3014707Z Updating files:  98% (2078/2120)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3015099Z Updating files:  99% (2099/2120)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3015502Z Updating files: 100% (2120/2120)
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3015954Z Updating files: 100% (2120/2120), done.
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3016514Z Note: switching to 'refs/tags/O-Tremolo-v1.4.2'.
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3016887Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3017210Z You are in 'detached HEAD' state. You can look around, make experimental
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3018055Z changes and commit them, and you can discard any commits you make in this
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3018844Z state without impacting any branches by switching back to a branch.
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3019338Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3019642Z If you want to create a new branch to retain commits you create, you may
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3020389Z do so (now or later) by using -c with the switch command. Example:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3020799Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3020974Z   git switch -c <new-branch-name>
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3022488Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3022637Z Or undo this operation with:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3022900Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3023015Z   git switch -
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3023195Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3023525Z Turn off this advice by setting config variable advice.detachedHead to false
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3024023Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3024215Z HEAD is now at 9bb57ab release(O-Tremolo): v1.4.2
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3025341Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3025879Z ##[group]Setting up auth for fetching submodules
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3027165Z [command]"C:\Program Files\Git\bin\git.exe" config --global http.https://github.com/.extraheader "AUTHORIZATION: basic ***"
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3028865Z [command]"C:\Program Files\Git\bin\git.exe" config --global --unset-all url.https://github.com/.insteadOf
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3030621Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add url.https://github.com/.insteadOf git@github.com:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3032375Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add url.https://github.com/.insteadOf org-52675429@github.com:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3033936Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3034603Z ##[group]Fetching submodules
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3035143Z [command]"C:\Program Files\Git\bin\git.exe" submodule sync --recursive
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.3036602Z [command]"C:\Program Files\Git\bin\git.exe" -c protocol.version=2 submodule update --init --force --depth=1 --recursive
+build-windows	UNKNOWN STEP	2026-02-12T20:00:34.8797478Z Submodule 'plugins/O-Orbit/libs/SAF' (https://github.com/leomccormack/Spatial_Audio_Framework.git) registered for path 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:36.7900279Z Cloning into 'D:/a/VST-development/VST-development/plugins/O-Orbit/libs/SAF'...
+build-windows	UNKNOWN STEP	2026-02-12T20:00:39.7212643Z From https://github.com/leomccormack/Spatial_Audio_Framework
+build-windows	UNKNOWN STEP	2026-02-12T20:00:39.7213763Z  * branch            b6fe188288ecd59fef9e46bf6bfe3ed57f0ee9af -> FETCH_HEAD
+build-windows	UNKNOWN STEP	2026-02-12T20:00:40.9113739Z Submodule path 'plugins/O-Orbit/libs/SAF': checked out 'b6fe188288ecd59fef9e46bf6bfe3ed57f0ee9af'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:40.9965661Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local gc.auto 0"
+build-windows	UNKNOWN STEP	2026-02-12T20:00:43.3010262Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:43.8635888Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:43.8657322Z ##[group]Persisting credentials for submodules
+build-windows	UNKNOWN STEP	2026-02-12T20:00:43.9564611Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'url\.https\:\/\/github\.com\/\.insteadOf' && git config --local --unset-all 'url.https://github.com/.insteadOf' || :\""
+build-windows	UNKNOWN STEP	2026-02-12T20:00:46.7239865Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:47.0084018Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local 'http.https://github.com/.extraheader' 'AUTHORIZATION: basic ***' && git config --local --show-origin --name-only --get-regexp remote.origin.url\""
+build-windows	UNKNOWN STEP	2026-02-12T20:00:52.5973272Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:52.5974202Z file:D:/a/VST-development/VST-development/.git/modules/plugins/O-Orbit/libs/SAF/config	remote.origin.url
+build-windows	UNKNOWN STEP	2026-02-12T20:00:52.5976444Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --add 'url.https://github.com/.insteadOf' 'git@github.com:'"
+build-windows	UNKNOWN STEP	2026-02-12T20:00:52.5977557Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:52.5979074Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --add 'url.https://github.com/.insteadOf' 'org-52675429@github.com:'"
+build-windows	UNKNOWN STEP	2026-02-12T20:00:53.9995440Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0073978Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0077739Z [command]"C:\Program Files\Git\bin\git.exe" log -1 --format=%H
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0078409Z 9bb57aba0a9bd16852188087b05a4a948dab6066
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0454699Z ##[group]Run # Download and extract JUCE
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0455253Z [36;1m# Download and extract JUCE[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0456596Z [36;1mInvoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/8.0.4/juce-8.0.4-windows.zip" -OutFile juce.zip[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0457767Z [36;1mExpand-Archive -Path juce.zip -DestinationPath .[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0458550Z [36;1m# Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.0459451Z [36;1mecho "JUCE_DIR=D:\a\VST-development\VST-development/JUCE" >> $env:GITHUB_ENV[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.4855207Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.4855780Z env:
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.4856072Z   JUCE_VERSION: 8.0.4
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.4856380Z   BUILD_TYPE: Release
+build-windows	UNKNOWN STEP	2026-02-12T20:00:54.4856685Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3901591Z ##[group]Run Register-PackageSource -provider NuGet -name nugetRepository -location https://www.nuget.org/api/v2 -Force
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3902719Z [36;1mRegister-PackageSource -provider NuGet -name nugetRepository -location https://www.nuget.org/api/v2 -Force[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3903579Z [36;1mInstall-Package Microsoft.Web.WebView2 -Scope CurrentUser -RequiredVersion 1.0.1901.177 -Source nugetRepository -Force[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3970628Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3970954Z env:
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3971117Z   JUCE_VERSION: 8.0.4
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3971299Z   BUILD_TYPE: Release
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3971536Z   JUCE_DIR: D:\a\VST-development\VST-development/JUCE
+build-windows	UNKNOWN STEP	2026-02-12T20:01:37.3971807Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:01:43.9565005Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:43.9571928Z [32;1mName                            [0m[32;1m ProviderName    [0m[32;1m IsTrusted [0m[32;1m Location[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:43.9574140Z [32;1m----                            [0m [32;1m------------    [0m [32;1m--------- [0m [32;1m--------[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:43.9579579Z nugetRepository                  NuGet            False      https://www.nuget.org/api/v2
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0678881Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0681542Z [32;1mFastPackageReference : [0m$bnVnZXRSZXBvc2l0b3J5\TWljcm9zb2Z0LldlYi5XZWJWaWV3Mg==\MS4wLjE5MDEuMTc3\bnVnZXRSZXBvc2l0b3J5
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0682892Z [32;1mProviderName         : [0mNuGet
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0684169Z [32;1mSource               : [0mnugetRepository
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0693739Z [32;1mStatus               : [0mInstalled
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0695042Z [32;1mSearchKey            : [0mnugetRepository
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0695728Z [32;1mFullPath             : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0696772Z [32;1mPackageFilename      : [0mMicrosoft.Web.WebView2.1.0.1901.177.nupkg
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0701849Z [32;1mFromTrustedSource    : [0mFalse
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0703164Z [32;1mSummary              : [0mThe WebView2 control enables you to embed web technologies (HTML, CSS, and JavaScript) in your 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0704444Z                        native applications powered by Microsoft Edge (Chromium).
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0706262Z                        This package is necessary for Win32 C/C++, WPF, and WinForms applications. To learn more about 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0711103Z                        package versions checkout https://aka.ms/wv2-packageversion. To learn best practices checkout: 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0718738Z                        https://aka.ms/wv2-bestpractices.
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0719675Z [32;1mSwidTags             : [0m{Microsoft.Web.WebView2}
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0720784Z [32;1mCanonicalId          : [0mnuget:Microsoft.Web.WebView2/1.0.1901.177#nugetRepository
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0722559Z [32;1mMetadata             : [0m{copyright,description,requireLicenseAcceptance,releaseNotes,isLatestVersion,isAbsoluteLatestVer
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0724331Z                        sion,versionDownloadCount,downloadCount,packageSize,published,created,lastEdited,lastUpdated,tag
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0725951Z                        s,title,developmentDependency,updated,NormalizedVersion,Authors,IsPrerelease}
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0727580Z [32;1mSwidTagText          : [0m<?xml version="1.0" encoding="utf-16" standalone="yes"?>
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0728730Z                        <SoftwareIdentity
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0729356Z                          name="Microsoft.Web.WebView2"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0730437Z                          version="1.0.1901.177"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0731030Z                          versionScheme="semver"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0731892Z                          tagId="Microsoft.Web.WebView2#1.0.1901.177"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0732655Z                          xmlns="http://standards.iso.org/iso/19770/-2/2015/schema.xsd">
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.0810525Z                          <Meta
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1604454Z                            copyright="© Microsoft Corporation. All rights reserved."
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1606038Z                            description="The WebView2 control enables you to embed web technologies (HTML, CSS, and 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1607276Z                        JavaScript) in your native applications powered by Microsoft Edge (Chromium).&#xA;This package 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1608790Z                        is necessary for Win32 C/C++, WPF, and WinForms applications. To learn more about package 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1612440Z                        versions checkout https://aka.ms/wv2-packageversion. To learn best practices checkout: 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1613620Z                        https://aka.ms/wv2-bestpractices."
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1615002Z                            requireLicenseAcceptance="False"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1615824Z                            releaseNotes="Release notes are at https://aka.ms/webviewrelease"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1616684Z                            isLatestVersion="False"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1617402Z                            isAbsoluteLatestVersion="False"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1617973Z                            versionDownloadCount="317556"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1618526Z                            downloadCount="33142600"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1619034Z                            packageSize="7845862"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1619563Z                            published="7/24/2023 12:38:32 PM +00:00"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1620142Z                            created="7/24/2023 12:38:32 PM +00:00"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1620720Z                            lastEdited="7/24/2023 12:41:39 PM +00:00"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1621262Z                            lastUpdated="7/24/2023 12:38:32 PM +00:00"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1622035Z                            tags="Microsoft Web WebView Native native package Edge C++ Win32 WPF WinForms dotnet 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1623070Z                        framework core Webview2"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1623626Z                            title="Microsoft.Web.WebView2"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1624184Z                            developmentDependency="False"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1624732Z                            updated="2023-07-24T12:38:32Z"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1625311Z                            NormalizedVersion="1.0.1901.177"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1625864Z                            Authors="Microsoft"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1626359Z                            IsPrerelease="false" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1626815Z                          <Payload>
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1627216Z                            <Directory
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1627716Z                              name="Microsoft.Web.WebView2.1.0.1901.177"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1628529Z                              location="C:\Users\runneradmin\AppData\Local\PackageManagement\NuGet\Packages"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1629223Z                              key="True" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1629641Z                          </Payload>
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1630044Z                          <Link
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1630729Z                            href="https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.1901.177/license"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1631490Z                            rel="license" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1631898Z                          <Link
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1633357Z                            href="https://aka.ms/webview"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1633871Z                            rel="project" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1634306Z                          <Link
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1634974Z                            href="https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.1901.177/ReportAbuse"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1635897Z                            rel="abuse" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1636337Z                          <Link
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1637030Z                            href="https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.1901.177/icon"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1638043Z                            rel="icon" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1638476Z                          <Link
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1639738Z                            href="https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.1901.177"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1640515Z                            rel="galleryDetails" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1641001Z                          <Entity
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1641435Z                            name="Microsoft"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1641893Z                            regId="Microsoft"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1642363Z                            role="author" />
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1642848Z                        </SoftwareIdentity>
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1643817Z [32;1mDependencies         : [0m{}
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1644356Z [32;1mIsCorpus             : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1644967Z [32;1mName                 : [0mMicrosoft.Web.WebView2
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1645633Z [32;1mVersion              : [0m1.0.1901.177
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1646192Z [32;1mVersionScheme        : [0msemver
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1646719Z [32;1mTagVersion           : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1647366Z [32;1mTagId                : [0mMicrosoft.Web.WebView2#1.0.1901.177
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1647971Z [32;1mIsPatch              : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1648469Z [32;1mIsSupplemental       : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1648972Z [32;1mAppliesToMedia       : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1650135Z [32;1mMeta                 : [0m{{copyright,description,requireLicenseAcceptance,releaseNotes,isLatestVersion,isAbsoluteLatestVe
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1651882Z                        rsion,versionDownloadCount,downloadCount,packageSize,published,created,lastEdited,lastUpdated,ta
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1653276Z                        gs,title,developmentDependency,updated,NormalizedVersion,Authors,IsPrerelease}}
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1654665Z [32;1mLinks                : [0m{license:https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.1901.177/license, 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1655535Z                        project:https://aka.ms/webview, 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1656351Z                        abuse:https://www.nuget.org/packages/Microsoft.Web.WebView2/1.0.1901.177/ReportAbuse, 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1657956Z                        icon:https://api.nuget.org/v3-flatcontainer/microsoft.web.webview2/1.0.1901.177/icon…}
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1658880Z [32;1mEntities             : [0m{Microsoft}
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1659721Z [32;1mPayload              : [0mMicrosoft.PackageManagement.Internal.Packaging.Payload
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1660513Z [32;1mEvidence             : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1661581Z [32;1mCulture              : [0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1662274Z [32;1mAttributes           : [0m{name,version,versionScheme,tagId}
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1663186Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.1663278Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2056475Z ##[group]Run cmake -B build -DCMAKE_BUILD_TYPE=Release -DOUARICON_LICENSING=ON -DOUARICON_RELEASE=ON -DOUARICON_SUPABASE_URL="***" -DOUARICON_SUPABASE_ANON_KEY="***"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2058917Z [36;1mcmake -B build -DCMAKE_BUILD_TYPE=Release -DOUARICON_LICENSING=ON -DOUARICON_RELEASE=ON -DOUARICON_SUPABASE_URL="***" -DOUARICON_SUPABASE_ANON_KEY="***"[0m
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2126207Z shell: C:\Program Files\PowerShell\7\pwsh.EXE -command ". '{0}'"
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2126534Z env:
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2126694Z   JUCE_VERSION: 8.0.4
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2127040Z   BUILD_TYPE: Release
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2127279Z   JUCE_DIR: D:\a\VST-development\VST-development/JUCE
+build-windows	UNKNOWN STEP	2026-02-12T20:01:47.2127545Z ##[endgroup]
+build-windows	UNKNOWN STEP	2026-02-12T20:01:48.3740625Z -- Building for: Visual Studio 17 2022
+build-windows	UNKNOWN STEP	2026-02-12T20:01:56.3571775Z -- The C compiler identification is MSVC 19.44.35222.0
+build-windows	UNKNOWN STEP	2026-02-12T20:01:57.8091219Z -- The CXX compiler identification is MSVC 19.44.35222.0
+build-windows	UNKNOWN STEP	2026-02-12T20:01:57.9202584Z -- Detecting C compiler ABI info
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.0433158Z -- Detecting C compiler ABI info - done
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.0606861Z -- Check for working C compiler: C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.0626498Z -- Detecting C compile features
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.0681901Z -- Detecting C compile features - done
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.0877748Z -- Detecting CXX compiler ABI info
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.8708834Z -- Detecting CXX compiler ABI info - done
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.8879910Z -- Check for working CXX compiler: C:/Program Files/Microsoft Visual Studio/2022/Enterprise/VC/Tools/MSVC/14.44.35207/bin/Hostx64/x64/cl.exe - skipped
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.8884942Z -- Detecting CXX compile features
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.8894348Z -- Detecting CXX compile features - done
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.8921830Z -- [Ouaricon] Release branding — COMPANY: Ouaricon Audio, CODE: OuAu
+build-windows	UNKNOWN STEP	2026-02-12T20:01:59.8922997Z -- [Ouaricon] Licensing ENABLED — plugins will require activation
+build-windows	UNKNOWN STEP	2026-02-12T20:02:01.2962732Z -- Configuring juceaide
+build-windows	UNKNOWN STEP	2026-02-12T20:02:05.7584281Z -- Building juceaide
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.2523755Z -- Exporting juceaide
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.2531420Z -- Testing juceaide
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.2919075Z -- Finished setting up juceaide
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3010420Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3011497Z   Target OuariconAnalogEQ has JUCE_BUNDLE_ID 'com.Ouaricon
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3012422Z   Audio.OuariconAnalogEQ', which contains spaces.  Use the BUNDLE_ID option
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3013293Z   to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3013846Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3014628Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3015647Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3016456Z   plugins/O-AnalogEQ/CMakeLists.txt:6 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3016958Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3017042Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3125705Z -- Found WebView2: C:/Users/runneradmin/AppData/Local/PackageManagement/NuGet/Packages/Microsoft.Web.WebView2.1.0.1901.177/build/native/include
+build-windows	UNKNOWN STEP	2026-02-12T20:02:57.3420470Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+build-windows	UNKNOWN STEP	2026-02-12T20:02:58.2417055Z -- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed
+build-windows	UNKNOWN STEP	2026-02-12T20:02:58.2417722Z -- Looking for pthread_create in pthreads
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2561356Z -- Looking for pthread_create in pthreads - not found
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2562036Z -- Looking for pthread_create in pthread
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2893190Z -- Looking for pthread_create in pthread - not found
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2905470Z -- Found Threads: TRUE
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2913018Z -- [Ouaricon] Adding module 'preset-manager' from D:/a/VST-development/VST-development/modules/persistence/preset-manager
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2915354Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-AnalogEQ C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2925315Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2926382Z -- [Ouaricon] Adding module 'licensing' from D:/a/VST-development/VST-development/modules/core/licensing
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2927737Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-AnalogEQ C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2985767Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2986783Z   Target O-AnalogSaturation has JUCE_BUNDLE_ID 'com.Ouaricon
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2987772Z   Audio.O-AnalogSaturation', which contains spaces.  Use the BUNDLE_ID option
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2988913Z   to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2989479Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2990303Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2991441Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2992354Z   plugins/O-AnalogSaturation/CMakeLists.txt:4 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2992977Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.2993060Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3172999Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3174423Z   Target O-Bass has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Bass', which
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3178571Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3179383Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3180184Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3181237Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3182105Z   plugins/O-Bass/CMakeLists.txt:4 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3182583Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3182664Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3356930Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3358023Z   Target O-Bells has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Bells', which
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3359029Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3359818Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3360634Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3361622Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3362490Z   plugins/O-Bells/CMakeLists.txt:5 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3363017Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3363099Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3528471Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3529519Z   Target OuariconChorus has JUCE_BUNDLE_ID 'com.Ouaricon
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3530487Z   Audio.OuariconChorus', which contains spaces.  Use the BUNDLE_ID option to
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3531287Z   specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3531818Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3532642Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3533644Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3534522Z   plugins/O-Chorus/CMakeLists.txt:6 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3535080Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3535161Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3655318Z -- [Ouaricon] Adding module 'preset-manager' from D:/a/VST-development/VST-development/modules/persistence/preset-manager
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3657878Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-Chorus C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3663887Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3665249Z -- [Ouaricon] Adding module 'licensing' from D:/a/VST-development/VST-development/modules/core/licensing
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3668071Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-Chorus C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3725370Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3727451Z   Target O-Comp has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Comp', which
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3728491Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3729270Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3730070Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3731114Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3731953Z   plugins/O-Comp/CMakeLists.txt:5 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3732755Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3732837Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3851412Z -- [Ouaricon] Adding module 'licensing' from D:/a/VST-development/VST-development/modules/core/licensing
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3853762Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-Comp C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3918026Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3919157Z   Target O-Detune has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Detune', which
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3920120Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3920832Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3921649Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3922675Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3923510Z   plugins/O-Detune/CMakeLists.txt:10 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3924019Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.3924099Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4026557Z -- [Ouaricon] Adding module 'preset-manager' from D:/a/VST-development/VST-development/modules/persistence/preset-manager
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4028483Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-Detune C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4033889Z -- [Ouaricon]   Copied preset-manager.js to ui/public/modules/
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4093152Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4094187Z   Target OuariconDigitalDelay has JUCE_BUNDLE_ID 'com.Ouaricon
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4095134Z   Audio.OuariconDigitalDelay', which contains spaces.  Use the BUNDLE_ID
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4096327Z   option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4096878Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4097662Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4098688Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4099554Z   plugins/O-DigiDelay/CMakeLists.txt:6 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4100047Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4100128Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4220822Z -- [Ouaricon] Adding module 'licensing' from D:/a/VST-development/VST-development/modules/core/licensing
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4223353Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-DigiDelay C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4282038Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4283145Z   Target O-Freeze has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-Freeze', which
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4284139Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4284891Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4285710Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4286742Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4287608Z   plugins/O-Freeze/CMakeLists.txt:4 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4288107Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4288187Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4448455Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4449541Z   Target O-FreqPulse has JUCE_BUNDLE_ID 'com.Ouaricon Audio.O-FreqPulse',
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4450586Z   which contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4451679Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4452744Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4453796Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4454687Z   plugins/O-FreqPulse/CMakeLists.txt:7 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4455224Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4455311Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4638402Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4640171Z   Target OuariconGrainScatter has JUCE_BUNDLE_ID 'com.Ouaricon
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4642677Z   Audio.OuariconGrainScatter', which contains spaces.  Use the BUNDLE_ID
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4644645Z   option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4645335Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4646243Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4647251Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4648171Z   plugins/O-GrainScatter/CMakeLists.txt:5 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4648721Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4648826Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4774923Z -- [Ouaricon] Adding module 'licensing' from D:/a/VST-development/VST-development/modules/core/licensing
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4780222Z -- [Ouaricon]   Added D:/a/VST-development/VST-development/plugins/O-GrainScatter C++ sources
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4834874Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4836119Z   Target O-IntonationPad has JUCE_BUNDLE_ID 'com.Ouaricon
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4837160Z   Audio.O-IntonationPad', which contains spaces.  Use the BUNDLE_ID option to
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4838061Z   specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4838607Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4839491Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4840569Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4841552Z   plugins/O-IntonationPad/CMakeLists.txt:4 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4842140Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.4842290Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5007637Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5009036Z   Target OLyrica has JUCE_BUNDLE_ID 'com.Ouaricon Audio.OLyrica', which
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5010130Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5010946Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5011836Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5012940Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5013866Z   plugins/O-Lyrica/CMakeLists.txt:4 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5014416Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5014562Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5176527Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5177972Z   Target OMarimba has JUCE_BUNDLE_ID 'com.Ouaricon Audio.OMarimba', which
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5179105Z   contains spaces.  Use the BUNDLE_ID option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5179920Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5180811Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5181927Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5182874Z   plugins/O-Marimba/CMakeLists.txt:4 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5183439Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5183608Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5343931Z CMake Warning at JUCE/extras/Build/CMake/JUCEUtils.cmake:1722 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5345313Z   Target O-MultiBandCompressor has JUCE_BUNDLE_ID 'com.Ouaricon
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5346860Z   Audio.O-MultiBandCompressor', which contains spaces.  Use the BUNDLE_ID
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5347952Z   option to specify a valid ID.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5348607Z Call Stack (most recent call first):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5349798Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2106 (_juce_set_fallback_properties)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5353404Z   JUCE/extras/Build/CMake/JUCEUtils.cmake:2189 (_juce_initialise_target)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5354969Z   plugins/O-MultiBandCompressor/CMakeLists.txt:4 (juce_add_plugin)
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5356927Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5357109Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5510462Z CMake Error at plugins/O-Orbit/libs/SAF/framework/CMakeLists.txt:6 (message):
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5511569Z   You must define the SAF_PERFORMANCE_LIB environment variable
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5512538Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5512688Z 
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.5516005Z -- Configuring incomplete, errors occurred!
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.6687476Z ##[error]Process completed with exit code 1.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.6937263Z Post job cleanup.
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.9496526Z [command]"C:\Program Files\Git\bin\git.exe" version
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.9785185Z git version 2.53.0.windows.1
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.9949001Z Temporarily overriding HOME='D:\a\_temp\c0e69888-0c61-4fbd-8728-e3be849a12be' before making global git config changes
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.9952402Z Adding repository directory to the temporary git global config as a safe directory
+build-windows	UNKNOWN STEP	2026-02-12T20:02:59.9953638Z [command]"C:\Program Files\Git\bin\git.exe" config --global --add safe.directory D:\a\VST-development\VST-development
+build-windows	UNKNOWN STEP	2026-02-12T20:03:00.0495711Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp core\.sshCommand
+build-windows	UNKNOWN STEP	2026-02-12T20:03:00.1020675Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :\""
+build-windows	UNKNOWN STEP	2026-02-12T20:03:00.7706457Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:03:00.8683650Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+build-windows	UNKNOWN STEP	2026-02-12T20:03:00.8953664Z http.https://github.com/.extraheader
+build-windows	UNKNOWN STEP	2026-02-12T20:03:00.9002927Z [command]"C:\Program Files\Git\bin\git.exe" config --local --unset-all http.https://github.com/.extraheader
+build-windows	UNKNOWN STEP	2026-02-12T20:03:00.9307613Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "sh -c \"git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :\""
+build-windows	UNKNOWN STEP	2026-02-12T20:03:01.4787202Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:03:01.5485673Z http.https://github.com/.extraheader
+build-windows	UNKNOWN STEP	2026-02-12T20:03:01.6079393Z [command]"C:\Program Files\Git\bin\git.exe" config --local --name-only --get-regexp ^includeIf\.gitdir:
+build-windows	UNKNOWN STEP	2026-02-12T20:03:01.6628306Z [command]"C:\Program Files\Git\bin\git.exe" submodule foreach --recursive "git config --local --show-origin --name-only --get-regexp remote.origin.url"
+build-windows	UNKNOWN STEP	2026-02-12T20:03:02.2312276Z Entering 'plugins/O-Orbit/libs/SAF'
+build-windows	UNKNOWN STEP	2026-02-12T20:03:02.2676314Z file:D:/a/VST-development/VST-development/.git/modules/plugins/O-Orbit/libs/SAF/config	remote.origin.url
+build-windows	UNKNOWN STEP	2026-02-12T20:03:02.2946138Z [command]"C:\Program Files\Git\bin\git.exe" config --file D:/a/VST-development/VST-development/.git/modules/plugins/O-Orbit/libs/SAF/config --name-only --get-regexp ^includeIf\.gitdir:
+build-windows	UNKNOWN STEP	2026-02-12T20:03:02.3424196Z Cleaning up orphan processes
+build-windows	UNKNOWN STEP	2026-02-12T20:03:02.3853827Z Terminate orphan process: pid (4584) (vctip)
+build-windows	UNKNOWN STEP	2026-02-12T20:03:02.4022177Z Terminate orphan process: pid (1068) (mspdbsrv)
