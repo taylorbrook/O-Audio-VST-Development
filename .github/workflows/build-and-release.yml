@@ -405,6 +405,7 @@ jobs:
           Install-Package Microsoft.Web.WebView2 -Scope CurrentUser -RequiredVersion 1.0.1901.177 -Source nugetRepository -Force
 
       - name: Configure CMake
+        shell: bash
         run: |
           cmake -B build -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} -DOUARICON_LICENSING=ON -DOUARICON_RELEASE=ON -DSKIP_PLUGINS="O-Orbit" -DOUARICON_SUPABASE_URL="${{ secrets.SUPABASE_URL }}" -DOUARICON_SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
