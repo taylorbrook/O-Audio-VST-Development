@@ -469,8 +469,11 @@ jobs:
           UninstallDisplayName=$PRODUCT_NAME (VST3)
           WizardStyle=modern
 
+          [InstallDelete]
+          Type: filesandordirs; Name: "{app}\$PRODUCT_NAME.vst3"
+
           [Files]
-          Source: "staging\*.vst3"; DestDir: "{app}"; Flags: recursesubdirs
+          Source: "staging\*.vst3"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
           [Messages]
           WelcomeLabel1=$PRODUCT_NAME v$VERSION
