@@ -88,11 +88,12 @@ validation-agent performs both semantic validation (code patterns) AND runtime v
 
 Before running pluginval, locate plugin binaries from build artifacts:
 
+**macOS:**
 ```bash
 # VST3 path
 VST3_PATH="build/plugins/{PluginName}/{PluginName}_artefacts/Release/VST3/{ProductName}.vst3"
 
-# AU path
+# AU path (macOS only)
 AU_PATH="build/plugins/{PluginName}/{PluginName}_artefacts/Release/AU/{ProductName}.component"
 
 # Check existence
@@ -101,6 +102,16 @@ if [ -f "$VST3_PATH" ]; then
 else
   # Binary not found, skip runtime validation
 fi
+```
+
+**Windows (PowerShell):**
+```powershell
+# VST3 path (AU not available on Windows)
+$VST3_PATH = "build\plugins\{PluginName}\{PluginName}_artefacts\Release\VST3\{ProductName}.vst3"
+
+if (Test-Path $VST3_PATH) {
+  # Binary exists, run pluginval
+}
 ```
 
 If binaries don't exist, skip runtime validation gracefully (report in JSON: "pluginval skipped - no binary").
@@ -160,6 +171,8 @@ python3 .claude/hooks/validators/validation-cache.py store "$PLUGIN_NAME" $STAGE
 ### Running Pluginval
 
 **Locate pluginval:**
+
+macOS:
 ```bash
 if [ -x "/Applications/pluginval.app/Contents/MacOS/pluginval" ]; then
     PLUGINVAL="/Applications/pluginval.app/Contents/MacOS/pluginval"
@@ -170,6 +183,17 @@ else
     exit 1
 fi
 ```
+
+Windows (PowerShell):
+```powershell
+$PLUGINVAL = Get-Command pluginval -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Source
+if (-not $PLUGINVAL) {
+    Write-Host "pluginval not found - download from https://github.com/Tracktion/pluginval/releases"
+    exit 1
+}
+```
+
+Note: On Windows, pluginval is the **sole** validator. `auval` is macOS-only.
 
 **Execute test:**
 ```bash

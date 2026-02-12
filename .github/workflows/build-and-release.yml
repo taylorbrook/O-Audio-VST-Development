@@ -54,12 +54,8 @@ jobs:
           # Download and extract JUCE
           curl -L "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-osx.zip" -o juce.zip
           unzip -q juce.zip
-          # JUCE extracts to JUCE/ directory
-
-      - name: Patch CMakeLists for CI
-        run: |
-          # Replace hardcoded JUCE path with relative path for CI
-          sed -i '' 's|add_subdirectory(/Users/taylorbrook/JUCE JUCE)|add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/JUCE JUCE)|' CMakeLists.txt
+          # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
+          echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $GITHUB_ENV
 
       - name: Configure CMake
         run: |
@@ -399,12 +395,8 @@ jobs:
           # Download and extract JUCE
           Invoke-WebRequest -Uri "https://github.com/juce-framework/JUCE/releases/download/${{ env.JUCE_VERSION }}/juce-${{ env.JUCE_VERSION }}-windows.zip" -OutFile juce.zip
           Expand-Archive -Path juce.zip -DestinationPath .
-          # JUCE extracts to JUCE/ directory
-
-      - name: Patch CMakeLists for CI
-        run: |
-          # Replace hardcoded JUCE path with relative path for CI
-          (Get-Content CMakeLists.txt) -replace 'add_subdirectory\(/Users/taylorbrook/JUCE JUCE\)', 'add_subdirectory(${CMAKE_CURRENT_SOURCE_DIR}/JUCE JUCE)' | Set-Content CMakeLists.txt
+          # Set JUCE_DIR so CMake uses the downloaded copy (bypasses hardcoded local paths)
+          echo "JUCE_DIR=${{ github.workspace }}/JUCE" >> $env:GITHUB_ENV
 
       - name: Install WebView2 NuGet Package
         run: |

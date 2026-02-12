@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/SessionStart.sh",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/SessionStart.py",
             "timeout": 5000
           }
         ]
@@ -16,7 +16,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PostCompact-SessionStart.sh",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/PostCompact-SessionStart.py",
             "timeout": 5000
           }
         ]
@@ -28,7 +28,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PostToolUse.sh",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/PostToolUse.py",
             "timeout": 2000
           }
         ]
@@ -39,7 +39,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/PreCompact.sh",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/PreCompact.py",
             "timeout": 10000
           }
         ]
@@ -51,7 +51,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-agent-memory.sh",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/inject-agent-memory.py",
             "timeout": 3000
           }
         ]
@@ -62,7 +62,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "${CLAUDE_PROJECT_DIR}/.claude/hooks/task-validator-dispatch.sh",
+            "command": "python3 ${CLAUDE_PROJECT_DIR}/.claude/hooks/task-validator-dispatch.py",
             "timeout": 15000
           }
         ]

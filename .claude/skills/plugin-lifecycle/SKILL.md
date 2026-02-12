@@ -42,14 +42,18 @@ See `.claude/skills/contract-validation/SKILL.md` for full validation protocol.
 
 ## Overview
 
-This skill handles all plugin lifecycle operations on macOS:
+This skill handles all plugin lifecycle operations:
 
-- **Installation (Mode 1)**: Copy Release binaries to system folders (`~/Library/Audio/Plug-Ins/`)
+- **Installation (Mode 1)**: Copy Release binaries to system folders
 - **Uninstallation (Mode 2)**: Clean removal from system folders (preserves source code)
 - **Reset to Ideation (Mode 3)**: Remove implementation, keep idea/mockups (surgical rollback)
 - **Destroy (Mode 4)**: Complete removal with backup (nuclear option)
 
 All operations include proper permissions, cache clearing, state tracking, and safety features (confirmations, backups).
+
+**Platform notes:**
+- **macOS:** Installs VST3 + AU to `~/Library/Audio/Plug-Ins/`
+- **Windows:** Installs VST3 only to `C:\Program Files\Common Files\VST3\` (AU is macOS-only)
 
 ---
 
@@ -77,9 +81,10 @@ Determine mode by examining command (see [references/invocation-protocol.md](ref
 
 **IMPORTANT:** Do NOT load other mode reference files. Load only the reference file for the active mode to optimize context window usage.
 
-**Installation targets (macOS):**
-- VST3, AU: `~/Library/Audio/Plug-Ins/VST3/`, `~/Library/Audio/Plug-Ins/Components/`
-- AAX: `~/Library/Application Support/Avid/Audio/Plug-Ins/` (future)
+**Installation targets:**
+- **macOS:** VST3 → `~/Library/Audio/Plug-Ins/VST3/`, AU → `~/Library/Audio/Plug-Ins/Components/`
+- **Windows:** VST3 → `C:\Program Files\Common Files\VST3\` (AU not available)
+- **AAX (future):** macOS: `~/Library/Application Support/Avid/Audio/Plug-Ins/`
 
 ---
 
@@ -247,8 +252,8 @@ After successful operations, check workflow mode before presenting decision menu
 **Creates:**
 
 - System folder installations (non-git-tracked):
-  - `~/Library/Audio/Plug-Ins/VST3/[Product].vst3`
-  - `~/Library/Audio/Plug-Ins/Components/[Product].component`
+  - **macOS:** `~/Library/Audio/Plug-Ins/VST3/[Product].vst3`, `~/Library/Audio/Plug-Ins/Components/[Product].component`
+  - **Windows:** `C:\Program Files\Common Files\VST3\[Product].vst3`
 
 **Blocks:**
 
