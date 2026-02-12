@@ -136,10 +136,130 @@ bool OOrbitProcessor::acceptsMidi() const                     { return false; }
 bool OOrbitProcessor::producesMidi() const                    { return false; }
 bool OOrbitProcessor::isMidiEffect() const                    { return false; }
 double OOrbitProcessor::getTailLengthSeconds() const          { return 0.0; }
-int OOrbitProcessor::getNumPrograms()                         { return 1; }
-int OOrbitProcessor::getCurrentProgram()                      { return 0; }
-void OOrbitProcessor::setCurrentProgram (int)                 {}
-const juce::String OOrbitProcessor::getProgramName (int)      { return {}; }
+
+const std::vector<OOrbitProcessor::FactoryPreset>& OOrbitProcessor::getFactoryPresets()
+{
+    static const std::vector<FactoryPreset> presets =
+    {
+        // ── Stereo Presets ──
+        { "Slow Orbit", {
+            { "path", 0.0f }, { "speed", 0.5f }, { "width", 180.0f }, { "depth", 0.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 0.0f }, { "distance", 1.0f },
+            { "air_absorption", 30.0f }, { "attenuation_curve", 1.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "Fast Spiral", {
+            { "path", 0.0f }, { "speed", 4.0f }, { "width", 360.0f }, { "depth", 50.0f },
+            { "tilt", 15.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 0.0f }, { "distance", 2.0f },
+            { "air_absorption", 40.0f }, { "attenuation_curve", 1.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "Pendulum Swing", {
+            { "path", 1.0f }, { "speed", 1.0f }, { "width", 120.0f }, { "depth", 0.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 0.0f }, { "distance", 1.0f },
+            { "air_absorption", 20.0f }, { "attenuation_curve", 0.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "Ambient Drift", {
+            { "path", 3.0f }, { "speed", 0.3f }, { "width", 90.0f }, { "depth", 30.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 0.0f }, { "distance", 3.0f },
+            { "air_absorption", 60.0f }, { "attenuation_curve", 2.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 80.0f }
+        }},
+        { "Tempo Quarter", {
+            { "path", 0.0f }, { "speed", 1.0f }, { "width", 180.0f }, { "depth", 0.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 8.0f }, { "speaker_layout", 0.0f }, { "distance", 1.0f },
+            { "air_absorption", 25.0f }, { "attenuation_curve", 1.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+
+        // ── Surround Presets ──
+        { "5.1 Orbit", {
+            { "path", 0.0f }, { "speed", 0.8f }, { "width", 360.0f }, { "depth", 20.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 2.0f }, { "distance", 2.0f },
+            { "air_absorption", 35.0f }, { "attenuation_curve", 1.0f }, { "center_diverge", 20.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "7.1.4 Height Sweep", {
+            { "path", 2.0f }, { "speed", 0.3f }, { "width", 180.0f }, { "depth", 40.0f },
+            { "tilt", 45.0f }, { "phase", 0.0f }, { "elevation_enable", 1.0f }, { "elevation_range", 60.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 5.0f }, { "distance", 3.0f },
+            { "air_absorption", 50.0f }, { "attenuation_curve", 1.0f }, { "center_diverge", 10.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "Quad Drift", {
+            { "path", 3.0f }, { "speed", 0.5f }, { "width", 120.0f }, { "depth", 25.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 1.0f }, { "distance", 2.0f },
+            { "air_absorption", 40.0f }, { "attenuation_curve", 2.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 90.0f }
+        }},
+
+        // ── Creative Presets ──
+        { "L+R Split Wide", {
+            { "path", 0.0f }, { "speed", 0.8f }, { "width", 360.0f }, { "depth", 0.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 0.0f }, { "distance", 1.5f },
+            { "air_absorption", 30.0f }, { "attenuation_curve", 1.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 1.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "Deep Space", {
+            { "path", 0.0f }, { "speed", 0.15f }, { "width", 360.0f }, { "depth", 80.0f },
+            { "tilt", 10.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 0.0f }, { "distance", 20.0f },
+            { "air_absorption", 90.0f }, { "attenuation_curve", 2.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "Tight Focus", {
+            { "path", 0.0f }, { "speed", 1.5f }, { "width", 30.0f }, { "depth", 10.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 0.0f }, { "speaker_layout", 0.0f }, { "distance", 0.5f },
+            { "air_absorption", 10.0f }, { "attenuation_curve", 0.0f }, { "center_diverge", 50.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }},
+        { "Rhythmic Bounce", {
+            { "path", 1.0f }, { "speed", 2.0f }, { "width", 150.0f }, { "depth", 30.0f },
+            { "tilt", 0.0f }, { "phase", 0.0f }, { "elevation_enable", 0.0f }, { "elevation_range", 45.0f },
+            { "tempo_sync", 5.0f }, { "speaker_layout", 0.0f }, { "distance", 1.5f },
+            { "air_absorption", 25.0f }, { "attenuation_curve", 1.0f }, { "center_diverge", 0.0f },
+            { "source_mode", 0.0f }, { "lr_offset", 180.0f }, { "mix", 100.0f }
+        }}
+    };
+
+    return presets;
+}
+
+int OOrbitProcessor::getNumPrograms()    { return (int) getFactoryPresets().size(); }
+int OOrbitProcessor::getCurrentProgram() { return currentProgramIndex; }
+
+void OOrbitProcessor::setCurrentProgram (int index)
+{
+    if (index < 0 || index >= getNumPrograms())
+        return;
+
+    currentProgramIndex = index;
+    const auto& preset = getFactoryPresets()[(size_t) index];
+
+    for (const auto& [paramId, value] : preset.values)
+    {
+        if (auto* param = parameters.getParameter (paramId))
+            param->setValueNotifyingHost (param->convertTo0to1 (value));
+    }
+}
+
+const juce::String OOrbitProcessor::getProgramName (int index)
+{
+    if (index < 0 || index >= getNumPrograms())
+        return {};
+    return getFactoryPresets()[(size_t) index].name;
+}
+
 void OOrbitProcessor::changeProgramName (int, const juce::String&) {}
 bool OOrbitProcessor::hasEditor() const                       { return true; }
 
@@ -181,16 +301,83 @@ float OOrbitProcessor::wrapAngle (float angle)
 
 void OOrbitProcessor::handleAsyncUpdate()
 {
-    // Called on message thread when speaker layout changes
+    // Called on message thread when speaker layout changes via preset dropdown
+    if (useCustomLayout)
+        return;  // Custom layout takes precedence — don't overwrite with preset
+
     int layoutIndex = static_cast<int> (speakerLayoutParam->load());
     currentLayout = SpeakerPresets::getPreset (layoutIndex);
+    lastSpeakerLayoutIndex = layoutIndex;
+    applyLayout (currentLayout);
+}
+
+void OOrbitProcessor::applyLayout (const SpeakerLayout& layout)
+{
+    // Queue layout for audio thread to consume (avoids data races on vbapRenderer/downmixEngine)
+    {
+        const juce::SpinLock::ScopedLockType lock (pendingLayoutLock);
+        pendingLayout = layout;
+    }
+    layoutPending.store (true, std::memory_order_release);
+
+    // VBAP background thread recomputation is safe (uses its own lock-free exchange)
+    if (layout.getChannelCount() >= 4)
+        vbapThread.requestRecomputation (layout);
+}
+
+void OOrbitProcessor::applyLayoutOnAudioThread (const SpeakerLayout& layout)
+{
+    currentLayout = layout;
     layoutNumSpeakers = currentLayout.getChannelCount();
     vbapRenderer.prepare (currentLayout);
-    lastSpeakerLayoutIndex = layoutIndex;
+    downmixEngine.prepare (currentLayout, getTotalNumOutputChannels());
+}
 
-    // Trigger background VBAP gain table recomputation for 4+ speakers
-    if (layoutNumSpeakers >= 4)
-        vbapThread.requestRecomputation (currentLayout);
+void OOrbitProcessor::setCustomSpeakerLayout (const SpeakerLayout& layout)
+{
+    useCustomLayout = true;
+    customLayout = layout;
+    applyLayout (customLayout);
+}
+
+void OOrbitProcessor::addSpeakerToLayout (float azimuth, float elevation, float distance, const juce::String& label)
+{
+    if (! useCustomLayout)
+    {
+        customLayout = currentLayout;
+        useCustomLayout = true;
+    }
+    customLayout.speakers.push_back ({ azimuth, elevation, distance, label, false });
+    applyLayout (customLayout);
+}
+
+void OOrbitProcessor::removeSpeakerFromLayout (int index)
+{
+    if (! useCustomLayout)
+    {
+        customLayout = currentLayout;
+        useCustomLayout = true;
+    }
+    if (index >= 0 && index < (int) customLayout.speakers.size() && customLayout.speakers.size() > 2)
+    {
+        customLayout.speakers.erase (customLayout.speakers.begin() + index);
+        applyLayout (customLayout);
+    }
+}
+
+void OOrbitProcessor::moveSpeakerInLayout (int index, float azimuth, float elevation)
+{
+    if (! useCustomLayout)
+    {
+        customLayout = currentLayout;
+        useCustomLayout = true;
+    }
+    if (index >= 0 && index < (int) customLayout.speakers.size())
+    {
+        customLayout.speakers[(size_t) index].azimuth = azimuth;
+        customLayout.speakers[(size_t) index].elevation = elevation;
+        applyLayout (customLayout);
+    }
 }
 
 void OOrbitProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
@@ -201,12 +388,15 @@ void OOrbitProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     distanceModel.prepare (sampleRate);
     distanceModelR.prepare (sampleRate);
 
-    // Initialize speaker layout from current param
-    int layoutIndex = static_cast<int> (speakerLayoutParam->load());
-    currentLayout = SpeakerPresets::getPreset (layoutIndex);
+    // Initialize speaker layout
+    if (! useCustomLayout)
+    {
+        int layoutIndex = static_cast<int> (speakerLayoutParam->load());
+        currentLayout = SpeakerPresets::getPreset (layoutIndex);
+        lastSpeakerLayoutIndex = layoutIndex;
+    }
     layoutNumSpeakers = currentLayout.getChannelCount();
     vbapRenderer.prepare (currentLayout);
-    lastSpeakerLayoutIndex = layoutIndex;
 
     // Start VBAP compute thread and trigger initial gain table generation
     if (! vbapThread.isThreadRunning())
@@ -217,10 +407,9 @@ void OOrbitProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     // Initialize auto-downmix engine
     downmixEngine.prepare (currentLayout, getTotalNumOutputChannels());
 
-    // Allocate buffers
-    int maxChannels = std::max (getTotalNumOutputChannels(), layoutNumSpeakers);
+    // Allocate buffers (spatialBuffer sized to max 24 speakers to avoid runtime reallocation)
     dryBuffer.setSize (2, samplesPerBlock);
-    spatialBuffer.setSize (maxChannels, samplesPerBlock);
+    spatialBuffer.setSize (24, samplesPerBlock);
 
     // Smoothed values: 20ms ramp
     speedSmoothed.reset (sampleRate, 0.02);
@@ -234,6 +423,9 @@ void OOrbitProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
     currentGains.fill (0.0f);
     previousGainsR.fill (0.0f);
     currentGainsR.fill (0.0f);
+
+    // Clear any pending layout (we just applied the current one)
+    layoutPending.store (false, std::memory_order_relaxed);
 }
 
 void OOrbitProcessor::releaseResources() {}
@@ -248,6 +440,18 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
 
     if (numSamples == 0)
         return;
+
+    // Apply any pending layout change from message thread
+    if (layoutPending.load (std::memory_order_acquire))
+    {
+        SpeakerLayout newLayout;
+        {
+            const juce::SpinLock::ScopedLockType lock (pendingLayoutLock);
+            newLayout = pendingLayout;
+        }
+        layoutPending.store (false, std::memory_order_release);
+        applyLayoutOnAudioThread (newLayout);
+    }
 
     // Update VBAP gain table from background thread (lock-free try)
     vbapExchange.updateAudioThreadData();
@@ -322,13 +526,9 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     for (int ch = 0; ch < totalNumInputChannels; ++ch)
         dryBuffer.copyFrom (ch, 0, buffer, ch, 0, numSamples);
 
-    // Get motion state: start and end for this block
-    MotionState startState = motionEngine.getCurrentState();
+    // Advance motion engine and get current state for this block
     motionEngine.advance (numSamples);
     MotionState endState = motionEngine.getCurrentState();
-
-    // Prepare azimuth end for shortest-arc interpolation
-    float endAz = shortestArc (startState.azimuth, endState.azimuth);
 
     // Save previous gains for smoothing, compute new block gains
     previousGains = currentGains;
@@ -347,10 +547,8 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
                                    currentGainsR.data(), layoutNumSpeakers);
     }
 
-    // Clear spatial buffer
+    // Clear spatial buffer (clamped to buffer capacity — resizing done in applyLayout)
     int spatialChannels = std::min (layoutNumSpeakers, (int) spatialBuffer.getNumChannels());
-    if (spatialChannels > spatialBuffer.getNumChannels())
-        spatialBuffer.setSize (spatialChannels, numSamples, false, false, true);
     for (int ch = 0; ch < spatialChannels; ++ch)
         spatialBuffer.clear (ch, 0, numSamples);
 
@@ -358,11 +556,6 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
     for (int sample = 0; sample < numSamples; ++sample)
     {
         float t = (float) sample / (float) numSamples;
-
-        // Interpolated motion state
-        float az   = startState.azimuth   + t * (endAz - startState.azimuth);
-        float el   = startState.elevation + t * (endState.elevation - startState.elevation);
-        float d    = startState.distance  + t * (endState.distance  - startState.distance);
 
         // Interpolated VBAP gains
         float gains[24] = {};
@@ -446,12 +639,47 @@ void OOrbitProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce::Midi
             buffer.setSample (ch, s, mixVal * wet + (1.0f - mixVal) * dry);
         }
     }
+
+    // Update UI motion snapshot (relaxed atomics, read by editor timer)
+    uiAzimuthL.store (endState.azimuth, std::memory_order_relaxed);
+    uiElevationL.store (endState.elevation, std::memory_order_relaxed);
+    uiDistance.store (dist, std::memory_order_relaxed);
+
+    if (sourceMode == 1)
+    {
+        float rAz = wrapAngle (endState.azimuth + lrOffset);
+        uiAzimuthR.store (rAz, std::memory_order_relaxed);
+        uiElevationR.store (endState.elevation, std::memory_order_relaxed);
+    }
+    else
+    {
+        uiAzimuthR.store (endState.azimuth, std::memory_order_relaxed);
+        uiElevationR.store (endState.elevation, std::memory_order_relaxed);
+    }
 }
 
 void OOrbitProcessor::getStateInformation (juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
+
+    if (useCustomLayout)
+    {
+        auto* customXml = xml->createNewChildElement ("CustomLayout");
+        customXml->setAttribute ("name", customLayout.name);
+        customXml->setAttribute ("is3D", customLayout.is3D);
+
+        for (const auto& spk : customLayout.speakers)
+        {
+            auto* spkXml = customXml->createNewChildElement ("Speaker");
+            spkXml->setAttribute ("azimuth", spk.azimuth);
+            spkXml->setAttribute ("elevation", spk.elevation);
+            spkXml->setAttribute ("distance", spk.distance);
+            spkXml->setAttribute ("label", spk.label);
+            spkXml->setAttribute ("isLFE", spk.isLFE);
+        }
+    }
+
     copyXmlToBinary (*xml, destData);
 }
 
@@ -459,9 +687,41 @@ void OOrbitProcessor::setStateInformation (const void* data, int sizeInBytes)
 {
     std::unique_ptr<juce::XmlElement> xmlState (getXmlFromBinary (data, sizeInBytes));
 
-    if (xmlState != nullptr)
-        if (xmlState->hasTagName (parameters.state.getType()))
-            parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+    if (xmlState != nullptr && xmlState->hasTagName (parameters.state.getType()))
+    {
+        // Check for custom layout before restoring APVTS
+        auto* customXml = xmlState->getChildByName ("CustomLayout");
+        if (customXml != nullptr)
+        {
+            customLayout.name = customXml->getStringAttribute ("name", "Custom");
+            customLayout.is3D = customXml->getBoolAttribute ("is3D", false);
+            customLayout.speakers.clear();
+
+            for (auto* spkXml : customXml->getChildIterator())
+            {
+                if (spkXml->hasTagName ("Speaker"))
+                {
+                    Speaker spk;
+                    spk.azimuth   = (float) spkXml->getDoubleAttribute ("azimuth", 0.0);
+                    spk.elevation = (float) spkXml->getDoubleAttribute ("elevation", 0.0);
+                    spk.distance  = (float) spkXml->getDoubleAttribute ("distance", 1.0);
+                    spk.label     = spkXml->getStringAttribute ("label", "?");
+                    spk.isLFE     = spkXml->getBoolAttribute ("isLFE", false);
+                    customLayout.speakers.push_back (spk);
+                }
+            }
+
+            useCustomLayout = true;
+
+            // Remove custom XML so APVTS doesn't see it
+            xmlState->removeChildElement (customXml, true);
+        }
+
+        parameters.replaceState (juce::ValueTree::fromXml (*xmlState));
+
+        if (useCustomLayout)
+            applyLayout (customLayout);
+    }
 }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

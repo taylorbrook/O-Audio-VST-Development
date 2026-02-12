@@ -39,6 +39,17 @@ target_sources(OuariconOrbit
         Source/DSP/VBAPDataExchange.h
 )
 
+# WebView UI Resources
+juce_add_binary_data(OuariconOrbit_WebUI
+    SOURCES
+        Resources/ui/index.html
+        Resources/ui/css/styles.css
+        Resources/ui/js/app.js
+        Resources/ui/js/juce/index.js
+        Resources/ui/js/juce/check_native_interop.js
+        Resources/ui/img/shell.png
+)
+
 target_include_directories(OuariconOrbit
     PRIVATE
         Source
@@ -49,6 +60,7 @@ target_include_directories(OuariconOrbit
 
 target_link_libraries(OuariconOrbit
     PRIVATE
+        OuariconOrbit_WebUI
         saf
         juce::juce_audio_basics
         juce::juce_audio_devices

@@ -45,7 +45,39 @@ public:
 
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // UI motion snapshot (written by audio thread, read by UI timer)
+    std::atomic<float> uiAzimuthL  { 0.0f };
+    std::atomic<float> uiElevationL { 0.0f };
+    std::atomic<float> uiAzimuthR  { 0.0f };
+    std::atomic<float> uiElevationR { 0.0f };
+    std::atomic<float> uiDistance   { 1.0f };
+
+    float getUIAzimuthL() const   { return uiAzimuthL.load (std::memory_order_relaxed); }
+    float getUIElevationL() const { return uiElevationL.load (std::memory_order_relaxed); }
+    float getUIAzimuthR() const   { return uiAzimuthR.load (std::memory_order_relaxed); }
+    float getUIElevationR() const { return uiElevationR.load (std::memory_order_relaxed); }
+    float getUIDistance() const   { return uiDistance.load (std::memory_order_relaxed); }
+
+    const SpeakerLayout& getCurrentLayout() const { return currentLayout; }
+    const DownmixEngine& getDownmixEngine() const { return downmixEngine; }
+
+    // Speaker layout modification (called from message thread via native functions)
+    void setCustomSpeakerLayout (const SpeakerLayout& layout);
+    void addSpeakerToLayout (float azimuth, float elevation, float distance, const juce::String& label);
+    void removeSpeakerFromLayout (int index);
+    void moveSpeakerInLayout (int index, float azimuth, float elevation);
+    bool isUsingCustomLayout() const { return useCustomLayout; }
+
+    struct FactoryPreset
+    {
+        juce::String name;
+        std::vector<std::pair<juce::String, float>> values;
+    };
+
+    static const std::vector<FactoryPreset>& getFactoryPresets();
+
 private:
+    int currentProgramIndex = 0;
     static float shortestArc (float from, float to);
     static float wrapAngle (float angle);
 
@@ -97,6 +129,17 @@ private:
     int lastSpeakerLayoutIndex = -1;
     SpeakerLayout currentLayout;
     int layoutNumSpeakers = 2;
+
+    // Custom layout support
+    bool useCustomLayout = false;
+    SpeakerLayout customLayout;
+    void applyLayout (const SpeakerLayout& layout);
+    void applyLayoutOnAudioThread (const SpeakerLayout& layout);
+
+    // Thread-safe pending layout (message thread writes, audio thread reads)
+    juce::SpinLock pendingLayoutLock;
+    SpeakerLayout pendingLayout;
+    std::atomic<bool> layoutPending { false };
 
     // Smoothed values
     juce::SmoothedValue<float> speedSmoothed;

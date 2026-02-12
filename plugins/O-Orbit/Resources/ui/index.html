@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Orbit</title>
+    <link rel="stylesheet" href="css/styles.css">
+
+    <!-- JUCE Bridge: native interop setup (must load first as regular script) -->
+    <script src="js/juce/check_native_interop.js"></script>
+
+    <!-- App JS (ES module - imports from JUCE bridge index.js) -->
+    <script type="module" src="js/app.js"></script>
+</head>
+<body>
+    <!-- Header -->
+    <header id="header">
+        <h1>O-Orbit</h1>
+        <div id="view-toggle">Motion View</div>
+    </header>
+
+    <!-- Visualizer / Speaker Editor Area -->
+    <section id="visualizer-container">
+        <canvas id="visualizer-canvas"></canvas>
+
+        <!-- Speaker Editor Toolbar (hidden by default) -->
+        <div id="editor-toolbar">
+            <div id="preset-buttons">
+                <button class="preset-btn" data-preset="0">Stereo</button>
+                <button class="preset-btn" data-preset="1">Quad</button>
+                <button class="preset-btn" data-preset="2">5.1</button>
+                <button class="preset-btn" data-preset="3">7.1</button>
+                <button class="preset-btn" data-preset="4">5.1.4</button>
+                <button class="preset-btn" data-preset="5">7.1.4</button>
+                <button class="preset-btn" data-preset="6">Hex</button>
+                <button class="preset-btn" data-preset="7">Oct</button>
+            </div>
+            <div id="file-buttons">
+                <button id="export-btn">Export</button>
+                <button id="import-btn">Import</button>
+            </div>
+        </div>
+    </section>
+
+    <!-- Parameter Controls -->
+    <section id="controls-container">
+        <!-- Motion Group -->
+        <div class="param-group" id="motion-group">
+            <h2 class="group-label">Motion</h2>
+            <div class="param-grid">
+                <!-- Path (dropdown) -->
+                <div class="param-container">
+                    <label for="path">Path</label>
+                    <select id="path" class="param-dropdown">
+                        <option value="0">Orbit</option>
+                        <option value="1">Pendulum</option>
+                        <option value="2">Linear</option>
+                        <option value="3">Drift</option>
+                    </select>
+                </div>
+
+                <!-- Speed (knob) -->
+                <div class="param-container">
+                    <label for="speed">Speed</label>
+                    <div class="knob-container">
+                        <div class="knob" id="speed" data-min="0.01" data-max="20" data-default="1.0" data-unit="Hz"></div>
+                    </div>
+                    <div class="value-display" id="speed-value">1.0 Hz</div>
+                </div>
+
+                <!-- Width (knob) -->
+                <div class="param-container">
+                    <label for="width">Width</label>
+                    <div class="knob-container">
+                        <div class="knob" id="width" data-min="0" data-max="360" data-default="180" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="width-value">180°</div>
+                </div>
+
+                <!-- Depth (knob) -->
+                <div class="param-container">
+                    <label for="depth">Depth</label>
+                    <div class="knob-container">
+                        <div class="knob" id="depth" data-min="0" data-max="100" data-default="0" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="depth-value">0%</div>
+                </div>
+
+                <!-- Tilt (knob) -->
+                <div class="param-container">
+                    <label for="tilt">Tilt</label>
+                    <div class="knob-container">
+                        <div class="knob" id="tilt" data-min="-90" data-max="90" data-default="0" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="tilt-value">0°</div>
+                </div>
+
+                <!-- Phase (knob) -->
+                <div class="param-container">
+                    <label for="phase">Phase</label>
+                    <div class="knob-container">
+                        <div class="knob" id="phase" data-min="0" data-max="360" data-default="0" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="phase-value">0°</div>
+                </div>
+
+                <!-- Elevation Enable (toggle) -->
+                <div class="param-container">
+                    <label for="elevation_enable">Elevation</label>
+                    <div class="toggle-container">
+                        <input type="checkbox" id="elevation_enable" class="param-toggle">
+                        <label for="elevation_enable" class="toggle-label">Off</label>
+                    </div>
+                </div>
+
+                <!-- Elevation Range (knob) -->
+                <div class="param-container">
+                    <label for="elevation_range">Elev Range</label>
+                    <div class="knob-container">
+                        <div class="knob" id="elevation_range" data-min="0" data-max="90" data-default="45" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="elevation_range-value">45°</div>
+                </div>
+
+                <!-- Tempo Sync (dropdown) -->
+                <div class="param-container">
+                    <label for="tempo_sync">Tempo Sync</label>
+                    <select id="tempo_sync" class="param-dropdown">
+                        <option value="0">Off</option>
+                        <option value="1">1/16T</option>
+                        <option value="2">1/16</option>
+                        <option value="3">1/16D</option>
+                        <option value="4">1/8T</option>
+                        <option value="5">1/8</option>
+                        <option value="6">1/8D</option>
+                        <option value="7">1/4T</option>
+                        <option value="8">1/4</option>
+                        <option value="9">1/4D</option>
+                        <option value="10">1/2</option>
+                        <option value="11">1/2D</option>
+                        <option value="12">1 Bar</option>
+                        <option value="13">2 Bars</option>
+                        <option value="14">4 Bars</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+
+        <!-- Spatial Group -->
+        <div class="param-group" id="spatial-group">
+            <h2 class="group-label">Spatial</h2>
+            <div class="param-grid">
+                <!-- Speaker Layout (dropdown) -->
+                <div class="param-container">
+                    <label for="speaker_layout">Speaker Layout</label>
+                    <select id="speaker_layout" class="param-dropdown">
+                        <option value="0">Stereo</option>
+                        <option value="1">Quad</option>
+                        <option value="2">5.1</option>
+                        <option value="3">7.1</option>
+                        <option value="4">5.1.4</option>
+                        <option value="5">7.1.4</option>
+                        <option value="6">Hexaphonic</option>
+                        <option value="7">Octaphonic</option>
+                    </select>
+                    <div id="downmix-badge"></div>
+                </div>
+
+                <!-- Distance (knob) -->
+                <div class="param-container">
+                    <label for="distance">Distance</label>
+                    <div class="knob-container">
+                        <div class="knob" id="distance" data-min="0.1" data-max="30" data-default="1.0" data-unit="m"></div>
+                    </div>
+                    <div class="value-display" id="distance-value">1.0 m</div>
+                </div>
+
+                <!-- Air Absorption (knob) -->
+                <div class="param-container">
+                    <label for="air_absorption">Air Absorption</label>
+                    <div class="knob-container">
+                        <div class="knob" id="air_absorption" data-min="0" data-max="100" data-default="50" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="air_absorption-value">50%</div>
+                </div>
+
+                <!-- Attenuation Curve (dropdown) -->
+                <div class="param-container">
+                    <label for="attenuation_curve">Atten Curve</label>
+                    <select id="attenuation_curve" class="param-dropdown">
+                        <option value="0">Linear</option>
+                        <option value="1">Inverse</option>
+                        <option value="2">Inverse Square</option>
+                    </select>
+                </div>
+
+                <!-- Center Diverge (knob) -->
+                <div class="param-container">
+                    <label for="center_diverge">Center Diverge</label>
+                    <div class="knob-container">
+                        <div class="knob" id="center_diverge" data-min="0" data-max="100" data-default="0" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="center_diverge-value">0%</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Source/Mix Group -->
+        <div class="param-group" id="source-group">
+            <h2 class="group-label">Source / Mix</h2>
+            <div class="param-grid">
+                <!-- Source Mode (dropdown) -->
+                <div class="param-container">
+                    <label for="source_mode">Source Mode</label>
+                    <select id="source_mode" class="param-dropdown">
+                        <option value="0">Mono</option>
+                        <option value="1">L+R Split</option>
+                    </select>
+                </div>
+
+                <!-- L/R Offset (knob) -->
+                <div class="param-container">
+                    <label for="lr_offset">L/R Offset</label>
+                    <div class="knob-container">
+                        <div class="knob" id="lr_offset" data-min="0" data-max="360" data-default="180" data-unit="°"></div>
+                    </div>
+                    <div class="value-display" id="lr_offset-value">180°</div>
+                </div>
+
+                <!-- Mix (knob) -->
+                <div class="param-container">
+                    <label for="mix">Mix</label>
+                    <div class="knob-container">
+                        <div class="knob" id="mix" data-min="0" data-max="100" data-default="100" data-unit="%"></div>
+                    </div>
+                    <div class="value-display" id="mix-value">100%</div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Footer -->
+    <footer id="footer">
+        <span>Ouaricon Audio</span>
+    </footer>
+
+    <!-- Botanical Shell Overlay -->
+    <img src="img/shell.png" id="botanical-overlay" alt="">
+</body>
+</html>

@@ -45,7 +45,7 @@ Ouaricon Plugins:
 | O-SpectralShaper | 📦 Installed | 1.1.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
 | O-GrainScatter | 📦 Installed | 2.0.1 | Audio Effect (Granular Stutter Engine) | 2026-02-09 |
 | O-Chorus | 📦 Installed | 1.2.0 | Audio Effect (Chorus) | 2026-02-08 |
-| O-Orbit | 🚧 Stage 0 | - | Audio Effect (Spatial Orbiter) | 2026-02-09 |
+| O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
