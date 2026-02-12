@@ -262,8 +262,13 @@ void OuariconLicense::refreshOnline()
                 juce::DynamicObject::Ptr activateBody = new juce::DynamicObject();
                 activateBody->setProperty ("license_key",  licenseKey);
                 activateBody->setProperty ("machine_id",   machineId);
+                activateBody->setProperty ("product_id",   productId);
                 activateBody->setProperty ("machine_name", juce::SystemStats::getComputerName());
                 activateBody->setProperty ("os_info",      getOsInfo());
+
+               #ifdef JucePlugin_VersionString
+                activateBody->setProperty ("app_version", juce::String (JucePlugin_VersionString));
+               #endif
 
                 runOnNetworkThread ("OuariconRefresh", [this, activateBody]()
                 {
