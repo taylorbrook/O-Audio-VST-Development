@@ -182,14 +182,15 @@ OuariconAnalogEQAudioProcessorEditor::OuariconAnalogEQAudioProcessorEditor(Ouari
     // License manager lives on the processor (persists across editor open/close).
     auto& license = audioProcessor.getLicenseManager();
     licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
-    addAndMakeVisible(licenseOverlay.get());
+    addChildComponent(licenseOverlay.get());
 
     license.addListener(this);
 
     if (! license.isLicensed())
+    {
+        licenseOverlay->setVisible(true);
         webView->setVisible(false);
-    else
-        licenseOverlay->setVisible(false);
+    }
 #endif
 
     // 3️⃣ Create attachments LAST (depend on relays and webView)
