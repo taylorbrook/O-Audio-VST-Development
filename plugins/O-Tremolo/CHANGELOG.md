@@ -5,6 +5,13 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.3] - 2026-02-12
+
+### Fixed
+
+- **Fixed license overlay blink on macOS** - Auth screen no longer flashes momentarily when opening a licensed plugin. Changed overlay from `addAndMakeVisible` to `addChildComponent` to prevent forced-visible intermediate state during editor construction
+- **Fixed missing macOS activation in portal** - License refresh cycle was omitting `product_id` and `app_version` from the re-activation request body, causing the backend to not properly associate macOS activations with the product. Portal now correctly shows activations for all platforms
+
 ## [1.4.2] - 2026-02-12
 
 ### Fixed
