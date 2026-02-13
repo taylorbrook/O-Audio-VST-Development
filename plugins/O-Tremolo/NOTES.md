@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.4.0
+- **Version:** 1.4.5
 - **Type:** Audio Effect (Tremolo)
 
 ## Lifecycle Timeline

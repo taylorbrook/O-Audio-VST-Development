@@ -118,6 +118,9 @@ OuariconTremoloAudioProcessorEditor::OuariconTremoloAudioProcessorEditor(Ouarico
                 else
                     complete(false);
             })
+            .withNativeFunction("getPluginVersion", [](auto&, auto complete) {
+                complete(juce::String(JucePlugin_VersionString));
+            })
             .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
                 // Create file chooser for preset JSON files
                 fileChooser = std::make_unique<juce::FileChooser>(

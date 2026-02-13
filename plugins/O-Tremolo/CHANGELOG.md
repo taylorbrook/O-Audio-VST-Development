@@ -5,6 +5,12 @@ All notable changes to O-Tremolo will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.4.5] - 2026-02-12
+
+### Added
+
+- **Version number in UI footer** - Added "Ouaricon Audio v1.4.5" branding footer at the bottom of the plugin UI. Version is fetched dynamically from C++ via `getPluginVersion` native function so it always stays in sync with the build
+
 ## [1.4.3] - 2026-02-12
 
 ### Fixed

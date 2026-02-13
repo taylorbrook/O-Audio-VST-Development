@@ -580,6 +580,25 @@
             color: rgba(92, 64, 51, 0.2);
             pointer-events: none;
         }
+
+        .footer-brand {
+            position: absolute;
+            bottom: 6px;
+            left: 0;
+            right: 0;
+            text-align: center;
+            font-size: 9px;
+            letter-spacing: 1.5px;
+            text-transform: uppercase;
+            color: rgba(60, 47, 47, 0.4);
+            pointer-events: none;
+        }
+
+        .footer-brand .version {
+            margin-left: 4px;
+            font-size: 8px;
+            letter-spacing: 1px;
+        }
     </style>
 </head>
 <body>
@@ -648,6 +667,11 @@
                     </div>
                 </div>
             </div>
+        </div>
+
+        <div class="footer-brand">
+            <span>Ouaricon Audio</span>
+            <span class="version" id="versionLabel"></span>
         </div>
     </div>
 
@@ -732,6 +756,15 @@
                 }
             });
             presetManager.initialize();
+
+            // Fetch plugin version from C++ and display in footer
+            const getPluginVersion = getNativeFunction('getPluginVersion');
+            getPluginVersion().then(version => {
+                const versionLabel = document.getElementById('versionLabel');
+                if (versionLabel && version) {
+                    versionLabel.textContent = 'v' + version;
+                }
+            });
 
             // Preset dropdown functionality
             function showPresetDropdown() {
