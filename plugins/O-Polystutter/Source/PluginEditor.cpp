@@ -187,6 +187,11 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
     // Initialize WebView SECOND (depends on relays via withOptionsFrom)
     , webView(std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
+            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options(
+                juce::WebBrowserComponent::Options::WinWebView2{}
+                    .withUserDataFolder(juce::File::getSpecialLocation(
+                        juce::File::SpecialLocationType::tempDirectory)))
             .withNativeIntegrationEnabled()
             .withResourceProvider([this](const auto& url) { return getResource(url); })
             // Register ALL relays (CRITICAL: must match parameter IDs exactly)

@@ -11,6 +11,7 @@ juce_add_plugin(OPolystutter
     IS_SYNTH FALSE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
 )
 
 # Source files
@@ -77,6 +78,7 @@ target_link_libraries(OPolystutter
 target_compile_definitions(OPolystutter
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
-        JUCE_WEB_BROWSER=1  # Enable WebView support
-        JUCE_USE_CURL=0     # Disable CURL (not needed for local HTML)
+        JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
+        JUCE_USE_CURL=0
 )

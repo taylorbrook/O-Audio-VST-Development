@@ -18,6 +18,7 @@ juce_add_plugin(O-Bells
 
     # WebView UI configuration
     NEEDS_WEB_BROWSER TRUE
+    NEEDS_WEBVIEW2 TRUE
     EDITOR_WANTS_KEYBOARD_FOCUS FALSE
 )
 
@@ -71,6 +72,7 @@ target_compile_definitions(O-Bells
     PUBLIC
         JUCE_VST3_CAN_REPLACE_VST2=0
         JUCE_WEB_BROWSER=1
+        JUCE_USE_WIN_WEBVIEW2_WITH_STATIC_LINKING=1
         JUCE_USE_CURL=0
 )
 

@@ -59,6 +59,11 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.18.3: Added section comments for native function organization
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
+            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options(
+                juce::WebBrowserComponent::Options::WinWebView2{}
+                    .withUserDataFolder(juce::File::getSpecialLocation(
+                        juce::File::SpecialLocationType::tempDirectory)))
             .withNativeIntegrationEnabled()
             .withResourceProvider([this](const juce::String& url) {
                 return getResource(url);

@@ -73,6 +73,11 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
 
     // 2️⃣ CREATE WEBVIEW WITH OPTIONS
     auto options = juce::WebBrowserComponent::Options{}
+        .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options(
+            juce::WebBrowserComponent::Options::WinWebView2{}
+                .withUserDataFolder(juce::File::getSpecialLocation(
+                    juce::File::SpecialLocationType::tempDirectory)))
         .withNativeIntegrationEnabled()
         .withResourceProvider([this](const auto& url) { return getResource(url); })
         // Global parameter relays

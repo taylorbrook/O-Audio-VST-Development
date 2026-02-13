@@ -58,7 +58,12 @@ OMarimbaAudioProcessorEditor::OMarimbaAudioProcessorEditor(OMarimbaAudioProcesso
     // 2️⃣ Create WebView with options (Pattern 9: NEEDS_WEB_BROWSER required)
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
-            .withNativeIntegrationEnabled()  // CRITICAL: Enables JUCE JavaScript library
+            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+            .withWinWebView2Options(
+                juce::WebBrowserComponent::Options::WinWebView2{}
+                    .withUserDataFolder(juce::File::getSpecialLocation(
+                        juce::File::SpecialLocationType::tempDirectory)))
+            .withNativeIntegrationEnabled()
             .withResourceProvider([this](const auto& url) { return getResource(url); })
             .withOptionsFrom(*malletHardnessRelay)
             .withOptionsFrom(*barMaterialRelay)
