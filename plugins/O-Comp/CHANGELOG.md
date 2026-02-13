@@ -2,6 +2,12 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.4.2] - 2026-02-13
+
+### Fixed
+
+- Fixed license overlay blink on plugin open - overlay now uses `addChildComponent` (hidden by default) instead of `addAndMakeVisible`, preventing brief flash before license check completes
+
 ## [1.4.1] - 2026-02-07
 
 ### Changed

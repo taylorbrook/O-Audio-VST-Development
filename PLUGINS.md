@@ -29,7 +29,7 @@ Ouaricon Plugins:
 | O-Tremolo | 📦 Installed | 1.4.7 | Audio Effect (Tremolo) | 2026-02-12 |
 | O-AnalogSaturation | 📦 Installed | 1.1.1 | Audio Effect (Saturation) | 2026-02-07 |
 | O-Marimba | 📦 Installed | 1.12.0 | Synth (Physical Model) | 2026-02-09 |
-| O-Comp | 📦 Installed | 1.4.1 | Audio Effect (Compressor) | 2026-02-07 |
+| O-Comp | 📦 Installed | 1.4.2 | Audio Effect (Compressor) | 2026-02-13 |
 | O-AnalogEQ | 📦 Installed | 1.1.7 | Audio Effect (EQ) | 2026-02-09 |
 | O-DigiDelay | 📦 Installed | 1.2.6 | Audio Effect (Delay) | 2026-02-09 |
 | O-SimpleReverb | 📦 Installed | 1.5.4 | Audio Effect (Reverb) | 2026-02-08 |
