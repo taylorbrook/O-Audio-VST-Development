@@ -122,6 +122,9 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
                 else
                     complete(false);
             })
+            .withNativeFunction("getPluginVersion", [](auto&, auto complete) {
+                complete(juce::String(JucePlugin_VersionString));
+            })
     ))
     // 3. Create attachments LAST (depend on relays AND webView)
     , timeAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
