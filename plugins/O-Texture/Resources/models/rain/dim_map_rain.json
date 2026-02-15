@@ -1,0 +1,13 @@
+{
+  "texture": "rain",
+  "latent_dim": 32,
+  "active_dims": [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11],
+  "mapping": {
+    "X": {"dim": 0, "variance": 1.0},
+    "Y": {"dim": 1, "variance": 0.9},
+    "CHARACTER_A": {"dim": 2, "variance": 0.8},
+    "CHARACTER_B": {"dim": 3, "variance": 0.7}
+  },
+  "evolve_dims": [4, 5, 6, 7, 8, 9, 10, 11],
+  "inactive_dims": [12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31]
+}

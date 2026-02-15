@@ -1,0 +1,385 @@
+/* ==========================================================================
+   O-TextureForge — Ouaricon Naturalist Aesthetic
+   Aged paper, earth tones, botanical motifs, seed cross-section knobs
+   ========================================================================== */
+
+:root {
+    --paper-bg: #F5E6D3;
+    --paper-mid: #EBD9C7;
+    --paper-deep: #E8D0B8;
+    --text-primary: #3C2F2F;
+    --text-secondary: #8B7355;
+    --knob-cream: #FFF8DC;
+    --knob-wheat-a: #F5DEB3;
+    --knob-wheat-b: #E8D5B7;
+    --knob-border: #8B7355;
+    --knob-indicator: #8B6914;
+    --active-green: #6B8E4E;
+    --active-green-dark: #5C7A3A;
+    --amber: #8B6914;
+    --amber-light: #C9A27B;
+    --toggle-active: rgba(107,142,35,0.5);
+    --font-primary: 'Garamond', 'Georgia', 'Times New Roman', serif;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+body {
+    width: 900px;
+    height: 600px;
+    overflow: hidden;
+    font-family: var(--font-primary);
+    color: var(--text-primary);
+    background:
+        repeating-linear-gradient(
+            0deg,
+            transparent,
+            transparent 2px,
+            rgba(139,115,85,0.03) 2px,
+            rgba(139,115,85,0.03) 4px
+        ),
+        linear-gradient(135deg, var(--paper-bg) 0%, var(--paper-mid) 50%, var(--paper-deep) 100%);
+}
+
+/* Fern botanical overlay */
+body::after {
+    content: '';
+    position: fixed;
+    bottom: 0;
+    right: 0;
+    width: 250px;
+    height: 340px;
+    background-image: url('/images/fern.png');
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: bottom right;
+    opacity: 0.08;
+    pointer-events: none;
+    z-index: 100;
+}
+
+/* ===== HEADER ===== */
+.header {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 16px;
+    border-bottom: 1px solid rgba(139,115,85,0.25);
+}
+
+.header h1 {
+    font-size: 14px;
+    font-weight: 400;
+    letter-spacing: 3px;
+    text-transform: uppercase;
+    color: var(--text-primary);
+}
+
+.header .tagline {
+    font-size: 10px;
+    font-style: italic;
+    color: var(--text-secondary);
+    letter-spacing: 1px;
+}
+
+/* ===== MAIN AREA ===== */
+.main-area {
+    display: flex;
+    height: 444px;
+}
+
+/* Scatter plot container */
+.scatter-container {
+    flex: 2;
+    position: relative;
+    border-right: 1px solid rgba(139,115,85,0.2);
+    padding: 8px;
+}
+
+#scatter-canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+    border-radius: 4px;
+}
+
+#cursor-overlay {
+    position: absolute;
+    top: 8px;
+    left: 8px;
+    right: 8px;
+    bottom: 8px;
+    pointer-events: none;
+    z-index: 10;
+}
+
+.scatter-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 13px;
+    font-style: italic;
+    letter-spacing: 1px;
+    pointer-events: none;
+    z-index: 5;
+}
+
+.scatter-placeholder .fleuron {
+    font-size: 18px;
+    opacity: 0.3;
+    display: block;
+    margin-bottom: 6px;
+}
+
+/* ===== MACRO KNOBS PANEL ===== */
+.macro-panel {
+    flex: 1;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.macro-panel .section-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--text-secondary);
+    margin-bottom: 2px;
+}
+
+.knob-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    height: 50px;
+}
+
+.knob-row .knob-label {
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+    width: 72px;
+    text-align: right;
+}
+
+.knob-row .knob-value {
+    font-size: 9px;
+    color: var(--text-primary);
+    width: 40px;
+    text-align: left;
+    font-variant-numeric: tabular-nums;
+}
+
+/* Fleuron divider */
+.divider {
+    text-align: center;
+    color: var(--text-secondary);
+    opacity: 0.3;
+    font-size: 14px;
+    margin: 2px 0;
+}
+
+/* UMAP progress bar */
+.umap-progress-container {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 4px 0;
+    display: none;
+}
+
+.umap-progress-container.active {
+    display: flex;
+}
+
+.umap-progress-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--text-secondary);
+}
+
+.umap-progress-bar {
+    flex: 1;
+    height: 4px;
+    background: rgba(139,115,85,0.15);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.umap-progress-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--amber), var(--active-green));
+    border-radius: 2px;
+    transition: width 0.3s ease;
+}
+
+/* ===== BOTTOM STRIP ===== */
+.bottom-strip {
+    height: 120px;
+    border-top: 1px solid rgba(139,115,85,0.25);
+    padding: 8px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.bottom-knobs {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+}
+
+.bottom-knob-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+}
+
+.bottom-knob-group .knob-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-secondary);
+}
+
+.bottom-knob-group .knob-value {
+    font-size: 8px;
+    color: var(--text-primary);
+    font-variant-numeric: tabular-nums;
+}
+
+/* Bottom controls row */
+.bottom-controls {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 0 8px;
+}
+
+/* MIDI mode dropdown */
+.midi-mode-select {
+    font-family: var(--font-primary);
+    font-size: 9px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-primary);
+    background: rgba(255,248,220,0.6);
+    border: 1px solid var(--knob-border);
+    border-radius: 3px;
+    padding: 3px 8px;
+    cursor: pointer;
+    outline: none;
+}
+
+.midi-mode-select:focus {
+    border-color: var(--active-green);
+}
+
+.midi-mode-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-secondary);
+}
+
+/* Drop zone */
+.drop-zone {
+    flex: 1;
+    height: 28px;
+    border: 1px dashed rgba(139,115,85,0.35);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    color: var(--text-secondary);
+    font-style: italic;
+    letter-spacing: 0.5px;
+    transition: border-color 0.2s, background 0.2s;
+}
+
+.drop-zone.drag-over {
+    border-color: var(--active-green);
+    background: rgba(107,142,78,0.1);
+    color: var(--active-green);
+}
+
+/* ===== KNOB ===== */
+.knob {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    border: 2px solid var(--knob-border);
+    position: relative;
+    cursor: pointer;
+    background:
+        radial-gradient(circle, transparent 84%, var(--amber-light) 84%, var(--amber-light) 88%,
+            var(--knob-border) 88%, var(--knob-border) 90%, transparent 90%),
+        conic-gradient(from 0deg,
+            var(--knob-wheat-a) 0deg, var(--knob-wheat-a) 18deg, var(--knob-border) 18deg, var(--knob-border) 19deg,
+            var(--knob-wheat-b) 19deg, var(--knob-wheat-b) 36deg, var(--knob-border) 36deg, var(--knob-border) 37deg,
+            var(--knob-wheat-a) 37deg, var(--knob-wheat-a) 54deg, var(--knob-border) 54deg, var(--knob-border) 55deg,
+            var(--knob-wheat-b) 55deg, var(--knob-wheat-b) 72deg, var(--knob-border) 72deg, var(--knob-border) 73deg,
+            var(--knob-wheat-a) 73deg, var(--knob-wheat-a) 90deg, var(--knob-border) 90deg, var(--knob-border) 91deg,
+            var(--knob-wheat-b) 91deg, var(--knob-wheat-b) 108deg, var(--knob-border) 108deg, var(--knob-border) 109deg,
+            var(--knob-wheat-a) 109deg, var(--knob-wheat-a) 126deg, var(--knob-border) 126deg, var(--knob-border) 127deg,
+            var(--knob-wheat-b) 127deg, var(--knob-wheat-b) 144deg, var(--knob-border) 144deg, var(--knob-border) 145deg,
+            var(--knob-wheat-a) 145deg, var(--knob-wheat-a) 162deg, var(--knob-border) 162deg, var(--knob-border) 163deg,
+            var(--knob-wheat-b) 163deg, var(--knob-wheat-b) 180deg, var(--knob-border) 180deg, var(--knob-border) 181deg,
+            var(--knob-wheat-a) 181deg, var(--knob-wheat-a) 198deg, var(--knob-border) 198deg, var(--knob-border) 199deg,
+            var(--knob-wheat-b) 199deg, var(--knob-wheat-b) 216deg, var(--knob-border) 216deg, var(--knob-border) 217deg,
+            var(--knob-wheat-a) 217deg, var(--knob-wheat-a) 234deg, var(--knob-border) 234deg, var(--knob-border) 235deg,
+            var(--knob-wheat-b) 235deg, var(--knob-wheat-b) 252deg, var(--knob-border) 252deg, var(--knob-border) 253deg,
+            var(--knob-wheat-a) 253deg, var(--knob-wheat-a) 270deg, var(--knob-border) 270deg, var(--knob-border) 271deg,
+            var(--knob-wheat-b) 271deg, var(--knob-wheat-b) 288deg, var(--knob-border) 288deg, var(--knob-border) 289deg,
+            var(--knob-wheat-a) 289deg, var(--knob-wheat-a) 306deg, var(--knob-border) 306deg, var(--knob-border) 307deg,
+            var(--knob-wheat-b) 307deg, var(--knob-wheat-b) 324deg, var(--knob-border) 324deg, var(--knob-border) 325deg,
+            var(--knob-wheat-a) 325deg, var(--knob-wheat-a) 342deg, var(--knob-border) 342deg, var(--knob-border) 343deg,
+            var(--knob-wheat-b) 343deg, var(--knob-wheat-b) 360deg
+        ),
+        radial-gradient(circle, var(--knob-cream) 0%, var(--knob-cream) 20%, transparent 20%);
+    box-shadow:
+        inset 1px 1px 3px rgba(0,0,0,0.3),
+        inset -1px -1px 2px rgba(255,248,220,0.5),
+        2px 2px 6px rgba(0,0,0,0.2);
+}
+
+.knob .knob-indicator {
+    position: absolute;
+    width: 3px;
+    height: 14px;
+    background: var(--knob-indicator);
+    border-radius: 1px;
+    top: 4px;
+    left: 50%;
+    margin-left: -1.5px;
+    transform-origin: center 18px;
+    transform: rotate(-135deg);
+    pointer-events: none;
+}
+
+.knob.small {
+    width: 38px;
+    height: 38px;
+}
+
+.knob.small .knob-indicator {
+    height: 11px;
+    top: 4px;
+    transform-origin: center 15px;
+}

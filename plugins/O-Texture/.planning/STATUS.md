@@ -1,15 +1,17 @@
 ---
 plugin: O-Texture
-stage: 0
-status: complete
+stage: 3
+phase: plan_complete
+status: stage_3_plan_complete
 last_updated: 2026-02-14
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: invoke_pytorch_training
-next_stage: Phase 0 (PyTorch Training - PREREQUISITE)
-ready_for_implementation: false
+next_action: execute_stage_3
+next_stage: Stage 3 (GUI)
+ready_for_implementation: true
 requires_external_training: true
+using_placeholder_models: true
 contract_checksums:
   brief: sha256:pending
   parameter_spec: sha256:pending
@@ -21,101 +23,157 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 0 of N (Ideation) — complete
-Status: Research & Planning complete, PyTorch training required BEFORE JUCE implementation
-Progress: [##..................] 10%
+Stage: 3 of 4 (GUI) -- PLAN COMPLETE
+Status: Stage 3 plan complete, ready for execution
+Progress: [##############......] 70%
 
-## CRITICAL: Non-Standard Workflow
+## CRITICAL: Non-Standard Workflow (Updated)
 
-**O-Texture requires Phase 0 (PyTorch Training) BEFORE Stage 1 (Foundation):**
-- Phase 0: Train custom 1D CNN VAE models in Python/PyTorch (3-6 weeks)
-- Output: 18 ONNX files (6 textures × 3 models each)
-- Cannot implement JUCE plugin without trained models
-
-**Standard workflow does NOT apply:**
-- Typical: Stage 0 → Stage 1 (Foundation) → Stage 2 (Shell) → Stage 3 (DSP) → Stage 4 (GUI)
-- O-Texture: Stage 0 → **Phase 0 (PyTorch)** → Stage 1 → Stage 2 → Stage 3 → Stage 4
+**Phase 0 (PyTorch Training) is NOT yet complete.**
+- Decision: Proceed with Stage 1 using **tiny placeholder ONNX models**
+- Placeholder models match expected I/O shapes (32-dim latent -> 4096-sample audio)
+- Real models will be integrated when Phase 0 training completes
+- This unblocks JUCE development while training happens in parallel
 
 ## Completed So Far
 
-**Stage 0:** ✓ Complete
-- Plugin type defined: Instrument/Effect hybrid (neural texture synthesizer)
-- Professional examples researched: RAVE, Neutone, Output Portal, Arturia Pigments
-- JUCE modules identified: juce_dsp (post-processing only), ANIRA (ML inference), ONNX Runtime
-- DSP architecture validated: Custom 1D CNN VAE (encoder, decoder, prior)
-- Parameter ranges researched: 10 parameters (X/Y latent navigation, Evolve, Freeze, Brightness, Mix)
-- Complexity score: **5.0 (MAXIMUM - exceeds cap)**
-- Strategy: **Phased implementation with PyTorch training prerequisite**
-- ARCHITECTURE.md documented: Complete neural network architecture, ANIRA integration, overlap-add
-- ROADMAP.md documented: Phase 0 (PyTorch) + Stages 1-4 (JUCE) breakdown
+**Stage 0:** Complete
+- Plugin type defined: Neural texture synthesizer (IS_SYNTH TRUE)
+- Architecture: Custom 1D CNN VAE (32-dim latent), ANIRA + ONNX Runtime
+- 10 parameters locked in (SOURCE, MODE, X, Y, CHARACTER_A, CHARACTER_B, EVOLVE, FREEZE, BRIGHTNESS, MIX)
+- ARCHITECTURE.md, ROADMAP.md, CONTEXT.md all documented
+
+**Stage 1 Discuss:** Complete
+**Stage 1 Research:** Complete
+**Stage 1 Plan:** Complete (7 tasks)
+**Stage 1 Execute:** Complete
+**Stage 1 Verify:** Complete (all checks passed)
+- CMakeLists.txt with ANIRA v2.0.3 FetchContent + ONNX Runtime 1.19.2
+- 3 placeholder ONNX models embedded as binary data (ModelData namespace)
+- TextureProcessor with 10 APVTS parameters, cached atomic pointers
+- TextureEditor with WebView, resource provider, dark theme
+- ANIRA + ONNX Runtime shared libraries embedded in plugin bundles
+- Plugin builds, links, and registers as AU instrument (aumu OuTx OuDv)
+
+**Stage 2 Discuss:** Complete
+**Stage 2 Research:** Complete
+**Stage 2 Plan:** Complete (12 tasks, Phase A + Phase B)
+**Stage 2 Execute:** Complete (all 12 tasks)
+**Stage 2 Verify:** Complete (all checks passed)
+- PyTorch training pipeline (VAE + Prior + latent analysis + ONNX export)
+- Direct ONNX Runtime C++ inference (replaced ANIRA handler — decoder is non-streamable)
+- Overlap-add processor: 4096-block, 2048-hop, 50% overlap with Hann window
+- PerlinNoise1D: 28-channel block-rate evolve modulation with quintic interpolation
+- TiltFilter: 1-pole brightness control, 800 Hz pivot, SmoothedValue for zipper-free
+- Latent space control: dim_map.json mapping, X/Y/CharA/CharB + evolve + inactive dims
+- Stereo decorrelation: two independent decoder runs with latent offset (0.1)
+- Full processBlock signal chain: latent -> decode -> OLA -> tilt -> mix
+- pluginval passes at strictness 5 (VST3 + AU)
+
+## Stage 1 Decisions (from Discuss + Research Phases)
+
+| Decision | Choice | Rationale |
+|----------|--------|-----------|
+| Phase 0 models | Placeholder (tiny ONNX) | Unblocks JUCE dev while training happens separately |
+| Stage scope | Full Stage 1 | CMake + ANIRA + Model Loading + APVTS |
+| ANIRA dep mgmt | CMake FetchContent | Simplest setup, auto-downloads at build time |
+| ANIRA version | v2.0.3 | Latest stable, bundles ONNX Runtime 1.19.2 |
+| Plugin type | IS_SYNTH TRUE | Generate mode creates audio from nothing |
+| Model storage | Binary resources | juce_add_binary_data, two targets (ModelData + UIData) |
+| Parameters | 10 as specified | Locked in, no changes from parameter-spec-draft.md |
+| Transform mode | Deferred to Stage 2 | IS_SYNTH TRUE limits audio input in Logic; sidechain later |
+| Bus config | Stereo out + disabled sidechain in | Future-proofs for Transform mode |
+| Shared lib dist | Embedded in bundle Frameworks/ | Post-build CMake step with symlinks and rpath |
+
+**Stage 3 Discuss:** Complete
+**Stage 3 Research:** Complete
+**Stage 3 Plan:** Complete (8 tasks)
 
 ## Next Steps
 
-**CRITICAL: Phase 0 (PyTorch Training) MUST complete before JUCE implementation**
+1. **Stage 3 (GUI) Execute** -- Implement the plan (8 tasks: copy assets, CSS, main.js, index.html, CMake, Editor.h, Editor.cpp, build+test)
+2. Stage 4 (Polish) -- pluginval, installer, final QA
 
-1. **Phase 0: PyTorch Model Training (3-6 weeks)** - External to JUCE codebase
-   - Phase 0.1: Training infrastructure setup (3-5 days)
-   - Phase 0.2: Train first model (Rain) to validate architecture (5-7 days)
-   - Phase 0.3: Train remaining 5 textures (1-2 weeks)
-   - Phase 0.4: Train prior models for Generative mode (3-5 days)
-   - Phase 0.5: Model validation & packaging (2-3 days)
-   - **Output:** 18 ONNX files ready for JUCE plugin integration
+## Files
 
-2. **After Phase 0 Complete:**
-   - Stage 1: Foundation (CMake + ANIRA integration) - 2-3 weeks
-   - Stage 2: DSP (ML inference pipeline + latent control) - 3-4 weeks
-   - Stage 3: GUI (WebView XY pad) - 2-3 weeks
-   - Stage 4: Validation (Testing, presets, docs) - 1-2 weeks
+**Stage 0:**
+- plugins/O-Texture/.planning/research/ARCHITECTURE.md
+- plugins/O-Texture/.planning/ROADMAP.md
+- plugins/O-Texture/.planning/stages/0-ideation/CONTEXT.md
+- plugins/O-Texture/.planning/BRIEF.md
+- plugins/O-Texture/.planning/parameter-spec-draft.md
 
-3. **Decision Point After Phase 0.2 (First Model):**
-   - Quality GOOD → Proceed to remaining textures
-   - Quality MEDIOCRE → Add adversarial fine-tuning (Phase 0.2.5)
-   - Quality POOR → Pivot to RAVE or granular synthesis fallback
+**Stage 1:**
+- plugins/O-Texture/.planning/stages/1-foundation/CONTEXT.md
+- plugins/O-Texture/.planning/stages/1-foundation/RESEARCH.md
+- plugins/O-Texture/.planning/stages/1-foundation/PLAN.md
+- plugins/O-Texture/.planning/stages/1-foundation/SUMMARY.md
+- plugins/O-Texture/.planning/stages/1-foundation/VERIFICATION.md
+
+**Stage 2:**
+- plugins/O-Texture/.planning/stages/2-dsp/CONTEXT.md
+- plugins/O-Texture/.planning/stages/2-dsp/RESEARCH.md
+- plugins/O-Texture/.planning/stages/2-dsp/PLAN.md
+- plugins/O-Texture/.planning/stages/2-dsp/VERIFICATION.md
+
+**Stage 3:**
+- plugins/O-Texture/.planning/stages/3-gui/CONTEXT.md
+- plugins/O-Texture/.planning/stages/3-gui/RESEARCH.md
+- plugins/O-Texture/.planning/stages/3-gui/PLAN.md
+
+**Implementation:**
+- plugins/O-Texture/CMakeLists.txt
+- plugins/O-Texture/Source/PluginProcessor.h
+- plugins/O-Texture/Source/PluginProcessor.cpp
+- plugins/O-Texture/Source/PluginEditor.h
+- plugins/O-Texture/Source/PluginEditor.cpp
+- plugins/O-Texture/Source/DSP/OverlapAddProcessor.h
+- plugins/O-Texture/Source/DSP/PerlinNoise1D.h
+- plugins/O-Texture/Source/DSP/TiltFilter.h
+- plugins/O-Texture/Source/DSP/HannWindow.h
+- plugins/O-Texture/Source/ui/public/index.html
+- plugins/O-Texture/Resources/models/placeholder/*.onnx (3 files)
+- plugins/O-Texture/Resources/models/rain/dim_map_rain.json
+
+**Training Pipeline:**
+- plugins/O-Texture/training/config.py
+- plugins/O-Texture/training/models.py
+- plugins/O-Texture/training/losses.py
+- plugins/O-Texture/training/dataset.py
+- plugins/O-Texture/training/train_vae.py
+- plugins/O-Texture/training/train_prior.py
+- plugins/O-Texture/training/analyze_latent.py
+- plugins/O-Texture/training/export_onnx.py
+- plugins/O-Texture/training/download_fsd50k.sh
+- scripts/generate_placeholder_models.py
 
 ## Context to Preserve
 
-**Complexity:** UNPRECEDENTED in codebase
-- Actual complexity: 11.0 (capped at 5.0 maximum)
-- First machine learning plugin (no existing reference)
-- Custom neural network architecture (~7.8M parameters total)
-- Requires separate PyTorch training pipeline (external to JUCE)
+**Complexity:** UNPRECEDENTED (11.0, capped at 5.0)
+- First ML plugin in codebase
+- Custom neural network + ANIRA + ONNX Runtime
+- Block-based synthesis (not sample-by-sample DSP)
 
 **Key Architecture Decisions:**
-- Custom 1D CNN VAE (32-dim latent) vs RAVE (128-dim)
+- Custom 1D CNN VAE (32-dim latent)
 - ANIRA + ONNX Runtime for real-time safe inference
 - 50% overlap-add with Hann window (4096-sample blocks)
-- Latent offset stereo decorrelation (not allpass)
+- Latent offset stereo decorrelation
+- IS_SYNTH TRUE (instrument, not effect)
 
-**Risk Assessment:**
-- HIGH risk: VAE training quality (may produce muffled audio)
-- HIGH risk: Latent space controllability (X/Y may have unpredictable effects)
-- MEDIUM risk: ANIRA integration stability (new library, 2024)
-- MEDIUM risk: CPU performance (target <20% single core)
+**Issues Found During Implementation:**
+- `getLatencySamples()` is NOT virtual in JUCE 8 -- use `setLatencySamples()` instead
+- ANIRA builds as shared library -- must embed in plugin bundle Frameworks/
+- Need versioned symlinks for libanira.2.dylib and libonnxruntime.dylib
+- ANIRA's streaming InferenceHandler doesn't suit non-streamable decoder (latent→audio)
+- Replaced ANIRA handler with direct ONNX Runtime C++ API for decoder inference
+- ONNX IR version 13 (from Python onnx 1.20.1) incompatible with ORT 1.19.2 — force IR_VERSION=9
+- OLA per-channel read had shared readPosition bug — fixed with atomic multi-channel read
 
-**Timeline:** 9-14 weeks total (Phase 0: 3-6 weeks, Stages 1-4: 6-8 weeks)
-
-## Files Created
-
-**Stage 0 Outputs:**
-- plugins/O-Texture/.planning/research/ARCHITECTURE.md (Complete neural network spec)
-- plugins/O-Texture/.planning/ROADMAP.md (Phase 0 + Stages 1-4 breakdown)
-- plugins/O-Texture/.planning/stages/0-ideation/CONTEXT.md (Research findings and decisions)
-- plugins/O-Texture/.planning/STATUS.md (This file)
-
-**Contract Files (Pre-existing):**
-- plugins/O-Texture/.planning/BRIEF.md (Creative vision)
-- plugins/O-Texture/.planning/parameter-spec-draft.md (10 parameters)
-
-## Implementation Readiness
-
-**Ready for Phase 0:** YES (PyTorch training can begin)
-**Ready for Stage 1:** NO (requires trained ONNX models from Phase 0)
-
-**Blockers:**
-- Phase 0 (PyTorch training) must complete first
-- 18 ONNX model files required (6 textures × 3 models)
-- Models must pass quality validation (not muffled/distorted)
-
-**Next Command:**
-- `/pytorch-train O-Texture` (hypothetical - PyTorch training is manual external process)
-- **Actually:** Set up Python/PyTorch environment, follow Phase 0 plan in ROADMAP.md
+**Risk Assessment (Updated):**
+- HIGH: VAE training quality (deferred -- using placeholders)
+- MEDIUM: ANIRA shared library distribution → SOLVED (embedded in bundle)
+- MEDIUM: ANIRA model loading from memory → SOLVED (direct Ort::Session from BinaryData)
+- MEDIUM: IS_SYNTH input bus behavior across DAWs
+- LOW: CMake/build configuration → SOLVED
+- LOW: ONNX Runtime inference latency → synchronous, ~1ms for placeholder decoder

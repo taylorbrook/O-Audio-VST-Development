@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>O-Texture</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            background: #1a1a2e;
+            color: #e0e0e0;
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            padding: 2rem;
+        }
+        h1 {
+            font-size: 1.8rem;
+            font-weight: 300;
+            letter-spacing: 0.15em;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+        .subtitle {
+            font-size: 0.85rem;
+            color: #666;
+            margin-bottom: 2rem;
+            letter-spacing: 0.1em;
+        }
+        .params {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem 2rem;
+            width: 100%;
+            max-width: 500px;
+        }
+        .param {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 0.4rem 0;
+            border-bottom: 1px solid #2a2a3e;
+        }
+        .param-name {
+            font-size: 0.8rem;
+            color: #888;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+        }
+        .param-value {
+            font-size: 0.8rem;
+            color: #aaa;
+            font-variant-numeric: tabular-nums;
+        }
+    </style>
+</head>
+<body>
+    <h1>O-Texture</h1>
+    <p class="subtitle">Stage 1 - Foundation</p>
+    <div class="params">
+        <div class="param"><span class="param-name">Source</span><span class="param-value">Rain</span></div>
+        <div class="param"><span class="param-name">Mode</span><span class="param-value">Generate</span></div>
+        <div class="param"><span class="param-name">X</span><span class="param-value">0.50</span></div>
+        <div class="param"><span class="param-name">Y</span><span class="param-value">0.50</span></div>
+        <div class="param"><span class="param-name">Character A</span><span class="param-value">0.50</span></div>
+        <div class="param"><span class="param-name">Character B</span><span class="param-value">0.50</span></div>
+        <div class="param"><span class="param-name">Evolve</span><span class="param-value">0.30</span></div>
+        <div class="param"><span class="param-name">Freeze</span><span class="param-value">Off</span></div>
+        <div class="param"><span class="param-name">Brightness</span><span class="param-value">0.00</span></div>
+        <div class="param"><span class="param-name">Mix</span><span class="param-value">1.00</span></div>
+    </div>
+</body>
+</html>
