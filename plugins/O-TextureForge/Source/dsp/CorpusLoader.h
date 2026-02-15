@@ -17,12 +17,14 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <atomic>
 
 class CorpusLoader : public juce::Thread
 {
 public:
     using CompletionCallback = std::function<void(std::shared_ptr<SharedCorpus>)>;
     using ProgressCallback = std::function<void(float)>;  // UMAP progress 0-1
+    using FailureCallback = std::function<void(const juce::String&)>;
 
     CorpusLoader();
     ~CorpusLoader() override;
@@ -30,10 +32,14 @@ public:
     // Load and analyze audio file
     void loadFile(const juce::File& file, double targetSampleRate,
                   CompletionCallback callback,
-                  ProgressCallback umapProgress = nullptr);
+                  ProgressCallback umapProgress = nullptr,
+                  FailureCallback failureCallback = nullptr);
 
     // Cancel current operation
     void cancelLoad();
+
+    // Cancel only UMAP (PCA layout preserved)
+    void cancelUmap();
 
 private:
     void run() override;
@@ -51,6 +57,8 @@ private:
     double targetSampleRate = 44100.0;
     CompletionCallback completionCallback;
     ProgressCallback umapProgressCallback;
+    FailureCallback failureCallback;
+    std::atomic<bool> umapCancelRequested { false };
     DescriptorExtractor descriptorExtractor;
     PCAProjection pcaProjection;
     UMAPProjection umapProjection;

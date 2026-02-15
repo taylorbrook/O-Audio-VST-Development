@@ -366,6 +366,11 @@ void OuariconAnalogEQAudioProcessorEditor::licenseStatusChanged(
 
         if (licenseOverlay)
             licenseOverlay->setVisible(! licensed);
+
+        // Force WebView reload after becoming visible — hidden WebViews
+        // do not load content on WebView2 (Windows) or WKWebView (macOS)
+        if (licensed)
+            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
     });
 }
 #endif

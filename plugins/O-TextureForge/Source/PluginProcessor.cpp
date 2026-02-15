@@ -117,6 +117,7 @@ void TextureForgeProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlo
 {
     currentSampleRate = sampleRate;
     grainScheduler.prepare(sampleRate);
+    grainScheduler.reset();
 
     if (currentCorpus != nullptr && std::abs(currentCorpus->sampleRate - sampleRate) > 0.1)
     {
@@ -133,6 +134,9 @@ void TextureForgeProcessor::releaseResources() {}
 void TextureForgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     juce::ScopedNoDenormals noDenormals;
+
+    if (buffer.getNumSamples() == 0)
+        return;
 
     // Read parameters (atomic, real-time safe)
     SchedulerParams params;
@@ -161,6 +165,11 @@ void TextureForgeProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     // Process grains
     grainScheduler.processBlock(buffer, midiMessages, corpus, params);
+
+    // NaN/Inf output protection
+    const int numSamples = buffer.getNumSamples();
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        juce::FloatVectorOperations::clip(buffer.getWritePointer(ch), buffer.getReadPointer(ch), -1.0f, 1.0f, numSamples);
 
     // Update visualization snapshot
     int writeIdx = vizWriteIndex.load(std::memory_order_relaxed);
@@ -214,10 +223,18 @@ void TextureForgeProcessor::setStateInformation(const void* data, int sizeInByte
         auto* corpusXml = xml->getChildByName("CORPUS");
         if (corpusXml != nullptr)
         {
-            juce::File file(corpusXml->getStringAttribute("filePath"));
+            juce::String savedPath = corpusXml->getStringAttribute("filePath");
+            juce::File file(savedPath);
             if (file.existsAsFile())
             {
                 loadCorpusFile(file);
+            }
+            else if (savedPath.isNotEmpty())
+            {
+                juce::MessageManager::callAsync([this, savedPath]() {
+                    if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
+                        editor->onCorpusMissing(savedPath);
+                });
             }
         }
     }
@@ -248,7 +265,12 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
         {
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
             {
-                if (progress >= 1.0f && currentCorpus != nullptr && currentCorpus->umapReady.load())
+                if (progress < 0.0f)
+                {
+                    // UMAP was cancelled
+                    editor->onUmapCancelled();
+                }
+                else if (progress >= 1.0f && currentCorpus != nullptr && currentCorpus->umapReady.load())
                 {
                     // Build UMAP points JSON
                     juce::String json = "[";
@@ -269,6 +291,14 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
                 {
                     editor->onUmapProgress(progress);
                 }
+            }
+        },
+        // Failure callback
+        [this](const juce::String& reason)
+        {
+            if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
+            {
+                editor->onCorpusLoadFailed(reason);
             }
         }
     );

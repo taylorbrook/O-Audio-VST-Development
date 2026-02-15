@@ -29,6 +29,22 @@ TextureForgeEditor::TextureForgeEditor(TextureForgeProcessor& p)
     midiModeRelay     = std::make_unique<juce::WebComboBoxRelay>("midiMode");
 
     // 2. Create WebView with relay options and native functions
+#if JUCE_WINDOWS
+    auto webViewOptions = juce::WebBrowserComponent::Options{}
+        .withBackend(juce::WebBrowserComponent::Options::Backend::webview2);
+    if (!juce::WebBrowserComponent::areOptionsSupported(webViewOptions))
+    {
+        auto* fallbackLabel = new juce::Label("fallback",
+            "WebView2 runtime required.\nDownload from: microsoft.com/edge/webview2");
+        fallbackLabel->setJustificationType(juce::Justification::centred);
+        fallbackLabel->setColour(juce::Label::textColourId, juce::Colours::white);
+        fallbackLabel->setColour(juce::Label::backgroundColourId, juce::Colour(0xff2B2B2B));
+        addAndMakeVisible(fallbackLabel);
+        setSize(900, 600);
+        return;
+    }
+#endif
+
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
@@ -105,6 +121,24 @@ TextureForgeEditor::TextureForgeEditor(TextureForgeProcessor& p)
                 }
                 complete({});
             })
+            .withNativeFunction("cancelUmap", [this](const juce::Array<juce::var>& /*args*/,
+                                                      juce::WebBrowserComponent::NativeFunctionCompletion complete)
+            {
+                processorRef.cancelUmap();
+                complete({});
+            })
+            .withNativeFunction("confirmLargeLoad", [this](const juce::Array<juce::var>& /*args*/,
+                                                            juce::WebBrowserComponent::NativeFunctionCompletion complete)
+            {
+                if (pendingLargeFilePath.isNotEmpty())
+                {
+                    juce::File file(pendingLargeFilePath);
+                    pendingLargeFilePath.clear();
+                    if (file.existsAsFile())
+                        processorRef.loadCorpusFile(file);
+                }
+                complete({});
+            })
     );
 
     addAndMakeVisible(*webView);
@@ -172,27 +206,32 @@ void TextureForgeEditor::paint(juce::Graphics& g)
 
 void TextureForgeEditor::resized()
 {
-    webView->setBounds(getLocalBounds());
+    if (webView != nullptr)
+        webView->setBounds(getLocalBounds());
 }
 
 void TextureForgeEditor::timerCallback()
 {
+    if (webView == nullptr) return;
+
     const auto& snap = processorRef.getVizSnapshot();
 
-    // Build compact JSON: {cx, cy, g:[{i, e}, ...]}
-    juce::String json = "{\"cx\":" + juce::String(snap.cursorX, 3)
-        + ",\"cy\":" + juce::String(snap.cursorY, 3)
-        + ",\"g\":[";
+    // Reuse pre-allocated string buffer to reduce 30Hz allocation pressure
+    vizJsonBuffer.clear();
+    vizJsonBuffer.preallocateBytes(512);
+    vizJsonBuffer << "{\"cx\":" << juce::String(snap.cursorX, 3)
+                  << ",\"cy\":" << juce::String(snap.cursorY, 3)
+                  << ",\"g\":[";
 
     for (int i = 0; i < snap.activeCount; ++i)
     {
-        if (i > 0) json += ",";
-        json += "{\"i\":" + juce::String(snap.activeGrains[i].grainIndex)
-            + ",\"e\":" + juce::String(snap.activeGrains[i].envelope, 2) + "}";
+        if (i > 0) vizJsonBuffer << ",";
+        vizJsonBuffer << "{\"i\":" << juce::String(snap.activeGrains[i].grainIndex)
+                      << ",\"e\":" << juce::String(snap.activeGrains[i].envelope, 2) << "}";
     }
-    json += "]}";
+    vizJsonBuffer << "]}";
 
-    webView->emitEventIfBrowserIsVisible("vizUpdate", json);
+    webView->emitEventIfBrowserIsVisible("vizUpdate", vizJsonBuffer);
 }
 
 void TextureForgeEditor::onCorpusLoaded(int grainCount)
@@ -210,6 +249,24 @@ void TextureForgeEditor::onUmapProgress(float progress)
 void TextureForgeEditor::onUmapComplete(const juce::String& pointsJson)
 {
     webView->emitEventIfBrowserIsVisible("umapComplete", pointsJson);
+}
+
+void TextureForgeEditor::onUmapCancelled()
+{
+    webView->emitEventIfBrowserIsVisible("umapCancelled", "{}");
+}
+
+void TextureForgeEditor::onCorpusLoadFailed(const juce::String& reason)
+{
+    juce::String json = "{\"reason\":\"" + reason.replace("\"", "\\\"") + "\"}";
+    webView->emitEventIfBrowserIsVisible("loadFailed", json);
+}
+
+void TextureForgeEditor::onCorpusMissing(const juce::String& savedPath)
+{
+    juce::String escaped = savedPath.replace("\\", "\\\\").replace("\"", "\\\"");
+    juce::String json = "{\"path\":\"" + escaped + "\"}";
+    webView->emitEventIfBrowserIsVisible("corpusMissing", json);
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
@@ -284,6 +341,16 @@ void TextureForgeEditor::filesDropped(const juce::StringArray& files, int /*x*/,
     juce::File file(files[0]);
     if (file.existsAsFile())
     {
+        constexpr int64_t largeFileThreshold = 104857600;  // 100MB
+        if (file.getSize() > largeFileThreshold)
+        {
+            pendingLargeFilePath = file.getFullPathName();
+            double sizeMB = file.getSize() / (1024.0 * 1024.0);
+            juce::String json = "{\"sizeMB\":" + juce::String(sizeMB, 1) + "}";
+            webView->emitEventIfBrowserIsVisible("fileSizeWarning", json);
+            return;
+        }
+
         processorRef.loadCorpusFile(file);
         juce::Logger::writeToLog("Loading corpus: " + file.getFileName());
     }

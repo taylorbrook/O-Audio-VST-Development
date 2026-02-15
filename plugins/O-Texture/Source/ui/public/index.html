@@ -4,73 +4,145 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-Texture</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #1a1a2e;
-            color: #e0e0e0;
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            padding: 2rem;
-        }
-        h1 {
-            font-size: 1.8rem;
-            font-weight: 300;
-            letter-spacing: 0.15em;
-            color: #ffffff;
-            margin-bottom: 0.5rem;
-        }
-        .subtitle {
-            font-size: 0.85rem;
-            color: #666;
-            margin-bottom: 2rem;
-            letter-spacing: 0.1em;
-        }
-        .params {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 0.75rem 2rem;
-            width: 100%;
-            max-width: 500px;
-        }
-        .param {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.4rem 0;
-            border-bottom: 1px solid #2a2a3e;
-        }
-        .param-name {
-            font-size: 0.8rem;
-            color: #888;
-            text-transform: uppercase;
-            letter-spacing: 0.08em;
-        }
-        .param-value {
-            font-size: 0.8rem;
-            color: #aaa;
-            font-variant-numeric: tabular-nums;
-        }
-    </style>
+    <link rel="stylesheet" href="css/ouaricon-naturalist.css">
 </head>
 <body>
-    <h1>O-Texture</h1>
-    <p class="subtitle">Stage 1 - Foundation</p>
-    <div class="params">
-        <div class="param"><span class="param-name">Source</span><span class="param-value">Rain</span></div>
-        <div class="param"><span class="param-name">Mode</span><span class="param-value">Generate</span></div>
-        <div class="param"><span class="param-name">X</span><span class="param-value">0.50</span></div>
-        <div class="param"><span class="param-name">Y</span><span class="param-value">0.50</span></div>
-        <div class="param"><span class="param-name">Character A</span><span class="param-value">0.50</span></div>
-        <div class="param"><span class="param-name">Character B</span><span class="param-value">0.50</span></div>
-        <div class="param"><span class="param-name">Evolve</span><span class="param-value">0.30</span></div>
-        <div class="param"><span class="param-name">Freeze</span><span class="param-value">Off</span></div>
-        <div class="param"><span class="param-name">Brightness</span><span class="param-value">0.00</span></div>
-        <div class="param"><span class="param-name">Mix</span><span class="param-value">1.00</span></div>
+    <div class="container">
+        <!-- Header: Plugin name + Mode toggle -->
+        <div class="header">
+            <h1>O-TEXTURE</h1>
+            <div class="mode-toggle">
+                <button data-parameter-index="1">Generate</button>
+                <button data-parameter-index="1">Transform</button>
+            </div>
+        </div>
+
+        <!-- Main area: XY pad + vertical sliders -->
+        <div class="main-area">
+            <div class="xy-pad-container">
+                <canvas id="xy-pad" class="xy-pad" data-parameter-index="2,3"></canvas>
+            </div>
+
+            <div class="vertical-sliders">
+                <!-- Character A -->
+                <div id="slider-charA" class="vertical-slider" data-parameter-index="4">
+                    <div class="label">Char A</div>
+                    <div class="slider-track">
+                        <div class="slider-thumb"></div>
+                    </div>
+                    <div class="value">0.50</div>
+                </div>
+
+                <!-- Character B -->
+                <div id="slider-charB" class="vertical-slider" data-parameter-index="5">
+                    <div class="label">Char B</div>
+                    <div class="slider-track">
+                        <div class="slider-thumb"></div>
+                    </div>
+                    <div class="value">0.50</div>
+                </div>
+
+                <!-- Evolve -->
+                <div id="slider-evolve" class="vertical-slider" data-parameter-index="6">
+                    <div class="label">Evolve</div>
+                    <div class="slider-track">
+                        <div class="slider-thumb"></div>
+                    </div>
+                    <div class="value">0.30</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Source selector: 6 icon buttons -->
+        <div class="source-selector">
+            <!-- Rain -->
+            <button class="source-button" data-parameter-index="0">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 2 L12 10 M8 8 L8 14 M16 8 L16 14 M10 16 L10 20 M14 16 L14 20"/>
+                </svg>
+                <span class="label">Rain</span>
+            </button>
+
+            <!-- Metal -->
+            <button class="source-button" data-parameter-index="0">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="12" cy="12" r="7"/>
+                    <circle cx="12" cy="12" r="3"/>
+                    <path d="M12 5 L12 8 M12 16 L12 19 M5 12 L8 12 M16 12 L19 12"/>
+                </svg>
+                <span class="label">Metal</span>
+            </button>
+
+            <!-- Wind -->
+            <button class="source-button" data-parameter-index="0">
+                <svg viewBox="0 0 24 24">
+                    <path d="M3 8 Q8 6, 14 8 T20 8 M3 12 Q10 10, 16 12 T21 12 M3 16 Q7 14, 12 16 T19 16"/>
+                </svg>
+                <span class="label">Wind</span>
+            </button>
+
+            <!-- Crowd -->
+            <button class="source-button" data-parameter-index="0">
+                <svg viewBox="0 0 24 24">
+                    <circle cx="8" cy="7" r="2"/>
+                    <circle cx="16" cy="7" r="2"/>
+                    <circle cx="12" cy="7" r="2"/>
+                    <path d="M8 10 L8 16 M6 12 L10 12 M16 10 L16 16 M14 12 L18 12 M12 10 L12 16 M10 12 L14 12"/>
+                </svg>
+                <span class="label">Crowd</span>
+            </button>
+
+            <!-- Synth -->
+            <button class="source-button" data-parameter-index="0">
+                <svg viewBox="0 0 24 24">
+                    <path d="M4 12 L8 6 L12 16 L16 8 L20 12" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                <span class="label">Synth</span>
+            </button>
+
+            <!-- Organic -->
+            <button class="source-button" data-parameter-index="0">
+                <svg viewBox="0 0 24 24">
+                    <path d="M12 4 Q8 8, 12 12 T12 20 M12 12 Q16 10, 18 12"/>
+                </svg>
+                <span class="label">Organic</span>
+            </button>
+        </div>
+
+        <!-- Bottom strip: Brightness knob + Mix knob + Freeze toggle -->
+        <div class="bottom-strip">
+            <!-- Brightness Knob -->
+            <div class="knob-container" data-parameter-index="8">
+                <div id="knob-brightness" class="knob">
+                    <div class="knob-bg"></div>
+                    <div class="knob-indicator"></div>
+                </div>
+                <div class="knob-label">Brightness</div>
+                <div class="knob-value">0.00</div>
+            </div>
+
+            <!-- Mix Knob -->
+            <div class="knob-container" data-parameter-index="9">
+                <div id="knob-mix" class="knob">
+                    <div class="knob-bg"></div>
+                    <div class="knob-indicator"></div>
+                </div>
+                <div class="knob-label">Mix</div>
+                <div class="knob-value">1.00</div>
+            </div>
+
+            <!-- Freeze Toggle -->
+            <div class="freeze-toggle" data-parameter-index="7">
+                <button id="freeze-button" class="freeze-button">
+                    <svg viewBox="0 0 24 24">
+                        <path d="M12 2 L12 22 M2 12 L22 12 M6 6 L18 18 M18 6 L6 18"/>
+                    </svg>
+                </button>
+                <div class="freeze-label">Freeze</div>
+            </div>
+        </div>
     </div>
+
+    <script type="module" src="js/main.js"></script>
 </body>
 </html>

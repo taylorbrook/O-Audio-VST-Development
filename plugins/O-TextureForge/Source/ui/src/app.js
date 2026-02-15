@@ -264,6 +264,59 @@ function drawCursor(cx, cy, variation) {
     ctx.fill();
 }
 
+// ===== Toast / Notification =====
+function showToast(message, duration) {
+    duration = duration || 4000;
+    let toast = document.getElementById('toast-notification');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast-notification';
+        toast.style.cssText = 'position:fixed;bottom:20px;left:50%;transform:translateX(-50%);' +
+            'background:rgba(43,43,43,0.95);color:#C9A27B;padding:10px 20px;border-radius:6px;' +
+            'font-family:inherit;font-size:13px;z-index:1000;transition:opacity 0.3s;border:1px solid #8B6914;';
+        document.body.appendChild(toast);
+    }
+    toast.textContent = message;
+    toast.style.opacity = '1';
+    toast.style.display = 'block';
+    clearTimeout(toast._timer);
+    toast._timer = setTimeout(function() {
+        toast.style.opacity = '0';
+        setTimeout(function() { toast.style.display = 'none'; }, 300);
+    }, duration);
+}
+
+// ===== File Size Warning Overlay =====
+function showFileSizeWarning(sizeMB) {
+    let overlay = document.getElementById('file-size-overlay');
+    if (!overlay) {
+        overlay = document.createElement('div');
+        overlay.id = 'file-size-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;' +
+            'background:rgba(0,0,0,0.7);display:flex;align-items:center;justify-content:center;z-index:999;';
+        overlay.innerHTML = '<div style="background:#2B2B2B;border:1px solid #8B6914;border-radius:8px;' +
+            'padding:24px;text-align:center;max-width:320px;color:#C9A27B;font-family:inherit;">' +
+            '<p id="file-size-msg" style="margin:0 0 16px;font-size:14px;"></p>' +
+            '<button id="btn-load-anyway" style="background:#8B6914;color:#F5E6D3;border:none;' +
+            'padding:8px 16px;border-radius:4px;cursor:pointer;margin-right:8px;font-size:13px;">Load Anyway</button>' +
+            '<button id="btn-cancel-load" style="background:transparent;color:#C9A27B;border:1px solid #C9A27B;' +
+            'padding:8px 16px;border-radius:4px;cursor:pointer;font-size:13px;">Cancel</button></div>';
+        document.body.appendChild(overlay);
+
+        document.getElementById('btn-load-anyway').addEventListener('click', function() {
+            overlay.style.display = 'none';
+            var confirmLoad = getNativeFunction('confirmLargeLoad');
+            confirmLoad();
+        });
+        document.getElementById('btn-cancel-load').addEventListener('click', function() {
+            overlay.style.display = 'none';
+        });
+    }
+    document.getElementById('file-size-msg').textContent =
+        'Large file: ' + sizeMB.toFixed(1) + ' MB. This may use significant memory.';
+    overlay.style.display = 'flex';
+}
+
 // ===== UMAP Progress =====
 function updateUmapProgress(progress) {
     const container = document.querySelector('.umap-progress-container');
@@ -273,8 +326,28 @@ function updateUmapProgress(progress) {
     if (progress >= 0 && progress < 1) {
         container.classList.add('active');
         fill.style.width = (progress * 100) + '%';
+
+        // Show cancel button
+        let cancelBtn = document.getElementById('umap-cancel-btn');
+        if (!cancelBtn) {
+            cancelBtn = document.createElement('button');
+            cancelBtn.id = 'umap-cancel-btn';
+            cancelBtn.textContent = 'Cancel';
+            cancelBtn.style.cssText = 'position:absolute;right:8px;top:50%;transform:translateY(-50%);' +
+                'background:transparent;color:#C9A27B;border:1px solid #C9A27B;border-radius:3px;' +
+                'padding:2px 8px;font-size:11px;cursor:pointer;';
+            cancelBtn.addEventListener('click', function() {
+                var cancelUmap = getNativeFunction('cancelUmap');
+                cancelUmap();
+            });
+            container.style.position = 'relative';
+            container.appendChild(cancelBtn);
+        }
+        cancelBtn.style.display = 'block';
     } else {
         container.classList.remove('active');
+        var cancelBtn2 = document.getElementById('umap-cancel-btn');
+        if (cancelBtn2) cancelBtn2.style.display = 'none';
     }
 }
 
@@ -299,6 +372,15 @@ function listenForEvents() {
         getCorpusData().then((data) => {
             if (data) {
                 const points = JSON.parse(data);
+                if (points.length === 0) {
+                    // Empty corpus — keep placeholder visible
+                    const placeholder = document.querySelector('.scatter-placeholder');
+                    if (placeholder) {
+                        placeholder.style.display = 'block';
+                        placeholder.innerHTML = '<span class="fleuron">&#10087;</span>Drop audio file here';
+                    }
+                    return;
+                }
                 initScatterPlot(points);
             }
         });
@@ -338,6 +420,41 @@ function listenForEvents() {
             if (data) {
                 const points = Array.isArray(data) ? data : JSON.parse(data);
                 transitionToUmap(points);
+            }
+        } catch (e) {}
+    });
+
+    // UMAP cancelled — PCA layout preserved
+    window.__JUCE__.backend.addEventListener('umapCancelled', () => {
+        updateUmapProgress(1.0);
+        showToast('UMAP cancelled \u2014 using PCA layout', 3000);
+    });
+
+    // Load failed — invalid file format
+    window.__JUCE__.backend.addEventListener('loadFailed', (event) => {
+        try {
+            const data = typeof event === 'string' ? JSON.parse(event) : event;
+            showToast(data.reason || 'Failed to load file', 5000);
+        } catch (e) {}
+    });
+
+    // File size warning
+    window.__JUCE__.backend.addEventListener('fileSizeWarning', (event) => {
+        try {
+            const data = typeof event === 'string' ? JSON.parse(event) : event;
+            showFileSizeWarning(data.sizeMB);
+        } catch (e) {}
+    });
+
+    // Corpus missing on session restore
+    window.__JUCE__.backend.addEventListener('corpusMissing', (event) => {
+        try {
+            const data = typeof event === 'string' ? JSON.parse(event) : event;
+            const placeholder = document.querySelector('.scatter-placeholder');
+            if (placeholder) {
+                placeholder.style.display = 'block';
+                placeholder.innerHTML = '<span class="fleuron">&#10087;</span>File not found: ' +
+                    (data.path || 'unknown') + '<br>Drop a new file to continue.';
             }
         } catch (e) {}
     });

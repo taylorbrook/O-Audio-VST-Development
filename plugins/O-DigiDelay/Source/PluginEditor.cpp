@@ -310,6 +310,12 @@ void OuariconDigitalDelayAudioProcessorEditor::licenseStatusChanged(
 
         if (licenseOverlay)
             licenseOverlay->setVisible(! licensed);
+
+        // Force WebView reload after becoming visible — WebView2 on Windows
+        // drops events when the component is hidden during startup, and macOS
+        // WKWebView may not load the page at all when hidden
+        if (licensed)
+            webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
     });
 }
 #endif

@@ -69,6 +69,7 @@ public:
 
     // Corpus loading
     void loadCorpusFile(const juce::File& file);
+    void cancelUmap() { corpusLoader.cancelUmap(); }
 
     // UI interaction
     std::shared_ptr<SharedCorpus> getCurrentCorpus() const { return currentCorpus; }

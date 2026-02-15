@@ -30,15 +30,34 @@ private:
     // ========================================================================
     // CRITICAL MEMBER DECLARATION ORDER: Relays -> WebView -> Attachments
     // Members destroyed in REVERSE declaration order (C++ standard)
-    // Stage 1: No relays or attachments yet (added in Stage 3)
     // ========================================================================
 
-    // 1. RELAYS - (Stage 3: declare here, before webView)
+    // 1. RELAYS (destroyed LAST)
+    std::unique_ptr<juce::WebSliderRelay> xRelay;
+    std::unique_ptr<juce::WebSliderRelay> yRelay;
+    std::unique_ptr<juce::WebSliderRelay> characterARelay;
+    std::unique_ptr<juce::WebSliderRelay> characterBRelay;
+    std::unique_ptr<juce::WebSliderRelay> evolveRelay;
+    std::unique_ptr<juce::WebSliderRelay> brightnessRelay;
+    std::unique_ptr<juce::WebSliderRelay> mixRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> sourceRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> modeRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> freezeRelay;
 
-    // 2. WEBVIEW
+    // 2. WEBVIEW (destroyed SECOND)
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
-    // 3. ATTACHMENTS - (Stage 3: declare here, after webView)
+    // 3. ATTACHMENTS (destroyed FIRST)
+    std::unique_ptr<juce::WebSliderParameterAttachment> xAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> yAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> characterAAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> characterBAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> evolveAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> brightnessAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> sourceAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> modeAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> freezeAttachment;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TextureEditor)
 };

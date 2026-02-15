@@ -1,0 +1,372 @@
+/*
+  ==============================================================================
+    O-Texture - Ouaricon Naturalist Aesthetic
+    Aged paper tones, botanical motifs, serif typography
+  ==============================================================================
+*/
+
+:root {
+    /* Aged paper palette */
+    --paper-light: #E8DCC8;
+    --paper-medium: #D4C4B0;
+    --paper-dark: #C8B8A0;
+    --paper-darkest: #B8A890;
+
+    /* Botanical colors */
+    --botanical-green: #6B8E4E;
+    --botanical-green-dark: #4A6B35;
+    --botanical-amber: #8B6914;
+
+    /* Brown ink tones */
+    --ink-brown: #3D2817;
+    --ink-light: #5C4A3A;
+    --ink-faded: #7A6A58;
+
+    /* Ice crystal for Freeze */
+    --ice-blue: #C8D8E8;
+    --ice-blue-light: #D8E8F8;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    font-family: 'Garamond', 'Georgia', serif;
+    background: var(--paper-light);
+    color: var(--ink-brown);
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+/* Fern botanical overlay */
+body::after {
+    content: '';
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    width: 180px;
+    height: 180px;
+    background: url('../img/fern.png') no-repeat center;
+    background-size: contain;
+    opacity: 0.35;
+    pointer-events: none;
+    z-index: 1000;
+}
+
+/* Main container */
+.container {
+    width: 800px;
+    height: 600px;
+    display: flex;
+    flex-direction: column;
+    padding: 12px;
+}
+
+/* Header bar */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 12px;
+    border-bottom: 2px solid var(--ink-brown);
+    margin-bottom: 12px;
+}
+
+.header h1 {
+    font-size: 20px;
+    font-weight: 400;
+    letter-spacing: 0.15em;
+    color: var(--ink-brown);
+}
+
+/* Mode toggle */
+.mode-toggle {
+    display: flex;
+    gap: 4px;
+}
+
+.mode-toggle button {
+    padding: 4px 16px;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 13px;
+    background: var(--paper-medium);
+    color: var(--ink-light);
+    border: 1px solid var(--ink-brown);
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.mode-toggle button:hover {
+    background: var(--paper-dark);
+}
+
+.mode-toggle button.active {
+    background: var(--botanical-green);
+    color: var(--paper-light);
+    border-color: var(--botanical-green-dark);
+}
+
+/* Main area: XY pad + vertical sliders */
+.main-area {
+    display: flex;
+    gap: 12px;
+    flex: 1;
+    margin-bottom: 12px;
+}
+
+/* XY Pad container */
+.xy-pad-container {
+    flex: 1;
+    position: relative;
+}
+
+.xy-pad {
+    width: 100%;
+    height: 100%;
+    background: var(--paper-dark);
+    border: 2px solid var(--ink-brown);
+    box-shadow: inset 4px 4px 8px rgba(0,0,0,0.15);
+    cursor: crosshair;
+    position: relative;
+}
+
+/* Ice crystal overlay for Freeze state */
+.xy-pad.frozen::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background:
+        linear-gradient(135deg, transparent 40%, var(--ice-blue) 45%, transparent 50%),
+        linear-gradient(45deg, transparent 40%, var(--ice-blue-light) 45%, transparent 50%);
+    background-size: 20px 20px;
+    opacity: 0.2;
+    pointer-events: none;
+    z-index: 10;
+    animation: ice-shimmer 3s ease-in-out infinite;
+}
+
+@keyframes ice-shimmer {
+    0%, 100% { opacity: 0.15; }
+    50% { opacity: 0.25; }
+}
+
+/* Vertical sliders container */
+.vertical-sliders {
+    display: flex;
+    gap: 8px;
+}
+
+.vertical-slider {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 50px;
+}
+
+.vertical-slider .label {
+    font-size: 11px;
+    color: var(--ink-light);
+    margin-bottom: 6px;
+    text-align: center;
+    letter-spacing: 0.05em;
+}
+
+.slider-track {
+    width: 24px;
+    height: 100%;
+    background: var(--paper-medium);
+    border: 1px solid var(--ink-brown);
+    box-shadow: inset 2px 2px 4px rgba(0,0,0,0.1);
+    position: relative;
+    cursor: ns-resize;
+}
+
+.slider-thumb {
+    position: absolute;
+    left: -4px;
+    width: 32px;
+    height: 16px;
+    background: radial-gradient(ellipse at center, var(--botanical-green) 30%, var(--botanical-green-dark) 100%);
+    border: 1px solid var(--ink-brown);
+    border-radius: 50%;
+    cursor: ns-resize;
+}
+
+.vertical-slider .value {
+    font-size: 10px;
+    color: var(--ink-faded);
+    margin-top: 6px;
+}
+
+/* Source selector */
+.source-selector {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    padding: 8px;
+    border-top: 1px solid var(--ink-faded);
+    border-bottom: 1px solid var(--ink-faded);
+    margin-bottom: 12px;
+}
+
+.source-button {
+    width: 60px;
+    height: 50px;
+    background: var(--paper-medium);
+    border: 2px solid var(--ink-brown);
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+}
+
+.source-button:hover {
+    background: var(--paper-dark);
+}
+
+.source-button.active {
+    background: var(--botanical-green);
+    border-color: var(--botanical-green-dark);
+}
+
+.source-button svg {
+    width: 24px;
+    height: 24px;
+    stroke: var(--ink-brown);
+    stroke-width: 1.5;
+    fill: none;
+}
+
+.source-button.active svg {
+    stroke: var(--paper-light);
+}
+
+.source-button .label {
+    font-size: 9px;
+    color: var(--ink-light);
+    letter-spacing: 0.05em;
+}
+
+.source-button.active .label {
+    color: var(--paper-light);
+}
+
+/* Bottom strip: knobs + freeze toggle */
+.bottom-strip {
+    display: flex;
+    justify-content: space-around;
+    align-items: center;
+    padding: 12px;
+}
+
+/* Rotary knob */
+.knob-container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.knob {
+    width: 64px;
+    height: 64px;
+    position: relative;
+    cursor: ns-resize;
+}
+
+.knob-bg {
+    width: 100%;
+    height: 100%;
+    border-radius: 50%;
+    background: radial-gradient(circle at 30% 30%, var(--paper-medium), var(--paper-darkest));
+    border: 2px solid var(--ink-brown);
+    box-shadow:
+        inset 2px 2px 4px rgba(0,0,0,0.2),
+        2px 2px 4px rgba(0,0,0,0.1);
+}
+
+.knob-indicator {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 3px;
+    height: 28px;
+    background: var(--botanical-green);
+    transform-origin: bottom center;
+    transform: translate(-50%, -100%) rotate(0deg);
+    transition: transform 0.05s;
+}
+
+.knob-label {
+    font-size: 11px;
+    color: var(--ink-light);
+    letter-spacing: 0.05em;
+}
+
+.knob-value {
+    font-size: 10px;
+    color: var(--ink-faded);
+}
+
+/* Freeze toggle */
+.freeze-toggle {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+}
+
+.freeze-button {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--paper-medium);
+    border: 2px solid var(--ink-brown);
+    cursor: pointer;
+    transition: all 0.3s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.freeze-button:hover {
+    background: var(--paper-dark);
+}
+
+.freeze-button.active {
+    background: var(--botanical-green);
+    border-color: var(--botanical-green-dark);
+    box-shadow: 0 0 16px rgba(107, 142, 78, 0.4);
+}
+
+.freeze-button svg {
+    width: 32px;
+    height: 32px;
+    stroke: var(--ink-brown);
+    stroke-width: 1.5;
+    fill: none;
+    transition: stroke 0.3s;
+}
+
+.freeze-button.active svg {
+    stroke: var(--paper-light);
+}
+
+.freeze-label {
+    font-size: 11px;
+    color: var(--ink-light);
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+}

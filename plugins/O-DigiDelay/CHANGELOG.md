@@ -5,6 +5,14 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.8] - 2026-02-14
+
+### Fixed
+- Pitch black UI on CI/release builds (both macOS and Windows)
+  - Root cause: licensing starts in `Checking` status, hiding the WebView before page loads
+  - WebView2 and WKWebView do not load content when the component is hidden
+  - Fix: re-navigate WebView after license validation makes it visible (matches O-Tremolo fix 620f185)
+
 ## [1.2.7] - 2026-02-14
 
 ### Added

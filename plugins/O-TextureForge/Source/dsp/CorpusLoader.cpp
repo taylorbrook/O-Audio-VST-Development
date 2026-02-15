@@ -23,7 +23,8 @@ CorpusLoader::~CorpusLoader()
 
 void CorpusLoader::loadFile(const juce::File& file, double targetSR,
                             CompletionCallback callback,
-                            ProgressCallback umapProgress)
+                            ProgressCallback umapProgress,
+                            FailureCallback onFailure)
 {
     cancelLoad();
 
@@ -31,6 +32,8 @@ void CorpusLoader::loadFile(const juce::File& file, double targetSR,
     targetSampleRate = targetSR;
     completionCallback = callback;
     umapProgressCallback = umapProgress;
+    failureCallback = onFailure;
+    umapCancelRequested.store(false, std::memory_order_relaxed);
 
     startThread();
 }
@@ -39,6 +42,11 @@ void CorpusLoader::cancelLoad()
 {
     signalThreadShouldExit();
     waitForThreadToExit(5000);
+}
+
+void CorpusLoader::cancelUmap()
+{
+    umapCancelRequested.store(true, std::memory_order_relaxed);
 }
 
 void CorpusLoader::run()
@@ -54,6 +62,12 @@ void CorpusLoader::run()
     if (!loadAudioFile(pendingFile, buffer, sourceSR))
     {
         juce::Logger::writeToLog("Failed to load audio file: " + pendingFile.getFullPathName());
+        auto onFailure = failureCallback;
+        auto fileName = pendingFile.getFileName();
+        juce::MessageManager::callAsync([onFailure, fileName]() {
+            if (onFailure)
+                onFailure("Unsupported format: " + fileName);
+        });
         return;
     }
 
@@ -102,7 +116,7 @@ void CorpusLoader::run()
     });
 
     // Step 8: Compute UMAP (slower, with progress reporting)
-    if (threadShouldExit())
+    if (threadShouldExit() || umapCancelRequested.load(std::memory_order_relaxed))
         return;
     if (!corpus->grains.empty() && corpus->grains.size() >= 15)
     {
@@ -119,8 +133,19 @@ void CorpusLoader::run()
                     });
                 }
             },
-            [this]() { return threadShouldExit(); }
+            [this]() { return threadShouldExit() || umapCancelRequested.load(std::memory_order_relaxed); }
         );
+
+        if (umapCancelRequested.load(std::memory_order_relaxed))
+        {
+            // UMAP was cancelled — PCA layout preserved, notify JS
+            auto umapCB2 = umapProgressCallback;
+            juce::MessageManager::callAsync([umapCB2]() {
+                if (umapCB2)
+                    umapCB2(-1.0f);  // -1 signals cancellation
+            });
+            return;
+        }
 
         corpus->umapReady.store(true, std::memory_order_release);
     }

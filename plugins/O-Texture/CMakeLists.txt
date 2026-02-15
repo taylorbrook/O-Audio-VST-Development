@@ -104,6 +104,11 @@ target_link_libraries(${PROJECT_NAME}
 juce_add_binary_data(${PROJECT_NAME}_UIResources
     SOURCES
         Source/ui/public/index.html
+        Source/ui/public/css/ouaricon-naturalist.css
+        Source/ui/public/js/juce/index.js
+        Source/ui/public/js/juce/check_native_interop.js
+        Source/ui/public/js/main.js
+        Source/ui/public/img/fern.png
 )
 
 target_link_libraries(${PROJECT_NAME}

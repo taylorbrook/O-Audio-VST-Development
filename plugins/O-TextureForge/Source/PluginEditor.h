@@ -32,6 +32,9 @@ public:
     void onCorpusLoaded(int grainCount);
     void onUmapProgress(float progress);
     void onUmapComplete(const juce::String& pointsJson);
+    void onUmapCancelled();
+    void onCorpusLoadFailed(const juce::String& reason);
+    void onCorpusMissing(const juce::String& savedPath);
 
 private:
     void timerCallback() override;
@@ -39,6 +42,8 @@ private:
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
     TextureForgeProcessor& processorRef;
+    juce::String pendingLargeFilePath;
+    juce::String vizJsonBuffer;
 
     // ========================================================================
     // CRITICAL MEMBER DECLARATION ORDER: Relays -> WebView -> Attachments
