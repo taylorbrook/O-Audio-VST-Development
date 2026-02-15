@@ -5,6 +5,14 @@ All notable changes to this plugin will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.9] - 2026-02-14
+
+### Fixed
+- Black screen on CI/release builds (overlay never displayed)
+  - Root cause: `setSize()` called before license overlay was created, so `resized()` never sized the overlay — it had zero bounds (0,0,0,0) and was invisible
+  - Fix: moved `setSize()` to end of constructor (after overlay creation), matching O-Tremolo pattern
+  - Now the activation dialog properly displays on first launch of release builds
+
 ## [1.2.8] - 2026-02-14
 
 ### Fixed

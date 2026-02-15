@@ -144,10 +144,6 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
     , divisionAttachment(std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.parameters.getParameter("division"), *divisionRelay, nullptr))
 {
-    // Window size: 700×196px (from v7-ui.yaml)
-    setSize(700, 196);
-    setResizable(false, false);
-
     // Add WebView to component hierarchy
     addAndMakeVisible(*webView);
 
@@ -168,6 +164,12 @@ OuariconDigitalDelayAudioProcessorEditor::OuariconDigitalDelayAudioProcessorEdit
         webView->setVisible(false);
     }
 #endif
+
+    // CRITICAL: setSize MUST be called AFTER all components (including overlay)
+    // are created. setSize triggers resized() which sizes child components.
+    // If called before overlay exists, overlay gets zero bounds → invisible.
+    setSize(700, 196);
+    setResizable(false, false);
 
     // Note: Navigation happens in parentHierarchyChanged (JUCE 8 requirement)
     // This prevents crashes during plugin scanning when no window context exists
