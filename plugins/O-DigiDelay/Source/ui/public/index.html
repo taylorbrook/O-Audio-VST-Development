@@ -458,6 +458,26 @@
       top: 4px;
       left: 495px;
     }
+
+    .footer-brand {
+      position: absolute;
+      bottom: 6px;
+      left: 0;
+      right: 0;
+      text-align: center;
+      font-size: 9px;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: rgba(60, 47, 47, 0.4);
+      pointer-events: none;
+      z-index: 2;
+    }
+
+    .footer-brand .version {
+      margin-left: 4px;
+      font-size: 8px;
+      letter-spacing: 1px;
+    }
   </style>
 </head>
 <body>
@@ -588,6 +608,12 @@
       <div class="led-meter" id="led-meter">
         <!-- 14 segments, populated by JavaScript -->
       </div>
+    </div>
+
+    <!-- FOOTER BRANDING -->
+    <div class="footer-brand">
+      <span>Ouaricon Audio</span>
+      <span class="version" id="versionLabel"></span>
     </div>
   </div>
 
@@ -989,6 +1015,15 @@
 
       const presetNameDisplay = document.getElementById('presetName');
       const presetDropdown = document.getElementById('presetDropdown');
+
+      // Fetch plugin version from C++ and display in footer
+      const getPluginVersion = getNativeFunction('getPluginVersion');
+      getPluginVersion().then(version => {
+          const versionLabel = document.getElementById('versionLabel');
+          if (versionLabel && version) {
+              versionLabel.textContent = 'v' + version;
+          }
+      });
 
       const presetManager = new PresetManager({
         displayElement: presetNameDisplay,
