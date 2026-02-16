@@ -2,6 +2,12 @@
 
 All notable changes to O-SimpleReverb (formerly OuariconSimpleReverb) will be documented in this file.
 
+## [1.5.5] - 2026-02-15
+
+### Added
+
+- **Version footer:** Added "Ouaricon Audio" version label in the plugin UI footer
+
 ## [1.5.4] - 2026-02-08
 
 ### Changed
