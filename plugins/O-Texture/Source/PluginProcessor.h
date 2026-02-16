@@ -105,6 +105,7 @@ private:
     // Full decoded block buffers (4096 samples each)
     std::vector<float> decodedBufferL;
     std::vector<float> decodedBufferR;
+    std::vector<float> decoderOutputBuffer; // Pre-allocated for runDecoder()
     bool decoderReady = false;
 
     void constructLatentVectors(float x, float y, float charA, float charB,

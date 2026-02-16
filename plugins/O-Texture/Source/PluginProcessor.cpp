@@ -57,6 +57,7 @@ TextureProcessor::TextureProcessor()
 
     decodedBufferL.resize(static_cast<size_t>(kBlockSize), 0.0f);
     decodedBufferR.resize(static_cast<size_t>(kBlockSize), 0.0f);
+    decoderOutputBuffer.resize(static_cast<size_t>(kBlockSize), 0.0f);
 
     loadDimMap();
     initDecoderSession();
@@ -170,12 +171,11 @@ bool TextureProcessor::runDecoder(const float* latent, float* outputAudio)
             inputShape.size()
         );
 
-        // Output: audio [1, 1, 4096]
+        // Output: audio [1, 1, 4096] — uses pre-allocated member buffer
         std::array<int64_t, 3> outputShape = { 1, 1, kBlockSize };
-        std::vector<float> outputBuffer(static_cast<size_t>(kBlockSize));
         Ort::Value outputTensor = Ort::Value::CreateTensor<float>(
             memoryInfo,
-            outputBuffer.data(),
+            decoderOutputBuffer.data(),
             static_cast<size_t>(kBlockSize),
             outputShape.data(),
             outputShape.size()
@@ -192,7 +192,7 @@ bool TextureProcessor::runDecoder(const float* latent, float* outputAudio)
         );
 
         // Copy output (the decoder output is [1, 1, 4096], we want the inner 4096 samples)
-        std::memcpy(outputAudio, outputBuffer.data(), sizeof(float) * static_cast<size_t>(kBlockSize));
+        std::memcpy(outputAudio, decoderOutputBuffer.data(), sizeof(float) * static_cast<size_t>(kBlockSize));
         return true;
     }
     catch (const Ort::Exception& e)

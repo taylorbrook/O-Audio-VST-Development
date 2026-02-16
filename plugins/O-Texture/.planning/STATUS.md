@@ -1,14 +1,14 @@
 ---
 plugin: O-Texture
-stage: 3
-phase: null
+stage: 4
+phase: verify
 status: complete
-last_updated: 2026-02-14
+last_updated: 2026-02-15
 complexity_score: 5.0
 staged_implementation: true
 orchestration_mode: true
-next_action: begin_stage_4
-next_stage: Stage 4 (Polish)
+next_action: install_or_publish
+next_stage: complete
 ready_for_implementation: false
 requires_external_training: true
 using_placeholder_models: true
@@ -23,9 +23,9 @@ contract_checksums:
 
 ## Current Position
 
-Stage: 3 of 4 (GUI) -- COMPLETE
-Status: GUI integrated - WebView operational, 10 parameter controls bound
-Progress: [###################.] 95%
+Stage: 4 of 4 (Polish) -- ALL STAGES COMPLETE
+Status: v0.1.0 verified — pluginval strictness 10 PASSED (DSP + GUI), signed, installed
+Progress: [####################] 100%
 
 ## CRITICAL: Non-Standard Workflow (Updated)
 
@@ -105,9 +105,50 @@ Progress: [###################.] 95%
 - Resource provider serves all 6 UI files (HTML, CSS, 3 JS, PNG)
 - Plugin builds and installs successfully (VST3 + AU)
 
+**Stage 4 Discuss:** Complete
+- Full polish scope (pluginval, cross-DAW, CHANGELOG, code cleanup, v0.1.0)
+- Skip presets (placeholder models)
+- Skip perceptual testing (placeholder models)
+
+**Stage 4 Research:** Complete
+- Pluginval strictness 5-10 behavior documented (subnormals, binary-exact state, editor iterations)
+- Code review: 1 high-priority fix (pre-allocate ONNX output buffer), 2 low-priority cleanups
+- Cross-DAW test matrix defined (Logic, Ableton, Reaper, Standalone)
+- CHANGELOG v0.1.0 content drafted
+- State serialization analysis: should pass binary-exact matching
+- Known WebView pluginval limitation documented
+
+**Stage 4 Plan:** Complete (11 tasks)
+- Pre-allocate ONNX output buffer, remove debug logs, remove dead HTML attrs
+- Update version 1.0.0 → 0.1.0, create CHANGELOG.md
+- Build, pluginval (strictness 5 → 10 → 10+GUI), install, code sign
+
+**Stage 4 Execute:** Complete (11/11 tasks)
+- Pre-allocated decoderOutputBuffer (real-time safety fix)
+- Removed all debug console.log from main.js
+- Removed all unused data-parameter-index HTML attributes
+- VERSION updated to 0.1.0
+- CHANGELOG.md created (v0.1.0)
+- Build: clean compile, no new warnings
+- pluginval strictness 5: PASSED (VST3 + AU)
+- pluginval strictness 10 without GUI: PASSED (binary-exact state, fuzz, thread safety)
+- pluginval strictness 10 with GUI: PASSED (1000-iteration editor automation, no WebView crash)
+- Plugin installed and AU registered (aumu OuTx OuDv)
+- Ad-hoc code signed (VST3 + AU + embedded frameworks verified)
+
+**Stage 4 Verify:** Complete (all automated checks passed, VERIFICATION.md created)
+- Build: clean compile, no warnings
+- pluginval strictness 5 (VST3 + AU): PASSED
+- pluginval strictness 10 without GUI (VST3): PASSED (binary-exact state, fuzz, thread safety)
+- pluginval strictness 10 with GUI (VST3): PASSED (1000-iteration editor automation)
+- AU registration: aumu OuTx OuDv confirmed
+- Code signing: VST3 + AU + embedded frameworks verified
+- Code verification: all 5 cleanup checks confirmed (pre-allocated buffer, no debug logs, no dead HTML attrs, v0.1.0, CHANGELOG)
+
 ## Next Steps
 
-1. **Stage 4 (Polish)** -- Final QA, pluginval, changelog, installer prep
+1. **Install for DAW use** — `/install-plugin O-Texture`
+2. **Future milestone** — Real model integration (PyTorch training → ONNX export → replace placeholders)
 
 ## Files
 

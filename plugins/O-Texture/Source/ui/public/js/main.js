@@ -26,10 +26,6 @@ let isDraggingXY = false;
 // Initialize after DOM loads
 // ============================================================================
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('O-Texture UI initializing...');
-    console.log('JUCE backend:', window.__JUCE__?.backend);
-    console.log('Backend resource address:', getBackendResourceAddress());
-
     // Setup canvas
     if (canvas) {
         const container = canvas.parentElement;
@@ -52,8 +48,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (canvas) {
         requestAnimationFrame(animationLoop);
     }
-
-    console.log('O-Texture UI initialized');
 });
 
 // ============================================================================
@@ -77,16 +71,8 @@ function initializeRelays() {
     freezeState = getToggleState('freezeToggle');
 
     // Listen for backend property updates (initial state)
-    xState.propertiesChangedEvent.addListener(() => console.log('X properties:', xState.properties));
-    yState.propertiesChangedEvent.addListener(() => console.log('Y properties:', yState.properties));
-    sourceState.propertiesChangedEvent.addListener(() => {
-        console.log('Source choices:', sourceState.properties.choices);
-        updateSourceButtons();
-    });
-    modeState.propertiesChangedEvent.addListener(() => {
-        console.log('Mode choices:', modeState.properties.choices);
-        updateModeButtons();
-    });
+    sourceState.propertiesChangedEvent.addListener(() => updateSourceButtons());
+    modeState.propertiesChangedEvent.addListener(() => updateModeButtons());
 
     // Listen for backend value changes (automation, presets)
     xState.valueChangedEvent.addListener(() => updateXYPadVisual());

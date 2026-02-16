@@ -12,20 +12,20 @@
         <div class="header">
             <h1>O-TEXTURE</h1>
             <div class="mode-toggle">
-                <button data-parameter-index="1">Generate</button>
-                <button data-parameter-index="1">Transform</button>
+                <button>Generate</button>
+                <button>Transform</button>
             </div>
         </div>
 
         <!-- Main area: XY pad + vertical sliders -->
         <div class="main-area">
             <div class="xy-pad-container">
-                <canvas id="xy-pad" class="xy-pad" data-parameter-index="2,3"></canvas>
+                <canvas id="xy-pad" class="xy-pad"></canvas>
             </div>
 
             <div class="vertical-sliders">
                 <!-- Character A -->
-                <div id="slider-charA" class="vertical-slider" data-parameter-index="4">
+                <div id="slider-charA" class="vertical-slider">
                     <div class="label">Char A</div>
                     <div class="slider-track">
                         <div class="slider-thumb"></div>
@@ -34,7 +34,7 @@
                 </div>
 
                 <!-- Character B -->
-                <div id="slider-charB" class="vertical-slider" data-parameter-index="5">
+                <div id="slider-charB" class="vertical-slider">
                     <div class="label">Char B</div>
                     <div class="slider-track">
                         <div class="slider-thumb"></div>
@@ -43,7 +43,7 @@
                 </div>
 
                 <!-- Evolve -->
-                <div id="slider-evolve" class="vertical-slider" data-parameter-index="6">
+                <div id="slider-evolve" class="vertical-slider">
                     <div class="label">Evolve</div>
                     <div class="slider-track">
                         <div class="slider-thumb"></div>
@@ -56,7 +56,7 @@
         <!-- Source selector: 6 icon buttons -->
         <div class="source-selector">
             <!-- Rain -->
-            <button class="source-button" data-parameter-index="0">
+            <button class="source-button">
                 <svg viewBox="0 0 24 24">
                     <path d="M12 2 L12 10 M8 8 L8 14 M16 8 L16 14 M10 16 L10 20 M14 16 L14 20"/>
                 </svg>
@@ -64,7 +64,7 @@
             </button>
 
             <!-- Metal -->
-            <button class="source-button" data-parameter-index="0">
+            <button class="source-button">
                 <svg viewBox="0 0 24 24">
                     <circle cx="12" cy="12" r="7"/>
                     <circle cx="12" cy="12" r="3"/>
@@ -74,7 +74,7 @@
             </button>
 
             <!-- Wind -->
-            <button class="source-button" data-parameter-index="0">
+            <button class="source-button">
                 <svg viewBox="0 0 24 24">
                     <path d="M3 8 Q8 6, 14 8 T20 8 M3 12 Q10 10, 16 12 T21 12 M3 16 Q7 14, 12 16 T19 16"/>
                 </svg>
@@ -82,7 +82,7 @@
             </button>
 
             <!-- Crowd -->
-            <button class="source-button" data-parameter-index="0">
+            <button class="source-button">
                 <svg viewBox="0 0 24 24">
                     <circle cx="8" cy="7" r="2"/>
                     <circle cx="16" cy="7" r="2"/>
@@ -93,7 +93,7 @@
             </button>
 
             <!-- Synth -->
-            <button class="source-button" data-parameter-index="0">
+            <button class="source-button">
                 <svg viewBox="0 0 24 24">
                     <path d="M4 12 L8 6 L12 16 L16 8 L20 12" stroke-linecap="round" stroke-linejoin="round"/>
                 </svg>
@@ -101,7 +101,7 @@
             </button>
 
             <!-- Organic -->
-            <button class="source-button" data-parameter-index="0">
+            <button class="source-button">
                 <svg viewBox="0 0 24 24">
                     <path d="M12 4 Q8 8, 12 12 T12 20 M12 12 Q16 10, 18 12"/>
                 </svg>
@@ -112,7 +112,7 @@
         <!-- Bottom strip: Brightness knob + Mix knob + Freeze toggle -->
         <div class="bottom-strip">
             <!-- Brightness Knob -->
-            <div class="knob-container" data-parameter-index="8">
+            <div class="knob-container">
                 <div id="knob-brightness" class="knob">
                     <div class="knob-bg"></div>
                     <div class="knob-indicator"></div>
@@ -122,7 +122,7 @@
             </div>
 
             <!-- Mix Knob -->
-            <div class="knob-container" data-parameter-index="9">
+            <div class="knob-container">
                 <div id="knob-mix" class="knob">
                     <div class="knob-bg"></div>
                     <div class="knob-indicator"></div>
@@ -132,7 +132,7 @@
             </div>
 
             <!-- Freeze Toggle -->
-            <div class="freeze-toggle" data-parameter-index="7">
+            <div class="freeze-toggle">
                 <button id="freeze-button" class="freeze-button">
                     <svg viewBox="0 0 24 24">
                         <path d="M12 2 L12 22 M2 12 L22 12 M6 6 L18 18 M18 6 L6 18"/>
