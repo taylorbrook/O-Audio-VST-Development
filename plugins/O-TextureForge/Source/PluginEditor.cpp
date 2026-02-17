@@ -139,6 +139,38 @@ TextureForgeEditor::TextureForgeEditor(TextureForgeProcessor& p)
                 }
                 complete({});
             })
+            .withNativeFunction("browseForFile", [this](const juce::Array<juce::var>& /*args*/,
+                                                         juce::WebBrowserComponent::NativeFunctionCompletion complete)
+            {
+                fileChooser = std::make_unique<juce::FileChooser>(
+                    "Load Audio File",
+                    juce::File{},
+                    "*.wav;*.aif;*.aiff;*.mp3;*.flac;*.ogg");
+
+                fileChooser->launchAsync(juce::FileBrowserComponent::openMode
+                                       | juce::FileBrowserComponent::canSelectFiles,
+                    [this](const juce::FileChooser& fc)
+                    {
+                        auto result = fc.getResult();
+                        if (result.existsAsFile())
+                        {
+                            constexpr int64_t largeFileThreshold = 104857600;
+                            if (result.getSize() > largeFileThreshold)
+                            {
+                                pendingLargeFilePath = result.getFullPathName();
+                                double sizeMB = result.getSize() / (1024.0 * 1024.0);
+                                juce::String json = "{\"sizeMB\":" + juce::String(sizeMB, 1) + "}";
+                                webView->emitEventIfBrowserIsVisible("fileSizeWarning", json);
+                            }
+                            else
+                            {
+                                processorRef.loadCorpusFile(result);
+                                juce::Logger::writeToLog("Loading corpus: " + result.getFileName());
+                            }
+                        }
+                    });
+                complete({});
+            })
     );
 
     addAndMakeVisible(*webView);

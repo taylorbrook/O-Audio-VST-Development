@@ -106,7 +106,11 @@ private:
 
     // Thread-safe corpus sharing
     std::shared_ptr<SharedCorpus> currentCorpus;  // Message thread (owns lifetime)
+    std::shared_ptr<SharedCorpus> retiredCorpus;  // Keeps previous corpus alive while audio thread drains
     std::atomic<SharedCorpus*> corpusForAudio { nullptr };  // Audio thread (read-only)
+
+    // Weak guard for safe async callback delivery
+    std::shared_ptr<int> lifetimeGuard = std::make_shared<int>(0);
 
     // UI-selected grain for triggering
     std::atomic<int> pendingGrainSelect { -1 };

@@ -28,6 +28,19 @@ void CorpusLoader::loadFile(const juce::File& file, double targetSR,
 {
     cancelLoad();
 
+    // Guard against startThread assertion if thread didn't exit in time
+    if (isThreadRunning())
+    {
+        juce::Logger::writeToLog("CorpusLoader: previous thread still running, skipping new load");
+        if (onFailure)
+        {
+            juce::MessageManager::callAsync([onFailure]() {
+                onFailure("Previous load still in progress");
+            });
+        }
+        return;
+    }
+
     pendingFile = file;
     targetSampleRate = targetSR;
     completionCallback = callback;
@@ -40,6 +53,7 @@ void CorpusLoader::loadFile(const juce::File& file, double targetSR,
 
 void CorpusLoader::cancelLoad()
 {
+    umapCancelRequested.store(true, std::memory_order_relaxed);
     signalThreadShouldExit();
     waitForThreadToExit(5000);
 }

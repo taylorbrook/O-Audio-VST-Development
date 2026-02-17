@@ -16,6 +16,10 @@ TextureForgeProcessor::TextureForgeProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true)),
       parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+    // Force Eigen's cache-size static to initialize on the main thread.
+    // Avoids PAC trap when __cxa_guard_acquire runs on background threads
+    // in arm64e AU hosting processes (Logic Pro).
+    initEigenOnMainThread();
     energyParam       = parameters.getRawParameterValue("ENERGY");
     brightnessParam   = parameters.getRawParameterValue("BRIGHTNESS");
     textureParam      = parameters.getRawParameterValue("TEXTURE");
@@ -30,7 +34,11 @@ TextureForgeProcessor::TextureForgeProcessor()
     midiModeParam     = parameters.getRawParameterValue("MIDI_MODE");
 }
 
-TextureForgeProcessor::~TextureForgeProcessor() {}
+TextureForgeProcessor::~TextureForgeProcessor()
+{
+    // Invalidate the lifetime guard so pending callAsync callbacks become no-ops
+    lifetimeGuard.reset();
+}
 
 juce::AudioProcessorValueTreeState::ParameterLayout TextureForgeProcessor::createParameterLayout()
 {
@@ -219,35 +227,49 @@ void TextureForgeProcessor::setStateInformation(const void* data, int sizeInByte
     {
         parameters.replaceState(juce::ValueTree::fromXml(*xml));
 
-        // Restore corpus from saved path
+        // Restore corpus from saved path — defer to message thread to avoid
+        // blocking the audio thread (setStateInformation can be called from any thread)
         auto* corpusXml = xml->getChildByName("CORPUS");
         if (corpusXml != nullptr)
         {
             juce::String savedPath = corpusXml->getStringAttribute("filePath");
-            juce::File file(savedPath);
-            if (file.existsAsFile())
+            std::weak_ptr<int> guard(lifetimeGuard);
+
+            juce::MessageManager::callAsync([this, guard, savedPath]()
             {
-                loadCorpusFile(file);
-            }
-            else if (savedPath.isNotEmpty())
-            {
-                juce::MessageManager::callAsync([this, savedPath]() {
+                if (guard.expired())
+                    return;
+
+                juce::File file(savedPath);
+                if (file.existsAsFile())
+                {
+                    loadCorpusFile(file);
+                }
+                else if (savedPath.isNotEmpty())
+                {
                     if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
                         editor->onCorpusMissing(savedPath);
-                });
-            }
+                }
+            });
         }
     }
 }
 
 void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
 {
+    std::weak_ptr<int> guard(lifetimeGuard);
+
     corpusLoader.loadFile(file, currentSampleRate,
         // Completion callback (PCA done, deliver corpus)
-        [this](std::shared_ptr<SharedCorpus> newCorpus)
+        [this, guard](std::shared_ptr<SharedCorpus> newCorpus)
         {
+            if (guard.expired())
+                return;
+
             if (newCorpus != nullptr && !newCorpus->grains.empty())
             {
+                // Keep old corpus alive while audio thread drains its current processBlock
+                retiredCorpus = currentCorpus;
                 currentCorpus = newCorpus;
                 corpusForAudio.store(currentCorpus.get(), std::memory_order_release);
 
@@ -261,8 +283,11 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
             }
         },
         // UMAP progress callback
-        [this](float progress)
+        [this, guard](float progress)
         {
+            if (guard.expired())
+                return;
+
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
             {
                 if (progress < 0.0f)
@@ -294,8 +319,11 @@ void TextureForgeProcessor::loadCorpusFile(const juce::File& file)
             }
         },
         // Failure callback
-        [this](const juce::String& reason)
+        [this, guard](const juce::String& reason)
         {
+            if (guard.expired())
+                return;
+
             if (auto* editor = dynamic_cast<TextureForgeEditor*>(getActiveEditor()))
             {
                 editor->onCorpusLoadFailed(reason);

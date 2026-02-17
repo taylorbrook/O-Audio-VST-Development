@@ -134,6 +134,16 @@ public:
         }
     }
 
+    // Release all MIDI-triggered voices (for Mode 1 monophonic behavior)
+    void releaseAllMidiVoices()
+    {
+        for (auto& voice : voices)
+        {
+            if (voice.active && voice.midiNote >= 0)
+                voice.active = false;
+        }
+    }
+
     // Release all voices
     void releaseAll()
     {

@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <style>
+        html, body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a2e;
+            color: #e0d6c8;
+            font-family: 'Georgia', serif;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        #app {
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5em;
+            letter-spacing: 0.3em;
+            color: #c4a882;
+            margin-bottom: 0.5em;
+        }
+        p {
+            font-size: 1.1em;
+            color: #8a7e6e;
+            font-style: italic;
+        }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <h1>O - P R I S M</h1>
+        <p>Microtonal Wavetable Synthesizer</p>
+        <p>Loading...</p>
+    </div>
+    <script type="module">
+        import { getSliderState, getToggleState } from './js/juce/index.js';
+    </script>
+</body>
+</html>

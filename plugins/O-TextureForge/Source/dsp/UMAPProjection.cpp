@@ -10,9 +10,19 @@
 #include "UMAPProjection.h"
 #include <umappp/umappp.hpp>
 #include <knncolle/knncolle.hpp>
+#include <Eigen/Dense>
 #include <algorithm>
 #include <memory>
 #include <thread>
+
+void initEigenOnMainThread()
+{
+    // Trigger Eigen's manage_caching_sizes static initialization on the main thread.
+    // This forces __cxa_guard_acquire to run in the arm64e host's main thread context
+    // (where PAC authentication works), rather than on a background pthread created
+    // by arm64 plugin code (where PAC traps occur).
+    Eigen::setCpuCacheSizes(131072, 4194304, 0);
+}
 
 void UMAPProjection::compute(const std::vector<GrainMetadata>& grains,
                              std::vector<float>& outX,

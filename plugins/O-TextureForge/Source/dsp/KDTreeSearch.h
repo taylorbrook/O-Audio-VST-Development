@@ -26,7 +26,7 @@ public:
 
     inline float kdtree_get_pt(const size_t idx, const size_t dim) const
     {
-        return grains[idx].descriptors[dim];
+        return grains[idx].descriptors[dim] * descriptorDimWeight(static_cast<int>(dim));
     }
 
     template <class BBOX>

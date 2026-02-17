@@ -9,6 +9,35 @@
 
 import createScatterplot from 'regl-scatterplot';
 
+// ===== Minimal D3-compatible linear scale (avoids full D3 dependency) =====
+function linearScale() {
+    let _domain = [0, 1];
+    let _range = [0, 1];
+
+    function scale(value) {
+        const t = (value - _domain[0]) / (_domain[1] - _domain[0]);
+        return _range[0] + t * (_range[1] - _range[0]);
+    }
+
+    scale.domain = function(d) {
+        if (!arguments.length) return _domain.slice();
+        _domain = [d[0], d[1]];
+        return scale;
+    };
+
+    scale.range = function(r) {
+        if (!arguments.length) return _range.slice();
+        _range = [r[0], r[1]];
+        return scale;
+    };
+
+    scale.copy = function() {
+        return linearScale().domain(_domain).range(_range);
+    };
+
+    return scale;
+}
+
 // ===== Constants =====
 const ANGLE_MIN = -135;
 const ANGLE_RANGE = 270;
@@ -34,18 +63,7 @@ function getComboBoxState(name) {
 
 function getNativeFunction(name) {
     if (!window.__JUCE__) return () => Promise.resolve(null);
-    const f = function() {
-        const promiseId = window.__JUCE__._promiseHandler
-            ? window.__JUCE__._promiseHandler.createPromise()
-            : [0, Promise.resolve(null)];
-        window.__JUCE__.backend.emitEvent('__juce__invoke', {
-            name: name,
-            params: Array.prototype.slice.call(arguments),
-            resultId: promiseId[0]
-        });
-        return promiseId[1];
-    };
-    return f;
+    return window.getNativeFunction(name);
 }
 
 // ===== Knob Controller =====
@@ -148,6 +166,8 @@ function initScatterPlot(data) {
             canvas,
             width: canvas.clientWidth,
             height: canvas.clientHeight,
+            xScale: linearScale().domain([0, 1]).range([0, canvas.clientWidth]),
+            yScale: linearScale().domain([0, 1]).range([canvas.clientHeight, 0]),
             pointSize: 4,
             opacity: 0.75,
             backgroundColor: [0, 0, 0, 0],
@@ -229,10 +249,25 @@ function drawCursor(cx, cy, variation) {
 
     ctx.clearRect(0, 0, w, h);
 
-    // Map normalized 0-1 coords to canvas pixels
-    const px = cx * w;
-    const py = (1 - cy) * h;  // Flip Y for canvas
-    const radius = variation * Math.min(w, h) * 0.3;
+    // Map data coordinates to pixel coordinates using scatter plot's view transform
+    let px, py;
+    if (scatterViewTransform && typeof scatterViewTransform.xScale === 'function') {
+        px = scatterViewTransform.xScale(cx);
+        py = scatterViewTransform.yScale(cy);
+    } else {
+        // Fallback before scatter plot is initialized
+        px = cx * w;
+        py = (1 - cy) * h;
+    }
+
+    // Compute radius in pixel space using the scale transform
+    let radius;
+    if (scatterViewTransform && typeof scatterViewTransform.xScale === 'function') {
+        const edge = scatterViewTransform.xScale(cx + variation * 0.5);
+        radius = Math.abs(edge - px);
+    } else {
+        radius = variation * Math.min(w, h) * 0.3;
+    }
 
     // Crosshair lines
     ctx.strokeStyle = 'rgba(139, 105, 20, 0.6)';
@@ -468,6 +503,25 @@ const fmtDb = (n) => {
     return '';  // Value comes from propertiesChanged
 };
 
+// ===== File Browse =====
+function setupFileBrowse() {
+    const browseForFile = getNativeFunction('browseForFile');
+
+    // Click on drop zone opens file browser
+    const dropZone = document.getElementById('drop-zone');
+    if (dropZone) {
+        dropZone.style.cursor = 'pointer';
+        dropZone.addEventListener('click', () => browseForFile());
+    }
+
+    // Click on scatter placeholder opens file browser
+    const placeholder = document.querySelector('.scatter-placeholder');
+    if (placeholder) {
+        placeholder.style.cursor = 'pointer';
+        placeholder.addEventListener('click', () => browseForFile());
+    }
+}
+
 // ===== Initialization =====
 document.addEventListener('DOMContentLoaded', () => {
     // Wait for JUCE bridge
@@ -506,6 +560,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Initialize cursor overlay
         initCursorOverlay();
+
+        // Setup file browse click handlers
+        setupFileBrowse();
 
         // Listen for C++ events
         listenForEvents();

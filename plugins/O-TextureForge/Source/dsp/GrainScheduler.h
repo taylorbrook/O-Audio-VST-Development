@@ -58,9 +58,9 @@ public:
 private:
     void handleMidiMessage(const juce::MidiMessage& msg, const SchedulerParams& params, const SharedCorpus* corpus);
     void processDroneMode(int numSamples, const SchedulerParams& params, const SharedCorpus* corpus);
-    void triggerGrain(const SharedCorpus* corpus, const SchedulerParams& params, int midiNote, float velocity);
+    void triggerGrain(const SharedCorpus* corpus, const SchedulerParams& params, int midiNote, int midiChannel, float velocity);
     void triggerGrainByIndex(const SharedCorpus* corpus, const SchedulerParams& params,
-                             uint32_t grainIndex, int midiNote, float velocity);
+                             uint32_t grainIndex, int midiNote, int midiChannel, float velocity);
 
 public:
     // Trigger a specific grain by index (from UI scatter click)
@@ -84,8 +84,12 @@ private:
     int droneTimerSamples = 0;
     int droneIntervalSamples = 1000;
 
-    // MIDI CC state for Trigger+Modulate mode
-    float ccScatterX = 0.5f;
-    float ccScatterY = 0.5f;
-    float aftertouchValue = 0.0f;
+    // MIDI CC state for Trigger+Modulate mode (Mode 1)
+    float ccEnergy = 0.5f;         // CC1 (mod wheel) → energy bias
+    float ccBrightness = 0.5f;     // Channel pressure → brightness bias
+
+    // Drone mode CC overrides (Mode 2), -1 = use APVTS value
+    float droneCCEnergy = -1.0f;
+    float droneCCBrightness = -1.0f;
+    float droneCCTexture = -1.0f;
 };

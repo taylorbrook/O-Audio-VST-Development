@@ -37,8 +37,8 @@ void GrainScheduler::processBlock(
 {
     const int numSamples = buffer.getNumSamples();
 
-    // Handle MIDI input (modes 0 and 1)
-    if (params.midiMode != 2 && corpus != nullptr)
+    // Handle MIDI input for all modes (notes for 0/1, CCs for all)
+    if (corpus != nullptr)
     {
         for (const auto metadata : midiMessages)
         {
@@ -63,7 +63,8 @@ void GrainScheduler::processBlock(
 
 void GrainScheduler::handleMidiMessage(const juce::MidiMessage& msg, const SchedulerParams& params, const SharedCorpus* corpus)
 {
-    if (msg.isNoteOn())
+    // Note-on/off: only modes 0 (Pitch-Mapped) and 1 (Trigger+Modulate)
+    if (msg.isNoteOn() && params.midiMode != 2)
     {
         // Handle velocity-0 note-on as note-off
         if (msg.getVelocity() == 0)
@@ -73,25 +74,43 @@ void GrainScheduler::handleMidiMessage(const juce::MidiMessage& msg, const Sched
         }
 
         const int midiNote = msg.getNoteNumber();
+        const int midiChannel = msg.getChannel();
         const float velocity = msg.getFloatVelocity();
 
-        triggerGrain(corpus, params, midiNote, velocity);
+        // Mode 1: monophonic — kill previous MIDI-triggered grains
+        if (params.midiMode == 1)
+            grainPool.releaseAllMidiVoices();
+
+        triggerGrain(corpus, params, midiNote, midiChannel, velocity);
     }
-    else if (msg.isNoteOff())
+    else if (msg.isNoteOff() && params.midiMode != 2)
     {
         grainPool.releaseByNote(msg.getNoteNumber(), msg.getChannel());
     }
-    else if (msg.isController() && params.midiMode == 1)
+    // CC handling for all modes
+    else if (msg.isController())
     {
-        // CC1 (Mod Wheel) controls ScatterX
-        if (msg.getControllerNumber() == 1)
+        const int cc = msg.getControllerNumber();
+        const float value = msg.getControllerValue() / 127.0f;
+
+        if (params.midiMode == 1)
         {
-            ccScatterX = msg.getControllerValue() / 127.0f;
+            // Mode 1: CC1 (mod wheel) → energy bias for grain selection
+            if (cc == 1)
+                ccEnergy = value;
+        }
+        else if (params.midiMode == 2)
+        {
+            // Mode 2 (Drone): CC → parameter overrides for hardware control
+            if (cc == 1)       droneCCEnergy = value;      // Mod wheel → Energy
+            else if (cc == 11) droneCCBrightness = value;  // Expression → Brightness
+            else if (cc == 74) droneCCTexture = value;     // Filter cutoff → Texture
         }
     }
-    else if (msg.isAftertouch() && params.midiMode == 1)
+    // Channel pressure (aftertouch) for Mode 1
+    else if (msg.isChannelPressure() && params.midiMode == 1)
     {
-        aftertouchValue = msg.getAfterTouchValue() / 127.0f;
+        ccBrightness = msg.getChannelPressureValue() / 127.0f;
     }
 }
 
@@ -107,17 +126,40 @@ void GrainScheduler::processDroneMode(int numSamples, const SchedulerParams& par
     while (droneTimerSamples >= droneIntervalSamples)
     {
         droneTimerSamples -= droneIntervalSamples;
-        triggerGrain(corpus, params, -1, 1.0f);
+        triggerGrain(corpus, params, -1, -1, 1.0f);
     }
 }
 
-void GrainScheduler::triggerGrain(const SharedCorpus* corpus, const SchedulerParams& params, int midiNote, float velocity)
+void GrainScheduler::triggerGrain(const SharedCorpus* corpus, const SchedulerParams& params, int midiNote, int midiChannel, float velocity)
 {
     if (corpus == nullptr || corpus->grains.empty())
         return;
 
-    uint32_t grainIndex = queryGrainIndex(corpus, params, random);
-    triggerGrainByIndex(corpus, params, grainIndex, midiNote, velocity);
+    // Build effective params with mode-specific overrides for grain selection
+    SchedulerParams effectiveParams = params;
+
+    if (params.midiMode == 0 && midiNote >= 0)
+    {
+        // Mode 0 (Pitch-Mapped): velocity biases Energy descriptor for grain selection
+        effectiveParams.energy = velocity;
+    }
+    else if (params.midiMode == 1)
+    {
+        // Mode 1 (Trigger+Modulate): CC1→energy, aftertouch→brightness, velocity→variation
+        effectiveParams.energy = ccEnergy;
+        effectiveParams.brightness = ccBrightness;
+        effectiveParams.variation = velocity * params.variation;
+    }
+    else if (params.midiMode == 2)
+    {
+        // Mode 2 (Drone): apply CC overrides if set (-1 = use APVTS value)
+        if (droneCCEnergy >= 0.0f)     effectiveParams.energy = droneCCEnergy;
+        if (droneCCBrightness >= 0.0f) effectiveParams.brightness = droneCCBrightness;
+        if (droneCCTexture >= 0.0f)    effectiveParams.texture = droneCCTexture;
+    }
+
+    uint32_t grainIndex = queryGrainIndex(corpus, effectiveParams, random);
+    triggerGrainByIndex(corpus, params, grainIndex, midiNote, midiChannel, velocity);
 }
 
 void GrainScheduler::triggerSpecificGrain(const SharedCorpus* corpus, const SchedulerParams& params, uint32_t grainIndex)
@@ -125,11 +167,11 @@ void GrainScheduler::triggerSpecificGrain(const SharedCorpus* corpus, const Sche
     if (corpus == nullptr || grainIndex >= corpus->grains.size())
         return;
 
-    triggerGrainByIndex(corpus, params, grainIndex, -1, 1.0f);
+    triggerGrainByIndex(corpus, params, grainIndex, -1, -1, 1.0f);
 }
 
 void GrainScheduler::triggerGrainByIndex(const SharedCorpus* corpus, const SchedulerParams& params,
-                                          uint32_t grainIndex, int midiNote, float velocity)
+                                          uint32_t grainIndex, int midiNote, int midiChannel, float velocity)
 {
     const auto& grainMeta = corpus->grains[grainIndex];
 
@@ -155,6 +197,7 @@ void GrainScheduler::triggerGrainByIndex(const SharedCorpus* corpus, const Sched
     voice->samplesElapsed = 0;
     voice->gain = velocity;
     voice->midiNote = midiNote;
+    voice->midiChannel = midiChannel;
 
     // Compute playback rate based on MIDI mode
     if (params.midiMode == 0 && midiNote >= 0)
@@ -184,12 +227,10 @@ uint32_t GrainScheduler::queryGrainIndex(
         queryPoint.fill(0.0f);
 
         // Map macro knobs to their descriptor dimensions (z-score space: -1..+1)
-        // Energy -> dim[17] (RMS Energy)
-        queryPoint[17] = (params.energy * 2.0f) - 1.0f;
-        // Brightness -> dim[13] (Spectral Centroid)
-        queryPoint[13] = (params.brightness * 2.0f) - 1.0f;
-        // Texture -> dim[14] (Spectral Flatness)
-        queryPoint[14] = (params.texture * 2.0f) - 1.0f;
+        // Apply MACRO_DIM_WEIGHT to match the KD-tree adaptor weighting
+        queryPoint[ENERGY_DIM]     = (params.energy * 2.0f - 1.0f) * MACRO_DIM_WEIGHT;
+        queryPoint[BRIGHTNESS_DIM] = (params.brightness * 2.0f - 1.0f) * MACRO_DIM_WEIGHT;
+        queryPoint[TEXTURE_DIM]    = (params.texture * 2.0f - 1.0f) * MACRO_DIM_WEIGHT;
 
         // Add variation randomization
         float variationScale = params.variation * 2.0f;

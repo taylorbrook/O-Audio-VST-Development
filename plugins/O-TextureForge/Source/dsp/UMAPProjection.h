@@ -13,6 +13,11 @@
 #include <vector>
 #include <functional>
 
+// Must be called on the main thread before any background thread uses Eigen.
+// Forces Eigen's internal cache-size static to initialize, avoiding a PAC trap
+// when __cxa_guard_acquire runs on arm64 plugin threads in arm64e AU hosts.
+void initEigenOnMainThread();
+
 class UMAPProjection
 {
 public:

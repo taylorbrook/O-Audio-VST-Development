@@ -23,7 +23,10 @@ MFCCExtractor::MFCCExtractor()
 
 std::array<float, 13> MFCCExtractor::extractMFCCs(const float* frame, int frameSize)
 {
-    jassert(frameSize <= FFT_SIZE);
+    // Clamp analysis length to FFT window size — grain frames at higher sample
+    // rates (e.g. 50ms @ 48kHz = 2400 samples) may exceed FFT_SIZE (2048).
+    // Standard MFCC practice: analyze first FFT_SIZE samples, zero-pad if shorter.
+    const int analysisSize = std::min(frameSize, FFT_SIZE);
 
     // Pre-emphasis: y[n] = x[n] - 0.97 * x[n-1]
     static constexpr float alpha = 0.97f;
@@ -31,13 +34,13 @@ std::array<float, 13> MFCCExtractor::extractMFCCs(const float* frame, int frameS
     emphasized.fill(0.0f);
 
     emphasized[0] = frame[0];
-    for (int i = 1; i < frameSize; ++i)
+    for (int i = 1; i < analysisSize; ++i)
         emphasized[i] = frame[i] - alpha * frame[i - 1];
 
     // Copy to FFT buffer (real part only)
-    for (int i = 0; i < frameSize; ++i)
+    for (int i = 0; i < analysisSize; ++i)
         fftData[i] = emphasized[i];
-    for (int i = frameSize; i < FFT_SIZE; ++i)
+    for (int i = analysisSize; i < FFT_SIZE; ++i)
         fftData[i] = 0.0f;
 
     // Apply Hann window

@@ -44,6 +44,7 @@ private:
     TextureForgeProcessor& processorRef;
     juce::String pendingLargeFilePath;
     juce::String vizJsonBuffer;
+    std::unique_ptr<juce::FileChooser> fileChooser;
 
     // ========================================================================
     // CRITICAL MEMBER DECLARATION ORDER: Relays -> WebView -> Attachments

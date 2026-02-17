@@ -130,7 +130,8 @@ body::after {
     font-size: 13px;
     font-style: italic;
     letter-spacing: 1px;
-    pointer-events: none;
+    pointer-events: auto;
+    cursor: pointer;
     z-index: 5;
 }
 

@@ -19,6 +19,21 @@ struct GrainMetadata
     std::array<float, 19> descriptors;  // 19D feature vector (MFCCs + spectral)
 };
 
+// Dimension weighting for KD-tree search: macro-controlled dims get higher weight
+// so Energy/Brightness/Texture knobs dominate grain selection over uncontrolled MFCCs.
+// Weight of 5 = 25x per-dim contribution (75% total from 3 controlled vs 16 uncontrolled).
+static constexpr float MACRO_DIM_WEIGHT = 5.0f;
+static constexpr int BRIGHTNESS_DIM = 13;  // Spectral Centroid
+static constexpr int TEXTURE_DIM    = 14;  // Spectral Flatness
+static constexpr int ENERGY_DIM     = 17;  // RMS Energy
+
+inline float descriptorDimWeight(int dim)
+{
+    if (dim == BRIGHTNESS_DIM || dim == TEXTURE_DIM || dim == ENERGY_DIM)
+        return MACRO_DIM_WEIGHT;
+    return 1.0f;
+}
+
 struct NormalizationStats
 {
     std::array<float, 19> means;
