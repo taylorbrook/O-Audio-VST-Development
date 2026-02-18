@@ -14,10 +14,11 @@
 
 struct ChordVoice
 {
-    int midiNote;           // Absolute MIDI note number
-    int scaleDegree;        // Scale degree (0-6 for I-vii)
-    int semitoneOffset;     // Semitones from root
-    int octaveShift;        // Additional octave shifts for voicing
+    int midiNote;              // Absolute MIDI note number
+    int scaleDegree;           // Scale degree (0-6 for I-vii)
+    int semitoneOffset;        // Semitones from root
+    int octaveShift;           // Additional octave shifts for voicing
+    float complexityThreshold; // Minimum complexity for this voice to be audible (0.0 = triad, always on)
 };
 
 class ChordGenerator
@@ -60,4 +61,7 @@ private:
     // Distribute voices across octaves
     std::vector<ChordVoice> distributeVoices(int rootMidiNote, int scaleDegree,
                                               const std::vector<int>& intervals, int numVoices) const;
+
+    // Map a semitone interval to its complexity threshold
+    static float getComplexityThreshold(int semitoneOffset);
 };

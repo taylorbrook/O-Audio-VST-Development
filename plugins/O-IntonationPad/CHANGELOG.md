@@ -1,5 +1,15 @@
 # O-IntonationPad Changelog
 
+## [1.2.0] - 2026-02-17
+
+### Added
+- **Real-time complexity fading on held notes**: Changing the complexity knob now smoothly fades chord extensions (7th, 9th, 11th, 13th) in/out on already-sounding notes with ~30ms click-free crossfades
+- **Per-voice complexity threshold system**: Triad voices (root, 3rd, 5th) always at full volume; extensions fade based on their complexity tier
+
+### Changed
+- Chord generation initializes all possible extensions at note-on (previously limited by current complexity value)
+- Voice distribution assigns intervals sequentially (root, 3rd, 5th, 7th, 9th...) instead of skipping intervals when voice count is less than available intervals
+
 ## [1.1.0] - 2026-02-17
 
 ### Added

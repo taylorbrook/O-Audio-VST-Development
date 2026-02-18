@@ -168,21 +168,42 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int s
 
     for (int i = 0; i < numVoices; ++i)
     {
-        // Distribute voices evenly across available intervals
-        int intervalIndex = (i * availableIntervals) / numVoices;
-        int semitoneOffset = intervals[intervalIndex];
+        int intervalIndex;
+        int octaveOffset;
 
-        // Spread across octaves if numVoices exceeds available intervals
-        int octaveOffset = i / availableIntervals;
+        if (numVoices <= availableIntervals)
+        {
+            // Assign sequentially: root, 3rd, 5th, 7th, 9th, ... (no skipping)
+            intervalIndex = i;
+            octaveOffset = 0;
+        }
+        else
+        {
+            // More voices than intervals: distribute evenly, spread across octaves
+            intervalIndex = (i * availableIntervals) / numVoices;
+            octaveOffset = i / availableIntervals;
+        }
+
+        int semitoneOffset = intervals[intervalIndex];
 
         ChordVoice voice;
         voice.midiNote = rootMidiNote + semitoneOffset + (octaveOffset * 12);
         voice.scaleDegree = scaleDegree;
         voice.semitoneOffset = semitoneOffset;
         voice.octaveShift = octaveOffset;
+        voice.complexityThreshold = getComplexityThreshold(semitoneOffset);
 
         voices.push_back(voice);
     }
 
     return voices;
+}
+
+float ChordGenerator::getComplexityThreshold(int semitoneOffset)
+{
+    if (semitoneOffset >= 21) return 0.85f;  // 13th
+    if (semitoneOffset >= 17) return 0.75f;  // 11th
+    if (semitoneOffset >= 14) return 0.50f;  // 9th
+    if (semitoneOffset >= 10) return 0.25f;  // 7th
+    return 0.0f;                              // triad (root, 3rd, 5th)
 }

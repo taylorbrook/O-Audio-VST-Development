@@ -75,4 +75,9 @@ private:
     // Per-sub-oscillator timing delays (in samples)
     std::array<int, MAX_SUB_VOICES> subVoiceDelays{};
     std::array<int, MAX_SUB_VOICES> subVoiceDelayCounters{};
+
+    // Per-sub-voice complexity fading
+    std::array<float, MAX_SUB_VOICES> subVoiceComplexityThresholds{};
+    std::array<float, MAX_SUB_VOICES> subVoiceCurrentGains{};
+    float gainSmoothCoeff = 0.001f;  // ~30ms at 44100 Hz
 };
