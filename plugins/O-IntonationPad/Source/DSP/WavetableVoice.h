@@ -46,7 +46,11 @@ public:
     // UI data access (read from message thread)
     int getActiveSubVoiceCount() const { return activeSubVoices; }
     const SubVoiceInfo& getSubVoiceInfo(int index) const { return subVoiceInfos[static_cast<size_t>(index)]; }
-    float getSubVoiceGain(int index) const { return subVoiceCurrentGains[static_cast<size_t>(index)]; }
+    float getSubVoiceGain(int index) const
+    {
+        auto idx = static_cast<size_t>(index);
+        return subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx];
+    }
 
 private:
     static constexpr int MAX_SUB_VOICES = 12;
@@ -77,8 +81,9 @@ private:
     std::array<int, MAX_SUB_VOICES> subVoiceDelays{};
     std::array<int, MAX_SUB_VOICES> subVoiceDelayCounters{};
 
-    // Per-sub-voice complexity fading
+    // Per-sub-voice gain fading (two independent smoothed components)
     std::array<float, MAX_SUB_VOICES> subVoiceComplexityThresholds{};
-    std::array<float, MAX_SUB_VOICES> subVoiceCurrentGains{};
-    float gainSmoothCoeff = 0.001f;  // ~30ms at 44100 Hz
+    std::array<float, MAX_SUB_VOICES> subVoiceComplexityGains{};
+    std::array<float, MAX_SUB_VOICES> subVoiceVoiceCountGains{};
+    float gainSmoothCoeff = 0.001f;
 };

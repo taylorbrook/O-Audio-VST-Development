@@ -36,8 +36,9 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
     // Generate chord voicing if chord generator is available
     if (chordGeneratorPtr != nullptr)
     {
-        // Always generate with full complexity so all extensions are available for real-time fading
-        auto chordVoices = chordGeneratorPtr->generateChord(midiNoteNumber, cachedVoiceCount,
+        // Always generate MAX sub-voices with full complexity so voice count and
+        // complexity can be changed in real-time on held notes
+        auto chordVoices = chordGeneratorPtr->generateChord(midiNoteNumber, MAX_SUB_VOICES,
                                                              1.0f, cachedKeyRoot, cachedKeyScale);
 
         // Apply randomization to chord voices
@@ -51,7 +52,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             }
         }
 
-        // Set frequencies for each sub-voice
+        // All 12 sub-voices are always initialized
         activeSubVoices = juce::jmin(static_cast<int>(chordVoices.size()), MAX_SUB_VOICES);
 
         // Calculate max delay in samples from timingRandom (ms)
@@ -59,6 +60,8 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
 
         for (int i = 0; i < activeSubVoices; ++i)
         {
+            auto idx = static_cast<size_t>(i);
+
             float frequency;
             if (tuningSystemPtr != nullptr)
             {
@@ -66,46 +69,48 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
                 double centOffset = 0.0;
                 if (randomPtr != nullptr && cachedDetuneRandom > 0.0f)
                 {
-                    // Gaussian-ish random detuning
                     centOffset = (randomPtr->nextFloat() * 2.0f - 1.0f) * static_cast<double>(cachedDetuneRandom);
                 }
                 frequency = static_cast<float>(tuningSystemPtr->getFrequencyWithOffset(
-                    chordVoices[static_cast<size_t>(i)].midiNote, centOffset));
+                    chordVoices[idx].midiNote, centOffset));
             }
             else
             {
                 frequency = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(
-                    chordVoices[static_cast<size_t>(i)].midiNote));
+                    chordVoices[idx].midiNote));
             }
 
-            subVoiceOscillators[static_cast<size_t>(i)].setFrequency(frequency, currentSampleRate);
-            subVoiceOscillators[static_cast<size_t>(i)].reset();
+            subVoiceOscillators[idx].setFrequency(frequency, currentSampleRate);
+            subVoiceOscillators[idx].reset();
 
             // Store info for UI visualization
-            subVoiceInfos[static_cast<size_t>(i)] = { chordVoices[static_cast<size_t>(i)].midiNote, frequency };
+            subVoiceInfos[idx] = { chordVoices[idx].midiNote, frequency };
 
-            // Store complexity threshold and set initial gain based on current complexity
-            subVoiceComplexityThresholds[static_cast<size_t>(i)] = chordVoices[static_cast<size_t>(i)].complexityThreshold;
-            float threshold = subVoiceComplexityThresholds[static_cast<size_t>(i)];
+            // Store complexity threshold and set initial complexity gain
+            subVoiceComplexityThresholds[idx] = chordVoices[idx].complexityThreshold;
+            float threshold = subVoiceComplexityThresholds[idx];
             if (threshold <= 0.0f)
-                subVoiceCurrentGains[static_cast<size_t>(i)] = 1.0f;
+                subVoiceComplexityGains[idx] = 1.0f;
             else if (cachedComplexity >= threshold)
-                subVoiceCurrentGains[static_cast<size_t>(i)] = 1.0f;
+                subVoiceComplexityGains[idx] = 1.0f;
             else if (cachedComplexity <= threshold - 0.1f)
-                subVoiceCurrentGains[static_cast<size_t>(i)] = 0.0f;
+                subVoiceComplexityGains[idx] = 0.0f;
             else
-                subVoiceCurrentGains[static_cast<size_t>(i)] = (cachedComplexity - (threshold - 0.1f)) / 0.1f;
+                subVoiceComplexityGains[idx] = (cachedComplexity - (threshold - 0.1f)) / 0.1f;
+
+            // Set initial voice count gain (voices beyond cachedVoiceCount start silent)
+            subVoiceVoiceCountGains[idx] = (i < cachedVoiceCount) ? 1.0f : 0.0f;
 
             // Assign random timing delay (first voice always starts immediately)
             if (i == 0 || randomPtr == nullptr || maxDelaySamples == 0)
             {
-                subVoiceDelays[static_cast<size_t>(i)] = 0;
+                subVoiceDelays[idx] = 0;
             }
             else
             {
-                subVoiceDelays[static_cast<size_t>(i)] = randomPtr->nextInt(maxDelaySamples + 1);
+                subVoiceDelays[idx] = randomPtr->nextInt(maxDelaySamples + 1);
             }
-            subVoiceDelayCounters[static_cast<size_t>(i)] = 0;
+            subVoiceDelayCounters[idx] = 0;
         }
     }
     else
@@ -116,6 +121,8 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         subVoiceOscillators[0].setFrequency(frequency, currentSampleRate);
         subVoiceOscillators[0].reset();
         subVoiceInfos[0] = { midiNoteNumber, frequency };
+        subVoiceComplexityGains[0] = 1.0f;
+        subVoiceVoiceCountGains[0] = 1.0f;
     }
 
     // Start envelope
@@ -142,52 +149,48 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Sum all sub-voice oscillators (respecting timing delays and complexity gains)
+        // Sum all sub-voice oscillators with independent complexity and voice-count gains
         float mixedSample = 0.0f;
 
         for (int i = 0; i < activeSubVoices; ++i)
         {
             auto idx = static_cast<size_t>(i);
 
-            // Compute target gain from current complexity
+            // --- Complexity gain target ---
             float threshold = subVoiceComplexityThresholds[idx];
-            float targetGain;
+            float complexityTarget;
             if (threshold <= 0.0f)
-            {
-                targetGain = 1.0f;  // Triad voices always full
-            }
+                complexityTarget = 1.0f;
             else if (cachedComplexity >= threshold)
-            {
-                targetGain = 1.0f;
-            }
+                complexityTarget = 1.0f;
             else if (cachedComplexity <= threshold - 0.1f)
-            {
-                targetGain = 0.0f;
-            }
+                complexityTarget = 0.0f;
             else
-            {
-                targetGain = (cachedComplexity - (threshold - 0.1f)) / 0.1f;
-            }
+                complexityTarget = (cachedComplexity - (threshold - 0.1f)) / 0.1f;
 
-            // Smooth the gain to avoid clicks
-            subVoiceCurrentGains[idx] += (targetGain - subVoiceCurrentGains[idx]) * gainSmoothCoeff;
+            // --- Voice count gain target ---
+            float voiceCountTarget = (i < cachedVoiceCount) ? 1.0f : 0.0f;
+
+            // Smooth both gains independently
+            subVoiceComplexityGains[idx] += (complexityTarget - subVoiceComplexityGains[idx]) * gainSmoothCoeff;
+            subVoiceVoiceCountGains[idx] += (voiceCountTarget - subVoiceVoiceCountGains[idx]) * gainSmoothCoeff;
+
+            float combinedGain = subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx];
 
             // Check if this sub-voice's delay has elapsed
             if (subVoiceDelayCounters[idx] >= subVoiceDelays[idx])
             {
                 float oscSample = subVoiceOscillators[idx].getNextSample();
-                mixedSample += oscSample * subVoiceCurrentGains[idx];
+                mixedSample += oscSample * combinedGain;
             }
             else
             {
-                // Increment delay counter (voice not yet sounding)
                 ++subVoiceDelayCounters[idx];
             }
         }
 
-        // Normalize by total sub-voices for consistent volume regardless of complexity
-        if (activeSubVoices > 0)
-            mixedSample /= static_cast<float>(activeSubVoices);
+        // Normalize by MAX sub-voices for consistent volume
+        mixedSample /= static_cast<float>(MAX_SUB_VOICES);
 
         // Apply envelope
         float envelopedSample = mixedSample * envelope.getNextSample() * currentVelocity;
@@ -209,9 +212,9 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
 
 void WavetableVoice::setWavetablePosition(float pos)
 {
-    for (int i = 0; i < activeSubVoices; ++i)
+    for (int i = 0; i < MAX_SUB_VOICES; ++i)
     {
-        subVoiceOscillators[i].setWavetablePosition(pos);
+        subVoiceOscillators[static_cast<size_t>(i)].setWavetablePosition(pos);
     }
 }
 
