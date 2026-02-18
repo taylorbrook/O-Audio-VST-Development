@@ -130,7 +130,8 @@ void OIntonationPadAudioProcessorEditor::timerCallback()
              + ",\"pc\":" + juce::String(pitchClass)
              + ",\"oct\":" + juce::String(octave)
              + ",\"hz\":" + juce::String(n.frequencyHz, 2)
-             + ",\"cents\":" + juce::String(centDev, 1) + "}";
+             + ",\"cents\":" + juce::String(centDev, 1)
+             + ",\"gain\":" + juce::String(n.gain, 3) + "}";
     }
     json += "]";
 

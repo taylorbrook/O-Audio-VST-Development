@@ -373,13 +373,15 @@
         }
 
         .key.white.active {
-            background: rgba(107, 142, 35, 0.7);
-            box-shadow: inset 0 0 6px rgba(107, 142, 35, 0.5);
+            background: rgba(107, 142, 35, var(--key-opacity, 0.7));
+            box-shadow: inset 0 0 6px rgba(107, 142, 35, calc(var(--key-opacity, 0.7) * 0.7));
+            transition: background 0.15s, box-shadow 0.15s;
         }
 
         .key.black.active {
-            background: #4a6e1e;
-            box-shadow: inset 0 0 6px rgba(107, 142, 35, 0.5);
+            background: rgba(74, 110, 30, var(--key-opacity, 1.0));
+            box-shadow: inset 0 0 6px rgba(107, 142, 35, calc(var(--key-opacity, 1.0) * 0.7));
+            transition: background 0.15s, box-shadow 0.15s;
         }
 
         .key-label {
@@ -451,6 +453,48 @@
 
         .freq-cents.zero {
             color: #888;
+        }
+
+        .freq-count {
+            font-size: 8px;
+            color: #5C4033;
+            font-weight: bold;
+            opacity: 0.7;
+        }
+
+        .freq-item.out-of-range {
+            border-color: rgba(139, 69, 19, 0.6);
+            background: rgba(139, 69, 19, 0.15);
+        }
+
+        .freq-range-badge {
+            font-size: 7px;
+            color: #8B4513;
+            vertical-align: super;
+            margin-left: 1px;
+        }
+
+        .kb-overflow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 8px;
+            color: #8B4513;
+            background: rgba(255, 248, 220, 0.8);
+            padding: 2px 4px;
+            border-radius: 2px;
+            border: 1px solid rgba(139, 69, 19, 0.4);
+            z-index: 10;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .kb-overflow.above {
+            right: -2px;
+        }
+
+        .kb-overflow.below {
+            left: -2px;
         }
     </style>
 </head>
@@ -965,8 +1009,8 @@
         // Map of MIDI note -> key DOM element
         const keyElements = new Map();
 
-        // Previous active MIDI notes (for diffing)
-        let prevActiveMidi = new Set();
+        // Previous active MIDI notes (for diffing) — Map<midi, gain>
+        let prevActiveMidi = new Map();
 
         function buildKeyboard() {
             const container = document.getElementById('miniKeyboard');
@@ -1018,38 +1062,42 @@
         }
 
         function updateActiveNotes(notes) {
-            const activeMidi = new Set();
+            const activeMidi = new Map(); // midi -> max gain
             const freqList = document.getElementById('freqList');
 
-            // Collect active MIDI notes
+            // Collect active MIDI notes with their max gain
             for (const n of notes) {
-                activeMidi.add(n.midi);
+                const gain = n.gain !== undefined ? n.gain : 1.0;
+                const existing = activeMidi.get(n.midi) || 0;
+                activeMidi.set(n.midi, Math.max(existing, gain));
             }
 
-            // Update keyboard highlighting (diff with previous)
+            // Update keyboard highlighting with gain-based opacity
             for (const midi of prevActiveMidi) {
                 if (!activeMidi.has(midi)) {
                     const el = keyElements.get(midi);
-                    if (el) el.classList.remove('active');
+                    if (el) {
+                        el.classList.remove('active');
+                        el.style.removeProperty('--key-opacity');
+                    }
                 }
             }
-            for (const midi of activeMidi) {
-                if (!prevActiveMidi.has(midi)) {
-                    const el = keyElements.get(midi);
-                    if (el) el.classList.add('active');
+            for (const [midi, gain] of activeMidi) {
+                const el = keyElements.get(midi);
+                if (el) {
+                    el.classList.add('active');
+                    el.style.setProperty('--key-opacity', gain.toFixed(3));
                 }
             }
             prevActiveMidi = activeMidi;
 
-            // Update pitch circle highlighting (on Tuning tab)
+            // Update pitch circle highlighting with gain-based intensity
             if (pitchCircle) {
-                // Clear all previous active notes
                 pitchCircle.activeNotes.clear();
-                // Set new active notes
                 for (const n of notes) {
-                    pitchCircle.setNoteActive(n.midi, 0.8);
+                    const gain = n.gain !== undefined ? n.gain : 1.0;
+                    pitchCircle.setNoteActive(n.midi, gain * 0.8);
                 }
-                // Re-render lines
                 pitchCircle._draw();
             }
 
@@ -1062,21 +1110,25 @@
             // Sort by MIDI note for display
             const sorted = [...notes].sort((a, b) => a.midi - b.midi);
 
-            // Deduplicate by MIDI note (multiple synth voices may play same note)
-            const seen = new Set();
-            const unique = [];
+            // Group by MIDI note, count voices per note, track max gain
+            const groups = new Map();
             for (const n of sorted) {
-                if (!seen.has(n.midi)) {
-                    seen.add(n.midi);
-                    unique.push(n);
+                const gain = n.gain !== undefined ? n.gain : 1.0;
+                if (!groups.has(n.midi)) {
+                    groups.set(n.midi, { note: n, count: 1, maxGain: gain });
+                } else {
+                    const g = groups.get(n.midi);
+                    g.count++;
+                    g.maxGain = Math.max(g.maxGain, gain);
                 }
             }
 
             let html = '';
-            for (const n of unique) {
+            for (const [, { note: n, count, maxGain }] of groups) {
                 const noteName = NOTE_NAMES[n.pc] + n.oct;
                 const centsAbs = Math.abs(n.cents);
                 let centsStr, centsClass;
+                const outOfRange = n.midi < KB_LOW || n.midi > KB_HIGH;
 
                 if (centsAbs < 0.5) {
                     centsStr = '0¢';
@@ -1089,8 +1141,17 @@
                     centsClass = 'flat';
                 }
 
-                html += `<div class="freq-item">
-                    <span class="freq-note">${noteName}</span>
+                const rangeClass = outOfRange ? ' out-of-range' : '';
+                const rangeBadge = outOfRange
+                    ? `<span class="freq-range-badge">${n.midi > KB_HIGH ? '↑' : '↓'}</span>`
+                    : '';
+                const countBadge = count > 1 ? `<span class="freq-count">×${count}</span>` : '';
+                // Opacity reflects complexity gain (min 0.3 so fading notes are still visible)
+                const opacity = (0.3 + maxGain * 0.7).toFixed(3);
+
+                html += `<div class="freq-item${rangeClass}" style="opacity: ${opacity}; transition: opacity 0.15s;">
+                    <span class="freq-note">${noteName}${rangeBadge}</span>
+                    ${countBadge}
                     <span class="freq-hz">${n.hz.toFixed(1)} Hz</span>
                     <span class="freq-cents ${centsClass}">${centsStr}</span>
                 </div>`;

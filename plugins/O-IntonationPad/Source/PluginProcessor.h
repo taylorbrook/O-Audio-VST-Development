@@ -18,6 +18,7 @@ struct ActiveNoteInfo
 {
     int midiNote;
     float frequencyHz;
+    float gain;  // 0.0-1.0, complexity-based gain for this sub-voice
 };
 
 class OIntonationPadAudioProcessor : public juce::AudioProcessor

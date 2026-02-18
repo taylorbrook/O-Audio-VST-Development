@@ -46,6 +46,7 @@ public:
     // UI data access (read from message thread)
     int getActiveSubVoiceCount() const { return activeSubVoices; }
     const SubVoiceInfo& getSubVoiceInfo(int index) const { return subVoiceInfos[static_cast<size_t>(index)]; }
+    float getSubVoiceGain(int index) const { return subVoiceCurrentGains[static_cast<size_t>(index)]; }
 
 private:
     static constexpr int MAX_SUB_VOICES = 12;

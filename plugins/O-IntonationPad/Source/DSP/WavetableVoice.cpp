@@ -30,8 +30,8 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
     currentVelocity = velocity;
     currentSampleRate = getSampleRate();
 
-    // Calculate gain smoothing coefficient for ~30ms fade time
-    gainSmoothCoeff = 1.0f - std::exp(-1.0f / (0.03f * static_cast<float>(currentSampleRate)));
+    // Calculate gain smoothing coefficient for ~250ms gradual crossfade
+    gainSmoothCoeff = 1.0f - std::exp(-1.0f / (0.25f * static_cast<float>(currentSampleRate)));
 
     // Generate chord voicing if chord generator is available
     if (chordGeneratorPtr != nullptr)
