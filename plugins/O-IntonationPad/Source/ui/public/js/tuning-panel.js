@@ -33,6 +33,9 @@ export class TuningPanel {
         this.libraryFilter = 'all';
         this.generatorType = 'edo';
         this.heldNotes = new Set();
+        this.heldNotesMidi = [];   // v3.1.0: MIDI note numbers from C++ backend
+        this.heldNotesFreqs = [];  // v3.1.0: Actual frequencies from TuningEngine
+        this.activeScaleDegrees = new Set(); // Track which scale degrees are currently sounding
 
         // Note names for display
         this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -52,43 +55,43 @@ export class TuningPanel {
         this.container.innerHTML = `
             <div class="tuning-panel">
                 <!-- LEFT: Interval List -->
-                <div class="tuning-viz-container">
+                <div class="tuning-intervals-column">
                     <div class="interval-list" id="interval-list">
                         <div class="interval-list-header">Intervals (<span id="interval-count">12</span> notes)</div>
                     </div>
                 </div>
 
-                <!-- Visualization Mode Toggle -->
-                <div class="viz-mode-toggle">
-                    <button class="viz-btn active" data-mode="circle">Circle</button>
-                    <button class="viz-btn" data-mode="polar">Polar</button>
-                    <button class="viz-btn" data-mode="matrix">Matrix</button>
-                    <button class="viz-btn" data-mode="truekeys">True Keys</button>
-                    <button class="viz-btn" data-mode="rotation">Rotation</button>
-                </div>
-
-                <!-- CENTER: Visualization Container -->
-                <div class="viz-container" id="viz-container">
-                    <div class="viz-view active" id="circle-view">
-                        <div class="pitch-circle">
-                            <svg viewBox="0 0 188 188" id="pitch-circle-svg">
-                                <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
-                                <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
-                                <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
-                                <g id="interval-lines"></g>
-                                <g id="degree-labels" font-size="9" fill="#5C4033"></g>
-                            </svg>
-                            <div class="pitch-circle-label">Scale Intervals</div>
+                <!-- CENTER: Viz Toggle + Visualization -->
+                <div class="tuning-center-column">
+                    <div class="viz-mode-toggle">
+                        <button class="viz-btn active" data-mode="circle">Circle</button>
+                        <button class="viz-btn" data-mode="polar">Polar</button>
+                        <button class="viz-btn" data-mode="matrix">Matrix</button>
+                        <button class="viz-btn" data-mode="truekeys">True Keys</button>
+                        <button class="viz-btn" data-mode="rotation">Rotation</button>
+                    </div>
+                    <div class="viz-container" id="viz-container">
+                        <div class="viz-view active" id="circle-view">
+                            <div class="pitch-circle">
+                                <svg viewBox="0 0 320 320" id="pitch-circle-svg">
+                                    <circle cx="160" cy="160" r="150" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                                    <circle cx="160" cy="160" r="125" fill="rgba(235, 217, 199, 0.3)" stroke="#8B7355" stroke-width="0.5"/>
+                                    <circle cx="160" cy="160" r="5" fill="#3C2F2F"/>
+                                    <g id="interval-lines"></g>
+                                    <g id="degree-labels" font-size="11" fill="#5C4033"></g>
+                                </svg>
+                                <div class="pitch-circle-label">Scale Intervals</div>
+                            </div>
                         </div>
+                        <div class="viz-view" id="polar-view">
+                            <canvas id="polar-canvas" width="300" height="300"></canvas>
+                        </div>
+                        <div class="viz-view matrix-view" id="matrix-view"></div>
+                        <div class="viz-view truekeys-view" id="truekeys-view">
+                            <div class="tk-hint">Hold 2+ notes to see intervals</div>
+                        </div>
+                        <div class="viz-view rotation-view" id="rotation-view"></div>
                     </div>
-                    <div class="viz-view" id="polar-view">
-                        <canvas id="polar-canvas" width="180" height="180"></canvas>
-                    </div>
-                    <div class="viz-view matrix-view" id="matrix-view"></div>
-                    <div class="viz-view truekeys-view" id="truekeys-view">
-                        <div class="tk-hint">Hold 2+ notes to see intervals</div>
-                    </div>
-                    <div class="viz-view rotation-view" id="rotation-view"></div>
                 </div>
 
                 <!-- RIGHT: Controls Panel -->
@@ -276,11 +279,12 @@ export class TuningPanel {
         for (let i = 0; i < this.intervals.length; i++) {
             const cents = this.intervals[i];
             const isOctave = i === this.intervals.length - 1;
+            const degreeLabel = this.getNoteLabel(i, count);
             html += `
                 <div class="interval-item ${isOctave ? 'octave' : ''}">
-                    <span class="interval-degree">${i}</span>
+                    <span class="interval-degree">${degreeLabel}</span>
                     <input type="text" class="interval-input" data-index="${i}"
-                           value="${cents.toFixed(2)}" ${isOctave ? 'readonly' : ''}>
+                           value="${cents.toFixed(isOctave ? 1 : 1)}" ${isOctave ? 'readonly' : ''}>
                     <span class="interval-unit">c</span>
                 </div>
             `;
@@ -332,7 +336,7 @@ export class TuningPanel {
     async setTonic(tonic) {
         try {
             await this.juce.getNativeFunction('setTonicNote')(tonic);
-            this.container.querySelector('#tonic-value').textContent = this.noteNames[tonic];
+            this.updateIntervalList();
             this.updateVisualization();
         } catch (err) {
             console.error('[TuningPanel] Failed to set tonic:', err);
@@ -387,7 +391,10 @@ export class TuningPanel {
         linesGroup.innerHTML = '';
         labelsGroup.innerHTML = '';
 
-        const cx = 94, cy = 94, radius = 73;
+        // Store spoke elements for note highlighting
+        this.spokeElements = [];
+
+        const cx = 160, cy = 160, radius = 125;
         const count = this.intervals.length - 1; // Exclude period
         const period = this.intervals[this.intervals.length - 1] || 1200;
 
@@ -398,26 +405,37 @@ export class TuningPanel {
             const x = cx + Math.cos(angle) * radius;
             const y = cy + Math.sin(angle) * radius;
 
-            // Line from center
+            const isActive = this.activeScaleDegrees.has(i);
+            const spokeColor = isActive ? '#C0392B' : '#5C4033';
+            const dotColor = isActive ? '#C0392B' : '#8B7355';
+            const dotRadius = isActive ? 6 : 5;
+            const strokeWidth = isActive ? 2.5 : 1.5;
+
+            // Line from center (spoke)
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', cx);
             line.setAttribute('y1', cy);
             line.setAttribute('x2', x);
             line.setAttribute('y2', y);
-            line.setAttribute('stroke', '#5C4033');
-            line.setAttribute('stroke-width', '1.5');
+            line.setAttribute('stroke', spokeColor);
+            line.setAttribute('stroke-width', strokeWidth);
+            line.dataset.degree = i;
             linesGroup.appendChild(line);
 
             // Dot at interval position
             const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             dot.setAttribute('cx', x);
             dot.setAttribute('cy', y);
-            dot.setAttribute('r', '4');
-            dot.setAttribute('fill', '#8B7355');
+            dot.setAttribute('r', dotRadius);
+            dot.setAttribute('fill', dotColor);
+            dot.dataset.degree = i;
             linesGroup.appendChild(dot);
 
-            // Degree label
-            const labelRadius = radius + 12;
+            // Store references for fast updates
+            this.spokeElements.push({ line, dot, degree: i });
+
+            // Degree label (note name for 12-note scales, number otherwise)
+            const labelRadius = radius + 16;
             const lx = cx + Math.cos(angle) * labelRadius;
             const ly = cy + Math.sin(angle) * labelRadius;
 
@@ -426,7 +444,7 @@ export class TuningPanel {
             label.setAttribute('y', ly);
             label.setAttribute('text-anchor', 'middle');
             label.setAttribute('dominant-baseline', 'middle');
-            label.textContent = i.toString();
+            label.textContent = this.getNoteLabel(i, count);
             labelsGroup.appendChild(label);
         }
     }
@@ -484,13 +502,13 @@ export class TuningPanel {
 
         // Header row
         for (let i = 0; i < count; i++) {
-            html += `<th>${i}</th>`;
+            html += `<th>${this.getNoteLabel(i, count)}</th>`;
         }
         html += '</tr>';
 
         // Data rows
         for (let i = 0; i < count; i++) {
-            html += `<tr><th>${i}</th>`;
+            html += `<tr><th>${this.getNoteLabel(i, count)}</th>`;
             for (let j = 0; j < count; j++) {
                 let diff = this.intervals[j] - this.intervals[i];
                 if (diff < 0) diff += period;
@@ -507,23 +525,71 @@ export class TuningPanel {
         const container = this.container.querySelector('#truekeys-view');
         if (!container) return;
 
-        if (this.heldNotes.size < 2) {
+        if (!this.heldNotesMidi || this.heldNotesMidi.length < 2) {
             container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
             return;
         }
 
-        const notes = Array.from(this.heldNotes).sort((a, b) => a - b);
-        let html = '<div class="tk-intervals">';
+        // Sort by pitch for consistent display
+        const sorted = this.heldNotesMidi
+            .map((note, i) => ({ note, freq: this.heldNotesFreqs[i] }))
+            .sort((a, b) => a.note - b.note);
 
-        for (let i = 1; i < notes.length; i++) {
-            const interval = notes[i] - notes[0];
-            const scaleDegree = interval % (this.intervals.length - 1);
-            const cents = this.intervals[scaleDegree] || (interval * 100);
-            html += `<div class="tk-interval">${notes[0]}→${notes[i]}: ${cents.toFixed(1)}c</div>`;
+        let html = '<div class="tk-grid">';
+
+        // Calculate interval between each pair of adjacent notes
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const lower = sorted[i];
+            const upper = sorted[i + 1];
+            const cents = 1200 * Math.log2(upper.freq / lower.freq);
+
+            const intervalName = this.identifyInterval(cents);
+
+            html += `
+                <div class="tk-interval">
+                    <span>${this.midiToNoteName(lower.note)} → ${this.midiToNoteName(upper.note)} ${intervalName}</span>
+                    <span class="tk-cents">${cents.toFixed(1)}¢</span>
+                </div>
+            `;
+        }
+
+        // Total span for 3+ notes
+        if (sorted.length > 2) {
+            const lowest = sorted[0];
+            const highest = sorted[sorted.length - 1];
+            const totalCents = 1200 * Math.log2(highest.freq / lowest.freq);
+            html += `
+                <div class="tk-interval tk-total">
+                    <span><strong>Total span</strong></span>
+                    <span class="tk-cents">${totalCents.toFixed(1)}¢</span>
+                </div>
+            `;
         }
 
         html += '</div>';
         container.innerHTML = html;
+    }
+
+    /**
+     * Convert MIDI note number to readable note name (e.g., 60 → "C4")
+     */
+    midiToNoteName(midi) {
+        return this.noteNames[midi % 12] + (Math.floor(midi / 12) - 1);
+    }
+
+    /**
+     * Identify common interval name from cents value (±15c tolerance)
+     */
+    identifyInterval(cents) {
+        const intervals = [
+            [100, 'm2'], [200, 'M2'], [300, 'm3'], [400, 'M3'],
+            [500, 'P4'], [600, 'TT'], [700, 'P5'], [800, 'm6'],
+            [900, 'M6'], [1000, 'm7'], [1100, 'M7'], [1200, 'P8']
+        ];
+        for (const [target, name] of intervals) {
+            if (Math.abs(cents - target) < 15) return `(${name})`;
+        }
+        return '';
     }
 
     drawRotationTable() {
@@ -536,13 +602,14 @@ export class TuningPanel {
         let html = '<table class="rotation-table"><tr><th>Mode</th>';
 
         for (let i = 0; i < count; i++) {
-            html += `<th>${i}</th>`;
+            html += `<th>${this.getNoteLabel(i, count)}</th>`;
         }
         html += '</tr>';
 
         for (let mode = 0; mode < count; mode++) {
             const isCurrentTonic = mode === this.tonic;
-            html += `<tr class="${isCurrentTonic ? 'current-tonic' : ''}"><th>${this.noteNames[mode % 12]}</th>`;
+            const modeLabel = count === 12 ? this.noteNames[mode % 12] : mode.toString();
+            html += `<tr class="${isCurrentTonic ? 'current-tonic' : ''}"><th>${modeLabel}</th>`;
 
             for (let i = 0; i < count; i++) {
                 const srcIdx = (mode + i) % count;
@@ -557,11 +624,55 @@ export class TuningPanel {
         container.innerHTML = html;
     }
 
-    // Called by host when notes change
-    setHeldNotes(notes) {
-        this.heldNotes = new Set(notes);
+    /**
+     * v3.1.0: Called by host via window.updateHeldNotes with MIDI notes + actual frequencies.
+     * Enables accurate interval reporting using real tuning engine frequencies.
+     */
+    updateHeldNotes(notes, freqs) {
+        this.heldNotesMidi = notes || [];
+        this.heldNotesFreqs = freqs || [];
+        this.heldNotes = new Set(notes || []);
         if (this.currentVizMode === 'truekeys') {
             this.drawTrueKeys();
+        }
+    }
+
+    /**
+     * Called when a MIDI note starts sounding.
+     * Maps the MIDI note to a scale degree and highlights the corresponding spoke.
+     */
+    noteOn(midiNote) {
+        const scaleSize = this.intervals.length - 1;
+        if (scaleSize <= 0) return;
+        // Map MIDI note to scale degree (relative to tonic)
+        const degree = ((midiNote - this.tonic) % scaleSize + scaleSize) % scaleSize;
+        this.activeScaleDegrees.add(degree);
+        this.updateSpokeHighlights();
+    }
+
+    /**
+     * Called when a MIDI note stops sounding.
+     */
+    noteOff(midiNote) {
+        const scaleSize = this.intervals.length - 1;
+        if (scaleSize <= 0) return;
+        const degree = ((midiNote - this.tonic) % scaleSize + scaleSize) % scaleSize;
+        this.activeScaleDegrees.delete(degree);
+        this.updateSpokeHighlights();
+    }
+
+    /**
+     * Fast in-place spoke color update without full redraw.
+     */
+    updateSpokeHighlights() {
+        if (!this.spokeElements || this.currentVizMode !== 'circle') return;
+
+        for (const { line, dot, degree } of this.spokeElements) {
+            const isActive = this.activeScaleDegrees.has(degree);
+            line.setAttribute('stroke', isActive ? '#C0392B' : '#5C4033');
+            line.setAttribute('stroke-width', isActive ? '2.5' : '1.5');
+            dot.setAttribute('fill', isActive ? '#C0392B' : '#8B7355');
+            dot.setAttribute('r', isActive ? '6' : '5');
         }
     }
 
@@ -874,6 +985,18 @@ export class TuningPanel {
         if (el) {
             el.textContent = this.scaleName;
         }
+    }
+
+    /**
+     * Get note name label for a scale degree.
+     * For 12-note scales: returns chromatic note names rotated by tonic (C, C#, D, ...).
+     * For other scales: returns the degree number.
+     */
+    getNoteLabel(index, scaleSize) {
+        if (scaleSize === 12) {
+            return this.noteNames[(this.tonic + index) % 12];
+        }
+        return index.toString();
     }
 }
 

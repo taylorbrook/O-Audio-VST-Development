@@ -1,5 +1,28 @@
 # O-IntonationPad Changelog
 
+## [1.4.0] - 2026-02-18
+
+### Fixed
+- **Tuning panel layout**: Fixed broken 4-item CSS grid (intervals, viz-toggle, viz-container, controls as separate grid items) to proper 3-column structure matching O-Bells v2.0.0 (`tuning-intervals-column` | `tuning-center-column` wrapping viz-toggle + viz-container | `tuning-controls-panel`)
+- **CSS grid columns**: Updated from `140px 1fr 200px` to `160px 1fr 220px`
+- **Visualization container**: Changed from visible bordered box to transparent seamless container
+
+### Added
+- **Larger pitch circle**: SVG upgraded from 188x188 to 320x320 viewBox with proportionally larger spokes and dots
+- **Note highlighting on pitch circle**: Active MIDI notes now highlight their corresponding scale degree spokes in red with thicker strokes (via `noteOn`/`noteOff` + `updateSpokeHighlights()`)
+- **Note name labels**: `getNoteLabel()` shows chromatic note names (C, C#, D...) for 12-note scales instead of raw degree numbers; degree numbers used for non-12 scales
+- **TrueKeys with actual frequencies**: Upgraded from simple MIDI-note-difference calculation to real frequency-based interval reporting using `updateHeldNotes(midi[], freq[])` bridge — shows note names (e.g. "C4 -> E4 (M3)"), actual cent values, and interval identification (m2, M2, m3, M3, P4, TT, P5, m6, M6, m7, M7, P8)
+- **Total span display**: TrueKeys shows total cent span when 3+ notes are held
+- **MIDI-to-note-name helper**: `midiToNoteName()` converts MIDI numbers to readable names (e.g. 60 -> "C4")
+- **Interval identification**: `identifyInterval()` maps cent values to common interval names with 15c tolerance
+
+### Changed
+- `activeScaleDegrees` Set tracks which scale degrees are currently sounding for spoke highlighting
+- `spokeElements` array stored for fast in-place color updates without full SVG redraw
+- Polar canvas enlarged from 180x180 to 300x300
+- Interval degree column widened from 20px to 24px with `flex-shrink: 0`
+- TrueKeys view uses `.tk-grid` layout with accent border-left styling
+
 ## [1.3.0] - 2026-02-17
 
 ### Added

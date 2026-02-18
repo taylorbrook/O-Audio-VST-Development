@@ -708,6 +708,8 @@
                 // Expose note highlighting for C++ evaluateJavascript calls
                 window.tuningNoteOn = (midiNote) => tuningPanel.noteOn(midiNote);
                 window.tuningNoteOff = (midiNote) => tuningPanel.noteOff(midiNote);
+                // v1.4.0: Expose updateHeldNotes for TrueKeys with actual frequencies
+                window.updateHeldNotes = (notes, freqs) => tuningPanel.updateHeldNotes(notes, freqs);
 
                 console.log('[Tuning] Panel initialized successfully');
             } catch (err) {
@@ -928,6 +930,19 @@
                 }
             }
             prevActiveMidi = activeMidi;
+
+            // v1.4.0: Feed held notes + frequencies to tuning panel for TrueKeys
+            if (window.updateHeldNotes) {
+                const uniqueNotes = new Map(); // midi -> freq (deduplicate)
+                for (const n of notes) {
+                    if (!uniqueNotes.has(n.midi)) {
+                        uniqueNotes.set(n.midi, n.hz);
+                    }
+                }
+                const midiArr = [...uniqueNotes.keys()];
+                const freqArr = midiArr.map(m => uniqueNotes.get(m));
+                window.updateHeldNotes(midiArr, freqArr);
+            }
 
             // Update frequency list
             if (notes.length === 0) {
