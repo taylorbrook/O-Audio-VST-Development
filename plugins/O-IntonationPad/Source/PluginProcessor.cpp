@@ -308,11 +308,20 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
             int subCount = voice->getActiveSubVoiceCount();
             for (int j = 0; j < subCount; ++j)
             {
-                float gain = voice->getSubVoiceGain(j);
-                if (gain > 0.01f)  // Only include audible voices
+                // Base (uninverted) contribution
+                float baseGain = voice->getSubVoiceBaseGain(j);
+                if (baseGain > 0.01f)
                 {
                     const auto& info = voice->getSubVoiceInfo(j);
-                    notes.push_back({ info.midiNote, info.frequencyHz, gain });
+                    notes.push_back({ info.midiNote, info.frequencyHz, baseGain });
+                }
+
+                // Inverted contribution
+                float invertedGain = voice->getSubVoiceInvertedGain(j);
+                if (invertedGain > 0.01f)
+                {
+                    const auto& info = voice->getSubVoiceInvertedInfo(j);
+                    notes.push_back({ info.midiNote, info.frequencyHz, invertedGain });
                 }
             }
         }

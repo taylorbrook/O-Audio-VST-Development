@@ -45,18 +45,30 @@ public:
 
     // UI data access (read from message thread)
     int getActiveSubVoiceCount() const { return activeSubVoices; }
+
+    // Base (uninverted) note info and gain
     const SubVoiceInfo& getSubVoiceInfo(int index) const { return subVoiceInfos[static_cast<size_t>(index)]; }
-    float getSubVoiceGain(int index) const
+    float getSubVoiceBaseGain(int index) const
     {
         auto idx = static_cast<size_t>(index);
-        return subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx];
+        return subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx] * (1.0f - subVoiceInversionGains[idx]);
+    }
+
+    // Inverted note info and gain
+    const SubVoiceInfo& getSubVoiceInvertedInfo(int index) const { return subVoiceInvertedInfos[static_cast<size_t>(index)]; }
+    float getSubVoiceInvertedGain(int index) const
+    {
+        auto idx = static_cast<size_t>(index);
+        return subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx] * subVoiceInversionGains[idx];
     }
 
 private:
     static constexpr int MAX_SUB_VOICES = 12;
 
-    std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceOscillators;
-    std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInfos{};
+    std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceOscillators;          // base pitch
+    std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceInvertedOscillators; // inverted pitch (±1 octave)
+    std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInfos{};                    // base note info
+    std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInvertedInfos{};            // inverted note info
     int activeSubVoices = 1;
 
     juce::ADSR envelope;
@@ -81,9 +93,14 @@ private:
     std::array<int, MAX_SUB_VOICES> subVoiceDelays{};
     std::array<int, MAX_SUB_VOICES> subVoiceDelayCounters{};
 
-    // Per-sub-voice gain fading (two independent smoothed components)
+    // Per-sub-voice gain fading (three independent smoothed components)
     std::array<float, MAX_SUB_VOICES> subVoiceComplexityThresholds{};
     std::array<float, MAX_SUB_VOICES> subVoiceComplexityGains{};
     std::array<float, MAX_SUB_VOICES> subVoiceVoiceCountGains{};
+
+    // Per-sub-voice inversion crossfade (base pitch <-> inverted pitch)
+    std::array<float, MAX_SUB_VOICES> subVoiceInversionThresholds{};  // random per note-on (0-1)
+    std::array<float, MAX_SUB_VOICES> subVoiceInversionGains{};       // smoothed 0=base, 1=inverted
+
     float gainSmoothCoeff = 0.001f;
 };
