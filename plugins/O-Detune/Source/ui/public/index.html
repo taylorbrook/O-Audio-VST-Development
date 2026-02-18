@@ -537,6 +537,18 @@
         .preset-dropdown-item.factory {
             font-style: italic;
         }
+
+        .version-label {
+            position: absolute;
+            bottom: 6px;
+            right: 10px;
+            font-size: 9px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+            opacity: 0.6;
+            z-index: 2;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -546,6 +558,7 @@
             <img src="assets/slug.png" alt="">
         </div>
 
+        <span class="version-label">v1.5.1</span>
         <div class="container">
             <!-- Header -->
             <div class="header">

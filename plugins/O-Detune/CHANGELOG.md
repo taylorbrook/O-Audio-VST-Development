@@ -1,5 +1,13 @@
 # O-Detune Changelog
 
+## [1.5.1] - 2026-02-17
+
+### Added
+
+- **Version number displayed in UI** - Small "v1.5.1" label in bottom-right corner
+  - Uses naturalist muted color at 60% opacity, 9px serif font
+  - Non-interactive (pointer-events: none)
+
 ## [1.5.0] - 2026-02-07
 
 ### Added
