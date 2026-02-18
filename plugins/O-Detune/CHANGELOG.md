@@ -1,5 +1,14 @@
 # O-Detune Changelog
 
+## [1.5.2] - 2026-02-18
+
+### Added
+
+- **Licensing module integration** (compile-flag gated, off for local dev)
+  - Optional OuariconLicense support behind `OUARICON_LICENSING_ENABLED` flag
+  - License overlay hides WebView UI until activation when enabled
+  - CMake flag `OUARICON_LICENSING=ON` enables licensing for release builds
+
 ## [1.5.1] - 2026-02-17
 
 ### Added
