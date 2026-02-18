@@ -240,6 +240,11 @@ ODetuneAudioProcessor::ODetuneAudioProcessor()
         }, juce::var()}
     };
     presetManager.initializeFactoryPresets(factoryPresets);
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-detune", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 ODetuneAudioProcessor::~ODetuneAudioProcessor()
