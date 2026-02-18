@@ -93,7 +93,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
             "Equal 12-TET", "Pythagorean", "Zarlino", "Meantone (1/4)",
             "Werckmeister III", "Kirnberger III", "Vallotti",
             "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom" },
-        0));
+        8));  // Default: Just Intonation (restores pre-v1.3.0 behavior)
 
     // INVERSION_RANDOM - Float (0-100%, default: 30%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -203,6 +203,10 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     parameters.addParameterListener("tuning_octaveStretch", this);
     parameters.addParameterListener("tuning_pitchBendRange", this);
     parameters.addParameterListener("tuning_temperamentPreset", this);
+
+    // Initialize TuningEngine to match parameter defaults
+    // JUCE doesn't fire parameterChanged for initial values, so set explicitly
+    tuningEngine.setBuiltInPreset(TuningEngine::BuiltInPreset::JustIntonation);
 }
 
 OIntonationPadAudioProcessor::~OIntonationPadAudioProcessor()
@@ -327,7 +331,16 @@ void OIntonationPadAudioProcessor::parameterChanged(const juce::String& paramete
     else if (parameterID == "tuning_pitchBendRange")
         tuningEngine.setPitchBendRange(newValue);
     else if (parameterID == "tuning_tuningMode")
-        tuningEngine.setMode(static_cast<TuningEngine::Mode>(static_cast<int>(newValue)));
+    {
+        // Only apply mode change for 12-TET or Custom presets
+        // Non-12-TET built-in presets manage their own mode via setBuiltInPreset()
+        auto preset = tuningEngine.getBuiltInPreset();
+        if (preset == TuningEngine::BuiltInPreset::Equal12TET ||
+            preset == TuningEngine::BuiltInPreset::Custom)
+        {
+            tuningEngine.setMode(static_cast<TuningEngine::Mode>(static_cast<int>(newValue)));
+        }
+    }
     else if (parameterID == "tuning_temperamentPreset")
         tuningEngine.setBuiltInPreset(static_cast<TuningEngine::BuiltInPreset>(static_cast<int>(newValue)));
 }

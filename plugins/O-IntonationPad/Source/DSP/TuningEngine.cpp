@@ -175,13 +175,13 @@ void TuningEngine::setBuiltInPreset(BuiltInPreset preset)
     else
         intervals.push_back(1200.0); // Octave
 
-    setCustomIntervals(intervals, name);
-
-    // Set appropriate mode AFTER setCustomIntervals
+    // Set mode BEFORE setCustomIntervals so rebuildFrequencyTable() uses correct mode
     if (preset == BuiltInPreset::Equal12TET)
         currentMode.store(Mode::TwelveTET, std::memory_order_relaxed);
     else
         currentMode.store(Mode::Scala, std::memory_order_relaxed);
+
+    setCustomIntervals(intervals, name);
 
     DBG("TuningEngine::setBuiltInPreset() - Set to: " + name);
 }
@@ -782,8 +782,20 @@ double TuningEngine::calculateCustomFrequency(int midiNote) const
         return calculate12TETFrequency(midiNote);
     }
 
-    // Use rotated intervals when tonic != 0
+    // For 12-note scales without KBM: pitch-class-based approach
+    // Matches original TuningSystem behavior — 12-TET base * centsToRatio(interval)
+    // This produces the plugin's characteristic wider-than-standard intervals
     int tonic = tonicOffset.load(std::memory_order_relaxed);
+    if (scaleDegrees == 12 && !kbmLoaded)
+    {
+        double baseFreq = calculate12TETFrequency(midiNote);
+        int pitchClass = midiNote % 12;
+        int relativePitch = (pitchClass - tonic + 12) % 12;
+        double intervalCents = scaleIntervals[static_cast<size_t>(relativePitch)];
+        return baseFreq * std::pow(2.0, intervalCents / 1200.0);
+    }
+
+    // Non-12-note scales and KBM: use linear/KBM mapping
     const auto& activeIntervals = (tonic == 0 || rotatedIntervals.empty()) ? scaleIntervals : rotatedIntervals;
 
     double period = activeIntervals.back();

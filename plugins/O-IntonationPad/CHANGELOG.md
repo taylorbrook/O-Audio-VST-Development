@@ -1,5 +1,13 @@
 # O-IntonationPad Changelog
 
+## [1.4.1] - 2026-02-18
+
+### Fixed
+- **Chord voices always played in 12-TET regardless of temperament selection**: Regression introduced in v1.3.0 when TuningEngine replaced TuningSystem. Root cause: `setBuiltInPreset()` called `setCustomIntervals()` (which rebuilds the frequency table) while `currentMode` was still `TwelveTET` — the mode was set to `Scala` only AFTER the rebuild, so the table always got 12-TET values. Fix: set mode BEFORE `setCustomIntervals()` so the rebuild uses the correct mode.
+- **Temperament mode override during state restoration**: `tuning_tuningMode` parameter (default: 12-TET) could override the mode set by a non-12-TET temperament preset during APVTS state restore. Fix: guard `tuning_tuningMode` handler so it only applies when preset is Equal12TET or Custom.
+- **Restored original pitch-class tuning math for 12-note scales**: TuningEngine's linear mapping produced standard JI intervals, but the original TuningSystem used a pitch-class-based formula (12-TET base frequency * centsToRatio) that produced the plugin's characteristic wider-than-standard intervals. Fix: `calculateCustomFrequency()` now uses the original pitch-class approach for 12-note scales, preserving the intended pad character.
+- **Restored Just Intonation as default temperament**: `tuning_temperamentPreset` default changed from Equal 12-TET (index 0) to Just Intonation (index 8), matching the pre-v1.3.0 `tuningSystem` parameter default. TuningEngine now explicitly initialized to JI in constructor since JUCE doesn't fire `parameterChanged` for initial values.
+
 ## [1.4.0] - 2026-02-18
 
 ### Fixed
