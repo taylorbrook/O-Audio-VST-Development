@@ -219,6 +219,24 @@ uint32_t GrainScheduler::queryGrainIndex(
     if (corpus->grains.empty())
         return 0;
 
+    const int totalGrains = static_cast<int>(corpus->grains.size());
+
+    // Resolve 2D projection data for scatter position bias (prefer UMAP, fall back to PCA)
+    const float* projX = nullptr;
+    const float* projY = nullptr;
+
+    if (corpus->umapReady.load(std::memory_order_acquire)
+        && static_cast<int>(corpus->umapX.size()) >= totalGrains)
+    {
+        projX = corpus->umapX.data();
+        projY = corpus->umapY.data();
+    }
+    else if (static_cast<int>(corpus->pcaX.size()) >= totalGrains)
+    {
+        projX = corpus->pcaX.data();
+        projY = corpus->pcaY.data();
+    }
+
     // Use KD-tree if available
     if (corpus->kdTree != nullptr)
     {
@@ -237,41 +255,65 @@ uint32_t GrainScheduler::queryGrainIndex(
         for (auto& dim : queryPoint)
             dim += (rng.nextFloat() - 0.5f) * variationScale;
 
-        // Query KD-tree for K nearest neighbors, then filter by position
+        // Query KD-tree for K nearest neighbors
         constexpr int K = 8;
         std::array<uint32_t, K> indices;
         std::array<float, K> distances;
-        int found = 0;
         corpus->kdTree->findNeighbors(queryPoint.data(), K, indices.data(), distances.data());
-        found = K;  // KD-tree always returns K if enough grains exist
 
-        // Apply POSITION bias: prefer grains near the temporal position
-        if (params.position > 0.001f || params.position < 0.999f)
+        // Rescore candidates with temporal position + scatter position biases
+        float bestScore = std::numeric_limits<float>::max();
+        uint32_t bestIndex = indices[0];
+
+        for (int i = 0; i < K; ++i)
         {
-            const int totalGrains = static_cast<int>(corpus->grains.size());
-            float bestScore = std::numeric_limits<float>::max();
-            uint32_t bestIndex = indices[0];
+            float score = distances[i];
 
-            for (int i = 0; i < found; ++i)
+            // Temporal position bias
+            float grainPos = static_cast<float>(indices[i]) / static_cast<float>(totalGrains);
+            score += std::abs(grainPos - params.position) * 5.0f;
+
+            // 2D scatter position bias (UMAP or PCA)
+            if (projX != nullptr)
             {
-                float grainPos = static_cast<float>(indices[i]) / static_cast<float>(totalGrains);
-                float posDist = std::abs(grainPos - params.position);
-                // Combined score: KD-tree distance + position bias
-                float score = distances[i] + posDist * 5.0f;
-                if (score < bestScore)
-                {
-                    bestScore = score;
-                    bestIndex = indices[i];
-                }
+                float dx = projX[indices[i]] - params.scatterX;
+                float dy = projY[indices[i]] - params.scatterY;
+                score += (dx * dx + dy * dy) * 10.0f;
             }
-            return bestIndex;
-        }
 
-        return indices[0];
+            if (score < bestScore)
+            {
+                bestScore = score;
+                bestIndex = indices[i];
+            }
+        }
+        return bestIndex;
     }
 
-    // Fallback: random grain biased by position
-    int totalGrains = static_cast<int>(corpus->grains.size());
+    // Fallback: prefer grains near scatter position in 2D projection space
+    if (projX != nullptr)
+    {
+        float targetX = params.scatterX + (rng.nextFloat() - 0.5f) * params.variation * 0.5f;
+        float targetY = params.scatterY + (rng.nextFloat() - 0.5f) * params.variation * 0.5f;
+
+        float bestDist = std::numeric_limits<float>::max();
+        uint32_t bestIndex = 0;
+
+        for (int i = 0; i < totalGrains; ++i)
+        {
+            float dx = projX[i] - targetX;
+            float dy = projY[i] - targetY;
+            float dist = dx * dx + dy * dy;
+            if (dist < bestDist)
+            {
+                bestDist = dist;
+                bestIndex = static_cast<uint32_t>(i);
+            }
+        }
+        return bestIndex;
+    }
+
+    // Last resort: random grain biased by temporal position
     int centerGrain = static_cast<int>(params.position * static_cast<float>(totalGrains - 1));
     int spread = static_cast<int>(params.variation * static_cast<float>(totalGrains) * 0.25f);
     spread = juce::jmax(1, spread);

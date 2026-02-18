@@ -46,7 +46,7 @@ Ouaricon Plugins:
 | O-GrainScatter | 📦 Installed | 2.0.1 | Audio Effect (Granular Stutter Engine) | 2026-02-09 |
 | O-Chorus | 📦 Installed | 1.2.0 | Audio Effect (Chorus) | 2026-02-08 |
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
-| O-TextureForge | 📦 Installed | 1.0.1 | Instrument (Concatenative Synth) | 2026-02-15 |
+| O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
 | O-Prism | 🚧 Stage 0 | - | Synth (Microtonal Wavetable) | 2026-02-16 |
 
