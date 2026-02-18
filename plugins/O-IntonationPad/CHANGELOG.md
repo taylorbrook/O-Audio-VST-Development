@@ -1,5 +1,29 @@
 # O-IntonationPad Changelog
 
+## [1.3.0] - 2026-02-17
+
+### Added
+- **Full tuning module integration**: Replaced 5-button tuning selector with the `scala-tuning-engine` module v2.1.0 — matching O-Bells and O-Lyrica tuning functionality
+- **5 visualization modes**: Pitch circle, linear keyboard, interval ruler, harmonic series, and lattice views
+- **Embedded tuning library**: 24+ built-in tuning presets across Historical, World, Experimental, and Mathematical categories
+- **Scale generator**: Create EDO, harmonic series, and rank-2 temperaments directly in the UI
+- **Scala file I/O**: Import/export `.scl` and `.kbm` files for interoperability with other microtonal software
+- **Editable intervals**: Click any interval in the table to fine-tune individual scale degrees
+- **Master tune control**: A4 reference tuning (400-480 Hz, default 440 Hz)
+- **Octave stretch**: Adjustable octave ratio (1190-1210 cents, default 1200)
+- **Pitch bend range**: Configurable pitch bend (1-48 semitones)
+- **HTML export**: Export tuning documentation as a standalone HTML page
+- **Tuning panel note highlighting**: Active MIDI notes forwarded to tuning panel via `noteOn`/`noteOff` bridge
+
+### Changed
+- Replaced old `TuningSystem` class (5 presets) with `TuningEngine` + `ScaleGenerator` + `TuningExporter` + `EmbeddedTunings`
+- APVTS parameters: removed `tuningSystem` choice, added `tuning_masterTune`, `tuning_octaveStretch`, `tuning_pitchBendRange`, `tuning_temperamentPreset`
+- 24 native functions registered for C++ ↔ WebView communication (matching O-Bells pattern)
+- State persistence now saves custom intervals, scale name, tonic, and active preset in ValueTree
+
+### Breaking
+- Saved DAW sessions with old `tuningSystem` parameter will reset to default tuning (12-TET)
+
 ## [1.2.0] - 2026-02-17
 
 ### Added

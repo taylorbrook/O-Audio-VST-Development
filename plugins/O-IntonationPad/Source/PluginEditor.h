@@ -29,13 +29,12 @@ private:
     OIntonationPadAudioProcessor& processorRef;
 
     // CRITICAL: Member declaration order (Pattern #11)
-    // 1. RELAYS FIRST (no dependencies) - 15 parameters
+    // 1. RELAYS FIRST (no dependencies)
     std::unique_ptr<juce::WebSliderRelay> voiceCountRelay;
     std::unique_ptr<juce::WebSliderRelay> complexityRelay;
     std::unique_ptr<juce::WebSliderRelay> keyRootRelay;
     std::unique_ptr<juce::WebSliderRelay> keyScaleRelay;
     std::unique_ptr<juce::WebSliderRelay> inversionRandomRelay;
-    std::unique_ptr<juce::WebSliderRelay> tuningSystemRelay;
     std::unique_ptr<juce::WebSliderRelay> wavetablePosRelay;
     std::unique_ptr<juce::WebSliderRelay> lfoRateRelay;
     std::unique_ptr<juce::WebSliderRelay> lfoDepthRelay;
@@ -45,6 +44,12 @@ private:
     std::unique_ptr<juce::WebSliderRelay> releaseTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> filterCutoffRelay;
     std::unique_ptr<juce::WebSliderRelay> masterVolumeRelay;
+
+    // v1.3.0: Tuning module relays
+    std::unique_ptr<juce::WebSliderRelay> tuningMasterTuneRelay;
+    std::unique_ptr<juce::WebSliderRelay> tuningOctaveStretchRelay;
+    std::unique_ptr<juce::WebSliderRelay> tuningPitchBendRangeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> tuningTemperamentPresetRelay;
 
     // 2. WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -58,7 +63,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> keyRootAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> keyScaleAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> inversionRandomAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> tuningSystemAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> wavetablePosAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lfoRateAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lfoDepthAttachment;
@@ -68,6 +72,15 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> releaseTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> filterCutoffAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> masterVolumeAttachment;
+
+    // v1.3.0: Tuning module attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> tuningMasterTuneAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tuningOctaveStretchAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> tuningPitchBendRangeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> tuningTemperamentPresetAttachment;
+
+    // v1.3.0: File chooser for tuning file dialogs
+    std::shared_ptr<juce::FileChooser> tuningFileChooser;
 
     // Resource provider helper
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

@@ -11,7 +11,10 @@
 #pragma once
 #include <JuceHeader.h>
 #include "DSP/ChordGenerator.h"
-#include "DSP/TuningSystem.h"
+#include "DSP/TuningEngine.h"
+#include "DSP/ScaleGenerator.h"
+#include "DSP/TuningExporter.h"
+#include "DSP/EmbeddedTunings.h"
 #include "DSP/WavetableVoice.h"
 
 struct ActiveNoteInfo
@@ -21,7 +24,8 @@ struct ActiveNoteInfo
     float gain;  // 0.0-1.0, complexity-based gain for this sub-voice
 };
 
-class OIntonationPadAudioProcessor : public juce::AudioProcessor
+class OIntonationPadAudioProcessor : public juce::AudioProcessor,
+                                    public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     OIntonationPadAudioProcessor();
@@ -51,6 +55,12 @@ public:
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+    // Tuning engine access
+    TuningEngine& getTuningEngine() { return tuningEngine; }
+
+    // APVTS listener
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
+
     // UI data access: collect active sub-voice data from all synthesiser voices
     std::vector<ActiveNoteInfo> getActiveNotes() const;
 
@@ -58,7 +68,9 @@ private:
     // DSP Components (declare BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
     ChordGenerator chordGenerator;
-    TuningSystem tuningSystem;
+    TuningEngine tuningEngine;
+    ScaleGenerator scaleGenerator;
+    TuningExporter tuningExporter;
 
     // Global LFO
     double lfoPhase = 0.0;

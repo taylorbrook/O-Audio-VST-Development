@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>O-IntonationPad</title>
+    <link rel="stylesheet" href="/css/tuning-panel.css">
     <style>
         * {
             margin: 0;
@@ -261,68 +262,6 @@
             background-repeat: no-repeat;
             appearance: none;
             text-align: center;
-        }
-
-        /* Button Row (for tuningSystem) */
-        .button-row {
-            display: flex;
-            gap: 8px;
-            justify-content: center;
-            flex-wrap: wrap;
-        }
-
-        .tuning-button {
-            padding: 8px 12px;
-            background: rgba(139, 168, 112, 0.3);
-            border: 2px solid #5C4033;
-            border-radius: 4px;
-            font-family: 'Garamond', serif;
-            font-size: 10px;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            color: #3C2F2F;
-            cursor: pointer;
-            transition: all 0.2s;
-            box-shadow: 2px 2px 5px rgba(0,0,0,0.2);
-        }
-
-        .tuning-button:hover {
-            background: rgba(139, 168, 112, 0.5);
-        }
-
-        .tuning-button.active {
-            background: rgba(107, 142, 35, 0.6);
-            color: #1a2a10;
-            border-color: #2C3E10;
-        }
-
-        /* Pitch Circle Container */
-        .pitch-circle-container {
-            display: flex;
-            gap: 15px;
-            justify-content: center;
-            align-items: center;
-            flex: 1;
-        }
-
-        .pitch-circle-wrapper {
-            width: 220px;
-            height: 220px;
-        }
-
-        .tuning-info {
-            display: flex;
-            flex-direction: column;
-            gap: 8px;
-        }
-
-        .tuning-info-item {
-            font-size: 11px;
-            color: #3C2F2F;
-            background: rgba(255, 248, 220, 0.5);
-            padding: 6px 10px;
-            border-radius: 4px;
-            border: 1px solid #8B7355;
         }
 
         .section-divider {
@@ -589,33 +528,9 @@
                     </div>
                 </div>
 
-                <!-- Tuning Tab -->
+                <!-- Tuning Tab (v1.3.0: Full tuning module) -->
                 <div class="tab-content" id="tuning-tab">
-                    <div class="knob-label" style="text-align: center; font-size: 12px;">Tuning System</div>
-                    <div class="button-row" id="tuningSystemButtons">
-                        <button class="tuning-button" data-value="0">12-TET</button>
-                        <button class="tuning-button active" data-value="1">Just</button>
-                        <button class="tuning-button" data-value="2">Pythagorean</button>
-                        <button class="tuning-button" data-value="3">Historical</button>
-                        <button class="tuning-button" data-value="4">Scala</button>
-                    </div>
-
-                    <div class="section-divider"></div>
-
-                    <div class="pitch-circle-container">
-                        <div class="pitch-circle-wrapper" id="pitchCircleContainer"></div>
-                        <div class="tuning-info">
-                            <div class="tuning-info-item">
-                                <strong>System:</strong> <span id="currentTuning">Just Intonation</span>
-                            </div>
-                            <div class="tuning-info-item">
-                                <strong>Root:</strong> <span id="currentRoot">C</span>
-                            </div>
-                            <div class="tuning-info-item">
-                                <strong>Scale:</strong> <span id="currentScale">Major</span>
-                            </div>
-                        </div>
-                    </div>
+                    <div id="tuning-container"></div>
                 </div>
 
                 <!-- Modulation Tab -->
@@ -709,50 +624,33 @@
     <!-- JUCE WebView Bridge -->
     <script type="module" src="js/juce/check_native_interop.js"></script>
     <script type="module">
-        import { getSliderState } from './js/juce/index.js';
-        import { PitchCircle } from './modules/pitch-circle.js';
+        import * as Juce from './js/juce/index.js';
 
-        // JUCE Parameter States (15 parameters)
+        // JUCE Parameter States (14 parameters — tuningSystem removed in v1.3.0)
         let voiceCountState, complexityState, keyRootState, keyScaleState, inversionRandomState;
-        let tuningSystemState;
         let wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let attackTimeState, releaseTimeState, filterCutoffState, masterVolumeState;
 
-        // Pitch Circle instance
-        let pitchCircle;
-
-        // Tuning system intervals (in cents)
-        const TUNING_INTERVALS = {
-            0: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100], // 12-TET
-            1: [0, 112, 204, 316, 386, 498, 590, 702, 814, 884, 1018, 1088], // Just Intonation
-            2: [0, 90, 204, 294, 408, 498, 588, 702, 792, 906, 996, 1110],   // Pythagorean
-            3: [0, 112, 204, 316, 386, 498, 590, 702, 814, 884, 1018, 1088], // Historical (same as JI)
-            4: [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100]  // Scala (placeholder)
-        };
-
-        const TUNING_NAMES = ['12-TET', 'Just Intonation', 'Pythagorean', 'Historical', 'Scala'];
         const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-        const SCALE_NAMES = ['Major', 'Minor', 'Dorian', 'Phrygian', 'Lydian', 'Mixolydian', 'Aeolian', 'Locrian', 'Harmonic Minor', 'Melodic Minor'];
 
         document.addEventListener('DOMContentLoaded', () => {
             console.log('JUCE backend:', window.__JUCE__?.backend);
 
             // Initialize parameter states
-            voiceCountState = getSliderState('voiceCount');
-            complexityState = getSliderState('complexity');
-            keyRootState = getSliderState('keyRoot');
-            keyScaleState = getSliderState('keyScale');
-            inversionRandomState = getSliderState('inversionRandom');
-            tuningSystemState = getSliderState('tuningSystem');
-            wavetablePosState = getSliderState('wavetablePos');
-            lfoRateState = getSliderState('lfoRate');
-            lfoDepthState = getSliderState('lfoDepth');
-            timingRandomState = getSliderState('timingRandom');
-            detuneRandomState = getSliderState('detuneRandom');
-            attackTimeState = getSliderState('attackTime');
-            releaseTimeState = getSliderState('releaseTime');
-            filterCutoffState = getSliderState('filterCutoff');
-            masterVolumeState = getSliderState('masterVolume');
+            voiceCountState = Juce.getSliderState('voiceCount');
+            complexityState = Juce.getSliderState('complexity');
+            keyRootState = Juce.getSliderState('keyRoot');
+            keyScaleState = Juce.getSliderState('keyScale');
+            inversionRandomState = Juce.getSliderState('inversionRandom');
+            wavetablePosState = Juce.getSliderState('wavetablePos');
+            lfoRateState = Juce.getSliderState('lfoRate');
+            lfoDepthState = Juce.getSliderState('lfoDepth');
+            timingRandomState = Juce.getSliderState('timingRandom');
+            detuneRandomState = Juce.getSliderState('detuneRandom');
+            attackTimeState = Juce.getSliderState('attackTime');
+            releaseTimeState = Juce.getSliderState('releaseTime');
+            filterCutoffState = Juce.getSliderState('filterCutoff');
+            masterVolumeState = Juce.getSliderState('masterVolume');
 
             // Setup tab switching
             setupTabs();
@@ -780,20 +678,6 @@
             setupDropdown('keyRoot', keyRootState, 12);
             setupDropdown('keyScale', keyScaleState, 10);
 
-            // Setup tuning system button row
-            setupTuningSystem();
-
-            // Initialize pitch circle
-            pitchCircle = new PitchCircle({
-                container: document.getElementById('pitchCircleContainer'),
-                size: 220,
-                showLabels: true
-            });
-
-            // Initial pitch circle update
-            updatePitchCircle();
-            updateTuningInfo();
-
             // Build mini keyboard
             buildKeyboard();
 
@@ -809,6 +693,27 @@
                 });
             }
         });
+
+        // ====================================================================
+        // v1.3.0: TUNING PANEL INITIALIZATION
+        // ====================================================================
+
+        (async () => {
+            try {
+                const { TuningPanel } = await import('./js/tuning-panel.js');
+                const container = document.getElementById('tuning-container');
+                const tuningPanel = new TuningPanel(container, Juce);
+                await tuningPanel.init();
+
+                // Expose note highlighting for C++ evaluateJavascript calls
+                window.tuningNoteOn = (midiNote) => tuningPanel.noteOn(midiNote);
+                window.tuningNoteOff = (midiNote) => tuningPanel.noteOff(midiNote);
+
+                console.log('[Tuning] Panel initialized successfully');
+            } catch (err) {
+                console.error('[Tuning] Failed to initialize panel:', err);
+            }
+        })();
 
         // Tab switching logic
         function setupTabs() {
@@ -857,19 +762,15 @@
                 valueDisplay.textContent = formatted + unit;
             }
 
-            // JUCE → UI (Pattern #15: No callback params)
+            // JUCE -> UI (Pattern #15: No callback params)
             state.valueChangedEvent.addListener(() => {
                 if (!isDragging) {
                     virtualNorm = state.getNormalisedValue();
                 }
                 updateVisual();
-                if (paramId === 'tuningSystem' || paramId === 'keyRoot' || paramId === 'keyScale') {
-                    updatePitchCircle();
-                    updateTuningInfo();
-                }
             });
 
-            // UI → JUCE
+            // UI -> JUCE
             knob.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 lastY = e.clientY;
@@ -913,11 +814,6 @@
                 const normValue = state.getNormalisedValue();
                 const index = Math.round(normValue * (maxIndex - 1));
                 select.value = index.toString();
-
-                if (paramId === 'keyRoot' || paramId === 'keyScale') {
-                    updatePitchCircle();
-                    updateTuningInfo();
-                }
             }
 
             state.valueChangedEvent.addListener(() => {
@@ -931,70 +827,6 @@
             });
 
             updateVisual();
-        }
-
-        // Tuning system button row
-        function setupTuningSystem() {
-            if (!tuningSystemState) {
-                console.error('Failed to get tuningSystem state');
-                return;
-            }
-
-            const buttons = document.querySelectorAll('#tuningSystemButtons .tuning-button');
-
-            function updateVisual() {
-                const normValue = tuningSystemState.getNormalisedValue();
-                const index = Math.round(normValue * 4); // 0-4
-
-                buttons.forEach((btn, i) => {
-                    if (i === index) {
-                        btn.classList.add('active');
-                    } else {
-                        btn.classList.remove('active');
-                    }
-                });
-
-                updatePitchCircle();
-                updateTuningInfo();
-            }
-
-            tuningSystemState.valueChangedEvent.addListener(() => {
-                updateVisual();
-            });
-
-            buttons.forEach(button => {
-                button.addEventListener('click', () => {
-                    const value = parseInt(button.dataset.value);
-                    const normValue = value / 4; // Convert 0-4 to 0-1
-                    tuningSystemState.setNormalisedValue(normValue);
-                });
-            });
-
-            updateVisual();
-        }
-
-        // Update pitch circle visualization
-        function updatePitchCircle() {
-            if (!pitchCircle || !tuningSystemState || !keyRootState) return;
-
-            const tuningIndex = Math.round(tuningSystemState.getNormalisedValue() * 4);
-            const rootIndex = Math.round(keyRootState.getNormalisedValue() * 11);
-
-            const intervals = TUNING_INTERVALS[tuningIndex] || TUNING_INTERVALS[1];
-            pitchCircle.setIntervals(intervals, rootIndex);
-        }
-
-        // Update tuning info display
-        function updateTuningInfo() {
-            if (!tuningSystemState || !keyRootState || !keyScaleState) return;
-
-            const tuningIndex = Math.round(tuningSystemState.getNormalisedValue() * 4);
-            const rootIndex = Math.round(keyRootState.getNormalisedValue() * 11);
-            const scaleIndex = Math.round(keyScaleState.getNormalisedValue() * 9);
-
-            document.getElementById('currentTuning').textContent = TUNING_NAMES[tuningIndex];
-            document.getElementById('currentRoot').textContent = NOTE_NAMES[rootIndex];
-            document.getElementById('currentScale').textContent = SCALE_NAMES[scaleIndex];
         }
 
         // ====================================================================
@@ -1073,13 +905,15 @@
             }
 
             // Update keyboard highlighting with gain-based opacity
-            for (const midi of prevActiveMidi) {
+            for (const midi of prevActiveMidi.keys()) {
                 if (!activeMidi.has(midi)) {
                     const el = keyElements.get(midi);
                     if (el) {
                         el.classList.remove('active');
                         el.style.removeProperty('--key-opacity');
                     }
+                    // Notify tuning panel of note-off
+                    if (window.tuningNoteOff) window.tuningNoteOff(midi);
                 }
             }
             for (const [midi, gain] of activeMidi) {
@@ -1088,18 +922,12 @@
                     el.classList.add('active');
                     el.style.setProperty('--key-opacity', gain.toFixed(3));
                 }
+                // Notify tuning panel of note-on (only for newly active)
+                if (!prevActiveMidi.has(midi) && window.tuningNoteOn) {
+                    window.tuningNoteOn(midi);
+                }
             }
             prevActiveMidi = activeMidi;
-
-            // Update pitch circle highlighting with gain-based intensity
-            if (pitchCircle) {
-                pitchCircle.activeNotes.clear();
-                for (const n of notes) {
-                    const gain = n.gain !== undefined ? n.gain : 1.0;
-                    pitchCircle.setNoteActive(n.midi, gain * 0.8);
-                }
-                pitchCircle._draw();
-            }
 
             // Update frequency list
             if (notes.length === 0) {

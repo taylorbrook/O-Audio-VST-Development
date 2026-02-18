@@ -20,7 +20,10 @@ target_sources(O-IntonationPad
         Source/PluginEditor.cpp
         Source/DSP/WavetableVoice.cpp
         Source/DSP/ChordGenerator.cpp
-        Source/DSP/TuningSystem.cpp
+        Source/DSP/TuningEngine.cpp
+        Source/DSP/ScaleGenerator.cpp
+        Source/DSP/TuningExporter.cpp
+        Source/DSP/EmbeddedTunings.cpp
 )
 
 # Include paths
@@ -61,6 +64,8 @@ juce_add_binary_data(O-IntonationPad_UIResources
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/modules/pitch-circle.js
+        Source/ui/public/js/tuning-panel.js
+        Source/ui/public/css/tuning-panel.css
         Source/ui/public/img/paper.jpg
         Source/ui/public/img/shell.png
 )

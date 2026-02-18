@@ -13,7 +13,10 @@
 #include "DSP/WavetableVoice.h"
 #include "DSP/WavetableSound.h"
 #include "DSP/ChordGenerator.h"
-#include "DSP/TuningSystem.h"
+#include "DSP/TuningEngine.h"
+#include "DSP/ScaleGenerator.h"
+#include "DSP/TuningExporter.h"
+#include "DSP/EmbeddedTunings.h"
 
 juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor::createParameterLayout()
 {
@@ -52,13 +55,45 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         0
     ));
 
-    // TUNING_SYSTEM - Choice (5 systems, default: Just Intonation)
+    // TUNING: Master Tune (A4 reference, 400-480 Hz, default 440)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "tuning_masterTune", 1 },
+        "Master Tune",
+        juce::NormalisableRange<float>(400.0f, 480.0f, 0.1f),
+        440.0f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    // TUNING: Tuning Mode (12-TET, Custom, MTS-ESP)
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "tuningSystem", 1 },
-        "Tuning System",
-        juce::StringArray { "12-TET", "Just Intonation", "Pythagorean", "Historical", "Scala" },
-        1
-    ));
+        juce::ParameterID { "tuning_tuningMode", 1 },
+        "Tuning Mode",
+        juce::StringArray { "12-TET", "Custom", "MTS-ESP" },
+        0));
+
+    // TUNING: Octave Stretch (0.95-1.25, default 1.0)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "tuning_octaveStretch", 1 },
+        "Octave Stretch",
+        juce::NormalisableRange<float>(0.95f, 1.25f, 0.001f),
+        1.0f));
+
+    // TUNING: Pitch Bend Range (1-48 semitones, default 2)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "tuning_pitchBendRange", 1 },
+        "Pitch Bend Range",
+        juce::NormalisableRange<float>(1.0f, 48.0f, 1.0f),
+        2.0f,
+        juce::AudioParameterFloatAttributes().withLabel("st")));
+
+    // TUNING: Temperament Preset
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "tuning_temperamentPreset", 1 },
+        "Temperament",
+        juce::StringArray {
+            "Equal 12-TET", "Pythagorean", "Zarlino", "Meantone (1/4)",
+            "Werckmeister III", "Kirnberger III", "Vallotti",
+            "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom" },
+        0));
 
     // INVERSION_RANDOM - Float (0-100%, default: 30%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -161,6 +196,13 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     {
         synthesiser.addVoice(new WavetableVoice());
     }
+
+    // Register tuning parameter listeners
+    parameters.addParameterListener("tuning_masterTune", this);
+    parameters.addParameterListener("tuning_tuningMode", this);
+    parameters.addParameterListener("tuning_octaveStretch", this);
+    parameters.addParameterListener("tuning_pitchBendRange", this);
+    parameters.addParameterListener("tuning_temperamentPreset", this);
 }
 
 OIntonationPadAudioProcessor::~OIntonationPadAudioProcessor()
@@ -220,7 +262,6 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     float complexity = parameters.getRawParameterValue("complexity")->load();
     int keyRoot = static_cast<int>(parameters.getRawParameterValue("keyRoot")->load());
     int keyScale = static_cast<int>(parameters.getRawParameterValue("keyScale")->load());
-    int tuningSystemIndex = static_cast<int>(parameters.getRawParameterValue("tuningSystem")->load());
     float lfoRate = parameters.getRawParameterValue("lfoRate")->load();
     float lfoDepth = parameters.getRawParameterValue("lfoDepth")->load();
     float filterCutoff = parameters.getRawParameterValue("filterCutoff")->load();
@@ -228,10 +269,6 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     float inversionRandom = parameters.getRawParameterValue("inversionRandom")->load();
     float detuneRandom = parameters.getRawParameterValue("detuneRandom")->load();
     float timingRandom = parameters.getRawParameterValue("timingRandom")->load();
-
-    // Update tuning system
-    tuningSystem.setMode(static_cast<TuningSystem::Mode>(tuningSystemIndex));
-    tuningSystem.setTonicNote(keyRoot);
 
     // Update LFO phase increment
     lfoPhaseIncrement = (lfoRate * juce::MathConstants<double>::twoPi) / getSampleRate();
@@ -256,7 +293,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
             // Store chord generation parameters for voices to use on note-on
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot, keyScale,
                                             inversionRandom, detuneRandom, timingRandom,
-                                            &chordGenerator, &tuningSystem, &randomGenerator);
+                                            &chordGenerator, &tuningEngine, &randomGenerator);
         }
     }
 
@@ -281,9 +318,38 @@ juce::AudioProcessorEditor* OIntonationPadAudioProcessor::createEditor()
     return new OIntonationPadAudioProcessorEditor(*this);
 }
 
+void OIntonationPadAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    if (parameterID == "tuning_masterTune")
+        tuningEngine.setMasterTune(static_cast<double>(newValue));
+    else if (parameterID == "tuning_octaveStretch")
+        tuningEngine.setOctaveStretch(newValue);
+    else if (parameterID == "tuning_pitchBendRange")
+        tuningEngine.setPitchBendRange(newValue);
+    else if (parameterID == "tuning_tuningMode")
+        tuningEngine.setMode(static_cast<TuningEngine::Mode>(static_cast<int>(newValue)));
+    else if (parameterID == "tuning_temperamentPreset")
+        tuningEngine.setBuiltInPreset(static_cast<TuningEngine::BuiltInPreset>(static_cast<int>(newValue)));
+}
+
 void OIntonationPadAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
 {
     auto state = parameters.copyState();
+
+    // Save tuning engine custom state
+    auto tuningState = state.getOrCreateChildWithName("tuningEngine", nullptr);
+    auto intervals = tuningEngine.getIntervals();
+    juce::String intervalsStr;
+    for (size_t i = 0; i < intervals.size(); ++i)
+    {
+        if (i > 0) intervalsStr += ",";
+        intervalsStr += juce::String(intervals[i], 6);
+    }
+    tuningState.setProperty("intervals", intervalsStr, nullptr);
+    tuningState.setProperty("scaleName", tuningEngine.getActiveTuningName(), nullptr);
+    tuningState.setProperty("tonic", tuningEngine.getTonicNote(), nullptr);
+    tuningState.setProperty("preset", static_cast<int>(tuningEngine.getBuiltInPreset()), nullptr);
+
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -293,7 +359,31 @@ void OIntonationPadAudioProcessor::setStateInformation(const void* data, int siz
     std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
 
     if (xmlState != nullptr && xmlState->hasTagName(parameters.state.getType()))
-        parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
+    {
+        auto state = juce::ValueTree::fromXml(*xmlState);
+        parameters.replaceState(state);
+
+        // Restore tuning engine custom state
+        auto tuningState = state.getChildWithName("tuningEngine");
+        if (tuningState.isValid())
+        {
+            juce::String intervalsStr = tuningState.getProperty("intervals", "");
+            if (intervalsStr.isNotEmpty())
+            {
+                std::vector<double> intervals;
+                juce::StringArray tokens;
+                tokens.addTokens(intervalsStr, ",", "");
+                for (const auto& token : tokens)
+                    intervals.push_back(token.getDoubleValue());
+
+                juce::String scaleName = tuningState.getProperty("scaleName", "Custom");
+                tuningEngine.setCustomIntervals(intervals, scaleName);
+            }
+
+            int tonic = tuningState.getProperty("tonic", 0);
+            tuningEngine.setTonicNote(tonic);
+        }
+    }
 }
 
 std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const

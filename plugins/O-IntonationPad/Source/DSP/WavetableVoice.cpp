@@ -8,7 +8,7 @@
 */
 
 #include "WavetableVoice.h"
-#include "TuningSystem.h"
+#include "TuningEngine.h"
 
 WavetableVoice::WavetableVoice()
 {
@@ -58,8 +58,13 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
                 centOffset = (randomPtr->nextFloat() * 2.0f - 1.0f) * static_cast<double>(cachedDetuneRandom);
 
             float baseFreq;
-            if (tuningSystemPtr != nullptr)
-                baseFreq = static_cast<float>(tuningSystemPtr->getFrequencyWithOffset(baseMidiNote, centOffset));
+            if (tuningEnginePtr != nullptr)
+            {
+                double freq = tuningEnginePtr->getFrequency(baseMidiNote);
+                if (centOffset != 0.0)
+                    freq *= std::pow(2.0, centOffset / 1200.0);
+                baseFreq = static_cast<float>(freq);
+            }
             else
                 baseFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(baseMidiNote));
 
@@ -76,8 +81,13 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
                 invertedMidiNote = baseMidiNote - octaveShift;
 
             float invertedFreq;
-            if (tuningSystemPtr != nullptr)
-                invertedFreq = static_cast<float>(tuningSystemPtr->getFrequencyWithOffset(invertedMidiNote, centOffset));
+            if (tuningEnginePtr != nullptr)
+            {
+                double freq = tuningEnginePtr->getFrequency(invertedMidiNote);
+                if (centOffset != 0.0)
+                    freq *= std::pow(2.0, centOffset / 1200.0);
+                invertedFreq = static_cast<float>(freq);
+            }
             else
                 invertedFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(invertedMidiNote));
 
@@ -247,7 +257,7 @@ void WavetableVoice::setEnvelopeParameters(float attack, float release)
 
 void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, int keyRoot, int keyScale,
                                                 float inversionRandom, float detuneRandom, float timingRandom,
-                                                ChordGenerator* chordGen, TuningSystem* tuning,
+                                                ChordGenerator* chordGen, TuningEngine* tuning,
                                                 juce::Random* random)
 {
     cachedVoiceCount = voiceCount;
@@ -258,6 +268,6 @@ void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, 
     cachedDetuneRandom = detuneRandom;
     cachedTimingRandom = timingRandom;
     chordGeneratorPtr = chordGen;
-    tuningSystemPtr = tuning;
+    tuningEnginePtr = tuning;
     randomPtr = random;
 }

@@ -15,7 +15,7 @@
 #include "WavetableSound.h"
 #include "ChordGenerator.h"
 
-class TuningSystem;  // Forward declaration
+class TuningEngine;  // Forward declaration
 
 struct SubVoiceInfo
 {
@@ -40,7 +40,7 @@ public:
     void setEnvelopeParameters(float attack, float release);
     void setChordGenerationParams(int voiceCount, float complexity, int keyRoot, int keyScale,
                                    float inversionRandom, float detuneRandom, float timingRandom,
-                                   ChordGenerator* chordGen, class TuningSystem* tuning,
+                                   ChordGenerator* chordGen, class TuningEngine* tuning,
                                    juce::Random* random);
 
     // UI data access (read from message thread)
@@ -86,7 +86,7 @@ private:
     float cachedDetuneRandom = 5.0f;
     float cachedTimingRandom = 10.0f;  // ms
     ChordGenerator* chordGeneratorPtr = nullptr;
-    TuningSystem* tuningSystemPtr = nullptr;
+    TuningEngine* tuningEnginePtr = nullptr;
     juce::Random* randomPtr = nullptr;
 
     // Per-sub-oscillator timing delays (in samples)
