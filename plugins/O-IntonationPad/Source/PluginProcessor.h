@@ -12,6 +12,13 @@
 #include <JuceHeader.h>
 #include "DSP/ChordGenerator.h"
 #include "DSP/TuningSystem.h"
+#include "DSP/WavetableVoice.h"
+
+struct ActiveNoteInfo
+{
+    int midiNote;
+    float frequencyHz;
+};
 
 class OIntonationPadAudioProcessor : public juce::AudioProcessor
 {
@@ -42,6 +49,9 @@ public:
     void setStateInformation(const void* data, int sizeInBytes) override;
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
+
+    // UI data access: collect active sub-voice data from all synthesiser voices
+    std::vector<ActiveNoteInfo> getActiveNotes() const;
 
 private:
     // DSP Components (declare BEFORE parameters for initialization order)

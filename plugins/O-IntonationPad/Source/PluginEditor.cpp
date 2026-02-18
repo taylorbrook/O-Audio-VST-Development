@@ -95,11 +95,46 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
 
     // Set size AFTER all components are created
     setSize(800, 500);
+
+    // Start timer for active note visualization (30 fps)
+    startTimerHz(30);
 }
 
 OIntonationPadAudioProcessorEditor::~OIntonationPadAudioProcessorEditor()
 {
-    // Members destroyed in REVERSE order of declaration (automatic cleanup)
+    stopTimer();
+}
+
+void OIntonationPadAudioProcessorEditor::timerCallback()
+{
+    if (webView == nullptr)
+        return;
+
+    auto notes = processorRef.getActiveNotes();
+
+    // Build JSON array of active notes
+    juce::String json = "[";
+    for (int i = 0; i < static_cast<int>(notes.size()); ++i)
+    {
+        if (i > 0) json += ",";
+
+        const auto& n = notes[static_cast<size_t>(i)];
+        int pitchClass = n.midiNote % 12;
+        int octave = (n.midiNote / 12) - 1;
+
+        // Calculate cent deviation from 12-TET
+        double tetFreq = 440.0 * std::pow(2.0, (n.midiNote - 69) / 12.0);
+        double centDev = 1200.0 * std::log2(static_cast<double>(n.frequencyHz) / tetFreq);
+
+        json += "{\"midi\":" + juce::String(n.midiNote)
+             + ",\"pc\":" + juce::String(pitchClass)
+             + ",\"oct\":" + juce::String(octave)
+             + ",\"hz\":" + juce::String(n.frequencyHz, 2)
+             + ",\"cents\":" + juce::String(centDev, 1) + "}";
+    }
+    json += "]";
+
+    webView->emitEventIfBrowserIsVisible("activeNotes", json);
 }
 
 void OIntonationPadAudioProcessorEditor::paint(juce::Graphics& g)

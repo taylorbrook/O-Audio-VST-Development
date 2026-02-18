@@ -331,6 +331,127 @@
             opacity: 0.3;
             margin: 5px 0;
         }
+
+        /* Mini Keyboard */
+        .keyboard-section {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 6px;
+            flex: 1;
+            min-height: 0;
+        }
+
+        .mini-keyboard {
+            position: relative;
+            height: 50px;
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            overflow: hidden;
+            background: rgba(255, 248, 220, 0.3);
+        }
+
+        .key {
+            position: absolute;
+            top: 0;
+            border: 1px solid #8B7355;
+            border-radius: 0 0 2px 2px;
+            transition: background 0.08s;
+        }
+
+        .key.white {
+            height: 100%;
+            background: rgba(255, 248, 220, 0.8);
+            z-index: 1;
+        }
+
+        .key.black {
+            height: 60%;
+            background: #3C2F2F;
+            z-index: 2;
+            border-color: #2a2020;
+        }
+
+        .key.white.active {
+            background: rgba(107, 142, 35, 0.7);
+            box-shadow: inset 0 0 6px rgba(107, 142, 35, 0.5);
+        }
+
+        .key.black.active {
+            background: #4a6e1e;
+            box-shadow: inset 0 0 6px rgba(107, 142, 35, 0.5);
+        }
+
+        .key-label {
+            position: absolute;
+            bottom: 2px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 6px;
+            color: #5C4033;
+            pointer-events: none;
+            white-space: nowrap;
+        }
+
+        .key.black .key-label {
+            color: #C9A27B;
+        }
+
+        /* Frequency List */
+        .freq-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 4px;
+            justify-content: center;
+            overflow-y: auto;
+            max-height: 100px;
+            width: 100%;
+            padding: 2px;
+        }
+
+        .freq-placeholder {
+            font-size: 10px;
+            color: rgba(60, 47, 47, 0.4);
+            font-style: italic;
+        }
+
+        .freq-item {
+            display: flex;
+            gap: 4px;
+            align-items: baseline;
+            background: rgba(255, 248, 220, 0.5);
+            padding: 3px 6px;
+            border-radius: 3px;
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            font-size: 9px;
+            color: #3C2F2F;
+        }
+
+        .freq-note {
+            font-weight: bold;
+            color: #2C3E10;
+            font-size: 10px;
+        }
+
+        .freq-hz {
+            color: #5C4033;
+        }
+
+        .freq-cents {
+            font-size: 8px;
+        }
+
+        .freq-cents.sharp {
+            color: #8B4513;
+        }
+
+        .freq-cents.flat {
+            color: #4a6e1e;
+        }
+
+        .freq-cents.zero {
+            color: #888;
+        }
     </style>
 </head>
 <body>
@@ -410,6 +531,16 @@
                                 <option value="8">Harmonic Minor</option>
                                 <option value="9">Melodic Minor</option>
                             </select>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <div class="keyboard-section">
+                        <div class="knob-label" style="text-align: center;">Active Notes</div>
+                        <div class="mini-keyboard" id="miniKeyboard"></div>
+                        <div class="freq-list" id="freqList">
+                            <span class="freq-placeholder">Play a note to see chord voicing</span>
                         </div>
                     </div>
                 </div>
@@ -618,6 +749,21 @@
             // Initial pitch circle update
             updatePitchCircle();
             updateTuningInfo();
+
+            // Build mini keyboard
+            buildKeyboard();
+
+            // Listen for active notes from C++
+            if (window.__JUCE__ && window.__JUCE__.backend) {
+                window.__JUCE__.backend.addEventListener("activeNotes", (data) => {
+                    try {
+                        const notes = JSON.parse(data);
+                        updateActiveNotes(notes);
+                    } catch (e) {
+                        console.error('Failed to parse activeNotes:', e);
+                    }
+                });
+            }
         });
 
         // Tab switching logic
@@ -651,6 +797,7 @@
 
             let isDragging = false;
             let lastY = 0;
+            let virtualNorm = state.getNormalisedValue();
 
             function updateVisual() {
                 const normValue = state.getNormalisedValue();
@@ -668,6 +815,9 @@
 
             // JUCE → UI (Pattern #15: No callback params)
             state.valueChangedEvent.addListener(() => {
+                if (!isDragging) {
+                    virtualNorm = state.getNormalisedValue();
+                }
                 updateVisual();
                 if (paramId === 'tuningSystem' || paramId === 'keyRoot' || paramId === 'keyScale') {
                     updatePitchCircle();
@@ -679,6 +829,7 @@
             knob.addEventListener('mousedown', (e) => {
                 isDragging = true;
                 lastY = e.clientY;
+                virtualNorm = state.getNormalisedValue();
                 state.sliderDragStarted();
                 e.preventDefault();
             });
@@ -687,11 +838,10 @@
                 if (!isDragging) return;
 
                 const deltaY = lastY - e.clientY;
-                const currentNorm = state.getNormalisedValue();
                 const sensitivity = 0.005;
-                const newNorm = Math.max(0, Math.min(1, currentNorm + (deltaY * sensitivity)));
+                virtualNorm = Math.max(0, Math.min(1, virtualNorm + (deltaY * sensitivity)));
 
-                state.setNormalisedValue(newNorm);
+                state.setNormalisedValue(virtualNorm);
                 lastY = e.clientY;
             });
 
@@ -699,6 +849,7 @@
                 if (isDragging) {
                     state.sliderDragEnded();
                     isDragging = false;
+                    virtualNorm = state.getNormalisedValue();
                 }
             });
 
@@ -800,6 +951,151 @@
             document.getElementById('currentTuning').textContent = TUNING_NAMES[tuningIndex];
             document.getElementById('currentRoot').textContent = NOTE_NAMES[rootIndex];
             document.getElementById('currentScale').textContent = SCALE_NAMES[scaleIndex];
+        }
+
+        // ====================================================================
+        // MINI KEYBOARD + ACTIVE NOTES VISUALIZATION
+        // ====================================================================
+
+        // Keyboard range: C2 (36) to B5 (83) = 4 octaves
+        const KB_LOW = 36;
+        const KB_HIGH = 83;
+        const BLACK_KEYS = new Set([1, 3, 6, 8, 10]); // pitch classes that are black keys
+
+        // Map of MIDI note -> key DOM element
+        const keyElements = new Map();
+
+        // Previous active MIDI notes (for diffing)
+        let prevActiveMidi = new Set();
+
+        function buildKeyboard() {
+            const container = document.getElementById('miniKeyboard');
+            if (!container) return;
+
+            // Count white keys in range to calculate widths
+            let whiteCount = 0;
+            for (let m = KB_LOW; m <= KB_HIGH; m++) {
+                if (!BLACK_KEYS.has(m % 12)) whiteCount++;
+            }
+
+            // Available width (Voice tab is ~760px)
+            const availWidth = 720;
+            const whiteW = Math.floor(availWidth / whiteCount);
+            const blackW = Math.floor(whiteW * 0.6);
+            container.style.width = (whiteCount * whiteW) + 'px';
+
+            let whiteIndex = 0;
+            for (let m = KB_LOW; m <= KB_HIGH; m++) {
+                const pc = m % 12;
+                const isBlack = BLACK_KEYS.has(pc);
+                const key = document.createElement('div');
+                key.classList.add('key', isBlack ? 'black' : 'white');
+                key.dataset.midi = m;
+
+                if (isBlack) {
+                    // Position black key overlapping previous white key
+                    const leftPos = (whiteIndex * whiteW) - Math.floor(blackW / 2);
+                    key.style.left = leftPos + 'px';
+                    key.style.width = blackW + 'px';
+                } else {
+                    key.style.left = (whiteIndex * whiteW) + 'px';
+                    key.style.width = whiteW + 'px';
+                    whiteIndex++;
+                }
+
+                // Add C note labels on white keys
+                if (pc === 0) {
+                    const oct = Math.floor(m / 12) - 1;
+                    const label = document.createElement('span');
+                    label.className = 'key-label';
+                    label.textContent = 'C' + oct;
+                    key.appendChild(label);
+                }
+
+                container.appendChild(key);
+                keyElements.set(m, key);
+            }
+        }
+
+        function updateActiveNotes(notes) {
+            const activeMidi = new Set();
+            const freqList = document.getElementById('freqList');
+
+            // Collect active MIDI notes
+            for (const n of notes) {
+                activeMidi.add(n.midi);
+            }
+
+            // Update keyboard highlighting (diff with previous)
+            for (const midi of prevActiveMidi) {
+                if (!activeMidi.has(midi)) {
+                    const el = keyElements.get(midi);
+                    if (el) el.classList.remove('active');
+                }
+            }
+            for (const midi of activeMidi) {
+                if (!prevActiveMidi.has(midi)) {
+                    const el = keyElements.get(midi);
+                    if (el) el.classList.add('active');
+                }
+            }
+            prevActiveMidi = activeMidi;
+
+            // Update pitch circle highlighting (on Tuning tab)
+            if (pitchCircle) {
+                // Clear all previous active notes
+                pitchCircle.activeNotes.clear();
+                // Set new active notes
+                for (const n of notes) {
+                    pitchCircle.setNoteActive(n.midi, 0.8);
+                }
+                // Re-render lines
+                pitchCircle._draw();
+            }
+
+            // Update frequency list
+            if (notes.length === 0) {
+                freqList.innerHTML = '<span class="freq-placeholder">Play a note to see chord voicing</span>';
+                return;
+            }
+
+            // Sort by MIDI note for display
+            const sorted = [...notes].sort((a, b) => a.midi - b.midi);
+
+            // Deduplicate by MIDI note (multiple synth voices may play same note)
+            const seen = new Set();
+            const unique = [];
+            for (const n of sorted) {
+                if (!seen.has(n.midi)) {
+                    seen.add(n.midi);
+                    unique.push(n);
+                }
+            }
+
+            let html = '';
+            for (const n of unique) {
+                const noteName = NOTE_NAMES[n.pc] + n.oct;
+                const centsAbs = Math.abs(n.cents);
+                let centsStr, centsClass;
+
+                if (centsAbs < 0.5) {
+                    centsStr = '0¢';
+                    centsClass = 'zero';
+                } else if (n.cents > 0) {
+                    centsStr = '+' + n.cents.toFixed(1) + '¢';
+                    centsClass = 'sharp';
+                } else {
+                    centsStr = n.cents.toFixed(1) + '¢';
+                    centsClass = 'flat';
+                }
+
+                html += `<div class="freq-item">
+                    <span class="freq-note">${noteName}</span>
+                    <span class="freq-hz">${n.hz.toFixed(1)} Hz</span>
+                    <span class="freq-cents ${centsClass}">${centsStr}</span>
+                </div>`;
+            }
+            freqList.innerHTML = html;
         }
     </script>
 </body>

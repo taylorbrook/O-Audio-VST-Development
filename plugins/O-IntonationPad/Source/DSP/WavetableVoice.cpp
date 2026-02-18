@@ -77,6 +77,9 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             subVoiceOscillators[static_cast<size_t>(i)].setFrequency(frequency, currentSampleRate);
             subVoiceOscillators[static_cast<size_t>(i)].reset();
 
+            // Store info for UI visualization
+            subVoiceInfos[static_cast<size_t>(i)] = { chordVoices[static_cast<size_t>(i)].midiNote, frequency };
+
             // Assign random timing delay (first voice always starts immediately)
             if (i == 0 || randomPtr == nullptr || maxDelaySamples == 0)
             {
@@ -96,6 +99,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         float frequency = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
         subVoiceOscillators[0].setFrequency(frequency, currentSampleRate);
         subVoiceOscillators[0].reset();
+        subVoiceInfos[0] = { midiNoteNumber, frequency };
     }
 
     // Start envelope

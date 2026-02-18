@@ -296,6 +296,27 @@ void OIntonationPadAudioProcessor::setStateInformation(const void* data, int siz
         parameters.replaceState(juce::ValueTree::fromXml(*xmlState));
 }
 
+std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
+{
+    std::vector<ActiveNoteInfo> notes;
+
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        auto* voice = dynamic_cast<const WavetableVoice*>(synthesiser.getVoice(i));
+        if (voice != nullptr && voice->isVoiceActive())
+        {
+            int subCount = voice->getActiveSubVoiceCount();
+            for (int j = 0; j < subCount; ++j)
+            {
+                const auto& info = voice->getSubVoiceInfo(j);
+                notes.push_back({ info.midiNote, info.frequencyHz });
+            }
+        }
+    }
+
+    return notes;
+}
+
 // Factory function
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()
 {

@@ -12,7 +12,8 @@
 #include "PluginProcessor.h"
 #include <juce_gui_extra/juce_gui_extra.h>
 
-class OIntonationPadAudioProcessorEditor : public juce::AudioProcessorEditor
+class OIntonationPadAudioProcessorEditor : public juce::AudioProcessorEditor,
+                                           private juce::Timer
 {
 public:
     explicit OIntonationPadAudioProcessorEditor(OIntonationPadAudioProcessor&);
@@ -23,6 +24,8 @@ public:
     void parentHierarchyChanged() override;
 
 private:
+    void timerCallback() override;
+
     OIntonationPadAudioProcessor& processorRef;
 
     // CRITICAL: Member declaration order (Pattern #11)

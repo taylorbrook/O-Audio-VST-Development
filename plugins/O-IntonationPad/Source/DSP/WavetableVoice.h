@@ -17,6 +17,12 @@
 
 class TuningSystem;  // Forward declaration
 
+struct SubVoiceInfo
+{
+    int midiNote = 0;
+    float frequencyHz = 0.0f;
+};
+
 class WavetableVoice final : public juce::SynthesiserVoice
 {
 public:
@@ -37,10 +43,15 @@ public:
                                    ChordGenerator* chordGen, class TuningSystem* tuning,
                                    juce::Random* random);
 
+    // UI data access (read from message thread)
+    int getActiveSubVoiceCount() const { return activeSubVoices; }
+    const SubVoiceInfo& getSubVoiceInfo(int index) const { return subVoiceInfos[static_cast<size_t>(index)]; }
+
 private:
     static constexpr int MAX_SUB_VOICES = 12;
 
     std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceOscillators;
+    std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInfos{};
     int activeSubVoices = 1;
 
     juce::ADSR envelope;
