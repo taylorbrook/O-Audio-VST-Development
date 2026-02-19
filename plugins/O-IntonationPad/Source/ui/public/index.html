@@ -138,6 +138,24 @@
             display: flex;
         }
 
+        /* Tuning tab: scrollable when content exceeds available height */
+        #tuning-tab {
+            overflow-y: auto;
+        }
+
+        #tuning-tab::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #tuning-tab::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #tuning-tab::-webkit-scrollbar-thumb {
+            background: rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+        }
+
         /* Knob Styles */
         .knob-row {
             display: flex;

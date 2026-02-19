@@ -1,5 +1,12 @@
 # O-IntonationPad Changelog
 
+## [1.5.1] - 2026-02-19
+
+### Fixed
+- **Tuning tab not scrollable**: When the "Generate Scale" dropdown was expanded, controls below it were unreachable. Added vertical scrolling to the tuning tab with a themed scrollbar
+- **Intervals table fixed height**: The interval list had a hardcoded `max-height: 300px` with internal scroll, regardless of scale size. Removed the constraint so the table auto-extends to fit all scale degrees (7-note, 12-note, 31-note, etc.), with tab-level scrolling handling overflow
+- **Center visualization lacked visual separation from right panel**: The center visualization area (Circle, Polar, Matrix, TrueKeys, Rotation) now has its own distinct panel styling (background, border, border-radius) to visually separate it from the tuning library controls on the right
+
 ## [1.5.0] - 2026-02-19
 
 ### Added
