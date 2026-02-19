@@ -2,6 +2,19 @@
 
 All notable changes to O-Bells will be documented in this file.
 
+## [3.2.1] - 2026-02-19
+
+### Added
+- **Licensing module integration** - Compile-flag gated licensing overlay (OUARICON_LICENSING, off by default for local development)
+  - Native overlay hides WebView until license is validated
+  - License manager lives on processor, persists across editor open/close
+- **Version label** - Small version indicator (v3.2.1) in bottom-left corner of UI
+
+### Technical Notes
+- Domain: C++ + UI + CMake
+- Licensing is fully gated behind `OUARICON_LICENSING` CMake flag — no impact on local builds
+- No DSP changes; backward-compatible
+
 ## [3.1.1] - 2026-02-05
 
 ### Fixed
