@@ -13,8 +13,15 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicenseUI.h"
+#endif
+
 class OBellsAudioProcessorEditor : public juce::AudioProcessorEditor,
                                    private juce::Timer
+#if OUARICON_LICENSING_ENABLED
+                                 , private OuariconLicense::Listener
+#endif
 {
 public:
     explicit OBellsAudioProcessorEditor(OBellsAudioProcessor&);
@@ -161,6 +168,11 @@ private:
 
     // v3.0.0: File chooser for tuning file dialogs
     std::shared_ptr<juce::FileChooser> tuningFileChooser;
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
+    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OBellsAudioProcessorEditor)
 };

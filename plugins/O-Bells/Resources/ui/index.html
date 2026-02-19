@@ -971,6 +971,22 @@
         .cpu-warning-estimate {
             font-weight: 600;
         }
+
+        /* ====================================================================
+           VERSION LABEL (v3.2.1)
+           ==================================================================== */
+
+        .version-label {
+            position: absolute;
+            bottom: 5px;
+            left: 8px;
+            font-size: 7px;
+            font-weight: 300;
+            letter-spacing: 0.5px;
+            color: #8B7355;
+            z-index: 3;
+            opacity: 0.6;
+        }
     </style>
 </head>
 <body>
@@ -1394,6 +1410,9 @@
         <div class="tab-content" id="tuning-tab">
             <div id="tuning-container"></div>
         </div>
+
+        <!-- Version Label -->
+        <span class="version-label">v3.2.1</span>
 
         <!-- Footer (v2.2.0: Added Gain slider and keyboard) -->
         <div class="footer">

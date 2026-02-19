@@ -535,6 +535,11 @@ OBellsAudioProcessor::OBellsAudioProcessor()
 
     // Initialize factory presets (only on first run)
     initializeFactoryPresets();
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-bells", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OBellsAudioProcessor::~OBellsAudioProcessor()
