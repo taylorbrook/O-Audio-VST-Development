@@ -57,6 +57,13 @@ public:
     ScaleGenerator* getScaleGenerator() { return &scaleGenerator; }
     TuningExporter* getTuningExporter() { return &tuningExporter; }
 
+    const WavetableData* getFactoryTable (int index) const
+    {
+        if (index >= 0 && index < static_cast<int> (factoryTables.size()))
+            return factoryTables[static_cast<size_t> (index)].get();
+        return nullptr;
+    }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;

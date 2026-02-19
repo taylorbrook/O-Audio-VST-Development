@@ -235,8 +235,11 @@ function initCursorOverlay() {
     const canvas = document.getElementById('cursor-overlay');
     if (!canvas) return;
 
-    canvas.width = canvas.clientWidth;
-    canvas.height = canvas.clientHeight;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    canvas.width = Math.round(w * dpr);
+    canvas.height = Math.round(h * dpr);
     cursorOverlayCtx = canvas.getContext('2d');
 }
 
@@ -244,12 +247,25 @@ function drawCursor(cx, cy, variation) {
     if (!cursorOverlayCtx) return;
 
     const ctx = cursorOverlayCtx;
-    const w = ctx.canvas.width;
-    const h = ctx.canvas.height;
+    const canvas = ctx.canvas;
+    const dpr = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth;
+    const h = canvas.clientHeight;
+    if (w === 0 || h === 0) return;
 
+    // Sync backing store if canvas was resized
+    const bw = Math.round(w * dpr);
+    const bh = Math.round(h * dpr);
+    if (canvas.width !== bw || canvas.height !== bh) {
+        canvas.width = bw;
+        canvas.height = bh;
+    }
+
+    // DPR transform: draw in CSS pixel coordinates, scale to backing store
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, w, h);
 
-    // Map data coordinates to pixel coordinates using scatter plot's view transform
+    // Map data coordinates to CSS pixel coordinates using scatter plot's view transform
     let px, py;
     if (scatterViewTransform && typeof scatterViewTransform.xScale === 'function') {
         px = scatterViewTransform.xScale(cx);
@@ -260,7 +276,7 @@ function drawCursor(cx, cy, variation) {
         py = (1 - cy) * h;
     }
 
-    // Compute radius in pixel space using the scale transform
+    // Compute radius in CSS pixel space using the scale transform
     let radius;
     if (scatterViewTransform && typeof scatterViewTransform.xScale === 'function') {
         const edge = scatterViewTransform.xScale(cx + variation * 0.5);

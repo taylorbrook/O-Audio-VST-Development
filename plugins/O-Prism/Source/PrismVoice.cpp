@@ -36,8 +36,10 @@ void PrismVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
     glide.prepare (sampleRate);
     ampEnvelope.setSampleRate (sampleRate);
     filterEnvelope.setSampleRate (sampleRate);
-    filterA.prepare (sampleRate);
-    filterB.prepare (sampleRate);
+    filterAL.prepare (sampleRate);
+    filterAR.prepare (sampleRate);
+    filterBL.prepare (sampleRate);
+    filterBR.prepare (sampleRate);
 }
 
 bool PrismVoice::canPlaySound (juce::SynthesiserSound* sound)
@@ -128,8 +130,10 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     noiseGen.reset();
 
     // Reset filters for new note
-    filterA.reset();
-    filterB.reset();
+    filterAL.reset();
+    filterAR.reset();
+    filterBL.reset();
+    filterBR.reset();
 
     // Amplitude ADSR
     float attack = parameters->getRawParameterValue ("ampAttack")->load();
@@ -197,14 +201,20 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     int filtRouting = static_cast<int> (parameters->getRawParameterValue ("filtRouting")->load());
     float filtEnvDepth = parameters->getRawParameterValue ("filtEnvDepth")->load();
 
-    // Configure filters
-    filterA.setType (filtAType);
-    filterA.setResonance (static_cast<double> (filtARes));
-    filterA.setDrive (static_cast<double> (filtADrive));
+    // Configure filters (L and R share same settings)
+    filterAL.setType (filtAType);
+    filterAL.setResonance (static_cast<double> (filtARes));
+    filterAL.setDrive (static_cast<double> (filtADrive));
+    filterAR.setType (filtAType);
+    filterAR.setResonance (static_cast<double> (filtARes));
+    filterAR.setDrive (static_cast<double> (filtADrive));
 
-    filterB.setType (filtBType);
-    filterB.setResonance (static_cast<double> (filtBRes));
-    filterB.setDrive (static_cast<double> (filtBDrive));
+    filterBL.setType (filtBType);
+    filterBL.setResonance (static_cast<double> (filtBRes));
+    filterBL.setDrive (static_cast<double> (filtBDrive));
+    filterBR.setType (filtBType);
+    filterBR.setResonance (static_cast<double> (filtBRes));
+    filterBR.setDrive (static_cast<double> (filtBDrive));
 
     oscA.setPosition (oscAPos);
     oscB.setPosition (oscBPos);
@@ -291,29 +301,24 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         modulatedCutoffA = juce::jlimit (20.0, 20000.0, modulatedCutoffA);
         modulatedCutoffB = juce::jlimit (20.0, 20000.0, modulatedCutoffB);
 
-        filterA.setCutoff (modulatedCutoffA);
-        filterB.setCutoff (modulatedCutoffB);
+        filterAL.setCutoff (modulatedCutoffA);
+        filterAR.setCutoff (modulatedCutoffA);
+        filterBL.setCutoff (modulatedCutoffB);
+        filterBR.setCutoff (modulatedCutoffB);
 
-        // Filter routing (process mono signal for filter, maintain stereo after)
-        double monoInput = (mixedL + mixedR) * 0.5;
-        double filteredMono;
+        // Filter routing (true stereo processing)
+        double filteredL, filteredR;
 
         if (filtRouting == 0) // Serial: A -> B
         {
-            double filtered = filterA.processSample (monoInput);
-            filteredMono = filterB.processSample (filtered);
+            filteredL = filterBL.processSample (filterAL.processSample (mixedL));
+            filteredR = filterBR.processSample (filterAR.processSample (mixedR));
         }
         else // Parallel: A + B
         {
-            filteredMono = filterA.processSample (monoInput) + filterB.processSample (monoInput);
+            filteredL = filterAL.processSample (mixedL) + filterBL.processSample (mixedL);
+            filteredR = filterAR.processSample (mixedR) + filterBR.processSample (mixedR);
         }
-
-        // Reconstruct stereo from filtered mono using original stereo balance
-        double stereoBalance = (std::abs (mixedL) + std::abs (mixedR) > 0.0001)
-                                   ? mixedL / (std::abs (mixedL) + std::abs (mixedR))
-                                   : 0.5;
-        double filteredL = filteredMono * stereoBalance * 2.0;
-        double filteredR = filteredMono * (1.0 - stereoBalance) * 2.0;
 
         // Sub oscillator (bypasses filters, direct to output)
         double subSample = 0.0;

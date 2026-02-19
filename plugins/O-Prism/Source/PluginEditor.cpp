@@ -30,20 +30,25 @@ static auto makeBinaryResource (const char* data, int size, const char* mimeType
 std::optional<juce::WebBrowserComponent::Resource>
 OPrismAudioProcessorEditor::getResource (const juce::String& url)
 {
-    const auto urlToRetrieve = url.fromFirstOccurrenceOf ("://", false, false)
-                                  .fromFirstOccurrenceOf ("/", true, false);
-
-    if (urlToRetrieve == "/" || urlToRetrieve == "/index.html")
+    if (url == "/" || url == "/index.html")
         return makeBinaryResource (BinaryData::index_html,
                                    BinaryData::index_htmlSize, "text/html");
 
-    if (urlToRetrieve == "/js/juce/index.js")
+    if (url == "/js/juce/index.js")
         return makeBinaryResource (BinaryData::index_js,
                                    BinaryData::index_jsSize, "application/javascript");
 
-    if (urlToRetrieve == "/js/juce/check_native_interop.js")
+    if (url == "/js/juce/check_native_interop.js")
         return makeBinaryResource (BinaryData::check_native_interop_js,
                                    BinaryData::check_native_interop_jsSize, "application/javascript");
+
+    if (url == "/js/tuning-panel.js")
+        return makeBinaryResource (BinaryData::tuningpanel_js,
+                                   BinaryData::tuningpanel_jsSize, "application/javascript");
+
+    if (url == "/css/tuning-panel.css")
+        return makeBinaryResource (BinaryData::tuningpanel_css,
+                                   BinaryData::tuningpanel_cssSize, "text/css");
 
     return std::nullopt;
 }
@@ -327,6 +332,95 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             complete (false);
         });
 
+    // Apply generated scale (for scale generator results)
+    options = options.withNativeFunction ("applyGeneratedScale",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                auto jsonArray = juce::JSON::parse (args[0].toString());
+                if (auto* arr = jsonArray.getArray())
+                {
+                    std::vector<double> intervals;
+                    for (const auto& val : *arr)
+                        intervals.push_back (static_cast<double> (val));
+                    processorRef.getTuningEngine()->setCustomIntervals (intervals, "Generated");
+                    complete (true);
+                    return;
+                }
+            }
+            complete (false);
+        });
+
+    // Wavetable display native functions
+    options = options.withNativeFunction ("getWavetableFrame",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                int oscId = static_cast<int> (args[0]);
+                int frameIndex = static_cast<int> (args[1]);
+                auto* table = processorRef.getFactoryTable (oscId);
+                if (table != nullptr && frameIndex >= 0 && frameIndex < table->numFrames)
+                {
+                    const float* frameData = table->getFrameData (0, frameIndex);
+                    juce::String json = "[";
+                    for (int i = 0; i < WavetableData::kTableSize; i += 8) // Downsample: 2048 -> 256
+                    {
+                        if (i > 0) json += ",";
+                        json += juce::String (frameData[i], 4);
+                    }
+                    json += "]";
+                    complete (json);
+                    return;
+                }
+            }
+            complete (juce::var());
+        });
+
+    options = options.withNativeFunction ("getWavetableInfo",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                int oscId = static_cast<int> (args[0]);
+                auto* table = processorRef.getFactoryTable (oscId);
+                if (table != nullptr)
+                {
+                    static const char* shapeNames[] = { "Saw", "Square", "Triangle", "Sine" };
+                    int shapeIndex = juce::jmin (oscId, 3);
+                    juce::String json = "{\"numFrames\":" + juce::String (table->numFrames)
+                                      + ",\"shapeName\":\"" + shapeNames[shapeIndex] + "\"}";
+                    complete (json);
+                    return;
+                }
+            }
+            complete (juce::var());
+        });
+
+    options = options.withNativeFunction ("getWavetableFrameForPosition",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                int oscId = static_cast<int> (args[0]);
+                float normalizedPos = static_cast<float> (args[1]);
+                auto* table = processorRef.getFactoryTable (oscId);
+                if (table != nullptr && table->numFrames > 0)
+                {
+                    int frameIndex = juce::jlimit (0, table->numFrames - 1,
+                        static_cast<int> (normalizedPos * (table->numFrames - 1)));
+                    const float* frameData = table->getFrameData (0, frameIndex);
+                    juce::String json = "[";
+                    for (int i = 0; i < WavetableData::kTableSize; i += 8)
+                    {
+                        if (i > 0) json += ",";
+                        json += juce::String (frameData[i], 4);
+                    }
+                    json += "]";
+                    complete (json);
+                    return;
+                }
+            }
+            complete (juce::var());
+        });
+
     // HTML export (API fix: toHTML not generateHTML)
     options = options.withNativeFunction ("exportTuningHTML",
         [this] (const juce::Array<juce::var>&, auto complete) {
@@ -369,7 +463,7 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // Step 1: Create relays (before WebView)
     // ─────────────────────────────────────────────────────────────
 
-    // 67 slider relays
+    // 73 slider relays
     for (int i = 0; i < numSliderParams; ++i)
         sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (sliderParamIds[i]));
 
@@ -380,9 +474,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // Step 2: Build WebView options with relays + native functions
     // ─────────────────────────────────────────────────────────────
 
-    juce::WebBrowserComponent::Options options;
-    options = options.withNativeIntegrationEnabled();
-    options = options.withResourceProvider ([this] (const auto& url) { return getResource (url); });
+    auto options = juce::WebBrowserComponent::Options{}
+        .withBackend (juce::WebBrowserComponent::Options::Backend::webview2)
+        .withNativeIntegrationEnabled()
+        .withResourceProvider ([this] (const auto& url) { return getResource (url); });
 
     // Add all slider relays to options
     for (const auto& relay : sliderRelays)
@@ -394,7 +489,6 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // Add native tuning functions
     options = addNativeFunctions (options);
 
-    // Windows WebView2 user data folder
    #if JUCE_WINDOWS
     options = options.withWinWebView2Options (
         juce::WebBrowserComponent::Options::WinWebView2{}
@@ -405,13 +499,12 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
 
     // Construct WebView
     webView = std::make_unique<juce::WebBrowserComponent> (options);
-    addAndMakeVisible (*webView);
 
     // ─────────────────────────────────────────────────────────────
     // Step 3: Create attachments (after WebView)
     // ─────────────────────────────────────────────────────────────
 
-    // 67 slider attachments
+    // 73 slider attachments
     for (int i = 0; i < numSliderParams; ++i)
     {
         auto* param = processorRef.getAPVTS().getParameter (sliderParamIds[i]);
@@ -431,9 +524,12 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
             *delaySyncParam, *delaySyncRelay, nullptr);
     }
 
-    // Navigate to index.html
-    webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
+    // ─────────────────────────────────────────────────────────────
+    // Step 4: Show WebView + navigate (matching O-Bells pattern)
+    // ─────────────────────────────────────────────────────────────
 
+    addAndMakeVisible (*webView);
+    webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
     setSize (1200, 800);
 }
 

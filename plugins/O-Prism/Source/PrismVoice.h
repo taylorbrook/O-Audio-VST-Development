@@ -66,9 +66,9 @@ private:
     juce::ADSR ampEnvelope;
     juce::ADSR filterEnvelope;
 
-    // Filters
-    SVFFilter filterA;
-    SVFFilter filterB;
+    // Filters (separate L/R instances for true stereo processing)
+    SVFFilter filterAL, filterAR;
+    SVFFilter filterBL, filterBR;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PrismVoice)
 };

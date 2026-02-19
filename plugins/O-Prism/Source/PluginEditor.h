@@ -25,9 +25,9 @@ public:
 private:
     OPrismAudioProcessor& processorRef;
 
-    // Parameter IDs for slider relays (67 slider params)
+    // Parameter IDs for slider relays (73 slider params)
     static constexpr const char* sliderParamIds[] = {
-        // Osc A (9 slider params — oscATable is Int but uses slider relay)
+        // Osc A (10 — oscATable is Int but uses slider relay)
         "oscATable", "oscAPos", "oscALevel", "oscAPan", "oscACoarse",
         "oscAFine", "oscAPhase", "oscAUnison", "oscADetune", "oscAWidth",
         // Osc B (10)
@@ -62,7 +62,7 @@ private:
         "masterVol", "oscMix", "polyphony"
     };
 
-    static constexpr int numSliderParams = 67;
+    static constexpr int numSliderParams = 73;
 
     // ═══════════════════════════════════════════════════════════════════
     // CRITICAL: Member declaration order (C++ destroys in reverse)

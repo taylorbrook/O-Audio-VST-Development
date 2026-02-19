@@ -21,7 +21,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscAParame
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscATable", 1 }, "Osc A Wavetable", 0, 15, 0));
+        juce::ParameterID { "oscATable", 1 }, "Osc A Wavetable", 0, 3, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "oscAPos", 1 }, "Osc A Position",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
@@ -56,7 +56,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscBParame
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscBTable", 1 }, "Osc B Wavetable", 0, 15, 0));
+        juce::ParameterID { "oscBTable", 1 }, "Osc B Wavetable", 0, 3, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "oscBPos", 1 }, "Osc B Position",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
@@ -157,7 +157,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createFilterAPar
 
     params.push_back (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "filtAType", 1 }, "Filter A Type",
-        juce::StringArray { "LP12", "LP24", "HP12", "HP24", "BP", "Notch" }, 1));
+        juce::StringArray { "LP12", "LP24", "HP12", "HP24", "BP12", "BP24", "Notch" }, 1));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "filtACutoff", 1 }, "Filter A Cutoff",
         juce::NormalisableRange<float> (20.0f, 20000.0f, 0.1f, 0.25f), 20000.0f));
@@ -180,7 +180,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createFilterBPar
 
     params.push_back (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "filtBType", 1 }, "Filter B Type",
-        juce::StringArray { "LP12", "LP24", "HP12", "HP24", "BP", "Notch" }, 1));
+        juce::StringArray { "LP12", "LP24", "HP12", "HP24", "BP12", "BP24", "Notch" }, 1));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "filtBCutoff", 1 }, "Filter B Cutoff",
         juce::NormalisableRange<float> (20.0f, 20000.0f, 0.1f, 0.25f), 20000.0f));

@@ -9,6 +9,7 @@
 */
 
 #include "NoiseGenerator.h"
+#include <cmath>
 
 static constexpr double kTwoPi = 6.283185307179586;
 
@@ -43,7 +44,7 @@ double NoiseGenerator::getNextSample()
     switch (currentType)
     {
         case 0: // White
-            return white;
+            return white * 0.3;
 
         case 1: // Pink (Paul Kellet economy)
         {
@@ -58,7 +59,7 @@ double NoiseGenerator::getNextSample()
             double rateScale = 44100.0 / currentSampleRate;
             brownState += white * 0.02 * rateScale;
             brownState *= 0.998;
-            return brownState * 3.5;
+            return std::tanh (brownState * 2.0) * 0.35;
         }
 
         case 3: // Digital (sample-and-hold, quantized)
@@ -70,7 +71,7 @@ double NoiseGenerator::getNextSample()
                 double raw = random.nextDouble();
                 digitalHoldValue = (std::floor (raw * 8.0) / 7.0) * 2.0 - 1.0;
             }
-            return digitalHoldValue;
+            return digitalHoldValue * 0.3;
         }
 
         case 4: // Vinyl (bandpass white + crackle)
@@ -80,15 +81,15 @@ double NoiseGenerator::getNextSample()
             double fb = 0.5;
             vinylBP1 += cutNorm * (white - vinylBP1 - fb * vinylBP2);
             vinylBP2 += cutNorm * vinylBP1;
-            double vinyl = vinylBP2 * 2.0;
+            double vinyl = vinylBP2 * 1.2;
 
             // Poisson crackle (~3 per second)
             if (random.nextDouble() < 3.0 / currentSampleRate)
-                crackleDecay = (random.nextDouble() * 0.5 + 0.5) * (random.nextBool() ? 1.0 : -1.0);
+                crackleDecay = (random.nextDouble() * 0.3 + 0.3) * (random.nextBool() ? 1.0 : -1.0);
             crackleDecay *= 0.95;
             vinyl += crackleDecay;
 
-            return vinyl;
+            return std::tanh (vinyl) * 0.35;
         }
 
         case 5: // Wind (LFO-modulated lowpass on brown)
@@ -106,9 +107,9 @@ double NoiseGenerator::getNextSample()
             double alpha = cutoff / (cutoff + currentSampleRate / kTwoPi);
 
             windLPState += alpha * (windBrownState - windLPState);
-            return windLPState * 5.0;
+            return std::tanh (windLPState * 2.0) * 0.35;
         }
     }
 
-    return white;
+    return white * 0.3;
 }

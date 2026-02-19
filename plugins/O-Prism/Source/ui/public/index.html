@@ -1,44 +1,1048 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <style>
-        html, body {
-            height: 100%;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-            background: #1a1a2e;
-            color: #e0d6c8;
-            font-family: 'Georgia', serif;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-        #app {
-            text-align: center;
-        }
-        h1 {
-            font-size: 2.5em;
-            letter-spacing: 0.3em;
-            color: #c4a882;
-            margin-bottom: 0.5em;
-        }
-        p {
-            font-size: 1.1em;
-            color: #8a7e6e;
-            font-style: italic;
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="stylesheet" href="/css/tuning-panel.css">
+<style>
+/* ═══════════════════════════════════════════════════════════════════
+   OUARICON NATURALIST DESIGN SYSTEM — O-PRISM
+   ═══════════════════════════════════════════════════════════════════ */
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+    height: 100%; width: 100%;
+    overflow: hidden;
+    background: #F5E6D3;
+    color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', 'Times New Roman', serif;
+    font-size: 11px;
+    user-select: none;
+    -webkit-user-select: none;
+}
+
+body {
+    display: flex;
+    flex-direction: column;
+}
+
+/* ─── HEADER BAR ─── */
+.header-bar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 6px 16px;
+    background: #3C2F2F;
+    color: #F5E6D3;
+    flex-shrink: 0;
+    height: 34px;
+}
+.header-bar h1 {
+    font-size: 14px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: #C9A27B;
+}
+.header-bar .subtitle {
+    font-size: 10px;
+    letter-spacing: 1.5px;
+    color: #8B7355;
+    font-style: italic;
+}
+
+/* ─── TAB BAR ─── */
+.tab-bar {
+    display: flex;
+    background: #D4C4B0;
+    border-bottom: 2px solid #8B7355;
+    flex-shrink: 0;
+}
+.tab {
+    flex: 1;
+    text-align: center;
+    padding: 8px 10px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-size: 12px;
+    font-family: 'Garamond', 'Georgia', serif;
+    color: #5C4033;
+    border-right: 1px solid #8B7355;
+    transition: background 0.2s, color 0.2s;
+}
+.tab:last-child { border-right: none; }
+.tab:hover { background: #E8D5B7; }
+.tab.active {
+    background: #F5E6D3;
+    color: #3C2F2F;
+    border-bottom: 2px solid #F5E6D3;
+    margin-bottom: -2px;
+    font-weight: bold;
+}
+
+/* ─── TAB CONTENT ─── */
+.tab-content-area {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+}
+.tab-content {
+    display: none;
+    position: absolute;
+    inset: 0;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 10px 14px 6px;
+}
+.tab-content.active { display: block; }
+
+/* ─── FOOTER BAR (MASTER STRIP) ─── */
+.footer-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 28px;
+    padding: 6px 20px;
+    background: #3C2F2F;
+    border-top: 2px solid #8B7355;
+    flex-shrink: 0;
+    height: 68px;
+}
+.footer-param {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+}
+.footer-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: #8B7355;
+}
+.footer-value {
+    font-size: 10px;
+    color: #C9A27B;
+}
+
+/* ─── SECTION HEADERS ─── */
+.section-header {
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: #8B7355;
+    border-bottom: 1px solid rgba(139,115,85,0.4);
+    padding-bottom: 4px;
+    margin-bottom: 8px;
+    margin-top: 10px;
+}
+.section-header:first-child { margin-top: 0; }
+
+/* ─── KNOB ─── */
+.knob-group {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    width: 54px;
+    margin: 2px 2px;
+}
+.knob {
+    width: 44px; height: 44px;
+    border-radius: 50%;
+    border: 2px solid #8B7355;
+    position: relative;
+    cursor: grab;
+    background:
+        radial-gradient(circle, transparent 84%, #C9A27B 84%, #C9A27B 88%, #8B7355 88%, #8B7355 90%, transparent 90%),
+        conic-gradient(from 0deg,
+            #F5DEB3 0deg, #F5DEB3 18deg, #8B7355 18deg, #8B7355 18.5deg,
+            #E8D5B7 18.5deg, #E8D5B7 36deg, #8B7355 36deg, #8B7355 36.5deg,
+            #F5DEB3 36.5deg, #F5DEB3 54deg, #8B7355 54deg, #8B7355 54.5deg,
+            #E8D5B7 54.5deg, #E8D5B7 72deg, #8B7355 72deg, #8B7355 72.5deg,
+            #F5DEB3 72.5deg, #F5DEB3 90deg, #8B7355 90deg, #8B7355 90.5deg,
+            #E8D5B7 90.5deg, #E8D5B7 108deg, #8B7355 108deg, #8B7355 108.5deg,
+            #F5DEB3 108.5deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 126.5deg,
+            #E8D5B7 126.5deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 144.5deg,
+            #F5DEB3 144.5deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 162.5deg,
+            #E8D5B7 162.5deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 180.5deg,
+            #F5DEB3 180.5deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 198.5deg,
+            #E8D5B7 198.5deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 216.5deg,
+            #F5DEB3 216.5deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 234.5deg,
+            #E8D5B7 234.5deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 252.5deg,
+            #F5DEB3 252.5deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 270.5deg,
+            #E8D5B7 270.5deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 288.5deg,
+            #F5DEB3 288.5deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 306.5deg,
+            #E8D5B7 306.5deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 324.5deg,
+            #F5DEB3 324.5deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 342.5deg,
+            #E8D5B7 342.5deg, #E8D5B7 360deg
+        ),
+        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
+    transition: box-shadow 0.15s;
+}
+.knob:hover { box-shadow: 0 0 6px rgba(201,162,123,0.5); }
+.knob:active { cursor: grabbing; }
+.knob-indicator {
+    position: absolute;
+    width: 3px; height: 12px;
+    background: #8B6914;
+    top: 4px; left: 50%; margin-left: -1.5px;
+    border-radius: 1px;
+    transform-origin: center 18px;
+    transform: rotate(-135deg);
+    pointer-events: none;
+}
+.knob-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #5C4033;
+    margin-top: 3px;
+    text-align: center;
+    line-height: 1.1;
+    max-width: 54px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.knob-value {
+    font-size: 9px;
+    color: #8B7355;
+    text-align: center;
+}
+
+/* ─── DROPDOWN ─── */
+.dropdown-group {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 2px 4px;
+}
+.dropdown-label {
+    font-size: 8px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #5C4033;
+    margin-bottom: 3px;
+}
+.param-select {
+    background: #EBD9C7;
+    border: 1px solid #8B7355;
+    color: #3C2F2F;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    min-width: 60px;
+}
+.param-select:focus { outline: 1px solid #C9A27B; }
+
+/* ─── TOGGLE BUTTON ─── */
+.toggle-btn {
+    background: #EBD9C7;
+    border: 1px solid #8B7355;
+    color: #5C4033;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 10px;
+    padding: 4px 10px;
+    border-radius: 3px;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+.toggle-btn.active {
+    background: #6B8E4E;
+    color: #F5E6D3;
+    border-color: #4A6B35;
+}
+
+/* ─── PARAM ROW ─── */
+.param-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    gap: 0;
+}
+
+/* ─── SECTION CONTAINER ─── */
+.section {
+    margin-bottom: 6px;
+}
+
+/* ─── OSC SECTION LAYOUT ─── */
+.osc-section {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    margin-bottom: 4px;
+}
+.osc-canvas-wrap {
+    flex-shrink: 0;
+}
+.osc-canvas {
+    width: 160px;
+    height: 90px;
+    border: 2px solid #8B7355;
+    border-radius: 3px;
+    background: #EBD9C7;
+    display: block;
+}
+.osc-params {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-start;
+}
+
+/* ─── SUB ROW (inline sections) ─── */
+.inline-sections {
+    display: flex;
+    gap: 16px;
+    flex-wrap: wrap;
+}
+.inline-section {
+    flex: 1;
+    min-width: 200px;
+}
+
+/* ─── EFFECT SECTIONS ─── */
+.effect-section { margin-bottom: 12px; }
+
+/* ─── TUNING TAB ─── */
+#tuning-container {
+    height: 100%;
+}
+.tuning-extras {
+    display: flex;
+    gap: 8px;
+    padding: 8px 0 0;
+    border-top: 1px solid rgba(139,115,85,0.3);
+    margin-top: 6px;
+}
+
+/* ─── SCROLLBAR ─── */
+.tab-content::-webkit-scrollbar { width: 6px; }
+.tab-content::-webkit-scrollbar-track { background: transparent; }
+.tab-content::-webkit-scrollbar-thumb { background: rgba(139,115,85,0.4); border-radius: 3px; }
+</style>
 </head>
 <body>
-    <div id="app">
-        <h1>O - P R I S M</h1>
-        <p>Microtonal Wavetable Synthesizer</p>
-        <p>Loading...</p>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     HEADER
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="header-bar">
+    <h1>O-PRISM</h1>
+    <span class="subtitle">Microtonal Wavetable Synthesizer</span>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB BAR
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-bar">
+    <div class="tab active" data-tab="synth" onclick="switchTab('synth')">Synth</div>
+    <div class="tab" data-tab="tuning" onclick="switchTab('tuning')">Tuning</div>
+    <div class="tab" data-tab="effects" onclick="switchTab('effects')">Effects</div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     TAB CONTENT AREA
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="tab-content-area">
+
+<!-- ─── SYNTH TAB ─── -->
+<div id="synth-tab" class="tab-content active">
+
+    <!-- Oscillator A -->
+    <div class="section-header">Oscillator A</div>
+    <div class="osc-section">
+        <div class="osc-canvas-wrap">
+            <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
+        </div>
+        <div class="osc-params">
+            <div class="dropdown-group">
+                <span class="dropdown-label">Shape</span>
+                <select id="select-oscATable" class="param-select">
+                    <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
+                </select>
+            </div>
+            <div class="knob-group"><div class="knob" id="knob-oscAPos"><div class="knob-indicator"></div></div><div class="knob-label">Position</div><div class="knob-value" id="val-oscAPos">0%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscALevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-oscALevel">80%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscAPan"><div class="knob-indicator"></div></div><div class="knob-label">Pan</div><div class="knob-value" id="val-oscAPan">C</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscACoarse"><div class="knob-indicator"></div></div><div class="knob-label">Coarse</div><div class="knob-value" id="val-oscACoarse">0 st</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscAFine"><div class="knob-indicator"></div></div><div class="knob-label">Fine</div><div class="knob-value" id="val-oscAFine">0 ct</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscAPhase"><div class="knob-indicator"></div></div><div class="knob-label">Phase</div><div class="knob-value" id="val-oscAPhase">0%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscAUnison"><div class="knob-indicator"></div></div><div class="knob-label">Unison</div><div class="knob-value" id="val-oscAUnison">1</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscADetune"><div class="knob-indicator"></div></div><div class="knob-label">Detune</div><div class="knob-value" id="val-oscADetune">20%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscAWidth"><div class="knob-indicator"></div></div><div class="knob-label">Width</div><div class="knob-value" id="val-oscAWidth">50%</div></div>
+        </div>
     </div>
-    <script type="module">
-        import { getSliderState, getToggleState } from './js/juce/index.js';
-    </script>
+
+    <!-- Oscillator B -->
+    <div class="section-header">Oscillator B</div>
+    <div class="osc-section">
+        <div class="osc-canvas-wrap">
+            <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
+        </div>
+        <div class="osc-params">
+            <div class="dropdown-group">
+                <span class="dropdown-label">Shape</span>
+                <select id="select-oscBTable" class="param-select">
+                    <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
+                </select>
+            </div>
+            <div class="knob-group"><div class="knob" id="knob-oscBPos"><div class="knob-indicator"></div></div><div class="knob-label">Position</div><div class="knob-value" id="val-oscBPos">0%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBLevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-oscBLevel">0%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBPan"><div class="knob-indicator"></div></div><div class="knob-label">Pan</div><div class="knob-value" id="val-oscBPan">C</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBCoarse"><div class="knob-indicator"></div></div><div class="knob-label">Coarse</div><div class="knob-value" id="val-oscBCoarse">0 st</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBFine"><div class="knob-indicator"></div></div><div class="knob-label">Fine</div><div class="knob-value" id="val-oscBFine">0 ct</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBPhase"><div class="knob-indicator"></div></div><div class="knob-label">Phase</div><div class="knob-value" id="val-oscBPhase">0%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBUnison"><div class="knob-indicator"></div></div><div class="knob-label">Unison</div><div class="knob-value" id="val-oscBUnison">1</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBDetune"><div class="knob-indicator"></div></div><div class="knob-label">Detune</div><div class="knob-value" id="val-oscBDetune">20%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-oscBWidth"><div class="knob-indicator"></div></div><div class="knob-label">Width</div><div class="knob-value" id="val-oscBWidth">50%</div></div>
+        </div>
+    </div>
+
+    <!-- Sub + Noise -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header">Sub Oscillator</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Shape</span>
+                    <select id="select-subShape" class="param-select">
+                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option>
+                    </select>
+                </div>
+                <div class="knob-group"><div class="knob" id="knob-subOctave"><div class="knob-indicator"></div></div><div class="knob-label">Octave</div><div class="knob-value" id="val-subOctave">-1</div></div>
+                <div class="knob-group"><div class="knob" id="knob-subLevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-subLevel">0%</div></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header">Noise</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Type</span>
+                    <select id="select-noiseType" class="param-select">
+                        <option>White</option><option>Pink</option><option>Brown</option><option>Digital</option><option>Vinyl</option><option>Wind</option>
+                    </select>
+                </div>
+                <div class="knob-group"><div class="knob" id="knob-noiseLevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-noiseLevel">0%</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filters -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header">Filter A</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Type</span>
+                    <select id="select-filtAType" class="param-select">
+                        <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
+                    </select>
+                </div>
+                <div class="knob-group"><div class="knob" id="knob-filtACutoff"><div class="knob-indicator"></div></div><div class="knob-label">Cutoff</div><div class="knob-value" id="val-filtACutoff">20kHz</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtARes"><div class="knob-indicator"></div></div><div class="knob-label">Reso</div><div class="knob-value" id="val-filtARes">0%</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtADrive"><div class="knob-indicator"></div></div><div class="knob-label">Drive</div><div class="knob-value" id="val-filtADrive">0%</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtAKeyTrack"><div class="knob-indicator"></div></div><div class="knob-label">Key Trk</div><div class="knob-value" id="val-filtAKeyTrack">0%</div></div>
+            </div>
+        </div>
+        <div style="display:flex; align-items:center; padding-top:20px;">
+            <div class="dropdown-group">
+                <span class="dropdown-label">Filter Routing</span>
+                <select id="select-filtRouting" class="param-select">
+                    <option>Serial</option><option>Parallel</option>
+                </select>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header">Filter B</div>
+            <div class="param-row">
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Type</span>
+                    <select id="select-filtBType" class="param-select">
+                        <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
+                    </select>
+                </div>
+                <div class="knob-group"><div class="knob" id="knob-filtBCutoff"><div class="knob-indicator"></div></div><div class="knob-label">Cutoff</div><div class="knob-value" id="val-filtBCutoff">20kHz</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtBRes"><div class="knob-indicator"></div></div><div class="knob-label">Reso</div><div class="knob-value" id="val-filtBRes">0%</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtBDrive"><div class="knob-indicator"></div></div><div class="knob-label">Drive</div><div class="knob-value" id="val-filtBDrive">0%</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtBKeyTrack"><div class="knob-indicator"></div></div><div class="knob-label">Key Trk</div><div class="knob-value" id="val-filtBKeyTrack">0%</div></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Envelopes -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header">Amp Envelope</div>
+            <div class="param-row">
+                <div class="knob-group"><div class="knob" id="knob-ampAttack"><div class="knob-indicator"></div></div><div class="knob-label">Attack</div><div class="knob-value" id="val-ampAttack">10ms</div></div>
+                <div class="knob-group"><div class="knob" id="knob-ampDecay"><div class="knob-indicator"></div></div><div class="knob-label">Decay</div><div class="knob-value" id="val-ampDecay">300ms</div></div>
+                <div class="knob-group"><div class="knob" id="knob-ampSustain"><div class="knob-indicator"></div></div><div class="knob-label">Sustain</div><div class="knob-value" id="val-ampSustain">70%</div></div>
+                <div class="knob-group"><div class="knob" id="knob-ampRelease"><div class="knob-indicator"></div></div><div class="knob-label">Release</div><div class="knob-value" id="val-ampRelease">500ms</div></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header">Filter Envelope</div>
+            <div class="param-row">
+                <div class="knob-group"><div class="knob" id="knob-filtAttack"><div class="knob-indicator"></div></div><div class="knob-label">Attack</div><div class="knob-value" id="val-filtAttack">10ms</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtDecay"><div class="knob-indicator"></div></div><div class="knob-label">Decay</div><div class="knob-value" id="val-filtDecay">500ms</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtSustain"><div class="knob-indicator"></div></div><div class="knob-label">Sustain</div><div class="knob-value" id="val-filtSustain">50%</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtRelease"><div class="knob-indicator"></div></div><div class="knob-label">Release</div><div class="knob-value" id="val-filtRelease">500ms</div></div>
+                <div class="knob-group"><div class="knob" id="knob-filtEnvDepth"><div class="knob-indicator"></div></div><div class="knob-label">Depth</div><div class="knob-value" id="val-filtEnvDepth">0%</div></div>
+            </div>
+        </div>
+    </div>
+
+</div><!-- /synth-tab -->
+
+<!-- ─── TUNING TAB ─── -->
+<div id="tuning-tab" class="tab-content">
+    <div id="tuning-container"></div>
+    <div class="tuning-extras">
+        <div class="knob-group"><div class="knob" id="knob-pitchBendRange"><div class="knob-indicator"></div></div><div class="knob-label">PB Range</div><div class="knob-value" id="val-pitchBendRange">2 st</div></div>
+        <div class="dropdown-group">
+            <span class="dropdown-label">Glide Mode</span>
+            <select id="select-glideMode" class="param-select">
+                <option>Off</option><option>Legato</option><option>Always</option>
+            </select>
+        </div>
+        <div class="knob-group"><div class="knob" id="knob-glideTime"><div class="knob-indicator"></div></div><div class="knob-label">Glide</div><div class="knob-value" id="val-glideTime">100ms</div></div>
+    </div>
+</div><!-- /tuning-tab -->
+
+<!-- ─── EFFECTS TAB ─── -->
+<div id="effects-tab" class="tab-content">
+
+    <!-- Reverb -->
+    <div class="effect-section">
+        <div class="section-header">Reverb</div>
+        <div class="param-row">
+            <div class="knob-group"><div class="knob" id="knob-reverbSize"><div class="knob-indicator"></div></div><div class="knob-label">Size</div><div class="knob-value" id="val-reverbSize">50%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-reverbDamp"><div class="knob-indicator"></div></div><div class="knob-label">Damp</div><div class="knob-value" id="val-reverbDamp">50%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-reverbPredelay"><div class="knob-indicator"></div></div><div class="knob-label">Pre-Dly</div><div class="knob-value" id="val-reverbPredelay">20ms</div></div>
+            <div class="knob-group"><div class="knob" id="knob-reverbMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-reverbMix">0%</div></div>
+        </div>
+    </div>
+
+    <!-- Delay -->
+    <div class="effect-section">
+        <div class="section-header">Delay</div>
+        <div class="param-row">
+            <div class="knob-group"><div class="knob" id="knob-delayTime"><div class="knob-indicator"></div></div><div class="knob-label">Time</div><div class="knob-value" id="val-delayTime">375ms</div></div>
+            <div class="knob-group"><div class="knob" id="knob-delayFeedback"><div class="knob-indicator"></div></div><div class="knob-label">Feedback</div><div class="knob-value" id="val-delayFeedback">30%</div></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label">Mode</span>
+                <select id="select-delayMode" class="param-select">
+                    <option>Normal</option><option>PingPong</option>
+                </select>
+            </div>
+            <div style="display:flex;flex-direction:column;align-items:center;margin:2px 6px;">
+                <span class="dropdown-label">Sync</span>
+                <button id="toggle-delaySync" class="toggle-btn" style="margin-top:3px;">Off</button>
+            </div>
+            <div class="knob-group"><div class="knob" id="knob-delayMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-delayMix">0%</div></div>
+        </div>
+    </div>
+
+    <!-- Chorus -->
+    <div class="effect-section">
+        <div class="section-header">Chorus</div>
+        <div class="param-row">
+            <div class="knob-group"><div class="knob" id="knob-chorusRate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-chorusRate">1.0 Hz</div></div>
+            <div class="knob-group"><div class="knob" id="knob-chorusDepth"><div class="knob-indicator"></div></div><div class="knob-label">Depth</div><div class="knob-value" id="val-chorusDepth">50%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-chorusMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-chorusMix">0%</div></div>
+        </div>
+    </div>
+
+    <!-- Distortion -->
+    <div class="effect-section">
+        <div class="section-header">Distortion</div>
+        <div class="param-row">
+            <div class="dropdown-group">
+                <span class="dropdown-label">Type</span>
+                <select id="select-distType" class="param-select">
+                    <option>SoftClip</option><option>HardClip</option><option>Tube</option><option>Fold</option>
+                </select>
+            </div>
+            <div class="knob-group"><div class="knob" id="knob-distDrive"><div class="knob-indicator"></div></div><div class="knob-label">Drive</div><div class="knob-value" id="val-distDrive">0%</div></div>
+            <div class="knob-group"><div class="knob" id="knob-distMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-distMix">0%</div></div>
+        </div>
+    </div>
+
+    <!-- EQ -->
+    <div class="effect-section">
+        <div class="section-header">3-Band EQ</div>
+        <div class="param-row">
+            <div class="knob-group"><div class="knob" id="knob-eqLowGain"><div class="knob-indicator"></div></div><div class="knob-label">Low</div><div class="knob-value" id="val-eqLowGain">0 dB</div></div>
+            <div class="knob-group"><div class="knob" id="knob-eqMidGain"><div class="knob-indicator"></div></div><div class="knob-label">Mid</div><div class="knob-value" id="val-eqMidGain">0 dB</div></div>
+            <div class="knob-group"><div class="knob" id="knob-eqMidFreq"><div class="knob-indicator"></div></div><div class="knob-label">Mid Freq</div><div class="knob-value" id="val-eqMidFreq">1.0kHz</div></div>
+            <div class="knob-group"><div class="knob" id="knob-eqHighGain"><div class="knob-indicator"></div></div><div class="knob-label">High</div><div class="knob-value" id="val-eqHighGain">0 dB</div></div>
+        </div>
+    </div>
+
+</div><!-- /effects-tab -->
+
+</div><!-- /tab-content-area -->
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     FOOTER (MASTER STRIP)
+     ═══════════════════════════════════════════════════════════════════ -->
+<div class="footer-bar">
+    <div class="footer-param">
+        <div class="knob" id="knob-masterVol" style="width:40px;height:40px;"><div class="knob-indicator" style="height:11px;top:3px;transform-origin:center 17px;"></div></div>
+        <span class="footer-label">Master</span>
+        <span class="footer-value" id="val-masterVol">80%</span>
+    </div>
+    <div class="footer-param">
+        <div class="knob" id="knob-oscMix" style="width:40px;height:40px;"><div class="knob-indicator" style="height:11px;top:3px;transform-origin:center 17px;"></div></div>
+        <span class="footer-label">Osc Mix</span>
+        <span class="footer-value" id="val-oscMix">50%</span>
+    </div>
+    <div class="footer-param">
+        <div class="knob" id="knob-polyphony" style="width:40px;height:40px;"><div class="knob-indicator" style="height:11px;top:3px;transform-origin:center 17px;"></div></div>
+        <span class="footer-label">Voices</span>
+        <span class="footer-value" id="val-polyphony">16</span>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════════════
+     JAVASCRIPT
+     ═══════════════════════════════════════════════════════════════════ -->
+<script type="module">
+import * as Juce from './js/juce/index.js';
+
+// ─── TAB SWITCHING ───
+window.switchTab = function(tabName) {
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+    document.getElementById(tabName + '-tab').classList.add('active');
+    document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+};
+
+// ─── KNOB DRAG INFRASTRUCTURE ───
+function makeKnobDraggable(knobEl, state, onUpdate) {
+    let isDragging = false;
+    knobEl.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        state.sliderDragStarted();
+        e.preventDefault();
+    });
+    document.addEventListener('mouseup', () => {
+        if (isDragging) { isDragging = false; state.sliderDragEnded(); }
+    });
+    document.addEventListener('mousemove', (e) => {
+        if (!isDragging) return;
+        const norm = Math.max(0, Math.min(1, state.getNormalisedValue() - e.movementY * 0.005));
+        state.setNormalisedValue(norm);
+    });
+    state.valueChangedEvent.addListener(() => onUpdate(state.getNormalisedValue()));
+    onUpdate(state.getNormalisedValue());
+}
+
+function bindKnob(paramId, formatFn, defaultNorm) {
+    const knobEl = document.getElementById('knob-' + paramId);
+    const indicator = knobEl ? knobEl.querySelector('.knob-indicator') : null;
+    const valueEl = document.getElementById('val-' + paramId);
+    if (!knobEl) return;
+    const state = Juce.getSliderState(paramId);
+
+    function updateDisplay(norm) {
+        const angle = -135 + norm * 270;
+        if (indicator) indicator.style.transform = 'rotate(' + angle + 'deg)';
+        if (valueEl && formatFn) valueEl.textContent = formatFn(norm);
+    }
+
+    makeKnobDraggable(knobEl, state, updateDisplay);
+    knobEl.addEventListener('dblclick', () => {
+        state.setNormalisedValue(defaultNorm);
+    });
+}
+
+function bindDropdown(selectEl, paramId, numChoices) {
+    const state = Juce.getSliderState(paramId);
+    selectEl.addEventListener('change', () => {
+        state.sliderDragStarted();
+        state.setNormalisedValue(selectEl.selectedIndex / Math.max(1, numChoices - 1));
+        state.sliderDragEnded();
+    });
+    state.valueChangedEvent.addListener(() => {
+        selectEl.selectedIndex = Math.round(state.getNormalisedValue() * (numChoices - 1));
+    });
+    selectEl.selectedIndex = Math.round(state.getNormalisedValue() * (numChoices - 1));
+}
+
+// ─── FORMAT HELPERS ───
+const pct = (n) => (n * 100).toFixed(0) + '%';
+const pctSigned = (n) => {
+    const v = (n * 200 - 100).toFixed(0);
+    return (v > 0 ? '+' : '') + v + '%';
+};
+const panFmt = (n) => {
+    const v = Math.round(n * 200 - 100);
+    if (v === 0) return 'C';
+    return v < 0 ? Math.abs(v) + 'L' : v + 'R';
+};
+
+// Skewed range: NormalisableRange with skew factor
+// JUCE uses: value = start + (end - start) * norm^(1/skew)
+// For display we need to reverse-map norm -> actual value
+function skewMap(norm, start, end, skew) {
+    return start + (end - start) * Math.pow(norm, 1.0 / skew);
+}
+function timeFmt(start, end, skew, unit) {
+    return (n) => {
+        const v = skewMap(n, start, end, skew);
+        if (v >= 1.0 && unit === 's') return v.toFixed(1) + 's';
+        if (unit === 's') return (v * 1000).toFixed(0) + 'ms';
+        return v.toFixed(0) + unit;
+    };
+}
+const envTimeFmtA = (n) => {
+    const v = skewMap(n, 0.001, 10.0, 0.35);
+    return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const envTimeFmtR = (n) => {
+    const v = skewMap(n, 0.001, 20.0, 0.3);
+    return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const cutoffFmt = (n) => {
+    const v = skewMap(n, 20, 20000, 0.25);
+    return v >= 1000 ? (v / 1000).toFixed(1) + 'kHz' : v.toFixed(0) + 'Hz';
+};
+const midFreqFmt = (n) => {
+    const v = skewMap(n, 200, 8000, 0.35);
+    return v >= 1000 ? (v / 1000).toFixed(1) + 'kHz' : v.toFixed(0) + 'Hz';
+};
+const delayTimeFmt = (n) => {
+    const v = skewMap(n, 0.001, 2.0, 0.35);
+    return v >= 1 ? v.toFixed(2) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const chorusRateFmt = (n) => {
+    const v = skewMap(n, 0.1, 10.0, 0.4);
+    return v.toFixed(1) + ' Hz';
+};
+const predelayFmt = (n) => {
+    const v = skewMap(n, 0, 200, 0.5);
+    return v.toFixed(0) + 'ms';
+};
+const dbFmt = (n) => {
+    const v = -12 + n * 24;
+    return (v > 0 ? '+' : '') + v.toFixed(1) + ' dB';
+};
+const coarseFmt = (n) => {
+    const v = Math.round(n * 48 - 24);
+    return (v > 0 ? '+' : '') + v + ' st';
+};
+const fineFmt = (n) => {
+    const v = (n * 200 - 100).toFixed(0);
+    return (v > 0 ? '+' : '') + v + ' ct';
+};
+const unisonFmt = (n) => Math.round(n * 7 + 1).toString();
+const subOctFmt = (n) => {
+    const v = Math.round(n * 2 - 2);
+    return v.toString();
+};
+const masterTuneFmt = (n) => {
+    const v = 420 + n * 40;
+    return v.toFixed(1) + ' Hz';
+};
+const octStretchFmt = (n) => {
+    const v = 0.95 + n * 0.3;
+    return v.toFixed(3);
+};
+const pbRangeFmt = (n) => {
+    const v = Math.round(n * 47 + 1);
+    return v + ' st';
+};
+const glideTimeFmt = (n) => {
+    const v = skewMap(n, 0.001, 5.0, 0.35);
+    return v >= 1 ? v.toFixed(1) + 's' : (v * 1000).toFixed(0) + 'ms';
+};
+const feedbackFmt = (n) => {
+    const v = n * 95;
+    return v.toFixed(0) + '%';
+};
+const polyFmt = (n) => Math.round(n * 15 + 1).toString();
+
+// ─── BIND ALL 73 SLIDER PARAMS ───
+
+// Osc A (9 knobs + 1 dropdown)
+bindDropdown(document.getElementById('select-oscATable'), 'oscATable', 4);
+bindKnob('oscAPos',    pct,       0.0);
+bindKnob('oscALevel',  pct,       0.8);
+bindKnob('oscAPan',    panFmt,    0.5);
+bindKnob('oscACoarse', coarseFmt, 0.5);
+bindKnob('oscAFine',   fineFmt,   0.5);
+bindKnob('oscAPhase',  pct,       0.0);
+bindKnob('oscAUnison', unisonFmt, 0.0);
+bindKnob('oscADetune', pct,       0.2);
+bindKnob('oscAWidth',  pct,       0.5);
+
+// Osc B (9 knobs + 1 dropdown)
+bindDropdown(document.getElementById('select-oscBTable'), 'oscBTable', 4);
+bindKnob('oscBPos',    pct,       0.0);
+bindKnob('oscBLevel',  pct,       0.0);
+bindKnob('oscBPan',    panFmt,    0.5);
+bindKnob('oscBCoarse', coarseFmt, 0.5);
+bindKnob('oscBFine',   fineFmt,   0.5);
+bindKnob('oscBPhase',  pct,       0.0);
+bindKnob('oscBUnison', unisonFmt, 0.0);
+bindKnob('oscBDetune', pct,       0.2);
+bindKnob('oscBWidth',  pct,       0.5);
+
+// Sub + Noise
+bindDropdown(document.getElementById('select-subShape'), 'subShape', 4);
+bindKnob('subOctave',  subOctFmt, 0.5);
+bindKnob('subLevel',   pct,       0.0);
+bindDropdown(document.getElementById('select-noiseType'), 'noiseType', 6);
+bindKnob('noiseLevel', pct,       0.0);
+
+// Amp Envelope
+bindKnob('ampAttack',  envTimeFmtA, 0.001);
+bindKnob('ampDecay',   envTimeFmtA, 0.03);
+bindKnob('ampSustain', pct,         0.7);
+bindKnob('ampRelease', envTimeFmtR, 0.025);
+
+// Filter Envelope
+bindKnob('filtAttack',   envTimeFmtA, 0.001);
+bindKnob('filtDecay',    envTimeFmtA, 0.05);
+bindKnob('filtSustain',  pct,         0.5);
+bindKnob('filtRelease',  envTimeFmtR, 0.025);
+bindKnob('filtEnvDepth', pctSigned,   0.5);
+
+// Filter A
+bindDropdown(document.getElementById('select-filtAType'), 'filtAType', 7);
+bindKnob('filtACutoff',   cutoffFmt, 1.0);
+bindKnob('filtARes',      pct,       0.0);
+bindKnob('filtADrive',    pct,       0.0);
+bindKnob('filtAKeyTrack', pct,       0.0);
+
+// Filter B
+bindDropdown(document.getElementById('select-filtBType'), 'filtBType', 7);
+bindKnob('filtBCutoff',   cutoffFmt, 1.0);
+bindKnob('filtBRes',      pct,       0.0);
+bindKnob('filtBDrive',    pct,       0.0);
+bindKnob('filtBKeyTrack', pct,       0.0);
+
+// Filter Routing
+bindDropdown(document.getElementById('select-filtRouting'), 'filtRouting', 2);
+
+// Tuning (tuningPreset + tonic handled by tuning panel; remaining knobs here)
+bindKnob('masterTune',    masterTuneFmt, 0.5);
+bindKnob('octaveStretch', octStretchFmt, 0.1667);
+bindKnob('pitchBendRange', pbRangeFmt,  0.0213);
+bindDropdown(document.getElementById('select-glideMode'), 'glideMode', 3);
+bindKnob('glideTime',     glideTimeFmt, 0.02);
+
+// Reverb
+bindKnob('reverbSize',     pct,          0.5);
+bindKnob('reverbDamp',     pct,          0.5);
+bindKnob('reverbPredelay', predelayFmt,  0.1);
+bindKnob('reverbMix',      pct,          0.0);
+
+// Delay
+bindKnob('delayTime',     delayTimeFmt, 0.187);
+bindKnob('delayFeedback', feedbackFmt,  0.316);
+bindDropdown(document.getElementById('select-delayMode'), 'delayMode', 2);
+bindKnob('delayMix',      pct,          0.0);
+
+// Chorus
+bindKnob('chorusRate',  chorusRateFmt, 0.091);
+bindKnob('chorusDepth', pct,           0.5);
+bindKnob('chorusMix',   pct,           0.0);
+
+// Distortion
+bindDropdown(document.getElementById('select-distType'), 'distType', 4);
+bindKnob('distDrive', pct, 0.0);
+bindKnob('distMix',   pct, 0.0);
+
+// EQ
+bindKnob('eqLowGain',  dbFmt,      0.5);
+bindKnob('eqMidGain',  dbFmt,      0.5);
+bindKnob('eqMidFreq',  midFreqFmt, 0.1);
+bindKnob('eqHighGain', dbFmt,      0.5);
+
+// Global (footer)
+bindKnob('masterVol', pct,     0.8);
+bindKnob('oscMix',    pct,     0.5);
+bindKnob('polyphony', polyFmt, 1.0);
+
+// ─── TUNING PRESET + TONIC (slider relays for tuning panel params) ───
+// These are handled via slider relays but the tuning panel also manages them.
+// Bind the slider relays so host automation works.
+(function() {
+    const tuningPresetState = Juce.getSliderState('tuningPreset');
+    const tonicState = Juce.getSliderState('tonic');
+    // Listen for changes (tuning panel reads these directly)
+    tuningPresetState.valueChangedEvent.addListener(() => {});
+    tonicState.valueChangedEvent.addListener(() => {});
+})();
+
+// ─── DELAY SYNC TOGGLE ───
+(function() {
+    const syncBtn = document.getElementById('toggle-delaySync');
+    if (!syncBtn) return;
+    const toggle = Juce.getToggleState('delaySync');
+
+    function updateSyncDisplay() {
+        const isOn = toggle.getValue();
+        syncBtn.textContent = isOn ? 'On' : 'Off';
+        syncBtn.classList.toggle('active', isOn);
+    }
+
+    syncBtn.addEventListener('click', () => {
+        toggle.setValue(!toggle.getValue());
+    });
+    toggle.valueChangedEvent.addListener(updateSyncDisplay);
+    updateSyncDisplay();
+})();
+
+// ─── WAVETABLE DISPLAY ───
+class WavetableDisplay {
+    constructor(canvasId, oscParamPrefix) {
+        this.canvas = document.getElementById(canvasId);
+        this.ctx = this.canvas.getContext('2d');
+        this.oscPrefix = oscParamPrefix;
+        this.samples = [];
+        this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
+        this.resizeCanvas();
+    }
+
+    resizeCanvas() {
+        const dpr = window.devicePixelRatio || 1;
+        const w = this.canvas.clientWidth;
+        const h = this.canvas.clientHeight;
+        this.canvas.width = w * dpr;
+        this.canvas.height = h * dpr;
+        this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        this.w = w;
+        this.h = h;
+    }
+
+    async fetchAndDraw(oscTableIndex, position) {
+        if (typeof this.getFrame !== 'function') {
+            this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
+        }
+        if (typeof this.getFrame !== 'function') return;
+        try {
+            this.resizeCanvas();
+            const result = await this.getFrame(oscTableIndex, position);
+            if (result) {
+                this.samples = typeof result === 'string' ? JSON.parse(result) : result;
+                this.draw();
+            }
+        } catch(e) { console.error('Wavetable fetch error:', e); }
+    }
+
+    draw() {
+        const { ctx, w, h, samples } = this;
+        if (!samples.length) return;
+        const mid = h / 2;
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Aged paper background
+        ctx.fillStyle = '#EBD9C7';
+        ctx.fillRect(0, 0, w, h);
+
+        // Center line
+        ctx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(0, mid);
+        ctx.lineTo(w, mid);
+        ctx.stroke();
+
+        // Waveform fill (amber gradient)
+        const grad = ctx.createLinearGradient(0, 0, 0, h);
+        grad.addColorStop(0, 'rgba(139, 105, 20, 0.25)');
+        grad.addColorStop(0.5, 'rgba(139, 105, 20, 0.06)');
+        grad.addColorStop(1, 'rgba(139, 105, 20, 0.0)');
+
+        ctx.beginPath();
+        for (let i = 0; i < samples.length; i++) {
+            const x = (i / (samples.length - 1)) * w;
+            const y = mid - samples[i] * mid * 0.85;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.lineTo(w, mid);
+        ctx.lineTo(0, mid);
+        ctx.closePath();
+        ctx.fillStyle = grad;
+        ctx.fill();
+
+        // Waveform stroke (brown ink)
+        ctx.beginPath();
+        for (let i = 0; i < samples.length; i++) {
+            const x = (i / (samples.length - 1)) * w;
+            const y = mid - samples[i] * mid * 0.85;
+            i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+        }
+        ctx.strokeStyle = '#5C4033';
+        ctx.lineWidth = 1.5;
+        ctx.stroke();
+
+        // Border
+        ctx.strokeStyle = '#8B7355';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(0, 0, w, h);
+    }
+}
+
+// Create wavetable displays
+const wtDisplayA = new WavetableDisplay('canvasOscA', 'oscA');
+const wtDisplayB = new WavetableDisplay('canvasOscB', 'oscB');
+
+// Wire to position + table changes
+function wireWavetableDisplay(display, posParam, tableParam, tableSelectId) {
+    const posState = Juce.getSliderState(posParam);
+    const tableState = Juce.getSliderState(tableParam);
+
+    function refresh() {
+        const tableIdx = Math.round(tableState.getNormalisedValue() * 3);
+        const pos = posState.getNormalisedValue();
+        display.fetchAndDraw(tableIdx, pos);
+    }
+
+    posState.valueChangedEvent.addListener(refresh);
+    tableState.valueChangedEvent.addListener(refresh);
+
+    // Initial draw with retry (await fetch so samples.length check is valid)
+    let retries = 0;
+    async function tryInitialDraw() {
+        const tableIdx = Math.round(tableState.getNormalisedValue() * 3);
+        const pos = posState.getNormalisedValue();
+        await display.fetchAndDraw(tableIdx, pos);
+        retries++;
+        if (display.samples.length === 0 && retries < 8) {
+            setTimeout(tryInitialDraw, 500);
+        }
+    }
+    setTimeout(tryInitialDraw, 500);
+}
+
+wireWavetableDisplay(wtDisplayA, 'oscAPos', 'oscATable', 'select-oscATable');
+wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
+
+// ─── TUNING PANEL INTEGRATION ───
+(async function() {
+    try {
+        const { TuningPanel } = await import('./js/tuning-panel.js');
+        const container = document.getElementById('tuning-container');
+        if (container) {
+            const tuningPanel = new TuningPanel(container, window.__JUCE__);
+            await tuningPanel.init();
+        }
+    } catch(e) {
+        console.warn('Tuning panel init error:', e);
+    }
+})();
+</script>
 </body>
 </html>
