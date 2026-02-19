@@ -28,6 +28,7 @@
 .tuning-panel {
     display: grid;
     grid-template-columns: 160px 1fr 220px;
+    align-items: start;
     gap: 15px;
     padding: 15px;
     background: var(--tuning-bg);
