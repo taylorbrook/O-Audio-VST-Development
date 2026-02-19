@@ -46,14 +46,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         0
     ));
 
-    // KEY_SCALE - Choice (10 scales, default: Major)
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "keyScale", 1 },
-        "Key Scale",
-        juce::StringArray { "Major", "Minor", "Dorian", "Phrygian", "Lydian",
-                            "Mixolydian", "Aeolian", "Locrian", "Harmonic Minor", "Melodic Minor" },
-        0
-    ));
+    // v1.5.0: keyScale parameter removed — replaced by dynamic interval selection
 
     // TUNING: Master Tune (A4 reference, 400-480 Hz, default 440)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -207,6 +200,9 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     // Initialize TuningEngine to match parameter defaults
     // JUCE doesn't fire parameterChanged for initial values, so set explicitly
     tuningEngine.setBuiltInPreset(TuningEngine::BuiltInPreset::JustIntonation);
+
+    // v1.5.0: Initialize enabled intervals (all enabled by default)
+    resetEnabledIntervals();
 }
 
 OIntonationPadAudioProcessor::~OIntonationPadAudioProcessor()
@@ -265,7 +261,6 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     int voiceCount = static_cast<int>(parameters.getRawParameterValue("voiceCount")->load());
     float complexity = parameters.getRawParameterValue("complexity")->load();
     int keyRoot = static_cast<int>(parameters.getRawParameterValue("keyRoot")->load());
-    int keyScale = static_cast<int>(parameters.getRawParameterValue("keyScale")->load());
     float lfoRate = parameters.getRawParameterValue("lfoRate")->load();
     float lfoDepth = parameters.getRawParameterValue("lfoDepth")->load();
     float filterCutoff = parameters.getRawParameterValue("filterCutoff")->load();
@@ -286,6 +281,21 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // Modulate wavetable position with LFO
     float modulatedWavetablePos = juce::jlimit(0.0f, 1.0f, wavetablePos + lfoValue);
 
+    // v1.5.0: Check if scale size changed, auto-reset enabled intervals
+    int currentScaleSize = tuningEngine.getScaleDegrees();
+    if (currentScaleSize != lastKnownScaleSize)
+    {
+        resetEnabledIntervals();
+        lastKnownScaleSize = currentScaleSize;
+    }
+
+    // Rebuild audio-thread cache if dirty (lock-free read path for normal operation)
+    if (enabledIntervalsDirty.exchange(false))
+    {
+        cachedEnabledDegrees = getEnabledDegreeOffsets();
+        cachedScaleDegreeCount = getScaleDegreeCount();
+    }
+
     // Update all voice parameters before rendering
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
@@ -295,7 +305,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
             voice->setEnvelopeParameters(attackTime, releaseTime);
 
             // Store chord generation parameters for voices to use on note-on
-            voice->setChordGenerationParams(voiceCount, complexity, keyRoot, keyScale,
+            voice->setChordGenerationParams(voiceCount, complexity, keyRoot,
+                                            cachedEnabledDegrees, cachedScaleDegreeCount,
                                             inversionRandom, detuneRandom, timingRandom,
                                             &chordGenerator, &tuningEngine, &randomGenerator);
         }
@@ -363,6 +374,18 @@ void OIntonationPadAudioProcessor::getStateInformation(juce::MemoryBlock& destDa
     tuningState.setProperty("tonic", tuningEngine.getTonicNote(), nullptr);
     tuningState.setProperty("preset", static_cast<int>(tuningEngine.getBuiltInPreset()), nullptr);
 
+    // v1.5.0: Save enabled intervals
+    {
+        auto ei = getEnabledIntervals();
+        juce::String eiStr;
+        for (size_t i = 0; i < ei.size(); ++i)
+        {
+            if (i > 0) eiStr += ",";
+            eiStr += ei[i] ? "1" : "0";
+        }
+        tuningState.setProperty("enabledIntervals", eiStr, nullptr);
+    }
+
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
     copyXmlToBinary(*xml, destData);
 }
@@ -395,6 +418,18 @@ void OIntonationPadAudioProcessor::setStateInformation(const void* data, int siz
 
             int tonic = tuningState.getProperty("tonic", 0);
             tuningEngine.setTonicNote(tonic);
+
+            // v1.5.0: Restore enabled intervals
+            juce::String eiStr = tuningState.getProperty("enabledIntervals", "");
+            if (eiStr.isNotEmpty())
+            {
+                juce::StringArray eiTokens;
+                eiTokens.addTokens(eiStr, ",", "");
+                std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
+                enabledIntervals.clear();
+                for (const auto& token : eiTokens)
+                    enabledIntervals.push_back(token == "1");
+            }
         }
     }
 }
@@ -431,6 +466,55 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
     }
 
     return notes;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// v1.5.0: ENABLED INTERVAL MANAGEMENT
+// ═══════════════════════════════════════════════════════════════════
+
+std::vector<bool> OIntonationPadAudioProcessor::getEnabledIntervals() const
+{
+    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
+    return enabledIntervals;
+}
+
+void OIntonationPadAudioProcessor::setIntervalEnabled(int index, bool enabled)
+{
+    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
+    if (index >= 0 && index < static_cast<int>(enabledIntervals.size()))
+    {
+        enabledIntervals[static_cast<size_t>(index)] = enabled;
+        enabledIntervalsDirty.store(true);
+    }
+}
+
+void OIntonationPadAudioProcessor::resetEnabledIntervals()
+{
+    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
+    int scaleSize = tuningEngine.getScaleDegrees();
+    enabledIntervals.clear();
+    enabledIntervals.resize(static_cast<size_t>(scaleSize), true);
+    enabledIntervalsDirty.store(true);
+}
+
+int OIntonationPadAudioProcessor::getScaleDegreeCount() const
+{
+    return tuningEngine.getScaleDegrees();
+}
+
+std::vector<int> OIntonationPadAudioProcessor::getEnabledDegreeOffsets() const
+{
+    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
+    std::vector<int> degrees;
+    for (int i = 0; i < static_cast<int>(enabledIntervals.size()); ++i)
+    {
+        if (enabledIntervals[static_cast<size_t>(i)])
+            degrees.push_back(i);
+    }
+    // Always include degree 0 (root) if nothing is enabled
+    if (degrees.empty())
+        degrees.push_back(0);
+    return degrees;
 }
 
 // Factory function

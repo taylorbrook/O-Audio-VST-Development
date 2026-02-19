@@ -1,5 +1,27 @@
 # O-IntonationPad Changelog
 
+## [1.5.0] - 2026-02-19
+
+### Added
+- **Interactive interval selector on Voice tab**: Replaced the static Scale dropdown (10 preset scales) with a dynamic toggle list sourced from the tuning engine. Each interval from the currently loaded tuning appears as a clickable toggle — enable or disable individual intervals to control which scale degrees participate in chord generation
+- **Works with any scale size**: The interval selector dynamically expands and contracts for 12-TET, 19-EDO, 31-EDO, Just Intonation, or any custom Scala tuning — not limited to 12-note scales
+- **All/None quick-select buttons**: Instantly enable all intervals or disable all except root
+- **Auto-reset on scale change**: When the tuning is changed on the Tuning tab (different interval count), the enabled intervals automatically reset to all-enabled
+- **Interval labels**: Shows semitone names (m2, M2, m3, M3, P4, TT, P5, m6, M6, m7, M7) for 12-note scales, degree numbers for other scale sizes, with cents values displayed on each toggle
+- **State persistence**: Enabled/disabled interval state saved and restored with DAW sessions
+
+### Changed
+- **ChordGenerator refactored**: Now accepts a dynamic set of enabled scale degree offsets instead of a hardcoded scale type index. Chord building uses enabled intervals directly with progressive complexity thresholds
+- **Audio-thread cache**: Enabled degree offsets cached with atomic dirty flag for lock-free audio thread reads
+
+### Removed
+- `keyScale` APVTS parameter (10 preset scales: Major, Minor, Dorian, etc.) — replaced by the interval selector
+- All 10 hardcoded scale arrays from ChordGenerator (majorScale, minorScale, dorianScale, etc.)
+- Scale-degree chord quality lookup system (Major/Minor/Diminished)
+
+### Breaking
+- Saved DAW sessions with old `keyScale` parameter will have that value silently dropped. Default behavior (all intervals enabled) provides full chromatic chord voicing similar to the old Major scale with high complexity
+
 ## [1.4.1] - 2026-02-18
 
 ### Fixed

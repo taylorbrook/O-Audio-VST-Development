@@ -38,7 +38,8 @@ public:
     // Parameter setters (called from audio thread via atomic reads)
     void setWavetablePosition(float pos);
     void setEnvelopeParameters(float attack, float release);
-    void setChordGenerationParams(int voiceCount, float complexity, int keyRoot, int keyScale,
+    void setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
+                                   const std::vector<int>& enabledDegrees, int scaleDegreeCount,
                                    float inversionRandom, float detuneRandom, float timingRandom,
                                    ChordGenerator* chordGen, class TuningEngine* tuning,
                                    juce::Random* random);
@@ -81,7 +82,8 @@ private:
     int cachedVoiceCount = 5;
     float cachedComplexity = 0.5f;
     int cachedKeyRoot = 0;
-    int cachedKeyScale = 0;
+    std::vector<int> cachedEnabledDegrees;
+    int cachedScaleDegreeCount = 12;
     float cachedInversionRandom = 0.3f;
     float cachedDetuneRandom = 5.0f;
     float cachedTimingRandom = 10.0f;  // ms

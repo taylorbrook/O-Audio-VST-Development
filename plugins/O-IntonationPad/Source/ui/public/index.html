@@ -435,6 +435,114 @@
         .kb-overflow.below {
             left: -2px;
         }
+
+        /* v1.5.0: Interval Selector */
+        .interval-selector {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .interval-selector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .interval-quick-btns {
+            display: flex;
+            gap: 4px;
+        }
+
+        .interval-quick-btn {
+            padding: 2px 8px;
+            background: rgba(139, 168, 112, 0.3);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            font-family: 'Garamond', serif;
+            font-size: 9px;
+            color: #3C2F2F;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .interval-quick-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .interval-toggle-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 3px;
+            max-height: 90px;
+            overflow-y: auto;
+            padding: 4px;
+            background: rgba(255, 248, 220, 0.3);
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 4px;
+        }
+
+        .interval-toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 3px;
+            padding: 2px 6px;
+            background: rgba(255, 248, 220, 0.5);
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-size: 9px;
+            color: #5C4033;
+        }
+
+        .interval-toggle-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .interval-toggle-item.enabled {
+            background: rgba(107, 142, 35, 0.4);
+            border-color: rgba(107, 142, 35, 0.6);
+            color: #1a2a10;
+        }
+
+        .interval-toggle-item.root {
+            background: rgba(107, 142, 35, 0.6);
+            border-color: rgba(107, 142, 35, 0.8);
+            color: #1a2a10;
+            font-weight: bold;
+            cursor: default;
+        }
+
+        .interval-toggle-dot {
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: rgba(139, 115, 85, 0.3);
+            flex-shrink: 0;
+        }
+
+        .interval-toggle-item.enabled .interval-toggle-dot,
+        .interval-toggle-item.root .interval-toggle-dot {
+            background: #4a6e1e;
+        }
+
+        .interval-toggle-cents {
+            font-size: 8px;
+            color: rgba(92, 64, 51, 0.6);
+        }
+
+        .interval-toggle-item.enabled .interval-toggle-cents {
+            color: rgba(26, 42, 16, 0.7);
+        }
+
+        .interval-loading {
+            font-size: 10px;
+            color: rgba(60, 47, 47, 0.4);
+            font-style: italic;
+            padding: 6px;
+        }
     </style>
 </head>
 <body>
@@ -482,7 +590,7 @@
 
                     <div class="section-divider"></div>
 
-                    <div class="knob-row">
+                    <div class="knob-row" style="gap: 12px; align-items: flex-start;">
                         <div class="dropdown-container">
                             <div class="knob-label">Key Root</div>
                             <select class="dropdown" id="keyRootSelect">
@@ -500,20 +608,19 @@
                                 <option value="11">B</option>
                             </select>
                         </div>
-                        <div class="dropdown-container">
-                            <div class="knob-label">Scale</div>
-                            <select class="dropdown" id="keyScaleSelect">
-                                <option value="0">Major</option>
-                                <option value="1">Minor</option>
-                                <option value="2">Dorian</option>
-                                <option value="3">Phrygian</option>
-                                <option value="4">Lydian</option>
-                                <option value="5">Mixolydian</option>
-                                <option value="6">Aeolian</option>
-                                <option value="7">Locrian</option>
-                                <option value="8">Harmonic Minor</option>
-                                <option value="9">Melodic Minor</option>
-                            </select>
+
+                        <!-- v1.5.0: Interval Selector (replaces Scale dropdown) -->
+                        <div class="interval-selector">
+                            <div class="interval-selector-header">
+                                <div class="knob-label">Intervals</div>
+                                <div class="interval-quick-btns">
+                                    <button class="interval-quick-btn" id="intervalAllBtn">All</button>
+                                    <button class="interval-quick-btn" id="intervalNoneBtn">None</button>
+                                </div>
+                            </div>
+                            <div class="interval-toggle-list" id="intervalToggleList">
+                                <div class="interval-loading">Loading...</div>
+                            </div>
                         </div>
                     </div>
 
@@ -626,8 +733,8 @@
     <script type="module">
         import * as Juce from './js/juce/index.js';
 
-        // JUCE Parameter States (14 parameters — tuningSystem removed in v1.3.0)
-        let voiceCountState, complexityState, keyRootState, keyScaleState, inversionRandomState;
+        // JUCE Parameter States (13 parameters — keyScale removed in v1.5.0)
+        let voiceCountState, complexityState, keyRootState, inversionRandomState;
         let wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let attackTimeState, releaseTimeState, filterCutoffState, masterVolumeState;
 
@@ -640,7 +747,6 @@
             voiceCountState = Juce.getSliderState('voiceCount');
             complexityState = Juce.getSliderState('complexity');
             keyRootState = Juce.getSliderState('keyRoot');
-            keyScaleState = Juce.getSliderState('keyScale');
             inversionRandomState = Juce.getSliderState('inversionRandom');
             wavetablePosState = Juce.getSliderState('wavetablePos');
             lfoRateState = Juce.getSliderState('lfoRate');
@@ -676,7 +782,9 @@
 
             // Setup dropdowns
             setupDropdown('keyRoot', keyRootState, 12);
-            setupDropdown('keyScale', keyScaleState, 10);
+
+            // v1.5.0: Initialize interval selector
+            initIntervalSelector();
 
             // Build mini keyboard
             buildKeyboard();
@@ -830,6 +938,147 @@
 
             updateVisual();
         }
+
+        // ====================================================================
+        // v1.5.0: INTERVAL SELECTOR
+        // ====================================================================
+
+        let intervalData = [];      // Array of { cents, enabled }
+        let intervalScaleSize = 0;  // Tracks current scale size for change detection
+
+        async function initIntervalSelector() {
+            // Load intervals from tuning engine
+            await refreshIntervalSelector();
+
+            // Quick buttons
+            document.getElementById('intervalAllBtn')?.addEventListener('click', async () => {
+                if (window.__JUCE__?.backend) {
+                    await Juce.getNativeFunction('resetEnabledIntervals')();
+                    await refreshIntervalSelector();
+                }
+            });
+
+            document.getElementById('intervalNoneBtn')?.addEventListener('click', async () => {
+                // Disable all except root (degree 0)
+                for (let i = 0; i < intervalData.length; i++) {
+                    if (i > 0) {
+                        await Juce.getNativeFunction('setIntervalEnabled')(i, false);
+                    }
+                }
+                await refreshIntervalSelector();
+            });
+        }
+
+        async function refreshIntervalSelector() {
+            if (!window.__JUCE__?.backend) {
+                // Fallback for standalone testing
+                renderIntervalToggles([0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100, 1200],
+                                      Array(13).fill(true));
+                return;
+            }
+
+            try {
+                // Get tuning intervals (cents)
+                const intervalsJson = await Juce.getNativeFunction('getTuningIntervals')();
+                const intervals = JSON.parse(intervalsJson);
+
+                // Get enabled state
+                const enabledJson = await Juce.getNativeFunction('getEnabledIntervals')();
+                const enabled = JSON.parse(enabledJson);
+
+                // Detect scale size change
+                const scaleSize = intervals.length - 1; // Exclude period
+                if (scaleSize !== intervalScaleSize) {
+                    intervalScaleSize = scaleSize;
+                }
+
+                renderIntervalToggles(intervals, enabled);
+            } catch (e) {
+                console.error('[IntervalSelector] Failed to refresh:', e);
+            }
+        }
+
+        function renderIntervalToggles(intervals, enabled) {
+            const container = document.getElementById('intervalToggleList');
+            if (!container) return;
+
+            // intervals includes period as last element; exclude it from toggles
+            const count = intervals.length - 1;
+
+            intervalData = [];
+            let html = '';
+
+            for (let i = 0; i < count; i++) {
+                const cents = intervals[i];
+                const isEnabled = enabled[i] !== false;
+                const isRoot = i === 0;
+                intervalData.push({ cents, enabled: isEnabled });
+
+                const label = getIntervalLabel(i, count, cents);
+                const centsStr = cents.toFixed(1);
+
+                const classes = ['interval-toggle-item'];
+                if (isRoot) classes.push('root');
+                else if (isEnabled) classes.push('enabled');
+
+                html += `<div class="${classes.join(' ')}" data-index="${i}" ${isRoot ? '' : 'data-toggleable="true"'}>
+                    <span class="interval-toggle-dot"></span>
+                    <span>${label}</span>
+                    <span class="interval-toggle-cents">${centsStr}c</span>
+                </div>`;
+            }
+
+            container.innerHTML = html;
+
+            // Attach toggle handlers
+            container.querySelectorAll('[data-toggleable]').forEach(item => {
+                item.addEventListener('click', async () => {
+                    const idx = parseInt(item.dataset.index);
+                    const currentlyEnabled = item.classList.contains('enabled');
+                    const newState = !currentlyEnabled;
+
+                    // Update C++
+                    if (window.__JUCE__?.backend) {
+                        await Juce.getNativeFunction('setIntervalEnabled')(idx, newState);
+                    }
+
+                    // Update UI immediately
+                    item.classList.toggle('enabled', newState);
+                    intervalData[idx].enabled = newState;
+                });
+            });
+        }
+
+        function getIntervalLabel(index, scaleSize, cents) {
+            if (index === 0) return 'R';  // Root
+
+            if (scaleSize === 12) {
+                // For 12-note scales, use semitone names
+                const names = ['R', 'm2', 'M2', 'm3', 'M3', 'P4', 'TT', 'P5', 'm6', 'M6', 'm7', 'M7'];
+                return names[index] || index.toString();
+            }
+
+            // For other scale sizes, use degree number
+            return index.toString();
+        }
+
+        // Periodically check if scale size changed (tuning tab may have changed it)
+        let lastCheckedScaleSize = 0;
+        setInterval(async () => {
+            if (!window.__JUCE__?.backend) return;
+            try {
+                const intervalsJson = await Juce.getNativeFunction('getTuningIntervals')();
+                const intervals = JSON.parse(intervalsJson);
+                const newSize = intervals.length - 1;
+                if (newSize !== lastCheckedScaleSize && lastCheckedScaleSize > 0) {
+                    // Scale changed — refresh the selector
+                    await refreshIntervalSelector();
+                }
+                lastCheckedScaleSize = newSize;
+            } catch (e) {
+                // Ignore periodic check errors
+            }
+        }, 1000); // Check every second
 
         // ====================================================================
         // MINI KEYBOARD + ACTIVE NOTES VISUALIZATION

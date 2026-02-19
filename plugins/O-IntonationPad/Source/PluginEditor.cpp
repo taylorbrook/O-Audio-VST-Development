@@ -22,7 +22,6 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     voiceCountRelay = std::make_unique<juce::WebSliderRelay>("voiceCount");
     complexityRelay = std::make_unique<juce::WebSliderRelay>("complexity");
     keyRootRelay = std::make_unique<juce::WebSliderRelay>("keyRoot");
-    keyScaleRelay = std::make_unique<juce::WebSliderRelay>("keyScale");
     inversionRandomRelay = std::make_unique<juce::WebSliderRelay>("inversionRandom");
     wavetablePosRelay = std::make_unique<juce::WebSliderRelay>("wavetablePos");
     lfoRateRelay = std::make_unique<juce::WebSliderRelay>("lfoRate");
@@ -53,7 +52,6 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
             .withOptionsFrom(*voiceCountRelay)
             .withOptionsFrom(*complexityRelay)
             .withOptionsFrom(*keyRootRelay)
-            .withOptionsFrom(*keyScaleRelay)
             .withOptionsFrom(*inversionRandomRelay)
             .withOptionsFrom(*wavetablePosRelay)
             .withOptionsFrom(*lfoRateRelay)
@@ -379,6 +377,37 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
                 complete(false);
             })
 
+            // ═══════════════════════════════════════════════════════════════════
+            // v1.5.0: ENABLED INTERVAL NATIVE FUNCTIONS
+            // ═══════════════════════════════════════════════════════════════════
+
+            .withNativeFunction("getEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
+                auto ei = processorRef.getEnabledIntervals();
+                juce::String json = "[";
+                for (size_t i = 0; i < ei.size(); ++i) {
+                    if (i > 0) json += ",";
+                    json += ei[i] ? "true" : "false";
+                }
+                json += "]";
+                complete(json);
+            })
+
+            .withNativeFunction("setIntervalEnabled", [this](const juce::Array<juce::var>& args, auto complete) {
+                if (args.size() >= 2) {
+                    int index = static_cast<int>(args[0]);
+                    bool enabled = static_cast<bool>(args[1]);
+                    processorRef.setIntervalEnabled(index, enabled);
+                    complete(true);
+                    return;
+                }
+                complete(false);
+            })
+
+            .withNativeFunction("resetEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
+                processorRef.resetEnabledIntervals();
+                complete(true);
+            })
+
             // --- HTML Export ---
             .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&, auto complete) {
                 tuningFileChooser = std::make_shared<juce::FileChooser>(
@@ -410,8 +439,6 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
         *apvts.getParameter("complexity"), *complexityRelay, nullptr);
     keyRootAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("keyRoot"), *keyRootRelay, nullptr);
-    keyScaleAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("keyScale"), *keyScaleRelay, nullptr);
     inversionRandomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("inversionRandom"), *inversionRandomRelay, nullptr);
     wavetablePosAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

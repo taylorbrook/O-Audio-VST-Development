@@ -33,7 +33,6 @@ private:
     std::unique_ptr<juce::WebSliderRelay> voiceCountRelay;
     std::unique_ptr<juce::WebSliderRelay> complexityRelay;
     std::unique_ptr<juce::WebSliderRelay> keyRootRelay;
-    std::unique_ptr<juce::WebSliderRelay> keyScaleRelay;
     std::unique_ptr<juce::WebSliderRelay> inversionRandomRelay;
     std::unique_ptr<juce::WebSliderRelay> wavetablePosRelay;
     std::unique_ptr<juce::WebSliderRelay> lfoRateRelay;
@@ -61,7 +60,6 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> voiceCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> complexityAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> keyRootAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> keyScaleAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> inversionRandomAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> wavetablePosAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lfoRateAttachment;

@@ -64,6 +64,13 @@ public:
     // UI data access: collect active sub-voice data from all synthesiser voices
     std::vector<ActiveNoteInfo> getActiveNotes() const;
 
+    // v1.5.0: Enabled interval management
+    std::vector<bool> getEnabledIntervals() const;
+    void setIntervalEnabled(int index, bool enabled);
+    void resetEnabledIntervals();  // Reset all to enabled (called on scale change)
+    int getScaleDegreeCount() const;
+    std::vector<int> getEnabledDegreeOffsets() const;  // Returns sorted list of enabled degree indices
+
 private:
     // DSP Components (declare BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
@@ -85,6 +92,16 @@ private:
 
     // Parameters (APVTS comes after DSP components)
     juce::AudioProcessorValueTreeState parameters;
+
+    // v1.5.0: Enabled intervals (which scale degrees participate in chord generation)
+    std::vector<bool> enabledIntervals;
+    int lastKnownScaleSize = 0;  // Track scale changes to auto-reset
+    mutable std::mutex enabledIntervalsMutex;
+
+    // Audio-thread-safe cached copy (rebuilt when dirty flag is set)
+    std::vector<int> cachedEnabledDegrees;
+    int cachedScaleDegreeCount = 12;
+    std::atomic<bool> enabledIntervalsDirty { true };
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

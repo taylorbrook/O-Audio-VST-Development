@@ -2,169 +2,104 @@
   ==============================================================================
 
     ChordGenerator.cpp
-    Implementation of chord generation algorithm
+    v1.5.0: Dynamic interval-based chord generation
 
   ==============================================================================
 */
 
 #include "ChordGenerator.h"
+#include <algorithm>
+#include <cmath>
 
 std::vector<ChordVoice> ChordGenerator::generateChord(int rootMidiNote, int numVoices, float complexity,
-                                                       int keyRoot, int scaleType)
+                                                       int keyRoot, const std::vector<int>& enabledDegrees,
+                                                       int scaleDegreeCount)
 {
-    // Get scale pattern
-    const auto& scale = getScalePattern(scaleType);
-
-    // Find scale degree of played note
-    int scaleDegree = findScaleDegree(rootMidiNote, keyRoot, scale);
-
-    // Determine chord quality for this scale degree
-    ChordQuality quality = getChordQuality(scaleDegree, scaleType);
-
-    // Build chord intervals based on quality and complexity
-    auto intervals = buildChordIntervals(quality, complexity);
-
-    // Distribute voices across octaves
-    return distributeVoices(rootMidiNote, scaleDegree, intervals, numVoices);
-}
-
-const std::array<int, 7>& ChordGenerator::getScalePattern(int scaleType) const
-{
-    switch (scaleType)
+    if (enabledDegrees.empty() || scaleDegreeCount <= 0)
     {
-        case 0: return majorScale;
-        case 1: return minorScale;
-        case 2: return dorianScale;
-        case 3: return phrygianScale;
-        case 4: return lydianScale;
-        case 5: return mixolydianScale;
-        case 6: return aeolianScale;
-        case 7: return locrianScale;
-        case 8: return harmonicMinorScale;
-        case 9: return melodicMinorScale;
-        default: return majorScale;
-    }
-}
-
-ChordGenerator::ChordQuality ChordGenerator::getChordQuality(int scaleDegree, int scaleType) const
-{
-    // Chord quality patterns for each scale type
-    // Major scale: I, ii, iii, IV, V, vi, vii°
-    static const std::array<ChordQuality, 7> majorQualities = {
-        Major, Minor, Minor, Major, Major, Minor, Diminished
-    };
-
-    // Minor scale (natural minor): i, ii°, III, iv, v, VI, VII
-    static const std::array<ChordQuality, 7> minorQualities = {
-        Minor, Diminished, Major, Minor, Minor, Major, Major
-    };
-
-    // Dorian: i, ii, III, IV, v, vi°, VII
-    static const std::array<ChordQuality, 7> dorianQualities = {
-        Minor, Minor, Major, Major, Minor, Diminished, Major
-    };
-
-    // Use appropriate quality array based on scale type
-    switch (scaleType)
-    {
-        case 0: // Major
-        case 4: // Lydian (same chord qualities as major)
-        case 5: // Mixolydian (same chord qualities as major)
-            return majorQualities[scaleDegree];
-
-        case 1: // Minor
-        case 6: // Aeolian (same as natural minor)
-        case 8: // Harmonic minor (simplified)
-        case 9: // Melodic minor (simplified)
-            return minorQualities[scaleDegree];
-
-        case 2: // Dorian
-        case 3: // Phrygian (similar to Dorian)
-        case 7: // Locrian (similar to Dorian)
-            return dorianQualities[scaleDegree];
-
-        default:
-            return Major;
-    }
-}
-
-int ChordGenerator::findScaleDegree(int midiNote, int keyRoot, const std::array<int, 7>& scale) const
-{
-    // Extract pitch class from MIDI note
-    int pitchClass = midiNote % 12;
-
-    // Calculate relative pitch class from key root
-    int relativePitch = (pitchClass - keyRoot + 12) % 12;
-
-    // Find closest scale degree
-    for (int i = 0; i < 7; ++i)
-    {
-        if (scale[i] == relativePitch)
-            return i;
+        // Fallback: single voice at root
+        return {{ rootMidiNote, 0, 0, 0, 0.0f }};
     }
 
-    // If not in scale, find nearest scale degree (prefer upward)
-    for (int i = 0; i < 7; ++i)
-    {
-        if (scale[i] > relativePitch)
-            return i;
-    }
+    // Find which enabled degree the played note maps to
+    int rootDegreeInScale = findNearestDegree(rootMidiNote, keyRoot, enabledDegrees, scaleDegreeCount);
 
-    // Default to root
-    return 0;
+    // Build chord intervals from enabled degrees
+    auto intervals = buildChordIntervals(rootDegreeInScale, enabledDegrees, scaleDegreeCount, complexity);
+
+    // Distribute voices across the intervals
+    return distributeVoices(rootMidiNote, rootDegreeInScale, intervals, numVoices, scaleDegreeCount);
 }
 
-std::vector<int> ChordGenerator::buildChordIntervals(ChordQuality quality, float complexity) const
+int ChordGenerator::findNearestDegree(int midiNote, int keyRoot, const std::vector<int>& enabledDegrees,
+                                       int scaleDegreeCount) const
 {
+    // Calculate the scale degree position of this MIDI note relative to keyRoot
+    // In TuningEngine, MIDI note 60 + tonicOffset = degree 0
+    // keyRoot acts as the tonic offset for chord generation
+    int relativeMidi = midiNote - 60 - keyRoot;
+
+    // Normalize to positive scale degree
+    int degree = ((relativeMidi % scaleDegreeCount) + scaleDegreeCount) % scaleDegreeCount;
+
+    // Find nearest enabled degree
+    int bestDegree = enabledDegrees[0];
+    int bestDist = scaleDegreeCount; // max possible
+
+    for (int d : enabledDegrees)
+    {
+        int dist = std::min(std::abs(degree - d),
+                           scaleDegreeCount - std::abs(degree - d));
+        if (dist < bestDist)
+        {
+            bestDist = dist;
+            bestDegree = d;
+        }
+    }
+
+    return bestDegree;
+}
+
+std::vector<int> ChordGenerator::buildChordIntervals(int rootDegreeInScale,
+                                                      const std::vector<int>& enabledDegrees,
+                                                      int scaleDegreeCount, float /*complexity*/) const
+{
+    // Build intervals as degree offsets from the root degree
+    // These become MIDI note offsets (since TuningEngine maps MIDI linearly through degrees)
     std::vector<int> intervals;
 
-    // Root (always present)
-    intervals.push_back(0);
-
-    // Third (always present)
-    int third = (quality == Major) ? 4 : 3;  // Major third (4) or minor third (3)
-    intervals.push_back(third);
-
-    // Fifth (always present)
-    int fifth = (quality == Diminished) ? 6 : 7;  // Diminished fifth (6) or perfect fifth (7)
-    intervals.push_back(fifth);
-
-    // Add extensions based on complexity
-    if (complexity >= 0.25f)
+    for (int d : enabledDegrees)
     {
-        // Add 7th
-        int seventh = (quality == Major) ? 11 : 10;  // Major 7th (11) or minor 7th (10)
-        intervals.push_back(seventh);
+        int offset = d - rootDegreeInScale;
+        if (offset < 0)
+            offset += scaleDegreeCount;
+        intervals.push_back(offset);
     }
 
-    if (complexity >= 0.50f)
-    {
-        // Add 9th (14 semitones = octave + major second)
-        intervals.push_back(14);
-    }
-
-    if (complexity >= 0.75f)
-    {
-        // Add 11th (17 semitones = octave + perfect fourth)
-        intervals.push_back(17);
-    }
-
-    if (complexity >= 0.85f)
-    {
-        // Add 13th (21 semitones = octave + major sixth)
-        intervals.push_back(21);
-    }
+    // Sort by offset (ascending) — root (0) first, then upward
+    std::sort(intervals.begin(), intervals.end());
 
     return intervals;
 }
 
-std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int scaleDegree,
+std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int rootDegreeInScale,
                                                           const std::vector<int>& intervals,
-                                                          int numVoices) const
+                                                          int numVoices, int scaleDegreeCount) const
 {
     std::vector<ChordVoice> voices;
-
     int availableIntervals = static_cast<int>(intervals.size());
+
+    if (availableIntervals == 0)
+        return {{ rootMidiNote, 0, 0, 0, 0.0f }};
+
+    // Assign complexity thresholds: root interval gets 0.0 (always on),
+    // subsequent intervals get progressively higher thresholds
+    auto getThreshold = [&](int intervalIndex) -> float {
+        if (intervalIndex == 0) return 0.0f;  // Root always audible
+        if (availableIntervals <= 1) return 0.0f;
+        // Distribute thresholds evenly from 0.0 to ~0.85
+        return static_cast<float>(intervalIndex) / static_cast<float>(availableIntervals) * 0.85f;
+    };
 
     for (int i = 0; i < numVoices; ++i)
     {
@@ -173,37 +108,26 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int s
 
         if (numVoices <= availableIntervals)
         {
-            // Assign sequentially: root, 3rd, 5th, 7th, 9th, ... (no skipping)
             intervalIndex = i;
             octaveOffset = 0;
         }
         else
         {
-            // More voices than intervals: distribute evenly, spread across octaves
             intervalIndex = (i * availableIntervals) / numVoices;
             octaveOffset = i / availableIntervals;
         }
 
-        int semitoneOffset = intervals[intervalIndex];
+        int degreeOffset = intervals[intervalIndex];
 
         ChordVoice voice;
-        voice.midiNote = rootMidiNote + semitoneOffset + (octaveOffset * 12);
-        voice.scaleDegree = scaleDegree;
-        voice.semitoneOffset = semitoneOffset;
+        voice.midiNote = rootMidiNote + degreeOffset + (octaveOffset * scaleDegreeCount);
+        voice.scaleDegree = (rootDegreeInScale + degreeOffset) % scaleDegreeCount;
+        voice.semitoneOffset = degreeOffset;
         voice.octaveShift = octaveOffset;
-        voice.complexityThreshold = getComplexityThreshold(semitoneOffset);
+        voice.complexityThreshold = getThreshold(intervalIndex);
 
         voices.push_back(voice);
     }
 
     return voices;
-}
-
-float ChordGenerator::getComplexityThreshold(int semitoneOffset)
-{
-    if (semitoneOffset >= 21) return 0.85f;  // 13th
-    if (semitoneOffset >= 17) return 0.75f;  // 11th
-    if (semitoneOffset >= 14) return 0.50f;  // 9th
-    if (semitoneOffset >= 10) return 0.25f;  // 7th
-    return 0.0f;                              // triad (root, 3rd, 5th)
 }
