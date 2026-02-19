@@ -309,6 +309,32 @@ body {
 
 /* ─── EFFECT SECTIONS ─── */
 .effect-section { margin-bottom: 12px; }
+.effect-section .section-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+.effect-section.bypassed .param-row {
+    opacity: 0.35;
+    pointer-events: none;
+}
+.bypass-toggle {
+    font-size: 8px;
+    padding: 1px 6px;
+    border: 1px solid #8B7355;
+    border-radius: 2px;
+    background: #6B8E4E;
+    color: #F5E6D3;
+    cursor: pointer;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    font-family: 'Garamond', 'Georgia', serif;
+    line-height: 1.2;
+}
+.bypass-toggle.off {
+    background: #B0A090;
+    color: #5C4033;
+}
 
 /* ─── TUNING TAB ─── */
 #tuning-container {
@@ -520,8 +546,8 @@ body {
 <div id="effects-tab" class="tab-content">
 
     <!-- Reverb -->
-    <div class="effect-section">
-        <div class="section-header">Reverb</div>
+    <div class="effect-section" id="section-reverb">
+        <div class="section-header"><span>Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
             <div class="knob-group"><div class="knob" id="knob-reverbSize"><div class="knob-indicator"></div></div><div class="knob-label">Size</div><div class="knob-value" id="val-reverbSize">50%</div></div>
             <div class="knob-group"><div class="knob" id="knob-reverbDamp"><div class="knob-indicator"></div></div><div class="knob-label">Damp</div><div class="knob-value" id="val-reverbDamp">50%</div></div>
@@ -531,8 +557,8 @@ body {
     </div>
 
     <!-- Delay -->
-    <div class="effect-section">
-        <div class="section-header">Delay</div>
+    <div class="effect-section" id="section-delay">
+        <div class="section-header"><span>Delay</span><button id="toggle-delayBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
             <div class="knob-group"><div class="knob" id="knob-delayTime"><div class="knob-indicator"></div></div><div class="knob-label">Time</div><div class="knob-value" id="val-delayTime">375ms</div></div>
             <div class="knob-group"><div class="knob" id="knob-delayFeedback"><div class="knob-indicator"></div></div><div class="knob-label">Feedback</div><div class="knob-value" id="val-delayFeedback">30%</div></div>
@@ -551,8 +577,8 @@ body {
     </div>
 
     <!-- Chorus -->
-    <div class="effect-section">
-        <div class="section-header">Chorus</div>
+    <div class="effect-section" id="section-chorus">
+        <div class="section-header"><span>Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
             <div class="knob-group"><div class="knob" id="knob-chorusRate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-chorusRate">1.0 Hz</div></div>
             <div class="knob-group"><div class="knob" id="knob-chorusDepth"><div class="knob-indicator"></div></div><div class="knob-label">Depth</div><div class="knob-value" id="val-chorusDepth">50%</div></div>
@@ -561,8 +587,8 @@ body {
     </div>
 
     <!-- Distortion -->
-    <div class="effect-section">
-        <div class="section-header">Distortion</div>
+    <div class="effect-section" id="section-dist">
+        <div class="section-header"><span>Distortion</span><button id="toggle-distBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
             <div class="dropdown-group">
                 <span class="dropdown-label">Type</span>
@@ -576,8 +602,8 @@ body {
     </div>
 
     <!-- EQ -->
-    <div class="effect-section">
-        <div class="section-header">3-Band EQ</div>
+    <div class="effect-section" id="section-eq">
+        <div class="section-header"><span>4-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
             <div class="knob-group"><div class="knob" id="knob-eqLowGain"><div class="knob-indicator"></div></div><div class="knob-label">Low</div><div class="knob-value" id="val-eqLowGain">0 dB</div></div>
             <div class="knob-group"><div class="knob" id="knob-eqMidGain"><div class="knob-indicator"></div></div><div class="knob-label">Mid</div><div class="knob-value" id="val-eqMidGain">0 dB</div></div>
@@ -902,6 +928,33 @@ bindKnob('polyphony', polyFmt, 1.0);
     toggle.valueChangedEvent.addListener(updateSyncDisplay);
     updateSyncDisplay();
 })();
+
+// ─── BYPASS TOGGLES ───
+function bindBypassToggle(paramId, buttonId, sectionId) {
+    const btn = document.getElementById(buttonId);
+    const section = document.getElementById(sectionId);
+    if (!btn) return;
+    const toggle = Juce.getToggleState(paramId);
+
+    function update() {
+        const isBypassed = toggle.getValue();
+        btn.textContent = isBypassed ? 'OFF' : 'ON';
+        btn.classList.toggle('off', isBypassed);
+        if (section) section.classList.toggle('bypassed', isBypassed);
+    }
+
+    btn.addEventListener('click', () => {
+        toggle.setValue(!toggle.getValue());
+    });
+    toggle.valueChangedEvent.addListener(update);
+    update();
+}
+
+bindBypassToggle('reverbBypass', 'toggle-reverbBypass', 'section-reverb');
+bindBypassToggle('delayBypass', 'toggle-delayBypass', 'section-delay');
+bindBypassToggle('chorusBypass', 'toggle-chorusBypass', 'section-chorus');
+bindBypassToggle('distBypass', 'toggle-distBypass', 'section-dist');
+bindBypassToggle('eqBypass', 'toggle-eqBypass', 'section-eq');
 
 // ─── WAVETABLE DISPLAY ───
 class WavetableDisplay {

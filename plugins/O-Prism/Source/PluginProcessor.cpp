@@ -242,6 +242,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createReverbPara
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    params.push_back (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "reverbBypass", 1 }, "Reverb Bypass", false));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "reverbSize", 1 }, "Reverb Size",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
@@ -262,6 +264,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createDelayParam
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    params.push_back (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "delayBypass", 1 }, "Delay Bypass", false));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "delayTime", 1 }, "Delay Time",
         juce::NormalisableRange<float> (0.001f, 2.0f, 0.001f, 0.35f), 0.375f));
@@ -284,6 +288,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createChorusPara
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    params.push_back (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "chorusBypass", 1 }, "Chorus Bypass", false));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "chorusRate", 1 }, "Chorus Rate",
         juce::NormalisableRange<float> (0.1f, 10.0f, 0.01f, 0.4f), 1.0f));
@@ -301,6 +307,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createDistortion
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    params.push_back (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "distBypass", 1 }, "Distortion Bypass", false));
     params.push_back (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "distType", 1 }, "Distortion Type",
         juce::StringArray { "SoftClip", "HardClip", "Tube", "Fold" }, 0));
@@ -318,6 +326,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createEQParamete
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    params.push_back (std::make_unique<juce::AudioParameterBool> (
+        juce::ParameterID { "eqBypass", 1 }, "EQ Bypass", false));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "eqLowGain", 1 }, "EQ Low Gain",
         juce::NormalisableRange<float> (-12.0f, 12.0f, 0.1f), 0.0f));
@@ -480,63 +490,83 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     juce::dsp::AudioBlock<float> block (buffer);
 
     // 1. Distortion
-    int distType = static_cast<int> (parameters.getRawParameterValue ("distType")->load());
-    float distDrive = parameters.getRawParameterValue ("distDrive")->load();
-    float distMix = parameters.getRawParameterValue ("distMix")->load();
-    distortion.setType (distType);
-    distortion.setDrive (distDrive);
-    distortion.setMix (distMix);
-    if (distMix > 0.001f)
-        distortion.process (block);
+    bool distBypassed = parameters.getRawParameterValue ("distBypass")->load() > 0.5f;
+    if (! distBypassed)
+    {
+        int distType = static_cast<int> (parameters.getRawParameterValue ("distType")->load());
+        float distDrive = parameters.getRawParameterValue ("distDrive")->load();
+        float distMix = parameters.getRawParameterValue ("distMix")->load();
+        distortion.setType (distType);
+        distortion.setDrive (distDrive);
+        distortion.setMix (distMix);
+        if (distMix > 0.001f)
+            distortion.process (block);
+    }
 
     // 2. Chorus
-    float chorusRate = parameters.getRawParameterValue ("chorusRate")->load();
-    float chorusDepth = parameters.getRawParameterValue ("chorusDepth")->load();
-    float chorusMix = parameters.getRawParameterValue ("chorusMix")->load();
-    chorus.setRate (chorusRate);
-    chorus.setDepth (chorusDepth);
-    chorus.setMix (chorusMix);
-    if (chorusMix > 0.001f)
+    bool chorusBypassed = parameters.getRawParameterValue ("chorusBypass")->load() > 0.5f;
+    if (! chorusBypassed)
     {
-        juce::dsp::ProcessContextReplacing<float> chorusCtx (block);
-        chorus.process (chorusCtx);
+        float chorusRate = parameters.getRawParameterValue ("chorusRate")->load();
+        float chorusDepth = parameters.getRawParameterValue ("chorusDepth")->load();
+        float chorusMix = parameters.getRawParameterValue ("chorusMix")->load();
+        chorus.setRate (chorusRate);
+        chorus.setDepth (chorusDepth);
+        chorus.setMix (chorusMix);
+        if (chorusMix > 0.001f)
+        {
+            juce::dsp::ProcessContextReplacing<float> chorusCtx (block);
+            chorus.process (chorusCtx);
+        }
     }
 
     // 3. Delay
-    float delayTime = parameters.getRawParameterValue ("delayTime")->load();
-    float delayFeedback = parameters.getRawParameterValue ("delayFeedback")->load();
-    int delayMode = static_cast<int> (parameters.getRawParameterValue ("delayMode")->load());
-    float delayMix = parameters.getRawParameterValue ("delayMix")->load();
-    delay.setTime (delayTime);
-    delay.setFeedback (delayFeedback);
-    delay.setMode (delayMode);
-    delay.setMix (delayMix);
-    if (delayMix > 0.001f)
-        delay.process (block);
+    bool delayBypassed = parameters.getRawParameterValue ("delayBypass")->load() > 0.5f;
+    if (! delayBypassed)
+    {
+        float delayTime = parameters.getRawParameterValue ("delayTime")->load();
+        float delayFeedback = parameters.getRawParameterValue ("delayFeedback")->load();
+        int delayMode = static_cast<int> (parameters.getRawParameterValue ("delayMode")->load());
+        float delayMix = parameters.getRawParameterValue ("delayMix")->load();
+        delay.setTime (delayTime);
+        delay.setFeedback (delayFeedback);
+        delay.setMode (delayMode);
+        delay.setMix (delayMix);
+        if (delayMix > 0.001f)
+            delay.process (block);
+    }
 
     // 4. EQ
-    float eqLowGain = parameters.getRawParameterValue ("eqLowGain")->load();
-    float eqMidGain = parameters.getRawParameterValue ("eqMidGain")->load();
-    float eqMidFreq = parameters.getRawParameterValue ("eqMidFreq")->load();
-    float eqHighGain = parameters.getRawParameterValue ("eqHighGain")->load();
-    eq.setLowGain (eqLowGain);
-    eq.setMidGain (eqMidGain);
-    eq.setMidFreq (eqMidFreq);
-    eq.setHighGain (eqHighGain);
-    if (std::abs (eqLowGain) > 0.1f || std::abs (eqMidGain) > 0.1f || std::abs (eqHighGain) > 0.1f)
-        eq.process (block);
+    bool eqBypassed = parameters.getRawParameterValue ("eqBypass")->load() > 0.5f;
+    if (! eqBypassed)
+    {
+        float eqLowGain = parameters.getRawParameterValue ("eqLowGain")->load();
+        float eqMidGain = parameters.getRawParameterValue ("eqMidGain")->load();
+        float eqMidFreq = parameters.getRawParameterValue ("eqMidFreq")->load();
+        float eqHighGain = parameters.getRawParameterValue ("eqHighGain")->load();
+        eq.setLowGain (eqLowGain);
+        eq.setMidGain (eqMidGain);
+        eq.setMidFreq (eqMidFreq);
+        eq.setHighGain (eqHighGain);
+        if (std::abs (eqLowGain) > 0.1f || std::abs (eqMidGain) > 0.1f || std::abs (eqHighGain) > 0.1f)
+            eq.process (block);
+    }
 
     // 5. Reverb
-    float reverbSize = parameters.getRawParameterValue ("reverbSize")->load();
-    float reverbDamp = parameters.getRawParameterValue ("reverbDamp")->load();
-    float reverbPredelay = parameters.getRawParameterValue ("reverbPredelay")->load();
-    float reverbMix = parameters.getRawParameterValue ("reverbMix")->load();
-    reverbProcessor.setSize (reverbSize);
-    reverbProcessor.setDamping (reverbDamp);
-    reverbProcessor.setPredelay (reverbPredelay);
-    reverbProcessor.setMix (reverbMix);
-    if (reverbMix > 0.001f)
-        reverbProcessor.process (block);
+    bool reverbBypassed = parameters.getRawParameterValue ("reverbBypass")->load() > 0.5f;
+    if (! reverbBypassed)
+    {
+        float reverbSize = parameters.getRawParameterValue ("reverbSize")->load();
+        float reverbDamp = parameters.getRawParameterValue ("reverbDamp")->load();
+        float reverbPredelay = parameters.getRawParameterValue ("reverbPredelay")->load();
+        float reverbMix = parameters.getRawParameterValue ("reverbMix")->load();
+        reverbProcessor.setSize (reverbSize);
+        reverbProcessor.setDamping (reverbDamp);
+        reverbProcessor.setPredelay (reverbPredelay);
+        reverbProcessor.setMix (reverbMix);
+        if (reverbMix > 0.001f)
+            reverbProcessor.process (block);
+    }
 
     // Master volume (smoothed per-sample to prevent zipper noise)
     float masterVol = parameters.getRawParameterValue ("masterVol")->load();

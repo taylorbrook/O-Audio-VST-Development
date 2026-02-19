@@ -470,6 +470,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // 1 toggle relay (delaySync)
     delaySyncRelay = std::make_unique<juce::WebToggleButtonRelay> ("delaySync");
 
+    // 5 bypass toggle relays
+    for (int i = 0; i < numBypassParams; ++i)
+        bypassRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (bypassParamIds[i]));
+
     // ─────────────────────────────────────────────────────────────
     // Step 2: Build WebView options with relays + native functions
     // ─────────────────────────────────────────────────────────────
@@ -485,6 +489,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
 
     // Add toggle relay
     options = options.withOptionsFrom (*delaySyncRelay);
+
+    // Add bypass toggle relays
+    for (const auto& relay : bypassRelays)
+        options = options.withOptionsFrom (*relay);
 
     // Add native tuning functions
     options = addNativeFunctions (options);
@@ -522,6 +530,18 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     {
         delaySyncAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment> (
             *delaySyncParam, *delaySyncRelay, nullptr);
+    }
+
+    // 5 bypass toggle attachments
+    for (int i = 0; i < numBypassParams; ++i)
+    {
+        auto* param = processorRef.getAPVTS().getParameter (bypassParamIds[i]);
+        if (param != nullptr)
+        {
+            bypassAttachments.push_back (
+                std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                    *param, *bypassRelays[static_cast<size_t> (i)], nullptr));
+        }
     }
 
     // ─────────────────────────────────────────────────────────────

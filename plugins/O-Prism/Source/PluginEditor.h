@@ -71,9 +71,16 @@ private:
     // 3. Attachments destroyed FIRST (WebView still alive — safe)
     // ═══════════════════════════════════════════════════════════════════
 
+    // Bypass toggle param IDs
+    static constexpr const char* bypassParamIds[] = {
+        "reverbBypass", "delayBypass", "chorusBypass", "distBypass", "eqBypass"
+    };
+    static constexpr int numBypassParams = 5;
+
     // 1. RELAYS (destroyed last)
     std::vector<std::unique_ptr<juce::WebSliderRelay>> sliderRelays;
     std::unique_ptr<juce::WebToggleButtonRelay> delaySyncRelay;
+    std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> bypassRelays;
 
     // 2. WEBVIEW (destroyed second)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -81,6 +88,7 @@ private:
     // 3. ATTACHMENTS (destroyed first — WebView still alive)
     std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>> sliderAttachments;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> delaySyncAttachment;
+    std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> bypassAttachments;
 
     // Resource provider for WebView
     std::optional<juce::WebBrowserComponent::Resource>
