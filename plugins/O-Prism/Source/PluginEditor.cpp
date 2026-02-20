@@ -222,6 +222,57 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 });
         });
 
+    // Save Scala/KBM files
+    options = options.withNativeFunction ("saveScalaFile",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            auto chooser = std::make_shared<juce::FileChooser> (
+                "Save Scala File",
+                juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                    .getChildFile ("tuning.scl"),
+                "*.scl");
+
+            chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                | juce::FileBrowserComponent::canSelectFiles,
+                [this, chooser, complete] (const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file != juce::File())
+                    {
+                        auto content = processorRef.getTuningEngine()->generateScalaFileContent();
+                        file.replaceWithText (content);
+                        complete (file.getFileName());
+                    }
+                    else
+                    {
+                        complete (juce::var());
+                    }
+                });
+        });
+
+    options = options.withNativeFunction ("saveKBMFile",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            auto chooser = std::make_shared<juce::FileChooser> (
+                "Save Keyboard Mapping",
+                juce::File::getSpecialLocation (juce::File::userDocumentsDirectory)
+                    .getChildFile ("mapping.kbm"),
+                "*.kbm");
+
+            chooser->launchAsync (juce::FileBrowserComponent::saveMode
+                                | juce::FileBrowserComponent::canSelectFiles,
+                [this, chooser, complete] (const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file != juce::File())
+                    {
+                        auto content = processorRef.getTuningEngine()->generateKBMFileContent();
+                        file.replaceWithText (content);
+                        complete (file.getFileName());
+                    }
+                    else
+                    {
+                        complete (juce::var());
+                    }
+                });
+        });
+
     // Scale generators
     options = options.withNativeFunction ("generateEDO",
         [this] (const juce::Array<juce::var>& args, auto complete) {

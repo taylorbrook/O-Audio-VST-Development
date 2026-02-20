@@ -18,14 +18,14 @@ std::vector<ChordVoice> ChordGenerator::generateChord(int rootMidiNote, int numV
     if (enabledDegrees.empty() || scaleDegreeCount <= 0)
     {
         // Fallback: single voice at root
-        return {{ rootMidiNote, 0, 0, 0, 0.0f }};
+        return {{ rootMidiNote, 0, 0.0f }};
     }
 
     // Find which enabled degree the played note maps to
     int rootDegreeInScale = findNearestDegree(rootMidiNote, keyRoot, enabledDegrees, scaleDegreeCount);
 
     // Build chord intervals from enabled degrees
-    auto intervals = buildChordIntervals(rootDegreeInScale, enabledDegrees, scaleDegreeCount, complexity);
+    auto intervals = buildChordIntervals(rootDegreeInScale, enabledDegrees, scaleDegreeCount);
 
     // Distribute voices across the intervals
     return distributeVoices(rootMidiNote, rootDegreeInScale, intervals, numVoices, scaleDegreeCount);
@@ -62,7 +62,7 @@ int ChordGenerator::findNearestDegree(int midiNote, int keyRoot, const std::vect
 
 std::vector<int> ChordGenerator::buildChordIntervals(int rootDegreeInScale,
                                                       const std::vector<int>& enabledDegrees,
-                                                      int scaleDegreeCount, float /*complexity*/) const
+                                                      int scaleDegreeCount) const
 {
     // Build intervals as degree offsets from the root degree
     // These become MIDI note offsets (since TuningEngine maps MIDI linearly through degrees)
@@ -90,7 +90,7 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int r
     int availableIntervals = static_cast<int>(intervals.size());
 
     if (availableIntervals == 0)
-        return {{ rootMidiNote, 0, 0, 0, 0.0f }};
+        return {{ rootMidiNote, 0, 0.0f }};
 
     // Assign complexity thresholds: root interval gets 0.0 (always on),
     // subsequent intervals get progressively higher thresholds
@@ -121,8 +121,6 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int r
 
         ChordVoice voice;
         voice.midiNote = rootMidiNote + degreeOffset + (octaveOffset * scaleDegreeCount);
-        voice.scaleDegree = (rootDegreeInScale + degreeOffset) % scaleDegreeCount;
-        voice.semitoneOffset = degreeOffset;
         voice.octaveShift = octaveOffset;
         voice.complexityThreshold = getThreshold(intervalIndex);
 

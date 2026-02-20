@@ -34,42 +34,15 @@ public:
      */
     static juce::String toHTML(const TuningEngine& engine, const juce::String& pluginName = "Ouaricon Audio");
 
-    /**
-     * Generate SVG pitch circle for current tuning
-     * @param intervals Vector of intervals in cents
-     * @param period Period in cents (1200.0 for octave)
-     * @param scaleName Name of the scale
-     * @return SVG markup as string
-     */
+private:
     static juce::String generatePitchCircleSVG(const std::vector<double>& intervals,
                                                 double period,
                                                 const juce::String& scaleName);
-
-    /**
-     * Approximate a cents value as a simple ratio
-     * @param cents Interval in cents
-     * @return String representation of ratio (e.g., "3/2", "5/4")
-     */
     static juce::String approximateRatio(double cents);
-
-    /**
-     * Calculate deviation from equal temperament
-     * @param cents Actual interval in cents
-     * @param degree Scale degree (0-based)
-     * @param totalDegrees Total degrees in scale
-     * @param period Period in cents
-     * @return Deviation in cents (positive = sharp, negative = flat)
-     */
     static double calculateETDeviation(double cents, int degree, int totalDegrees, double period);
-
-private:
-    // CSS styles for HTML export
     static juce::String getStyles();
-
-    // HTML table row for interval
     static juce::String generateIntervalRow(int degree, double cents, int totalDegrees, double period);
 
-    // Common simple ratios for approximation lookup
     struct RatioEntry {
         double cents;
         const char* ratio;

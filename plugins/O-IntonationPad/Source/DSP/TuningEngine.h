@@ -118,10 +118,6 @@ public:
      */
     BuiltInPreset getBuiltInPreset() const { return currentPreset; }
 
-    /**
-     * Get display name for current preset
-     */
-    juce::String getPresetName() const;
 
     // ═══════════════════════════════════════════════════════════════════
     // Tuning Mode
@@ -259,17 +255,6 @@ public:
      */
     void clearAllPitchBends();
 
-    /**
-     * Get scale frequencies for glissando
-     * @param rootNote MIDI note number for root of scale
-     * @param numNotes Number of scale degrees to return
-     * @return Vector of frequencies in Hz
-     */
-    std::vector<double> getScaleFrequencies(int rootNote, int numNotes);
-
-    // Deprecated compatibility stubs
-    bool loadScalaFile(const juce::File& scl, const juce::File& kbm);
-    bool connectMTSClient();
 
 private:
     // ═══════════════════════════════════════════════════════════════════
@@ -329,9 +314,6 @@ private:
     std::vector<int> kbmMapping;
     bool kbmLoaded = false;
 
-    // Future expansion
-    bool mtsSynthClientConnected = false;
-    bool scalaFileLoaded = false;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(TuningEngine)
 };

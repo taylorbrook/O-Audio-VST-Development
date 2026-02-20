@@ -22,7 +22,8 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     voiceCountRelay = std::make_unique<juce::WebSliderRelay>("voiceCount");
     complexityRelay = std::make_unique<juce::WebSliderRelay>("complexity");
     keyRootRelay = std::make_unique<juce::WebSliderRelay>("keyRoot");
-    inversionRandomRelay = std::make_unique<juce::WebSliderRelay>("inversionRandom");
+    spacingRelay = std::make_unique<juce::WebSliderRelay>("spacing");
+    inversionRelay = std::make_unique<juce::WebSliderRelay>("inversion");
     wavetablePosRelay = std::make_unique<juce::WebSliderRelay>("wavetablePos");
     lfoRateRelay = std::make_unique<juce::WebSliderRelay>("lfoRate");
     lfoDepthRelay = std::make_unique<juce::WebSliderRelay>("lfoDepth");
@@ -32,6 +33,9 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     releaseTimeRelay = std::make_unique<juce::WebSliderRelay>("releaseTime");
     filterCutoffRelay = std::make_unique<juce::WebSliderRelay>("filterCutoff");
     masterVolumeRelay = std::make_unique<juce::WebSliderRelay>("masterVolume");
+
+    // v1.6.0: Wavetable bank relay
+    wavetableBankRelay = std::make_unique<juce::WebComboBoxRelay>("wavetableBank");
 
     // v1.3.0: Tuning relays
     tuningMasterTuneRelay = std::make_unique<juce::WebSliderRelay>("tuning_masterTune");
@@ -52,7 +56,8 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
             .withOptionsFrom(*voiceCountRelay)
             .withOptionsFrom(*complexityRelay)
             .withOptionsFrom(*keyRootRelay)
-            .withOptionsFrom(*inversionRandomRelay)
+            .withOptionsFrom(*spacingRelay)
+            .withOptionsFrom(*inversionRelay)
             .withOptionsFrom(*wavetablePosRelay)
             .withOptionsFrom(*lfoRateRelay)
             .withOptionsFrom(*lfoDepthRelay)
@@ -62,6 +67,8 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
             .withOptionsFrom(*releaseTimeRelay)
             .withOptionsFrom(*filterCutoffRelay)
             .withOptionsFrom(*masterVolumeRelay)
+            // v1.6.0: Wavetable bank relay
+            .withOptionsFrom(*wavetableBankRelay)
             // v1.3.0: Tuning relays
             .withOptionsFrom(*tuningMasterTuneRelay)
             .withOptionsFrom(*tuningOctaveStretchRelay)
@@ -104,17 +111,6 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
             })
 
             .withNativeFunction("setSingleInterval", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 2) {
-                    int index = static_cast<int>(args[0]);
-                    double cents = static_cast<double>(args[1]);
-                    processorRef.getTuningEngine().setSingleInterval(index, cents);
-                    complete(true);
-                    return;
-                }
-                complete(false);
-            })
-
-            .withNativeFunction("setSingleIntervalEncoded", [this](const juce::Array<juce::var>& args, auto complete) {
                 if (args.size() >= 2) {
                     int index = static_cast<int>(args[0]);
                     double cents = static_cast<double>(args[1]);
@@ -439,8 +435,10 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
         *apvts.getParameter("complexity"), *complexityRelay, nullptr);
     keyRootAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("keyRoot"), *keyRootRelay, nullptr);
-    inversionRandomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("inversionRandom"), *inversionRandomRelay, nullptr);
+    spacingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("spacing"), *spacingRelay, nullptr);
+    inversionAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("inversion"), *inversionRelay, nullptr);
     wavetablePosAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("wavetablePos"), *wavetablePosRelay, nullptr);
     lfoRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -459,6 +457,10 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
         *apvts.getParameter("filterCutoff"), *filterCutoffRelay, nullptr);
     masterVolumeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("masterVolume"), *masterVolumeRelay, nullptr);
+
+    // v1.6.0: Wavetable bank attachment
+    wavetableBankAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("wavetableBank"), *wavetableBankRelay, nullptr);
 
     // v1.3.0: Tuning attachments
     tuningMasterTuneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -617,6 +619,6 @@ OIntonationPadAudioProcessorEditor::getResource(const juce::String& url)
     }
 
     // Resource not found
-    juce::Logger::writeToLog("Resource not found: " + url);
+    DBG("Resource not found: " + url);
     return std::nullopt;
 }

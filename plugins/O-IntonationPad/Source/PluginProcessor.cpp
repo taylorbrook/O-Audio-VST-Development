@@ -10,13 +10,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
-#include "DSP/WavetableVoice.h"
 #include "DSP/WavetableSound.h"
-#include "DSP/ChordGenerator.h"
-#include "DSP/TuningEngine.h"
-#include "DSP/ScaleGenerator.h"
-#include "DSP/TuningExporter.h"
-#include "DSP/EmbeddedTunings.h"
 
 juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor::createParameterLayout()
 {
@@ -88,10 +82,18 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
             "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom" },
         8));  // Default: Just Intonation (restores pre-v1.3.0 behavior)
 
-    // INVERSION_RANDOM - Float (0-100%, default: 30%)
+    // SPACING - Float (0-100%, default: 0%) — shifts voices UP by 1-3 octaves
     layout.add(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "inversionRandom", 1 },
-        "Inversion Random",
+        juce::ParameterID { "spacing", 1 },
+        "Spacing",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
+    ));
+
+    // INVERSION - Float (0-100%, default: 30%) — shifts voices DOWN by 1-3 octaves
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "inversion", 1 },
+        "Inversion",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.3f
     ));
@@ -112,6 +114,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         juce::NormalisableRange<float>(0.0f, 50.0f, 0.1f),
         5.0f,
         "cents"
+    ));
+
+    // WAVETABLE_BANK - Choice (9 banks, default: 0 = JI Harmonic)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "wavetableBank", 1 },
+        "Wavetable Bank",
+        juce::StringArray {
+            "JI Harmonic", "Warm Analog", "Choir", "Strings",
+            "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter" },
+        0
     ));
 
     // WAVETABLE_POS - Float (0-100%, default: 50%)
@@ -215,6 +227,7 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
 
     // Prepare filter
+    juce::dsp::ProcessSpec filterSpec;
     filterSpec.sampleRate = sampleRate;
     filterSpec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
     filterSpec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
@@ -244,7 +257,6 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
 
 void OIntonationPadAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2 (DSP)
 }
 
 void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -255,6 +267,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     buffer.clear();
 
     // Read parameters (atomic, real-time safe)
+    int wavetableBank = static_cast<int>(parameters.getRawParameterValue("wavetableBank")->load());
     float wavetablePos = parameters.getRawParameterValue("wavetablePos")->load();
     float attackTime = parameters.getRawParameterValue("attackTime")->load();
     float releaseTime = parameters.getRawParameterValue("releaseTime")->load();
@@ -265,7 +278,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     float lfoDepth = parameters.getRawParameterValue("lfoDepth")->load();
     float filterCutoff = parameters.getRawParameterValue("filterCutoff")->load();
     float masterVolume = parameters.getRawParameterValue("masterVolume")->load();
-    float inversionRandom = parameters.getRawParameterValue("inversionRandom")->load();
+    float spacing = parameters.getRawParameterValue("spacing")->load();
+    float inversion = parameters.getRawParameterValue("inversion")->load();
     float detuneRandom = parameters.getRawParameterValue("detuneRandom")->load();
     float timingRandom = parameters.getRawParameterValue("timingRandom")->load();
 
@@ -301,13 +315,14 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     {
         if (auto* voice = dynamic_cast<WavetableVoice*>(synthesiser.getVoice(i)))
         {
+            voice->setWavetableBank(wavetableBank);
             voice->setWavetablePosition(modulatedWavetablePos);
             voice->setEnvelopeParameters(attackTime, releaseTime);
 
             // Store chord generation parameters for voices to use on note-on
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot,
                                             cachedEnabledDegrees, cachedScaleDegreeCount,
-                                            inversionRandom, detuneRandom, timingRandom,
+                                            spacing, inversion, detuneRandom, timingRandom,
                                             &chordGenerator, &tuningEngine, &randomGenerator);
         }
     }
@@ -322,10 +337,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     filter.process(context);
 
     // Apply master volume
-    for (int channel = 0; channel < buffer.getNumChannels(); ++channel)
-    {
-        buffer.applyGain(channel, 0, buffer.getNumSamples(), masterVolume);
-    }
+    buffer.applyGain(masterVolume);
 }
 
 juce::AudioProcessorEditor* OIntonationPadAudioProcessor::createEditor()
@@ -446,7 +458,7 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
             int subCount = voice->getActiveSubVoiceCount();
             for (int j = 0; j < subCount; ++j)
             {
-                // Base (uninverted) contribution
+                // Base contribution
                 float baseGain = voice->getSubVoiceBaseGain(j);
                 if (baseGain > 0.01f)
                 {
@@ -454,12 +466,20 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
                     notes.push_back({ info.midiNote, info.frequencyHz, baseGain });
                 }
 
-                // Inverted contribution
-                float invertedGain = voice->getSubVoiceInvertedGain(j);
-                if (invertedGain > 0.01f)
+                // Spacing (up) contribution
+                float spacingGain = voice->getSubVoiceSpacingGain(j);
+                if (spacingGain > 0.01f)
                 {
-                    const auto& info = voice->getSubVoiceInvertedInfo(j);
-                    notes.push_back({ info.midiNote, info.frequencyHz, invertedGain });
+                    const auto& info = voice->getSubVoiceSpacingInfo(j);
+                    notes.push_back({ info.midiNote, info.frequencyHz, spacingGain });
+                }
+
+                // Inversion (down) contribution
+                float inversionGain = voice->getSubVoiceInversionGain(j);
+                if (inversionGain > 0.01f)
+                {
+                    const auto& info = voice->getSubVoiceInversionInfo(j);
+                    notes.push_back({ info.midiNote, info.frequencyHz, inversionGain });
                 }
             }
         }

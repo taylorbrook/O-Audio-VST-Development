@@ -17,6 +17,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <mutex>
 
 /**
  * EmbeddedTuning: Single tuning definition
@@ -51,25 +52,13 @@ public:
     static const EmbeddedTuning* getTuningById(const std::string& id);
 
     /**
-     * Get tunings by category
-     * @param category Category name (e.g., "Historical")
-     * @return Vector of tunings in that category
-     */
-    static std::vector<const EmbeddedTuning*> getTuningsByCategory(const std::string& category);
-
-    /**
      * Get list of all category names
      * @return Vector of category names in display order
      */
     static std::vector<std::string> getCategories();
 
-    /**
-     * Get tuning count
-     */
-    static size_t getTuningCount();
-
 private:
     static std::vector<EmbeddedTuning> tunings;
-    static bool initialized;
+    static std::once_flag initFlag;
     static void initializeTunings();
 };

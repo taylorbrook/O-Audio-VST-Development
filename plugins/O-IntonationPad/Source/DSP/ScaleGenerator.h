@@ -72,13 +72,6 @@ public:
      */
     static std::vector<double> generateRank2(double generatorCents, double periodCents, int count);
 
-    /**
-     * Get description string for generated scale
-     */
-    static std::string getEDODescription(int divisions, double period);
-    static std::string getHarmonicDescription(int start, int end);
-    static std::string getRank2Description(double generator, double period, int count);
-
 private:
     /**
      * Reduce cents values to within [0, period) and sort

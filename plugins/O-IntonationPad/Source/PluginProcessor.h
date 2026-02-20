@@ -12,9 +12,6 @@
 #include <JuceHeader.h>
 #include "DSP/ChordGenerator.h"
 #include "DSP/TuningEngine.h"
-#include "DSP/ScaleGenerator.h"
-#include "DSP/TuningExporter.h"
-#include "DSP/EmbeddedTunings.h"
 #include "DSP/WavetableVoice.h"
 
 struct ActiveNoteInfo
@@ -76,8 +73,6 @@ private:
     juce::Synthesiser synthesiser;
     ChordGenerator chordGenerator;
     TuningEngine tuningEngine;
-    ScaleGenerator scaleGenerator;
-    TuningExporter tuningExporter;
 
     // Global LFO
     double lfoPhase = 0.0;
@@ -85,7 +80,6 @@ private:
 
     // Filter
     juce::dsp::StateVariableTPTFilter<float> filter;
-    juce::dsp::ProcessSpec filterSpec;
 
     // Randomization
     juce::Random randomGenerator;

@@ -15,13 +15,10 @@
 
 // Static member definitions
 std::vector<EmbeddedTuning> EmbeddedTunings::tunings;
-bool EmbeddedTunings::initialized = false;
+std::once_flag EmbeddedTunings::initFlag;
 
 void EmbeddedTunings::initializeTunings()
 {
-    if (initialized) return;
-
-    tunings.clear();
 
     // ═══════════════════════════════════════════════════════════════════
     // HISTORICAL TEMPERAMENTS (Well-temperaments for Baroque/Classical)
@@ -278,45 +275,26 @@ void EmbeddedTunings::initializeTunings()
         1200.0
     });
 
-    initialized = true;
 }
 
 const std::vector<EmbeddedTuning>& EmbeddedTunings::getAllTunings()
 {
-    initializeTunings();
+    std::call_once(initFlag, initializeTunings);
     return tunings;
 }
 
 const EmbeddedTuning* EmbeddedTunings::getTuningById(const std::string& id)
 {
-    initializeTunings();
+    std::call_once(initFlag, initializeTunings);
     for (const auto& tuning : tunings)
     {
-        if (tuning.id == id)
+        if (std::string(tuning.id) == id)
             return &tuning;
     }
     return nullptr;
 }
 
-std::vector<const EmbeddedTuning*> EmbeddedTunings::getTuningsByCategory(const std::string& category)
-{
-    initializeTunings();
-    std::vector<const EmbeddedTuning*> result;
-    for (const auto& tuning : tunings)
-    {
-        if (tuning.category == category)
-            result.push_back(&tuning);
-    }
-    return result;
-}
-
 std::vector<std::string> EmbeddedTunings::getCategories()
 {
     return {"Historical", "Just Intonation", "Equal Divisions", "Non-Octave", "World"};
-}
-
-size_t EmbeddedTunings::getTuningCount()
-{
-    initializeTunings();
-    return tunings.size();
 }

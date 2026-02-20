@@ -36,11 +36,9 @@ target_include_directories(O-IntonationPad
 target_link_libraries(O-IntonationPad
     PRIVATE
         juce::juce_audio_basics
-        juce::juce_audio_devices
         juce::juce_audio_formats
         juce::juce_audio_plugin_client
         juce::juce_audio_processors
-        juce::juce_audio_utils
         juce::juce_core
         juce::juce_data_structures
         juce::juce_dsp

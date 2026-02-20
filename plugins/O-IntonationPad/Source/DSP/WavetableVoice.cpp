@@ -20,6 +20,15 @@ WavetableVoice::WavetableVoice()
     envelope.setParameters(envelopeParams);
 }
 
+int WavetableVoice::getRandomOctaveShift(juce::Random* rng)
+{
+    if (rng == nullptr) return 1;
+    float r = rng->nextFloat();
+    if (r < 0.6f) return 1;       // 60% chance: 1 octave
+    if (r < 0.9f) return 2;       // 30% chance: 2 octaves
+    return 3;                      // 10% chance: 3 octaves
+}
+
 bool WavetableVoice::canPlaySound(juce::SynthesiserSound* sound)
 {
     return dynamic_cast<WavetableSound*>(sound) != nullptr;
@@ -37,7 +46,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
     if (chordGeneratorPtr != nullptr)
     {
         // Always generate MAX sub-voices with full complexity so voice count,
-        // complexity, and inversion can all be changed in real-time on held notes
+        // complexity, spacing, and inversion can all be changed in real-time on held notes
         auto chordVoices = chordGeneratorPtr->generateChord(midiNoteNumber, MAX_SUB_VOICES,
                                                              1.0f, cachedKeyRoot, cachedEnabledDegrees,
                                                              cachedScaleDegreeCount);
@@ -53,7 +62,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             auto idx = static_cast<size_t>(i);
             int baseMidiNote = chordVoices[idx].midiNote;
 
-            // --- Base (uninverted) oscillator ---
+            // --- Base oscillator ---
             double centOffset = 0.0;
             if (randomPtr != nullptr && cachedDetuneRandom > 0.0f)
                 centOffset = (randomPtr->nextFloat() * 2.0f - 1.0f) * static_cast<double>(cachedDetuneRandom);
@@ -73,34 +82,55 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             subVoiceOscillators[idx].reset();
             subVoiceInfos[idx] = { baseMidiNote, baseFreq };
 
-            // --- Inverted oscillator (random ±1 octave shift) ---
-            int octaveShift = (randomPtr != nullptr) ? (randomPtr->nextBool() ? 12 : -12) : 12;
-            int invertedMidiNote = baseMidiNote + octaveShift;
+            // --- Spacing oscillator (shift UP by 1-3 octaves) ---
+            int spacingOctaves = getRandomOctaveShift(randomPtr);
+            int spacingMidiNote = baseMidiNote + (spacingOctaves * 12);
+            if (spacingMidiNote > 127)
+                spacingMidiNote = 127;  // Clamp to valid range
 
-            // Clamp to valid MIDI range, flip direction if needed
-            if (invertedMidiNote < 0 || invertedMidiNote > 127)
-                invertedMidiNote = baseMidiNote - octaveShift;
-
-            float invertedFreq;
+            float spacingFreq;
             if (tuningEnginePtr != nullptr)
             {
-                double freq = tuningEnginePtr->getFrequency(invertedMidiNote);
+                double freq = tuningEnginePtr->getFrequency(spacingMidiNote);
                 if (centOffset != 0.0)
                     freq *= std::pow(2.0, centOffset / 1200.0);
-                invertedFreq = static_cast<float>(freq);
+                spacingFreq = static_cast<float>(freq);
             }
             else
-                invertedFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(invertedMidiNote));
+                spacingFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(spacingMidiNote));
 
-            subVoiceInvertedOscillators[idx].setFrequency(invertedFreq, currentSampleRate);
-            subVoiceInvertedOscillators[idx].reset();
-            subVoiceInvertedInfos[idx] = { invertedMidiNote, invertedFreq };
+            subVoiceSpacingOscillators[idx].setFrequency(spacingFreq, currentSampleRate);
+            subVoiceSpacingOscillators[idx].reset();
+            subVoiceSpacingInfos[idx] = { spacingMidiNote, spacingFreq };
 
-            // Assign random inversion threshold (determines when this voice inverts)
+            // --- Inversion oscillator (shift DOWN by 1-3 octaves) ---
+            int inversionOctaves = getRandomOctaveShift(randomPtr);
+            int inversionMidiNote = baseMidiNote - (inversionOctaves * 12);
+            if (inversionMidiNote < 0)
+                inversionMidiNote = 0;  // Clamp to valid range
+
+            float inversionFreq;
+            if (tuningEnginePtr != nullptr)
+            {
+                double freq = tuningEnginePtr->getFrequency(inversionMidiNote);
+                if (centOffset != 0.0)
+                    freq *= std::pow(2.0, centOffset / 1200.0);
+                inversionFreq = static_cast<float>(freq);
+            }
+            else
+                inversionFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(inversionMidiNote));
+
+            subVoiceInversionOscillators[idx].setFrequency(inversionFreq, currentSampleRate);
+            subVoiceInversionOscillators[idx].reset();
+            subVoiceInversionInfos[idx] = { inversionMidiNote, inversionFreq };
+
+            // Assign random thresholds for spacing and inversion (determines when this voice activates)
+            subVoiceSpacingThresholds[idx] = (randomPtr != nullptr) ? randomPtr->nextFloat() : 0.5f;
             subVoiceInversionThresholds[idx] = (randomPtr != nullptr) ? randomPtr->nextFloat() : 0.5f;
 
-            // Set initial inversion gain based on current knob position
-            subVoiceInversionGains[idx] = (cachedInversionRandom >= subVoiceInversionThresholds[idx]) ? 1.0f : 0.0f;
+            // Set initial gains based on current knob positions
+            subVoiceSpacingGains[idx] = (cachedSpacing >= subVoiceSpacingThresholds[idx]) ? 1.0f : 0.0f;
+            subVoiceInversionGains[idx] = (cachedInversion >= subVoiceInversionThresholds[idx]) ? 1.0f : 0.0f;
 
             // --- Complexity gain ---
             subVoiceComplexityThresholds[idx] = chordVoices[idx].complexityThreshold;
@@ -133,12 +163,17 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         subVoiceOscillators[0].setFrequency(frequency, currentSampleRate);
         subVoiceOscillators[0].reset();
         subVoiceInfos[0] = { midiNoteNumber, frequency };
-        subVoiceInvertedOscillators[0].setFrequency(frequency, currentSampleRate);
-        subVoiceInvertedOscillators[0].reset();
-        subVoiceInvertedInfos[0] = { midiNoteNumber, frequency };
+        subVoiceSpacingOscillators[0].setFrequency(frequency, currentSampleRate);
+        subVoiceSpacingOscillators[0].reset();
+        subVoiceSpacingInfos[0] = { midiNoteNumber, frequency };
+        subVoiceInversionOscillators[0].setFrequency(frequency, currentSampleRate);
+        subVoiceInversionOscillators[0].reset();
+        subVoiceInversionInfos[0] = { midiNoteNumber, frequency };
         subVoiceComplexityGains[0] = 1.0f;
         subVoiceVoiceCountGains[0] = 1.0f;
+        subVoiceSpacingGains[0] = 0.0f;
         subVoiceInversionGains[0] = 0.0f;
+        subVoiceSpacingThresholds[0] = 1.0f;
         subVoiceInversionThresholds[0] = 1.0f;
     }
 
@@ -166,7 +201,7 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Sum all sub-voice oscillators with independent complexity, voice-count, and inversion gains
+        // Sum all sub-voice oscillators with independent complexity, voice-count, spacing, and inversion gains
         float mixedSample = 0.0f;
 
         for (int i = 0; i < activeSubVoices; ++i)
@@ -188,30 +223,38 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
             // --- Voice count gain target ---
             float voiceCountTarget = (i < cachedVoiceCount) ? 1.0f : 0.0f;
 
-            // --- Inversion crossfade target ---
-            float inversionTarget = (cachedInversionRandom >= subVoiceInversionThresholds[idx]) ? 1.0f : 0.0f;
+            // --- Spacing crossfade target ---
+            float spacingTarget = (cachedSpacing >= subVoiceSpacingThresholds[idx]) ? 1.0f : 0.0f;
 
-            // Smooth all three gains independently
+            // --- Inversion crossfade target ---
+            float inversionTarget = (cachedInversion >= subVoiceInversionThresholds[idx]) ? 1.0f : 0.0f;
+
+            // Smooth all gains independently
             subVoiceComplexityGains[idx] += (complexityTarget - subVoiceComplexityGains[idx]) * gainSmoothCoeff;
             subVoiceVoiceCountGains[idx] += (voiceCountTarget - subVoiceVoiceCountGains[idx]) * gainSmoothCoeff;
+            subVoiceSpacingGains[idx] += (spacingTarget - subVoiceSpacingGains[idx]) * gainSmoothCoeff;
             subVoiceInversionGains[idx] += (inversionTarget - subVoiceInversionGains[idx]) * gainSmoothCoeff;
 
             float amplitudeGain = subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx];
-            float invMix = subVoiceInversionGains[idx];
+            float spacingMix = subVoiceSpacingGains[idx];
+            float inversionMix = subVoiceInversionGains[idx];
+            float baseMix = (1.0f - spacingMix) * (1.0f - inversionMix);
 
             // Check if this sub-voice's delay has elapsed
             if (subVoiceDelayCounters[idx] >= subVoiceDelays[idx])
             {
-                // Crossfade between base and inverted oscillators
-                float baseSample = subVoiceOscillators[idx].getNextSample() * (1.0f - invMix);
-                float invertedSample = subVoiceInvertedOscillators[idx].getNextSample() * invMix;
-                mixedSample += (baseSample + invertedSample) * amplitudeGain;
+                // 3-way mix: base + spacing(up) + inversion(down)
+                float baseSample = subVoiceOscillators[idx].getNextSample() * baseMix;
+                float spacingSample = subVoiceSpacingOscillators[idx].getNextSample() * spacingMix;
+                float inversionSample = subVoiceInversionOscillators[idx].getNextSample() * inversionMix;
+                mixedSample += (baseSample + spacingSample + inversionSample) * amplitudeGain;
             }
             else
             {
-                // Still advance both oscillators during delay to keep them in sync
+                // Still advance all oscillators during delay to keep them in sync
                 subVoiceOscillators[idx].getNextSample();
-                subVoiceInvertedOscillators[idx].getNextSample();
+                subVoiceSpacingOscillators[idx].getNextSample();
+                subVoiceInversionOscillators[idx].getNextSample();
                 ++subVoiceDelayCounters[idx];
             }
         }
@@ -237,13 +280,26 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
     }
 }
 
+void WavetableVoice::setWavetableBank(int bankIndex)
+{
+    const auto* bank = &WavetableData::BankCache::getBank(bankIndex);
+    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+        subVoiceOscillators[idx].setWavetableBank(bank);
+        subVoiceSpacingOscillators[idx].setWavetableBank(bank);
+        subVoiceInversionOscillators[idx].setWavetableBank(bank);
+    }
+}
+
 void WavetableVoice::setWavetablePosition(float pos)
 {
     for (int i = 0; i < MAX_SUB_VOICES; ++i)
     {
         auto idx = static_cast<size_t>(i);
         subVoiceOscillators[idx].setWavetablePosition(pos);
-        subVoiceInvertedOscillators[idx].setWavetablePosition(pos);
+        subVoiceSpacingOscillators[idx].setWavetablePosition(pos);
+        subVoiceInversionOscillators[idx].setWavetablePosition(pos);
     }
 }
 
@@ -258,7 +314,8 @@ void WavetableVoice::setEnvelopeParameters(float attack, float release)
 
 void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
                                                 const std::vector<int>& enabledDegrees, int scaleDegreeCount,
-                                                float inversionRandom, float detuneRandom, float timingRandom,
+                                                float spacing, float inversion,
+                                                float detuneRandom, float timingRandom,
                                                 ChordGenerator* chordGen, TuningEngine* tuning,
                                                 juce::Random* random)
 {
@@ -267,7 +324,8 @@ void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, 
     cachedKeyRoot = keyRoot;
     cachedEnabledDegrees = enabledDegrees;
     cachedScaleDegreeCount = scaleDegreeCount;
-    cachedInversionRandom = inversionRandom;
+    cachedSpacing = spacing;
+    cachedInversion = inversion;
     cachedDetuneRandom = detuneRandom;
     cachedTimingRandom = timingRandom;
     chordGeneratorPtr = chordGen;

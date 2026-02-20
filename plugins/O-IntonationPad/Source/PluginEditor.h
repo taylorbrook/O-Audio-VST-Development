@@ -28,12 +28,13 @@ private:
 
     OIntonationPadAudioProcessor& processorRef;
 
-    // CRITICAL: Member declaration order (Pattern #11)
+    // Member declaration order matters: relays → webView → attachments
     // 1. RELAYS FIRST (no dependencies)
     std::unique_ptr<juce::WebSliderRelay> voiceCountRelay;
     std::unique_ptr<juce::WebSliderRelay> complexityRelay;
     std::unique_ptr<juce::WebSliderRelay> keyRootRelay;
-    std::unique_ptr<juce::WebSliderRelay> inversionRandomRelay;
+    std::unique_ptr<juce::WebSliderRelay> spacingRelay;
+    std::unique_ptr<juce::WebSliderRelay> inversionRelay;
     std::unique_ptr<juce::WebSliderRelay> wavetablePosRelay;
     std::unique_ptr<juce::WebSliderRelay> lfoRateRelay;
     std::unique_ptr<juce::WebSliderRelay> lfoDepthRelay;
@@ -43,6 +44,9 @@ private:
     std::unique_ptr<juce::WebSliderRelay> releaseTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> filterCutoffRelay;
     std::unique_ptr<juce::WebSliderRelay> masterVolumeRelay;
+
+    // v1.6.0: Wavetable bank relay
+    std::unique_ptr<juce::WebComboBoxRelay> wavetableBankRelay;
 
     // v1.3.0: Tuning module relays
     std::unique_ptr<juce::WebSliderRelay> tuningMasterTuneRelay;
@@ -60,7 +64,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> voiceCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> complexityAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> keyRootAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> inversionRandomAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> spacingAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> inversionAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> wavetablePosAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lfoRateAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lfoDepthAttachment;
@@ -70,6 +75,9 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> releaseTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> filterCutoffAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> masterVolumeAttachment;
+
+    // v1.6.0: Wavetable bank attachment
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> wavetableBankAttachment;
 
     // v1.3.0: Tuning module attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningMasterTuneAttachment;

@@ -3,7 +3,6 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<link rel="stylesheet" href="/css/tuning-panel.css">
 <style>
 /* ═══════════════════════════════════════════════════════════════════
    OUARICON NATURALIST DESIGN SYSTEM — O-PRISM
@@ -337,16 +336,288 @@ body {
 }
 
 /* ─── TUNING TAB ─── */
-#tuning-container {
-    height: 100%;
+#tuning-tab {
+    position: relative;
 }
-.tuning-extras {
+
+/* Left side: Interval list */
+.tuning-viz-container {
+    position: absolute;
+    left: 14px;
+    top: 10px;
+    bottom: 10px;
+    width: fit-content;
     display: flex;
-    gap: 8px;
-    padding: 8px 0 0;
-    border-top: 1px solid rgba(139,115,85,0.3);
-    margin-top: 6px;
+    flex-direction: row;
+    align-items: flex-start;
+    gap: 12px;
 }
+
+.interval-list {
+    width: 115px;
+    max-height: 100%;
+    background: rgba(235, 217, 199, 0.6);
+    border: 1px solid #8B7355;
+    border-radius: 4px;
+    overflow-y: auto;
+    padding: 4px 6px;
+    order: -1;
+}
+.interval-list-header {
+    font-size: 8px;
+    color: #5C4033;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.4);
+    padding-bottom: 3px;
+    margin-bottom: 3px;
+    text-align: center;
+}
+.tonic-selector {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 2px 4px;
+    margin-bottom: 3px;
+    background: rgba(139, 168, 112, 0.2);
+    border: 1px solid #8B7355;
+    border-radius: 3px;
+}
+.tonic-label { font-size: 7px; color: #5C4033; text-transform: uppercase; }
+.tonic-value { font-size: 9px; font-weight: bold; color: #3C2F2F; min-width: 20px; text-align: center; }
+.tonic-arrow {
+    width: 14px; height: 14px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; color: #5C4033;
+    background: rgba(212, 196, 176, 0.6);
+    border: 1px solid rgba(139, 115, 85, 0.5);
+    border-radius: 2px; cursor: pointer;
+    transition: background 0.15s;
+}
+.tonic-arrow:hover { background: rgba(139, 168, 112, 0.3); }
+.interval-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 2px 3px; border-radius: 2px; margin-bottom: 1px;
+}
+.interval-row:hover { background: rgba(139, 168, 112, 0.15); }
+.note-name { color: #5C4033; font-weight: 500; font-size: 8px; min-width: 18px; }
+.interval-input {
+    width: 50px; background: rgba(245, 230, 211, 0.8);
+    border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 2px;
+    font-family: monospace; font-size: 8px; color: #3C2F2F;
+    text-align: right; padding: 0 3px; outline: none;
+}
+.interval-input:focus { background: #FFF; border-color: #6B8E4E; }
+.interval-input:disabled { background: rgba(200, 200, 200, 0.3); color: #888; }
+.deviation { font-family: monospace; font-size: 7px; opacity: 0.8; min-width: 32px; text-align: right; }
+.deviation.pure { color: #4CAF50; }
+.deviation.sharp { color: #FF9800; }
+.deviation.flat { color: #2196F3; }
+
+/* Viz mode toggle */
+.viz-mode-toggle {
+    position: absolute;
+    left: calc(50% - 40px); transform: translateX(-50%);
+    top: 8px;
+    display: flex; gap: 4px; z-index: 20;
+}
+.viz-btn {
+    padding: 4px 8px;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px;
+    color: #5C4033; background: rgba(212, 196, 176, 0.7);
+    border: 1px solid #8B7355; border-radius: 3px;
+    cursor: pointer; transition: background 0.15s, color 0.15s;
+}
+.viz-btn:hover { background: rgba(139, 168, 112, 0.3); }
+.viz-btn.active { background: rgba(139, 168, 112, 0.5); color: #3C2F2F; border-color: #3C5C1A; font-weight: 500; }
+
+/* Visualization container */
+.viz-container {
+    position: absolute;
+    width: 220px; height: 210px;
+    left: calc(50% - 40px); transform: translateX(-50%);
+    bottom: 40px;
+    display: flex; align-items: center; justify-content: center;
+}
+.viz-view { display: none; width: 100%; height: 100%; }
+.viz-view.active { display: flex; align-items: center; justify-content: center; }
+
+/* Pitch Circle */
+.pitch-circle { position: relative; width: 188px; height: 188px; }
+.pitch-circle svg { width: 100%; height: 100%; }
+.pitch-circle-label {
+    position: absolute; bottom: -16px; width: 100%; text-align: center;
+    font-size: 8px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px;
+}
+
+/* Polar canvas */
+#polar-canvas { width: 180px; height: 180px; }
+
+/* Matrix view */
+.matrix-view { width: 100%; height: 100%; overflow: auto; padding: 4px; }
+.matrix-table { border-collapse: collapse; font-size: 8px; width: 100%; }
+.matrix-table th, .matrix-table td { padding: 2px 3px; border: 1px solid rgba(139, 115, 85, 0.3); text-align: center; min-width: 22px; }
+.matrix-table th { background: rgba(139, 115, 85, 0.25); font-weight: 600; color: #3C2F2F; }
+.matrix-cell { font-family: monospace; font-size: 7px; }
+
+/* True Keys view */
+.truekeys-view { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 8px; }
+.tk-hint { font-size: 11px; color: #5C4033; opacity: 0.7; text-align: center; }
+.tk-grid { display: flex; flex-direction: column; gap: 6px; width: 100%; max-height: 160px; overflow-y: auto; }
+.tk-interval { display: flex; justify-content: space-between; align-items: center; padding: 6px 10px; background: rgba(235, 217, 199, 0.6); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 4px; }
+.tk-interval span:first-child { font-size: 10px; color: #3C2F2F; font-weight: 500; }
+.tk-cents { font-family: monospace; font-size: 11px; color: #3C5C1A; font-weight: 600; }
+
+/* Rotation view */
+.rotation-view { width: 100%; height: 100%; overflow: auto; padding: 2px; }
+.rotation-table { border-collapse: collapse; font-size: 7px; width: 100%; }
+.rotation-table th, .rotation-table td { padding: 1px 2px; border: 1px solid rgba(139, 115, 85, 0.25); text-align: center; min-width: 18px; }
+.rotation-table th { background: rgba(139, 115, 85, 0.2); font-weight: 500; color: #3C2F2F; }
+.mode-name { background: rgba(139, 115, 85, 0.3) !important; font-weight: bold; font-size: 8px; }
+.int-cell { font-family: monospace; font-size: 7px; }
+.int-cell.small { background: rgba(33, 150, 243, 0.35); }
+.int-cell.medium { background: rgba(76, 175, 80, 0.35); }
+.int-cell.large { background: rgba(255, 152, 0, 0.35); }
+
+/* Right side: Controls panel */
+.tuning-controls-panel {
+    position: absolute;
+    right: 14px; top: 10px;
+    width: 200px;
+    display: flex; flex-direction: column; gap: 12px;
+    max-height: calc(100% - 20px);
+    overflow-y: auto;
+}
+
+/* A4 Reference Knob */
+.tuning-ref-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.ref-knob-container { position: relative; width: 60px; height: 60px; }
+.ref-knob {
+    width: 60px; height: 60px;
+    background: radial-gradient(circle at 35% 35%,
+        rgba(255, 248, 220, 0.9) 0%, rgba(245, 222, 179, 0.8) 40%,
+        rgba(212, 196, 176, 0.7) 70%, rgba(139, 115, 85, 0.5) 100%);
+    border: 2px solid #8B7355; border-radius: 50%;
+    cursor: pointer; position: relative;
+    box-shadow: 2px 2px 6px rgba(0,0,0,0.2), inset 1px 1px 3px rgba(255,255,255,0.3);
+}
+.ref-knob-indicator {
+    position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
+    width: 3px; height: 12px; background: #3C2F2F; border-radius: 2px;
+    transform-origin: center 25px;
+}
+.ref-knob-label { font-size: 8px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
+.ref-knob-value { font-size: 10px; color: #3C2F2F; text-align: center; font-weight: 500; }
+
+/* Scale name */
+.scale-name-display {
+    padding: 6px 10px; background: rgba(245, 230, 211, 0.8);
+    border: 1px solid #8B7355; border-radius: 3px;
+    font-size: 10px; color: #3C2F2F; text-align: center; min-height: 24px; width: 100%;
+}
+
+/* Octave stretch */
+.octave-stretch-section { display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.octave-stretch-row { display: flex; align-items: center; gap: 8px; }
+.octave-stretch-label { font-size: 8px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; min-width: 40px; }
+.octave-stretch-slider {
+    flex: 1; height: 6px; -webkit-appearance: none; appearance: none;
+    background: rgba(139, 115, 85, 0.3); border-radius: 3px; outline: none;
+}
+.octave-stretch-slider::-webkit-slider-thumb {
+    -webkit-appearance: none; appearance: none; width: 14px; height: 14px;
+    background: radial-gradient(circle at 35% 35%, rgba(255, 248, 220, 0.9) 0%, rgba(212, 196, 176, 0.8) 70%, rgba(139, 115, 85, 0.6) 100%);
+    border: 1px solid #8B7355; border-radius: 50%; cursor: pointer;
+}
+.octave-stretch-value { font-size: 9px; font-family: monospace; color: #3C2F2F; min-width: 32px; text-align: right; }
+
+/* File buttons */
+.tuning-file-section { display: flex; flex-direction: column; gap: 4px; }
+.tuning-file-buttons { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+.tuning-file-btn {
+    padding: 5px 6px; font-family: 'Garamond', 'Georgia', serif;
+    font-size: 8px; text-transform: uppercase; letter-spacing: 0.3px;
+    color: #5C4033; background: rgba(212, 196, 176, 0.7);
+    border: 1px solid #8B7355; border-radius: 2px;
+    cursor: pointer; transition: background 0.15s;
+}
+.tuning-file-btn:hover { background: rgba(139, 168, 112, 0.3); }
+.tuning-file-btn:active { transform: scale(0.97); }
+.tuning-export-btn { grid-column: span 2; background: rgba(139, 115, 85, 0.15); border-color: #6b5a42; color: #5c4033; }
+.tuning-export-btn:hover { background: rgba(139, 115, 85, 0.3); }
+
+/* Library section */
+.library-section { border-top: 1px solid rgba(139, 115, 85, 0.3); padding-top: 8px; }
+.library-header {
+    display: flex; align-items: center; justify-content: space-between;
+    cursor: pointer; padding: 4px 0; user-select: none;
+}
+.library-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
+.library-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.library-toggle.expanded { transform: rotate(180deg); }
+.library-content { display: none; padding-top: 8px; }
+.library-content.expanded { display: block; }
+.library-filter { margin-bottom: 8px; }
+.library-filter-select {
+    width: 100%; padding: 5px 6px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
+    border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
+}
+.library-filter-select:focus { border-color: #6B8E4E; }
+.library-list {
+    max-height: 150px; overflow-y: auto;
+    border: 1px solid rgba(139, 115, 85, 0.3); border-radius: 3px;
+    background: rgba(245, 230, 211, 0.5);
+}
+.library-item { padding: 6px 8px; cursor: pointer; border-bottom: 1px solid rgba(139, 115, 85, 0.15); transition: background 0.15s; }
+.library-item:last-child { border-bottom: none; }
+.library-item:hover { background: rgba(139, 168, 112, 0.2); }
+.library-item.selected { background: rgba(139, 168, 112, 0.35); }
+.library-item-name { font-size: 10px; color: #3C2F2F; font-weight: 500; }
+.library-item-info { font-size: 8px; color: #8B7355; margin-top: 2px; }
+.library-item-desc { font-size: 8px; color: #5C4033; font-style: italic; margin-top: 2px; display: none; }
+.library-item:hover .library-item-desc { display: block; }
+.library-list::-webkit-scrollbar { width: 6px; }
+.library-list::-webkit-scrollbar-track { background: rgba(139, 115, 85, 0.1); border-radius: 3px; }
+.library-list::-webkit-scrollbar-thumb { background: rgba(139, 115, 85, 0.4); border-radius: 3px; }
+.library-list::-webkit-scrollbar-thumb:hover { background: rgba(139, 115, 85, 0.6); }
+
+/* Generator section */
+.generator-section { margin-top: 8px; border-top: 1px solid rgba(139, 115, 85, 0.3); padding-top: 8px; }
+.generator-header { display: flex; align-items: center; justify-content: space-between; cursor: pointer; padding: 4px 0; user-select: none; }
+.generator-header-text { font-size: 9px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; }
+.generator-toggle { font-size: 10px; color: #8B7355; transition: transform 0.2s; }
+.generator-toggle.expanded { transform: rotate(180deg); }
+.generator-content { display: none; padding-top: 8px; }
+.generator-content.expanded { display: block; }
+.generator-type-row { margin-bottom: 8px; }
+.generator-type-select {
+    width: 100%; padding: 5px 6px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    color: #3C2F2F; background: rgba(245, 230, 211, 0.9);
+    border: 1px solid #8B7355; border-radius: 3px; cursor: pointer; outline: none;
+}
+.generator-inputs { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.gen-row { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.gen-row label { font-size: 9px; color: #5C4033; flex-shrink: 0; }
+.gen-row input[type="number"] {
+    width: 70px; padding: 4px 6px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    color: #3C2F2F; background: rgba(255, 248, 220, 0.9);
+    border: 1px solid #8B7355; border-radius: 3px; text-align: right;
+}
+.gen-row input[type="number"]:focus { outline: none; border-color: #6B8E4E; }
+.generator-btn {
+    width: 100%; padding: 8px;
+    font-family: 'Garamond', 'Georgia', serif; font-size: 10px;
+    text-transform: uppercase; letter-spacing: 0.5px; color: #3C2F2F;
+    background: linear-gradient(to bottom, rgba(139, 168, 112, 0.6), rgba(107, 142, 78, 0.7));
+    border: 1px solid #6B8E4E; border-radius: 4px; cursor: pointer; transition: all 0.15s;
+}
+.generator-btn:hover { background: linear-gradient(to bottom, rgba(139, 168, 112, 0.8), rgba(107, 142, 78, 0.9)); }
+.generator-btn:active { transform: scale(0.97); }
 
 /* ─── SCROLLBAR ─── */
 .tab-content::-webkit-scrollbar { width: 6px; }
@@ -525,12 +796,9 @@ body {
         </div>
     </div>
 
-</div><!-- /synth-tab -->
-
-<!-- ─── TUNING TAB ─── -->
-<div id="tuning-tab" class="tab-content">
-    <div id="tuning-container"></div>
-    <div class="tuning-extras">
+    <!-- Performance -->
+    <div class="section-header">Performance</div>
+    <div class="param-row">
         <div class="knob-group"><div class="knob" id="knob-pitchBendRange"><div class="knob-indicator"></div></div><div class="knob-label">PB Range</div><div class="knob-value" id="val-pitchBendRange">2 st</div></div>
         <div class="dropdown-group">
             <span class="dropdown-label">Glide Mode</span>
@@ -540,6 +808,139 @@ body {
         </div>
         <div class="knob-group"><div class="knob" id="knob-glideTime"><div class="knob-indicator"></div></div><div class="knob-label">Glide</div><div class="knob-value" id="val-glideTime">100ms</div></div>
     </div>
+
+</div><!-- /synth-tab -->
+
+<!-- ─── TUNING TAB ─── -->
+<div id="tuning-tab" class="tab-content">
+
+    <!-- LEFT: Interval List -->
+    <div class="tuning-viz-container">
+        <div class="interval-list" id="interval-list">
+            <div class="interval-list-header">Intervals (12 notes)</div>
+        </div>
+    </div>
+
+    <!-- Viz Mode Toggle -->
+    <div class="viz-mode-toggle">
+        <button class="viz-btn active" data-mode="circle">Circle</button>
+        <button class="viz-btn" data-mode="polar">Polar</button>
+        <button class="viz-btn" data-mode="matrix">Matrix</button>
+        <button class="viz-btn" data-mode="truekeys">True Keys</button>
+        <button class="viz-btn" data-mode="rotation">Rotation</button>
+    </div>
+
+    <!-- CENTER: Visualization Container -->
+    <div class="viz-container" id="viz-container">
+        <div class="viz-view active" id="circle-view">
+            <div class="pitch-circle">
+                <svg viewBox="0 0 188 188" id="pitch-circle-svg">
+                    <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                    <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                    <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                    <g id="interval-lines"></g>
+                    <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                </svg>
+                <div class="pitch-circle-label">Scale Intervals</div>
+            </div>
+        </div>
+        <div class="viz-view" id="polar-view">
+            <canvas id="polar-canvas" width="180" height="180"></canvas>
+        </div>
+        <div class="viz-view matrix-view" id="matrix-view"></div>
+        <div class="viz-view truekeys-view" id="truekeys-view">
+            <div class="tk-hint">Hold 2+ notes to see intervals</div>
+        </div>
+        <div class="viz-view rotation-view" id="rotation-view"></div>
+    </div>
+
+    <!-- RIGHT: Tuning Controls -->
+    <div class="tuning-controls-panel">
+        <!-- Tuning Library -->
+        <div class="library-section" id="library-section">
+            <div class="library-header" id="library-header">
+                <span class="library-header-text">Tuning Library</span>
+                <span class="library-toggle" id="library-toggle">&#x25BC;</span>
+            </div>
+            <div class="library-content" id="library-content">
+                <div class="library-filter">
+                    <select id="library-filter" class="library-filter-select">
+                        <option value="all">All Categories</option>
+                        <option value="Historical">Historical</option>
+                        <option value="Just Intonation">Just Intonation</option>
+                        <option value="Equal Divisions">Equal Divisions</option>
+                        <option value="Non-Octave">Non-Octave</option>
+                        <option value="World">World</option>
+                    </select>
+                </div>
+                <div class="library-list" id="library-list"></div>
+            </div>
+        </div>
+
+        <!-- A4 Reference Pitch -->
+        <div class="tuning-ref-section">
+            <div class="ref-knob-container">
+                <div class="ref-knob" id="ref-pitch-knob">
+                    <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
+                </div>
+            </div>
+            <div class="ref-knob-label">A4 REF</div>
+            <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
+        </div>
+
+        <!-- Scale Name -->
+        <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+
+        <!-- Octave Stretch -->
+        <div class="octave-stretch-section">
+            <div class="octave-stretch-row">
+                <span class="octave-stretch-label">Stretch</span>
+                <input type="range" id="octave-stretch" class="octave-stretch-slider"
+                       min="0.95" max="1.25" step="0.01" value="1.0">
+                <span class="octave-stretch-value" id="octave-stretch-value">1.00</span>
+            </div>
+        </div>
+
+        <!-- File Operations -->
+        <div class="tuning-file-section">
+            <div class="tuning-file-buttons">
+                <button class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
+                <button class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
+                <button class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
+                <button class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
+                <button class="tuning-file-btn tuning-export-btn" id="btn-export-html">Export HTML</button>
+            </div>
+        </div>
+
+        <!-- Scale Generator -->
+        <div class="generator-section" id="generator-section">
+            <div class="generator-header" id="generator-header">
+                <span class="generator-header-text">Generate Scale</span>
+                <span class="generator-toggle" id="generator-toggle">&#x25BC;</span>
+            </div>
+            <div class="generator-content" id="generator-content">
+                <div class="generator-type-row">
+                    <select id="generator-type" class="generator-type-select">
+                        <option value="edo">EDO (Equal Division)</option>
+                        <option value="harmonic">Harmonic Series</option>
+                        <option value="rank2">Rank-2 Temperament</option>
+                    </select>
+                </div>
+                <div class="generator-inputs" id="generator-inputs">
+                    <div class="gen-row">
+                        <label>Divisions</label>
+                        <input type="number" id="gen-divisions" value="19" min="5" max="53">
+                    </div>
+                    <div class="gen-row">
+                        <label>Period (cents)</label>
+                        <input type="number" id="gen-period" value="1200" min="100" max="2400" step="1">
+                    </div>
+                </div>
+                <button class="generator-btn" id="btn-generate">Generate</button>
+            </div>
+        </div>
+    </div>
+
 </div><!-- /tuning-tab -->
 
 <!-- ─── EFFECTS TAB ─── -->
@@ -900,14 +1301,11 @@ bindKnob('oscMix',    pct,     0.5);
 bindKnob('polyphony', polyFmt, 1.0);
 
 // ─── TUNING PRESET + TONIC (slider relays for tuning panel params) ───
-// These are handled via slider relays but the tuning panel also manages them.
-// Bind the slider relays so host automation works.
 (function() {
     const tuningPresetState = Juce.getSliderState('tuningPreset');
     const tonicState = Juce.getSliderState('tonic');
-    // Listen for changes (tuning panel reads these directly)
-    tuningPresetState.valueChangedEvent.addListener(() => {});
-    tonicState.valueChangedEvent.addListener(() => {});
+    if (tuningPresetState) tuningPresetState.valueChangedEvent.addListener(() => {});
+    if (tonicState) tonicState.valueChangedEvent.addListener(() => {});
 })();
 
 // ─── DELAY SYNC TOGGLE ───
@@ -1083,18 +1481,612 @@ function wireWavetableDisplay(display, posParam, tableParam, tableSelectId) {
 wireWavetableDisplay(wtDisplayA, 'oscAPos', 'oscATable', 'select-oscATable');
 wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
 
-// ─── TUNING PANEL INTEGRATION ───
+// ═══════════════════════════════════════════════════════════════════
+// TUNING SYSTEM (Inline O-Lyrica-style implementation)
+// ═══════════════════════════════════════════════════════════════════
 (async function() {
-    try {
-        const { TuningPanel } = await import('./js/tuning-panel.js');
-        const container = document.getElementById('tuning-container');
-        if (container) {
-            const tuningPanel = new TuningPanel(container, window.__JUCE__);
-            await tuningPanel.init();
-        }
-    } catch(e) {
-        console.warn('Tuning panel init error:', e);
+    console.log('[Tuning] Initializing tuning system...');
+
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    let currentIntervals = [0, 100, 200, 300, 400, 500, 600, 700, 800, 900, 1000, 1100];
+    let currentTonic = 0;
+
+    const intervalList = document.getElementById('interval-list');
+    const scaleNameDisplay = document.getElementById('scale-name-display');
+    const refPitchKnob = document.getElementById('ref-pitch-knob');
+    const refPitchIndicator = document.getElementById('ref-pitch-indicator');
+    const refPitchValue = document.getElementById('ref-pitch-value');
+
+    function getDegreeLabel(index, total) {
+        if (total === 12) return noteNames[(index + currentTonic) % 12];
+        return String(index);
     }
+
+    // ── Pitch Circle ──
+    function updatePitchCircle() {
+        const linesGroup = document.getElementById('interval-lines');
+        const labelsGroup = document.getElementById('degree-labels');
+        if (!linesGroup || !labelsGroup) return;
+        linesGroup.innerHTML = '';
+        labelsGroup.innerHTML = '';
+
+        const cx = 94, cy = 94, innerR = 13, outerR = 73, labelR = 80;
+        const total = currentIntervals.length;
+        const fontSize = total > 12 ? 6 : 9;
+
+        currentIntervals.forEach((cents, i) => {
+            const rad = (cents / 1200) * 2 * Math.PI - Math.PI / 2;
+            const x1 = cx + innerR * Math.cos(rad);
+            const y1 = cy + innerR * Math.sin(rad);
+            const x2 = cx + outerR * Math.cos(rad);
+            const y2 = cy + outerR * Math.sin(rad);
+
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', x1); line.setAttribute('y1', y1);
+            line.setAttribute('x2', x2); line.setAttribute('y2', y2);
+            line.setAttribute('stroke', '#6B8E4E');
+            line.setAttribute('stroke-width', total > 19 ? '1' : '2');
+            line.setAttribute('stroke-linecap', 'round');
+            linesGroup.appendChild(line);
+
+            if (total <= 24 || i % 2 === 0) {
+                const lx = cx + labelR * Math.cos(rad);
+                const ly = cy + labelR * Math.sin(rad);
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', lx); text.setAttribute('y', ly + 2);
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('font-size', fontSize);
+                text.setAttribute('fill', '#3C2F2F');
+                text.textContent = getDegreeLabel(i, total);
+                labelsGroup.appendChild(text);
+            }
+        });
+    }
+
+    // ── Note Flash Visualization ──
+    const activeNotes = new Map();
+
+    function midiNoteToScaleIndex(midiNote) {
+        const scaleSize = currentIntervals.length;
+        if (scaleSize === 12) return (midiNote % 12 - currentTonic + 12) % 12;
+        const anchorNote = 60 + currentTonic;
+        let deg = (midiNote - anchorNote) % scaleSize;
+        if (deg < 0) deg += scaleSize;
+        return deg;
+    }
+
+    function velocityToColor(velocity) {
+        const r = Math.round(120 + velocity * 100);
+        const g = Math.round(40 - velocity * 40);
+        const b = Math.round(40 - velocity * 40);
+        return `rgb(${r}, ${g}, ${b})`;
+    }
+
+    window.setNoteActive = function(midiNote, velocity) {
+        const idx = midiNoteToScaleIndex(midiNote);
+        if (activeNotes.has(idx)) {
+            const e = activeNotes.get(idx);
+            e.count++; e.maxVelocity = Math.max(e.maxVelocity, velocity);
+        } else {
+            activeNotes.set(idx, { count: 1, maxVelocity: velocity });
+        }
+        updateIntervalLineVisual(idx);
+    };
+
+    window.setNoteInactive = function(midiNote) {
+        const idx = midiNoteToScaleIndex(midiNote);
+        if (activeNotes.has(idx)) {
+            const e = activeNotes.get(idx);
+            e.count--;
+            if (e.count <= 0) activeNotes.delete(idx);
+        }
+        updateIntervalLineVisual(idx);
+    };
+
+    function updateIntervalLineVisual(scaleIndex) {
+        const lines = document.querySelectorAll('#interval-lines line');
+        if (scaleIndex >= 0 && scaleIndex < lines.length) {
+            const line = lines[scaleIndex];
+            if (activeNotes.has(scaleIndex)) {
+                const e = activeNotes.get(scaleIndex);
+                line.setAttribute('stroke', velocityToColor(e.maxVelocity));
+                line.setAttribute('stroke-width', '4');
+            } else {
+                line.setAttribute('stroke', '#6B8E4E');
+                line.setAttribute('stroke-width', currentIntervals.length > 19 ? '1' : '2');
+            }
+        }
+    }
+
+    // ── Visualization Mode Switching ──
+    let vizMode = 'circle';
+    let heldNotes = [], heldFreqs = [];
+
+    function setVizMode(mode) {
+        vizMode = mode;
+        document.querySelectorAll('.viz-btn').forEach(btn => btn.classList.toggle('active', btn.dataset.mode === mode));
+        document.querySelectorAll('.viz-view').forEach(v => v.classList.remove('active'));
+        const target = document.getElementById(mode + '-view');
+        if (target) target.classList.add('active');
+        updateVisualization();
+    }
+
+    function updateVisualization() {
+        switch (vizMode) {
+            case 'circle': updatePitchCircle(); break;
+            case 'polar': drawPolarWheel(); break;
+            case 'matrix': drawIntervalMatrix(); break;
+            case 'truekeys': updateTrueKeysDisplay(); break;
+            case 'rotation': drawModalRotationMatrix(); break;
+        }
+    }
+
+    document.querySelectorAll('.viz-btn').forEach(btn => {
+        btn.addEventListener('click', () => setVizMode(btn.dataset.mode));
+    });
+
+    // ── Polar Wheel ──
+    function drawPolarWheel() {
+        const canvas = document.getElementById('polar-canvas');
+        if (!canvas) return;
+        const ctx = canvas.getContext('2d');
+        const cx = canvas.width / 2, cy = canvas.height / 2;
+        const maxR = Math.min(cx, cy) - 15;
+
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = 'rgba(235, 217, 199, 0.4)';
+        ctx.beginPath(); ctx.arc(cx, cy, maxR, 0, Math.PI * 2); ctx.fill();
+
+        ctx.strokeStyle = 'rgba(139, 115, 85, 0.25)'; ctx.lineWidth = 0.5;
+        for (let c = 200; c <= 1200; c += 200) {
+            ctx.beginPath(); ctx.arc(cx, cy, (c / 1200) * maxR, 0, Math.PI * 2); ctx.stroke();
+        }
+        ctx.strokeStyle = '#8B7355'; ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.arc(cx, cy, maxR, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = '#3C2F2F'; ctx.beginPath(); ctx.arc(cx, cy, 3, 0, Math.PI * 2); ctx.fill();
+
+        const total = currentIntervals.length;
+        for (let i = 0; i < total; i++) {
+            const angle = (i / total) * Math.PI * 2 - Math.PI / 2;
+            const r = (currentIntervals[i] / 1200) * maxR;
+            const x = cx + Math.cos(angle) * r, y = cy + Math.sin(angle) * r;
+            const isActive = activeNotes.has(i);
+
+            ctx.fillStyle = isActive ? '#FFD700' : '#6B8E4E';
+            ctx.beginPath(); ctx.arc(x, y, isActive ? 8 : 6, 0, Math.PI * 2); ctx.fill();
+            ctx.strokeStyle = isActive ? '#B8860B' : '#3C2F2F';
+            ctx.lineWidth = isActive ? 2 : 1; ctx.stroke();
+
+            const labelR = r + 14;
+            ctx.fillStyle = '#3C2F2F';
+            ctx.font = total > 12 ? '8px Garamond' : '10px Garamond';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(getDegreeLabel(i, total), cx + Math.cos(angle) * labelR, cy + Math.sin(angle) * labelR);
+        }
+    }
+
+    // ── Interval Matrix ──
+    function drawIntervalMatrix() {
+        const container = document.getElementById('matrix-view');
+        if (!container) return;
+        const total = currentIntervals.length;
+        let html = '<table class="matrix-table"><tr><th></th>';
+        for (let i = 0; i < total; i++) html += `<th>${getDegreeLabel(i, total)}</th>`;
+        html += '</tr>';
+        for (let from = 0; from < total; from++) {
+            html += `<tr><th>${getDegreeLabel(from, total)}</th>`;
+            for (let to = 0; to < total; to++) {
+                let interval = currentIntervals[to] - currentIntervals[from];
+                if (interval < 0) interval += 1200;
+                let cls = 'matrix-cell';
+                if (interval === 0) cls += ' pure';
+                else if (Math.abs(interval - 700) < 20) cls += ' medium';
+                else if (Math.abs(interval - 500) < 20) cls += ' medium';
+                else if (Math.abs(interval - 400) < 20) cls += ' small';
+                html += `<td class="${cls}" title="${interval.toFixed(1)}\u00A2">${Math.round(interval)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    // ── True Keys ──
+    window.updateHeldNotes = function(notes, freqs) {
+        heldNotes = notes || []; heldFreqs = freqs || [];
+        if (vizMode === 'truekeys') updateTrueKeysDisplay();
+    };
+
+    function midiToNoteName(midi) {
+        return noteNames[midi % 12] + Math.floor(midi / 12 - 1);
+    }
+
+    function updateTrueKeysDisplay() {
+        const container = document.getElementById('truekeys-view');
+        if (!container) return;
+        if (heldNotes.length < 2) {
+            container.innerHTML = '<div class="tk-hint">Hold 2+ notes to see intervals</div>';
+            return;
+        }
+        let html = '<div class="tk-grid">';
+        const sorted = heldNotes.map((n, i) => ({ note: n, freq: heldFreqs[i] })).sort((a, b) => a.note - b.note);
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const cents = 1200 * Math.log2(sorted[i + 1].freq / sorted[i].freq);
+            let name = '';
+            if (Math.abs(cents - 100) < 15) name = '(m2)';
+            else if (Math.abs(cents - 200) < 15) name = '(M2)';
+            else if (Math.abs(cents - 300) < 15) name = '(m3)';
+            else if (Math.abs(cents - 400) < 15) name = '(M3)';
+            else if (Math.abs(cents - 500) < 15) name = '(P4)';
+            else if (Math.abs(cents - 700) < 15) name = '(P5)';
+            else if (Math.abs(cents - 1200) < 15) name = '(P8)';
+            html += `<div class="tk-interval"><span>${midiToNoteName(sorted[i].note)} \u2192 ${midiToNoteName(sorted[i+1].note)} ${name}</span><span class="tk-cents">${cents.toFixed(1)}\u00A2</span></div>`;
+        }
+        if (sorted.length > 2) {
+            const totalCents = 1200 * Math.log2(sorted[sorted.length - 1].freq / sorted[0].freq);
+            html += `<div class="tk-interval" style="border-color:#6B8E4E;margin-top:6px;"><span><strong>Total span</strong></span><span class="tk-cents">${totalCents.toFixed(1)}\u00A2</span></div>`;
+        }
+        html += '</div>';
+        container.innerHTML = html;
+    }
+
+    // ── Modal Rotation Matrix ──
+    function drawModalRotationMatrix() {
+        const container = document.getElementById('rotation-view');
+        if (!container) return;
+        const total = currentIntervals.length;
+        let html = '<table class="rotation-table"><tr><th>Mode</th>';
+        for (let i = 1; i <= total; i++) html += `<th>${i}</th>`;
+        html += '</tr>';
+        for (let start = 0; start < total; start++) {
+            html += `<tr><td class="mode-name">${getDegreeLabel(start, total)}</td>`;
+            for (let step = 0; step < total; step++) {
+                const deg = (start + step) % total;
+                let cents = currentIntervals[deg];
+                if (deg < start) cents += 1200;
+                let interval;
+                if (step === 0) { interval = 0; }
+                else {
+                    const prevDeg = (start + step - 1) % total;
+                    let prev = currentIntervals[prevDeg];
+                    if (prevDeg < start) prev += 1200;
+                    interval = cents - prev;
+                }
+                let cls = 'int-cell';
+                if (step > 0) {
+                    if (interval < 100) cls += ' small';
+                    else if (interval < 250) cls += ' medium';
+                    else cls += ' large';
+                }
+                html += `<td class="${cls}" title="${interval.toFixed(1)}\u00A2">${step === 0 ? '-' : Math.round(interval)}</td>`;
+            }
+            html += '</tr>';
+        }
+        html += '</table>';
+        container.innerHTML = html;
+    }
+
+    // ── Interval List UI ──
+    async function updateIntervalListUI() {
+        try {
+            const fetchedTonic = await Juce.getNativeFunction('getTonicNote')();
+            if (typeof fetchedTonic === 'number' && fetchedTonic >= 0 && fetchedTonic <= 11) currentTonic = fetchedTonic;
+        } catch (e) {}
+
+        const total = currentIntervals.length;
+        let html = `<div class="interval-list-header">Intervals (${total} notes)</div>`;
+        html += `<div class="tonic-selector"><span class="tonic-arrow" id="tonic-down">\u25C0</span><span class="tonic-label">Tonic:</span><span class="tonic-value" id="tonic-display">${noteNames[currentTonic]}</span><span class="tonic-arrow" id="tonic-up">\u25B6</span></div>`;
+
+        for (let i = 0; i < total; i++) {
+            const cents = currentIntervals[i] || 0;
+            const isUnison = (i === 0);
+            const label = getDegreeLabel(i, total);
+            const equalCents = (i * 1200 / total);
+            const deviation = cents - equalCents;
+            const devSign = deviation >= 0 ? '+' : '';
+            const devClass = Math.abs(deviation) < 1 ? 'pure' : (deviation > 0 ? 'sharp' : 'flat');
+            const showDev = Math.abs(deviation) >= 0.5;
+
+            html += `<div class="interval-row"><span class="note-name">${label}</span><input type="text" class="interval-input" data-index="${i}" value="${isUnison ? '0' : cents.toFixed(1)}" ${isUnison ? 'disabled' : ''}>${showDev ? `<span class="deviation ${devClass}">${devSign}${deviation.toFixed(1)}</span>` : '<span class="deviation"></span>'}</div>`;
+        }
+
+        intervalList.innerHTML = html;
+
+        intervalList.querySelectorAll('.interval-input:not([disabled])').forEach(input => {
+            const idx = parseInt(input.dataset.index, 10);
+            input.addEventListener('change', () => handleIntervalChange(idx, input.value));
+            input.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); input.blur(); } });
+        });
+
+        document.getElementById('tonic-down')?.addEventListener('click', onTonicDown);
+        document.getElementById('tonic-up')?.addEventListener('click', onTonicUp);
+    }
+
+    async function handleIntervalChange(index, valueStr) {
+        const value = parseFloat(valueStr);
+        if (!isNaN(value) && value >= 0 && value <= 2400) {
+            currentIntervals[index] = value;
+            const nameEl = document.getElementById('scale-name-display');
+            if (nameEl) nameEl.textContent = 'Custom';
+            updateVisualization();
+            try { await Juce.getNativeFunction('setSingleInterval')(index, value); } catch (e) { console.error('[Tuning] Set interval failed:', e); }
+        }
+    }
+
+    async function onTonicDown() {
+        currentTonic = (currentTonic - 1 + 12) % 12;
+        try { await Juce.getNativeFunction('setTonicNote')(currentTonic); } catch (e) {}
+        const d = document.getElementById('tonic-display');
+        if (d) d.textContent = noteNames[currentTonic];
+        updateVisualization();
+        await updateIntervalListUI();
+    }
+
+    async function onTonicUp() {
+        currentTonic = (currentTonic + 1) % 12;
+        try { await Juce.getNativeFunction('setTonicNote')(currentTonic); } catch (e) {}
+        const d = document.getElementById('tonic-display');
+        if (d) d.textContent = noteNames[currentTonic];
+        updateVisualization();
+        await updateIntervalListUI();
+    }
+
+    // ── Load intervals from backend ──
+    async function loadIntervalsFromBackend() {
+        try {
+            const intervals = await Juce.getNativeFunction('getTuningIntervals')();
+            if (typeof intervals === 'string') {
+                const parsed = JSON.parse(intervals);
+                if (Array.isArray(parsed) && parsed.length > 0) {
+                    // Exclude period (last value) for UI display
+                    if (parsed.length === 13 && Math.abs(parsed[12] - 1200) < 1)
+                        currentIntervals = parsed.slice(0, 12);
+                    else if (parsed.length > 1)
+                        currentIntervals = parsed.slice(0, parsed.length - 1);
+                    else
+                        currentIntervals = parsed;
+                }
+            } else if (Array.isArray(intervals) && intervals.length > 0) {
+                if (intervals.length === 13 && Math.abs(intervals[12] - 1200) < 1)
+                    currentIntervals = intervals.slice(0, 12);
+                else if (intervals.length > 1)
+                    currentIntervals = intervals.slice(0, intervals.length - 1);
+                else
+                    currentIntervals = intervals;
+            }
+            await updateIntervalListUI();
+            updateVisualization();
+        } catch (e) { console.warn('[Tuning] Failed to load intervals:', e); }
+    }
+
+    async function updateScaleNameDisplay() {
+        try {
+            const name = await Juce.getNativeFunction('getTuningName')();
+            if (scaleNameDisplay) scaleNameDisplay.textContent = name || '12-TET Standard';
+        } catch (e) {
+            if (scaleNameDisplay) scaleNameDisplay.textContent = '12-TET Standard';
+        }
+    }
+
+    // ── A4 Reference Pitch Knob ──
+    let knobDragging = false, knobStartY = 0, knobStartValue = 0.5;
+    const masterTuneState = Juce.getSliderState('masterTune');
+
+    function updateKnobVisual(norm) {
+        const angle = -135 + norm * 270;
+        if (refPitchIndicator) refPitchIndicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+        const hz = 415 + norm * 50;
+        if (refPitchValue) refPitchValue.textContent = `${hz.toFixed(1)} Hz`;
+    }
+
+    if (masterTuneState) {
+        masterTuneState.valueChangedEvent.addListener(() => updateKnobVisual(masterTuneState.getNormalisedValue()));
+        updateKnobVisual(masterTuneState.getNormalisedValue());
+    }
+
+    if (refPitchKnob) {
+        refPitchKnob.addEventListener('mousedown', (e) => {
+            knobDragging = true; knobStartY = e.clientY;
+            knobStartValue = masterTuneState ? masterTuneState.getNormalisedValue() : 0.5;
+            if (masterTuneState) masterTuneState.sliderDragStarted();
+            e.preventDefault();
+        });
+        refPitchKnob.addEventListener('dblclick', () => {
+            if (masterTuneState) masterTuneState.setNormalisedValue(0.5);
+            updateKnobVisual(0.5);
+        });
+    }
+    document.addEventListener('mousemove', (e) => {
+        if (!knobDragging) return;
+        let v = knobStartValue + (knobStartY - e.clientY) * 0.005;
+        v = Math.max(0, Math.min(1, v));
+        if (masterTuneState) masterTuneState.setNormalisedValue(v);
+        updateKnobVisual(v);
+    });
+    document.addEventListener('mouseup', () => {
+        if (knobDragging) { knobDragging = false; if (masterTuneState) masterTuneState.sliderDragEnded(); }
+    });
+
+    // ── Octave Stretch ──
+    const stretchSlider = document.getElementById('octave-stretch');
+    const stretchValue = document.getElementById('octave-stretch-value');
+    if (stretchSlider) {
+        stretchSlider.addEventListener('input', async () => {
+            const v = parseFloat(stretchSlider.value);
+            if (stretchValue) stretchValue.textContent = v.toFixed(2);
+            try { await Juce.getNativeFunction('setOctaveStretch')(v); } catch (e) {}
+        });
+    }
+
+    // ── File Operations ──
+    document.getElementById('btn-load-scl')?.addEventListener('click', async () => {
+        try {
+            const name = await Juce.getNativeFunction('loadScalaFile')();
+            if (name) { await loadIntervalsFromBackend(); await updateScaleNameDisplay(); }
+        } catch (e) { console.error('[Tuning] Load SCL failed:', e); }
+    });
+    document.getElementById('btn-load-kbm')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('loadKBMFile')(); } catch (e) { console.error('[Tuning] Load KBM failed:', e); }
+    });
+    document.getElementById('btn-save-scl')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('saveScalaFile')(); } catch (e) { console.error('[Tuning] Save SCL failed:', e); }
+    });
+    document.getElementById('btn-save-kbm')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('saveKBMFile')(); } catch (e) { console.error('[Tuning] Save KBM failed:', e); }
+    });
+    document.getElementById('btn-export-html')?.addEventListener('click', async () => {
+        try { await Juce.getNativeFunction('exportTuningHTML')(); } catch (e) { console.error('[Tuning] Export HTML failed:', e); }
+    });
+
+    // ── Tuning Library ──
+    let embeddedTunings = [];
+    let libraryFilter = 'all';
+
+    document.getElementById('library-header')?.addEventListener('click', () => {
+        const content = document.getElementById('library-content');
+        const toggle = document.getElementById('library-toggle');
+        if (content && toggle) {
+            content.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
+            if (content.classList.contains('expanded') && embeddedTunings.length === 0) loadEmbeddedTunings();
+        }
+    });
+
+    document.getElementById('library-filter')?.addEventListener('change', (e) => {
+        libraryFilter = e.target.value;
+        renderLibraryList();
+    });
+
+    async function loadEmbeddedTunings() {
+        try {
+            const jsonStr = await Juce.getNativeFunction('getEmbeddedTuningList')();
+            embeddedTunings = JSON.parse(jsonStr);
+            console.log('[Library] Loaded', embeddedTunings.length, 'embedded tunings');
+            renderLibraryList();
+        } catch (e) { console.error('[Library] Failed to load tunings:', e); }
+    }
+
+    function renderLibraryList() {
+        const listEl = document.getElementById('library-list');
+        if (!listEl) return;
+        const filtered = libraryFilter === 'all' ? embeddedTunings : embeddedTunings.filter(t => t.category === libraryFilter);
+        let html = '';
+        filtered.forEach(tuning => {
+            const periodNote = tuning.period && tuning.period !== 1200 ? ' (' + tuning.period.toFixed(0) + '\u00A2 period)' : '';
+            html += `<div class="library-item" data-id="${tuning.id}"><div class="library-item-name">${tuning.name}</div><div class="library-item-info">${tuning.category || ''} \u2022 ${tuning.noteCount} notes${periodNote}</div></div>`;
+        });
+        listEl.innerHTML = html;
+        listEl.querySelectorAll('.library-item').forEach(item => {
+            item.addEventListener('click', () => loadEmbeddedTuning(item.dataset.id));
+        });
+    }
+
+    async function loadEmbeddedTuning(tuningId) {
+        try {
+            const success = await Juce.getNativeFunction('loadEmbeddedTuning')(tuningId);
+            if (success) {
+                await loadIntervalsFromBackend();
+                await updateScaleNameDisplay();
+                document.querySelectorAll('.library-item').forEach(item => {
+                    item.classList.toggle('selected', item.dataset.id === tuningId);
+                });
+            }
+        } catch (e) { console.error('[Library] Failed to load tuning:', e); }
+    }
+
+    // ── Scale Generator ──
+    let generatorType = 'edo';
+
+    document.getElementById('generator-header')?.addEventListener('click', () => {
+        const content = document.getElementById('generator-content');
+        const toggle = document.getElementById('generator-toggle');
+        if (content && toggle) {
+            content.classList.toggle('expanded');
+            toggle.classList.toggle('expanded');
+        }
+    });
+
+    document.getElementById('generator-type')?.addEventListener('change', (e) => {
+        generatorType = e.target.value;
+        const inputsDiv = document.getElementById('generator-inputs');
+        if (!inputsDiv) return;
+        switch (generatorType) {
+            case 'edo':
+                inputsDiv.innerHTML = '<div class="gen-row"><label>Divisions</label><input type="number" id="gen-divisions" value="19" min="5" max="53"></div><div class="gen-row"><label>Period (cents)</label><input type="number" id="gen-period" value="1200" min="100" max="2400" step="1"></div>';
+                break;
+            case 'harmonic':
+                inputsDiv.innerHTML = '<div class="gen-row"><label>Start Harmonic</label><input type="number" id="gen-start" value="8" min="1" max="32"></div><div class="gen-row"><label>End Harmonic</label><input type="number" id="gen-end" value="16" min="2" max="64"></div>';
+                break;
+            case 'rank2':
+                inputsDiv.innerHTML = '<div class="gen-row"><label>Generator (cents)</label><input type="number" id="gen-generator" value="696.6" min="1" max="1199" step="0.1"></div><div class="gen-row"><label>Period (cents)</label><input type="number" id="gen-r2-period" value="1200" min="100" max="2400"></div><div class="gen-row"><label>Notes</label><input type="number" id="gen-count" value="12" min="3" max="31"></div>';
+                break;
+        }
+    });
+
+    document.getElementById('btn-generate')?.addEventListener('click', async () => {
+        try {
+            let intervalsJson, scaleName;
+            switch (generatorType) {
+                case 'edo': {
+                    const div = parseInt(document.getElementById('gen-divisions')?.value || '19');
+                    const per = parseFloat(document.getElementById('gen-period')?.value || '1200');
+                    intervalsJson = await Juce.getNativeFunction('generateEDO')(div, per);
+                    scaleName = `${div}-EDO` + (Math.abs(per - 1200) > 0.1 ? ` (${per.toFixed(0)}\u00A2)` : '');
+                    break;
+                }
+                case 'harmonic': {
+                    const start = parseInt(document.getElementById('gen-start')?.value || '8');
+                    const end = parseInt(document.getElementById('gen-end')?.value || '16');
+                    intervalsJson = await Juce.getNativeFunction('generateHarmonicSeries')(start, end);
+                    scaleName = `Harmonics ${start}-${end}`;
+                    break;
+                }
+                case 'rank2': {
+                    const gen = parseFloat(document.getElementById('gen-generator')?.value || '696.6');
+                    const per = parseFloat(document.getElementById('gen-r2-period')?.value || '1200');
+                    const cnt = parseInt(document.getElementById('gen-count')?.value || '12');
+                    intervalsJson = await Juce.getNativeFunction('generateRank2')(gen, per, cnt);
+                    scaleName = `Rank-2 (${gen.toFixed(1)}\u00A2, ${cnt} notes)`;
+                    break;
+                }
+            }
+            const success = await Juce.getNativeFunction('applyGeneratedScale')(intervalsJson, scaleName);
+            if (success) {
+                await loadIntervalsFromBackend();
+                if (scaleNameDisplay) scaleNameDisplay.textContent = scaleName;
+            }
+        } catch (e) { console.error('[Tuning] Generate failed:', e); }
+    });
+
+    // ── Initialize ──
+    async function initializeTuning() {
+        await loadIntervalsFromBackend();
+        await updateScaleNameDisplay();
+        try {
+            const stretch = await Juce.getNativeFunction('getOctaveStretch')();
+            if (stretchSlider) stretchSlider.value = stretch;
+            if (stretchValue) stretchValue.textContent = parseFloat(stretch).toFixed(2);
+        } catch (e) {}
+    }
+
+    window.refreshTuningState = async function() {
+        await loadIntervalsFromBackend();
+        await updateScaleNameDisplay();
+    };
+
+    // Retry init until ready
+    let retries = 0;
+    async function tryInit() {
+        try {
+            await initializeTuning();
+            console.log('[Tuning] System ready');
+        } catch (e) {
+            retries++;
+            if (retries < 8) setTimeout(tryInit, 500);
+            else console.warn('[Tuning] Init failed after retries');
+        }
+    }
+    setTimeout(tryInit, 300);
 })();
 </script>
 </body>

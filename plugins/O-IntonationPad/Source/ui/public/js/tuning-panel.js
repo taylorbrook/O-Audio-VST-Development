@@ -32,9 +32,8 @@ export class TuningPanel {
         this.embeddedTunings = [];
         this.libraryFilter = 'all';
         this.generatorType = 'edo';
-        this.heldNotes = new Set();
-        this.heldNotesMidi = [];   // v3.1.0: MIDI note numbers from C++ backend
-        this.heldNotesFreqs = [];  // v3.1.0: Actual frequencies from TuningEngine
+        this.heldNotesMidi = [];
+        this.heldNotesFreqs = [];
         this.activeScaleDegrees = new Set(); // Track which scale degrees are currently sounding
 
         // Note names for display
@@ -241,14 +240,14 @@ export class TuningPanel {
             this.updateVisualization();
             this.updateScaleNameDisplay();
 
+            // Notify Voice tab that scale changed
+            window.dispatchEvent(new CustomEvent('tuningScaleChanged'));
+
         } catch (e) {
             console.error('[TuningPanel] Failed to load initial state:', e);
         }
     }
 
-    async refreshState() {
-        await this.loadInitialState();
-    }
 
     // ═══════════════════════════════════════════════════════════════════
     // INTERVAL LIST
@@ -631,7 +630,6 @@ export class TuningPanel {
     updateHeldNotes(notes, freqs) {
         this.heldNotesMidi = notes || [];
         this.heldNotesFreqs = freqs || [];
-        this.heldNotes = new Set(notes || []);
         if (this.currentVizMode === 'truekeys') {
             this.drawTrueKeys();
         }
@@ -742,7 +740,7 @@ export class TuningPanel {
         try {
             const success = await this.juce.getNativeFunction('loadEmbeddedTuning')(tuningId);
             if (success) {
-                await this.refreshState();
+                await this.loadInitialState();
             }
         } catch (e) {
             console.error('[TuningPanel] Failed to load embedded tuning:', e);
@@ -847,7 +845,7 @@ export class TuningPanel {
 
             const success = await this.juce.getNativeFunction('applyGeneratedScale')(intervalsJson, scaleName);
             if (success) {
-                await this.refreshState();
+                await this.loadInitialState();
             }
         } catch (e) {
             console.error('[TuningPanel] Generate failed:', e);
@@ -863,7 +861,7 @@ export class TuningPanel {
         try {
             const name = await this.juce.getNativeFunction('loadScalaFile')();
             if (name) {
-                await this.refreshState();
+                await this.loadInitialState();
             }
         } catch (e) {
             console.error('[TuningPanel] Load SCL failed:', e);
@@ -968,8 +966,10 @@ export class TuningPanel {
             }
         });
 
-        document.addEventListener('mouseup', () => {
+        document.addEventListener('mouseup', (e) => {
             if (isDragging) {
+                const delta = (startY - e.clientY) * 0.5;
+                startValue = Math.max(400, Math.min(480, startValue + delta));
                 isDragging = false;
                 document.body.style.cursor = '';
             }

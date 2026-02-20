@@ -10,8 +10,6 @@
 #include "ScaleGenerator.h"
 #include <algorithm>
 #include <cmath>
-#include <sstream>
-#include <iomanip>
 
 std::vector<double> ScaleGenerator::generateEDO(int divisions, double period)
 {
@@ -104,40 +102,3 @@ std::vector<double> ScaleGenerator::reduceAndSort(std::vector<double>& cents, do
     return cents;
 }
 
-std::string ScaleGenerator::getEDODescription(int divisions, double period)
-{
-    std::ostringstream oss;
-    oss << divisions << "-EDO";
-
-    if (std::abs(period - 1200.0) > 0.1)
-    {
-        oss << " (" << std::fixed << std::setprecision(0) << period << " period)";
-    }
-
-    return oss.str();
-}
-
-std::string ScaleGenerator::getHarmonicDescription(int start, int end)
-{
-    std::ostringstream oss;
-    oss << "Harmonics " << start << "-" << end;
-    return oss.str();
-}
-
-std::string ScaleGenerator::getRank2Description(double generator, double /*period*/, int count)
-{
-    std::ostringstream oss;
-    oss << "Rank-2 (" << std::fixed << std::setprecision(1) << generator << "c";
-
-    // Add common name hints
-    if (std::abs(generator - 700.0) < 1.0)
-        oss << " Pythagorean";
-    else if (std::abs(generator - 696.578) < 1.0)
-        oss << " 1/4-comma";
-    else if (std::abs(generator - 697.654) < 1.0)
-        oss << " 1/6-comma";
-
-    oss << ", " << count << " notes)";
-
-    return oss.str();
-}

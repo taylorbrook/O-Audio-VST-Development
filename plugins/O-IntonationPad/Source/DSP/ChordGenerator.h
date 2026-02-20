@@ -14,8 +14,6 @@
 struct ChordVoice
 {
     int midiNote;              // Absolute MIDI note number
-    int scaleDegree;           // Scale degree offset from root
-    int semitoneOffset;        // Degree offset (= scale degree for non-12-TET)
     int octaveShift;           // Additional octave shifts for voicing
     float complexityThreshold; // Minimum complexity for this voice to be audible
 };
@@ -47,7 +45,7 @@ private:
 
     // Build chord intervals from enabled degrees, sorted by proximity to root
     std::vector<int> buildChordIntervals(int rootDegreeInScale, const std::vector<int>& enabledDegrees,
-                                          int scaleDegreeCount, float complexity) const;
+                                          int scaleDegreeCount) const;
 
     // Distribute voices across available intervals and octaves
     std::vector<ChordVoice> distributeVoices(int rootMidiNote, int rootDegreeInScale,

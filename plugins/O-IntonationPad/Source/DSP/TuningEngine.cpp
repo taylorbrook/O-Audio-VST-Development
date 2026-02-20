@@ -186,25 +186,6 @@ void TuningEngine::setBuiltInPreset(BuiltInPreset preset)
     DBG("TuningEngine::setBuiltInPreset() - Set to: " + name);
 }
 
-juce::String TuningEngine::getPresetName() const
-{
-    switch (currentPreset)
-    {
-        case BuiltInPreset::Equal12TET:     return "Equal 12-TET";
-        case BuiltInPreset::Pythagorean:    return "Pythagorean";
-        case BuiltInPreset::Zarlino:        return "Zarlino";
-        case BuiltInPreset::MeantoneQuarter: return "Meantone (1/4)";
-        case BuiltInPreset::WerckmeisterIII: return "Werckmeister III";
-        case BuiltInPreset::KirnbergerIII:  return "Kirnberger III";
-        case BuiltInPreset::Vallotti:       return "Vallotti";
-        case BuiltInPreset::WellTempered:   return "Well Tempered";
-        case BuiltInPreset::JustIntonation: return "Just Intonation";
-        case BuiltInPreset::BohlenPierce:   return "Bohlen-Pierce";
-        case BuiltInPreset::Custom:         return scaleName;
-    }
-    return scaleName;
-}
-
 // ═══════════════════════════════════════════════════════════════════
 // Tuning Mode
 // ═══════════════════════════════════════════════════════════════════
@@ -224,7 +205,7 @@ void TuningEngine::setMode(Mode mode)
                                   600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
                 scaleDegrees = 12;
                 scaleName = "Custom";
-                scalaFileLoaded = true;
+
             }
         }
 
@@ -249,7 +230,6 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
 
         scaleDegrees = static_cast<int>(scaleIntervals.size()) - 1; // Exclude period from count
         scaleName = name;
-        scalaFileLoaded = true;
 
         // Initialize rotated intervals cache
         rotatedIntervals = scaleIntervals;
@@ -278,7 +258,6 @@ void TuningEngine::setSingleInterval(int index, double cents)
                               600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
             scaleDegrees = 12;
             scaleName = "Custom";
-            scalaFileLoaded = true;
         }
 
         // Update the interval at the specified index
@@ -643,18 +622,6 @@ juce::String TuningEngine::generateKBMFileContent() const
     return content;
 }
 
-// Deprecated compatibility stub
-bool TuningEngine::loadScalaFile(const juce::File& scl, const juce::File& kbm)
-{
-    juce::ignoreUnused(kbm);
-    return loadScalaFile(scl);
-}
-
-bool TuningEngine::connectMTSClient()
-{
-    DBG("TuningEngine::connectMTSClient() - Not implemented");
-    return false;
-}
 
 bool TuningEngine::isNoteMapped(int midiNote) const
 {
@@ -741,22 +708,6 @@ void TuningEngine::clearAllPitchBends()
         bend.store(NO_BEND, std::memory_order_relaxed);
 }
 
-std::vector<double> TuningEngine::getScaleFrequencies(int rootNote, int numNotes)
-{
-    std::vector<double> frequencies;
-    frequencies.reserve(numNotes);
-
-    for (int i = 0; i < numNotes; ++i)
-    {
-        int midiNote = rootNote + i;
-        if (midiNote >= 0 && midiNote <= 127)
-        {
-            frequencies.push_back(frequencyTable[static_cast<size_t>(midiNote)].load(std::memory_order_relaxed));
-        }
-    }
-
-    return frequencies;
-}
 
 // ═══════════════════════════════════════════════════════════════════
 // Internal Methods

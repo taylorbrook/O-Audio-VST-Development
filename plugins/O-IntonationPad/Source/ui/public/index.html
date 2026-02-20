@@ -164,6 +164,15 @@
             flex-wrap: wrap;
         }
 
+        .voice-settings-row {
+            gap: 12px;
+            align-items: flex-start;
+        }
+
+        .active-notes-label {
+            text-align: center;
+        }
+
         .knob-container {
             display: flex;
             flex-direction: column;
@@ -574,8 +583,8 @@
                 <div class="tab-nav">
                     <button class="tab-button active" data-tab="voice">Voice</button>
                     <button class="tab-button" data-tab="tuning">Tuning</button>
-                    <button class="tab-button" data-tab="modulation">Modulation</button>
-                    <button class="tab-button" data-tab="output">Output</button>
+                    <button class="tab-button" data-tab="synth">Synth</button>
+                    <button class="tab-button" data-tab="effects">Effects</button>
                 </div>
             </div>
 
@@ -598,17 +607,24 @@
                             <div class="knob-value" id="complexityValue">50%</div>
                         </div>
                         <div class="knob-container">
-                            <div class="knob" id="inversionRandomKnob">
-                                <div class="knob-indicator" id="inversionRandomIndicator"></div>
+                            <div class="knob" id="spacingKnob">
+                                <div class="knob-indicator" id="spacingIndicator"></div>
+                            </div>
+                            <div class="knob-label">Spacing</div>
+                            <div class="knob-value" id="spacingValue">0%</div>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="inversionKnob">
+                                <div class="knob-indicator" id="inversionIndicator"></div>
                             </div>
                             <div class="knob-label">Inversion</div>
-                            <div class="knob-value" id="inversionRandomValue">30%</div>
+                            <div class="knob-value" id="inversionValue">30%</div>
                         </div>
                     </div>
 
                     <div class="section-divider"></div>
 
-                    <div class="knob-row" style="gap: 12px; align-items: flex-start;">
+                    <div class="knob-row voice-settings-row">
                         <div class="dropdown-container">
                             <div class="knob-label">Key Root</div>
                             <select class="dropdown" id="keyRootSelect">
@@ -645,7 +661,7 @@
                     <div class="section-divider"></div>
 
                     <div class="keyboard-section">
-                        <div class="knob-label" style="text-align: center;">Active Notes</div>
+                        <div class="knob-label active-notes-label">Active Notes</div>
                         <div class="mini-keyboard" id="miniKeyboard"></div>
                         <div class="freq-list" id="freqList">
                             <span class="freq-placeholder">Play a note to see chord voicing</span>
@@ -658,14 +674,28 @@
                     <div id="tuning-container"></div>
                 </div>
 
-                <!-- Modulation Tab -->
-                <div class="tab-content" id="modulation-tab">
+                <!-- Synth Tab (formerly Modulation + Output) -->
+                <div class="tab-content" id="synth-tab">
                     <div class="knob-row">
+                        <div class="dropdown-container">
+                            <div class="knob-label">Wavetable</div>
+                            <select class="dropdown" id="wavetableBankSelect" style="width: 160px;">
+                                <option value="0">JI Harmonic</option>
+                                <option value="1">Warm Analog</option>
+                                <option value="2">Choir</option>
+                                <option value="3">Strings</option>
+                                <option value="4">Glass</option>
+                                <option value="5">Evolving</option>
+                                <option value="6">Organ</option>
+                                <option value="7">Ethereal</option>
+                                <option value="8">Dark Matter</option>
+                            </select>
+                        </div>
                         <div class="knob-container">
                             <div class="knob" id="wavetablePosKnob">
                                 <div class="knob-indicator" id="wavetablePosIndicator"></div>
                             </div>
-                            <div class="knob-label">Wavetable</div>
+                            <div class="knob-label">Position</div>
                             <div class="knob-value" id="wavetablePosValue">50%</div>
                         </div>
                         <div class="knob-container">
@@ -681,6 +711,39 @@
                             </div>
                             <div class="knob-label">LFO Depth</div>
                             <div class="knob-value" id="lfoDepthValue">25%</div>
+                        </div>
+                    </div>
+
+                    <div class="section-divider"></div>
+
+                    <div class="knob-row">
+                        <div class="knob-container">
+                            <div class="knob" id="attackTimeKnob">
+                                <div class="knob-indicator" id="attackTimeIndicator"></div>
+                            </div>
+                            <div class="knob-label">Attack</div>
+                            <div class="knob-value" id="attackTimeValue">500 ms</div>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="releaseTimeKnob">
+                                <div class="knob-indicator" id="releaseTimeIndicator"></div>
+                            </div>
+                            <div class="knob-label">Release</div>
+                            <div class="knob-value" id="releaseTimeValue">2000 ms</div>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="filterCutoffKnob">
+                                <div class="knob-indicator" id="filterCutoffIndicator"></div>
+                            </div>
+                            <div class="knob-label">Filter</div>
+                            <div class="knob-value" id="filterCutoffValue">8000 Hz</div>
+                        </div>
+                        <div class="knob-container">
+                            <div class="knob" id="masterVolumeKnob">
+                                <div class="knob-indicator" id="masterVolumeIndicator"></div>
+                            </div>
+                            <div class="knob-label">Volume</div>
+                            <div class="knob-value" id="masterVolumeValue">0 dB</div>
                         </div>
                     </div>
 
@@ -704,43 +767,8 @@
                     </div>
                 </div>
 
-                <!-- Output Tab -->
-                <div class="tab-content" id="output-tab">
-                    <div class="knob-row">
-                        <div class="knob-container">
-                            <div class="knob" id="attackTimeKnob">
-                                <div class="knob-indicator" id="attackTimeIndicator"></div>
-                            </div>
-                            <div class="knob-label">Attack</div>
-                            <div class="knob-value" id="attackTimeValue">500 ms</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="releaseTimeKnob">
-                                <div class="knob-indicator" id="releaseTimeIndicator"></div>
-                            </div>
-                            <div class="knob-label">Release</div>
-                            <div class="knob-value" id="releaseTimeValue">2000 ms</div>
-                        </div>
-                    </div>
-
-                    <div class="section-divider"></div>
-
-                    <div class="knob-row">
-                        <div class="knob-container">
-                            <div class="knob" id="filterCutoffKnob">
-                                <div class="knob-indicator" id="filterCutoffIndicator"></div>
-                            </div>
-                            <div class="knob-label">Filter</div>
-                            <div class="knob-value" id="filterCutoffValue">8000 Hz</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="masterVolumeKnob">
-                                <div class="knob-indicator" id="masterVolumeIndicator"></div>
-                            </div>
-                            <div class="knob-label">Volume</div>
-                            <div class="knob-value" id="masterVolumeValue">0 dB</div>
-                        </div>
-                    </div>
+                <!-- Effects Tab (placeholder for future effects) -->
+                <div class="tab-content" id="effects-tab">
                 </div>
             </div>
         </div>
@@ -751,9 +779,9 @@
     <script type="module">
         import * as Juce from './js/juce/index.js';
 
-        // JUCE Parameter States (13 parameters — keyScale removed in v1.5.0)
-        let voiceCountState, complexityState, keyRootState, inversionRandomState;
-        let wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
+        // JUCE Parameter States
+        let voiceCountState, complexityState, keyRootState, spacingState, inversionState;
+        let wavetableBankState, wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let attackTimeState, releaseTimeState, filterCutoffState, masterVolumeState;
 
         const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -765,7 +793,9 @@
             voiceCountState = Juce.getSliderState('voiceCount');
             complexityState = Juce.getSliderState('complexity');
             keyRootState = Juce.getSliderState('keyRoot');
-            inversionRandomState = Juce.getSliderState('inversionRandom');
+            spacingState = Juce.getSliderState('spacing');
+            inversionState = Juce.getSliderState('inversion');
+            wavetableBankState = Juce.getComboBoxState('wavetableBank');
             wavetablePosState = Juce.getSliderState('wavetablePos');
             lfoRateState = Juce.getSliderState('lfoRate');
             lfoDepthState = Juce.getSliderState('lfoDepth');
@@ -782,7 +812,8 @@
             // Setup all knobs
             setupKnob('voiceCount', voiceCountState, 2, 12, '', v => Math.round(v));
             setupKnob('complexity', complexityState, 0, 100, '%', v => Math.round(v));
-            setupKnob('inversionRandom', inversionRandomState, 0, 100, '%', v => Math.round(v));
+            setupKnob('spacing', spacingState, 0, 100, '%', v => Math.round(v));
+            setupKnob('inversion', inversionState, 0, 100, '%', v => Math.round(v));
             setupKnob('wavetablePos', wavetablePosState, 0, 100, '%', v => Math.round(v));
             setupKnob('lfoRate', lfoRateState, 0.01, 20, ' Hz', v => v.toFixed(2));
             setupKnob('lfoDepth', lfoDepthState, 0, 100, '%', v => Math.round(v));
@@ -800,6 +831,9 @@
 
             // Setup dropdowns
             setupDropdown('keyRoot', keyRootState, 12);
+
+            // v1.6.0: Wavetable bank combobox
+            setupComboBox('wavetableBank', wavetableBankState);
 
             // v1.5.0: Initialize interval selector
             initIntervalSelector();
@@ -957,6 +991,31 @@
             updateVisual();
         }
 
+        // v1.6.0: ComboBox setup (for WebComboBoxRelay parameters)
+        function setupComboBox(paramId, state) {
+            if (!state) {
+                console.error(`Failed to get combobox state for ${paramId}`);
+                return;
+            }
+
+            const select = document.getElementById(`${paramId}Select`);
+            if (!select) return;
+
+            function updateVisual() {
+                select.value = state.getChoiceIndex().toString();
+            }
+
+            state.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            select.addEventListener('change', () => {
+                state.setChoiceIndex(parseInt(select.value));
+            });
+
+            updateVisual();
+        }
+
         // ====================================================================
         // v1.5.0: INTERVAL SELECTOR
         // ====================================================================
@@ -965,8 +1024,9 @@
         let intervalScaleSize = 0;  // Tracks current scale size for change detection
 
         async function initIntervalSelector() {
-            // Load intervals from tuning engine
-            await refreshIntervalSelector();
+            // Load intervals from tuning engine (don't block on initial load —
+            // DAW hosts may delay native function responses during init)
+            refreshIntervalSelector();
 
             // Quick buttons
             document.getElementById('intervalAllBtn')?.addEventListener('click', async () => {
@@ -1080,23 +1140,19 @@
             return index.toString();
         }
 
-        // Periodically check if scale size changed (tuning tab may have changed it)
-        let lastCheckedScaleSize = 0;
-        setInterval(async () => {
-            if (!window.__JUCE__?.backend) return;
-            try {
-                const intervalsJson = await Juce.getNativeFunction('getTuningIntervals')();
-                const intervals = JSON.parse(intervalsJson);
-                const newSize = intervals.length - 1;
-                if (newSize !== lastCheckedScaleSize && lastCheckedScaleSize > 0) {
-                    // Scale changed — refresh the selector
-                    await refreshIntervalSelector();
-                }
-                lastCheckedScaleSize = newSize;
-            } catch (e) {
-                // Ignore periodic check errors
-            }
-        }, 1000); // Check every second
+        // Refresh interval selector when any scale change occurs
+        // (covers preset changes, .SCL loads, generators, embedded tunings, tonic rotation)
+        window.addEventListener('tuningScaleChanged', () => {
+            setTimeout(() => refreshIntervalSelector(), 100);
+        });
+
+        // Also refresh when temperament preset changes via APVTS (direct parameter change)
+        const tempState = Juce.getComboBoxState('tuning_temperamentPreset');
+        if (tempState) {
+            tempState.valueChangedEvent.addListener(() => {
+                setTimeout(() => refreshIntervalSelector(), 100);
+            });
+        }
 
         // ====================================================================
         // MINI KEYBOARD + ACTIVE NOTES VISUALIZATION
