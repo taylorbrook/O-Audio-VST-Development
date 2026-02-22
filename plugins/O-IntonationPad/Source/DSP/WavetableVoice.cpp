@@ -80,6 +80,8 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
 
             subVoiceOscillators[idx].setFrequency(baseFreq, currentSampleRate);
             subVoiceOscillators[idx].reset();
+            subVoiceOscillators2[idx].setFrequency(baseFreq, currentSampleRate);
+            subVoiceOscillators2[idx].reset();
             subVoiceInfos[idx] = { baseMidiNote, baseFreq };
 
             // --- Spacing oscillator (shift UP by 1-3 octaves) ---
@@ -101,6 +103,8 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
 
             subVoiceSpacingOscillators[idx].setFrequency(spacingFreq, currentSampleRate);
             subVoiceSpacingOscillators[idx].reset();
+            subVoiceSpacingOscillators2[idx].setFrequency(spacingFreq, currentSampleRate);
+            subVoiceSpacingOscillators2[idx].reset();
             subVoiceSpacingInfos[idx] = { spacingMidiNote, spacingFreq };
 
             // --- Inversion oscillator (shift DOWN by 1-3 octaves) ---
@@ -122,6 +126,8 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
 
             subVoiceInversionOscillators[idx].setFrequency(inversionFreq, currentSampleRate);
             subVoiceInversionOscillators[idx].reset();
+            subVoiceInversionOscillators2[idx].setFrequency(inversionFreq, currentSampleRate);
+            subVoiceInversionOscillators2[idx].reset();
             subVoiceInversionInfos[idx] = { inversionMidiNote, inversionFreq };
 
             // Assign random thresholds for spacing and inversion (determines when this voice activates)
@@ -162,12 +168,18 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         float frequency = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
         subVoiceOscillators[0].setFrequency(frequency, currentSampleRate);
         subVoiceOscillators[0].reset();
+        subVoiceOscillators2[0].setFrequency(frequency, currentSampleRate);
+        subVoiceOscillators2[0].reset();
         subVoiceInfos[0] = { midiNoteNumber, frequency };
         subVoiceSpacingOscillators[0].setFrequency(frequency, currentSampleRate);
         subVoiceSpacingOscillators[0].reset();
+        subVoiceSpacingOscillators2[0].setFrequency(frequency, currentSampleRate);
+        subVoiceSpacingOscillators2[0].reset();
         subVoiceSpacingInfos[0] = { midiNoteNumber, frequency };
         subVoiceInversionOscillators[0].setFrequency(frequency, currentSampleRate);
         subVoiceInversionOscillators[0].reset();
+        subVoiceInversionOscillators2[0].setFrequency(frequency, currentSampleRate);
+        subVoiceInversionOscillators2[0].reset();
         subVoiceInversionInfos[0] = { midiNoteNumber, frequency };
         subVoiceComplexityGains[0] = 1.0f;
         subVoiceVoiceCountGains[0] = 1.0f;
@@ -203,6 +215,10 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
     {
         // Sum all sub-voice oscillators with independent complexity, voice-count, spacing, and inversion gains
         float mixedSample = 0.0f;
+
+        // Smooth independent oscillator gains (once per sample, shared across sub-voices)
+        smoothedGainA += (cachedGainA - smoothedGainA) * gainSmoothCoeff;
+        smoothedGainB += (cachedGainB - smoothedGainB) * gainSmoothCoeff;
 
         for (int i = 0; i < activeSubVoices; ++i)
         {
@@ -243,11 +259,20 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
             // Check if this sub-voice's delay has elapsed
             if (subVoiceDelayCounters[idx] >= subVoiceDelays[idx])
             {
-                // 3-way mix: base + spacing(up) + inversion(down)
-                float baseSample = subVoiceOscillators[idx].getNextSample() * baseMix;
-                float spacingSample = subVoiceSpacingOscillators[idx].getNextSample() * spacingMix;
-                float inversionSample = subVoiceInversionOscillators[idx].getNextSample() * inversionMix;
-                mixedSample += (baseSample + spacingSample + inversionSample) * amplitudeGain;
+                // 3-way mix for Osc A: base + spacing(up) + inversion(down)
+                float baseA = subVoiceOscillators[idx].getNextSample() * baseMix;
+                float spacingA = subVoiceSpacingOscillators[idx].getNextSample() * spacingMix;
+                float inversionA = subVoiceInversionOscillators[idx].getNextSample() * inversionMix;
+                float sampleA = baseA + spacingA + inversionA;
+
+                // 3-way mix for Osc B
+                float baseB = subVoiceOscillators2[idx].getNextSample() * baseMix;
+                float spacingB = subVoiceSpacingOscillators2[idx].getNextSample() * spacingMix;
+                float inversionB = subVoiceInversionOscillators2[idx].getNextSample() * inversionMix;
+                float sampleB = baseB + spacingB + inversionB;
+
+                // Independent gain per oscillator
+                mixedSample += (sampleA * smoothedGainA + sampleB * smoothedGainB) * amplitudeGain;
             }
             else
             {
@@ -255,6 +280,9 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
                 subVoiceOscillators[idx].getNextSample();
                 subVoiceSpacingOscillators[idx].getNextSample();
                 subVoiceInversionOscillators[idx].getNextSample();
+                subVoiceOscillators2[idx].getNextSample();
+                subVoiceSpacingOscillators2[idx].getNextSample();
+                subVoiceInversionOscillators2[idx].getNextSample();
                 ++subVoiceDelayCounters[idx];
             }
         }
@@ -301,6 +329,39 @@ void WavetableVoice::setWavetablePosition(float pos)
         subVoiceSpacingOscillators[idx].setWavetablePosition(pos);
         subVoiceInversionOscillators[idx].setWavetablePosition(pos);
     }
+}
+
+void WavetableVoice::setWavetableBank2(int bankIndex)
+{
+    const auto* bank = &WavetableData::BankCache::getBank(bankIndex);
+    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+        subVoiceOscillators2[idx].setWavetableBank(bank);
+        subVoiceSpacingOscillators2[idx].setWavetableBank(bank);
+        subVoiceInversionOscillators2[idx].setWavetableBank(bank);
+    }
+}
+
+void WavetableVoice::setWavetablePosition2(float pos)
+{
+    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+        subVoiceOscillators2[idx].setWavetablePosition(pos);
+        subVoiceSpacingOscillators2[idx].setWavetablePosition(pos);
+        subVoiceInversionOscillators2[idx].setWavetablePosition(pos);
+    }
+}
+
+void WavetableVoice::setGainA(float gain)
+{
+    cachedGainA = gain;
+}
+
+void WavetableVoice::setGainB(float gain)
+{
+    cachedGainB = gain;
 }
 
 void WavetableVoice::setEnvelopeParameters(float attack, float release)

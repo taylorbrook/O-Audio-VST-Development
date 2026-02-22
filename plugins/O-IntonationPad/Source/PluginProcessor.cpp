@@ -116,29 +116,73 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         "cents"
     ));
 
-    // WAVETABLE_BANK - Choice (9 banks, default: 0 = JI Harmonic)
+    // WAVETABLE_BANK - Choice (12 banks, default: 0 = JI Harmonic)
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "wavetableBank", 1 },
-        "Wavetable Bank",
+        "Wavetable A",
         juce::StringArray {
             "JI Harmonic", "Warm Analog", "Choir", "Strings",
-            "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter" },
+            "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter",
+            "Sine", "Square", "Triangle" },
         0
     ));
 
     // WAVETABLE_POS - Float (0-100%, default: 50%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "wavetablePos", 1 },
-        "Wavetable Position",
+        "Position A",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.5f
+    ));
+
+    // v1.8.0: WAVETABLE_BANK2 - Second oscillator bank
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "wavetableBank2", 1 },
+        "Wavetable B",
+        juce::StringArray {
+            "JI Harmonic", "Warm Analog", "Choir", "Strings",
+            "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter",
+            "Sine", "Square", "Triangle" },
+        1
+    ));
+
+    // v1.8.0: WAVETABLE_POS2 - Second oscillator position
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "wavetablePos2", 1 },
+        "Position B",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
+    // v1.9.0: Independent gain controls for Osc A and Osc B
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "gainA", 1 },
+        "Gain A",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        1.0f
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "gainB", 1 },
+        "Gain B",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
     ));
 
     // LFO_RATE - Float (0.01-20 Hz, default: 0.5 Hz, exponential)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "lfoRate", 1 },
-        "LFO Rate",
+        "LFO Rate A",
         juce::NormalisableRange<float>(0.01f, 20.0f, 0.01f, 0.3f),  // skew = 0.3 for exponential
+        0.5f,
+        "Hz"
+    ));
+
+    // v1.10.0: LFO_RATE2 - Independent LFO rate for Osc B
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lfoRate2", 1 },
+        "LFO Rate B",
+        juce::NormalisableRange<float>(0.01f, 20.0f, 0.01f, 0.3f),
         0.5f,
         "Hz"
     ));
@@ -146,9 +190,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
     // LFO_DEPTH - Float (0-100%, default: 25%)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "lfoDepth", 1 },
-        "LFO Depth",
+        "LFO Depth A",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.25f
+    ));
+
+    // v1.8.0: LFO_DEPTH2 - Independent LFO depth for Osc B
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "lfoDepth2", 1 },
+        "LFO Depth B",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
     ));
 
     // ATTACK_TIME - Float (1-5000 ms, default: 500 ms, exponential)
@@ -237,10 +289,13 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     filter.setResonance(0.707f);  // Butterworth response
 
-    // Initialize LFO
-    float lfoRate = parameters.getRawParameterValue("lfoRate")->load();
-    lfoPhaseIncrement = (lfoRate * juce::MathConstants<double>::twoPi) / sampleRate;
-    lfoPhase = 0.0;
+    // Initialize LFOs (independent per oscillator)
+    float lfoRateA = parameters.getRawParameterValue("lfoRate")->load();
+    float lfoRateB = parameters.getRawParameterValue("lfoRate2")->load();
+    lfoPhaseIncrementA = (lfoRateA * juce::MathConstants<double>::twoPi) / sampleRate;
+    lfoPhaseIncrementB = (lfoRateB * juce::MathConstants<double>::twoPi) / sampleRate;
+    lfoPhaseA = 0.0;
+    lfoPhaseB = 0.0;
 
     // Update envelope parameters for all voices
     float attackTime = parameters.getRawParameterValue("attackTime")->load();
@@ -269,13 +324,19 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // Read parameters (atomic, real-time safe)
     int wavetableBank = static_cast<int>(parameters.getRawParameterValue("wavetableBank")->load());
     float wavetablePos = parameters.getRawParameterValue("wavetablePos")->load();
+    int wavetableBank2 = static_cast<int>(parameters.getRawParameterValue("wavetableBank2")->load());
+    float wavetablePos2 = parameters.getRawParameterValue("wavetablePos2")->load();
+    float gainA = parameters.getRawParameterValue("gainA")->load();
+    float gainB = parameters.getRawParameterValue("gainB")->load();
     float attackTime = parameters.getRawParameterValue("attackTime")->load();
     float releaseTime = parameters.getRawParameterValue("releaseTime")->load();
     int voiceCount = static_cast<int>(parameters.getRawParameterValue("voiceCount")->load());
     float complexity = parameters.getRawParameterValue("complexity")->load();
     int keyRoot = static_cast<int>(parameters.getRawParameterValue("keyRoot")->load());
     float lfoRate = parameters.getRawParameterValue("lfoRate")->load();
+    float lfoRate2 = parameters.getRawParameterValue("lfoRate2")->load();
     float lfoDepth = parameters.getRawParameterValue("lfoDepth")->load();
+    float lfoDepth2 = parameters.getRawParameterValue("lfoDepth2")->load();
     float filterCutoff = parameters.getRawParameterValue("filterCutoff")->load();
     float masterVolume = parameters.getRawParameterValue("masterVolume")->load();
     float spacing = parameters.getRawParameterValue("spacing")->load();
@@ -283,17 +344,25 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     float detuneRandom = parameters.getRawParameterValue("detuneRandom")->load();
     float timingRandom = parameters.getRawParameterValue("timingRandom")->load();
 
-    // Update LFO phase increment
-    lfoPhaseIncrement = (lfoRate * juce::MathConstants<double>::twoPi) / getSampleRate();
+    // Update LFO phase increments (independent per oscillator)
+    lfoPhaseIncrementA = (lfoRate * juce::MathConstants<double>::twoPi) / getSampleRate();
+    lfoPhaseIncrementB = (lfoRate2 * juce::MathConstants<double>::twoPi) / getSampleRate();
 
-    // Calculate LFO value (global, free-running)
-    float lfoValue = static_cast<float>(std::sin(lfoPhase)) * lfoDepth;
-    lfoPhase += lfoPhaseIncrement * buffer.getNumSamples();
-    if (lfoPhase >= juce::MathConstants<double>::twoPi)
-        lfoPhase -= juce::MathConstants<double>::twoPi;
+    // Calculate independent LFO values for A and B
+    float lfoSineA = static_cast<float>(std::sin(lfoPhaseA));
+    float lfoSineB = static_cast<float>(std::sin(lfoPhaseB));
+    float lfoValueA = lfoSineA * lfoDepth;
+    float lfoValueB = lfoSineB * lfoDepth2;
+    lfoPhaseA += lfoPhaseIncrementA * buffer.getNumSamples();
+    lfoPhaseB += lfoPhaseIncrementB * buffer.getNumSamples();
+    if (lfoPhaseA >= juce::MathConstants<double>::twoPi)
+        lfoPhaseA -= juce::MathConstants<double>::twoPi;
+    if (lfoPhaseB >= juce::MathConstants<double>::twoPi)
+        lfoPhaseB -= juce::MathConstants<double>::twoPi;
 
-    // Modulate wavetable position with LFO
-    float modulatedWavetablePos = juce::jlimit(0.0f, 1.0f, wavetablePos + lfoValue);
+    // Modulate wavetable positions with LFO
+    float modulatedWavetablePos = juce::jlimit(0.0f, 1.0f, wavetablePos + lfoValueA);
+    float modulatedWavetablePos2 = juce::jlimit(0.0f, 1.0f, wavetablePos2 + lfoValueB);
 
     // v1.5.0: Check if scale size changed, auto-reset enabled intervals
     int currentScaleSize = tuningEngine.getScaleDegrees();
@@ -317,6 +386,10 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
         {
             voice->setWavetableBank(wavetableBank);
             voice->setWavetablePosition(modulatedWavetablePos);
+            voice->setWavetableBank2(wavetableBank2);
+            voice->setWavetablePosition2(modulatedWavetablePos2);
+            voice->setGainA(gainA);
+            voice->setGainB(gainB);
             voice->setEnvelopeParameters(attackTime, releaseTime);
 
             // Store chord generation parameters for voices to use on note-on

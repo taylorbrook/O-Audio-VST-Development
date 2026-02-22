@@ -75,6 +75,8 @@ private:
     std::vector<std::unique_ptr<WavetableData>> factoryTables;
     int lastOscATable = -1;
     int lastOscBTable = -1;
+    int lastTuningPreset = -1;
+    int lastTonic = -1;
 
     // Effects chain (float precision)
     DistortionProcessor distortion;

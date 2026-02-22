@@ -37,6 +37,14 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     // v1.6.0: Wavetable bank relay
     wavetableBankRelay = std::make_unique<juce::WebComboBoxRelay>("wavetableBank");
 
+    // v1.10.0: Dual oscillator relays (independent gains + rates)
+    wavetablePos2Relay = std::make_unique<juce::WebSliderRelay>("wavetablePos2");
+    gainARelay = std::make_unique<juce::WebSliderRelay>("gainA");
+    gainBRelay = std::make_unique<juce::WebSliderRelay>("gainB");
+    lfoRate2Relay = std::make_unique<juce::WebSliderRelay>("lfoRate2");
+    lfoDepth2Relay = std::make_unique<juce::WebSliderRelay>("lfoDepth2");
+    wavetableBank2Relay = std::make_unique<juce::WebComboBoxRelay>("wavetableBank2");
+
     // v1.3.0: Tuning relays
     tuningMasterTuneRelay = std::make_unique<juce::WebSliderRelay>("tuning_masterTune");
     tuningOctaveStretchRelay = std::make_unique<juce::WebSliderRelay>("tuning_octaveStretch");
@@ -69,6 +77,13 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
             .withOptionsFrom(*masterVolumeRelay)
             // v1.6.0: Wavetable bank relay
             .withOptionsFrom(*wavetableBankRelay)
+            // v1.10.0: Dual oscillator relays (independent gains + rates)
+            .withOptionsFrom(*wavetablePos2Relay)
+            .withOptionsFrom(*gainARelay)
+            .withOptionsFrom(*gainBRelay)
+            .withOptionsFrom(*lfoRate2Relay)
+            .withOptionsFrom(*lfoDepth2Relay)
+            .withOptionsFrom(*wavetableBank2Relay)
             // v1.3.0: Tuning relays
             .withOptionsFrom(*tuningMasterTuneRelay)
             .withOptionsFrom(*tuningOctaveStretchRelay)
@@ -461,6 +476,20 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     // v1.6.0: Wavetable bank attachment
     wavetableBankAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("wavetableBank"), *wavetableBankRelay, nullptr);
+
+    // v1.10.0: Dual oscillator attachments (independent gains + rates)
+    wavetablePos2Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("wavetablePos2"), *wavetablePos2Relay, nullptr);
+    gainAAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("gainA"), *gainARelay, nullptr);
+    gainBAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("gainB"), *gainBRelay, nullptr);
+    lfoRate2Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("lfoRate2"), *lfoRate2Relay, nullptr);
+    lfoDepth2Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("lfoDepth2"), *lfoDepth2Relay, nullptr);
+    wavetableBank2Attachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("wavetableBank2"), *wavetableBank2Relay, nullptr);
 
     // v1.3.0: Tuning attachments
     tuningMasterTuneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

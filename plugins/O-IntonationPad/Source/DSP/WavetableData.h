@@ -24,7 +24,7 @@ namespace WavetableData
     constexpr int NUM_FRAMES = 256;
     constexpr int SAMPLES_PER_FRAME = 2048;
     constexpr int NUM_MIPMAPS = 11;
-    constexpr int NUM_BANKS = 9;
+    constexpr int NUM_BANKS = 12;
     constexpr double PI = 3.14159265358979323846;
     constexpr double TWO_PI = 2.0 * PI;
     constexpr double ASSUMED_SAMPLE_RATE = 48000.0;
@@ -40,7 +40,10 @@ namespace WavetableData
         Evolving,
         Organ,
         Ethereal,
-        DarkMatter
+        DarkMatter,
+        Sine,
+        Square,
+        Triangle
     };
 
     // Base frequencies for each mipmap level (octave boundaries)
@@ -58,6 +61,7 @@ namespace WavetableData
         double fadeInStart;
         double fadeInEnd;
         double maxAmp;
+        double phaseOffset = 0.0;
     };
 
     // ========================================================================
@@ -208,6 +212,39 @@ namespace WavetableData
         { 0.125, 0.40, 0.65, 0.25 },   // 3 octaves below — deep rumble
     }};
 
+    // Bank 9: Sine — pure fundamental, no harmonics
+    constexpr std::array<Partial, 1> sinePartials = {{
+        { 1.0, 0.00, 0.00, 1.00 },
+    }};
+
+    // Bank 10: Square — odd harmonics, amplitude 1/n
+    constexpr std::array<Partial, 12> squarePartials = {{
+        { 1.0,  0.00, 0.00, 1.0000 },
+        { 3.0,  0.05, 0.20, 0.3333 },
+        { 5.0,  0.10, 0.30, 0.2000 },
+        { 7.0,  0.15, 0.40, 0.1429 },
+        { 9.0,  0.20, 0.50, 0.1111 },
+        { 11.0, 0.28, 0.58, 0.0909 },
+        { 13.0, 0.35, 0.65, 0.0769 },
+        { 15.0, 0.42, 0.72, 0.0667 },
+        { 17.0, 0.50, 0.78, 0.0588 },
+        { 19.0, 0.55, 0.82, 0.0526 },
+        { 21.0, 0.62, 0.87, 0.0476 },
+        { 23.0, 0.70, 0.92, 0.0435 },
+    }};
+
+    // Bank 11: Triangle — odd harmonics, amplitude 1/n², alternating phase
+    constexpr std::array<Partial, 8> trianglePartials = {{
+        { 1.0,  0.00, 0.00, 1.0000, 0.0 },
+        { 3.0,  0.05, 0.20, 0.1111, PI  },
+        { 5.0,  0.12, 0.32, 0.0400, 0.0 },
+        { 7.0,  0.20, 0.45, 0.0204, PI  },
+        { 9.0,  0.30, 0.55, 0.0123, 0.0 },
+        { 11.0, 0.42, 0.68, 0.0083, PI  },
+        { 13.0, 0.55, 0.78, 0.0059, 0.0 },
+        { 15.0, 0.65, 0.88, 0.0044, PI  },
+    }};
+
     // ========================================================================
     // Generation utilities
     // ========================================================================
@@ -260,7 +297,7 @@ namespace WavetableData
 
                 if (amplitude > 0.0001)
                 {
-                    sampleValue += amplitude * std::sin(phase * TWO_PI * partial.ratio);
+                    sampleValue += amplitude * std::sin(phase * TWO_PI * partial.ratio + partial.phaseOffset);
                     totalAmplitude += amplitude;
                 }
             }
@@ -344,6 +381,9 @@ namespace WavetableData
                 case 6:  fillBankMipmapTable(table, organPartials); break;
                 case 7:  fillBankMipmapTable(table, etherealPartials); break;
                 case 8:  fillBankMipmapTable(table, darkMatterPartials); break;
+                case 9:  fillBankMipmapTable(table, sinePartials); break;
+                case 10: fillBankMipmapTable(table, squarePartials); break;
+                case 11: fillBankMipmapTable(table, trianglePartials); break;
                 default: fillBankMipmapTable(table, jiHarmonicPartials); break;
             }
         }

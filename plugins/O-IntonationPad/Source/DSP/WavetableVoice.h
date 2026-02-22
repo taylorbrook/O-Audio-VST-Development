@@ -38,6 +38,10 @@ public:
     // Parameter setters (called from audio thread via atomic reads)
     void setWavetableBank(int bankIndex);
     void setWavetablePosition(float pos);
+    void setWavetableBank2(int bankIndex);
+    void setWavetablePosition2(float pos);
+    void setGainA(float gain);
+    void setGainB(float gain);
     void setEnvelopeParameters(float attack, float release);
     void setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
                                    const std::vector<int>& enabledDegrees, int scaleDegreeCount,
@@ -77,9 +81,15 @@ public:
 private:
     static constexpr int MAX_SUB_VOICES = 12;
 
+    // Oscillator Set A (primary)
     std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceOscillators;          // base pitch
     std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceSpacingOscillators;   // pitched UP (1-3 octaves)
     std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceInversionOscillators; // pitched DOWN (1-3 octaves)
+
+    // Oscillator Set B (v1.8.0: second wavetable layer)
+    std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceOscillators2;
+    std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceSpacingOscillators2;
+    std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceInversionOscillators2;
     std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInfos{};                     // base note info
     std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceSpacingInfos{};              // spacing note info
     std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInversionInfos{};            // inversion note info
@@ -123,6 +133,12 @@ private:
     std::array<float, MAX_SUB_VOICES> subVoiceInversionGains{};       // smoothed 0=off, 1=active
 
     float gainSmoothCoeff = 0.001f;
+
+    // v1.9.0: Independent gain per oscillator
+    float cachedGainA = 1.0f;
+    float cachedGainB = 0.0f;
+    float smoothedGainA = 1.0f;
+    float smoothedGainB = 0.0f;
 
     // Multi-octave shift helper (weighted: 60% = 1oct, 30% = 2oct, 10% = 3oct)
     static int getRandomOctaveShift(juce::Random* rng);

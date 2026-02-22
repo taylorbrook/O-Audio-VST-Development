@@ -74,9 +74,11 @@ private:
     ChordGenerator chordGenerator;
     TuningEngine tuningEngine;
 
-    // Global LFO
-    double lfoPhase = 0.0;
-    double lfoPhaseIncrement = 0.0;
+    // Global LFOs (independent per oscillator)
+    double lfoPhaseA = 0.0;
+    double lfoPhaseIncrementA = 0.0;
+    double lfoPhaseB = 0.0;
+    double lfoPhaseIncrementB = 0.0;
 
     // Filter
     juce::dsp::StateVariableTPTFilter<float> filter;

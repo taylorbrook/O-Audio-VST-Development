@@ -260,6 +260,8 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
     if (currentTonic != 0)
         rotateIntervalsForTonic(currentTonic);
 
+    // Switch to Scala mode so rebuildFrequencyTable uses custom intervals
+    currentMode.store(Mode::Scala, std::memory_order_relaxed);
     rebuildFrequencyTable();
 }
 

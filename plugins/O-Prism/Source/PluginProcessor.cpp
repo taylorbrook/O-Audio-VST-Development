@@ -480,6 +480,22 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     tuningEngine.setPitchBendRange (static_cast<float> (
         parameters.getRawParameterValue ("pitchBendRange")->load()));
 
+    // Forward tuning preset and tonic (only on change to avoid rebuilding frequency table every block)
+    int tuningPreset = static_cast<int> (parameters.getRawParameterValue ("tuningPreset")->load());
+    int tonic = static_cast<int> (parameters.getRawParameterValue ("tonic")->load());
+
+    if (tuningPreset != lastTuningPreset)
+    {
+        lastTuningPreset = tuningPreset;
+        tuningEngine.setBuiltInPreset (static_cast<TuningEngine::BuiltInPreset> (tuningPreset));
+    }
+
+    if (tonic != lastTonic)
+    {
+        lastTonic = tonic;
+        tuningEngine.setTonicNote (tonic);
+    }
+
     // Update wavetable assignments if table selection changed
     updateWavetableAssignments();
 

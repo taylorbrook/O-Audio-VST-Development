@@ -48,6 +48,14 @@ private:
     // v1.6.0: Wavetable bank relay
     std::unique_ptr<juce::WebComboBoxRelay> wavetableBankRelay;
 
+    // v1.10.0: Dual oscillator relays (independent gains + rates)
+    std::unique_ptr<juce::WebSliderRelay> wavetablePos2Relay;
+    std::unique_ptr<juce::WebSliderRelay> gainARelay;
+    std::unique_ptr<juce::WebSliderRelay> gainBRelay;
+    std::unique_ptr<juce::WebSliderRelay> lfoRate2Relay;
+    std::unique_ptr<juce::WebSliderRelay> lfoDepth2Relay;
+    std::unique_ptr<juce::WebComboBoxRelay> wavetableBank2Relay;
+
     // v1.3.0: Tuning module relays
     std::unique_ptr<juce::WebSliderRelay> tuningMasterTuneRelay;
     std::unique_ptr<juce::WebSliderRelay> tuningOctaveStretchRelay;
@@ -78,6 +86,14 @@ private:
 
     // v1.6.0: Wavetable bank attachment
     std::unique_ptr<juce::WebComboBoxParameterAttachment> wavetableBankAttachment;
+
+    // v1.10.0: Dual oscillator attachments (independent gains + rates)
+    std::unique_ptr<juce::WebSliderParameterAttachment> wavetablePos2Attachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> gainAAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> gainBAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lfoRate2Attachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lfoDepth2Attachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> wavetableBank2Attachment;
 
     // v1.3.0: Tuning module attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningMasterTuneAttachment;

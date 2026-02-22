@@ -1,5 +1,49 @@
 # O-IntonationPad Changelog
 
+## [1.10.0] - 2026-02-21
+
+### Added
+- **Independent LFO rate per oscillator**: Each wavetable now has its own LFO rate knob (Rate A and Rate B), allowing different modulation speeds on each oscillator. The two LFOs run as independent free-running sine waves
+- **New APVTS parameter**: `lfoRate2` (0.01–20 Hz, default 0.5 Hz) for OSC B's LFO rate
+
+### Changed
+- **Synth tab layout tightened**: Reduced gaps, margins, and knob sizes to ensure all four rows (OSC A, OSC B, envelope/filter, timing/detune) are fully visible without clipping
+- **LFO Rate moved into oscillator rows**: Rate knob now lives alongside Pos, Depth, and Gain in each oscillator's row instead of the shared envelope row
+
+## [1.9.0] - 2026-02-21
+
+### Changed
+- **Independent gain knobs replace mix crossfade**: Removed the single Mix knob (A/B crossfade) and replaced it with two independent Gain knobs — one for each oscillator. Both can now play at full volume simultaneously for layered sounds, or be individually controlled
+- **Two-row oscillator layout**: Synth tab now shows OSC A and OSC B on separate rows, each with its own wavetable selector, position knob, LFO depth knob, and gain knob
+- **New APVTS parameters**: `gainA` (default 100%) and `gainB` (default 0%) replace the old `oscMix` parameter. Saved presets using `oscMix` will need to be re-saved
+
+## [1.8.1] - 2026-02-20
+
+### Fixed
+- **Mix, LFO B, and Position B knobs unresponsive**: The v1.8.0 dual oscillator UI controls (oscMix, wavetablePos2, lfoDepth2, wavetableBank2) had APVTS parameters and HTML elements but were missing WebSliderRelay/WebComboBoxRelay bindings in the C++ editor. `Juce.getSliderState()` returned null for these parameters, causing `setupKnob` to bail out without attaching drag handlers. Added relays, `withOptionsFrom` registrations, and parameter attachments for all four missing parameters.
+
+## [1.8.0] - 2026-02-20
+
+### Added
+- **Dual wavetable oscillator**: Added a second independent wavetable oscillator (OSC B) with its own bank selection, morphing position, and LFO depth
+- **Oscillator mix control**: New Mix knob crossfades between OSC A and OSC B (0% = pure A, 100% = pure B) with smooth per-sample interpolation
+- **Independent LFO depths**: Each oscillator has its own LFO depth control while sharing the global LFO rate — allows static texture on one oscillator with modulated morphing on the other
+- **5 new APVTS parameters**: `wavetableBank2`, `wavetablePos2`, `oscMix`, `lfoDepth2` — all automatable and saved with DAW sessions
+- **Reorganized Synth tab**: OSC A controls on the left, Mix knob in the center, OSC B controls on the right
+
+### Technical
+- WavetableVoice now holds 72 oscillators per voice (36 for OSC A + 36 for OSC B), all sharing the same chord voicing frequencies
+- Linear crossfade: `output = oscA * (1 - mix) + oscB * mix`, smoothed with the same ~250ms exponential coefficient used for gain fading
+
+## [1.7.0] - 2026-02-20
+
+### Added
+- **Standard waveforms**: Added Sine, Square, and Triangle to the wavetable bank selector (Synth tab), bringing the total from 9 to 12 banks
+- **Sine bank**: Pure fundamental at all wavetable positions — clean, uncolored tone
+- **Square bank**: Band-limited square wave (odd harmonics, 1/n amplitude) with morphing from sine (position 0%) to full square (position 100%)
+- **Triangle bank**: Band-limited triangle wave (odd harmonics, 1/n² amplitude, alternating phase) with morphing from sine to full triangle
+- **Phase offset support**: Wavetable partial system now supports per-partial phase offsets, enabling proper alternating-sign waveforms like triangle
+
 ## [1.5.1] - 2026-02-19
 
 ### Fixed
