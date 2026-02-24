@@ -180,72 +180,42 @@
             gap: 4px;
         }
 
+        /* SVG Vine-Arc Knobs (O-Detune style) */
         .knob {
-            width: 60px;
-            height: 60px;
-            border-radius: 50%;
-            background:
-                radial-gradient(circle at 50% 50%, transparent 88%, #C9A27B 88%, #C9A27B 92%, #8B7355 92%, #8B7355 94%, transparent 94%),
-                conic-gradient(from 0deg,
-                    #F5DEB3 0deg, #F5DEB3 18deg, #8B7355 18deg, #8B7355 19deg,
-                    #E8D5B7 19deg, #E8D5B7 36deg, #8B7355 36deg, #8B7355 37deg,
-                    #F5DEB3 37deg, #F5DEB3 54deg, #8B7355 54deg, #8B7355 55deg,
-                    #E8D5B7 55deg, #E8D5B7 72deg, #8B7355 72deg, #8B7355 73deg,
-                    #F5DEB3 73deg, #F5DEB3 90deg, #8B7355 90deg, #8B7355 91deg,
-                    #E8D5B7 91deg, #E8D5B7 108deg, #8B7355 108deg, #8B7355 109deg,
-                    #F5DEB3 109deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 127deg,
-                    #E8D5B7 127deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 145deg,
-                    #F5DEB3 145deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 163deg,
-                    #E8D5B7 163deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 181deg,
-                    #F5DEB3 181deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 199deg,
-                    #E8D5B7 199deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 217deg,
-                    #F5DEB3 217deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 235deg,
-                    #E8D5B7 235deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 253deg,
-                    #F5DEB3 253deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 271deg,
-                    #E8D5B7 271deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 289deg,
-                    #F5DEB3 289deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 307deg,
-                    #E8D5B7 307deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 325deg,
-                    #F5DEB3 325deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 343deg,
-                    #E8D5B7 343deg, #E8D5B7 360deg
-                ),
-                radial-gradient(circle at 50% 50%, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
-            border: 2px solid #8B7355;
-            box-shadow:
-                inset 1px 1px 3px rgba(0,0,0,0.3),
-                inset -1px -1px 2px rgba(255,248,220,0.5),
-                2px 2px 6px rgba(0,0,0,0.25);
-            position: relative;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             cursor: pointer;
-            transition: transform 0.1s;
         }
 
-        .knob:hover {
-            transform: scale(1.05);
+        .knob-visual {
+            width: 52px;
+            height: 52px;
+            position: relative;
         }
 
-        .knob::after {
-            content: '✿';
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
-            color: rgba(139, 115, 85, 0.25);
-            pointer-events: none;
+        .knob-visual.small {
+            width: 44px;
+            height: 44px;
         }
 
-        .knob-indicator {
-            position: absolute;
-            top: 0;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 0;
-            height: 0;
-            border-left: 5px solid transparent;
-            border-right: 5px solid transparent;
-            border-top: 22px solid #8B6914;
-            filter: drop-shadow(0 1px 2px rgba(0,0,0,0.4));
-            opacity: 0.9;
+        .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
+        }
+
+        .knob-track {
+            fill: none;
+            stroke: rgba(139, 115, 85, 0.3);
+            stroke-width: 2;
+        }
+
+        .knob-vine {
+            fill: none;
+            stroke: #6B8E23;
+            stroke-width: 3;
+            stroke-linecap: round;
         }
 
         .knob-label {
@@ -570,6 +540,78 @@
             font-style: italic;
             padding: 6px;
         }
+
+        /* v1.11.0: Effects Tab */
+        #effects-tab {
+            overflow-y: auto;
+            gap: 6px;
+        }
+
+        #effects-tab::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        #effects-tab::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        #effects-tab::-webkit-scrollbar-thumb {
+            background: rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+        }
+
+        .fx-section {
+            background: rgba(255, 248, 220, 0.25);
+            border: 1px solid rgba(139, 115, 85, 0.35);
+            border-radius: 5px;
+            padding: 6px 10px;
+        }
+
+        .fx-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .fx-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #2C3E10;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .fx-bypass-btn {
+            padding: 2px 8px;
+            background: rgba(107, 142, 35, 0.5);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            font-family: 'Garamond', serif;
+            font-size: 9px;
+            color: #1a2a10;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.15s;
+        }
+
+        .fx-bypass-btn.bypassed {
+            background: rgba(139, 115, 85, 0.2);
+            color: rgba(60, 47, 47, 0.4);
+        }
+
+        .fx-knobs {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .fx-section.bypassed .fx-knobs {
+            opacity: 0.35;
+            pointer-events: none;
+        }
     </style>
 </head>
 <body>
@@ -591,36 +633,7 @@
             <div class="main-section">
                 <!-- Voice Tab -->
                 <div class="tab-content active" id="voice-tab">
-                    <div class="knob-row">
-                        <div class="knob-container">
-                            <div class="knob" id="voiceCountKnob">
-                                <div class="knob-indicator" id="voiceCountIndicator"></div>
-                            </div>
-                            <div class="knob-label">Voices</div>
-                            <div class="knob-value" id="voiceCountValue">5</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="complexityKnob">
-                                <div class="knob-indicator" id="complexityIndicator"></div>
-                            </div>
-                            <div class="knob-label">Complexity</div>
-                            <div class="knob-value" id="complexityValue">50%</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="spacingKnob">
-                                <div class="knob-indicator" id="spacingIndicator"></div>
-                            </div>
-                            <div class="knob-label">Spacing</div>
-                            <div class="knob-value" id="spacingValue">0%</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="inversionKnob">
-                                <div class="knob-indicator" id="inversionIndicator"></div>
-                            </div>
-                            <div class="knob-label">Inversion</div>
-                            <div class="knob-value" id="inversionValue">30%</div>
-                        </div>
-                    </div>
+                    <div class="knob-row" id="voice-knobs"></div>
 
                     <div class="section-divider"></div>
 
@@ -676,161 +689,45 @@
 
                 <!-- Synth Tab -->
                 <div class="tab-content" id="synth-tab" style="gap: 6px;">
-                    <!-- Oscillator A row -->
-                    <div class="knob-row" style="align-items: flex-end; gap: 12px;">
-                        <div class="dropdown-container">
-                            <div class="knob-label" style="font-weight: bold; color: #2C3E10;">OSC A</div>
-                            <select class="dropdown" id="wavetableBankSelect" style="width: 120px;">
-                                <option value="0">JI Harmonic</option>
-                                <option value="1">Warm Analog</option>
-                                <option value="2">Choir</option>
-                                <option value="3">Strings</option>
-                                <option value="4">Glass</option>
-                                <option value="5">Evolving</option>
-                                <option value="6">Organ</option>
-                                <option value="7">Ethereal</option>
-                                <option value="8">Dark Matter</option>
-                                <option value="9">Sine</option>
-                                <option value="10">Square</option>
-                                <option value="11">Triangle</option>
-                            </select>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="wavetablePosKnob" style="width: 44px; height: 44px;">
-                                <div class="knob-indicator" id="wavetablePosIndicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label">Pos</div>
-                            <div class="knob-value" id="wavetablePosValue">50%</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="lfoRateKnob" style="width: 44px; height: 44px;">
-                                <div class="knob-indicator" id="lfoRateIndicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label">Rate</div>
-                            <div class="knob-value" id="lfoRateValue">0.5 Hz</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="lfoDepthKnob" style="width: 44px; height: 44px;">
-                                <div class="knob-indicator" id="lfoDepthIndicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label">Depth</div>
-                            <div class="knob-value" id="lfoDepthValue">25%</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="gainAKnob" style="width: 44px; height: 44px; border-color: #6B8E23;">
-                                <div class="knob-indicator" id="gainAIndicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label" style="color: #6B8E23;">Gain</div>
-                            <div class="knob-value" id="gainAValue">100%</div>
-                        </div>
-                    </div>
-
+                    <div class="knob-row" id="oscA-row" style="align-items: flex-end; gap: 12px;"></div>
                     <div class="section-divider" style="margin: 2px 0;"></div>
-
-                    <!-- Oscillator B row -->
-                    <div class="knob-row" style="align-items: flex-end; gap: 12px;">
-                        <div class="dropdown-container">
-                            <div class="knob-label" style="font-weight: bold; color: #2C3E10;">OSC B</div>
-                            <select class="dropdown" id="wavetableBank2Select" style="width: 120px;">
-                                <option value="0">JI Harmonic</option>
-                                <option value="1">Warm Analog</option>
-                                <option value="2">Choir</option>
-                                <option value="3">Strings</option>
-                                <option value="4">Glass</option>
-                                <option value="5">Evolving</option>
-                                <option value="6">Organ</option>
-                                <option value="7">Ethereal</option>
-                                <option value="8">Dark Matter</option>
-                                <option value="9">Sine</option>
-                                <option value="10">Square</option>
-                                <option value="11">Triangle</option>
-                            </select>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="wavetablePos2Knob" style="width: 44px; height: 44px;">
-                                <div class="knob-indicator" id="wavetablePos2Indicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label">Pos</div>
-                            <div class="knob-value" id="wavetablePos2Value">50%</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="lfoRate2Knob" style="width: 44px; height: 44px;">
-                                <div class="knob-indicator" id="lfoRate2Indicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label">Rate</div>
-                            <div class="knob-value" id="lfoRate2Value">0.5 Hz</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="lfoDepth2Knob" style="width: 44px; height: 44px;">
-                                <div class="knob-indicator" id="lfoDepth2Indicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label">Depth</div>
-                            <div class="knob-value" id="lfoDepth2Value">0%</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="gainBKnob" style="width: 44px; height: 44px; border-color: #6B8E23;">
-                                <div class="knob-indicator" id="gainBIndicator" style="border-top-width: 15px;"></div>
-                            </div>
-                            <div class="knob-label" style="color: #6B8E23;">Gain</div>
-                            <div class="knob-value" id="gainBValue">0%</div>
-                        </div>
-                    </div>
-
+                    <div class="knob-row" id="oscB-row" style="align-items: flex-end; gap: 12px;"></div>
                     <div class="section-divider" style="margin: 2px 0;"></div>
-
-                    <div class="knob-row" style="gap: 18px;">
-                        <div class="knob-container">
-                            <div class="knob" id="attackTimeKnob" style="width: 50px; height: 50px;">
-                                <div class="knob-indicator" id="attackTimeIndicator" style="border-top-width: 18px;"></div>
-                            </div>
-                            <div class="knob-label">Attack</div>
-                            <div class="knob-value" id="attackTimeValue">500 ms</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="releaseTimeKnob" style="width: 50px; height: 50px;">
-                                <div class="knob-indicator" id="releaseTimeIndicator" style="border-top-width: 18px;"></div>
-                            </div>
-                            <div class="knob-label">Release</div>
-                            <div class="knob-value" id="releaseTimeValue">2000 ms</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="filterCutoffKnob" style="width: 50px; height: 50px;">
-                                <div class="knob-indicator" id="filterCutoffIndicator" style="border-top-width: 18px;"></div>
-                            </div>
-                            <div class="knob-label">Filter</div>
-                            <div class="knob-value" id="filterCutoffValue">8000 Hz</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="masterVolumeKnob" style="width: 50px; height: 50px;">
-                                <div class="knob-indicator" id="masterVolumeIndicator" style="border-top-width: 18px;"></div>
-                            </div>
-                            <div class="knob-label">Volume</div>
-                            <div class="knob-value" id="masterVolumeValue">0 dB</div>
-                        </div>
-                    </div>
-
+                    <div class="knob-row" id="synth-env-knobs" style="gap: 18px;"></div>
                     <div class="section-divider" style="margin: 2px 0;"></div>
-
-                    <div class="knob-row" style="gap: 18px;">
-                        <div class="knob-container">
-                            <div class="knob" id="timingRandomKnob" style="width: 50px; height: 50px;">
-                                <div class="knob-indicator" id="timingRandomIndicator" style="border-top-width: 18px;"></div>
-                            </div>
-                            <div class="knob-label">Timing</div>
-                            <div class="knob-value" id="timingRandomValue">10 ms</div>
-                        </div>
-                        <div class="knob-container">
-                            <div class="knob" id="detuneRandomKnob" style="width: 50px; height: 50px;">
-                                <div class="knob-indicator" id="detuneRandomIndicator" style="border-top-width: 18px;"></div>
-                            </div>
-                            <div class="knob-label">Detune</div>
-                            <div class="knob-value" id="detuneRandomValue">5¢</div>
-                        </div>
-                    </div>
+                    <div class="knob-row" id="synth-random-knobs" style="gap: 18px;"></div>
                 </div>
 
-                <!-- Effects Tab (placeholder for future effects) -->
+                <!-- Effects Tab (v1.11.0) -->
                 <div class="tab-content" id="effects-tab">
+                    <div class="fx-section" id="chorusSection">
+                        <div class="fx-header">
+                            <span class="fx-title">Chorus</span>
+                            <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                        </div>
+                        <div class="fx-knobs" id="chorus-knobs"></div>
+                    </div>
+                    <div class="fx-section" id="delaySection">
+                        <div class="fx-header">
+                            <span class="fx-title">Delay</span>
+                            <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                        </div>
+                        <div class="fx-knobs" id="delay-knobs"></div>
+                    </div>
+                    <div class="fx-section" id="eqSection">
+                        <div class="fx-header">
+                            <span class="fx-title">EQ</span>
+                            <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                        </div>
+                        <div class="fx-knobs" id="eq-knobs"></div>
+                    </div>
+                    <div class="fx-section" id="reverbSection">
+                        <div class="fx-header">
+                            <span class="fx-title">Reverb</span>
+                            <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                        </div>
+                        <div class="fx-knobs" id="reverb-knobs"></div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -842,20 +739,154 @@
         import * as Juce from './js/juce/index.js';
 
         // JUCE Parameter States
-        let voiceCountState, complexityState, keyRootState, spacingState, inversionState;
+        let voiceCountState, complexityState, keyRootState, stereoSpreadState, spacingState, inversionState;
         let wavetableBankState, wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let wavetableBank2State, wavetablePos2State, lfoRate2State, lfoDepth2State, gainAState, gainBState;
         let attackTimeState, releaseTimeState, filterCutoffState, masterVolumeState;
+        // v1.11.0: Effects states
+        let chorusRateState, chorusDepthState, chorusMixState;
+        let delayTimeState, delayFeedbackState, delayModeState, delayMixState;
+        let eqLowGainState, eqMidGainState, eqMidFreqState, eqHighGainState;
+        let reverbSizeState, reverbDampState, reverbPredelayState, reverbMixState;
+        let chorusBypassState, delayBypassState, eqBypassState, reverbBypassState;
 
         const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
+        // ====================================================================
+        // KNOB FACTORY + WAVETABLE BANK DATA
+        // ====================================================================
+
+        const WAVETABLE_BANKS = [
+            'JI Harmonic', 'Warm Analog', 'Choir', 'Strings', 'Glass', 'Evolving',
+            'Organ', 'Ethereal', 'Dark Matter', 'Sine', 'Square', 'Triangle',
+            'Spectral Cloud', 'Metallic Res.', 'Formant Vowel', 'Warm Sub'
+        ];
+
+        // size: 'small' = 44px (r=18), default = 52px (r=22)
+        function makeKnob(id, label, size, labelStyle) {
+            const isSmall = size === 'small';
+            const vb = isSmall ? 44 : 52;
+            const c = isSmall ? 22 : 26;
+            const r = isSmall ? 18 : 22;
+            const da = (2 * Math.PI * r * 0.75).toFixed(2);
+
+            const container = document.createElement('div');
+            container.className = 'knob-container';
+            container.innerHTML =
+                `<div class="knob" id="${id}Knob">` +
+                    `<div class="knob-visual${isSmall ? ' small' : ''}">` +
+                        `<svg viewBox="0 0 ${vb} ${vb}">` +
+                            `<circle class="knob-track" cx="${c}" cy="${c}" r="${r}"/>` +
+                            `<circle class="knob-vine" id="${id}Vine" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${da}" stroke-dashoffset="${da}"/>` +
+                        `</svg>` +
+                    `</div>` +
+                `</div>` +
+                `<div class="knob-label"${labelStyle ? ` style="${labelStyle}"` : ''}>${label}</div>` +
+                `<div class="knob-value" id="${id}Value"></div>`;
+            return container;
+        }
+
+        function makeWavetableDropdown(selectId, oscLabel) {
+            const wrapper = document.createElement('div');
+            wrapper.className = 'dropdown-container';
+            const lbl = document.createElement('div');
+            lbl.className = 'knob-label';
+            lbl.style.cssText = 'font-weight: bold; color: #2C3E10;';
+            lbl.textContent = oscLabel;
+            const sel = document.createElement('select');
+            sel.className = 'dropdown';
+            sel.id = selectId;
+            sel.style.width = '120px';
+            WAVETABLE_BANKS.forEach((name, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = name;
+                sel.appendChild(opt);
+            });
+            wrapper.appendChild(lbl);
+            wrapper.appendChild(sel);
+            return wrapper;
+        }
+
+        function populateKnobs(containerId, knobs) {
+            const el = document.getElementById(containerId);
+            if (!el) return;
+            for (const k of knobs) {
+                el.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle));
+            }
+        }
+
         document.addEventListener('DOMContentLoaded', () => {
             console.log('JUCE backend:', window.__JUCE__?.backend);
+
+            // Build knob DOM from config
+            populateKnobs('voice-knobs', [
+                { id: 'voiceCount', label: 'Voices' },
+                { id: 'complexity', label: 'Complexity' },
+                { id: 'stereoSpread', label: 'Spread' },
+                { id: 'spacing', label: 'Spacing' },
+                { id: 'inversion', label: 'Inversion' },
+            ]);
+
+            // OSC A: dropdown + knobs
+            const oscARow = document.getElementById('oscA-row');
+            oscARow.appendChild(makeWavetableDropdown('wavetableBankSelect', 'OSC A'));
+            [{ id: 'wavetablePos', label: 'Pos', size: 'small' },
+             { id: 'lfoRate', label: 'Rate', size: 'small' },
+             { id: 'lfoDepth', label: 'Depth', size: 'small' },
+             { id: 'gainA', label: 'Gain', size: 'small', labelStyle: 'color: #6B8E23;' },
+            ].forEach(k => oscARow.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle)));
+
+            // OSC B: dropdown + knobs
+            const oscBRow = document.getElementById('oscB-row');
+            oscBRow.appendChild(makeWavetableDropdown('wavetableBank2Select', 'OSC B'));
+            [{ id: 'wavetablePos2', label: 'Pos', size: 'small' },
+             { id: 'lfoRate2', label: 'Rate', size: 'small' },
+             { id: 'lfoDepth2', label: 'Depth', size: 'small' },
+             { id: 'gainB', label: 'Gain', size: 'small', labelStyle: 'color: #6B8E23;' },
+            ].forEach(k => oscBRow.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle)));
+
+            populateKnobs('synth-env-knobs', [
+                { id: 'attackTime', label: 'Attack' },
+                { id: 'releaseTime', label: 'Release' },
+                { id: 'filterCutoff', label: 'Filter' },
+                { id: 'masterVolume', label: 'Volume' },
+            ]);
+            populateKnobs('synth-random-knobs', [
+                { id: 'timingRandom', label: 'Timing' },
+                { id: 'detuneRandom', label: 'Detune' },
+            ]);
+
+            // Effects knobs
+            populateKnobs('chorus-knobs', [
+                { id: 'chorusRate', label: 'Rate', size: 'small' },
+                { id: 'chorusDepth', label: 'Depth', size: 'small' },
+                { id: 'chorusMix', label: 'Mix', size: 'small' },
+            ]);
+            populateKnobs('delay-knobs', [
+                { id: 'delayTime', label: 'Time', size: 'small' },
+                { id: 'delayFeedback', label: 'Feedback', size: 'small' },
+                { id: 'delayMode', label: 'Mode', size: 'small' },
+                { id: 'delayMix', label: 'Mix', size: 'small' },
+            ]);
+            populateKnobs('eq-knobs', [
+                { id: 'eqLowGain', label: 'Low', size: 'small' },
+                { id: 'eqMidGain', label: 'Mid', size: 'small' },
+                { id: 'eqMidFreq', label: 'Mid Freq', size: 'small' },
+                { id: 'eqHighGain', label: 'High', size: 'small' },
+            ]);
+            populateKnobs('reverb-knobs', [
+                { id: 'reverbSize', label: 'Size', size: 'small' },
+                { id: 'reverbDamp', label: 'Damp', size: 'small' },
+                { id: 'reverbPredelay', label: 'Pre-dly', size: 'small' },
+                { id: 'reverbMix', label: 'Mix', size: 'small' },
+            ]);
 
             // Initialize parameter states
             voiceCountState = Juce.getSliderState('voiceCount');
             complexityState = Juce.getSliderState('complexity');
             keyRootState = Juce.getSliderState('keyRoot');
+            stereoSpreadState = Juce.getSliderState('stereoSpread');
             spacingState = Juce.getSliderState('spacing');
             inversionState = Juce.getSliderState('inversion');
             wavetableBankState = Juce.getComboBoxState('wavetableBank');
@@ -875,12 +906,34 @@
             filterCutoffState = Juce.getSliderState('filterCutoff');
             masterVolumeState = Juce.getSliderState('masterVolume');
 
+            // v1.11.0: Effects states
+            chorusRateState = Juce.getSliderState('chorusRate');
+            chorusDepthState = Juce.getSliderState('chorusDepth');
+            chorusMixState = Juce.getSliderState('chorusMix');
+            delayTimeState = Juce.getSliderState('delayTime');
+            delayFeedbackState = Juce.getSliderState('delayFeedback');
+            delayModeState = Juce.getSliderState('delayMode');
+            delayMixState = Juce.getSliderState('delayMix');
+            eqLowGainState = Juce.getSliderState('eqLowGain');
+            eqMidGainState = Juce.getSliderState('eqMidGain');
+            eqMidFreqState = Juce.getSliderState('eqMidFreq');
+            eqHighGainState = Juce.getSliderState('eqHighGain');
+            reverbSizeState = Juce.getSliderState('reverbSize');
+            reverbDampState = Juce.getSliderState('reverbDamp');
+            reverbPredelayState = Juce.getSliderState('reverbPredelay');
+            reverbMixState = Juce.getSliderState('reverbMix');
+            chorusBypassState = Juce.getToggleState('chorusBypass');
+            delayBypassState = Juce.getToggleState('delayBypass');
+            eqBypassState = Juce.getToggleState('eqBypass');
+            reverbBypassState = Juce.getToggleState('reverbBypass');
+
             // Setup tab switching
             setupTabs();
 
             // Setup all knobs
             setupKnob('voiceCount', voiceCountState, 2, 12, '', v => Math.round(v));
             setupKnob('complexity', complexityState, 0, 100, '%', v => Math.round(v));
+            setupKnob('stereoSpread', stereoSpreadState, 0, 100, '%', v => Math.round(v));
             setupKnob('spacing', spacingState, 0, 100, '%', v => Math.round(v));
             setupKnob('inversion', inversionState, 0, 100, '%', v => Math.round(v));
             setupKnob('wavetablePos', wavetablePosState, 0, 100, '%', v => Math.round(v));
@@ -909,6 +962,29 @@
             // v1.6.0: Wavetable bank comboboxes
             setupComboBox('wavetableBank', wavetableBankState);
             setupComboBox('wavetableBank2', wavetableBank2State);
+
+            // v1.11.0: Effects knobs
+            setupKnob('chorusRate', chorusRateState, 0.1, 10, ' Hz', v => v.toFixed(2));
+            setupKnob('chorusDepth', chorusDepthState, 0, 100, '%', v => Math.round(v));
+            setupKnob('chorusMix', chorusMixState, 0, 100, '%', v => Math.round(v));
+            setupKnob('delayTime', delayTimeState, 1, 2000, ' ms', v => Math.round(v));
+            setupKnob('delayFeedback', delayFeedbackState, 0, 95, '%', v => Math.round(v));
+            setupKnob('delayMode', delayModeState, 0, 1, '', v => v < 0.5 ? 'Normal' : 'PingPong');
+            setupKnob('delayMix', delayMixState, 0, 100, '%', v => Math.round(v));
+            setupKnob('eqLowGain', eqLowGainState, -12, 12, ' dB', v => v.toFixed(1));
+            setupKnob('eqMidGain', eqMidGainState, -12, 12, ' dB', v => v.toFixed(1));
+            setupKnob('eqMidFreq', eqMidFreqState, 200, 8000, ' Hz', v => Math.round(v));
+            setupKnob('eqHighGain', eqHighGainState, -12, 12, ' dB', v => v.toFixed(1));
+            setupKnob('reverbSize', reverbSizeState, 0, 100, '%', v => Math.round(v));
+            setupKnob('reverbDamp', reverbDampState, 0, 100, '%', v => Math.round(v));
+            setupKnob('reverbPredelay', reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
+            setupKnob('reverbMix', reverbMixState, 0, 100, '%', v => Math.round(v));
+
+            // v1.11.0: Bypass toggles
+            setupBypassToggle('chorus', chorusBypassState);
+            setupBypassToggle('delay', delayBypassState);
+            setupBypassToggle('eq', eqBypassState);
+            setupBypassToggle('reverb', reverbBypassState);
 
             // v1.5.0: Initialize interval selector
             initIntervalSelector();
@@ -970,19 +1046,23 @@
             });
         }
 
-        // Generic knob setup (Pattern #16: Relative drag)
+        // Generic knob setup (SVG vine-arc style)
         function setupKnob(paramId, state, min, max, unit, formatter) {
             if (!state) {
                 console.error(`Failed to get slider state for ${paramId}`);
                 return;
             }
 
-            const knob = document.getElementById(`${paramId}Knob`);
-            const indicator = document.getElementById(`${paramId}Indicator`);
+            const knobEl = document.getElementById(`${paramId}Knob`);
+            const vine = document.getElementById(`${paramId}Vine`);
             const valueDisplay = document.getElementById(`${paramId}Value`);
 
-            // Calculate rotation center from actual knob size (fixes drift on smaller knobs)
-            const knobRadius = knob.offsetHeight / 2;
+            if (!knobEl || !vine || !valueDisplay) return;
+
+            // Calculate arc length from SVG circle radius
+            // Arc spans 270 degrees (0.75 of circumference)
+            const r = parseFloat(vine.getAttribute('r'));
+            const arcLength = 2 * Math.PI * r * 0.75;
 
             let isDragging = false;
             let isEditing = false;
@@ -993,10 +1073,9 @@
                 const normValue = state.getNormalisedValue();
                 const realValue = min + (normValue * (max - min));
 
-                // Rotate indicator around knob center
-                const angle = -140 + (normValue * 280);
-                indicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
-                indicator.style.transformOrigin = `center ${knobRadius}px`;
+                // Update SVG vine arc
+                const offset = arcLength - (normValue * arcLength);
+                vine.style.strokeDashoffset = offset;
 
                 // Update value display (skip when user is editing)
                 if (!isEditing) {
@@ -1005,7 +1084,7 @@
                 }
             }
 
-            // JUCE -> UI (Pattern #15: No callback params)
+            // JUCE -> UI
             state.valueChangedEvent.addListener(() => {
                 if (!isDragging) {
                     virtualNorm = state.getNormalisedValue();
@@ -1013,8 +1092,9 @@
                 updateVisual();
             });
 
-            // UI -> JUCE
-            knob.addEventListener('mousedown', (e) => {
+            // UI -> JUCE (drag on knob-visual)
+            const knobVisual = knobEl.querySelector('.knob-visual');
+            (knobVisual || knobEl).addEventListener('mousedown', (e) => {
                 isDragging = true;
                 lastY = e.clientY;
                 virtualNorm = state.getNormalisedValue();
@@ -1040,6 +1120,15 @@
                     virtualNorm = state.getNormalisedValue();
                 }
             });
+
+            // Mouse wheel support
+            (knobVisual || knobEl).addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const currentNorm = state.getNormalisedValue();
+                const delta = e.deltaY < 0 ? 0.02 : -0.02;
+                const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+                state.setNormalisedValue(newNorm);
+            }, { passive: false });
 
             updateVisual();
 
@@ -1145,6 +1234,33 @@
 
             select.addEventListener('change', () => {
                 state.setChoiceIndex(parseInt(select.value));
+            });
+
+            updateVisual();
+        }
+
+        // ====================================================================
+        // v1.11.0: BYPASS TOGGLE SETUP
+        // ====================================================================
+
+        function setupBypassToggle(fxName, toggleState) {
+            const btn = document.getElementById(`${fxName}BypassBtn`);
+            const section = document.getElementById(`${fxName}Section`);
+            if (!btn || !section || !toggleState) return;
+
+            function updateVisual() {
+                const bypassed = toggleState.getValue();
+                btn.textContent = bypassed ? 'Off' : 'On';
+                btn.classList.toggle('bypassed', bypassed);
+                section.classList.toggle('bypassed', bypassed);
+            }
+
+            toggleState.valueChangedEvent.addListener(() => {
+                updateVisual();
+            });
+
+            btn.addEventListener('click', () => {
+                toggleState.setValue(!toggleState.getValue());
             });
 
             updateVisual();

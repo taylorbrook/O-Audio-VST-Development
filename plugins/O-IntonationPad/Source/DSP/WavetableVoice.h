@@ -11,6 +11,7 @@
 #pragma once
 #include <JuceHeader.h>
 #include <array>
+#include <vector>
 #include "WavetableOscillator.h"
 #include "WavetableSound.h"
 #include "ChordGenerator.h"
@@ -34,6 +35,7 @@ public:
     void pitchWheelMoved(int) override {}
     void controllerMoved(int, int) override {}
     void renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int startSample, int numSamples) override;
+    void prepare(int maxBlockSize);
 
     // Parameter setters (called from audio thread via atomic reads)
     void setWavetableBank(int bankIndex);
@@ -49,6 +51,9 @@ public:
                                    float detuneRandom, float timingRandom,
                                    ChordGenerator* chordGen, class TuningEngine* tuning,
                                    juce::Random* random);
+    void setStereoSpread(float spread);
+    void setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth);
+    void setWavetablePosition2WithLFO(float basePos, float lfoPhase, float lfoDepth);
 
     // UI data access (read from message thread)
     int getActiveSubVoiceCount() const { return activeSubVoices; }
@@ -80,6 +85,11 @@ public:
 
 private:
     static constexpr int MAX_SUB_VOICES = 12;
+
+    // Scratch buffers for block-based rendering (heap-allocated in prepare())
+    std::vector<float> scratchL;
+    std::vector<float> scratchR;
+    int preparedBlockSize = 0;
 
     // Oscillator Set A (primary)
     std::array<WavetableOscillator, MAX_SUB_VOICES> subVoiceOscillators;          // base pitch
@@ -139,6 +149,14 @@ private:
     float cachedGainB = 0.0f;
     float smoothedGainA = 1.0f;
     float smoothedGainB = 0.0f;
+
+    // v1.13.0: Per-sub-voice stereo panning
+    float cachedStereoSpread = 0.5f;
+    std::array<float, MAX_SUB_VOICES> subVoicePanFactor{};  // Set in startNote, includes random offset
+    std::array<float, MAX_SUB_VOICES> smoothedPan{};         // Smoothed pan position (-1 to +1)
+
+    // v1.14.0: Per-sub-voice LFO phase offsets for organic ensemble movement
+    std::array<float, MAX_SUB_VOICES> subVoiceLFOPhaseOffsets{};
 
     // Multi-octave shift helper (weighted: 60% = 1oct, 30% = 2oct, 10% = 3oct)
     static int getRandomOctaveShift(juce::Random* rng);

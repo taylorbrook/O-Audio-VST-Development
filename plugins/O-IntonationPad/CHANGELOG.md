@@ -1,5 +1,118 @@
 # O-IntonationPad Changelog
 
+## [1.15.5] - 2026-02-24
+
+### Changed
+- **Deduplicated knob UI markup**: Replaced 34 hand-written SVG knob blocks (~370 lines) with a `makeKnob()` JS factory function and data-driven config arrays. All knob DOM structure is now generated programmatically on `DOMContentLoaded`
+- **Deduplicated wavetable bank options**: Both OSC A/B `<select>` elements are now built from a shared `WAVETABLE_BANKS` array via `makeWavetableDropdown()`, eliminating the duplicated 16-option HTML lists
+
+### Technical
+- Added `makeKnob(id, label, size, labelStyle)` factory: creates knob-container with SVG vine-arc, label, and value div. Calculates viewBox/radius/dasharray from size parameter ('small' = 44px or default = 52px)
+- Added `makeWavetableDropdown(selectId, oscLabel)` helper: builds dropdown-container with label and `<select>` from shared bank array
+- Added `populateKnobs(containerId, knobConfigs)` batch helper
+- All `setupKnob()` wiring unchanged — factory handles DOM creation only
+- Net reduction: ~290 lines (1870 → 1579)
+
+## [1.15.4] - 2026-02-24
+
+### Fixed
+- **Stack buffer overrun in WavetableVoice::renderNextBlock**: Scratch buffers (`scratchL`/`scratchR`) were stack-allocated as `float[2048]` with only a `jassert` guard — a host requesting >2048 samples would silently write past the end in Release builds. Root cause: `jassert` is a no-op in Release, so the size limit was unenforceable. Fix: scratch buffers are now heap-allocated `std::vector<float>` members sized in `prepare()` to the host's actual `maximumBlockSize`, with a hard `jmin` clamp in `renderNextBlock` replacing the `jassert`-only guard
+
+### Technical
+- Added `WavetableVoice::prepare(int maxBlockSize)` — called from `PluginProcessor::prepareToPlay()`, resizes scratch vectors to host-reported block size
+- Removed `static constexpr MAX_BLOCK_SIZE = 2048` and `jassert(numSamples <= MAX_BLOCK_SIZE)` — replaced by `juce::jmin(numSamples, preparedBlockSize)` hard clamp with early return if `preparedBlockSize` not yet set
+- Scratch buffers changed from `alignas(16) float[2048]` stack arrays to `std::vector<float>` members — no alignment loss since `std::vector` uses heap allocation (typically 16-byte aligned on modern allocators)
+
+## [1.15.3] - 2026-02-24
+
+### Fixed
+- **Thread-safe EQ/Reverb parameter updates**: EQProcessor and ReverbProcessor setters now write to `std::atomic<float>` targets instead of directly mutating filter coefficients or reverb parameters. All coefficient/parameter updates happen exclusively in `process()` on the audio thread, eliminating potential data races if setters are ever called from the message thread
+
+### Technical
+- EQProcessor: Replaced `float lowGainDB/midGainDB/midFreqHz/highGainDB` with `std::atomic<float>` targets; removed `updateLowShelf()`, `updateMidPeak()`, `updateHighShelf()` private methods; coefficient recalculation moved into `process()`
+- ReverbProcessor: Replaced `float preDelaySamples` and `juce::Reverb::Parameters reverbParams` with `std::atomic<float>` targets for size, damping, predelay, mix; `reverb.setParameters()` and `dryWetMixer.setWetMixProportion()` now called only from `process()`
+
+## [1.15.2] - 2026-02-24
+
+### Fixed
+- **Real-time safety**: Replaced mutex-based interval caching with lock-free atomic shared pointer snapshots. `processBlock` no longer acquires `enabledIntervalsMutex` — eliminates priority inversion when the UI thread holds the lock in `setIntervalEnabled()` or `resetEnabledIntervals()`
+
+### Technical
+- Introduced `IntervalSnapshot` struct (immutable: `enabledFlags`, `enabledDegrees`, `scaleDegreeCount`) published by UI thread via `std::atomic_store`, read by audio thread via `std::atomic_load`
+- Removed `enabledIntervalsMutex`, `enabledIntervalsDirty`, `cachedEnabledDegrees`, `cachedScaleDegreeCount` — all replaced by single `std::shared_ptr<const IntervalSnapshot>`
+- Moved scale-size-change detection from `processBlock` to message-thread paths: `parameterChanged` (temperament callback) and 5 editor WebView callbacks (`setTuningIntervals`, `setTemperamentPreset`, `loadScalaFile`, `applyGeneratedScale`, `loadEmbeddedTuning`)
+- Added `checkAndResetForScaleChange()` public method for editor callbacks to trigger interval reset when scale degree count changes
+
+## [1.15.1] - 2026-02-23
+
+### Improved
+- **Choir wavetable realism**: Redesigned Bank 2 (Choir) from 12 to 16 partials with ensemble detuning, proper formant structure, and phase diversity. Micro-detuned unison pairs (1.003, 0.997) and detuned octave (2.005) simulate multiple singers. Formant peaks at F1 (~700 Hz), F2 (~1200 Hz), and F3 (~2500 Hz) with 3:1+ peak-to-valley amplitude ratios create convincing vocal resonance. Varied phase offsets (0.3–3.1 rad) produce natural interference patterns instead of synthetic-sounding additive tones
+
+## [1.15.0] - 2026-02-23
+
+### Improved
+- **Block-based (voice-major) processing**: Restructured `renderNextBlock()` from sample-major to voice-major loop order for 30-50% CPU reduction through improved cache locality. Each oscillator now processes the entire audio block sequentially before moving to the next, keeping phase/wavetable state hot in L1 cache instead of thrashing across up to 72 oscillator objects per sample
+
+### Technical
+- Added `processBlockStereo()` method to `WavetableOscillator` — hoists frame position and mipmap data pointers out of the inner loop (constant per block), processes full block with additive stereo output
+- Gain smoothing moved from per-sample to block-rate using `blockCoeff = 1 - pow(1 - gainSmoothCoeff, numSamples)` — mathematically equivalent single-step exponential approach at ~250ms time constant
+- Sub-voice delay handling split into pre-delay `advancePhase()` and post-delay `processBlockStereo()` for mid-block delay expiry
+- Scratch buffers (`alignas(16) float[2048]`) used for accumulation; envelope applied in a final per-sample output pass
+- Pan, complexity, voice count, spacing, and inversion gains all smoothed at block rate
+- No changes to WavetableData.h, PluginProcessor.cpp, or UI
+
+## [1.14.0] - 2026-02-23
+
+### Improved
+- **Per-sub-voice LFO phase offsets**: Each of the 12 chord sub-voices now receives an independent random LFO phase offset (0 to 2PI) at note-on, breaking the lock-step wavetable modulation that caused mechanical pumping. The root voice (i=0) always tracks the global LFO exactly while all others drift independently, creating organic ensemble movement. Applies to both Osc A and Osc B LFOs, and covers base, spacing, and inversion oscillators per sub-voice so each chord tone moves as a cohesive unit
+
+### Technical
+- Added `setWavetablePositionWithLFO()` and `setWavetablePosition2WithLFO()` methods to WavetableVoice — each computes per-sub-voice modulated wavetable positions using individual phase offsets
+- Bhaskara I fast sine approximation (max error ~0.2%) replaces `std::sin()` for LFO computation since it now runs per-sub-voice per-block (up to 12x more calls)
+- LFO sine computation moved from PluginProcessor to WavetableVoice; processor now passes raw phase and depth
+- Phase offsets initialized in `startNote()` using existing `randomPtr`; no new parameters added
+- No changes to WavetableOscillator.h or WavetableData.h
+
+## [1.13.0] - 2026-02-23
+
+### Added
+- **Stereo Spread parameter**: New `stereoSpread` APVTS parameter (0-100%, default 50%) distributes chord voices across the stereo field for spatial separation. At 0% all voices are centered (mono), at 100% voices reach their maximum pan positions
+- **Per-sub-voice constant-power panning**: Each of the 12 sub-voices gets an independent pan position using constant-power pan law (cos/sin). Root voice (i=0) is always centered. The 5th (i=1) has a reduced pan range (max ±0.15) for mono compatibility. Higher chord extensions alternate left/right with increasing width
+- **Smooth pan transitions**: Pan positions update per-sample using the same ~250ms exponential smoothing as spacing/inversion crossfades, allowing stereo spread changes on held notes without clicks
+- **Random pan variation**: Each sub-voice receives ±0.05 random pan offset at note-on for ensemble feel, using the existing randomPtr
+- **Spread knob on Voice tab**: SVG vine-arc knob added to the top row alongside Voices, Complexity, Spacing, and Inversion
+
+### Technical
+- `renderNextBlock()` now accumulates separate `mixedSampleL` and `mixedSampleR` totals instead of a single `mixedSample`, writing independently to channels 0 and 1
+- Pan factors computed once in `startNote()` (direction * normalizedWidth + random offset), then scaled by `cachedStereoSpread` each sample in `renderNextBlock()`
+- Mono output fallback: averages L+R when output has only 1 channel
+- No changes to WavetableOscillator.h or WavetableData.h
+
+## [1.12.0] - 2026-02-23
+
+### Improved
+- **Within-frame linear interpolation**: `WavetableOscillator::getNextSample()` now computes a fractional sample position and linearly interpolates between adjacent samples within each wavetable frame (for both the lower and upper frame reads) before the existing frame-to-frame interpolation. Eliminates audible stairstepping/quantization noise on sustained pad notes, especially at low frequencies. Memory reads increase from 2 to 4 per oscillator tick but adjacent samples share cache lines so real cost is negligible
+- **Early-out for silent oscillators**: `WavetableVoice::renderNextBlock()` now skips oscillator processing when effective gain is below threshold (0.0001). Added lightweight `advancePhase(int)` method to `WavetableOscillator` that steps phase forward without reading the wavetable, keeping skipped oscillators in sync. Early-out applied independently to base, spacing, and inversion oscillator pairs — with typical settings (voiceCount=5, complexity=50%, spacing=0%) this skips ~85% of oscillator processing. The delay-period path also uses `advancePhase` instead of `getNextSample` to avoid unnecessary wavetable reads
+
+## [1.11.0] - 2026-02-22
+
+### Added
+- **Effects chain**: 4 post-synthesis effects in the previously empty Effects tab: Chorus, Delay, EQ, Reverb
+- **Chorus**: JUCE built-in chorus with Rate (0.1-10 Hz), Depth, and Mix controls. Fixed 7ms centre delay
+- **Delay**: Normal and PingPong stereo modes with Time (1-2000 ms), Feedback (0-95%), and Mix. Lagrange3rd interpolation with 8 kHz lowpass feedback filter for natural decay
+- **EQ**: 3-band parametric/shelf with Low shelf (200 Hz), Mid peak (200-8000 Hz variable), High shelf (8 kHz). Each band +/-12 dB
+- **Reverb**: Schroeder reverb with Size, Damping, Pre-delay (0-200 ms), and Mix. Pre-delay implemented via separate delay line before reverb algorithm
+- **Per-effect bypass toggles**: Each effect section has an On/Off button that visually dims the section and skips processing
+- **20 new APVTS parameters**: 16 continuous (4 per effect) + 4 boolean bypass toggles, all with full DAW automation support
+- **Effects UI**: Scrollable Effects tab with collapsible sections, SVG vine-arc knobs matching existing style, and bypass state visual feedback
+
+### Technical
+- DSP processors copied from O-Prism (DelayProcessor, EQProcessor, ReverbProcessor) with self-contained implementations
+- Effects chain processes after synth filter, before master volume: Chorus -> Delay -> EQ -> Reverb
+- Early-exit optimization: effects only process when mix > 0.001 (or EQ gain > 0.1 dB)
+- Tail length updated to 2.5s to account for reverb/delay tails
+- WebView relays use WebSliderRelay for continuous params and WebToggleButtonRelay for bypasses
+
 ## [1.10.0] - 2026-02-21
 
 ### Added

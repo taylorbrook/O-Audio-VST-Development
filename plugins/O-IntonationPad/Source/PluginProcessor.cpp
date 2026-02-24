@@ -82,6 +82,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
             "Well Tempered", "Just Intonation", "Bohlen-Pierce", "Custom" },
         8));  // Default: Just Intonation (restores pre-v1.3.0 behavior)
 
+    // v1.13.0: STEREO_SPREAD - Float (0-100%, default: 50%) — per-voice stereo panning
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "stereoSpread", 1 },
+        "Stereo Spread",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
     // SPACING - Float (0-100%, default: 0%) — shifts voices UP by 1-3 octaves
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "spacing", 1 },
@@ -116,14 +124,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         "cents"
     ));
 
-    // WAVETABLE_BANK - Choice (12 banks, default: 0 = JI Harmonic)
+    // WAVETABLE_BANK - Choice (16 banks, default: 0 = JI Harmonic)
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "wavetableBank", 1 },
         "Wavetable A",
         juce::StringArray {
             "JI Harmonic", "Warm Analog", "Choir", "Strings",
             "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter",
-            "Sine", "Square", "Triangle" },
+            "Sine", "Square", "Triangle",
+            "Spectral Cloud", "Metallic Resonance", "Formant Vowel", "Warm Sub" },
         0
     ));
 
@@ -142,7 +151,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         juce::StringArray {
             "JI Harmonic", "Warm Analog", "Choir", "Strings",
             "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter",
-            "Sine", "Square", "Triangle" },
+            "Sine", "Square", "Triangle",
+            "Spectral Cloud", "Metallic Resonance", "Formant Vowel", "Warm Sub" },
         1
     ));
 
@@ -238,6 +248,71 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         1.0f
     ));
 
+    // ═══════════════════════════════════════════════════════════════════
+    // v1.11.0: EFFECTS PARAMETERS (Chorus, Delay, EQ, Reverb)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // --- Chorus ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "chorusBypass", 1 }, "Chorus Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusRate", 1 }, "Chorus Rate",
+        juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f, 0.4f), 1.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusDepth", 1 }, "Chorus Depth",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusMix", 1 }, "Chorus Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.0f));
+
+    // --- Delay ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "delayBypass", 1 }, "Delay Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayTime", 1 }, "Delay Time",
+        juce::NormalisableRange<float>(0.001f, 2.0f, 0.001f, 0.35f), 0.375f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayFeedback", 1 }, "Delay Feedback",
+        juce::NormalisableRange<float>(0.0f, 0.95f, 0.001f), 0.3f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "delayMode", 1 }, "Delay Mode",
+        juce::StringArray { "Normal", "PingPong" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayMix", 1 }, "Delay Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.0f));
+
+    // --- EQ (3-band) ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "eqBypass", 1 }, "EQ Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqLowGain", 1 }, "EQ Low Gain",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqMidGain", 1 }, "EQ Mid Gain",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqMidFreq", 1 }, "EQ Mid Freq",
+        juce::NormalisableRange<float>(200.0f, 8000.0f, 0.1f, 0.35f), 1000.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqHighGain", 1 }, "EQ High Gain",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f));
+
+    // --- Reverb ---
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "reverbBypass", 1 }, "Reverb Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbSize", 1 }, "Reverb Size",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbDamp", 1 }, "Reverb Damping",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.5f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbPredelay", 1 }, "Reverb Pre-delay",
+        juce::NormalisableRange<float>(0.0f, 200.0f, 0.1f, 0.5f), 20.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbMix", 1 }, "Reverb Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.001f), 0.0f));
+
     return layout;
 }
 
@@ -305,9 +380,30 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     {
         if (auto* voice = dynamic_cast<WavetableVoice*>(synthesiser.getVoice(i)))
         {
+            voice->prepare(samplesPerBlock);
             voice->setEnvelopeParameters(attackTime, releaseTime);
         }
     }
+
+    // v1.11.0: Prepare effects chain
+    juce::dsp::ProcessSpec fxSpec;
+    fxSpec.sampleRate = sampleRate;
+    fxSpec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    fxSpec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+
+    chorus.prepare(fxSpec);
+    chorus.reset();
+    chorus.setCentreDelay(7.0f);
+    chorus.setFeedback(0.0f);
+
+    delay.prepare(fxSpec);
+    delay.reset();
+
+    eq.prepare(fxSpec);
+    eq.reset();
+
+    reverbProcessor.prepare(fxSpec);
+    reverbProcessor.reset();
 }
 
 void OIntonationPadAudioProcessor::releaseResources()
@@ -339,6 +435,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     float lfoDepth2 = parameters.getRawParameterValue("lfoDepth2")->load();
     float filterCutoff = parameters.getRawParameterValue("filterCutoff")->load();
     float masterVolume = parameters.getRawParameterValue("masterVolume")->load();
+    float stereoSpread = parameters.getRawParameterValue("stereoSpread")->load();
     float spacing = parameters.getRawParameterValue("spacing")->load();
     float inversion = parameters.getRawParameterValue("inversion")->load();
     float detuneRandom = parameters.getRawParameterValue("detuneRandom")->load();
@@ -348,11 +445,11 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     lfoPhaseIncrementA = (lfoRate * juce::MathConstants<double>::twoPi) / getSampleRate();
     lfoPhaseIncrementB = (lfoRate2 * juce::MathConstants<double>::twoPi) / getSampleRate();
 
-    // Calculate independent LFO values for A and B
-    float lfoSineA = static_cast<float>(std::sin(lfoPhaseA));
-    float lfoSineB = static_cast<float>(std::sin(lfoPhaseB));
-    float lfoValueA = lfoSineA * lfoDepth;
-    float lfoValueB = lfoSineB * lfoDepth2;
+    // v1.14.0: Capture current LFO phases before advancing (passed to voices for per-sub-voice offsets)
+    float currentLfoPhaseA = static_cast<float>(lfoPhaseA);
+    float currentLfoPhaseB = static_cast<float>(lfoPhaseB);
+
+    // Advance LFO phases for next block
     lfoPhaseA += lfoPhaseIncrementA * buffer.getNumSamples();
     lfoPhaseB += lfoPhaseIncrementB * buffer.getNumSamples();
     if (lfoPhaseA >= juce::MathConstants<double>::twoPi)
@@ -360,24 +457,10 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     if (lfoPhaseB >= juce::MathConstants<double>::twoPi)
         lfoPhaseB -= juce::MathConstants<double>::twoPi;
 
-    // Modulate wavetable positions with LFO
-    float modulatedWavetablePos = juce::jlimit(0.0f, 1.0f, wavetablePos + lfoValueA);
-    float modulatedWavetablePos2 = juce::jlimit(0.0f, 1.0f, wavetablePos2 + lfoValueB);
-
-    // v1.5.0: Check if scale size changed, auto-reset enabled intervals
-    int currentScaleSize = tuningEngine.getScaleDegrees();
-    if (currentScaleSize != lastKnownScaleSize)
-    {
-        resetEnabledIntervals();
-        lastKnownScaleSize = currentScaleSize;
-    }
-
-    // Rebuild audio-thread cache if dirty (lock-free read path for normal operation)
-    if (enabledIntervalsDirty.exchange(false))
-    {
-        cachedEnabledDegrees = getEnabledDegreeOffsets();
-        cachedScaleDegreeCount = getScaleDegreeCount();
-    }
+    // v1.15.2: Read interval snapshot (lock-free, no mutex — published by UI thread)
+    auto snap = std::atomic_load(&intervalSnapshot_);
+    const auto& currentEnabledDegrees = snap ? snap->enabledDegrees : std::vector<int>{ 0 };
+    int currentScaleDegreeCount = snap ? snap->scaleDegreeCount : 12;
 
     // Update all voice parameters before rendering
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -385,16 +468,17 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
         if (auto* voice = dynamic_cast<WavetableVoice*>(synthesiser.getVoice(i)))
         {
             voice->setWavetableBank(wavetableBank);
-            voice->setWavetablePosition(modulatedWavetablePos);
+            voice->setWavetablePositionWithLFO(wavetablePos, currentLfoPhaseA, lfoDepth);
             voice->setWavetableBank2(wavetableBank2);
-            voice->setWavetablePosition2(modulatedWavetablePos2);
+            voice->setWavetablePosition2WithLFO(wavetablePos2, currentLfoPhaseB, lfoDepth2);
             voice->setGainA(gainA);
             voice->setGainB(gainB);
+            voice->setStereoSpread(stereoSpread);
             voice->setEnvelopeParameters(attackTime, releaseTime);
 
             // Store chord generation parameters for voices to use on note-on
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot,
-                                            cachedEnabledDegrees, cachedScaleDegreeCount,
+                                            currentEnabledDegrees, currentScaleDegreeCount,
                                             spacing, inversion, detuneRandom, timingRandom,
                                             &chordGenerator, &tuningEngine, &randomGenerator);
         }
@@ -406,8 +490,77 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // Apply filter
     filter.setCutoffFrequency(filterCutoff);
     juce::dsp::AudioBlock<float> block(buffer);
-    juce::dsp::ProcessContextReplacing<float> context(block);
-    filter.process(context);
+    juce::dsp::ProcessContextReplacing<float> filterContext(block);
+    filter.process(filterContext);
+
+    // ═══════════════════════════════════════════════════════════════════
+    // v1.11.0: EFFECTS CHAIN (Chorus -> Delay -> EQ -> Reverb)
+    // ═══════════════════════════════════════════════════════════════════
+
+    // Chorus
+    bool chorusBypassed = parameters.getRawParameterValue("chorusBypass")->load() > 0.5f;
+    if (!chorusBypassed)
+    {
+        float chorusRate = parameters.getRawParameterValue("chorusRate")->load();
+        float chorusDepth = parameters.getRawParameterValue("chorusDepth")->load();
+        float chorusMix = parameters.getRawParameterValue("chorusMix")->load();
+        chorus.setRate(chorusRate);
+        chorus.setDepth(chorusDepth);
+        chorus.setMix(chorusMix);
+        if (chorusMix > 0.001f)
+        {
+            juce::dsp::ProcessContextReplacing<float> chorusCtx(block);
+            chorus.process(chorusCtx);
+        }
+    }
+
+    // Delay
+    bool delayBypassed = parameters.getRawParameterValue("delayBypass")->load() > 0.5f;
+    if (!delayBypassed)
+    {
+        float delayTime = parameters.getRawParameterValue("delayTime")->load();
+        float delayFeedback = parameters.getRawParameterValue("delayFeedback")->load();
+        int delayModeVal = static_cast<int>(parameters.getRawParameterValue("delayMode")->load());
+        float delayMix = parameters.getRawParameterValue("delayMix")->load();
+        delay.setTime(delayTime);
+        delay.setFeedback(delayFeedback);
+        delay.setMode(delayModeVal);
+        delay.setMix(delayMix);
+        if (delayMix > 0.001f)
+            delay.process(block);
+    }
+
+    // EQ
+    bool eqBypassed = parameters.getRawParameterValue("eqBypass")->load() > 0.5f;
+    if (!eqBypassed)
+    {
+        float eqLowGain = parameters.getRawParameterValue("eqLowGain")->load();
+        float eqMidGain = parameters.getRawParameterValue("eqMidGain")->load();
+        float eqMidFreq = parameters.getRawParameterValue("eqMidFreq")->load();
+        float eqHighGain = parameters.getRawParameterValue("eqHighGain")->load();
+        eq.setLowGain(eqLowGain);
+        eq.setMidGain(eqMidGain);
+        eq.setMidFreq(eqMidFreq);
+        eq.setHighGain(eqHighGain);
+        if (std::abs(eqLowGain) > 0.1f || std::abs(eqMidGain) > 0.1f || std::abs(eqHighGain) > 0.1f)
+            eq.process(block);
+    }
+
+    // Reverb
+    bool reverbBypassed = parameters.getRawParameterValue("reverbBypass")->load() > 0.5f;
+    if (!reverbBypassed)
+    {
+        float reverbSize = parameters.getRawParameterValue("reverbSize")->load();
+        float reverbDamp = parameters.getRawParameterValue("reverbDamp")->load();
+        float reverbPredelay = parameters.getRawParameterValue("reverbPredelay")->load();
+        float reverbMix = parameters.getRawParameterValue("reverbMix")->load();
+        reverbProcessor.setSize(reverbSize);
+        reverbProcessor.setDamping(reverbDamp);
+        reverbProcessor.setPredelay(reverbPredelay);
+        reverbProcessor.setMix(reverbMix);
+        if (reverbMix > 0.001f)
+            reverbProcessor.process(block);
+    }
 
     // Apply master volume
     buffer.applyGain(masterVolume);
@@ -438,7 +591,10 @@ void OIntonationPadAudioProcessor::parameterChanged(const juce::String& paramete
         }
     }
     else if (parameterID == "tuning_temperamentPreset")
+    {
         tuningEngine.setBuiltInPreset(static_cast<TuningEngine::BuiltInPreset>(static_cast<int>(newValue)));
+        checkAndResetForScaleChange();
+    }
 }
 
 void OIntonationPadAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
@@ -459,16 +615,19 @@ void OIntonationPadAudioProcessor::getStateInformation(juce::MemoryBlock& destDa
     tuningState.setProperty("tonic", tuningEngine.getTonicNote(), nullptr);
     tuningState.setProperty("preset", static_cast<int>(tuningEngine.getBuiltInPreset()), nullptr);
 
-    // v1.5.0: Save enabled intervals
+    // v1.5.0: Save enabled intervals (lock-free snapshot read)
     {
-        auto ei = getEnabledIntervals();
-        juce::String eiStr;
-        for (size_t i = 0; i < ei.size(); ++i)
+        auto snap = std::atomic_load(&intervalSnapshot_);
+        if (snap)
         {
-            if (i > 0) eiStr += ",";
-            eiStr += ei[i] ? "1" : "0";
+            juce::String eiStr;
+            for (size_t i = 0; i < snap->enabledFlags.size(); ++i)
+            {
+                if (i > 0) eiStr += ",";
+                eiStr += snap->enabledFlags[i] ? "1" : "0";
+            }
+            tuningState.setProperty("enabledIntervals", eiStr, nullptr);
         }
-        tuningState.setProperty("enabledIntervals", eiStr, nullptr);
     }
 
     std::unique_ptr<juce::XmlElement> xml(state.createXml());
@@ -504,16 +663,23 @@ void OIntonationPadAudioProcessor::setStateInformation(const void* data, int siz
             int tonic = tuningState.getProperty("tonic", 0);
             tuningEngine.setTonicNote(tonic);
 
-            // v1.5.0: Restore enabled intervals
+            // v1.5.0: Restore enabled intervals (lock-free snapshot publish)
             juce::String eiStr = tuningState.getProperty("enabledIntervals", "");
             if (eiStr.isNotEmpty())
             {
                 juce::StringArray eiTokens;
                 eiTokens.addTokens(eiStr, ",", "");
-                std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
-                enabledIntervals.clear();
+                auto snap = std::make_shared<IntervalSnapshot>();
+                snap->scaleDegreeCount = tuningEngine.getScaleDegrees();
                 for (const auto& token : eiTokens)
-                    enabledIntervals.push_back(token == "1");
+                    snap->enabledFlags.push_back(token == "1");
+                for (int i = 0; i < static_cast<int>(snap->enabledFlags.size()); ++i)
+                    if (snap->enabledFlags[static_cast<size_t>(i)])
+                        snap->enabledDegrees.push_back(i);
+                if (snap->enabledDegrees.empty())
+                    snap->enabledDegrees.push_back(0);
+                lastKnownScaleSize_ = snap->scaleDegreeCount;
+                std::atomic_store(&intervalSnapshot_, std::shared_ptr<const IntervalSnapshot>(std::move(snap)));
             }
         }
     }
@@ -567,27 +733,47 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
 
 std::vector<bool> OIntonationPadAudioProcessor::getEnabledIntervals() const
 {
-    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
-    return enabledIntervals;
+    auto snap = std::atomic_load(&intervalSnapshot_);
+    return snap ? snap->enabledFlags : std::vector<bool>{};
 }
 
 void OIntonationPadAudioProcessor::setIntervalEnabled(int index, bool enabled)
 {
-    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
-    if (index >= 0 && index < static_cast<int>(enabledIntervals.size()))
-    {
-        enabledIntervals[static_cast<size_t>(index)] = enabled;
-        enabledIntervalsDirty.store(true);
-    }
+    auto current = std::atomic_load(&intervalSnapshot_);
+    if (!current || index < 0 || index >= static_cast<int>(current->enabledFlags.size()))
+        return;
+
+    auto snap = std::make_shared<IntervalSnapshot>();
+    snap->enabledFlags = current->enabledFlags;
+    snap->scaleDegreeCount = current->scaleDegreeCount;
+    snap->enabledFlags[static_cast<size_t>(index)] = enabled;
+
+    for (int i = 0; i < static_cast<int>(snap->enabledFlags.size()); ++i)
+        if (snap->enabledFlags[static_cast<size_t>(i)])
+            snap->enabledDegrees.push_back(i);
+    if (snap->enabledDegrees.empty())
+        snap->enabledDegrees.push_back(0);
+
+    std::atomic_store(&intervalSnapshot_, std::shared_ptr<const IntervalSnapshot>(std::move(snap)));
 }
 
 void OIntonationPadAudioProcessor::resetEnabledIntervals()
 {
-    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
     int scaleSize = tuningEngine.getScaleDegrees();
-    enabledIntervals.clear();
-    enabledIntervals.resize(static_cast<size_t>(scaleSize), true);
-    enabledIntervalsDirty.store(true);
+    auto snap = std::make_shared<IntervalSnapshot>();
+    snap->scaleDegreeCount = scaleSize;
+    snap->enabledFlags.resize(static_cast<size_t>(scaleSize), true);
+    for (int i = 0; i < scaleSize; ++i)
+        snap->enabledDegrees.push_back(i);
+    std::atomic_store(&intervalSnapshot_, std::shared_ptr<const IntervalSnapshot>(std::move(snap)));
+    lastKnownScaleSize_ = scaleSize;
+}
+
+void OIntonationPadAudioProcessor::checkAndResetForScaleChange()
+{
+    int currentScaleSize = tuningEngine.getScaleDegrees();
+    if (currentScaleSize != lastKnownScaleSize_)
+        resetEnabledIntervals();
 }
 
 int OIntonationPadAudioProcessor::getScaleDegreeCount() const
@@ -597,17 +783,8 @@ int OIntonationPadAudioProcessor::getScaleDegreeCount() const
 
 std::vector<int> OIntonationPadAudioProcessor::getEnabledDegreeOffsets() const
 {
-    std::lock_guard<std::mutex> lock(enabledIntervalsMutex);
-    std::vector<int> degrees;
-    for (int i = 0; i < static_cast<int>(enabledIntervals.size()); ++i)
-    {
-        if (enabledIntervals[static_cast<size_t>(i)])
-            degrees.push_back(i);
-    }
-    // Always include degree 0 (root) if nothing is enabled
-    if (degrees.empty())
-        degrees.push_back(0);
-    return degrees;
+    auto snap = std::atomic_load(&intervalSnapshot_);
+    return snap ? snap->enabledDegrees : std::vector<int>{ 0 };
 }
 
 // Factory function

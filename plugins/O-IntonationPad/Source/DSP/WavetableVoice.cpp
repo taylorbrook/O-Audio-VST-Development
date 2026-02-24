@@ -10,6 +10,26 @@
 #include "WavetableVoice.h"
 #include "TuningEngine.h"
 
+namespace {
+    // Bhaskara I sine approximation — max error ~0.2%, sufficient for LFO modulation
+    inline float fastSin(float x)
+    {
+        const float twoPi = 6.283185307f;
+        const float pi = 3.141592654f;
+
+        x = std::fmod(x, twoPi);
+        if (x < 0.0f) x += twoPi;
+
+        bool negate = x >= pi;
+        if (negate) x -= pi;
+
+        float xpi = x * (pi - x);
+        float result = 16.0f * xpi / (5.0f * pi * pi - 4.0f * xpi);
+
+        return negate ? -result : result;
+    }
+}
+
 WavetableVoice::WavetableVoice()
 {
     // Initialize ADSR with default parameters
@@ -27,6 +47,13 @@ int WavetableVoice::getRandomOctaveShift(juce::Random* rng)
     if (r < 0.6f) return 1;       // 60% chance: 1 octave
     if (r < 0.9f) return 2;       // 30% chance: 2 octaves
     return 3;                      // 10% chance: 3 octaves
+}
+
+void WavetableVoice::prepare(int maxBlockSize)
+{
+    preparedBlockSize = maxBlockSize;
+    scratchL.resize(static_cast<size_t>(maxBlockSize), 0.0f);
+    scratchR.resize(static_cast<size_t>(maxBlockSize), 0.0f);
 }
 
 bool WavetableVoice::canPlaySound(juce::SynthesiserSound* sound)
@@ -159,6 +186,37 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             else
                 subVoiceDelays[idx] = randomPtr->nextInt(maxDelaySamples + 1);
             subVoiceDelayCounters[idx] = 0;
+
+            // --- v1.13.0: Stereo pan factor ---
+            if (i == 0)
+            {
+                subVoicePanFactor[idx] = 0.0f;  // Root always centered
+            }
+            else
+            {
+                // Alternating L/R with width proportional to index
+                float normalizedWidth = static_cast<float>(i) / static_cast<float>(MAX_SUB_VOICES - 1);
+                float direction = (i % 2 == 0) ? -1.0f : 1.0f;
+                float basePan = direction * normalizedWidth;
+
+                // Add small random variation for ensemble feel
+                if (randomPtr != nullptr)
+                    basePan += (randomPtr->nextFloat() * 2.0f - 1.0f) * 0.05f;
+
+                subVoicePanFactor[idx] = juce::jlimit(-1.0f, 1.0f, basePan);
+            }
+
+            // Initialize smoothed pan to current target
+            {
+                float targetPan = subVoicePanFactor[idx] * cachedStereoSpread;
+                if (i == 1)
+                    targetPan = juce::jlimit(-0.15f, 0.15f, targetPan);
+                smoothedPan[idx] = juce::jlimit(-1.0f, 1.0f, targetPan);
+            }
+
+            // v1.14.0: Per-sub-voice LFO phase offset (root tracks global LFO exactly)
+            subVoiceLFOPhaseOffsets[idx] = (i == 0) ? 0.0f
+                : (randomPtr != nullptr ? randomPtr->nextFloat() * juce::MathConstants<float>::twoPi : 0.0f);
         }
     }
     else
@@ -187,6 +245,9 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         subVoiceInversionGains[0] = 0.0f;
         subVoiceSpacingThresholds[0] = 1.0f;
         subVoiceInversionThresholds[0] = 1.0f;
+        subVoicePanFactor[0] = 0.0f;
+        smoothedPan[0] = 0.0f;
+        subVoiceLFOPhaseOffsets[0] = 0.0f;
     }
 
     // Start envelope
@@ -211,99 +272,211 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
     if (!isVoiceActive())
         return;
 
-    for (int sample = 0; sample < numSamples; ++sample)
+    // --- v1.15.0: Voice-major (block-based) processing for cache locality ---
+    // v1.15.4: Heap-allocated scratch buffers sized in prepare(), hard clamp
+    if (preparedBlockSize <= 0)
+        return;
+    numSamples = juce::jmin(numSamples, preparedBlockSize);
+    if (numSamples <= 0)
+        return;
+
+    std::fill(scratchL.begin(), scratchL.begin() + numSamples, 0.0f);
+    std::fill(scratchR.begin(), scratchR.begin() + numSamples, 0.0f);
+
+    // Block-rate smoothing: single-step equivalent of N per-sample steps
+    float blockCoeff = 1.0f - std::pow(1.0f - gainSmoothCoeff, static_cast<float>(numSamples));
+
+    // Smooth oscillator A/B gains at block rate
+    smoothedGainA += (cachedGainA - smoothedGainA) * blockCoeff;
+    smoothedGainB += (cachedGainB - smoothedGainB) * blockCoeff;
+
+    // Voice-major loop: each sub-voice processes the entire block
+    for (int i = 0; i < activeSubVoices; ++i)
     {
-        // Sum all sub-voice oscillators with independent complexity, voice-count, spacing, and inversion gains
-        float mixedSample = 0.0f;
+        auto idx = static_cast<size_t>(i);
 
-        // Smooth independent oscillator gains (once per sample, shared across sub-voices)
-        smoothedGainA += (cachedGainA - smoothedGainA) * gainSmoothCoeff;
-        smoothedGainB += (cachedGainB - smoothedGainB) * gainSmoothCoeff;
+        // --- Block-rate gain smoothing for all per-sub-voice parameters ---
 
-        for (int i = 0; i < activeSubVoices; ++i)
+        float threshold = subVoiceComplexityThresholds[idx];
+        float complexityTarget;
+        if (threshold <= 0.0f)
+            complexityTarget = 1.0f;
+        else if (cachedComplexity >= threshold)
+            complexityTarget = 1.0f;
+        else if (cachedComplexity <= threshold - 0.1f)
+            complexityTarget = 0.0f;
+        else
+            complexityTarget = (cachedComplexity - (threshold - 0.1f)) / 0.1f;
+
+        float voiceCountTarget = (i < cachedVoiceCount) ? 1.0f : 0.0f;
+        float spacingTarget = (cachedSpacing >= subVoiceSpacingThresholds[idx]) ? 1.0f : 0.0f;
+        float inversionTarget = (cachedInversion >= subVoiceInversionThresholds[idx]) ? 1.0f : 0.0f;
+
+        subVoiceComplexityGains[idx] += (complexityTarget - subVoiceComplexityGains[idx]) * blockCoeff;
+        subVoiceVoiceCountGains[idx] += (voiceCountTarget - subVoiceVoiceCountGains[idx]) * blockCoeff;
+        subVoiceSpacingGains[idx] += (spacingTarget - subVoiceSpacingGains[idx]) * blockCoeff;
+        subVoiceInversionGains[idx] += (inversionTarget - subVoiceInversionGains[idx]) * blockCoeff;
+
+        // Smooth pan position at block rate
+        float targetPan = subVoicePanFactor[idx] * cachedStereoSpread;
+        if (i == 1)
+            targetPan = juce::jlimit(-0.15f, 0.15f, targetPan);
+        targetPan = juce::jlimit(-1.0f, 1.0f, targetPan);
+        smoothedPan[idx] += (targetPan - smoothedPan[idx]) * blockCoeff;
+
+        // Constant-power pan law
+        float panAngle = (smoothedPan[idx] + 1.0f) * 0.5f;
+        float panL = std::cos(panAngle * juce::MathConstants<float>::halfPi);
+        float panR = std::sin(panAngle * juce::MathConstants<float>::halfPi);
+
+        float amplitudeGain = subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx];
+        float spacingMix = subVoiceSpacingGains[idx];
+        float inversionMix = subVoiceInversionGains[idx];
+
+        // Early-out: skip entire sub-voice if effectively silent
+        if (amplitudeGain < 0.0001f)
         {
-            auto idx = static_cast<size_t>(i);
+            subVoiceOscillators[idx].advancePhase(numSamples);
+            subVoiceOscillators2[idx].advancePhase(numSamples);
+            subVoiceSpacingOscillators[idx].advancePhase(numSamples);
+            subVoiceSpacingOscillators2[idx].advancePhase(numSamples);
+            subVoiceInversionOscillators[idx].advancePhase(numSamples);
+            subVoiceInversionOscillators2[idx].advancePhase(numSamples);
 
-            // --- Complexity gain target ---
-            float threshold = subVoiceComplexityThresholds[idx];
-            float complexityTarget;
-            if (threshold <= 0.0f)
-                complexityTarget = 1.0f;
-            else if (cachedComplexity >= threshold)
-                complexityTarget = 1.0f;
-            else if (cachedComplexity <= threshold - 0.1f)
-                complexityTarget = 0.0f;
-            else
-                complexityTarget = (cachedComplexity - (threshold - 0.1f)) / 0.1f;
-
-            // --- Voice count gain target ---
-            float voiceCountTarget = (i < cachedVoiceCount) ? 1.0f : 0.0f;
-
-            // --- Spacing crossfade target ---
-            float spacingTarget = (cachedSpacing >= subVoiceSpacingThresholds[idx]) ? 1.0f : 0.0f;
-
-            // --- Inversion crossfade target ---
-            float inversionTarget = (cachedInversion >= subVoiceInversionThresholds[idx]) ? 1.0f : 0.0f;
-
-            // Smooth all gains independently
-            subVoiceComplexityGains[idx] += (complexityTarget - subVoiceComplexityGains[idx]) * gainSmoothCoeff;
-            subVoiceVoiceCountGains[idx] += (voiceCountTarget - subVoiceVoiceCountGains[idx]) * gainSmoothCoeff;
-            subVoiceSpacingGains[idx] += (spacingTarget - subVoiceSpacingGains[idx]) * gainSmoothCoeff;
-            subVoiceInversionGains[idx] += (inversionTarget - subVoiceInversionGains[idx]) * gainSmoothCoeff;
-
-            float amplitudeGain = subVoiceComplexityGains[idx] * subVoiceVoiceCountGains[idx];
-            float spacingMix = subVoiceSpacingGains[idx];
-            float inversionMix = subVoiceInversionGains[idx];
-            float baseMix = (1.0f - spacingMix) * (1.0f - inversionMix);
-
-            // Check if this sub-voice's delay has elapsed
-            if (subVoiceDelayCounters[idx] >= subVoiceDelays[idx])
+            if (subVoiceDelayCounters[idx] < subVoiceDelays[idx])
             {
-                // 3-way mix for Osc A: base + spacing(up) + inversion(down)
-                float baseA = subVoiceOscillators[idx].getNextSample() * baseMix;
-                float spacingA = subVoiceSpacingOscillators[idx].getNextSample() * spacingMix;
-                float inversionA = subVoiceInversionOscillators[idx].getNextSample() * inversionMix;
-                float sampleA = baseA + spacingA + inversionA;
-
-                // 3-way mix for Osc B
-                float baseB = subVoiceOscillators2[idx].getNextSample() * baseMix;
-                float spacingB = subVoiceSpacingOscillators2[idx].getNextSample() * spacingMix;
-                float inversionB = subVoiceInversionOscillators2[idx].getNextSample() * inversionMix;
-                float sampleB = baseB + spacingB + inversionB;
-
-                // Independent gain per oscillator
-                mixedSample += (sampleA * smoothedGainA + sampleB * smoothedGainB) * amplitudeGain;
+                int delayRemaining = subVoiceDelays[idx] - subVoiceDelayCounters[idx];
+                subVoiceDelayCounters[idx] += juce::jmin(delayRemaining, numSamples);
             }
-            else
-            {
-                // Still advance all oscillators during delay to keep them in sync
-                subVoiceOscillators[idx].getNextSample();
-                subVoiceSpacingOscillators[idx].getNextSample();
-                subVoiceInversionOscillators[idx].getNextSample();
-                subVoiceOscillators2[idx].getNextSample();
-                subVoiceSpacingOscillators2[idx].getNextSample();
-                subVoiceInversionOscillators2[idx].getNextSample();
-                ++subVoiceDelayCounters[idx];
-            }
+            continue;
         }
 
-        // Normalize by MAX sub-voices for consistent volume
-        mixedSample /= static_cast<float>(MAX_SUB_VOICES);
+        float baseMix = (1.0f - spacingMix) * (1.0f - inversionMix);
 
-        // Apply envelope
-        float envelopedSample = mixedSample * envelope.getNextSample() * currentVelocity;
+        // Determine active portion of block (handle sub-voice delay)
+        int activeStart = 0;
+        int activeSamples = numSamples;
 
-        // Write to all output channels (stereo)
-        for (int channel = 0; channel < outputBuffer.getNumChannels(); ++channel)
+        if (subVoiceDelayCounters[idx] < subVoiceDelays[idx])
         {
-            outputBuffer.addSample(channel, startSample + sample, envelopedSample);
+            int delayRemaining = subVoiceDelays[idx] - subVoiceDelayCounters[idx];
+
+            if (delayRemaining >= numSamples)
+            {
+                // Entire block is in delay period
+                subVoiceDelayCounters[idx] += numSamples;
+                subVoiceOscillators[idx].advancePhase(numSamples);
+                subVoiceOscillators2[idx].advancePhase(numSamples);
+                subVoiceSpacingOscillators[idx].advancePhase(numSamples);
+                subVoiceSpacingOscillators2[idx].advancePhase(numSamples);
+                subVoiceInversionOscillators[idx].advancePhase(numSamples);
+                subVoiceInversionOscillators2[idx].advancePhase(numSamples);
+                continue;
+            }
+
+            // Delay expires mid-block: advance through delay portion, process remainder
+            activeStart = delayRemaining;
+            activeSamples = numSamples - delayRemaining;
+            subVoiceDelayCounters[idx] = subVoiceDelays[idx];
+
+            subVoiceOscillators[idx].advancePhase(delayRemaining);
+            subVoiceOscillators2[idx].advancePhase(delayRemaining);
+            subVoiceSpacingOscillators[idx].advancePhase(delayRemaining);
+            subVoiceSpacingOscillators2[idx].advancePhase(delayRemaining);
+            subVoiceInversionOscillators[idx].advancePhase(delayRemaining);
+            subVoiceInversionOscillators2[idx].advancePhase(delayRemaining);
         }
 
-        // Check if envelope finished
-        if (!envelope.isActive())
+        // Process active oscillators into scratch buffers
+        float* destL = scratchL.data() + activeStart;
+        float* destR = scratchR.data() + activeStart;
+
+        // Base oscillators (skip when spacing + inversion fully replace base)
+        if (baseMix >= 0.0001f)
         {
-            clearCurrentNote();
-            break;
+            subVoiceOscillators[idx].processBlockStereo(destL, destR, activeSamples,
+                baseMix * amplitudeGain * smoothedGainA * panL,
+                baseMix * amplitudeGain * smoothedGainA * panR);
+            subVoiceOscillators2[idx].processBlockStereo(destL, destR, activeSamples,
+                baseMix * amplitudeGain * smoothedGainB * panL,
+                baseMix * amplitudeGain * smoothedGainB * panR);
+        }
+        else
+        {
+            subVoiceOscillators[idx].advancePhase(activeSamples);
+            subVoiceOscillators2[idx].advancePhase(activeSamples);
+        }
+
+        // Spacing oscillators (skip when spacing mix near zero)
+        if (spacingMix >= 0.0001f)
+        {
+            subVoiceSpacingOscillators[idx].processBlockStereo(destL, destR, activeSamples,
+                spacingMix * amplitudeGain * smoothedGainA * panL,
+                spacingMix * amplitudeGain * smoothedGainA * panR);
+            subVoiceSpacingOscillators2[idx].processBlockStereo(destL, destR, activeSamples,
+                spacingMix * amplitudeGain * smoothedGainB * panL,
+                spacingMix * amplitudeGain * smoothedGainB * panR);
+        }
+        else
+        {
+            subVoiceSpacingOscillators[idx].advancePhase(activeSamples);
+            subVoiceSpacingOscillators2[idx].advancePhase(activeSamples);
+        }
+
+        // Inversion oscillators (skip when inversion mix near zero)
+        if (inversionMix >= 0.0001f)
+        {
+            subVoiceInversionOscillators[idx].processBlockStereo(destL, destR, activeSamples,
+                inversionMix * amplitudeGain * smoothedGainA * panL,
+                inversionMix * amplitudeGain * smoothedGainA * panR);
+            subVoiceInversionOscillators2[idx].processBlockStereo(destL, destR, activeSamples,
+                inversionMix * amplitudeGain * smoothedGainB * panL,
+                inversionMix * amplitudeGain * smoothedGainB * panR);
+        }
+        else
+        {
+            subVoiceInversionOscillators[idx].advancePhase(activeSamples);
+            subVoiceInversionOscillators2[idx].advancePhase(activeSamples);
+        }
+    }
+
+    // Final pass: normalize, apply envelope, write to output
+    float normFactor = 1.0f / static_cast<float>(MAX_SUB_VOICES);
+
+    if (outputBuffer.getNumChannels() >= 2)
+    {
+        auto* outL = outputBuffer.getWritePointer(0, startSample);
+        auto* outR = outputBuffer.getWritePointer(1, startSample);
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float envGain = envelope.getNextSample() * currentVelocity * normFactor;
+            auto s = static_cast<size_t>(sample);
+            outL[sample] += scratchL[s] * envGain;
+            outR[sample] += scratchR[s] * envGain;
+
+            if (!envelope.isActive())
+            {
+                clearCurrentNote();
+                break;
+            }
+        }
+    }
+    else if (outputBuffer.getNumChannels() == 1)
+    {
+        auto* outMono = outputBuffer.getWritePointer(0, startSample);
+
+        for (int sample = 0; sample < numSamples; ++sample)
+        {
+            float envGain = envelope.getNextSample() * currentVelocity * normFactor;
+            auto s = static_cast<size_t>(sample);
+            outMono[sample] += (scratchL[s] + scratchR[s]) * 0.5f * envGain;
+
+            if (!envelope.isActive())
+            {
+                clearCurrentNote();
+                break;
+            }
         }
     }
 }
@@ -354,6 +527,34 @@ void WavetableVoice::setWavetablePosition2(float pos)
     }
 }
 
+void WavetableVoice::setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth)
+{
+    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+        float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[idx];
+        float perVoiceLFO = fastSin(offsetPhase) * lfoDepth;
+        float modulatedPos = juce::jlimit(0.0f, 1.0f, basePos + perVoiceLFO);
+        subVoiceOscillators[idx].setWavetablePosition(modulatedPos);
+        subVoiceSpacingOscillators[idx].setWavetablePosition(modulatedPos);
+        subVoiceInversionOscillators[idx].setWavetablePosition(modulatedPos);
+    }
+}
+
+void WavetableVoice::setWavetablePosition2WithLFO(float basePos, float lfoPhase, float lfoDepth)
+{
+    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    {
+        auto idx = static_cast<size_t>(i);
+        float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[idx];
+        float perVoiceLFO = fastSin(offsetPhase) * lfoDepth;
+        float modulatedPos = juce::jlimit(0.0f, 1.0f, basePos + perVoiceLFO);
+        subVoiceOscillators2[idx].setWavetablePosition(modulatedPos);
+        subVoiceSpacingOscillators2[idx].setWavetablePosition(modulatedPos);
+        subVoiceInversionOscillators2[idx].setWavetablePosition(modulatedPos);
+    }
+}
+
 void WavetableVoice::setGainA(float gain)
 {
     cachedGainA = gain;
@@ -392,4 +593,9 @@ void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, 
     chordGeneratorPtr = chordGen;
     tuningEnginePtr = tuning;
     randomPtr = random;
+}
+
+void WavetableVoice::setStereoSpread(float spread)
+{
+    cachedStereoSpread = spread;
 }
