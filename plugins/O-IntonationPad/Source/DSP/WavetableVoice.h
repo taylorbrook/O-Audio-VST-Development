@@ -158,6 +158,9 @@ private:
     // v1.14.0: Per-sub-voice LFO phase offsets for organic ensemble movement
     std::array<float, MAX_SUB_VOICES> subVoiceLFOPhaseOffsets{};
 
+    // Resolve MIDI note to frequency using tuning engine (or 12-TET fallback) with cent offset
+    float resolveFrequency(int midiNote, double centOffset) const;
+
     // Multi-octave shift helper (weighted: 60% = 1oct, 30% = 2oct, 10% = 3oct)
     static int getRandomOctaveShift(juce::Random* rng);
 };

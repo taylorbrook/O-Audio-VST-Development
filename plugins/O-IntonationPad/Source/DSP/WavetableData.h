@@ -24,7 +24,7 @@ namespace WavetableData
     constexpr int NUM_FRAMES = 256;
     constexpr int SAMPLES_PER_FRAME = 2048;
     constexpr int NUM_MIPMAPS = 11;
-    constexpr int NUM_BANKS = 12;
+    constexpr int NUM_BANKS = 16;
     constexpr double PI = 3.14159265358979323846;
     constexpr double TWO_PI = 2.0 * PI;
     constexpr double ASSUMED_SAMPLE_RATE = 48000.0;
@@ -43,7 +43,11 @@ namespace WavetableData
         DarkMatter,
         Sine,
         Square,
-        Triangle
+        Triangle,
+        SpectralCloud,
+        MetallicResonance,
+        FormantVowel,
+        WarmSub
     };
 
     // Base frequencies for each mipmap level (octave boundaries)
@@ -100,20 +104,25 @@ namespace WavetableData
         { 12.0, 0.70, 0.90, 0.05 },
     }};
 
-    // Bank 2: Choir — formant resonances at ~500, ~1500, ~2500 Hz regions
-    constexpr std::array<Partial, 12> choirPartials = {{
-        { 1.0,   0.00, 0.00, 1.00 },
-        { 2.0,   0.05, 0.20, 0.60 },
-        { 3.0,   0.10, 0.30, 0.70 },   // ~1st formant emphasis
-        { 4.0,   0.15, 0.35, 0.30 },
-        { 5.0,   0.20, 0.40, 0.55 },   // ~2nd formant emphasis
-        { 6.0,   0.28, 0.48, 0.25 },
-        { 7.0,   0.35, 0.55, 0.40 },   // ~3rd formant emphasis
-        { 8.0,   0.40, 0.60, 0.18 },
-        { 9.0,   0.50, 0.70, 0.22 },
-        { 10.0,  0.55, 0.75, 0.15 },
-        { 11.0,  0.65, 0.82, 0.12 },
-        { 12.0,  0.72, 0.90, 0.08 },
+    // Bank 2: Choir — ensemble detuning + formant peaks (F1~700, F2~1200, F3~2500 Hz)
+    // Micro-detuned pairs simulate multiple singers; phase diversity for natural interference
+    constexpr std::array<Partial, 16> choirPartials = {{
+        { 1.0,    0.00, 0.00, 1.00, 0.0  },    // Fundamental
+        { 1.003,  0.02, 0.08, 0.80, 1.2  },    // Detuned unison (sharp) — ensemble width
+        { 0.997,  0.02, 0.08, 0.80, 2.5  },    // Detuned unison (flat) — ensemble width
+        { 2.0,    0.04, 0.15, 0.50, 0.4  },    // Octave
+        { 2.005,  0.06, 0.18, 0.40, 1.8  },    // Detuned octave — choral spread
+        { 3.0,    0.08, 0.22, 0.75, 0.7  },    // F1 formant peak (~700 Hz)
+        { 4.0,    0.12, 0.30, 0.25, 1.5  },    // Valley between F1 and F2
+        { 5.0,    0.16, 0.35, 0.65, 2.2  },    // F2 formant rise
+        { 6.0,    0.20, 0.40, 0.70, 0.3  },    // F2 formant peak (~1200 Hz)
+        { 7.0,    0.28, 0.48, 0.20, 1.9  },    // Valley — spectral dip
+        { 8.0,    0.35, 0.55, 0.18, 2.8  },    // Low energy region
+        { 9.0,    0.40, 0.60, 0.45, 0.6  },    // F3 formant rise
+        { 10.0,   0.45, 0.65, 0.50, 3.1  },    // F3 formant peak (~2500 Hz)
+        { 12.0,   0.55, 0.75, 0.35, 1.4  },    // Singer's formant support
+        { 14.0,   0.62, 0.82, 0.20, 2.0  },    // Breathiness / air
+        { 16.0,   0.72, 0.90, 0.10, 0.9  },    // High-frequency presence
     }};
 
     // Bank 3: Strings — bowed sawtooth with gentle spectral rolloff
@@ -243,6 +252,74 @@ namespace WavetableData
         { 11.0, 0.42, 0.68, 0.0083, PI  },
         { 13.0, 0.55, 0.78, 0.0059, 0.0 },
         { 15.0, 0.65, 0.88, 0.0044, PI  },
+    }};
+
+    // Bank 12: Spectral Cloud — dense atmospheric texture with micro-detuned partials
+    constexpr std::array<Partial, 16> spectralCloudPartials = {{
+        { 1.0,    0.00, 0.00, 1.00, 0.0 },    // Fundamental
+        { 1.003,  0.02, 0.10, 0.70, 1.2 },    // Micro-detuned unison (sharp)
+        { 0.997,  0.02, 0.10, 0.70, 2.8 },    // Micro-detuned unison (flat)
+        { 2.0,    0.05, 0.20, 0.45, 0.5 },    // Octave
+        { 2.01,   0.08, 0.25, 0.40, 1.9 },    // Detuned octave — shimmer
+        { 1.498,  0.10, 0.30, 0.50, 3.1 },    // Slightly flat fifth — width
+        { 1.503,  0.10, 0.30, 0.50, 0.7 },    // Slightly sharp fifth — width
+        { 3.0,    0.15, 0.35, 0.30, 2.2 },    // 12th
+        { 0.5,    0.20, 0.40, 0.55, 1.4 },    // Sub-octave — warmth
+        { 4.0,    0.25, 0.50, 0.20, 0.3 },    // 2 octaves
+        { 2.5,    0.30, 0.55, 0.25, 2.6 },    // Major 10th
+        { 1.333,  0.35, 0.60, 0.30, 1.8 },    // Perfect fourth
+        { 5.0,    0.45, 0.70, 0.15, 3.4 },    // High partial
+        { 3.5,    0.50, 0.75, 0.18, 0.9 },    // Harmonic 7th
+        { 6.0,    0.60, 0.82, 0.10, 2.0 },    // Shimmer
+        { 7.01,   0.70, 0.90, 0.08, 1.1 },    // Detuned 7th harmonic
+    }};
+
+    // Bank 13: Metallic Resonance — inharmonic partials from circular membrane modes (Bessel zeros)
+    constexpr std::array<Partial, 12> metallicResonancePartials = {{
+        { 1.0,    0.00, 0.00, 1.00, 0.0 },    // Fundamental
+        { 1.593,  0.05, 0.18, 0.65, 0.8 },    // Mode (0,1)
+        { 2.136,  0.10, 0.28, 0.50, 1.6 },    // Mode (1,1)
+        { 2.296,  0.08, 0.22, 0.55, 2.4 },    // Mode (2,0)
+        { 2.653,  0.15, 0.35, 0.40, 0.4 },    // Mode (0,2)
+        { 3.156,  0.22, 0.45, 0.30, 3.0 },    // Mode (1,2)
+        { 3.501,  0.30, 0.55, 0.25, 1.2 },    // Mode (2,1)
+        { 4.059,  0.38, 0.62, 0.18, 2.0 },    // Mode (3,0)
+        { 4.601,  0.48, 0.72, 0.12, 0.6 },    // Mode (0,3)
+        { 5.132,  0.55, 0.78, 0.10, 2.8 },    // Higher mode
+        { 5.406,  0.65, 0.85, 0.08, 1.4 },    // Higher mode
+        { 6.345,  0.72, 0.92, 0.05, 3.2 },    // Highest mode
+    }};
+
+    // Bank 14: Formant Vowel — vowel color shift across wavetable position (ah→eh→ee→oh→oo)
+    // Integer harmonics 1-12 with staggered fade-in to approximate formant sweeps
+    // Designed for tenor range (~200-400 Hz fundamental)
+    constexpr std::array<Partial, 12> formantVowelPartials = {{
+        { 1.0,   0.00, 0.00, 1.00, 0.0 },    // H1: fundamental — all vowels
+        { 2.0,   0.00, 0.00, 0.75, 0.0 },    // H2: "ah" F1 anchor (~650 Hz)
+        { 3.0,   0.00, 0.08, 0.60, 0.0 },    // H3: "ah" F2 lower (~1080 Hz)
+        { 4.0,   0.05, 0.18, 0.45, 0.0 },    // H4: "ah" F2 upper region
+        { 5.0,   0.16, 0.32, 0.55, 0.0 },    // H5: "eh" F2 transition (~1700 Hz)
+        { 6.0,   0.24, 0.42, 0.65, 0.0 },    // H6: "ee" F2 peak (~1870 Hz)
+        { 7.0,   0.34, 0.52, 0.40, 0.0 },    // H7: "ee" F2 upper
+        { 8.0,   0.44, 0.62, 0.30, 0.0 },    // H8: bridge to F3 region
+        { 9.0,   0.48, 0.65, 0.55, 0.0 },    // H9: F3 all vowels (~2650 Hz)
+        { 10.0,  0.56, 0.74, 0.25, 0.0 },    // H10: upper F3 shimmer
+        { 11.0,  0.66, 0.82, 0.18, 0.0 },    // H11: breathiness
+        { 12.0,  0.76, 0.92, 0.10, 0.0 },    // H12: air/sibilance
+    }};
+
+    // Bank 15: Warm Sub — sub-heavy with controlled upper harmonics, phase-coherent
+    constexpr std::array<Partial, 10> warmSubPartials = {{
+        { 1.0,    0.00, 0.00, 1.00, 0.0 },    // Fundamental
+        { 0.5,    0.00, 0.00, 0.85, 0.0 },    // Sub-octave — always present
+        { 0.25,   0.05, 0.15, 0.50, 0.0 },    // 2 octaves below
+        { 0.333,  0.08, 0.22, 0.40, 0.0 },    // Sub-fifth
+        { 0.75,   0.10, 0.25, 0.35, 0.0 },    // Sub-fourth
+        { 1.5,    0.20, 0.40, 0.25, 0.0 },    // Fifth — gentle warmth
+        { 2.0,    0.30, 0.50, 0.30, 0.0 },    // Octave up — subtle
+        { 3.0,    0.42, 0.62, 0.18, 0.0 },    // 12th — faint
+        { 4.0,    0.55, 0.75, 0.12, 0.0 },    // 2 octaves up — barely present
+        { 5.0,    0.68, 0.88, 0.06, 0.0 },    // Major 17th — hint of brightness
     }};
 
     // ========================================================================
@@ -384,6 +461,10 @@ namespace WavetableData
                 case 9:  fillBankMipmapTable(table, sinePartials); break;
                 case 10: fillBankMipmapTable(table, squarePartials); break;
                 case 11: fillBankMipmapTable(table, trianglePartials); break;
+                case 12: fillBankMipmapTable(table, spectralCloudPartials); break;
+                case 13: fillBankMipmapTable(table, metallicResonancePartials); break;
+                case 14: fillBankMipmapTable(table, formantVowelPartials); break;
+                case 15: fillBankMipmapTable(table, warmSubPartials); break;
                 default: fillBankMipmapTable(table, jiHarmonicPartials); break;
             }
         }

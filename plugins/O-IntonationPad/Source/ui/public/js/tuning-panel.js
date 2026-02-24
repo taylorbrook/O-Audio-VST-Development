@@ -38,10 +38,42 @@ export class TuningPanel {
 
         // Note names for display
         this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+
+        // APVTS relay SliderStates (initialised in init after render)
+        this.octaveStretchState = null;
+        this.masterTuneState = null;
     }
 
     async init() {
         this.render();
+
+        // Create APVTS-backed SliderStates for octave stretch and master tune
+        if (this.juce && this.juce.getSliderState) {
+            this.octaveStretchState = this.juce.getSliderState('tuning_octaveStretch');
+            this.masterTuneState = this.juce.getSliderState('tuning_masterTune');
+
+            // Listen for backend-initiated changes to octave stretch
+            this.octaveStretchState.valueChangedEvent.addListener(() => {
+                const stretch = this.octaveStretchState.getScaledValue();
+                const slider = this.container.querySelector('#octave-stretch');
+                const valueEl = this.container.querySelector('#octave-stretch-value');
+                if (slider) slider.value = stretch;
+                if (valueEl) valueEl.textContent = stretch.toFixed(2);
+            });
+
+            // Listen for backend-initiated changes to master tune
+            this.masterTuneState.valueChangedEvent.addListener(() => {
+                const hz = this.masterTuneState.getScaledValue();
+                const indicator = this.container.querySelector('#ref-pitch-indicator');
+                const valueEl = this.container.querySelector('#ref-pitch-value');
+                if (indicator) {
+                    const angle = ((hz - 400) / 80) * 270 - 135;
+                    indicator.style.transform = `rotate(${angle}deg)`;
+                }
+                if (valueEl) valueEl.textContent = `${hz.toFixed(1)} Hz`;
+            });
+        }
+
         this.attachEventListeners();
         await this.loadInitialState();
     }
@@ -230,10 +262,12 @@ export class TuningPanel {
             // Get tonic
             this.tonic = await this.juce.getNativeFunction('getTonicNote')();
 
-            // Get octave stretch
-            const stretch = await this.juce.getNativeFunction('getOctaveStretch')();
-            this.container.querySelector('#octave-stretch').value = stretch;
-            this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
+            // Get octave stretch from APVTS relay
+            if (this.octaveStretchState) {
+                const stretch = this.octaveStretchState.getScaledValue();
+                this.container.querySelector('#octave-stretch').value = stretch;
+                this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
+            }
 
             // Update UI
             this.updateIntervalList();
@@ -908,16 +942,16 @@ export class TuningPanel {
     // OCTAVE STRETCH
     // ═══════════════════════════════════════════════════════════════════
 
-    async setOctaveStretch(value) {
+    setOctaveStretch(value) {
         const stretch = parseFloat(value);
         this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
 
-        if (!this.juce) return;
-        try {
-            await this.juce.getNativeFunction('setOctaveStretch')(stretch);
-        } catch (e) {
-            console.error('[TuningPanel] Set octave stretch failed:', e);
-        }
+        if (!this.octaveStretchState) return;
+        // Convert scaled value to normalised [0, 1] (linear range 0.95-1.25)
+        const norm = (stretch - 0.95) / (1.25 - 0.95);
+        this.octaveStretchState.sliderDragStarted();
+        this.octaveStretchState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
+        this.octaveStretchState.sliderDragEnded();
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -930,7 +964,7 @@ export class TuningPanel {
 
         let isDragging = false;
         let startY = 0;
-        let startValue = 440;
+        let startValue = this.masterTuneState ? this.masterTuneState.getScaledValue() : 440;
 
         const updateKnob = (hz) => {
             const indicator = this.container.querySelector('#ref-pitch-indicator');
@@ -947,31 +981,30 @@ export class TuningPanel {
         knob.addEventListener('mousedown', (e) => {
             isDragging = true;
             startY = e.clientY;
+            startValue = this.masterTuneState ? this.masterTuneState.getScaledValue() : startValue;
+            if (this.masterTuneState) this.masterTuneState.sliderDragStarted();
             document.body.style.cursor = 'ns-resize';
         });
 
-        document.addEventListener('mousemove', async (e) => {
+        document.addEventListener('mousemove', (e) => {
             if (!isDragging) return;
 
             const delta = (startY - e.clientY) * 0.5;
             const newHz = Math.max(400, Math.min(480, startValue + delta));
             updateKnob(newHz);
 
-            if (this.juce) {
-                try {
-                    await this.juce.getNativeFunction('setMasterTune')(newHz);
-                } catch (err) {
-                    // Throttled errors expected
-                }
+            if (this.masterTuneState) {
+                // Convert Hz to normalised [0, 1] (linear range 400-480)
+                const norm = (newHz - 400) / (480 - 400);
+                this.masterTuneState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
             }
         });
 
         document.addEventListener('mouseup', (e) => {
             if (isDragging) {
-                const delta = (startY - e.clientY) * 0.5;
-                startValue = Math.max(400, Math.min(480, startValue + delta));
                 isDragging = false;
                 document.body.style.cursor = '';
+                if (this.masterTuneState) this.masterTuneState.sliderDragEnded();
             }
         });
     }

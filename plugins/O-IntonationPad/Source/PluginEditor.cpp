@@ -18,10 +18,21 @@
 OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonationPadAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
-    // 1. Create relays FIRST (with parameter IDs matching HTML)
+    createRelays();
+    webView = std::make_unique<juce::WebBrowserComponent>(buildWebViewOptions());
+    createAttachments();
+
+    addAndMakeVisible(*webView);
+    setSize(800, 500);
+    startTimerHz(30);
+}
+
+void OIntonationPadAudioProcessorEditor::createRelays()
+{
     voiceCountRelay = std::make_unique<juce::WebSliderRelay>("voiceCount");
     complexityRelay = std::make_unique<juce::WebSliderRelay>("complexity");
     keyRootRelay = std::make_unique<juce::WebSliderRelay>("keyRoot");
+    stereoSpreadRelay = std::make_unique<juce::WebSliderRelay>("stereoSpread");
     spacingRelay = std::make_unique<juce::WebSliderRelay>("spacing");
     inversionRelay = std::make_unique<juce::WebSliderRelay>("inversion");
     wavetablePosRelay = std::make_unique<juce::WebSliderRelay>("wavetablePos");
@@ -34,10 +45,8 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     filterCutoffRelay = std::make_unique<juce::WebSliderRelay>("filterCutoff");
     masterVolumeRelay = std::make_unique<juce::WebSliderRelay>("masterVolume");
 
-    // v1.6.0: Wavetable bank relay
     wavetableBankRelay = std::make_unique<juce::WebComboBoxRelay>("wavetableBank");
 
-    // v1.10.0: Dual oscillator relays (independent gains + rates)
     wavetablePos2Relay = std::make_unique<juce::WebSliderRelay>("wavetablePos2");
     gainARelay = std::make_unique<juce::WebSliderRelay>("gainA");
     gainBRelay = std::make_unique<juce::WebSliderRelay>("gainB");
@@ -45,58 +54,249 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     lfoDepth2Relay = std::make_unique<juce::WebSliderRelay>("lfoDepth2");
     wavetableBank2Relay = std::make_unique<juce::WebComboBoxRelay>("wavetableBank2");
 
-    // v1.3.0: Tuning relays
     tuningMasterTuneRelay = std::make_unique<juce::WebSliderRelay>("tuning_masterTune");
     tuningOctaveStretchRelay = std::make_unique<juce::WebSliderRelay>("tuning_octaveStretch");
     tuningPitchBendRangeRelay = std::make_unique<juce::WebSliderRelay>("tuning_pitchBendRange");
     tuningTemperamentPresetRelay = std::make_unique<juce::WebComboBoxRelay>("tuning_temperamentPreset");
 
-    // 2. Create WebView SECOND with all relay options + native functions
-    webView = std::make_unique<juce::WebBrowserComponent>(
-        juce::WebBrowserComponent::Options{}
-            .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
-            .withWinWebView2Options(
-                juce::WebBrowserComponent::Options::WinWebView2{}
-                    .withUserDataFolder(juce::File::getSpecialLocation(
-                        juce::File::SpecialLocationType::tempDirectory)))
-            .withNativeIntegrationEnabled()
-            .withResourceProvider([this](auto& url) { return getResource(url); })
-            .withOptionsFrom(*voiceCountRelay)
-            .withOptionsFrom(*complexityRelay)
-            .withOptionsFrom(*keyRootRelay)
-            .withOptionsFrom(*spacingRelay)
-            .withOptionsFrom(*inversionRelay)
-            .withOptionsFrom(*wavetablePosRelay)
-            .withOptionsFrom(*lfoRateRelay)
-            .withOptionsFrom(*lfoDepthRelay)
-            .withOptionsFrom(*timingRandomRelay)
-            .withOptionsFrom(*detuneRandomRelay)
-            .withOptionsFrom(*attackTimeRelay)
-            .withOptionsFrom(*releaseTimeRelay)
-            .withOptionsFrom(*filterCutoffRelay)
-            .withOptionsFrom(*masterVolumeRelay)
-            // v1.6.0: Wavetable bank relay
-            .withOptionsFrom(*wavetableBankRelay)
-            // v1.10.0: Dual oscillator relays (independent gains + rates)
-            .withOptionsFrom(*wavetablePos2Relay)
-            .withOptionsFrom(*gainARelay)
-            .withOptionsFrom(*gainBRelay)
-            .withOptionsFrom(*lfoRate2Relay)
-            .withOptionsFrom(*lfoDepth2Relay)
-            .withOptionsFrom(*wavetableBank2Relay)
-            // v1.3.0: Tuning relays
-            .withOptionsFrom(*tuningMasterTuneRelay)
-            .withOptionsFrom(*tuningOctaveStretchRelay)
-            .withOptionsFrom(*tuningPitchBendRangeRelay)
-            .withOptionsFrom(*tuningTemperamentPresetRelay)
+    chorusRateRelay = std::make_unique<juce::WebSliderRelay>("chorusRate");
+    chorusDepthRelay = std::make_unique<juce::WebSliderRelay>("chorusDepth");
+    chorusMixRelay = std::make_unique<juce::WebSliderRelay>("chorusMix");
+    delayTimeRelay = std::make_unique<juce::WebSliderRelay>("delayTime");
+    delayFeedbackRelay = std::make_unique<juce::WebSliderRelay>("delayFeedback");
+    delayModeRelay = std::make_unique<juce::WebSliderRelay>("delayMode");
+    delayMixRelay = std::make_unique<juce::WebSliderRelay>("delayMix");
+    eqLowGainRelay = std::make_unique<juce::WebSliderRelay>("eqLowGain");
+    eqMidGainRelay = std::make_unique<juce::WebSliderRelay>("eqMidGain");
+    eqMidFreqRelay = std::make_unique<juce::WebSliderRelay>("eqMidFreq");
+    eqHighGainRelay = std::make_unique<juce::WebSliderRelay>("eqHighGain");
+    reverbSizeRelay = std::make_unique<juce::WebSliderRelay>("reverbSize");
+    reverbDampRelay = std::make_unique<juce::WebSliderRelay>("reverbDamp");
+    reverbPredelayRelay = std::make_unique<juce::WebSliderRelay>("reverbPredelay");
+    reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
+    chorusBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("chorusBypass");
+    delayBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("delayBypass");
+    eqBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("eqBypass");
+    reverbBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("reverbBypass");
+}
 
-            // ═══════════════════════════════════════════════════════════════════
-            // v1.3.0: TUNING NATIVE FUNCTIONS (24 functions)
-            // ═══════════════════════════════════════════════════════════════════
+juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebViewOptions()
+{
+    return juce::WebBrowserComponent::Options{}
+        .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
+        .withWinWebView2Options(
+            juce::WebBrowserComponent::Options::WinWebView2{}
+                .withUserDataFolder(juce::File::getSpecialLocation(
+                    juce::File::SpecialLocationType::tempDirectory)))
+        .withNativeIntegrationEnabled()
+        .withResourceProvider([this](auto& url) { return getResource(url); })
+        .withOptionsFrom(*voiceCountRelay)
+        .withOptionsFrom(*complexityRelay)
+        .withOptionsFrom(*keyRootRelay)
+        .withOptionsFrom(*stereoSpreadRelay)
+        .withOptionsFrom(*spacingRelay)
+        .withOptionsFrom(*inversionRelay)
+        .withOptionsFrom(*wavetablePosRelay)
+        .withOptionsFrom(*lfoRateRelay)
+        .withOptionsFrom(*lfoDepthRelay)
+        .withOptionsFrom(*timingRandomRelay)
+        .withOptionsFrom(*detuneRandomRelay)
+        .withOptionsFrom(*attackTimeRelay)
+        .withOptionsFrom(*releaseTimeRelay)
+        .withOptionsFrom(*filterCutoffRelay)
+        .withOptionsFrom(*masterVolumeRelay)
+        .withOptionsFrom(*wavetableBankRelay)
+        .withOptionsFrom(*wavetablePos2Relay)
+        .withOptionsFrom(*gainARelay)
+        .withOptionsFrom(*gainBRelay)
+        .withOptionsFrom(*lfoRate2Relay)
+        .withOptionsFrom(*lfoDepth2Relay)
+        .withOptionsFrom(*wavetableBank2Relay)
+        .withOptionsFrom(*tuningMasterTuneRelay)
+        .withOptionsFrom(*tuningOctaveStretchRelay)
+        .withOptionsFrom(*tuningPitchBendRangeRelay)
+        .withOptionsFrom(*tuningTemperamentPresetRelay)
+        .withOptionsFrom(*chorusRateRelay)
+        .withOptionsFrom(*chorusDepthRelay)
+        .withOptionsFrom(*chorusMixRelay)
+        .withOptionsFrom(*delayTimeRelay)
+        .withOptionsFrom(*delayFeedbackRelay)
+        .withOptionsFrom(*delayModeRelay)
+        .withOptionsFrom(*delayMixRelay)
+        .withOptionsFrom(*eqLowGainRelay)
+        .withOptionsFrom(*eqMidGainRelay)
+        .withOptionsFrom(*eqMidFreqRelay)
+        .withOptionsFrom(*eqHighGainRelay)
+        .withOptionsFrom(*reverbSizeRelay)
+        .withOptionsFrom(*reverbDampRelay)
+        .withOptionsFrom(*reverbPredelayRelay)
+        .withOptionsFrom(*reverbMixRelay)
+        .withOptionsFrom(*chorusBypassRelay)
+        .withOptionsFrom(*delayBypassRelay)
+        .withOptionsFrom(*eqBypassRelay)
+        .withOptionsFrom(*reverbBypassRelay)
 
-            // --- Tuning Intervals ---
-            .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
-                auto intervals = processorRef.getTuningEngine().getIntervals();
+        // --- Tuning Intervals ---
+        .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
+            auto intervals = processorRef.getTuningEngine().getIntervals();
+            juce::String json = "[";
+            for (size_t i = 0; i < intervals.size(); ++i) {
+                if (i > 0) json += ",";
+                json += juce::String(intervals[i], 6);
+            }
+            json += "]";
+            complete(json);
+        })
+
+        .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1) {
+                auto jsonArray = juce::JSON::parse(args[0].toString());
+                if (auto* arr = jsonArray.getArray()) {
+                    std::vector<double> intervals;
+                    for (const auto& val : *arr)
+                        intervals.push_back(static_cast<double>(val));
+                    processorRef.getTuningEngine().setCustomIntervals(intervals, "Custom");
+                    processorRef.checkAndResetForScaleChange();
+                    complete(true);
+                    return;
+                }
+            }
+            complete(false);
+        })
+
+        .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&, auto complete) {
+            complete(processorRef.getTuningEngine().getActiveTuningName());
+        })
+
+        .withNativeFunction("setSingleInterval", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2) {
+                int index = static_cast<int>(args[0]);
+                double cents = static_cast<double>(args[1]);
+                processorRef.getTuningEngine().setSingleInterval(index, cents);
+                complete(true);
+                return;
+            }
+            complete(false);
+        })
+
+        // --- Tonic / Rotation ---
+        .withNativeFunction("setTonicNote", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1) {
+                int tonic = static_cast<int>(args[0]);
+                processorRef.getTuningEngine().setTonicNote(tonic);
+                complete(true);
+                return;
+            }
+            complete(false);
+        })
+
+        .withNativeFunction("getTonicNote", [this](const juce::Array<juce::var>&, auto complete) {
+            complete(processorRef.getTuningEngine().getTonicNote());
+        })
+
+        // --- Temperament Presets ---
+        .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1) {
+                int preset = static_cast<int>(args[0]);
+                processorRef.getTuningEngine().setBuiltInPreset(
+                    static_cast<TuningEngine::BuiltInPreset>(preset));
+                processorRef.checkAndResetForScaleChange();
+                complete(true);
+                return;
+            }
+            complete(false);
+        })
+
+        .withNativeFunction("getTemperamentPreset", [this](const juce::Array<juce::var>&, auto complete) {
+            complete(static_cast<int>(processorRef.getTuningEngine().getBuiltInPreset()));
+        })
+
+        // --- Scala File I/O ---
+        .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+            tuningFileChooser = std::make_shared<juce::FileChooser>(
+                "Load Scala File",
+                juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                "*.scl");
+            tuningFileChooser->launchAsync(
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete](const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file.existsAsFile()) {
+                        bool success = processorRef.getTuningEngine().loadScalaFile(file);
+                        if (success)
+                            processorRef.checkAndResetForScaleChange();
+                        complete(success ? juce::var(processorRef.getTuningEngine().getActiveTuningName())
+                                        : juce::var());
+                    } else {
+                        complete(juce::var());
+                    }
+                });
+        })
+
+        .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
+            tuningFileChooser = std::make_shared<juce::FileChooser>(
+                "Save Scala File",
+                juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                    .getChildFile("scale.scl"),
+                "*.scl");
+            tuningFileChooser->launchAsync(
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete](const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file != juce::File()) {
+                        auto content = processorRef.getTuningEngine().generateScalaFileContent();
+                        file.replaceWithText(content);
+                        complete(true);
+                    } else {
+                        complete(false);
+                    }
+                });
+        })
+
+        .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+            tuningFileChooser = std::make_shared<juce::FileChooser>(
+                "Load Keyboard Mapping",
+                juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
+                "*.kbm");
+            tuningFileChooser->launchAsync(
+                juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete](const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file.existsAsFile()) {
+                        bool success = processorRef.getTuningEngine().loadKBMFile(file);
+                        complete(success);
+                    } else {
+                        complete(false);
+                    }
+                });
+        })
+
+        .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
+            tuningFileChooser = std::make_shared<juce::FileChooser>(
+                "Save Keyboard Mapping",
+                juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                    .getChildFile("mapping.kbm"),
+                "*.kbm");
+            tuningFileChooser->launchAsync(
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete](const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file != juce::File()) {
+                        auto content = processorRef.getTuningEngine().generateKBMFileContent();
+                        file.replaceWithText(content);
+                        complete(true);
+                    } else {
+                        complete(false);
+                    }
+                });
+        })
+
+        // --- Scale Generator ---
+        .withNativeFunction("generateEDO", [](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2) {
+                int divisions = static_cast<int>(args[0]);
+                double period = static_cast<double>(args[1]);
+                auto intervals = ScaleGenerator::generateEDO(divisions, period);
                 juce::String json = "[";
                 for (size_t i = 0; i < intervals.size(); ++i) {
                     if (i > 0) json += ",";
@@ -104,344 +304,160 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
                 }
                 json += "]";
                 complete(json);
-            })
+                return;
+            }
+            complete(juce::var());
+        })
 
-            .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    auto jsonArray = juce::JSON::parse(args[0].toString());
-                    if (auto* arr = jsonArray.getArray()) {
-                        std::vector<double> intervals;
-                        for (const auto& val : *arr)
-                            intervals.push_back(static_cast<double>(val));
-                        processorRef.getTuningEngine().setCustomIntervals(intervals, "Custom");
-                        complete(true);
-                        return;
-                    }
-                }
-                complete(false);
-            })
-
-            .withNativeFunction("getTuningName", [this](const juce::Array<juce::var>&, auto complete) {
-                complete(processorRef.getTuningEngine().getActiveTuningName());
-            })
-
-            .withNativeFunction("setSingleInterval", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 2) {
-                    int index = static_cast<int>(args[0]);
-                    double cents = static_cast<double>(args[1]);
-                    processorRef.getTuningEngine().setSingleInterval(index, cents);
-                    complete(true);
-                    return;
-                }
-                complete(false);
-            })
-
-            // --- Tonic / Rotation ---
-            .withNativeFunction("setTonicNote", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    int tonic = static_cast<int>(args[0]);
-                    processorRef.getTuningEngine().setTonicNote(tonic);
-                    complete(true);
-                    return;
-                }
-                complete(false);
-            })
-
-            .withNativeFunction("getTonicNote", [this](const juce::Array<juce::var>&, auto complete) {
-                complete(processorRef.getTuningEngine().getTonicNote());
-            })
-
-            // --- Octave Stretch ---
-            .withNativeFunction("getOctaveStretch", [this](const juce::Array<juce::var>&, auto complete) {
-                complete(processorRef.getTuningEngine().getOctaveStretch());
-            })
-
-            .withNativeFunction("setOctaveStretch", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    float stretch = static_cast<float>(args[0]);
-                    processorRef.getTuningEngine().setOctaveStretch(stretch);
-                    complete(true);
-                    return;
-                }
-                complete(false);
-            })
-
-            // --- Master Tune ---
-            .withNativeFunction("getMasterTune", [this](const juce::Array<juce::var>&, auto complete) {
-                complete(processorRef.getTuningEngine().getMasterTune());
-            })
-
-            .withNativeFunction("setMasterTune", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    double hz = static_cast<double>(args[0]);
-                    processorRef.getTuningEngine().setMasterTune(hz);
-                    complete(true);
-                    return;
-                }
-                complete(false);
-            })
-
-            // --- Temperament Presets ---
-            .withNativeFunction("setTemperamentPreset", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    int preset = static_cast<int>(args[0]);
-                    processorRef.getTuningEngine().setBuiltInPreset(
-                        static_cast<TuningEngine::BuiltInPreset>(preset));
-                    complete(true);
-                    return;
-                }
-                complete(false);
-            })
-
-            .withNativeFunction("getTemperamentPreset", [this](const juce::Array<juce::var>&, auto complete) {
-                complete(static_cast<int>(processorRef.getTuningEngine().getBuiltInPreset()));
-            })
-
-            // --- Scala File I/O ---
-            .withNativeFunction("loadScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
-                tuningFileChooser = std::make_shared<juce::FileChooser>(
-                    "Load Scala File",
-                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
-                    "*.scl");
-                tuningFileChooser->launchAsync(
-                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
-                        auto file = fc.getResult();
-                        if (file.existsAsFile()) {
-                            bool success = processorRef.getTuningEngine().loadScalaFile(file);
-                            complete(success ? juce::var(processorRef.getTuningEngine().getActiveTuningName())
-                                            : juce::var());
-                        } else {
-                            complete(juce::var());
-                        }
-                    });
-            })
-
-            .withNativeFunction("saveScalaFile", [this](const juce::Array<juce::var>&, auto complete) {
-                tuningFileChooser = std::make_shared<juce::FileChooser>(
-                    "Save Scala File",
-                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-                        .getChildFile("scale.scl"),
-                    "*.scl");
-                tuningFileChooser->launchAsync(
-                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
-                        auto file = fc.getResult();
-                        if (file != juce::File()) {
-                            auto content = processorRef.getTuningEngine().generateScalaFileContent();
-                            file.replaceWithText(content);
-                            complete(true);
-                        } else {
-                            complete(false);
-                        }
-                    });
-            })
-
-            .withNativeFunction("loadKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
-                tuningFileChooser = std::make_shared<juce::FileChooser>(
-                    "Load Keyboard Mapping",
-                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory),
-                    "*.kbm");
-                tuningFileChooser->launchAsync(
-                    juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
-                        auto file = fc.getResult();
-                        if (file.existsAsFile()) {
-                            bool success = processorRef.getTuningEngine().loadKBMFile(file);
-                            complete(success);
-                        } else {
-                            complete(false);
-                        }
-                    });
-            })
-
-            .withNativeFunction("saveKBMFile", [this](const juce::Array<juce::var>&, auto complete) {
-                tuningFileChooser = std::make_shared<juce::FileChooser>(
-                    "Save Keyboard Mapping",
-                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-                        .getChildFile("mapping.kbm"),
-                    "*.kbm");
-                tuningFileChooser->launchAsync(
-                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
-                        auto file = fc.getResult();
-                        if (file != juce::File()) {
-                            auto content = processorRef.getTuningEngine().generateKBMFileContent();
-                            file.replaceWithText(content);
-                            complete(true);
-                        } else {
-                            complete(false);
-                        }
-                    });
-            })
-
-            // --- Scale Generator ---
-            .withNativeFunction("generateEDO", [](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 2) {
-                    int divisions = static_cast<int>(args[0]);
-                    double period = static_cast<double>(args[1]);
-                    auto intervals = ScaleGenerator::generateEDO(divisions, period);
-                    juce::String json = "[";
-                    for (size_t i = 0; i < intervals.size(); ++i) {
-                        if (i > 0) json += ",";
-                        json += juce::String(intervals[i], 6);
-                    }
-                    json += "]";
-                    complete(json);
-                    return;
-                }
-                complete(juce::var());
-            })
-
-            .withNativeFunction("generateHarmonicSeries", [](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 2) {
-                    int startHarmonic = static_cast<int>(args[0]);
-                    int endHarmonic = static_cast<int>(args[1]);
-                    auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
-                    juce::String json = "[";
-                    for (size_t i = 0; i < intervals.size(); ++i) {
-                        if (i > 0) json += ",";
-                        json += juce::String(intervals[i], 6);
-                    }
-                    json += "]";
-                    complete(json);
-                    return;
-                }
-                complete(juce::var());
-            })
-
-            .withNativeFunction("generateRank2", [](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 3) {
-                    double generator = static_cast<double>(args[0]);
-                    double period = static_cast<double>(args[1]);
-                    int count = static_cast<int>(args[2]);
-                    auto intervals = ScaleGenerator::generateRank2(generator, period, count);
-                    juce::String json = "[";
-                    for (size_t i = 0; i < intervals.size(); ++i) {
-                        if (i > 0) json += ",";
-                        json += juce::String(intervals[i], 6);
-                    }
-                    json += "]";
-                    complete(json);
-                    return;
-                }
-                complete(juce::var());
-            })
-
-            .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 2) {
-                    auto jsonArray = juce::JSON::parse(args[0].toString());
-                    juce::String scaleName = args[1].toString();
-                    if (auto* arr = jsonArray.getArray()) {
-                        std::vector<double> intervals;
-                        for (const auto& val : *arr)
-                            intervals.push_back(static_cast<double>(val));
-                        processorRef.getTuningEngine().setCustomIntervals(intervals, scaleName);
-                        complete(true);
-                        return;
-                    }
-                }
-                complete(false);
-            })
-
-            // --- Embedded Tuning Library ---
-            .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&, auto complete) {
-                const auto& tunings = EmbeddedTunings::getAllTunings();
+        .withNativeFunction("generateHarmonicSeries", [](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2) {
+                int startHarmonic = static_cast<int>(args[0]);
+                int endHarmonic = static_cast<int>(args[1]);
+                auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
                 juce::String json = "[";
-                for (size_t i = 0; i < tunings.size(); ++i) {
+                for (size_t i = 0; i < intervals.size(); ++i) {
                     if (i > 0) json += ",";
-                    json += "{";
-                    json += "\"id\":\"" + juce::String(tunings[i].id) + "\",";
-                    json += "\"name\":\"" + juce::String(tunings[i].name) + "\",";
-                    json += "\"category\":\"" + juce::String(tunings[i].category) + "\",";
-                    json += "\"noteCount\":" + juce::String(static_cast<int>(tunings[i].intervals.size()));
-                    json += "}";
+                    json += juce::String(intervals[i], 6);
                 }
                 json += "]";
                 complete(json);
-            })
+                return;
+            }
+            complete(juce::var());
+        })
 
-            .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&, auto complete) {
-                auto categories = EmbeddedTunings::getCategories();
+        .withNativeFunction("generateRank2", [](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 3) {
+                double generator = static_cast<double>(args[0]);
+                double period = static_cast<double>(args[1]);
+                int count = static_cast<int>(args[2]);
+                auto intervals = ScaleGenerator::generateRank2(generator, period, count);
                 juce::String json = "[";
-                for (size_t i = 0; i < categories.size(); ++i) {
+                for (size_t i = 0; i < intervals.size(); ++i) {
                     if (i > 0) json += ",";
-                    json += "\"" + juce::String(categories[i]) + "\"";
+                    json += juce::String(intervals[i], 6);
                 }
                 json += "]";
                 complete(json);
-            })
+                return;
+            }
+            complete(juce::var());
+        })
 
-            .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 1) {
-                    juce::String tuningId = args[0].toString();
-                    auto* tuning = EmbeddedTunings::getTuningById(tuningId.toStdString());
-                    if (tuning != nullptr && !tuning->intervals.empty()) {
-                        auto intervals = tuning->intervals;
-                        intervals.push_back(tuning->period);
-                        processorRef.getTuningEngine().setCustomIntervals(
-                            intervals, juce::String(tuning->name));
-                        complete(true);
-                        return;
-                    }
-                }
-                complete(false);
-            })
-
-            // ═══════════════════════════════════════════════════════════════════
-            // v1.5.0: ENABLED INTERVAL NATIVE FUNCTIONS
-            // ═══════════════════════════════════════════════════════════════════
-
-            .withNativeFunction("getEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
-                auto ei = processorRef.getEnabledIntervals();
-                juce::String json = "[";
-                for (size_t i = 0; i < ei.size(); ++i) {
-                    if (i > 0) json += ",";
-                    json += ei[i] ? "true" : "false";
-                }
-                json += "]";
-                complete(json);
-            })
-
-            .withNativeFunction("setIntervalEnabled", [this](const juce::Array<juce::var>& args, auto complete) {
-                if (args.size() >= 2) {
-                    int index = static_cast<int>(args[0]);
-                    bool enabled = static_cast<bool>(args[1]);
-                    processorRef.setIntervalEnabled(index, enabled);
+        .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2) {
+                auto jsonArray = juce::JSON::parse(args[0].toString());
+                juce::String scaleName = args[1].toString();
+                if (auto* arr = jsonArray.getArray()) {
+                    std::vector<double> intervals;
+                    for (const auto& val : *arr)
+                        intervals.push_back(static_cast<double>(val));
+                    processorRef.getTuningEngine().setCustomIntervals(intervals, scaleName);
+                    processorRef.checkAndResetForScaleChange();
                     complete(true);
                     return;
                 }
-                complete(false);
-            })
+            }
+            complete(false);
+        })
 
-            .withNativeFunction("resetEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
-                processorRef.resetEnabledIntervals();
+        // --- Embedded Tuning Library ---
+        .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&, auto complete) {
+            const auto& tunings = EmbeddedTunings::getAllTunings();
+            juce::String json = "[";
+            for (size_t i = 0; i < tunings.size(); ++i) {
+                if (i > 0) json += ",";
+                json += "{";
+                json += "\"id\":\"" + juce::String(tunings[i].id) + "\",";
+                json += "\"name\":\"" + juce::String(tunings[i].name) + "\",";
+                json += "\"category\":\"" + juce::String(tunings[i].category) + "\",";
+                json += "\"noteCount\":" + juce::String(static_cast<int>(tunings[i].intervals.size()));
+                json += "}";
+            }
+            json += "]";
+            complete(json);
+        })
+
+        .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&, auto complete) {
+            auto categories = EmbeddedTunings::getCategories();
+            juce::String json = "[";
+            for (size_t i = 0; i < categories.size(); ++i) {
+                if (i > 0) json += ",";
+                json += "\"" + juce::String(categories[i]) + "\"";
+            }
+            json += "]";
+            complete(json);
+        })
+
+        .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1) {
+                juce::String tuningId = args[0].toString();
+                auto* tuning = EmbeddedTunings::getTuningById(tuningId.toStdString());
+                if (tuning != nullptr && !tuning->intervals.empty()) {
+                    auto intervals = tuning->intervals;
+                    intervals.push_back(tuning->period);
+                    processorRef.getTuningEngine().setCustomIntervals(
+                        intervals, juce::String(tuning->name));
+                    processorRef.checkAndResetForScaleChange();
+                    complete(true);
+                    return;
+                }
+            }
+            complete(false);
+        })
+
+        // --- Enabled Intervals ---
+        .withNativeFunction("getEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
+            auto ei = processorRef.getEnabledIntervals();
+            juce::String json = "[";
+            for (size_t i = 0; i < ei.size(); ++i) {
+                if (i > 0) json += ",";
+                json += ei[i] ? "true" : "false";
+            }
+            json += "]";
+            complete(json);
+        })
+
+        .withNativeFunction("setIntervalEnabled", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2) {
+                int index = static_cast<int>(args[0]);
+                bool enabled = static_cast<bool>(args[1]);
+                processorRef.setIntervalEnabled(index, enabled);
                 complete(true);
-            })
+                return;
+            }
+            complete(false);
+        })
 
-            // --- HTML Export ---
-            .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&, auto complete) {
-                tuningFileChooser = std::make_shared<juce::FileChooser>(
-                    "Export Tuning Documentation",
-                    juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
-                        .getChildFile("tuning-export.html"),
-                    "*.html");
-                tuningFileChooser->launchAsync(
-                    juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
-                        auto file = fc.getResult();
-                        if (file != juce::File()) {
-                            auto html = TuningExporter::toHTML(processorRef.getTuningEngine(), "O-IntonationPad");
-                            file.replaceWithText(html);
-                            complete(true);
-                        } else {
-                            complete(false);
-                        }
-                    });
-            })
-    );
+        .withNativeFunction("resetEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
+            processorRef.resetEnabledIntervals();
+            complete(true);
+        })
 
-    // 3. Create attachments LAST
+        // --- HTML Export ---
+        .withNativeFunction("exportTuningHTML", [this](const juce::Array<juce::var>&, auto complete) {
+            tuningFileChooser = std::make_shared<juce::FileChooser>(
+                "Export Tuning Documentation",
+                juce::File::getSpecialLocation(juce::File::userDocumentsDirectory)
+                    .getChildFile("tuning-export.html"),
+                "*.html");
+            tuningFileChooser->launchAsync(
+                juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
+                [this, complete](const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file != juce::File()) {
+                        auto html = TuningExporter::toHTML(processorRef.getTuningEngine(), "O-IntonationPad");
+                        file.replaceWithText(html);
+                        complete(true);
+                    } else {
+                        complete(false);
+                    }
+                });
+        });
+}
+
+void OIntonationPadAudioProcessorEditor::createAttachments()
+{
     auto& apvts = processorRef.getAPVTS();
 
     voiceCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -450,6 +466,8 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
         *apvts.getParameter("complexity"), *complexityRelay, nullptr);
     keyRootAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("keyRoot"), *keyRootRelay, nullptr);
+    stereoSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("stereoSpread"), *stereoSpreadRelay, nullptr);
     spacingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("spacing"), *spacingRelay, nullptr);
     inversionAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -473,11 +491,9 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     masterVolumeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("masterVolume"), *masterVolumeRelay, nullptr);
 
-    // v1.6.0: Wavetable bank attachment
     wavetableBankAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("wavetableBank"), *wavetableBankRelay, nullptr);
 
-    // v1.10.0: Dual oscillator attachments (independent gains + rates)
     wavetablePos2Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("wavetablePos2"), *wavetablePos2Relay, nullptr);
     gainAAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -491,7 +507,6 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     wavetableBank2Attachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("wavetableBank2"), *wavetableBank2Relay, nullptr);
 
-    // v1.3.0: Tuning attachments
     tuningMasterTuneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("tuning_masterTune"), *tuningMasterTuneRelay, nullptr);
     tuningOctaveStretchAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -501,14 +516,44 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     tuningTemperamentPresetAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("tuning_temperamentPreset"), *tuningTemperamentPresetRelay, nullptr);
 
-    // Add WebView (navigation happens in parentHierarchyChanged)
-    addAndMakeVisible(*webView);
-
-    // Set size AFTER all components are created
-    setSize(800, 500);
-
-    // Start timer for active note visualization (30 fps)
-    startTimerHz(30);
+    chorusRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusRate"), *chorusRateRelay, nullptr);
+    chorusDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusDepth"), *chorusDepthRelay, nullptr);
+    chorusMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusMix"), *chorusMixRelay, nullptr);
+    delayTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayTime"), *delayTimeRelay, nullptr);
+    delayFeedbackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayFeedback"), *delayFeedbackRelay, nullptr);
+    delayModeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayMode"), *delayModeRelay, nullptr);
+    delayMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayMix"), *delayMixRelay, nullptr);
+    eqLowGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqLowGain"), *eqLowGainRelay, nullptr);
+    eqMidGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidGain"), *eqMidGainRelay, nullptr);
+    eqMidFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidFreq"), *eqMidFreqRelay, nullptr);
+    eqHighGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqHighGain"), *eqHighGainRelay, nullptr);
+    reverbSizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbSize"), *reverbSizeRelay, nullptr);
+    reverbDampAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbDamp"), *reverbDampRelay, nullptr);
+    reverbPredelayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbPredelay"), *reverbPredelayRelay, nullptr);
+    reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
+    chorusBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("chorusBypass"), *chorusBypassRelay, nullptr);
+    delayBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("delayBypass"), *delayBypassRelay, nullptr);
+    eqBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("eqBypass"), *eqBypassRelay, nullptr);
+    reverbBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("reverbBypass"), *reverbBypassRelay, nullptr);
 }
 
 OIntonationPadAudioProcessorEditor::~OIntonationPadAudioProcessorEditor()

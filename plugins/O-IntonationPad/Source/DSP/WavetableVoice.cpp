@@ -40,6 +40,18 @@ WavetableVoice::WavetableVoice()
     envelope.setParameters(envelopeParams);
 }
 
+float WavetableVoice::resolveFrequency(int midiNote, double centOffset) const
+{
+    if (tuningEnginePtr != nullptr)
+    {
+        double freq = tuningEnginePtr->getFrequency(midiNote);
+        if (centOffset != 0.0)
+            freq *= std::pow(2.0, centOffset / 1200.0);
+        return static_cast<float>(freq);
+    }
+    return static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNote));
+}
+
 int WavetableVoice::getRandomOctaveShift(juce::Random* rng)
 {
     if (rng == nullptr) return 1;
@@ -94,16 +106,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             if (randomPtr != nullptr && cachedDetuneRandom > 0.0f)
                 centOffset = (randomPtr->nextFloat() * 2.0f - 1.0f) * static_cast<double>(cachedDetuneRandom);
 
-            float baseFreq;
-            if (tuningEnginePtr != nullptr)
-            {
-                double freq = tuningEnginePtr->getFrequency(baseMidiNote);
-                if (centOffset != 0.0)
-                    freq *= std::pow(2.0, centOffset / 1200.0);
-                baseFreq = static_cast<float>(freq);
-            }
-            else
-                baseFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(baseMidiNote));
+            float baseFreq = resolveFrequency(baseMidiNote, centOffset);
 
             subVoiceOscillators[idx].setFrequency(baseFreq, currentSampleRate);
             subVoiceOscillators[idx].reset();
@@ -117,16 +120,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             if (spacingMidiNote > 127)
                 spacingMidiNote = 127;  // Clamp to valid range
 
-            float spacingFreq;
-            if (tuningEnginePtr != nullptr)
-            {
-                double freq = tuningEnginePtr->getFrequency(spacingMidiNote);
-                if (centOffset != 0.0)
-                    freq *= std::pow(2.0, centOffset / 1200.0);
-                spacingFreq = static_cast<float>(freq);
-            }
-            else
-                spacingFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(spacingMidiNote));
+            float spacingFreq = resolveFrequency(spacingMidiNote, centOffset);
 
             subVoiceSpacingOscillators[idx].setFrequency(spacingFreq, currentSampleRate);
             subVoiceSpacingOscillators[idx].reset();
@@ -140,16 +134,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             if (inversionMidiNote < 0)
                 inversionMidiNote = 0;  // Clamp to valid range
 
-            float inversionFreq;
-            if (tuningEnginePtr != nullptr)
-            {
-                double freq = tuningEnginePtr->getFrequency(inversionMidiNote);
-                if (centOffset != 0.0)
-                    freq *= std::pow(2.0, centOffset / 1200.0);
-                inversionFreq = static_cast<float>(freq);
-            }
-            else
-                inversionFreq = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(inversionMidiNote));
+            float inversionFreq = resolveFrequency(inversionMidiNote, centOffset);
 
             subVoiceInversionOscillators[idx].setFrequency(inversionFreq, currentSampleRate);
             subVoiceInversionOscillators[idx].reset();

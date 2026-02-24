@@ -25,6 +25,9 @@ public:
 
 private:
     void timerCallback() override;
+    void createRelays();
+    juce::WebBrowserComponent::Options buildWebViewOptions();
+    void createAttachments();
 
     OIntonationPadAudioProcessor& processorRef;
 
@@ -33,6 +36,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> voiceCountRelay;
     std::unique_ptr<juce::WebSliderRelay> complexityRelay;
     std::unique_ptr<juce::WebSliderRelay> keyRootRelay;
+    std::unique_ptr<juce::WebSliderRelay> stereoSpreadRelay;
     std::unique_ptr<juce::WebSliderRelay> spacingRelay;
     std::unique_ptr<juce::WebSliderRelay> inversionRelay;
     std::unique_ptr<juce::WebSliderRelay> wavetablePosRelay;
@@ -62,6 +66,28 @@ private:
     std::unique_ptr<juce::WebSliderRelay> tuningPitchBendRangeRelay;
     std::unique_ptr<juce::WebComboBoxRelay> tuningTemperamentPresetRelay;
 
+    // v1.11.0: Effects relays (Chorus, Delay, EQ, Reverb)
+    std::unique_ptr<juce::WebSliderRelay> chorusRateRelay;
+    std::unique_ptr<juce::WebSliderRelay> chorusDepthRelay;
+    std::unique_ptr<juce::WebSliderRelay> chorusMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayFeedbackRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayModeRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqLowGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqMidGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqMidFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqHighGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbSizeRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbDampRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbPredelayRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
+    // Bypass toggles
+    std::unique_ptr<juce::WebToggleButtonRelay> chorusBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> delayBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> reverbBypassRelay;
+
     // 2. WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
 
@@ -72,6 +98,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> voiceCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> complexityAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> keyRootAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> stereoSpreadAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> spacingAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> inversionAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> wavetablePosAttachment;
@@ -100,6 +127,28 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningOctaveStretchAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> tuningPitchBendRangeAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> tuningTemperamentPresetAttachment;
+
+    // v1.11.0: Effects attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusRateAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusDepthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayFeedbackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayModeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqLowGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqMidGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqMidFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqHighGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbSizeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbDampAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbPredelayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
+    // Bypass toggle attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> chorusBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> delayBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> reverbBypassAttachment;
 
     // v1.3.0: File chooser for tuning file dialogs
     std::shared_ptr<juce::FileChooser> tuningFileChooser;

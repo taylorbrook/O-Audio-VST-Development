@@ -17,71 +17,39 @@
 // Parameter Helper Functions
 // ═══════════════════════════════════════════════════════════════════
 
-static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscAParameters()
+static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParameters (const juce::String& prefix)
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
+    auto label = "Osc " + juce::String::charToString (prefix.getLastCharacter());
+    float levelDefault = (prefix == "oscA") ? 0.8f : 0.0f;
+
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscATable", 1 }, "Osc A Wavetable", 0, WavetableFactory::kNumFactoryTables - 1, 0));
+        juce::ParameterID { prefix + "Table", 1 }, label + " Wavetable", 0, WavetableFactory::kNumFactoryTables - 1, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscAPos", 1 }, "Osc A Position",
+        juce::ParameterID { prefix + "Pos", 1 }, label + " Position",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscALevel", 1 }, "Osc A Level",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.8f));
+        juce::ParameterID { prefix + "Level", 1 }, label + " Level",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), levelDefault));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscAPan", 1 }, "Osc A Pan",
+        juce::ParameterID { prefix + "Pan", 1 }, label + " Pan",
         juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscACoarse", 1 }, "Osc A Coarse", -24, 24, 0));
+        juce::ParameterID { prefix + "Coarse", 1 }, label + " Coarse", -24, 24, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscAFine", 1 }, "Osc A Fine",
+        juce::ParameterID { prefix + "Fine", 1 }, label + " Fine",
         juce::NormalisableRange<float> (-100.0f, 100.0f, 0.1f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscAPhase", 1 }, "Osc A Phase",
+        juce::ParameterID { prefix + "Phase", 1 }, label + " Phase",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscAUnison", 1 }, "Osc A Unison", 1, 8, 1));
+        juce::ParameterID { prefix + "Unison", 1 }, label + " Unison", 1, 8, 1));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscADetune", 1 }, "Osc A Detune",
+        juce::ParameterID { prefix + "Detune", 1 }, label + " Detune",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.2f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscAWidth", 1 }, "Osc A Width",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
-
-    return params;
-}
-
-static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscBParameters()
-{
-    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
-
-    params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscBTable", 1 }, "Osc B Wavetable", 0, WavetableFactory::kNumFactoryTables - 1, 0));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscBPos", 1 }, "Osc B Position",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscBLevel", 1 }, "Osc B Level",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscBPan", 1 }, "Osc B Pan",
-        juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscBCoarse", 1 }, "Osc B Coarse", -24, 24, 0));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscBFine", 1 }, "Osc B Fine",
-        juce::NormalisableRange<float> (-100.0f, 100.0f, 0.1f), 0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscBPhase", 1 }, "Osc B Phase",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscBUnison", 1 }, "Osc B Unison", 1, 8, 1));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscBDetune", 1 }, "Osc B Detune",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.2f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "oscBWidth", 1 }, "Osc B Width",
+        juce::ParameterID { prefix + "Width", 1 }, label + " Width",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
 
     return params;
@@ -152,47 +120,26 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createFilterEnve
     return params;
 }
 
-static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createFilterAParameters()
+static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createFilterParameters (const juce::String& prefix)
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    params.push_back (std::make_unique<juce::AudioParameterChoice> (
-        juce::ParameterID { "filtAType", 1 }, "Filter A Type",
-        juce::StringArray { "LP12", "LP24", "HP12", "HP24", "BP12", "BP24", "Notch" }, 1));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtACutoff", 1 }, "Filter A Cutoff",
-        juce::NormalisableRange<float> (20.0f, 20000.0f, 0.1f, 0.25f), 20000.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtARes", 1 }, "Filter A Resonance",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtADrive", 1 }, "Filter A Drive",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtAKeyTrack", 1 }, "Filter A KeyTrack",
-        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
-
-    return params;
-}
-
-static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createFilterBParameters()
-{
-    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+    auto label = "Filter " + juce::String::charToString (prefix.getLastCharacter());
 
     params.push_back (std::make_unique<juce::AudioParameterChoice> (
-        juce::ParameterID { "filtBType", 1 }, "Filter B Type",
+        juce::ParameterID { prefix + "Type", 1 }, label + " Type",
         juce::StringArray { "LP12", "LP24", "HP12", "HP24", "BP12", "BP24", "Notch" }, 1));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtBCutoff", 1 }, "Filter B Cutoff",
+        juce::ParameterID { prefix + "Cutoff", 1 }, label + " Cutoff",
         juce::NormalisableRange<float> (20.0f, 20000.0f, 0.1f, 0.25f), 20000.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtBRes", 1 }, "Filter B Resonance",
+        juce::ParameterID { prefix + "Res", 1 }, label + " Resonance",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtBDrive", 1 }, "Filter B Drive",
+        juce::ParameterID { prefix + "Drive", 1 }, label + " Drive",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtBKeyTrack", 1 }, "Filter B KeyTrack",
+        juce::ParameterID { prefix + "KeyTrack", 1 }, label + " KeyTrack",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
 
     return params;
@@ -428,13 +375,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPrismAudioProcessor::create
             allParams.push_back (std::move (p));
     };
 
-    addSection (createOscAParameters());         // 10
-    addSection (createOscBParameters());         // 10
-    addSection (createSubNoiseParameters());     //  5
-    addSection (createAmpEnvelopeParameters());  //  4
-    addSection (createFilterEnvelopeParameters()); // 5
-    addSection (createFilterAParameters());      //  5
-    addSection (createFilterBParameters());      //  5
+    addSection (createOscParameters ("oscA"));     // 10
+    addSection (createOscParameters ("oscB"));     // 10
+    addSection (createSubNoiseParameters());       //  5
+    addSection (createAmpEnvelopeParameters());    //  4
+    addSection (createFilterEnvelopeParameters()); //  5
+    addSection (createFilterParameters ("filtA")); //  5
+    addSection (createFilterParameters ("filtB")); //  5
     addSection (createFilterRoutingParameters()); //  1
     addSection (createTuningParameters());       //  7
     addSection (createReverbParameters());       //  4

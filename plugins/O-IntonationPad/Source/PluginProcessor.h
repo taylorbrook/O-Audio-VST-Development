@@ -13,6 +13,17 @@
 #include "DSP/ChordGenerator.h"
 #include "DSP/TuningEngine.h"
 #include "DSP/WavetableVoice.h"
+#include "DSP/DelayProcessor.h"
+#include "DSP/EQProcessor.h"
+#include "DSP/ReverbProcessor.h"
+
+// Immutable snapshot published by UI thread, read lock-free by audio thread
+struct IntervalSnapshot
+{
+    std::vector<bool> enabledFlags;      // full toggle state for UI/state queries
+    std::vector<int> enabledDegrees;     // sorted enabled degree indices (always has at least 0)
+    int scaleDegreeCount;
+};
 
 struct ActiveNoteInfo
 {
@@ -39,7 +50,7 @@ public:
     bool acceptsMidi() const override { return true; }
     bool producesMidi() const override { return false; }
     bool isMidiEffect() const override { return false; }
-    double getTailLengthSeconds() const override { return 0.0; }
+    double getTailLengthSeconds() const override { return 2.5; }
 
     int getNumPrograms() override { return 1; }
     int getCurrentProgram() override { return 0; }
@@ -65,6 +76,7 @@ public:
     std::vector<bool> getEnabledIntervals() const;
     void setIntervalEnabled(int index, bool enabled);
     void resetEnabledIntervals();  // Reset all to enabled (called on scale change)
+    void checkAndResetForScaleChange();  // Call after tuning changes that may alter degree count
     int getScaleDegreeCount() const;
     std::vector<int> getEnabledDegreeOffsets() const;  // Returns sorted list of enabled degree indices
 
@@ -83,21 +95,21 @@ private:
     // Filter
     juce::dsp::StateVariableTPTFilter<float> filter;
 
+    // v1.11.0: Effects chain (Chorus -> Delay -> EQ -> Reverb)
+    juce::dsp::Chorus<float> chorus;
+    DelayProcessor delay;
+    EQProcessor eq;
+    ReverbProcessor reverbProcessor;
+
     // Randomization
     juce::Random randomGenerator;
 
     // Parameters (APVTS comes after DSP components)
     juce::AudioProcessorValueTreeState parameters;
 
-    // v1.5.0: Enabled intervals (which scale degrees participate in chord generation)
-    std::vector<bool> enabledIntervals;
-    int lastKnownScaleSize = 0;  // Track scale changes to auto-reset
-    mutable std::mutex enabledIntervalsMutex;
-
-    // Audio-thread-safe cached copy (rebuilt when dirty flag is set)
-    std::vector<int> cachedEnabledDegrees;
-    int cachedScaleDegreeCount = 12;
-    std::atomic<bool> enabledIntervalsDirty { true };
+    // v1.5.0/v1.15.2: Lock-free interval snapshot (UI thread publishes, audio thread reads)
+    std::shared_ptr<const IntervalSnapshot> intervalSnapshot_;
+    int lastKnownScaleSize_ = 0;  // Message-thread only: tracks scale changes for auto-reset
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

@@ -570,20 +570,25 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // Step 1: Create relays (before WebView)
     // ─────────────────────────────────────────────────────────────
 
+    // Get parameter ID lists from shared definitions (PrismParamIds.h)
+    auto sliderIds    = PrismParamIds::allSliderIds();
+    auto bypassIds    = PrismParamIds::bypassToggleIds();
+    auto modToggleIds = PrismParamIds::modSlotToggleIds();
+
     // Slider relays
-    for (int i = 0; i < numSliderParams; ++i)
-        sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (sliderParamIds[i]));
+    for (const auto& id : sliderIds)
+        sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (id));
 
     // 1 toggle relay (delaySync)
     delaySyncRelay = std::make_unique<juce::WebToggleButtonRelay> ("delaySync");
 
-    // 5 bypass toggle relays
-    for (int i = 0; i < numBypassParams; ++i)
-        bypassRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (bypassParamIds[i]));
+    // Bypass toggle relays
+    for (const auto& id : bypassIds)
+        bypassRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (id));
 
-    // 16 mod slot toggle relays
-    for (int i = 0; i < numModSlotToggles; ++i)
-        modSlotToggleRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (modSlotToggleIds[i]));
+    // Mod slot toggle relays
+    for (const auto& id : modToggleIds)
+        modSlotToggleRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (id));
 
     // ─────────────────────────────────────────────────────────────
     // Step 2: Build WebView options with relays + native functions
@@ -628,9 +633,9 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // ─────────────────────────────────────────────────────────────
 
     // Slider attachments
-    for (int i = 0; i < numSliderParams; ++i)
+    for (int i = 0; i < sliderIds.size(); ++i)
     {
-        auto* param = processorRef.getAPVTS().getParameter (sliderParamIds[i]);
+        auto* param = processorRef.getAPVTS().getParameter (sliderIds[i]);
         if (param != nullptr)
         {
             sliderAttachments.push_back (
@@ -647,10 +652,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
             *delaySyncParam, *delaySyncRelay, nullptr);
     }
 
-    // 5 bypass toggle attachments
-    for (int i = 0; i < numBypassParams; ++i)
+    // Bypass toggle attachments
+    for (int i = 0; i < bypassIds.size(); ++i)
     {
-        auto* param = processorRef.getAPVTS().getParameter (bypassParamIds[i]);
+        auto* param = processorRef.getAPVTS().getParameter (bypassIds[i]);
         if (param != nullptr)
         {
             bypassAttachments.push_back (
@@ -659,10 +664,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
         }
     }
 
-    // 16 mod slot toggle attachments
-    for (int i = 0; i < numModSlotToggles; ++i)
+    // Mod slot toggle attachments
+    for (int i = 0; i < modToggleIds.size(); ++i)
     {
-        auto* param = processorRef.getAPVTS().getParameter (modSlotToggleIds[i]);
+        auto* param = processorRef.getAPVTS().getParameter (modToggleIds[i]);
         if (param != nullptr)
         {
             modSlotToggleAttachments.push_back (
