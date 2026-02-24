@@ -12,6 +12,7 @@
 #include "PluginEditor.h"
 #include "EmbeddedTunings.h"
 #include "TuningExporter.h"
+#include "dsp/ModulationMatrix.h"
 
 // ═══════════════════════════════════════════════════════════════════
 // Resource Provider
@@ -85,6 +86,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         intervals.push_back (static_cast<double> (val));
                     processorRef.getTuningEngine()->setCustomIntervals (intervals, "Custom");
+                    // Sync APVTS to Custom (index 10) for persistence
+                    if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
+                        param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
                     complete (true);
                     return;
                 }
@@ -104,6 +108,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 int index = static_cast<int> (args[0]);
                 double cents = static_cast<double> (args[1]);
                 processorRef.getTuningEngine()->setSingleInterval (index, cents);
+                // Sync APVTS to Custom (index 10) for persistence
+                if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
+                    param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
                 complete (true);
                 return;
             }
@@ -115,7 +122,11 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
         [this] (const juce::Array<juce::var>& args, auto complete) {
             if (args.size() >= 1)
             {
-                processorRef.getTuningEngine()->setTonicNote (static_cast<int> (args[0]));
+                int tonicIndex = static_cast<int> (args[0]);
+                processorRef.getTuningEngine()->setTonicNote (tonicIndex);
+                // Sync APVTS so the tonic persists across DAW save/load
+                if (auto* param = processorRef.getAPVTS().getParameter ("tonic"))
+                    param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (tonicIndex)));
                 complete (true);
                 return;
             }
@@ -166,8 +177,12 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
         [this] (const juce::Array<juce::var>& args, auto complete) {
             if (args.size() >= 1)
             {
+                int presetIndex = static_cast<int> (args[0]);
                 processorRef.getTuningEngine()->setBuiltInPreset (
-                    static_cast<TuningEngine::BuiltInPreset> (static_cast<int> (args[0])));
+                    static_cast<TuningEngine::BuiltInPreset> (presetIndex));
+                // Sync APVTS so the preset persists across DAW save/load
+                if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
+                    param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (presetIndex)));
                 complete (true);
                 return;
             }
@@ -194,6 +209,12 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     if (file.existsAsFile())
                     {
                         bool success = processorRef.getTuningEngine()->loadScalaFile (file);
+                        if (success)
+                        {
+                            // Sync APVTS to Custom (index 10) for persistence
+                            if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
+                                param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
+                        }
                         complete (success ? juce::var (processorRef.getTuningEngine()->getActiveTuningName())
                                          : juce::var());
                     }
@@ -376,6 +397,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     intervals.push_back (tuning->period);
                     processorRef.getTuningEngine()->setCustomIntervals (
                         intervals, juce::String (tuning->name));
+                    // Sync APVTS to Custom (index 10) for persistence
+                    if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
+                        param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
                     complete (true);
                     return;
                 }
@@ -395,6 +419,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         intervals.push_back (static_cast<double> (val));
                     processorRef.getTuningEngine()->setCustomIntervals (intervals, "Generated");
+                    // Sync APVTS to Custom (index 10) for persistence
+                    if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
+                        param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
                     complete (true);
                     return;
                 }
@@ -435,10 +462,12 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 auto* table = processorRef.getFactoryTable (oscId);
                 if (table != nullptr)
                 {
-                    static const char* shapeNames[] = { "Saw", "Square", "Triangle", "Sine" };
-                    int shapeIndex = juce::jmin (oscId, 3);
+                    juce::String name = processorRef.getTableName (oscId);
+                    juce::String category = processorRef.getTableCategory (oscId);
                     juce::String json = "{\"numFrames\":" + juce::String (table->numFrames)
-                                      + ",\"shapeName\":\"" + shapeNames[shapeIndex] + "\"}";
+                                      + ",\"shapeName\":\"" + name + "\""
+                                      + ",\"category\":\"" + category + "\""
+                                      + ",\"numTables\":" + juce::String (processorRef.getNumFactoryTables()) + "}";
                     complete (json);
                     return;
                 }
@@ -499,6 +528,33 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 });
         });
 
+    // Mod matrix source/dest name lists for UI dropdowns
+    options = options.withNativeFunction ("getModSourceNames",
+        [] (const juce::Array<juce::var>&, auto complete) {
+            auto names = getModSourceNames();
+            juce::String json = "[";
+            for (int i = 0; i < names.size(); ++i)
+            {
+                if (i > 0) json += ",";
+                json += "\"" + names[i] + "\"";
+            }
+            json += "]";
+            complete (json);
+        });
+
+    options = options.withNativeFunction ("getModDestNames",
+        [] (const juce::Array<juce::var>&, auto complete) {
+            auto names = getModDestNames();
+            juce::String json = "[";
+            for (int i = 0; i < names.size(); ++i)
+            {
+                if (i > 0) json += ",";
+                json += "\"" + names[i] + "\"";
+            }
+            json += "]";
+            complete (json);
+        });
+
     return options;
 }
 
@@ -514,7 +570,7 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // Step 1: Create relays (before WebView)
     // ─────────────────────────────────────────────────────────────
 
-    // 73 slider relays
+    // Slider relays
     for (int i = 0; i < numSliderParams; ++i)
         sliderRelays.push_back (std::make_unique<juce::WebSliderRelay> (sliderParamIds[i]));
 
@@ -524,6 +580,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // 5 bypass toggle relays
     for (int i = 0; i < numBypassParams; ++i)
         bypassRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (bypassParamIds[i]));
+
+    // 16 mod slot toggle relays
+    for (int i = 0; i < numModSlotToggles; ++i)
+        modSlotToggleRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (modSlotToggleIds[i]));
 
     // ─────────────────────────────────────────────────────────────
     // Step 2: Build WebView options with relays + native functions
@@ -545,6 +605,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     for (const auto& relay : bypassRelays)
         options = options.withOptionsFrom (*relay);
 
+    // Add mod slot toggle relays
+    for (const auto& relay : modSlotToggleRelays)
+        options = options.withOptionsFrom (*relay);
+
     // Add native tuning functions
     options = addNativeFunctions (options);
 
@@ -563,7 +627,7 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // Step 3: Create attachments (after WebView)
     // ─────────────────────────────────────────────────────────────
 
-    // 73 slider attachments
+    // Slider attachments
     for (int i = 0; i < numSliderParams; ++i)
     {
         auto* param = processorRef.getAPVTS().getParameter (sliderParamIds[i]);
@@ -595,6 +659,18 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
         }
     }
 
+    // 16 mod slot toggle attachments
+    for (int i = 0; i < numModSlotToggles; ++i)
+    {
+        auto* param = processorRef.getAPVTS().getParameter (modSlotToggleIds[i]);
+        if (param != nullptr)
+        {
+            modSlotToggleAttachments.push_back (
+                std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                    *param, *modSlotToggleRelays[static_cast<size_t> (i)], nullptr));
+        }
+    }
+
     // ─────────────────────────────────────────────────────────────
     // Step 4: Show WebView + navigate (matching O-Bells pattern)
     // ─────────────────────────────────────────────────────────────
@@ -602,6 +678,14 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     addAndMakeVisible (*webView);
     webView->goToURL (juce::WebBrowserComponent::getResourceProviderRoot());
     setSize (1200, 800);
+
+    // Start polling for active MIDI notes (60 Hz is plenty for UI updates)
+    startTimerHz (30);
+}
+
+OPrismAudioProcessorEditor::~OPrismAudioProcessorEditor()
+{
+    stopTimer();
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -617,4 +701,43 @@ void OPrismAudioProcessorEditor::resized()
 {
     if (webView != nullptr)
         webView->setBounds (getLocalBounds());
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Timer: Push active MIDI notes to WebView for TrueKeys
+// ═══════════════════════════════════════════════════════════════════
+
+void OPrismAudioProcessorEditor::timerCallback()
+{
+    if (webView == nullptr)
+        return;
+
+    auto currentNotes = processorRef.getActiveNotes();
+
+    // Only send update if notes changed
+    if (currentNotes == lastSentNotes)
+        return;
+
+    lastSentNotes = currentNotes;
+
+    // Build JS call: window.updateHeldNotes([midi1,midi2,...], [freq1,freq2,...])
+    juce::String noteArray = "[";
+    juce::String freqArray = "[";
+
+    for (size_t i = 0; i < currentNotes.size(); ++i)
+    {
+        if (i > 0)
+        {
+            noteArray += ",";
+            freqArray += ",";
+        }
+        noteArray += juce::String (currentNotes[i].first);
+        freqArray += juce::String (currentNotes[i].second, 4);
+    }
+
+    noteArray += "]";
+    freqArray += "]";
+
+    juce::String js = "if(window.updateHeldNotes) window.updateHeldNotes(" + noteArray + "," + freqArray + ");";
+    webView->evaluateJavascript (js, nullptr);
 }

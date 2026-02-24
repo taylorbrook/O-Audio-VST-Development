@@ -11,6 +11,7 @@
 #include "PrismVoice.h"
 #include "PrismSound.h"
 #include "TuningEngine.h"
+#include "PluginProcessor.h"
 
 static constexpr double kHalfPi = 1.5707963267948966;
 
@@ -19,11 +20,17 @@ PrismVoice::PrismVoice() = default;
 void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 {
     parameters = apvts;
+    modMatrix.setAPVTS (apvts);
 }
 
 void PrismVoice::setTuningEngine (TuningEngine* engine)
 {
     tuningEngine = engine;
+}
+
+void PrismVoice::setProcessor (OPrismAudioProcessor* proc)
+{
+    processor = proc;
 }
 
 void PrismVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
@@ -40,6 +47,8 @@ void PrismVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
     filterAR.prepare (sampleRate);
     filterBL.prepare (sampleRate);
     filterBR.prepare (sampleRate);
+    lfo1.prepare (sampleRate);
+    lfo2.prepare (sampleRate);
 }
 
 bool PrismVoice::canPlaySound (juce::SynthesiserSound* sound)
@@ -135,6 +144,10 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     filterBL.reset();
     filterBR.reset();
 
+    // Reset LFOs for consistent per-note modulation
+    lfo1.reset();
+    lfo2.reset();
+
     // Amplitude ADSR
     float attack = parameters->getRawParameterValue ("ampAttack")->load();
     float decay = parameters->getRawParameterValue ("ampDecay")->load();
@@ -173,7 +186,7 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     if (parameters == nullptr || ! ampEnvelope.isActive())
         return;
 
-    // Read per-block parameters
+    // ─── Read per-block parameters ───────────────────────────────
     float oscAPos = parameters->getRawParameterValue ("oscAPos")->load();
     float oscALevel = parameters->getRawParameterValue ("oscALevel")->load();
     float oscAPan = parameters->getRawParameterValue ("oscAPan")->load();
@@ -201,32 +214,35 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     int filtRouting = static_cast<int> (parameters->getRawParameterValue ("filtRouting")->load());
     float filtEnvDepth = parameters->getRawParameterValue ("filtEnvDepth")->load();
 
+    // LFO parameters (rate + shape only — routing via mod matrix)
+    float lfo1Rate = parameters->getRawParameterValue ("lfo1Rate")->load();
+    int lfo1Shape = static_cast<int> (parameters->getRawParameterValue ("lfo1Shape")->load());
+    float lfo2Rate = parameters->getRawParameterValue ("lfo2Rate")->load();
+    int lfo2Shape = static_cast<int> (parameters->getRawParameterValue ("lfo2Shape")->load());
+
+    // Configure LFOs
+    lfo1.setRate (lfo1Rate);
+    lfo1.setShape (static_cast<LFO::Shape> (lfo1Shape));
+    lfo2.setRate (lfo2Rate);
+    lfo2.setShape (static_cast<LFO::Shape> (lfo2Shape));
+
+    // ─── Update mod matrix routing from APVTS (once per block) ───
+    modMatrix.updateFromAPVTS();
+
+    // Global mod sources from processor
+    float modWheelVal = (processor != nullptr) ? processor->getModWheelValue() : 0.0f;
+    float aftertouchVal = (processor != nullptr) ? processor->getAftertouchValue() : 0.0f;
+
     // Configure filters (L and R share same settings)
     filterAL.setType (filtAType);
-    filterAL.setResonance (static_cast<double> (filtARes));
     filterAL.setDrive (static_cast<double> (filtADrive));
     filterAR.setType (filtAType);
-    filterAR.setResonance (static_cast<double> (filtARes));
     filterAR.setDrive (static_cast<double> (filtADrive));
 
     filterBL.setType (filtBType);
-    filterBL.setResonance (static_cast<double> (filtBRes));
     filterBL.setDrive (static_cast<double> (filtBDrive));
     filterBR.setType (filtBType);
-    filterBR.setResonance (static_cast<double> (filtBRes));
     filterBR.setDrive (static_cast<double> (filtBDrive));
-
-    oscA.setPosition (oscAPos);
-    oscB.setPosition (oscBPos);
-
-    // Per-oscillator pan gains (equal-power)
-    double panANorm = (oscAPan + 1.0) * 0.5;
-    double panAL = std::cos (panANorm * kHalfPi);
-    double panAR = std::sin (panANorm * kHalfPi);
-
-    double panBNorm = (oscBPan + 1.0) * 0.5;
-    double panBL = std::cos (panBNorm * kHalfPi);
-    double panBR = std::sin (panBNorm * kHalfPi);
 
     auto* leftChannel = outputBuffer.getWritePointer (0);
     auto* rightChannel = outputBuffer.getNumChannels() > 1
@@ -256,35 +272,92 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float fineB = parameters->getRawParameterValue ("oscBFine")->load();
         oscB.setFrequency (glidedFreq * std::pow (2.0, (coarseB + fineB / 100.0) / 12.0));
 
+        // ─── Per-sample modulation sources ───────────────────────
+        float lfo1Val = lfo1.getNextSample();  // [-1, 1]
+        float lfo2Val = lfo2.getNextSample();  // [-1, 1]
+
+        // Set all source values for the mod matrix
+        modMatrix.setSourceValue (ModSource::LFO1, lfo1Val);
+        modMatrix.setSourceValue (ModSource::LFO2, lfo2Val);
+        modMatrix.setSourceValue (ModSource::AmpEnv, static_cast<float> (envVal));
+        modMatrix.setSourceValue (ModSource::FilterEnv, static_cast<float> (filtEnvVal));
+        modMatrix.setSourceValue (ModSource::Velocity, noteVelocity);
+        modMatrix.setSourceValue (ModSource::NoteNum, currentMidiNote / 127.0f);
+        modMatrix.setSourceValue (ModSource::ModWheel, modWheelVal);
+        modMatrix.setSourceValue (ModSource::Aftertouch, aftertouchVal);
+
+        // Evaluate all active routes
+        modMatrix.evaluate();
+
+        // ─── Apply modulation offsets to parameters ──────────────
+
+        // Osc positions (additive, clamped 0-1)
+        float modulatedPosA = juce::jlimit (0.0f, 1.0f,
+            oscAPos + modMatrix.getModOffset (ModDest::OscAPos));
+        float modulatedPosB = juce::jlimit (0.0f, 1.0f,
+            oscBPos + modMatrix.getModOffset (ModDest::OscBPos));
+        oscA.setPosition (modulatedPosA);
+        oscB.setPosition (modulatedPosB);
+
         // Oscillator stereo output
         double oscAL, oscAR, oscBL, oscBR;
         oscA.getNextSampleStereo (oscAL, oscAR);
         oscB.getNextSampleStereo (oscBL, oscBR);
 
+        // Osc pan with modulation (equal-power)
+        float modPanA = juce::jlimit (-1.0f, 1.0f,
+            oscAPan + modMatrix.getModOffset (ModDest::OscAPan));
+        float modPanB = juce::jlimit (-1.0f, 1.0f,
+            oscBPan + modMatrix.getModOffset (ModDest::OscBPan));
+
+        double panANorm = (modPanA + 1.0) * 0.5;
+        double panALGain = std::cos (panANorm * kHalfPi);
+        double panARGain = std::sin (panANorm * kHalfPi);
+
+        double panBNorm = (modPanB + 1.0) * 0.5;
+        double panBLGain = std::cos (panBNorm * kHalfPi);
+        double panBRGain = std::sin (panBNorm * kHalfPi);
+
         // Apply level and pan
-        oscAL *= oscALevel * panAL;
-        oscAR *= oscALevel * panAR;
-        oscBL *= oscBLevel * panBL;
-        oscBR *= oscBLevel * panBR;
+        oscAL *= oscALevel * panALGain;
+        oscAR *= oscALevel * panARGain;
+        oscBL *= oscBLevel * panBLGain;
+        oscBR *= oscBLevel * panBRGain;
 
-        // Mix oscillators
-        double mixedL = oscAL * (1.0 - oscMix) + oscBL * oscMix;
-        double mixedR = oscAR * (1.0 - oscMix) + oscBR * oscMix;
+        // Osc mix with modulation
+        float modOscMix = juce::jlimit (0.0f, 1.0f,
+            oscMix + modMatrix.getModOffset (ModDest::OscMix));
 
-        // Add noise to oscillator signal (routed to filter input)
-        if (noiseLevel > 0.001f)
+        double mixedL = oscAL * (1.0 - modOscMix) + oscBL * modOscMix;
+        double mixedR = oscAR * (1.0 - modOscMix) + oscBR * modOscMix;
+
+        // Noise with modulation
+        float modNoiseLevel = juce::jlimit (0.0f, 1.0f,
+            noiseLevel + modMatrix.getModOffset (ModDest::NoiseLevel));
+
+        if (modNoiseLevel > 0.001f)
         {
-            double noise = noiseGen.getNextSample() * noiseLevel;
+            double noise = noiseGen.getNextSample() * modNoiseLevel;
             mixedL += noise;
             mixedR += noise;
         }
 
-        // Filter envelope modulation on cutoff
+        // ─── Filters with modulation ─────────────────────────────
+
+        // Filter envelope modulation on cutoff (dedicated param, always active)
         double baseCutoffA = static_cast<double> (filtACutoff);
         double baseCutoffB = static_cast<double> (filtBCutoff);
 
         double modulatedCutoffA = baseCutoffA * std::pow (2.0, filtEnvVal * filtEnvDepth * 4.0);
         double modulatedCutoffB = baseCutoffB * std::pow (2.0, filtEnvVal * filtEnvDepth * 4.0);
+
+        // Mod matrix cutoff offsets (multiplicative, octave-scaled)
+        float cutoffModA = modMatrix.getModOffset (ModDest::FiltACutoff);
+        float cutoffModB = modMatrix.getModOffset (ModDest::FiltBCutoff);
+        if (std::abs (cutoffModA) > 0.001f)
+            modulatedCutoffA *= std::pow (2.0, static_cast<double> (cutoffModA) * 4.0);
+        if (std::abs (cutoffModB) > 0.001f)
+            modulatedCutoffB *= std::pow (2.0, static_cast<double> (cutoffModB) * 4.0);
 
         // Key tracking
         if (filtAKeyTrack > 0.001f)
@@ -306,6 +379,16 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         filterBL.setCutoff (modulatedCutoffB);
         filterBR.setCutoff (modulatedCutoffB);
 
+        // Filter resonance with modulation
+        float modResA = juce::jlimit (0.0f, 1.0f,
+            filtARes + modMatrix.getModOffset (ModDest::FiltARes));
+        float modResB = juce::jlimit (0.0f, 1.0f,
+            filtBRes + modMatrix.getModOffset (ModDest::FiltBRes));
+        filterAL.setResonance (static_cast<double> (modResA));
+        filterAR.setResonance (static_cast<double> (modResA));
+        filterBL.setResonance (static_cast<double> (modResB));
+        filterBR.setResonance (static_cast<double> (modResB));
+
         // Filter routing (true stereo processing)
         double filteredL, filteredR;
 
@@ -320,12 +403,15 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             filteredR = filterAR.processSample (mixedR) + filterBR.processSample (mixedR);
         }
 
-        // Sub oscillator (bypasses filters, direct to output)
+        // Sub oscillator with modulation (bypasses filters, direct to output)
+        float modSubLevel = juce::jlimit (0.0f, 1.0f,
+            subLevel + modMatrix.getModOffset (ModDest::SubLevel));
+
         double subSample = 0.0;
-        if (subLevel > 0.001f)
+        if (modSubLevel > 0.001f)
         {
             subOsc.setFrequency (glidedFreq);
-            subSample = subOsc.getNextSample() * subLevel;
+            subSample = subOsc.getNextSample() * modSubLevel;
         }
 
         // Apply envelope and velocity
@@ -353,4 +439,6 @@ void PrismVoice::pitchWheelMoved (int newPitchWheelValue)
 
 void PrismVoice::controllerMoved (int /*controllerNumber*/, int /*newControllerValue*/)
 {
+    // MIDI CC handling is done in PluginProcessor::processBlock
+    // ModWheel and Aftertouch values are read from processor atomics
 }

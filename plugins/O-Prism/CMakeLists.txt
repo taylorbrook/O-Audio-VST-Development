@@ -9,7 +9,7 @@ juce_add_plugin(O-Prism
     PLUGIN_CODE OuPr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Prism${OUARICON_DEV_SUFFIX}"
-    VERSION 0.10.1
+    VERSION 0.12.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -28,6 +28,7 @@ target_sources(O-Prism
         Source/EmbeddedTunings.cpp
         Source/TuningExporter.cpp
         Source/dsp/WavetableGenerator.cpp
+        Source/dsp/WavetableFactory.cpp
         Source/dsp/WavetableOscillator.cpp
         Source/dsp/SubOscillator.cpp
         Source/dsp/NoiseGenerator.cpp
@@ -36,6 +37,8 @@ target_sources(O-Prism
         Source/dsp/DelayProcessor.cpp
         Source/dsp/ReverbProcessor.cpp
         Source/dsp/EQProcessor.cpp
+        Source/dsp/LFO.cpp
+        Source/dsp/ModulationMatrix.cpp
 )
 
 # Include paths

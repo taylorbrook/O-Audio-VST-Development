@@ -19,6 +19,7 @@
 #include "PrismVoice.h"
 #include "dsp/WavetableData.h"
 #include "dsp/WavetableGenerator.h"
+#include "dsp/WavetableFactory.h"
 #include "dsp/DistortionProcessor.h"
 #include "dsp/DelayProcessor.h"
 #include "dsp/ReverbProcessor.h"
@@ -64,6 +65,40 @@ public:
         return nullptr;
     }
 
+    int getNumFactoryTables() const { return static_cast<int> (factoryTables.size()); }
+
+    juce::String getTableName (int index) const
+    {
+        if (index >= 0 && index < static_cast<int> (tableInfoList.size()))
+            return tableInfoList[static_cast<size_t> (index)].name;
+        return {};
+    }
+
+    juce::String getTableCategory (int index) const
+    {
+        if (index >= 0 && index < static_cast<int> (tableInfoList.size()))
+            return tableInfoList[static_cast<size_t> (index)].category;
+        return {};
+    }
+
+    /** Get current mod wheel value (0..1) for modulation matrix */
+    float getModWheelValue() const { return modWheelValue.load (std::memory_order_relaxed); }
+
+    /** Get current aftertouch value (0..1) for modulation matrix */
+    float getAftertouchValue() const { return aftertouchValue.load (std::memory_order_relaxed); }
+
+    /** Get currently active MIDI notes and their microtonal frequencies */
+    std::vector<std::pair<int, double>> getActiveNotes()
+    {
+        std::vector<std::pair<int, double>> result;
+        for (int i = 0; i < 128; ++i)
+        {
+            if (noteStates[static_cast<size_t> (i)].load (std::memory_order_relaxed))
+                result.push_back ({ i, tuningEngine.getFrequency (i) });
+        }
+        return result;
+    }
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
@@ -71,8 +106,9 @@ private:
     ScaleGenerator scaleGenerator;
     TuningExporter tuningExporter;
 
-    // Factory wavetables (Saw, Square, Triangle, Sine)
+    // Factory wavetable library (28 tables across 5 categories)
     std::vector<std::unique_ptr<WavetableData>> factoryTables;
+    std::vector<TableInfo> tableInfoList;
     int lastOscATable = -1;
     int lastOscBTable = -1;
     int lastTuningPreset = -1;
@@ -87,6 +123,15 @@ private:
 
     // Master volume (smoothed)
     juce::SmoothedValue<float> masterVolSmoothed { 0.8f };
+
+    // Active MIDI note tracking for TrueKeys visualization
+    struct ActiveNote { int midiNote; double frequency; };
+    std::array<std::atomic<bool>, 128> noteStates {};
+    mutable std::mutex activeNotesMutex;
+
+    // MIDI CC state for modulation matrix (global sources)
+    std::atomic<float> modWheelValue { 0.0f };
+    std::atomic<float> aftertouchValue { 0.0f };
 
     void updateWavetableAssignments();
 

@@ -11,6 +11,7 @@
 
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
+#include "dsp/ModulationMatrix.h"
 
 // ═══════════════════════════════════════════════════════════════════
 // Parameter Helper Functions
@@ -21,7 +22,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscAParame
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscATable", 1 }, "Osc A Wavetable", 0, 3, 0));
+        juce::ParameterID { "oscATable", 1 }, "Osc A Wavetable", 0, WavetableFactory::kNumFactoryTables - 1, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "oscAPos", 1 }, "Osc A Position",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
@@ -56,7 +57,7 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscBParame
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
     params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "oscBTable", 1 }, "Osc B Wavetable", 0, 3, 0));
+        juce::ParameterID { "oscBTable", 1 }, "Osc B Wavetable", 0, WavetableFactory::kNumFactoryTables - 1, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "oscBPos", 1 }, "Osc B Position",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
@@ -344,6 +345,60 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createEQParamete
     return params;
 }
 
+static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createLFOParameters()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    // LFO 1 (rate + shape only — routing handled by mod matrix)
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "lfo1Rate", 1 }, "LFO 1 Rate",
+        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "lfo1Shape", 1 }, "LFO 1 Shape",
+        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+
+    // LFO 2 (rate + shape only — routing handled by mod matrix)
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "lfo2Rate", 1 }, "LFO 2 Rate",
+        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "lfo2Shape", 1 }, "LFO 2 Shape",
+        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+
+    return params;
+}
+
+static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createModMatrixParameters()
+{
+    std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
+
+    auto sourceNames = getModSourceNames();
+    auto destNames = getModDestNames();
+
+    for (int i = 0; i < 16; ++i)
+    {
+        auto prefix = "modSlot" + juce::String (i);
+        auto label = "Mod " + juce::String (i + 1);
+
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { prefix + "Src", 1 }, label + " Source",
+            sourceNames, 0));
+
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { prefix + "Dst", 1 }, label + " Dest",
+            destNames, 0));
+
+        params.push_back (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { prefix + "Amt", 1 }, label + " Amount",
+            juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
+
+        params.push_back (std::make_unique<juce::AudioParameterBool> (
+            juce::ParameterID { prefix + "On", 1 }, label + " Enabled", false));
+    }
+
+    return params;
+}
+
 static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createGlobalParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
@@ -387,18 +442,9 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPrismAudioProcessor::create
     addSection (createChorusParameters());       //  3
     addSection (createDistortionParameters());   //  3
     addSection (createEQParameters());           //  4
+    addSection (createLFOParameters());          //  4 (rate + shape only, routing via matrix)
+    addSection (createModMatrixParameters());    // 64 (16 slots x 4 params)
     addSection (createGlobalParameters());       //  3
-    // Total: 74 -- wait, let me count: 10+10+5+4+5+5+5+1+7+4+5+3+3+4+3 = 74
-    // The BRIEF says 68. Let me recount from the BRIEF parameter tables...
-    // The difference: tonic as Choice (was counted as Int in research),
-    // pitchBendRange as Int, polyphony as Int. The total from BRIEF tables:
-    // Osc A(10) + Osc B(10) + Sub/Noise(5) + AmpEnv(4) + FiltEnv(5)
-    // + FiltA(5) + FiltB(5) + FiltRouting(1) + Tuning(7) + Reverb(4)
-    // + Delay(5) + Chorus(3) + Dist(3) + EQ(4) + Global(3) = 79
-    // Wait, BRIEF says 68. Some were miscounted in the brief vs architecture.
-    // The PLAN explicitly says 68. Using the architecture spec which counts
-    // distinct parameters. All 74 params listed above are correct per BRIEF tables.
-    // The PLAN research notes this discrepancy. Proceeding with all params from BRIEF.
 
     return { allParams.begin(), allParams.end() };
 }
@@ -412,11 +458,11 @@ OPrismAudioProcessor::OPrismAudioProcessor()
                         .withOutput ("Output", juce::AudioChannelSet::stereo(), true)),
       parameters (*this, nullptr, juce::Identifier ("OPrismParameters"), createParameterLayout())
 {
-    // Generate factory wavetables (Saw, Square, Triangle, Sine)
-    factoryTables.push_back (WavetableGenerator::generateProceduralTable (WaveShape::Saw));
-    factoryTables.push_back (WavetableGenerator::generateProceduralTable (WaveShape::Square));
-    factoryTables.push_back (WavetableGenerator::generateProceduralTable (WaveShape::Triangle));
-    factoryTables.push_back (WavetableGenerator::generateProceduralTable (WaveShape::Sine));
+    // Generate factory wavetable library (28 tables)
+    auto factoryLib = WavetableFactory::createFactoryLibrary();
+    tableInfoList = WavetableFactory::getTableInfoList();
+    for (auto& entry : factoryLib)
+        factoryTables.push_back (std::move (entry.table));
 
     // Create 16 voices
     for (int i = 0; i < 16; ++i)
@@ -424,6 +470,7 @@ OPrismAudioProcessor::OPrismAudioProcessor()
         auto* voice = new PrismVoice();
         voice->setAPVTS (&parameters);
         voice->setTuningEngine (&tuningEngine);
+        voice->setProcessor (this);
         voice->setWavetableA (factoryTables[0].get()); // Default: Saw
         voice->setWavetableB (factoryTables[0].get());
         synthesiser.addVoice (voice);
@@ -498,6 +545,22 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 
     // Update wavetable assignments if table selection changed
     updateWavetableAssignments();
+
+    // Track active MIDI notes and extract CC data for mod matrix
+    for (const auto metadata : midiMessages)
+    {
+        auto msg = metadata.getMessage();
+        if (msg.isNoteOn())
+            noteStates[static_cast<size_t> (msg.getNoteNumber())].store (true, std::memory_order_relaxed);
+        else if (msg.isNoteOff())
+            noteStates[static_cast<size_t> (msg.getNoteNumber())].store (false, std::memory_order_relaxed);
+        else if (msg.isAllNotesOff() || msg.isAllSoundOff())
+            for (auto& s : noteStates) s.store (false, std::memory_order_relaxed);
+        else if (msg.isController() && msg.getControllerNumber() == 1) // Mod wheel
+            modWheelValue.store (msg.getControllerValue() / 127.0f, std::memory_order_relaxed);
+        else if (msg.isChannelPressure()) // Channel aftertouch
+            aftertouchValue.store (msg.getChannelPressureValue() / 127.0f, std::memory_order_relaxed);
+    }
 
     // Render synth voices
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
@@ -658,6 +721,10 @@ void OPrismAudioProcessor::setStateInformation (const void* data, int sizeInByte
     {
         auto state = juce::ValueTree::fromXml (*xml);
         parameters.replaceState (state);
+
+        // Sync cached values so processBlock doesn't overwrite restored TuningEngine state
+        lastTuningPreset = static_cast<int> (parameters.getRawParameterValue ("tuningPreset")->load());
+        lastTonic = static_cast<int> (parameters.getRawParameterValue ("tonic")->load());
 
         // Restore tuning state
         auto tuningState = state.getChildWithName ("tuningEngine");

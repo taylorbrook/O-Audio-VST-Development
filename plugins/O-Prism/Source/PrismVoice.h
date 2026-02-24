@@ -15,9 +15,12 @@
 #include "dsp/NoiseGenerator.h"
 #include "dsp/GlideProcessor.h"
 #include "dsp/SVFFilter.h"
+#include "dsp/LFO.h"
+#include "dsp/ModulationMatrix.h"
 
 class TuningEngine;
 class PrismSound;
+class OPrismAudioProcessor;
 struct WavetableData;
 
 class PrismVoice : public juce::SynthesiserVoice
@@ -27,6 +30,7 @@ public:
 
     void setAPVTS (juce::AudioProcessorValueTreeState* apvts);
     void setTuningEngine (TuningEngine* engine);
+    void setProcessor (OPrismAudioProcessor* proc);
     void prepare (double sampleRate, int samplesPerBlock);
 
     bool canPlaySound (juce::SynthesiserSound* sound) override;
@@ -44,6 +48,10 @@ public:
 private:
     juce::AudioProcessorValueTreeState* parameters = nullptr;
     TuningEngine* tuningEngine = nullptr;
+    OPrismAudioProcessor* processor = nullptr;
+
+    // Modulation matrix (per-voice for per-sample evaluation)
+    ModulationMatrix modMatrix;
 
     double currentFrequency = 0.0;
     float noteVelocity = 0.0f;
@@ -69,6 +77,9 @@ private:
     // Filters (separate L/R instances for true stereo processing)
     SVFFilter filterAL, filterAR;
     SVFFilter filterBL, filterBR;
+
+    // LFOs (per-voice for smooth per-sample modulation)
+    LFO lfo1, lfo2;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PrismVoice)
 };

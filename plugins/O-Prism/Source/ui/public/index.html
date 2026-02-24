@@ -97,6 +97,79 @@ body {
 }
 .tab-content.active { display: block; }
 
+/* ─── MOD MATRIX ─── */
+.mod-matrix-info {
+    font-style: italic;
+    color: #8B7355;
+    margin-bottom: 8px;
+    font-size: 11px;
+}
+.mod-matrix-table {
+    border: 1px solid #8B7355;
+    border-radius: 4px;
+    overflow: hidden;
+}
+.mod-matrix-header {
+    display: flex;
+    align-items: center;
+    background: #3C2F2F;
+    color: #C9A27B;
+    padding: 6px 8px;
+    font-size: 10px;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+}
+.mod-col-on   { width: 36px; text-align: center; }
+.mod-col-slot { width: 28px; text-align: center; }
+.mod-col-src  { flex: 1; }
+.mod-col-dst  { flex: 1; }
+.mod-col-amt  { width: 120px; text-align: center; }
+.mod-col-val  { width: 50px; text-align: right; }
+.mod-row {
+    display: flex;
+    align-items: center;
+    padding: 4px 8px;
+    border-bottom: 1px solid #D4C4B0;
+    background: #F5E6D3;
+    transition: background 0.15s;
+}
+.mod-row:nth-child(even) { background: #EDD8C0; }
+.mod-row:hover { background: #E8D5B7; }
+.mod-row.disabled { opacity: 0.45; }
+.mod-row .mod-col-on input[type="checkbox"] {
+    width: 14px; height: 14px;
+    accent-color: #C9A27B;
+    cursor: pointer;
+}
+.mod-row .mod-col-slot {
+    font-weight: bold;
+    color: #8B7355;
+    font-size: 10px;
+}
+.mod-row select {
+    width: 100%;
+    padding: 3px 4px;
+    border: 1px solid #B8A08C;
+    border-radius: 3px;
+    background: #FAF0E3;
+    color: #3C2F2F;
+    font-family: inherit;
+    font-size: 11px;
+    cursor: pointer;
+}
+.mod-row select:focus { outline: 1px solid #C9A27B; }
+.mod-row .mod-amt-slider {
+    width: 100%;
+    height: 6px;
+    accent-color: #C9A27B;
+    cursor: pointer;
+}
+.mod-row .mod-col-val {
+    font-size: 10px;
+    color: #5C4033;
+    font-variant-numeric: tabular-nums;
+}
+
 /* ─── FOOTER BAR (MASTER STRIP) ─── */
 .footer-bar {
     display: flex;
@@ -461,12 +534,20 @@ body {
 .matrix-cell { font-family: monospace; font-size: 9px; }
 
 /* True Keys view */
-.truekeys-view { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 12px; }
+.truekeys-view.active { flex-direction: column; padding: 12px; }
 .tk-hint { font-size: 13px; color: #5C4033; opacity: 0.7; text-align: center; }
 .tk-grid { display: flex; flex-direction: column; gap: 8px; width: 100%; max-height: 300px; overflow-y: auto; }
 .tk-interval { display: flex; justify-content: space-between; align-items: center; padding: 8px 14px; background: rgba(235, 217, 199, 0.6); border: 1px solid rgba(139, 115, 85, 0.4); border-radius: 4px; }
 .tk-interval span:first-child { font-size: 12px; color: #3C2F2F; font-weight: 500; }
 .tk-cents { font-family: monospace; font-size: 13px; color: #3C5C1A; font-weight: 600; }
+
+/* Held notes bar (persistent across all viz tabs) */
+.held-notes-bar { display: none; position: absolute; bottom: 0; left: 0; right: 0; background: rgba(60, 47, 47, 0.92); border-top: 1px solid rgba(139, 115, 85, 0.5); padding: 6px 10px; z-index: 10; }
+.held-notes-bar.active { display: flex; flex-wrap: wrap; gap: 4px 10px; align-items: center; }
+.hn-label { font-size: 10px; color: rgba(235, 217, 199, 0.7); text-transform: uppercase; letter-spacing: 0.5px; margin-right: 4px; }
+.hn-item { font-size: 11px; color: #EBD9C7; font-weight: 500; }
+.hn-item .hn-cents { font-family: monospace; color: #9DC76B; font-weight: 600; margin-left: 3px; }
+.hn-item .hn-name { color: rgba(235, 217, 199, 0.6); font-size: 10px; margin-left: 2px; }
 
 /* Rotation view */
 .rotation-view { width: 100%; height: 100%; overflow: auto; padding: 6px; }
@@ -639,6 +720,7 @@ body {
      ═══════════════════════════════════════════════════════════════════ -->
 <div class="tab-bar">
     <div class="tab active" data-tab="synth" onclick="switchTab('synth')">Synth</div>
+    <div class="tab" data-tab="mod" onclick="switchTab('mod')">Mod</div>
     <div class="tab" data-tab="tuning" onclick="switchTab('tuning')">Tuning</div>
     <div class="tab" data-tab="effects" onclick="switchTab('effects')">Effects</div>
 </div>
@@ -661,7 +743,28 @@ body {
             <div class="dropdown-group">
                 <span class="dropdown-label">Shape</span>
                 <select id="select-oscATable" class="param-select">
-                    <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
+                    <optgroup label="Analog">
+                        <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
+                        <option>PWM Sweep</option><option>Supersaw</option><option>Sync Sweep</option>
+                    </optgroup>
+                    <optgroup label="Digital">
+                        <option>FM E.Piano</option><option>FM Bell</option><option>FM Metallic</option>
+                        <option>Wavefold</option><option>Bitcrush</option>
+                    </optgroup>
+                    <optgroup label="Formant">
+                        <option>Vowel Morph</option><option>Choir Pad</option>
+                        <option>Vocal Lead</option><option>Formant Filter</option>
+                    </optgroup>
+                    <optgroup label="Spectral">
+                        <option>Harmonic Series</option><option>Spectral Tilt</option>
+                        <option>Odd Harmonics</option><option>Harmonic Stretch</option>
+                        <option>Comb Sweep</option><option>Prism Spectrum</option>
+                    </optgroup>
+                    <optgroup label="Organic">
+                        <option>Breath</option><option>Plucked String</option>
+                        <option>Church Bell</option><option>Organ Sweep</option>
+                        <option>Wind</option><option>Filtered Noise</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="knob-group"><div class="knob" id="knob-oscAPos"><div class="knob-indicator"></div></div><div class="knob-label">Position</div><div class="knob-value" id="val-oscAPos">0%</div></div>
@@ -686,7 +789,28 @@ body {
             <div class="dropdown-group">
                 <span class="dropdown-label">Shape</span>
                 <select id="select-oscBTable" class="param-select">
-                    <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
+                    <optgroup label="Analog">
+                        <option>Saw</option><option>Square</option><option>Triangle</option><option>Sine</option>
+                        <option>PWM Sweep</option><option>Supersaw</option><option>Sync Sweep</option>
+                    </optgroup>
+                    <optgroup label="Digital">
+                        <option>FM E.Piano</option><option>FM Bell</option><option>FM Metallic</option>
+                        <option>Wavefold</option><option>Bitcrush</option>
+                    </optgroup>
+                    <optgroup label="Formant">
+                        <option>Vowel Morph</option><option>Choir Pad</option>
+                        <option>Vocal Lead</option><option>Formant Filter</option>
+                    </optgroup>
+                    <optgroup label="Spectral">
+                        <option>Harmonic Series</option><option>Spectral Tilt</option>
+                        <option>Odd Harmonics</option><option>Harmonic Stretch</option>
+                        <option>Comb Sweep</option><option>Prism Spectrum</option>
+                    </optgroup>
+                    <optgroup label="Organic">
+                        <option>Breath</option><option>Plucked String</option>
+                        <option>Church Bell</option><option>Organ Sweep</option>
+                        <option>Wind</option><option>Filtered Noise</option>
+                    </optgroup>
                 </select>
             </div>
             <div class="knob-group"><div class="knob" id="knob-oscBPos"><div class="knob-indicator"></div></div><div class="knob-label">Position</div><div class="knob-value" id="val-oscBPos">0%</div></div>
@@ -795,6 +919,34 @@ body {
         </div>
     </div>
 
+    <!-- LFOs (rate + shape only — routing via Mod Matrix tab) -->
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header">LFO 1</div>
+            <div class="param-row">
+                <div class="knob-group"><div class="knob" id="knob-lfo1Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo1Rate">1.0 Hz</div></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Shape</span>
+                    <select id="select-lfo1Shape" class="param-select">
+                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header">LFO 2</div>
+            <div class="param-row">
+                <div class="knob-group"><div class="knob" id="knob-lfo2Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo2Rate">1.0 Hz</div></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Shape</span>
+                    <select id="select-lfo2Shape" class="param-select">
+                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Performance -->
     <div class="section-header">Performance</div>
     <div class="param-row">
@@ -809,6 +961,23 @@ body {
     </div>
 
 </div><!-- /synth-tab -->
+
+<!-- ─── MOD MATRIX TAB ─── -->
+<div id="mod-tab" class="tab-content">
+    <div class="section-header">Modulation Matrix</div>
+    <div class="mod-matrix-info">Route any source to any destination. 16 slots available.</div>
+    <div class="mod-matrix-table">
+        <div class="mod-matrix-header">
+            <span class="mod-col-on">On</span>
+            <span class="mod-col-slot">#</span>
+            <span class="mod-col-src">Source</span>
+            <span class="mod-col-dst">Destination</span>
+            <span class="mod-col-amt">Amount</span>
+            <span class="mod-col-val"></span>
+        </div>
+        <div id="mod-matrix-rows"></div>
+    </div>
+</div><!-- /mod-tab -->
 
 <!-- ─── TUNING TAB ─── -->
 <div id="tuning-tab" class="tab-content">
@@ -851,6 +1020,7 @@ body {
             <div class="tk-hint">Hold 2+ notes to see intervals</div>
         </div>
         <div class="viz-view rotation-view" id="rotation-view"></div>
+        <div id="held-notes-bar" class="held-notes-bar"></div>
     </div>
 
     <!-- RIGHT: Tuning Controls -->
@@ -1003,7 +1173,7 @@ body {
 
     <!-- EQ -->
     <div class="effect-section" id="section-eq">
-        <div class="section-header"><span>4-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle">ON</button></div>
+        <div class="section-header"><span>3-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
             <div class="knob-group"><div class="knob" id="knob-eqLowGain"><div class="knob-indicator"></div></div><div class="knob-label">Low</div><div class="knob-value" id="val-eqLowGain">0 dB</div></div>
             <div class="knob-group"><div class="knob" id="knob-eqMidGain"><div class="knob-indicator"></div></div><div class="knob-label">Mid</div><div class="knob-value" id="val-eqMidGain">0 dB</div></div>
@@ -1195,11 +1365,15 @@ const feedbackFmt = (n) => {
     return v.toFixed(0) + '%';
 };
 const polyFmt = (n) => Math.round(n * 15 + 1).toString();
+const lfoRateFmt = (n) => {
+    const v = skewMap(n, 0.01, 20.0, 0.35);
+    return v >= 10 ? v.toFixed(0) + ' Hz' : v.toFixed(1) + ' Hz';
+};
 
-// ─── BIND ALL 73 SLIDER PARAMS ───
+// ─── BIND SLIDER PARAMS ───
 
 // Osc A (9 knobs + 1 dropdown)
-bindDropdown(document.getElementById('select-oscATable'), 'oscATable', 4);
+bindDropdown(document.getElementById('select-oscATable'), 'oscATable', 28);
 bindKnob('oscAPos',    pct,       0.0);
 bindKnob('oscALevel',  pct,       0.8);
 bindKnob('oscAPan',    panFmt,    0.5);
@@ -1211,7 +1385,7 @@ bindKnob('oscADetune', pct,       0.2);
 bindKnob('oscAWidth',  pct,       0.5);
 
 // Osc B (9 knobs + 1 dropdown)
-bindDropdown(document.getElementById('select-oscBTable'), 'oscBTable', 4);
+bindDropdown(document.getElementById('select-oscBTable'), 'oscBTable', 28);
 bindKnob('oscBPos',    pct,       0.0);
 bindKnob('oscBLevel',  pct,       0.0);
 bindKnob('oscBPan',    panFmt,    0.5);
@@ -1294,10 +1468,154 @@ bindKnob('eqMidGain',  dbFmt,      0.5);
 bindKnob('eqMidFreq',  midFreqFmt, 0.1);
 bindKnob('eqHighGain', dbFmt,      0.5);
 
+// LFO 1 (rate + shape only — routing via mod matrix)
+bindKnob('lfo1Rate',  lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo1Shape'), 'lfo1Shape', 5);
+
+// LFO 2
+bindKnob('lfo2Rate',  lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo2Shape'), 'lfo2Shape', 5);
+
 // Global (footer)
 bindKnob('masterVol', pct,     0.8);
 bindKnob('oscMix',    pct,     0.5);
 bindKnob('polyphony', polyFmt, 1.0);
+
+// ─── MOD MATRIX UI ───
+(function() {
+    const NUM_SLOTS = 16;
+    const sourceNames = ['None','LFO1','LFO2','AmpEnv','FilterEnv','Velocity','NoteNum','ModWheel','Aftertouch'];
+    const destNames = ['None','OscA Pos','OscB Pos','FiltA Cut','FiltB Cut','FiltA Res','FiltB Res',
+        'Osc Mix','Sub Level','Noise Level','LFO1 Rate','LFO2 Rate','OscA Detune','OscB Detune',
+        'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol'];
+
+    const container = document.getElementById('mod-matrix-rows');
+    if (!container) return;
+
+    for (let i = 0; i < NUM_SLOTS; i++) {
+        const prefix = 'modSlot' + i;
+
+        // Get JUCE relay states
+        const srcState = Juce.getSliderState(prefix + 'Src');
+        const dstState = Juce.getSliderState(prefix + 'Dst');
+        const amtState = Juce.getSliderState(prefix + 'Amt');
+        const onState  = Juce.getToggleState(prefix + 'On');
+
+        // Build row HTML
+        const row = document.createElement('div');
+        row.className = 'mod-row';
+        row.id = 'mod-row-' + i;
+
+        // On/Off checkbox
+        const onCol = document.createElement('span');
+        onCol.className = 'mod-col-on';
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.checked = onState.getValue();
+        onCol.appendChild(cb);
+
+        // Slot number
+        const slotCol = document.createElement('span');
+        slotCol.className = 'mod-col-slot';
+        slotCol.textContent = (i + 1).toString();
+
+        // Source dropdown
+        const srcCol = document.createElement('span');
+        srcCol.className = 'mod-col-src';
+        const srcSel = document.createElement('select');
+        sourceNames.forEach((name, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx; opt.textContent = name;
+            srcSel.appendChild(opt);
+        });
+        srcSel.selectedIndex = Math.round(srcState.getNormalisedValue() * (sourceNames.length - 1));
+        srcCol.appendChild(srcSel);
+
+        // Dest dropdown
+        const dstCol = document.createElement('span');
+        dstCol.className = 'mod-col-dst';
+        const dstSel = document.createElement('select');
+        destNames.forEach((name, idx) => {
+            const opt = document.createElement('option');
+            opt.value = idx; opt.textContent = name;
+            dstSel.appendChild(opt);
+        });
+        dstSel.selectedIndex = Math.round(dstState.getNormalisedValue() * (destNames.length - 1));
+        dstCol.appendChild(dstSel);
+
+        // Amount slider
+        const amtCol = document.createElement('span');
+        amtCol.className = 'mod-col-amt';
+        const slider = document.createElement('input');
+        slider.type = 'range';
+        slider.className = 'mod-amt-slider';
+        slider.min = 0; slider.max = 1000; slider.step = 1;
+        slider.value = Math.round(amtState.getNormalisedValue() * 1000);
+        amtCol.appendChild(slider);
+
+        // Amount value display
+        const valCol = document.createElement('span');
+        valCol.className = 'mod-col-val';
+        const amtNorm = amtState.getNormalisedValue();
+        const amtDisplay = Math.round((amtNorm * 2 - 1) * 100);
+        valCol.textContent = (amtDisplay > 0 ? '+' : '') + amtDisplay + '%';
+
+        row.appendChild(onCol);
+        row.appendChild(slotCol);
+        row.appendChild(srcCol);
+        row.appendChild(dstCol);
+        row.appendChild(amtCol);
+        row.appendChild(valCol);
+        container.appendChild(row);
+
+        // Update disabled state
+        function updateRowState() {
+            if (cb.checked) row.classList.remove('disabled');
+            else row.classList.add('disabled');
+        }
+        updateRowState();
+
+        // ─── Bind checkbox to JUCE toggle ───
+        cb.addEventListener('change', () => { onState.setValue(cb.checked); updateRowState(); });
+        onState.valueChangedEvent.addListener(() => { cb.checked = onState.getValue(); updateRowState(); });
+
+        // ─── Bind source dropdown ───
+        srcSel.addEventListener('change', () => {
+            srcState.sliderDragStarted();
+            srcState.setNormalisedValue(srcSel.selectedIndex / Math.max(1, sourceNames.length - 1));
+            srcState.sliderDragEnded();
+        });
+        srcState.valueChangedEvent.addListener(() => {
+            srcSel.selectedIndex = Math.round(srcState.getNormalisedValue() * (sourceNames.length - 1));
+        });
+
+        // ─── Bind dest dropdown ───
+        dstSel.addEventListener('change', () => {
+            dstState.sliderDragStarted();
+            dstState.setNormalisedValue(dstSel.selectedIndex / Math.max(1, destNames.length - 1));
+            dstState.sliderDragEnded();
+        });
+        dstState.valueChangedEvent.addListener(() => {
+            dstSel.selectedIndex = Math.round(dstState.getNormalisedValue() * (destNames.length - 1));
+        });
+
+        // ─── Bind amount slider ───
+        slider.addEventListener('input', () => {
+            amtState.setNormalisedValue(parseInt(slider.value) / 1000);
+        });
+        slider.addEventListener('mousedown', () => { amtState.sliderDragStarted(); });
+        slider.addEventListener('mouseup', () => { amtState.sliderDragEnded(); });
+        amtState.valueChangedEvent.addListener(() => {
+            const n = amtState.getNormalisedValue();
+            slider.value = Math.round(n * 1000);
+            const disp = Math.round((n * 2 - 1) * 100);
+            valCol.textContent = (disp > 0 ? '+' : '') + disp + '%';
+        });
+
+        // Double-click slider to reset to 0
+        slider.addEventListener('dblclick', () => { amtState.setNormalisedValue(0.5); });
+    }
+})();
 
 // ─── TUNING PRESET + TONIC (slider relays for tuning panel params) ───
 (function() {
@@ -1455,7 +1773,7 @@ function wireWavetableDisplay(display, posParam, tableParam, tableSelectId) {
     const tableState = Juce.getSliderState(tableParam);
 
     function refresh() {
-        const tableIdx = Math.round(tableState.getNormalisedValue() * 3);
+        const tableIdx = Math.round(tableState.getNormalisedValue() * 27);
         const pos = posState.getNormalisedValue();
         display.fetchAndDraw(tableIdx, pos);
     }
@@ -1466,7 +1784,7 @@ function wireWavetableDisplay(display, posParam, tableParam, tableSelectId) {
     // Initial draw with retry (await fetch so samples.length check is valid)
     let retries = 0;
     async function tryInitialDraw() {
-        const tableIdx = Math.round(tableState.getNormalisedValue() * 3);
+        const tableIdx = Math.round(tableState.getNormalisedValue() * 27);
         const pos = posState.getNormalisedValue();
         await display.fetchAndDraw(tableIdx, pos);
         retries++;
@@ -1519,12 +1837,13 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
             const y1 = cy + innerR * Math.sin(rad);
             const x2 = cx + outerR * Math.cos(rad);
             const y2 = cy + outerR * Math.sin(rad);
+            const isActive = activeNotes.has(i);
 
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', x1); line.setAttribute('y1', y1);
             line.setAttribute('x2', x2); line.setAttribute('y2', y2);
-            line.setAttribute('stroke', '#6B8E4E');
-            line.setAttribute('stroke-width', total > 19 ? '1' : '2');
+            line.setAttribute('stroke', isActive ? '#CC2222' : '#6B8E4E');
+            line.setAttribute('stroke-width', isActive ? '4' : (total > 19 ? '1' : '2'));
             line.setAttribute('stroke-linecap', 'round');
             linesGroup.appendChild(line);
 
@@ -1651,9 +1970,9 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
             const x = cx + Math.cos(angle) * r, y = cy + Math.sin(angle) * r;
             const isActive = activeNotes.has(i);
 
-            ctx.fillStyle = isActive ? '#FFD700' : '#6B8E4E';
+            ctx.fillStyle = isActive ? '#CC2222' : '#6B8E4E';
             ctx.beginPath(); ctx.arc(x, y, isActive ? 8 : 6, 0, Math.PI * 2); ctx.fill();
-            ctx.strokeStyle = isActive ? '#B8860B' : '#3C2F2F';
+            ctx.strokeStyle = isActive ? '#881111' : '#3C2F2F';
             ctx.lineWidth = isActive ? 2 : 1; ctx.stroke();
 
             const labelR = r + 14;
@@ -1693,11 +2012,41 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
     // ── True Keys ──
     window.updateHeldNotes = function(notes, freqs) {
         heldNotes = notes || []; heldFreqs = freqs || [];
+
+        // Sync activeNotes Map so circle/polar show active degrees
+        activeNotes.clear();
+        for (const midiNote of heldNotes) {
+            const idx = midiNoteToScaleIndex(midiNote);
+            if (activeNotes.has(idx)) {
+                activeNotes.get(idx).count++;
+            } else {
+                activeNotes.set(idx, { count: 1, maxVelocity: 1.0 });
+            }
+        }
+
+        if (vizMode === 'circle' || vizMode === 'polar') updateVisualization();
         if (vizMode === 'truekeys') updateTrueKeysDisplay();
+        updateHeldNotesBar();
     };
 
     function midiToNoteName(midi) {
         return noteNames[midi % 12] + Math.floor(midi / 12 - 1);
+    }
+
+    function approxIntervalName(cents) {
+        if (Math.abs(cents - 100) < 15) return 'm2';
+        if (Math.abs(cents - 200) < 15) return 'M2';
+        if (Math.abs(cents - 300) < 15) return 'm3';
+        if (Math.abs(cents - 400) < 15) return 'M3';
+        if (Math.abs(cents - 500) < 15) return 'P4';
+        if (Math.abs(cents - 600) < 15) return 'TT';
+        if (Math.abs(cents - 700) < 15) return 'P5';
+        if (Math.abs(cents - 800) < 15) return 'm6';
+        if (Math.abs(cents - 900) < 15) return 'M6';
+        if (Math.abs(cents - 1000) < 15) return 'm7';
+        if (Math.abs(cents - 1100) < 15) return 'M7';
+        if (Math.abs(cents - 1200) < 15) return 'P8';
+        return '';
     }
 
     function updateTrueKeysDisplay() {
@@ -1711,14 +2060,8 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
         const sorted = heldNotes.map((n, i) => ({ note: n, freq: heldFreqs[i] })).sort((a, b) => a.note - b.note);
         for (let i = 0; i < sorted.length - 1; i++) {
             const cents = 1200 * Math.log2(sorted[i + 1].freq / sorted[i].freq);
-            let name = '';
-            if (Math.abs(cents - 100) < 15) name = '(m2)';
-            else if (Math.abs(cents - 200) < 15) name = '(M2)';
-            else if (Math.abs(cents - 300) < 15) name = '(m3)';
-            else if (Math.abs(cents - 400) < 15) name = '(M3)';
-            else if (Math.abs(cents - 500) < 15) name = '(P4)';
-            else if (Math.abs(cents - 700) < 15) name = '(P5)';
-            else if (Math.abs(cents - 1200) < 15) name = '(P8)';
+            let name = approxIntervalName(cents);
+            if (name) name = '(' + name + ')';
             html += `<div class="tk-interval"><span>${midiToNoteName(sorted[i].note)} \u2192 ${midiToNoteName(sorted[i+1].note)} ${name}</span><span class="tk-cents">${cents.toFixed(1)}\u00A2</span></div>`;
         }
         if (sorted.length > 2) {
@@ -1727,6 +2070,31 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
         }
         html += '</div>';
         container.innerHTML = html;
+    }
+
+    function updateHeldNotesBar() {
+        const bar = document.getElementById('held-notes-bar');
+        if (!bar) return;
+        if (heldNotes.length < 2) {
+            bar.classList.remove('active');
+            bar.innerHTML = '';
+            return;
+        }
+        const sorted = heldNotes.map((n, i) => ({ note: n, freq: heldFreqs[i] })).sort((a, b) => a.note - b.note);
+        let html = '<span class="hn-label">Intervals:</span>';
+        for (let i = 0; i < sorted.length - 1; i++) {
+            const cents = 1200 * Math.log2(sorted[i + 1].freq / sorted[i].freq);
+            const name = approxIntervalName(cents);
+            html += `<span class="hn-item">${midiToNoteName(sorted[i].note)}\u2192${midiToNoteName(sorted[i+1].note)} <span class="hn-cents">${cents.toFixed(1)}\u00A2</span>`;
+            if (name) html += `<span class="hn-name">${name}</span>`;
+            html += '</span>';
+        }
+        if (sorted.length > 2) {
+            const totalCents = 1200 * Math.log2(sorted[sorted.length - 1].freq / sorted[0].freq);
+            html += `<span class="hn-item" style="margin-left:6px;border-left:1px solid rgba(235,217,199,0.3);padding-left:8px;">Span <span class="hn-cents">${totalCents.toFixed(1)}\u00A2</span></span>`;
+        }
+        bar.innerHTML = html;
+        bar.classList.add('active');
     }
 
     // ── Modal Rotation Matrix ──
