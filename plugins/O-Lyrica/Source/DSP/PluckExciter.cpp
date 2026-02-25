@@ -96,7 +96,7 @@ float PluckExciter::process()
     float noiseSample = 0.0f;
     if (noiseBurstRemaining > 0)
     {
-        noiseSample = generateNoise() * burstAmplitude;
+        noiseSample = generateExcitation() * burstAmplitude;
         --noiseBurstRemaining;
     }
 
@@ -273,10 +273,20 @@ void PluckExciter::updateTechniqueFilter()
     }
 }
 
-float PluckExciter::generateNoise()
+float PluckExciter::generateExcitation()
 {
-    // Generate white noise in range [-1.0, 1.0]
-    // Scaled by noiseAmount (Phase 2.5 - material-based noise content)
-    float baseNoise = (noiseSource.nextFloat() * 2.0f) - 1.0f;
-    return baseNoise * noiseAmount;
+    // v1.20.1 FIX: Blend between clean impulse and noise based on noiseAmount
+    // Previously, noiseAmount=0 produced zero excitation → silence (bug)
+    // Now noiseAmount controls texture: 0=clean half-sine impulse, 1=full noise
+
+    // Clean impulse: half-sine shape over burst duration
+    float phase = static_cast<float>(noiseBurstSamples - noiseBurstRemaining)
+                / static_cast<float>(noiseBurstSamples);
+    float cleanImpulse = std::sin(phase * juce::MathConstants<float>::pi);
+
+    // Noisy excitation: white noise in range [-1.0, 1.0]
+    float noise = (noiseSource.nextFloat() * 2.0f) - 1.0f;
+
+    // Crossfade: noiseAmount=0 → pure impulse, noiseAmount=1 → pure noise
+    return cleanImpulse * (1.0f - noiseAmount) + noise * noiseAmount;
 }

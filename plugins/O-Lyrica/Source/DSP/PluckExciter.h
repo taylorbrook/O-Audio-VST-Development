@@ -159,9 +159,9 @@ private:
     void updateTechniqueFilter();
 
     /**
-     * Generate base noise sample
+     * Generate excitation sample (v1.20.1: blend between clean impulse and noise)
      */
-    float generateNoise();
+    float generateExcitation();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(PluckExciter)
 };

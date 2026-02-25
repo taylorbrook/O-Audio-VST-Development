@@ -34,10 +34,10 @@ Ouaricon Plugins:
 | O-DigiDelay | 📦 Installed | 1.2.9 | Audio Effect (Delay) | 2026-02-14 |
 | O-SimpleReverb | 📦 Installed | 1.5.5 | Audio Effect (Reverb) | 2026-02-15 |
 | O-Polystutter | 📦 Installed | 1.8.0 | Audio Effect (Beat Repeater) | 2026-01-26 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
-| O-Lyrica | 📦 Installed | 1.20.0 | Synth (Physical Modeling Harp) | 2026-02-09 |
+| O-Lyrica | 📦 Installed | 1.20.1 | Synth (Physical Modeling Harp) | 2026-02-24 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
-| O-IntonationPad | 📦 Installed | 1.15.5 | Synth (Wavetable Pad) | 2026-02-24 |
+| O-IntonationPad | 📦 Installed | 1.15.6 | Synth (Wavetable Pad) | 2026-02-24 |
 | O-Detune | 📦 Installed | 1.5.2 | Audio Effect (Detuning) | 2026-02-18 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
 | O-Bells | 📦 Installed | 3.2.1 | Synth (Physical Modeling Bells) | 2026-02-19 |

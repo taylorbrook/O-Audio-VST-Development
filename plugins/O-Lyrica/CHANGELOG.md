@@ -2,6 +2,12 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.20.1] - 2026-02-24
+
+### Fixed
+
+- **Attack Noise no longer silences instrument** — Parameter previously controlled overall excitation amplitude; setting it to 0 produced silence. Now blends between a clean half-sine impulse (0%) and noise excitation (100%), so Attack Noise controls attack *texture* without affecting gain.
+
 ## [1.19.0] - 2026-02-04
 
 ### Added
