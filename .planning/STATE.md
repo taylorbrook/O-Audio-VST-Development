@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 Phase: None (between milestones)
 Plan: N/A
 Status: v1.3 milestone archived. All phases (14-17) shipped.
-Last activity: 2026-02-11 - Completed quick task 6: add a new slash command to build a windows exe installer for a vst3 plugin
+Last activity: 2026-02-26 - Completed quick task 7: Move O-Bells to top of Ouaricon Plugins table
 
 Progress: [██████████] 100% (v1.0-v1.3: 17/17 phases complete, 51/51 plans)
 
@@ -53,11 +53,12 @@ None currently.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 6 | add a new slash command to build a windows exe installer for a vst3 plugin | 2026-02-11 | bf03372 | [6-add-a-new-slash-command-to-build-a-windo](./quick/6-add-a-new-slash-command-to-build-a-windo/) |
+| 7 | Move O-Bells to top of Ouaricon Plugins table in PLUGINS.md | 2026-02-26 | 2efe535 | [7-move-o-bells-up-to-the-top-of-the-produc](./quick/7-move-o-bells-up-to-the-top-of-the-produc/) |
 
 ## Session Continuity
 
-Last session: 2026-02-11
-Stopped at: Completed quick task 6 (/build-installer Windows EXE installer command)
+Last session: 2026-02-26
+Stopped at: Completed quick task 7 (Move O-Bells to top of Ouaricon Plugins table)
 Resume file: None
 
 Next: `/gsd:new-milestone` to start v2 planning
