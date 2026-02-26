@@ -2,6 +2,11 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.1.2] - 2026-02-25
+
+### Added
+- Version number displayed in bottom-right corner of UI
+
 ## [1.1.1] - 2026-02-07
 
 ### Changed
