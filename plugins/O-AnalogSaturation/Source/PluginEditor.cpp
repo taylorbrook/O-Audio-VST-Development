@@ -49,12 +49,29 @@ OAnalogSaturationAudioProcessorEditor::OAnalogSaturationAudioProcessorEditor(OAn
     addAndMakeVisible(*webView);
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
+#if OUARICON_LICENSING_ENABLED
+    // Licensing: activation overlay (visible until licensed)
+    auto& license = processorRef.getLicenseManager();
+    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
+    addAndMakeVisible(licenseOverlay.get());
+
+    license.addListener(this);
+
+    if (! license.isLicensed())
+        webView->setVisible(false);
+    else
+        licenseOverlay->setVisible(false);
+#endif
+
     setSize(600, 450);
     startTimerHz(30);
 }
 
 OAnalogSaturationAudioProcessorEditor::~OAnalogSaturationAudioProcessorEditor()
 {
+#if OUARICON_LICENSING_ENABLED
+    processorRef.getLicenseManager().removeListener(this);
+#endif
     stopTimer();
 }
 
@@ -75,6 +92,11 @@ void OAnalogSaturationAudioProcessorEditor::paint(juce::Graphics& g)
 void OAnalogSaturationAudioProcessorEditor::resized()
 {
     webView->setBounds(getLocalBounds());
+
+#if OUARICON_LICENSING_ENABLED
+    if (licenseOverlay != nullptr)
+        licenseOverlay->setBounds(getLocalBounds());
+#endif
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
@@ -120,3 +142,19 @@ OAnalogSaturationAudioProcessorEditor::getResource(const juce::String& url)
     juce::Logger::writeToLog("Resource not found: " + url);
     return std::nullopt;
 }
+
+#if OUARICON_LICENSING_ENABLED
+//==============================================================================
+void OAnalogSaturationAudioProcessorEditor::licenseStatusChanged(
+    OuariconLicense&, OuariconLicense::Status newStatus)
+{
+    juce::MessageManager::callAsync([this, newStatus]()
+    {
+        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
+        webView->setVisible(licensed);
+
+        if (licenseOverlay)
+            licenseOverlay->setVisible(! licensed);
+    });
+}
+#endif
