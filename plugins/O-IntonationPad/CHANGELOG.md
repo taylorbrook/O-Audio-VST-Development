@@ -1,5 +1,10 @@
 # O-IntonationPad Changelog
 
+## [1.15.15] - 2026-02-25
+
+### Fixed
+- **Fixed broken masterVolume formatter double-converting dB values**: Formatter applied `20 * Math.log10(v)` to a value already in dB (parameter range -60 to 6), producing nonsensical display values. Now displays the raw dB value with one decimal place (backlog item #22)
+
 ## [1.15.14] - 2026-02-25
 
 ### Changed

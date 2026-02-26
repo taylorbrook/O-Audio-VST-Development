@@ -969,12 +969,7 @@
             setupKnob('attackTime', attackTimeState, 1, 5000, ' ms', v => Math.round(v));
             setupKnob('releaseTime', releaseTimeState, 10, 10000, ' ms', v => Math.round(v));
             setupKnob('filterCutoff', filterCutoffState, 20, 20000, ' Hz', v => Math.round(v));
-            setupKnob('masterVolume', masterVolumeState, -60, 6, ' dB', v => {
-                const gain = v;
-                if (gain === 0) return 0;
-                const db = 20 * Math.log10(gain);
-                return db.toFixed(1);
-            });
+            setupKnob('masterVolume', masterVolumeState, -60, 6, ' dB', v => v.toFixed(1));
 
             // Setup dropdowns
             setupDropdown('keyRoot', keyRootState, 12);

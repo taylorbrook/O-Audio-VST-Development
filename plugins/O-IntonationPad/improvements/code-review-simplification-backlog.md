@@ -77,10 +77,10 @@
 - **Issue:** Silence threshold used in 4 separate checks with no named constant.
 - **Fix:** `static constexpr float kSilenceThreshold = 0.0001f;`
 
-### 22. Broken masterVolume formatter in index.html
-- **File:** `index.html:1243-1248`
-- **Issue:** Applies `20 * Math.log10(v)` to a value that's already in dB (range -60 to 6). Double-converts.
-- **Fix:** If param is dB: `v => v.toFixed(1)`. If param is linear gain: fix the knob range.
+### ~~22. Broken masterVolume formatter in index.html~~ ✅ Fixed v1.15.15
+- **File:** `index.html:972`
+- **Issue:** Applied `20 * Math.log10(v)` to a value already in dB (range -60 to 6). Double-converted.
+- **Fix:** Replaced with `v => v.toFixed(1)` — displays raw dB value directly.
 
 ---
 
