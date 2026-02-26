@@ -2534,33 +2534,38 @@
             const valueDisplay = document.getElementById(`${param.id}Value`);
             if (!slider || !valueDisplay) return;
 
-            // Get JUCE slider state
-            const sliderState = Juce.getSliderState(param.id);
+            try {
+                // Get JUCE slider state
+                const sliderState = Juce.getSliderState(param.id);
+                if (!sliderState || !sliderState.valueChangedEvent) return;
 
-            // Bind slider to JUCE
-            sliderState.valueChangedEvent.addListener(() => {
+                // Bind slider to JUCE
+                sliderState.valueChangedEvent.addListener(() => {
+                    slider.value = sliderState.getNormalisedValue();
+                    valueDisplay.textContent = param.format(sliderState.getNormalisedValue());
+                });
+
+                // User interaction
+                slider.addEventListener('input', () => {
+                    sliderState.setNormalisedValue(parseFloat(slider.value));
+                });
+
+                slider.addEventListener('mousedown', () => sliderState.sliderDragStarted());
+                slider.addEventListener('mouseup', () => sliderState.sliderDragEnded());
+                slider.addEventListener('touchstart', () => sliderState.sliderDragStarted());
+                slider.addEventListener('touchend', () => sliderState.sliderDragEnded());
+
+                // Double-click to reset
+                slider.addEventListener('dblclick', () => {
+                    sliderState.setNormalisedValue(sliderState.properties.defaultValue);
+                });
+
+                // Initialize display
                 slider.value = sliderState.getNormalisedValue();
                 valueDisplay.textContent = param.format(sliderState.getNormalisedValue());
-            });
-
-            // User interaction
-            slider.addEventListener('input', () => {
-                sliderState.setNormalisedValue(parseFloat(slider.value));
-            });
-
-            slider.addEventListener('mousedown', () => sliderState.sliderDragStarted());
-            slider.addEventListener('mouseup', () => sliderState.sliderDragEnded());
-            slider.addEventListener('touchstart', () => sliderState.sliderDragStarted());
-            slider.addEventListener('touchend', () => sliderState.sliderDragEnded());
-
-            // Double-click to reset
-            slider.addEventListener('dblclick', () => {
-                sliderState.setNormalisedValue(sliderState.properties.defaultValue);
-            });
-
-            // Initialize display
-            slider.value = sliderState.getNormalisedValue();
-            valueDisplay.textContent = param.format(sliderState.getNormalisedValue());
+            } catch (e) {
+                console.warn(`Slider binding failed for ${param.id}:`, e);
+            }
         });
 
         // ====================================================================
@@ -2573,10 +2578,10 @@
             const select = document.getElementById(paramId);
             if (!select) return;
 
-            const comboState = Juce.getComboBoxState(paramId);
-            if (!comboState || !comboState.valueChangedEvent) return;
-
             try {
+                const comboState = Juce.getComboBoxState(paramId);
+                if (!comboState || !comboState.valueChangedEvent) return;
+
                 // Bind to JUCE
                 comboState.valueChangedEvent.addListener(() => {
                     select.value = comboState.getChoiceIndex();
