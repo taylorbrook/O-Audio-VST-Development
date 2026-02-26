@@ -15,6 +15,19 @@
 #include "DSP/TuningExporter.h"
 #include "DSP/EmbeddedTunings.h"
 
+namespace {
+static juce::String doubleVectorToJSON(const std::vector<double>& v)
+{
+    juce::String json = "[";
+    for (size_t i = 0; i < v.size(); ++i) {
+        if (i > 0) json += ",";
+        json += juce::String(v[i], 6);
+    }
+    json += "]";
+    return json;
+}
+}
+
 OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonationPadAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
 {
@@ -64,7 +77,7 @@ void OIntonationPadAudioProcessorEditor::createRelays()
     chorusMixRelay = std::make_unique<juce::WebSliderRelay>("chorusMix");
     delayTimeRelay = std::make_unique<juce::WebSliderRelay>("delayTime");
     delayFeedbackRelay = std::make_unique<juce::WebSliderRelay>("delayFeedback");
-    delayModeRelay = std::make_unique<juce::WebSliderRelay>("delayMode");
+    delayModeRelay = std::make_unique<juce::WebComboBoxRelay>("delayMode");
     delayMixRelay = std::make_unique<juce::WebSliderRelay>("delayMix");
     eqLowGainRelay = std::make_unique<juce::WebSliderRelay>("eqLowGain");
     eqMidGainRelay = std::make_unique<juce::WebSliderRelay>("eqMidGain");
@@ -138,14 +151,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
 
         // --- Tuning Intervals ---
         .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
-            auto intervals = processorRef.getTuningEngine().getIntervals();
-            juce::String json = "[";
-            for (size_t i = 0; i < intervals.size(); ++i) {
-                if (i > 0) json += ",";
-                json += juce::String(intervals[i], 6);
-            }
-            json += "]";
-            complete(json);
+            complete(doubleVectorToJSON(processorRef.getTuningEngine().getIntervals()));
         })
 
         .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args, auto complete) {
@@ -297,13 +303,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 int divisions = static_cast<int>(args[0]);
                 double period = static_cast<double>(args[1]);
                 auto intervals = ScaleGenerator::generateEDO(divisions, period);
-                juce::String json = "[";
-                for (size_t i = 0; i < intervals.size(); ++i) {
-                    if (i > 0) json += ",";
-                    json += juce::String(intervals[i], 6);
-                }
-                json += "]";
-                complete(json);
+                complete(doubleVectorToJSON(intervals));
                 return;
             }
             complete(juce::var());
@@ -314,13 +314,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 int startHarmonic = static_cast<int>(args[0]);
                 int endHarmonic = static_cast<int>(args[1]);
                 auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
-                juce::String json = "[";
-                for (size_t i = 0; i < intervals.size(); ++i) {
-                    if (i > 0) json += ",";
-                    json += juce::String(intervals[i], 6);
-                }
-                json += "]";
-                complete(json);
+                complete(doubleVectorToJSON(intervals));
                 return;
             }
             complete(juce::var());
@@ -332,13 +326,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 double period = static_cast<double>(args[1]);
                 int count = static_cast<int>(args[2]);
                 auto intervals = ScaleGenerator::generateRank2(generator, period, count);
-                juce::String json = "[";
-                for (size_t i = 0; i < intervals.size(); ++i) {
-                    if (i > 0) json += ",";
-                    json += juce::String(intervals[i], 6);
-                }
-                json += "]";
-                complete(json);
+                complete(doubleVectorToJSON(intervals));
                 return;
             }
             complete(juce::var());
@@ -526,7 +514,7 @@ void OIntonationPadAudioProcessorEditor::createAttachments()
         *apvts.getParameter("delayTime"), *delayTimeRelay, nullptr);
     delayFeedbackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("delayFeedback"), *delayFeedbackRelay, nullptr);
-    delayModeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+    delayModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("delayMode"), *delayModeRelay, nullptr);
     delayMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("delayMix"), *delayMixRelay, nullptr);

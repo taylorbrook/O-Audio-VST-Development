@@ -11,6 +11,7 @@
 */
 
 #include "EmbeddedTunings.h"
+#include "ScaleGenerator.h"
 #include <algorithm>
 
 // Static member definitions
@@ -116,12 +117,11 @@ void EmbeddedTunings::initializeTunings()
     // EQUAL DIVISIONS (EDO - Equal temperaments beyond 12)
     // ═══════════════════════════════════════════════════════════════════
 
-    // Helper lambda to generate EDO intervals
+    // Adapter: ScaleGenerator::generateEDO includes the period at the end,
+    // but EmbeddedTuning stores period separately, so strip it.
     auto generateEDO = [](int divisions) -> std::vector<double> {
-        std::vector<double> intervals;
-        double step = 1200.0 / divisions;
-        for (int i = 0; i < divisions; ++i)
-            intervals.push_back(i * step);
+        auto intervals = ScaleGenerator::generateEDO(divisions);
+        intervals.pop_back();
         return intervals;
     };
 

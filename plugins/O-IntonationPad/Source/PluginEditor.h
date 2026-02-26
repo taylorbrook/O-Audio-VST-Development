@@ -72,7 +72,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> chorusMixRelay;
     std::unique_ptr<juce::WebSliderRelay> delayTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> delayFeedbackRelay;
-    std::unique_ptr<juce::WebSliderRelay> delayModeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> delayModeRelay;
     std::unique_ptr<juce::WebSliderRelay> delayMixRelay;
     std::unique_ptr<juce::WebSliderRelay> eqLowGainRelay;
     std::unique_ptr<juce::WebSliderRelay> eqMidGainRelay;
@@ -134,7 +134,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> chorusMixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> delayTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> delayFeedbackAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> delayModeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> delayModeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> delayMixAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> eqLowGainAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> eqMidGainAttachment;

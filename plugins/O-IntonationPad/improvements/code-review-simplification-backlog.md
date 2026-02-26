@@ -52,15 +52,15 @@
 - **Issue:** No UI relay exists for this parameter. The `temperamentPreset` already sets tuning mode implicitly via `setBuiltInPreset()`.
 - **Fix:** Removed the parameter definition, listener registration, and parameterChanged handler case.
 
-### 17. Local generateEDO lambda duplicates ScaleGenerator::generateEDO
-- **File:** `EmbeddedTunings.cpp:100-104`
-- **Issue:** Local lambda reimplements EDO generation without validation and with different period semantics (excludes period vs includes).
-- **Fix:** Call `ScaleGenerator::generateEDO()` instead, normalizing the period handling.
+### ~~17. Local generateEDO lambda duplicates ScaleGenerator::generateEDO~~ ✅ Fixed v1.15.12
+- **File:** `EmbeddedTunings.cpp:120-126`
+- **Issue:** Local lambda reimplemented EDO generation without validation and with different period semantics (excludes period vs includes).
+- **Fix:** Lambda now delegates to `ScaleGenerator::generateEDO()` and strips the trailing period to match `EmbeddedTuning` struct convention.
 
-### 18. Dead intervalScaleSize variable in index.html
+### ~~18. Dead intervalScaleSize variable in index.html~~ ✅ Fixed v1.15.13
 - **File:** `index.html:1565, 1609-1612`
 - **Issue:** Set on change detection but never read for any conditional behavior. `renderIntervalToggles` runs unconditionally.
-- **Fix:** Remove the variable and the if-block, or implement the intended optimization (only re-render when scale size changes).
+- **Fix:** Removed variable declaration, assignment, and dead if-block.
 
 ### 19. 35+ document-level mousemove/mouseup listeners
 - **File:** `index.html:1396-1413`

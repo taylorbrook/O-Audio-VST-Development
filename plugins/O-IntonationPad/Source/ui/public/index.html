@@ -863,12 +863,32 @@
                 { id: 'chorusDepth', label: 'Depth', size: 'small' },
                 { id: 'chorusMix', label: 'Mix', size: 'small' },
             ]);
-            populateKnobs('delay-knobs', [
-                { id: 'delayTime', label: 'Time', size: 'small' },
-                { id: 'delayFeedback', label: 'Feedback', size: 'small' },
-                { id: 'delayMode', label: 'Mode', size: 'small' },
-                { id: 'delayMix', label: 'Mix', size: 'small' },
-            ]);
+            {
+                const delayRow = document.getElementById('delay-knobs');
+                [{ id: 'delayTime', label: 'Time', size: 'small' },
+                 { id: 'delayFeedback', label: 'Feedback', size: 'small' }
+                ].forEach(k => delayRow.appendChild(makeKnob(k.id, k.label, k.size)));
+                // delayMode: discrete choice → dropdown (not a knob)
+                const modeWrap = document.createElement('div');
+                modeWrap.className = 'dropdown-container';
+                const modeLbl = document.createElement('div');
+                modeLbl.className = 'knob-label';
+                modeLbl.textContent = 'Mode';
+                const modeSel = document.createElement('select');
+                modeSel.className = 'dropdown';
+                modeSel.id = 'delayModeSelect';
+                modeSel.style.width = '90px';
+                ['Normal', 'PingPong'].forEach((name, i) => {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = name;
+                    modeSel.appendChild(opt);
+                });
+                modeWrap.appendChild(modeLbl);
+                modeWrap.appendChild(modeSel);
+                delayRow.appendChild(modeWrap);
+                delayRow.appendChild(makeKnob('delayMix', 'Mix', 'small'));
+            }
             populateKnobs('eq-knobs', [
                 { id: 'eqLowGain', label: 'Low', size: 'small' },
                 { id: 'eqMidGain', label: 'Mid', size: 'small' },
@@ -912,7 +932,7 @@
             chorusMixState = Juce.getSliderState('chorusMix');
             delayTimeState = Juce.getSliderState('delayTime');
             delayFeedbackState = Juce.getSliderState('delayFeedback');
-            delayModeState = Juce.getSliderState('delayMode');
+            delayModeState = Juce.getComboBoxState('delayMode');
             delayMixState = Juce.getSliderState('delayMix');
             eqLowGainState = Juce.getSliderState('eqLowGain');
             eqMidGainState = Juce.getSliderState('eqMidGain');
@@ -969,7 +989,7 @@
             setupKnob('chorusMix', chorusMixState, 0, 100, '%', v => Math.round(v));
             setupKnob('delayTime', delayTimeState, 1, 2000, ' ms', v => Math.round(v));
             setupKnob('delayFeedback', delayFeedbackState, 0, 95, '%', v => Math.round(v));
-            setupKnob('delayMode', delayModeState, 0, 1, '', v => v < 0.5 ? 'Normal' : 'PingPong');
+            setupComboBox('delayMode', delayModeState);
             setupKnob('delayMix', delayMixState, 0, 100, '%', v => Math.round(v));
             setupKnob('eqLowGain', eqLowGainState, -12, 12, ' dB', v => v.toFixed(1));
             setupKnob('eqMidGain', eqMidGainState, -12, 12, ' dB', v => v.toFixed(1));
@@ -1271,7 +1291,6 @@
         // ====================================================================
 
         let intervalData = [];      // Array of { cents, enabled }
-        let intervalScaleSize = 0;  // Tracks current scale size for change detection
 
         async function initIntervalSelector() {
             // Load intervals from tuning engine (don't block on initial load —
@@ -1313,12 +1332,6 @@
                 // Get enabled state
                 const enabledJson = await Juce.getNativeFunction('getEnabledIntervals')();
                 const enabled = JSON.parse(enabledJson);
-
-                // Detect scale size change
-                const scaleSize = intervals.length - 1; // Exclude period
-                if (scaleSize !== intervalScaleSize) {
-                    intervalScaleSize = scaleSize;
-                }
 
                 renderIntervalToggles(intervals, enabled);
             } catch (e) {

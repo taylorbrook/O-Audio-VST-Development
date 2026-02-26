@@ -1,7 +1,7 @@
 {
   "$schema": "./schemas/active-plugin.schema.json",
-  "plugin": "O-Bells",
-  "focusedAt": "2026-02-08T12:00:00Z",
+  "plugin": "O-Chorus",
+  "focusedAt": "2026-02-25T12:00:00Z",
   "loadedContext": {
     "statusMd": true,
     "currentPlan": null,

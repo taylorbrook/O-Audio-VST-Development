@@ -723,7 +723,11 @@ double TuningEngine::calculate12TETFrequency(int midiNote) const
 double TuningEngine::calculateCustomFrequency(int midiNote) const
 {
     std::lock_guard<std::mutex> lock(intervalMutex);
+    return calculateCustomFrequencyUnlocked(midiNote);
+}
 
+double TuningEngine::calculateCustomFrequencyUnlocked(int midiNote) const
+{
     if (scaleIntervals.size() < 2)
         return calculate12TETFrequency(midiNote);
 
@@ -859,17 +863,21 @@ void TuningEngine::rebuildFrequencyTable()
 {
     Mode mode = currentMode.load(std::memory_order_relaxed);
 
-    for (int midiNote = 0; midiNote < 128; ++midiNote)
+    if (mode == Mode::TwelveTET)
     {
-        double freq;
-        if (mode == Mode::TwelveTET)
+        for (int midiNote = 0; midiNote < 128; ++midiNote)
         {
-            freq = calculate12TETFrequency(midiNote);
+            double freq = calculate12TETFrequency(midiNote);
+            frequencyTable[static_cast<size_t>(midiNote)].store(freq, std::memory_order_relaxed);
         }
-        else
+    }
+    else
+    {
+        std::lock_guard<std::mutex> lock(intervalMutex);
+        for (int midiNote = 0; midiNote < 128; ++midiNote)
         {
-            freq = calculateCustomFrequency(midiNote);
+            double freq = calculateCustomFrequencyUnlocked(midiNote);
+            frequencyTable[static_cast<size_t>(midiNote)].store(freq, std::memory_order_relaxed);
         }
-        frequencyTable[static_cast<size_t>(midiNote)].store(freq, std::memory_order_relaxed);
     }
 }

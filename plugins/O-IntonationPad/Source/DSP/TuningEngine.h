@@ -263,6 +263,7 @@ private:
 
     double calculate12TETFrequency(int midiNote) const;
     double calculateCustomFrequency(int midiNote) const;
+    double calculateCustomFrequencyUnlocked(int midiNote) const;
     double applyPitchBend(double baseFreq, float bendAmount) const;
     void rebuildFrequencyTable();
     void rotateIntervalsForTonic(int tonic);

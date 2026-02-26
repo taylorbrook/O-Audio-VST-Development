@@ -1,5 +1,10 @@
 # O-IntonationPad Changelog
 
+## [1.15.12] - 2026-02-25
+
+### Changed
+- **Replaced local `generateEDO` lambda with `ScaleGenerator::generateEDO()`**: Local lambda in `EmbeddedTunings.cpp` reimplemented EDO generation without validation. Now delegates to the shared `ScaleGenerator` implementation (with period stripped to match `EmbeddedTuning` struct convention). No behavior change (backlog item #17)
+
 ## [1.15.11] - 2026-02-25
 
 ### Changed
