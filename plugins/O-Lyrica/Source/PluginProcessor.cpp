@@ -120,6 +120,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         0  // Default: Major
     ));
 
+    // v1.21.0: Glissando speed for scale-locked mode (notes per second)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "glissandoSpeed", 1 },
+        "Glissando Speed",
+        juce::NormalisableRange<float>(4.0f, 30.0f, 0.1f, 0.5f),
+        12.0f,
+        "n/s"
+    ));
+
     // Tuning
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "masterTune", 1 },

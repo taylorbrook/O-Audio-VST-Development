@@ -46,6 +46,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     bridgeBrightnessRelay = std::make_unique<juce::WebSliderRelay>("bridgeBrightness");
     // v1.19.0: Humanize (per-note randomization)
     humanizeRelay = std::make_unique<juce::WebSliderRelay>("humanize");
+    // v1.21.0: Glissando speed (notes per second)
+    glissandoSpeedRelay = std::make_unique<juce::WebSliderRelay>("glissandoSpeed");
 
     stringMaterialRelay = std::make_unique<juce::WebComboBoxRelay>("stringMaterial");
     woodTypeRelay = std::make_unique<juce::WebComboBoxRelay>("woodType");
@@ -745,6 +747,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*bridgeBrightnessRelay)
             // v1.19.0: Humanize relay
             .withOptionsFrom(*humanizeRelay)
+            // v1.21.0: Glissando speed relay
+            .withOptionsFrom(*glissandoSpeedRelay)
             // Register all choice relays
             .withOptionsFrom(*stringMaterialRelay)
             .withOptionsFrom(*woodTypeRelay)
@@ -804,6 +808,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.19.0: Humanize attachment
     humanizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("humanize"), *humanizeRelay, nullptr);
+    // v1.21.0: Glissando speed attachment
+    glissandoSpeedAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("glissandoSpeed"), *glissandoSpeedRelay, nullptr);
 
     stringMaterialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("stringMaterial"), *stringMaterialRelay, nullptr);

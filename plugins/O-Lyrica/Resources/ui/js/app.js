@@ -116,12 +116,24 @@ function initializeParameters() {
         document.getElementById('pitchBendRangeValue').textContent = `±${semitones} st`;
     });
 
+    // v1.21.0: Glissando speed (4-30 n/s, skew 0.5)
+    bindSlider('glissandoSpeed', (value) => {
+        const skew = 0.5;
+        const minVal = 4.0;
+        const maxVal = 30.0;
+        const actual = minVal + Math.pow(value, 1/skew) * (maxVal - minVal);
+        document.getElementById('glissandoSpeedValue').textContent = `${actual.toFixed(1)} n/s`;
+    });
+
     // Choice parameters (dropdowns)
     bindChoice('stringMaterial');
     bindChoice('woodType');
     bindChoice('technique');
     bindChoice('glissandoMode');
     bindChoice('glissandoScale');
+
+    // v1.21.0: Show/hide glissando speed based on mode (only visible in Scale-Locked)
+    setupGlissandoSpeedVisibility();
 }
 
 /**
@@ -246,4 +258,36 @@ function initializeMeters() {
     }, 500);
 
     console.log('Meters initialized with native function');
+}
+
+/**
+ * v1.21.0: Show glissando speed slider only when mode is Scale-Locked (index 2)
+ */
+function setupGlissandoSpeedVisibility() {
+    const modeSelect = document.getElementById('glissandoMode');
+    const speedGroup = document.getElementById('glissandoSpeedGroup');
+    if (!modeSelect || !speedGroup) return;
+
+    const updateVisibility = () => {
+        speedGroup.style.display = (modeSelect.selectedIndex === 2) ? '' : 'none';
+    };
+
+    // React to user changes
+    modeSelect.addEventListener('change', updateVisibility);
+
+    // React to JUCE-side changes (automation, preset load)
+    try {
+        const comboState = Juce.getComboBoxState('glissandoMode');
+        if (comboState && comboState.valueChangedEvent) {
+            comboState.valueChangedEvent.addListener(() => {
+                modeSelect.selectedIndex = comboState.getChoiceIndex();
+                updateVisibility();
+            });
+        }
+    } catch (e) {
+        console.error('Failed to bind glissando speed visibility:', e);
+    }
+
+    // Set initial state
+    updateVisibility();
 }

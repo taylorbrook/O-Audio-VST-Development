@@ -59,6 +59,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> bridgeBrightnessRelay;
     // v1.19.0: Humanize (per-note randomization)
     std::unique_ptr<juce::WebSliderRelay> humanizeRelay;
+    // v1.21.0: Glissando speed (notes per second)
+    std::unique_ptr<juce::WebSliderRelay> glissandoSpeedRelay;
 
     std::unique_ptr<juce::WebComboBoxRelay> stringMaterialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> woodTypeRelay;
@@ -96,6 +98,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> bridgeBrightnessAttachment;
     // v1.19.0: Humanize attachment
     std::unique_ptr<juce::WebSliderParameterAttachment> humanizeAttachment;
+    // v1.21.0: Glissando speed attachment
+    std::unique_ptr<juce::WebSliderParameterAttachment> glissandoSpeedAttachment;
 
     std::unique_ptr<juce::WebComboBoxParameterAttachment> stringMaterialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> woodTypeAttachment;

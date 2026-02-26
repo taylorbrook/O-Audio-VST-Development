@@ -2,6 +2,20 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.21.0] - 2026-02-25
+
+### Added
+
+- **Glissando Speed parameter** — User-controllable speed for scale-locked glissandos, replacing the hard-coded 10 notes/second value. Range 4–30 n/s with logarithmic skew (default 12 n/s). Appears in the Techniques tab Glissando section, visible only when Mode is set to "Scale-Locked". Real harp glissando speeds range ~8–21 n/s; the extended range allows creative non-realistic use.
+
+### Technical Details
+
+- New APVTS parameter: `glissandoSpeed` (4.0–30.0, skew 0.5, default 12.0, suffix "n/s")
+- Wired in `HarpSynthVoice::startNote()` — reads parameter value before calling `glissandoController.setSpeed()`
+- Only applies to Scale-Locked mode (Free mode uses SmoothedValue ramp time)
+- WebView UI slider with conditional visibility (hidden when Mode is Off or Free)
+- Full WebSliderRelay/WebSliderParameterAttachment pipeline for automation and preset support
+
 ## [1.20.1] - 2026-02-24
 
 ### Fixed

@@ -181,9 +181,8 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(midiNoteNumber - 12, 36);
             glissandoController.setScale(scaleFreqs);
 
-            // Set glissando speed (default 10 notes per second)
-            // TODO: Could add a parameter for this in future
-            glissandoController.setSpeed(10.0f);
+            float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
+            glissandoController.setSpeed(glissSpeed);
         }
 
         // Start glissando from previous frequency to new frequency
