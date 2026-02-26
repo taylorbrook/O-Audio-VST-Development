@@ -1,5 +1,10 @@
 # O-IntonationPad Changelog
 
+## [1.15.11] - 2026-02-25
+
+### Changed
+- **Removed dead `tuning_tuningMode` parameter**: No UI relay existed for this parameter — `temperamentPreset` already sets tuning mode implicitly via `setBuiltInPreset()`. Removed the parameter definition, listener registration, and `parameterChanged` handler case. No behavior change (backlog item #16)
+
 ## [1.15.10] - 2026-02-25
 
 ### Changed

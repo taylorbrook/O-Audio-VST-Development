@@ -47,10 +47,10 @@
 - **Issue:** Never called anywhere in the codebase. `processBlockStereo()` and `advancePhase()` are used exclusively.
 - **Fix:** Removed the 35-line method entirely.
 
-### 16. Dead tuning_tuningMode parameter
+### ~~16. Dead tuning_tuningMode parameter~~ ✅ Fixed v1.15.11
 - **File:** `PluginProcessor.cpp:53-58`, `parameterChanged:591-601`
 - **Issue:** No UI relay exists for this parameter. The `temperamentPreset` already sets tuning mode implicitly via `setBuiltInPreset()`.
-- **Fix:** Remove the parameter and its listener, or wire it properly if it serves a purpose.
+- **Fix:** Removed the parameter definition, listener registration, and parameterChanged handler case.
 
 ### 17. Local generateEDO lambda duplicates ScaleGenerator::generateEDO
 - **File:** `EmbeddedTunings.cpp:100-104`

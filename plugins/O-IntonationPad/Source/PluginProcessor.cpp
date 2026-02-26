@@ -50,13 +50,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         440.0f,
         juce::AudioParameterFloatAttributes().withLabel("Hz")));
 
-    // TUNING: Tuning Mode (12-TET, Custom, MTS-ESP)
-    layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "tuning_tuningMode", 1 },
-        "Tuning Mode",
-        juce::StringArray { "12-TET", "Custom", "MTS-ESP" },
-        0));
-
     // TUNING: Octave Stretch (0.95-1.25, default 1.0)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "tuning_octaveStretch", 1 },
@@ -331,7 +324,6 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
 
     // Register tuning parameter listeners
     parameters.addParameterListener("tuning_masterTune", this);
-    parameters.addParameterListener("tuning_tuningMode", this);
     parameters.addParameterListener("tuning_octaveStretch", this);
     parameters.addParameterListener("tuning_pitchBendRange", this);
     parameters.addParameterListener("tuning_temperamentPreset", this);
@@ -353,22 +345,19 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     // Prepare synthesiser
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
 
-    // Prepare filter
-    juce::dsp::ProcessSpec filterSpec;
-    filterSpec.sampleRate = sampleRate;
-    filterSpec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
-    filterSpec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+    // Shared ProcessSpec for all DSP modules
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
 
-    filter.prepare(filterSpec);
+    filter.prepare(spec);
     filter.reset();
     filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     filter.setResonance(0.707f);  // Butterworth response
 
     // Initialize LFOs (independent per oscillator)
-    float lfoRateA = parameters.getRawParameterValue("lfoRate")->load();
-    float lfoRateB = parameters.getRawParameterValue("lfoRate2")->load();
-    lfoPhaseIncrementA = (lfoRateA * juce::MathConstants<double>::twoPi) / sampleRate;
-    lfoPhaseIncrementB = (lfoRateB * juce::MathConstants<double>::twoPi) / sampleRate;
+    // Phase increments are computed per-block in processBlock — no need to seed here
     lfoPhaseA = 0.0;
     lfoPhaseB = 0.0;
 
@@ -378,7 +367,7 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
 
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
-        if (auto* voice = dynamic_cast<WavetableVoice*>(synthesiser.getVoice(i)))
+        if (auto* voice = static_cast<WavetableVoice*>(synthesiser.getVoice(i)))
         {
             voice->prepare(samplesPerBlock);
             voice->setEnvelopeParameters(attackTime, releaseTime);
@@ -386,23 +375,18 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     }
 
     // v1.11.0: Prepare effects chain
-    juce::dsp::ProcessSpec fxSpec;
-    fxSpec.sampleRate = sampleRate;
-    fxSpec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
-    fxSpec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
-
-    chorus.prepare(fxSpec);
+    chorus.prepare(spec);
     chorus.reset();
     chorus.setCentreDelay(7.0f);
     chorus.setFeedback(0.0f);
 
-    delay.prepare(fxSpec);
+    delay.prepare(spec);
     delay.reset();
 
-    eq.prepare(fxSpec);
+    eq.prepare(spec);
     eq.reset();
 
-    reverbProcessor.prepare(fxSpec);
+    reverbProcessor.prepare(spec);
     reverbProcessor.reset();
 }
 
@@ -465,7 +449,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // Update all voice parameters before rendering
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
-        if (auto* voice = dynamic_cast<WavetableVoice*>(synthesiser.getVoice(i)))
+        if (auto* voice = static_cast<WavetableVoice*>(synthesiser.getVoice(i)))
         {
             voice->setWavetableBank(wavetableBank);
             voice->setWavetablePositionWithLFO(wavetablePos, currentLfoPhaseA, lfoDepth);
@@ -579,17 +563,6 @@ void OIntonationPadAudioProcessor::parameterChanged(const juce::String& paramete
         tuningEngine.setOctaveStretch(newValue);
     else if (parameterID == "tuning_pitchBendRange")
         tuningEngine.setPitchBendRange(newValue);
-    else if (parameterID == "tuning_tuningMode")
-    {
-        // Only apply mode change for 12-TET or Custom presets
-        // Non-12-TET built-in presets manage their own mode via setBuiltInPreset()
-        auto preset = tuningEngine.getBuiltInPreset();
-        if (preset == TuningEngine::BuiltInPreset::Equal12TET ||
-            preset == TuningEngine::BuiltInPreset::Custom)
-        {
-            tuningEngine.setMode(static_cast<TuningEngine::Mode>(static_cast<int>(newValue)));
-        }
-    }
     else if (parameterID == "tuning_temperamentPreset")
     {
         tuningEngine.setBuiltInPreset(static_cast<TuningEngine::BuiltInPreset>(static_cast<int>(newValue)));
@@ -691,7 +664,7 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
 
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
-        auto* voice = dynamic_cast<const WavetableVoice*>(synthesiser.getVoice(i));
+        auto* voice = static_cast<const WavetableVoice*>(synthesiser.getVoice(i));
         if (voice != nullptr && voice->isVoiceActive())
         {
             int subCount = voice->getActiveSubVoiceCount();
