@@ -54,6 +54,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     techniqueRelay = std::make_unique<juce::WebComboBoxRelay>("technique");
     glissandoModeRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoMode");
     glissandoScaleRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoScale");
+    // v1.22.0: Glissando shape relay
+    glissandoShapeRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoShape");
     // v1.6.0: Tuning mode relay
     tuningModeRelay = std::make_unique<juce::WebComboBoxRelay>("tuningMode");
 
@@ -755,6 +757,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*techniqueRelay)
             .withOptionsFrom(*glissandoModeRelay)
             .withOptionsFrom(*glissandoScaleRelay)
+            // v1.22.0: Glissando shape relay
+            .withOptionsFrom(*glissandoShapeRelay)
             // v1.6.0: Tuning mode relay
             .withOptionsFrom(*tuningModeRelay)
     );
@@ -822,6 +826,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
         *apvts.getParameter("glissandoMode"), *glissandoModeRelay, nullptr);
     glissandoScaleAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("glissandoScale"), *glissandoScaleRelay, nullptr);
+    // v1.22.0: Glissando shape attachment
+    glissandoShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("glissandoShape"), *glissandoShapeRelay, nullptr);
     // v1.6.0: Tuning mode attachment
     tuningModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("tuningMode"), *tuningModeRelay, nullptr);

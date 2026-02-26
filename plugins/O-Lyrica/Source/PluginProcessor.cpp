@@ -129,6 +129,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         "n/s"
     ));
 
+    // v1.22.0: Glissando shape — acceleration curve for scale-locked note spacing
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "glissandoShape", 1 },
+        "Glissando Shape",
+        juce::StringArray { "Linear", "Accelerate", "Decelerate", "S-Curve" },
+        3  // Default: S-Curve (most natural harp feel)
+    ));
+
     // Tuning
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "masterTune", 1 },

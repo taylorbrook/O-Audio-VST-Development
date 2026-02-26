@@ -2,6 +2,25 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.22.0] - 2026-02-25
+
+### Added
+
+- **Glissando Shape parameter** — Acceleration curves for scale-locked glissandos that shape note spacing across the sweep, replacing the constant metronomic timing. Four options: Linear (constant spacing, backward-compatible), Accelerate (slow start → fast end, hand gaining momentum), Decelerate (fast start → slow end, landing effect), S-Curve (slow → fast → slow, smoothstep — default, mimics a real harpist's arm arc).
+
+### Technical Details
+
+- New APVTS parameter: `glissandoShape` (AudioParameterChoice, 4 options, default index 3 = S-Curve)
+- `GlissandoShape` enum added to `GlissandoController.h` with `glissandoShapeFromIndex()` converter
+- Per-step sample durations pre-computed in `startGlissando()` using fixed-size array (`stepDurations[MAX_SCALE_SIZE]`) — no audio-thread allocation
+- Shape curves: Accelerate = `t²`, Decelerate = `√t`, S-Curve = `t²(3−2t)` (Hermite smoothstep)
+- `updateScaleLocked()` now reads from `stepDurations[currentStepIndex]` instead of constant `samplesPerStep`
+- Total glissando duration preserved (numSteps × samplesPerStep), only the distribution changes
+- Rounding remainder distributed to final step to prevent timing drift
+- Wired in `HarpSynthVoice::startNote()` alongside existing `setSpeed()` call
+- WebView UI dropdown in Techniques → Glissando section, visibility tied to Scale-Locked mode
+- Full WebComboBoxRelay/WebComboBoxParameterAttachment pipeline for automation and preset support
+
 ## [1.21.0] - 2026-02-25
 
 ### Added

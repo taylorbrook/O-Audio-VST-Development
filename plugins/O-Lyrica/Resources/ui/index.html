@@ -1824,6 +1824,15 @@
                             <span class="slider-value" id="glissandoSpeedValue">12.0 n/s</span>
                         </div>
                     </div>
+                    <div class="dropdown-group" id="glissandoShapeGroup" style="display:none;" data-tooltip="Shape: Acceleration curve for note spacing. Linear is metronomic; Accelerate starts slow and speeds up; Decelerate starts fast and slows; S-Curve mimics a real harpist's arm arc.">
+                        <span class="dropdown-label">Shape</span>
+                        <select id="glissandoShape">
+                            <option value="0">Linear</option>
+                            <option value="1">Accelerate</option>
+                            <option value="2">Decelerate</option>
+                            <option value="3">S-Curve</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2518,7 +2527,7 @@
         // Parameter Bindings - Dropdowns
         // v1.5.4: Added try-catch to prevent script crash if comboState binding fails
         // ====================================================================
-        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoMode', 'glissandoScale'];
+        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoMode', 'glissandoScale', 'glissandoShape'];
 
         dropdownParams.forEach(paramId => {
             const select = document.getElementById(paramId);
@@ -2551,12 +2560,15 @@
         {
             const modeSelect = document.getElementById('glissandoMode');
             const speedGroup = document.getElementById('glissandoSpeedGroup');
+            const shapeGroup = document.getElementById('glissandoShapeGroup');
             if (modeSelect && speedGroup) {
-                const updateSpeedVis = () => {
-                    speedGroup.style.display = (parseInt(modeSelect.value) === 2) ? '' : 'none';
+                const updateScaleLockedVis = () => {
+                    const isScaleLocked = (parseInt(modeSelect.value) === 2);
+                    speedGroup.style.display = isScaleLocked ? '' : 'none';
+                    if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
                 };
-                modeSelect.addEventListener('change', updateSpeedVis);
-                updateSpeedVis();
+                modeSelect.addEventListener('change', updateScaleLockedVis);
+                updateScaleLockedVis();
             }
         }
 

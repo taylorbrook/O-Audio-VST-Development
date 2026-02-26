@@ -183,6 +183,10 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
 
             float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
             glissandoController.setSpeed(glissSpeed);
+
+            // v1.22.0: Set glissando shape (acceleration curve)
+            int shapeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoShape")->load());
+            glissandoController.setShape(glissandoShapeFromIndex(shapeIndex));
         }
 
         // Start glissando from previous frequency to new frequency

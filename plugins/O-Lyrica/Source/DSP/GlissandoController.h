@@ -27,6 +27,25 @@ enum class GlissandoMode
     ScaleLocked = 2   // Step through scale degrees (discrete steps)
 };
 
+/**
+ * v1.22.0: Glissando shape curves for scale-locked mode
+ * Controls timing distribution of notes across the glissando sweep.
+ */
+enum class GlissandoShape
+{
+    Linear = 0,       // Constant spacing (metronomic)
+    Accelerate = 1,   // Starts slow, speeds up (hand gaining momentum)
+    Decelerate = 2,   // Starts fast, slows into final note (landing effect)
+    SCurve = 3        // Slow start, fast middle, slow end (most natural)
+};
+
+/** Convert parameter index to GlissandoShape */
+inline GlissandoShape glissandoShapeFromIndex(int index)
+{
+    index = juce::jlimit(0, 3, index);
+    return static_cast<GlissandoShape>(index);
+}
+
 /** Convert parameter index to GlissandoMode (v1.3.1 simplification) */
 inline GlissandoMode glissandoModeFromIndex(int index)
 {
@@ -73,6 +92,12 @@ public:
      * @param speed Notes per second (e.g., 10.0 = 10 notes per second)
      */
     void setSpeed(float speed);
+
+    /**
+     * v1.22.0: Set glissando shape for scale-locked mode
+     * @param shape Acceleration curve applied to note spacing
+     */
+    void setShape(GlissandoShape shape);
 
     /**
      * Start a glissando from current frequency to target
@@ -131,6 +156,11 @@ private:
     int samplesPerStep = 4410;           // Samples between scale degree changes
     int sampleCounter = 0;               // Counter for timing steps
     double currentScaleFrequency = 440.0; // Current frequency (for scale-locked mode)
+
+    // v1.22.0: Shape-curved timing for scale-locked glissandos
+    GlissandoShape shape = GlissandoShape::SCurve;
+    std::array<int, MAX_SCALE_SIZE> stepDurations{};  // Pre-computed per-step sample counts
+    int currentStepIndex = 0;            // Which step we're on (indexes into stepDurations)
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlissandoController)
 };

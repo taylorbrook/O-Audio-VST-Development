@@ -59,11 +59,16 @@ void GlissandoController::setSpeed(float newSpeed)
     // Clamp to reasonable range (0.1 to 100 notes per second)
     speed = juce::jlimit(0.1f, 100.0f, newSpeed);
 
-    // Update samples per step
+    // Update samples per step (used as baseline for Linear shape)
     if (speed > 0.0f)
     {
         samplesPerStep = static_cast<int>(sampleRate / speed);
     }
+}
+
+void GlissandoController::setShape(GlissandoShape newShape)
+{
+    shape = newShape;
 }
 
 void GlissandoController::startGlissando(double startFreq, double endFreq)
@@ -105,7 +110,70 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
         }
 
         sampleCounter = 0;
-        active = (currentScaleDegree != targetScaleDegree);
+        currentStepIndex = 0;
+
+        int numSteps = std::abs(targetScaleDegree - currentScaleDegree);
+        active = (numSteps > 0);
+
+        // v1.22.0: Pre-compute per-step sample durations from shape curve
+        if (active && numSteps > 0)
+        {
+            // Total glissando duration in samples (numSteps * samplesPerStep preserves overall speed)
+            int totalSamples = numSteps * samplesPerStep;
+
+            if (shape == GlissandoShape::Linear || numSteps == 1)
+            {
+                // Constant spacing — same as pre-v1.22.0 behavior
+                for (int i = 0; i < numSteps; ++i)
+                    stepDurations[i] = samplesPerStep;
+            }
+            else
+            {
+                // Compute cumulative curve positions for each step boundary
+                // t goes from 0.0 (start) to 1.0 (end), mapped through shape function
+                // The derivative of the shape function determines note density
+                int assigned = 0;
+                for (int i = 0; i < numSteps; ++i)
+                {
+                    double t0 = static_cast<double>(i) / numSteps;
+                    double t1 = static_cast<double>(i + 1) / numSteps;
+                    double mapped0, mapped1;
+
+                    switch (shape)
+                    {
+                        case GlissandoShape::Accelerate:
+                            // pow(t, 2.0) — slow start, fast end
+                            mapped0 = t0 * t0;
+                            mapped1 = t1 * t1;
+                            break;
+                        case GlissandoShape::Decelerate:
+                            // pow(t, 0.5) — fast start, slow end
+                            mapped0 = std::sqrt(t0);
+                            mapped1 = std::sqrt(t1);
+                            break;
+                        case GlissandoShape::SCurve:
+                            // smoothstep: t*t*(3-2t) — slow start, fast middle, slow end
+                            mapped0 = t0 * t0 * (3.0 - 2.0 * t0);
+                            mapped1 = t1 * t1 * (3.0 - 2.0 * t1);
+                            break;
+                        default:
+                            mapped0 = t0;
+                            mapped1 = t1;
+                            break;
+                    }
+
+                    // Duration for this step proportional to the curve segment width
+                    double segmentWidth = mapped1 - mapped0;
+                    int stepSamples = std::max(1, static_cast<int>(segmentWidth * totalSamples));
+                    stepDurations[i] = stepSamples;
+                    assigned += stepSamples;
+                }
+
+                // Distribute rounding remainder to the last step
+                if (assigned != totalSamples && numSteps > 0)
+                    stepDurations[numSteps - 1] += (totalSamples - assigned);
+            }
+        }
     }
 }
 
@@ -184,10 +252,14 @@ void GlissandoController::updateScaleLocked()
     // Increment sample counter
     sampleCounter++;
 
+    // v1.22.0: Use pre-computed per-step duration from shape curve
+    int currentStepDuration = stepDurations[currentStepIndex];
+
     // Check if it's time to step to next scale degree
-    if (sampleCounter >= samplesPerStep)
+    if (sampleCounter >= currentStepDuration)
     {
         sampleCounter = 0;
+        currentStepIndex++;
 
         // Move one step toward target
         if (currentScaleDegree < targetScaleDegree)
