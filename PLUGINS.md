@@ -26,6 +26,7 @@
 Ouaricon Plugins:
 | Plugin Name | Status | Version | Type | Last Updated |
 |-------------|--------|---------|------|--------------|
+| O-Bells | 📦 Installed | 3.2.1 | Synth (Physical Modeling Bells) | 2026-02-19 |
 | O-Tremolo | 📦 Installed | 1.4.7 | Audio Effect (Tremolo) | 2026-02-12 |
 | O-AnalogSaturation | 📦 Installed | 1.1.1 | Audio Effect (Saturation) | 2026-02-07 |
 | O-Marimba | 📦 Installed | 1.12.0 | Synth (Physical Model) | 2026-02-09 |
@@ -37,10 +38,9 @@ Ouaricon Plugins:
 | O-Lyrica | 📦 Installed | 1.20.1 | Synth (Physical Modeling Harp) | 2026-02-24 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
-| O-IntonationPad | 📦 Installed | 1.15.6 | Synth (Wavetable Pad) | 2026-02-24 |
+| O-IntonationPad | 📦 Installed | 1.15.8 | Synth (Wavetable Pad) | 2026-02-25 |
 | O-Detune | 📦 Installed | 1.5.2 | Audio Effect (Detuning) | 2026-02-18 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
-| O-Bells | 📦 Installed | 3.2.1 | Synth (Physical Modeling Bells) | 2026-02-19 |
 | O-FreqPulse | 📦 Installed | 1.6.0 | Audio Effect (Spectral Sequencer) | 2026-02-07 |
 | O-SpectralShaper | 📦 Installed | 1.1.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
 | O-GrainScatter | 📦 Installed | 2.0.1 | Audio Effect (Granular Stutter Engine) | 2026-02-09 |
