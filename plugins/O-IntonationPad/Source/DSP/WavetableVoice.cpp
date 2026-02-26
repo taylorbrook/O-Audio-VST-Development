@@ -469,74 +469,68 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
 void WavetableVoice::setWavetableBank(int bankIndex)
 {
     const auto* bank = &WavetableData::BankCache::getBank(bankIndex);
-    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
-        auto idx = static_cast<size_t>(i);
-        subVoiceOscillators[idx].setWavetableBank(bank);
-        subVoiceSpacingOscillators[idx].setWavetableBank(bank);
-        subVoiceInversionOscillators[idx].setWavetableBank(bank);
+        subVoiceOscillators[i].setWavetableBank(bank);
+        subVoiceSpacingOscillators[i].setWavetableBank(bank);
+        subVoiceInversionOscillators[i].setWavetableBank(bank);
     }
 }
 
 void WavetableVoice::setWavetablePosition(float pos)
 {
-    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
-        auto idx = static_cast<size_t>(i);
-        subVoiceOscillators[idx].setWavetablePosition(pos);
-        subVoiceSpacingOscillators[idx].setWavetablePosition(pos);
-        subVoiceInversionOscillators[idx].setWavetablePosition(pos);
+        subVoiceOscillators[i].setWavetablePosition(pos);
+        subVoiceSpacingOscillators[i].setWavetablePosition(pos);
+        subVoiceInversionOscillators[i].setWavetablePosition(pos);
     }
 }
 
 void WavetableVoice::setWavetableBank2(int bankIndex)
 {
     const auto* bank = &WavetableData::BankCache::getBank(bankIndex);
-    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
-        auto idx = static_cast<size_t>(i);
-        subVoiceOscillators2[idx].setWavetableBank(bank);
-        subVoiceSpacingOscillators2[idx].setWavetableBank(bank);
-        subVoiceInversionOscillators2[idx].setWavetableBank(bank);
+        subVoiceOscillators2[i].setWavetableBank(bank);
+        subVoiceSpacingOscillators2[i].setWavetableBank(bank);
+        subVoiceInversionOscillators2[i].setWavetableBank(bank);
     }
 }
 
 void WavetableVoice::setWavetablePosition2(float pos)
 {
-    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
-        auto idx = static_cast<size_t>(i);
-        subVoiceOscillators2[idx].setWavetablePosition(pos);
-        subVoiceSpacingOscillators2[idx].setWavetablePosition(pos);
-        subVoiceInversionOscillators2[idx].setWavetablePosition(pos);
+        subVoiceOscillators2[i].setWavetablePosition(pos);
+        subVoiceSpacingOscillators2[i].setWavetablePosition(pos);
+        subVoiceInversionOscillators2[i].setWavetablePosition(pos);
     }
 }
 
 void WavetableVoice::setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth)
 {
-    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
-        auto idx = static_cast<size_t>(i);
-        float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[idx];
+        float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[i];
         float perVoiceLFO = fastSin(offsetPhase) * lfoDepth;
         float modulatedPos = juce::jlimit(0.0f, 1.0f, basePos + perVoiceLFO);
-        subVoiceOscillators[idx].setWavetablePosition(modulatedPos);
-        subVoiceSpacingOscillators[idx].setWavetablePosition(modulatedPos);
-        subVoiceInversionOscillators[idx].setWavetablePosition(modulatedPos);
+        subVoiceOscillators[i].setWavetablePosition(modulatedPos);
+        subVoiceSpacingOscillators[i].setWavetablePosition(modulatedPos);
+        subVoiceInversionOscillators[i].setWavetablePosition(modulatedPos);
     }
 }
 
 void WavetableVoice::setWavetablePosition2WithLFO(float basePos, float lfoPhase, float lfoDepth)
 {
-    for (int i = 0; i < MAX_SUB_VOICES; ++i)
+    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
     {
-        auto idx = static_cast<size_t>(i);
-        float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[idx];
+        float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[i];
         float perVoiceLFO = fastSin(offsetPhase) * lfoDepth;
         float modulatedPos = juce::jlimit(0.0f, 1.0f, basePos + perVoiceLFO);
-        subVoiceOscillators2[idx].setWavetablePosition(modulatedPos);
-        subVoiceSpacingOscillators2[idx].setWavetablePosition(modulatedPos);
-        subVoiceInversionOscillators2[idx].setWavetablePosition(modulatedPos);
+        subVoiceOscillators2[i].setWavetablePosition(modulatedPos);
+        subVoiceSpacingOscillators2[i].setWavetablePosition(modulatedPos);
+        subVoiceInversionOscillators2[i].setWavetablePosition(modulatedPos);
     }
 }
 

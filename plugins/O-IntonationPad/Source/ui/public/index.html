@@ -138,20 +138,20 @@
             display: flex;
         }
 
-        /* Tuning tab: scrollable when content exceeds available height */
-        #tuning-tab {
+        /* Scrollable tabs: shared scrollbar styling */
+        .scrollable-tab {
             overflow-y: auto;
         }
 
-        #tuning-tab::-webkit-scrollbar {
+        .scrollable-tab::-webkit-scrollbar {
             width: 6px;
         }
 
-        #tuning-tab::-webkit-scrollbar-track {
+        .scrollable-tab::-webkit-scrollbar-track {
             background: transparent;
         }
 
-        #tuning-tab::-webkit-scrollbar-thumb {
+        .scrollable-tab::-webkit-scrollbar-thumb {
             background: rgba(139, 115, 85, 0.3);
             border-radius: 3px;
         }
@@ -433,7 +433,7 @@
             left: -2px;
         }
 
-        /* v1.5.0: Interval Selector */
+        /* Interval Selector */
         .interval-selector {
             flex: 1;
             min-width: 0;
@@ -541,23 +541,8 @@
             padding: 6px;
         }
 
-        /* v1.11.0: Effects Tab */
         #effects-tab {
-            overflow-y: auto;
             gap: 6px;
-        }
-
-        #effects-tab::-webkit-scrollbar {
-            width: 6px;
-        }
-
-        #effects-tab::-webkit-scrollbar-track {
-            background: transparent;
-        }
-
-        #effects-tab::-webkit-scrollbar-thumb {
-            background: rgba(139, 115, 85, 0.3);
-            border-radius: 3px;
         }
 
         .fx-section {
@@ -656,7 +641,7 @@
                             </select>
                         </div>
 
-                        <!-- v1.5.0: Interval Selector (replaces Scale dropdown) -->
+                        <!-- Interval Selector -->
                         <div class="interval-selector">
                             <div class="interval-selector-header">
                                 <div class="knob-label">Intervals</div>
@@ -682,8 +667,8 @@
                     </div>
                 </div>
 
-                <!-- Tuning Tab (v1.3.0: Full tuning module) -->
-                <div class="tab-content" id="tuning-tab">
+                <!-- Tuning Tab -->
+                <div class="tab-content scrollable-tab" id="tuning-tab">
                     <div id="tuning-container"></div>
                 </div>
 
@@ -698,8 +683,8 @@
                     <div class="knob-row" id="synth-random-knobs" style="gap: 18px;"></div>
                 </div>
 
-                <!-- Effects Tab (v1.11.0) -->
-                <div class="tab-content" id="effects-tab">
+                <!-- Effects Tab -->
+                <div class="tab-content scrollable-tab" id="effects-tab">
                     <div class="fx-section" id="chorusSection">
                         <div class="fx-header">
                             <span class="fx-title">Chorus</span>
@@ -743,7 +728,6 @@
         let wavetableBankState, wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let wavetableBank2State, wavetablePos2State, lfoRate2State, lfoDepth2State, gainAState, gainBState;
         let attackTimeState, releaseTimeState, filterCutoffState, masterVolumeState;
-        // v1.11.0: Effects states
         let chorusRateState, chorusDepthState, chorusMixState;
         let delayTimeState, delayFeedbackState, delayModeState, delayMixState;
         let eqLowGainState, eqMidGainState, eqMidFreqState, eqHighGainState;
@@ -926,7 +910,6 @@
             filterCutoffState = Juce.getSliderState('filterCutoff');
             masterVolumeState = Juce.getSliderState('masterVolume');
 
-            // v1.11.0: Effects states
             chorusRateState = Juce.getSliderState('chorusRate');
             chorusDepthState = Juce.getSliderState('chorusDepth');
             chorusMixState = Juce.getSliderState('chorusMix');
@@ -974,11 +957,9 @@
             // Setup dropdowns
             setupDropdown('keyRoot', keyRootState, 12);
 
-            // v1.6.0: Wavetable bank comboboxes
             setupComboBox('wavetableBank', wavetableBankState);
             setupComboBox('wavetableBank2', wavetableBank2State);
 
-            // v1.11.0: Effects knobs
             setupKnob('chorusRate', chorusRateState, 0.1, 10, ' Hz', v => v.toFixed(2));
             setupKnob('chorusDepth', chorusDepthState, 0, 100, '%', v => Math.round(v));
             setupKnob('chorusMix', chorusMixState, 0, 100, '%', v => Math.round(v));
@@ -995,13 +976,11 @@
             setupKnob('reverbPredelay', reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
             setupKnob('reverbMix', reverbMixState, 0, 100, '%', v => Math.round(v));
 
-            // v1.11.0: Bypass toggles
             setupBypassToggle('chorus', chorusBypassState);
             setupBypassToggle('delay', delayBypassState);
             setupBypassToggle('eq', eqBypassState);
             setupBypassToggle('reverb', reverbBypassState);
 
-            // v1.5.0: Initialize interval selector
             initIntervalSelector();
 
             // Build mini keyboard
@@ -1021,7 +1000,7 @@
         });
 
         // ====================================================================
-        // v1.3.0: TUNING PANEL INITIALIZATION
+        // TUNING PANEL INITIALIZATION
         // ====================================================================
 
         (async () => {
@@ -1034,7 +1013,6 @@
                 // Expose note highlighting for C++ evaluateJavascript calls
                 window.tuningNoteOn = (midiNote) => tuningPanel.noteOn(midiNote);
                 window.tuningNoteOff = (midiNote) => tuningPanel.noteOff(midiNote);
-                // v1.4.0: Expose updateHeldNotes for TrueKeys with actual frequencies
                 window.updateHeldNotes = (notes, freqs) => tuningPanel.updateHeldNotes(notes, freqs);
 
                 console.log('[Tuning] Panel initialized successfully');
@@ -1223,7 +1201,7 @@
             updateVisual();
         }
 
-        // v1.6.0: ComboBox setup (for WebComboBoxRelay parameters)
+        // ComboBox setup (for WebComboBoxRelay parameters)
         function setupComboBox(paramId, state) {
             if (!state) {
                 console.error(`Failed to get combobox state for ${paramId}`);
@@ -1249,7 +1227,7 @@
         }
 
         // ====================================================================
-        // v1.11.0: BYPASS TOGGLE SETUP
+        // BYPASS TOGGLE SETUP
         // ====================================================================
 
         function setupBypassToggle(fxName, toggleState) {
@@ -1276,7 +1254,7 @@
         }
 
         // ====================================================================
-        // v1.5.0: INTERVAL SELECTOR
+        // INTERVAL SELECTOR
         // ====================================================================
 
         let intervalData = [];      // Array of { cents, enabled }
@@ -1471,14 +1449,24 @@
         }
 
         function updateActiveNotes(notes) {
-            const activeMidi = new Map(); // midi -> max gain
+            const activeMidi = new Map();   // midi -> max gain
+            const uniqueNotes = new Map();  // midi -> freq (first seen)
+            const groups = new Map();       // midi -> { note, count, maxGain }
             const freqList = document.getElementById('freqList');
 
-            // Collect active MIDI notes with their max gain
+            // Single pass: build activeMidi, uniqueNotes, and groups together
             for (const n of notes) {
                 const gain = n.gain !== undefined ? n.gain : 1.0;
-                const existing = activeMidi.get(n.midi) || 0;
-                activeMidi.set(n.midi, Math.max(existing, gain));
+                activeMidi.set(n.midi, Math.max(activeMidi.get(n.midi) || 0, gain));
+
+                if (!uniqueNotes.has(n.midi)) {
+                    uniqueNotes.set(n.midi, n.hz);
+                    groups.set(n.midi, { note: n, count: 1, maxGain: gain });
+                } else {
+                    const g = groups.get(n.midi);
+                    g.count++;
+                    g.maxGain = Math.max(g.maxGain, gain);
+                }
             }
 
             // Update keyboard highlighting with gain-based opacity
@@ -1489,7 +1477,6 @@
                         el.classList.remove('active');
                         el.style.removeProperty('--key-opacity');
                     }
-                    // Notify tuning panel of note-off
                     if (window.tuningNoteOff) window.tuningNoteOff(midi);
                 }
             }
@@ -1499,21 +1486,14 @@
                     el.classList.add('active');
                     el.style.setProperty('--key-opacity', gain.toFixed(3));
                 }
-                // Notify tuning panel of note-on (only for newly active)
                 if (!prevActiveMidi.has(midi) && window.tuningNoteOn) {
                     window.tuningNoteOn(midi);
                 }
             }
             prevActiveMidi = activeMidi;
 
-            // v1.4.0: Feed held notes + frequencies to tuning panel for TrueKeys
+            // Feed held notes + frequencies to tuning panel for TrueKeys
             if (window.updateHeldNotes) {
-                const uniqueNotes = new Map(); // midi -> freq (deduplicate)
-                for (const n of notes) {
-                    if (!uniqueNotes.has(n.midi)) {
-                        uniqueNotes.set(n.midi, n.hz);
-                    }
-                }
                 const midiArr = [...uniqueNotes.keys()];
                 const freqArr = midiArr.map(m => uniqueNotes.get(m));
                 window.updateHeldNotes(midiArr, freqArr);
@@ -1525,24 +1505,11 @@
                 return;
             }
 
-            // Sort by MIDI note for display
-            const sorted = [...notes].sort((a, b) => a.midi - b.midi);
-
-            // Group by MIDI note, count voices per note, track max gain
-            const groups = new Map();
-            for (const n of sorted) {
-                const gain = n.gain !== undefined ? n.gain : 1.0;
-                if (!groups.has(n.midi)) {
-                    groups.set(n.midi, { note: n, count: 1, maxGain: gain });
-                } else {
-                    const g = groups.get(n.midi);
-                    g.count++;
-                    g.maxGain = Math.max(g.maxGain, gain);
-                }
-            }
+            // Sort groups by MIDI note for display
+            const sorted = [...groups.entries()].sort((a, b) => a[0] - b[0]);
 
             let html = '';
-            for (const [, { note: n, count, maxGain }] of groups) {
+            for (const [, { note: n, count, maxGain }] of sorted) {
                 const noteName = NOTE_NAMES[n.pc] + n.oct;
                 const centsAbs = Math.abs(n.cents);
                 let centsStr, centsClass;

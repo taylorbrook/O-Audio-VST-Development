@@ -1,3 +1,4 @@
+<!-- NOTE: This is a historical Stage 0 planning document and may not reflect the current implementation. -->
 # O-IntonationPad Parameter Specification
 
 **Generated from:** ARCHITECTURE.md

@@ -1,3 +1,4 @@
+<!-- NOTE: This is a historical Stage 0 planning document and may not reflect the current implementation. -->
 ---
 plugin: O-IntonationPad
 stage: 4

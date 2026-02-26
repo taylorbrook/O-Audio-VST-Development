@@ -1,5 +1,18 @@
 # O-IntonationPad Changelog
 
+## [1.15.16] - 2026-02-25
+
+### Changed
+- **Batch cleanup (backlog #23-30):**
+  - #23: Extracted shared `.scrollable-tab` CSS class from duplicate `#tuning-tab`/`#effects-tab` scrollbar rules
+  - #24: Already resolved — OSC A/B selects already use shared `WAVETABLE_BANKS` array via `makeWavetableDropdown()`
+  - #25: Replaced `static_cast<size_t>(i)` intermediate variable with `size_t` loop variable in 6 setter methods (WavetableVoice.cpp)
+  - #26: Removed redundant `juce_audio_formats` and `juce_events` from CMakeLists.txt (no audio file I/O; juce_events is transitively linked)
+  - #27: Removed 17 version annotation comments from index.html — git log is the record
+  - #28: Merged triple iteration in `updateActiveNotes` into single-pass loop building `activeMidi`, `uniqueNotes`, and `groups` together
+  - #29: Removed verbose entry/intermediate DBG calls in TuningEngine.cpp (`setSingleInterval` ENTER, init message); consolidated remaining to short format
+  - #30: Added historical-document note to `.planning/STATUS.md` and `.planning/parameter-spec.md`
+
 ## [1.15.15] - 2026-02-25
 
 ### Fixed

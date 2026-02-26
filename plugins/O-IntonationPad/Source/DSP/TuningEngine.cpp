@@ -183,7 +183,7 @@ void TuningEngine::setBuiltInPreset(BuiltInPreset preset)
 
     setCustomIntervals(intervals, name);
 
-    DBG("TuningEngine::setBuiltInPreset() - Set to: " + name);
+    DBG("TuningEngine: preset -> " + name);
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -245,15 +245,12 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
 
 void TuningEngine::setSingleInterval(int index, double cents)
 {
-    DBG("TuningEngine::setSingleInterval() ENTER - index=" + juce::String(index) + " cents=" + juce::String(cents));
-
     {
         std::lock_guard<std::mutex> lock(intervalMutex);
 
         // Initialize to 12-TET if intervals are empty
         if (scaleIntervals.size() < 2 || scaleIntervals.size() == 12)
         {
-            DBG("  Initializing scaleIntervals to 12-TET");
             scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
                               600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
             scaleDegrees = 12;
@@ -401,7 +398,7 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
 {
     if (!sclFile.existsAsFile())
     {
-        DBG("TuningEngine::loadScalaFile() - File not found: " + sclFile.getFullPathName());
+        DBG("TuningEngine: .scl not found: " + sclFile.getFullPathName());
         return false;
     }
 
@@ -458,7 +455,7 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
     // Validate
     if (newIntervals.size() < 2)
     {
-        DBG("TuningEngine::loadScalaFile() - Not enough pitch values in file");
+        DBG("TuningEngine: .scl has insufficient pitch values");
         return false;
     }
 
@@ -471,7 +468,7 @@ bool TuningEngine::loadScalaFile(const juce::File& sclFile)
     // Mark as custom preset
     currentPreset = BuiltInPreset::Custom;
 
-    DBG("TuningEngine::loadScalaFile() - Loaded '" + scaleName + "' with " + juce::String(scaleDegrees) + " degrees");
+    DBG("TuningEngine: loaded .scl '" + scaleName + "' (" + juce::String(scaleDegrees) + " degrees)");
     return true;
 }
 
@@ -479,7 +476,7 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
 {
     if (!kbmFile.existsAsFile())
     {
-        DBG("TuningEngine::loadKBMFile() - File not found: " + kbmFile.getFullPathName());
+        DBG("TuningEngine: .kbm not found: " + kbmFile.getFullPathName());
         return false;
     }
 
@@ -499,7 +496,7 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
     // KBM requires at least 7 header lines
     if (dataLines.size() < 7)
     {
-        DBG("TuningEngine::loadKBMFile() - Not enough data lines");
+        DBG("TuningEngine: .kbm has insufficient data lines");
         return false;
     }
 
@@ -559,7 +556,7 @@ bool TuningEngine::loadKBMFile(const juce::File& kbmFile)
 
     rebuildFrequencyTable();
 
-    DBG("TuningEngine::loadKBMFile() - Loaded KBM: mapSize=" + juce::String(kbmMapSize));
+    DBG("TuningEngine: loaded .kbm (mapSize=" + juce::String(kbmMapSize) + ")");
     return true;
 }
 

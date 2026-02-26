@@ -86,35 +86,35 @@
 
 ## Low Priority (Cleanup)
 
-### 23. Duplicate scrollbar CSS for #tuning-tab and #effects-tab
+### ~~23. Duplicate scrollbar CSS for #tuning-tab and #effects-tab~~ ✅ Fixed v1.15.16
 - **File:** `index.html:146-157, 550-561`
 - **Fix:** Shared `.scrollable-tab` class.
 
-### 24. Duplicate OSC A/B wavetable option lists
+### ~~24. Duplicate OSC A/B wavetable option lists~~ ✅ Already resolved
 - **File:** `index.html:763-779, 841-857`
-- **Fix:** Build both selects from a shared JS array. (May be addressed by #7 knob factory work.)
+- **Fix:** Both selects already built from shared `WAVETABLE_BANKS` array via `makeWavetableDropdown()` (addressed by #7 knob factory work).
 
-### 25. Repeated static_cast<size_t>(i) pattern
+### ~~25. Repeated static_cast<size_t>(i) pattern~~ ✅ Fixed v1.15.16
 - **File:** `WavetableVoice.cpp` and `.h`, ~10 loops
-- **Fix:** Use `size_t i` as loop variable.
+- **Fix:** Used `size_t i` as loop variable in 6 setter methods.
 
-### 26. Redundant juce_audio_formats and juce_events in CMakeLists
+### ~~26. Redundant juce_audio_formats and juce_events in CMakeLists~~ ✅ Fixed v1.15.16
 - **File:** `CMakeLists.txt`
-- **Fix:** Remove both. No audio file I/O in plugin; `juce_events` is transitively linked.
+- **Fix:** Removed both. No audio file I/O in plugin; `juce_events` is transitively linked.
 
-### 27. Version annotation comments throughout index.html
-- **File:** `index.html` (~18 locations)
-- **Fix:** Remove — git log is the better record.
+### ~~27. Version annotation comments throughout index.html~~ ✅ Fixed v1.15.16
+- **File:** `index.html` (~17 locations)
+- **Fix:** Removed — git log is the better record.
 
-### 28. Triple iteration over notes in updateActiveNotes
+### ~~28. Triple iteration over notes in updateActiveNotes~~ ✅ Fixed v1.15.16
 - **File:** `index.html:1767-1830`
 - **Fix:** Single-pass loop building `activeMidi`, `uniqueNotes`, and `groups` maps together.
 
-### 29. DBG() calls in TuningEngine parameter-change paths
+### ~~29. DBG() calls in TuningEngine parameter-change paths~~ ✅ Fixed v1.15.16
 - **File:** `TuningEngine.cpp` — `setSingleInterval`, `setBuiltInPreset`, `loadScalaFile`, `loadKBMFile`
-- **Fix:** Remove or consolidate to one summary DBG per operation.
+- **Fix:** Removed verbose entry/intermediate DBGs; consolidated remaining to short format.
 
-### 30. Stale .planning/ docs
+### ~~30. Stale .planning/ docs~~ ✅ Fixed v1.15.16
 - **Files:** `.planning/STATUS.md`, `.planning/parameter-spec.md`
 - **Issue:** Reflect v1.0.0 architecture, not current v1.15.1.
-- **Fix:** Update or add a note that these are historical planning docs.
+- **Fix:** Added historical-document note at top of each file.
