@@ -597,6 +597,62 @@
             opacity: 0.35;
             pointer-events: none;
         }
+
+        /* ═══ Tooltip System ═══ */
+        .help-toggle {
+            width: 26px;
+            height: 26px;
+            border: 2px solid #5C4033;
+            border-radius: 50%;
+            background: rgba(139, 168, 112, 0.3);
+            font-family: 'Garamond', serif;
+            font-size: 14px;
+            font-weight: bold;
+            color: #3C2F2F;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+            flex-shrink: 0;
+        }
+
+        .help-toggle:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .help-toggle.active {
+            background: rgba(107, 142, 35, 0.6);
+            color: #1a2a10;
+            box-shadow: 0 0 8px rgba(107, 142, 35, 0.4);
+        }
+
+        .tooltip-popup {
+            position: fixed;
+            max-width: 220px;
+            padding: 6px 10px;
+            background: rgba(60, 47, 47, 0.92);
+            color: #FFF8DC;
+            font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+            font-size: 10px;
+            line-height: 1.4;
+            border-radius: 4px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 9999;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+        }
+
+        .tooltip-popup.visible {
+            opacity: 1;
+        }
+
+        /* Subtle outline on hoverable tooltip targets when help mode active */
+        .tooltips-active [data-tooltip]:hover {
+            outline: 1px dashed rgba(107, 142, 35, 0.5);
+            outline-offset: 2px;
+        }
     </style>
 </head>
 <body>
@@ -608,12 +664,14 @@
             <div class="header">
                 <h1 class="title">Ouaricon Intonation Pad</h1>
                 <div class="tab-nav">
-                    <button class="tab-button active" data-tab="voice">Voice</button>
-                    <button class="tab-button" data-tab="tuning">Tuning</button>
-                    <button class="tab-button" data-tab="synth">Synth</button>
-                    <button class="tab-button" data-tab="effects">Effects</button>
+                    <button class="tab-button active" data-tab="voice" data-tooltip="Chord voicing controls: voice count, complexity, intervals, and live note display">Voice</button>
+                    <button class="tab-button" data-tab="tuning" data-tooltip="Microtonal tuning system: scale editor, visualizations, presets, and generators">Tuning</button>
+                    <button class="tab-button" data-tab="synth" data-tooltip="Synthesis controls: dual wavetable oscillators, envelope, filter, and randomization">Synth</button>
+                    <button class="tab-button" data-tab="effects" data-tooltip="Post-synthesis effects chain: Chorus, Delay, EQ, and Reverb">Effects</button>
+                    <button class="help-toggle" id="helpToggle" title="Toggle tooltips">?</button>
                 </div>
             </div>
+            <div class="tooltip-popup" id="tooltipPopup"></div>
 
             <div class="main-section">
                 <!-- Voice Tab -->
@@ -623,7 +681,7 @@
                     <div class="section-divider"></div>
 
                     <div class="knob-row voice-settings-row">
-                        <div class="dropdown-container">
+                        <div class="dropdown-container" data-tooltip="Root note for chord scale mapping">
                             <div class="knob-label">Key Root</div>
                             <select class="dropdown" id="keyRootSelect">
                                 <option value="0">C</option>
@@ -642,12 +700,12 @@
                         </div>
 
                         <!-- Interval Selector -->
-                        <div class="interval-selector">
+                        <div class="interval-selector" data-tooltip="Toggle scale degrees used for chord generation. Only enabled intervals produce chord voices">
                             <div class="interval-selector-header">
                                 <div class="knob-label">Intervals</div>
                                 <div class="interval-quick-btns">
-                                    <button class="interval-quick-btn" id="intervalAllBtn">All</button>
-                                    <button class="interval-quick-btn" id="intervalNoneBtn">None</button>
+                                    <button class="interval-quick-btn" id="intervalAllBtn" data-tooltip="Enable all scale degrees">All</button>
+                                    <button class="interval-quick-btn" id="intervalNoneBtn" data-tooltip="Disable all except root">None</button>
                                 </div>
                             </div>
                             <div class="interval-toggle-list" id="intervalToggleList">
@@ -660,8 +718,8 @@
 
                     <div class="keyboard-section">
                         <div class="knob-label active-notes-label">Active Notes</div>
-                        <div class="mini-keyboard" id="miniKeyboard"></div>
-                        <div class="freq-list" id="freqList">
+                        <div class="mini-keyboard" id="miniKeyboard" data-tooltip="Live display of all sounding chord voices (C2-B5). Brightness shows voice gain"></div>
+                        <div class="freq-list" id="freqList" data-tooltip="Note name, frequency, and cent deviation from 12-TET for each sounding voice">
                             <span class="freq-placeholder">Play a note to see chord voicing</span>
                         </div>
                     </div>
@@ -669,7 +727,7 @@
 
                 <!-- Tuning Tab -->
                 <div class="tab-content scrollable-tab" id="tuning-tab">
-                    <div id="tuning-container"></div>
+                    <div id="tuning-container" data-tooltip="Microtonal tuning system — edit intervals, load presets, or generate custom scales"></div>
                 </div>
 
                 <!-- Synth Tab -->
@@ -685,31 +743,31 @@
 
                 <!-- Effects Tab -->
                 <div class="tab-content scrollable-tab" id="effects-tab">
-                    <div class="fx-section" id="chorusSection">
+                    <div class="fx-section" id="chorusSection" data-tooltip="Chorus effect — adds width and movement via modulated delay copies">
                         <div class="fx-header">
                             <span class="fx-title">Chorus</span>
-                            <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                            <button class="fx-bypass-btn" id="chorusBypassBtn" data-tooltip="Enable/disable chorus processing">On</button>
                         </div>
                         <div class="fx-knobs" id="chorus-knobs"></div>
                     </div>
-                    <div class="fx-section" id="delaySection">
+                    <div class="fx-section" id="delaySection" data-tooltip="Stereo delay with Normal and PingPong modes">
                         <div class="fx-header">
                             <span class="fx-title">Delay</span>
-                            <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                            <button class="fx-bypass-btn" id="delayBypassBtn" data-tooltip="Enable/disable delay processing">On</button>
                         </div>
                         <div class="fx-knobs" id="delay-knobs"></div>
                     </div>
-                    <div class="fx-section" id="eqSection">
+                    <div class="fx-section" id="eqSection" data-tooltip="3-band EQ: low shelf (200 Hz), mid peak (variable), high shelf (8 kHz)">
                         <div class="fx-header">
                             <span class="fx-title">EQ</span>
-                            <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                            <button class="fx-bypass-btn" id="eqBypassBtn" data-tooltip="Enable/disable EQ processing">On</button>
                         </div>
                         <div class="fx-knobs" id="eq-knobs"></div>
                     </div>
-                    <div class="fx-section" id="reverbSection">
+                    <div class="fx-section" id="reverbSection" data-tooltip="Schroeder reverb with adjustable pre-delay">
                         <div class="fx-header">
                             <span class="fx-title">Reverb</span>
-                            <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                            <button class="fx-bypass-btn" id="reverbBypassBtn" data-tooltip="Enable/disable reverb processing">On</button>
                         </div>
                         <div class="fx-knobs" id="reverb-knobs"></div>
                     </div>
@@ -746,6 +804,111 @@
             'Spectral Cloud', 'Metallic Res.', 'Formant Vowel', 'Warm Sub'
         ];
 
+        // ====================================================================
+        // TOOLTIP SYSTEM
+        // ====================================================================
+
+        const TOOLTIPS = {
+            // Voice tab knobs
+            voiceCount: 'Number of chord voices generated from a single MIDI note (2-12)',
+            complexity: 'How many chord extensions (7th, 9th, 11th, 13th) are added to the basic triad',
+            stereoSpread: 'Distributes chord voices across the stereo field. 0% = mono, 100% = full width',
+            spacing: 'Octave displacement of chord voices for wider/tighter voicings',
+            inversion: 'Randomly shifts voices to different octaves for varied chord inversions',
+            // Synth tab - OSC A
+            wavetablePos: 'Morph position within the wavetable bank (0-100%)',
+            lfoRate: 'LFO speed for wavetable position modulation',
+            lfoDepth: 'LFO modulation depth for wavetable position',
+            gainA: 'Volume level for oscillator A',
+            // Synth tab - OSC B
+            wavetablePos2: 'Morph position within the wavetable bank (0-100%)',
+            lfoRate2: 'LFO speed for wavetable position modulation',
+            lfoDepth2: 'LFO modulation depth for wavetable position',
+            gainB: 'Volume level for oscillator B',
+            // Synth tab - envelope/filter
+            attackTime: 'Envelope attack time — how quickly the sound fades in (1-5000 ms)',
+            releaseTime: 'Envelope release time — how long the sound fades out after note off (10-10000 ms)',
+            filterCutoff: 'Low-pass filter cutoff frequency (20-20000 Hz)',
+            masterVolume: 'Master output volume in dB',
+            // Synth tab - randomization
+            timingRandom: 'Random delay offset per chord voice — adds organic strum feel (0-100 ms)',
+            detuneRandom: 'Random pitch deviation per chord voice — creates ensemble/unison width (0-50 cents)',
+            // Effects knobs
+            chorusRate: 'Chorus LFO rate (0.1-10 Hz)',
+            chorusDepth: 'Chorus modulation depth',
+            chorusMix: 'Chorus dry/wet mix',
+            delayTime: 'Delay time (1-2000 ms)',
+            delayFeedback: 'Delay feedback amount (0-95%)',
+            delayMix: 'Delay dry/wet mix',
+            eqLowGain: 'Low shelf gain at 200 Hz (+/-12 dB)',
+            eqMidGain: 'Mid peak gain (+/-12 dB)',
+            eqMidFreq: 'Mid peak center frequency (200-8000 Hz)',
+            eqHighGain: 'High shelf gain at 8 kHz (+/-12 dB)',
+            reverbSize: 'Reverb room size (0-100%)',
+            reverbDamp: 'Reverb high-frequency damping (0-100%)',
+            reverbPredelay: 'Time before reverb onset (0-200 ms)',
+            reverbMix: 'Reverb dry/wet mix',
+        };
+
+        // Tooltip for dropdowns
+        const DROPDOWN_TOOLTIPS = {
+            wavetableBankSelect: 'Wavetable bank for oscillator A — 16 banks from analog to spectral',
+            wavetableBank2Select: 'Wavetable bank for oscillator B — 16 banks from analog to spectral',
+            delayModeSelect: 'Normal: mono delay. PingPong: alternating stereo bounces',
+        };
+
+        let tooltipsActive = false;
+        const tooltipPopup = { el: null };
+
+        function initTooltipSystem() {
+            tooltipPopup.el = document.getElementById('tooltipPopup');
+            const toggle = document.getElementById('helpToggle');
+            if (!toggle) return;
+
+            toggle.addEventListener('click', () => {
+                tooltipsActive = !tooltipsActive;
+                toggle.classList.toggle('active', tooltipsActive);
+                document.querySelector('.plugin-container').classList.toggle('tooltips-active', tooltipsActive);
+                if (!tooltipsActive) hideTooltip();
+            });
+
+            // Delegate hover events for tooltip targets
+            document.addEventListener('mouseover', (e) => {
+                if (!tooltipsActive) return;
+                const target = e.target.closest('[data-tooltip]');
+                if (target) showTooltip(target, target.dataset.tooltip);
+            });
+
+            document.addEventListener('mouseout', (e) => {
+                if (!tooltipsActive) return;
+                const target = e.target.closest('[data-tooltip]');
+                if (target) hideTooltip();
+            });
+        }
+
+        function showTooltip(el, text) {
+            const popup = tooltipPopup.el;
+            if (!popup) return;
+            popup.textContent = text;
+            popup.classList.add('visible');
+
+            const rect = el.getBoundingClientRect();
+            let top = rect.bottom + 6;
+            let left = rect.left + rect.width / 2 - 110;
+
+            // Keep within viewport
+            if (left < 4) left = 4;
+            if (left + 220 > window.innerWidth) left = window.innerWidth - 224;
+            if (top + 60 > window.innerHeight) top = rect.top - 36;
+
+            popup.style.top = top + 'px';
+            popup.style.left = left + 'px';
+        }
+
+        function hideTooltip() {
+            if (tooltipPopup.el) tooltipPopup.el.classList.remove('visible');
+        }
+
         // size: 'small' = 44px (r=18), default = 52px (r=22)
         function makeKnob(id, label, size, labelStyle) {
             const isSmall = size === 'small';
@@ -756,6 +919,8 @@
 
             const container = document.createElement('div');
             container.className = 'knob-container';
+            const tip = TOOLTIPS[id];
+            if (tip) container.setAttribute('data-tooltip', tip);
             container.innerHTML =
                 `<div class="knob" id="${id}Knob">` +
                     `<div class="knob-visual${isSmall ? ' small' : ''}">` +
@@ -773,6 +938,8 @@
         function makeWavetableDropdown(selectId, oscLabel) {
             const wrapper = document.createElement('div');
             wrapper.className = 'dropdown-container';
+            const tip = DROPDOWN_TOOLTIPS[selectId];
+            if (tip) wrapper.setAttribute('data-tooltip', tip);
             const lbl = document.createElement('div');
             lbl.className = 'knob-label';
             lbl.style.cssText = 'font-weight: bold; color: #2C3E10;';
@@ -802,6 +969,9 @@
 
         document.addEventListener('DOMContentLoaded', () => {
             console.log('JUCE backend:', window.__JUCE__?.backend);
+
+            // Initialize tooltip system
+            initTooltipSystem();
 
             // Build knob DOM from config
             populateKnobs('voice-knobs', [
@@ -855,6 +1025,8 @@
                 // delayMode: discrete choice → dropdown (not a knob)
                 const modeWrap = document.createElement('div');
                 modeWrap.className = 'dropdown-container';
+                const modeTip = DROPDOWN_TOOLTIPS['delayModeSelect'];
+                if (modeTip) modeWrap.setAttribute('data-tooltip', modeTip);
                 const modeLbl = document.createElement('div');
                 modeLbl.className = 'knob-label';
                 modeLbl.textContent = 'Mode';

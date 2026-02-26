@@ -87,7 +87,7 @@ export class TuningPanel {
             <div class="tuning-panel">
                 <!-- LEFT: Interval List -->
                 <div class="tuning-intervals-column">
-                    <div class="interval-list" id="interval-list">
+                    <div class="interval-list" id="interval-list" data-tooltip="Scale intervals in cents. Click any value to edit. Last row is the period (usually 1200c for octave)">
                         <div class="interval-list-header">Intervals (<span id="interval-count">12</span> notes)</div>
                     </div>
                 </div>
@@ -95,11 +95,11 @@ export class TuningPanel {
                 <!-- CENTER: Viz Toggle + Visualization -->
                 <div class="tuning-center-column">
                     <div class="viz-mode-toggle">
-                        <button class="viz-btn active" data-mode="circle">Circle</button>
-                        <button class="viz-btn" data-mode="polar">Polar</button>
-                        <button class="viz-btn" data-mode="matrix">Matrix</button>
-                        <button class="viz-btn" data-mode="truekeys">True Keys</button>
-                        <button class="viz-btn" data-mode="rotation">Rotation</button>
+                        <button class="viz-btn active" data-mode="circle" data-tooltip="Pitch circle: intervals as spokes around a circle. Active notes highlight in red">Circle</button>
+                        <button class="viz-btn" data-mode="polar" data-tooltip="Polar plot: intervals mapped by both angle and distance">Polar</button>
+                        <button class="viz-btn" data-mode="matrix" data-tooltip="Interval matrix: cent distance between every pair of scale degrees">Matrix</button>
+                        <button class="viz-btn" data-mode="truekeys" data-tooltip="True Keys: hold 2+ notes to see real cent intervals between them">True Keys</button>
+                        <button class="viz-btn" data-mode="rotation" data-tooltip="Rotation table: all modes of the current scale">Rotation</button>
                     </div>
                     <div class="viz-container" id="viz-container">
                         <div class="viz-view active" id="circle-view">
@@ -128,7 +128,7 @@ export class TuningPanel {
                 <!-- RIGHT: Controls Panel -->
                 <div class="tuning-controls-panel">
                     <!-- Tuning Library -->
-                    <div class="library-section" id="library-section">
+                    <div class="library-section" id="library-section" data-tooltip="Browse 24+ built-in tuning presets across Historical, World, and Experimental categories">
                         <div class="library-header">
                             <span class="library-header-text">Tuning Library</span>
                             <span class="library-toggle" id="library-toggle">▼</span>
@@ -149,7 +149,7 @@ export class TuningPanel {
                     </div>
 
                     <!-- Reference Pitch -->
-                    <div class="tuning-ref-section">
+                    <div class="tuning-ref-section" data-tooltip="A4 reference frequency (400-480 Hz). Drag up/down to adjust. Default: 440 Hz">
                         <div class="ref-knob-container">
                             <div class="ref-knob" id="ref-pitch-knob">
                                 <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
@@ -160,10 +160,10 @@ export class TuningPanel {
                     </div>
 
                     <!-- Scale Name Display -->
-                    <div class="scale-name-display" id="scale-name-display">12-TET Standard</div>
+                    <div class="scale-name-display" id="scale-name-display" data-tooltip="Name of the currently loaded tuning/scale">12-TET Standard</div>
 
                     <!-- Octave Stretch -->
-                    <div class="octave-stretch-section">
+                    <div class="octave-stretch-section" data-tooltip="Stretch or compress the octave ratio. 1.00 = pure octave (1200 cents)">
                         <div class="octave-stretch-row">
                             <span class="octave-stretch-label">Stretch</span>
                             <input type="range" id="octave-stretch" class="octave-stretch-slider"
@@ -175,16 +175,16 @@ export class TuningPanel {
                     <!-- File Operations -->
                     <div class="tuning-file-section">
                         <div class="tuning-file-buttons">
-                            <button class="tuning-file-btn" id="btn-load-scl">Load .SCL</button>
-                            <button class="tuning-file-btn" id="btn-load-kbm">Load .KBM</button>
-                            <button class="tuning-file-btn" id="btn-save-scl">Save .SCL</button>
-                            <button class="tuning-file-btn" id="btn-save-kbm">Save .KBM</button>
-                            <button class="tuning-file-btn tuning-export-btn" id="btn-export-html">Export HTML</button>
+                            <button class="tuning-file-btn" id="btn-load-scl" data-tooltip="Import a Scala (.scl) tuning file">Load .SCL</button>
+                            <button class="tuning-file-btn" id="btn-load-kbm" data-tooltip="Import a keyboard mapping (.kbm) file">Load .KBM</button>
+                            <button class="tuning-file-btn" id="btn-save-scl" data-tooltip="Export current tuning as Scala (.scl) file">Save .SCL</button>
+                            <button class="tuning-file-btn" id="btn-save-kbm" data-tooltip="Export keyboard mapping as .kbm file">Save .KBM</button>
+                            <button class="tuning-file-btn tuning-export-btn" id="btn-export-html" data-tooltip="Export tuning documentation as a standalone HTML page">Export HTML</button>
                         </div>
                     </div>
 
                     <!-- Scale Generator -->
-                    <div class="generator-section" id="generator-section">
+                    <div class="generator-section" id="generator-section" data-tooltip="Generate custom scales: Equal Division (EDO), Harmonic Series, or Rank-2 Temperament">
                         <div class="generator-header">
                             <span class="generator-header-text">Generate Scale</span>
                             <span class="generator-toggle" id="generator-toggle">▼</span>

@@ -1,5 +1,17 @@
 # O-IntonationPad Changelog
 
+## [2.0.0] - 2026-02-25
+
+### Added
+- **Interactive tooltip help system**: "?" toggle button in the header bar activates contextual tooltips on hover for every interactive UI element across all four tabs (Voice, Tuning, Synth, Effects). Tooltips describe each knob's function, range, and musical purpose. Subtle dashed outline highlights the hovered element when help mode is active
+- **Tooltip coverage**: 34 knob tooltips, 3 dropdown tooltips, 4 tab tooltips, 4 effect section tooltips, 4 bypass button tooltips, tuning panel elements (visualization modes, library, file operations, generator, reference pitch, octave stretch, scale name, interval list)
+
+### Technical
+- Tooltip system uses event delegation with a single floating popup div positioned near the hovered element
+- `data-tooltip` attributes added to DOM via `makeKnob()` factory (TOOLTIPS map), `makeWavetableDropdown()` factory (DROPDOWN_TOOLTIPS map), and static HTML attributes
+- Tuning panel tooltips added directly in `tuning-panel.js` render() template
+- No new dependencies or APVTS parameters — purely UI-side feature
+
 ## [1.15.17] - 2026-02-25
 
 ### Changed
