@@ -39,42 +39,6 @@ public:
         phase = 0.0f;
     }
 
-    float getNextSample()
-    {
-        // Calculate frame indices and interpolation fraction
-        float framePosition = wavetablePosition * static_cast<float>(WavetableData::NUM_FRAMES - 1);
-        int lowerFrame = static_cast<int>(framePosition);
-        int upperFrame = juce::jmin(lowerFrame + 1, WavetableData::NUM_FRAMES - 1);
-        float frameFrac = framePosition - static_cast<float>(lowerFrame);
-
-        // Calculate fractional sample position within frame for linear interpolation
-        float samplePos = phase * static_cast<float>(WavetableData::SAMPLES_PER_FRAME);
-        int sampleIndex0 = static_cast<int>(samplePos) % WavetableData::SAMPLES_PER_FRAME;
-        int sampleIndex1 = (sampleIndex0 + 1) % WavetableData::SAMPLES_PER_FRAME;
-        float sampleFrac = samplePos - std::floor(samplePos);
-
-        // Fetch and interpolate within each frame from the active bank's mipmap level
-        const auto& mipmap = (*activeBank)[static_cast<size_t>(currentMipmapLevel)];
-
-        float s0 = mipmap[static_cast<size_t>(lowerFrame)][static_cast<size_t>(sampleIndex0)];
-        float s1 = mipmap[static_cast<size_t>(lowerFrame)][static_cast<size_t>(sampleIndex1)];
-        float lowerSample = s0 + sampleFrac * (s1 - s0);
-
-        float s2 = mipmap[static_cast<size_t>(upperFrame)][static_cast<size_t>(sampleIndex0)];
-        float s3 = mipmap[static_cast<size_t>(upperFrame)][static_cast<size_t>(sampleIndex1)];
-        float upperSample = s2 + sampleFrac * (s3 - s2);
-
-        // Linear interpolation between frames
-        float output = lowerSample + frameFrac * (upperSample - lowerSample);
-
-        // Advance phase
-        phase += phaseIncrement;
-        if (phase >= 1.0f)
-            phase -= 1.0f;
-
-        return output;
-    }
-
     void advancePhase(int numSamples)
     {
         phase += phaseIncrement * static_cast<float>(numSamples);

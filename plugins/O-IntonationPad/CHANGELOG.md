@@ -1,5 +1,30 @@
 # O-IntonationPad Changelog
 
+## [1.15.10] - 2026-02-25
+
+### Changed
+- **Removed dead `getNextSample()` method from `WavetableOscillator`**: 35-line per-sample method was never called — `processBlockStereo()` (block-based, added in v1.15.0) and `advancePhase()` are used exclusively. No behavior change (backlog item #15)
+
+## [1.15.9] - 2026-02-25
+
+### Fixed
+- **Fixed wrong relay type for `delayMode` parameter**: Changed from `WebSliderRelay`/`WebSliderParameterAttachment` to `WebComboBoxRelay`/`WebComboBoxParameterAttachment` to match the `AudioParameterChoice` declaration. UI now renders a proper dropdown selector instead of a continuous knob with a formatter hack (backlog item #14)
+
+## [1.15.8] - 2026-02-25
+
+### Changed
+- **Removed dead LFO phase increment computation from `prepareToPlay`**: `lfoPhaseIncrementA`/`B` were computed from parameter reads (lines 368-371) but unconditionally overwritten in `processBlock` before use. Removed 4 dead lines; phase resets retained (backlog item #13)
+
+## [1.15.7] - 2026-02-25
+
+### Changed
+- **Replaced `dynamic_cast` with `static_cast` for synth voice access**: All voices are `WavetableVoice*` — the RTTI lookup was unnecessary overhead on the audio thread (`processBlock` line 468, `prepareToPlay` line 381) and message thread (`getActiveNotes` line 694). Null guard on `getVoice(i)` retained via `static_cast` null-propagation
+
+## [1.15.6] - 2026-02-24
+
+### Changed
+- **Eliminated 128 redundant mutex acquisitions in `rebuildFrequencyTable()`**: Extracted `calculateCustomFrequencyUnlocked()` (no-lock variant) from `calculateCustomFrequency()`. `rebuildFrequencyTable()` now acquires `intervalMutex` once for the entire 128-note loop instead of per-note. `calculateCustomFrequency()` retains its lock as a safe public-facing wrapper
+
 ## [1.15.5] - 2026-02-24
 
 ### Changed

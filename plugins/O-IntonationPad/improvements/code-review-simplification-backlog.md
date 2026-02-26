@@ -32,20 +32,20 @@
 - **Issue:** `filterSpec` and `fxSpec` are byte-for-byte identical structs.
 - **Fix:** Use one `spec` variable.
 
-### 13. Dead LFO phase increment in prepareToPlay
+### ~~13. Dead LFO phase increment in prepareToPlay~~ ✅ Fixed v1.15.8
 - **File:** `PluginProcessor.cpp:368-373`
 - **Issue:** `lfoPhaseIncrementA/B` computed in `prepareToPlay` but unconditionally overwritten every `processBlock`.
-- **Fix:** Remove the computation from `prepareToPlay`.
+- **Fix:** Removed 4 dead lines (2 param reads + 2 assignments). Phase resets retained.
 
-### 14. Wrong relay type for delayMode
-- **File:** `PluginEditor.h:72`, `PluginEditor.cpp:61,122,134,560-562`
+### ~~14. Wrong relay type for delayMode~~ ✅ Fixed v1.15.9
+- **File:** `PluginEditor.h:75`, `PluginEditor.cpp:80,137,517-518`, `index.html:915,866-871,972`
 - **Issue:** `delayMode` is `AudioParameterChoice` but wired to `WebSliderRelay`/`WebSliderParameterAttachment` instead of `WebComboBoxRelay`/`WebComboBoxParameterAttachment`.
-- **Fix:** Change to combo box relay and attachment.
+- **Fix:** Changed to combo box relay/attachment in C++ and dropdown select in JS UI.
 
-### 15. Dead getNextSample() in WavetableOscillator
-- **File:** `WavetableOscillator.h:33-62`
+### ~~15. Dead getNextSample() in WavetableOscillator~~ ✅ Fixed v1.15.10
+- **File:** `WavetableOscillator.h`
 - **Issue:** Never called anywhere in the codebase. `processBlockStereo()` and `advancePhase()` are used exclusively.
-- **Fix:** Remove it.
+- **Fix:** Removed the 35-line method entirely.
 
 ### 16. Dead tuning_tuningMode parameter
 - **File:** `PluginProcessor.cpp:53-58`, `parameterChanged:591-601`
