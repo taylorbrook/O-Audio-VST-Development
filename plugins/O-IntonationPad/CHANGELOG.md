@@ -1,5 +1,10 @@
 # O-IntonationPad Changelog
 
+## [1.15.17] - 2026-02-25
+
+### Changed
+- Renamed UI title label from "O-IntonationPad" to "Ouaricon Intonation Pad"
+
 ## [1.15.16] - 2026-02-25
 
 ### Changed
