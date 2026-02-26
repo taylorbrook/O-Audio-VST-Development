@@ -1066,6 +1066,26 @@
             });
         }
 
+        // Global knob drag state — one pair of document-level listeners for all knobs
+        const knobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
+
+        document.addEventListener('mousemove', (e) => {
+            if (!knobDrag.active) return;
+            const deltaY = knobDrag.lastY - e.clientY;
+            const sensitivity = 0.005;
+            knobDrag.virtualNorm = Math.max(0, Math.min(1, knobDrag.virtualNorm + (deltaY * sensitivity)));
+            knobDrag.state.setNormalisedValue(knobDrag.virtualNorm);
+            knobDrag.lastY = e.clientY;
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (knobDrag.active) {
+                knobDrag.state.sliderDragEnded();
+                knobDrag.active = false;
+                knobDrag.state = null;
+            }
+        });
+
         // Generic knob setup (SVG vine-arc style)
         function setupKnob(paramId, state, min, max, unit, formatter) {
             if (!state) {
@@ -1084,10 +1104,7 @@
             const r = parseFloat(vine.getAttribute('r'));
             const arcLength = 2 * Math.PI * r * 0.75;
 
-            let isDragging = false;
             let isEditing = false;
-            let lastY = 0;
-            let virtualNorm = state.getNormalisedValue();
 
             function updateVisual() {
                 const normValue = state.getNormalisedValue();
@@ -1105,40 +1122,17 @@
             }
 
             // JUCE -> UI
-            state.valueChangedEvent.addListener(() => {
-                if (!isDragging) {
-                    virtualNorm = state.getNormalisedValue();
-                }
-                updateVisual();
-            });
+            state.valueChangedEvent.addListener(() => updateVisual());
 
             // UI -> JUCE (drag on knob-visual)
             const knobVisual = knobEl.querySelector('.knob-visual');
             (knobVisual || knobEl).addEventListener('mousedown', (e) => {
-                isDragging = true;
-                lastY = e.clientY;
-                virtualNorm = state.getNormalisedValue();
+                knobDrag.active = true;
+                knobDrag.state = state;
+                knobDrag.lastY = e.clientY;
+                knobDrag.virtualNorm = state.getNormalisedValue();
                 state.sliderDragStarted();
                 e.preventDefault();
-            });
-
-            document.addEventListener('mousemove', (e) => {
-                if (!isDragging) return;
-
-                const deltaY = lastY - e.clientY;
-                const sensitivity = 0.005;
-                virtualNorm = Math.max(0, Math.min(1, virtualNorm + (deltaY * sensitivity)));
-
-                state.setNormalisedValue(virtualNorm);
-                lastY = e.clientY;
-            });
-
-            document.addEventListener('mouseup', () => {
-                if (isDragging) {
-                    state.sliderDragEnded();
-                    isDragging = false;
-                    virtualNorm = state.getNormalisedValue();
-                }
             });
 
             // Mouse wheel support

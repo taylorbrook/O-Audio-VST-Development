@@ -62,10 +62,10 @@
 - **Issue:** Set on change detection but never read for any conditional behavior. `renderIntervalToggles` runs unconditionally.
 - **Fix:** Removed variable declaration, assignment, and dead if-block.
 
-### 19. 35+ document-level mousemove/mouseup listeners
+### ~~19. 35+ document-level mousemove/mouseup listeners~~ ✅ Fixed v1.15.14
 - **File:** `index.html:1396-1413`
 - **Issue:** Each `setupKnob` call registers its own `mousemove`/`mouseup` pair on `document`. All 35+ handlers execute on every mouse move, checking `if (!isDragging)`.
-- **Fix:** Use one global drag state with a single pair of document-level listeners.
+- **Fix:** Single `knobDrag` state object with one pair of document-level listeners. Removed per-knob `isDragging`, `lastY`, `virtualNorm` locals.
 
 ### 20. Dead pitch-circle.js bundled in binary data
 - **Files:** `Source/ui/public/modules/pitch-circle.js`, `CMakeLists.txt`, `PluginEditor.cpp:697`

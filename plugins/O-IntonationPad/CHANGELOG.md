@@ -1,5 +1,10 @@
 # O-IntonationPad Changelog
 
+## [1.15.14] - 2026-02-25
+
+### Changed
+- **Refactored knob drag handling to single global listener pair**: Each of 34 `setupKnob` calls registered its own `mousemove`/`mouseup` on `document` (68 handlers total, all executing on every mouse move to check `if (!isDragging)`). Replaced with one `knobDrag` state object and a single pair of document-level listeners that reference the active knob. Removed per-knob `isDragging`, `lastY`, `virtualNorm` locals. No behavior change (backlog item #19)
+
 ## [1.15.13] - 2026-02-25
 
 ### Changed
