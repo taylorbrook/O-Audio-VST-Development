@@ -61,6 +61,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> humanizeRelay;
     // v1.21.0: Glissando speed (notes per second)
     std::unique_ptr<juce::WebSliderRelay> glissandoSpeedRelay;
+    // v1.23.0: Glissando custom semitones (for Custom interval)
+    std::unique_ptr<juce::WebSliderRelay> glissandoCustomSemitonesRelay;
 
     std::unique_ptr<juce::WebComboBoxRelay> stringMaterialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> woodTypeRelay;
@@ -69,6 +71,9 @@ private:
     std::unique_ptr<juce::WebComboBoxRelay> glissandoScaleRelay;
     // v1.22.0: Glissando shape relay
     std::unique_ptr<juce::WebComboBoxRelay> glissandoShapeRelay;
+    // v1.23.0: Glissando interval and direction relays
+    std::unique_ptr<juce::WebComboBoxRelay> glissandoIntervalRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> glissandoDirectionRelay;
     // v1.6.0: Tuning mode relay
     std::unique_ptr<juce::WebComboBoxRelay> tuningModeRelay;
 
@@ -102,6 +107,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> humanizeAttachment;
     // v1.21.0: Glissando speed attachment
     std::unique_ptr<juce::WebSliderParameterAttachment> glissandoSpeedAttachment;
+    // v1.23.0: Glissando custom semitones attachment
+    std::unique_ptr<juce::WebSliderParameterAttachment> glissandoCustomSemitonesAttachment;
 
     std::unique_ptr<juce::WebComboBoxParameterAttachment> stringMaterialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> woodTypeAttachment;
@@ -110,6 +117,9 @@ private:
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoScaleAttachment;
     // v1.22.0: Glissando shape attachment
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoShapeAttachment;
+    // v1.23.0: Glissando interval and direction attachments
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoIntervalAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoDirectionAttachment;
     // v1.6.0: Tuning mode attachment
     std::unique_ptr<juce::WebComboBoxParameterAttachment> tuningModeAttachment;
 

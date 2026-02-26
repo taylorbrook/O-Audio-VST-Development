@@ -54,7 +54,7 @@ inline GlissandoMode glissandoModeFromIndex(int index)
 }
 
 // v1.3.2: Fixed-size array to avoid audio thread allocation
-constexpr int MAX_SCALE_SIZE = 48;  // 4 octaves of chromatic scale (generous headroom)
+constexpr int MAX_SCALE_SIZE = 64;  // v1.23.0: Increased for up to 48-semitone custom intervals
 
 /**
  * GlissandoController: Implements smooth and scale-locked pitch sweeps

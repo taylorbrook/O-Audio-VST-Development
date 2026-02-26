@@ -1833,6 +1833,42 @@
                             <option value="3">S-Curve</option>
                         </select>
                     </div>
+                    <div class="dropdown-group" id="glissandoIntervalGroup" style="display:none;" data-tooltip="Interval: How far the glissando sweeps. Sets a fixed distance in semitones so every note produces the same sweep size.">
+                        <span class="dropdown-label">Interval</span>
+                        <select id="glissandoInterval">
+                            <option value="0">Minor 2nd</option>
+                            <option value="1">Major 2nd</option>
+                            <option value="2">Minor 3rd</option>
+                            <option value="3">Major 3rd</option>
+                            <option value="4">Perfect 4th</option>
+                            <option value="5">Tritone</option>
+                            <option value="6">Perfect 5th</option>
+                            <option value="7">Minor 6th</option>
+                            <option value="8">Major 6th</option>
+                            <option value="9">Minor 7th</option>
+                            <option value="10">Major 7th</option>
+                            <option value="11">Octave</option>
+                            <option value="12">Octave + 5th</option>
+                            <option value="13">2 Octaves</option>
+                            <option value="14">2.5 Octaves</option>
+                            <option value="15">3 Octaves</option>
+                            <option value="16">Custom</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="glissandoCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Enter an exact semitone count (1-48) for the glissando sweep distance.">
+                        <span class="slider-label">Semitones</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoCustomSemitones" min="0" max="1" step="0.001" value="0.234">
+                            <span class="slider-value" id="glissandoCustomSemitonesValue">12 st</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-group" id="glissandoDirectionGroup" style="display:none;" data-tooltip="Direction: Whether the glissando sweeps up to the played note or down to it.">
+                        <span class="dropdown-label">Direction</span>
+                        <select id="glissandoDirection">
+                            <option value="0">Up to Note</option>
+                            <option value="1">Down to Note</option>
+                        </select>
+                    </div>
                 </div>
             </div>
         </div>
@@ -2485,6 +2521,10 @@
             { id: 'glissandoSpeed', format: v => {
                 const actual = 4.0 + Math.pow(v, 1/0.5) * 26.0;
                 return `${actual.toFixed(1)} n/s`;
+            }},
+            { id: 'glissandoCustomSemitones', format: v => {
+                const st = Math.round(1 + v * 47);
+                return `${st} st`;
             }}
         ];
         // Note: masterTune is controlled by the A4 REF knob in tuning tab (not a slider)
@@ -2527,7 +2567,7 @@
         // Parameter Bindings - Dropdowns
         // v1.5.4: Added try-catch to prevent script crash if comboState binding fails
         // ====================================================================
-        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoMode', 'glissandoScale', 'glissandoShape'];
+        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoMode', 'glissandoScale', 'glissandoShape', 'glissandoInterval', 'glissandoDirection'];
 
         dropdownParams.forEach(paramId => {
             const select = document.getElementById(paramId);
@@ -2555,20 +2595,38 @@
         });
 
         // ====================================================================
-        // v1.21.0: Glissando Speed visibility (only when Mode = Scale-Locked)
+        // v1.21.0: Glissando sub-parameter visibility (only when Mode = Scale-Locked)
+        // v1.23.0: Added interval, custom semitones, and direction controls
         // ====================================================================
         {
             const modeSelect = document.getElementById('glissandoMode');
             const speedGroup = document.getElementById('glissandoSpeedGroup');
             const shapeGroup = document.getElementById('glissandoShapeGroup');
-            if (modeSelect && speedGroup) {
-                const updateScaleLockedVis = () => {
-                    const isScaleLocked = (parseInt(modeSelect.value) === 2);
-                    speedGroup.style.display = isScaleLocked ? '' : 'none';
-                    if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
-                };
+            const intervalGroup = document.getElementById('glissandoIntervalGroup');
+            const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
+            const directionGroup = document.getElementById('glissandoDirectionGroup');
+            const intervalSelect = document.getElementById('glissandoInterval');
+
+            const updateScaleLockedVis = () => {
+                const isScaleLocked = (parseInt(modeSelect.value) === 2);
+                if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
+                if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
+                if (intervalGroup) intervalGroup.style.display = isScaleLocked ? '' : 'none';
+                if (directionGroup) directionGroup.style.display = isScaleLocked ? '' : 'none';
+                // Custom semitones only visible when interval = Custom (index 16)
+                if (customStGroup && intervalSelect) {
+                    customStGroup.style.display = (isScaleLocked && parseInt(intervalSelect.value) === 16) ? '' : 'none';
+                }
+            };
+
+            if (modeSelect) {
                 modeSelect.addEventListener('change', updateScaleLockedVis);
                 updateScaleLockedVis();
+            }
+
+            // v1.23.0: Show custom semitones only when interval = Custom
+            if (intervalSelect) {
+                intervalSelect.addEventListener('change', updateScaleLockedVis);
             }
         }
 

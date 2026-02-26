@@ -125,15 +125,25 @@ function initializeParameters() {
         document.getElementById('glissandoSpeedValue').textContent = `${actual.toFixed(1)} n/s`;
     });
 
+    // v1.23.0: Custom semitones slider (1-48 st)
+    bindSlider('glissandoCustomSemitones', (value) => {
+        const st = Math.round(1 + value * 47);
+        document.getElementById('glissandoCustomSemitonesValue').textContent = `${st} st`;
+    });
+
     // Choice parameters (dropdowns)
     bindChoice('stringMaterial');
     bindChoice('woodType');
     bindChoice('technique');
     bindChoice('glissandoMode');
     bindChoice('glissandoScale');
+    // v1.23.0: Interval and direction dropdowns
+    bindChoice('glissandoInterval');
+    bindChoice('glissandoDirection');
 
-    // v1.21.0: Show/hide glissando speed based on mode (only visible in Scale-Locked)
-    setupGlissandoSpeedVisibility();
+    // v1.21.0: Show/hide glissando sub-params based on mode (only visible in Scale-Locked)
+    // v1.23.0: Added interval, custom semitones, and direction visibility
+    setupGlissandoVisibility();
 }
 
 /**
@@ -261,31 +271,55 @@ function initializeMeters() {
 }
 
 /**
- * v1.21.0: Show glissando speed slider only when mode is Scale-Locked (index 2)
+ * v1.23.0: Show/hide glissando sub-parameters based on mode and interval selection
  */
-function setupGlissandoSpeedVisibility() {
+function setupGlissandoVisibility() {
     const modeSelect = document.getElementById('glissandoMode');
     const speedGroup = document.getElementById('glissandoSpeedGroup');
-    if (!modeSelect || !speedGroup) return;
+    const shapeGroup = document.getElementById('glissandoShapeGroup');
+    const intervalGroup = document.getElementById('glissandoIntervalGroup');
+    const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
+    const directionGroup = document.getElementById('glissandoDirectionGroup');
+    const intervalSelect = document.getElementById('glissandoInterval');
+
+    if (!modeSelect) return;
 
     const updateVisibility = () => {
-        speedGroup.style.display = (modeSelect.selectedIndex === 2) ? '' : 'none';
+        const isScaleLocked = (modeSelect.selectedIndex === 2);
+        if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
+        if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
+        if (intervalGroup) intervalGroup.style.display = isScaleLocked ? '' : 'none';
+        if (directionGroup) directionGroup.style.display = isScaleLocked ? '' : 'none';
+        // Custom semitones only when interval = Custom (index 16)
+        if (customStGroup && intervalSelect) {
+            customStGroup.style.display = (isScaleLocked && intervalSelect.selectedIndex === 16) ? '' : 'none';
+        }
     };
 
     // React to user changes
     modeSelect.addEventListener('change', updateVisibility);
+    if (intervalSelect) intervalSelect.addEventListener('change', updateVisibility);
 
     // React to JUCE-side changes (automation, preset load)
     try {
-        const comboState = Juce.getComboBoxState('glissandoMode');
-        if (comboState && comboState.valueChangedEvent) {
-            comboState.valueChangedEvent.addListener(() => {
-                modeSelect.selectedIndex = comboState.getChoiceIndex();
+        const modeState = Juce.getComboBoxState('glissandoMode');
+        if (modeState && modeState.valueChangedEvent) {
+            modeState.valueChangedEvent.addListener(() => {
+                modeSelect.selectedIndex = modeState.getChoiceIndex();
                 updateVisibility();
             });
         }
+        if (intervalSelect) {
+            const intervalState = Juce.getComboBoxState('glissandoInterval');
+            if (intervalState && intervalState.valueChangedEvent) {
+                intervalState.valueChangedEvent.addListener(() => {
+                    intervalSelect.selectedIndex = intervalState.getChoiceIndex();
+                    updateVisibility();
+                });
+            }
+        }
     } catch (e) {
-        console.error('Failed to bind glissando speed visibility:', e);
+        console.error('Failed to bind glissando visibility:', e);
     }
 
     // Set initial state

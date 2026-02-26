@@ -177,8 +177,26 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         // For scale-locked mode, get scale from tuning engine
         if (glissandoMode == GlissandoMode::ScaleLocked && tuningEngine != nullptr)
         {
-            // Get 2 octaves of scale frequencies starting from current note
-            std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(midiNoteNumber - 12, 36);
+            // v1.23.0: Read interval and direction parameters
+            int intervalIndex = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
+            int directionIndex = static_cast<int>(parameters->getRawParameterValue("glissandoDirection")->load());
+
+            // Map interval preset to semitones (index 16 = Custom)
+            static const int intervalSemitones[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 24, 30, 36 };
+            int semitones;
+            if (intervalIndex >= 16) // Custom
+                semitones = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
+            else
+                semitones = intervalSemitones[intervalIndex];
+
+            // Fetch scale frequencies covering the full gliss range
+            int scaleStart = midiNoteNumber - semitones - 1;
+            int scaleCount = semitones * 2 + 3; // Cover both directions with margin
+            if (scaleStart < 0) scaleStart = 0;
+            if (scaleStart + scaleCount > 127) scaleCount = 128 - scaleStart;
+            if (scaleCount > 64) scaleCount = 64; // Clamp to MAX_SCALE_SIZE
+
+            std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(scaleStart, scaleCount);
             glissandoController.setScale(scaleFreqs);
 
             float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
@@ -187,10 +205,20 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             // v1.22.0: Set glissando shape (acceleration curve)
             int shapeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoShape")->load());
             glissandoController.setShape(glissandoShapeFromIndex(shapeIndex));
+
+            // v1.23.0: Calculate start frequency from interval and direction
+            // Direction 0 = Up to Note (start below), 1 = Down to Note (start above)
+            double startFreq;
+            if (directionIndex == 0)
+                startFreq = currentFrequency / std::pow(2.0, semitones / 12.0);
+            else
+                startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
+
+            glissandoController.startGlissando(startFreq, currentFrequency);
         }
 
-        // Start glissando from previous frequency to new frequency
-        if (glissandoMode != GlissandoMode::Off)
+        // Free mode: sweep from previous frequency to current
+        if (glissandoMode == GlissandoMode::Free)
         {
             glissandoController.startGlissando(previousFrequency, currentFrequency);
         }

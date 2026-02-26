@@ -2,6 +2,28 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.23.0] - 2026-02-25
+
+### Added
+
+- **Glissando Interval parameter** — Fixed sweep distance so every note produces the same predictable glissando. Dropdown with 16 musical presets (Minor 2nd through 3 Octaves) plus a Custom option for entering any semitone value (1-48).
+- **Glissando Custom Semitones parameter** — Numeric input (1-48 st) active when Interval is set to Custom, for precise non-standard sweep distances.
+- **Glissando Direction parameter** — Toggle between "Up to Note" (gliss starts below and sweeps up) and "Down to Note" (starts above and sweeps down).
+
+### Fixed
+
+- **Inconsistent glissando distances** — Root cause: glissando start was based on `previousFrequency` (per-voice, initialized at 440 Hz, dependent on voice allocation). Replaced with deterministic interval-based calculation so the sweep is identical regardless of which physical voice is allocated.
+
+### Technical Details
+
+- New APVTS parameters: `glissandoInterval` (AudioParameterChoice, 17 options, default Octave), `glissandoCustomSemitones` (AudioParameterFloat, 1-48, default 12), `glissandoDirection` (AudioParameterChoice, 2 options, default Up to Note)
+- `HarpSynthVoice::startNote()` now calculates start frequency as `currentFrequency * 2^(±semitones/12)` based on direction, replacing `previousFrequency`
+- Scale frequency range dynamically sized to cover full interval in either direction
+- `MAX_SCALE_SIZE` increased from 48 to 64 to accommodate up to 48-semitone custom intervals
+- Free mode glissando still uses `previousFrequency` (intentional — smooth slides between consecutive notes)
+- Full WebComboBoxRelay/WebSliderRelay pipeline for all 3 new parameters
+- UI visibility: Interval, Direction, Custom Semitones only visible when Mode = Scale-Locked; Custom Semitones only when Interval = Custom
+
 ## [1.22.0] - 2026-02-25
 
 ### Added

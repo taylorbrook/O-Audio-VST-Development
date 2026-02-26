@@ -48,6 +48,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     humanizeRelay = std::make_unique<juce::WebSliderRelay>("humanize");
     // v1.21.0: Glissando speed (notes per second)
     glissandoSpeedRelay = std::make_unique<juce::WebSliderRelay>("glissandoSpeed");
+    // v1.23.0: Glissando custom semitones
+    glissandoCustomSemitonesRelay = std::make_unique<juce::WebSliderRelay>("glissandoCustomSemitones");
 
     stringMaterialRelay = std::make_unique<juce::WebComboBoxRelay>("stringMaterial");
     woodTypeRelay = std::make_unique<juce::WebComboBoxRelay>("woodType");
@@ -56,6 +58,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     glissandoScaleRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoScale");
     // v1.22.0: Glissando shape relay
     glissandoShapeRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoShape");
+    // v1.23.0: Glissando interval and direction relays
+    glissandoIntervalRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoInterval");
+    glissandoDirectionRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoDirection");
     // v1.6.0: Tuning mode relay
     tuningModeRelay = std::make_unique<juce::WebComboBoxRelay>("tuningMode");
 
@@ -751,6 +756,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*humanizeRelay)
             // v1.21.0: Glissando speed relay
             .withOptionsFrom(*glissandoSpeedRelay)
+            // v1.23.0: Glissando custom semitones relay
+            .withOptionsFrom(*glissandoCustomSemitonesRelay)
             // Register all choice relays
             .withOptionsFrom(*stringMaterialRelay)
             .withOptionsFrom(*woodTypeRelay)
@@ -759,6 +766,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*glissandoScaleRelay)
             // v1.22.0: Glissando shape relay
             .withOptionsFrom(*glissandoShapeRelay)
+            // v1.23.0: Glissando interval and direction relays
+            .withOptionsFrom(*glissandoIntervalRelay)
+            .withOptionsFrom(*glissandoDirectionRelay)
             // v1.6.0: Tuning mode relay
             .withOptionsFrom(*tuningModeRelay)
     );
@@ -815,6 +825,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.21.0: Glissando speed attachment
     glissandoSpeedAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("glissandoSpeed"), *glissandoSpeedRelay, nullptr);
+    // v1.23.0: Glissando custom semitones attachment
+    glissandoCustomSemitonesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("glissandoCustomSemitones"), *glissandoCustomSemitonesRelay, nullptr);
 
     stringMaterialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("stringMaterial"), *stringMaterialRelay, nullptr);
@@ -829,6 +842,11 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.22.0: Glissando shape attachment
     glissandoShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("glissandoShape"), *glissandoShapeRelay, nullptr);
+    // v1.23.0: Glissando interval and direction attachments
+    glissandoIntervalAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("glissandoInterval"), *glissandoIntervalRelay, nullptr);
+    glissandoDirectionAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("glissandoDirection"), *glissandoDirectionRelay, nullptr);
     // v1.6.0: Tuning mode attachment
     tuningModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("tuningMode"), *tuningModeRelay, nullptr);

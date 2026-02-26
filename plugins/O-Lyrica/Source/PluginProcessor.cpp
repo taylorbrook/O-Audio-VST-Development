@@ -137,6 +137,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         3  // Default: S-Curve (most natural harp feel)
     ));
 
+    // v1.23.0: Glissando interval — fixed sweep distance (replaces unpredictable previousFrequency)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "glissandoInterval", 1 },
+        "Glissando Interval",
+        juce::StringArray { "Minor 2nd", "Major 2nd", "Minor 3rd", "Major 3rd",
+                            "Perfect 4th", "Tritone", "Perfect 5th", "Minor 6th",
+                            "Major 6th", "Minor 7th", "Major 7th", "Octave",
+                            "Octave + 5th", "2 Octaves", "2.5 Octaves", "3 Octaves",
+                            "Custom" },
+        11  // Default: Octave
+    ));
+
+    // v1.23.0: Custom semitone count (active when glissandoInterval = Custom)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "glissandoCustomSemitones", 1 },
+        "Glissando Custom Semitones",
+        juce::NormalisableRange<float>(1.0f, 48.0f, 1.0f),
+        12.0f,
+        "st"
+    ));
+
+    // v1.23.0: Glissando direction — sweep up to note or down to note
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "glissandoDirection", 1 },
+        "Glissando Direction",
+        juce::StringArray { "Up to Note", "Down to Note" },
+        0  // Default: Up to Note
+    ));
+
     // Tuning
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "masterTune", 1 },
