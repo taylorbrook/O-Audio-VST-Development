@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 Phase: None (between milestones)
 Plan: N/A
 Status: v1.3 milestone archived. All phases (14-17) shipped.
-Last activity: 2026-02-26 - Completed quick task 7: Move O-Bells to top of Ouaricon Plugins table
+Last activity: 2026-02-26 - Completed quick task 8: Fix free purchase flow (bundle display, cart clearing, email)
 
 Progress: [██████████] 100% (v1.0-v1.3: 17/17 phases complete, 51/51 plans)
 
@@ -54,11 +54,12 @@ None currently.
 |---|-------------|------|--------|-----------|
 | 6 | add a new slash command to build a windows exe installer for a vst3 plugin | 2026-02-11 | bf03372 | [6-add-a-new-slash-command-to-build-a-windo](./quick/6-add-a-new-slash-command-to-build-a-windo/) |
 | 7 | Move O-Bells to top of Ouaricon Plugins table in PLUGINS.md | 2026-02-26 | 2efe535 | [7-move-o-bells-up-to-the-top-of-the-produc](./quick/7-move-o-bells-up-to-the-top-of-the-produc/) |
+| 8 | Fix free purchase flow: bundle display, cart clearing, email logging | 2026-02-26 | bfd4368 | [8-fix-free-purchase-flow-products-land-in-](./quick/8-fix-free-purchase-flow-products-land-in-/) |
 
 ## Session Continuity
 
 Last session: 2026-02-26
-Stopped at: Completed quick task 7 (Move O-Bells to top of Ouaricon Plugins table)
+Stopped at: Completed quick task 8 (Fix free purchase flow: bundle display, cart clearing, email)
 Resume file: None
 
 Next: `/gsd:new-milestone` to start v2 planning
