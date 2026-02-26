@@ -206,6 +206,10 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             int shapeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoShape")->load());
             glissandoController.setShape(glissandoShapeFromIndex(shapeIndex));
 
+            // v1.24.0: Set glissando timing humanization
+            float glissHumanize = parameters->getRawParameterValue("glissandoHumanize")->load();
+            glissandoController.setHumanize(glissHumanize);
+
             // v1.23.0: Calculate start frequency from interval and direction
             // Direction 0 = Up to Note (start below), 1 = Down to Note (start above)
             double startFreq;

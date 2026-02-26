@@ -1824,6 +1824,13 @@
                             <span class="slider-value" id="glissandoSpeedValue">12.0 n/s</span>
                         </div>
                     </div>
+                    <div class="slider-group" id="glissandoHumanizeGroup" style="display:none;" data-tooltip="Humanize: Adds natural timing jitter to each glissando step. Simulates the slight irregularity of a real harpist's arm sweep across strings.">
+                        <span class="slider-label">Humanize</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoHumanize" min="0" max="1" step="0.001" value="0.3">
+                            <span class="slider-value" id="glissandoHumanizeValue">30%</span>
+                        </div>
+                    </div>
                     <div class="dropdown-group" id="glissandoShapeGroup" style="display:none;" data-tooltip="Shape: Acceleration curve for note spacing. Linear is metronomic; Accelerate starts slow and speeds up; Decelerate starts fast and slows; S-Curve mimics a real harpist's arm arc.">
                         <span class="dropdown-label">Shape</span>
                         <select id="glissandoShape">
@@ -2525,7 +2532,8 @@
             { id: 'glissandoCustomSemitones', format: v => {
                 const st = Math.round(1 + v * 47);
                 return `${st} st`;
-            }}
+            }},
+            { id: 'glissandoHumanize', format: v => `${Math.round(v * 100)}%` }
         ];
         // Note: masterTune is controlled by the A4 REF knob in tuning tab (not a slider)
 
@@ -2606,6 +2614,7 @@
         {
             const modeSelect = document.getElementById('glissandoMode');
             const speedGroup = document.getElementById('glissandoSpeedGroup');
+            const humanizeGroup = document.getElementById('glissandoHumanizeGroup');
             const shapeGroup = document.getElementById('glissandoShapeGroup');
             const intervalGroup = document.getElementById('glissandoIntervalGroup');
             const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
@@ -2615,6 +2624,7 @@
             const updateScaleLockedVis = () => {
                 const isScaleLocked = (parseInt(modeSelect.value) === 2);
                 if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
+                if (humanizeGroup) humanizeGroup.style.display = isScaleLocked ? '' : 'none';
                 if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
                 if (intervalGroup) intervalGroup.style.display = isScaleLocked ? '' : 'none';
                 if (directionGroup) directionGroup.style.display = isScaleLocked ? '' : 'none';

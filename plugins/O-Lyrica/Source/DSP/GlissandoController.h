@@ -100,6 +100,12 @@ public:
     void setShape(GlissandoShape shape);
 
     /**
+     * v1.24.0: Set humanization amount for scale-locked timing jitter
+     * @param amount 0.0 (perfectly metronomic) to 1.0 (maximum jitter)
+     */
+    void setHumanize(float amount);
+
+    /**
      * Start a glissando from current frequency to target
      * @param startFreq Starting frequency in Hz
      * @param endFreq Target frequency in Hz
@@ -161,6 +167,10 @@ private:
     GlissandoShape shape = GlissandoShape::SCurve;
     std::array<int, MAX_SCALE_SIZE> stepDurations{};  // Pre-computed per-step sample counts
     int currentStepIndex = 0;            // Which step we're on (indexes into stepDurations)
+
+    // v1.24.0: Timing humanization for scale-locked glissandos
+    float humanizeAmount = 0.0f;         // 0.0 = metronomic, 1.0 = max jitter
+    juce::Random humanizeRandom;         // Per-step jitter generator
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlissandoController)
 };

@@ -276,6 +276,7 @@ function initializeMeters() {
 function setupGlissandoVisibility() {
     const modeSelect = document.getElementById('glissandoMode');
     const speedGroup = document.getElementById('glissandoSpeedGroup');
+    const humanizeGroup = document.getElementById('glissandoHumanizeGroup');
     const shapeGroup = document.getElementById('glissandoShapeGroup');
     const intervalGroup = document.getElementById('glissandoIntervalGroup');
     const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
@@ -287,6 +288,7 @@ function setupGlissandoVisibility() {
     const updateVisibility = () => {
         const isScaleLocked = (modeSelect.selectedIndex === 2);
         if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
+        if (humanizeGroup) humanizeGroup.style.display = isScaleLocked ? '' : 'none';
         if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
         if (intervalGroup) intervalGroup.style.display = isScaleLocked ? '' : 'none';
         if (directionGroup) directionGroup.style.display = isScaleLocked ? '' : 'none';

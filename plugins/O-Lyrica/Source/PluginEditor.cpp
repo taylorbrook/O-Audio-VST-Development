@@ -50,6 +50,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     glissandoSpeedRelay = std::make_unique<juce::WebSliderRelay>("glissandoSpeed");
     // v1.23.0: Glissando custom semitones
     glissandoCustomSemitonesRelay = std::make_unique<juce::WebSliderRelay>("glissandoCustomSemitones");
+    // v1.24.0: Glissando humanize (timing jitter)
+    glissandoHumanizeRelay = std::make_unique<juce::WebSliderRelay>("glissandoHumanize");
 
     stringMaterialRelay = std::make_unique<juce::WebComboBoxRelay>("stringMaterial");
     woodTypeRelay = std::make_unique<juce::WebComboBoxRelay>("woodType");
@@ -758,6 +760,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*glissandoSpeedRelay)
             // v1.23.0: Glissando custom semitones relay
             .withOptionsFrom(*glissandoCustomSemitonesRelay)
+            // v1.24.0: Glissando humanize relay
+            .withOptionsFrom(*glissandoHumanizeRelay)
             // Register all choice relays
             .withOptionsFrom(*stringMaterialRelay)
             .withOptionsFrom(*woodTypeRelay)
@@ -828,6 +832,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.23.0: Glissando custom semitones attachment
     glissandoCustomSemitonesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("glissandoCustomSemitones"), *glissandoCustomSemitonesRelay, nullptr);
+    // v1.24.0: Glissando humanize attachment
+    glissandoHumanizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("glissandoHumanize"), *glissandoHumanizeRelay, nullptr);
 
     stringMaterialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("stringMaterial"), *stringMaterialRelay, nullptr);

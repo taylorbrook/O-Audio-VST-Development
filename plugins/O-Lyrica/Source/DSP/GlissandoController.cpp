@@ -71,6 +71,11 @@ void GlissandoController::setShape(GlissandoShape newShape)
     shape = newShape;
 }
 
+void GlissandoController::setHumanize(float amount)
+{
+    humanizeAmount = juce::jlimit(0.0f, 1.0f, amount);
+}
+
 void GlissandoController::startGlissando(double startFreq, double endFreq)
 {
     if (mode == GlissandoMode::Off)
@@ -172,6 +177,20 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
                 // Distribute rounding remainder to the last step
                 if (assigned != totalSamples && numSteps > 0)
                     stepDurations[numSteps - 1] += (totalSamples - assigned);
+            }
+
+            // v1.24.0: Apply per-step timing humanization (jitter)
+            if (humanizeAmount > 0.0f)
+            {
+                // maxJitterMs scales inversely with speed: slow = more jitter, fast = less
+                float maxJitterMs = juce::jmap(speed, 4.0f, 30.0f, 10.0f, 2.0f);
+
+                for (int i = 0; i < numSteps; ++i)
+                {
+                    float jitterMs = humanizeAmount * maxJitterMs * (humanizeRandom.nextFloat() * 2.0f - 1.0f);
+                    int jitterSamples = static_cast<int>(jitterMs * 0.001f * static_cast<float>(sampleRate));
+                    stepDurations[i] = std::max(1, stepDurations[i] + jitterSamples);
+                }
             }
         }
     }

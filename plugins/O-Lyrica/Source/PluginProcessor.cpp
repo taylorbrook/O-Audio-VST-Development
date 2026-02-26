@@ -166,6 +166,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         0  // Default: Up to Note
     ));
 
+    // v1.24.0: Glissando humanize — per-step timing jitter for natural feel
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "glissandoHumanize", 1 },
+        "Glissando Humanize",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.3f  // Default: Subtle jitter (±3-8ms depending on speed)
+    ));
+
     // Tuning
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "masterTune", 1 },

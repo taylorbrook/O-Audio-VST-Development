@@ -2,6 +2,26 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.24.0] - 2026-02-25
+
+### Added
+
+- **Glissando Humanize parameter** — Per-step timing jitter for Scale-Locked glissandos. Simulates the natural timing irregularity of a real harpist's arm sweep across non-uniformly spaced strings (±3-8ms variation).
+- Jitter magnitude scales inversely with speed: slow sweeps (4 n/s) allow ±10ms max, fast sweeps (30 n/s) allow ±2ms max
+- At 0.0 the behavior is identical to v1.23.0 (perfectly metronomic). Default 0.3 adds subtle life without sounding sloppy.
+
+### Technical Details
+
+- New APVTS parameter: `glissandoHumanize` (AudioParameterFloat, 0.0-1.0, default 0.3)
+- `GlissandoController::setHumanize()` stores amount; `juce::Random` member generates per-step offsets
+- Jitter applied in `startGlissando()` after shape curve computation, modifying pre-computed `stepDurations[]`
+- Formula: `maxJitterMs = jmap(speed, 4, 30, 10, 2)`, then `jitterMs = humanize * maxJitterMs * random(-1,1)`
+- Each step gets its own independent random offset (not per-sample noise)
+- Clamped to minimum 1 sample per step to prevent negative durations
+- Wired via `HarpSynthVoice::startNote()` alongside existing `setSpeed()` and `setShape()` calls
+- Full WebSliderRelay/WebSliderParameterAttachment pipeline
+- UI: Slider placed after Speed in Glissando section, visible only when Mode = Scale-Locked
+
 ## [1.23.0] - 2026-02-25
 
 ### Added

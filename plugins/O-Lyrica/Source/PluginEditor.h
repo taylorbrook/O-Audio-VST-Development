@@ -63,6 +63,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> glissandoSpeedRelay;
     // v1.23.0: Glissando custom semitones (for Custom interval)
     std::unique_ptr<juce::WebSliderRelay> glissandoCustomSemitonesRelay;
+    // v1.24.0: Glissando humanize (timing jitter)
+    std::unique_ptr<juce::WebSliderRelay> glissandoHumanizeRelay;
 
     std::unique_ptr<juce::WebComboBoxRelay> stringMaterialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> woodTypeRelay;
@@ -109,6 +111,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> glissandoSpeedAttachment;
     // v1.23.0: Glissando custom semitones attachment
     std::unique_ptr<juce::WebSliderParameterAttachment> glissandoCustomSemitonesAttachment;
+    // v1.24.0: Glissando humanize attachment
+    std::unique_ptr<juce::WebSliderParameterAttachment> glissandoHumanizeAttachment;
 
     std::unique_ptr<juce::WebComboBoxParameterAttachment> stringMaterialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> woodTypeAttachment;
