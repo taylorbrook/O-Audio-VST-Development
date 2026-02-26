@@ -1,5 +1,10 @@
 # O-IntonationPad Changelog
 
+## [1.15.13] - 2026-02-25
+
+### Changed
+- **Removed dead `intervalScaleSize` variable from UI**: Variable was set on scale-size change detection but never read — `renderIntervalToggles` ran unconditionally regardless. Removed declaration, assignment, and dead if-block. No behavior change (backlog item #18)
+
 ## [1.15.12] - 2026-02-25
 
 ### Changed
