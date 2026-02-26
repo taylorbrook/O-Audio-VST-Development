@@ -2,6 +2,21 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.24.1] - 2026-02-25
+
+### Fixed
+
+- **Free mode glissando now uses logarithmic frequency interpolation** — Previously ramped linearly in Hz via `juce::SmoothedValue`, causing sweeps to spend disproportionate time in upper octaves (e.g., 220→880 Hz spent 75% of time above 440 Hz). Now interpolates in log2 space so each octave gets equal time, matching professional portamento implementations.
+
+### Technical Details
+
+- Replaced `juce::SmoothedValue<double> frequencyRamp` with manual log2-domain interpolation
+- `startGlissando()` computes `log2(startFreq)` and `log2(endFreq)` once (not per-sample)
+- `getNextFrequency()` advances a linear progress (0→1) and computes `pow(2, lerp(startLog, endLog, progress))`
+- 50ms ramp time preserved from previous SmoothedValue behavior
+- Off mode and Scale-Locked mode completely unaffected
+- No new allocations, no API changes, no parameter changes
+
 ## [1.24.0] - 2026-02-25
 
 ### Added

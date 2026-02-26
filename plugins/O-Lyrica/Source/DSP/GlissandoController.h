@@ -59,7 +59,7 @@ constexpr int MAX_SCALE_SIZE = 64;  // v1.23.0: Increased for up to 48-semitone 
 /**
  * GlissandoController: Implements smooth and scale-locked pitch sweeps
  *
- * - Free mode: Uses juce::SmoothedValue for continuous frequency ramp
+ * - Free mode: Logarithmic interpolation for perceptually uniform pitch sweep
  * - Scale-Locked mode: Steps through scale degrees at controlled speed
  * - Integrates with TuningEngine for scale data
  */
@@ -148,9 +148,13 @@ private:
     double sampleRate = 44100.0;
     bool active = false;
 
-    // Free mode: Continuous sweep
-    juce::SmoothedValue<double> frequencyRamp;
-    double targetFrequency = 440.0;
+    // Free mode: Logarithmic frequency sweep (v1.24.1)
+    double currentFrequency = 440.0;         // Current output frequency (Hz)
+    double targetFrequency = 440.0;          // Target frequency (Hz)
+    double startFreqLog = 0.0;               // log2(startFreq) at glissando start
+    double endFreqLog = 0.0;                 // log2(endFreq) at glissando start
+    double freeProgress = 0.0;               // 0.0 to 1.0 interpolation progress
+    double freeProgressIncrement = 0.0;      // Per-sample progress step
 
     // Scale-Locked mode: Discrete steps through scale
     // v1.3.2: Fixed-size array replaces std::vector to avoid audio thread allocation

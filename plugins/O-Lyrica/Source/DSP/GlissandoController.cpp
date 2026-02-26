@@ -11,19 +11,12 @@
 
 GlissandoController::GlissandoController()
 {
-    // Initialize frequency ramp with reasonable default ramp time
-    // 50ms ramp time for smooth transitions
-    frequencyRamp.reset(44100.0, 0.05);
-    frequencyRamp.setCurrentAndTargetValue(440.0);
+    currentFrequency = 440.0;
 }
 
 void GlissandoController::prepare(double sr)
 {
     sampleRate = sr;
-
-    // Reset smoothed value with new sample rate
-    // 50ms ramp time for smooth, musical glissando
-    frequencyRamp.reset(sampleRate, 0.05);
 
     // Recalculate samples per step based on new sample rate
     if (speed > 0.0f)
@@ -81,17 +74,23 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
     if (mode == GlissandoMode::Off)
     {
         // No glissando - just set to end frequency
-        frequencyRamp.setCurrentAndTargetValue(endFreq);
+        currentFrequency = endFreq;
         active = false;
         return;
     }
 
     if (mode == GlissandoMode::Free)
     {
-        // Free mode: Continuous sweep from start to end
-        frequencyRamp.setCurrentAndTargetValue(startFreq);
-        frequencyRamp.setTargetValue(endFreq);
+        // Free mode: Logarithmic interpolation for perceptually uniform pitch sweep
+        currentFrequency = startFreq;
         targetFrequency = endFreq;
+        startFreqLog = std::log2(startFreq);
+        endFreqLog = std::log2(endFreq);
+        freeProgress = 0.0;
+
+        // 50ms ramp time (matches pre-v1.24.1 SmoothedValue duration)
+        constexpr double rampTimeSeconds = 0.05;
+        freeProgressIncrement = 1.0 / (rampTimeSeconds * sampleRate);
         active = true;
     }
     else if (mode == GlissandoMode::ScaleLocked)
@@ -100,7 +99,7 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
         if (scaleSize == 0)
         {
             // No scale loaded - fall back to direct frequency
-            frequencyRamp.setCurrentAndTargetValue(endFreq);
+            currentFrequency = endFreq;
             active = false;
             return;
         }
@@ -200,22 +199,25 @@ double GlissandoController::getNextFrequency()
 {
     if (!active || mode == GlissandoMode::Off)
     {
-        // No glissando - return current value
-        return frequencyRamp.getCurrentValue();
+        return currentFrequency;
     }
 
     if (mode == GlissandoMode::Free)
     {
-        // Free mode: Get next smoothed value
-        double nextFreq = frequencyRamp.getNextValue();
+        // Free mode: Logarithmic interpolation (equal time per octave)
+        freeProgress += freeProgressIncrement;
 
-        // Check if we've reached the target
-        if (std::abs(nextFreq - targetFrequency) < 0.01)
+        if (freeProgress >= 1.0)
         {
+            currentFrequency = targetFrequency;
             active = false;
         }
+        else
+        {
+            currentFrequency = std::pow(2.0, startFreqLog + freeProgress * (endFreqLog - startFreqLog));
+        }
 
-        return nextFreq;
+        return currentFrequency;
     }
     else if (mode == GlissandoMode::ScaleLocked)
     {
@@ -224,7 +226,7 @@ double GlissandoController::getNextFrequency()
         return currentScaleFrequency;
     }
 
-    return frequencyRamp.getCurrentValue();
+    return currentFrequency;
 }
 
 bool GlissandoController::isActive() const
@@ -235,7 +237,7 @@ bool GlissandoController::isActive() const
 void GlissandoController::reset()
 {
     active = false;
-    frequencyRamp.setCurrentAndTargetValue(frequencyRamp.getCurrentValue());
+    freeProgress = 0.0;
     sampleCounter = 0;
 }
 
