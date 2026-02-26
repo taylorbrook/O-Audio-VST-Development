@@ -2,6 +2,11 @@
 
 All notable changes to O-AnalogSaturation will be documented in this file.
 
+## [1.1.3] - 2026-02-25
+
+### Added
+- Ouaricon licensing module integration (compile-flag gated, zero impact on local builds)
+
 ## [1.1.2] - 2026-02-25
 
 ### Added
