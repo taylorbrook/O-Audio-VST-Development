@@ -9,7 +9,7 @@ juce_add_plugin(OuariconChorus
     PLUGIN_CODE OuCh
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Chorus${OUARICON_DEV_SUFFIX}"
-    VERSION 1.2.0
+    VERSION 1.2.1
     NEEDS_WEB_BROWSER TRUE
     NEEDS_WEBVIEW2 TRUE
 )

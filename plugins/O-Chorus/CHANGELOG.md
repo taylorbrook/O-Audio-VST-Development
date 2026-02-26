@@ -1,5 +1,15 @@
 # O-Chorus Changelog
 
+## v1.2.1 (2026-02-25)
+
+### Added
+
+- Compile-flag gated licensing module (OUARICON_LICENSING)
+  - OuariconLicense manager in PluginProcessor
+  - License overlay UI in PluginEditor (activation gate)
+  - License status listener toggles WebView visibility
+  - OFF by default for local dev builds
+
 ## v1.2.0 (2026-02-08)
 
 ### Added
