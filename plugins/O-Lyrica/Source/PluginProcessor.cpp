@@ -174,6 +174,38 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         0.3f  // Default: Subtle jitter (±3-8ms depending on speed)
     ));
 
+    // v1.25.0: Glissando time — configurable ramp duration for Free mode
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "glissandoTime", 1 },
+        "Glissando Time",
+        juce::NormalisableRange<float>(0.01f, 0.5f, 0.001f, 0.5f),
+        0.05f,
+        "s"
+    ));
+
+    // v1.26.0: Glissando excitation softness — brush vs deliberate pluck
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "glissandoExcitation", 1 },
+        "Gliss Softness",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.6f
+    ));
+
+    // v1.27.0: Glissando velocity profile — dynamic contour across Scale-Locked sweep
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "glissandoVelStart", 1 },
+        "Gliss Vel Start",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "glissandoVelEnd", 1 },
+        "Gliss Vel End",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.7f
+    ));
+
     // Tuning
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "masterTune", 1 },

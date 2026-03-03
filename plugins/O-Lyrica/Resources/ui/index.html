@@ -1808,7 +1808,21 @@
                             <option value="2">Scale-Locked</option>
                         </select>
                     </div>
-                    <div class="dropdown-group" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor are diatonic; Pentatonic is anhemitonic; Custom uses the tuning tab scale.">
+                    <div class="slider-group" id="glissandoTimeGroup" style="display:none;" data-tooltip="Time: How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.">
+                        <span class="slider-label">Time</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoTime" min="0" max="1" step="0.001" value="0.082">
+                            <span class="slider-value" id="glissandoTimeValue">50 ms</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" id="glissandoExcitationGroup" style="display:none;" data-tooltip="Gliss Softness: How much the excitation changes during glissando. 0% is a full deliberate pluck; 60% (default) is a realistic brush; 100% is a very light ethereal sweep.">
+                        <span class="slider-label">Softness</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoExcitation" min="0" max="1" step="0.001" value="0.6">
+                            <span class="slider-value" id="glissandoExcitationValue">60%</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-group" id="glissandoScaleGroup" style="display:none;" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor are diatonic; Pentatonic is anhemitonic; Custom uses the tuning tab scale.">
                         <span class="dropdown-label">Scale</span>
                         <select id="glissandoScale">
                             <option value="0">Major</option>
@@ -1831,7 +1845,21 @@
                             <span class="slider-value" id="glissandoHumanizeValue">30%</span>
                         </div>
                     </div>
-                    <div class="dropdown-group" id="glissandoShapeGroup" style="display:none;" data-tooltip="Shape: Acceleration curve for note spacing. Linear is metronomic; Accelerate starts slow and speeds up; Decelerate starts fast and slows; S-Curve mimics a real harpist's arm arc.">
+                    <div class="slider-group" id="glissandoVelStartGroup" style="display:none;" data-tooltip="Dynamics Start: Velocity at the beginning of the glissando sweep. Lower values mean softer attack and more damping. Default 50% gives a subtle lead-in.">
+                        <span class="slider-label">Dynamics: Start</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoVelStart" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="glissandoVelStartValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" id="glissandoVelEndGroup" style="display:none;" data-tooltip="Dynamics End: Velocity at the end of the glissando sweep. Higher values mean brighter sustain. Default 70% gives a natural ascending crescendo.">
+                        <span class="slider-label">Dynamics: End</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoVelEnd" min="0" max="1" step="0.001" value="0.7">
+                            <span class="slider-value" id="glissandoVelEndValue">70%</span>
+                        </div>
+                    </div>
+                    <div class="dropdown-group" id="glissandoShapeGroup" style="display:none;" data-tooltip="Shape: Acceleration curve for the glissando sweep. Linear is constant speed; Accelerate starts slow and speeds up; Decelerate starts fast and slows; S-Curve mimics a real harpist's arm arc. Works in both Free and Scale-Locked modes.">
                         <span class="dropdown-label">Shape</span>
                         <select id="glissandoShape">
                             <option value="0">Linear</option>
@@ -2533,7 +2561,14 @@
                 const st = Math.round(1 + v * 47);
                 return `${st} st`;
             }},
-            { id: 'glissandoHumanize', format: v => `${Math.round(v * 100)}%` }
+            { id: 'glissandoHumanize', format: v => `${Math.round(v * 100)}%` },
+            { id: 'glissandoVelStart', format: v => `${Math.round(v * 100)}%` },
+            { id: 'glissandoVelEnd', format: v => `${Math.round(v * 100)}%` },
+            { id: 'glissandoExcitation', format: v => `${Math.round(v * 100)}%` },
+            { id: 'glissandoTime', format: v => {
+                const actual = 0.01 + Math.pow(v, 1/0.5) * 0.49;
+                return `${Math.round(actual * 1000)} ms`;
+            }}
         ];
         // Note: masterTune is controlled by the A4 REF knob in tuning tab (not a slider)
 
@@ -2613,24 +2648,39 @@
         // ====================================================================
         {
             const modeSelect = document.getElementById('glissandoMode');
+            const timeGroup = document.getElementById('glissandoTimeGroup');
+            const excitationGroup = document.getElementById('glissandoExcitationGroup');
             const speedGroup = document.getElementById('glissandoSpeedGroup');
             const humanizeGroup = document.getElementById('glissandoHumanizeGroup');
+            const velStartGroup = document.getElementById('glissandoVelStartGroup');
+            const velEndGroup = document.getElementById('glissandoVelEndGroup');
             const shapeGroup = document.getElementById('glissandoShapeGroup');
             const intervalGroup = document.getElementById('glissandoIntervalGroup');
             const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
             const directionGroup = document.getElementById('glissandoDirectionGroup');
             const intervalSelect = document.getElementById('glissandoInterval');
+            const scaleGroup = document.getElementById('glissandoScaleGroup');
 
             const updateScaleLockedVis = () => {
+                const isFree = (parseInt(modeSelect.value) === 1);
                 const isScaleLocked = (parseInt(modeSelect.value) === 2);
+                // v1.29.0: Excitation softness only visible in Scale-Locked mode
+                if (excitationGroup) excitationGroup.style.display = isScaleLocked ? '' : 'none';
+                // v1.25.0: Time slider only visible in Free mode
+                if (timeGroup) timeGroup.style.display = isFree ? '' : 'none';
                 if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
                 if (humanizeGroup) humanizeGroup.style.display = isScaleLocked ? '' : 'none';
-                if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
-                if (intervalGroup) intervalGroup.style.display = isScaleLocked ? '' : 'none';
-                if (directionGroup) directionGroup.style.display = isScaleLocked ? '' : 'none';
-                // Custom semitones only visible when interval = Custom (index 16)
+                if (velStartGroup) velStartGroup.style.display = isScaleLocked ? '' : 'none';
+                if (velEndGroup) velEndGroup.style.display = isScaleLocked ? '' : 'none';
+                if (shapeGroup) shapeGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
+                // v1.29.0: Scale only visible in Scale-Locked mode
+                if (scaleGroup) scaleGroup.style.display = isScaleLocked ? '' : 'none';
+                // v1.29.0: Interval and direction visible in Free or Scale-Locked mode
+                if (intervalGroup) intervalGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
+                if (directionGroup) directionGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
+                // Custom semitones only visible when interval = Custom (index 16) in Free or Scale-Locked
                 if (customStGroup && intervalSelect) {
-                    customStGroup.style.display = (isScaleLocked && parseInt(intervalSelect.value) === 16) ? '' : 'none';
+                    customStGroup.style.display = ((isFree || isScaleLocked) && parseInt(intervalSelect.value) === 16) ? '' : 'none';
                 }
             };
 
@@ -2642,6 +2692,22 @@
             // v1.23.0: Show custom semitones only when interval = Custom
             if (intervalSelect) {
                 intervalSelect.addEventListener('change', updateScaleLockedVis);
+            }
+
+            // v1.27.1: Sync visibility on JUCE-side changes (preset load, automation)
+            // Programmatic select.value = X does NOT fire DOM 'change' events,
+            // so we must listen to JUCE combo state changes directly.
+            try {
+                const modeState = Juce.getComboBoxState('glissandoMode');
+                if (modeState && modeState.valueChangedEvent) {
+                    modeState.valueChangedEvent.addListener(updateScaleLockedVis);
+                }
+                const intervalState = Juce.getComboBoxState('glissandoInterval');
+                if (intervalState && intervalState.valueChangedEvent) {
+                    intervalState.valueChangedEvent.addListener(updateScaleLockedVis);
+                }
+            } catch (e) {
+                console.warn('[Glissando] Failed to bind visibility to JUCE events:', e);
             }
         }
 

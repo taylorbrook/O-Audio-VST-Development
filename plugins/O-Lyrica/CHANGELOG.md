@@ -2,6 +2,115 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.29.2] - 2026-03-02
+
+### Added
+
+- **Free mode Shape control** — The Shape dropdown (Linear, Accelerate, Decelerate, S-Curve) now applies to Free mode glissando sweeps, not just Scale-Locked mode. Accelerate starts slow and speeds up into the target note; Decelerate arrives quickly then eases in; S-Curve provides natural-feeling motion with slow start/end and fast middle.
+
+### Technical Details
+
+- GlissandoController.cpp: Applied shape curve mapping to `freeProgress` before log-frequency interpolation in `getNextFrequency()` Free mode branch
+- index.html + app.js: Shape dropdown now visible in both Free and Scale-Locked modes
+
+## [1.29.1] - 2026-03-01
+
+### Fixed
+
+- **Glissando Free mode sliders now connected to DSP** — Four glissando parameters (`glissandoTime`, `glissandoExcitation`, `glissandoVelStart`, `glissandoVelEnd`) were missing their WebSliderRelay, `.withOptionsFrom()` registration, and WebSliderParameterAttachment in the PluginEditor. The UI sliders existed and were visually functional but completely disconnected from the APVTS — moving them had no effect on the DSP. All four now have full WebView bridge wiring.
+
+### Technical Details
+
+- PluginEditor.h: Added relay and attachment declarations for `glissandoTime`, `glissandoExcitation`, `glissandoVelStart`, `glissandoVelEnd`
+- PluginEditor.cpp: Added relay creation, `.withOptionsFrom()` registration, and `WebSliderParameterAttachment` construction for all four parameters
+
+## [1.29.0] - 2026-03-01
+
+### Added
+
+- **Free mode interval and direction controls** — Free glissando mode now uses the Interval and Direction parameters (previously Scale-Locked only). Instead of portamento from the previous note, Free mode calculates a fixed start frequency based on the selected interval (Minor 2nd through 3 Octaves or Custom) and bends up to or down to the target note. UI now shows Interval, Direction, and Custom Semitones controls when Free mode is active.
+
+### Technical Details
+
+- HarpSynthVoice: Free mode branch reads `glissandoInterval`, `glissandoDirection`, and `glissandoCustomSemitones` parameters to compute `startFreq` using the same semitone-to-frequency formula as Scale-Locked mode
+- app.js: `intervalGroup`, `directionGroup`, and `customStGroup` visibility now includes `isFree` condition alongside `isScaleLocked`
+
+## [1.28.0] - 2026-02-26
+
+### Added
+
+- **Direction-dependent excitation character** — Glissando sweeps now automatically detect pitch direction and apply realistic excitation differences. Ascending glissandos (finger pad) shift pluck position toward center (-0.05) and soften hardness (×0.85) for a warmer tone. Descending glissandos (thumb) shift pluck position toward bridge (+0.04), firm up hardness (×1.1), and add subtle attack noise (+0.08) simulating a thumb's nail edge scrape. Applies to both Free and Scale-Locked modes with no new user parameters — behavior when glissando is Off is unchanged.
+
+### Technical Details
+
+- GlissandoController: Added `GlissandoDirection` enum (Ascending/Descending), `getDirection()` accessor, auto-detection in `startGlissando()` via `endFreq > startFreq`
+- HarpSynthVoice: Direction queried after `startGlissando()`, excitation adjustments applied to local `pluckPosition`, `fingerHardness`, `attackNoise` before `stringModel.trigger()` — additive nudges on top of user knob values
+
+## [1.27.1] - 2026-02-26
+
+### Fixed
+
+- **Glissando mode UI visibility bug** — Sub-parameter controls (Time, Softness, Speed, Humanize, Dynamics, Shape, Interval, Direction) now correctly appear when the mode is set from the JUCE backend (preset load, automation, initial state sync). Previously, programmatic `select.value` changes didn't fire DOM `change` events, so visibility updates were skipped until the user manually re-selected the mode.
+
+### Technical Details
+
+- Added `valueChangedEvent` listeners on JUCE combo states for `glissandoMode` and `glissandoInterval` that directly call `updateScaleLockedVis()`, bypassing the DOM event limitation
+
+## [1.27.0] - 2026-02-26
+
+### Added
+
+- **Glissando velocity profiling** — Dynamic contour across Scale-Locked glissando sweeps. Two new parameters control the velocity at the start and end of each sweep, modulating the waveguide's damping for natural crescendo/decrescendo effects.
+- `glissandoVelStart` (Dynamics: Start, 0-100%, default 50%): Velocity at the beginning of the sweep
+- `glissandoVelEnd` (Dynamics: End, 0-100%, default 70%): Velocity at the end of the sweep
+- Default 50%→70% gives a subtle ascending crescendo matching real harp arm mechanics
+- Equal start/end values produce flat dynamics identical to pre-v1.27.0 behavior
+- Only affects Scale-Locked mode — Free mode and initial pluck velocity unchanged
+
+### Technical Details
+
+- GlissandoController: Added `initialScaleDegree` tracking, `setVelocityProfile()`, `getNextVelocity()` with per-step linear interpolation
+- HarpSynthVoice: Reads velocity profile in `startNote()`, applies damping modulation in `renderNextBlock()` via `baseDamping * (1.0 - glissVel * 0.3)`
+- UI: Two slider controls (Dynamics: Start / End) visible only when Mode = Scale-Locked, placed after Humanize
+
+## [1.26.0] - 2026-02-26
+
+### Added
+
+- **Gliss Softness parameter** — Brush-style excitation for glissando notes. When glissando mode is active (Free or Scale-Locked), the PluckExciter uses a lighter "brush" excitation instead of a full deliberate pluck, matching how real harp glissandos produce softer contact per string.
+- At 0.0 (off): full deliberate pluck, identical to previous behavior
+- At 0.6 (default): realistic brush that blends into the glissando wash
+- At 1.0: very light, ethereal sweep
+
+### Technical Details
+
+- New APVTS parameter: `glissandoExcitation` (AudioParameterFloat, 0.0-1.0, default 0.6, no unit suffix)
+- PluckExciter: Added `setGlissandoAmount(float)` with 4 excitation modifications in `trigger()`:
+  - Velocity scaled by `1.0 - (amount * 0.4)` (60% at full softness)
+  - Noise burst narrowed by `amount * 50%` (shorter contact time)
+  - Finger hardness reduced by `amount * 0.3` (softer brightness cutoff)
+  - ADSR attack shortened by `amount * 50%` (quicker brush contact)
+- WaveguideString: `setGlissandoExcitation()` pass-through to exciter
+- HarpSynthVoice: Reads parameter when glissandoMode != Off, sets 0.0 when Off (before `trigger()`)
+- Normal pluck behavior completely unchanged when amount is 0.0
+- Stacks on top of PlayingTechnique system (Normal, Harmonic, Muted, PresDeLaTable)
+- Applies equally to Free and Scale-Locked modes
+
+## [1.25.0] - 2026-02-26
+
+### Added
+
+- **Glissando Time parameter** — Configurable ramp duration for Free mode glissando. Range: 10ms (near-instant pitch snap) to 500ms (slow expressive portamento). Default 50ms preserves existing behavior. Log-skewed knob (0.5) gives more travel to the fast 10-100ms range.
+- UI slider appears in Techniques tab when Glissando Mode is set to "Free"
+
+### Technical Details
+
+- New APVTS parameter: `glissandoTime` (AudioParameterFloat, 0.01-0.5s, default 0.05, skew 0.5, suffix "s")
+- GlissandoController: Added `setRampTime(float seconds)` method and `rampTimeSeconds` member
+- `startGlissando()` Free mode now uses `rampTimeSeconds` instead of hard-coded `constexpr 0.05`
+- HarpSynthVoice reads parameter and calls `setRampTime()` before `startGlissando()` (Free mode only)
+- Scale-Locked mode timing completely unaffected (uses speed/shape/humanize)
+
 ## [1.24.1] - 2026-02-25
 
 ### Fixed

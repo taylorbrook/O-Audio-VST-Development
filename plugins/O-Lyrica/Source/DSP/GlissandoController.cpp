@@ -69,8 +69,39 @@ void GlissandoController::setHumanize(float amount)
     humanizeAmount = juce::jlimit(0.0f, 1.0f, amount);
 }
 
+void GlissandoController::setRampTime(float seconds)
+{
+    rampTimeSeconds = juce::jlimit(0.01f, 0.5f, seconds);
+}
+
+void GlissandoController::setVelocityProfile(float startVel, float endVel)
+{
+    startVelocity = juce::jlimit(0.0f, 1.0f, startVel);
+    endVelocity = juce::jlimit(0.0f, 1.0f, endVel);
+}
+
+float GlissandoController::getNextVelocity() const
+{
+    if (mode != GlissandoMode::ScaleLocked || initialScaleDegree == targetScaleDegree)
+        return 1.0f;
+
+    int totalSteps = std::abs(targetScaleDegree - initialScaleDegree);
+    int stepsDone = std::abs(currentScaleDegree - initialScaleDegree);
+    float t = static_cast<float>(stepsDone) / static_cast<float>(totalSteps);
+
+    return startVelocity + (endVelocity - startVelocity) * t;
+}
+
+GlissandoDirection GlissandoController::getDirection() const
+{
+    return direction;
+}
+
 void GlissandoController::startGlissando(double startFreq, double endFreq)
 {
+    // v1.28.0: Auto-detect sweep direction from pitch relationship
+    direction = (endFreq > startFreq) ? GlissandoDirection::Ascending : GlissandoDirection::Descending;
+
     if (mode == GlissandoMode::Off)
     {
         // No glissando - just set to end frequency
@@ -88,9 +119,8 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
         endFreqLog = std::log2(endFreq);
         freeProgress = 0.0;
 
-        // 50ms ramp time (matches pre-v1.24.1 SmoothedValue duration)
-        constexpr double rampTimeSeconds = 0.05;
-        freeProgressIncrement = 1.0 / (rampTimeSeconds * sampleRate);
+        // v1.25.0: Use configurable ramp time (default 50ms preserves pre-v1.25.0 behavior)
+        freeProgressIncrement = 1.0 / (static_cast<double>(rampTimeSeconds) * sampleRate);
         active = true;
     }
     else if (mode == GlissandoMode::ScaleLocked)
@@ -106,6 +136,8 @@ void GlissandoController::startGlissando(double startFreq, double endFreq)
 
         currentScaleDegree = findClosestScaleDegree(startFreq);
         targetScaleDegree = findClosestScaleDegree(endFreq);
+        initialScaleDegree = currentScaleDegree;
+        currentVelocity = startVelocity;
 
         // Set initial frequency
         if (currentScaleDegree >= 0 && currentScaleDegree < scaleSize)
@@ -214,7 +246,23 @@ double GlissandoController::getNextFrequency()
         }
         else
         {
-            currentFrequency = std::pow(2.0, startFreqLog + freeProgress * (endFreqLog - startFreqLog));
+            // v1.29.2: Apply shape curve to Free mode progress
+            double shapedProgress = freeProgress;
+            switch (shape)
+            {
+                case GlissandoShape::Accelerate:
+                    shapedProgress = freeProgress * freeProgress;
+                    break;
+                case GlissandoShape::Decelerate:
+                    shapedProgress = std::sqrt(freeProgress);
+                    break;
+                case GlissandoShape::SCurve:
+                    shapedProgress = freeProgress * freeProgress * (3.0 - 2.0 * freeProgress);
+                    break;
+                default: // Linear
+                    break;
+            }
+            currentFrequency = std::pow(2.0, startFreqLog + shapedProgress * (endFreqLog - startFreqLog));
         }
 
         return currentFrequency;
@@ -296,6 +344,17 @@ void GlissandoController::updateScaleLocked()
         if (currentScaleDegree >= 0 && currentScaleDegree < scaleSize)
         {
             currentScaleFrequency = scale[currentScaleDegree];
+        }
+
+        // v1.27.0: Update interpolated velocity for this step
+        {
+            int totalSteps = std::abs(targetScaleDegree - initialScaleDegree);
+            if (totalSteps > 0)
+            {
+                int stepsDone = std::abs(currentScaleDegree - initialScaleDegree);
+                float t = static_cast<float>(stepsDone) / static_cast<float>(totalSteps);
+                currentVelocity = startVelocity + (endVelocity - startVelocity) * t;
+            }
         }
 
         // Check if we've reached the target

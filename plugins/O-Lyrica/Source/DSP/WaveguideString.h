@@ -111,6 +111,12 @@ public:
     void setPluckPosition(float position);
 
     /**
+     * Set glissando excitation amount (v1.26.0 - Brush profile)
+     * @param amount 0.0 = full deliberate pluck, 1.0 = lightest brush sweep
+     */
+    void setGlissandoExcitation(float amount);
+
+    /**
      * Set playing technique
      * @param technique Technique to apply (Normal, Harmonic, Muted, PresDeLaTable)
      */

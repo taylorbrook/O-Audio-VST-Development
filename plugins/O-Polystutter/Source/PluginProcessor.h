@@ -158,22 +158,18 @@ private:
     // Phase 2.3: Cached parameter pointers for lane advanced modes
     std::atomic<float>* lane1PingPongParam = nullptr;
     std::atomic<float>* lane1ReverseParam = nullptr;
-    std::atomic<float>* lane1FreezeParam = nullptr;
     std::atomic<float>* lane1ManualTimeParam = nullptr;
 
     std::atomic<float>* lane2PingPongParam = nullptr;
     std::atomic<float>* lane2ReverseParam = nullptr;
-    std::atomic<float>* lane2FreezeParam = nullptr;
     std::atomic<float>* lane2ManualTimeParam = nullptr;
 
     std::atomic<float>* lane3PingPongParam = nullptr;
     std::atomic<float>* lane3ReverseParam = nullptr;
-    std::atomic<float>* lane3FreezeParam = nullptr;
     std::atomic<float>* lane3ManualTimeParam = nullptr;
 
     std::atomic<float>* lane4PingPongParam = nullptr;
     std::atomic<float>* lane4ReverseParam = nullptr;
-    std::atomic<float>* lane4FreezeParam = nullptr;
     std::atomic<float>* lane4ManualTimeParam = nullptr;
 
     // Phase 2.4: Cached parameter pointers for pitch
@@ -202,6 +198,23 @@ private:
     std::atomic<float>* lane4PitchRandMinParam = nullptr;
     std::atomic<float>* lane4PitchRandMaxParam = nullptr;
     std::atomic<float>* lane4PitchRandQuantizeParam = nullptr;
+
+    // v1.9.0: Cached parameter pointers for Euclidean rhythm
+    std::atomic<float>* lane1EuclideanEnabledParam = nullptr;
+    std::atomic<float>* lane1EuclideanPulsesParam = nullptr;
+    std::atomic<float>* lane1EuclideanStepsParam = nullptr;
+
+    std::atomic<float>* lane2EuclideanEnabledParam = nullptr;
+    std::atomic<float>* lane2EuclideanPulsesParam = nullptr;
+    std::atomic<float>* lane2EuclideanStepsParam = nullptr;
+
+    std::atomic<float>* lane3EuclideanEnabledParam = nullptr;
+    std::atomic<float>* lane3EuclideanPulsesParam = nullptr;
+    std::atomic<float>* lane3EuclideanStepsParam = nullptr;
+
+    std::atomic<float>* lane4EuclideanEnabledParam = nullptr;
+    std::atomic<float>* lane4EuclideanPulsesParam = nullptr;
+    std::atomic<float>* lane4EuclideanStepsParam = nullptr;
 
     // Phase 2.4: Cached parameter pointers for tape degradation
     std::atomic<float>* tapeSaturationParam = nullptr;

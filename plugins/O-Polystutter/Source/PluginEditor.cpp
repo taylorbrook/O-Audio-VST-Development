@@ -29,13 +29,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
     , lane1PingpongRelay(std::make_unique<juce::WebToggleButtonRelay>("lane1_pingpong"))
     , lane1ReverseRelay(std::make_unique<juce::WebToggleButtonRelay>("lane1_reverse"))
     , lane1ManualRelay(std::make_unique<juce::WebToggleButtonRelay>("lane1_manual_time_enabled"))
-    , lane1FreezeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane1_freeze"))
+
     , lane1SubdivisionRelay(std::make_unique<juce::WebComboBoxRelay>("lane1_subdivision"))
     // v1.7.0: Lane 1 pitch randomization relays
     , lane1PitchRandEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane1_pitch_rand_enabled"))
     , lane1PitchRandMinRelay(std::make_unique<juce::WebSliderRelay>("lane1_pitch_rand_min"))
     , lane1PitchRandMaxRelay(std::make_unique<juce::WebSliderRelay>("lane1_pitch_rand_max"))
     , lane1PitchRandQuantizeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane1_pitch_rand_quantize"))
+    // v1.9.0: Lane 1 Euclidean relays
+    , lane1EuclideanEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane1_euclidean_enabled"))
+    , lane1EuclideanPulsesRelay(std::make_unique<juce::WebSliderRelay>("lane1_euclidean_pulses"))
+    , lane1EuclideanStepsRelay(std::make_unique<juce::WebSliderRelay>("lane1_euclidean_steps"))
 
     // Lane 2 relays
     , lane2RepeatsRelay(std::make_unique<juce::WebSliderRelay>("lane2_repeats"))
@@ -50,13 +54,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
     , lane2PingpongRelay(std::make_unique<juce::WebToggleButtonRelay>("lane2_pingpong"))
     , lane2ReverseRelay(std::make_unique<juce::WebToggleButtonRelay>("lane2_reverse"))
     , lane2ManualRelay(std::make_unique<juce::WebToggleButtonRelay>("lane2_manual_time_enabled"))
-    , lane2FreezeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane2_freeze"))
+
     , lane2SubdivisionRelay(std::make_unique<juce::WebComboBoxRelay>("lane2_subdivision"))
     // v1.7.0: Lane 2 pitch randomization relays
     , lane2PitchRandEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane2_pitch_rand_enabled"))
     , lane2PitchRandMinRelay(std::make_unique<juce::WebSliderRelay>("lane2_pitch_rand_min"))
     , lane2PitchRandMaxRelay(std::make_unique<juce::WebSliderRelay>("lane2_pitch_rand_max"))
     , lane2PitchRandQuantizeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane2_pitch_rand_quantize"))
+    // v1.9.0: Lane 2 Euclidean relays
+    , lane2EuclideanEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane2_euclidean_enabled"))
+    , lane2EuclideanPulsesRelay(std::make_unique<juce::WebSliderRelay>("lane2_euclidean_pulses"))
+    , lane2EuclideanStepsRelay(std::make_unique<juce::WebSliderRelay>("lane2_euclidean_steps"))
 
     // Lane 3 relays
     , lane3RepeatsRelay(std::make_unique<juce::WebSliderRelay>("lane3_repeats"))
@@ -71,13 +79,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
     , lane3PingpongRelay(std::make_unique<juce::WebToggleButtonRelay>("lane3_pingpong"))
     , lane3ReverseRelay(std::make_unique<juce::WebToggleButtonRelay>("lane3_reverse"))
     , lane3ManualRelay(std::make_unique<juce::WebToggleButtonRelay>("lane3_manual_time_enabled"))
-    , lane3FreezeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane3_freeze"))
+
     , lane3SubdivisionRelay(std::make_unique<juce::WebComboBoxRelay>("lane3_subdivision"))
     // v1.7.0: Lane 3 pitch randomization relays
     , lane3PitchRandEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane3_pitch_rand_enabled"))
     , lane3PitchRandMinRelay(std::make_unique<juce::WebSliderRelay>("lane3_pitch_rand_min"))
     , lane3PitchRandMaxRelay(std::make_unique<juce::WebSliderRelay>("lane3_pitch_rand_max"))
     , lane3PitchRandQuantizeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane3_pitch_rand_quantize"))
+    // v1.9.0: Lane 3 Euclidean relays
+    , lane3EuclideanEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane3_euclidean_enabled"))
+    , lane3EuclideanPulsesRelay(std::make_unique<juce::WebSliderRelay>("lane3_euclidean_pulses"))
+    , lane3EuclideanStepsRelay(std::make_unique<juce::WebSliderRelay>("lane3_euclidean_steps"))
 
     // Lane 4 relays
     , lane4RepeatsRelay(std::make_unique<juce::WebSliderRelay>("lane4_repeats"))
@@ -92,13 +104,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
     , lane4PingpongRelay(std::make_unique<juce::WebToggleButtonRelay>("lane4_pingpong"))
     , lane4ReverseRelay(std::make_unique<juce::WebToggleButtonRelay>("lane4_reverse"))
     , lane4ManualRelay(std::make_unique<juce::WebToggleButtonRelay>("lane4_manual_time_enabled"))
-    , lane4FreezeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane4_freeze"))
+
     , lane4SubdivisionRelay(std::make_unique<juce::WebComboBoxRelay>("lane4_subdivision"))
     // v1.7.0: Lane 4 pitch randomization relays
     , lane4PitchRandEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane4_pitch_rand_enabled"))
     , lane4PitchRandMinRelay(std::make_unique<juce::WebSliderRelay>("lane4_pitch_rand_min"))
     , lane4PitchRandMaxRelay(std::make_unique<juce::WebSliderRelay>("lane4_pitch_rand_max"))
     , lane4PitchRandQuantizeRelay(std::make_unique<juce::WebToggleButtonRelay>("lane4_pitch_rand_quantize"))
+    // v1.9.0: Lane 4 Euclidean relays
+    , lane4EuclideanEnabledRelay(std::make_unique<juce::WebToggleButtonRelay>("lane4_euclidean_enabled"))
+    , lane4EuclideanPulsesRelay(std::make_unique<juce::WebSliderRelay>("lane4_euclidean_pulses"))
+    , lane4EuclideanStepsRelay(std::make_unique<juce::WebSliderRelay>("lane4_euclidean_steps"))
 
     // Tape degradation relays
     , tapeSaturationRelay(std::make_unique<juce::WebSliderRelay>("tape_saturation"))
@@ -208,13 +224,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
             .withOptionsFrom(*lane1PingpongRelay)
             .withOptionsFrom(*lane1ReverseRelay)
             .withOptionsFrom(*lane1ManualRelay)
-            .withOptionsFrom(*lane1FreezeRelay)
+
             .withOptionsFrom(*lane1SubdivisionRelay)
             // v1.7.0: Lane 1 pitch randomization
             .withOptionsFrom(*lane1PitchRandEnabledRelay)
             .withOptionsFrom(*lane1PitchRandMinRelay)
             .withOptionsFrom(*lane1PitchRandMaxRelay)
             .withOptionsFrom(*lane1PitchRandQuantizeRelay)
+            // v1.9.0: Lane 1 Euclidean
+            .withOptionsFrom(*lane1EuclideanEnabledRelay)
+            .withOptionsFrom(*lane1EuclideanPulsesRelay)
+            .withOptionsFrom(*lane1EuclideanStepsRelay)
             // Lane 2
             .withOptionsFrom(*lane2RepeatsRelay)
             .withOptionsFrom(*lane2DecayRelay)
@@ -228,13 +248,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
             .withOptionsFrom(*lane2PingpongRelay)
             .withOptionsFrom(*lane2ReverseRelay)
             .withOptionsFrom(*lane2ManualRelay)
-            .withOptionsFrom(*lane2FreezeRelay)
+
             .withOptionsFrom(*lane2SubdivisionRelay)
             // v1.7.0: Lane 2 pitch randomization
             .withOptionsFrom(*lane2PitchRandEnabledRelay)
             .withOptionsFrom(*lane2PitchRandMinRelay)
             .withOptionsFrom(*lane2PitchRandMaxRelay)
             .withOptionsFrom(*lane2PitchRandQuantizeRelay)
+            // v1.9.0: Lane 2 Euclidean
+            .withOptionsFrom(*lane2EuclideanEnabledRelay)
+            .withOptionsFrom(*lane2EuclideanPulsesRelay)
+            .withOptionsFrom(*lane2EuclideanStepsRelay)
             // Lane 3
             .withOptionsFrom(*lane3RepeatsRelay)
             .withOptionsFrom(*lane3DecayRelay)
@@ -248,13 +272,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
             .withOptionsFrom(*lane3PingpongRelay)
             .withOptionsFrom(*lane3ReverseRelay)
             .withOptionsFrom(*lane3ManualRelay)
-            .withOptionsFrom(*lane3FreezeRelay)
+
             .withOptionsFrom(*lane3SubdivisionRelay)
             // v1.7.0: Lane 3 pitch randomization
             .withOptionsFrom(*lane3PitchRandEnabledRelay)
             .withOptionsFrom(*lane3PitchRandMinRelay)
             .withOptionsFrom(*lane3PitchRandMaxRelay)
             .withOptionsFrom(*lane3PitchRandQuantizeRelay)
+            // v1.9.0: Lane 3 Euclidean
+            .withOptionsFrom(*lane3EuclideanEnabledRelay)
+            .withOptionsFrom(*lane3EuclideanPulsesRelay)
+            .withOptionsFrom(*lane3EuclideanStepsRelay)
             // Lane 4
             .withOptionsFrom(*lane4RepeatsRelay)
             .withOptionsFrom(*lane4DecayRelay)
@@ -268,13 +296,17 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
             .withOptionsFrom(*lane4PingpongRelay)
             .withOptionsFrom(*lane4ReverseRelay)
             .withOptionsFrom(*lane4ManualRelay)
-            .withOptionsFrom(*lane4FreezeRelay)
+
             .withOptionsFrom(*lane4SubdivisionRelay)
             // v1.7.0: Lane 4 pitch randomization
             .withOptionsFrom(*lane4PitchRandEnabledRelay)
             .withOptionsFrom(*lane4PitchRandMinRelay)
             .withOptionsFrom(*lane4PitchRandMaxRelay)
             .withOptionsFrom(*lane4PitchRandQuantizeRelay)
+            // v1.9.0: Lane 4 Euclidean
+            .withOptionsFrom(*lane4EuclideanEnabledRelay)
+            .withOptionsFrom(*lane4EuclideanPulsesRelay)
+            .withOptionsFrom(*lane4EuclideanStepsRelay)
             // Tape degradation
             .withOptionsFrom(*tapeSaturationRelay)
             .withOptionsFrom(*tapeWowRelay)
@@ -488,8 +520,7 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane1_reverse"), *lane1ReverseRelay, nullptr))
     , lane1ManualAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane1_manual_time_enabled"), *lane1ManualRelay, nullptr))
-    , lane1FreezeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *processorRef.apvts.getParameter("lane1_freeze"), *lane1FreezeRelay, nullptr))
+
     , lane1SubdivisionAttachment(std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.apvts.getParameter("lane1_subdivision"), *lane1SubdivisionRelay, nullptr))
     // v1.7.0: Lane 1 pitch randomization attachments
@@ -501,6 +532,13 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane1_pitch_rand_max"), *lane1PitchRandMaxRelay, nullptr))
     , lane1PitchRandQuantizeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane1_pitch_rand_quantize"), *lane1PitchRandQuantizeRelay, nullptr))
+    // v1.9.0: Lane 1 Euclidean attachments
+    , lane1EuclideanEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("lane1_euclidean_enabled"), *lane1EuclideanEnabledRelay, nullptr))
+    , lane1EuclideanPulsesAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane1_euclidean_pulses"), *lane1EuclideanPulsesRelay, nullptr))
+    , lane1EuclideanStepsAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane1_euclidean_steps"), *lane1EuclideanStepsRelay, nullptr))
 
     // Lane 2 attachments
     , lane2RepeatsAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
@@ -527,8 +565,7 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane2_reverse"), *lane2ReverseRelay, nullptr))
     , lane2ManualAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane2_manual_time_enabled"), *lane2ManualRelay, nullptr))
-    , lane2FreezeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *processorRef.apvts.getParameter("lane2_freeze"), *lane2FreezeRelay, nullptr))
+
     , lane2SubdivisionAttachment(std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.apvts.getParameter("lane2_subdivision"), *lane2SubdivisionRelay, nullptr))
     // v1.7.0: Lane 2 pitch randomization attachments
@@ -540,6 +577,13 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane2_pitch_rand_max"), *lane2PitchRandMaxRelay, nullptr))
     , lane2PitchRandQuantizeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane2_pitch_rand_quantize"), *lane2PitchRandQuantizeRelay, nullptr))
+    // v1.9.0: Lane 2 Euclidean attachments
+    , lane2EuclideanEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("lane2_euclidean_enabled"), *lane2EuclideanEnabledRelay, nullptr))
+    , lane2EuclideanPulsesAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane2_euclidean_pulses"), *lane2EuclideanPulsesRelay, nullptr))
+    , lane2EuclideanStepsAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane2_euclidean_steps"), *lane2EuclideanStepsRelay, nullptr))
 
     // Lane 3 attachments
     , lane3RepeatsAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
@@ -566,8 +610,7 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane3_reverse"), *lane3ReverseRelay, nullptr))
     , lane3ManualAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane3_manual_time_enabled"), *lane3ManualRelay, nullptr))
-    , lane3FreezeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *processorRef.apvts.getParameter("lane3_freeze"), *lane3FreezeRelay, nullptr))
+
     , lane3SubdivisionAttachment(std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.apvts.getParameter("lane3_subdivision"), *lane3SubdivisionRelay, nullptr))
     // v1.7.0: Lane 3 pitch randomization attachments
@@ -579,6 +622,13 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane3_pitch_rand_max"), *lane3PitchRandMaxRelay, nullptr))
     , lane3PitchRandQuantizeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane3_pitch_rand_quantize"), *lane3PitchRandQuantizeRelay, nullptr))
+    // v1.9.0: Lane 3 Euclidean attachments
+    , lane3EuclideanEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("lane3_euclidean_enabled"), *lane3EuclideanEnabledRelay, nullptr))
+    , lane3EuclideanPulsesAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane3_euclidean_pulses"), *lane3EuclideanPulsesRelay, nullptr))
+    , lane3EuclideanStepsAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane3_euclidean_steps"), *lane3EuclideanStepsRelay, nullptr))
 
     // Lane 4 attachments
     , lane4RepeatsAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
@@ -605,8 +655,7 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane4_reverse"), *lane4ReverseRelay, nullptr))
     , lane4ManualAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane4_manual_time_enabled"), *lane4ManualRelay, nullptr))
-    , lane4FreezeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *processorRef.apvts.getParameter("lane4_freeze"), *lane4FreezeRelay, nullptr))
+
     , lane4SubdivisionAttachment(std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.apvts.getParameter("lane4_subdivision"), *lane4SubdivisionRelay, nullptr))
     // v1.7.0: Lane 4 pitch randomization attachments
@@ -618,6 +667,13 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
         *processorRef.apvts.getParameter("lane4_pitch_rand_max"), *lane4PitchRandMaxRelay, nullptr))
     , lane4PitchRandQuantizeAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.apvts.getParameter("lane4_pitch_rand_quantize"), *lane4PitchRandQuantizeRelay, nullptr))
+    // v1.9.0: Lane 4 Euclidean attachments
+    , lane4EuclideanEnabledAttachment(std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.apvts.getParameter("lane4_euclidean_enabled"), *lane4EuclideanEnabledRelay, nullptr))
+    , lane4EuclideanPulsesAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane4_euclidean_pulses"), *lane4EuclideanPulsesRelay, nullptr))
+    , lane4EuclideanStepsAttachment(std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.apvts.getParameter("lane4_euclidean_steps"), *lane4EuclideanStepsRelay, nullptr))
 
     // Tape degradation attachments
     , tapeSaturationAttachment(std::make_unique<juce::WebSliderParameterAttachment>(

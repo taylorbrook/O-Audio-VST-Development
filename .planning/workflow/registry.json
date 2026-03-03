@@ -1,7 +1,7 @@
 {
   "$schema": "./schemas/registry.schema.json",
   "version": "3.0.0",
-  "focused": "O-Chorus",
+  "focused": "O-Lyrica",
   "plugins": {
     "O-Chorus": {
       "path": "plugins/O-Chorus",

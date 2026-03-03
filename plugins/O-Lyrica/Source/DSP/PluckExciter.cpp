@@ -67,6 +67,23 @@ void PluckExciter::trigger(float velocity, float position, float hardness, doubl
     // vel=0.1 → -12dB vs old, vel=1.0 → +6dB vs old
     burstAmplitude = std::pow(velocity, 1.4f);
 
+    // v1.26.0: Glissando excitation softening — lighter brush-style excitation
+    // Real harp glissandos have 40-70% energy of a deliberate pluck
+    if (glissAmount > 0.0f)
+    {
+        // Reduce effective velocity (lighter brush contact)
+        float velScale = 1.0f - (glissAmount * 0.4f);
+        pluckVelocity *= velScale;
+        burstAmplitude *= velScale;
+
+        // Narrow the noise burst (shorter contact time = thinner transient)
+        noiseBurstSamples = static_cast<int>(noiseBurstSamples * (1.0f - glissAmount * 0.5f));
+        noiseBurstRemaining = noiseBurstSamples;
+
+        // Soften finger hardness (brushes are softer, lowering brightness cutoff)
+        fingerHardness = juce::jlimit(0.0f, 1.0f, fingerHardness - glissAmount * 0.3f);
+    }
+
     // Update all filters based on new parameters
     updateFilters();
     updateEnvelope();
@@ -85,6 +102,11 @@ void PluckExciter::setTechnique(PlayingTechnique technique)
 void PluckExciter::setNoiseAmount(float amount)
 {
     noiseAmount = juce::jlimit(0.0f, 1.0f, amount);
+}
+
+void PluckExciter::setGlissandoAmount(float amount)
+{
+    glissAmount = juce::jlimit(0.0f, 1.0f, amount);
 }
 
 float PluckExciter::process()
@@ -172,6 +194,10 @@ void PluckExciter::updateEnvelope()
             decay = 0.06f;     // 60ms
             break;
     }
+
+    // v1.26.0: Glissando brush — shorten attack (quicker contact)
+    if (glissAmount > 0.0f)
+        attack *= (1.0f - glissAmount * 0.5f);
 
     envelopeParams.attack = attack;
     envelopeParams.decay = decay;

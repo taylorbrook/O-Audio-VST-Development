@@ -131,6 +131,29 @@ function initializeParameters() {
         document.getElementById('glissandoCustomSemitonesValue').textContent = `${st} st`;
     });
 
+    // v1.26.0: Glissando excitation softness (0.0-1.0)
+    bindSlider('glissandoExcitation', (value) => {
+        document.getElementById('glissandoExcitationValue').textContent = `${Math.round(value * 100)}%`;
+    });
+
+    // v1.27.0: Glissando velocity profile (0.0-1.0)
+    bindSlider('glissandoVelStart', (value) => {
+        document.getElementById('glissandoVelStartValue').textContent = `${Math.round(value * 100)}%`;
+    });
+    bindSlider('glissandoVelEnd', (value) => {
+        document.getElementById('glissandoVelEndValue').textContent = `${Math.round(value * 100)}%`;
+    });
+
+    // v1.25.0: Glissando time (0.01-0.5s, skew 0.5)
+    bindSlider('glissandoTime', (value) => {
+        const skew = 0.5;
+        const minVal = 0.01;
+        const maxVal = 0.5;
+        const actual = minVal + Math.pow(value, 1/skew) * (maxVal - minVal);
+        const ms = Math.round(actual * 1000);
+        document.getElementById('glissandoTimeValue').textContent = `${ms} ms`;
+    });
+
     // Choice parameters (dropdowns)
     bindChoice('stringMaterial');
     bindChoice('woodType');
@@ -275,26 +298,41 @@ function initializeMeters() {
  */
 function setupGlissandoVisibility() {
     const modeSelect = document.getElementById('glissandoMode');
+    const timeGroup = document.getElementById('glissandoTimeGroup');
+    const excitationGroup = document.getElementById('glissandoExcitationGroup');
     const speedGroup = document.getElementById('glissandoSpeedGroup');
     const humanizeGroup = document.getElementById('glissandoHumanizeGroup');
+    const velStartGroup = document.getElementById('glissandoVelStartGroup');
+    const velEndGroup = document.getElementById('glissandoVelEndGroup');
     const shapeGroup = document.getElementById('glissandoShapeGroup');
     const intervalGroup = document.getElementById('glissandoIntervalGroup');
     const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
     const directionGroup = document.getElementById('glissandoDirectionGroup');
     const intervalSelect = document.getElementById('glissandoInterval');
+    const scaleGroup = document.getElementById('glissandoScaleGroup');
 
     if (!modeSelect) return;
 
     const updateVisibility = () => {
+        const isFree = (modeSelect.selectedIndex === 1);
         const isScaleLocked = (modeSelect.selectedIndex === 2);
+        // v1.29.0: Excitation softness only visible in Scale-Locked mode
+        if (excitationGroup) excitationGroup.style.display = isScaleLocked ? '' : 'none';
+        // v1.25.0: Time slider only visible in Free mode
+        if (timeGroup) timeGroup.style.display = isFree ? '' : 'none';
         if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
         if (humanizeGroup) humanizeGroup.style.display = isScaleLocked ? '' : 'none';
-        if (shapeGroup) shapeGroup.style.display = isScaleLocked ? '' : 'none';
-        if (intervalGroup) intervalGroup.style.display = isScaleLocked ? '' : 'none';
-        if (directionGroup) directionGroup.style.display = isScaleLocked ? '' : 'none';
-        // Custom semitones only when interval = Custom (index 16)
+        if (velStartGroup) velStartGroup.style.display = isScaleLocked ? '' : 'none';
+        if (velEndGroup) velEndGroup.style.display = isScaleLocked ? '' : 'none';
+        if (shapeGroup) shapeGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
+        // v1.29.0: Scale only visible in Scale-Locked mode
+        if (scaleGroup) scaleGroup.style.display = isScaleLocked ? '' : 'none';
+        // v1.29.0: Interval and direction visible in Free or Scale-Locked mode
+        if (intervalGroup) intervalGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
+        if (directionGroup) directionGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
+        // Custom semitones only when interval = Custom (index 16) in Free or Scale-Locked
         if (customStGroup && intervalSelect) {
-            customStGroup.style.display = (isScaleLocked && intervalSelect.selectedIndex === 16) ? '' : 'none';
+            customStGroup.style.display = ((isFree || isScaleLocked) && intervalSelect.selectedIndex === 16) ? '' : 'none';
         }
     };
 

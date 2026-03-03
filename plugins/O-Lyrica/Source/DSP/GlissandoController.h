@@ -18,6 +18,15 @@
 #include <vector>
 
 /**
+ * v1.28.0: Glissando sweep direction (auto-detected from pitch relationship)
+ */
+enum class GlissandoDirection
+{
+    Ascending = 0,    // End frequency higher than start (finger pad, warmer)
+    Descending = 1    // End frequency lower than start (thumb, brighter)
+};
+
+/**
  * Glissando modes
  */
 enum class GlissandoMode
@@ -106,6 +115,28 @@ public:
     void setHumanize(float amount);
 
     /**
+     * v1.27.0: Set velocity profile for scale-locked glissando dynamics
+     * @param startVel Velocity at start of sweep (0.0-1.0)
+     * @param endVel Velocity at end of sweep (0.0-1.0)
+     */
+    void setVelocityProfile(float startVel, float endVel);
+
+    /**
+     * v1.27.0: Get interpolated velocity for the current scale degree position
+     * Returns the velocity based on linear interpolation between start and end.
+     * Only meaningful in Scale-Locked mode; returns 1.0 otherwise.
+     * Updates per scale-degree step, not per sample.
+     * @return Current velocity (0.0-1.0)
+     */
+    float getNextVelocity() const;
+
+    /**
+     * v1.25.0: Set ramp time for Free mode glissando
+     * @param seconds Duration in seconds (0.01 = fast snap, 0.5 = slow portamento)
+     */
+    void setRampTime(float seconds);
+
+    /**
      * Start a glissando from current frequency to target
      * @param startFreq Starting frequency in Hz
      * @param endFreq Target frequency in Hz
@@ -118,6 +149,12 @@ public:
      * @return Current frequency in Hz
      */
     double getNextFrequency();
+
+    /**
+     * v1.28.0: Get the auto-detected direction of the current glissando
+     * @return Ascending if endFreq > startFreq, Descending otherwise
+     */
+    GlissandoDirection getDirection() const;
 
     /**
      * Check if glissando is currently active
@@ -145,6 +182,7 @@ private:
 
     // Glissando state
     GlissandoMode mode = GlissandoMode::Off;
+    GlissandoDirection direction = GlissandoDirection::Ascending; // v1.28.0
     double sampleRate = 44100.0;
     bool active = false;
 
@@ -155,6 +193,7 @@ private:
     double endFreqLog = 0.0;                 // log2(endFreq) at glissando start
     double freeProgress = 0.0;               // 0.0 to 1.0 interpolation progress
     double freeProgressIncrement = 0.0;      // Per-sample progress step
+    float rampTimeSeconds = 0.05f;           // v1.25.0: Configurable ramp duration (default 50ms)
 
     // Scale-Locked mode: Discrete steps through scale
     // v1.3.2: Fixed-size array replaces std::vector to avoid audio thread allocation
@@ -175,6 +214,12 @@ private:
     // v1.24.0: Timing humanization for scale-locked glissandos
     float humanizeAmount = 0.0f;         // 0.0 = metronomic, 1.0 = max jitter
     juce::Random humanizeRandom;         // Per-step jitter generator
+
+    // v1.27.0: Velocity profiling for scale-locked glissando dynamics
+    int initialScaleDegree = 0;          // Starting scale degree (for normalized progress)
+    float startVelocity = 0.5f;          // Velocity at start of sweep
+    float endVelocity = 0.7f;            // Velocity at end of sweep
+    float currentVelocity = 0.5f;        // Interpolated velocity for current step
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(GlissandoController)
 };

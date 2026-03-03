@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>O-Polystutter - UI v1.8.0</title>
+  <title>O-Polystutter - UI v1.9.1</title>
 
   <style>
     /* CRITICAL: WebView constraints - NO viewport units */
@@ -91,7 +91,7 @@
       top: 375px;  /* v1.5.5: Moved up 100px (was 475px) */
       left: 70px;  /* v1.5.5: Room for SEQ button on left */
       right: 0;
-      height: 130px;
+      height: 155px;  /* v1.10.0: Taller to fit inline EUC controls */
       overflow: hidden;
       background: rgba(245, 230, 211, 0.3);
       padding: 8px;
@@ -102,10 +102,10 @@
     /* TAPE SECTION - v5 CRITICAL FIX: HORIZONTAL LAYOUT */
     .tape-section {
       position: absolute;
-      top: 520px;  /* v1.5.5: Moved up 100px (was 620px) */
+      top: 545px;  /* v1.10.0: Shifted down to accommodate taller sequencer */
       left: 0;
       right: 0;
-      height: 130px;
+      height: 115px;  /* v1.10.0: Slightly shorter (was 130px) */
       overflow: hidden;
       padding: 10px 20px;
     }
@@ -386,24 +386,24 @@
     .pattern-container {
       width: 100%;
       height: 100%;
-      max-height: 130px;
+      max-height: 155px;  /* v1.10.0: Taller for inline EUC controls */
       overflow: hidden;
     }
 
     /* v1.5.5: SEQ button to the left of sequencer section */
     .seq-header {
       position: absolute;
-      top: 420px;  /* Vertically centered with sequencer */
+      top: 428px;  /* v1.10.0: Adjusted for taller sequencer */
       left: 10px;
       z-index: 10;
     }
 
     .pattern-grid {
       display: grid;
-      grid-template-columns: 25px repeat(16, 1fr);  /* Restored to original */
+      grid-template-columns: 26px 62px 20px repeat(16, 1fr);  /* v1.10.0: Added EUC toggle + controls columns */
       gap: 3px;
       padding: 5px;
-      max-height: 120px;
+      align-items: center;  /* v1.10.0: Center items vertically in rows */
     }
 
     .lane-label {
@@ -620,16 +620,6 @@
       cursor: pointer;
     }
 
-    /* Freeze indicator - pulsing animation */
-    .toggle-button.frozen {
-      animation: freeze-pulse 1.5s ease-in-out infinite;
-      box-shadow: 0 0 8px rgba(107, 142, 78, 0.6);
-    }
-
-    @keyframes freeze-pulse {
-      0%, 100% {
-        background: #6B8E4E;
-        transform: scale(1);
       }
       50% {
         background: #8BA870;
@@ -881,6 +871,106 @@
       outline-offset: 2px;
     }
 
+    /* ========== v1.10.0: EUCLIDEAN RHYTHM CONTROLS (inline in sequencer grid) ========== */
+
+    /* v1.10.0: EUC toggle button in sequencer grid */
+    .seq-euc-toggle {
+      width: 24px;
+      height: 20px;
+      background: rgba(139, 115, 85, 0.3);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      color: #3C2F2F;
+      font-size: 7px;
+      letter-spacing: 0.3px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 100ms;
+      font-family: inherit;
+    }
+
+    .seq-euc-toggle.active {
+      background: #6B8E4E;
+      color: #f5e6d3;
+      border-color: #6B8E4E;
+    }
+
+    /* Per-lane Euclidean controls (PULSES + STEPS inline in sequencer) */
+    .euc-controls {
+      display: flex;  /* v1.10.0: Always visible, dimmed when inactive */
+      flex-direction: row;
+      align-items: center;
+      gap: 1px;
+      opacity: 0.2;
+      pointer-events: none;
+      transition: opacity 200ms;
+    }
+
+    .euc-controls.visible {
+      opacity: 1;
+      pointer-events: auto;
+    }
+
+    /* v1.11.0: Dropdown menus for Euclidean PLS/STP controls */
+    .euc-dropdown-container {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 0px;
+      width: 30px;
+    }
+
+    .euc-dropdown-label {
+      font-size: 5px;
+      height: 6px;
+      line-height: 6px;
+      letter-spacing: 0.2px;
+      color: #8B7355;
+      text-transform: uppercase;
+    }
+
+    .euc-dropdown {
+      width: 28px;
+      height: 16px;
+      background: rgba(60, 47, 47, 0.6);
+      color: #D4C4A0;
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      font-size: 7px;
+      font-family: inherit;
+      text-align: center;
+      cursor: pointer;
+      padding: 0;
+      -webkit-appearance: none;
+      -moz-appearance: none;
+      appearance: none;
+      outline: none;
+    }
+
+    .euc-dropdown:hover {
+      border-color: #6B8E4E;
+      background: rgba(60, 47, 47, 0.8);
+    }
+
+    .euc-dropdown:focus {
+      border-color: #6B8E4E;
+      box-shadow: 0 0 3px rgba(107, 142, 78, 0.4);
+    }
+
+    /* Step buttons locked by Euclidean mode (read-only visual) */
+    .step-button.euc-locked {
+      pointer-events: none;
+      opacity: 0.7;
+    }
+
+    .step-button.euc-locked.active {
+      background: rgba(107, 142, 78, 0.8);
+      border-color: #5a7a3e;
+      box-shadow: inset 0 0 4px rgba(107, 142, 78, 0.4);
+    }
+
   </style>
 </head>
 <body>
@@ -981,12 +1071,12 @@
         </div>
         <div class="toggle-button pitch-rand-toggle" id="lane1_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
 
-        <!-- Row 4: Toggle buttons -->
+        <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane1_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
           <div class="toggle-button" id="lane1_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
           <div class="toggle-button" id="lane1_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
-          <div class="toggle-button" id="lane1_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
+
         </div>
       </div>
 
@@ -1058,12 +1148,11 @@
         </div>
         <div class="toggle-button pitch-rand-toggle" id="lane2_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
 
-        <!-- Row 4: Toggle buttons -->
+        <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane2_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
           <div class="toggle-button" id="lane2_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
           <div class="toggle-button" id="lane2_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
-          <div class="toggle-button" id="lane2_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
         </div>
       </div>
 
@@ -1135,12 +1224,11 @@
         </div>
         <div class="toggle-button pitch-rand-toggle" id="lane3_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
 
-        <!-- Row 4: Toggle buttons -->
+        <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane3_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
           <div class="toggle-button" id="lane3_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
           <div class="toggle-button" id="lane3_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
-          <div class="toggle-button" id="lane3_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
         </div>
       </div>
 
@@ -1212,12 +1300,11 @@
         </div>
         <div class="toggle-button pitch-rand-toggle" id="lane4_pitch_rand_quantize" style="position: absolute; left: 196px; top: 218px; width: 32px; height: 20px; font-size: 8px;" data-tooltip="Semitone: When ON, random pitch snaps to whole semitones. When OFF, allows microtonal intervals.">ST</div>
 
-        <!-- Row 4: Toggle buttons -->
+        <!-- Row 4: Toggle buttons (v1.9.0: added EUC) -->
         <div class="toggle-row" style="left: 20px; top: 280px;">
           <div class="toggle-button" id="lane4_pingpong" data-tooltip="Ping-Pong: Alternates playback direction between forward and reverse on each repeat.">PING</div>
           <div class="toggle-button" id="lane4_reverse" data-tooltip="Reverse: Plays all repeats backwards.">REV</div>
           <div class="toggle-button" id="lane4_manual" data-tooltip="Manual: Ignores beat-sync timing. Use with TRIG button for one-shot stutters.">MAN</div>
-          <div class="toggle-button" id="lane4_freeze" data-tooltip="Freeze: Locks the current audio slice and repeats it indefinitely until disabled.">FRZ</div>
         </div>
       </div>
     </div>
@@ -1227,11 +1314,26 @@
       <div class="seq-toggle-inline active" id="seq_toggle" data-tooltip="Sequencer: When ON, the 16-step pattern controls when each lane can trigger. When OFF, lanes trigger on every beat.">SEQ</div>
     </div>
 
-    <!-- PATTERN SEQUENCER SECTION (130px height, COMPACT) -->
+    <!-- v1.10.0: PATTERN SEQUENCER with inline EUC controls -->
     <div class="sequencer-section" data-tooltip="Pattern Sequencer: Click steps to enable (green) or disable (dim). Each row controls one lane. Active steps allow stutter triggers on that beat.">
       <div class="pattern-container">
         <div class="pattern-grid">
-          <!-- Lane labels restored -->
+          <!-- Lane 1: EUC toggle + controls + label + 16 steps -->
+          <div class="seq-euc-toggle" id="lane1_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="euc-controls" id="lane1_euc_controls">
+            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+              <div class="euc-dropdown-label">PLS</div>
+              <select class="euc-dropdown" id="lane1_euclidean_pulses">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
+              </select>
+            </div>
+            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+              <div class="euc-dropdown-label">STP</div>
+              <select class="euc-dropdown" id="lane1_euclidean_steps">
+                <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
+              </select>
+            </div>
+          </div>
           <div class="lane-label">L1</div>
           <div class="step-button active" data-lane="1" data-step="1"></div>
           <div class="step-button active" data-lane="1" data-step="2"></div>
@@ -1250,6 +1352,22 @@
           <div class="step-button active" data-lane="1" data-step="15"></div>
           <div class="step-button active" data-lane="1" data-step="16"></div>
 
+          <!-- Lane 2: EUC toggle + controls + label + 16 steps -->
+          <div class="seq-euc-toggle" id="lane2_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="euc-controls" id="lane2_euc_controls">
+            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+              <div class="euc-dropdown-label">PLS</div>
+              <select class="euc-dropdown" id="lane2_euclidean_pulses">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
+              </select>
+            </div>
+            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+              <div class="euc-dropdown-label">STP</div>
+              <select class="euc-dropdown" id="lane2_euclidean_steps">
+                <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
+              </select>
+            </div>
+          </div>
           <div class="lane-label">L2</div>
           <div class="step-button active" data-lane="2" data-step="1"></div>
           <div class="step-button active" data-lane="2" data-step="2"></div>
@@ -1268,6 +1386,22 @@
           <div class="step-button active" data-lane="2" data-step="15"></div>
           <div class="step-button active" data-lane="2" data-step="16"></div>
 
+          <!-- Lane 3: EUC toggle + controls + label + 16 steps -->
+          <div class="seq-euc-toggle" id="lane3_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="euc-controls" id="lane3_euc_controls">
+            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+              <div class="euc-dropdown-label">PLS</div>
+              <select class="euc-dropdown" id="lane3_euclidean_pulses">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
+              </select>
+            </div>
+            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+              <div class="euc-dropdown-label">STP</div>
+              <select class="euc-dropdown" id="lane3_euclidean_steps">
+                <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
+              </select>
+            </div>
+          </div>
           <div class="lane-label">L3</div>
           <div class="step-button active" data-lane="3" data-step="1"></div>
           <div class="step-button active" data-lane="3" data-step="2"></div>
@@ -1286,6 +1420,22 @@
           <div class="step-button active" data-lane="3" data-step="15"></div>
           <div class="step-button active" data-lane="3" data-step="16"></div>
 
+          <!-- Lane 4: EUC toggle + controls + label + 16 steps -->
+          <div class="seq-euc-toggle" id="lane4_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
+          <div class="euc-controls" id="lane4_euc_controls">
+            <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
+              <div class="euc-dropdown-label">PLS</div>
+              <select class="euc-dropdown" id="lane4_euclidean_pulses">
+                <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
+              </select>
+            </div>
+            <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
+              <div class="euc-dropdown-label">STP</div>
+              <select class="euc-dropdown" id="lane4_euclidean_steps">
+                <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
+              </select>
+            </div>
+          </div>
           <div class="lane-label">L4</div>
           <div class="step-button active" data-lane="4" data-step="1"></div>
           <div class="step-button active" data-lane="4" data-step="2"></div>

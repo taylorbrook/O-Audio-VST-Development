@@ -48,13 +48,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> lane1PingpongRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane1ReverseRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane1ManualRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> lane1FreezeRelay;
+
     std::unique_ptr<juce::WebComboBoxRelay> lane1SubdivisionRelay;
     // v1.7.0: Lane 1 Pitch Randomization Relays
     std::unique_ptr<juce::WebToggleButtonRelay> lane1PitchRandEnabledRelay;
     std::unique_ptr<juce::WebSliderRelay> lane1PitchRandMinRelay;
     std::unique_ptr<juce::WebSliderRelay> lane1PitchRandMaxRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane1PitchRandQuantizeRelay;
+    // v1.9.0: Lane 1 Euclidean Relays
+    std::unique_ptr<juce::WebToggleButtonRelay> lane1EuclideanEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1EuclideanPulsesRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane1EuclideanStepsRelay;
 
     // Lane 2 Relays (8 sliders + 4 toggles + 1 combo)
     std::unique_ptr<juce::WebSliderRelay> lane2RepeatsRelay;
@@ -69,13 +73,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> lane2PingpongRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane2ReverseRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane2ManualRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> lane2FreezeRelay;
+
     std::unique_ptr<juce::WebComboBoxRelay> lane2SubdivisionRelay;
     // v1.7.0: Lane 2 Pitch Randomization Relays
     std::unique_ptr<juce::WebToggleButtonRelay> lane2PitchRandEnabledRelay;
     std::unique_ptr<juce::WebSliderRelay> lane2PitchRandMinRelay;
     std::unique_ptr<juce::WebSliderRelay> lane2PitchRandMaxRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane2PitchRandQuantizeRelay;
+    // v1.9.0: Lane 2 Euclidean Relays
+    std::unique_ptr<juce::WebToggleButtonRelay> lane2EuclideanEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2EuclideanPulsesRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane2EuclideanStepsRelay;
 
     // Lane 3 Relays (8 sliders + 4 toggles + 1 combo)
     std::unique_ptr<juce::WebSliderRelay> lane3RepeatsRelay;
@@ -90,13 +98,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> lane3PingpongRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane3ReverseRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane3ManualRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> lane3FreezeRelay;
+
     std::unique_ptr<juce::WebComboBoxRelay> lane3SubdivisionRelay;
     // v1.7.0: Lane 3 Pitch Randomization Relays
     std::unique_ptr<juce::WebToggleButtonRelay> lane3PitchRandEnabledRelay;
     std::unique_ptr<juce::WebSliderRelay> lane3PitchRandMinRelay;
     std::unique_ptr<juce::WebSliderRelay> lane3PitchRandMaxRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane3PitchRandQuantizeRelay;
+    // v1.9.0: Lane 3 Euclidean Relays
+    std::unique_ptr<juce::WebToggleButtonRelay> lane3EuclideanEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3EuclideanPulsesRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane3EuclideanStepsRelay;
 
     // Lane 4 Relays (8 sliders + 4 toggles + 1 combo)
     std::unique_ptr<juce::WebSliderRelay> lane4RepeatsRelay;
@@ -111,13 +123,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> lane4PingpongRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane4ReverseRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane4ManualRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> lane4FreezeRelay;
+
     std::unique_ptr<juce::WebComboBoxRelay> lane4SubdivisionRelay;
     // v1.7.0: Lane 4 Pitch Randomization Relays
     std::unique_ptr<juce::WebToggleButtonRelay> lane4PitchRandEnabledRelay;
     std::unique_ptr<juce::WebSliderRelay> lane4PitchRandMinRelay;
     std::unique_ptr<juce::WebSliderRelay> lane4PitchRandMaxRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> lane4PitchRandQuantizeRelay;
+    // v1.9.0: Lane 4 Euclidean Relays
+    std::unique_ptr<juce::WebToggleButtonRelay> lane4EuclideanEnabledRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4EuclideanPulsesRelay;
+    std::unique_ptr<juce::WebSliderRelay> lane4EuclideanStepsRelay;
 
     // Tape Degradation Relays (6 sliders + 1 toggle)
     std::unique_ptr<juce::WebSliderRelay> tapeSaturationRelay;
@@ -228,13 +244,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1PingpongAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1ReverseAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1ManualAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1FreezeAttachment;
+
     std::unique_ptr<juce::WebComboBoxParameterAttachment> lane1SubdivisionAttachment;
     // v1.7.0: Lane 1 Pitch Randomization Attachments
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1PitchRandEnabledAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane1PitchRandMinAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane1PitchRandMaxAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1PitchRandQuantizeAttachment;
+    // v1.9.0: Lane 1 Euclidean Attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane1EuclideanEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1EuclideanPulsesAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane1EuclideanStepsAttachment;
 
     // Lane 2 Attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> lane2RepeatsAttachment;
@@ -249,13 +269,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2PingpongAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2ReverseAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2ManualAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2FreezeAttachment;
+
     std::unique_ptr<juce::WebComboBoxParameterAttachment> lane2SubdivisionAttachment;
     // v1.7.0: Lane 2 Pitch Randomization Attachments
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2PitchRandEnabledAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane2PitchRandMinAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane2PitchRandMaxAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2PitchRandQuantizeAttachment;
+    // v1.9.0: Lane 2 Euclidean Attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane2EuclideanEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2EuclideanPulsesAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane2EuclideanStepsAttachment;
 
     // Lane 3 Attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> lane3RepeatsAttachment;
@@ -270,13 +294,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3PingpongAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3ReverseAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3ManualAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3FreezeAttachment;
+
     std::unique_ptr<juce::WebComboBoxParameterAttachment> lane3SubdivisionAttachment;
     // v1.7.0: Lane 3 Pitch Randomization Attachments
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3PitchRandEnabledAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane3PitchRandMinAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane3PitchRandMaxAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3PitchRandQuantizeAttachment;
+    // v1.9.0: Lane 3 Euclidean Attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane3EuclideanEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3EuclideanPulsesAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane3EuclideanStepsAttachment;
 
     // Lane 4 Attachments
     std::unique_ptr<juce::WebSliderParameterAttachment> lane4RepeatsAttachment;
@@ -291,13 +319,17 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4PingpongAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4ReverseAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4ManualAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4FreezeAttachment;
+
     std::unique_ptr<juce::WebComboBoxParameterAttachment> lane4SubdivisionAttachment;
     // v1.7.0: Lane 4 Pitch Randomization Attachments
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4PitchRandEnabledAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane4PitchRandMinAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> lane4PitchRandMaxAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4PitchRandQuantizeAttachment;
+    // v1.9.0: Lane 4 Euclidean Attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> lane4EuclideanEnabledAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4EuclideanPulsesAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lane4EuclideanStepsAttachment;
 
     // Tape Degradation Attachments (6 sliders + 1 toggle)
     std::unique_ptr<juce::WebSliderParameterAttachment> tapeSaturationAttachment;

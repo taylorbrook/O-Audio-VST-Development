@@ -218,13 +218,83 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             else
                 startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
 
+            // v1.27.0: Set velocity profile for dynamic contour
+            float glissVelStart = parameters->getRawParameterValue("glissandoVelStart")->load();
+            float glissVelEnd = parameters->getRawParameterValue("glissandoVelEnd")->load();
+            glissandoController.setVelocityProfile(glissVelStart, glissVelEnd);
+
             glissandoController.startGlissando(startFreq, currentFrequency);
         }
 
-        // Free mode: sweep from previous frequency to current
+        // Free mode: sweep from calculated start frequency to current note
         if (glissandoMode == GlissandoMode::Free)
         {
-            glissandoController.startGlissando(previousFrequency, currentFrequency);
+            // v1.25.0: Set configurable ramp time before starting glissando
+            float glissTime = parameters->getRawParameterValue("glissandoTime")->load();
+            glissandoController.setRampTime(glissTime);
+
+            // v1.29.0: Read interval and direction for Free mode (same params as Scale-Locked)
+            int intervalIndex = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
+            int directionIndex = static_cast<int>(parameters->getRawParameterValue("glissandoDirection")->load());
+
+            static const int intervalSemitones[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 24, 30, 36 };
+            int semitones;
+            if (intervalIndex >= 16) // Custom
+                semitones = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
+            else
+                semitones = intervalSemitones[intervalIndex];
+
+            // Direction 0 = Up to Note (start below), 1 = Down to Note (start above)
+            double startFreq;
+            if (directionIndex == 0)
+                startFreq = currentFrequency / std::pow(2.0, semitones / 12.0);
+            else
+                startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
+
+            glissandoController.startGlissando(startFreq, currentFrequency);
+        }
+
+        // v1.26.0: Set glissando excitation softening (brush vs deliberate pluck)
+        if (glissandoMode != GlissandoMode::Off)
+        {
+            float glissExcitation = parameters->getRawParameterValue("glissandoExcitation")->load();
+            stringModel.setGlissandoExcitation(glissExcitation);
+        }
+        else
+        {
+            stringModel.setGlissandoExcitation(0.0f);
+        }
+    }
+
+    // v1.28.0: Apply direction-dependent excitation character for glissando
+    // Real harp glissandos use different body parts: ascending = finger pad (warm),
+    // descending = thumb (brighter with subtle nail edge)
+    if (parameters != nullptr)
+    {
+        int glissandoModeIdx = static_cast<int>(parameters->getRawParameterValue("glissandoMode")->load());
+        GlissandoMode glissMode = glissandoModeFromIndex(glissandoModeIdx);
+
+        if (glissMode != GlissandoMode::Off)
+        {
+            float attackNoise = parameters->getRawParameterValue("attackNoise")->load();
+            float humanizeAmt = parameters->getRawParameterValue("humanize")->load();
+            attackNoise = applyHumanization(attackNoise, 0.10f, humanizeAmt);
+
+            if (glissandoController.getDirection() == GlissandoDirection::Ascending)
+            {
+                // Finger pad: warmer, softer contact toward string center
+                pluckPosition = juce::jlimit(0.0f, 1.0f, pluckPosition - 0.05f);
+                fingerHardness *= 0.85f;
+            }
+            else
+            {
+                // Thumb: firmer, slightly brighter with subtle nail scrape
+                pluckPosition = juce::jlimit(0.0f, 1.0f, pluckPosition + 0.04f);
+                fingerHardness *= 1.1f;
+                attackNoise = juce::jlimit(0.0f, 1.0f, attackNoise + 0.08f);
+            }
+
+            stringModel.setAttackNoise(attackNoise);
         }
     }
 
@@ -377,6 +447,11 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         {
             double glissandoFreq = glissandoController.getNextFrequency();
             stringModel.setFrequency(glissandoFreq);
+
+            // v1.27.0: Apply velocity-dependent damping scaling
+            float glissVel = glissandoController.getNextVelocity();
+            float baseDamping = 1.0f - (parameters ? parameters->getRawParameterValue("timbre")->load() : 0.5f);
+            stringModel.setDamping(baseDamping * (1.0f - glissVel * 0.3f));
         }
 
         // Generate one sample from physical model (string)

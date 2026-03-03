@@ -65,6 +65,13 @@ private:
     std::unique_ptr<juce::WebSliderRelay> glissandoCustomSemitonesRelay;
     // v1.24.0: Glissando humanize (timing jitter)
     std::unique_ptr<juce::WebSliderRelay> glissandoHumanizeRelay;
+    // v1.25.0: Glissando time (Free mode ramp duration)
+    std::unique_ptr<juce::WebSliderRelay> glissandoTimeRelay;
+    // v1.26.0: Glissando excitation softness
+    std::unique_ptr<juce::WebSliderRelay> glissandoExcitationRelay;
+    // v1.27.0: Glissando velocity profile
+    std::unique_ptr<juce::WebSliderRelay> glissandoVelStartRelay;
+    std::unique_ptr<juce::WebSliderRelay> glissandoVelEndRelay;
 
     std::unique_ptr<juce::WebComboBoxRelay> stringMaterialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> woodTypeRelay;
@@ -113,6 +120,13 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> glissandoCustomSemitonesAttachment;
     // v1.24.0: Glissando humanize attachment
     std::unique_ptr<juce::WebSliderParameterAttachment> glissandoHumanizeAttachment;
+    // v1.25.0: Glissando time attachment
+    std::unique_ptr<juce::WebSliderParameterAttachment> glissandoTimeAttachment;
+    // v1.26.0: Glissando excitation attachment
+    std::unique_ptr<juce::WebSliderParameterAttachment> glissandoExcitationAttachment;
+    // v1.27.0: Glissando velocity profile attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> glissandoVelStartAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> glissandoVelEndAttachment;
 
     std::unique_ptr<juce::WebComboBoxParameterAttachment> stringMaterialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> woodTypeAttachment;

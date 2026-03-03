@@ -111,12 +111,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         false
     ));
 
-    layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { "lane1_freeze", 1 },
-        "Lane 1 Freeze",
-        false
-    ));
-
     // v1.7.0: Lane 1 Pitch Randomization (4 parameters)
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "lane1_pitch_rand_enabled", 1 },
@@ -239,12 +233,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "lane2_manual_time_enabled", 1 },
         "Lane 2 Manual Time",
-        false
-    ));
-
-    layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { "lane2_freeze", 1 },
-        "Lane 2 Freeze",
         false
     ));
 
@@ -373,12 +361,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         false
     ));
 
-    layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { "lane3_freeze", 1 },
-        "Lane 3 Freeze",
-        false
-    ));
-
     // v1.7.0: Lane 3 Pitch Randomization (4 parameters)
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "lane3_pitch_rand_enabled", 1 },
@@ -504,12 +486,6 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         false
     ));
 
-    layout.add(std::make_unique<juce::AudioParameterBool>(
-        juce::ParameterID { "lane4_freeze", 1 },
-        "Lane 4 Freeze",
-        false
-    ));
-
     // v1.7.0: Lane 4 Pitch Randomization (4 parameters)
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "lane4_pitch_rand_enabled", 1 },
@@ -538,6 +514,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPolystutterAudioProcessor::
         "Lane 4 Pitch Rand Quantize",
         true
     ));
+
+    // ========================================================================================
+    // v1.9.0: EUCLIDEAN RHYTHM PARAMETERS (12: 4 lanes × 3 params)
+    // ========================================================================================
+
+    for (int lane = 1; lane <= 4; ++lane)
+    {
+        juce::String prefix = "lane" + juce::String(lane);
+
+        layout.add(std::make_unique<juce::AudioParameterBool>(
+            juce::ParameterID { prefix + "_euclidean_enabled", 1 },
+            "Lane " + juce::String(lane) + " Euclidean",
+            false  // Default: manual pattern mode
+        ));
+
+        layout.add(std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID { prefix + "_euclidean_pulses", 1 },
+            "Lane " + juce::String(lane) + " Euclidean Pulses",
+            1, 16,
+            4  // Default: 4 pulses
+        ));
+
+        layout.add(std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID { prefix + "_euclidean_steps", 1 },
+            "Lane " + juce::String(lane) + " Euclidean Steps",
+            2, 16,
+            16  // Default: 16 steps
+        ));
+    }
 
     // ========================================================================================
     // TAPE DEGRADATION PARAMETERS (6)
@@ -770,22 +775,18 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     // Cache Phase 2.3 lane advanced mode apvts
     lane1PingPongParam = apvts.getRawParameterValue("lane1_pingpong");
     lane1ReverseParam = apvts.getRawParameterValue("lane1_reverse");
-    lane1FreezeParam = apvts.getRawParameterValue("lane1_freeze");
     lane1ManualTimeParam = apvts.getRawParameterValue("lane1_manual_time_enabled");
 
     lane2PingPongParam = apvts.getRawParameterValue("lane2_pingpong");
     lane2ReverseParam = apvts.getRawParameterValue("lane2_reverse");
-    lane2FreezeParam = apvts.getRawParameterValue("lane2_freeze");
     lane2ManualTimeParam = apvts.getRawParameterValue("lane2_manual_time_enabled");
 
     lane3PingPongParam = apvts.getRawParameterValue("lane3_pingpong");
     lane3ReverseParam = apvts.getRawParameterValue("lane3_reverse");
-    lane3FreezeParam = apvts.getRawParameterValue("lane3_freeze");
     lane3ManualTimeParam = apvts.getRawParameterValue("lane3_manual_time_enabled");
 
     lane4PingPongParam = apvts.getRawParameterValue("lane4_pingpong");
     lane4ReverseParam = apvts.getRawParameterValue("lane4_reverse");
-    lane4FreezeParam = apvts.getRawParameterValue("lane4_freeze");
     lane4ManualTimeParam = apvts.getRawParameterValue("lane4_manual_time_enabled");
 
     // Cache Phase 2.4 pitch apvts
@@ -814,6 +815,23 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
     lane4PitchRandMinParam = apvts.getRawParameterValue("lane4_pitch_rand_min");
     lane4PitchRandMaxParam = apvts.getRawParameterValue("lane4_pitch_rand_max");
     lane4PitchRandQuantizeParam = apvts.getRawParameterValue("lane4_pitch_rand_quantize");
+
+    // v1.9.0: Cache Euclidean rhythm parameter pointers
+    lane1EuclideanEnabledParam = apvts.getRawParameterValue("lane1_euclidean_enabled");
+    lane1EuclideanPulsesParam = apvts.getRawParameterValue("lane1_euclidean_pulses");
+    lane1EuclideanStepsParam = apvts.getRawParameterValue("lane1_euclidean_steps");
+
+    lane2EuclideanEnabledParam = apvts.getRawParameterValue("lane2_euclidean_enabled");
+    lane2EuclideanPulsesParam = apvts.getRawParameterValue("lane2_euclidean_pulses");
+    lane2EuclideanStepsParam = apvts.getRawParameterValue("lane2_euclidean_steps");
+
+    lane3EuclideanEnabledParam = apvts.getRawParameterValue("lane3_euclidean_enabled");
+    lane3EuclideanPulsesParam = apvts.getRawParameterValue("lane3_euclidean_pulses");
+    lane3EuclideanStepsParam = apvts.getRawParameterValue("lane3_euclidean_steps");
+
+    lane4EuclideanEnabledParam = apvts.getRawParameterValue("lane4_euclidean_enabled");
+    lane4EuclideanPulsesParam = apvts.getRawParameterValue("lane4_euclidean_pulses");
+    lane4EuclideanStepsParam = apvts.getRawParameterValue("lane4_euclidean_steps");
 
     // Cache Phase 2.4 tape degradation apvts
     tapeSaturationParam = apvts.getRawParameterValue("tape_saturation");
@@ -851,7 +869,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
                 {"lane1_volume", l1Vol / 100.0f},
                 {"lane1_probability", l1Prob / 100.0f},
                 {"lane1_pan", 0.5f}, {"lane1_swing", 0.0f},
-                {"lane1_pingpong", 0.0f}, {"lane1_reverse", 0.0f}, {"lane1_freeze", 0.0f}, {"lane1_manual_time_enabled", 0.0f},
+                {"lane1_pingpong", 0.0f}, {"lane1_reverse", 0.0f},{"lane1_manual_time_enabled", 0.0f},
                 // Lane 2
                 {"lane2_enabled", l2Enabled ? 1.0f : 0.0f},
                 {"lane2_subdivision", l2Sub / 5.0f},
@@ -861,7 +879,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
                 {"lane2_volume", l2Vol / 100.0f},
                 {"lane2_probability", l2Prob / 100.0f},
                 {"lane2_pan", 0.5f}, {"lane2_swing", 0.0f},
-                {"lane2_pingpong", 0.0f}, {"lane2_reverse", 0.0f}, {"lane2_freeze", 0.0f}, {"lane2_manual_time_enabled", 0.0f},
+                {"lane2_pingpong", 0.0f}, {"lane2_reverse", 0.0f},{"lane2_manual_time_enabled", 0.0f},
                 // Lane 3
                 {"lane3_enabled", l3Enabled ? 1.0f : 0.0f},
                 {"lane3_subdivision", l3Sub / 5.0f},
@@ -871,7 +889,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
                 {"lane3_volume", l3Vol / 100.0f},
                 {"lane3_probability", l3Prob / 100.0f},
                 {"lane3_pan", 0.5f}, {"lane3_swing", 0.0f},
-                {"lane3_pingpong", 0.0f}, {"lane3_reverse", 0.0f}, {"lane3_freeze", 0.0f}, {"lane3_manual_time_enabled", 0.0f},
+                {"lane3_pingpong", 0.0f}, {"lane3_reverse", 0.0f},{"lane3_manual_time_enabled", 0.0f},
                 // Lane 4
                 {"lane4_enabled", l4Enabled ? 1.0f : 0.0f},
                 {"lane4_subdivision", l4Sub / 5.0f},
@@ -881,7 +899,7 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
                 {"lane4_volume", l4Vol / 100.0f},
                 {"lane4_probability", l4Prob / 100.0f},
                 {"lane4_pan", 0.5f}, {"lane4_swing", 0.0f},
-                {"lane4_pingpong", 0.0f}, {"lane4_reverse", 0.0f}, {"lane4_freeze", 0.0f}, {"lane4_manual_time_enabled", 0.0f},
+                {"lane4_pingpong", 0.0f}, {"lane4_reverse", 0.0f},{"lane4_manual_time_enabled", 0.0f},
                 // Tape
                 {"tape_saturation", tapeSat / 100.0f},
                 {"tape_wow", tapeWow / 100.0f},
@@ -1019,6 +1037,85 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
             80, 60, 50, 40, 80, 30, false,   // Heavy tape destruction, bypass off
             0, 100                            // 100% wet
         ), {}});
+
+        // v1.9.0: Euclidean rhythm presets
+        // Helper to add Euclidean params to an existing preset map
+        auto addEuclidean = [](std::map<juce::String, float>& params,
+                               bool l1Euc, int l1Pulses, int l1Steps,
+                               bool l2Euc, int l2Pulses, int l2Steps,
+                               bool l3Euc, int l3Pulses, int l3Steps,
+                               bool l4Euc, int l4Pulses, int l4Steps)
+        {
+            params["lane1_euclidean_enabled"] = l1Euc ? 1.0f : 0.0f;
+            params["lane1_euclidean_pulses"] = (l1Pulses - 1) / 15.0f;
+            params["lane1_euclidean_steps"] = (l1Steps - 2) / 14.0f;
+            params["lane2_euclidean_enabled"] = l2Euc ? 1.0f : 0.0f;
+            params["lane2_euclidean_pulses"] = (l2Pulses - 1) / 15.0f;
+            params["lane2_euclidean_steps"] = (l2Steps - 2) / 14.0f;
+            params["lane3_euclidean_enabled"] = l3Euc ? 1.0f : 0.0f;
+            params["lane3_euclidean_pulses"] = (l3Pulses - 1) / 15.0f;
+            params["lane3_euclidean_steps"] = (l3Steps - 2) / 14.0f;
+            params["lane4_euclidean_enabled"] = l4Euc ? 1.0f : 0.0f;
+            params["lane4_euclidean_pulses"] = (l4Pulses - 1) / 15.0f;
+            params["lane4_euclidean_steps"] = (l4Steps - 2) / 14.0f;
+        };
+
+        // 13. Euclidean Groove - 4 lanes with different Euclidean patterns
+        {
+            auto params = makeParams(
+                true, 0, 4, 85, 0, 100, 100,   // Lane 1: 1/4, E(3,8)
+                true, 1, 4, 80, 0, 90, 100,    // Lane 2: 1/8, E(5,8)
+                true, 2, 6, 75, 0, 85, 100,    // Lane 3: 1/16, E(7,16)
+                true, 4, 5, 70, 0, 80, 100,    // Lane 4: 1/8T, E(5,12)
+                10, 0, 0, 0, 0, 0, false,
+                40, 100
+            );
+            addEuclidean(params,
+                true, 3, 8,    // L1: E(3,8) tresillo
+                true, 5, 8,    // L2: E(5,8) cinquillo
+                true, 7, 16,   // L3: E(7,16)
+                true, 5, 12    // L4: E(5,12)
+            );
+            factoryPresets.push_back({"Euclidean Groove", params, {}});
+        }
+
+        // 14. Afro-Latin Stutter - Tresillo + cinquillo + bossa nova
+        {
+            auto params = makeParams(
+                true, 1, 3, 80, 0, 100, 100,   // Lane 1: 1/8
+                true, 1, 4, 75, 0, 90, 100,    // Lane 2: 1/8
+                true, 2, 4, 70, 0, 85, 100,    // Lane 3: 1/16
+                false, 0, 4, 90, 0, 100, 100,
+                30, 15, 10, 5, 40, 0, false,    // Warm tape character
+                50, 90
+            );
+            addEuclidean(params,
+                true, 3, 8,    // L1: E(3,8) tresillo
+                true, 5, 8,    // L2: E(5,8) cinquillo
+                true, 5, 16,   // L3: E(5,16) bossa nova
+                false, 4, 16   // L4: off
+            );
+            factoryPresets.push_back({"Afro-Latin Stutter", params, {}});
+        }
+
+        // 15. Minimal Pulse - Sparse Euclidean with high decay and tape
+        {
+            auto params = makeParams(
+                true, 2, 6, 95, 0, 70, 100,    // Lane 1: 1/16, sparse
+                true, 1, 4, 90, 0, 60, 100,    // Lane 2: 1/8
+                false, 0, 4, 90, 0, 100, 100,
+                false, 0, 4, 90, 0, 100, 100,
+                50, 40, 30, 20, 60, 15, false,  // Heavy tape degradation
+                60, 80
+            );
+            addEuclidean(params,
+                true, 3, 16,   // L1: E(3,16) very sparse
+                true, 2, 8,    // L2: E(2,8) minimal
+                false, 4, 16,  // L3: off
+                false, 4, 16   // L4: off
+            );
+            factoryPresets.push_back({"Minimal Pulse", params, {}});
+        }
 
         presetManager.initializeFactoryPresets(factoryPresets);
     }
@@ -1158,22 +1255,18 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
     // Lane-specific advanced modes
     bool lane1PingPong = lane1PingPongParam->load() > 0.5f;
     bool lane1Reverse = lane1ReverseParam->load() > 0.5f;
-    bool lane1Freeze = lane1FreezeParam->load() > 0.5f;
     bool lane1ManualTime = lane1ManualTimeParam->load() > 0.5f;
 
     bool lane2PingPong = lane2PingPongParam->load() > 0.5f;
     bool lane2Reverse = lane2ReverseParam->load() > 0.5f;
-    bool lane2Freeze = lane2FreezeParam->load() > 0.5f;
     bool lane2ManualTime = lane2ManualTimeParam->load() > 0.5f;
 
     bool lane3PingPong = lane3PingPongParam->load() > 0.5f;
     bool lane3Reverse = lane3ReverseParam->load() > 0.5f;
-    bool lane3Freeze = lane3FreezeParam->load() > 0.5f;
     bool lane3ManualTime = lane3ManualTimeParam->load() > 0.5f;
 
     bool lane4PingPong = lane4PingPongParam->load() > 0.5f;
     bool lane4Reverse = lane4ReverseParam->load() > 0.5f;
-    bool lane4Freeze = lane4FreezeParam->load() > 0.5f;
     bool lane4ManualTime = lane4ManualTimeParam->load() > 0.5f;
 
     // ========== Update Lane Parameters ==========
@@ -1200,15 +1293,23 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.3: Advanced modes
         lane1->setPingPong(lane1PingPong);
         lane1->setReverse(lane1Reverse);
-        lane1->setFreeze(lane1Freeze);
+
         lane1->setManualTimeEnabled(lane1ManualTime);
 
-        // Update pattern steps (v1.0.2: respect sequencer_enabled toggle)
-        for (int step = 0; step < 16; ++step)
+        // v1.9.0: Euclidean rhythm generator
+        bool lane1EucEnabled = lane1EuclideanEnabledParam->load() > 0.5f;
+        lane1->setEuclideanEnabled(lane1EucEnabled);
+        lane1->setEuclideanPulses(static_cast<int>(lane1EuclideanPulsesParam->load()));
+        lane1->setEuclideanSteps(static_cast<int>(lane1EuclideanStepsParam->load()));
+
+        // Update pattern steps: skip manual loading when Euclidean generates the pattern
+        if (!lane1EucEnabled)
         {
-            // If sequencer disabled, all steps are ON (bypass pattern)
-            bool stepEnabled = sequencerEnabled ? (lane1PatternSteps[step]->load() > 0.5f) : true;
-            lane1->setPatternStep(step, stepEnabled);
+            for (int step = 0; step < 16; ++step)
+            {
+                bool stepEnabled = sequencerEnabled ? (lane1PatternSteps[step]->load() > 0.5f) : true;
+                lane1->setPatternStep(step, stepEnabled);
+            }
         }
     }
 
@@ -1235,13 +1336,22 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.3: Advanced modes
         lane2->setPingPong(lane2PingPong);
         lane2->setReverse(lane2Reverse);
-        lane2->setFreeze(lane2Freeze);
+
         lane2->setManualTimeEnabled(lane2ManualTime);
 
-        for (int step = 0; step < 16; ++step)
+        // v1.9.0: Euclidean rhythm generator
+        bool lane2EucEnabled = lane2EuclideanEnabledParam->load() > 0.5f;
+        lane2->setEuclideanEnabled(lane2EucEnabled);
+        lane2->setEuclideanPulses(static_cast<int>(lane2EuclideanPulsesParam->load()));
+        lane2->setEuclideanSteps(static_cast<int>(lane2EuclideanStepsParam->load()));
+
+        if (!lane2EucEnabled)
         {
-            bool stepEnabled = sequencerEnabled ? (lane2PatternSteps[step]->load() > 0.5f) : true;
-            lane2->setPatternStep(step, stepEnabled);
+            for (int step = 0; step < 16; ++step)
+            {
+                bool stepEnabled = sequencerEnabled ? (lane2PatternSteps[step]->load() > 0.5f) : true;
+                lane2->setPatternStep(step, stepEnabled);
+            }
         }
     }
 
@@ -1268,13 +1378,22 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.3: Advanced modes
         lane3->setPingPong(lane3PingPong);
         lane3->setReverse(lane3Reverse);
-        lane3->setFreeze(lane3Freeze);
+
         lane3->setManualTimeEnabled(lane3ManualTime);
 
-        for (int step = 0; step < 16; ++step)
+        // v1.9.0: Euclidean rhythm generator
+        bool lane3EucEnabled = lane3EuclideanEnabledParam->load() > 0.5f;
+        lane3->setEuclideanEnabled(lane3EucEnabled);
+        lane3->setEuclideanPulses(static_cast<int>(lane3EuclideanPulsesParam->load()));
+        lane3->setEuclideanSteps(static_cast<int>(lane3EuclideanStepsParam->load()));
+
+        if (!lane3EucEnabled)
         {
-            bool stepEnabled = sequencerEnabled ? (lane3PatternSteps[step]->load() > 0.5f) : true;
-            lane3->setPatternStep(step, stepEnabled);
+            for (int step = 0; step < 16; ++step)
+            {
+                bool stepEnabled = sequencerEnabled ? (lane3PatternSteps[step]->load() > 0.5f) : true;
+                lane3->setPatternStep(step, stepEnabled);
+            }
         }
     }
 
@@ -1301,13 +1420,22 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
         // Phase 2.3: Advanced modes
         lane4->setPingPong(lane4PingPong);
         lane4->setReverse(lane4Reverse);
-        lane4->setFreeze(lane4Freeze);
+
         lane4->setManualTimeEnabled(lane4ManualTime);
 
-        for (int step = 0; step < 16; ++step)
+        // v1.9.0: Euclidean rhythm generator
+        bool lane4EucEnabled = lane4EuclideanEnabledParam->load() > 0.5f;
+        lane4->setEuclideanEnabled(lane4EucEnabled);
+        lane4->setEuclideanPulses(static_cast<int>(lane4EuclideanPulsesParam->load()));
+        lane4->setEuclideanSteps(static_cast<int>(lane4EuclideanStepsParam->load()));
+
+        if (!lane4EucEnabled)
         {
-            bool stepEnabled = sequencerEnabled ? (lane4PatternSteps[step]->load() > 0.5f) : true;
-            lane4->setPatternStep(step, stepEnabled);
+            for (int step = 0; step < 16; ++step)
+            {
+                bool stepEnabled = sequencerEnabled ? (lane4PatternSteps[step]->load() > 0.5f) : true;
+                lane4->setPatternStep(step, stepEnabled);
+            }
         }
     }
 
@@ -1349,13 +1477,6 @@ void OPolystutterAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, 
             }
         }
 
-        // Handle global freeze toggle (MIDI note A3)
-        if (triggerRouter->shouldToggleFreeze())
-        {
-            // Note: MIDI freeze toggle detected - actual parameter control is in UI
-            // This clears the toggle flag to acknowledge the event
-            triggerRouter->clearFreezeToggle();
-        }
     }
 
     // Handle manual trigger button (rising edge detection - trigger once per press)

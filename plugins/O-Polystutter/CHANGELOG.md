@@ -2,6 +2,78 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.11.0] - 2026-03-02
+
+### Changed
+
+- **Euclidean PLS and STP controls replaced with dropdown menus**
+  - Rotary knobs replaced with `<select>` dropdown elements for more precise value selection
+  - PLS dropdown: integer options 1-16 (number of active hits)
+  - STP dropdown: integer options 2-16 (total pattern steps)
+  - Added `bindDropdown()` JS function connecting `<select>` to JUCE slider state
+  - Styled to match plugin aesthetic (warm/earthy palette, compact inline layout)
+
+## [1.10.1] - 2026-03-01
+
+### Fixed
+
+- **Sequencer step buttons now toggleable on click when EUC mode is OFF**
+  - Root cause: `updateEuclideanPatternPreview()` overwrote step button `active` classes with the Euclidean pattern, but turning EUC off only removed `euc-locked` CSS — it did not restore step visuals from JUCE parameter values
+  - Clicks appeared to do nothing because visual state was out of sync with parameter state
+  - Fix: restore each step button's visual state from its JUCE toggle parameter when EUC is disabled
+
+## [1.10.0] - 2026-03-01
+
+### Removed
+
+- **Freeze feature removed from all 4 lanes**
+  - Removed 4x `lane[N]_freeze` APVTS parameters
+  - Removed freeze buffer allocation and DSP logic from RepeatLane (saves ~40KB RAM per lane)
+  - Removed FRZ toggle buttons from UI and freeze pulse CSS animation
+  - Removed MIDI note A3 freeze toggle mapping from TriggerRouter
+  - Removed freeze indicator JS bindings and visual feedback
+  - Playback now always reads from live capture buffer (no freeze branch)
+
+## [1.9.1] - 2026-02-26
+
+### Fixed
+
+- **Repositioned Euclidean PULSES/STEPS knobs to avoid overlap with sequencer grid**
+  - Moved dials from below toggle row (top: 310px) to compact position directly above EUC toggle
+  - Created new `.euc-knob` CSS class with 22px knobs (smaller than mini-knob's 32px)
+  - Labels shortened to "PLS"/"STP" to fit compact layout
+  - Fixed `position: relative` override for knob-container children inside flex parent
+  - No longer overlaps with sequencer L1-L4 rows
+
+## [1.9.0] - 2026-02-26
+
+### Added
+
+- **Per-lane Euclidean rhythm generator (Bjorklund's algorithm)**
+  - Each lane gets an "EUC" toggle that replaces manual step programming with auto-generated Euclidean patterns
+  - 12 new APVTS parameters: per-lane `euclidean_enabled` (bool), `euclidean_pulses` (int, 1-16), `euclidean_steps` (int, 2-16)
+  - Canonical Bjorklund's algorithm produces musically significant patterns:
+    - E(3,8) = Cuban tresillo
+    - E(5,8) = Cuban cinquillo
+    - E(5,16) = Bossa nova
+    - E(7,12) = West African bell pattern
+  - When EUC is active, PULSES and STEPS mini-knobs appear below toggle row
+  - Step grid becomes read-only and visually previews the generated Euclidean pattern
+  - When EUC is off, manual step programming works as before (no regression)
+
+- **3 new factory presets showcasing Euclidean patterns**
+  - "Euclidean Groove" — 4 lanes with E(3,8), E(5,8), E(7,16), E(5,12) at different subdivisions
+  - "Afro-Latin Stutter" — Tresillo + cinquillo + bossa nova patterns
+  - "Minimal Pulse" — Sparse patterns with high decay and tape degradation
+
+### Technical
+
+- DSP: `RepeatLane` gains `setEuclideanEnabled/Pulses/Steps()` methods and static `generateEuclideanPattern()` using proper Bjorklund's algorithm (no heap allocations, flat 16x16 arrays)
+- Processor: 12 new cached `std::atomic<float>*` parameter pointers; processBlock skips manual pattern loading when Euclidean generates the pattern
+- Editor: 12 new WebSliderRelay/WebToggleButtonRelay + corresponding ParameterAttachment objects
+- UI: EUC toggle added to each lane's Row 4; conditional PULSES/STEPS mini-knobs in Row 5
+- JS: Full Bjorklund's algorithm port for real-time pattern preview on step grid; `setupEuclideanMode()` handles show/hide and read-only grid state
+
 ## [1.8.0] - 2026-01-26
 
 ### Added

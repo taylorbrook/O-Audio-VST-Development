@@ -17,14 +17,12 @@ TriggerRouter::TriggerRouter()
 void TriggerRouter::reset()
 {
     midiTriggeredLane = -1;
-    freezeToggleRequested = false;
 }
 
 void TriggerRouter::processMidiTriggerDetection(const juce::MidiBuffer& midiMessages)
 {
     // Reset MIDI trigger state each block
     midiTriggeredLane = -1;
-    freezeToggleRequested = false;
 
     // Parse MIDI messages if MIDI trigger mode is enabled
     if (midiEnabled)
@@ -55,7 +53,6 @@ void TriggerRouter::parseMidiMessages(const juce::MidiBuffer& midiMessages)
             // E3 (note 62) → Lane 3
             // F3 (note 63) → Lane 4
             // G3 (note 67) → Trigger all lanes (handled in PluginProcessor)
-            // A3 (note 69) → Toggle freeze on all lanes
 
             if (note >= 60 && note <= 63)
             {
@@ -66,11 +63,6 @@ void TriggerRouter::parseMidiMessages(const juce::MidiBuffer& midiMessages)
             {
                 // G3 triggers all lanes (use special value)
                 midiTriggeredLane = 100;  // Special value for "all lanes"
-            }
-            else if (note == 69)
-            {
-                // A3 toggles freeze
-                freezeToggleRequested = true;
             }
         }
     }

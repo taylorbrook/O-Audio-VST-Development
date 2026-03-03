@@ -28,11 +28,6 @@ void RepeatLane::prepare(const juce::dsp::ProcessSpec& spec)
     captureBuffer.clear();
     captureWritePosition = 0;
 
-    // Allocate freeze buffer (5 seconds max, 2 channels)
-    freezeBuffer.setSize(2, maxCaptureSamples);
-    freezeBuffer.clear();
-    freezeBufferReady = false;
-
     // Calculate crossfade samples (5ms for click-free looping)
     crossfadeSamples = static_cast<int>(spec.sampleRate * 0.005);
 
@@ -157,55 +152,29 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
         if (effectivePosition < effectiveCaptureLength)
         {
-            // Determine which buffer to read from (freeze or live capture)
-            if (freezeEnabled && freezeBufferReady)
-            {
-                // Read from frozen snapshot with linear interpolation
-                double readPos = reverseEnabled
-                    ? (captureLength - 1.0 - (effectivePosition * pitchRatio))
-                    : (effectivePosition * pitchRatio);
+            // v1.1.0: Read from capture buffer NON-DESTRUCTIVELY with interpolation
+            // Calculate read position in the circular buffer
+            // captureStartPosition points to the oldest sample we want to read
+            double readOffset = reverseEnabled
+                ? (captureLength - 1.0 - (effectivePosition * pitchRatio))
+                : (effectivePosition * pitchRatio);
 
-                readPos = juce::jlimit(0.0, static_cast<double>(captureLength - 1), readPos);
+            readOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), readOffset);
 
-                // Linear interpolation for smooth pitch shifting
-                int pos0 = static_cast<int>(readPos);
-                int pos1 = juce::jmin(pos0 + 1, captureLength - 1);
-                float frac = static_cast<float>(readPos - pos0);
+            // Convert to circular buffer position
+            // captureStartPosition is where the capture began
+            int basePos = (captureStartPosition + static_cast<int>(readOffset)) % maxCaptureSamples;
+            int nextPos = (basePos + 1) % maxCaptureSamples;
+            float frac = static_cast<float>(readOffset - static_cast<int>(readOffset));
 
-                float left0 = freezeBuffer.getSample(0, pos0);
-                float left1 = freezeBuffer.getSample(0, pos1);
-                float right0 = freezeBuffer.getSample(1, pos0);
-                float right1 = freezeBuffer.getSample(1, pos1);
+            // Linear interpolation for smooth pitch shifting
+            float left0 = captureBuffer.getSample(0, basePos);
+            float left1 = captureBuffer.getSample(0, nextPos);
+            float right0 = captureBuffer.getSample(1, basePos);
+            float right1 = captureBuffer.getSample(1, nextPos);
 
-                leftOut = left0 + frac * (left1 - left0);
-                rightOut = right0 + frac * (right1 - right0);
-            }
-            else
-            {
-                // v1.1.0: Read from capture buffer NON-DESTRUCTIVELY with interpolation
-                // Calculate read position in the circular buffer
-                // captureStartPosition points to the oldest sample we want to read
-                double readOffset = reverseEnabled
-                    ? (captureLength - 1.0 - (effectivePosition * pitchRatio))
-                    : (effectivePosition * pitchRatio);
-
-                readOffset = juce::jlimit(0.0, static_cast<double>(captureLength - 1), readOffset);
-
-                // Convert to circular buffer position
-                // captureStartPosition is where the capture began
-                int basePos = (captureStartPosition + static_cast<int>(readOffset)) % maxCaptureSamples;
-                int nextPos = (basePos + 1) % maxCaptureSamples;
-                float frac = static_cast<float>(readOffset - static_cast<int>(readOffset));
-
-                // Linear interpolation for smooth pitch shifting
-                float left0 = captureBuffer.getSample(0, basePos);
-                float left1 = captureBuffer.getSample(0, nextPos);
-                float right0 = captureBuffer.getSample(1, basePos);
-                float right1 = captureBuffer.getSample(1, nextPos);
-
-                leftOut = left0 + frac * (left1 - left0);
-                rightOut = right0 + frac * (right1 - right0);
-            }
+            leftOut = left0 + frac * (left1 - left0);
+            rightOut = right0 + frac * (right1 - right0);
 
             // Apply crossfade at loop boundaries for click-free looping
             int intPosition = static_cast<int>(effectivePosition);
@@ -320,23 +289,6 @@ void RepeatLane::trigger()
     // v1.1.0: Calculate start position in circular buffer
     // The capture starts at (writePosition - captureLength), wrapping around
     captureStartPosition = (captureWritePosition - captureLength + maxCaptureSamples) % maxCaptureSamples;
-
-    // If freeze is enabled, copy capture buffer to freeze buffer (linearized)
-    if (freezeEnabled)
-    {
-        // Copy from circular capture buffer to linear freeze buffer
-        for (int i = 0; i < captureLength && i < freezeBuffer.getNumSamples(); ++i)
-        {
-            int srcPos = (captureStartPosition + i) % maxCaptureSamples;
-
-            float leftSample = captureBuffer.getSample(0, srcPos);
-            float rightSample = captureBuffer.getSample(1, srcPos);
-
-            freezeBuffer.setSample(0, i, leftSample);
-            freezeBuffer.setSample(1, i, rightSample);
-        }
-        freezeBufferReady = true;
-    }
 
     // Start first repeat immediately (with swing offset if applicable)
     int swingOffset = calculateSwingOffset(0);
@@ -560,17 +512,6 @@ void RepeatLane::setReverse(bool shouldEnable)
     reverseEnabled = shouldEnable;
 }
 
-void RepeatLane::setFreeze(bool shouldEnable)
-{
-    freezeEnabled = shouldEnable;
-
-    // Clear freeze buffer when disabled
-    if (!shouldEnable)
-    {
-        freezeBufferReady = false;
-    }
-}
-
 void RepeatLane::setManualTimeEnabled(bool shouldEnable)
 {
     manualTimeEnabled = shouldEnable;
@@ -625,4 +566,143 @@ void RepeatLane::setPitchRandMax(float maxSemitones)
 void RepeatLane::setPitchRandQuantize(bool shouldQuantize)
 {
     pitchRandQuantize = shouldQuantize;
+}
+
+// v1.9.0: Euclidean rhythm generator
+void RepeatLane::setEuclideanEnabled(bool shouldEnable)
+{
+    if (euclideanEnabled != shouldEnable)
+    {
+        euclideanEnabled = shouldEnable;
+        if (euclideanEnabled)
+            regenerateEuclideanPattern();
+    }
+}
+
+void RepeatLane::setEuclideanPulses(int numPulses)
+{
+    int clamped = juce::jlimit(1, 16, numPulses);
+    if (euclideanPulses != clamped)
+    {
+        euclideanPulses = clamped;
+        if (euclideanEnabled)
+            regenerateEuclideanPattern();
+    }
+}
+
+void RepeatLane::setEuclideanSteps(int numSteps)
+{
+    int clamped = juce::jlimit(2, 16, numSteps);
+    if (euclideanSteps != clamped)
+    {
+        euclideanSteps = clamped;
+        if (euclideanEnabled)
+            regenerateEuclideanPattern();
+    }
+}
+
+void RepeatLane::regenerateEuclideanPattern()
+{
+    // Clamp pulses to not exceed steps
+    int effectivePulses = juce::jmin(euclideanPulses, euclideanSteps);
+    generateEuclideanPattern(effectivePulses, euclideanSteps, patternSteps);
+}
+
+void RepeatLane::generateEuclideanPattern(int pulses, int steps, bool result[16])
+{
+    // Initialize all steps to false
+    for (int i = 0; i < 16; ++i)
+        result[i] = false;
+
+    if (steps <= 0 || pulses <= 0)
+        return;
+
+    if (pulses >= steps)
+    {
+        for (int i = 0; i < steps && i < 16; ++i)
+            result[i] = true;
+        return;
+    }
+
+    // Bjorklund's algorithm (proper implementation)
+    // Produces canonical Euclidean rhythms:
+    //   E(3,8) = [1,0,0,1,0,0,1,0] (Cuban tresillo)
+    //   E(5,8) = [1,0,1,1,0,1,1,0] (Cuban cinquillo)
+    //   E(5,16) = [1,0,0,1,0,0,1,0,0,1,0,0,1,0,0,0] (Bossa nova)
+
+    // Work with sequences of sub-patterns
+    // Start: 'pulses' copies of [1] and '(steps-pulses)' copies of [0]
+    // Repeatedly distribute the smaller group across the larger, like Euclidean GCD
+
+    // Use flat arrays to avoid allocations (max 16 steps)
+    // Each "sequence" is stored as a list of bool values with lengths tracked
+    bool sequences[16][16];  // sequences[i] is the i-th sub-pattern
+    int seqLengths[16];      // length of each sub-pattern
+    int numA = pulses;       // count of "A" group sequences
+    int numB = steps - pulses; // count of "B" group sequences
+
+    // Initialize: A sequences are [1], B sequences are [0]
+    for (int i = 0; i < numA; ++i)
+    {
+        sequences[i][0] = true;
+        seqLengths[i] = 1;
+    }
+    for (int i = 0; i < numB; ++i)
+    {
+        sequences[numA + i][0] = false;
+        seqLengths[numA + i] = 1;
+    }
+
+    int totalSeqs = numA + numB;
+
+    // Iterate until B group has 0 or 1 elements
+    while (numB > 1)
+    {
+        int pairs = juce::jmin(numA, numB);
+
+        // Append each B sequence to corresponding A sequence
+        for (int i = 0; i < pairs; ++i)
+        {
+            int aIdx = i;
+            int bIdx = numA + i;
+            int aLen = seqLengths[aIdx];
+            int bLen = seqLengths[bIdx];
+
+            // Append B to A
+            for (int j = 0; j < bLen; ++j)
+                sequences[aIdx][aLen + j] = sequences[bIdx][j];
+            seqLengths[aIdx] = aLen + bLen;
+        }
+
+        // Move remaining sequences (unpaired) to after the paired ones
+        int remaining = totalSeqs - numA - pairs;
+        if (remaining > 0 && numA + pairs < totalSeqs)
+        {
+            for (int i = 0; i < remaining; ++i)
+            {
+                int srcIdx = numA + pairs + i;
+                int dstIdx = pairs + i;
+                if (srcIdx != dstIdx)
+                {
+                    for (int j = 0; j < seqLengths[srcIdx]; ++j)
+                        sequences[dstIdx][j] = sequences[srcIdx][j];
+                    seqLengths[dstIdx] = seqLengths[srcIdx];
+                }
+            }
+        }
+
+        totalSeqs = pairs + remaining;
+        numA = pairs;
+        numB = remaining;
+    }
+
+    // Flatten all sequences into result
+    int pos = 0;
+    for (int i = 0; i < totalSeqs && pos < 16; ++i)
+    {
+        for (int j = 0; j < seqLengths[i] && pos < 16; ++j)
+        {
+            result[pos++] = sequences[i][j];
+        }
+    }
 }

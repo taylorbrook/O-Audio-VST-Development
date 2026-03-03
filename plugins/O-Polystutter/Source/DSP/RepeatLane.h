@@ -51,12 +51,20 @@ public:
     // Phase 2.3: Advanced modes
     void setPingPong(bool shouldEnable);
     void setReverse(bool shouldEnable);
-    void setFreeze(bool shouldEnable);
     void setManualTimeEnabled(bool shouldEnable);
 
     // Pattern sequencer
     void setPatternStep(int stepIndex, bool enabled);  // stepIndex: 0-15
     void updatePatternPosition(double ppqPosition, int subdivIndex);
+
+    // v1.9.0: Euclidean rhythm generator
+    void setEuclideanEnabled(bool shouldEnable);
+    void setEuclideanPulses(int numPulses);    // 1-16
+    void setEuclideanSteps(int numSteps);      // 2-16
+
+    // Static utility: Bjorklund's algorithm for Euclidean rhythm generation
+    // Fills result[16] with the pattern (true = active step), padded with false beyond numSteps
+    static void generateEuclideanPattern(int pulses, int steps, bool result[16]);
 
     // Timing
     void updateTempo(double bpm, double sampleRate);
@@ -95,7 +103,6 @@ private:
     // Phase 2.3: Advanced mode parameters
     bool pingPongEnabled = false;
     bool reverseEnabled = false;
-    bool freezeEnabled = false;
     bool manualTimeEnabled = false;
 
     // Timing
@@ -120,10 +127,6 @@ private:
     int playbackPosition = 0;
     int maxCaptureSamples = 0;  // Maximum capture buffer size
 
-    // Phase 2.3: Freeze buffers (separate snapshots per lane)
-    juce::AudioBuffer<float> freezeBuffer;
-    bool freezeBufferReady = false;
-
     // Crossfade buffer for click-free looping
     int crossfadeSamples = 0;
 
@@ -141,6 +144,12 @@ private:
     int currentPatternStep = 0;
     double patternStartPPQ = 0.0;
     double lastPPQPosition = 0.0;
+
+    // v1.9.0: Euclidean rhythm state
+    bool euclideanEnabled = false;
+    int euclideanPulses = 4;
+    int euclideanSteps = 16;
+    void regenerateEuclideanPattern();
 
     // Random generator for probability (member to avoid lock in getSystemRandom)
     juce::Random randomGenerator;

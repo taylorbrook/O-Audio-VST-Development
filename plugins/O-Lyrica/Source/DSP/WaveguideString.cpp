@@ -219,6 +219,11 @@ void WaveguideString::setAttackNoise(float noiseAmount)
     exciter.setNoiseAmount(noiseAmount);
 }
 
+void WaveguideString::setGlissandoExcitation(float amount)
+{
+    exciter.setGlissandoAmount(amount);
+}
+
 void WaveguideString::setPluckPosition(float position)
 {
     pluckPosition = juce::jlimit(0.05f, 0.95f, position);

@@ -200,14 +200,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Phase 3.3: Visual state updates
   setupLaneDimming();
-  setupFreezeIndicators();
+
   setupSequencerDimming();  // v1.1.4: Grey out sequencer when SEQ toggle is off
   setupTapeBypassDimming();  // v1.6.5: Grey out tape knobs when bypass is on
+  setupEuclideanMode();  // v1.9.0: Euclidean rhythm toggle show/hide + pattern preview
 
   // v1.5.0: Lane progress bar updates (from Timer in PluginEditor)
   setupLaneProgressListener();
 
-  console.log("[v1.5.0] All parameter bindings initialized (128 params + progress bars)");
+  console.log("[v1.9.0] All parameter bindings initialized (140 params + progress bars)");
 });
 
 // ========== LANE PARAMETERS (4 lanes × 13 params = 52, excluding subdivision) ==========
@@ -236,16 +237,21 @@ function bindLaneParameters(laneNum) {
   bindKnob(`${prefix}_pitch_rand_min`, -12, 12, (v) => formatPitchRandValue(v, laneNum));
   bindKnob(`${prefix}_pitch_rand_max`, -12, 12, (v) => formatPitchRandValue(v, laneNum));
 
-  // Toggles (5 buttons: enabled, pingpong, reverse, manual, freeze)
+  // Toggles (4 buttons: enabled, pingpong, reverse, manual)
   bindToggle(`${prefix}_enabled`);
   bindToggle(`${prefix}_pingpong`);
   bindToggle(`${prefix}_reverse`);
   bindToggle(`${prefix}_manual_time_enabled`, `${prefix}_manual`); // HTML ID different
-  bindToggle(`${prefix}_freeze`);
 
   // v1.7.0: Pitch randomization toggles
   bindToggle(`${prefix}_pitch_rand_enabled`);
   bindToggle(`${prefix}_pitch_rand_quantize`);
+
+  // v1.9.0: Euclidean rhythm controls
+  bindToggle(`${prefix}_euclidean_enabled`);
+  // v1.11.0: PLS/STP changed from knobs to dropdown menus
+  bindDropdown(`${prefix}_euclidean_pulses`, 1, 16);
+  bindDropdown(`${prefix}_euclidean_steps`, 2, 16);
 
   // Subdivision combo box (Choice parameter)
   bindComboBox(`${prefix}_subdivision`);
@@ -404,6 +410,49 @@ function updateKnobUI(knobElement, valueElement, normalized, min, max, formatter
     const actualValue = min + normalized * (max - min);
     valueElement.textContent = formatter(actualValue);
   }
+}
+
+// ========== DROPDOWN BINDING (v1.11.0: Select menus for integer parameters) ==========
+
+/**
+ * Bind a <select> dropdown to a JUCE slider parameter (integer range)
+ * @param {string} paramId - APVTS parameter ID (e.g., "lane1_euclidean_pulses")
+ * @param {number} min - Parameter minimum value
+ * @param {number} max - Parameter maximum value
+ */
+function bindDropdown(paramId, min, max) {
+  const selectElement = document.getElementById(paramId);
+
+  if (!selectElement) {
+    console.error(`[v1.11.0] Dropdown element not found: ${paramId}`);
+    return;
+  }
+
+  const state = Juce.getSliderState(paramId);
+  if (!state) {
+    console.error(`[v1.11.0] JUCE slider state not found: ${paramId}`);
+    return;
+  }
+
+  // Initialize with current JUCE value
+  const range = max - min;
+  const currentValue = Math.round(min + state.getNormalisedValue() * range);
+  selectElement.value = currentValue;
+
+  // User selects a new value
+  selectElement.addEventListener("change", () => {
+    const intValue = parseInt(selectElement.value);
+    const normalized = (intValue - min) / range;
+    state.setNormalisedValue(normalized);
+  });
+
+  // JUCE automation: update dropdown when parameter changes externally
+  state.valueChangedEvent.addListener(() => {
+    const newValue = Math.round(min + state.getNormalisedValue() * range);
+    selectElement.value = newValue;
+  });
+
+  console.log(`[v1.11.0] Bound dropdown: ${paramId} (${min}-${max})`);
 }
 
 // ========== TOGGLE BINDING (Boolean buttons) ==========
@@ -620,51 +669,6 @@ function applyLaneDimming(laneContainer, isEnabled) {
   }
 }
 
-// ========== FREEZE INDICATORS (Phase 3.3) ==========
-
-/**
- * Setup freeze visual indicators
- * Watches lane[N]_freeze parameters and shows visual feedback
- */
-function setupFreezeIndicators() {
-  for (let lane = 1; lane <= 4; lane++) {
-    setupFreezeIndicatorForLane(lane);
-  }
-  console.log("[Phase 3.3] Freeze indicator handlers installed");
-}
-
-function setupFreezeIndicatorForLane(laneNum) {
-  const paramId = `lane${laneNum}_freeze`;
-  const freezeButton = document.getElementById(paramId);
-
-  if (!freezeButton) {
-    console.warn(`[Phase 3.3] Freeze button not found: ${paramId}`);
-    return;
-  }
-
-  // Get JUCE toggle state
-  const state = Juce.getToggleState(paramId);
-  if (!state) {
-    console.error(`[Phase 3.3] JUCE toggle state not found: ${paramId}`);
-    return;
-  }
-
-  // Apply initial state
-  applyFreezeIndicator(freezeButton, state.value);
-
-  // Update on parameter change
-  state.valueChangedEvent.addListener(() => {
-    applyFreezeIndicator(freezeButton, state.value);
-  });
-}
-
-function applyFreezeIndicator(freezeButton, isFrozen) {
-  if (isFrozen) {
-    freezeButton.classList.add("frozen");
-  } else {
-    freezeButton.classList.remove("frozen");
-  }
-}
 
 // ========== v1.1.4: SEQUENCER DIMMING (when SEQ toggle is off) ==========
 
@@ -768,6 +772,176 @@ window.addEventListener("load", () => {
     });
   }
 });
+
+// ========== v1.9.0: EUCLIDEAN RHYTHM MODE ==========
+
+/**
+ * Bjorklund's algorithm for Euclidean rhythm generation (JS mirror of C++ RepeatLane implementation)
+ * Distributes N pulses as evenly as possible across M steps
+ * @param {number} pulses - Number of active pulses (1-16)
+ * @param {number} steps - Total number of steps (2-16)
+ * @returns {boolean[]} Pattern array of length 16 (padded with false)
+ */
+function generateEuclideanPattern(pulses, steps) {
+  const result = new Array(16).fill(false);
+  if (steps <= 0 || pulses <= 0) return result;
+  if (pulses >= steps) {
+    for (let i = 0; i < steps && i < 16; i++) result[i] = true;
+    return result;
+  }
+
+  // Exact port of C++ Bjorklund's: sequence distribution approach
+  // sequences[i] = sub-pattern array, seqLengths[i] = length
+  const sequences = Array.from({ length: 16 }, () => new Array(16).fill(false));
+  const seqLengths = new Array(16).fill(0);
+  let numA = pulses;
+  let numB = steps - pulses;
+
+  // Initialize: A sequences are [true], B sequences are [false]
+  for (let i = 0; i < numA; i++) { sequences[i][0] = true; seqLengths[i] = 1; }
+  for (let i = 0; i < numB; i++) { sequences[numA + i][0] = false; seqLengths[numA + i] = 1; }
+
+  let totalSeqs = numA + numB;
+
+  while (numB > 1) {
+    const pairs = Math.min(numA, numB);
+
+    // Append each B sequence to corresponding A sequence
+    for (let i = 0; i < pairs; i++) {
+      const aIdx = i;
+      const bIdx = numA + i;
+      const aLen = seqLengths[aIdx];
+      const bLen = seqLengths[bIdx];
+      for (let j = 0; j < bLen; j++) sequences[aIdx][aLen + j] = sequences[bIdx][j];
+      seqLengths[aIdx] = aLen + bLen;
+    }
+
+    // Move remaining (unpaired) sequences to after the paired ones
+    const remaining = totalSeqs - numA - pairs;
+    if (remaining > 0 && numA + pairs < totalSeqs) {
+      for (let i = 0; i < remaining; i++) {
+        const srcIdx = numA + pairs + i;
+        const dstIdx = pairs + i;
+        if (srcIdx !== dstIdx) {
+          for (let j = 0; j < seqLengths[srcIdx]; j++) sequences[dstIdx][j] = sequences[srcIdx][j];
+          seqLengths[dstIdx] = seqLengths[srcIdx];
+        }
+      }
+    }
+
+    totalSeqs = pairs + remaining;
+    numA = pairs;
+    numB = remaining;
+  }
+
+  // Flatten all sequences into result
+  let pos = 0;
+  for (let i = 0; i < totalSeqs && pos < 16; i++) {
+    for (let j = 0; j < seqLengths[i] && pos < 16; j++) {
+      result[pos++] = sequences[i][j];
+    }
+  }
+
+  return result;
+}
+
+/**
+ * Setup Euclidean mode for all lanes:
+ * - Shows/hides PULSES/STEPS controls per lane
+ * - Makes step grid read-only when EUC is active
+ * - Updates step grid to show Euclidean pattern preview
+ */
+function setupEuclideanMode() {
+  for (let lane = 1; lane <= 4; lane++) {
+    setupEuclideanModeForLane(lane);
+  }
+  console.log("[v1.9.0] Euclidean mode handlers installed");
+}
+
+function setupEuclideanModeForLane(laneNum) {
+  const eucEnabledState = Juce.getToggleState(`lane${laneNum}_euclidean_enabled`);
+  const pulsesState = Juce.getSliderState(`lane${laneNum}_euclidean_pulses`);
+  const stepsState = Juce.getSliderState(`lane${laneNum}_euclidean_steps`);
+  const controlsContainer = document.getElementById(`lane${laneNum}_euc_controls`);
+
+  if (!eucEnabledState || !pulsesState || !stepsState || !controlsContainer) {
+    console.warn(`[v1.9.0] Euclidean elements missing for lane ${laneNum}`);
+    return;
+  }
+
+  // Get step buttons for this lane
+  const stepButtons = [];
+  for (let step = 1; step <= 16; step++) {
+    const btn = document.querySelector(`.step-button[data-lane="${laneNum}"][data-step="${step}"]`);
+    if (btn) stepButtons.push(btn);
+  }
+
+  function updateEuclideanUI() {
+    const isEnabled = eucEnabledState.getValue();
+
+    // Show/hide PULSES/STEPS controls
+    if (isEnabled) {
+      controlsContainer.classList.add("visible");
+    } else {
+      controlsContainer.classList.remove("visible");
+    }
+
+    // Lock/unlock step buttons
+    stepButtons.forEach(btn => {
+      if (isEnabled) {
+        btn.classList.add("euc-locked");
+      } else {
+        btn.classList.remove("euc-locked");
+      }
+    });
+
+    // Update step grid preview when Euclidean is active, restore manual state when off
+    if (isEnabled) {
+      updateEuclideanPatternPreview(laneNum, pulsesState, stepsState, stepButtons);
+    } else {
+      // Restore step button visuals from JUCE parameter values (EUC preview overwrote them)
+      stepButtons.forEach((btn, i) => {
+        const stepState = Juce.getToggleState(`pattern_lane${laneNum}_step${i + 1}`);
+        if (stepState) {
+          updateStepButtonUI(btn, stepState.getValue());
+        }
+      });
+    }
+  }
+
+  function updateEuclideanPatternPreview(lane, pState, sState, buttons) {
+    const pulses = Math.round(1 + pState.getNormalisedValue() * 15); // 1-16
+    const steps = Math.round(2 + sState.getNormalisedValue() * 14);  // 2-16
+    const pattern = generateEuclideanPattern(pulses, steps);
+
+    buttons.forEach((btn, i) => {
+      if (pattern[i]) {
+        btn.classList.add("active");
+      } else {
+        btn.classList.remove("active");
+      }
+    });
+  }
+
+  // Initial state
+  updateEuclideanUI();
+
+  // React to EUC toggle changes
+  eucEnabledState.valueChangedEvent.addListener(updateEuclideanUI);
+
+  // React to PULSES/STEPS changes (update pattern preview)
+  pulsesState.valueChangedEvent.addListener(() => {
+    if (eucEnabledState.getValue()) {
+      updateEuclideanPatternPreview(laneNum, pulsesState, stepsState, stepButtons);
+    }
+  });
+
+  stepsState.valueChangedEvent.addListener(() => {
+    if (eucEnabledState.getValue()) {
+      updateEuclideanPatternPreview(laneNum, pulsesState, stepsState, stepButtons);
+    }
+  });
+}
 
 // ========== v1.5.0: LANE PROGRESS BARS ==========
 

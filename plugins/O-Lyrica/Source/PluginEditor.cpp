@@ -52,6 +52,13 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     glissandoCustomSemitonesRelay = std::make_unique<juce::WebSliderRelay>("glissandoCustomSemitones");
     // v1.24.0: Glissando humanize (timing jitter)
     glissandoHumanizeRelay = std::make_unique<juce::WebSliderRelay>("glissandoHumanize");
+    // v1.25.0: Glissando time (Free mode ramp duration)
+    glissandoTimeRelay = std::make_unique<juce::WebSliderRelay>("glissandoTime");
+    // v1.26.0: Glissando excitation softness
+    glissandoExcitationRelay = std::make_unique<juce::WebSliderRelay>("glissandoExcitation");
+    // v1.27.0: Glissando velocity profile
+    glissandoVelStartRelay = std::make_unique<juce::WebSliderRelay>("glissandoVelStart");
+    glissandoVelEndRelay = std::make_unique<juce::WebSliderRelay>("glissandoVelEnd");
 
     stringMaterialRelay = std::make_unique<juce::WebComboBoxRelay>("stringMaterial");
     woodTypeRelay = std::make_unique<juce::WebComboBoxRelay>("woodType");
@@ -762,6 +769,13 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*glissandoCustomSemitonesRelay)
             // v1.24.0: Glissando humanize relay
             .withOptionsFrom(*glissandoHumanizeRelay)
+            // v1.25.0: Glissando time relay
+            .withOptionsFrom(*glissandoTimeRelay)
+            // v1.26.0: Glissando excitation relay
+            .withOptionsFrom(*glissandoExcitationRelay)
+            // v1.27.0: Glissando velocity profile relays
+            .withOptionsFrom(*glissandoVelStartRelay)
+            .withOptionsFrom(*glissandoVelEndRelay)
             // Register all choice relays
             .withOptionsFrom(*stringMaterialRelay)
             .withOptionsFrom(*woodTypeRelay)
@@ -835,6 +849,17 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.24.0: Glissando humanize attachment
     glissandoHumanizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("glissandoHumanize"), *glissandoHumanizeRelay, nullptr);
+    // v1.25.0: Glissando time attachment
+    glissandoTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("glissandoTime"), *glissandoTimeRelay, nullptr);
+    // v1.26.0: Glissando excitation attachment
+    glissandoExcitationAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("glissandoExcitation"), *glissandoExcitationRelay, nullptr);
+    // v1.27.0: Glissando velocity profile attachments
+    glissandoVelStartAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("glissandoVelStart"), *glissandoVelStartRelay, nullptr);
+    glissandoVelEndAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("glissandoVelEnd"), *glissandoVelEndRelay, nullptr);
 
     stringMaterialAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("stringMaterial"), *stringMaterialRelay, nullptr);
