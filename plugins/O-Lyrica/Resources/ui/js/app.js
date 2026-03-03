@@ -158,15 +158,31 @@ function initializeParameters() {
     bindChoice('stringMaterial');
     bindChoice('woodType');
     bindChoice('technique');
-    bindChoice('glissandoMode');
     bindChoice('glissandoScale');
-    // v1.23.0: Interval and direction dropdowns
+    // v1.23.0: Interval and direction dropdowns (Scale-Locked)
     bindChoice('glissandoInterval');
     bindChoice('glissandoDirection');
+    // v1.30.0: Free mode's own shape/interval/direction
+    bindChoice('freeShape');
+    bindChoice('freeInterval');
+    bindChoice('freeDirection');
+    // v1.30.0: Keyswitch note dropdowns
+    bindKeyswitchChoice('freeKeyswitchNote');
+    bindKeyswitchChoice('scaleKeyswitchNote');
 
-    // v1.21.0: Show/hide glissando sub-params based on mode (only visible in Scale-Locked)
-    // v1.23.0: Added interval, custom semitones, and direction visibility
-    setupGlissandoVisibility();
+    // v1.30.0: Free custom semitones slider
+    bindSlider('freeCustomSemitones', (value) => {
+        const st = Math.round(1 + value * 47);
+        document.getElementById('freeCustomSemitonesValue').textContent = `${st} st`;
+    });
+
+    // v1.30.0: Glissando toggle buttons
+    bindToggle('freeToggle', 'freeToggleBtn');
+    bindToggle('scaleToggle', 'scaleToggleBtn');
+
+    // v1.30.0: Custom semitones visibility per section
+    setupCustomSemitonesVisibility('freeInterval', 'freeCustomSemitonesGroup');
+    setupCustomSemitonesVisibility('glissandoInterval', 'glissandoCustomSemitonesGroup');
 }
 
 /**
@@ -294,74 +310,110 @@ function initializeMeters() {
 }
 
 /**
- * v1.23.0: Show/hide glissando sub-parameters based on mode and interval selection
+ * v1.30.0: Bind a bool toggle parameter to a button element
+ * Uses getToggleState for JUCE 8 bool param bridge, falls back to getSliderState
  */
-function setupGlissandoVisibility() {
-    const modeSelect = document.getElementById('glissandoMode');
-    const timeGroup = document.getElementById('glissandoTimeGroup');
-    const excitationGroup = document.getElementById('glissandoExcitationGroup');
-    const speedGroup = document.getElementById('glissandoSpeedGroup');
-    const humanizeGroup = document.getElementById('glissandoHumanizeGroup');
-    const velStartGroup = document.getElementById('glissandoVelStartGroup');
-    const velEndGroup = document.getElementById('glissandoVelEndGroup');
-    const shapeGroup = document.getElementById('glissandoShapeGroup');
-    const intervalGroup = document.getElementById('glissandoIntervalGroup');
-    const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
-    const directionGroup = document.getElementById('glissandoDirectionGroup');
-    const intervalSelect = document.getElementById('glissandoInterval');
-    const scaleGroup = document.getElementById('glissandoScaleGroup');
-
-    if (!modeSelect) return;
-
-    const updateVisibility = () => {
-        const isFree = (modeSelect.selectedIndex === 1);
-        const isScaleLocked = (modeSelect.selectedIndex === 2);
-        // v1.29.0: Excitation softness only visible in Scale-Locked mode
-        if (excitationGroup) excitationGroup.style.display = isScaleLocked ? '' : 'none';
-        // v1.25.0: Time slider only visible in Free mode
-        if (timeGroup) timeGroup.style.display = isFree ? '' : 'none';
-        if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
-        if (humanizeGroup) humanizeGroup.style.display = isScaleLocked ? '' : 'none';
-        if (velStartGroup) velStartGroup.style.display = isScaleLocked ? '' : 'none';
-        if (velEndGroup) velEndGroup.style.display = isScaleLocked ? '' : 'none';
-        if (shapeGroup) shapeGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
-        // v1.29.0: Scale only visible in Scale-Locked mode
-        if (scaleGroup) scaleGroup.style.display = isScaleLocked ? '' : 'none';
-        // v1.29.0: Interval and direction visible in Free or Scale-Locked mode
-        if (intervalGroup) intervalGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
-        if (directionGroup) directionGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
-        // Custom semitones only when interval = Custom (index 16) in Free or Scale-Locked
-        if (customStGroup && intervalSelect) {
-            customStGroup.style.display = ((isFree || isScaleLocked) && intervalSelect.selectedIndex === 16) ? '' : 'none';
-        }
-    };
-
-    // React to user changes
-    modeSelect.addEventListener('change', updateVisibility);
-    if (intervalSelect) intervalSelect.addEventListener('change', updateVisibility);
-
-    // React to JUCE-side changes (automation, preset load)
-    try {
-        const modeState = Juce.getComboBoxState('glissandoMode');
-        if (modeState && modeState.valueChangedEvent) {
-            modeState.valueChangedEvent.addListener(() => {
-                modeSelect.selectedIndex = modeState.getChoiceIndex();
-                updateVisibility();
-            });
-        }
-        if (intervalSelect) {
-            const intervalState = Juce.getComboBoxState('glissandoInterval');
-            if (intervalState && intervalState.valueChangedEvent) {
-                intervalState.valueChangedEvent.addListener(() => {
-                    intervalSelect.selectedIndex = intervalState.getChoiceIndex();
-                    updateVisibility();
-                });
-            }
-        }
-    } catch (e) {
-        console.error('Failed to bind glissando visibility:', e);
+function bindToggle(paramId, buttonId) {
+    const button = document.getElementById(buttonId);
+    if (!button) {
+        console.error(`Toggle button not found: ${buttonId}`);
+        return;
     }
 
-    // Set initial state
-    updateVisibility();
+    try {
+        // Try JUCE 8 toggle state first, fall back to slider state with 0/1 threshold
+        let state;
+        let getValue, setValue;
+
+        if (typeof Juce.getToggleState === 'function') {
+            state = Juce.getToggleState(paramId);
+            getValue = () => state.getValue();
+            setValue = (v) => state.setValue(v);
+        } else {
+            state = Juce.getSliderState(paramId);
+            getValue = () => state.getNormalisedValue() >= 0.5;
+            setValue = (v) => state.setNormalisedValue(v ? 1.0 : 0.0);
+        }
+
+        const updateButton = (isOn) => {
+            button.textContent = isOn ? 'ON' : 'OFF';
+            button.classList.toggle('active', isOn);
+        };
+
+        // Initialize
+        updateButton(getValue());
+
+        // UI → C++
+        button.addEventListener('click', () => {
+            const newVal = !getValue();
+            setValue(newVal);
+            updateButton(newVal);
+        });
+
+        // C++ → UI (automation, preset load)
+        state.valueChangedEvent.addListener(() => {
+            updateButton(getValue());
+        });
+
+        console.log(`Toggle bound: ${paramId} → ${buttonId}`);
+    } catch (error) {
+        console.error(`Failed to bind toggle ${paramId}:`, error);
+    }
+}
+
+/**
+ * v1.30.0: Bind keyswitch choice dropdown (populates 48 MIDI note options)
+ */
+function bindKeyswitchChoice(paramId) {
+    const element = document.getElementById(paramId);
+    if (!element) {
+        console.error(`Keyswitch element not found: ${paramId}`);
+        return;
+    }
+
+    // Populate options: MIDI notes 0-47 (C-1 through B2)
+    const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+    element.innerHTML = '';
+    for (let i = 0; i < 48; i++) {
+        const noteName = noteNames[i % 12];
+        const octave = Math.floor(i / 12) - 1; // MIDI 0 = C-1 (octave offset 4 in JUCE)
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = `${noteName}${octave}`;
+        element.appendChild(option);
+    }
+
+    // Bind to APVTS via standard choice binding
+    bindChoice(paramId);
+}
+
+/**
+ * v1.30.0: Show/hide custom semitones group when interval dropdown = Custom (index 16)
+ */
+function setupCustomSemitonesVisibility(intervalId, customGroupId) {
+    const intervalSelect = document.getElementById(intervalId);
+    const customGroup = document.getElementById(customGroupId);
+
+    if (!intervalSelect || !customGroup) return;
+
+    const update = () => {
+        customGroup.style.display = (intervalSelect.selectedIndex === 16) ? '' : 'none';
+    };
+
+    intervalSelect.addEventListener('change', update);
+
+    // React to JUCE-side changes
+    try {
+        const intervalState = Juce.getComboBoxState(intervalId);
+        if (intervalState && intervalState.valueChangedEvent) {
+            intervalState.valueChangedEvent.addListener(() => {
+                intervalSelect.selectedIndex = intervalState.getChoiceIndex();
+                update();
+            });
+        }
+    } catch (e) {
+        console.error(`Failed to bind custom semitones visibility for ${intervalId}:`, e);
+    }
+
+    update();
 }

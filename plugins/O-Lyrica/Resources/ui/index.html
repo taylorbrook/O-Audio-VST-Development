@@ -1139,6 +1139,52 @@
             z-index: 20;
         }
 
+        /* v1.30.0: Glissando toggle buttons */
+        .gliss-toggle {
+            padding: 2px 8px;
+            font-family: 'Garamond', 'Times New Roman', serif;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.3px;
+            color: #5C4033;
+            background: rgba(212, 196, 176, 0.7);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            cursor: pointer;
+            transition: background 0.15s, color 0.15s;
+            float: right;
+            margin-top: -2px;
+        }
+
+        .gliss-toggle:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .gliss-toggle.active {
+            background: rgba(139, 168, 112, 0.5);
+            color: #3C2F2F;
+            border-color: #3C5C1A;
+            font-weight: 500;
+        }
+
+        /* v1.30.0: Keyswitch settings compact layout */
+        .ks-row {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 4px;
+        }
+
+        .ks-row .dropdown-label {
+            min-width: 50px;
+            font-size: 9px;
+        }
+
+        .ks-row select {
+            flex: 1;
+            max-width: 80px;
+        }
+
         .viz-btn {
             padding: 4px 8px;
             font-family: 'Garamond', 'Times New Roman', serif;
@@ -1797,32 +1843,91 @@
              TECHNIQUES TAB
              ================================================================ -->
         <div id="techniques-tab" class="tab-content">
+            <!-- v1.30.0: Keyswitch Settings -->
             <div class="section">
-                <div class="section-header">Glissando</div>
+                <div class="section-header">Keyswitch Settings</div>
                 <div class="section-content">
-                    <div class="dropdown-group" data-tooltip="Mode: Glissando behavior. Off disables; Free allows smooth pitch slides; Scale-Locked snaps to selected scale notes.">
-                        <span class="dropdown-label">Mode</span>
-                        <select id="glissandoMode">
-                            <option value="0">Off</option>
-                            <option value="1">Free</option>
-                            <option value="2">Scale-Locked</option>
-                        </select>
+                    <div class="dropdown-group" data-tooltip="Free KS: MIDI note that activates Free glissando while held. Keyswitch notes are filtered from playback.">
+                        <span class="dropdown-label">Free KS</span>
+                        <select id="freeKeyswitchNote"></select>
                     </div>
-                    <div class="slider-group" id="glissandoTimeGroup" style="display:none;" data-tooltip="Time: How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.">
+                    <div class="dropdown-group" data-tooltip="Scale KS: MIDI note that activates Scale-Locked glissando while held. Keyswitch notes are filtered from playback.">
+                        <span class="dropdown-label">Scale KS</span>
+                        <select id="scaleKeyswitchNote"></select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- v1.30.0: Free Glissando Section -->
+            <div class="section">
+                <div class="section-header">
+                    Free Glissando
+                    <button class="gliss-toggle" id="freeToggleBtn">OFF</button>
+                </div>
+                <div class="section-content">
+                    <div class="slider-group" data-tooltip="Time: How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.">
                         <span class="slider-label">Time</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoTime" min="0" max="1" step="0.001" value="0.082">
                             <span class="slider-value" id="glissandoTimeValue">50 ms</span>
                         </div>
                     </div>
-                    <div class="slider-group" id="glissandoExcitationGroup" style="display:none;" data-tooltip="Gliss Softness: How much the excitation changes during glissando. 0% is a full deliberate pluck; 60% (default) is a realistic brush; 100% is a very light ethereal sweep.">
-                        <span class="slider-label">Softness</span>
+                    <div class="dropdown-group" data-tooltip="Shape: Acceleration curve for the free glissando sweep.">
+                        <span class="dropdown-label">Shape</span>
+                        <select id="freeShape">
+                            <option value="0">Linear</option>
+                            <option value="1">Accelerate</option>
+                            <option value="2">Decelerate</option>
+                            <option value="3">S-Curve</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Interval: How far the free glissando sweeps in semitones.">
+                        <span class="dropdown-label">Interval</span>
+                        <select id="freeInterval">
+                            <option value="0">Minor 2nd</option>
+                            <option value="1">Major 2nd</option>
+                            <option value="2">Minor 3rd</option>
+                            <option value="3">Major 3rd</option>
+                            <option value="4">Perfect 4th</option>
+                            <option value="5">Tritone</option>
+                            <option value="6">Perfect 5th</option>
+                            <option value="7">Minor 6th</option>
+                            <option value="8">Major 6th</option>
+                            <option value="9">Minor 7th</option>
+                            <option value="10">Major 7th</option>
+                            <option value="11">Octave</option>
+                            <option value="12">Octave + 5th</option>
+                            <option value="13">2 Octaves</option>
+                            <option value="14">2.5 Octaves</option>
+                            <option value="15">3 Octaves</option>
+                            <option value="16">Custom</option>
+                        </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Direction: Whether the free glissando sweeps up to the played note or down to it.">
+                        <span class="dropdown-label">Direction</span>
+                        <select id="freeDirection">
+                            <option value="0">Up to Note</option>
+                            <option value="1">Down to Note</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="freeCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Exact semitone count (1-48) for the free glissando sweep distance.">
+                        <span class="slider-label">Semitones</span>
                         <div class="slider-wrapper">
-                            <input type="range" id="glissandoExcitation" min="0" max="1" step="0.001" value="0.6">
-                            <span class="slider-value" id="glissandoExcitationValue">60%</span>
+                            <input type="range" id="freeCustomSemitones" min="0" max="1" step="0.001" value="0.234">
+                            <span class="slider-value" id="freeCustomSemitonesValue">12 st</span>
                         </div>
                     </div>
-                    <div class="dropdown-group" id="glissandoScaleGroup" style="display:none;" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor are diatonic; Pentatonic is anhemitonic; Custom uses the tuning tab scale.">
+                </div>
+            </div>
+
+            <!-- v1.30.0: Scale-Locked Glissando Section -->
+            <div class="section">
+                <div class="section-header">
+                    Scale-Locked Glissando
+                    <button class="gliss-toggle" id="scaleToggleBtn">OFF</button>
+                </div>
+                <div class="section-content">
+                    <div class="dropdown-group" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor are diatonic; Pentatonic is anhemitonic; Custom uses the tuning tab scale.">
                         <span class="dropdown-label">Scale</span>
                         <select id="glissandoScale">
                             <option value="0">Major</option>
@@ -1831,35 +1936,14 @@
                             <option value="3">Custom</option>
                         </select>
                     </div>
-                    <div class="slider-group" id="glissandoSpeedGroup" style="display:none;" data-tooltip="Speed: How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.">
+                    <div class="slider-group" data-tooltip="Speed: How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.">
                         <span class="slider-label">Speed</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoSpeed" min="0" max="1" step="0.001" value="0.5">
                             <span class="slider-value" id="glissandoSpeedValue">12.0 n/s</span>
                         </div>
                     </div>
-                    <div class="slider-group" id="glissandoHumanizeGroup" style="display:none;" data-tooltip="Humanize: Adds natural timing jitter to each glissando step. Simulates the slight irregularity of a real harpist's arm sweep across strings.">
-                        <span class="slider-label">Humanize</span>
-                        <div class="slider-wrapper">
-                            <input type="range" id="glissandoHumanize" min="0" max="1" step="0.001" value="0.3">
-                            <span class="slider-value" id="glissandoHumanizeValue">30%</span>
-                        </div>
-                    </div>
-                    <div class="slider-group" id="glissandoVelStartGroup" style="display:none;" data-tooltip="Dynamics Start: Velocity at the beginning of the glissando sweep. Lower values mean softer attack and more damping. Default 50% gives a subtle lead-in.">
-                        <span class="slider-label">Dynamics: Start</span>
-                        <div class="slider-wrapper">
-                            <input type="range" id="glissandoVelStart" min="0" max="1" step="0.001" value="0.5">
-                            <span class="slider-value" id="glissandoVelStartValue">50%</span>
-                        </div>
-                    </div>
-                    <div class="slider-group" id="glissandoVelEndGroup" style="display:none;" data-tooltip="Dynamics End: Velocity at the end of the glissando sweep. Higher values mean brighter sustain. Default 70% gives a natural ascending crescendo.">
-                        <span class="slider-label">Dynamics: End</span>
-                        <div class="slider-wrapper">
-                            <input type="range" id="glissandoVelEnd" min="0" max="1" step="0.001" value="0.7">
-                            <span class="slider-value" id="glissandoVelEndValue">70%</span>
-                        </div>
-                    </div>
-                    <div class="dropdown-group" id="glissandoShapeGroup" style="display:none;" data-tooltip="Shape: Acceleration curve for the glissando sweep. Linear is constant speed; Accelerate starts slow and speeds up; Decelerate starts fast and slows; S-Curve mimics a real harpist's arm arc. Works in both Free and Scale-Locked modes.">
+                    <div class="dropdown-group" data-tooltip="Shape: Acceleration curve for the scale-locked glissando sweep.">
                         <span class="dropdown-label">Shape</span>
                         <select id="glissandoShape">
                             <option value="0">Linear</option>
@@ -1868,7 +1952,7 @@
                             <option value="3">S-Curve</option>
                         </select>
                     </div>
-                    <div class="dropdown-group" id="glissandoIntervalGroup" style="display:none;" data-tooltip="Interval: How far the glissando sweeps. Sets a fixed distance in semitones so every note produces the same sweep size.">
+                    <div class="dropdown-group" data-tooltip="Interval: How far the scale-locked glissando sweeps in semitones.">
                         <span class="dropdown-label">Interval</span>
                         <select id="glissandoInterval">
                             <option value="0">Minor 2nd</option>
@@ -1890,19 +1974,47 @@
                             <option value="16">Custom</option>
                         </select>
                     </div>
-                    <div class="slider-group" id="glissandoCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Enter an exact semitone count (1-48) for the glissando sweep distance.">
+                    <div class="dropdown-group" data-tooltip="Direction: Whether the scale-locked glissando sweeps up to the played note or down to it.">
+                        <span class="dropdown-label">Direction</span>
+                        <select id="glissandoDirection">
+                            <option value="0">Up to Note</option>
+                            <option value="1">Down to Note</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="glissandoCustomSemitonesGroup" style="display:none;" data-tooltip="Custom Semitones: Exact semitone count (1-48) for the scale-locked glissando sweep distance.">
                         <span class="slider-label">Semitones</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoCustomSemitones" min="0" max="1" step="0.001" value="0.234">
                             <span class="slider-value" id="glissandoCustomSemitonesValue">12 st</span>
                         </div>
                     </div>
-                    <div class="dropdown-group" id="glissandoDirectionGroup" style="display:none;" data-tooltip="Direction: Whether the glissando sweeps up to the played note or down to it.">
-                        <span class="dropdown-label">Direction</span>
-                        <select id="glissandoDirection">
-                            <option value="0">Up to Note</option>
-                            <option value="1">Down to Note</option>
-                        </select>
+                    <div class="slider-group" data-tooltip="Gliss Softness: How much the excitation changes during glissando. 0% is a full deliberate pluck; 60% (default) is a realistic brush; 100% is a very light ethereal sweep.">
+                        <span class="slider-label">Softness</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoExcitation" min="0" max="1" step="0.001" value="0.6">
+                            <span class="slider-value" id="glissandoExcitationValue">60%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Humanize: Adds natural timing jitter to each glissando step. Simulates the slight irregularity of a real harpist's arm sweep across strings.">
+                        <span class="slider-label">Humanize</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoHumanize" min="0" max="1" step="0.001" value="0.3">
+                            <span class="slider-value" id="glissandoHumanizeValue">30%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Dynamics Start: Velocity at the beginning of the glissando sweep. Lower values mean softer attack and more damping. Default 50% gives a subtle lead-in.">
+                        <span class="slider-label">Dynamics: Start</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoVelStart" min="0" max="1" step="0.001" value="0.5">
+                            <span class="slider-value" id="glissandoVelStartValue">50%</span>
+                        </div>
+                    </div>
+                    <div class="slider-group" data-tooltip="Dynamics End: Velocity at the end of the glissando sweep. Higher values mean brighter sustain. Default 70% gives a natural ascending crescendo.">
+                        <span class="slider-label">Dynamics: End</span>
+                        <div class="slider-wrapper">
+                            <input type="range" id="glissandoVelEnd" min="0" max="1" step="0.001" value="0.7">
+                            <span class="slider-value" id="glissandoVelEndValue">70%</span>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -2615,7 +2727,7 @@
         // Parameter Bindings - Dropdowns
         // v1.5.4: Added try-catch to prevent script crash if comboState binding fails
         // ====================================================================
-        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoMode', 'glissandoScale', 'glissandoShape', 'glissandoInterval', 'glissandoDirection'];
+        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoScale', 'glissandoShape', 'glissandoInterval', 'glissandoDirection', 'freeShape', 'freeInterval', 'freeDirection'];
 
         dropdownParams.forEach(paramId => {
             const select = document.getElementById(paramId);
@@ -2643,71 +2755,127 @@
         });
 
         // ====================================================================
-        // v1.21.0: Glissando sub-parameter visibility (only when Mode = Scale-Locked)
-        // v1.23.0: Added interval, custom semitones, and direction controls
+        // v1.30.0: Glissando toggle buttons + keyswitch dropdowns + custom semitones visibility
         // ====================================================================
         {
-            const modeSelect = document.getElementById('glissandoMode');
-            const timeGroup = document.getElementById('glissandoTimeGroup');
-            const excitationGroup = document.getElementById('glissandoExcitationGroup');
-            const speedGroup = document.getElementById('glissandoSpeedGroup');
-            const humanizeGroup = document.getElementById('glissandoHumanizeGroup');
-            const velStartGroup = document.getElementById('glissandoVelStartGroup');
-            const velEndGroup = document.getElementById('glissandoVelEndGroup');
-            const shapeGroup = document.getElementById('glissandoShapeGroup');
-            const intervalGroup = document.getElementById('glissandoIntervalGroup');
-            const customStGroup = document.getElementById('glissandoCustomSemitonesGroup');
-            const directionGroup = document.getElementById('glissandoDirectionGroup');
-            const intervalSelect = document.getElementById('glissandoInterval');
-            const scaleGroup = document.getElementById('glissandoScaleGroup');
+            // Helper: bind bool toggle param to button
+            function inlineBindToggle(paramId, buttonId) {
+                const button = document.getElementById(buttonId);
+                if (!button) return;
 
-            const updateScaleLockedVis = () => {
-                const isFree = (parseInt(modeSelect.value) === 1);
-                const isScaleLocked = (parseInt(modeSelect.value) === 2);
-                // v1.29.0: Excitation softness only visible in Scale-Locked mode
-                if (excitationGroup) excitationGroup.style.display = isScaleLocked ? '' : 'none';
-                // v1.25.0: Time slider only visible in Free mode
-                if (timeGroup) timeGroup.style.display = isFree ? '' : 'none';
-                if (speedGroup) speedGroup.style.display = isScaleLocked ? '' : 'none';
-                if (humanizeGroup) humanizeGroup.style.display = isScaleLocked ? '' : 'none';
-                if (velStartGroup) velStartGroup.style.display = isScaleLocked ? '' : 'none';
-                if (velEndGroup) velEndGroup.style.display = isScaleLocked ? '' : 'none';
-                if (shapeGroup) shapeGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
-                // v1.29.0: Scale only visible in Scale-Locked mode
-                if (scaleGroup) scaleGroup.style.display = isScaleLocked ? '' : 'none';
-                // v1.29.0: Interval and direction visible in Free or Scale-Locked mode
-                if (intervalGroup) intervalGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
-                if (directionGroup) directionGroup.style.display = (isFree || isScaleLocked) ? '' : 'none';
-                // Custom semitones only visible when interval = Custom (index 16) in Free or Scale-Locked
-                if (customStGroup && intervalSelect) {
-                    customStGroup.style.display = ((isFree || isScaleLocked) && parseInt(intervalSelect.value) === 16) ? '' : 'none';
+                try {
+                    let state, getValue, setValue;
+                    if (typeof Juce.getToggleState === 'function') {
+                        state = Juce.getToggleState(paramId);
+                        getValue = () => state.getValue();
+                        setValue = (v) => state.setValue(v);
+                    } else {
+                        state = Juce.getSliderState(paramId);
+                        getValue = () => state.getNormalisedValue() >= 0.5;
+                        setValue = (v) => state.setNormalisedValue(v ? 1.0 : 0.0);
+                    }
+
+                    const updateBtn = (isOn) => {
+                        button.textContent = isOn ? 'ON' : 'OFF';
+                        button.classList.toggle('active', isOn);
+                    };
+
+                    updateBtn(getValue());
+
+                    button.addEventListener('click', () => {
+                        const newVal = !getValue();
+                        setValue(newVal);
+                        updateBtn(newVal);
+                    });
+
+                    state.valueChangedEvent.addListener(() => {
+                        updateBtn(getValue());
+                    });
+                } catch (e) {
+                    console.warn('[Toggle] Failed to bind ' + paramId + ':', e);
                 }
-            };
-
-            if (modeSelect) {
-                modeSelect.addEventListener('change', updateScaleLockedVis);
-                updateScaleLockedVis();
             }
 
-            // v1.23.0: Show custom semitones only when interval = Custom
-            if (intervalSelect) {
-                intervalSelect.addEventListener('change', updateScaleLockedVis);
+            inlineBindToggle('freeToggle', 'freeToggleBtn');
+            inlineBindToggle('scaleToggle', 'scaleToggleBtn');
+
+            // Helper: populate and bind keyswitch dropdown
+            function inlineBindKeyswitch(paramId) {
+                const el = document.getElementById(paramId);
+                if (!el) return;
+
+                const noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+                el.innerHTML = '';
+                for (let i = 0; i < 48; i++) {
+                    const opt = document.createElement('option');
+                    opt.value = i;
+                    opt.textContent = noteNames[i % 12] + (Math.floor(i / 12) - 1);
+                    el.appendChild(opt);
+                }
+
+                // Bind like standard dropdown
+                try {
+                    const comboState = Juce.getComboBoxState(paramId);
+                    if (!comboState || !comboState.valueChangedEvent) return;
+                    comboState.valueChangedEvent.addListener(() => {
+                        el.value = comboState.getChoiceIndex();
+                    });
+                    el.addEventListener('change', () => {
+                        comboState.setChoiceIndex(parseInt(el.value));
+                    });
+                    el.value = comboState.getChoiceIndex();
+                } catch (e) {
+                    console.warn('[Keyswitch] Failed to bind ' + paramId + ':', e);
+                }
             }
 
-            // v1.27.1: Sync visibility on JUCE-side changes (preset load, automation)
-            // Programmatic select.value = X does NOT fire DOM 'change' events,
-            // so we must listen to JUCE combo state changes directly.
+            inlineBindKeyswitch('freeKeyswitchNote');
+            inlineBindKeyswitch('scaleKeyswitchNote');
+
+            // Custom semitones visibility per section
+            function setupInlineCustomVis(intervalId, groupId) {
+                const intervalSel = document.getElementById(intervalId);
+                const group = document.getElementById(groupId);
+                if (!intervalSel || !group) return;
+
+                const update = () => {
+                    group.style.display = (parseInt(intervalSel.value) === 16) ? '' : 'none';
+                };
+                intervalSel.addEventListener('change', update);
+                try {
+                    const st = Juce.getComboBoxState(intervalId);
+                    if (st && st.valueChangedEvent) st.valueChangedEvent.addListener(update);
+                } catch (e) {}
+                update();
+            }
+
+            setupInlineCustomVis('freeInterval', 'freeCustomSemitonesGroup');
+            setupInlineCustomVis('glissandoInterval', 'glissandoCustomSemitonesGroup');
+
+            // Free custom semitones slider binding (inline)
             try {
-                const modeState = Juce.getComboBoxState('glissandoMode');
-                if (modeState && modeState.valueChangedEvent) {
-                    modeState.valueChangedEvent.addListener(updateScaleLockedVis);
-                }
-                const intervalState = Juce.getComboBoxState('glissandoInterval');
-                if (intervalState && intervalState.valueChangedEvent) {
-                    intervalState.valueChangedEvent.addListener(updateScaleLockedVis);
+                const freeCSSlider = document.getElementById('freeCustomSemitones');
+                const freeCSValue = document.getElementById('freeCustomSemitonesValue');
+                if (freeCSSlider && freeCSValue) {
+                    const sliderState = Juce.getSliderState('freeCustomSemitones');
+                    const initVal = sliderState.getNormalisedValue();
+                    freeCSSlider.value = initVal;
+                    freeCSValue.textContent = Math.round(1 + initVal * 47) + ' st';
+
+                    freeCSSlider.addEventListener('input', (e) => {
+                        const v = parseFloat(e.target.value);
+                        sliderState.setNormalisedValue(v);
+                        freeCSValue.textContent = Math.round(1 + v * 47) + ' st';
+                    });
+
+                    sliderState.valueChangedEvent.addListener(() => {
+                        const v = sliderState.getNormalisedValue();
+                        freeCSSlider.value = v;
+                        freeCSValue.textContent = Math.round(1 + v * 47) + ' st';
+                    });
                 }
             } catch (e) {
-                console.warn('[Glissando] Failed to bind visibility to JUCE events:', e);
+                console.warn('[Slider] Failed to bind freeCustomSemitones:', e);
             }
         }
 

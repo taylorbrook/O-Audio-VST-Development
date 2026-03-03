@@ -2,6 +2,18 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.12.0] - 2026-03-03
+
+### Changed
+
+- **Euclidean controls improved for readability**
+  - "PLS" and "STP" abbreviations replaced with full "PULSES" and "STEPS" column headers above the sequencer lanes (table header style)
+  - Dropdown boxes enlarged (28x16px → 34x26px) with larger font (7px → 11px) for easier number reading
+  - Sequencer rows taller (22px → 28px) with more vertical breathing room
+  - EUC toggle buttons enlarged (24x20px → 26x28px)
+  - Column headers styled as bold dark text above the grid, no longer repeated per-row
+  - Plugin window height increased (660px → 690px) to accommodate taller sequencer section
+
 ## [1.11.0] - 2026-03-02
 
 ### Changed

@@ -35,7 +35,7 @@
     /* Fixed preview frame matching plugin spec */
     .plugin-frame {
       width: 1000px;   /* FIXED */
-      height: 660px;  /* v1.6.3: Reduced from 830px - footer removed, controls in tape row */
+      height: 690px;  /* v1.12.0: Taller for improved sequencer Euclidean controls */
       border: 2px solid #444;
       box-shadow: 0 10px 40px rgba(0,0,0,0.5);
       overflow: hidden;
@@ -91,7 +91,7 @@
       top: 375px;  /* v1.5.5: Moved up 100px (was 475px) */
       left: 70px;  /* v1.5.5: Room for SEQ button on left */
       right: 0;
-      height: 155px;  /* v1.10.0: Taller to fit inline EUC controls */
+      height: 185px;  /* v1.12.0: Taller for header row + larger Euclidean controls */
       overflow: hidden;
       background: rgba(245, 230, 211, 0.3);
       padding: 8px;
@@ -102,7 +102,7 @@
     /* TAPE SECTION - v5 CRITICAL FIX: HORIZONTAL LAYOUT */
     .tape-section {
       position: absolute;
-      top: 545px;  /* v1.10.0: Shifted down to accommodate taller sequencer */
+      top: 575px;  /* v1.12.0: Shifted down for taller sequencer with header row */
       left: 0;
       right: 0;
       height: 115px;  /* v1.10.0: Slightly shorter (was 130px) */
@@ -386,22 +386,22 @@
     .pattern-container {
       width: 100%;
       height: 100%;
-      max-height: 155px;  /* v1.10.0: Taller for inline EUC controls */
+      max-height: 185px;  /* v1.12.0: Taller for header row + larger controls */
       overflow: hidden;
     }
 
     /* v1.5.5: SEQ button to the left of sequencer section */
     .seq-header {
       position: absolute;
-      top: 428px;  /* v1.10.0: Adjusted for taller sequencer */
+      top: 445px;  /* v1.12.0: Adjusted for taller sequencer with header row */
       left: 10px;
       z-index: 10;
     }
 
     .pattern-grid {
       display: grid;
-      grid-template-columns: 26px 62px 20px repeat(16, 1fr);  /* v1.10.0: Added EUC toggle + controls columns */
-      gap: 3px;
+      grid-template-columns: 28px 80px 22px repeat(16, 1fr);  /* v1.12.0: Wider EUC + controls columns */
+      gap: 4px;
       padding: 5px;
       align-items: center;  /* v1.10.0: Center items vertically in rows */
     }
@@ -413,15 +413,15 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 22px;
-      line-height: 22px;
+      height: 28px;
+      line-height: 28px;
     }
 
     .step-button {
       width: 100%;
-      height: 22px;  /* FIXED small height */
-      min-height: 22px;
-      max-height: 22px;
+      height: 28px;  /* v1.12.0: Taller rows for better Euclidean readability */
+      min-height: 28px;
+      max-height: 28px;
       background: rgba(245, 230, 211, 0.5);
       border: 1px solid rgba(107, 142, 78, 0.3);
       border-radius: 2px;
@@ -875,13 +875,13 @@
 
     /* v1.10.0: EUC toggle button in sequencer grid */
     .seq-euc-toggle {
-      width: 24px;
-      height: 20px;
+      width: 26px;
+      height: 28px;
       background: rgba(139, 115, 85, 0.3);
       border: 1px solid #8B7355;
       border-radius: 2px;
       color: #3C2F2F;
-      font-size: 7px;
+      font-size: 8px;
       letter-spacing: 0.3px;
       cursor: pointer;
       display: flex;
@@ -902,7 +902,7 @@
       display: flex;  /* v1.10.0: Always visible, dimmed when inactive */
       flex-direction: row;
       align-items: center;
-      gap: 1px;
+      gap: 4px;
       opacity: 0.2;
       pointer-events: none;
       transition: opacity 200ms;
@@ -919,26 +919,40 @@
       flex-direction: column;
       align-items: center;
       gap: 0px;
-      width: 30px;
+      width: 36px;
     }
 
-    .euc-dropdown-label {
-      font-size: 5px;
-      height: 6px;
-      line-height: 6px;
-      letter-spacing: 0.2px;
-      color: #8B7355;
+    /* v1.12.0: Column header row for Euclidean controls */
+    .euc-column-headers {
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .euc-column-header {
+      display: inline-block;
+      width: 36px;
+      font-size: 8px;
+      font-weight: bold;
+      letter-spacing: 0.5px;
+      color: #3C2F2F;
       text-transform: uppercase;
+      text-align: center;
+    }
+
+    .euc-column-header-spacer {
+      /* Empty spacer for grid alignment */
     }
 
     .euc-dropdown {
-      width: 28px;
-      height: 16px;
+      width: 34px;
+      height: 26px;
       background: rgba(60, 47, 47, 0.6);
       color: #D4C4A0;
       border: 1px solid #8B7355;
       border-radius: 2px;
-      font-size: 7px;
+      font-size: 11px;
       font-family: inherit;
       text-align: center;
       cursor: pointer;
@@ -1318,17 +1332,22 @@
     <div class="sequencer-section" data-tooltip="Pattern Sequencer: Click steps to enable (green) or disable (dim). Each row controls one lane. Active steps allow stutter triggers on that beat.">
       <div class="pattern-container">
         <div class="pattern-grid">
+          <!-- v1.12.0: Column headers above sequencer lanes -->
+          <div class="euc-column-header-spacer"></div>
+          <div class="euc-column-headers"><span class="euc-column-header">PULSES</span><span class="euc-column-header">STEPS</span></div>
+          <div class="euc-column-header-spacer" style="grid-column: 3 / -1;"></div>
+
           <!-- Lane 1: EUC toggle + controls + label + 16 steps -->
           <div class="seq-euc-toggle" id="lane1_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
           <div class="euc-controls" id="lane1_euc_controls">
             <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
-              <div class="euc-dropdown-label">PLS</div>
+
               <select class="euc-dropdown" id="lane1_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
             <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
-              <div class="euc-dropdown-label">STP</div>
+
               <select class="euc-dropdown" id="lane1_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
               </select>
@@ -1356,13 +1375,13 @@
           <div class="seq-euc-toggle" id="lane2_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
           <div class="euc-controls" id="lane2_euc_controls">
             <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
-              <div class="euc-dropdown-label">PLS</div>
+
               <select class="euc-dropdown" id="lane2_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
             <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
-              <div class="euc-dropdown-label">STP</div>
+
               <select class="euc-dropdown" id="lane2_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
               </select>
@@ -1390,13 +1409,13 @@
           <div class="seq-euc-toggle" id="lane3_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
           <div class="euc-controls" id="lane3_euc_controls">
             <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
-              <div class="euc-dropdown-label">PLS</div>
+
               <select class="euc-dropdown" id="lane3_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
             <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
-              <div class="euc-dropdown-label">STP</div>
+
               <select class="euc-dropdown" id="lane3_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
               </select>
@@ -1424,13 +1443,13 @@
           <div class="seq-euc-toggle" id="lane4_euclidean_enabled" data-tooltip="Euclidean: Replace manual step pattern with auto-generated Euclidean rhythm.">EUC</div>
           <div class="euc-controls" id="lane4_euc_controls">
             <div class="euc-dropdown-container" data-tooltip="Pulses: Number of active hits (1-16).">
-              <div class="euc-dropdown-label">PLS</div>
+
               <select class="euc-dropdown" id="lane4_euclidean_pulses">
                 <option value="1">1</option><option value="2">2</option><option value="3">3</option><option value="4" selected>4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16">16</option>
               </select>
             </div>
             <div class="euc-dropdown-container" data-tooltip="Steps: Total steps in pattern (2-16).">
-              <div class="euc-dropdown-label">STP</div>
+
               <select class="euc-dropdown" id="lane4_euclidean_steps">
                 <option value="2">2</option><option value="3">3</option><option value="4">4</option><option value="5">5</option><option value="6">6</option><option value="7">7</option><option value="8">8</option><option value="9">9</option><option value="10">10</option><option value="11">11</option><option value="12">12</option><option value="13">13</option><option value="14">14</option><option value="15">15</option><option value="16" selected>16</option>
               </select>

@@ -106,11 +106,72 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         0  // Default: Normal
     ));
 
+    // v1.30.0: Glissando toggle params (replace old glissandoMode dropdown)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "freeToggle", 1 },
+        "Free Glissando",
+        false
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "scaleToggle", 1 },
+        "Scale-Locked Glissando",
+        false
+    ));
+
+    // v1.30.0: Keyswitch note assignments (MIDI 0-47 = C-1 through B2)
+    {
+        juce::StringArray keyswitchNoteNames;
+        for (int i = 0; i < 48; ++i)
+            keyswitchNoteNames.add(juce::MidiMessage::getMidiNoteName(i, true, true, 4));
+
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID { "freeKeyswitchNote", 1 },
+            "Free Keyswitch Note",
+            keyswitchNoteNames,
+            12  // Default: C0
+        ));
+
+        layout.add(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID { "scaleKeyswitchNote", 1 },
+            "Scale Keyswitch Note",
+            keyswitchNoteNames,
+            14  // Default: D0
+        ));
+    }
+
+    // v1.30.0: Free mode's own shape/interval/direction/custom semitones
     layout.add(std::make_unique<juce::AudioParameterChoice>(
-        juce::ParameterID { "glissandoMode", 1 },
-        "Glissando Mode",
-        juce::StringArray { "Off", "Free", "Scale-Locked" },
-        0  // Default: Off
+        juce::ParameterID { "freeShape", 1 },
+        "Free Gliss Shape",
+        juce::StringArray { "Linear", "Accelerate", "Decelerate", "S-Curve" },
+        3  // Default: S-Curve
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "freeInterval", 1 },
+        "Free Gliss Interval",
+        juce::StringArray { "Minor 2nd", "Major 2nd", "Minor 3rd", "Major 3rd",
+                            "Perfect 4th", "Tritone", "Perfect 5th", "Minor 6th",
+                            "Major 6th", "Minor 7th", "Major 7th", "Octave",
+                            "Octave + 5th", "2 Octaves", "2.5 Octaves", "3 Octaves",
+                            "Custom" },
+        11  // Default: Octave
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "freeDirection", 1 },
+        "Free Gliss Direction",
+        juce::StringArray { "Up to Note", "Down to Note" },
+        0  // Default: Up to Note
+    ));
+
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "freeCustomSemitones", 1 },
+        "Free Custom Semitones",
+        juce::NormalisableRange<float>(1.0f, 48.0f, 1.0f),
+        12.0f,
+        "st"
     ));
 
     layout.add(std::make_unique<juce::AudioParameterChoice>(
@@ -334,11 +395,16 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
         voice->setAPVTS(&parameters);
         voice->setSympatheticEngine(&sympatheticEngine); // Phase 2.7: Connect sympathetic engine
         voice->setTuningEngine(&tuningEngine); // Phase 2.8: Connect tuning engine
+        voice->setActiveGlissandoMode(&activeGlissandoMode); // v1.30.0: Glissando mode atomic
         synthesiser.addVoice(voice);
     }
 
     // Add sound that accepts all MIDI notes
     synthesiser.addSound(new HarpSynthSound());
+
+    // v1.30.0: Register APVTS listeners for toggle mutual exclusion
+    parameters.addParameterListener("freeToggle", this);
+    parameters.addParameterListener("scaleToggle", this);
 
     // v1.12.0: Set up custom state callbacks for tuning persistence
     // v1.18.3: Removed verbose DBG logging (was development diagnostics)
@@ -435,6 +501,9 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
 
 OLyricaAudioProcessor::~OLyricaAudioProcessor()
 {
+    // v1.30.0: Remove APVTS listeners
+    parameters.removeParameterListener("freeToggle", this);
+    parameters.removeParameterListener("scaleToggle", this);
 }
 
 void OLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
@@ -493,26 +562,108 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
     sympatheticEngine.syncBeforeBlock();
 
-    // v1.7.9: Push MIDI note events to queue for UI visualization (tuning circle flash)
+    // v1.30.0: Keyswitch filtering — intercept keyswitch notes before passing to synthesiser
+    int freeKSNote = static_cast<int>(parameters.getRawParameterValue("freeKeyswitchNote")->load());
+    int scaleKSNote = static_cast<int>(parameters.getRawParameterValue("scaleKeyswitchNote")->load());
+
+    juce::MidiBuffer filteredMidi;
+
     for (const auto metadata : midiMessages)
     {
         const auto msg = metadata.getMessage();
+        int noteNum = msg.getNoteNumber();
+
+        bool isKeyswitch = false;
+
         if (msg.isNoteOn())
         {
-            midiEventQueue.push({ msg.getNoteNumber(), msg.getFloatVelocity() });
+            if (noteNum == freeKSNote)
+            {
+                freeKeyswitchHeld.store(true, std::memory_order_release);
+                scaleKeyswitchHeld.store(false, std::memory_order_release); // Exclusive
+                isKeyswitch = true;
+            }
+            else if (noteNum == scaleKSNote)
+            {
+                scaleKeyswitchHeld.store(true, std::memory_order_release);
+                freeKeyswitchHeld.store(false, std::memory_order_release); // Exclusive
+                isKeyswitch = true;
+            }
         }
         else if (msg.isNoteOff())
         {
-            midiEventQueue.push({ msg.getNoteNumber(), 0.0f });
+            if (noteNum == freeKSNote)
+            {
+                freeKeyswitchHeld.store(false, std::memory_order_release);
+                isKeyswitch = true;
+            }
+            else if (noteNum == scaleKSNote)
+            {
+                scaleKeyswitchHeld.store(false, std::memory_order_release);
+                isKeyswitch = true;
+            }
+        }
+
+        if (!isKeyswitch)
+        {
+            filteredMidi.addEvent(msg, metadata.samplePosition);
+
+            // v1.7.9: Push MIDI note events to queue for UI visualization (tuning circle flash)
+            if (msg.isNoteOn())
+                midiEventQueue.push({ noteNum, msg.getFloatVelocity() });
+            else if (msg.isNoteOff())
+                midiEventQueue.push({ noteNum, 0.0f });
         }
     }
 
+    // v1.30.0: Update active glissando mode from keyswitches + toggles
+    updateActiveGlissandoMode();
+
     // Render MIDI to audio via synthesiser
-    synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
+    synthesiser.renderNextBlock(buffer, filteredMidi, 0, buffer.getNumSamples());
 
     // Apply master volume
     float volumeDb = parameters.getRawParameterValue("masterVolume")->load();
     buffer.applyGain(juce::Decibels::decibelsToGain(volumeDb));
+}
+
+// v1.30.0: Toggle mutual exclusion — turning one ON turns the other OFF
+void OLyricaAudioProcessor::parameterChanged(const juce::String& parameterID, float newValue)
+{
+    if (isUpdatingToggles)
+        return;
+
+    isUpdatingToggles = true;
+
+    if (parameterID == "freeToggle" && newValue >= 0.5f)
+    {
+        if (auto* scaleParam = parameters.getParameter("scaleToggle"))
+            scaleParam->setValueNotifyingHost(0.0f);
+    }
+    else if (parameterID == "scaleToggle" && newValue >= 0.5f)
+    {
+        if (auto* freeParam = parameters.getParameter("freeToggle"))
+            freeParam->setValueNotifyingHost(0.0f);
+    }
+
+    isUpdatingToggles = false;
+
+    updateActiveGlissandoMode();
+}
+
+// v1.30.0: Priority logic for active glissando mode
+void OLyricaAudioProcessor::updateActiveGlissandoMode()
+{
+    if (scaleKeyswitchHeld.load(std::memory_order_acquire))
+        activeGlissandoMode.store(2, std::memory_order_release);
+    else if (freeKeyswitchHeld.load(std::memory_order_acquire))
+        activeGlissandoMode.store(1, std::memory_order_release);
+    else if (parameters.getRawParameterValue("scaleToggle")->load() >= 0.5f)
+        activeGlissandoMode.store(2, std::memory_order_release);
+    else if (parameters.getRawParameterValue("freeToggle")->load() >= 0.5f)
+        activeGlissandoMode.store(1, std::memory_order_release);
+    else
+        activeGlissandoMode.store(0, std::memory_order_release);
 }
 
 int OLyricaAudioProcessor::getActiveVoiceCount() const

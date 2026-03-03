@@ -60,6 +60,11 @@ public:
     void setTuningEngine(TuningEngine* engine);
 
     /**
+     * v1.30.0: Set pointer to active glissando mode atomic (owned by processor)
+     */
+    void setActiveGlissandoMode(std::atomic<int>* modePtr);
+
+    /**
      * Get unique voice ID for sympathetic resonance tracking
      */
     int getVoiceId() const;
@@ -88,6 +93,9 @@ private:
 
     // Phase 2.8: Tuning Engine (shared, owned by processor)
     TuningEngine* tuningEngine = nullptr;
+
+    // v1.30.0: Active glissando mode atomic (owned by processor)
+    std::atomic<int>* activeGlissandoModePtr = nullptr;
 
     double currentFrequency = 440.0;
     double previousFrequency = 440.0; // For glissando start point

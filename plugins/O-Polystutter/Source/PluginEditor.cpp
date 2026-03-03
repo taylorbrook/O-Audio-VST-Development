@@ -840,8 +840,8 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
     // Navigate to UI (served from BinaryData)
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
-    // Fixed window size: 1000×660px (v1.6.3: reduced - footer removed, controls in tape row)
-    setSize(1000, 660);
+    // Fixed window size: 1000×690px (v1.12.0: taller for improved Euclidean controls)
+    setSize(1000, 690);
 
     // v1.5.0: Start timer for lane progress updates (~30Hz for smooth animation)
     startTimerHz(30);

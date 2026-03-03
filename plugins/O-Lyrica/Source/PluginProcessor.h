@@ -71,7 +71,8 @@ private:
     std::atomic<bool> pushLock { false };  // v1.7.10: Spinlock for push()
 };
 
-class OLyricaAudioProcessor : public juce::AudioProcessor
+class OLyricaAudioProcessor : public juce::AudioProcessor,
+                               public juce::AudioProcessorValueTreeState::Listener
 {
 public:
     OLyricaAudioProcessor();
@@ -157,6 +158,12 @@ public:
     bool getTooltipsEnabled() const { return tooltipsEnabled.load(std::memory_order_acquire); }
     void setTooltipsEnabled(bool enabled) { tooltipsEnabled.store(enabled, std::memory_order_release); }
 
+    // v1.30.0: Glissando mode state (0=Off, 1=Free, 2=ScaleLocked)
+    std::atomic<int> activeGlissandoMode { 0 };
+
+    // v1.30.0: APVTS Listener for toggle mutual exclusion
+    void parameterChanged(const juce::String& parameterID, float newValue) override;
+
 private:
     juce::AudioProcessorValueTreeState parameters;
     juce::Synthesiser synthesiser;
@@ -175,6 +182,12 @@ private:
 
     // v1.13.3: Flag to prevent processBlock from syncing mode during state restoration
     std::atomic<bool> isRestoringState { false };
+
+    // v1.30.0: Keyswitch tracking
+    std::atomic<bool> freeKeyswitchHeld { false };
+    std::atomic<bool> scaleKeyswitchHeld { false };
+    void updateActiveGlissandoMode();
+    bool isUpdatingToggles = false; // Reentrancy guard for mutual exclusion
 
     // v1.18.0: Tooltip system enabled state (saved with plugin state)
     std::atomic<bool> tooltipsEnabled { false };

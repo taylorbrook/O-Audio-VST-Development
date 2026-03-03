@@ -48,6 +48,11 @@ void HarpSynthVoice::setTuningEngine(TuningEngine* engine)
     tuningEngine = engine;
 }
 
+void HarpSynthVoice::setActiveGlissandoMode(std::atomic<int>* modePtr)
+{
+    activeGlissandoModePtr = modePtr;
+}
+
 int HarpSynthVoice::getVoiceId() const
 {
     return voiceId;
@@ -168,21 +173,20 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         // v1.3.0: Set body mode spread
         bodyResonance.setModeSpread(parameters->getRawParameterValue("bodyModeSpread")->load());
 
-        // Phase 2.9: Configure glissando controller
-        int glissandoModeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoMode")->load());
-        GlissandoMode glissandoMode = glissandoModeFromIndex(glissandoModeIndex);
-
+        // v1.30.0: Read glissando mode from processor atomic (keyswitches + toggles)
+        int modeIndex = activeGlissandoModePtr ? activeGlissandoModePtr->load(std::memory_order_acquire) : 0;
+        GlissandoMode glissandoMode = glissandoModeFromIndex(modeIndex);
         glissandoController.setMode(glissandoMode);
 
-        // For scale-locked mode, get scale from tuning engine
+        // Helper: interval semitone lookup
+        static const int intervalSemitones[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 24, 30, 36 };
+
+        // Scale-Locked mode: get scale from tuning engine, use existing glissando* params
         if (glissandoMode == GlissandoMode::ScaleLocked && tuningEngine != nullptr)
         {
-            // v1.23.0: Read interval and direction parameters
             int intervalIndex = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
             int directionIndex = static_cast<int>(parameters->getRawParameterValue("glissandoDirection")->load());
 
-            // Map interval preset to semitones (index 16 = Custom)
-            static const int intervalSemitones[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 24, 30, 36 };
             int semitones;
             if (intervalIndex >= 16) // Custom
                 semitones = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
@@ -191,26 +195,57 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
 
             // Fetch scale frequencies covering the full gliss range
             int scaleStart = midiNoteNumber - semitones - 1;
-            int scaleCount = semitones * 2 + 3; // Cover both directions with margin
+            int scaleCount = semitones * 2 + 3;
             if (scaleStart < 0) scaleStart = 0;
             if (scaleStart + scaleCount > 127) scaleCount = 128 - scaleStart;
-            if (scaleCount > 64) scaleCount = 64; // Clamp to MAX_SCALE_SIZE
+            if (scaleCount > 64) scaleCount = 64;
 
             std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(scaleStart, scaleCount);
-            glissandoController.setScale(scaleFreqs);
+
+            // v1.30.0: Wire glissandoScale — filter frequencies by selected scale
+            int scaleIndex = static_cast<int>(parameters->getRawParameterValue("glissandoScale")->load());
+            if (scaleIndex < 3) // Major=0, Minor=1, Pentatonic=2
+            {
+                static const std::vector<std::vector<int>> scaleDegrees = {
+                    {0, 2, 4, 5, 7, 9, 11},   // Major
+                    {0, 2, 3, 5, 7, 8, 10},    // Minor (natural)
+                    {0, 2, 4, 7, 9}             // Pentatonic
+                };
+                int rootDegree = midiNoteNumber % 12;
+                std::vector<double> filtered;
+                for (int n = scaleStart; n < scaleStart + scaleCount && n <= 127; ++n)
+                {
+                    if (n < 0) continue;
+                    int degree = ((n % 12) - rootDegree + 12) % 12;
+                    bool inScale = false;
+                    for (int d : scaleDegrees[scaleIndex])
+                    {
+                        if (d == degree) { inScale = true; break; }
+                    }
+                    if (inScale)
+                        filtered.push_back(tuningEngine->getFrequency(n));
+                }
+                // Guard: if filtered < 2 notes, fall back to chromatic
+                if (filtered.size() >= 2)
+                    glissandoController.setScale(filtered);
+                else
+                    glissandoController.setScale(scaleFreqs);
+            }
+            else
+            {
+                // Custom = chromatic (existing behavior)
+                glissandoController.setScale(scaleFreqs);
+            }
 
             float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
             glissandoController.setSpeed(glissSpeed);
 
-            // v1.22.0: Set glissando shape (acceleration curve)
             int shapeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoShape")->load());
             glissandoController.setShape(glissandoShapeFromIndex(shapeIndex));
 
-            // v1.24.0: Set glissando timing humanization
             float glissHumanize = parameters->getRawParameterValue("glissandoHumanize")->load();
             glissandoController.setHumanize(glissHumanize);
 
-            // v1.23.0: Calculate start frequency from interval and direction
             // Direction 0 = Up to Note (start below), 1 = Down to Note (start above)
             double startFreq;
             if (directionIndex == 0)
@@ -218,7 +253,6 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             else
                 startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
 
-            // v1.27.0: Set velocity profile for dynamic contour
             float glissVelStart = parameters->getRawParameterValue("glissandoVelStart")->load();
             float glissVelEnd = parameters->getRawParameterValue("glissandoVelEnd")->load();
             glissandoController.setVelocityProfile(glissVelStart, glissVelEnd);
@@ -226,25 +260,25 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             glissandoController.startGlissando(startFreq, currentFrequency);
         }
 
-        // Free mode: sweep from calculated start frequency to current note
+        // v1.30.0: Free mode: reads from dedicated free* params
         if (glissandoMode == GlissandoMode::Free)
         {
-            // v1.25.0: Set configurable ramp time before starting glissando
             float glissTime = parameters->getRawParameterValue("glissandoTime")->load();
             glissandoController.setRampTime(glissTime);
 
-            // v1.29.0: Read interval and direction for Free mode (same params as Scale-Locked)
-            int intervalIndex = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
-            int directionIndex = static_cast<int>(parameters->getRawParameterValue("glissandoDirection")->load());
+            // v1.30.0: Free mode shape
+            int freeShapeIndex = static_cast<int>(parameters->getRawParameterValue("freeShape")->load());
+            glissandoController.setShape(glissandoShapeFromIndex(freeShapeIndex));
 
-            static const int intervalSemitones[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 24, 30, 36 };
+            int intervalIndex = static_cast<int>(parameters->getRawParameterValue("freeInterval")->load());
+            int directionIndex = static_cast<int>(parameters->getRawParameterValue("freeDirection")->load());
+
             int semitones;
             if (intervalIndex >= 16) // Custom
-                semitones = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
+                semitones = static_cast<int>(parameters->getRawParameterValue("freeCustomSemitones")->load());
             else
                 semitones = intervalSemitones[intervalIndex];
 
-            // Direction 0 = Up to Note (start below), 1 = Down to Note (start above)
             double startFreq;
             if (directionIndex == 0)
                 startFreq = currentFrequency / std::pow(2.0, semitones / 12.0);
@@ -271,8 +305,9 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     // descending = thumb (brighter with subtle nail edge)
     if (parameters != nullptr)
     {
-        int glissandoModeIdx = static_cast<int>(parameters->getRawParameterValue("glissandoMode")->load());
-        GlissandoMode glissMode = glissandoModeFromIndex(glissandoModeIdx);
+        // v1.30.0: Read mode from atomic instead of old APVTS param
+        GlissandoMode glissMode = glissandoModeFromIndex(
+            activeGlissandoModePtr ? activeGlissandoModePtr->load(std::memory_order_acquire) : 0);
 
         if (glissMode != GlissandoMode::Off)
         {

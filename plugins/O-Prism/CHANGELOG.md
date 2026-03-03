@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.0.1 (2026-03-03)
+
+### Fixed
+- **Sticky unison knobs**: Osc A/B Unison knobs required ~25px of drag to change by one step, making them feel stuck. Added adaptive drag sensitivity — discrete parameters (≤16 steps) now require ~8px per step instead. Continuous knobs are unaffected.
+
 ## v1.0.0 (2026-02-23)
 
 ### Breaking Changes

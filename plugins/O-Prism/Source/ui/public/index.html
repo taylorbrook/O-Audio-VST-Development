@@ -1234,7 +1234,13 @@ function makeKnobDraggable(knobEl, state, onUpdate) {
     });
     document.addEventListener('mousemove', (e) => {
         if (!isDragging) return;
-        const norm = Math.max(0, Math.min(1, state.getNormalisedValue() - e.movementY * 0.005));
+        let sensitivity = 0.005;
+        const p = state.properties;
+        if (p && p.interval > 0) {
+            const steps = Math.round((p.end - p.start) / p.interval);
+            if (steps > 0 && steps <= 16) sensitivity = 1.0 / (steps * 8);
+        }
+        const norm = Math.max(0, Math.min(1, state.getNormalisedValue() - e.movementY * sensitivity));
         state.setNormalisedValue(norm);
     });
     state.valueChangedEvent.addListener(() => onUpdate(state.getNormalisedValue()));
