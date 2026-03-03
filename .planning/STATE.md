@@ -59,7 +59,7 @@ None currently.
 | 10 | Fix Google OAuth provider not enabled on oaudio.io | 2026-02-26 | — | [10-fix-google-oauth-provider-not-enabled-on](./quick/10-fix-google-oauth-provider-not-enabled-on/) |
 | 11 | Review manuscript for grammar and spelling | 2026-03-02 | 0df9e01 | [11-review-manuscript-for-grammar-and-spelli](./quick/11-review-manuscript-for-grammar-and-spelli/) |
 | 12 | Reformat manuscript as Word document for Leonardo submission | 2026-03-02 | — | [12-reformat-manuscript-md-as-word-document-](./quick/12-reformat-manuscript-md-as-word-document-/) |
-| 13 | Codebase refactoring audit (13 opportunities, ~3,200+ lines eliminable) | 2026-03-03 | bfcca7b | [13-look-through-this-project-for-opportunit](./quick/13-look-through-this-project-for-opportunit/) |
+| 13 | Codebase refactoring audit (13 opportunities, ~3,200+ lines eliminable) | 2026-03-03 | 386e107 | [13-look-through-this-project-for-opportunit](./quick/13-look-through-this-project-for-opportunit/) |
 
 ## Session Continuity
 
