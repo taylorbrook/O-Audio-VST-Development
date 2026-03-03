@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-02-10)
 Phase: None (between milestones)
 Plan: N/A
 Status: v1.3 milestone archived. All phases (14-17) shipped.
-Last activity: 2026-03-02 - Completed quick task 11: Review manuscript for grammar and spelling
+Last activity: 2026-03-02 - Completed quick task 12: Reformat manuscript.md as Word document following Leonardo journal submission requirements
 
 Progress: [██████████] 100% (v1.0-v1.3: 17/17 phases complete, 51/51 plans)
 
@@ -58,11 +58,12 @@ None currently.
 | 9 | Fix email confirmation landing page to show thank-you message | 2026-02-26 | 0ebc554 | [9-fix-email-confirmation-landing-page-to-s](./quick/9-fix-email-confirmation-landing-page-to-s/) |
 | 10 | Fix Google OAuth provider not enabled on oaudio.io | 2026-02-26 | — | [10-fix-google-oauth-provider-not-enabled-on](./quick/10-fix-google-oauth-provider-not-enabled-on/) |
 | 11 | Review manuscript for grammar and spelling | 2026-03-02 | 0df9e01 | [11-review-manuscript-for-grammar-and-spelli](./quick/11-review-manuscript-for-grammar-and-spelli/) |
+| 12 | Reformat manuscript as Word document for Leonardo submission | 2026-03-02 | — | [12-reformat-manuscript-md-as-word-document-](./quick/12-reformat-manuscript-md-as-word-document-/) |
 
 ## Session Continuity
 
 Last session: 2026-03-02
-Stopped at: Completed quick task 11 (Review manuscript for grammar and spelling)
+Stopped at: Completed quick task 12 (Reformat manuscript + cover letter as Word docs for Leonardo)
 Resume file: None
 
 Next: `/gsd:new-milestone` to start v2 planning
