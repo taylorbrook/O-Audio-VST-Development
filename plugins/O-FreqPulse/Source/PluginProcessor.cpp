@@ -332,7 +332,7 @@ void OFreqPulseAudioProcessor::updateEuclideanPatterns()
 int OFreqPulseAudioProcessor::calculateCurrentStep(double ppq, int numSteps, int rateIndex, float swing)
 {
     // PPQ values for rate options
-    const double ppqPerStep[] = {
+    static constexpr double ppqPerStep[] = {
         4.0,     // 1/1 (whole note)
         2.0,     // 1/2
         1.0,     // 1/4
@@ -469,21 +469,16 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     if (euclideanParamsChanged)
         updateEuclideanPatterns();
 
-    // Detect whether audio signal is present (RMS check across all channels)
+    // Detect whether audio signal is present (peak-channel RMS check)
+    bool signalPresent;
     {
-        float sumSquares = 0.0f;
+        float rms = 0.0f;
         for (int ch = 0; ch < numChannels; ++ch)
-        {
-            const float* data = buffer.getReadPointer(ch);
-            for (int i = 0; i < numSamples; ++i)
-                sumSquares += data[i] * data[i];
-        }
-        float rms = std::sqrt(sumSquares / static_cast<float>(numSamples * juce::jmax(numChannels, 1)));
+            rms = juce::jmax(rms, buffer.getRMSLevel(ch, 0, numSamples));
         constexpr float silenceThreshold = 0.001f;  // ~-60 dB
-        hasAudioSignal.store(rms >= silenceThreshold);
+        signalPresent = (rms >= silenceThreshold);
+        hasAudioSignal.store(signalPresent);
     }
-
-    bool signalPresent = hasAudioSignal.load();
 
     // Get playhead position for tempo sync and sample-accurate step tracking
     bool gotValidPosition = false;

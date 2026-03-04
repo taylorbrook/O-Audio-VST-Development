@@ -2,6 +2,18 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.6.5] - 2026-03-04
+
+### Improved
+
+- **Replace manual RMS loop with JUCE's AudioBuffer::getRMSLevel()** - Signal-presence detection in processBlock() now uses the built-in getRMSLevel() per channel with jmax, replacing the manual sumSquares loop. Same result, less code.
+
+## [1.6.4] - 2026-03-04
+
+### Improved
+
+- **Eliminate redundant atomic load in processBlock()** - RMS silence detection now computes `signalPresent` as a local bool, stores it to the `hasAudioSignal` atomic for the GUI thread, and uses the local variable for audio-thread logic. Removes one unnecessary `atomic::load()` per block.
+
 ## [1.6.3] - 2026-03-04
 
 ### Fixed
