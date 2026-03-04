@@ -2,6 +2,18 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.6.2] - 2026-03-04
+
+### Removed
+
+- **Dead `setupGlobalControls()` function** - Removed empty function (only contained a console.log) and its call from DOMContentLoaded handler. All parameter binding already handled by `initializeGlobalParameters()`. No functionality change.
+
+## [1.6.1] - 2026-03-04
+
+### Changed
+
+- **Refactored per-band relays and attachments to array-based structs** - Replaced 24 individually-named relay members and 24 individually-named attachment members with `BandRelays` and `BandAttachments` structs using `std::array<..., 4>`. Constructor uses loops instead of copy-pasted blocks. Critical destruction order (relays → webview → attachments) preserved.
+
 ## [1.6.0] - 2026-02-07
 
 ### Added

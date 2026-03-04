@@ -75,7 +75,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Render UI
     renderGrid();
-    setupGlobalControls();
     setupEuclideanPanel();
     initializeEuclideanListeners();
 
@@ -765,15 +764,6 @@ function initializeEuclideanListeners() {
 
     // Initial frequency label update
     updateAllBandFreqDisplays();
-}
-
-// ============================================================================
-// Setup Global Controls
-// ============================================================================
-
-function setupGlobalControls() {
-    // Already initialized in initializeGlobalParameters()
-    console.log('Global controls bound to JUCE parameters');
 }
 
 // ============================================================================
