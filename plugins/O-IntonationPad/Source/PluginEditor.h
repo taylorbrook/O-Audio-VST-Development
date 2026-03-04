@@ -45,6 +45,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> timingRandomRelay;
     std::unique_ptr<juce::WebSliderRelay> detuneRandomRelay;
     std::unique_ptr<juce::WebSliderRelay> attackTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> decayTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> sustainLevelRelay;
     std::unique_ptr<juce::WebSliderRelay> releaseTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> filterCutoffRelay;
     std::unique_ptr<juce::WebSliderRelay> masterVolumeRelay;
@@ -107,6 +109,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> timingRandomAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> detuneRandomAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> attackTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> decayTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> sustainLevelAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> releaseTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> filterCutoffAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> masterVolumeAttachment;

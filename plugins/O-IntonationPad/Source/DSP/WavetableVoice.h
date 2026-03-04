@@ -61,7 +61,7 @@ public:
     void setWavetablePosition2(float pos);
     void setGainA(float gain);
     void setGainB(float gain);
-    void setEnvelopeParameters(float attack, float release);
+    void setEnvelopeParameters(float attack, float decay, float sustain, float release);
     void setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
                                    const std::vector<int>* enabledDegrees, int scaleDegreeCount,
                                    float spacing, float inversion,

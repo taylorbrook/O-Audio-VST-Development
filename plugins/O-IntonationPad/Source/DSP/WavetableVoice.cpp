@@ -548,12 +548,12 @@ void WavetableVoice::setGainB(float gain)
     cachedGainB = gain;
 }
 
-void WavetableVoice::setEnvelopeParameters(float attack, float release)
+void WavetableVoice::setEnvelopeParameters(float attack, float decay, float sustain, float release)
 {
     envelopeParams.attack = attack;
+    envelopeParams.decay = decay;
+    envelopeParams.sustain = sustain;
     envelopeParams.release = release;
-    envelopeParams.decay = 0.1f;  // Fixed short decay
-    envelopeParams.sustain = 1.0f;  // Full sustain level
     envelope.setParameters(envelopeParams);
 }
 

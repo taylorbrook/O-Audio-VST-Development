@@ -1,5 +1,23 @@
 # O-IntonationPad Changelog
 
+## [2.1.0] - 2026-03-04
+
+### Added
+- **Decay Time parameter**: New `decayTime` APVTS parameter (0.01-5.0s, default 0.1s, exponential skew 0.3) controls envelope decay phase — previously hardcoded to 0.1s
+- **Sustain Level parameter**: New `sustainLevel` APVTS parameter (0.0-1.0, default 1.0) controls envelope sustain level — previously hardcoded to 1.0
+- Full ADSR envelope now user-controllable: Attack, Decay, Sustain, Release all exposed as automatable parameters
+- WebView relays and parameter attachments for both new parameters
+
+### Technical
+- `WavetableVoice::setEnvelopeParameters()` signature changed from `(attack, release)` to `(attack, decay, sustain, release)` — all 4 ADSR values now passed from processBlock
+- No breaking changes: existing presets silently use defaults (decay=0.1s, sustain=1.0) matching previous hardcoded behavior
+- 2 new cached `std::atomic<float>*` pointers in processor for real-time-safe parameter reads
+
+## [2.0.4] - 2026-03-04
+
+### Changed
+- `TuningEngine::getIntervals()` no longer acquires `intervalMutex`. Writers (`setCustomIntervals`, `setSingleInterval`, `setMode`) now publish an immutable `shared_ptr<const vector<double>>` snapshot after every `scaleIntervals` mutation; `getIntervals()` reads it via `std::atomic_load` — zero contention with `rebuildFrequencyTable()` which holds the mutex for 128 frequency calculations in Scala mode
+
 ## [2.0.3] - 2026-03-04
 
 ### Changed

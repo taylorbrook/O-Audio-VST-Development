@@ -224,6 +224,23 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         "s"
     ));
 
+    // v2.1.0: DECAY_TIME - Float (0.01-5.0s, default: 0.1s, exponential)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "decayTime", 1 },
+        "Decay",
+        juce::NormalisableRange<float>(0.01f, 5.0f, 0.001f, 0.3f),  // skew = 0.3 for exponential
+        0.1f,
+        "s"
+    ));
+
+    // v2.1.0: SUSTAIN_LEVEL - Float (0.0-1.0, default: 1.0)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "sustainLevel", 1 },
+        "Sustain",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        1.0f
+    ));
+
     // FILTER_CUTOFF - Float (20-20000 Hz, default: 8000 Hz, logarithmic)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "filterCutoff", 1 },
@@ -339,6 +356,8 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     cachedGainB = parameters.getRawParameterValue("gainB");
     cachedAttackTime = parameters.getRawParameterValue("attackTime");
     cachedReleaseTime = parameters.getRawParameterValue("releaseTime");
+    cachedDecayTime = parameters.getRawParameterValue("decayTime");
+    cachedSustainLevel = parameters.getRawParameterValue("sustainLevel");
     cachedLfoRate = parameters.getRawParameterValue("lfoRate");
     cachedLfoRate2 = parameters.getRawParameterValue("lfoRate2");
     cachedLfoDepth = parameters.getRawParameterValue("lfoDepth");
@@ -407,13 +426,15 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     // Update envelope parameters for all voices
     float attackTime = cachedAttackTime->load();
     float releaseTime = cachedReleaseTime->load();
+    float decayTime = cachedDecayTime->load();
+    float sustainLevel = cachedSustainLevel->load();
 
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
         if (auto* voice = static_cast<WavetableVoice*>(synthesiser.getVoice(i)))
         {
             voice->prepare(samplesPerBlock);
-            voice->setEnvelopeParameters(attackTime, releaseTime);
+            voice->setEnvelopeParameters(attackTime, decayTime, sustainLevel, releaseTime);
         }
     }
 
@@ -453,6 +474,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     float gainB = cachedGainB->load();
     float attackTime = cachedAttackTime->load();
     float releaseTime = cachedReleaseTime->load();
+    float decayTime = cachedDecayTime->load();
+    float sustainLevel = cachedSustainLevel->load();
     int voiceCount = static_cast<int>(cachedVoiceCount->load());
     float complexity = cachedComplexity->load();
     int keyRoot = static_cast<int>(cachedKeyRoot->load());
@@ -531,7 +554,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
             voice->setGainA(gainA);
             voice->setGainB(gainB);
             voice->setStereoSpread(stereoSpread);
-            voice->setEnvelopeParameters(attackTime, releaseTime);
+            voice->setEnvelopeParameters(attackTime, decayTime, sustainLevel, releaseTime);
 
             // Store chord generation parameters for voices to use on note-on
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot,

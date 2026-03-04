@@ -102,6 +102,9 @@ private:
     ReverbProcessor reverbProcessor;
 
     // Randomization
+    // juce::Random is NOT thread-safe, but safe here: only accessed from the audio
+    // callback (processBlock -> synthesiser.renderNextBlock -> WavetableVoice::startNote).
+    // A pointer is passed to voices, but all access is single-threaded within the callback.
     juce::Random randomGenerator;
 
     // Parameters (APVTS comes after DSP components)
@@ -133,6 +136,8 @@ private:
     std::atomic<float>* cachedGainB = nullptr;
     std::atomic<float>* cachedAttackTime = nullptr;
     std::atomic<float>* cachedReleaseTime = nullptr;
+    std::atomic<float>* cachedDecayTime = nullptr;
+    std::atomic<float>* cachedSustainLevel = nullptr;
     std::atomic<float>* cachedLfoRate = nullptr;
     std::atomic<float>* cachedLfoRate2 = nullptr;
     std::atomic<float>* cachedLfoDepth = nullptr;

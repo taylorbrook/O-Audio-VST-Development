@@ -54,6 +54,8 @@ void OIntonationPadAudioProcessorEditor::createRelays()
     timingRandomRelay = std::make_unique<juce::WebSliderRelay>("timingRandom");
     detuneRandomRelay = std::make_unique<juce::WebSliderRelay>("detuneRandom");
     attackTimeRelay = std::make_unique<juce::WebSliderRelay>("attackTime");
+    decayTimeRelay = std::make_unique<juce::WebSliderRelay>("decayTime");
+    sustainLevelRelay = std::make_unique<juce::WebSliderRelay>("sustainLevel");
     releaseTimeRelay = std::make_unique<juce::WebSliderRelay>("releaseTime");
     filterCutoffRelay = std::make_unique<juce::WebSliderRelay>("filterCutoff");
     masterVolumeRelay = std::make_unique<juce::WebSliderRelay>("masterVolume");
@@ -115,6 +117,8 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
         .withOptionsFrom(*timingRandomRelay)
         .withOptionsFrom(*detuneRandomRelay)
         .withOptionsFrom(*attackTimeRelay)
+        .withOptionsFrom(*decayTimeRelay)
+        .withOptionsFrom(*sustainLevelRelay)
         .withOptionsFrom(*releaseTimeRelay)
         .withOptionsFrom(*filterCutoffRelay)
         .withOptionsFrom(*masterVolumeRelay)
@@ -472,6 +476,10 @@ void OIntonationPadAudioProcessorEditor::createAttachments()
         *apvts.getParameter("detuneRandom"), *detuneRandomRelay, nullptr);
     attackTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("attackTime"), *attackTimeRelay, nullptr);
+    decayTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("decayTime"), *decayTimeRelay, nullptr);
+    sustainLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("sustainLevel"), *sustainLevelRelay, nullptr);
     releaseTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("releaseTime"), *releaseTimeRelay, nullptr);
     filterCutoffAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
