@@ -1865,7 +1865,27 @@
                     <button class="gliss-toggle" id="freeToggleBtn">OFF</button>
                 </div>
                 <div class="section-content">
-                    <div class="slider-group" data-tooltip="Time: How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.">
+                    <div class="dropdown-group" data-tooltip="Sync: Lock the Free glissando sweep time to host tempo. When set to a rhythmic value, the Time slider is replaced by the synced duration.">
+                        <span class="dropdown-label">Sync</span>
+                        <select id="freeTempoSync">
+                            <option value="0">Off</option>
+                            <option value="1">1/32</option>
+                            <option value="2">1/16</option>
+                            <option value="3">1/16D</option>
+                            <option value="4">1/8T</option>
+                            <option value="5">1/8</option>
+                            <option value="6">1/8D</option>
+                            <option value="7">1/4T</option>
+                            <option value="8">1/4</option>
+                            <option value="9">1/4D</option>
+                            <option value="10">1/2</option>
+                            <option value="11">1/2D</option>
+                            <option value="12">1 Bar</option>
+                            <option value="13">2 Bars</option>
+                            <option value="14">4 Bars</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="freeTimeGroup" data-tooltip="Time: How long the Free mode pitch sweep takes. 10ms is a near-instant snap; 50ms (default) is a smooth glissando; 200-500ms creates slow expressive portamento.">
                         <span class="slider-label">Time</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoTime" min="0" max="1" step="0.001" value="0.082">
@@ -1957,7 +1977,27 @@
                         <span class="dropdown-label" style="margin-bottom: 3px; display: block;">Degrees</span>
                         <div id="degreeButtonContainer" style="display: flex; flex-wrap: wrap; gap: 3px;"></div>
                     </div>
-                    <div class="slider-group" data-tooltip="Speed: How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.">
+                    <div class="dropdown-group" data-tooltip="Sync: Lock the Scale-Locked glissando total duration to host tempo. When set to a rhythmic value, the Speed slider is replaced by tempo-synced timing.">
+                        <span class="dropdown-label">Sync</span>
+                        <select id="scaleTempoSync">
+                            <option value="0">Off</option>
+                            <option value="1">1/32</option>
+                            <option value="2">1/16</option>
+                            <option value="3">1/16D</option>
+                            <option value="4">1/8T</option>
+                            <option value="5">1/8</option>
+                            <option value="6">1/8D</option>
+                            <option value="7">1/4T</option>
+                            <option value="8">1/4</option>
+                            <option value="9">1/4D</option>
+                            <option value="10">1/2</option>
+                            <option value="11">1/2D</option>
+                            <option value="12">1 Bar</option>
+                            <option value="13">2 Bars</option>
+                            <option value="14">4 Bars</option>
+                        </select>
+                    </div>
+                    <div class="slider-group" id="scaleSpeedGroup" data-tooltip="Speed: How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.">
                         <span class="slider-label">Speed</span>
                         <div class="slider-wrapper">
                             <input type="range" id="glissandoSpeed" min="0" max="1" step="0.001" value="0.5">

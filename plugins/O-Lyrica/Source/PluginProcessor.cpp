@@ -252,6 +252,26 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         "s"
     ));
 
+    // v1.31.0: Tempo sync for Free mode glissando
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "freeTempoSync", 1 },
+        "Free Tempo Sync",
+        juce::StringArray { "Off", "1/32", "1/16", "1/16D", "1/8T", "1/8",
+                            "1/8D", "1/4T", "1/4", "1/4D", "1/2", "1/2D",
+                            "1 Bar", "2 Bars", "4 Bars" },
+        0  // Default: Off
+    ));
+
+    // v1.31.0: Tempo sync for Scale-Locked mode glissando
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "scaleTempoSync", 1 },
+        "Scale Tempo Sync",
+        juce::StringArray { "Off", "1/32", "1/16", "1/16D", "1/8T", "1/8",
+                            "1/8D", "1/4T", "1/4", "1/4D", "1/2", "1/2D",
+                            "1 Bar", "2 Bars", "4 Bars" },
+        0  // Default: Off
+    ));
+
     // v1.26.0: Glissando excitation softness — brush vs deliberate pluck
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "glissandoExcitation", 1 },
@@ -405,6 +425,7 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
         voice->setTuningEngine(&tuningEngine); // Phase 2.8: Connect tuning engine
         voice->setActiveGlissandoMode(&activeGlissandoMode); // v1.30.0: Glissando mode atomic
         voice->setCustomDegreeMask(&glissCustomDegrees); // v1.30.0: Custom degree bitmask
+        voice->setHostBpm(&currentBpm); // v1.31.0: BPM for tempo sync
         synthesiser.addVoice(voice);
     }
 
@@ -567,6 +588,18 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     // v1.9.0: Update octave stretch
     tuningEngine.setOctaveStretch(parameters.getRawParameterValue("octaveStretch")->load());
+
+    // v1.31.0: Read host BPM for tempo sync
+    double hostBpm = 120.0;
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto pos = playHead->getPosition())
+        {
+            if (auto bpm = pos->getBpm())
+                hostBpm = *bpm;
+        }
+    }
+    currentBpm.store(hostBpm, std::memory_order_release);
 
     // v1.3.2: Sync sympathetic coupling matrix at block boundary (thread-safe)
     sympatheticEngine.syncBeforeBlock();

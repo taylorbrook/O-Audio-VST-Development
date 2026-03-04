@@ -2,6 +2,24 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.31.0] - 2026-03-04
+
+### Added
+
+- **Tempo-synced glissando** — Both Free and Scale-Locked glissando modes now have a "Sync" dropdown that locks timing to the DAW's tempo. Choose from 14 rhythmic values: 1/32, 1/16, 1/16D, 1/8T, 1/8, 1/8D, 1/4T, 1/4, 1/4D, 1/2, 1/2D, 1 Bar, 2 Bars, 4 Bars. When Sync is set to anything other than "Off", the manual Time/Speed slider is hidden and replaced by tempo-derived timing.
+
+- **Free mode tempo sync** — When enabled, the sweep ramp duration is calculated from `(beatDivision / (BPM / 60))` seconds. Supports up to 10s ramp (expanded from 0.5s max) for slow divisions at low tempos.
+
+- **Scale-Locked mode tempo sync** — When enabled, the total glissando duration matches the selected rhythmic value. Notes-per-second is derived from `(estimatedStepCount / totalDuration)` so the entire sweep fits exactly within the beat division.
+
+### Technical Details
+
+- New APVTS parameters: `freeTempoSync` and `scaleTempoSync` (AudioParameterChoice, 15 options each)
+- BPM retrieved via `getPlayHead()` in `processBlock`, stored in `std::atomic<double> currentBpm`
+- BPM delivered to voices via atomic pointer (same pattern as `activeGlissandoMode`)
+- `GlissandoController::setRampTime()` max expanded from 0.5s to 10.0s for tempo-synced slow divisions
+- UI: Sync dropdown swaps Time/Speed slider visibility using `setupTempoSyncVisibility()` in app.js
+
 ## [1.30.0] - 2026-03-03
 
 ### Added

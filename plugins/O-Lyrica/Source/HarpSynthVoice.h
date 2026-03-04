@@ -70,6 +70,11 @@ public:
     void setCustomDegreeMask(std::atomic<uint64_t>* maskPtr);
 
     /**
+     * v1.31.0: Set pointer to host BPM atomic (owned by processor)
+     */
+    void setHostBpm(std::atomic<double>* bpmPtr);
+
+    /**
      * Get unique voice ID for sympathetic resonance tracking
      */
     int getVoiceId() const;
@@ -104,6 +109,9 @@ private:
 
     // v1.30.0: Custom degree bitmask pointer (owned by processor)
     std::atomic<uint64_t>* customDegreeMaskPtr = nullptr;
+
+    // v1.31.0: Host BPM pointer (owned by processor, for tempo sync)
+    std::atomic<double>* hostBpmPtr = nullptr;
 
     double currentFrequency = 440.0;
     double previousFrequency = 440.0; // For glissando start point

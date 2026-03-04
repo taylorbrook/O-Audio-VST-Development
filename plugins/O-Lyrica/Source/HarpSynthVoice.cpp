@@ -58,6 +58,11 @@ void HarpSynthVoice::setCustomDegreeMask(std::atomic<uint64_t>* maskPtr)
     customDegreeMaskPtr = maskPtr;
 }
 
+void HarpSynthVoice::setHostBpm(std::atomic<double>* bpmPtr)
+{
+    hostBpmPtr = bpmPtr;
+}
+
 int HarpSynthVoice::getVoiceId() const
 {
     return voiceId;
@@ -267,8 +272,37 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
                     glissandoController.setScale(scaleFreqs);
             }
 
-            float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
-            glissandoController.setSpeed(glissSpeed);
+            // v1.31.0: Tempo sync overrides manual speed when enabled
+            int scaleTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("scaleTempoSync")->load());
+            if (scaleTempoSyncIdx > 0 && hostBpmPtr != nullptr)
+            {
+                // Beat multipliers: index 1=1/32, 2=1/16, 3=1/16D, 4=1/8T, 5=1/8, 6=1/8D,
+                // 7=1/4T, 8=1/4, 9=1/4D, 10=1/2, 11=1/2D, 12=1Bar, 13=2Bars, 14=4Bars
+                static constexpr double kSyncBeats[] = {
+                    0.0, 0.125, 0.25, 0.375, 1.0/3.0, 0.5, 0.75,
+                    2.0/3.0, 1.0, 1.5, 2.0, 3.0, 4.0, 8.0, 16.0
+                };
+                double bpm = hostBpmPtr->load(std::memory_order_acquire);
+                double beatsPerSec = bpm / 60.0;
+                double divBeats = kSyncBeats[scaleTempoSyncIdx];
+                double totalDurationSec = divBeats / beatsPerSec;
+                // Estimate step count from interval to derive notes-per-second
+                int intervalIdx = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
+                int semitonesEst;
+                if (intervalIdx >= 16)
+                    semitonesEst = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
+                else
+                    semitonesEst = intervalSemitones[intervalIdx];
+                // Rough step count estimate (scale-locked steps vary, but semitones is a decent proxy)
+                float stepsEst = juce::jmax(1.0f, static_cast<float>(semitonesEst));
+                float notesPerSec = static_cast<float>(stepsEst / totalDurationSec);
+                glissandoController.setSpeed(juce::jlimit(0.1f, 200.0f, notesPerSec));
+            }
+            else
+            {
+                float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
+                glissandoController.setSpeed(glissSpeed);
+            }
 
             int shapeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoShape")->load());
             glissandoController.setShape(glissandoShapeFromIndex(shapeIndex));
@@ -293,8 +327,24 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         // v1.30.0: Free mode: reads from dedicated free* params
         if (glissandoMode == GlissandoMode::Free)
         {
-            float glissTime = parameters->getRawParameterValue("glissandoTime")->load();
-            glissandoController.setRampTime(glissTime);
+            // v1.31.0: Tempo sync overrides manual time when enabled
+            int freeTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("freeTempoSync")->load());
+            if (freeTempoSyncIdx > 0 && hostBpmPtr != nullptr)
+            {
+                static constexpr double kSyncBeats[] = {
+                    0.0, 0.125, 0.25, 0.375, 1.0/3.0, 0.5, 0.75,
+                    2.0/3.0, 1.0, 1.5, 2.0, 3.0, 4.0, 8.0, 16.0
+                };
+                double bpm = hostBpmPtr->load(std::memory_order_acquire);
+                double beatsPerSec = bpm / 60.0;
+                float rampSeconds = static_cast<float>(kSyncBeats[freeTempoSyncIdx] / beatsPerSec);
+                glissandoController.setRampTime(juce::jlimit(0.01f, 10.0f, rampSeconds));
+            }
+            else
+            {
+                float glissTime = parameters->getRawParameterValue("glissandoTime")->load();
+                glissandoController.setRampTime(glissTime);
+            }
 
             // v1.30.0: Free mode shape
             int freeShapeIndex = static_cast<int>(parameters->getRawParameterValue("freeShape")->load());

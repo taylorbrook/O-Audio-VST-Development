@@ -83,6 +83,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     freeKeyswitchNoteRelay = std::make_unique<juce::WebComboBoxRelay>("freeKeyswitchNote");
     scaleKeyswitchNoteRelay = std::make_unique<juce::WebComboBoxRelay>("scaleKeyswitchNote");
     freeCustomSemitonesRelay = std::make_unique<juce::WebSliderRelay>("freeCustomSemitones");
+    // v1.31.0: Tempo sync relays
+    freeTempoSyncRelay = std::make_unique<juce::WebComboBoxRelay>("freeTempoSync");
+    scaleTempoSyncRelay = std::make_unique<juce::WebComboBoxRelay>("scaleTempoSync");
 
     // 2️⃣ CREATE WEBVIEW with all relays registered
     // v1.18.3: Added section comments for native function organization
@@ -811,6 +814,9 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*freeKeyswitchNoteRelay)
             .withOptionsFrom(*scaleKeyswitchNoteRelay)
             .withOptionsFrom(*freeCustomSemitonesRelay)
+            // v1.31.0: Tempo sync
+            .withOptionsFrom(*freeTempoSyncRelay)
+            .withOptionsFrom(*scaleTempoSyncRelay)
             // ─────────────────────────────────────────────────────────────────
             // v1.30.0: GLISSANDO CUSTOM DEGREE BITMASK
             // ─────────────────────────────────────────────────────────────────
@@ -947,6 +953,11 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
         *apvts.getParameter("scaleKeyswitchNote"), *scaleKeyswitchNoteRelay, nullptr);
     freeCustomSemitonesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("freeCustomSemitones"), *freeCustomSemitonesRelay, nullptr);
+    // v1.31.0: Tempo sync attachments
+    freeTempoSyncAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("freeTempoSync"), *freeTempoSyncRelay, nullptr);
+    scaleTempoSyncAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("scaleTempoSync"), *scaleTempoSyncRelay, nullptr);
 
     // 4️⃣ SETUP WEBVIEW
     addAndMakeVisible(*webView);

@@ -71,7 +71,7 @@ void GlissandoController::setHumanize(float amount)
 
 void GlissandoController::setRampTime(float seconds)
 {
-    rampTimeSeconds = juce::jlimit(0.01f, 0.5f, seconds);
+    rampTimeSeconds = juce::jlimit(0.01f, 10.0f, seconds); // v1.31.0: expanded max for tempo sync
 }
 
 void GlissandoController::setVelocityProfile(float startVel, float endVel)

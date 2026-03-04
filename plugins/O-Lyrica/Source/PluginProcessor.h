@@ -161,6 +161,10 @@ public:
     // v1.30.0: Glissando mode state (0=Off, 1=Free, 2=ScaleLocked)
     std::atomic<int> activeGlissandoMode { 0 };
 
+    // v1.31.0: Current host BPM (updated per processBlock, read by voices for tempo sync)
+    std::atomic<double> currentBpm { 120.0 };
+    double getCurrentBpm() const { return currentBpm.load(std::memory_order_acquire); }
+
     // v1.30.0: Glissando custom degree bitmask (bit N = degree N enabled)
     std::atomic<uint64_t> glissCustomDegrees { 0xFFFFFFFFFFFFFFFF };
     uint64_t getGlissCustomDegrees() const { return glissCustomDegrees.load(std::memory_order_acquire); }

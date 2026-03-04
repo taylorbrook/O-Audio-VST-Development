@@ -184,6 +184,12 @@ function initializeParameters() {
     // v1.30.0: Custom semitones visibility per section
     setupCustomSemitonesVisibility('freeInterval', 'freeCustomSemitonesGroup');
     setupCustomSemitonesVisibility('glissandoInterval', 'glissandoCustomSemitonesGroup');
+
+    // v1.31.0: Tempo sync dropdowns and visibility
+    bindChoice('freeTempoSync');
+    bindChoice('scaleTempoSync');
+    setupTempoSyncVisibility('freeTempoSync', 'freeTimeGroup');
+    setupTempoSyncVisibility('scaleTempoSync', 'scaleSpeedGroup');
 }
 
 /**
@@ -414,6 +420,36 @@ function setupCustomSemitonesVisibility(intervalId, customGroupId) {
         }
     } catch (e) {
         console.error(`Failed to bind custom semitones visibility for ${intervalId}:`, e);
+    }
+
+    update();
+}
+
+/**
+ * v1.31.0: Show/hide a manual control group when tempo sync is active.
+ * When sync dropdown is not "Off" (index 0), hides the manual slider group.
+ */
+function setupTempoSyncVisibility(syncId, manualGroupId) {
+    const syncSelect = document.getElementById(syncId);
+    const manualGroup = document.getElementById(manualGroupId);
+    if (!syncSelect || !manualGroup) return;
+
+    const update = () => {
+        manualGroup.style.display = (syncSelect.selectedIndex === 0) ? '' : 'none';
+    };
+
+    syncSelect.addEventListener('change', update);
+
+    try {
+        const syncState = Juce.getComboBoxState(syncId);
+        if (syncState && syncState.valueChangedEvent) {
+            syncState.valueChangedEvent.addListener(() => {
+                syncSelect.selectedIndex = syncState.getChoiceIndex();
+                update();
+            });
+        }
+    } catch (e) {
+        console.error(`Failed to bind tempo sync visibility for ${syncId}:`, e);
     }
 
     update();

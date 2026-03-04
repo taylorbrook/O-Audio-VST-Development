@@ -96,6 +96,9 @@ private:
     std::unique_ptr<juce::WebComboBoxRelay> freeKeyswitchNoteRelay;
     std::unique_ptr<juce::WebComboBoxRelay> scaleKeyswitchNoteRelay;
     std::unique_ptr<juce::WebSliderRelay> freeCustomSemitonesRelay;
+    // v1.31.0: Tempo sync relays
+    std::unique_ptr<juce::WebComboBoxRelay> freeTempoSyncRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> scaleTempoSyncRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -162,6 +165,9 @@ private:
     std::unique_ptr<juce::WebComboBoxParameterAttachment> freeKeyswitchNoteAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> scaleKeyswitchNoteAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> freeCustomSemitonesAttachment;
+    // v1.31.0: Tempo sync attachments
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> freeTempoSyncAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> scaleTempoSyncAttachment;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
