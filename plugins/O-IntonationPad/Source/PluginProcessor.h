@@ -107,12 +107,58 @@ private:
     // Parameters (APVTS comes after DSP components)
     juce::AudioProcessorValueTreeState parameters;
 
-    // v1.5.0/v1.15.2: Lock-free interval snapshot (UI thread publishes, audio thread reads)
-    std::shared_ptr<const IntervalSnapshot> intervalSnapshot_;
+    // v1.5.0/v1.15.2/v2.0.3: Lock-free interval double-buffer
+    // UI thread writes to inactive slot then flips index; audio thread reads active slot
+    IntervalSnapshot intervalSnapshots_[2];
+    std::atomic<int> activeSnapshotIndex_ { 0 };
     int lastKnownScaleSize_ = 0;  // Message-thread only: tracks scale changes for auto-reset
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+    // Cached parameter pointers (stable for APVTS lifetime, eliminates string lookups in processBlock)
+    std::atomic<float>* cachedVoiceCount = nullptr;
+    std::atomic<float>* cachedComplexity = nullptr;
+    std::atomic<float>* cachedKeyRoot = nullptr;
+    std::atomic<float>* cachedStereoSpread = nullptr;
+    std::atomic<float>* cachedSpacing = nullptr;
+    std::atomic<float>* cachedInversion = nullptr;
+    std::atomic<float>* cachedTimingRandom = nullptr;
+    std::atomic<float>* cachedDetuneRandom = nullptr;
+    std::atomic<float>* cachedWavetableBank = nullptr;
+    std::atomic<float>* cachedWavetablePos = nullptr;
+    std::atomic<float>* cachedWavetableBank2 = nullptr;
+    std::atomic<float>* cachedWavetablePos2 = nullptr;
+    std::atomic<float>* cachedGainA = nullptr;
+    std::atomic<float>* cachedGainB = nullptr;
+    std::atomic<float>* cachedAttackTime = nullptr;
+    std::atomic<float>* cachedReleaseTime = nullptr;
+    std::atomic<float>* cachedLfoRate = nullptr;
+    std::atomic<float>* cachedLfoRate2 = nullptr;
+    std::atomic<float>* cachedLfoDepth = nullptr;
+    std::atomic<float>* cachedLfoDepth2 = nullptr;
+    std::atomic<float>* cachedFilterCutoff = nullptr;
+    std::atomic<float>* cachedMasterVolume = nullptr;
+    // Effects
+    std::atomic<float>* cachedChorusBypass = nullptr;
+    std::atomic<float>* cachedChorusRate = nullptr;
+    std::atomic<float>* cachedChorusDepth = nullptr;
+    std::atomic<float>* cachedChorusMix = nullptr;
+    std::atomic<float>* cachedDelayBypass = nullptr;
+    std::atomic<float>* cachedDelayTime = nullptr;
+    std::atomic<float>* cachedDelayFeedback = nullptr;
+    std::atomic<float>* cachedDelayMode = nullptr;
+    std::atomic<float>* cachedDelayMix = nullptr;
+    std::atomic<float>* cachedEqBypass = nullptr;
+    std::atomic<float>* cachedEqLowGain = nullptr;
+    std::atomic<float>* cachedEqMidGain = nullptr;
+    std::atomic<float>* cachedEqMidFreq = nullptr;
+    std::atomic<float>* cachedEqHighGain = nullptr;
+    std::atomic<float>* cachedReverbBypass = nullptr;
+    std::atomic<float>* cachedReverbSize = nullptr;
+    std::atomic<float>* cachedReverbDamp = nullptr;
+    std::atomic<float>* cachedReverbPredelay = nullptr;
+    std::atomic<float>* cachedReverbMix = nullptr;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OIntonationPadAudioProcessor)
 };

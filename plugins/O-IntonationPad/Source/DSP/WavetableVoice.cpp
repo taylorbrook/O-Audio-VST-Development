@@ -82,12 +82,12 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
     gainSmoothCoeff = 1.0f - std::exp(-1.0f / (0.25f * static_cast<float>(currentSampleRate)));
 
     // Generate chord voicing if chord generator is available
-    if (chordGeneratorPtr != nullptr)
+    if (chordGeneratorPtr != nullptr && cachedEnabledDegrees != nullptr)
     {
         // Always generate MAX sub-voices with full complexity so voice count,
         // complexity, spacing, and inversion can all be changed in real-time on held notes
         auto chordVoices = chordGeneratorPtr->generateChord(midiNoteNumber, MAX_SUB_VOICES,
-                                                             1.0f, cachedKeyRoot, cachedEnabledDegrees,
+                                                             1.0f, cachedKeyRoot, *cachedEnabledDegrees,
                                                              cachedScaleDegreeCount);
 
         // All 12 sub-voices are always initialized
@@ -479,7 +479,8 @@ void WavetableVoice::setWavetableBank(int bankIndex)
 
 void WavetableVoice::setWavetablePosition(float pos)
 {
-    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
+    auto count = static_cast<size_t>(activeSubVoices);
+    for (size_t i = 0; i < count; ++i)
     {
         subVoiceOscillators[i].setWavetablePosition(pos);
         subVoiceSpacingOscillators[i].setWavetablePosition(pos);
@@ -500,7 +501,8 @@ void WavetableVoice::setWavetableBank2(int bankIndex)
 
 void WavetableVoice::setWavetablePosition2(float pos)
 {
-    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
+    auto count = static_cast<size_t>(activeSubVoices);
+    for (size_t i = 0; i < count; ++i)
     {
         subVoiceOscillators2[i].setWavetablePosition(pos);
         subVoiceSpacingOscillators2[i].setWavetablePosition(pos);
@@ -510,7 +512,8 @@ void WavetableVoice::setWavetablePosition2(float pos)
 
 void WavetableVoice::setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth)
 {
-    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
+    auto count = static_cast<size_t>(activeSubVoices);
+    for (size_t i = 0; i < count; ++i)
     {
         float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[i];
         float perVoiceLFO = fastSin(offsetPhase) * lfoDepth;
@@ -523,7 +526,8 @@ void WavetableVoice::setWavetablePositionWithLFO(float basePos, float lfoPhase, 
 
 void WavetableVoice::setWavetablePosition2WithLFO(float basePos, float lfoPhase, float lfoDepth)
 {
-    for (size_t i = 0; i < MAX_SUB_VOICES; ++i)
+    auto count = static_cast<size_t>(activeSubVoices);
+    for (size_t i = 0; i < count; ++i)
     {
         float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[i];
         float perVoiceLFO = fastSin(offsetPhase) * lfoDepth;
@@ -554,7 +558,7 @@ void WavetableVoice::setEnvelopeParameters(float attack, float release)
 }
 
 void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
-                                                const std::vector<int>& enabledDegrees, int scaleDegreeCount,
+                                                const std::vector<int>* enabledDegrees, int scaleDegreeCount,
                                                 float spacing, float inversion,
                                                 float detuneRandom, float timingRandom,
                                                 ChordGenerator* chordGen, TuningEngine* tuning,
@@ -563,7 +567,7 @@ void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, 
     cachedVoiceCount = voiceCount;
     cachedComplexity = complexity;
     cachedKeyRoot = keyRoot;
-    cachedEnabledDegrees = enabledDegrees;
+    cachedEnabledDegrees = enabledDegrees;  // pointer to immutable IntervalSnapshot data
     cachedScaleDegreeCount = scaleDegreeCount;
     cachedSpacing = spacing;
     cachedInversion = inversion;

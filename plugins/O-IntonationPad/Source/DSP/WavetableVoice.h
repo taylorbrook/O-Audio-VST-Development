@@ -5,6 +5,23 @@
     SynthesiserVoice subclass with wavetable oscillator and ADSR envelope
     Phase 2.2: Multiple sub-oscillators (12 chord voices per main voice)
 
+    Oscillator Count
+    ----------------
+    Each WavetableVoice holds 12 sub-voices, each with 6 WavetableOscillator
+    instances (base/spacing/inversion × oscA/oscB). The PluginProcessor
+    allocates 8 voices, giving a total of:
+
+        8 voices × 12 sub-voices × 6 oscillators = 576 WavetableOscillator instances
+
+    Memory / cache implications:
+    - Each oscillator holds a wavetable pointer, phase state, and interpolation
+      scratch data. At ~64 bytes per oscillator this is ~36 KB of hot state.
+    - Sub-voices within a voice are contiguous in the arrays, so per-voice
+      iteration is cache-friendly. Cross-voice iteration (e.g. global parameter
+      sweeps) will stride across voice objects and may incur cache misses.
+    - The wavetable data itself is shared (read-only pointers into WavetableSound),
+      so the 576 oscillators do NOT duplicate the actual sample data.
+
   ==============================================================================
 */
 
@@ -46,7 +63,7 @@ public:
     void setGainB(float gain);
     void setEnvelopeParameters(float attack, float release);
     void setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
-                                   const std::vector<int>& enabledDegrees, int scaleDegreeCount,
+                                   const std::vector<int>* enabledDegrees, int scaleDegreeCount,
                                    float spacing, float inversion,
                                    float detuneRandom, float timingRandom,
                                    ChordGenerator* chordGen, class TuningEngine* tuning,
@@ -115,7 +132,7 @@ private:
     int cachedVoiceCount = 5;
     float cachedComplexity = 0.5f;
     int cachedKeyRoot = 0;
-    std::vector<int> cachedEnabledDegrees;
+    const std::vector<int>* cachedEnabledDegrees = nullptr;
     int cachedScaleDegreeCount = 12;
     float cachedSpacing = 0.0f;
     float cachedInversion = 0.3f;

@@ -1,5 +1,23 @@
 # O-IntonationPad Changelog
 
+## [2.0.3] - 2026-03-04
+
+### Changed
+- Replaced deprecated `std::atomic_load`/`std::atomic_store` on `std::shared_ptr<const IntervalSnapshot>` with a double-buffer (`IntervalSnapshot[2]` + `std::atomic<int>` index). The C++20-deprecated free functions used a global spinlock internally and were never lock-free. The new pattern: UI thread writes to the inactive slot then flips the index with release semantics; audio thread reads the active slot with acquire semantics. No heap allocation or reference counting on the audio thread path
+- Removed `#include <memory>` dependency for `shared_ptr` from the interval snapshot mechanism
+
+## [2.0.2] - 2026-03-04
+
+### Changed
+- Position setters (`setWavetablePosition`, `setWavetablePosition2`, `setWavetablePositionWithLFO`, `setWavetablePosition2WithLFO`) now iterate only `activeSubVoices` instead of all 12 `MAX_SUB_VOICES`. With typical 5-voice chords, this skips 7 inactive slots × 3 oscillator types × 2 layers = 42 unnecessary `setWavetablePosition` calls per voice per block (plus 7 `fastSin` + `jlimit` computations in the LFO variants). Bank setters unchanged — they must set all 12 to be ready for the next note-on
+
+## [2.0.1] - 2026-03-04
+
+### Changed
+- Cached all 41 APVTS parameter pointers as `std::atomic<float>*` members, initialized once in constructor
+- `processBlock` and `prepareToPlay` now use direct `->load()` instead of `getRawParameterValue("stringKey")` per call
+- Eliminates ~41 string-keyed hash map lookups per audio block with zero behavior change
+
 ## [2.0.0] - 2026-02-25
 
 ### Added

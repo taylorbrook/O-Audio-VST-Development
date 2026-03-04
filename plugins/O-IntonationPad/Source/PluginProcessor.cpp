@@ -322,6 +322,49 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
         synthesiser.addVoice(new WavetableVoice());
     }
 
+    // Cache parameter pointers (stable for APVTS lifetime)
+    cachedVoiceCount = parameters.getRawParameterValue("voiceCount");
+    cachedComplexity = parameters.getRawParameterValue("complexity");
+    cachedKeyRoot = parameters.getRawParameterValue("keyRoot");
+    cachedStereoSpread = parameters.getRawParameterValue("stereoSpread");
+    cachedSpacing = parameters.getRawParameterValue("spacing");
+    cachedInversion = parameters.getRawParameterValue("inversion");
+    cachedTimingRandom = parameters.getRawParameterValue("timingRandom");
+    cachedDetuneRandom = parameters.getRawParameterValue("detuneRandom");
+    cachedWavetableBank = parameters.getRawParameterValue("wavetableBank");
+    cachedWavetablePos = parameters.getRawParameterValue("wavetablePos");
+    cachedWavetableBank2 = parameters.getRawParameterValue("wavetableBank2");
+    cachedWavetablePos2 = parameters.getRawParameterValue("wavetablePos2");
+    cachedGainA = parameters.getRawParameterValue("gainA");
+    cachedGainB = parameters.getRawParameterValue("gainB");
+    cachedAttackTime = parameters.getRawParameterValue("attackTime");
+    cachedReleaseTime = parameters.getRawParameterValue("releaseTime");
+    cachedLfoRate = parameters.getRawParameterValue("lfoRate");
+    cachedLfoRate2 = parameters.getRawParameterValue("lfoRate2");
+    cachedLfoDepth = parameters.getRawParameterValue("lfoDepth");
+    cachedLfoDepth2 = parameters.getRawParameterValue("lfoDepth2");
+    cachedFilterCutoff = parameters.getRawParameterValue("filterCutoff");
+    cachedMasterVolume = parameters.getRawParameterValue("masterVolume");
+    cachedChorusBypass = parameters.getRawParameterValue("chorusBypass");
+    cachedChorusRate = parameters.getRawParameterValue("chorusRate");
+    cachedChorusDepth = parameters.getRawParameterValue("chorusDepth");
+    cachedChorusMix = parameters.getRawParameterValue("chorusMix");
+    cachedDelayBypass = parameters.getRawParameterValue("delayBypass");
+    cachedDelayTime = parameters.getRawParameterValue("delayTime");
+    cachedDelayFeedback = parameters.getRawParameterValue("delayFeedback");
+    cachedDelayMode = parameters.getRawParameterValue("delayMode");
+    cachedDelayMix = parameters.getRawParameterValue("delayMix");
+    cachedEqBypass = parameters.getRawParameterValue("eqBypass");
+    cachedEqLowGain = parameters.getRawParameterValue("eqLowGain");
+    cachedEqMidGain = parameters.getRawParameterValue("eqMidGain");
+    cachedEqMidFreq = parameters.getRawParameterValue("eqMidFreq");
+    cachedEqHighGain = parameters.getRawParameterValue("eqHighGain");
+    cachedReverbBypass = parameters.getRawParameterValue("reverbBypass");
+    cachedReverbSize = parameters.getRawParameterValue("reverbSize");
+    cachedReverbDamp = parameters.getRawParameterValue("reverbDamp");
+    cachedReverbPredelay = parameters.getRawParameterValue("reverbPredelay");
+    cachedReverbMix = parameters.getRawParameterValue("reverbMix");
+
     // Register tuning parameter listeners
     parameters.addParameterListener("tuning_masterTune", this);
     parameters.addParameterListener("tuning_octaveStretch", this);
@@ -362,8 +405,8 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     lfoPhaseB = 0.0;
 
     // Update envelope parameters for all voices
-    float attackTime = parameters.getRawParameterValue("attackTime")->load();
-    float releaseTime = parameters.getRawParameterValue("releaseTime")->load();
+    float attackTime = cachedAttackTime->load();
+    float releaseTime = cachedReleaseTime->load();
 
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
@@ -401,29 +444,58 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // Clear output buffer
     buffer.clear();
 
-    // Read parameters (atomic, real-time safe)
-    int wavetableBank = static_cast<int>(parameters.getRawParameterValue("wavetableBank")->load());
-    float wavetablePos = parameters.getRawParameterValue("wavetablePos")->load();
-    int wavetableBank2 = static_cast<int>(parameters.getRawParameterValue("wavetableBank2")->load());
-    float wavetablePos2 = parameters.getRawParameterValue("wavetablePos2")->load();
-    float gainA = parameters.getRawParameterValue("gainA")->load();
-    float gainB = parameters.getRawParameterValue("gainB")->load();
-    float attackTime = parameters.getRawParameterValue("attackTime")->load();
-    float releaseTime = parameters.getRawParameterValue("releaseTime")->load();
-    int voiceCount = static_cast<int>(parameters.getRawParameterValue("voiceCount")->load());
-    float complexity = parameters.getRawParameterValue("complexity")->load();
-    int keyRoot = static_cast<int>(parameters.getRawParameterValue("keyRoot")->load());
-    float lfoRate = parameters.getRawParameterValue("lfoRate")->load();
-    float lfoRate2 = parameters.getRawParameterValue("lfoRate2")->load();
-    float lfoDepth = parameters.getRawParameterValue("lfoDepth")->load();
-    float lfoDepth2 = parameters.getRawParameterValue("lfoDepth2")->load();
-    float filterCutoff = parameters.getRawParameterValue("filterCutoff")->load();
-    float masterVolume = parameters.getRawParameterValue("masterVolume")->load();
-    float stereoSpread = parameters.getRawParameterValue("stereoSpread")->load();
-    float spacing = parameters.getRawParameterValue("spacing")->load();
-    float inversion = parameters.getRawParameterValue("inversion")->load();
-    float detuneRandom = parameters.getRawParameterValue("detuneRandom")->load();
-    float timingRandom = parameters.getRawParameterValue("timingRandom")->load();
+    // Read parameters via cached pointers (atomic, real-time safe, no string lookups)
+    int wavetableBank = static_cast<int>(cachedWavetableBank->load());
+    float wavetablePos = cachedWavetablePos->load();
+    int wavetableBank2 = static_cast<int>(cachedWavetableBank2->load());
+    float wavetablePos2 = cachedWavetablePos2->load();
+    float gainA = cachedGainA->load();
+    float gainB = cachedGainB->load();
+    float attackTime = cachedAttackTime->load();
+    float releaseTime = cachedReleaseTime->load();
+    int voiceCount = static_cast<int>(cachedVoiceCount->load());
+    float complexity = cachedComplexity->load();
+    int keyRoot = static_cast<int>(cachedKeyRoot->load());
+    float lfoRate = cachedLfoRate->load();
+    float lfoRate2 = cachedLfoRate2->load();
+    float lfoDepth = cachedLfoDepth->load();
+    float lfoDepth2 = cachedLfoDepth2->load();
+    float filterCutoff = cachedFilterCutoff->load();
+    float masterVolume = cachedMasterVolume->load();
+    float stereoSpread = cachedStereoSpread->load();
+    float spacing = cachedSpacing->load();
+    float inversion = cachedInversion->load();
+    float detuneRandom = cachedDetuneRandom->load();
+    float timingRandom = cachedTimingRandom->load();
+
+    // Effect bypass flags
+    bool chorusBypassed = cachedChorusBypass->load() > 0.5f;
+    bool delayBypassed = cachedDelayBypass->load() > 0.5f;
+    bool eqBypassed = cachedEqBypass->load() > 0.5f;
+    bool reverbBypassed = cachedReverbBypass->load() > 0.5f;
+
+    // Chorus parameters
+    float chorusRate = cachedChorusRate->load();
+    float chorusDepth = cachedChorusDepth->load();
+    float chorusMix = cachedChorusMix->load();
+
+    // Delay parameters
+    float delayTime = cachedDelayTime->load();
+    float delayFeedback = cachedDelayFeedback->load();
+    int delayModeVal = static_cast<int>(cachedDelayMode->load());
+    float delayMix = cachedDelayMix->load();
+
+    // EQ parameters
+    float eqLowGain = cachedEqLowGain->load();
+    float eqMidGain = cachedEqMidGain->load();
+    float eqMidFreq = cachedEqMidFreq->load();
+    float eqHighGain = cachedEqHighGain->load();
+
+    // Reverb parameters
+    float reverbSize = cachedReverbSize->load();
+    float reverbDamp = cachedReverbDamp->load();
+    float reverbPredelay = cachedReverbPredelay->load();
+    float reverbMix = cachedReverbMix->load();
 
     // Update LFO phase increments (independent per oscillator)
     lfoPhaseIncrementA = (lfoRate * juce::MathConstants<double>::twoPi) / getSampleRate();
@@ -441,10 +513,11 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     if (lfoPhaseB >= juce::MathConstants<double>::twoPi)
         lfoPhaseB -= juce::MathConstants<double>::twoPi;
 
-    // v1.15.2: Read interval snapshot (lock-free, no mutex — published by UI thread)
-    auto snap = std::atomic_load(&intervalSnapshot_);
-    const auto& currentEnabledDegrees = snap ? snap->enabledDegrees : std::vector<int>{ 0 };
-    int currentScaleDegreeCount = snap ? snap->scaleDegreeCount : 12;
+    // v2.0.3: Read interval snapshot from double-buffer (lock-free, no shared_ptr)
+    const auto& snap = intervalSnapshots_[activeSnapshotIndex_.load(std::memory_order_acquire)];
+    static const std::vector<int> defaultDegrees { 0 };
+    const auto& currentEnabledDegrees = snap.enabledDegrees.empty() ? defaultDegrees : snap.enabledDegrees;
+    int currentScaleDegreeCount = snap.scaleDegreeCount > 0 ? snap.scaleDegreeCount : 12;
 
     // Update all voice parameters before rendering
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -462,7 +535,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
             // Store chord generation parameters for voices to use on note-on
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot,
-                                            currentEnabledDegrees, currentScaleDegreeCount,
+                                            &currentEnabledDegrees, currentScaleDegreeCount,
                                             spacing, inversion, detuneRandom, timingRandom,
                                             &chordGenerator, &tuningEngine, &randomGenerator);
         }
@@ -482,12 +555,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // ═══════════════════════════════════════════════════════════════════
 
     // Chorus
-    bool chorusBypassed = parameters.getRawParameterValue("chorusBypass")->load() > 0.5f;
     if (!chorusBypassed)
     {
-        float chorusRate = parameters.getRawParameterValue("chorusRate")->load();
-        float chorusDepth = parameters.getRawParameterValue("chorusDepth")->load();
-        float chorusMix = parameters.getRawParameterValue("chorusMix")->load();
         chorus.setRate(chorusRate);
         chorus.setDepth(chorusDepth);
         chorus.setMix(chorusMix);
@@ -499,13 +568,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     }
 
     // Delay
-    bool delayBypassed = parameters.getRawParameterValue("delayBypass")->load() > 0.5f;
     if (!delayBypassed)
     {
-        float delayTime = parameters.getRawParameterValue("delayTime")->load();
-        float delayFeedback = parameters.getRawParameterValue("delayFeedback")->load();
-        int delayModeVal = static_cast<int>(parameters.getRawParameterValue("delayMode")->load());
-        float delayMix = parameters.getRawParameterValue("delayMix")->load();
         delay.setTime(delayTime);
         delay.setFeedback(delayFeedback);
         delay.setMode(delayModeVal);
@@ -515,13 +579,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     }
 
     // EQ
-    bool eqBypassed = parameters.getRawParameterValue("eqBypass")->load() > 0.5f;
     if (!eqBypassed)
     {
-        float eqLowGain = parameters.getRawParameterValue("eqLowGain")->load();
-        float eqMidGain = parameters.getRawParameterValue("eqMidGain")->load();
-        float eqMidFreq = parameters.getRawParameterValue("eqMidFreq")->load();
-        float eqHighGain = parameters.getRawParameterValue("eqHighGain")->load();
         eq.setLowGain(eqLowGain);
         eq.setMidGain(eqMidGain);
         eq.setMidFreq(eqMidFreq);
@@ -531,13 +590,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     }
 
     // Reverb
-    bool reverbBypassed = parameters.getRawParameterValue("reverbBypass")->load() > 0.5f;
     if (!reverbBypassed)
     {
-        float reverbSize = parameters.getRawParameterValue("reverbSize")->load();
-        float reverbDamp = parameters.getRawParameterValue("reverbDamp")->load();
-        float reverbPredelay = parameters.getRawParameterValue("reverbPredelay")->load();
-        float reverbMix = parameters.getRawParameterValue("reverbMix")->load();
         reverbProcessor.setSize(reverbSize);
         reverbProcessor.setDamping(reverbDamp);
         reverbProcessor.setPredelay(reverbPredelay);
@@ -588,16 +642,16 @@ void OIntonationPadAudioProcessor::getStateInformation(juce::MemoryBlock& destDa
     tuningState.setProperty("tonic", tuningEngine.getTonicNote(), nullptr);
     tuningState.setProperty("preset", static_cast<int>(tuningEngine.getBuiltInPreset()), nullptr);
 
-    // v1.5.0: Save enabled intervals (lock-free snapshot read)
+    // v1.5.0/v2.0.3: Save enabled intervals (double-buffer read)
     {
-        auto snap = std::atomic_load(&intervalSnapshot_);
-        if (snap)
+        const auto& snap = intervalSnapshots_[activeSnapshotIndex_.load(std::memory_order_acquire)];
+        if (!snap.enabledFlags.empty())
         {
             juce::String eiStr;
-            for (size_t i = 0; i < snap->enabledFlags.size(); ++i)
+            for (size_t i = 0; i < snap.enabledFlags.size(); ++i)
             {
                 if (i > 0) eiStr += ",";
-                eiStr += snap->enabledFlags[i] ? "1" : "0";
+                eiStr += snap.enabledFlags[i] ? "1" : "0";
             }
             tuningState.setProperty("enabledIntervals", eiStr, nullptr);
         }
@@ -636,23 +690,27 @@ void OIntonationPadAudioProcessor::setStateInformation(const void* data, int siz
             int tonic = tuningState.getProperty("tonic", 0);
             tuningEngine.setTonicNote(tonic);
 
-            // v1.5.0: Restore enabled intervals (lock-free snapshot publish)
+            // v1.5.0/v2.0.3: Restore enabled intervals (double-buffer publish)
             juce::String eiStr = tuningState.getProperty("enabledIntervals", "");
             if (eiStr.isNotEmpty())
             {
                 juce::StringArray eiTokens;
                 eiTokens.addTokens(eiStr, ",", "");
-                auto snap = std::make_shared<IntervalSnapshot>();
-                snap->scaleDegreeCount = tuningEngine.getScaleDegrees();
+                int current = activeSnapshotIndex_.load(std::memory_order_relaxed);
+                int inactive = 1 - current;
+                auto& snap = intervalSnapshots_[inactive];
+                snap.enabledFlags.clear();
+                snap.enabledDegrees.clear();
+                snap.scaleDegreeCount = tuningEngine.getScaleDegrees();
                 for (const auto& token : eiTokens)
-                    snap->enabledFlags.push_back(token == "1");
-                for (int i = 0; i < static_cast<int>(snap->enabledFlags.size()); ++i)
-                    if (snap->enabledFlags[static_cast<size_t>(i)])
-                        snap->enabledDegrees.push_back(i);
-                if (snap->enabledDegrees.empty())
-                    snap->enabledDegrees.push_back(0);
-                lastKnownScaleSize_ = snap->scaleDegreeCount;
-                std::atomic_store(&intervalSnapshot_, std::shared_ptr<const IntervalSnapshot>(std::move(snap)));
+                    snap.enabledFlags.push_back(token == "1");
+                for (int i = 0; i < static_cast<int>(snap.enabledFlags.size()); ++i)
+                    if (snap.enabledFlags[static_cast<size_t>(i)])
+                        snap.enabledDegrees.push_back(i);
+                if (snap.enabledDegrees.empty())
+                    snap.enabledDegrees.push_back(0);
+                lastKnownScaleSize_ = snap.scaleDegreeCount;
+                activeSnapshotIndex_.store(inactive, std::memory_order_release);
             }
         }
     }
@@ -706,39 +764,45 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
 
 std::vector<bool> OIntonationPadAudioProcessor::getEnabledIntervals() const
 {
-    auto snap = std::atomic_load(&intervalSnapshot_);
-    return snap ? snap->enabledFlags : std::vector<bool>{};
+    const auto& snap = intervalSnapshots_[activeSnapshotIndex_.load(std::memory_order_acquire)];
+    return snap.enabledFlags;
 }
 
 void OIntonationPadAudioProcessor::setIntervalEnabled(int index, bool enabled)
 {
-    auto current = std::atomic_load(&intervalSnapshot_);
-    if (!current || index < 0 || index >= static_cast<int>(current->enabledFlags.size()))
+    int current = activeSnapshotIndex_.load(std::memory_order_relaxed);
+    const auto& active = intervalSnapshots_[current];
+    if (active.enabledFlags.empty() || index < 0 || index >= static_cast<int>(active.enabledFlags.size()))
         return;
 
-    auto snap = std::make_shared<IntervalSnapshot>();
-    snap->enabledFlags = current->enabledFlags;
-    snap->scaleDegreeCount = current->scaleDegreeCount;
-    snap->enabledFlags[static_cast<size_t>(index)] = enabled;
+    int inactive = 1 - current;
+    auto& snap = intervalSnapshots_[inactive];
+    snap.enabledFlags = active.enabledFlags;
+    snap.scaleDegreeCount = active.scaleDegreeCount;
+    snap.enabledFlags[static_cast<size_t>(index)] = enabled;
 
-    for (int i = 0; i < static_cast<int>(snap->enabledFlags.size()); ++i)
-        if (snap->enabledFlags[static_cast<size_t>(i)])
-            snap->enabledDegrees.push_back(i);
-    if (snap->enabledDegrees.empty())
-        snap->enabledDegrees.push_back(0);
+    snap.enabledDegrees.clear();
+    for (int i = 0; i < static_cast<int>(snap.enabledFlags.size()); ++i)
+        if (snap.enabledFlags[static_cast<size_t>(i)])
+            snap.enabledDegrees.push_back(i);
+    if (snap.enabledDegrees.empty())
+        snap.enabledDegrees.push_back(0);
 
-    std::atomic_store(&intervalSnapshot_, std::shared_ptr<const IntervalSnapshot>(std::move(snap)));
+    activeSnapshotIndex_.store(inactive, std::memory_order_release);
 }
 
 void OIntonationPadAudioProcessor::resetEnabledIntervals()
 {
     int scaleSize = tuningEngine.getScaleDegrees();
-    auto snap = std::make_shared<IntervalSnapshot>();
-    snap->scaleDegreeCount = scaleSize;
-    snap->enabledFlags.resize(static_cast<size_t>(scaleSize), true);
+    int current = activeSnapshotIndex_.load(std::memory_order_relaxed);
+    int inactive = 1 - current;
+    auto& snap = intervalSnapshots_[inactive];
+    snap.scaleDegreeCount = scaleSize;
+    snap.enabledFlags.assign(static_cast<size_t>(scaleSize), true);
+    snap.enabledDegrees.clear();
     for (int i = 0; i < scaleSize; ++i)
-        snap->enabledDegrees.push_back(i);
-    std::atomic_store(&intervalSnapshot_, std::shared_ptr<const IntervalSnapshot>(std::move(snap)));
+        snap.enabledDegrees.push_back(i);
+    activeSnapshotIndex_.store(inactive, std::memory_order_release);
     lastKnownScaleSize_ = scaleSize;
 }
 
@@ -756,8 +820,8 @@ int OIntonationPadAudioProcessor::getScaleDegreeCount() const
 
 std::vector<int> OIntonationPadAudioProcessor::getEnabledDegreeOffsets() const
 {
-    auto snap = std::atomic_load(&intervalSnapshot_);
-    return snap ? snap->enabledDegrees : std::vector<int>{ 0 };
+    const auto& snap = intervalSnapshots_[activeSnapshotIndex_.load(std::memory_order_acquire)];
+    return snap.enabledDegrees.empty() ? std::vector<int>{ 0 } : snap.enabledDegrees;
 }
 
 // Factory function
