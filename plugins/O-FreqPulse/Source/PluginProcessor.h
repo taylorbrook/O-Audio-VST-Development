@@ -96,7 +96,7 @@ private:
     juce::dsp::LinkwitzRileyFilter<float> crossoverHigh;  // splits high-half at c3
 
     // Dry/Wet Mixer
-    juce::dsp::DryWetMixer<float> dryWetMixer { 10 };  // 10ms max latency for mixer
+    juce::dsp::DryWetMixer<float> dryWetMixer { 10 };  // 10 samples max delay for dry/wet alignment
 
     // Band Processing
     std::array<juce::SmoothedValue<float>, 4> bandGainSmooth;

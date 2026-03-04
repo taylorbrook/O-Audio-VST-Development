@@ -2,6 +2,12 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.6.3] - 2026-03-04
+
+### Fixed
+
+- **Corrected misleading DryWetMixer comment** - The inline comment on the `dryWetMixer` member said "10ms max latency" but the constructor argument is `maximumDelayInSamples`, not milliseconds. Updated to "10 samples max delay for dry/wet alignment".
+
 ## [1.6.2] - 2026-03-04
 
 ### Removed
