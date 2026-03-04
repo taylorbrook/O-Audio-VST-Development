@@ -2,6 +2,25 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.32.0] - 2026-03-04
+
+### Added
+
+- **Effects chain** — 4-stage post-synthesis effects: Chorus, Delay, EQ, Reverb. Each effect has an independent bypass toggle and dry/wet mix control.
+- **Chorus** — LFO-modulated delay copies for stereo width. Rate (0.1-10 Hz), Depth (0-100%), Mix (0-100%).
+- **Delay** — Stereo delay with Normal and PingPong modes. Time (1-2000 ms), Feedback (0-95%, low-pass filtered at 8 kHz), Mix (0-100%).
+- **EQ** — 3-band parametric: Low shelf (200 Hz), Mid peak (200-8000 Hz variable), High shelf (8 kHz). Each band +/-12 dB.
+- **Reverb** — Schroeder reverb with pre-delay (0-200 ms), Size (0-100%), Damping (0-100%), Mix (0-100%).
+- **Effects tab UI** — Replaced placeholder with full effects controls matching O-IntonationPad styling.
+
+### Technical Details
+
+- 19 new APVTS parameters: 4 bypass bools + 15 float/choice controls
+- New DSP classes: `DelayProcessor`, `EQProcessor`, `ReverbProcessor` (+ JUCE built-in `juce::dsp::Chorus`)
+- Effects chain order: Chorus → Delay → EQ → Reverb → Master Volume
+- Mix threshold optimization: effects only process when mix > 0.001
+- Cached `std::atomic<float>*` parameter pointers for lock-free real-time access
+
 ## [1.31.0] - 2026-03-04
 
 ### Added

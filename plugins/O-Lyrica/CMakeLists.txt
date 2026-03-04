@@ -35,6 +35,9 @@ target_sources(OLyrica
         Source/DSP/ScaleGenerator.cpp
         Source/DSP/EmbeddedTunings.cpp
         Source/DSP/TuningExporter.cpp
+        Source/DSP/DelayProcessor.cpp
+        Source/DSP/EQProcessor.cpp
+        Source/DSP/ReverbProcessor.cpp
 )
 
 # Include paths

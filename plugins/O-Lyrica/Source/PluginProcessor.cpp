@@ -407,6 +407,69 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         0.0f  // Default: No humanization (deterministic behavior)
     ));
 
+    // v1.32.0: Effects chain parameters (Chorus -> Delay -> EQ -> Reverb)
+
+    // Chorus
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "chorusBypass", 1 }, "Chorus Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusRate", 1 }, "Chorus Rate",
+        juce::NormalisableRange<float>(0.1f, 10.0f, 0.01f), 1.0f, "Hz"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusDepth", 1 }, "Chorus Depth",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "chorusMix", 1 }, "Chorus Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+
+    // Delay
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "delayBypass", 1 }, "Delay Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayTime", 1 }, "Delay Time",
+        juce::NormalisableRange<float>(0.001f, 2.0f, 0.001f), 0.375f, "s"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayFeedback", 1 }, "Delay Feedback",
+        juce::NormalisableRange<float>(0.0f, 0.95f, 0.01f), 0.3f));
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "delayMode", 1 }, "Delay Mode",
+        juce::StringArray { "Normal", "PingPong" }, 0));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "delayMix", 1 }, "Delay Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+
+    // EQ (3-band)
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "eqBypass", 1 }, "EQ Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqLowGain", 1 }, "EQ Low Gain",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqMidGain", 1 }, "EQ Mid Gain",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqMidFreq", 1 }, "EQ Mid Freq",
+        juce::NormalisableRange<float>(200.0f, 8000.0f, 1.0f), 1000.0f, "Hz"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "eqHighGain", 1 }, "EQ High Gain",
+        juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
+
+    // Reverb
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "reverbBypass", 1 }, "Reverb Bypass", false));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbSize", 1 }, "Reverb Size",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbDamp", 1 }, "Reverb Damping",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.5f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbPredelay", 1 }, "Reverb Pre-delay",
+        juce::NormalisableRange<float>(0.0f, 200.0f, 1.0f), 20.0f, "ms"));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbMix", 1 }, "Reverb Mix",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+
     return layout;
 }
 
@@ -431,6 +494,27 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
 
     // Add sound that accepts all MIDI notes
     synthesiser.addSound(new HarpSynthSound());
+
+    // v1.32.0: Cache effects parameter pointers for real-time access
+    cachedChorusBypass    = parameters.getRawParameterValue("chorusBypass");
+    cachedChorusRate      = parameters.getRawParameterValue("chorusRate");
+    cachedChorusDepth     = parameters.getRawParameterValue("chorusDepth");
+    cachedChorusMix       = parameters.getRawParameterValue("chorusMix");
+    cachedDelayBypass     = parameters.getRawParameterValue("delayBypass");
+    cachedDelayTime       = parameters.getRawParameterValue("delayTime");
+    cachedDelayFeedback   = parameters.getRawParameterValue("delayFeedback");
+    cachedDelayMode       = parameters.getRawParameterValue("delayMode");
+    cachedDelayMix        = parameters.getRawParameterValue("delayMix");
+    cachedEqBypass        = parameters.getRawParameterValue("eqBypass");
+    cachedEqLowGain       = parameters.getRawParameterValue("eqLowGain");
+    cachedEqMidGain       = parameters.getRawParameterValue("eqMidGain");
+    cachedEqMidFreq       = parameters.getRawParameterValue("eqMidFreq");
+    cachedEqHighGain      = parameters.getRawParameterValue("eqHighGain");
+    cachedReverbBypass    = parameters.getRawParameterValue("reverbBypass");
+    cachedReverbSize      = parameters.getRawParameterValue("reverbSize");
+    cachedReverbDamp      = parameters.getRawParameterValue("reverbDamp");
+    cachedReverbPredelay  = parameters.getRawParameterValue("reverbPredelay");
+    cachedReverbMix       = parameters.getRawParameterValue("reverbMix");
 
     // v1.30.0: Register APVTS listeners for toggle mutual exclusion
     parameters.addParameterListener("freeToggle", this);
@@ -553,6 +637,21 @@ void OLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
         auto* voice = static_cast<HarpSynthVoice*>(synthesiser.getVoice(i));
         voice->prepare(sampleRate, samplesPerBlock);
     }
+
+    // v1.32.0: Prepare effects chain
+    juce::dsp::ProcessSpec spec;
+    spec.sampleRate = sampleRate;
+    spec.maximumBlockSize = static_cast<juce::uint32>(samplesPerBlock);
+    spec.numChannels = static_cast<juce::uint32>(getTotalNumOutputChannels());
+
+    chorus.prepare(spec);
+    chorus.reset();
+    chorus.setCentreDelay(7.0f);
+    chorus.setFeedback(0.0f);
+
+    delay.prepare(spec);
+    eq.prepare(spec);
+    reverbProcessor.prepare(spec);
 }
 
 void OLyricaAudioProcessor::releaseResources()
@@ -663,6 +762,71 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     // Render MIDI to audio via synthesiser
     synthesiser.renderNextBlock(buffer, filteredMidi, 0, buffer.getNumSamples());
+
+    // v1.32.0: Effects chain (Chorus -> Delay -> EQ -> Reverb)
+    juce::dsp::AudioBlock<float> block(buffer);
+
+    // 1. Chorus
+    bool chorusBypassed = cachedChorusBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!chorusBypassed)
+    {
+        float chorusRate = cachedChorusRate->load(std::memory_order_relaxed);
+        float chorusDepth = cachedChorusDepth->load(std::memory_order_relaxed);
+        float chorusMix = cachedChorusMix->load(std::memory_order_relaxed);
+
+        chorus.setRate(chorusRate);
+        chorus.setDepth(chorusDepth);
+        chorus.setMix(chorusMix);
+
+        if (chorusMix > 0.001f)
+        {
+            juce::dsp::ProcessContextReplacing<float> chorusCtx(block);
+            chorus.process(chorusCtx);
+        }
+    }
+
+    // 2. Delay
+    bool delayBypassed = cachedDelayBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!delayBypassed)
+    {
+        float delayTimeSec = cachedDelayTime->load(std::memory_order_relaxed);
+        float delayFb = cachedDelayFeedback->load(std::memory_order_relaxed);
+        int delayModeVal = static_cast<int>(cachedDelayMode->load(std::memory_order_relaxed));
+        float delayMixVal = cachedDelayMix->load(std::memory_order_relaxed);
+
+        delay.setTime(delayTimeSec);
+        delay.setFeedback(delayFb);
+        delay.setMode(delayModeVal);
+        delay.setMix(delayMixVal);
+
+        if (delayMixVal > 0.001f)
+            delay.process(block);
+    }
+
+    // 3. EQ
+    bool eqBypassed = cachedEqBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!eqBypassed)
+    {
+        eq.setLowGain(cachedEqLowGain->load(std::memory_order_relaxed));
+        eq.setMidGain(cachedEqMidGain->load(std::memory_order_relaxed));
+        eq.setMidFreq(cachedEqMidFreq->load(std::memory_order_relaxed));
+        eq.setHighGain(cachedEqHighGain->load(std::memory_order_relaxed));
+        eq.process(block);
+    }
+
+    // 4. Reverb
+    bool reverbBypassed = cachedReverbBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!reverbBypassed)
+    {
+        reverbProcessor.setSize(cachedReverbSize->load(std::memory_order_relaxed));
+        reverbProcessor.setDamping(cachedReverbDamp->load(std::memory_order_relaxed));
+        reverbProcessor.setPredelay(cachedReverbPredelay->load(std::memory_order_relaxed));
+        reverbProcessor.setMix(cachedReverbMix->load(std::memory_order_relaxed));
+
+        float reverbMixVal = cachedReverbMix->load(std::memory_order_relaxed);
+        if (reverbMixVal > 0.001f)
+            reverbProcessor.process(block);
+    }
 
     // Apply master volume
     float volumeDb = parameters.getRawParameterValue("masterVolume")->load();

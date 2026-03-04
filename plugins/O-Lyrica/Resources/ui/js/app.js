@@ -13,6 +13,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     initializeParameters();
     initializeMeters();
+    initializeEffects(); // v1.32.0
 });
 
 /**
@@ -185,11 +186,6 @@ function initializeParameters() {
     setupCustomSemitonesVisibility('freeInterval', 'freeCustomSemitonesGroup');
     setupCustomSemitonesVisibility('glissandoInterval', 'glissandoCustomSemitonesGroup');
 
-    // v1.31.0: Tempo sync dropdowns and visibility
-    bindChoice('freeTempoSync');
-    bindChoice('scaleTempoSync');
-    setupTempoSyncVisibility('freeTempoSync', 'freeTimeGroup');
-    setupTempoSyncVisibility('scaleTempoSync', 'scaleSpeedGroup');
 }
 
 /**
@@ -425,32 +421,226 @@ function setupCustomSemitonesVisibility(intervalId, customGroupId) {
     update();
 }
 
-/**
- * v1.31.0: Show/hide a manual control group when tempo sync is active.
- * When sync dropdown is not "Off" (index 0), hides the manual slider group.
- */
-function setupTempoSyncVisibility(syncId, manualGroupId) {
-    const syncSelect = document.getElementById(syncId);
-    const manualGroup = document.getElementById(manualGroupId);
-    if (!syncSelect || !manualGroup) return;
+// ============================================================================
+// v1.32.0: Effects Tab
+// ============================================================================
 
-    const update = () => {
-        manualGroup.style.display = (syncSelect.selectedIndex === 0) ? '' : 'none';
+/**
+ * Create a small knob element for the effects tab
+ */
+function makeFxKnob(id, label) {
+    const group = document.createElement('div');
+    group.className = 'fx-knob-group';
+
+    const lbl = document.createElement('div');
+    lbl.className = 'fx-knob-label';
+    lbl.textContent = label;
+
+    const slider = document.createElement('input');
+    slider.type = 'range';
+    slider.className = 'fx-knob-slider';
+    slider.id = 'fx_' + id;
+    slider.min = '0';
+    slider.max = '1';
+    slider.step = '0.001';
+    slider.value = '0';
+
+    const val = document.createElement('div');
+    val.className = 'fx-knob-value';
+    val.id = 'fx_' + id + '_val';
+    val.textContent = '0';
+
+    group.appendChild(lbl);
+    group.appendChild(slider);
+    group.appendChild(val);
+    return group;
+}
+
+/**
+ * Bind an fx knob to a JUCE slider state with display conversion
+ */
+function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter) {
+    const slider = document.getElementById('fx_' + id);
+    const valEl = document.getElementById('fx_' + id + '_val');
+    if (!slider || !valEl || !sliderState) return;
+
+    const updateDisplay = (normalised) => {
+        const displayVal = displayMin + normalised * (displayMax - displayMin);
+        valEl.textContent = formatter(displayVal) + suffix;
     };
 
-    syncSelect.addEventListener('change', update);
+    // Initialize
+    const initVal = sliderState.getNormalisedValue();
+    slider.value = initVal;
+    updateDisplay(initVal);
 
-    try {
-        const syncState = Juce.getComboBoxState(syncId);
-        if (syncState && syncState.valueChangedEvent) {
-            syncState.valueChangedEvent.addListener(() => {
-                syncSelect.selectedIndex = syncState.getChoiceIndex();
-                update();
-            });
-        }
-    } catch (e) {
-        console.error(`Failed to bind tempo sync visibility for ${syncId}:`, e);
+    // UI → C++
+    slider.addEventListener('input', (e) => {
+        const v = parseFloat(e.target.value);
+        sliderState.setNormalisedValue(v);
+        updateDisplay(v);
+    });
+
+    // C++ → UI
+    sliderState.valueChangedEvent.addListener(() => {
+        const v = sliderState.getNormalisedValue();
+        slider.value = v;
+        updateDisplay(v);
+    });
+}
+
+/**
+ * Populate knobs into a container
+ */
+function populateFxKnobs(containerId, knobs) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+    knobs.forEach(k => container.appendChild(makeFxKnob(k.id, k.label)));
+}
+
+/**
+ * Setup a bypass toggle button for an effects section
+ */
+function setupFxBypassToggle(fxName, toggleState) {
+    const btn = document.getElementById(fxName + 'BypassBtn');
+    const section = document.getElementById(fxName + 'Section');
+    if (!btn || !section || !toggleState) return;
+
+    function updateVisual() {
+        const bypassed = toggleState.getValue();
+        btn.textContent = bypassed ? 'Off' : 'On';
+        btn.classList.toggle('bypassed', bypassed);
+        section.classList.toggle('bypassed', bypassed);
     }
 
-    update();
+    toggleState.valueChangedEvent.addListener(() => {
+        updateVisual();
+    });
+
+    btn.addEventListener('click', () => {
+        toggleState.setValue(!toggleState.getValue());
+    });
+
+    updateVisual();
 }
+
+/**
+ * Initialize all effects controls (v1.32.0)
+ */
+function initializeEffects() {
+    try {
+        // --- Populate knobs ---
+
+        // Chorus
+        populateFxKnobs('chorus-knobs', [
+            { id: 'chorusRate', label: 'Rate' },
+            { id: 'chorusDepth', label: 'Depth' },
+            { id: 'chorusMix', label: 'Mix' },
+        ]);
+
+        // Delay - knobs + mode dropdown
+        const delayRow = document.getElementById('delay-knobs');
+        if (delayRow) {
+            delayRow.appendChild(makeFxKnob('delayTime', 'Time'));
+            delayRow.appendChild(makeFxKnob('delayFeedback', 'Feedback'));
+
+            // Mode dropdown
+            const modeWrap = document.createElement('div');
+            modeWrap.className = 'fx-dropdown-container';
+            const modeLbl = document.createElement('div');
+            modeLbl.className = 'fx-knob-label';
+            modeLbl.textContent = 'Mode';
+            const modeSel = document.createElement('select');
+            modeSel.className = 'fx-dropdown';
+            modeSel.id = 'delayModeSelect';
+            ['Normal', 'PingPong'].forEach((name, i) => {
+                const opt = document.createElement('option');
+                opt.value = i;
+                opt.textContent = name;
+                modeSel.appendChild(opt);
+            });
+            modeWrap.appendChild(modeLbl);
+            modeWrap.appendChild(modeSel);
+            delayRow.appendChild(modeWrap);
+
+            delayRow.appendChild(makeFxKnob('delayMix', 'Mix'));
+        }
+
+        // EQ
+        populateFxKnobs('eq-knobs', [
+            { id: 'eqLowGain', label: 'Low' },
+            { id: 'eqMidGain', label: 'Mid' },
+            { id: 'eqMidFreq', label: 'Mid Freq' },
+            { id: 'eqHighGain', label: 'High' },
+        ]);
+
+        // Reverb
+        populateFxKnobs('reverb-knobs', [
+            { id: 'reverbSize', label: 'Size' },
+            { id: 'reverbDamp', label: 'Damp' },
+            { id: 'reverbPredelay', label: 'Pre-dly' },
+            { id: 'reverbMix', label: 'Mix' },
+        ]);
+
+        // --- Get JUCE states ---
+        const chorusRateState     = Juce.getSliderState('chorusRate');
+        const chorusDepthState    = Juce.getSliderState('chorusDepth');
+        const chorusMixState      = Juce.getSliderState('chorusMix');
+        const delayTimeState      = Juce.getSliderState('delayTime');
+        const delayFeedbackState  = Juce.getSliderState('delayFeedback');
+        const delayModeState      = Juce.getComboBoxState('delayMode');
+        const delayMixState       = Juce.getSliderState('delayMix');
+        const eqLowGainState      = Juce.getSliderState('eqLowGain');
+        const eqMidGainState      = Juce.getSliderState('eqMidGain');
+        const eqMidFreqState      = Juce.getSliderState('eqMidFreq');
+        const eqHighGainState     = Juce.getSliderState('eqHighGain');
+        const reverbSizeState     = Juce.getSliderState('reverbSize');
+        const reverbDampState     = Juce.getSliderState('reverbDamp');
+        const reverbPredelayState = Juce.getSliderState('reverbPredelay');
+        const reverbMixState      = Juce.getSliderState('reverbMix');
+        const chorusBypassState   = Juce.getToggleState('chorusBypass');
+        const delayBypassState    = Juce.getToggleState('delayBypass');
+        const eqBypassState       = Juce.getToggleState('eqBypass');
+        const reverbBypassState   = Juce.getToggleState('reverbBypass');
+
+        // --- Setup knobs with display ranges ---
+        setupFxKnob('chorusRate',      chorusRateState,     0.1, 10, ' Hz', v => v.toFixed(2));
+        setupFxKnob('chorusDepth',     chorusDepthState,    0, 100, '%', v => Math.round(v));
+        setupFxKnob('chorusMix',       chorusMixState,      0, 100, '%', v => Math.round(v));
+        setupFxKnob('delayTime',       delayTimeState,      1, 2000, ' ms', v => Math.round(v));
+        setupFxKnob('delayFeedback',   delayFeedbackState,  0, 95, '%', v => Math.round(v));
+        setupFxKnob('delayMix',        delayMixState,       0, 100, '%', v => Math.round(v));
+        setupFxKnob('eqLowGain',       eqLowGainState,      -12, 12, ' dB', v => v.toFixed(1));
+        setupFxKnob('eqMidGain',       eqMidGainState,      -12, 12, ' dB', v => v.toFixed(1));
+        setupFxKnob('eqMidFreq',       eqMidFreqState,      200, 8000, ' Hz', v => Math.round(v));
+        setupFxKnob('eqHighGain',      eqHighGainState,     -12, 12, ' dB', v => v.toFixed(1));
+        setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v));
+        setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v));
+        setupFxKnob('reverbPredelay',  reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
+        setupFxKnob('reverbMix',       reverbMixState,      0, 100, '%', v => Math.round(v));
+
+        // --- Delay mode dropdown ---
+        const modeSelect = document.getElementById('delayModeSelect');
+        if (modeSelect && delayModeState) {
+            modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+            modeSelect.addEventListener('change', (e) => {
+                delayModeState.setChoiceIndex(e.target.selectedIndex);
+            });
+            delayModeState.valueChangedEvent.addListener(() => {
+                modeSelect.selectedIndex = delayModeState.getChoiceIndex();
+            });
+        }
+
+        // --- Bypass toggles ---
+        setupFxBypassToggle('chorus', chorusBypassState);
+        setupFxBypassToggle('delay', delayBypassState);
+        setupFxBypassToggle('eq', eqBypassState);
+        setupFxBypassToggle('reverb', reverbBypassState);
+
+        console.log('Effects tab initialized (v1.32.0)');
+    } catch (error) {
+        console.error('Failed to initialize effects:', error);
+    }
+}
+
+

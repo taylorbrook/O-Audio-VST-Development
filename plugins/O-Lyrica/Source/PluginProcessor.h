@@ -14,6 +14,9 @@
 #include "HarpSynthVoice.h"
 #include "DSP/SympatheticResonance.h"
 #include "DSP/TuningEngine.h"
+#include "DSP/DelayProcessor.h"
+#include "DSP/EQProcessor.h"
+#include "DSP/ReverbProcessor.h"
 #include "OuariconPresetManager.h"
 
 // v1.7.9: MIDI event for polyphonic note tracking (visual feedback on tuning circle)
@@ -200,6 +203,33 @@ private:
 
     // v1.18.0: Tooltip system enabled state (saved with plugin state)
     std::atomic<bool> tooltipsEnabled { false };
+
+    // v1.32.0: Effects chain (Chorus -> Delay -> EQ -> Reverb)
+    juce::dsp::Chorus<float> chorus;
+    DelayProcessor delay;
+    EQProcessor eq;
+    ReverbProcessor reverbProcessor;
+
+    // Cached parameter pointers for effects
+    std::atomic<float>* cachedChorusBypass = nullptr;
+    std::atomic<float>* cachedChorusRate = nullptr;
+    std::atomic<float>* cachedChorusDepth = nullptr;
+    std::atomic<float>* cachedChorusMix = nullptr;
+    std::atomic<float>* cachedDelayBypass = nullptr;
+    std::atomic<float>* cachedDelayTime = nullptr;
+    std::atomic<float>* cachedDelayFeedback = nullptr;
+    std::atomic<float>* cachedDelayMode = nullptr;
+    std::atomic<float>* cachedDelayMix = nullptr;
+    std::atomic<float>* cachedEqBypass = nullptr;
+    std::atomic<float>* cachedEqLowGain = nullptr;
+    std::atomic<float>* cachedEqMidGain = nullptr;
+    std::atomic<float>* cachedEqMidFreq = nullptr;
+    std::atomic<float>* cachedEqHighGain = nullptr;
+    std::atomic<float>* cachedReverbBypass = nullptr;
+    std::atomic<float>* cachedReverbSize = nullptr;
+    std::atomic<float>* cachedReverbDamp = nullptr;
+    std::atomic<float>* cachedReverbPredelay = nullptr;
+    std::atomic<float>* cachedReverbMix = nullptr;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

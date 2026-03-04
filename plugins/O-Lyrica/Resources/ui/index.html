@@ -648,6 +648,131 @@
             opacity: 0.7;
         }
 
+        /* v1.32.0: Effects Tab Styles */
+        #effects-tab {
+            gap: 6px;
+        }
+
+        .fx-section {
+            background: rgba(255, 248, 220, 0.25);
+            border: 1px solid rgba(139, 115, 85, 0.35);
+            border-radius: 5px;
+            padding: 6px 10px;
+        }
+
+        .fx-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 4px;
+        }
+
+        .fx-title {
+            font-size: 11px;
+            font-weight: bold;
+            color: #2C3E10;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .fx-bypass-btn {
+            padding: 2px 8px;
+            background: rgba(107, 142, 35, 0.5);
+            border: 1px solid #5C4033;
+            border-radius: 3px;
+            font-size: 9px;
+            color: #1a2a10;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: inherit;
+        }
+
+        .fx-bypass-btn.bypassed {
+            background: rgba(139, 115, 85, 0.2);
+            color: rgba(60, 47, 47, 0.4);
+        }
+
+        .fx-knobs {
+            display: flex;
+            gap: 14px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .fx-section.bypassed .fx-knobs {
+            opacity: 0.35;
+            pointer-events: none;
+        }
+
+        .fx-knob-group {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+        }
+
+        .fx-knob-label {
+            font-size: 8px;
+            color: #3C2F2F;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 2px;
+        }
+
+        .fx-knob-slider {
+            -webkit-appearance: none;
+            width: 70px;
+            height: 5px;
+            background: linear-gradient(to right, #D4C4B0, #E8D5B7);
+            border-radius: 3px;
+            outline: none;
+            border: 1px solid #8B7355;
+        }
+
+        .fx-knob-slider::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            width: 14px;
+            height: 14px;
+            background: radial-gradient(circle at 40% 35%, #f5e6d3, #c4a882);
+            border-radius: 50%;
+            cursor: pointer;
+            transition: transform 0.15s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
+            border: 1px solid #8B7355;
+        }
+
+        .fx-knob-slider::-webkit-slider-thumb:hover {
+            transform: scale(1.1);
+        }
+
+        .fx-knob-slider::-webkit-slider-thumb:active {
+            transform: scale(0.95);
+        }
+
+        .fx-knob-value {
+            font-size: 8px;
+            color: #5C4033;
+            margin-top: 1px;
+        }
+
+        .fx-dropdown-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 60px;
+        }
+
+        .fx-dropdown {
+            padding: 2px 4px;
+            background: rgba(235, 217, 199, 0.9);
+            border: 1px solid #8B7355;
+            border-radius: 3px;
+            font-size: 9px;
+            color: #3C2F2F;
+            cursor: pointer;
+            font-family: inherit;
+        }
+
         /* ====================================================================
            v1.7.0: TUNING TAB STYLES - Marimba-style layout
            ==================================================================== */
@@ -2242,12 +2367,39 @@
         </div>
 
         <!-- ================================================================
-             EFFECTS TAB (Placeholder)
+             v1.32.0: EFFECTS TAB (Chorus, Delay, EQ, Reverb)
              ================================================================ -->
-        <div id="effects-tab" class="tab-content">
-            <div class="placeholder-content">
-                <h3>Effects</h3>
-                <p>EQ and Compressor coming soon</p>
+        <div id="effects-tab" class="tab-content" style="display: none;">
+            <div class="fx-section" id="chorusSection">
+                <div class="fx-header">
+                    <span class="fx-title">Chorus</span>
+                    <button class="fx-bypass-btn" id="chorusBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="chorus-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="delaySection">
+                <div class="fx-header">
+                    <span class="fx-title">Delay</span>
+                    <button class="fx-bypass-btn" id="delayBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="delay-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="eqSection">
+                <div class="fx-header">
+                    <span class="fx-title">EQ</span>
+                    <button class="fx-bypass-btn" id="eqBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="eq-knobs"></div>
+            </div>
+
+            <div class="fx-section" id="reverbSection">
+                <div class="fx-header">
+                    <span class="fx-title">Reverb</span>
+                    <button class="fx-bypass-btn" id="reverbBypassBtn">On</button>
+                </div>
+                <div class="fx-knobs" id="reverb-knobs"></div>
             </div>
         </div>
 
@@ -2788,7 +2940,7 @@
         // Parameter Bindings - Dropdowns
         // v1.5.4: Added try-catch to prevent script crash if comboState binding fails
         // ====================================================================
-        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoScale', 'glissandoTonic', 'glissandoShape', 'glissandoInterval', 'glissandoDirection', 'freeShape', 'freeInterval', 'freeDirection'];
+        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoScale', 'glissandoTonic', 'glissandoShape', 'glissandoInterval', 'glissandoDirection', 'freeShape', 'freeInterval', 'freeDirection', 'freeTempoSync', 'scaleTempoSync'];
 
         dropdownParams.forEach(paramId => {
             const select = document.getElementById(paramId);
@@ -2912,6 +3064,29 @@
 
             setupInlineCustomVis('freeInterval', 'freeCustomSemitonesGroup');
             setupInlineCustomVis('glissandoInterval', 'glissandoCustomSemitonesGroup');
+
+            // v1.31.0: Tempo sync visibility — hide Time/Speed slider when sync is active
+            function setupInlineTempoSyncVis(syncId, manualGroupId) {
+                const syncSel = document.getElementById(syncId);
+                const manualGroup = document.getElementById(manualGroupId);
+                if (!syncSel || !manualGroup) return;
+
+                const update = () => {
+                    manualGroup.style.display = (parseInt(syncSel.value) === 0) ? '' : 'none';
+                };
+                syncSel.addEventListener('change', update);
+                try {
+                    const st = Juce.getComboBoxState(syncId);
+                    if (st && st.valueChangedEvent) st.valueChangedEvent.addListener(() => {
+                        syncSel.value = st.getChoiceIndex();
+                        update();
+                    });
+                } catch (e) {}
+                update();
+            }
+
+            setupInlineTempoSyncVis('freeTempoSync', 'freeTimeGroup');
+            setupInlineTempoSyncVis('scaleTempoSync', 'scaleSpeedGroup');
 
             // Free custom semitones slider binding (inline)
             try {
