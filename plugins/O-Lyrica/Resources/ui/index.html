@@ -1927,7 +1927,7 @@
                     <button class="gliss-toggle" id="scaleToggleBtn">OFF</button>
                 </div>
                 <div class="section-content">
-                    <div class="dropdown-group" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor are diatonic; Pentatonic is anhemitonic; Custom uses the tuning tab scale.">
+                    <div class="dropdown-group" data-tooltip="Scale: The scale used for scale-locked glissandos. Major/Minor/Pentatonic are 12-note patterns; Custom uses toggle buttons to select individual degrees. Major/Minor/Pentatonic are disabled for non-12-note tunings.">
                         <span class="dropdown-label">Scale</span>
                         <select id="glissandoScale">
                             <option value="0">Major</option>
@@ -1935,6 +1935,27 @@
                             <option value="2">Pentatonic</option>
                             <option value="3">Custom</option>
                         </select>
+                    </div>
+                    <div class="dropdown-group" data-tooltip="Tonic: Root note for the glissando scale. Independent from the tuning tab tonic. Determines which notes belong to the selected scale pattern.">
+                        <span class="dropdown-label">Key</span>
+                        <select id="glissandoTonic">
+                            <option value="0">C</option>
+                            <option value="1">C#</option>
+                            <option value="2">D</option>
+                            <option value="3">D#</option>
+                            <option value="4">E</option>
+                            <option value="5">F</option>
+                            <option value="6">F#</option>
+                            <option value="7">G</option>
+                            <option value="8">G#</option>
+                            <option value="9">A</option>
+                            <option value="10">A#</option>
+                            <option value="11">B</option>
+                        </select>
+                    </div>
+                    <div id="customDegreeToggles" style="display:none; margin: 4px 0; padding: 4px 0;">
+                        <span class="dropdown-label" style="margin-bottom: 3px; display: block;">Degrees</span>
+                        <div id="degreeButtonContainer" style="display: flex; flex-wrap: wrap; gap: 3px;"></div>
                     </div>
                     <div class="slider-group" data-tooltip="Speed: How fast the glissando sweeps through scale notes. 8 n/s is slow and expressive; 21 n/s is a fast Hollywood sweep.">
                         <span class="slider-label">Speed</span>
@@ -2727,7 +2748,7 @@
         // Parameter Bindings - Dropdowns
         // v1.5.4: Added try-catch to prevent script crash if comboState binding fails
         // ====================================================================
-        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoScale', 'glissandoShape', 'glissandoInterval', 'glissandoDirection', 'freeShape', 'freeInterval', 'freeDirection'];
+        const dropdownParams = ['stringMaterial', 'woodType', 'technique', 'glissandoScale', 'glissandoTonic', 'glissandoShape', 'glissandoInterval', 'glissandoDirection', 'freeShape', 'freeInterval', 'freeDirection'];
 
         dropdownParams.forEach(paramId => {
             const select = document.getElementById(paramId);
@@ -2877,6 +2898,115 @@
             } catch (e) {
                 console.warn('[Slider] Failed to bind freeCustomSemitones:', e);
             }
+        }
+
+        // ====================================================================
+        // v1.30.0: Custom Degree Toggle Buttons + Non-12 Scale Handling
+        // ====================================================================
+        {
+            let currentDegreeMaskLow = 0xFFFFFFFF;
+            let currentDegreeMaskHigh = 0xFFFFFFFF;
+            let currentDegreeCount = 12;
+
+            const scaleSelect = document.getElementById('glissandoScale');
+            const toggleContainer = document.getElementById('customDegreeToggles');
+            const buttonContainer = document.getElementById('degreeButtonContainer');
+
+            // Initialize from C++ state
+            async function initDegreeState() {
+                try {
+                    const result = await Juce.getNativeFunction('getGlissCustomDegrees')();
+                    if (result && typeof result.low === 'number') {
+                        currentDegreeMaskLow = result.low;
+                        currentDegreeMaskHigh = result.high;
+                    }
+                    const count = await Juce.getNativeFunction('getScaleDegreeCount')();
+                    if (typeof count === 'number' && count > 0) {
+                        currentDegreeCount = count;
+                    }
+                } catch (e) {
+                    console.warn('[Degrees] Init failed:', e);
+                }
+                updateDegreeButtons();
+                updateScaleOptionsForDegreeCount();
+            }
+
+            function isDegreeEnabled(degree) {
+                if (degree < 32) return (currentDegreeMaskLow >>> degree) & 1;
+                return (currentDegreeMaskHigh >>> (degree - 32)) & 1;
+            }
+
+            function toggleDegree(degree) {
+                if (degree < 32) currentDegreeMaskLow ^= (1 << degree);
+                else currentDegreeMaskHigh ^= (1 << (degree - 32));
+                Juce.getNativeFunction('setGlissCustomDegrees')(currentDegreeMaskLow, currentDegreeMaskHigh);
+            }
+
+            function updateDegreeButtons() {
+                buttonContainer.innerHTML = '';
+                for (let i = 0; i < currentDegreeCount; i++) {
+                    const btn = document.createElement('button');
+                    btn.textContent = (i + 1).toString();
+                    btn.className = 'degree-btn' + (isDegreeEnabled(i) ? ' active' : '');
+                    btn.style.cssText = 'min-width: 24px; height: 20px; font-size: 10px; padding: 0 3px; border: 1px solid rgba(139,119,91,0.4); border-radius: 3px; cursor: pointer; background: ' + (isDegreeEnabled(i) ? 'rgba(139,119,91,0.5)' : 'rgba(0,0,0,0.2)') + '; color: ' + (isDegreeEnabled(i) ? '#f5efe6' : 'rgba(245,239,230,0.4)') + ';';
+                    btn.addEventListener('click', () => {
+                        toggleDegree(i);
+                        const on = isDegreeEnabled(i);
+                        btn.className = 'degree-btn' + (on ? ' active' : '');
+                        btn.style.background = on ? 'rgba(139,119,91,0.5)' : 'rgba(0,0,0,0.2)';
+                        btn.style.color = on ? '#f5efe6' : 'rgba(245,239,230,0.4)';
+                    });
+                    buttonContainer.appendChild(btn);
+                }
+            }
+
+            // Show/hide degree toggles based on scale selection
+            function updateDegreeVisibility() {
+                if (!toggleContainer || !scaleSelect) return;
+                toggleContainer.style.display = (parseInt(scaleSelect.value) === 3) ? '' : 'none';
+            }
+
+            // Disable Major/Minor/Pentatonic for non-12-note tunings
+            function updateScaleOptionsForDegreeCount() {
+                if (!scaleSelect) return;
+                const non12 = currentDegreeCount !== 12;
+                for (let i = 0; i < 3; i++) {
+                    scaleSelect.options[i].disabled = non12;
+                    scaleSelect.options[i].textContent = scaleSelect.options[i].textContent.replace(' (N/A)', '') + (non12 ? ' (N/A)' : '');
+                }
+                // If non-12 and currently on a 12-note scale, force to Custom
+                if (non12 && parseInt(scaleSelect.value) < 3) {
+                    scaleSelect.value = 3;
+                    try {
+                        const comboState = Juce.getComboBoxState('glissandoScale');
+                        if (comboState) comboState.setChoiceIndex(3);
+                    } catch (e) {}
+                }
+                updateDegreeVisibility();
+            }
+
+            if (scaleSelect) {
+                scaleSelect.addEventListener('change', updateDegreeVisibility);
+                try {
+                    const st = Juce.getComboBoxState('glissandoScale');
+                    if (st && st.valueChangedEvent) st.valueChangedEvent.addListener(updateDegreeVisibility);
+                } catch (e) {}
+            }
+
+            // Listen for scale degree count changes from C++ timer
+            window.__JUCE__.backend.addEventListener('scaleDegreeCountChanged', (count) => {
+                if (typeof count === 'number' && count > 0 && count !== currentDegreeCount) {
+                    currentDegreeCount = count;
+                    // Reset bitmask when scale size changes
+                    currentDegreeMaskLow = 0xFFFFFFFF;
+                    currentDegreeMaskHigh = 0xFFFFFFFF;
+                    Juce.getNativeFunction('setGlissCustomDegrees')(currentDegreeMaskLow, currentDegreeMaskHigh);
+                    updateDegreeButtons();
+                    updateScaleOptionsForDegreeCount();
+                }
+            });
+
+            initDegreeState();
         }
 
         // ====================================================================

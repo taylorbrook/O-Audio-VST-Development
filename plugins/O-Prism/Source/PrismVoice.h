@@ -79,7 +79,7 @@ private:
     SVFFilter filterBL, filterBR;
 
     // LFOs (per-voice for smooth per-sample modulation)
-    LFO lfo1, lfo2;
+    LFO lfo1, lfo2, lfo3, lfo4;
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (PrismVoice)
 };

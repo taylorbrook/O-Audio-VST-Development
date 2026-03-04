@@ -65,6 +65,11 @@ public:
     void setActiveGlissandoMode(std::atomic<int>* modePtr);
 
     /**
+     * v1.30.0: Set pointer to custom degree bitmask (owned by processor)
+     */
+    void setCustomDegreeMask(std::atomic<uint64_t>* maskPtr);
+
+    /**
      * Get unique voice ID for sympathetic resonance tracking
      */
     int getVoiceId() const;
@@ -96,6 +101,9 @@ private:
 
     // v1.30.0: Active glissando mode atomic (owned by processor)
     std::atomic<int>* activeGlissandoModePtr = nullptr;
+
+    // v1.30.0: Custom degree bitmask pointer (owned by processor)
+    std::atomic<uint64_t>* customDegreeMaskPtr = nullptr;
 
     double currentFrequency = 440.0;
     double previousFrequency = 440.0; // For glissando start point

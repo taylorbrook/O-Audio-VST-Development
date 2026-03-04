@@ -21,6 +21,8 @@ enum class ModSource
     None = 0,
     LFO1,
     LFO2,
+    LFO3,
+    LFO4,
     AmpEnv,
     FilterEnv,
     Velocity,
@@ -44,6 +46,8 @@ enum class ModDest
     NoiseLevel,
     LFO1Rate,
     LFO2Rate,
+    LFO3Rate,
+    LFO4Rate,
     OscADetune,
     OscBDetune,
     OscAPan,
@@ -59,7 +63,7 @@ enum class ModDest
 // String arrays for APVTS Choice parameters
 inline juce::StringArray getModSourceNames()
 {
-    return { "None", "LFO1", "LFO2", "AmpEnv", "FilterEnv",
+    return { "None", "LFO1", "LFO2", "LFO3", "LFO4", "AmpEnv", "FilterEnv",
              "Velocity", "NoteNum", "ModWheel", "Aftertouch" };
 }
 
@@ -67,7 +71,8 @@ inline juce::StringArray getModDestNames()
 {
     return { "None", "OscA Pos", "OscB Pos", "FiltA Cut", "FiltB Cut",
              "FiltA Res", "FiltB Res", "Osc Mix", "Sub Level", "Noise Level",
-             "LFO1 Rate", "LFO2 Rate", "OscA Detune", "OscB Detune",
+             "LFO1 Rate", "LFO2 Rate", "LFO3 Rate", "LFO4 Rate",
+             "OscA Detune", "OscB Detune",
              "OscA Pan", "OscB Pan", "Reverb Mix", "Delay Mix",
              "Chorus Mix", "Dist Mix", "Master Vol" };
 }

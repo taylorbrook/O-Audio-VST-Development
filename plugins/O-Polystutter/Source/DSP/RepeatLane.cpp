@@ -57,6 +57,12 @@ void RepeatLane::reset()
     fadeOutActive = false;
     fadeOutSamplesRemaining = 0;
     fadeOutStartGain = 0.0f;
+
+    // v1.12.1: Reset retrigger crossfade state
+    retriggerCrossfadeActive = false;
+    retriggerCrossfadeSamplesRemaining = 0;
+    lastOutputLeft = 0.0f;
+    lastOutputRight = 0.0f;
 }
 
 void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
@@ -96,27 +102,35 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
 
         if (fadeOutActive && fadeOutSamplesRemaining > 0)
         {
-            // Continue fade-out: output fading silence
-            for (int sample = 0; sample < numSamples && fadeOutSamplesRemaining > 0; ++sample)
+            // v1.12.1: Fade from last output level to silence (was writing zeros)
+            int sample = 0;
+            for (; sample < numSamples && fadeOutSamplesRemaining > 0; ++sample)
             {
-                // Calculate fade-out gain (linear ramp from fadeOutStartGain to 0)
                 float fadeProgress = static_cast<float>(fadeOutSamplesRemaining) / static_cast<float>(crossfadeSamples);
                 float fadeGain = fadeOutStartGain * fadeProgress;
 
-                // Output silence with fade (the buffer already has input signal, we just fade it)
-                buffer.setSample(0, sample, 0.0f);
+                buffer.setSample(0, sample, lastOutputLeft * fadeGain);
                 if (buffer.getNumChannels() > 1)
-                    buffer.setSample(1, sample, 0.0f);
+                    buffer.setSample(1, sample, lastOutputRight * fadeGain);
 
                 fadeOutSamplesRemaining--;
                 globalEnvelopeGain = fadeGain;
             }
 
-            // Clear any remaining samples in the buffer after fade completes
+            // Clear any remaining samples after fade completes
+            for (; sample < numSamples; ++sample)
+            {
+                buffer.setSample(0, sample, 0.0f);
+                if (buffer.getNumChannels() > 1)
+                    buffer.setSample(1, sample, 0.0f);
+            }
+
             if (fadeOutSamplesRemaining <= 0)
             {
                 fadeOutActive = false;
                 globalEnvelopeGain = 0.0f;
+                lastOutputLeft = 0.0f;
+                lastOutputRight = 0.0f;
             }
         }
         else
@@ -124,6 +138,8 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
             // Fade-out complete or not needed, clear buffer
             buffer.clear();
             globalEnvelopeGain = 0.0f;
+            lastOutputLeft = 0.0f;
+            lastOutputRight = 0.0f;
         }
         return;
     }
@@ -241,6 +257,21 @@ void RepeatLane::processBlock(juce::AudioBuffer<float>& buffer, int numSamples)
         leftOut *= globalEnvelopeGain;
         rightOut *= globalEnvelopeGain;
 
+        // v1.12.1: Retrigger crossfade - blend from old output to new
+        if (retriggerCrossfadeActive && retriggerCrossfadeSamplesRemaining > 0)
+        {
+            float t = 1.0f - (static_cast<float>(retriggerCrossfadeSamplesRemaining) / static_cast<float>(crossfadeSamples));
+            leftOut = lastOutputLeft * (1.0f - t) + leftOut * t;
+            rightOut = lastOutputRight * (1.0f - t) + rightOut * t;
+            retriggerCrossfadeSamplesRemaining--;
+            if (retriggerCrossfadeSamplesRemaining <= 0)
+                retriggerCrossfadeActive = false;
+        }
+
+        // Track last output for retrigger crossfade and fade-out
+        lastOutputLeft = leftOut;
+        lastOutputRight = rightOut;
+
         // Write to output buffer
         buffer.setSample(0, sample, leftOut);
         if (buffer.getNumChannels() > 1)
@@ -263,6 +294,13 @@ void RepeatLane::trigger()
     // Check probability gate (use member random to avoid lock in audio thread)
     if (randomGenerator.nextFloat() >= probabilityAmount)
         return;
+
+    // v1.12.1: If mid-repeat, enable retrigger crossfade for click-free transition
+    if (isTriggered && currentRepeat < maxRepeats)
+    {
+        retriggerCrossfadeActive = true;
+        retriggerCrossfadeSamplesRemaining = crossfadeSamples;
+    }
 
     // v1.1.1: If we're currently fading out, cancel it
     fadeOutActive = false;
@@ -474,12 +512,17 @@ void RepeatLane::updatePatternPosition(double ppqPosition, int subdivIndex)
             break;
     }
 
+    // v1.12.1: Wrap at euclideanSteps when Euclidean mode is active,
+    // otherwise wrap at 16. This ensures Euclidean patterns cycle correctly
+    // (e.g., E(3,8) cycles every 8 steps, not every 16).
+    int wrapCount = (euclideanEnabled && euclideanSteps > 0) ? euclideanSteps : 16;
+
     // Calculate current step from PPQ position
-    int newStep = static_cast<int>((ppqPosition - patternStartPPQ) / subdivisionPPQ) % 16;
+    int newStep = static_cast<int>((ppqPosition - patternStartPPQ) / subdivisionPPQ) % wrapCount;
 
     // Handle negative modulo (wrap around)
     if (newStep < 0)
-        newStep += 16;
+        newStep += wrapCount;
 
     // Update current step
     currentPatternStep = newStep;

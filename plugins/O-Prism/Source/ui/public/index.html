@@ -836,7 +836,12 @@ body {
                         <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option>
                     </select>
                 </div>
-                <div class="knob-group"><div class="knob" id="knob-subOctave"><div class="knob-indicator"></div></div><div class="knob-label">Octave</div><div class="knob-value" id="val-subOctave">-1</div></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Octave</span>
+                    <select id="select-subOctave" class="param-select">
+                        <option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option>
+                    </select>
+                </div>
                 <div class="knob-group"><div class="knob" id="knob-subLevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-subLevel">0%</div></div>
             </div>
         </div>
@@ -940,6 +945,32 @@ body {
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo2Shape" class="param-select">
+                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="inline-sections">
+        <div class="inline-section">
+            <div class="section-header">LFO 3</div>
+            <div class="param-row">
+                <div class="knob-group"><div class="knob" id="knob-lfo3Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo3Rate">1.0 Hz</div></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Shape</span>
+                    <select id="select-lfo3Shape" class="param-select">
+                        <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header">LFO 4</div>
+            <div class="param-row">
+                <div class="knob-group"><div class="knob" id="knob-lfo4Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo4Rate">1.0 Hz</div></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Shape</span>
+                    <select id="select-lfo4Shape" class="param-select">
                         <option>Sine</option><option>Triangle</option><option>Saw</option><option>Square</option><option>S&amp;H</option>
                     </select>
                 </div>
@@ -1404,7 +1435,7 @@ bindKnob('oscBWidth',  pct,       0.5);
 
 // Sub + Noise
 bindDropdown(document.getElementById('select-subShape'), 'subShape', 4);
-bindKnob('subOctave',  subOctFmt, 0.5);
+bindDropdown(document.getElementById('select-subOctave'), 'subOctave', 4);
 bindKnob('subLevel',   pct,       0.0);
 bindDropdown(document.getElementById('select-noiseType'), 'noiseType', 6);
 bindKnob('noiseLevel', pct,       0.0);
@@ -1482,6 +1513,14 @@ bindDropdown(document.getElementById('select-lfo1Shape'), 'lfo1Shape', 5);
 bindKnob('lfo2Rate',  lfoRateFmt, 0.349);
 bindDropdown(document.getElementById('select-lfo2Shape'), 'lfo2Shape', 5);
 
+// LFO 3
+bindKnob('lfo3Rate',  lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo3Shape'), 'lfo3Shape', 5);
+
+// LFO 4
+bindKnob('lfo4Rate',  lfoRateFmt, 0.349);
+bindDropdown(document.getElementById('select-lfo4Shape'), 'lfo4Shape', 5);
+
 // Global (footer)
 bindKnob('masterVol', pct,     0.8);
 bindKnob('oscMix',    pct,     0.5);
@@ -1490,9 +1529,10 @@ bindKnob('polyphony', polyFmt, 1.0);
 // ─── MOD MATRIX UI ───
 (function() {
     const NUM_SLOTS = 16;
-    const sourceNames = ['None','LFO1','LFO2','AmpEnv','FilterEnv','Velocity','NoteNum','ModWheel','Aftertouch'];
+    const sourceNames = ['None','LFO1','LFO2','LFO3','LFO4','AmpEnv','FilterEnv','Velocity','NoteNum','ModWheel','Aftertouch'];
     const destNames = ['None','OscA Pos','OscB Pos','FiltA Cut','FiltB Cut','FiltA Res','FiltB Res',
-        'Osc Mix','Sub Level','Noise Level','LFO1 Rate','LFO2 Rate','OscA Detune','OscB Detune',
+        'Osc Mix','Sub Level','Noise Level','LFO1 Rate','LFO2 Rate','LFO3 Rate','LFO4 Rate',
+        'OscA Detune','OscB Detune',
         'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol'];
 
     const container = document.getElementById('mod-matrix-rows');

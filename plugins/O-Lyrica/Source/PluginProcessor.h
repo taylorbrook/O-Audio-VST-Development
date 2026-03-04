@@ -161,6 +161,11 @@ public:
     // v1.30.0: Glissando mode state (0=Off, 1=Free, 2=ScaleLocked)
     std::atomic<int> activeGlissandoMode { 0 };
 
+    // v1.30.0: Glissando custom degree bitmask (bit N = degree N enabled)
+    std::atomic<uint64_t> glissCustomDegrees { 0xFFFFFFFFFFFFFFFF };
+    uint64_t getGlissCustomDegrees() const { return glissCustomDegrees.load(std::memory_order_acquire); }
+    void setGlissCustomDegrees(uint64_t mask) { glissCustomDegrees.store(mask, std::memory_order_release); }
+
     // v1.30.0: APVTS Listener for toggle mutual exclusion
     void parameterChanged(const juce::String& parameterID, float newValue) override;
 

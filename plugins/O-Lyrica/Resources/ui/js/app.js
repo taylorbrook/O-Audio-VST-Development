@@ -159,6 +159,7 @@ function initializeParameters() {
     bindChoice('woodType');
     bindChoice('technique');
     bindChoice('glissandoScale');
+    bindChoice('glissandoTonic');
     // v1.23.0: Interval and direction dropdowns (Scale-Locked)
     bindChoice('glissandoInterval');
     bindChoice('glissandoDirection');

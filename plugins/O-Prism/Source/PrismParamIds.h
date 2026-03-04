@@ -99,10 +99,11 @@ namespace PrismParamIds
         all.addArray ({ "distType", "distDrive", "distMix" });                   //  3
         all.addArray ({ "eqLowGain", "eqMidGain", "eqMidFreq",
                         "eqHighGain" });                                         //  4
-        all.addArray ({ "lfo1Rate", "lfo1Shape", "lfo2Rate", "lfo2Shape" });     //  4
+        all.addArray ({ "lfo1Rate", "lfo1Shape", "lfo2Rate", "lfo2Shape",
+                        "lfo3Rate", "lfo3Shape", "lfo4Rate", "lfo4Shape" });   //  8
         all.addArray (modMatrixSliderIds());                                     // 48
         all.addArray ({ "masterVol", "oscMix", "polyphony" });                   //  3
-        return all;                                                              // 120
+        return all;                                                              // 124
     }
 
 } // namespace PrismParamIds

@@ -130,6 +130,12 @@ private:
     // Crossfade buffer for click-free looping
     int crossfadeSamples = 0;
 
+    // v1.12.1: Retrigger crossfade state (click-free re-triggering)
+    bool retriggerCrossfadeActive = false;
+    int retriggerCrossfadeSamplesRemaining = 0;
+    float lastOutputLeft = 0.0f;
+    float lastOutputRight = 0.0f;
+
     // v1.1.1: Global envelope for click-free stutter start/end
     // Prevents clicks when stutter effect triggers or finishes
     float globalEnvelopeGain = 0.0f;      // Current envelope level (0.0 to 1.0)

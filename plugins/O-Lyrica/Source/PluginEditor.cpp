@@ -63,15 +63,26 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     stringMaterialRelay = std::make_unique<juce::WebComboBoxRelay>("stringMaterial");
     woodTypeRelay = std::make_unique<juce::WebComboBoxRelay>("woodType");
     techniqueRelay = std::make_unique<juce::WebComboBoxRelay>("technique");
-    glissandoModeRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoMode");
     glissandoScaleRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoScale");
     // v1.22.0: Glissando shape relay
     glissandoShapeRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoShape");
+    // v1.30.0: Glissando tonic relay
+    glissandoTonicRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoTonic");
     // v1.23.0: Glissando interval and direction relays
     glissandoIntervalRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoInterval");
     glissandoDirectionRelay = std::make_unique<juce::WebComboBoxRelay>("glissandoDirection");
     // v1.6.0: Tuning mode relay
     tuningModeRelay = std::make_unique<juce::WebComboBoxRelay>("tuningMode");
+    // v1.30.0: Glissando toggle relays
+    freeToggleRelay = std::make_unique<juce::WebToggleButtonRelay>("freeToggle");
+    scaleToggleRelay = std::make_unique<juce::WebToggleButtonRelay>("scaleToggle");
+    // v1.30.0: Free mode parameter relays
+    freeShapeRelay = std::make_unique<juce::WebComboBoxRelay>("freeShape");
+    freeIntervalRelay = std::make_unique<juce::WebComboBoxRelay>("freeInterval");
+    freeDirectionRelay = std::make_unique<juce::WebComboBoxRelay>("freeDirection");
+    freeKeyswitchNoteRelay = std::make_unique<juce::WebComboBoxRelay>("freeKeyswitchNote");
+    scaleKeyswitchNoteRelay = std::make_unique<juce::WebComboBoxRelay>("scaleKeyswitchNote");
+    freeCustomSemitonesRelay = std::make_unique<juce::WebSliderRelay>("freeCustomSemitones");
 
     // 2️⃣ CREATE WEBVIEW with all relays registered
     // v1.18.3: Added section comments for native function organization
@@ -780,15 +791,50 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*stringMaterialRelay)
             .withOptionsFrom(*woodTypeRelay)
             .withOptionsFrom(*techniqueRelay)
-            .withOptionsFrom(*glissandoModeRelay)
             .withOptionsFrom(*glissandoScaleRelay)
             // v1.22.0: Glissando shape relay
             .withOptionsFrom(*glissandoShapeRelay)
+            // v1.30.0: Glissando tonic relay
+            .withOptionsFrom(*glissandoTonicRelay)
             // v1.23.0: Glissando interval and direction relays
             .withOptionsFrom(*glissandoIntervalRelay)
             .withOptionsFrom(*glissandoDirectionRelay)
             // v1.6.0: Tuning mode relay
             .withOptionsFrom(*tuningModeRelay)
+            // v1.30.0: Glissando toggle relays
+            .withOptionsFrom(*freeToggleRelay)
+            .withOptionsFrom(*scaleToggleRelay)
+            // v1.30.0: Free mode parameter relays
+            .withOptionsFrom(*freeShapeRelay)
+            .withOptionsFrom(*freeIntervalRelay)
+            .withOptionsFrom(*freeDirectionRelay)
+            .withOptionsFrom(*freeKeyswitchNoteRelay)
+            .withOptionsFrom(*scaleKeyswitchNoteRelay)
+            .withOptionsFrom(*freeCustomSemitonesRelay)
+            // ─────────────────────────────────────────────────────────────────
+            // v1.30.0: GLISSANDO CUSTOM DEGREE BITMASK
+            // ─────────────────────────────────────────────────────────────────
+            .withNativeFunction("setGlissCustomDegrees", [this](const juce::Array<juce::var>& args,
+                                                                 std::function<void(juce::var)> complete) {
+                if (args.size() < 2) { complete(juce::var(false)); return; }
+                uint32_t low = static_cast<uint32_t>(static_cast<int>(args[0]));
+                uint32_t high = static_cast<uint32_t>(static_cast<int>(args[1]));
+                uint64_t mask = (static_cast<uint64_t>(high) << 32) | low;
+                processorRef.setGlissCustomDegrees(mask);
+                complete(juce::var(true));
+            })
+            .withNativeFunction("getGlissCustomDegrees", [this](const juce::Array<juce::var>&,
+                                                                  std::function<void(juce::var)> complete) {
+                uint64_t mask = processorRef.getGlissCustomDegrees();
+                auto* obj = new juce::DynamicObject();
+                obj->setProperty("low", static_cast<int>(mask & 0xFFFFFFFF));
+                obj->setProperty("high", static_cast<int>((mask >> 32) & 0xFFFFFFFF));
+                complete(juce::var(obj));
+            })
+            .withNativeFunction("getScaleDegreeCount", [this](const juce::Array<juce::var>&,
+                                                               std::function<void(juce::var)> complete) {
+                complete(juce::var(processorRef.getTuningEngine()->getScaleDegrees()));
+            })
     );
 
     // 3️⃣ CREATE ATTACHMENTS (must be created AFTER WebView)
@@ -867,13 +913,14 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
         *apvts.getParameter("woodType"), *woodTypeRelay, nullptr);
     techniqueAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("technique"), *techniqueRelay, nullptr);
-    glissandoModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
-        *apvts.getParameter("glissandoMode"), *glissandoModeRelay, nullptr);
     glissandoScaleAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("glissandoScale"), *glissandoScaleRelay, nullptr);
     // v1.22.0: Glissando shape attachment
     glissandoShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("glissandoShape"), *glissandoShapeRelay, nullptr);
+    // v1.30.0: Glissando tonic attachment
+    glissandoTonicAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("glissandoTonic"), *glissandoTonicRelay, nullptr);
     // v1.23.0: Glissando interval and direction attachments
     glissandoIntervalAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("glissandoInterval"), *glissandoIntervalRelay, nullptr);
@@ -882,6 +929,24 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.6.0: Tuning mode attachment
     tuningModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("tuningMode"), *tuningModeRelay, nullptr);
+    // v1.30.0: Glissando toggle attachments
+    freeToggleAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("freeToggle"), *freeToggleRelay, nullptr);
+    scaleToggleAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("scaleToggle"), *scaleToggleRelay, nullptr);
+    // v1.30.0: Free mode parameter attachments
+    freeShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("freeShape"), *freeShapeRelay, nullptr);
+    freeIntervalAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("freeInterval"), *freeIntervalRelay, nullptr);
+    freeDirectionAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("freeDirection"), *freeDirectionRelay, nullptr);
+    freeKeyswitchNoteAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("freeKeyswitchNote"), *freeKeyswitchNoteRelay, nullptr);
+    scaleKeyswitchNoteAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("scaleKeyswitchNote"), *scaleKeyswitchNoteRelay, nullptr);
+    freeCustomSemitonesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("freeCustomSemitones"), *freeCustomSemitonesRelay, nullptr);
 
     // 4️⃣ SETUP WEBVIEW
     addAndMakeVisible(*webView);
@@ -946,6 +1011,16 @@ void OLyricaAudioProcessorEditor::timerCallback()
         juce::String js = "if (typeof window.restoreTooltipState === 'function') window.restoreTooltipState("
             + juce::String(enabled ? "true" : "false") + ");";
         webView->evaluateJavascript(js, nullptr);
+    }
+
+    // v1.30.0: Sync scale degree count to WebView (for custom degree toggles)
+    static int lastScaleDegreeCount = -1;
+    int currentDegreeCount = processorRef.getTuningEngine()->getScaleDegrees();
+    if (currentDegreeCount != lastScaleDegreeCount)
+    {
+        lastScaleDegreeCount = currentDegreeCount;
+        webView->emitEventIfBrowserIsVisible("scaleDegreeCountChanged",
+            juce::var(currentDegreeCount));
     }
 
     // Process MIDI events for pitch circle visualization

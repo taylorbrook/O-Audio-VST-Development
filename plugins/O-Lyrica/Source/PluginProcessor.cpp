@@ -181,6 +181,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         0  // Default: Major
     ));
 
+    // v1.30.0: Independent glissando tonic (not tied to tuning tab tonic)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "glissandoTonic", 1 },
+        "Glissando Tonic",
+        juce::StringArray { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" },
+        0  // Default: C
+    ));
+
     // v1.21.0: Glissando speed for scale-locked mode (notes per second)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "glissandoSpeed", 1 },
@@ -396,6 +404,7 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
         voice->setSympatheticEngine(&sympatheticEngine); // Phase 2.7: Connect sympathetic engine
         voice->setTuningEngine(&tuningEngine); // Phase 2.8: Connect tuning engine
         voice->setActiveGlissandoMode(&activeGlissandoMode); // v1.30.0: Glissando mode atomic
+        voice->setCustomDegreeMask(&glissCustomDegrees); // v1.30.0: Custom degree bitmask
         synthesiser.addVoice(voice);
     }
 
@@ -743,6 +752,8 @@ void OLyricaAudioProcessor::getStateInformation(juce::MemoryBlock& destData)
         xml->setAttribute("directTonic", tuningEngine.getTonicNote());
         // v1.18.0: Save tooltip enabled state
         xml->setAttribute("tooltipsEnabled", tooltipsEnabled.load(std::memory_order_acquire));
+        // v1.30.0: Save glissando custom degree bitmask
+        xml->setAttribute("glissCustomDegrees", juce::String(static_cast<juce::int64>(glissCustomDegrees.load(std::memory_order_acquire))));
         copyXmlToBinary(*xml, destData);
     }
 }
@@ -771,6 +782,13 @@ void OLyricaAudioProcessor::setStateInformation(const void* data, int sizeInByte
         {
             bool enabled = xmlState->getBoolAttribute("tooltipsEnabled", false);
             tooltipsEnabled.store(enabled, std::memory_order_release);
+        }
+
+        // v1.30.0: Restore glissando custom degree bitmask
+        if (xmlState->hasAttribute("glissCustomDegrees"))
+        {
+            auto saved = xmlState->getStringAttribute("glissCustomDegrees").getLargeIntValue();
+            glissCustomDegrees.store(static_cast<uint64_t>(saved), std::memory_order_release);
         }
     }
 

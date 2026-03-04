@@ -49,6 +49,8 @@ void PrismVoice::prepare (double sampleRate, int /*samplesPerBlock*/)
     filterBR.prepare (sampleRate);
     lfo1.prepare (sampleRate);
     lfo2.prepare (sampleRate);
+    lfo3.prepare (sampleRate);
+    lfo4.prepare (sampleRate);
 }
 
 bool PrismVoice::canPlaySound (juce::SynthesiserSound* sound)
@@ -127,7 +129,8 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
 
     // Sub oscillator
     int subShape = static_cast<int> (parameters->getRawParameterValue ("subShape")->load());
-    int subOctave = static_cast<int> (parameters->getRawParameterValue ("subOctave")->load());
+    int subOctaveIndex = static_cast<int> (parameters->getRawParameterValue ("subOctave")->load());
+    int subOctave = -(subOctaveIndex + 1); // index 0=-1, 1=-2, 2=-3, 3=-4
     subOsc.setShape (subShape);
     subOsc.setOctave (subOctave);
     subOsc.setFrequency (currentFrequency);
@@ -147,6 +150,8 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     // Reset LFOs for consistent per-note modulation
     lfo1.reset();
     lfo2.reset();
+    lfo3.reset();
+    lfo4.reset();
 
     // Amplitude ADSR
     float attack = parameters->getRawParameterValue ("ampAttack")->load();
@@ -219,12 +224,20 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     int lfo1Shape = static_cast<int> (parameters->getRawParameterValue ("lfo1Shape")->load());
     float lfo2Rate = parameters->getRawParameterValue ("lfo2Rate")->load();
     int lfo2Shape = static_cast<int> (parameters->getRawParameterValue ("lfo2Shape")->load());
+    float lfo3Rate = parameters->getRawParameterValue ("lfo3Rate")->load();
+    int lfo3Shape = static_cast<int> (parameters->getRawParameterValue ("lfo3Shape")->load());
+    float lfo4Rate = parameters->getRawParameterValue ("lfo4Rate")->load();
+    int lfo4Shape = static_cast<int> (parameters->getRawParameterValue ("lfo4Shape")->load());
 
     // Configure LFOs
     lfo1.setRate (lfo1Rate);
     lfo1.setShape (static_cast<LFO::Shape> (lfo1Shape));
     lfo2.setRate (lfo2Rate);
     lfo2.setShape (static_cast<LFO::Shape> (lfo2Shape));
+    lfo3.setRate (lfo3Rate);
+    lfo3.setShape (static_cast<LFO::Shape> (lfo3Shape));
+    lfo4.setRate (lfo4Rate);
+    lfo4.setShape (static_cast<LFO::Shape> (lfo4Shape));
 
     // ─── Update mod matrix routing from APVTS (once per block) ───
     modMatrix.updateFromAPVTS();
@@ -275,10 +288,14 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // ─── Per-sample modulation sources ───────────────────────
         float lfo1Val = lfo1.getNextSample();  // [-1, 1]
         float lfo2Val = lfo2.getNextSample();  // [-1, 1]
+        float lfo3Val = lfo3.getNextSample();  // [-1, 1]
+        float lfo4Val = lfo4.getNextSample();  // [-1, 1]
 
         // Set all source values for the mod matrix
         modMatrix.setSourceValue (ModSource::LFO1, lfo1Val);
         modMatrix.setSourceValue (ModSource::LFO2, lfo2Val);
+        modMatrix.setSourceValue (ModSource::LFO3, lfo3Val);
+        modMatrix.setSourceValue (ModSource::LFO4, lfo4Val);
         modMatrix.setSourceValue (ModSource::AmpEnv, static_cast<float> (envVal));
         modMatrix.setSourceValue (ModSource::FilterEnv, static_cast<float> (filtEnvVal));
         modMatrix.setSourceValue (ModSource::Velocity, noteVelocity);

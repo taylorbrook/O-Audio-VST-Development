@@ -2,6 +2,15 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.12.1] - 2026-03-04
+
+### Fixed
+
+- **Euclidean sequencer audio clicks eliminated** (3 bug fixes):
+  - Re-trigger mid-repeat now crossfades between old and new capture output instead of hard-resetting (primary click source with consecutive ON steps)
+  - Euclidean pattern position wraps at `euclideanSteps` instead of always 16 — E(3,8) now correctly cycles every 8 steps, not 16 with an 8-step dead zone
+  - Fade-out at repeat end now fades from last output level to silence instead of writing hard zeros
+
 ## [1.12.0] - 2026-03-03
 
 ### Changed

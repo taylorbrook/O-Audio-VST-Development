@@ -62,8 +62,9 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createSubNoisePa
     params.push_back (std::make_unique<juce::AudioParameterChoice> (
         juce::ParameterID { "subShape", 1 }, "Sub Shape",
         juce::StringArray { "Sine", "Triangle", "Saw", "Square" }, 0));
-    params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "subOctave", 1 }, "Sub Octave", -2, 0, -1));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "subOctave", 1 }, "Sub Octave",
+        juce::StringArray { "-1 Oct", "-2 Oct", "-3 Oct", "-4 Oct" }, 0));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "subLevel", 1 }, "Sub Level",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
@@ -312,6 +313,22 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createLFOParamet
         juce::ParameterID { "lfo2Shape", 1 }, "LFO 2 Shape",
         juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
 
+    // LFO 3 (rate + shape only — routing handled by mod matrix)
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "lfo3Rate", 1 }, "LFO 3 Rate",
+        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "lfo3Shape", 1 }, "LFO 3 Shape",
+        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+
+    // LFO 4 (rate + shape only — routing handled by mod matrix)
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "lfo4Rate", 1 }, "LFO 4 Rate",
+        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "lfo4Shape", 1 }, "LFO 4 Shape",
+        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+
     return params;
 }
 
@@ -389,7 +406,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPrismAudioProcessor::create
     addSection (createChorusParameters());       //  3
     addSection (createDistortionParameters());   //  3
     addSection (createEQParameters());           //  4
-    addSection (createLFOParameters());          //  4 (rate + shape only, routing via matrix)
+    addSection (createLFOParameters());          //  8 (rate + shape only, routing via matrix)
     addSection (createModMatrixParameters());    // 64 (16 slots x 4 params)
     addSection (createGlobalParameters());       //  3
 

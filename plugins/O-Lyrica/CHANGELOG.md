@@ -2,6 +2,30 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.30.0] - 2026-03-03
+
+### Added
+
+- **Independent glissando tonic selector** — New "Key" dropdown in the Scale-Locked Glissando section. Sets the root note for scale filtering independently from the tuning tab tonic. Previously the played MIDI note was always used as the root (`midiNoteNumber % 12`), making the scale shift with every note.
+
+- **Custom degree toggle buttons** — When Scale mode is set to "Custom", a row of toggle buttons appears showing each scale degree. Click to include/exclude individual degrees from the glissando sweep. Adapts to the current scale size (12 for 12-TET, 19 for 19-EDO, etc.). Bitmask stored as `uint64_t` for up to 64 degrees.
+
+- **Non-12-note tuning support** — Major, Minor, and Pentatonic scales are now automatically disabled when a non-12-note tuning system is active (19-EDO, 31-EDO, Bohlen-Pierce, etc.). The UI shows "(N/A)" on disabled options and forces Custom mode. Scale filtering uses `numScaleDegrees` from TuningEngine instead of hardcoded `% 12`.
+
+### Changed
+
+- Scale filtering in `HarpSynthVoice::startNote()` now uses `glissandoTonic` parameter as the anchor point instead of `midiNoteNumber % 12`
+- Custom mode now filters by bitmask per degree instead of passing all chromatic frequencies through
+
+### Technical Details
+
+- New APVTS parameter: `glissandoTonic` (AudioParameterChoice, 12 options C-B)
+- `glissCustomDegrees` stored as `std::atomic<uint64_t>` on processor, passed to voices via pointer
+- State save/load: bitmask serialized as string in XML for 64-bit safety
+- Native functions: `setGlissCustomDegrees(low, high)`, `getGlissCustomDegrees()`, `getScaleDegreeCount()`
+- Timer callback emits `scaleDegreeCountChanged` event to WebView when tuning changes
+- Files modified: PluginProcessor.h/cpp, HarpSynthVoice.h/cpp, PluginEditor.h/cpp, index.html, app.js
+
 ## [1.29.2] - 2026-03-02
 
 ### Added

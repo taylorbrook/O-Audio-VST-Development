@@ -53,6 +53,11 @@ void HarpSynthVoice::setActiveGlissandoMode(std::atomic<int>* modePtr)
     activeGlissandoModePtr = modePtr;
 }
 
+void HarpSynthVoice::setCustomDegreeMask(std::atomic<uint64_t>* maskPtr)
+{
+    customDegreeMaskPtr = maskPtr;
+}
+
 int HarpSynthVoice::getVoiceId() const
 {
     return voiceId;
@@ -204,37 +209,62 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
 
             // v1.30.0: Wire glissandoScale — filter frequencies by selected scale
             int scaleIndex = static_cast<int>(parameters->getRawParameterValue("glissandoScale")->load());
-            if (scaleIndex < 3) // Major=0, Minor=1, Pentatonic=2
+            int glissTonic = static_cast<int>(parameters->getRawParameterValue("glissandoTonic")->load());
+            int numScaleDegrees = tuningEngine->getScaleDegrees();
+
+            // For non-12-note tunings, force Custom mode (Major/Minor/Pentatonic are 12-note patterns)
+            if (numScaleDegrees != 12 && scaleIndex < 3)
+                scaleIndex = 3;
+
+            if (scaleIndex < 3) // Major=0, Minor=1, Pentatonic=2 (only for 12-note scales)
             {
-                static const std::vector<std::vector<int>> scaleDegrees = {
+                static const std::vector<std::vector<int>> scalePatterns = {
                     {0, 2, 4, 5, 7, 9, 11},   // Major
                     {0, 2, 3, 5, 7, 8, 10},    // Minor (natural)
                     {0, 2, 4, 7, 9}             // Pentatonic
                 };
-                int rootDegree = midiNoteNumber % 12;
+
+                int anchorNote = 60 + glissTonic;
                 std::vector<double> filtered;
+
                 for (int n = scaleStart; n < scaleStart + scaleCount && n <= 127; ++n)
                 {
                     if (n < 0) continue;
-                    int degree = ((n % 12) - rootDegree + 12) % 12;
+                    int degreeInScale = ((n - anchorNote) % 12 + 12) % 12;
                     bool inScale = false;
-                    for (int d : scaleDegrees[scaleIndex])
+                    for (int d : scalePatterns[scaleIndex])
                     {
-                        if (d == degree) { inScale = true; break; }
+                        if (d == degreeInScale) { inScale = true; break; }
                     }
                     if (inScale)
                         filtered.push_back(tuningEngine->getFrequency(n));
                 }
-                // Guard: if filtered < 2 notes, fall back to chromatic
+
                 if (filtered.size() >= 2)
                     glissandoController.setScale(filtered);
                 else
                     glissandoController.setScale(scaleFreqs);
             }
-            else
+            else // Custom mode — use bitmask for any scale size
             {
-                // Custom = chromatic (existing behavior)
-                glissandoController.setScale(scaleFreqs);
+                uint64_t degreeMask = customDegreeMaskPtr ? customDegreeMaskPtr->load(std::memory_order_acquire)
+                                                           : 0xFFFFFFFFFFFFFFFF;
+
+                int anchorNote = 60 + glissTonic;
+                std::vector<double> filtered;
+
+                for (int n = scaleStart; n < scaleStart + scaleCount && n <= 127; ++n)
+                {
+                    if (n < 0) continue;
+                    int degreeInScale = ((n - anchorNote) % numScaleDegrees + numScaleDegrees) % numScaleDegrees;
+                    if ((degreeMask >> degreeInScale) & 1)
+                        filtered.push_back(tuningEngine->getFrequency(n));
+                }
+
+                if (filtered.size() >= 2)
+                    glissandoController.setScale(filtered);
+                else
+                    glissandoController.setScale(scaleFreqs);
             }
 
             float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();

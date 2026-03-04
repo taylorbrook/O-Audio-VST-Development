@@ -76,15 +76,26 @@ private:
     std::unique_ptr<juce::WebComboBoxRelay> stringMaterialRelay;
     std::unique_ptr<juce::WebComboBoxRelay> woodTypeRelay;
     std::unique_ptr<juce::WebComboBoxRelay> techniqueRelay;
-    std::unique_ptr<juce::WebComboBoxRelay> glissandoModeRelay;
     std::unique_ptr<juce::WebComboBoxRelay> glissandoScaleRelay;
     // v1.22.0: Glissando shape relay
     std::unique_ptr<juce::WebComboBoxRelay> glissandoShapeRelay;
+    // v1.30.0: Glissando tonic relay
+    std::unique_ptr<juce::WebComboBoxRelay> glissandoTonicRelay;
     // v1.23.0: Glissando interval and direction relays
     std::unique_ptr<juce::WebComboBoxRelay> glissandoIntervalRelay;
     std::unique_ptr<juce::WebComboBoxRelay> glissandoDirectionRelay;
     // v1.6.0: Tuning mode relay
     std::unique_ptr<juce::WebComboBoxRelay> tuningModeRelay;
+    // v1.30.0: Glissando toggle relays
+    std::unique_ptr<juce::WebToggleButtonRelay> freeToggleRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> scaleToggleRelay;
+    // v1.30.0: Free mode parameter relays
+    std::unique_ptr<juce::WebComboBoxRelay> freeShapeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> freeIntervalRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> freeDirectionRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> freeKeyswitchNoteRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> scaleKeyswitchNoteRelay;
+    std::unique_ptr<juce::WebSliderRelay> freeCustomSemitonesRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -131,15 +142,26 @@ private:
     std::unique_ptr<juce::WebComboBoxParameterAttachment> stringMaterialAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> woodTypeAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> techniqueAttachment;
-    std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoModeAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoScaleAttachment;
     // v1.22.0: Glissando shape attachment
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoShapeAttachment;
+    // v1.30.0: Glissando tonic attachment
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoTonicAttachment;
     // v1.23.0: Glissando interval and direction attachments
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoIntervalAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> glissandoDirectionAttachment;
     // v1.6.0: Tuning mode attachment
     std::unique_ptr<juce::WebComboBoxParameterAttachment> tuningModeAttachment;
+    // v1.30.0: Glissando toggle attachments
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> freeToggleAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> scaleToggleAttachment;
+    // v1.30.0: Free mode parameter attachments
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> freeShapeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> freeIntervalAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> freeDirectionAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> freeKeyswitchNoteAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> scaleKeyswitchNoteAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> freeCustomSemitonesAttachment;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
