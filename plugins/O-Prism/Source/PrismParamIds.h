@@ -102,8 +102,8 @@ namespace PrismParamIds
         all.addArray ({ "lfo1Rate", "lfo1Shape", "lfo2Rate", "lfo2Shape",
                         "lfo3Rate", "lfo3Shape", "lfo4Rate", "lfo4Shape" });   //  8
         all.addArray (modMatrixSliderIds());                                     // 48
-        all.addArray ({ "masterVol", "oscMix", "polyphony" });                   //  3
-        return all;                                                              // 124
+        all.addArray ({ "masterVol", "oscMix" });                                 //  2
+        return all;                                                              // 123
     }
 
 } // namespace PrismParamIds

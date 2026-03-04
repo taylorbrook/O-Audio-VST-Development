@@ -1,5 +1,25 @@
 # O-Prism Changelog
 
+## v1.1.4 (2026-03-04)
+
+### Removed
+- **Dead parameter**: Removed unused `polyphony` APVTS parameter — was defined in `createGlobalParameters()` and bound in UI footer but never read by processBlock or voice management. Synth always uses 16 voices. Removed from PluginProcessor.cpp, PrismParamIds.h, and WebView UI footer.
+
+## v1.1.3 (2026-03-04)
+
+### Removed
+- **Dead code**: Removed unused `prevPhase` variable in LFO.cpp — was assigned from `phase` but never read
+
+## v1.1.2 (2026-03-04)
+
+### Removed
+- **Dead code**: Removed unused `activeNotesMutex` from PluginProcessor — note tracking already uses lock-free `std::atomic<bool>` array, the mutex was declared but never locked anywhere
+
+## v1.1.1 (2026-03-04)
+
+### Changed
+- **Knob visual overhaul**: Replaced all 63 knobs from CSS conic-gradient rotary style to SVG vine-arc style (matching O-Detune). Green vine stroke (#5a7a6a) animates around a tan track with smooth requestAnimationFrame interpolation. Three sizes: standard (52px), small (44px, footer), large (64px, A4 ref pitch). Added mouse wheel support and double-click reset to all knobs.
+
 ## v1.0.1 (2026-03-03)
 
 ### Fixed

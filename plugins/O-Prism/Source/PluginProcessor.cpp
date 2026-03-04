@@ -373,8 +373,6 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createGlobalPara
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "oscMix", 1 }, "Osc Mix",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
-    params.push_back (std::make_unique<juce::AudioParameterInt> (
-        juce::ParameterID { "polyphony", 1 }, "Polyphony", 1, 16, 16));
 
     return params;
 }

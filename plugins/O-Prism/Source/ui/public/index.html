@@ -212,75 +212,62 @@ body {
 }
 .section-header:first-child { margin-top: 0; }
 
-/* ─── KNOB ─── */
-.knob-group {
+/* ─── SVG VINE-ARC KNOBS ─── */
+.knob-container {
     display: inline-flex;
     flex-direction: column;
     align-items: center;
-    width: 54px;
+    gap: 4px;
     margin: 2px 2px;
 }
 .knob {
-    width: 44px; height: 44px;
-    border-radius: 50%;
-    border: 2px solid #8B7355;
-    position: relative;
-    cursor: grab;
-    background:
-        radial-gradient(circle, transparent 84%, #C9A27B 84%, #C9A27B 88%, #8B7355 88%, #8B7355 90%, transparent 90%),
-        conic-gradient(from 0deg,
-            #F5DEB3 0deg, #F5DEB3 18deg, #8B7355 18deg, #8B7355 18.5deg,
-            #E8D5B7 18.5deg, #E8D5B7 36deg, #8B7355 36deg, #8B7355 36.5deg,
-            #F5DEB3 36.5deg, #F5DEB3 54deg, #8B7355 54deg, #8B7355 54.5deg,
-            #E8D5B7 54.5deg, #E8D5B7 72deg, #8B7355 72deg, #8B7355 72.5deg,
-            #F5DEB3 72.5deg, #F5DEB3 90deg, #8B7355 90deg, #8B7355 90.5deg,
-            #E8D5B7 90.5deg, #E8D5B7 108deg, #8B7355 108deg, #8B7355 108.5deg,
-            #F5DEB3 108.5deg, #F5DEB3 126deg, #8B7355 126deg, #8B7355 126.5deg,
-            #E8D5B7 126.5deg, #E8D5B7 144deg, #8B7355 144deg, #8B7355 144.5deg,
-            #F5DEB3 144.5deg, #F5DEB3 162deg, #8B7355 162deg, #8B7355 162.5deg,
-            #E8D5B7 162.5deg, #E8D5B7 180deg, #8B7355 180deg, #8B7355 180.5deg,
-            #F5DEB3 180.5deg, #F5DEB3 198deg, #8B7355 198deg, #8B7355 198.5deg,
-            #E8D5B7 198.5deg, #E8D5B7 216deg, #8B7355 216deg, #8B7355 216.5deg,
-            #F5DEB3 216.5deg, #F5DEB3 234deg, #8B7355 234deg, #8B7355 234.5deg,
-            #E8D5B7 234.5deg, #E8D5B7 252deg, #8B7355 252deg, #8B7355 252.5deg,
-            #F5DEB3 252.5deg, #F5DEB3 270deg, #8B7355 270deg, #8B7355 270.5deg,
-            #E8D5B7 270.5deg, #E8D5B7 288deg, #8B7355 288deg, #8B7355 288.5deg,
-            #F5DEB3 288.5deg, #F5DEB3 306deg, #8B7355 306deg, #8B7355 306.5deg,
-            #E8D5B7 306.5deg, #E8D5B7 324deg, #8B7355 324deg, #8B7355 324.5deg,
-            #F5DEB3 324.5deg, #F5DEB3 342deg, #8B7355 342deg, #8B7355 342.5deg,
-            #E8D5B7 342.5deg, #E8D5B7 360deg
-        ),
-        radial-gradient(circle, #FFF8DC 0%, #FFF8DC 20%, transparent 20%);
-    transition: box-shadow 0.15s;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    cursor: pointer;
 }
-.knob:hover { box-shadow: 0 0 6px rgba(201,162,123,0.5); }
-.knob:active { cursor: grabbing; }
-.knob-indicator {
-    position: absolute;
-    width: 3px; height: 12px;
-    background: #8B6914;
-    top: 4px; left: 50%; margin-left: -1.5px;
-    border-radius: 1px;
-    transform-origin: center 18px;
+.knob-visual {
+    width: 52px;
+    height: 52px;
+    position: relative;
+}
+.knob-visual.large {
+    width: 64px;
+    height: 64px;
+}
+.knob-visual.small {
+    width: 44px;
+    height: 44px;
+}
+.knob-visual svg {
+    width: 100%;
+    height: 100%;
     transform: rotate(-135deg);
-    pointer-events: none;
+}
+.knob-track {
+    fill: none;
+    stroke: rgba(139, 115, 85, 0.3);
+    stroke-width: 2;
+}
+.knob-vine {
+    fill: none;
+    stroke: #5a7a6a;
+    stroke-width: 3;
+    stroke-linecap: round;
 }
 .knob-label {
-    font-size: 8px;
+    font-size: 9px;
+    letter-spacing: 0.8px;
+    color: #8b7355;
     text-transform: uppercase;
-    letter-spacing: 1px;
-    color: #5C4033;
-    margin-top: 3px;
+    margin-top: 4px;
     text-align: center;
-    line-height: 1.1;
-    max-width: 54px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 .knob-value {
-    font-size: 9px;
-    color: #8B7355;
+    font-size: 10px;
+    color: #a08870;
+    margin-top: 1px;
+    min-width: 50px;
     text-align: center;
 }
 
@@ -376,7 +363,7 @@ body {
 }
 .inline-section {
     flex: 1;
-    min-width: 200px;
+    min-width: 140px;
 }
 
 /* ─── EFFECT SECTIONS ─── */
@@ -572,23 +559,6 @@ body {
 
 /* A4 Reference Knob */
 .tuning-ref-section { display: flex; flex-direction: column; align-items: center; gap: 4px; }
-.ref-knob-container { position: relative; width: 60px; height: 60px; }
-.ref-knob {
-    width: 60px; height: 60px;
-    background: radial-gradient(circle at 35% 35%,
-        rgba(255, 248, 220, 0.9) 0%, rgba(245, 222, 179, 0.8) 40%,
-        rgba(212, 196, 176, 0.7) 70%, rgba(139, 115, 85, 0.5) 100%);
-    border: 2px solid #8B7355; border-radius: 50%;
-    cursor: pointer; position: relative;
-    box-shadow: 2px 2px 6px rgba(0,0,0,0.2), inset 1px 1px 3px rgba(255,255,255,0.3);
-}
-.ref-knob-indicator {
-    position: absolute; top: 5px; left: 50%; transform: translateX(-50%);
-    width: 3px; height: 12px; background: #3C2F2F; border-radius: 2px;
-    transform-origin: center 25px;
-}
-.ref-knob-label { font-size: 8px; color: #5C4033; text-transform: uppercase; letter-spacing: 0.5px; text-align: center; }
-.ref-knob-value { font-size: 10px; color: #3C2F2F; text-align: center; font-weight: 500; }
 
 /* Scale name */
 .scale-name-display {
@@ -767,15 +737,15 @@ body {
                     </optgroup>
                 </select>
             </div>
-            <div class="knob-group"><div class="knob" id="knob-oscAPos"><div class="knob-indicator"></div></div><div class="knob-label">Position</div><div class="knob-value" id="val-oscAPos">0%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscALevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-oscALevel">80%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscAPan"><div class="knob-indicator"></div></div><div class="knob-label">Pan</div><div class="knob-value" id="val-oscAPan">C</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscACoarse"><div class="knob-indicator"></div></div><div class="knob-label">Coarse</div><div class="knob-value" id="val-oscACoarse">0 st</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscAFine"><div class="knob-indicator"></div></div><div class="knob-label">Fine</div><div class="knob-value" id="val-oscAFine">0 ct</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscAPhase"><div class="knob-indicator"></div></div><div class="knob-label">Phase</div><div class="knob-value" id="val-oscAPhase">0%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscAUnison"><div class="knob-indicator"></div></div><div class="knob-label">Unison</div><div class="knob-value" id="val-oscAUnison">1</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscADetune"><div class="knob-indicator"></div></div><div class="knob-label">Detune</div><div class="knob-value" id="val-oscADetune">20%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscAWidth"><div class="knob-indicator"></div></div><div class="knob-label">Width</div><div class="knob-value" id="val-oscAWidth">50%</div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscAPos"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAPos" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Position</span><span class="knob-value" id="val-oscAPos">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscALevel"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscALevel" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Level</span><span class="knob-value" id="val-oscALevel">80%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscAPan"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAPan" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Pan</span><span class="knob-value" id="val-oscAPan">C</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscACoarse"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscACoarse" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Coarse</span><span class="knob-value" id="val-oscACoarse">0 st</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscAFine"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAFine" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Fine</span><span class="knob-value" id="val-oscAFine">0 ct</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscAPhase"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAPhase" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Phase</span><span class="knob-value" id="val-oscAPhase">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscAUnison"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAUnison" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Unison</span><span class="knob-value" id="val-oscAUnison">1</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscADetune"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscADetune" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Detune</span><span class="knob-value" id="val-oscADetune">20%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscAWidth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAWidth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Width</span><span class="knob-value" id="val-oscAWidth">50%</span></div></div>
         </div>
     </div>
 
@@ -813,15 +783,15 @@ body {
                     </optgroup>
                 </select>
             </div>
-            <div class="knob-group"><div class="knob" id="knob-oscBPos"><div class="knob-indicator"></div></div><div class="knob-label">Position</div><div class="knob-value" id="val-oscBPos">0%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBLevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-oscBLevel">0%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBPan"><div class="knob-indicator"></div></div><div class="knob-label">Pan</div><div class="knob-value" id="val-oscBPan">C</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBCoarse"><div class="knob-indicator"></div></div><div class="knob-label">Coarse</div><div class="knob-value" id="val-oscBCoarse">0 st</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBFine"><div class="knob-indicator"></div></div><div class="knob-label">Fine</div><div class="knob-value" id="val-oscBFine">0 ct</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBPhase"><div class="knob-indicator"></div></div><div class="knob-label">Phase</div><div class="knob-value" id="val-oscBPhase">0%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBUnison"><div class="knob-indicator"></div></div><div class="knob-label">Unison</div><div class="knob-value" id="val-oscBUnison">1</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBDetune"><div class="knob-indicator"></div></div><div class="knob-label">Detune</div><div class="knob-value" id="val-oscBDetune">20%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-oscBWidth"><div class="knob-indicator"></div></div><div class="knob-label">Width</div><div class="knob-value" id="val-oscBWidth">50%</div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBPos"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBPos" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Position</span><span class="knob-value" id="val-oscBPos">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBLevel"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBLevel" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Level</span><span class="knob-value" id="val-oscBLevel">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBPan"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBPan" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Pan</span><span class="knob-value" id="val-oscBPan">C</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBCoarse"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBCoarse" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Coarse</span><span class="knob-value" id="val-oscBCoarse">0 st</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBFine"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBFine" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Fine</span><span class="knob-value" id="val-oscBFine">0 ct</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBPhase"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBPhase" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Phase</span><span class="knob-value" id="val-oscBPhase">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBUnison"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBUnison" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Unison</span><span class="knob-value" id="val-oscBUnison">1</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBDetune"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBDetune" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Detune</span><span class="knob-value" id="val-oscBDetune">20%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-oscBWidth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBWidth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Width</span><span class="knob-value" id="val-oscBWidth">50%</span></div></div>
         </div>
     </div>
 
@@ -842,7 +812,7 @@ body {
                         <option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option>
                     </select>
                 </div>
-                <div class="knob-group"><div class="knob" id="knob-subLevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-subLevel">0%</div></div>
+                <div class="knob-container"><div class="knob" id="knob-subLevel"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-subLevel" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Level</span><span class="knob-value" id="val-subLevel">0%</span></div></div>
             </div>
         </div>
         <div class="inline-section">
@@ -854,7 +824,20 @@ body {
                         <option>White</option><option>Pink</option><option>Brown</option><option>Digital</option><option>Vinyl</option><option>Wind</option>
                     </select>
                 </div>
-                <div class="knob-group"><div class="knob" id="knob-noiseLevel"><div class="knob-indicator"></div></div><div class="knob-label">Level</div><div class="knob-value" id="val-noiseLevel">0%</div></div>
+                <div class="knob-container"><div class="knob" id="knob-noiseLevel"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-noiseLevel" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Level</span><span class="knob-value" id="val-noiseLevel">0%</span></div></div>
+            </div>
+        </div>
+        <div class="inline-section">
+            <div class="section-header">Performance</div>
+            <div class="param-row">
+                <div class="knob-container"><div class="knob" id="knob-pitchBendRange"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-pitchBendRange" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">PB Range</span><span class="knob-value" id="val-pitchBendRange">2 st</span></div></div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Glide Mode</span>
+                    <select id="select-glideMode" class="param-select">
+                        <option>Off</option><option>Legato</option><option>Always</option>
+                    </select>
+                </div>
+                <div class="knob-container"><div class="knob" id="knob-glideTime"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-glideTime" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Glide</span><span class="knob-value" id="val-glideTime">100ms</span></div></div>
             </div>
         </div>
     </div>
@@ -870,10 +853,10 @@ body {
                         <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
                     </select>
                 </div>
-                <div class="knob-group"><div class="knob" id="knob-filtACutoff"><div class="knob-indicator"></div></div><div class="knob-label">Cutoff</div><div class="knob-value" id="val-filtACutoff">20kHz</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtARes"><div class="knob-indicator"></div></div><div class="knob-label">Reso</div><div class="knob-value" id="val-filtARes">0%</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtADrive"><div class="knob-indicator"></div></div><div class="knob-label">Drive</div><div class="knob-value" id="val-filtADrive">0%</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtAKeyTrack"><div class="knob-indicator"></div></div><div class="knob-label">Key Trk</div><div class="knob-value" id="val-filtAKeyTrack">0%</div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtACutoff"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtACutoff" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Cutoff</span><span class="knob-value" id="val-filtACutoff">20kHz</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtARes"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtARes" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Reso</span><span class="knob-value" id="val-filtARes">0%</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtADrive"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtADrive" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Drive</span><span class="knob-value" id="val-filtADrive">0%</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtAKeyTrack"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtAKeyTrack" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Key Trk</span><span class="knob-value" id="val-filtAKeyTrack">0%</span></div></div>
             </div>
         </div>
         <div style="display:flex; align-items:center; padding-top:20px;">
@@ -893,10 +876,10 @@ body {
                         <option>LP12</option><option>LP24</option><option>HP12</option><option>HP24</option><option>BP12</option><option>BP24</option><option>Notch</option>
                     </select>
                 </div>
-                <div class="knob-group"><div class="knob" id="knob-filtBCutoff"><div class="knob-indicator"></div></div><div class="knob-label">Cutoff</div><div class="knob-value" id="val-filtBCutoff">20kHz</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtBRes"><div class="knob-indicator"></div></div><div class="knob-label">Reso</div><div class="knob-value" id="val-filtBRes">0%</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtBDrive"><div class="knob-indicator"></div></div><div class="knob-label">Drive</div><div class="knob-value" id="val-filtBDrive">0%</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtBKeyTrack"><div class="knob-indicator"></div></div><div class="knob-label">Key Trk</div><div class="knob-value" id="val-filtBKeyTrack">0%</div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtBCutoff"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtBCutoff" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Cutoff</span><span class="knob-value" id="val-filtBCutoff">20kHz</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtBRes"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtBRes" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Reso</span><span class="knob-value" id="val-filtBRes">0%</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtBDrive"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtBDrive" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Drive</span><span class="knob-value" id="val-filtBDrive">0%</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtBKeyTrack"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtBKeyTrack" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Key Trk</span><span class="knob-value" id="val-filtBKeyTrack">0%</span></div></div>
             </div>
         </div>
     </div>
@@ -906,20 +889,20 @@ body {
         <div class="inline-section">
             <div class="section-header">Amp Envelope</div>
             <div class="param-row">
-                <div class="knob-group"><div class="knob" id="knob-ampAttack"><div class="knob-indicator"></div></div><div class="knob-label">Attack</div><div class="knob-value" id="val-ampAttack">10ms</div></div>
-                <div class="knob-group"><div class="knob" id="knob-ampDecay"><div class="knob-indicator"></div></div><div class="knob-label">Decay</div><div class="knob-value" id="val-ampDecay">300ms</div></div>
-                <div class="knob-group"><div class="knob" id="knob-ampSustain"><div class="knob-indicator"></div></div><div class="knob-label">Sustain</div><div class="knob-value" id="val-ampSustain">70%</div></div>
-                <div class="knob-group"><div class="knob" id="knob-ampRelease"><div class="knob-indicator"></div></div><div class="knob-label">Release</div><div class="knob-value" id="val-ampRelease">500ms</div></div>
+                <div class="knob-container"><div class="knob" id="knob-ampAttack"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-ampAttack" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Attack</span><span class="knob-value" id="val-ampAttack">10ms</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-ampDecay"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-ampDecay" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Decay</span><span class="knob-value" id="val-ampDecay">300ms</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-ampSustain"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-ampSustain" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Sustain</span><span class="knob-value" id="val-ampSustain">70%</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-ampRelease"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-ampRelease" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Release</span><span class="knob-value" id="val-ampRelease">500ms</span></div></div>
             </div>
         </div>
         <div class="inline-section">
             <div class="section-header">Filter Envelope</div>
             <div class="param-row">
-                <div class="knob-group"><div class="knob" id="knob-filtAttack"><div class="knob-indicator"></div></div><div class="knob-label">Attack</div><div class="knob-value" id="val-filtAttack">10ms</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtDecay"><div class="knob-indicator"></div></div><div class="knob-label">Decay</div><div class="knob-value" id="val-filtDecay">500ms</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtSustain"><div class="knob-indicator"></div></div><div class="knob-label">Sustain</div><div class="knob-value" id="val-filtSustain">50%</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtRelease"><div class="knob-indicator"></div></div><div class="knob-label">Release</div><div class="knob-value" id="val-filtRelease">500ms</div></div>
-                <div class="knob-group"><div class="knob" id="knob-filtEnvDepth"><div class="knob-indicator"></div></div><div class="knob-label">Depth</div><div class="knob-value" id="val-filtEnvDepth">0%</div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtAttack"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtAttack" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Attack</span><span class="knob-value" id="val-filtAttack">10ms</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtDecay"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtDecay" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Decay</span><span class="knob-value" id="val-filtDecay">500ms</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtSustain"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtSustain" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Sustain</span><span class="knob-value" id="val-filtSustain">50%</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtRelease"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtRelease" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Release</span><span class="knob-value" id="val-filtRelease">500ms</span></div></div>
+                <div class="knob-container"><div class="knob" id="knob-filtEnvDepth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-filtEnvDepth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Depth</span><span class="knob-value" id="val-filtEnvDepth">0%</span></div></div>
             </div>
         </div>
     </div>
@@ -929,7 +912,7 @@ body {
         <div class="inline-section">
             <div class="section-header">LFO 1</div>
             <div class="param-row">
-                <div class="knob-group"><div class="knob" id="knob-lfo1Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo1Rate">1.0 Hz</div></div>
+                <div class="knob-container"><div class="knob" id="knob-lfo1Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo1Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo1Rate">1.0 Hz</span></div></div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo1Shape" class="param-select">
@@ -941,7 +924,7 @@ body {
         <div class="inline-section">
             <div class="section-header">LFO 2</div>
             <div class="param-row">
-                <div class="knob-group"><div class="knob" id="knob-lfo2Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo2Rate">1.0 Hz</div></div>
+                <div class="knob-container"><div class="knob" id="knob-lfo2Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo2Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo2Rate">1.0 Hz</span></div></div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo2Shape" class="param-select">
@@ -950,12 +933,10 @@ body {
                 </div>
             </div>
         </div>
-    </div>
-    <div class="inline-sections">
         <div class="inline-section">
             <div class="section-header">LFO 3</div>
             <div class="param-row">
-                <div class="knob-group"><div class="knob" id="knob-lfo3Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo3Rate">1.0 Hz</div></div>
+                <div class="knob-container"><div class="knob" id="knob-lfo3Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo3Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo3Rate">1.0 Hz</span></div></div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo3Shape" class="param-select">
@@ -967,7 +948,7 @@ body {
         <div class="inline-section">
             <div class="section-header">LFO 4</div>
             <div class="param-row">
-                <div class="knob-group"><div class="knob" id="knob-lfo4Rate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-lfo4Rate">1.0 Hz</div></div>
+                <div class="knob-container"><div class="knob" id="knob-lfo4Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo4Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo4Rate">1.0 Hz</span></div></div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo4Shape" class="param-select">
@@ -978,18 +959,6 @@ body {
         </div>
     </div>
 
-    <!-- Performance -->
-    <div class="section-header">Performance</div>
-    <div class="param-row">
-        <div class="knob-group"><div class="knob" id="knob-pitchBendRange"><div class="knob-indicator"></div></div><div class="knob-label">PB Range</div><div class="knob-value" id="val-pitchBendRange">2 st</div></div>
-        <div class="dropdown-group">
-            <span class="dropdown-label">Glide Mode</span>
-            <select id="select-glideMode" class="param-select">
-                <option>Off</option><option>Legato</option><option>Always</option>
-            </select>
-        </div>
-        <div class="knob-group"><div class="knob" id="knob-glideTime"><div class="knob-indicator"></div></div><div class="knob-label">Glide</div><div class="knob-value" id="val-glideTime">100ms</div></div>
-    </div>
 
 </div><!-- /synth-tab -->
 
@@ -1079,13 +1048,16 @@ body {
 
         <!-- A4 Reference Pitch -->
         <div class="tuning-ref-section">
-            <div class="ref-knob-container">
-                <div class="ref-knob" id="ref-pitch-knob">
-                    <div class="ref-knob-indicator" id="ref-pitch-indicator"></div>
+            <div class="knob" id="ref-pitch-knob">
+                <div class="knob-visual large">
+                    <svg viewBox="0 0 64 64">
+                        <circle class="knob-track" cx="32" cy="32" r="27"/>
+                        <circle class="knob-vine" id="vine-refPitch" cx="32" cy="32" r="27" stroke-dasharray="127.24" stroke-dashoffset="127.24"/>
+                    </svg>
                 </div>
+                <span class="knob-label">A4 Ref</span>
+                <span class="knob-value" id="ref-pitch-value">440.0 Hz</span>
             </div>
-            <div class="ref-knob-label">A4 REF</div>
-            <div class="ref-knob-value" id="ref-pitch-value">440.0 Hz</div>
         </div>
 
         <!-- Scale Name -->
@@ -1150,10 +1122,10 @@ body {
     <div class="effect-section" id="section-reverb">
         <div class="section-header"><span>Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
-            <div class="knob-group"><div class="knob" id="knob-reverbSize"><div class="knob-indicator"></div></div><div class="knob-label">Size</div><div class="knob-value" id="val-reverbSize">50%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-reverbDamp"><div class="knob-indicator"></div></div><div class="knob-label">Damp</div><div class="knob-value" id="val-reverbDamp">50%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-reverbPredelay"><div class="knob-indicator"></div></div><div class="knob-label">Pre-Dly</div><div class="knob-value" id="val-reverbPredelay">20ms</div></div>
-            <div class="knob-group"><div class="knob" id="knob-reverbMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-reverbMix">0%</div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbSize"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbSize" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Size</span><span class="knob-value" id="val-reverbSize">50%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbDamp"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbDamp" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Damp</span><span class="knob-value" id="val-reverbDamp">50%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbPredelay"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbPredelay" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Pre-Dly</span><span class="knob-value" id="val-reverbPredelay">20ms</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-reverbMix">0%</span></div></div>
         </div>
     </div>
 
@@ -1161,8 +1133,8 @@ body {
     <div class="effect-section" id="section-delay">
         <div class="section-header"><span>Delay</span><button id="toggle-delayBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
-            <div class="knob-group"><div class="knob" id="knob-delayTime"><div class="knob-indicator"></div></div><div class="knob-label">Time</div><div class="knob-value" id="val-delayTime">375ms</div></div>
-            <div class="knob-group"><div class="knob" id="knob-delayFeedback"><div class="knob-indicator"></div></div><div class="knob-label">Feedback</div><div class="knob-value" id="val-delayFeedback">30%</div></div>
+            <div class="knob-container"><div class="knob" id="knob-delayTime"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-delayTime" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Time</span><span class="knob-value" id="val-delayTime">375ms</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-delayFeedback"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-delayFeedback" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Feedback</span><span class="knob-value" id="val-delayFeedback">30%</span></div></div>
             <div class="dropdown-group">
                 <span class="dropdown-label">Mode</span>
                 <select id="select-delayMode" class="param-select">
@@ -1173,7 +1145,7 @@ body {
                 <span class="dropdown-label">Sync</span>
                 <button id="toggle-delaySync" class="toggle-btn" style="margin-top:3px;">Off</button>
             </div>
-            <div class="knob-group"><div class="knob" id="knob-delayMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-delayMix">0%</div></div>
+            <div class="knob-container"><div class="knob" id="knob-delayMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-delayMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-delayMix">0%</span></div></div>
         </div>
     </div>
 
@@ -1181,9 +1153,9 @@ body {
     <div class="effect-section" id="section-chorus">
         <div class="section-header"><span>Chorus</span><button id="toggle-chorusBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
-            <div class="knob-group"><div class="knob" id="knob-chorusRate"><div class="knob-indicator"></div></div><div class="knob-label">Rate</div><div class="knob-value" id="val-chorusRate">1.0 Hz</div></div>
-            <div class="knob-group"><div class="knob" id="knob-chorusDepth"><div class="knob-indicator"></div></div><div class="knob-label">Depth</div><div class="knob-value" id="val-chorusDepth">50%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-chorusMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-chorusMix">0%</div></div>
+            <div class="knob-container"><div class="knob" id="knob-chorusRate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-chorusRate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-chorusRate">1.0 Hz</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-chorusDepth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-chorusDepth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Depth</span><span class="knob-value" id="val-chorusDepth">50%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-chorusMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-chorusMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-chorusMix">0%</span></div></div>
         </div>
     </div>
 
@@ -1197,8 +1169,8 @@ body {
                     <option>SoftClip</option><option>HardClip</option><option>Tube</option><option>Fold</option>
                 </select>
             </div>
-            <div class="knob-group"><div class="knob" id="knob-distDrive"><div class="knob-indicator"></div></div><div class="knob-label">Drive</div><div class="knob-value" id="val-distDrive">0%</div></div>
-            <div class="knob-group"><div class="knob" id="knob-distMix"><div class="knob-indicator"></div></div><div class="knob-label">Mix</div><div class="knob-value" id="val-distMix">0%</div></div>
+            <div class="knob-container"><div class="knob" id="knob-distDrive"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-distDrive" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Drive</span><span class="knob-value" id="val-distDrive">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-distMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-distMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-distMix">0%</span></div></div>
         </div>
     </div>
 
@@ -1206,10 +1178,10 @@ body {
     <div class="effect-section" id="section-eq">
         <div class="section-header"><span>3-Band EQ</span><button id="toggle-eqBypass" class="bypass-toggle">ON</button></div>
         <div class="param-row">
-            <div class="knob-group"><div class="knob" id="knob-eqLowGain"><div class="knob-indicator"></div></div><div class="knob-label">Low</div><div class="knob-value" id="val-eqLowGain">0 dB</div></div>
-            <div class="knob-group"><div class="knob" id="knob-eqMidGain"><div class="knob-indicator"></div></div><div class="knob-label">Mid</div><div class="knob-value" id="val-eqMidGain">0 dB</div></div>
-            <div class="knob-group"><div class="knob" id="knob-eqMidFreq"><div class="knob-indicator"></div></div><div class="knob-label">Mid Freq</div><div class="knob-value" id="val-eqMidFreq">1.0kHz</div></div>
-            <div class="knob-group"><div class="knob" id="knob-eqHighGain"><div class="knob-indicator"></div></div><div class="knob-label">High</div><div class="knob-value" id="val-eqHighGain">0 dB</div></div>
+            <div class="knob-container"><div class="knob" id="knob-eqLowGain"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-eqLowGain" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Low</span><span class="knob-value" id="val-eqLowGain">0 dB</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-eqMidGain"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-eqMidGain" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mid</span><span class="knob-value" id="val-eqMidGain">0 dB</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-eqMidFreq"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-eqMidFreq" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mid Freq</span><span class="knob-value" id="val-eqMidFreq">1.0kHz</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-eqHighGain"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-eqHighGain" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">High</span><span class="knob-value" id="val-eqHighGain">0 dB</span></div></div>
         </div>
     </div>
 
@@ -1222,19 +1194,14 @@ body {
      ═══════════════════════════════════════════════════════════════════ -->
 <div class="footer-bar">
     <div class="footer-param">
-        <div class="knob" id="knob-masterVol" style="width:40px;height:40px;"><div class="knob-indicator" style="height:11px;top:3px;transform-origin:center 17px;"></div></div>
+        <div class="knob" id="knob-masterVol"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-masterVol" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
         <span class="footer-label">Master</span>
         <span class="footer-value" id="val-masterVol">80%</span>
     </div>
     <div class="footer-param">
-        <div class="knob" id="knob-oscMix" style="width:40px;height:40px;"><div class="knob-indicator" style="height:11px;top:3px;transform-origin:center 17px;"></div></div>
+        <div class="knob" id="knob-oscMix"><div class="knob-visual small"><svg viewBox="0 0 44 44"><circle class="knob-track" cx="22" cy="22" r="18"/><circle class="knob-vine" id="vine-oscMix" cx="22" cy="22" r="18" stroke-dasharray="84.82" stroke-dashoffset="84.82"/></svg></div></div>
         <span class="footer-label">Osc Mix</span>
         <span class="footer-value" id="val-oscMix">50%</span>
-    </div>
-    <div class="footer-param">
-        <div class="knob" id="knob-polyphony" style="width:40px;height:40px;"><div class="knob-indicator" style="height:11px;top:3px;transform-origin:center 17px;"></div></div>
-        <span class="footer-label">Voices</span>
-        <span class="footer-value" id="val-polyphony">16</span>
     </div>
 </div>
 
@@ -1252,10 +1219,85 @@ window.switchTab = function(tabName) {
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
 };
 
-// ─── KNOB DRAG INFRASTRUCTURE ───
-function makeKnobDraggable(knobEl, state, onUpdate) {
+// ─── SVG VINE KNOB INFRASTRUCTURE ───
+
+// Knob size configurations
+const KNOB_SIZES = {
+    standard: { arcLength: 103.67 },
+    small: { arcLength: 84.82 },
+    large: { arcLength: 127.24 }
+};
+
+// Animation state for smooth knob movement
+const animationState = {
+    targets: {},
+    frameId: null,
+    isRunning: false,
+    smoothingFactor: 0.15
+};
+
+const animationLoop = () => {
+    let needsUpdate = false;
+    Object.entries(animationState.targets).forEach(([id, s]) => {
+        const delta = s.target - s.current;
+        if (Math.abs(delta) > 0.0001) {
+            s.current += delta * animationState.smoothingFactor;
+            needsUpdate = true;
+            const offset = s.arcLength - (s.current * s.arcLength);
+            s.vine.style.strokeDashoffset = offset;
+        }
+    });
+    if (needsUpdate) {
+        animationState.frameId = requestAnimationFrame(animationLoop);
+    } else {
+        animationState.isRunning = false;
+        animationState.frameId = null;
+    }
+};
+
+const startAnimationLoop = () => {
+    if (!animationState.isRunning) {
+        animationState.isRunning = true;
+        animationState.frameId = requestAnimationFrame(animationLoop);
+    }
+};
+
+function bindKnob(paramId, formatFn, defaultNorm, size) {
+    const knobEl = document.getElementById('knob-' + paramId);
+    const vine = document.getElementById('vine-' + paramId);
+    const valueEl = document.getElementById('val-' + paramId);
+    if (!knobEl || !vine) return;
+
+    const sizeConfig = size === 'small' ? KNOB_SIZES.small : size === 'large' ? KNOB_SIZES.large : KNOB_SIZES.standard;
+    const state = Juce.getSliderState(paramId);
+
+    // Initialize animation target
+    const initNorm = state.getNormalisedValue();
+    animationState.targets[paramId] = {
+        current: initNorm,
+        target: initNorm,
+        vine: vine,
+        arcLength: sizeConfig.arcLength
+    };
+
+    // Set initial position
+    vine.style.strokeDashoffset = sizeConfig.arcLength - (initNorm * sizeConfig.arcLength);
+    if (valueEl && formatFn) valueEl.textContent = formatFn(initNorm);
+
+    // Listen for value changes
+    state.valueChangedEvent.addListener(() => {
+        const norm = state.getNormalisedValue();
+        animationState.targets[paramId].target = norm;
+        startAnimationLoop();
+        if (valueEl && formatFn) valueEl.textContent = formatFn(norm);
+    });
+
+    // Drag interaction
     let isDragging = false;
-    knobEl.addEventListener('mousedown', (e) => {
+    const knobVisual = knobEl.querySelector('.knob-visual');
+    const dragTarget = knobVisual || knobEl;
+
+    dragTarget.addEventListener('mousedown', (e) => {
         isDragging = true;
         state.sliderDragStarted();
         e.preventDefault();
@@ -1274,27 +1316,19 @@ function makeKnobDraggable(knobEl, state, onUpdate) {
         const norm = Math.max(0, Math.min(1, state.getNormalisedValue() - e.movementY * sensitivity));
         state.setNormalisedValue(norm);
     });
-    state.valueChangedEvent.addListener(() => onUpdate(state.getNormalisedValue()));
-    onUpdate(state.getNormalisedValue());
-}
 
-function bindKnob(paramId, formatFn, defaultNorm) {
-    const knobEl = document.getElementById('knob-' + paramId);
-    const indicator = knobEl ? knobEl.querySelector('.knob-indicator') : null;
-    const valueEl = document.getElementById('val-' + paramId);
-    if (!knobEl) return;
-    const state = Juce.getSliderState(paramId);
-
-    function updateDisplay(norm) {
-        const angle = -135 + norm * 270;
-        if (indicator) indicator.style.transform = 'rotate(' + angle + 'deg)';
-        if (valueEl && formatFn) valueEl.textContent = formatFn(norm);
-    }
-
-    makeKnobDraggable(knobEl, state, updateDisplay);
+    // Double-click to reset
     knobEl.addEventListener('dblclick', () => {
         state.setNormalisedValue(defaultNorm);
     });
+
+    // Mouse wheel support
+    knobEl.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const currentNorm = state.getNormalisedValue();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        state.setNormalisedValue(Math.max(0, Math.min(1, currentNorm + delta)));
+    }, { passive: false });
 }
 
 function bindDropdown(selectEl, paramId, numChoices) {
@@ -1401,7 +1435,6 @@ const feedbackFmt = (n) => {
     const v = n * 95;
     return v.toFixed(0) + '%';
 };
-const polyFmt = (n) => Math.round(n * 15 + 1).toString();
 const lfoRateFmt = (n) => {
     const v = skewMap(n, 0.01, 20.0, 0.35);
     return v >= 10 ? v.toFixed(0) + ' Hz' : v.toFixed(1) + ' Hz';
@@ -1522,9 +1555,8 @@ bindKnob('lfo4Rate',  lfoRateFmt, 0.349);
 bindDropdown(document.getElementById('select-lfo4Shape'), 'lfo4Shape', 5);
 
 // Global (footer)
-bindKnob('masterVol', pct,     0.8);
-bindKnob('oscMix',    pct,     0.5);
-bindKnob('polyphony', polyFmt, 1.0);
+bindKnob('masterVol', pct,     0.8, 'small');
+bindKnob('oscMix',    pct,     0.5, 'small');
 
 // ─── MOD MATRIX UI ───
 (function() {
@@ -1857,7 +1889,6 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
     const intervalList = document.getElementById('interval-list');
     const scaleNameDisplay = document.getElementById('scale-name-display');
     const refPitchKnob = document.getElementById('ref-pitch-knob');
-    const refPitchIndicator = document.getElementById('ref-pitch-indicator');
     const refPitchValue = document.getElementById('ref-pitch-value');
 
     function getDegreeLabel(index, total) {
@@ -2285,9 +2316,12 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
     let knobDragging = false, knobStartY = 0, knobStartValue = 0.5;
     const masterTuneState = Juce.getSliderState('masterTune');
 
+    const refPitchVine = document.getElementById('vine-refPitch');
     function updateKnobVisual(norm) {
-        const angle = -135 + norm * 270;
-        if (refPitchIndicator) refPitchIndicator.style.transform = `translateX(-50%) rotate(${angle}deg)`;
+        if (refPitchVine) {
+            const offset = 127.24 - (norm * 127.24);
+            refPitchVine.style.strokeDashoffset = offset;
+        }
         const hz = 415 + norm * 50;
         if (refPitchValue) refPitchValue.textContent = `${hz.toFixed(1)} Hz`;
     }

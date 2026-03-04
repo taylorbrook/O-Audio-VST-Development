@@ -1,8 +1,8 @@
 # O-Prism Notes
 
 ## Status
-- **Current Status:** 💡 Ideated
-- **Version:** N/A
+- **Current Status:** 📦 Installed
+- **Version:** 1.1.4
 - **Type:** Synth (Microtonal Wavetable)
 
 ## Lifecycle Timeline
