@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.2.1 (2026-03-05)
+
+### Fixed
+- **Report correct latency from distortion oversampling**: `DistortionProcessor` uses 2x oversampling which introduces latency, but `prepareToPlay()` called `setLatencySamples(0)`. Now reads `oversampling.getLatencyInSamples()` after preparing the distortion processor and reports it to the host so DAWs can apply proper delay compensation.
+
 ## v1.2.0 (2026-03-05)
 
 ### Changed

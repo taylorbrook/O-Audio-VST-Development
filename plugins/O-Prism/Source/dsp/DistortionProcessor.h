@@ -24,6 +24,8 @@ public:
     void setDrive (float drive);
     void setMix (float mix);
 
+    float getLatencyInSamples() const { return static_cast<float> (oversampling.getLatencyInSamples()); }
+
 private:
     void applyDistortion (juce::dsp::AudioBlock<float>& block);
 

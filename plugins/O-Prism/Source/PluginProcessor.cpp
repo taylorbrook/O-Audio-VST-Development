@@ -473,7 +473,7 @@ void OPrismAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
 
     masterVolSmoothed.reset (sampleRate, 0.02);
 
-    setLatencySamples (0);
+    setLatencySamples (static_cast<int> (distortion.getLatencyInSamples()));
 }
 
 void OPrismAudioProcessor::releaseResources() {}
