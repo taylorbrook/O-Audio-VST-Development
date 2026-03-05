@@ -12,26 +12,32 @@
 
 void ModulationMatrix::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 {
-    parameters = apvts;
-}
-
-void ModulationMatrix::updateFromAPVTS()
-{
-    if (parameters == nullptr)
+    if (apvts == nullptr)
         return;
 
     for (int i = 0; i < kNumSlots; ++i)
     {
         auto prefix = "modSlot" + juce::String (i);
+        cachedParams[static_cast<size_t> (i)].src = apvts->getRawParameterValue (prefix + "Src");
+        cachedParams[static_cast<size_t> (i)].dst = apvts->getRawParameterValue (prefix + "Dst");
+        cachedParams[static_cast<size_t> (i)].amt = apvts->getRawParameterValue (prefix + "Amt");
+        cachedParams[static_cast<size_t> (i)].on  = apvts->getRawParameterValue (prefix + "On");
+    }
+}
 
-        slots[static_cast<size_t> (i)].source =
-            static_cast<int> (parameters->getRawParameterValue (prefix + "Src")->load());
-        slots[static_cast<size_t> (i)].dest =
-            static_cast<int> (parameters->getRawParameterValue (prefix + "Dst")->load());
-        slots[static_cast<size_t> (i)].amount =
-            parameters->getRawParameterValue (prefix + "Amt")->load();
-        slots[static_cast<size_t> (i)].enabled =
-            parameters->getRawParameterValue (prefix + "On")->load() > 0.5f;
+void ModulationMatrix::updateFromAPVTS()
+{
+    for (int i = 0; i < kNumSlots; ++i)
+    {
+        const auto& cp = cachedParams[static_cast<size_t> (i)];
+
+        if (cp.src == nullptr)
+            continue;
+
+        slots[static_cast<size_t> (i)].source  = static_cast<int> (cp.src->load());
+        slots[static_cast<size_t> (i)].dest    = static_cast<int> (cp.dst->load());
+        slots[static_cast<size_t> (i)].amount  = cp.amt->load();
+        slots[static_cast<size_t> (i)].enabled = cp.on->load() > 0.5f;
     }
 }
 

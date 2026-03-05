@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.2.0 (2026-03-05)
+
+### Changed
+- **Cached ModulationMatrix APVTS pointers**: Cache all 64 `std::atomic<float>*` parameter pointers once in `setAPVTS()` instead of constructing 16 prefix strings and performing 64 hash map lookups every `processBlock` call. `updateFromAPVTS()` now does 64 direct atomic loads with zero string allocation or map traversal.
+
 ## v1.1.9 (2026-03-04)
 
 ### Changed

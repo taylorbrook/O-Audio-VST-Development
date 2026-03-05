@@ -117,8 +117,15 @@ private:
         bool enabled = false;
     };
 
-    juce::AudioProcessorValueTreeState* parameters = nullptr;
+    struct CachedSlotParams
+    {
+        std::atomic<float>* src = nullptr;
+        std::atomic<float>* dst = nullptr;
+        std::atomic<float>* amt = nullptr;
+        std::atomic<float>* on  = nullptr;
+    };
 
+    std::array<CachedSlotParams, kNumSlots> cachedParams {};
     std::array<SlotState, kNumSlots> slots {};
     std::array<float, kNumSources> sourceValues {};
     std::array<float, kNumDests> destOffsets {};
