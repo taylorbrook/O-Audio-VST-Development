@@ -304,21 +304,12 @@ function createBandRow(band) {
         cell.dataset.band = band.id;
         cell.dataset.step = step;
 
-        // Click: toggle 0↔1, Shift+click: cycle velocity (0→0.25→0.5→0.75→1→0)
-        cell.addEventListener('click', (e) => {
-            if (e.shiftKey) {
-                cycleVelocity(band.id, step);
-            } else {
-                toggleStep(band.id, step);
-            }
-        });
-
-        // Right-click-drag: set velocity by vertical position
+        // Left-click: toggle on/off (no drag) or drag vertically to set velocity
+        // Shift+click: cycle velocity levels
         cell.addEventListener('mousedown', (e) => {
-            if (e.button === 2) {
-                e.preventDefault();
-                startVelocityDrag(band.id, step, cell, e);
-            }
+            if (e.button !== 0) return;
+            e.preventDefault();
+            startStepInteraction(band.id, step, cell, e);
         });
 
         cell.addEventListener('contextmenu', (e) => e.preventDefault());
@@ -533,19 +524,30 @@ function cycleVelocity(band, step) {
     updateStepVisual(band, step, newVel);
 }
 
-function startVelocityDrag(band, step, cell, startEvent) {
+function startStepInteraction(band, step, cell, startEvent) {
     if (state.euclideanActive[band]) return;
 
     const paramId = `step_b${band}_s${step}`;
     const sliderState = state.stepStates[paramId];
-    const cellRect = cell.getBoundingClientRect();
-    const cellHeight = cellRect.height;
+    const startY = startEvent.clientY;
+    const startVel = sliderState.getNormalisedValue();
+    let isDragging = false;
+    const DRAG_THRESHOLD = 3;
 
     function onMouseMove(e) {
-        // Map vertical position within cell to velocity (top=1.0, bottom=0.0)
-        const relY = e.clientY - cellRect.top;
-        const velocity = Math.max(0, Math.min(1, 1 - relY / cellHeight));
-        const quantized = Math.round(velocity * 100) / 100;
+        const deltaY = startY - e.clientY; // positive = up = increase velocity
+
+        if (!isDragging) {
+            if (Math.abs(deltaY) > DRAG_THRESHOLD) {
+                isDragging = true;
+            } else {
+                return;
+            }
+        }
+
+        // 100px vertical movement = full 0-to-1 range
+        const newVel = Math.max(0, Math.min(1, startVel + deltaY / 100));
+        const quantized = Math.round(newVel * 100) / 100;
         sliderState.setNormalisedValue(quantized);
         updateStepVisual(band, step, quantized);
     }
@@ -553,10 +555,16 @@ function startVelocityDrag(band, step, cell, startEvent) {
     function onMouseUp() {
         document.removeEventListener('mousemove', onMouseMove);
         document.removeEventListener('mouseup', onMouseUp);
+
+        if (!isDragging) {
+            if (startEvent.shiftKey) {
+                cycleVelocity(band, step);
+            } else {
+                toggleStep(band, step);
+            }
+        }
     }
 
-    // Set initial velocity from click position
-    onMouseMove(startEvent);
     document.addEventListener('mousemove', onMouseMove);
     document.addEventListener('mouseup', onMouseUp);
 }
@@ -571,13 +579,13 @@ function updateStepVisual(band, step, velocity) {
     const isActive = velocity > 0.001;
     cell.classList.toggle('active', isActive);
 
-    // Show velocity as opacity/intensity on the step cell
+    // Show velocity as fill height (bottom-up) via CSS custom property
     if (isActive) {
-        // Minimum 30% opacity for visibility, scale to full at velocity 1.0
-        cell.style.opacity = (0.3 + velocity * 0.7).toFixed(2);
+        cell.style.setProperty('--vel', (velocity * 100) + '%');
     } else {
-        cell.style.opacity = '';
+        cell.style.removeProperty('--vel');
     }
+    cell.style.opacity = '';
 }
 
 function updateStepCount(count) {
@@ -830,7 +838,7 @@ function updateEuclideanGrid(bandId) {
             cell.classList.toggle('euclidean-active', pattern[wrappedStep]);
         }
     } else {
-        // Restore manual step display with velocity
+        // Restore manual step display with velocity fill bar
         for (let step = 0; step < cells.length; step++) {
             const cell = cells[step];
             cell.classList.remove('euclidean-mode', 'euclidean-active');
@@ -841,7 +849,12 @@ function updateEuclideanGrid(bandId) {
                 const vel = sliderState.getNormalisedValue();
                 const isActive = vel > 0.001;
                 cell.classList.toggle('active', isActive);
-                cell.style.opacity = isActive ? (0.3 + vel * 0.7).toFixed(2) : '';
+                if (isActive) {
+                    cell.style.setProperty('--vel', (vel * 100) + '%');
+                } else {
+                    cell.style.removeProperty('--vel');
+                }
+                cell.style.opacity = '';
             }
         }
     }

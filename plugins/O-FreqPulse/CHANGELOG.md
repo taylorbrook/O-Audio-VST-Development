@@ -2,6 +2,19 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.12.0] - 2026-03-05
+
+### Changed
+
+- **Click-and-drag velocity control** - Left-click and hold on a step, then drag up/down to set velocity. Up increases, down decreases. 100px of vertical movement covers the full 0–1 range. A quick click without dragging still toggles the step on/off.
+- **Fill-bar velocity visual** - Step velocity is now shown as a bottom-up fill level instead of opacity. The green highlight fills proportionally to the velocity value, making it easy to see relative velocity levels across the grid.
+- **Shift+click retained** - Shift+click still cycles through velocity levels (0 → 0.25 → 0.5 → 0.75 → 1.0 → 0) as a quick alternative.
+
+### Removed
+
+- **Right-click-drag velocity** - Replaced by the more intuitive left-click-drag interaction.
+- **Opacity-based velocity display** - Replaced by the fill-bar visual.
+
 ## [1.11.0] - 2026-03-05
 
 ### Added

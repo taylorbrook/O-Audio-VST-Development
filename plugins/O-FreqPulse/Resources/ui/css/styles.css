@@ -323,12 +323,19 @@ html, body {
     background: var(--step-off);
     border-radius: 2px;
     cursor: pointer;
-    transition: background 0.1s ease;
+    position: relative;
+    overflow: hidden;
 }
 
-.step-cell.active {
+.step-cell.active::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: var(--vel, 100%);
     background: var(--step-on);
-    /* Velocity shown via inline opacity (0.3–1.0) set by JS */
+    border-radius: 2px;
 }
 
 .step-cell.euclidean-active {

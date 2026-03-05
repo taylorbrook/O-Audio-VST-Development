@@ -983,7 +983,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
 
     if (factoryDir.isDirectory()
         && versionFile.existsAsFile()
-        && versionFile.loadFileAsString().trimEnd() == "1.11.0")
+        && versionFile.loadFileAsString().trimEnd() == "1.12.0")
         return;
 
     if (factoryDir.isDirectory())
@@ -1025,7 +1025,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
     // Reset back to Init preset (index 0)
     loadPreset(0);
 
-    versionFile.replaceWithText("1.11.0\n");
+    versionFile.replaceWithText("1.12.0\n");
 
     juce::Logger::writeToLog("[O-FreqPulse] Factory presets initialized: " + juce::String(numPresets));
 }
