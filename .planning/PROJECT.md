@@ -11,7 +11,7 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 ## Current State
 
 **Latest shipped:** v1.3 System Modernization (2026-02-10)
-**Current milestone:** None — planning next
+**Current milestone:** v1.4 System Hygiene & Quality Gates
 
 **System overview:**
 - 17 phases completed across 4 milestones
@@ -65,7 +65,18 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 
 ### Active
 
-(None — define in next milestone via `/gsd:new-milestone`)
+## Current Milestone: v1.4 System Hygiene & Quality Gates
+
+**Goal:** Address all findings from the full system review — activate dormant quality gates, remove dead code, fix research governance gaps, consolidate overlapping subsystems, and add structural improvements for agent memory and validation.
+
+**Target features:**
+- Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json
+- Remove all dead code (816 lines of .sh hooks, vestigial hooks.json, 3 dead agents, deprecated registry)
+- Fix resource index 50% coverage gap and standardize research doc frontmatter
+- Merge overlapping skills (plugin-phases into plugin-workflow)
+- Clean up infrastructure (__pycache__ gitignore, empty agent memory, documentation-only files)
+- Add agent memory write-back mechanism
+- Evaluate and activate validation cache and schema enforcement
 
 ### Deferred (v2+)
 
@@ -203,4 +214,4 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | Canary plugin testing after every change | 35+ production plugins depend on system stability | ✓ Good — O-SimpleReverb confirmed no regressions |
 
 ---
-*Last updated: 2026-02-10 after v1.3 milestone*
+*Last updated: 2026-03-05 after v1.4 milestone start*

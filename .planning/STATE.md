@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-02-10)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins — where agents execute quality work that doesn't require constant rework.
-**Current focus:** v1.3 shipped — planning next milestone
+**Current focus:** v1.4 System Hygiene & Quality Gates
 
 ## Current Position
 
-Phase: None (between milestones)
-Plan: N/A
-Status: v1.3 milestone archived. All phases (14-17) shipped.
-Last activity: 2026-03-05 - Completed quick task 14: Full system review of Plugin Freedom System (15 recommendations, 9 quick wins)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements for v1.4
+Last activity: 2026-03-05 — Milestone v1.4 started
 
-Progress: [██████████] 100% (v1.0-v1.3: 17/17 phases complete, 51/51 plans)
+Progress: [░░░░░░░░░░] 0% (v1.4: 0/? phases)
 
 ## Performance Metrics
 
