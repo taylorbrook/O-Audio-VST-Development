@@ -1,5 +1,30 @@
 # O-IntonationPad Changelog
 
+## [2.2.4] - 2026-03-05
+
+### Fixed
+- ScaleGenerator `generateRank2()` clamped `generatorCents` against the raw `periodCents` before `periodCents` itself was validated — swapped clamp order so period is validated first
+- JsonHelper string values (`arrayToJSON(vector<string>)` and `JsonObjectBuilder::add(key, String)`) were embedded without escaping — added `escape()` helper that replaces `\` → `\\` and `"` → `\"`
+
+## [2.2.3] - 2026-03-05
+
+### Removed
+- Dead `calculateCustomFrequency()` wrapper method from TuningEngine — only the unlocked variant is used (by `rebuildFrequencyTable()`)
+- Unused `modules/pitch-circle.js` file, its BinaryData entry, and PluginEditor resource route — tuning-panel.js draws its own pitch circle inline
+- Dead `scaleName` parameter from `TuningExporter::generatePitchCircleSVG()` (was `ignoreUnused`)
+- Unused `complexity` parameter from `ChordGenerator::generateChord()` — accepted but never read
+- Unreachable `case BuiltInPreset::Custom` in `setBuiltInPreset()` switch — already handled by early return
+- Unreachable `Mode::MTSESP` branch from `getActiveTuningName()` — no code ever sets this mode
+
+## [2.2.2] - 2026-03-04
+
+### Refactored
+- Extract repeated JSON string-building patterns into `Source/Util/JsonHelper.h` utility
+- `JsonHelper::arrayToJSON()` overloads for `vector<double>`, `vector<bool>`, `vector<string>`
+- `JsonHelper::JsonObjectBuilder` with chained `.add("key", value)` for object construction
+- `JsonHelper::JsonArrayBuilder` for composing arrays of objects
+- Replaced all manual JSON concatenation in PluginEditor.cpp (`doubleVectorToJSON`, `getEmbeddedTuningList`, `getEmbeddedTuningCategories`, `getEnabledIntervals`, `timerCallback` active notes)
+
 ## [2.2.1] - 2026-03-04
 
 ### Fixed
