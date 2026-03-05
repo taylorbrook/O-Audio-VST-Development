@@ -263,7 +263,7 @@ html, body {
 .band-row {
     flex: 1;
     display: grid;
-    grid-template-columns: 80px 1fr 60px 80px 40px;
+    grid-template-columns: 80px 1fr 60px 56px 80px 40px;
     gap: 8px;
     align-items: center;
 }
@@ -328,6 +328,7 @@ html, body {
 
 .step-cell.active {
     background: var(--step-on);
+    /* Velocity shown via inline opacity (0.3–1.0) set by JS */
 }
 
 .step-cell.euclidean-active {
@@ -401,19 +402,47 @@ html, body {
     background: var(--step-on);
 }
 
-/* Playhead */
+/* v1.7.0: Per-band Rate Dropdown */
+.band-rate-dropdown {
+    width: 56px;
+    padding: 2px 2px;
+    background: rgba(232, 213, 183, 0.15);
+    border: 1px solid rgba(139, 115, 85, 0.4);
+    border-radius: 3px;
+    font-family: inherit;
+    font-size: 9px;
+    color: var(--bg-paper);
+    cursor: pointer;
+    text-align: center;
+    appearance: none;
+    -webkit-appearance: none;
+}
+
+.band-rate-dropdown:hover {
+    border-color: var(--border-accent);
+    background: rgba(232, 213, 183, 0.25);
+}
+
+.band-rate-dropdown:focus {
+    outline: 1px solid var(--step-on);
+    outline-offset: -1px;
+}
+
+.band-rate-dropdown option {
+    background: var(--bg-paper);
+    color: var(--text-primary);
+    font-size: 11px;
+}
+
+/* Playhead (hidden — replaced by per-band cell highlighting) */
 .playhead {
-    position: absolute;
-    top: 0;
-    left: 0;
-    width: 2px;
-    height: 100%;
-    background: var(--playhead);
-    box-shadow: 0 0 8px var(--playhead);
-    pointer-events: none;
-    transform: translateX(0);
-    transition: transform 0.1s linear, opacity 0.15s ease;
-    z-index: 10;
+    display: none;
+}
+
+/* Per-band playing highlight */
+.step-cell.playing {
+    background: var(--playhead) !important;
+    box-shadow: 0 0 8px var(--playhead), inset 0 0 3px rgba(255, 255, 255, 0.15);
 }
 
 /* Euclidean Panel */

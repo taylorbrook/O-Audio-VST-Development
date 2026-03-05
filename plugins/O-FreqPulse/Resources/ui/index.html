@@ -98,10 +98,15 @@
                     <input type="range" class="slider" id="swing" min="0" max="100" value="0">
                     <span class="value-display" id="swing-value">0%</span>
                 </div>
-                <div class="control" data-tooltip="Smoothing: Controls how quickly volume transitions between ON and OFF steps (in milliseconds). Lower values create sharper gates; higher values create smoother fades.">
-                    <label>Smoothing</label>
-                    <input type="range" class="slider" id="smoothing" min="0" max="100" value="5">
-                    <span class="value-display" id="smoothing-value">5ms</span>
+                <div class="control" data-tooltip="Attack: Fade-in time when a step turns ON (0-500ms). Lower values create sharper onsets; higher values create gentle swells.">
+                    <label>Attack</label>
+                    <input type="range" class="slider" id="attack" min="0" max="1000" value="0">
+                    <span class="value-display" id="attack-value">5ms</span>
+                </div>
+                <div class="control" data-tooltip="Release: Fade-out time when a step turns OFF (0-500ms). Lower values create sharp cuts; higher values create gentle tails.">
+                    <label>Release</label>
+                    <input type="range" class="slider" id="release" min="0" max="1000" value="0">
+                    <span class="value-display" id="release-value">5ms</span>
                 </div>
             </div>
         </footer>

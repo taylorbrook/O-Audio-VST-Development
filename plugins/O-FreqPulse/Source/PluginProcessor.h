@@ -32,6 +32,7 @@ public:
 
     // Thread-safe access for GUI timer
     int getCurrentStep() const { return currentStepAtomic.load(); }
+    int getBandStep(int band) const { return bandStepAtomics[band].load(); }
     bool getHasAudioSignal() const { return hasAudioSignal.load(); }
 
     // v1.5.0: Tooltip system state (saved with plugin state)
@@ -63,6 +64,7 @@ private:
     {
         std::atomic<float>* enable = nullptr;
         std::atomic<float>* depth = nullptr;
+        std::atomic<float>* rate = nullptr;     // v1.7.0: Per-band rate override (0=Global)
         std::atomic<float>* eucOn = nullptr;
         std::atomic<float>* eucSteps = nullptr;
         std::atomic<float>* eucPulses = nullptr;
@@ -75,7 +77,8 @@ private:
     std::atomic<float>* stepsParam = nullptr;
     std::atomic<float>* rateParam = nullptr;
     std::atomic<float>* swingParam = nullptr;
-    std::atomic<float>* smoothingParam = nullptr;
+    std::atomic<float>* attackParam = nullptr;
+    std::atomic<float>* releaseParam = nullptr;
 
     // Crossover frequency cached pointers (3 crossover points for 4 bands)
     std::atomic<float>* crossover1Param = nullptr;
@@ -98,8 +101,36 @@ private:
     // Dry/Wet Mixer
     juce::dsp::DryWetMixer<float> dryWetMixer { 10 };  // 10 samples max delay for dry/wet alignment
 
-    // Band Processing
-    std::array<juce::SmoothedValue<float>, 4> bandGainSmooth;
+    // Per-band attack/release envelope (replaces SmoothedValue for asymmetric ramps)
+    struct BandEnvelope
+    {
+        float current = 1.0f;
+        float target = 1.0f;
+        float attackRate = 0.0f;   // gain increase per sample
+        float releaseRate = 0.0f;  // gain decrease per sample
+
+        void setRates(double sampleRate, float attackMs, float releaseMs)
+        {
+            float aSamples = std::max(1.0f, attackMs * 0.001f * static_cast<float>(sampleRate));
+            float rSamples = std::max(1.0f, releaseMs * 0.001f * static_cast<float>(sampleRate));
+            attackRate = 1.0f / aSamples;
+            releaseRate = 1.0f / rSamples;
+        }
+
+        void setTargetValue(float t) { target = t; }
+        void setCurrentAndTargetValue(float v) { current = target = v; }
+
+        float getNextValue()
+        {
+            if (current < target)
+                current = std::min(current + attackRate, target);
+            else if (current > target)
+                current = std::max(current - releaseRate, target);
+            return current;
+        }
+    };
+
+    std::array<BandEnvelope, 4> bandEnvelopes;
     std::array<float, 4> bandGainFiltered = { 1.0f, 1.0f, 1.0f, 1.0f };  // One-pole LPF on gain to soften ramp corners
     float gainFilterCoeff = 0.0f;  // One-pole coefficient, set in prepareToPlay
 
@@ -114,6 +145,9 @@ private:
     // Free-running step counter (for standalone/no-host mode)
     double sampleAccumulator = 0.0;
 
+    // Per-band step positions (for independent per-band playhead highlighting)
+    std::array<std::atomic<int>, 4> bandStepAtomics { { {0}, {0}, {0}, {0} } };
+
     // Audio signal detection (gates playhead movement)
     std::atomic<bool> hasAudioSignal { false };
 
@@ -123,7 +157,8 @@ private:
     // Cached parameter values (for change detection)
     float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };
     int lastEuclideanParams[4][3] = { {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0} };  // [band][steps/pulses/offset]
-    float lastSmoothingMs = -1.0f;  // Track smoothing parameter to avoid reset() every block
+    float lastAttackMs = -1.0f;   // Track attack parameter to avoid recompute every block
+    float lastReleaseMs = -1.0f;  // Track release parameter to avoid recompute every block
 
     // DSP state
     double currentSampleRate = 44100.0;

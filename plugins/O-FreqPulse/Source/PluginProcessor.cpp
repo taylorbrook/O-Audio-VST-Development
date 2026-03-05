@@ -45,9 +45,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
         0.0f));
 
     globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
-        juce::ParameterID { "smoothing", 1 },
-        "Smoothing",
-        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        juce::ParameterID { "attack", 1 },
+        "Attack",
+        juce::NormalisableRange<float>(0.0f, 500.0f, 0.1f, 0.4f),
+        5.0f));
+
+    globalGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "release", 1 },
+        "Release",
+        juce::NormalisableRange<float>(0.0f, 500.0f, 0.1f, 0.4f),
         5.0f));
 
     // Crossover frequency parameters (3 crossover points for 4 bands)
@@ -107,6 +113,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
             juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
             1.0f));
 
+        // v1.7.0: Per-band rate override (Global = follow global rate)
+        bandGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
+            juce::ParameterID { bandID + "_rate", 1 },
+            bandName + " Rate",
+            juce::StringArray { "Global", "1/1", "1/2", "1/4", "1/8", "1/16", "1/32", "1/8T", "1/16T", "1/4D", "1/8D" },
+            0));  // Default index 0 = "Global"
+
         bandGroup->addChild(std::make_unique<juce::AudioParameterBool>(
             juce::ParameterID { bandID + "_euc_on", 1 },
             bandName + " Euclidean",
@@ -127,16 +140,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
             bandName + " Euc Offset",
             0, 31, 0));
 
-        // Step grid parameters (32 per band)
+        // Step grid parameters (32 per band) — velocity floats (0=off, 1=full)
         for (int m = 0; m < 32; ++m)
         {
             juce::String stepID = "step_b" + juce::String(n) + "_s" + juce::String(m);
             juce::String stepName = "B" + juce::String(n + 1) + " Step " + juce::String(m + 1);
 
-            bandGroup->addChild(std::make_unique<juce::AudioParameterBool>(
+            bandGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
                 juce::ParameterID { stepID, 1 },
                 stepName,
-                false));
+                juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+                0.0f));
         }
 
         layout.add(std::move(bandGroup));
@@ -160,7 +174,8 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
     stepsParam = parameters.getRawParameterValue("steps");
     rateParam = parameters.getRawParameterValue("rate");
     swingParam = parameters.getRawParameterValue("swing");
-    smoothingParam = parameters.getRawParameterValue("smoothing");
+    attackParam = parameters.getRawParameterValue("attack");
+    releaseParam = parameters.getRawParameterValue("release");
 
     // Cache crossover parameter pointers
     crossover1Param = parameters.getRawParameterValue("crossover_1");
@@ -178,6 +193,7 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
 
         bandParams[n].enable = parameters.getRawParameterValue(bandID + "_enable");
         bandParams[n].depth = parameters.getRawParameterValue(bandID + "_depth");
+        bandParams[n].rate = parameters.getRawParameterValue(bandID + "_rate");
         bandParams[n].eucOn = parameters.getRawParameterValue(bandID + "_euc_on");
         bandParams[n].eucSteps = parameters.getRawParameterValue(bandID + "_euc_steps");
         bandParams[n].eucPulses = parameters.getRawParameterValue(bandID + "_euc_pulses");
@@ -223,16 +239,18 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
     dryWetMixer.prepare(spec);
     dryWetMixer.reset();
 
-    // Configure gain smoothers (one per band)
+    // Configure gain envelopes (one per band, separate attack/release)
     {
-        float smoothMs = std::max(2.0f, smoothingParam->load());  // Enforce 2ms minimum
+        float attackMs = std::max(2.0f, attackParam->load());
+        float releaseMs = std::max(2.0f, releaseParam->load());
         for (int band = 0; band < 4; ++band)
         {
-            bandGainSmooth[band].reset(sampleRate, smoothMs / 1000.0);
-            bandGainSmooth[band].setCurrentAndTargetValue(1.0f);
+            bandEnvelopes[band].setRates(sampleRate, attackMs, releaseMs);
+            bandEnvelopes[band].setCurrentAndTargetValue(1.0f);
             bandGainFiltered[band] = 1.0f;
         }
-        lastSmoothingMs = smoothMs;
+        lastAttackMs = attackMs;
+        lastReleaseMs = releaseMs;
     }
 
     // One-pole lowpass coefficient to soften linear ramp corners (~1.5ms time constant)
@@ -372,30 +390,26 @@ float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentS
     if (!enabled)
         return 1.0f;  // Passthrough when disabled
 
-    // Check if using Euclidean mode
+    // Determine velocity (0.0 = off, 1.0 = full)
+    float velocity;
     bool eucOn = bandParams[bandIndex].eucOn->load() > 0.5f;
-    bool stepActive;
 
     if (eucOn)
     {
-        // Use pre-generated Euclidean pattern
+        // Euclidean pattern: binary → velocity 0 or 1
         int eucSteps = static_cast<int>(bandParams[bandIndex].eucSteps->load());
         int wrappedStep = currentStep % eucSteps;
-        stepActive = euclideanPatterns[bandIndex][wrappedStep];
+        velocity = euclideanPatterns[bandIndex][wrappedStep] ? 1.0f : 0.0f;
     }
     else
     {
-        // Use manual step grid
-        stepActive = bandParams[bandIndex].stepStates[currentStep]->load() > 0.5f;
+        // Manual step grid: read velocity float directly
+        velocity = bandParams[bandIndex].stepStates[currentStep]->load();
     }
 
-    // Calculate gain
+    // Interpolate gain: vel=0 → (1-depth), vel=1 → 1.0
     float depth = bandParams[bandIndex].depth->load();
-
-    if (stepActive)
-        return 1.0f;  // Step ON: full volume
-    else
-        return 1.0f - depth;  // Step OFF: reduce by depth amount
+    return (1.0f - depth) + velocity * depth;
 }
 
 //==============================================================================
@@ -418,7 +432,8 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     int numSteps = juce::jlimit(2, 32, static_cast<int>(stepsParam->load()));
     int rateIndex = static_cast<int>(rateParam->load());
     float swing = swingParam->load();
-    float smoothingMs = smoothingParam->load();
+    float attackMs = attackParam->load();
+    float releaseMs = releaseParam->load();
 
     // Check for parameter changes
     bool crossoversChanged = false;
@@ -453,14 +468,16 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         }
     }
 
-    // Enforce minimum 2ms smoothing to prevent instant jumps
-    smoothingMs = std::max(2.0f, smoothingMs);
+    // Enforce minimum 2ms on both attack and release to prevent instant jumps
+    attackMs = std::max(2.0f, attackMs);
+    releaseMs = std::max(2.0f, releaseMs);
 
-    if (std::abs(smoothingMs - lastSmoothingMs) > 0.01f)
+    if (std::abs(attackMs - lastAttackMs) > 0.01f || std::abs(releaseMs - lastReleaseMs) > 0.01f)
     {
         for (int band = 0; band < 4; ++band)
-            bandGainSmooth[band].reset(currentSampleRate, smoothingMs / 1000.0);
-        lastSmoothingMs = smoothingMs;
+            bandEnvelopes[band].setRates(currentSampleRate, attackMs, releaseMs);
+        lastAttackMs = attackMs;
+        lastReleaseMs = releaseMs;
     }
 
     if (crossoversChanged)
@@ -518,16 +535,31 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         gotValidPosition = true;
     }
 
+    // v1.7.0: Per-band rate resolution — determine effective rate index per band
+    int bandRateIndex[4];
+    for (int band = 0; band < 4; ++band)
+    {
+        int bandRateChoice = static_cast<int>(bandParams[band].rate->load());
+        // 0 = Global (use global rate), 1-10 = specific rate (offset by 1)
+        bandRateIndex[band] = (bandRateChoice == 0) ? rateIndex : (bandRateChoice - 1);
+    }
+
     // Set initial step and gain targets at block start
+    int bandSteps[4] = { 0, 0, 0, 0 };
+
     if (gotValidPosition && signalPresent)
     {
+        // Global step for playhead UI
         currentStep = calculateCurrentStep(blockStartPpq, numSteps, rateIndex, swing);
         currentStepAtomic.store(currentStep);
 
+        // Per-band step positions
         for (int band = 0; band < 4; ++band)
         {
-            float targetGain = getTargetGainForBand(band, currentStep);
-            bandGainSmooth[band].setTargetValue(targetGain);
+            bandSteps[band] = calculateCurrentStep(blockStartPpq, numSteps, bandRateIndex[band], swing);
+            bandStepAtomics[band].store(bandSteps[band]);
+            float targetGain = getTargetGainForBand(band, bandSteps[band]);
+            bandEnvelopes[band].setTargetValue(targetGain);
         }
     }
 
@@ -540,22 +572,30 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     for (int sample = 0; sample < numSamples; ++sample)
     {
-        // Sample-accurate step tracking
+        // Sample-accurate step tracking (per-band)
         if (gotValidPosition && signalPresent)
         {
             double samplePpq = blockStartPpq + ppqPerSample * static_cast<double>(sample);
-            int stepAtSample = calculateCurrentStep(samplePpq, numSteps, rateIndex, swing);
 
-            if (stepAtSample != prevStep)
+            // Update global playhead step
+            int globalStepAtSample = calculateCurrentStep(samplePpq, numSteps, rateIndex, swing);
+            if (globalStepAtSample != prevStep)
             {
-                currentStep = stepAtSample;
+                currentStep = globalStepAtSample;
                 currentStepAtomic.store(currentStep);
-                prevStep = stepAtSample;
+                prevStep = globalStepAtSample;
+            }
 
-                for (int band = 0; band < 4; ++band)
+            // Update per-band steps independently
+            for (int band = 0; band < 4; ++band)
+            {
+                int stepAtSample = calculateCurrentStep(samplePpq, numSteps, bandRateIndex[band], swing);
+                if (stepAtSample != bandSteps[band])
                 {
-                    float targetGain = getTargetGainForBand(band, currentStep);
-                    bandGainSmooth[band].setTargetValue(targetGain);
+                    bandSteps[band] = stepAtSample;
+                    bandStepAtomics[band].store(stepAtSample);
+                    float targetGain = getTargetGainForBand(band, bandSteps[band]);
+                    bandEnvelopes[band].setTargetValue(targetGain);
                 }
             }
         }
@@ -564,7 +604,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         float bandGainValues[4];
         for (int band = 0; band < 4; ++band)
         {
-            float rawGain = bandGainSmooth[band].getNextValue();
+            float rawGain = bandEnvelopes[band].getNextValue();
             bandGainFiltered[band] += gainFilterCoeff * (rawGain - bandGainFiltered[band]);
             bandGainValues[band] = bandGainFiltered[band];
         }
@@ -697,7 +737,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
     auto* steps = parameters.getParameter("steps");
     auto* rate = parameters.getParameter("rate");
     auto* swing = parameters.getParameter("swing");
-    auto* smoothing = parameters.getParameter("smoothing");
+    auto* attack = parameters.getParameter("attack");
+    auto* release = parameters.getParameter("release");
 
     // Helper lambda to set step pattern for a band
     auto setStepPattern = [this](int band, const std::array<bool, 32>& pattern) {
@@ -755,7 +796,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
 
             for (int b = 0; b < 4; ++b)
             {
@@ -769,7 +811,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));     // 1/4
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(20.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(25.0f));
 
             setBandParams(0, true, false, 16, 16, 0, 0.0f);  // Sub: no gating
             setBandParams(1, true, false, 16, 8, 0, 0.8f);   // Low: pumping
@@ -787,7 +830,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(3.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
 
             for (int b = 0; b < 4; ++b)
             {
@@ -801,7 +845,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));  // 8 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));    // 1/8
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(2.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(2.0f));
 
             setBandParams(0, true, true, 8, 5, 0, 1.0f);     // Sub: Euclidean 5/8
             setBandParams(1, true, true, 8, 3, 0, 0.9f);     // Low: Euclidean 3/8
@@ -814,7 +859,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));  // 32 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(1.0f));     // 1/2
             swing->setValueNotifyingHost(0.2f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(50.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(40.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(60.0f));
 
             setBandParams(0, true, false, 32, 32, 0, 0.0f);  // Sub: no gating
             setBandParams(1, true, false, 32, 32, 0, 0.0f);  // Low: no gating
@@ -827,7 +873,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
 
             setBandParams(0, true, true, 16, 5, 0, 1.0f);    // Sub: 5 pulses
             setBandParams(1, true, true, 16, 7, 2, 1.0f);    // Low: 7 pulses, offset
@@ -840,7 +887,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
 
             setBandParams(0, false, false, 16, 8, 0, 0.0f);  // Sub: bypass (always on)
             setBandParams(1, true, true, 16, 12, 0, 0.8f);   // Low: Euclidean
@@ -853,7 +901,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));  // 32 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(5.0f));     // 1/32
             swing->setValueNotifyingHost(0.3f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(1.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(2.0f));
 
             setBandParams(0, false, false, 16, 8, 0, 0.0f);  // Sub: bypass
             setBandParams(1, false, false, 16, 8, 0, 0.0f);  // Low: bypass
@@ -866,7 +915,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(3.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
 
             for (int b = 0; b < 4; ++b)
             {
@@ -879,7 +929,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));     // 1/8
             swing->setValueNotifyingHost(0.15f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(8.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(10.0f));
 
             setBandParams(0, true, true, 16, 4, 0, 1.0f);    // Sub: 4/16 (quarter feel)
             setBandParams(1, true, true, 16, 6, 1, 0.9f);    // Low: 6/16
@@ -892,7 +943,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));  // 8 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));    // 1/4
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(30.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(15.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(40.0f));
 
             for (int b = 0; b < 4; ++b)
             {
@@ -905,7 +957,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
             rate->setValueNotifyingHost(rate->convertTo0to1(6.0f));     // 1/8T (triplet)
             swing->setValueNotifyingHost(0.0f);
-            smoothing->setValueNotifyingHost(smoothing->convertTo0to1(5.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
 
             setBandParams(0, true, true, 12, 4, 0, 1.0f);    // Sub: 4/12
             setBandParams(1, true, true, 12, 5, 1, 0.9f);    // Low: 5/12
@@ -925,9 +978,16 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
 {
     auto factoryDir = presetManager.getFactoryPresetsDirectory();
 
-    // Only initialize if factory directory doesn't exist yet
-    if (factoryDir.isDirectory() && factoryDir.getNumberOfChildFiles(juce::File::findFiles) > 0)
+    // Regenerate factory presets when plugin version changes (ensures new parameters are captured)
+    auto versionFile = factoryDir.getChildFile(".version");
+
+    if (factoryDir.isDirectory()
+        && versionFile.existsAsFile()
+        && versionFile.loadFileAsString().trimEnd() == "1.11.0")
         return;
+
+    if (factoryDir.isDirectory())
+        factoryDir.deleteRecursively();
 
     factoryDir.createDirectory();
 
@@ -964,6 +1024,8 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
 
     // Reset back to Init preset (index 0)
     loadPreset(0);
+
+    versionFile.replaceWithText("1.11.0\n");
 
     juce::Logger::writeToLog("[O-FreqPulse] Factory presets initialized: " + juce::String(numPresets));
 }

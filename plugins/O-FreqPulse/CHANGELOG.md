@@ -2,6 +2,87 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.11.0] - 2026-03-05
+
+### Added
+
+- **Step velocity support** - Each step in the sequencer grid now has a velocity value (0.0–1.0) instead of simple on/off. Velocity controls how much gain is applied on active steps, enabling accent patterns and groove variations within each frequency band.
+- **Shift+click velocity cycling** - Shift+click a step cell to cycle through velocity levels: 0 → 0.25 → 0.5 → 0.75 → 1.0 → 0. Quick way to set accent patterns.
+- **Right-click-drag velocity control** - Right-click and drag vertically on a step cell to set precise velocity. Top of cell = 1.0 (full), bottom = 0.0 (off).
+- **Visual velocity feedback** - Step cells display velocity as opacity intensity. Full velocity (1.0) = fully opaque green, lower velocities appear progressively more transparent.
+
+### Changed
+
+- **Step parameters changed from AudioParameterBool to AudioParameterFloat** - `step_b{N}_s{M}` parameters now store velocity floats (0.0–1.0) instead of boolean on/off. Backward compatible: existing presets with false/true (0.0/1.0) load seamlessly.
+- **Velocity-aware gain calculation** - `getTargetGainForBand()` now interpolates gain using `(1-depth) + velocity * depth`. At velocity 1.0, gain = 1.0 (same as old ON). At velocity 0, gain = 1.0 - depth (same as old OFF). Intermediate velocities produce proportional gain reduction.
+- **WebView relay type** - Step grid relays changed from `WebToggleButtonRelay` to `WebSliderRelay` with corresponding `WebSliderParameterAttachment` for continuous value communication.
+- **Random pattern** - Randomize button now generates random velocities (0.5–1.0 range) for active steps, creating natural accent variation instead of uniform full-velocity patterns.
+- **Factory presets regenerated** - Version check forces regeneration to capture new parameter types.
+
+### Technical Notes
+
+- 128 step parameters: `AudioParameterFloat(0.0–1.0, step 0.01, default 0.0)` replacing `AudioParameterBool`
+- Parameter IDs unchanged (`step_b{N}_s{M}`, version 1) — APVTS XML stores both types as float, enabling seamless migration
+- Euclidean mode remains binary (velocity 0.0 or 1.0) since patterns are algorithmically generated
+- DSP formula: `gain = (1.0f - depth) + velocity * depth` — linear interpolation between gated floor and unity
+- UI opacity range: 0.3 (minimum visible) to 1.0 (full velocity) for active cells
+
+## [1.10.0] - 2026-03-04
+
+### Added
+
+- **Per-band playhead highlighting** - Replaced the single scrolling playhead bar with independent per-cell highlights for each frequency band. Each band's current step glows bright green (`--playhead`) when playing, allowing bands running at different rates (e.g., Sub at 1/4, High at 1/16) to show their individual positions simultaneously.
+
+### Changed
+
+- **Per-band step atomics** - Added `bandStepAtomics[4]` to the processor for thread-safe per-band step communication to the GUI timer. Timer now sends 4 independent step positions instead of 1 global step.
+
+### Removed
+
+- **Scrolling playhead bar** - The vertical green bar that spanned all bands at a single column position. Replaced by per-cell highlighting which correctly represents polymetric sequencing.
+
+## [1.9.0] - 2026-03-04
+
+### Fixed
+
+- **Attack/Release range expanded from 0-100ms to 0-500ms** - The previous 100ms maximum was too narrow for a gating effect, making parameter changes imperceptible at most tempos. Now extends to 500ms with logarithmic skew (0.4) for fine control at short times and dramatic sweeping at long times.
+
+### Changed
+
+- **Skewed slider response** - Attack and Release sliders now use logarithmic-style mapping: ~20ms at 25%, ~88ms at 50%, ~250ms at 75%, 500ms at 100%. Provides better resolution in the musically useful 0-50ms range.
+- **Factory presets regenerated** - Version check forces preset regeneration to capture new parameter range.
+
+## [1.8.0] - 2026-03-04
+
+### Added
+
+- **Separate Attack and Release parameters** - Replaced the single "Smoothing" parameter with independent Attack (0-100ms) and Release (0-100ms) controls. Attack controls fade-in time when a step turns ON; Release controls fade-out time when a step turns OFF. Fast attack + slow release creates plucky gates; slow attack + fast release creates swells. Both enforce a 2ms minimum.
+
+### Changed
+
+- **Custom BandEnvelope replaces SmoothedValue** - Per-band gain envelope uses a linear ramp with separate attack/release rates instead of JUCE's SmoothedValue (which only supports symmetric ramp times). One-pole LPF softener retained for smooth corners.
+- **Factory presets updated** - Select presets now showcase asymmetric attack/release: Classic Sidechain (5/25ms), Trance Gate (2/5ms), Ambient Shimmer (40/60ms), Half-Time Feel (15/40ms), Euclidean Groove (5/10ms).
+- **Factory preset versioning** - Presets auto-regenerate when plugin version changes, ensuring new parameters are captured.
+
+### Removed
+
+- **Smoothing parameter** - Superseded by Attack and Release. Old saved states will load with default 5ms attack/release.
+
+## [1.7.0] - 2026-03-04
+
+### Added
+
+- **Per-band rate parameter** - Each frequency band (Sub, Low, Mid, High) now has its own Rate dropdown with 11 options: "Global" (follows the main Rate knob) plus all 10 tempo divisions (1/1, 1/2, 1/4, 1/8, 1/16, 1/32, 1/8T, 1/16T, 1/4D, 1/8D). Enables polymetric sequencing — e.g., sub at 1/4, highs at 1/16.
+
+### Technical Notes
+
+- 4 new `AudioParameterChoice` parameters: `band0_rate` through `band3_rate` (default: "Global")
+- Per-band step positions computed independently in `processBlock()` from host PPQ using each band's effective rate index
+- Global playhead continues to follow the global Rate for consistent visual feedback
+- Rate dropdowns appear in each band row between Clear/Random buttons and the Manual/Euclidean mode toggle
+- `WebComboBoxRelay`/`WebComboBoxParameterAttachment` added to `BandRelays`/`BandAttachments` structs
+- Full preset/automation compatibility: band rates saved/restored with plugin state
+
 ## [1.6.7] - 2026-03-04
 
 ### Improved

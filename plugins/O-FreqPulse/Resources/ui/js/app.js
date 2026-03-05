@@ -82,6 +82,7 @@ document.addEventListener('DOMContentLoaded', () => {
     renderGrid();
     setupEuclideanPanel();
     initializeEuclideanListeners();
+    initializeBandRateDropdowns();
 
     // v1.5.0: Initialize tooltip system
     initializeTooltips();
@@ -173,23 +174,42 @@ function initializeGlobalParameters() {
         swingValue.textContent = `${Math.round(swingSlider.value)}%`;
     });
 
-    // Smoothing slider
-    const smoothingState = Juce.getSliderState('smoothing');
-    const smoothingSlider = document.getElementById('smoothing');
-    const smoothingValue = document.getElementById('smoothing-value');
+    // Attack slider (0-500ms, skewed range — use normalized values for slider position)
+    const attackState = Juce.getSliderState('attack');
+    const attackSlider = document.getElementById('attack');
+    const attackValue = document.getElementById('attack-value');
 
-    smoothingSlider.value = smoothingState.getScaledValue();
-    smoothingValue.textContent = `${Math.round(smoothingSlider.value)}ms`;
+    attackSlider.value = attackState.getNormalisedValue() * 1000;
+    attackValue.textContent = `${Math.round(attackState.getScaledValue())}ms`;
 
-    smoothingSlider.addEventListener('input', (e) => {
-        const normalized = e.target.value / 100;
-        smoothingState.setNormalisedValue(normalized);
-        smoothingValue.textContent = `${Math.round(smoothingState.getScaledValue())}ms`;
+    attackSlider.addEventListener('input', (e) => {
+        const normalized = e.target.value / 1000;
+        attackState.setNormalisedValue(normalized);
+        attackValue.textContent = `${Math.round(attackState.getScaledValue())}ms`;
     });
 
-    smoothingState.valueChangedEvent.addListener(() => {
-        smoothingSlider.value = smoothingState.getScaledValue();
-        smoothingValue.textContent = `${Math.round(smoothingSlider.value)}ms`;
+    attackState.valueChangedEvent.addListener(() => {
+        attackSlider.value = attackState.getNormalisedValue() * 1000;
+        attackValue.textContent = `${Math.round(attackState.getScaledValue())}ms`;
+    });
+
+    // Release slider (0-500ms, skewed range — use normalized values for slider position)
+    const releaseState = Juce.getSliderState('release');
+    const releaseSlider = document.getElementById('release');
+    const releaseValue = document.getElementById('release-value');
+
+    releaseSlider.value = releaseState.getNormalisedValue() * 1000;
+    releaseValue.textContent = `${Math.round(releaseState.getScaledValue())}ms`;
+
+    releaseSlider.addEventListener('input', (e) => {
+        const normalized = e.target.value / 1000;
+        releaseState.setNormalisedValue(normalized);
+        releaseValue.textContent = `${Math.round(releaseState.getScaledValue())}ms`;
+    });
+
+    releaseState.valueChangedEvent.addListener(() => {
+        releaseSlider.value = releaseState.getNormalisedValue() * 1000;
+        releaseValue.textContent = `${Math.round(releaseState.getScaledValue())}ms`;
     });
 }
 
@@ -214,6 +234,10 @@ function initializeBandParameters() {
         // Band enable toggle (not displayed in v1.0, but bound for automation)
         const enableState = Juce.getToggleState(`band${bandId}_enable`);
         state.stepStates[`band${bandId}_enable`] = enableState;
+
+        // v1.7.0: Per-band rate override
+        const rateState = Juce.getComboBoxState(`band${bandId}_rate`);
+        state.stepStates[`band${bandId}_rate`] = rateState;
 
         // Euclidean mode toggle
         const eucOnState = Juce.getToggleState(`band${bandId}_euc_on`);
@@ -242,13 +266,13 @@ function initializeStepGrid() {
     for (let band = 0; band < 4; band++) {
         for (let step = 0; step < 32; step++) {
             const paramId = `step_b${band}_s${step}`;
-            const toggleState = Juce.getToggleState(paramId);
+            const sliderState = Juce.getSliderState(paramId);
 
-            state.stepStates[paramId] = toggleState;
+            state.stepStates[paramId] = sliderState;
 
             // Listen for changes from automation/preset load
-            toggleState.valueChangedEvent.addListener(() => {
-                updateStepVisual(band, step, toggleState.getValue());
+            sliderState.valueChangedEvent.addListener(() => {
+                updateStepVisual(band, step, sliderState.getNormalisedValue());
             });
         }
     }
@@ -280,9 +304,24 @@ function createBandRow(band) {
         cell.dataset.band = band.id;
         cell.dataset.step = step;
 
-        cell.addEventListener('click', () => {
-            toggleStep(band.id, step);
+        // Click: toggle 0↔1, Shift+click: cycle velocity (0→0.25→0.5→0.75→1→0)
+        cell.addEventListener('click', (e) => {
+            if (e.shiftKey) {
+                cycleVelocity(band.id, step);
+            } else {
+                toggleStep(band.id, step);
+            }
         });
+
+        // Right-click-drag: set velocity by vertical position
+        cell.addEventListener('mousedown', (e) => {
+            if (e.button === 2) {
+                e.preventDefault();
+                startVelocityDrag(band.id, step, cell, e);
+            }
+        });
+
+        cell.addEventListener('contextmenu', (e) => e.preventDefault());
 
         stepsContainer.appendChild(cell);
     }
@@ -314,6 +353,20 @@ function createBandRow(band) {
     laneActions.appendChild(randomBtn);
 
     bandRow.appendChild(laneActions);
+
+    // v1.7.0: Per-band rate dropdown
+    const rateSelect = document.createElement('select');
+    rateSelect.className = 'band-rate-dropdown';
+    rateSelect.id = `band-rate-${band.id}`;
+    rateSelect.setAttribute('data-tooltip', `${band.name} Rate: Override the global rate for this band. "Global" follows the main Rate knob. Set a specific division for polymetric sequencing.`);
+    const rateOptions = ['Global', '1/1', '1/2', '1/4', '1/8', '1/16', '1/32', '1/8T', '1/16T', '1/4D', '1/8D'];
+    rateOptions.forEach((label, idx) => {
+        const opt = document.createElement('option');
+        opt.value = idx;
+        opt.textContent = label;
+        rateSelect.appendChild(opt);
+    });
+    bandRow.appendChild(rateSelect);
 
     // Band mode toggle (clickable Manual/Euclidean)
     const modeIndicator = document.createElement('div');
@@ -426,12 +479,12 @@ function renderGrid() {
     // Update step visibility based on current step count
     updateStepVisibility();
 
-    // Sync initial step states from JUCE
+    // Sync initial step states from JUCE (velocity values)
     for (let band = 0; band < 4; band++) {
         for (let step = 0; step < 32; step++) {
             const paramId = `step_b${band}_s${step}`;
-            const toggleState = state.stepStates[paramId];
-            updateStepVisual(band, step, toggleState.getValue());
+            const sliderState = state.stepStates[paramId];
+            updateStepVisual(band, step, sliderState.getNormalisedValue());
         }
     }
 
@@ -447,20 +500,83 @@ function toggleStep(band, step) {
     if (state.euclideanActive[band]) return;
 
     const paramId = `step_b${band}_s${step}`;
-    const toggleState = state.stepStates[paramId];
-    const newValue = !toggleState.getValue();
+    const sliderState = state.stepStates[paramId];
+    // Toggle: if any velocity > 0 → set to 0, otherwise set to 1
+    const currentVel = sliderState.getNormalisedValue();
+    const newVel = currentVel > 0.001 ? 0.0 : 1.0;
 
-    toggleState.setValue(newValue);
-    updateStepVisual(band, step, newValue);
+    sliderState.setNormalisedValue(newVel);
+    updateStepVisual(band, step, newVel);
 }
 
-function updateStepVisual(band, step, active) {
+function cycleVelocity(band, step) {
+    if (state.euclideanActive[band]) return;
+
+    const paramId = `step_b${band}_s${step}`;
+    const sliderState = state.stepStates[paramId];
+    const current = sliderState.getNormalisedValue();
+
+    // Cycle: 0 → 0.25 → 0.5 → 0.75 → 1.0 → 0
+    const levels = [0, 0.25, 0.5, 0.75, 1.0];
+    let nextIdx = 0;
+    for (let i = 0; i < levels.length; i++) {
+        if (current < levels[i] + 0.01) {
+            nextIdx = (i + 1) % levels.length;
+            break;
+        }
+    }
+    // If current > 1.0 (shouldn't happen), wrap to 0
+    if (current > 0.99) nextIdx = 0;
+
+    const newVel = levels[nextIdx];
+    sliderState.setNormalisedValue(newVel);
+    updateStepVisual(band, step, newVel);
+}
+
+function startVelocityDrag(band, step, cell, startEvent) {
+    if (state.euclideanActive[band]) return;
+
+    const paramId = `step_b${band}_s${step}`;
+    const sliderState = state.stepStates[paramId];
+    const cellRect = cell.getBoundingClientRect();
+    const cellHeight = cellRect.height;
+
+    function onMouseMove(e) {
+        // Map vertical position within cell to velocity (top=1.0, bottom=0.0)
+        const relY = e.clientY - cellRect.top;
+        const velocity = Math.max(0, Math.min(1, 1 - relY / cellHeight));
+        const quantized = Math.round(velocity * 100) / 100;
+        sliderState.setNormalisedValue(quantized);
+        updateStepVisual(band, step, quantized);
+    }
+
+    function onMouseUp() {
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+    }
+
+    // Set initial velocity from click position
+    onMouseMove(startEvent);
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+}
+
+function updateStepVisual(band, step, velocity) {
     // Skip manual step visual updates when euclidean mode controls the display
     if (state.euclideanActive[band]) return;
 
     const cell = cachedCells[band]?.[step];
-    if (cell) {
-        cell.classList.toggle('active', active);
+    if (!cell) return;
+
+    const isActive = velocity > 0.001;
+    cell.classList.toggle('active', isActive);
+
+    // Show velocity as opacity/intensity on the step cell
+    if (isActive) {
+        // Minimum 30% opacity for visibility, scale to full at velocity 1.0
+        cell.style.opacity = (0.3 + velocity * 0.7).toFixed(2);
+    } else {
+        cell.style.opacity = '';
     }
 }
 
@@ -479,34 +595,40 @@ function updateStepVisibility() {
 }
 
 // ============================================================================
-// Playhead Update (called from C++ timer)
+// Per-Band Playhead Highlighting (called from C++ timer)
 // ============================================================================
 
-window.updatePlayhead = function (step, hasSignal) {
-    const playhead = document.getElementById('playhead');
+// Track previous playing step per band for efficient class toggling
+const lastPlayingStep = [-1, -1, -1, -1];
 
-    if (!playhead || !cachedGridArea) return;
+window.updatePlayhead = function (b0, b1, b2, b3, hasSignal) {
+    const bandSteps = [b0, b1, b2, b3];
 
-    // Hide playhead when no audio signal is present
-    if (!hasSignal) {
-        playhead.style.opacity = '0';
-        return;
+    for (let band = 0; band < 4; band++) {
+        const prevStep = lastPlayingStep[band];
+        const newStep = bandSteps[band];
+
+        // Remove previous highlight
+        if (prevStep >= 0 && prevStep !== newStep) {
+            const prevCell = cachedCells[band]?.[prevStep];
+            if (prevCell) prevCell.classList.remove('playing');
+        }
+
+        if (hasSignal && newStep >= 0) {
+            const cell = cachedCells[band]?.[newStep];
+            if (cell && cell.style.display !== 'none') {
+                cell.classList.add('playing');
+            }
+            lastPlayingStep[band] = newStep;
+        } else {
+            // Clear highlight when no signal
+            if (prevStep >= 0) {
+                const prevCell = cachedCells[band]?.[prevStep];
+                if (prevCell) prevCell.classList.remove('playing');
+            }
+            lastPlayingStep[band] = -1;
+        }
     }
-
-    playhead.style.opacity = '1';
-
-    // Look up cell by index instead of querySelector each tick
-    const cell = cachedCells[0]?.[step];
-    if (!cell || cell.style.display === 'none') return;
-
-    // Get cell's actual position relative to grid area
-    const cellRect = cell.getBoundingClientRect();
-    const gridRect = cachedGridArea.getBoundingClientRect();
-
-    // Position playhead at the center of this cell
-    const offset = cellRect.left - gridRect.left + (cellRect.width / 2);
-
-    playhead.style.transform = `translateX(${offset}px)`;
 };
 
 // ============================================================================
@@ -618,10 +740,10 @@ function clearBand(bandId) {
 
     for (let step = 0; step < 32; step++) {
         const paramId = `step_b${bandId}_s${step}`;
-        const toggleState = state.stepStates[paramId];
-        if (toggleState) {
-            toggleState.setValue(false);
-            updateStepVisual(bandId, step, false);
+        const sliderState = state.stepStates[paramId];
+        if (sliderState) {
+            sliderState.setNormalisedValue(0.0);
+            updateStepVisual(bandId, step, 0.0);
         }
     }
 }
@@ -631,12 +753,13 @@ function randomizeBand(bandId) {
 
     for (let step = 0; step < 32; step++) {
         const paramId = `step_b${bandId}_s${step}`;
-        const toggleState = state.stepStates[paramId];
-        if (toggleState) {
-            // 50% chance each step is enabled
+        const sliderState = state.stepStates[paramId];
+        if (sliderState) {
+            // 50% chance each step is active, with random velocity 0.5–1.0
             const active = Math.random() < 0.5;
-            toggleState.setValue(active);
-            updateStepVisual(bandId, step, active);
+            const velocity = active ? (0.5 + Math.random() * 0.5) : 0.0;
+            sliderState.setNormalisedValue(velocity);
+            updateStepVisual(bandId, step, velocity);
         }
     }
 }
@@ -707,14 +830,19 @@ function updateEuclideanGrid(bandId) {
             cell.classList.toggle('euclidean-active', pattern[wrappedStep]);
         }
     } else {
-        // Restore manual step display
+        // Restore manual step display with velocity
         for (let step = 0; step < cells.length; step++) {
             const cell = cells[step];
             cell.classList.remove('euclidean-mode', 'euclidean-active');
 
             const paramId = `step_b${bandId}_s${step}`;
-            const toggleState = state.stepStates[paramId];
-            cell.classList.toggle('active', !!(toggleState && toggleState.getValue()));
+            const sliderState = state.stepStates[paramId];
+            if (sliderState) {
+                const vel = sliderState.getNormalisedValue();
+                const isActive = vel > 0.001;
+                cell.classList.toggle('active', isActive);
+                cell.style.opacity = isActive ? (0.3 + vel * 0.7).toFixed(2) : '';
+            }
         }
     }
 }
@@ -759,6 +887,31 @@ function initializeEuclideanListeners() {
 
     // Initial frequency label update
     updateAllBandFreqDisplays();
+}
+
+// ============================================================================
+// v1.7.0: Per-Band Rate Dropdowns
+// ============================================================================
+
+function initializeBandRateDropdowns() {
+    for (let bandId = 0; bandId < 4; bandId++) {
+        const rateState = state.stepStates[`band${bandId}_rate`];
+        const dropdown = document.getElementById(`band-rate-${bandId}`);
+        if (!rateState || !dropdown) continue;
+
+        // Sync initial value
+        dropdown.selectedIndex = rateState.getChoiceIndex();
+
+        // UI → JUCE
+        dropdown.addEventListener('change', (e) => {
+            rateState.setChoiceIndex(e.target.selectedIndex);
+        });
+
+        // JUCE → UI (automation/preset changes)
+        rateState.valueChangedEvent.addListener(() => {
+            dropdown.selectedIndex = rateState.getChoiceIndex();
+        });
+    }
 }
 
 // ============================================================================

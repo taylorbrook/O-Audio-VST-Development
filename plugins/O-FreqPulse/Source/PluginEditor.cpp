@@ -20,7 +20,8 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
     stepsRelay = std::make_unique<juce::WebSliderRelay>("steps");
     rateRelay = std::make_unique<juce::WebComboBoxRelay>("rate");
     swingRelay = std::make_unique<juce::WebSliderRelay>("swing");
-    smoothingRelay = std::make_unique<juce::WebSliderRelay>("smoothing");
+    attackRelay = std::make_unique<juce::WebSliderRelay>("attack");
+    releaseRelay = std::make_unique<juce::WebSliderRelay>("release");
 
     // Crossover parameter relays (3 total)
     crossover1Relay = std::make_unique<juce::WebSliderRelay>("crossover_1");
@@ -32,42 +33,26 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
     freqHighRelay = std::make_unique<juce::WebSliderRelay>("freq_high");
 
     // Per-band parameter relays (24 total: 6 params x 4 bands)
-    band0EnableRelay = std::make_unique<juce::WebToggleButtonRelay>("band0_enable");
-    band0DepthRelay = std::make_unique<juce::WebSliderRelay>("band0_depth");
-    band0EucOnRelay = std::make_unique<juce::WebToggleButtonRelay>("band0_euc_on");
-    band0EucStepsRelay = std::make_unique<juce::WebSliderRelay>("band0_euc_steps");
-    band0EucPulsesRelay = std::make_unique<juce::WebSliderRelay>("band0_euc_pulses");
-    band0EucOffsetRelay = std::make_unique<juce::WebSliderRelay>("band0_euc_offset");
+    for (int i = 0; i < 4; ++i)
+    {
+        auto prefix = "band" + juce::String(i) + "_";
+        bandRelays[i].enable    = std::make_unique<juce::WebToggleButtonRelay>(prefix + "enable");
+        bandRelays[i].depth     = std::make_unique<juce::WebSliderRelay>(prefix + "depth");
+        bandRelays[i].rate      = std::make_unique<juce::WebComboBoxRelay>(prefix + "rate");
+        bandRelays[i].eucOn     = std::make_unique<juce::WebToggleButtonRelay>(prefix + "euc_on");
+        bandRelays[i].eucSteps  = std::make_unique<juce::WebSliderRelay>(prefix + "euc_steps");
+        bandRelays[i].eucPulses = std::make_unique<juce::WebSliderRelay>(prefix + "euc_pulses");
+        bandRelays[i].eucOffset = std::make_unique<juce::WebSliderRelay>(prefix + "euc_offset");
+    }
 
-    band1EnableRelay = std::make_unique<juce::WebToggleButtonRelay>("band1_enable");
-    band1DepthRelay = std::make_unique<juce::WebSliderRelay>("band1_depth");
-    band1EucOnRelay = std::make_unique<juce::WebToggleButtonRelay>("band1_euc_on");
-    band1EucStepsRelay = std::make_unique<juce::WebSliderRelay>("band1_euc_steps");
-    band1EucPulsesRelay = std::make_unique<juce::WebSliderRelay>("band1_euc_pulses");
-    band1EucOffsetRelay = std::make_unique<juce::WebSliderRelay>("band1_euc_offset");
-
-    band2EnableRelay = std::make_unique<juce::WebToggleButtonRelay>("band2_enable");
-    band2DepthRelay = std::make_unique<juce::WebSliderRelay>("band2_depth");
-    band2EucOnRelay = std::make_unique<juce::WebToggleButtonRelay>("band2_euc_on");
-    band2EucStepsRelay = std::make_unique<juce::WebSliderRelay>("band2_euc_steps");
-    band2EucPulsesRelay = std::make_unique<juce::WebSliderRelay>("band2_euc_pulses");
-    band2EucOffsetRelay = std::make_unique<juce::WebSliderRelay>("band2_euc_offset");
-
-    band3EnableRelay = std::make_unique<juce::WebToggleButtonRelay>("band3_enable");
-    band3DepthRelay = std::make_unique<juce::WebSliderRelay>("band3_depth");
-    band3EucOnRelay = std::make_unique<juce::WebToggleButtonRelay>("band3_euc_on");
-    band3EucStepsRelay = std::make_unique<juce::WebSliderRelay>("band3_euc_steps");
-    band3EucPulsesRelay = std::make_unique<juce::WebSliderRelay>("band3_euc_pulses");
-    band3EucOffsetRelay = std::make_unique<juce::WebSliderRelay>("band3_euc_offset");
-
-    // Step grid relays (128 total: 32 steps × 4 bands)
+    // Step grid relays (128 total: 32 steps × 4 bands) — velocity sliders
     for (int band = 0; band < 4; ++band)
     {
         for (int step = 0; step < 32; ++step)
         {
             int index = band * 32 + step;
             juce::String paramId = "step_b" + juce::String(band) + "_s" + juce::String(step);
-            stepRelays[index] = std::make_unique<juce::WebToggleButtonRelay>(paramId);
+            stepRelays[index] = std::make_unique<juce::WebSliderRelay>(paramId);
         }
     }
 
@@ -85,42 +70,30 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
         .withOptionsFrom(*stepsRelay)
         .withOptionsFrom(*rateRelay)
         .withOptionsFrom(*swingRelay)
-        .withOptionsFrom(*smoothingRelay)
+        .withOptionsFrom(*attackRelay)
+        .withOptionsFrom(*releaseRelay)
         // Crossover relays
         .withOptionsFrom(*crossover1Relay)
         .withOptionsFrom(*crossover2Relay)
         .withOptionsFrom(*crossover3Relay)
         // Frequency boundary relays
         .withOptionsFrom(*freqLowRelay)
-        .withOptionsFrom(*freqHighRelay)
-        // Band 0 relays
-        .withOptionsFrom(*band0EnableRelay)
-        .withOptionsFrom(*band0DepthRelay)
-        .withOptionsFrom(*band0EucOnRelay)
-        .withOptionsFrom(*band0EucStepsRelay)
-        .withOptionsFrom(*band0EucPulsesRelay)
-        .withOptionsFrom(*band0EucOffsetRelay)
-        // Band 1 relays
-        .withOptionsFrom(*band1EnableRelay)
-        .withOptionsFrom(*band1DepthRelay)
-        .withOptionsFrom(*band1EucOnRelay)
-        .withOptionsFrom(*band1EucStepsRelay)
-        .withOptionsFrom(*band1EucPulsesRelay)
-        .withOptionsFrom(*band1EucOffsetRelay)
-        // Band 2 relays
-        .withOptionsFrom(*band2EnableRelay)
-        .withOptionsFrom(*band2DepthRelay)
-        .withOptionsFrom(*band2EucOnRelay)
-        .withOptionsFrom(*band2EucStepsRelay)
-        .withOptionsFrom(*band2EucPulsesRelay)
-        .withOptionsFrom(*band2EucOffsetRelay)
-        // Band 3 relays
-        .withOptionsFrom(*band3EnableRelay)
-        .withOptionsFrom(*band3DepthRelay)
-        .withOptionsFrom(*band3EucOnRelay)
-        .withOptionsFrom(*band3EucStepsRelay)
-        .withOptionsFrom(*band3EucPulsesRelay)
-        .withOptionsFrom(*band3EucOffsetRelay)
+        .withOptionsFrom(*freqHighRelay);
+
+    // Per-band relays (loop)
+    for (int i = 0; i < 4; ++i)
+    {
+        options = options
+            .withOptionsFrom(*bandRelays[i].enable)
+            .withOptionsFrom(*bandRelays[i].depth)
+            .withOptionsFrom(*bandRelays[i].rate)
+            .withOptionsFrom(*bandRelays[i].eucOn)
+            .withOptionsFrom(*bandRelays[i].eucSteps)
+            .withOptionsFrom(*bandRelays[i].eucPulses)
+            .withOptionsFrom(*bandRelays[i].eucOffset);
+    }
+
+    options = options
         // v1.5.0: Tooltip state native functions
         .withNativeFunction("setTooltipsEnabled", [this](const juce::Array<juce::var>& args,
                                                           std::function<void(juce::var)> complete) {
@@ -256,8 +229,10 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
         *apvts.getParameter("rate"), *rateRelay, nullptr);
     swingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("swing"), *swingRelay, nullptr);
-    smoothingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("smoothing"), *smoothingRelay, nullptr);
+    attackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("attack"), *attackRelay, nullptr);
+    releaseAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("release"), *releaseRelay, nullptr);
 
     // Crossover attachments
     crossover1Attachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -273,70 +248,34 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
     freqHighAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("freq_high"), *freqHighRelay, nullptr);
 
-    // Band 0 attachments
-    band0EnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band0_enable"), *band0EnableRelay, nullptr);
-    band0DepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band0_depth"), *band0DepthRelay, nullptr);
-    band0EucOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band0_euc_on"), *band0EucOnRelay, nullptr);
-    band0EucStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band0_euc_steps"), *band0EucStepsRelay, nullptr);
-    band0EucPulsesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band0_euc_pulses"), *band0EucPulsesRelay, nullptr);
-    band0EucOffsetAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band0_euc_offset"), *band0EucOffsetRelay, nullptr);
+    // Per-band attachments (loop)
+    for (int i = 0; i < 4; ++i)
+    {
+        auto prefix = "band" + juce::String(i) + "_";
+        bandAttachments[i].enable = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+            *apvts.getParameter(prefix + "enable"), *bandRelays[i].enable, nullptr);
+        bandAttachments[i].depth = std::make_unique<juce::WebSliderParameterAttachment>(
+            *apvts.getParameter(prefix + "depth"), *bandRelays[i].depth, nullptr);
+        bandAttachments[i].rate = std::make_unique<juce::WebComboBoxParameterAttachment>(
+            *apvts.getParameter(prefix + "rate"), *bandRelays[i].rate, nullptr);
+        bandAttachments[i].eucOn = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+            *apvts.getParameter(prefix + "euc_on"), *bandRelays[i].eucOn, nullptr);
+        bandAttachments[i].eucSteps = std::make_unique<juce::WebSliderParameterAttachment>(
+            *apvts.getParameter(prefix + "euc_steps"), *bandRelays[i].eucSteps, nullptr);
+        bandAttachments[i].eucPulses = std::make_unique<juce::WebSliderParameterAttachment>(
+            *apvts.getParameter(prefix + "euc_pulses"), *bandRelays[i].eucPulses, nullptr);
+        bandAttachments[i].eucOffset = std::make_unique<juce::WebSliderParameterAttachment>(
+            *apvts.getParameter(prefix + "euc_offset"), *bandRelays[i].eucOffset, nullptr);
+    }
 
-    // Band 1 attachments
-    band1EnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band1_enable"), *band1EnableRelay, nullptr);
-    band1DepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band1_depth"), *band1DepthRelay, nullptr);
-    band1EucOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band1_euc_on"), *band1EucOnRelay, nullptr);
-    band1EucStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band1_euc_steps"), *band1EucStepsRelay, nullptr);
-    band1EucPulsesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band1_euc_pulses"), *band1EucPulsesRelay, nullptr);
-    band1EucOffsetAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band1_euc_offset"), *band1EucOffsetRelay, nullptr);
-
-    // Band 2 attachments
-    band2EnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band2_enable"), *band2EnableRelay, nullptr);
-    band2DepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band2_depth"), *band2DepthRelay, nullptr);
-    band2EucOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band2_euc_on"), *band2EucOnRelay, nullptr);
-    band2EucStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band2_euc_steps"), *band2EucStepsRelay, nullptr);
-    band2EucPulsesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band2_euc_pulses"), *band2EucPulsesRelay, nullptr);
-    band2EucOffsetAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band2_euc_offset"), *band2EucOffsetRelay, nullptr);
-
-    // Band 3 attachments
-    band3EnableAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band3_enable"), *band3EnableRelay, nullptr);
-    band3DepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band3_depth"), *band3DepthRelay, nullptr);
-    band3EucOnAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
-        *apvts.getParameter("band3_euc_on"), *band3EucOnRelay, nullptr);
-    band3EucStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band3_euc_steps"), *band3EucStepsRelay, nullptr);
-    band3EucPulsesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band3_euc_pulses"), *band3EucPulsesRelay, nullptr);
-    band3EucOffsetAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
-        *apvts.getParameter("band3_euc_offset"), *band3EucOffsetRelay, nullptr);
-
-    // Step grid attachments (128 total)
+    // Step grid attachments (128 total) — velocity sliders
     for (int band = 0; band < 4; ++band)
     {
         for (int step = 0; step < 32; ++step)
         {
             int index = band * 32 + step;
             juce::String paramId = "step_b" + juce::String(band) + "_s" + juce::String(step);
-            stepAttachments[index] = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+            stepAttachments[index] = std::make_unique<juce::WebSliderParameterAttachment>(
                 *apvts.getParameter(paramId), *stepRelays[index], nullptr);
         }
     }
@@ -369,14 +308,17 @@ OFreqPulseAudioProcessorEditor::~OFreqPulseAudioProcessorEditor()
 
 void OFreqPulseAudioProcessorEditor::timerCallback()
 {
-    // Read current step and signal state from processor (atomic, thread-safe)
-    int step = processorRef.getCurrentStep();
+    // Read per-band step positions and signal state from processor (atomic, thread-safe)
     bool hasSignal = processorRef.getHasAudioSignal();
+    int b0 = processorRef.getBandStep(0);
+    int b1 = processorRef.getBandStep(1);
+    int b2 = processorRef.getBandStep(2);
+    int b3 = processorRef.getBandStep(3);
 
-    // Send to WebView via JavaScript
+    // Send per-band steps to WebView for independent playhead highlighting
     juce::String js = juce::String::formatted(
-        "if (window.updatePlayhead) window.updatePlayhead(%d, %s);",
-        step, hasSignal ? "true" : "false"
+        "if (window.updatePlayhead) window.updatePlayhead(%d,%d,%d,%d,%s);",
+        b0, b1, b2, b3, hasSignal ? "true" : "false"
     );
     webView->evaluateJavascript(js);
 

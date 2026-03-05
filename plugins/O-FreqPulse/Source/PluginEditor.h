@@ -12,6 +12,29 @@
 #include "PluginProcessor.h"
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
+#include <array>
+
+struct BandRelays
+{
+    std::unique_ptr<juce::WebToggleButtonRelay> enable;
+    std::unique_ptr<juce::WebSliderRelay> depth;
+    std::unique_ptr<juce::WebComboBoxRelay> rate;       // v1.7.0: Per-band rate override
+    std::unique_ptr<juce::WebToggleButtonRelay> eucOn;
+    std::unique_ptr<juce::WebSliderRelay> eucSteps;
+    std::unique_ptr<juce::WebSliderRelay> eucPulses;
+    std::unique_ptr<juce::WebSliderRelay> eucOffset;
+};
+
+struct BandAttachments
+{
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> enable;
+    std::unique_ptr<juce::WebSliderParameterAttachment> depth;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> rate;  // v1.7.0
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eucOn;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eucSteps;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eucPulses;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eucOffset;
+};
 
 class OFreqPulseAudioProcessorEditor : public juce::AudioProcessorEditor,
                                        private juce::Timer
@@ -41,7 +64,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> stepsRelay;
     std::unique_ptr<juce::WebComboBoxRelay> rateRelay;
     std::unique_ptr<juce::WebSliderRelay> swingRelay;
-    std::unique_ptr<juce::WebSliderRelay> smoothingRelay;
+    std::unique_ptr<juce::WebSliderRelay> attackRelay;
+    std::unique_ptr<juce::WebSliderRelay> releaseRelay;
 
     // Crossover parameter relays (3 total)
     std::unique_ptr<juce::WebSliderRelay> crossover1Relay;
@@ -53,36 +77,10 @@ private:
     std::unique_ptr<juce::WebSliderRelay> freqHighRelay;
 
     // Per-band parameter relays (24 total: 6 params x 4 bands)
-    std::unique_ptr<juce::WebToggleButtonRelay> band0EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band0DepthRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> band0EucOnRelay;
-    std::unique_ptr<juce::WebSliderRelay> band0EucStepsRelay;
-    std::unique_ptr<juce::WebSliderRelay> band0EucPulsesRelay;
-    std::unique_ptr<juce::WebSliderRelay> band0EucOffsetRelay;
+    std::array<BandRelays, 4> bandRelays;
 
-    std::unique_ptr<juce::WebToggleButtonRelay> band1EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band1DepthRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> band1EucOnRelay;
-    std::unique_ptr<juce::WebSliderRelay> band1EucStepsRelay;
-    std::unique_ptr<juce::WebSliderRelay> band1EucPulsesRelay;
-    std::unique_ptr<juce::WebSliderRelay> band1EucOffsetRelay;
-
-    std::unique_ptr<juce::WebToggleButtonRelay> band2EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band2DepthRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> band2EucOnRelay;
-    std::unique_ptr<juce::WebSliderRelay> band2EucStepsRelay;
-    std::unique_ptr<juce::WebSliderRelay> band2EucPulsesRelay;
-    std::unique_ptr<juce::WebSliderRelay> band2EucOffsetRelay;
-
-    std::unique_ptr<juce::WebToggleButtonRelay> band3EnableRelay;
-    std::unique_ptr<juce::WebSliderRelay> band3DepthRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> band3EucOnRelay;
-    std::unique_ptr<juce::WebSliderRelay> band3EucStepsRelay;
-    std::unique_ptr<juce::WebSliderRelay> band3EucPulsesRelay;
-    std::unique_ptr<juce::WebSliderRelay> band3EucOffsetRelay;
-
-    // Step grid relays (128 total: 32 steps × 4 bands)
-    std::array<std::unique_ptr<juce::WebToggleButtonRelay>, 128> stepRelays;
+    // Step grid relays (128 total: 32 steps × 4 bands) — velocity sliders
+    std::array<std::unique_ptr<juce::WebSliderRelay>, 128> stepRelays;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -93,7 +91,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> stepsAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> rateAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> swingAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> smoothingAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> attackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> releaseAttachment;
 
     // Crossover parameter attachments (3 total)
     std::unique_ptr<juce::WebSliderParameterAttachment> crossover1Attachment;
@@ -105,36 +104,10 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> freqHighAttachment;
 
     // Per-band parameter attachments (24 total)
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band0EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band0DepthAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band0EucOnAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band0EucStepsAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band0EucPulsesAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band0EucOffsetAttachment;
+    std::array<BandAttachments, 4> bandAttachments;
 
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band1EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band1DepthAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band1EucOnAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band1EucStepsAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band1EucPulsesAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band1EucOffsetAttachment;
-
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band2EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band2DepthAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band2EucOnAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band2EucStepsAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band2EucPulsesAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band2EucOffsetAttachment;
-
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band3EnableAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band3DepthAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> band3EucOnAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band3EucStepsAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band3EucPulsesAttachment;
-    std::unique_ptr<juce::WebSliderParameterAttachment> band3EucOffsetAttachment;
-
-    // Step grid attachments (128 total)
-    std::array<std::unique_ptr<juce::WebToggleButtonParameterAttachment>, 128> stepAttachments;
+    // Step grid attachments (128 total) — velocity sliders
+    std::array<std::unique_ptr<juce::WebSliderParameterAttachment>, 128> stepAttachments;
 
     // v1.5.0: Tooltip state sync flag (ensures one-time sync from processor to WebView)
     bool tooltipStateSynced = false;
