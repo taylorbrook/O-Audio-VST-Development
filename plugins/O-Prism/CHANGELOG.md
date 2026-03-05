@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.1.6 (2026-03-04)
+
+### Changed
+- **JSON array helpers**: Extracted `toJsonArray` (template with lambda) and `toJsonFloatArray` (strided raw pointer) helpers in PluginEditor.cpp — replaced 11 instances of manual `"[" + for-loop + "]"` JSON string building across `addNativeFunctions()` and `timerCallback()`
+
 ## v1.1.5 (2026-03-04)
 
 ### Changed

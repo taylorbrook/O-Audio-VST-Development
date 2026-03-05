@@ -55,6 +55,37 @@ OPrismAudioProcessorEditor::getResource (const juce::String& url)
 }
 
 // ═══════════════════════════════════════════════════════════════════
+// JSON Array Helpers
+// ═══════════════════════════════════════════════════════════════════
+
+template <typename Container, typename Fn>
+static juce::String toJsonArray (const Container& items, Fn elementToString)
+{
+    juce::String json = "[";
+    bool first = true;
+    for (const auto& item : items)
+    {
+        if (! first) json += ",";
+        first = false;
+        json += elementToString (item);
+    }
+    json += "]";
+    return json;
+}
+
+static juce::String toJsonFloatArray (const float* data, int count, int stride, int decimals)
+{
+    juce::String json = "[";
+    for (int i = 0; i < count; i += stride)
+    {
+        if (i > 0) json += ",";
+        json += juce::String (data[i], decimals);
+    }
+    json += "]";
+    return json;
+}
+
+// ═══════════════════════════════════════════════════════════════════
 // Native Functions
 // ═══════════════════════════════════════════════════════════════════
 
@@ -65,14 +96,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
     options = options.withNativeFunction ("getTuningIntervals",
         [this] (const juce::Array<juce::var>&, auto complete) {
             auto intervals = processorRef.getTuningEngine()->getIntervals();
-            juce::String json = "[";
-            for (size_t i = 0; i < intervals.size(); ++i)
-            {
-                if (i > 0) json += ",";
-                json += juce::String (intervals[i], 6);
-            }
-            json += "]";
-            complete (json);
+            complete (toJsonArray (intervals, [] (double v) { return juce::String (v, 6); }));
         });
 
     options = options.withNativeFunction ("setTuningIntervals",
@@ -301,14 +325,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             {
                 auto intervals = ScaleGenerator::generateEDO (
                     static_cast<int> (args[0]), static_cast<double> (args[1]));
-                juce::String json = "[";
-                for (size_t i = 0; i < intervals.size(); ++i)
-                {
-                    if (i > 0) json += ",";
-                    json += juce::String (intervals[i], 6);
-                }
-                json += "]";
-                complete (json);
+                complete (toJsonArray (intervals, [] (double v) { return juce::String (v, 6); }));
                 return;
             }
             complete (juce::var());
@@ -320,14 +337,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             {
                 auto intervals = ScaleGenerator::generateHarmonicSeries (
                     static_cast<int> (args[0]), static_cast<int> (args[1]));
-                juce::String json = "[";
-                for (size_t i = 0; i < intervals.size(); ++i)
-                {
-                    if (i > 0) json += ",";
-                    json += juce::String (intervals[i], 6);
-                }
-                json += "]";
-                complete (json);
+                complete (toJsonArray (intervals, [] (double v) { return juce::String (v, 6); }));
                 return;
             }
             complete (juce::var());
@@ -341,14 +351,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     static_cast<double> (args[0]),
                     static_cast<double> (args[1]),
                     static_cast<int> (args[2]));
-                juce::String json = "[";
-                for (size_t i = 0; i < intervals.size(); ++i)
-                {
-                    if (i > 0) json += ",";
-                    json += juce::String (intervals[i], 6);
-                }
-                json += "]";
-                complete (json);
+                complete (toJsonArray (intervals, [] (double v) { return juce::String (v, 6); }));
                 return;
             }
             complete (juce::var());
@@ -358,31 +361,21 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
     options = options.withNativeFunction ("getEmbeddedTuningList",
         [this] (const juce::Array<juce::var>&, auto complete) {
             const auto& tunings = EmbeddedTunings::getAllTunings();
-            juce::String json = "[";
-            for (size_t i = 0; i < tunings.size(); ++i)
-            {
-                if (i > 0) json += ",";
-                json += "{\"id\":\"" + juce::String (tunings[i].id)
-                      + "\",\"name\":\"" + juce::String (tunings[i].name)
-                      + "\",\"category\":\"" + juce::String (tunings[i].category)
-                      + "\",\"noteCount\":" + juce::String (static_cast<int> (tunings[i].intervals.size()))
-                      + "}";
-            }
-            json += "]";
-            complete (json);
+            complete (toJsonArray (tunings, [] (const auto& t) {
+                return "{\"id\":\"" + juce::String (t.id)
+                     + "\",\"name\":\"" + juce::String (t.name)
+                     + "\",\"category\":\"" + juce::String (t.category)
+                     + "\",\"noteCount\":" + juce::String (static_cast<int> (t.intervals.size()))
+                     + "}";
+            }));
         });
 
     options = options.withNativeFunction ("getEmbeddedTuningCategories",
         [this] (const juce::Array<juce::var>&, auto complete) {
             auto categories = EmbeddedTunings::getCategories();
-            juce::String json = "[";
-            for (size_t i = 0; i < categories.size(); ++i)
-            {
-                if (i > 0) json += ",";
-                json += "\"" + juce::String (categories[i]) + "\"";
-            }
-            json += "]";
-            complete (json);
+            complete (toJsonArray (categories, [] (const auto& s) {
+                return "\"" + juce::String (s) + "\"";
+            }));
         });
 
     options = options.withNativeFunction ("loadEmbeddedTuning",
@@ -440,14 +433,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 if (table != nullptr && frameIndex >= 0 && frameIndex < table->numFrames)
                 {
                     const float* frameData = table->getFrameData (0, frameIndex);
-                    juce::String json = "[";
-                    for (int i = 0; i < WavetableData::kTableSize; i += 8) // Downsample: 2048 -> 256
-                    {
-                        if (i > 0) json += ",";
-                        json += juce::String (frameData[i], 4);
-                    }
-                    json += "]";
-                    complete (json);
+                    complete (toJsonFloatArray (frameData, WavetableData::kTableSize, 8, 4));
                     return;
                 }
             }
@@ -487,14 +473,7 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     int frameIndex = juce::jlimit (0, table->numFrames - 1,
                         static_cast<int> (normalizedPos * (table->numFrames - 1)));
                     const float* frameData = table->getFrameData (0, frameIndex);
-                    juce::String json = "[";
-                    for (int i = 0; i < WavetableData::kTableSize; i += 8)
-                    {
-                        if (i > 0) json += ",";
-                        json += juce::String (frameData[i], 4);
-                    }
-                    json += "]";
-                    complete (json);
+                    complete (toJsonFloatArray (frameData, WavetableData::kTableSize, 8, 4));
                     return;
                 }
             }
@@ -532,27 +511,17 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
     options = options.withNativeFunction ("getModSourceNames",
         [] (const juce::Array<juce::var>&, auto complete) {
             auto names = getModSourceNames();
-            juce::String json = "[";
-            for (int i = 0; i < names.size(); ++i)
-            {
-                if (i > 0) json += ",";
-                json += "\"" + names[i] + "\"";
-            }
-            json += "]";
-            complete (json);
+            complete (toJsonArray (names, [] (const juce::String& s) {
+                return "\"" + s + "\"";
+            }));
         });
 
     options = options.withNativeFunction ("getModDestNames",
         [] (const juce::Array<juce::var>&, auto complete) {
             auto names = getModDestNames();
-            juce::String json = "[";
-            for (int i = 0; i < names.size(); ++i)
-            {
-                if (i > 0) json += ",";
-                json += "\"" + names[i] + "\"";
-            }
-            json += "]";
-            complete (json);
+            complete (toJsonArray (names, [] (const juce::String& s) {
+                return "\"" + s + "\"";
+            }));
         });
 
     return options;
@@ -726,22 +695,8 @@ void OPrismAudioProcessorEditor::timerCallback()
     lastSentNotes = currentNotes;
 
     // Build JS call: window.updateHeldNotes([midi1,midi2,...], [freq1,freq2,...])
-    juce::String noteArray = "[";
-    juce::String freqArray = "[";
-
-    for (size_t i = 0; i < currentNotes.size(); ++i)
-    {
-        if (i > 0)
-        {
-            noteArray += ",";
-            freqArray += ",";
-        }
-        noteArray += juce::String (currentNotes[i].first);
-        freqArray += juce::String (currentNotes[i].second, 4);
-    }
-
-    noteArray += "]";
-    freqArray += "]";
+    auto noteArray = toJsonArray (currentNotes, [] (const auto& n) { return juce::String (n.first); });
+    auto freqArray = toJsonArray (currentNotes, [] (const auto& n) { return juce::String (n.second, 4); });
 
     juce::String js = "if(window.updateHeldNotes) window.updateHeldNotes(" + noteArray + "," + freqArray + ");";
     webView->evaluateJavascript (js, nullptr);
