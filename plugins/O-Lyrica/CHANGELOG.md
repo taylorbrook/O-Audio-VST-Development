@@ -2,6 +2,12 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.32.2] - 2026-03-04
+
+### Removed
+
+- Dead member variable `previousFrequency` from `HarpSynthVoice`. Was assigned in `startNote()` but never read — became unused in v1.23.0 when glissando switched to interval-based calculation.
+
 ## [1.32.1] - 2026-03-04
 
 ### Changed

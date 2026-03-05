@@ -410,9 +410,6 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         }
     }
 
-    // Store frequency for next glissando
-    previousFrequency = currentFrequency;
-
     // Trigger string model with pluck position and hardness
     stringModel.trigger(currentFrequency, velocity, pluckPosition, fingerHardness);
 

@@ -114,7 +114,6 @@ private:
     std::atomic<double>* hostBpmPtr = nullptr;
 
     double currentFrequency = 440.0;
-    double previousFrequency = 440.0; // For glissando start point
     float currentVelocity = 0.0f;
     int currentMidiNote = -1; // Current MIDI note number (for pitch bend)
     int voiceId = -1; // Unique ID for sympathetic tracking (v1.3.2: generated from atomic counter)
