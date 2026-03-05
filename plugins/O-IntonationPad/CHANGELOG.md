@@ -1,5 +1,24 @@
 # O-IntonationPad Changelog
 
+## [2.2.1] - 2026-03-04
+
+### Fixed
+- Added clarifying comment to empty `releaseResources()` body explaining it's intentionally empty (synthesiser and effects clean up in their own destructors)
+
+## [2.2.0] - 2026-03-04
+
+### Added
+- **Velocity to Filter parameter**: New `velocityToFilter` APVTS parameter (0.0-1.0, default 0.0) modulates filter cutoff based on most-recent note-on velocity — low velocity = darker, high velocity = brighter
+- Formula: `effectiveCutoff = filterCutoff * (1.0 - velocityToFilter * (1.0 - velocity))`
+- WebView relay (`velocityToFilterRelay`) and parameter attachment for UI integration
+- MIDI note-on velocity tracking in processBlock (scans MidiBuffer before synth render)
+
+### Technical
+- New cached `std::atomic<float>*` pointer (`cachedVelocityToFilter`) for real-time-safe parameter reads
+- `lastNoteVelocity` member (audio thread only) stores most-recent velocity, initialized to 1.0 (full brightness when no notes played)
+- Velocity modulation applied before LFO filter modulation in signal chain
+- No breaking changes: default 0.0 means no modulation, preserving existing behavior
+
 ## [2.1.0] - 2026-03-04
 
 ### Added

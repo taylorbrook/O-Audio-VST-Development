@@ -250,6 +250,22 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         "Hz"
     ));
 
+    // v2.2.0: FILTER_LFO_DEPTH - Float (0-100%, default: 0%) — modulates cutoff via LFO A phase
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "filterLfoDepth", 1 },
+        "Filter LFO Depth",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
+    ));
+
+    // v2.2.0: VELOCITY_TO_FILTER - Float (0-100%, default: 0%) — velocity modulates filter cutoff
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "velocityToFilter", 1 },
+        "Velocity to Filter",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
+    ));
+
     // MASTER_VOLUME - Float (0.0-1.26 gain, default: 1.0)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "masterVolume", 1 },
@@ -363,6 +379,8 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     cachedLfoDepth = parameters.getRawParameterValue("lfoDepth");
     cachedLfoDepth2 = parameters.getRawParameterValue("lfoDepth2");
     cachedFilterCutoff = parameters.getRawParameterValue("filterCutoff");
+    cachedFilterLfoDepth = parameters.getRawParameterValue("filterLfoDepth");
+    cachedVelocityToFilter = parameters.getRawParameterValue("velocityToFilter");
     cachedMasterVolume = parameters.getRawParameterValue("masterVolume");
     cachedChorusBypass = parameters.getRawParameterValue("chorusBypass");
     cachedChorusRate = parameters.getRawParameterValue("chorusRate");
@@ -398,9 +416,6 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     resetEnabledIntervals();
 }
 
-OIntonationPadAudioProcessor::~OIntonationPadAudioProcessor()
-{
-}
 
 void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
@@ -456,6 +471,7 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
 
 void OIntonationPadAudioProcessor::releaseResources()
 {
+    // Intentionally empty — synthesiser and effects clean up in their own destructors
 }
 
 void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -542,6 +558,14 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     const auto& currentEnabledDegrees = snap.enabledDegrees.empty() ? defaultDegrees : snap.enabledDegrees;
     int currentScaleDegreeCount = snap.scaleDegreeCount > 0 ? snap.scaleDegreeCount : 12;
 
+    // v2.2.0: Scan MIDI for most-recent note-on velocity (before synth renders)
+    for (const auto metadata : midiMessages)
+    {
+        auto msg = metadata.getMessage();
+        if (msg.isNoteOn())
+            lastNoteVelocity = msg.getFloatVelocity();
+    }
+
     // Update all voice parameters before rendering
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
@@ -567,8 +591,26 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // Render synthesiser output (handles MIDI internally)
     synthesiser.renderNextBlock(buffer, midiMessages, 0, buffer.getNumSamples());
 
-    // Apply filter
-    filter.setCutoffFrequency(filterCutoff);
+    // v2.2.0: Apply velocity-to-filter modulation
+    // Formula: effectiveCutoff = cutoff * (1 - velToFilter * (1 - velocity))
+    // Low velocity = darker, high velocity = brighter
+    float velocityToFilter = cachedVelocityToFilter->load();
+    if (velocityToFilter > 0.0f)
+        filterCutoff *= (1.0f - velocityToFilter * (1.0f - lastNoteVelocity));
+
+    // Apply filter (with optional LFO A modulation)
+    float filterLfoDepth = cachedFilterLfoDepth->load();
+    if (filterLfoDepth > 0.0f)
+    {
+        float lfoValue = std::sin(currentLfoPhaseA);
+        float modulatedCutoff = filterCutoff * std::pow(2.0f, lfoValue * filterLfoDepth * 2.0f);
+        modulatedCutoff = juce::jlimit(20.0f, 20000.0f, modulatedCutoff);
+        filter.setCutoffFrequency(modulatedCutoff);
+    }
+    else
+    {
+        filter.setCutoffFrequency(filterCutoff);
+    }
     juce::dsp::AudioBlock<float> block(buffer);
     juce::dsp::ProcessContextReplacing<float> filterContext(block);
     filter.process(filterContext);
