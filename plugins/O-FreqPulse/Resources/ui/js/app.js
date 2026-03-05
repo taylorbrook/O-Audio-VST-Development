@@ -12,6 +12,11 @@ const state = {
     tooltipsEnabled: false,  // v1.5.0: Tooltip toggle state
 };
 
+// Cached DOM references — populated once after renderGrid()
+// cachedCells[band][step] holds direct references to all 128 step-cell elements
+let cachedCells = [[], [], [], []];
+let cachedGridArea = null;
+
 // Band configuration
 const bands = [
     { id: 0, name: 'SUB' },
@@ -429,6 +434,12 @@ function renderGrid() {
             updateStepVisual(band, step, toggleState.getValue());
         }
     }
+
+    // Cache all cell references in a 2D array for O(1) lookups
+    for (let b = 0; b < 4; b++) {
+        cachedCells[b] = [...document.querySelectorAll(`.step-cell[data-band="${b}"]`)];
+    }
+    cachedGridArea = document.querySelector('.grid-area');
 }
 
 function toggleStep(band, step) {
@@ -447,13 +458,9 @@ function updateStepVisual(band, step, active) {
     // Skip manual step visual updates when euclidean mode controls the display
     if (state.euclideanActive[band]) return;
 
-    const cell = document.querySelector(`.step-cell[data-band="${band}"][data-step="${step}"]`);
+    const cell = cachedCells[band]?.[step];
     if (cell) {
-        if (active) {
-            cell.classList.add('active');
-        } else {
-            cell.classList.remove('active');
-        }
+        cell.classList.toggle('active', active);
     }
 }
 
@@ -463,15 +470,12 @@ function updateStepCount(count) {
 }
 
 function updateStepVisibility() {
-    const allCells = document.querySelectorAll('.step-cell');
-    allCells.forEach((cell) => {
-        const step = parseInt(cell.dataset.step);
-        if (step < state.numSteps) {
-            cell.style.display = 'block';
-        } else {
-            cell.style.display = 'none';
+    for (let b = 0; b < 4; b++) {
+        const bandCells = cachedCells[b];
+        for (let s = 0; s < bandCells.length; s++) {
+            bandCells[s].style.display = s < state.numSteps ? 'block' : 'none';
         }
-    });
+    }
 }
 
 // ============================================================================
@@ -480,9 +484,8 @@ function updateStepVisibility() {
 
 window.updatePlayhead = function (step, hasSignal) {
     const playhead = document.getElementById('playhead');
-    const gridArea = document.querySelector('.grid-area');
 
-    if (!playhead || !gridArea) return;
+    if (!playhead || !cachedGridArea) return;
 
     // Hide playhead when no audio signal is present
     if (!hasSignal) {
@@ -492,13 +495,13 @@ window.updatePlayhead = function (step, hasSignal) {
 
     playhead.style.opacity = '1';
 
-    // Find the actual cell at this step position (use band 0, all bands align)
-    const cell = document.querySelector(`.step-cell[data-band="0"][data-step="${step}"]`);
+    // Look up cell by index instead of querySelector each tick
+    const cell = cachedCells[0]?.[step];
     if (!cell || cell.style.display === 'none') return;
 
     // Get cell's actual position relative to grid area
     const cellRect = cell.getBoundingClientRect();
-    const gridRect = gridArea.getBoundingClientRect();
+    const gridRect = cachedGridArea.getBoundingClientRect();
 
     // Position playhead at the center of this cell
     const offset = cellRect.left - gridRect.left + (cellRect.width / 2);
@@ -684,7 +687,7 @@ function updateEuclideanGrid(bandId) {
         state.currentBand = null;
     }
 
-    const cells = document.querySelectorAll(`.step-cell[data-band="${bandId}"]`);
+    const cells = cachedCells[bandId];
 
     if (isEuclidean) {
         // Compute euclidean pattern
@@ -694,33 +697,25 @@ function updateEuclideanGrid(bandId) {
 
         const pattern = generateEuclidean(eucSteps, eucPulses, eucOffset);
 
-        cells.forEach((cell) => {
-            const step = parseInt(cell.dataset.step);
+        for (let step = 0; step < cells.length; step++) {
+            const cell = cells[step];
             cell.classList.add('euclidean-mode');
             cell.classList.remove('active');
 
             // Wrap via modulo to match C++ getTargetGainForBand() behavior
             const wrappedStep = step % eucSteps;
-            if (pattern[wrappedStep]) {
-                cell.classList.add('euclidean-active');
-            } else {
-                cell.classList.remove('euclidean-active');
-            }
-        });
+            cell.classList.toggle('euclidean-active', pattern[wrappedStep]);
+        }
     } else {
         // Restore manual step display
-        cells.forEach((cell) => {
-            const step = parseInt(cell.dataset.step);
+        for (let step = 0; step < cells.length; step++) {
+            const cell = cells[step];
             cell.classList.remove('euclidean-mode', 'euclidean-active');
 
             const paramId = `step_b${bandId}_s${step}`;
             const toggleState = state.stepStates[paramId];
-            if (toggleState && toggleState.getValue()) {
-                cell.classList.add('active');
-            } else {
-                cell.classList.remove('active');
-            }
-        });
+            cell.classList.toggle('active', !!(toggleState && toggleState.getValue()));
+        }
     }
 }
 

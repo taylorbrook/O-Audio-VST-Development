@@ -2,6 +2,18 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.6.7] - 2026-03-04
+
+### Improved
+
+- **Cache all 128 step-cell DOM references in a 2D array** - `cachedCells[band][step]` is populated once after `renderGrid()`, replacing per-call `querySelectorAll`/`querySelector` in three hot paths: `updateStepVisibility()` (was querying all 128 cells), `updateStepVisual()` (was querying by attribute per cell), and `updateEuclideanGrid()` (was querying 32 cells per band). Also replaced `classList.add`/`remove` pairs with `classList.toggle` for cleaner conditionals.
+
+## [1.6.6] - 2026-03-04
+
+### Improved
+
+- **Cache band-0 step cells for playhead positioning** - `updatePlayhead()` (called at 30Hz) no longer runs `querySelector()` and `.grid-area` lookup every tick. Band-0 cells are cached as an array after `renderGrid()` completes, and the grid area element is cached once. Cell is now accessed by index (`cachedBand0Cells[step]`) instead of a DOM query each frame.
+
 ## [1.6.5] - 2026-03-04
 
 ### Improved
