@@ -2,6 +2,14 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.13.0] - 2026-03-05
+
+### Added
+
+- **Band Mute buttons (M)** - Each band row now has a small "M" button next to the band name that toggles `band{N}_enable`. When muted, the entire band row dims to 35% opacity while the label area remains readable for interaction. The mute state syncs with DAW automation in real-time.
+- **Band Solo buttons (S)** - Each band row has an "S" button for exclusive solo. Clicking solo on a band mutes all other bands by disabling their enable parameters. Clicking again restores the pre-solo enable states. Only one band can be soloed at a time.
+- **Automation-aware M/S visuals** - Mute and solo button states reflect automation changes via `valueChangedEvent` listeners. If the DAW changes a band's enable parameter, the M button updates accordingly and stale solo state is cleared.
+
 ## [1.12.0] - 2026-03-05
 
 ### Changed

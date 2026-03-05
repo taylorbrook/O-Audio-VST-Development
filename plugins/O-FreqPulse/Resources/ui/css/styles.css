@@ -312,6 +312,69 @@ html, body {
     line-height: 1.2;
 }
 
+/* v1.13.0: Band label layout with M/S buttons */
+.band-label-top {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 3px;
+    margin-bottom: 1px;
+}
+
+.ms-btn {
+    width: 16px;
+    height: 14px;
+    border: 1px solid rgba(139, 115, 85, 0.5);
+    border-radius: 2px;
+    background: rgba(60, 47, 47, 0.3);
+    color: rgba(232, 213, 183, 0.6);
+    font-size: 8px;
+    font-family: 'Arial', sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+.ms-btn:hover {
+    border-color: var(--border-accent);
+    color: var(--bg-paper);
+}
+
+/* Mute active state — amber/orange */
+.mute-btn.active {
+    background: #b8860b;
+    color: #fff;
+    border-color: #b8860b;
+}
+
+.mute-btn.active:hover {
+    background: #d4a017;
+}
+
+/* Solo active state — yellow */
+.solo-btn.active {
+    background: #c8b400;
+    color: #1a1410;
+    border-color: #c8b400;
+}
+
+.solo-btn.active:hover {
+    background: #e0ca00;
+}
+
+/* Band row muted state — dim the entire row */
+.band-row.muted {
+    opacity: 0.35;
+}
+
+.band-row.muted .band-label {
+    opacity: 1;  /* Keep label readable for M/S interaction */
+}
+
 .steps-container {
     display: grid;
     grid-template-columns: repeat(32, 1fr);

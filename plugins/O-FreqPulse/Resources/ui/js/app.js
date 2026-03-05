@@ -10,6 +10,8 @@ const state = {
     stepStates: {},     // SliderState/ToggleState objects by parameter ID
     euclideanActive: [false, false, false, false],  // Per-band euclidean mode state
     tooltipsEnabled: false,  // v1.5.0: Tooltip toggle state
+    soloedBand: -1,     // v1.13.0: Which band is soloed (-1 = none)
+    preSoloEnables: [true, true, true, true],  // Enable states before solo was engaged
 };
 
 // Cached DOM references — populated once after renderGrid()
@@ -89,6 +91,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // v1.6.0: Initialize preset manager
     initializePresetManager();
+
+    // v1.13.0: Initialize mute/solo listeners (after grid rendered)
+    initializeMuteSoloListeners();
 
     console.log('O-FreqPulse UI initialized');
 });
@@ -287,11 +292,51 @@ function createBandRow(band) {
     bandRow.className = 'band-row';
     bandRow.dataset.band = band.id;
 
-    // Band label with derived frequency range (read-only)
+    // Band label with name, M/S buttons, and frequency range
     const label = document.createElement('div');
     label.className = 'band-label';
-    label.innerHTML = `<strong>${band.name}</strong><br><span class="freq-range" id="freq-${band.id}"></span>`;
     label.setAttribute('data-tooltip', `${band.name} band: Shows the frequency range for this band. Frequencies are set by the crossover sliders between bands.`);
+
+    const labelTop = document.createElement('div');
+    labelTop.className = 'band-label-top';
+
+    const nameSpan = document.createElement('strong');
+    nameSpan.textContent = band.name;
+    labelTop.appendChild(nameSpan);
+
+    // v1.13.0: Mute button
+    const muteBtn = document.createElement('button');
+    muteBtn.className = 'ms-btn mute-btn';
+    muteBtn.id = `mute-${band.id}`;
+    muteBtn.textContent = 'M';
+    muteBtn.title = `Mute ${band.name} band`;
+    muteBtn.setAttribute('data-tooltip', `Mute: Bypass the ${band.name} band sequencer (pass audio through unaffected).`);
+    muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMute(band.id);
+    });
+    labelTop.appendChild(muteBtn);
+
+    // v1.13.0: Solo button
+    const soloBtn = document.createElement('button');
+    soloBtn.className = 'ms-btn solo-btn';
+    soloBtn.id = `solo-${band.id}`;
+    soloBtn.textContent = 'S';
+    soloBtn.title = `Solo ${band.name} band`;
+    soloBtn.setAttribute('data-tooltip', `Solo: Mute all other bands so only ${band.name} is sequenced. Click again to unsolo.`);
+    soloBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleSolo(band.id);
+    });
+    labelTop.appendChild(soloBtn);
+
+    label.appendChild(labelTop);
+
+    const freqSpan = document.createElement('span');
+    freqSpan.className = 'freq-range';
+    freqSpan.id = `freq-${band.id}`;
+    label.appendChild(freqSpan);
+
     bandRow.appendChild(label);
 
     // Steps container
@@ -1090,4 +1135,101 @@ function initializePresetManager() {
     document.addEventListener('click', () => {
         hidePresetDropdown();
     });
+}
+
+// ============================================================================
+// v1.13.0: Mute/Solo System
+// ============================================================================
+
+function toggleMute(bandId) {
+    const enableState = state.stepStates[`band${bandId}_enable`];
+    if (!enableState) return;
+
+    const currentlyEnabled = enableState.getValue();
+    enableState.setValue(!currentlyEnabled);
+
+    // If we mute a soloed band, clear solo
+    if (state.soloedBand === bandId && currentlyEnabled) {
+        state.soloedBand = -1;
+        updateAllSoloVisuals();
+    }
+
+    // Explicit visual update (event may not fire if value unchanged)
+    updateMuteVisual(bandId);
+}
+
+function toggleSolo(bandId) {
+    if (state.soloedBand === bandId) {
+        // Unsolo: restore pre-solo enable states
+        for (let i = 0; i < 4; i++) {
+            const enableState = state.stepStates[`band${i}_enable`];
+            if (enableState) {
+                enableState.setValue(state.preSoloEnables[i]);
+            }
+        }
+        state.soloedBand = -1;
+    } else {
+        // Save current enable states before soloing
+        for (let i = 0; i < 4; i++) {
+            const enableState = state.stepStates[`band${i}_enable`];
+            state.preSoloEnables[i] = enableState ? enableState.getValue() : true;
+        }
+
+        // Solo: enable this band, disable all others
+        for (let i = 0; i < 4; i++) {
+            const enableState = state.stepStates[`band${i}_enable`];
+            if (enableState) {
+                enableState.setValue(i === bandId);
+            }
+        }
+        state.soloedBand = bandId;
+    }
+
+    // Explicit visual update for all bands (events may not fire for unchanged values)
+    for (let i = 0; i < 4; i++) updateMuteVisual(i);
+    updateAllSoloVisuals();
+}
+
+function updateMuteVisual(bandId) {
+    const enableState = state.stepStates[`band${bandId}_enable`];
+    if (!enableState) return;
+
+    const enabled = enableState.getValue();
+    const muteBtn = document.getElementById(`mute-${bandId}`);
+    const bandRow = document.querySelector(`.band-row[data-band="${bandId}"]`);
+
+    if (muteBtn) muteBtn.classList.toggle('active', !enabled);
+    if (bandRow) bandRow.classList.toggle('muted', !enabled);
+}
+
+function updateAllSoloVisuals() {
+    for (let i = 0; i < 4; i++) {
+        const soloBtn = document.getElementById(`solo-${i}`);
+        if (soloBtn) soloBtn.classList.toggle('active', state.soloedBand === i);
+    }
+}
+
+function initializeMuteSoloListeners() {
+    for (let bandId = 0; bandId < 4; bandId++) {
+        const bid = bandId;
+        const enableState = state.stepStates[`band${bid}_enable`];
+        if (!enableState) continue;
+
+        // Sync visual on automation/preset changes
+        enableState.valueChangedEvent.addListener(() => {
+            updateMuteVisual(bid);
+
+            // If automation changes enable state, clear stale solo
+            if (state.soloedBand >= 0) {
+                const soloedEnable = state.stepStates[`band${state.soloedBand}_enable`];
+                if (soloedEnable && !soloedEnable.getValue()) {
+                    state.soloedBand = -1;
+                    updateAllSoloVisuals();
+                }
+            }
+        });
+
+        // Sync initial state
+        updateMuteVisual(bid);
+    }
 }

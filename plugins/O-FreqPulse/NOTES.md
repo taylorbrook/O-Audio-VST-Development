@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.2.0
+- **Version:** 1.13.0
 - **Type:** Audio Effect (Spectral Sequencer)
 
 ## Lifecycle Timeline
@@ -16,6 +16,7 @@
 - **2026-02-04 (v1.1.1):** Fixed playhead moving when no audio signal present
 - **2026-02-04 (v1.1.2):** Euclidean patterns now display on step grid
 - **2026-02-05 (v1.2.0):** Fixed buzzing artifact at step transitions — per-band time-domain gain application
+- **2026-03-05 (v1.13.0):** Added per-band Mute (M) and Solo (S) buttons — surfaces existing band_enable parameter in UI with visual dimming and exclusive solo
 
 ## Concept Summary
 
