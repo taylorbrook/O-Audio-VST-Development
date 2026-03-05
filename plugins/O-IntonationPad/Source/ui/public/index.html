@@ -785,7 +785,7 @@
         let voiceCountState, complexityState, keyRootState, stereoSpreadState, spacingState, inversionState;
         let wavetableBankState, wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let wavetableBank2State, wavetablePos2State, lfoRate2State, lfoDepth2State, gainAState, gainBState;
-        let attackTimeState, releaseTimeState, filterCutoffState, masterVolumeState;
+        let attackTimeState, decayTimeState, sustainLevelState, releaseTimeState, filterCutoffState, masterVolumeState;
         let chorusRateState, chorusDepthState, chorusMixState;
         let delayTimeState, delayFeedbackState, delayModeState, delayMixState;
         let eqLowGainState, eqMidGainState, eqMidFreqState, eqHighGainState;
@@ -827,6 +827,8 @@
             gainB: 'Volume level for oscillator B',
             // Synth tab - envelope/filter
             attackTime: 'Envelope attack time — how quickly the sound fades in (1-5000 ms)',
+            decayTime: 'Envelope decay time — how quickly the sound drops from peak to sustain level (10-5000 ms)',
+            sustainLevel: 'Envelope sustain level — volume held while note is on after decay (0-100%)',
             releaseTime: 'Envelope release time — how long the sound fades out after note off (10-10000 ms)',
             filterCutoff: 'Low-pass filter cutoff frequency (20-20000 Hz)',
             masterVolume: 'Master output volume in dB',
@@ -1002,6 +1004,8 @@
 
             populateKnobs('synth-env-knobs', [
                 { id: 'attackTime', label: 'Attack' },
+                { id: 'decayTime', label: 'Decay' },
+                { id: 'sustainLevel', label: 'Sustain' },
                 { id: 'releaseTime', label: 'Release' },
                 { id: 'filterCutoff', label: 'Filter' },
                 { id: 'masterVolume', label: 'Volume' },
@@ -1078,6 +1082,8 @@
             timingRandomState = Juce.getSliderState('timingRandom');
             detuneRandomState = Juce.getSliderState('detuneRandom');
             attackTimeState = Juce.getSliderState('attackTime');
+            decayTimeState = Juce.getSliderState('decayTime');
+            sustainLevelState = Juce.getSliderState('sustainLevel');
             releaseTimeState = Juce.getSliderState('releaseTime');
             filterCutoffState = Juce.getSliderState('filterCutoff');
             masterVolumeState = Juce.getSliderState('masterVolume');
@@ -1122,6 +1128,8 @@
             setupKnob('timingRandom', timingRandomState, 0, 100, ' ms', v => Math.round(v));
             setupKnob('detuneRandom', detuneRandomState, 0, 50, '¢', v => Math.round(v));
             setupKnob('attackTime', attackTimeState, 1, 5000, ' ms', v => Math.round(v));
+            setupKnob('decayTime', decayTimeState, 10, 5000, ' ms', v => Math.round(v));
+            setupKnob('sustainLevel', sustainLevelState, 0, 100, '%', v => Math.round(v));
             setupKnob('releaseTime', releaseTimeState, 10, 10000, ' ms', v => Math.round(v));
             setupKnob('filterCutoff', filterCutoffState, 20, 20000, ' Hz', v => Math.round(v));
             setupKnob('masterVolume', masterVolumeState, -60, 6, ' dB', v => v.toFixed(1));
