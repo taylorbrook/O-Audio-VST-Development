@@ -43,21 +43,36 @@ void EQProcessor::setHighGain (float dB) { targetHighGainDB.store (dB, std::memo
 
 void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
 {
-    // Read atomic targets and update coefficients on the audio thread
+    // Read atomic targets and update coefficients only when changed
     float lowGain = targetLowGainDB.load (std::memory_order_relaxed);
     float midGain = targetMidGainDB.load (std::memory_order_relaxed);
     float midFreq = targetMidFreqHz.load (std::memory_order_relaxed);
     float highGain = targetHighGainDB.load (std::memory_order_relaxed);
 
-    *lowShelf.state = *FilterCoeffs::makeLowShelf (
-        currentSampleRate, 200.0f, 0.707f,
-        juce::Decibels::decibelsToGain (lowGain));
-    *midPeak.state = *FilterCoeffs::makePeakFilter (
-        currentSampleRate, midFreq, 1.0f,
-        juce::Decibels::decibelsToGain (midGain));
-    *highShelf.state = *FilterCoeffs::makeHighShelf (
-        currentSampleRate, 8000.0f, 0.707f,
-        juce::Decibels::decibelsToGain (highGain));
+    if (lowGain != prevLowGainDB)
+    {
+        *lowShelf.state = *FilterCoeffs::makeLowShelf (
+            currentSampleRate, 200.0f, 0.707f,
+            juce::Decibels::decibelsToGain (lowGain));
+        prevLowGainDB = lowGain;
+    }
+
+    if (midGain != prevMidGainDB || midFreq != prevMidFreqHz)
+    {
+        *midPeak.state = *FilterCoeffs::makePeakFilter (
+            currentSampleRate, midFreq, 1.0f,
+            juce::Decibels::decibelsToGain (midGain));
+        prevMidGainDB = midGain;
+        prevMidFreqHz = midFreq;
+    }
+
+    if (highGain != prevHighGainDB)
+    {
+        *highShelf.state = *FilterCoeffs::makeHighShelf (
+            currentSampleRate, 8000.0f, 0.707f,
+            juce::Decibels::decibelsToGain (highGain));
+        prevHighGainDB = highGain;
+    }
 
     juce::dsp::ProcessContextReplacing<float> context (block);
     lowShelf.process (context);

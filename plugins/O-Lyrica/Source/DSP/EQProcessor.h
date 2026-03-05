@@ -42,4 +42,10 @@ private:
     std::atomic<float> targetMidGainDB { 0.0f };
     std::atomic<float> targetMidFreqHz { 1000.0f };
     std::atomic<float> targetHighGainDB { 0.0f };
+
+    // Dirty-flag: previous values for coefficient caching
+    float prevLowGainDB = -999.0f;
+    float prevMidGainDB = -999.0f;
+    float prevMidFreqHz = -999.0f;
+    float prevHighGainDB = -999.0f;
 };

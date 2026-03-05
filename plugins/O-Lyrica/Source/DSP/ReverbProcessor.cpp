@@ -43,22 +43,32 @@ void ReverbProcessor::setMix (float mix)      { targetMix.store (mix, std::memor
 
 void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
 {
-    // Read atomic targets and apply on the audio thread
+    // Read atomic targets and apply only when changed
     float size = targetSize.load (std::memory_order_relaxed);
     float damping = targetDamping.load (std::memory_order_relaxed);
     float predelayMs = targetPredelayMs.load (std::memory_order_relaxed);
     float mix = targetMix.load (std::memory_order_relaxed);
 
-    juce::Reverb::Parameters reverbParams;
-    reverbParams.roomSize = size;
-    reverbParams.damping = damping;
-    reverbParams.wetLevel = 1.0f;
-    reverbParams.dryLevel = 0.0f;
-    reverbParams.width = 1.0f;
-    reverb.setParameters (reverbParams);
+    if (size != prevSize || damping != prevDamping)
+    {
+        juce::Reverb::Parameters reverbParams;
+        reverbParams.roomSize = size;
+        reverbParams.damping = damping;
+        reverbParams.wetLevel = 1.0f;
+        reverbParams.dryLevel = 0.0f;
+        reverbParams.width = 1.0f;
+        reverb.setParameters (reverbParams);
+        prevSize = size;
+        prevDamping = damping;
+    }
 
     float preDelaySamples = predelayMs * 0.001f * currentSampleRate;
-    dryWetMixer.setWetMixProportion (mix);
+
+    if (mix != prevMix)
+    {
+        dryWetMixer.setWetMixProportion (mix);
+        prevMix = mix;
+    }
 
     dryWetMixer.pushDrySamples (block);
 

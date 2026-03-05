@@ -39,4 +39,9 @@ private:
     std::atomic<float> targetDamping { 0.5f };
     std::atomic<float> targetPredelayMs { 0.0f };
     std::atomic<float> targetMix { 0.0f };
+
+    // Dirty-flag: previous values for parameter caching
+    float prevSize = -999.0f;
+    float prevDamping = -999.0f;
+    float prevMix = -999.0f;
 };

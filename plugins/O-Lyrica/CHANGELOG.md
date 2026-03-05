@@ -2,6 +2,13 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.32.4] - 2026-03-05
+
+### Changed
+
+- Added dirty-flag coefficient caching to `EQProcessor::process()` — `makeLowShelf`, `makePeakFilter`, and `makeHighShelf` coefficients are now only recomputed when their corresponding parameters actually change, skipping redundant coefficient rebuilds every block
+- Added dirty-flag parameter caching to `ReverbProcessor::process()` — `Reverb::Parameters` struct is now only constructed and applied when `size` or `damping` changes; `dryWetMixer` mix proportion is only set when `mix` changes
+
 ## [1.32.3] - 2026-03-04
 
 ### Changed
