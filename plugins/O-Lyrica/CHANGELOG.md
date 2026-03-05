@@ -2,6 +2,12 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.32.1] - 2026-03-04
+
+### Changed
+
+- Extracted duplicated `kSyncBeats` and `intervalSemitones` arrays from `HarpSynthVoice::startNote()` to file-scope `static constexpr` declarations (`kSyncBeats`, `kIntervalSemitones`). Each was defined identically in multiple places inside the function; now a single definition at file scope.
+
 ## [1.32.0] - 2026-03-04
 
 ### Added

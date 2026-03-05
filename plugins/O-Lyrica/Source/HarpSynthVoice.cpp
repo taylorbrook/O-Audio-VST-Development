@@ -14,6 +14,16 @@
 // v1.3.2: Static atomic counter for guaranteed unique voice IDs
 std::atomic<int> HarpSynthVoice::nextVoiceId{0};
 
+// v1.32.1: File-scope lookup tables (previously duplicated inside startNote)
+static constexpr int kIntervalSemitones[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 24, 30, 36 };
+
+// Beat multipliers: index 1=1/32, 2=1/16, 3=1/16D, 4=1/8T, 5=1/8, 6=1/8D,
+// 7=1/4T, 8=1/4, 9=1/4D, 10=1/2, 11=1/2D, 12=1Bar, 13=2Bars, 14=4Bars
+static constexpr double kSyncBeats[] = {
+    0.0, 0.125, 0.25, 0.375, 1.0/3.0, 0.5, 0.75,
+    2.0/3.0, 1.0, 1.5, 2.0, 3.0, 4.0, 8.0, 16.0
+};
+
 HarpSynthVoice::HarpSynthVoice()
 {
     // v1.3.2: Generate unique voice ID using atomic counter (replaces pointer-based ID)
@@ -188,9 +198,6 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         GlissandoMode glissandoMode = glissandoModeFromIndex(modeIndex);
         glissandoController.setMode(glissandoMode);
 
-        // Helper: interval semitone lookup
-        static const int intervalSemitones[] = { 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 19, 24, 30, 36 };
-
         // Scale-Locked mode: get scale from tuning engine, use existing glissando* params
         if (glissandoMode == GlissandoMode::ScaleLocked && tuningEngine != nullptr)
         {
@@ -201,7 +208,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             if (intervalIndex >= 16) // Custom
                 semitones = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
             else
-                semitones = intervalSemitones[intervalIndex];
+                semitones = kIntervalSemitones[intervalIndex];
 
             // Fetch scale frequencies covering the full gliss range
             int scaleStart = midiNoteNumber - semitones - 1;
@@ -276,12 +283,6 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             int scaleTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("scaleTempoSync")->load());
             if (scaleTempoSyncIdx > 0 && hostBpmPtr != nullptr)
             {
-                // Beat multipliers: index 1=1/32, 2=1/16, 3=1/16D, 4=1/8T, 5=1/8, 6=1/8D,
-                // 7=1/4T, 8=1/4, 9=1/4D, 10=1/2, 11=1/2D, 12=1Bar, 13=2Bars, 14=4Bars
-                static constexpr double kSyncBeats[] = {
-                    0.0, 0.125, 0.25, 0.375, 1.0/3.0, 0.5, 0.75,
-                    2.0/3.0, 1.0, 1.5, 2.0, 3.0, 4.0, 8.0, 16.0
-                };
                 double bpm = hostBpmPtr->load(std::memory_order_acquire);
                 double beatsPerSec = bpm / 60.0;
                 double divBeats = kSyncBeats[scaleTempoSyncIdx];
@@ -292,7 +293,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
                 if (intervalIdx >= 16)
                     semitonesEst = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
                 else
-                    semitonesEst = intervalSemitones[intervalIdx];
+                    semitonesEst = kIntervalSemitones[intervalIdx];
                 // Rough step count estimate (scale-locked steps vary, but semitones is a decent proxy)
                 float stepsEst = juce::jmax(1.0f, static_cast<float>(semitonesEst));
                 float notesPerSec = static_cast<float>(stepsEst / totalDurationSec);
@@ -331,10 +332,6 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             int freeTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("freeTempoSync")->load());
             if (freeTempoSyncIdx > 0 && hostBpmPtr != nullptr)
             {
-                static constexpr double kSyncBeats[] = {
-                    0.0, 0.125, 0.25, 0.375, 1.0/3.0, 0.5, 0.75,
-                    2.0/3.0, 1.0, 1.5, 2.0, 3.0, 4.0, 8.0, 16.0
-                };
                 double bpm = hostBpmPtr->load(std::memory_order_acquire);
                 double beatsPerSec = bpm / 60.0;
                 float rampSeconds = static_cast<float>(kSyncBeats[freeTempoSyncIdx] / beatsPerSec);
@@ -357,7 +354,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
             if (intervalIndex >= 16) // Custom
                 semitones = static_cast<int>(parameters->getRawParameterValue("freeCustomSemitones")->load());
             else
-                semitones = intervalSemitones[intervalIndex];
+                semitones = kIntervalSemitones[intervalIndex];
 
             double startFreq;
             if (directionIndex == 0)
