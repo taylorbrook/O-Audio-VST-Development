@@ -53,6 +53,70 @@ private:
     // Modulation matrix (per-voice for per-sample evaluation)
     ModulationMatrix modMatrix;
 
+    // ─── Cached APVTS parameter pointers (set once in setAPVTS) ─────
+    // Glide
+    std::atomic<float>* pGlideMode = nullptr;
+    std::atomic<float>* pGlideTime = nullptr;
+    // Osc A
+    std::atomic<float>* pOscACoarse = nullptr;
+    std::atomic<float>* pOscAFine = nullptr;
+    std::atomic<float>* pOscAUnison = nullptr;
+    std::atomic<float>* pOscADetune = nullptr;
+    std::atomic<float>* pOscAWidth = nullptr;
+    std::atomic<float>* pOscAPos = nullptr;
+    std::atomic<float>* pOscALevel = nullptr;
+    std::atomic<float>* pOscAPan = nullptr;
+    // Osc B
+    std::atomic<float>* pOscBCoarse = nullptr;
+    std::atomic<float>* pOscBFine = nullptr;
+    std::atomic<float>* pOscBUnison = nullptr;
+    std::atomic<float>* pOscBDetune = nullptr;
+    std::atomic<float>* pOscBWidth = nullptr;
+    std::atomic<float>* pOscBPos = nullptr;
+    std::atomic<float>* pOscBLevel = nullptr;
+    std::atomic<float>* pOscBPan = nullptr;
+    // Osc mix
+    std::atomic<float>* pOscMix = nullptr;
+    // Sub & Noise
+    std::atomic<float>* pSubShape = nullptr;
+    std::atomic<float>* pSubOctave = nullptr;
+    std::atomic<float>* pSubLevel = nullptr;
+    std::atomic<float>* pNoiseType = nullptr;
+    std::atomic<float>* pNoiseLevel = nullptr;
+    // Filter A
+    std::atomic<float>* pFiltAType = nullptr;
+    std::atomic<float>* pFiltACutoff = nullptr;
+    std::atomic<float>* pFiltARes = nullptr;
+    std::atomic<float>* pFiltADrive = nullptr;
+    std::atomic<float>* pFiltAKeyTrack = nullptr;
+    // Filter B
+    std::atomic<float>* pFiltBType = nullptr;
+    std::atomic<float>* pFiltBCutoff = nullptr;
+    std::atomic<float>* pFiltBRes = nullptr;
+    std::atomic<float>* pFiltBDrive = nullptr;
+    std::atomic<float>* pFiltBKeyTrack = nullptr;
+    // Filter routing
+    std::atomic<float>* pFiltRouting = nullptr;
+    std::atomic<float>* pFiltEnvDepth = nullptr;
+    // Envelopes
+    std::atomic<float>* pAmpAttack = nullptr;
+    std::atomic<float>* pAmpDecay = nullptr;
+    std::atomic<float>* pAmpSustain = nullptr;
+    std::atomic<float>* pAmpRelease = nullptr;
+    std::atomic<float>* pFiltAttack = nullptr;
+    std::atomic<float>* pFiltDecay = nullptr;
+    std::atomic<float>* pFiltSustain = nullptr;
+    std::atomic<float>* pFiltRelease = nullptr;
+    // LFOs
+    std::atomic<float>* pLfo1Rate = nullptr;
+    std::atomic<float>* pLfo1Shape = nullptr;
+    std::atomic<float>* pLfo2Rate = nullptr;
+    std::atomic<float>* pLfo2Shape = nullptr;
+    std::atomic<float>* pLfo3Rate = nullptr;
+    std::atomic<float>* pLfo3Shape = nullptr;
+    std::atomic<float>* pLfo4Rate = nullptr;
+    std::atomic<float>* pLfo4Shape = nullptr;
+
     double currentFrequency = 0.0;
     float noteVelocity = 0.0f;
     int currentMidiNote = -1;

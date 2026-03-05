@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.2.2 (2026-03-05)
+
+### Changed
+- **Cached PrismVoice APVTS pointers**: Cache all 50 `std::atomic<float>*` parameter pointers once in `setAPVTS()` instead of performing string-based hash map lookups via `getRawParameterValue()` every audio block. `renderNextBlock()` (44 reads) and `startNote()` (24 reads) now do direct atomic loads. At 8 voices, eliminates ~352 hash map lookups per block.
+
 ## v1.2.1 (2026-03-05)
 
 ### Fixed

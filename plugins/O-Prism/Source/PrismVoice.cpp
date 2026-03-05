@@ -20,6 +20,73 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 {
     parameters = apvts;
     modMatrix.setAPVTS (apvts);
+
+    if (apvts == nullptr)
+        return;
+
+    // Cache all parameter pointers once — eliminates hash map lookups in audio path
+    pGlideMode     = apvts->getRawParameterValue ("glideMode");
+    pGlideTime     = apvts->getRawParameterValue ("glideTime");
+
+    pOscACoarse    = apvts->getRawParameterValue ("oscACoarse");
+    pOscAFine      = apvts->getRawParameterValue ("oscAFine");
+    pOscAUnison    = apvts->getRawParameterValue ("oscAUnison");
+    pOscADetune    = apvts->getRawParameterValue ("oscADetune");
+    pOscAWidth     = apvts->getRawParameterValue ("oscAWidth");
+    pOscAPos       = apvts->getRawParameterValue ("oscAPos");
+    pOscALevel     = apvts->getRawParameterValue ("oscALevel");
+    pOscAPan       = apvts->getRawParameterValue ("oscAPan");
+
+    pOscBCoarse    = apvts->getRawParameterValue ("oscBCoarse");
+    pOscBFine      = apvts->getRawParameterValue ("oscBFine");
+    pOscBUnison    = apvts->getRawParameterValue ("oscBUnison");
+    pOscBDetune    = apvts->getRawParameterValue ("oscBDetune");
+    pOscBWidth     = apvts->getRawParameterValue ("oscBWidth");
+    pOscBPos       = apvts->getRawParameterValue ("oscBPos");
+    pOscBLevel     = apvts->getRawParameterValue ("oscBLevel");
+    pOscBPan       = apvts->getRawParameterValue ("oscBPan");
+
+    pOscMix        = apvts->getRawParameterValue ("oscMix");
+
+    pSubShape      = apvts->getRawParameterValue ("subShape");
+    pSubOctave     = apvts->getRawParameterValue ("subOctave");
+    pSubLevel      = apvts->getRawParameterValue ("subLevel");
+    pNoiseType     = apvts->getRawParameterValue ("noiseType");
+    pNoiseLevel    = apvts->getRawParameterValue ("noiseLevel");
+
+    pFiltAType     = apvts->getRawParameterValue ("filtAType");
+    pFiltACutoff   = apvts->getRawParameterValue ("filtACutoff");
+    pFiltARes      = apvts->getRawParameterValue ("filtARes");
+    pFiltADrive    = apvts->getRawParameterValue ("filtADrive");
+    pFiltAKeyTrack = apvts->getRawParameterValue ("filtAKeyTrack");
+
+    pFiltBType     = apvts->getRawParameterValue ("filtBType");
+    pFiltBCutoff   = apvts->getRawParameterValue ("filtBCutoff");
+    pFiltBRes      = apvts->getRawParameterValue ("filtBRes");
+    pFiltBDrive    = apvts->getRawParameterValue ("filtBDrive");
+    pFiltBKeyTrack = apvts->getRawParameterValue ("filtBKeyTrack");
+
+    pFiltRouting   = apvts->getRawParameterValue ("filtRouting");
+    pFiltEnvDepth  = apvts->getRawParameterValue ("filtEnvDepth");
+
+    pAmpAttack     = apvts->getRawParameterValue ("ampAttack");
+    pAmpDecay      = apvts->getRawParameterValue ("ampDecay");
+    pAmpSustain    = apvts->getRawParameterValue ("ampSustain");
+    pAmpRelease    = apvts->getRawParameterValue ("ampRelease");
+
+    pFiltAttack    = apvts->getRawParameterValue ("filtAttack");
+    pFiltDecay     = apvts->getRawParameterValue ("filtDecay");
+    pFiltSustain   = apvts->getRawParameterValue ("filtSustain");
+    pFiltRelease   = apvts->getRawParameterValue ("filtRelease");
+
+    pLfo1Rate      = apvts->getRawParameterValue ("lfo1Rate");
+    pLfo1Shape     = apvts->getRawParameterValue ("lfo1Shape");
+    pLfo2Rate      = apvts->getRawParameterValue ("lfo2Rate");
+    pLfo2Shape     = apvts->getRawParameterValue ("lfo2Shape");
+    pLfo3Rate      = apvts->getRawParameterValue ("lfo3Rate");
+    pLfo3Shape     = apvts->getRawParameterValue ("lfo3Shape");
+    pLfo4Rate      = apvts->getRawParameterValue ("lfo4Rate");
+    pLfo4Shape     = apvts->getRawParameterValue ("lfo4Shape");
 }
 
 void PrismVoice::setTuningEngine (TuningEngine* engine)
@@ -85,23 +152,23 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
         return;
 
     // Glide
-    int glideMode = static_cast<int> (parameters->getRawParameterValue ("glideMode")->load());
-    float glideTime = parameters->getRawParameterValue ("glideTime")->load();
+    int glideMode = static_cast<int> (pGlideMode->load());
+    float glideTime = pGlideTime->load();
     glide.setMode (glideMode);
     glide.setTime (static_cast<double> (glideTime));
     glide.setWasActive (wasActive);
     glide.setTarget (currentFrequency);
 
     // Osc A: apply coarse/fine tuning
-    int coarseA = static_cast<int> (parameters->getRawParameterValue ("oscACoarse")->load());
-    float fineA = parameters->getRawParameterValue ("oscAFine")->load();
+    int coarseA = static_cast<int> (pOscACoarse->load());
+    float fineA = pOscAFine->load();
     double freqA = currentFrequency * std::pow (2.0, (coarseA + fineA / 100.0) / 12.0);
     oscA.setFrequency (freqA);
 
     // Osc A unison
-    int unisonA = static_cast<int> (parameters->getRawParameterValue ("oscAUnison")->load());
-    float detuneA = parameters->getRawParameterValue ("oscADetune")->load();
-    float widthA = parameters->getRawParameterValue ("oscAWidth")->load();
+    int unisonA = static_cast<int> (pOscAUnison->load());
+    float detuneA = pOscADetune->load();
+    float widthA = pOscAWidth->load();
     oscA.setUnison (unisonA, detuneA, widthA);
 
     if (! wasActive || glideMode == 0)
@@ -110,15 +177,15 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     }
 
     // Osc B: apply coarse/fine tuning
-    int coarseB = static_cast<int> (parameters->getRawParameterValue ("oscBCoarse")->load());
-    float fineB = parameters->getRawParameterValue ("oscBFine")->load();
+    int coarseB = static_cast<int> (pOscBCoarse->load());
+    float fineB = pOscBFine->load();
     double freqB = currentFrequency * std::pow (2.0, (coarseB + fineB / 100.0) / 12.0);
     oscB.setFrequency (freqB);
 
     // Osc B unison
-    int unisonB = static_cast<int> (parameters->getRawParameterValue ("oscBUnison")->load());
-    float detuneB = parameters->getRawParameterValue ("oscBDetune")->load();
-    float widthB = parameters->getRawParameterValue ("oscBWidth")->load();
+    int unisonB = static_cast<int> (pOscBUnison->load());
+    float detuneB = pOscBDetune->load();
+    float widthB = pOscBWidth->load();
     oscB.setUnison (unisonB, detuneB, widthB);
 
     if (! wasActive || glideMode == 0)
@@ -127,8 +194,8 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     }
 
     // Sub oscillator
-    int subShape = static_cast<int> (parameters->getRawParameterValue ("subShape")->load());
-    int subOctaveIndex = static_cast<int> (parameters->getRawParameterValue ("subOctave")->load());
+    int subShape = static_cast<int> (pSubShape->load());
+    int subOctaveIndex = static_cast<int> (pSubOctave->load());
     int subOctave = -(subOctaveIndex + 1); // index 0=-1, 1=-2, 2=-3, 3=-4
     subOsc.setShape (subShape);
     subOsc.setOctave (subOctave);
@@ -136,7 +203,7 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     subOsc.reset();
 
     // Noise
-    int noiseType = static_cast<int> (parameters->getRawParameterValue ("noiseType")->load());
+    int noiseType = static_cast<int> (pNoiseType->load());
     noiseGen.setType (noiseType);
     noiseGen.reset();
 
@@ -153,18 +220,18 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     lfo4.reset();
 
     // Amplitude ADSR
-    float attack = parameters->getRawParameterValue ("ampAttack")->load();
-    float decay = parameters->getRawParameterValue ("ampDecay")->load();
-    float sustain = parameters->getRawParameterValue ("ampSustain")->load();
-    float release = parameters->getRawParameterValue ("ampRelease")->load();
+    float attack = pAmpAttack->load();
+    float decay = pAmpDecay->load();
+    float sustain = pAmpSustain->load();
+    float release = pAmpRelease->load();
     ampEnvelope.setParameters ({ attack, decay, sustain, release });
     ampEnvelope.noteOn();
 
     // Filter ADSR
-    float fAttack = parameters->getRawParameterValue ("filtAttack")->load();
-    float fDecay = parameters->getRawParameterValue ("filtDecay")->load();
-    float fSustain = parameters->getRawParameterValue ("filtSustain")->load();
-    float fRelease = parameters->getRawParameterValue ("filtRelease")->load();
+    float fAttack = pFiltAttack->load();
+    float fDecay = pFiltDecay->load();
+    float fSustain = pFiltSustain->load();
+    float fRelease = pFiltRelease->load();
     filterEnvelope.setParameters ({ fAttack, fDecay, fSustain, fRelease });
     filterEnvelope.noteOn();
 }
@@ -190,51 +257,51 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     if (parameters == nullptr || ! ampEnvelope.isActive())
         return;
 
-    // ─── Read per-block parameters ───────────────────────────────
-    float oscAPos = parameters->getRawParameterValue ("oscAPos")->load();
-    float oscALevel = parameters->getRawParameterValue ("oscALevel")->load();
-    float oscAPan = parameters->getRawParameterValue ("oscAPan")->load();
-    float oscBPos = parameters->getRawParameterValue ("oscBPos")->load();
-    float oscBLevel = parameters->getRawParameterValue ("oscBLevel")->load();
-    float oscBPan = parameters->getRawParameterValue ("oscBPan")->load();
-    float oscMix = parameters->getRawParameterValue ("oscMix")->load();
+    // ─── Read per-block parameters (via cached pointers) ──────────
+    float oscAPos = pOscAPos->load();
+    float oscALevel = pOscALevel->load();
+    float oscAPan = pOscAPan->load();
+    float oscBPos = pOscBPos->load();
+    float oscBLevel = pOscBLevel->load();
+    float oscBPan = pOscBPan->load();
+    float oscMix = pOscMix->load();
 
-    float subLevel = parameters->getRawParameterValue ("subLevel")->load();
-    float noiseLevel = parameters->getRawParameterValue ("noiseLevel")->load();
+    float subLevel = pSubLevel->load();
+    float noiseLevel = pNoiseLevel->load();
 
     // Oscillator coarse/fine tuning (integer/float params — don't change per-sample)
-    int coarseA = static_cast<int> (parameters->getRawParameterValue ("oscACoarse")->load());
-    float fineA = parameters->getRawParameterValue ("oscAFine")->load();
-    int coarseB = static_cast<int> (parameters->getRawParameterValue ("oscBCoarse")->load());
-    float fineB = parameters->getRawParameterValue ("oscBFine")->load();
+    int coarseA = static_cast<int> (pOscACoarse->load());
+    float fineA = pOscAFine->load();
+    int coarseB = static_cast<int> (pOscBCoarse->load());
+    float fineB = pOscBFine->load();
     double pitchRatioA = std::pow (2.0, (coarseA + fineA / 100.0) / 12.0);
     double pitchRatioB = std::pow (2.0, (coarseB + fineB / 100.0) / 12.0);
 
     // Filter parameters
-    int filtAType = static_cast<int> (parameters->getRawParameterValue ("filtAType")->load());
-    float filtACutoff = parameters->getRawParameterValue ("filtACutoff")->load();
-    float filtARes = parameters->getRawParameterValue ("filtARes")->load();
-    float filtADrive = parameters->getRawParameterValue ("filtADrive")->load();
-    float filtAKeyTrack = parameters->getRawParameterValue ("filtAKeyTrack")->load();
+    int filtAType = static_cast<int> (pFiltAType->load());
+    float filtACutoff = pFiltACutoff->load();
+    float filtARes = pFiltARes->load();
+    float filtADrive = pFiltADrive->load();
+    float filtAKeyTrack = pFiltAKeyTrack->load();
 
-    int filtBType = static_cast<int> (parameters->getRawParameterValue ("filtBType")->load());
-    float filtBCutoff = parameters->getRawParameterValue ("filtBCutoff")->load();
-    float filtBRes = parameters->getRawParameterValue ("filtBRes")->load();
-    float filtBDrive = parameters->getRawParameterValue ("filtBDrive")->load();
-    float filtBKeyTrack = parameters->getRawParameterValue ("filtBKeyTrack")->load();
+    int filtBType = static_cast<int> (pFiltBType->load());
+    float filtBCutoff = pFiltBCutoff->load();
+    float filtBRes = pFiltBRes->load();
+    float filtBDrive = pFiltBDrive->load();
+    float filtBKeyTrack = pFiltBKeyTrack->load();
 
-    int filtRouting = static_cast<int> (parameters->getRawParameterValue ("filtRouting")->load());
-    float filtEnvDepth = parameters->getRawParameterValue ("filtEnvDepth")->load();
+    int filtRouting = static_cast<int> (pFiltRouting->load());
+    float filtEnvDepth = pFiltEnvDepth->load();
 
     // LFO parameters (rate + shape only — routing via mod matrix)
-    float lfo1Rate = parameters->getRawParameterValue ("lfo1Rate")->load();
-    int lfo1Shape = static_cast<int> (parameters->getRawParameterValue ("lfo1Shape")->load());
-    float lfo2Rate = parameters->getRawParameterValue ("lfo2Rate")->load();
-    int lfo2Shape = static_cast<int> (parameters->getRawParameterValue ("lfo2Shape")->load());
-    float lfo3Rate = parameters->getRawParameterValue ("lfo3Rate")->load();
-    int lfo3Shape = static_cast<int> (parameters->getRawParameterValue ("lfo3Shape")->load());
-    float lfo4Rate = parameters->getRawParameterValue ("lfo4Rate")->load();
-    int lfo4Shape = static_cast<int> (parameters->getRawParameterValue ("lfo4Shape")->load());
+    float lfo1Rate = pLfo1Rate->load();
+    int lfo1Shape = static_cast<int> (pLfo1Shape->load());
+    float lfo2Rate = pLfo2Rate->load();
+    int lfo2Shape = static_cast<int> (pLfo2Shape->load());
+    float lfo3Rate = pLfo3Rate->load();
+    int lfo3Shape = static_cast<int> (pLfo3Shape->load());
+    float lfo4Rate = pLfo4Rate->load();
+    int lfo4Shape = static_cast<int> (pLfo4Shape->load());
 
     // Configure LFOs
     lfo1.setRate (lfo1Rate);
