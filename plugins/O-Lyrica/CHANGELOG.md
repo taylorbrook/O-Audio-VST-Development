@@ -2,6 +2,19 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.32.6] - 2026-03-05
+
+### Fixed
+
+- Fixed data race in `BodyResonance`: `setBodyParameters()` and `setModeSpread()` were calling `updateFilterCoefficients()` on the message thread, mutating `bodyModes[i].coefficients` while `process()` reads them on the audio thread — applied the same atomic pending-flag pattern used in `WaveguideString` (pending atomics + `applyPendingFilterUpdates()` called at start of `process()`)
+- Made `bodyAmount` `std::atomic<float>` since it's written from message thread and read in `process()`
+
+## [1.32.5] - 2026-03-05
+
+### Changed
+
+- Eliminated per-sample `findSlotForVoice()` linear scan in `SympatheticResonanceEngine::computeSympatheticContribution()` — `registerVoice()` now returns the slot index, which the voice caches and passes directly, removing 16-slot linear search on every sample
+
 ## [1.32.4] - 2026-03-05
 
 ### Changed

@@ -49,42 +49,46 @@ void BodyResonance::prepare(double sampleRate, int maxBlockSize)
 
 void BodyResonance::setBodyParameters(float size, WoodType type, float amount)
 {
+    // v1.32.6: Thread-safe — store parameters atomically for deferred application on audio thread
+    bodyAmount.store(juce::jlimit(0.0f, 1.0f, amount), std::memory_order_relaxed);
+
+    float clampedSize = juce::jlimit(0.0f, 1.0f, size);
     bool needsUpdate = false;
 
-    if (std::abs(bodySize - size) > 0.001f)
+    if (std::abs(pendingBodySize.load(std::memory_order_relaxed) - clampedSize) > 0.001f)
     {
-        bodySize = juce::jlimit(0.0f, 1.0f, size);
+        pendingBodySize.store(clampedSize, std::memory_order_relaxed);
         needsUpdate = true;
     }
 
-    if (currentWoodType != type)
+    if (static_cast<WoodType>(pendingWoodType.load(std::memory_order_relaxed)) != type)
     {
-        currentWoodType = type;
+        pendingWoodType.store(static_cast<int>(type), std::memory_order_relaxed);
         needsUpdate = true;
     }
-
-    bodyAmount = juce::jlimit(0.0f, 1.0f, amount);
 
     if (needsUpdate)
-        updateFilterCoefficients();
+        filterUpdatePending.store(true, std::memory_order_release);
 }
 
 void BodyResonance::setModeSpread(float spread)
 {
+    // v1.32.6: Thread-safe — store atomically for deferred application on audio thread
     float newSpread = juce::jlimit(-1.0f, 1.0f, spread);
 
-    // Only update if spread changed significantly
-    if (std::abs(newSpread - modeSpread) < 0.01f)
+    if (std::abs(newSpread - pendingModeSpread.load(std::memory_order_relaxed)) < 0.01f)
         return;
 
-    modeSpread = newSpread;
-    updateFilterCoefficients();
+    pendingModeSpread.store(newSpread, std::memory_order_relaxed);
+    filterUpdatePending.store(true, std::memory_order_release);
 }
 
 float BodyResonance::process(float input)
 {
+    // v1.32.6: Apply any pending coefficient updates on the audio thread
+    applyPendingFilterUpdates();
+
     // OPTIMIZED: Unrolled 5-mode filter bank (no loop overhead)
-    // Each mode is a bandpass filter at a body resonance frequency
     float resonantOutput =
         bodyModes[0].processSample(input) * modeAmplitudes[0] +
         bodyModes[1].processSample(input) * modeAmplitudes[1] +
@@ -92,9 +96,24 @@ float BodyResonance::process(float input)
         bodyModes[3].processSample(input) * modeAmplitudes[3] +
         bodyModes[4].processSample(input) * modeAmplitudes[4];
 
-    // Mix dry/wet - v1.1.5: Increased wet mix for audible effect
-    float dryAmount = 1.0f - (bodyAmount * MAX_DRY_REDUCTION);
-    return input * dryAmount + resonantOutput * (WET_GAIN_MULTIPLIER * bodyAmount);
+    float currentAmount = bodyAmount.load(std::memory_order_relaxed);
+    float dryAmount = 1.0f - (currentAmount * MAX_DRY_REDUCTION);
+    return input * dryAmount + resonantOutput * (WET_GAIN_MULTIPLIER * currentAmount);
+}
+
+void BodyResonance::applyPendingFilterUpdates()
+{
+    // v1.32.6: Apply coefficient updates on audio thread (called from process())
+    if (filterUpdatePending.load(std::memory_order_acquire))
+    {
+        bodySize = pendingBodySize.load(std::memory_order_relaxed);
+        currentWoodType = static_cast<WoodType>(pendingWoodType.load(std::memory_order_relaxed));
+        modeSpread = pendingModeSpread.load(std::memory_order_relaxed);
+
+        updateFilterCoefficients();
+
+        filterUpdatePending.store(false, std::memory_order_relaxed);
+    }
 }
 
 void BodyResonance::reset()

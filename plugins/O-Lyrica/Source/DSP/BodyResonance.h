@@ -14,6 +14,7 @@
 
 #include <JuceHeader.h>
 #include <array>
+#include <atomic>
 
 enum class WoodType
 {
@@ -100,10 +101,22 @@ private:
     std::array<float, NUM_MODES> modeAmplitudes;
 
     double currentSampleRate = 44100.0;
-    float bodyAmount = 0.6f;
+    std::atomic<float> bodyAmount { 0.6f };  // Atomic: read in process(), written from message thread
     float bodySize = 0.5f;
-    float modeSpread = 0.0f;  // v1.3.0: Mode frequency spread (-1 to +1)
+    float modeSpread = 0.0f;
     WoodType currentWoodType = WoodType::Spruce;
+
+    // v1.32.6: Thread-safe filter coefficient updates
+    // Parameters stored atomically from message thread, applied on audio thread
+    std::atomic<bool> filterUpdatePending { false };
+    std::atomic<float> pendingBodySize { 0.5f };
+    std::atomic<int> pendingWoodType { static_cast<int>(WoodType::Spruce) };
+    std::atomic<float> pendingModeSpread { 0.0f };
+
+    /**
+     * Apply pending filter coefficient updates on audio thread
+     */
+    void applyPendingFilterUpdates();
 
     /**
      * Update filter coefficients based on current parameters
