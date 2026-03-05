@@ -12,8 +12,7 @@
 #include "PrismSound.h"
 #include "TuningEngine.h"
 #include "PluginProcessor.h"
-
-static constexpr double kHalfPi = 1.5707963267948966;
+#include "dsp/MathConstants.h"
 
 PrismVoice::PrismVoice() = default;
 

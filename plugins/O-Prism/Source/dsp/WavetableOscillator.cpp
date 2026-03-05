@@ -9,10 +9,8 @@
 */
 
 #include "WavetableOscillator.h"
+#include "MathConstants.h"
 #include <JuceHeader.h>
-
-static constexpr double kTwoPi = 6.283185307179586;
-static constexpr double kHalfPi = 1.5707963267948966;
 
 void WavetableOscillator::prepare (double sampleRate)
 {
@@ -89,13 +87,6 @@ void WavetableOscillator::setUnison (int count, float detune, float width)
         unisonPanL[i] = std::cos (panNorm * kHalfPi);
         unisonPanR[i] = std::sin (panNorm * kHalfPi);
     }
-}
-
-int WavetableOscillator::calculateMipmapLevel() const
-{
-    double baseFreq = currentSampleRate / static_cast<double> (WavetableData::kTableSize);
-    double levelFloat = std::log2 (frequency / baseFreq);
-    return juce::jlimit (0, WavetableData::kNumMipmapLevels - 1, static_cast<int> (levelFloat));
 }
 
 double WavetableOscillator::readSample (double phase, int mipmapLevel) const

@@ -2,7 +2,7 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.4
+- **Version:** 1.1.5
 - **Type:** Synth (Microtonal Wavetable)
 
 ## Lifecycle Timeline

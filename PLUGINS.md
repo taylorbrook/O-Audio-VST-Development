@@ -48,7 +48,7 @@ Ouaricon Plugins:
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
-| O-Prism | 📦 Installed | 1.1.4 | Synth (Microtonal Wavetable) | 2026-03-04 |
+| O-Prism | 📦 Installed | 1.1.5 | Synth (Microtonal Wavetable) | 2026-03-04 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

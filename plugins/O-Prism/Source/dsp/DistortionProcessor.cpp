@@ -9,8 +9,7 @@
 */
 
 #include "DistortionProcessor.h"
-
-static constexpr float kPi = 3.14159265358979323846f;
+#include "MathConstants.h"
 
 DistortionProcessor::DistortionProcessor()
     : oversampling (2, 1, // 2 channels, 2^1 = 2x oversampling
@@ -74,7 +73,7 @@ void DistortionProcessor::applyDistortion (juce::dsp::AudioBlock<float>& block)
                         data[i] = std::tanh (x * 1.5f) / 1.5f;
                     break;
                 case 3: // Fold
-                    data[i] = std::sin (x * kPi);
+                    data[i] = static_cast<float> (std::sin (x * kPi));
                     break;
             }
         }

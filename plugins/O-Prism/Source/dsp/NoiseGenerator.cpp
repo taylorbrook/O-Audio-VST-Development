@@ -9,9 +9,8 @@
 */
 
 #include "NoiseGenerator.h"
+#include "MathConstants.h"
 #include <cmath>
-
-static constexpr double kTwoPi = 6.283185307179586;
 
 void NoiseGenerator::prepare (double sampleRate)
 {

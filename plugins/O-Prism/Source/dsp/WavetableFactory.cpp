@@ -11,12 +11,10 @@
 */
 
 #include "WavetableFactory.h"
+#include "MathConstants.h"
 #include <cmath>
 #include <random>
 #include <algorithm>
-
-static constexpr double kTwoPi = 6.283185307179586;
-static constexpr double kPi    = 3.141592653589793;
 
 // ═══════════════════════════════════════════════════════════════════
 // Helpers

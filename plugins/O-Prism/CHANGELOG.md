@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.1.5 (2026-03-04)
+
+### Changed
+- **Shared math constants**: Consolidated `kPi`, `kTwoPi`, `kHalfPi` definitions from 8 source files into a single `dsp/MathConstants.h` header. Removed 10 duplicate `static constexpr` locals across WavetableOscillator, SubOscillator, NoiseGenerator, DistortionProcessor, PrismVoice, SVFFilter, WavetableFactory, and WavetableGenerator.
+
 ## v1.1.4 (2026-03-04)
 
 ### Removed

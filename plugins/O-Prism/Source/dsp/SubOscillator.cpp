@@ -9,8 +9,7 @@
 */
 
 #include "SubOscillator.h"
-
-static constexpr double kTwoPi = 6.283185307179586;
+#include "MathConstants.h"
 
 void SubOscillator::prepare (double sampleRate)
 {

@@ -9,9 +9,8 @@
 */
 
 #include "SVFFilter.h"
+#include "MathConstants.h"
 #include <algorithm>
-
-static constexpr double kPi = 3.141592653589793;
 
 void SVFFilter::prepare (double sampleRate)
 {

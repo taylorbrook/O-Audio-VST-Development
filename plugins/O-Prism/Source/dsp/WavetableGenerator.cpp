@@ -9,10 +9,9 @@
 */
 
 #include "WavetableGenerator.h"
+#include "MathConstants.h"
 #include <JuceHeader.h>
 #include <cmath>
-
-static constexpr double kTwoPi = 6.283185307179586;
 
 void WavetableGenerator::generateSaw (float* buffer, int size)
 {
