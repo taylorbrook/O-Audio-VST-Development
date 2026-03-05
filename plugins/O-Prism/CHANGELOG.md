@@ -1,5 +1,15 @@
 # O-Prism Changelog
 
+## v1.1.8 (2026-03-04)
+
+### Changed
+- **SVFFilter coefficient caching**: Added dirty-flag to `SVFFilter` so `updateCoefficients()` (which computes `std::tan()`) only runs when cutoff or resonance actually change. Previously `setCutoff()` and `setResonance()` each triggered a full recompute — 8 `std::tan()` calls per sample per voice. Now deferred to `processSample()` with value-change detection: 2x reduction when modulated, zero cost when static.
+
+## v1.1.7 (2026-03-04)
+
+### Removed
+- **Deprecated compatibility stubs**: Removed `connectMTSClient()` (always returned false with a DBG message) and dual-arg `loadScalaFile(File&, File&)` (ignored second argument, delegated to single-arg overload). Neither had any callers.
+
 ## v1.1.6 (2026-03-04)
 
 ### Changed

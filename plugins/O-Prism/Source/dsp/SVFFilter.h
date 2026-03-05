@@ -46,4 +46,6 @@ private:
     // Precomputed coefficients
     double g = 0.0;   // tan(pi * fc / fs)
     double R2 = 0.0;  // 2 * resonance (inverse Q mapping)
+
+    bool coeffsDirty = true;
 };

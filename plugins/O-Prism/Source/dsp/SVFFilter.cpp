@@ -16,6 +16,7 @@ void SVFFilter::prepare (double sampleRate)
 {
     currentSampleRate = sampleRate;
     updateCoefficients();
+    coeffsDirty = false;
 }
 
 void SVFFilter::reset()
@@ -31,14 +32,20 @@ void SVFFilter::setType (int type)
 
 void SVFFilter::setCutoff (double hz)
 {
-    cutoffHz = hz;
-    updateCoefficients();
+    if (cutoffHz != hz)
+    {
+        cutoffHz = hz;
+        coeffsDirty = true;
+    }
 }
 
 void SVFFilter::setResonance (double res)
 {
-    resonance = res;
-    updateCoefficients();
+    if (resonance != res)
+    {
+        resonance = res;
+        coeffsDirty = true;
+    }
 }
 
 void SVFFilter::setDrive (double drive)
@@ -50,8 +57,13 @@ void SVFFilter::setKeyTrack (double amount, int midiNote)
 {
     double keyTrackOffset = amount * (midiNote - 60);
     double tracked = cutoffHz * std::pow (2.0, keyTrackOffset / 12.0);
-    cutoffHz = std::max (20.0, std::min (20000.0, tracked));
-    updateCoefficients();
+    double newCutoff = std::max (20.0, std::min (20000.0, tracked));
+
+    if (cutoffHz != newCutoff)
+    {
+        cutoffHz = newCutoff;
+        coeffsDirty = true;
+    }
 }
 
 void SVFFilter::updateCoefficients()
@@ -99,6 +111,12 @@ double SVFFilter::processNotch (double input, double& s1, double& s2)
 
 double SVFFilter::processSample (double input)
 {
+    if (coeffsDirty)
+    {
+        updateCoefficients();
+        coeffsDirty = false;
+    }
+
     // Pre-filter drive
     if (driveAmount > 0.0)
         input = std::tanh (input * (1.0 + driveAmount * 9.0));
