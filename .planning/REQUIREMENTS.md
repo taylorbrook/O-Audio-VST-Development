@@ -1,8 +1,8 @@
 # Requirements: Plugin Freedom System v1.4
 
 **Defined:** 2026-03-05
-**Core Value:** Reliable collaborative workflow that produces professional-quality plugins — where agents execute quality work that doesn't require constant rework.
-**Source:** Quick task 14 — Full system review (SYSTEM-REVIEW.md)
+**Core Value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
+**Source:** Quick task 14 -- Full system review (SYSTEM-REVIEW.md)
 
 ## v1.4 Requirements
 
@@ -12,7 +12,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [ ] **DEAD-01**: All 10 dead `.sh` hook files are deleted (816 lines)
 - [ ] **DEAD-02**: Vestigial `hooks.json` is deleted and `settings.json` is documented as sole authoritative hook config
-- [ ] **DEAD-03**: 3 unreferenced agent definitions are removed (aesthetics-agent, dynamic-researcher, music-theory-agent — 473 lines)
+- [ ] **DEAD-03**: 3 unreferenced agent definitions are removed (aesthetics-agent, dynamic-researcher, music-theory-agent -- 473 lines)
 - [ ] **DEAD-04**: Deprecated `.claude/plugin-registry.json` is removed
 - [ ] **DEAD-05**: `__pycache__` directories are removed from tracking and added to `.gitignore`
 
@@ -30,7 +30,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Research Review
 
-- [ ] **RSCH-01**: Audit all research docs for topical coverage gaps — identify domains with missing or thin documentation
+- [ ] **RSCH-01**: Audit all research docs for topical coverage gaps -- identify domains with missing or thin documentation
 - [ ] **RSCH-02**: Create new research documents to fill identified gaps (e.g., missing DSP topics, underserved JUCE API areas, cross-platform patterns)
 - [ ] **RSCH-03**: Flag and refresh stale or outdated research documents (pre-JUCE 8 content, deprecated APIs, superseded techniques)
 
@@ -87,35 +87,35 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| DEAD-01 | — | Pending |
-| DEAD-02 | — | Pending |
-| DEAD-03 | — | Pending |
-| DEAD-04 | — | Pending |
-| DEAD-05 | — | Pending |
-| GATE-01 | — | Pending |
-| GATE-02 | — | Pending |
-| GATE-03 | — | Pending |
-| RSRC-01 | — | Pending |
-| RSRC-02 | — | Pending |
-| RSRC-03 | — | Pending |
-| RSCH-01 | — | Pending |
-| RSCH-02 | — | Pending |
-| RSCH-03 | — | Pending |
-| SKIL-01 | — | Pending |
-| SKIL-02 | — | Pending |
-| INFR-01 | — | Pending |
-| INFR-02 | — | Pending |
-| INFR-03 | — | Pending |
-| INFR-04 | — | Pending |
-| STRC-01 | — | Pending |
-| STRC-02 | — | Pending |
-| STRC-03 | — | Pending |
+| DEAD-01 | Phase 18 | Pending |
+| DEAD-02 | Phase 18 | Pending |
+| DEAD-03 | Phase 18 | Pending |
+| DEAD-04 | Phase 18 | Pending |
+| DEAD-05 | Phase 18 | Pending |
+| GATE-01 | Phase 19 | Pending |
+| GATE-02 | Phase 19 | Pending |
+| GATE-03 | Phase 19 | Pending |
+| RSRC-01 | Phase 20 | Pending |
+| RSRC-02 | Phase 20 | Pending |
+| RSRC-03 | Phase 20 | Pending |
+| RSCH-01 | Phase 20 | Pending |
+| RSCH-02 | Phase 20 | Pending |
+| RSCH-03 | Phase 20 | Pending |
+| SKIL-01 | Phase 21 | Pending |
+| SKIL-02 | Phase 21 | Pending |
+| INFR-01 | Phase 21 | Pending |
+| INFR-02 | Phase 21 | Pending |
+| INFR-03 | Phase 21 | Pending |
+| INFR-04 | Phase 21 | Pending |
+| STRC-01 | Phase 22 | Pending |
+| STRC-02 | Phase 22 | Pending |
+| STRC-03 | Phase 22 | Pending |
 
 **Coverage:**
 - v1.4 requirements: 23 total
-- Mapped to phases: 0
-- Unmapped: 23
+- Mapped to phases: 23
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-03-05*
-*Last updated: 2026-03-05 after initial definition*
+*Last updated: 2026-03-05 -- traceability updated with phase mappings*
