@@ -202,6 +202,14 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float subLevel = parameters->getRawParameterValue ("subLevel")->load();
     float noiseLevel = parameters->getRawParameterValue ("noiseLevel")->load();
 
+    // Oscillator coarse/fine tuning (integer/float params — don't change per-sample)
+    int coarseA = static_cast<int> (parameters->getRawParameterValue ("oscACoarse")->load());
+    float fineA = parameters->getRawParameterValue ("oscAFine")->load();
+    int coarseB = static_cast<int> (parameters->getRawParameterValue ("oscBCoarse")->load());
+    float fineB = parameters->getRawParameterValue ("oscBFine")->load();
+    double pitchRatioA = std::pow (2.0, (coarseA + fineA / 100.0) / 12.0);
+    double pitchRatioB = std::pow (2.0, (coarseB + fineB / 100.0) / 12.0);
+
     // Filter parameters
     int filtAType = static_cast<int> (parameters->getRawParameterValue ("filtAType")->load());
     float filtACutoff = parameters->getRawParameterValue ("filtACutoff")->load();
@@ -275,14 +283,9 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Glide frequency
         double glidedFreq = glide.getNextFrequency();
 
-        // Update oscillator frequencies with glide
-        int coarseA = static_cast<int> (parameters->getRawParameterValue ("oscACoarse")->load());
-        float fineA = parameters->getRawParameterValue ("oscAFine")->load();
-        oscA.setFrequency (glidedFreq * std::pow (2.0, (coarseA + fineA / 100.0) / 12.0));
-
-        int coarseB = static_cast<int> (parameters->getRawParameterValue ("oscBCoarse")->load());
-        float fineB = parameters->getRawParameterValue ("oscBFine")->load();
-        oscB.setFrequency (glidedFreq * std::pow (2.0, (coarseB + fineB / 100.0) / 12.0));
+        // Update oscillator frequencies with glide + precomputed pitch ratios
+        oscA.setFrequency (glidedFreq * pitchRatioA);
+        oscB.setFrequency (glidedFreq * pitchRatioB);
 
         // ─── Per-sample modulation sources ───────────────────────
         float lfo1Val = lfo1.getNextSample();  // [-1, 1]

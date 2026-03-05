@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.1.9 (2026-03-04)
+
+### Changed
+- **Per-block oscillator tuning reads**: Moved `oscACoarse`, `oscAFine`, `oscBCoarse`, `oscBFine` APVTS reads from per-sample to per-block in `PrismVoice::renderNextBlock`. Precompute pitch ratios (`std::pow`) once per block instead of every sample — eliminates 4 atomic loads and 2 `std::pow` calls per sample per voice.
+
 ## v1.1.8 (2026-03-04)
 
 ### Changed
