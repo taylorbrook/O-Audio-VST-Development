@@ -139,5 +139,10 @@ private:
      */
     float applyHumanization(float baseValue, float maxOffset, float humanizeAmount);
 
+    // v1.32.3: Extracted from startNote() for readability
+    void setupScaleLockedGlissando(int midiNoteNumber);
+    void setupFreeGlissando();
+    void applyDirectionExcitation(float& pluckPosition, float& fingerHardness);
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(HarpSynthVoice)
 };

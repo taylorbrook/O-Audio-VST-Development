@@ -2,6 +2,16 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.32.3] - 2026-03-04
+
+### Changed
+
+- Refactored `HarpSynthVoice::startNote()` from ~330 lines to ~140 lines by extracting three private helpers:
+  - `setupScaleLockedGlissando(int midiNoteNumber)` — scale frequency filtering, tempo sync, shape/humanize/velocity profile, direction calculation
+  - `setupFreeGlissando()` — tempo sync, shape, interval, direction for free mode
+  - `applyDirectionExcitation(float&, float&)` — ascending/descending excitation character (finger pad vs thumb)
+- `startNote()` now reads as a linear orchestrator: parameters → mode branch → helper calls → trigger → register sympathetic
+
 ## [1.32.2] - 2026-03-04
 
 ### Removed

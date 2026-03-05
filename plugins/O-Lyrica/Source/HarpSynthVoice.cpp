@@ -198,172 +198,12 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         GlissandoMode glissandoMode = glissandoModeFromIndex(modeIndex);
         glissandoController.setMode(glissandoMode);
 
-        // Scale-Locked mode: get scale from tuning engine, use existing glissando* params
+        // v1.32.3: Delegate glissando setup to extracted helpers
         if (glissandoMode == GlissandoMode::ScaleLocked && tuningEngine != nullptr)
-        {
-            int intervalIndex = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
-            int directionIndex = static_cast<int>(parameters->getRawParameterValue("glissandoDirection")->load());
+            setupScaleLockedGlissando(midiNoteNumber);
 
-            int semitones;
-            if (intervalIndex >= 16) // Custom
-                semitones = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
-            else
-                semitones = kIntervalSemitones[intervalIndex];
-
-            // Fetch scale frequencies covering the full gliss range
-            int scaleStart = midiNoteNumber - semitones - 1;
-            int scaleCount = semitones * 2 + 3;
-            if (scaleStart < 0) scaleStart = 0;
-            if (scaleStart + scaleCount > 127) scaleCount = 128 - scaleStart;
-            if (scaleCount > 64) scaleCount = 64;
-
-            std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(scaleStart, scaleCount);
-
-            // v1.30.0: Wire glissandoScale — filter frequencies by selected scale
-            int scaleIndex = static_cast<int>(parameters->getRawParameterValue("glissandoScale")->load());
-            int glissTonic = static_cast<int>(parameters->getRawParameterValue("glissandoTonic")->load());
-            int numScaleDegrees = tuningEngine->getScaleDegrees();
-
-            // For non-12-note tunings, force Custom mode (Major/Minor/Pentatonic are 12-note patterns)
-            if (numScaleDegrees != 12 && scaleIndex < 3)
-                scaleIndex = 3;
-
-            if (scaleIndex < 3) // Major=0, Minor=1, Pentatonic=2 (only for 12-note scales)
-            {
-                static const std::vector<std::vector<int>> scalePatterns = {
-                    {0, 2, 4, 5, 7, 9, 11},   // Major
-                    {0, 2, 3, 5, 7, 8, 10},    // Minor (natural)
-                    {0, 2, 4, 7, 9}             // Pentatonic
-                };
-
-                int anchorNote = 60 + glissTonic;
-                std::vector<double> filtered;
-
-                for (int n = scaleStart; n < scaleStart + scaleCount && n <= 127; ++n)
-                {
-                    if (n < 0) continue;
-                    int degreeInScale = ((n - anchorNote) % 12 + 12) % 12;
-                    bool inScale = false;
-                    for (int d : scalePatterns[scaleIndex])
-                    {
-                        if (d == degreeInScale) { inScale = true; break; }
-                    }
-                    if (inScale)
-                        filtered.push_back(tuningEngine->getFrequency(n));
-                }
-
-                if (filtered.size() >= 2)
-                    glissandoController.setScale(filtered);
-                else
-                    glissandoController.setScale(scaleFreqs);
-            }
-            else // Custom mode — use bitmask for any scale size
-            {
-                uint64_t degreeMask = customDegreeMaskPtr ? customDegreeMaskPtr->load(std::memory_order_acquire)
-                                                           : 0xFFFFFFFFFFFFFFFF;
-
-                int anchorNote = 60 + glissTonic;
-                std::vector<double> filtered;
-
-                for (int n = scaleStart; n < scaleStart + scaleCount && n <= 127; ++n)
-                {
-                    if (n < 0) continue;
-                    int degreeInScale = ((n - anchorNote) % numScaleDegrees + numScaleDegrees) % numScaleDegrees;
-                    if ((degreeMask >> degreeInScale) & 1)
-                        filtered.push_back(tuningEngine->getFrequency(n));
-                }
-
-                if (filtered.size() >= 2)
-                    glissandoController.setScale(filtered);
-                else
-                    glissandoController.setScale(scaleFreqs);
-            }
-
-            // v1.31.0: Tempo sync overrides manual speed when enabled
-            int scaleTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("scaleTempoSync")->load());
-            if (scaleTempoSyncIdx > 0 && hostBpmPtr != nullptr)
-            {
-                double bpm = hostBpmPtr->load(std::memory_order_acquire);
-                double beatsPerSec = bpm / 60.0;
-                double divBeats = kSyncBeats[scaleTempoSyncIdx];
-                double totalDurationSec = divBeats / beatsPerSec;
-                // Estimate step count from interval to derive notes-per-second
-                int intervalIdx = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
-                int semitonesEst;
-                if (intervalIdx >= 16)
-                    semitonesEst = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
-                else
-                    semitonesEst = kIntervalSemitones[intervalIdx];
-                // Rough step count estimate (scale-locked steps vary, but semitones is a decent proxy)
-                float stepsEst = juce::jmax(1.0f, static_cast<float>(semitonesEst));
-                float notesPerSec = static_cast<float>(stepsEst / totalDurationSec);
-                glissandoController.setSpeed(juce::jlimit(0.1f, 200.0f, notesPerSec));
-            }
-            else
-            {
-                float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
-                glissandoController.setSpeed(glissSpeed);
-            }
-
-            int shapeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoShape")->load());
-            glissandoController.setShape(glissandoShapeFromIndex(shapeIndex));
-
-            float glissHumanize = parameters->getRawParameterValue("glissandoHumanize")->load();
-            glissandoController.setHumanize(glissHumanize);
-
-            // Direction 0 = Up to Note (start below), 1 = Down to Note (start above)
-            double startFreq;
-            if (directionIndex == 0)
-                startFreq = currentFrequency / std::pow(2.0, semitones / 12.0);
-            else
-                startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
-
-            float glissVelStart = parameters->getRawParameterValue("glissandoVelStart")->load();
-            float glissVelEnd = parameters->getRawParameterValue("glissandoVelEnd")->load();
-            glissandoController.setVelocityProfile(glissVelStart, glissVelEnd);
-
-            glissandoController.startGlissando(startFreq, currentFrequency);
-        }
-
-        // v1.30.0: Free mode: reads from dedicated free* params
         if (glissandoMode == GlissandoMode::Free)
-        {
-            // v1.31.0: Tempo sync overrides manual time when enabled
-            int freeTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("freeTempoSync")->load());
-            if (freeTempoSyncIdx > 0 && hostBpmPtr != nullptr)
-            {
-                double bpm = hostBpmPtr->load(std::memory_order_acquire);
-                double beatsPerSec = bpm / 60.0;
-                float rampSeconds = static_cast<float>(kSyncBeats[freeTempoSyncIdx] / beatsPerSec);
-                glissandoController.setRampTime(juce::jlimit(0.01f, 10.0f, rampSeconds));
-            }
-            else
-            {
-                float glissTime = parameters->getRawParameterValue("glissandoTime")->load();
-                glissandoController.setRampTime(glissTime);
-            }
-
-            // v1.30.0: Free mode shape
-            int freeShapeIndex = static_cast<int>(parameters->getRawParameterValue("freeShape")->load());
-            glissandoController.setShape(glissandoShapeFromIndex(freeShapeIndex));
-
-            int intervalIndex = static_cast<int>(parameters->getRawParameterValue("freeInterval")->load());
-            int directionIndex = static_cast<int>(parameters->getRawParameterValue("freeDirection")->load());
-
-            int semitones;
-            if (intervalIndex >= 16) // Custom
-                semitones = static_cast<int>(parameters->getRawParameterValue("freeCustomSemitones")->load());
-            else
-                semitones = kIntervalSemitones[intervalIndex];
-
-            double startFreq;
-            if (directionIndex == 0)
-                startFreq = currentFrequency / std::pow(2.0, semitones / 12.0);
-            else
-                startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
-
-            glissandoController.startGlissando(startFreq, currentFrequency);
-        }
+            setupFreeGlissando();
 
         // v1.26.0: Set glissando excitation softening (brush vs deliberate pluck)
         if (glissandoMode != GlissandoMode::Off)
@@ -377,38 +217,8 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         }
     }
 
-    // v1.28.0: Apply direction-dependent excitation character for glissando
-    // Real harp glissandos use different body parts: ascending = finger pad (warm),
-    // descending = thumb (brighter with subtle nail edge)
-    if (parameters != nullptr)
-    {
-        // v1.30.0: Read mode from atomic instead of old APVTS param
-        GlissandoMode glissMode = glissandoModeFromIndex(
-            activeGlissandoModePtr ? activeGlissandoModePtr->load(std::memory_order_acquire) : 0);
-
-        if (glissMode != GlissandoMode::Off)
-        {
-            float attackNoise = parameters->getRawParameterValue("attackNoise")->load();
-            float humanizeAmt = parameters->getRawParameterValue("humanize")->load();
-            attackNoise = applyHumanization(attackNoise, 0.10f, humanizeAmt);
-
-            if (glissandoController.getDirection() == GlissandoDirection::Ascending)
-            {
-                // Finger pad: warmer, softer contact toward string center
-                pluckPosition = juce::jlimit(0.0f, 1.0f, pluckPosition - 0.05f);
-                fingerHardness *= 0.85f;
-            }
-            else
-            {
-                // Thumb: firmer, slightly brighter with subtle nail scrape
-                pluckPosition = juce::jlimit(0.0f, 1.0f, pluckPosition + 0.04f);
-                fingerHardness *= 1.1f;
-                attackNoise = juce::jlimit(0.0f, 1.0f, attackNoise + 0.08f);
-            }
-
-            stringModel.setAttackNoise(attackNoise);
-        }
-    }
+    // v1.32.3: Delegate direction-dependent excitation to extracted helper
+    applyDirectionExcitation(pluckPosition, fingerHardness);
 
     // Trigger string model with pluck position and hardness
     stringModel.trigger(currentFrequency, velocity, pluckPosition, fingerHardness);
@@ -418,6 +228,209 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     {
         sympatheticEngine->registerVoice(voiceId, currentFrequency, currentMaterial);
     }
+}
+
+// v1.32.3: Extracted from startNote() — ScaleLocked glissando setup
+void HarpSynthVoice::setupScaleLockedGlissando(int midiNoteNumber)
+{
+    int intervalIndex = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
+    int directionIndex = static_cast<int>(parameters->getRawParameterValue("glissandoDirection")->load());
+
+    int semitones;
+    if (intervalIndex >= 16) // Custom
+        semitones = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
+    else
+        semitones = kIntervalSemitones[intervalIndex];
+
+    // Fetch scale frequencies covering the full gliss range
+    int scaleStart = midiNoteNumber - semitones - 1;
+    int scaleCount = semitones * 2 + 3;
+    if (scaleStart < 0) scaleStart = 0;
+    if (scaleStart + scaleCount > 127) scaleCount = 128 - scaleStart;
+    if (scaleCount > 64) scaleCount = 64;
+
+    std::vector<double> scaleFreqs = tuningEngine->getScaleFrequencies(scaleStart, scaleCount);
+
+    // v1.30.0: Wire glissandoScale — filter frequencies by selected scale
+    int scaleIndex = static_cast<int>(parameters->getRawParameterValue("glissandoScale")->load());
+    int glissTonic = static_cast<int>(parameters->getRawParameterValue("glissandoTonic")->load());
+    int numScaleDegrees = tuningEngine->getScaleDegrees();
+
+    // For non-12-note tunings, force Custom mode (Major/Minor/Pentatonic are 12-note patterns)
+    if (numScaleDegrees != 12 && scaleIndex < 3)
+        scaleIndex = 3;
+
+    if (scaleIndex < 3) // Major=0, Minor=1, Pentatonic=2 (only for 12-note scales)
+    {
+        static const std::vector<std::vector<int>> scalePatterns = {
+            {0, 2, 4, 5, 7, 9, 11},   // Major
+            {0, 2, 3, 5, 7, 8, 10},    // Minor (natural)
+            {0, 2, 4, 7, 9}             // Pentatonic
+        };
+
+        int anchorNote = 60 + glissTonic;
+        std::vector<double> filtered;
+
+        for (int n = scaleStart; n < scaleStart + scaleCount && n <= 127; ++n)
+        {
+            if (n < 0) continue;
+            int degreeInScale = ((n - anchorNote) % 12 + 12) % 12;
+            bool inScale = false;
+            for (int d : scalePatterns[scaleIndex])
+            {
+                if (d == degreeInScale) { inScale = true; break; }
+            }
+            if (inScale)
+                filtered.push_back(tuningEngine->getFrequency(n));
+        }
+
+        if (filtered.size() >= 2)
+            glissandoController.setScale(filtered);
+        else
+            glissandoController.setScale(scaleFreqs);
+    }
+    else // Custom mode — use bitmask for any scale size
+    {
+        uint64_t degreeMask = customDegreeMaskPtr ? customDegreeMaskPtr->load(std::memory_order_acquire)
+                                                   : 0xFFFFFFFFFFFFFFFF;
+
+        int anchorNote = 60 + glissTonic;
+        std::vector<double> filtered;
+
+        for (int n = scaleStart; n < scaleStart + scaleCount && n <= 127; ++n)
+        {
+            if (n < 0) continue;
+            int degreeInScale = ((n - anchorNote) % numScaleDegrees + numScaleDegrees) % numScaleDegrees;
+            if ((degreeMask >> degreeInScale) & 1)
+                filtered.push_back(tuningEngine->getFrequency(n));
+        }
+
+        if (filtered.size() >= 2)
+            glissandoController.setScale(filtered);
+        else
+            glissandoController.setScale(scaleFreqs);
+    }
+
+    // v1.31.0: Tempo sync overrides manual speed when enabled
+    int scaleTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("scaleTempoSync")->load());
+    if (scaleTempoSyncIdx > 0 && hostBpmPtr != nullptr)
+    {
+        double bpm = hostBpmPtr->load(std::memory_order_acquire);
+        double beatsPerSec = bpm / 60.0;
+        double divBeats = kSyncBeats[scaleTempoSyncIdx];
+        double totalDurationSec = divBeats / beatsPerSec;
+        // Estimate step count from interval to derive notes-per-second
+        int intervalIdx = static_cast<int>(parameters->getRawParameterValue("glissandoInterval")->load());
+        int semitonesEst;
+        if (intervalIdx >= 16)
+            semitonesEst = static_cast<int>(parameters->getRawParameterValue("glissandoCustomSemitones")->load());
+        else
+            semitonesEst = kIntervalSemitones[intervalIdx];
+        // Rough step count estimate (scale-locked steps vary, but semitones is a decent proxy)
+        float stepsEst = juce::jmax(1.0f, static_cast<float>(semitonesEst));
+        float notesPerSec = static_cast<float>(stepsEst / totalDurationSec);
+        glissandoController.setSpeed(juce::jlimit(0.1f, 200.0f, notesPerSec));
+    }
+    else
+    {
+        float glissSpeed = parameters->getRawParameterValue("glissandoSpeed")->load();
+        glissandoController.setSpeed(glissSpeed);
+    }
+
+    int shapeIndex = static_cast<int>(parameters->getRawParameterValue("glissandoShape")->load());
+    glissandoController.setShape(glissandoShapeFromIndex(shapeIndex));
+
+    float glissHumanize = parameters->getRawParameterValue("glissandoHumanize")->load();
+    glissandoController.setHumanize(glissHumanize);
+
+    // Direction 0 = Up to Note (start below), 1 = Down to Note (start above)
+    double startFreq;
+    if (directionIndex == 0)
+        startFreq = currentFrequency / std::pow(2.0, semitones / 12.0);
+    else
+        startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
+
+    float glissVelStart = parameters->getRawParameterValue("glissandoVelStart")->load();
+    float glissVelEnd = parameters->getRawParameterValue("glissandoVelEnd")->load();
+    glissandoController.setVelocityProfile(glissVelStart, glissVelEnd);
+
+    glissandoController.startGlissando(startFreq, currentFrequency);
+}
+
+// v1.32.3: Extracted from startNote() — Free glissando setup
+void HarpSynthVoice::setupFreeGlissando()
+{
+    // v1.31.0: Tempo sync overrides manual time when enabled
+    int freeTempoSyncIdx = static_cast<int>(parameters->getRawParameterValue("freeTempoSync")->load());
+    if (freeTempoSyncIdx > 0 && hostBpmPtr != nullptr)
+    {
+        double bpm = hostBpmPtr->load(std::memory_order_acquire);
+        double beatsPerSec = bpm / 60.0;
+        float rampSeconds = static_cast<float>(kSyncBeats[freeTempoSyncIdx] / beatsPerSec);
+        glissandoController.setRampTime(juce::jlimit(0.01f, 10.0f, rampSeconds));
+    }
+    else
+    {
+        float glissTime = parameters->getRawParameterValue("glissandoTime")->load();
+        glissandoController.setRampTime(glissTime);
+    }
+
+    // v1.30.0: Free mode shape
+    int freeShapeIndex = static_cast<int>(parameters->getRawParameterValue("freeShape")->load());
+    glissandoController.setShape(glissandoShapeFromIndex(freeShapeIndex));
+
+    int intervalIndex = static_cast<int>(parameters->getRawParameterValue("freeInterval")->load());
+    int directionIndex = static_cast<int>(parameters->getRawParameterValue("freeDirection")->load());
+
+    int semitones;
+    if (intervalIndex >= 16) // Custom
+        semitones = static_cast<int>(parameters->getRawParameterValue("freeCustomSemitones")->load());
+    else
+        semitones = kIntervalSemitones[intervalIndex];
+
+    double startFreq;
+    if (directionIndex == 0)
+        startFreq = currentFrequency / std::pow(2.0, semitones / 12.0);
+    else
+        startFreq = currentFrequency * std::pow(2.0, semitones / 12.0);
+
+    glissandoController.startGlissando(startFreq, currentFrequency);
+}
+
+// v1.32.3: Extracted from startNote() — direction-dependent excitation character
+void HarpSynthVoice::applyDirectionExcitation(float& pluckPosition, float& fingerHardness)
+{
+    if (parameters == nullptr)
+        return;
+
+    // v1.30.0: Read mode from atomic instead of old APVTS param
+    GlissandoMode glissMode = glissandoModeFromIndex(
+        activeGlissandoModePtr ? activeGlissandoModePtr->load(std::memory_order_acquire) : 0);
+
+    if (glissMode == GlissandoMode::Off)
+        return;
+
+    // v1.28.0: Real harp glissandos use different body parts: ascending = finger pad (warm),
+    // descending = thumb (brighter with subtle nail edge)
+    float attackNoise = parameters->getRawParameterValue("attackNoise")->load();
+    float humanizeAmt = parameters->getRawParameterValue("humanize")->load();
+    attackNoise = applyHumanization(attackNoise, 0.10f, humanizeAmt);
+
+    if (glissandoController.getDirection() == GlissandoDirection::Ascending)
+    {
+        // Finger pad: warmer, softer contact toward string center
+        pluckPosition = juce::jlimit(0.0f, 1.0f, pluckPosition - 0.05f);
+        fingerHardness *= 0.85f;
+    }
+    else
+    {
+        // Thumb: firmer, slightly brighter with subtle nail scrape
+        pluckPosition = juce::jlimit(0.0f, 1.0f, pluckPosition + 0.04f);
+        fingerHardness *= 1.1f;
+        attackNoise = juce::jlimit(0.0f, 1.0f, attackNoise + 0.08f);
+    }
+
+    stringModel.setAttackNoise(attackNoise);
 }
 
 void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
