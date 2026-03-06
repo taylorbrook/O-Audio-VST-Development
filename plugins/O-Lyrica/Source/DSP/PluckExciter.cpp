@@ -277,9 +277,13 @@ void PluckExciter::updateTechniqueFilter()
             break;
 
         case PlayingTechnique::Harmonic:
-            // Bandpass filter to isolate harmonic (centered on 2x fundamental)
+            // Position-aware harmonic isolation: touching at 1/N of string → Nth harmonic
+            // position 0.5 → 2nd, 0.33 → 3rd, 0.25 → 4th, etc.
             {
-                float centerFreq = static_cast<float>(currentFrequency * 2.0);
+                float clampedPos = juce::jlimit(0.1f, 0.5f, pluckPosition);
+                float harmonicNumber = std::round(1.0f / clampedPos);
+                harmonicNumber = juce::jlimit(2.0f, 8.0f, harmonicNumber);
+                float centerFreq = static_cast<float>(currentFrequency * harmonicNumber);
                 centerFreq = juce::jlimit(100.0f, 10000.0f, centerFreq);
                 float Q = 2.0f;  // Moderate bandwidth
 

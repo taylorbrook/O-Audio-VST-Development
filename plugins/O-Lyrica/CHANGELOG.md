@@ -2,6 +2,15 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.34.1] - 2026-03-05
+
+### Changed
+
+- Harmonic technique is now position-aware: `PluckExciter::updateTechniqueFilter()` calculates harmonic number from `round(1.0 / pluckPosition)` instead of hardcoded 2× fundamental
+  - Position 0.5 → 2nd harmonic, 0.33 → 3rd, 0.25 → 4th, 0.125 → 8th
+  - Position clamped to [0.1, 0.5] for harmonics 2–8 (avoids fundamental and impractically high partials)
+  - Matches real harp harmonic technique where touching at 1/N of string length isolates the Nth harmonic
+
 ## [1.34.0] - 2026-03-05
 
 ### Changed
