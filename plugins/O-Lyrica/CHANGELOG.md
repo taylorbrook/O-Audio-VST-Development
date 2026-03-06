@@ -2,6 +2,30 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.35.1] - 2026-03-06
+
+### Fixed
+
+- Effects tab controls completely non-functional (dials didn't move, bypass toggles didn't register)
+  - **Root cause:** v1.32.0 added effects DSP processing and HTML structure but never created C++ WebView relays/attachments or JavaScript parameter bindings
+  - Added 19 WebView relays + attachments in PluginEditor (14 sliders, 4 bypass toggles, 1 combo box) for all effects parameters
+  - Added JavaScript SVG vine-arc knob creation for Chorus (Rate/Depth/Mix), Delay (Time/Feedback/Mix), EQ (Low/Mid/Freq/High), Reverb (Size/Damp/Pre-Dly/Mix)
+  - Added Delay Mode dropdown (Normal/Ping Pong) with ComboBox binding
+  - Added bypass button bindings with section dim/disable when bypassed
+  - Knobs support mouse drag, touch drag, and double-click to reset
+
+## [1.35.0] - 2026-03-06
+
+### Added
+
+- Mechanical string crosstalk via soundboard coupling — energy transfer between physically adjacent strings regardless of harmonic relationship
+  - After `synthesiser.renderNextBlock()`, active voice pairs within ±1-2 semitones exchange lowpass-filtered (2kHz one-pole) signal
+  - ±1 semitone neighbors: full crosstalk amount; ±2 semitones: half amount
+  - Gain scaled to 0-5% range (crosstalkAmount × distanceFactor × 0.05) for subtle, realistic coupling
+  - Per-voice output buffers (`voiceOutputBuffer`) in `HarpSynthVoice` capture individual voice signals for cross-mixing
+  - New APVTS parameter `stringCrosstalk` (0.0–1.0, default 0.2) controls coupling intensity
+  - Processed before body resonance and effects chain — crosstalk feeds into shared soundboard model
+
 ## [1.34.1] - 2026-03-05
 
 ### Changed

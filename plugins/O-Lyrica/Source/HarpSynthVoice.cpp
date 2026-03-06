@@ -40,6 +40,10 @@ void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
 {
     stringModel.prepare(sampleRate, maxBlockSize);
     glissandoController.prepare(sampleRate);
+
+    // v1.35.0: Allocate per-voice buffer for crosstalk processing
+    voiceOutputBuffer.setSize(1, maxBlockSize);
+    voiceOutputBuffer.clear();
 }
 
 void HarpSynthVoice::setAPVTS(juce::AudioProcessorValueTreeState* apvts)
@@ -587,6 +591,9 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
 
         // Combine string + sympathetic resonance (body resonance applied post-mix in processor)
         float sample = stringSample + sympatheticContribution;
+
+        // v1.35.0: Store per-voice output for crosstalk processing
+        voiceOutputBuffer.addSample(0, startSample, sample);
 
         // Add to output buffer (all channels)
         for (auto i = outputBuffer.getNumChannels(); --i >= 0;)

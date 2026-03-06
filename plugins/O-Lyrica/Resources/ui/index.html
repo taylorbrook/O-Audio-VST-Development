@@ -3122,6 +3122,191 @@
         }
 
         // ====================================================================
+        // v1.35.1: Effects Tab - SVG Knob Creation & Parameter Binding
+        // ====================================================================
+        {
+            var ARC_R = 24;
+            var CIRC = 2 * Math.PI * ARC_R;
+            var ARC = CIRC * (270 / 360);
+            var GAP = CIRC - ARC;
+
+            function createFxKnob(containerId, paramId, label, formatFn) {
+                var container = document.getElementById(containerId);
+                if (!container) return;
+
+                var wrapper = document.createElement('div');
+                wrapper.className = 'knob-container';
+                var knob = document.createElement('div');
+                knob.className = 'knob';
+
+                var visual = document.createElement('div');
+                visual.className = 'knob-visual';
+                visual.innerHTML = '<svg viewBox="0 0 60 60">'
+                    + '<circle class="knob-track" cx="30" cy="30" r="' + ARC_R + '" stroke-dasharray="' + ARC + ' ' + GAP + '" stroke-dashoffset="0"/>'
+                    + '<circle class="knob-vine" cx="30" cy="30" r="' + ARC_R + '" stroke-dasharray="' + ARC + ' ' + GAP + '" stroke-dashoffset="' + ARC + '"/>'
+                    + '</svg>';
+
+                var labelEl = document.createElement('div');
+                labelEl.className = 'knob-label';
+                labelEl.textContent = label;
+                var valueEl = document.createElement('div');
+                valueEl.className = 'knob-value';
+
+                knob.appendChild(visual);
+                wrapper.appendChild(knob);
+                wrapper.appendChild(labelEl);
+                wrapper.appendChild(valueEl);
+                container.appendChild(wrapper);
+
+                var vine = visual.querySelector('.knob-vine');
+
+                try {
+                    var st = Juce.getSliderState(paramId);
+                    if (!st || !st.valueChangedEvent) return;
+
+                    function update(v) {
+                        vine.setAttribute('stroke-dashoffset', ARC * (1 - v));
+                        valueEl.textContent = formatFn(v);
+                    }
+
+                    update(st.getNormalisedValue());
+                    st.valueChangedEvent.addListener(function() { update(st.getNormalisedValue()); });
+
+                    var dragging = false, startY = 0, startVal = 0;
+
+                    function onMove(e) {
+                        if (!dragging) return;
+                        var y = e.touches ? e.touches[0].clientY : e.clientY;
+                        var delta = (startY - y) / 150;
+                        st.setNormalisedValue(Math.max(0, Math.min(1, startVal + delta)));
+                    }
+
+                    function onUp() {
+                        if (!dragging) return;
+                        dragging = false;
+                        st.sliderDragEnded();
+                        document.removeEventListener('mousemove', onMove);
+                        document.removeEventListener('mouseup', onUp);
+                        document.removeEventListener('touchmove', onMove);
+                        document.removeEventListener('touchend', onUp);
+                    }
+
+                    function onDown(e) {
+                        dragging = true;
+                        startY = e.touches ? e.touches[0].clientY : e.clientY;
+                        startVal = st.getNormalisedValue();
+                        st.sliderDragStarted();
+                        document.addEventListener('mousemove', onMove);
+                        document.addEventListener('mouseup', onUp);
+                        document.addEventListener('touchmove', onMove);
+                        document.addEventListener('touchend', onUp);
+                        e.preventDefault();
+                    }
+
+                    knob.addEventListener('mousedown', onDown);
+                    knob.addEventListener('touchstart', onDown);
+
+                    knob.addEventListener('dblclick', function() {
+                        st.setNormalisedValue(st.properties.defaultValue);
+                    });
+                } catch (e) {
+                    console.warn('[FX Knob] Failed to bind ' + paramId + ':', e);
+                }
+            }
+
+            // Chorus knobs
+            createFxKnob('chorus-knobs', 'chorusRate', 'Rate', function(v) { return (0.1 + v * 9.9).toFixed(1) + ' Hz'; });
+            createFxKnob('chorus-knobs', 'chorusDepth', 'Depth', function(v) { return Math.round(v * 100) + '%'; });
+            createFxKnob('chorus-knobs', 'chorusMix', 'Mix', function(v) { return Math.round(v * 100) + '%'; });
+
+            // Delay knobs
+            createFxKnob('delay-knobs', 'delayTime', 'Time', function(v) {
+                var sec = 0.001 + v * 1.999;
+                return sec < 1 ? Math.round(sec * 1000) + 'ms' : sec.toFixed(2) + 's';
+            });
+            createFxKnob('delay-knobs', 'delayFeedback', 'Feedback', function(v) { return Math.round(v * 95) + '%'; });
+            createFxKnob('delay-knobs', 'delayMix', 'Mix', function(v) { return Math.round(v * 100) + '%'; });
+
+            // Delay mode dropdown
+            (function() {
+                var delayKnobs = document.getElementById('delay-knobs');
+                if (!delayKnobs) return;
+                var dc = document.createElement('div');
+                dc.className = 'fx-dropdown-container';
+                var dl = document.createElement('div');
+                dl.className = 'knob-label';
+                dl.textContent = 'MODE';
+                var dd = document.createElement('select');
+                dd.className = 'fx-dropdown';
+                dd.innerHTML = '<option value="0">Normal</option><option value="1">Ping Pong</option>';
+                dc.appendChild(dl);
+                dc.appendChild(dd);
+                delayKnobs.appendChild(dc);
+                try {
+                    var cs = Juce.getComboBoxState('delayMode');
+                    if (cs && cs.valueChangedEvent) {
+                        cs.valueChangedEvent.addListener(function() { dd.value = cs.getChoiceIndex(); });
+                        dd.addEventListener('change', function() { cs.setChoiceIndex(parseInt(dd.value)); });
+                        dd.value = cs.getChoiceIndex();
+                    }
+                } catch (e) { console.warn('[FX Dropdown] Failed to bind delayMode:', e); }
+            })();
+
+            // EQ knobs
+            createFxKnob('eq-knobs', 'eqLowGain', 'Low', function(v) { return ((v * 24) - 12).toFixed(1) + ' dB'; });
+            createFxKnob('eq-knobs', 'eqMidGain', 'Mid', function(v) { return ((v * 24) - 12).toFixed(1) + ' dB'; });
+            createFxKnob('eq-knobs', 'eqMidFreq', 'Freq', function(v) {
+                var f = 200 + v * 7800;
+                return f >= 1000 ? (f / 1000).toFixed(1) + 'k' : Math.round(f) + ' Hz';
+            });
+            createFxKnob('eq-knobs', 'eqHighGain', 'High', function(v) { return ((v * 24) - 12).toFixed(1) + ' dB'; });
+
+            // Reverb knobs
+            createFxKnob('reverb-knobs', 'reverbSize', 'Size', function(v) { return Math.round(v * 100) + '%'; });
+            createFxKnob('reverb-knobs', 'reverbDamp', 'Damp', function(v) { return Math.round(v * 100) + '%'; });
+            createFxKnob('reverb-knobs', 'reverbPredelay', 'Pre-Dly', function(v) { return Math.round(v * 200) + ' ms'; });
+            createFxKnob('reverb-knobs', 'reverbMix', 'Mix', function(v) { return Math.round(v * 100) + '%'; });
+
+            // Bypass button bindings
+            function bindFxBypass(paramId, buttonId, sectionId) {
+                var button = document.getElementById(buttonId);
+                var section = document.getElementById(sectionId);
+                if (!button) return;
+                try {
+                    var state, getValue, setValue;
+                    if (typeof Juce.getToggleState === 'function') {
+                        state = Juce.getToggleState(paramId);
+                        getValue = function() { return state.getValue(); };
+                        setValue = function(v) { state.setValue(v); };
+                    } else {
+                        state = Juce.getSliderState(paramId);
+                        getValue = function() { return state.getNormalisedValue() >= 0.5; };
+                        setValue = function(v) { state.setNormalisedValue(v ? 1.0 : 0.0); };
+                    }
+                    var updateBypass = function(bypassed) {
+                        button.textContent = bypassed ? 'Off' : 'On';
+                        button.classList.toggle('bypassed', bypassed);
+                        if (section) section.classList.toggle('bypassed', bypassed);
+                    };
+                    updateBypass(getValue());
+                    button.addEventListener('click', function() {
+                        var newVal = !getValue();
+                        setValue(newVal);
+                        updateBypass(newVal);
+                    });
+                    state.valueChangedEvent.addListener(function() { updateBypass(getValue()); });
+                } catch (e) {
+                    console.warn('[FX Bypass] Failed to bind ' + paramId + ':', e);
+                }
+            }
+
+            bindFxBypass('chorusBypass', 'chorusBypassBtn', 'chorusSection');
+            bindFxBypass('delayBypass', 'delayBypassBtn', 'delaySection');
+            bindFxBypass('eqBypass', 'eqBypassBtn', 'eqSection');
+            bindFxBypass('reverbBypass', 'reverbBypassBtn', 'reverbSection');
+        }
+
+        // ====================================================================
         // v1.30.0: Custom Degree Toggle Buttons + Non-12 Scale Handling
         // ====================================================================
         {

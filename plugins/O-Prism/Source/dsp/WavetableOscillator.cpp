@@ -89,7 +89,7 @@ void WavetableOscillator::setUnison (int count, float detune, float width)
     }
 }
 
-double WavetableOscillator::readSample (double phase, int mipmapLevel) const
+double WavetableOscillator::readSample (double phase) const
 {
     if (wavetable == nullptr || wavetable->numFrames == 0)
         return 0.0;
@@ -142,7 +142,7 @@ double WavetableOscillator::getNextSample()
 
     for (int i = 0; i < unisonCount; ++i)
     {
-        output += readSample (phaseAccumulators[i], 0) * unisonGain;
+        output += readSample (phaseAccumulators[i]) * unisonGain;
 
         phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
         if (phaseAccumulators[i] >= 1.0)
@@ -165,7 +165,7 @@ void WavetableOscillator::getNextSampleStereo (double& outL, double& outR)
 
     for (int i = 0; i < unisonCount; ++i)
     {
-        double sample = readSample (phaseAccumulators[i], 0) * unisonGain;
+        double sample = readSample (phaseAccumulators[i]) * unisonGain;
         outL += sample * unisonPanL[i];
         outR += sample * unisonPanR[i];
 

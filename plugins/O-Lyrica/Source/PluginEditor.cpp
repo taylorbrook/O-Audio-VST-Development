@@ -86,6 +86,26 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     // v1.31.0: Tempo sync relays
     freeTempoSyncRelay = std::make_unique<juce::WebComboBoxRelay>("freeTempoSync");
     scaleTempoSyncRelay = std::make_unique<juce::WebComboBoxRelay>("scaleTempoSync");
+    // v1.35.1: Effects chain relays
+    chorusRateRelay = std::make_unique<juce::WebSliderRelay>("chorusRate");
+    chorusDepthRelay = std::make_unique<juce::WebSliderRelay>("chorusDepth");
+    chorusMixRelay = std::make_unique<juce::WebSliderRelay>("chorusMix");
+    fxDelayTimeRelay = std::make_unique<juce::WebSliderRelay>("delayTime");
+    delayFeedbackRelay = std::make_unique<juce::WebSliderRelay>("delayFeedback");
+    delayMixRelay = std::make_unique<juce::WebSliderRelay>("delayMix");
+    eqLowGainRelay = std::make_unique<juce::WebSliderRelay>("eqLowGain");
+    eqMidGainRelay = std::make_unique<juce::WebSliderRelay>("eqMidGain");
+    eqMidFreqRelay = std::make_unique<juce::WebSliderRelay>("eqMidFreq");
+    eqHighGainRelay = std::make_unique<juce::WebSliderRelay>("eqHighGain");
+    reverbSizeRelay = std::make_unique<juce::WebSliderRelay>("reverbSize");
+    reverbDampRelay = std::make_unique<juce::WebSliderRelay>("reverbDamp");
+    reverbPredelayRelay = std::make_unique<juce::WebSliderRelay>("reverbPredelay");
+    reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
+    delayModeRelay = std::make_unique<juce::WebComboBoxRelay>("delayMode");
+    chorusBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("chorusBypass");
+    delayBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("delayBypass");
+    eqBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("eqBypass");
+    reverbBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("reverbBypass");
 
     // 2️⃣ CREATE WEBVIEW with all relays registered
     // v1.18.3: Added section comments for native function organization
@@ -817,6 +837,26 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             // v1.31.0: Tempo sync
             .withOptionsFrom(*freeTempoSyncRelay)
             .withOptionsFrom(*scaleTempoSyncRelay)
+            // v1.35.1: Effects chain options
+            .withOptionsFrom(*chorusRateRelay)
+            .withOptionsFrom(*chorusDepthRelay)
+            .withOptionsFrom(*chorusMixRelay)
+            .withOptionsFrom(*fxDelayTimeRelay)
+            .withOptionsFrom(*delayFeedbackRelay)
+            .withOptionsFrom(*delayMixRelay)
+            .withOptionsFrom(*eqLowGainRelay)
+            .withOptionsFrom(*eqMidGainRelay)
+            .withOptionsFrom(*eqMidFreqRelay)
+            .withOptionsFrom(*eqHighGainRelay)
+            .withOptionsFrom(*reverbSizeRelay)
+            .withOptionsFrom(*reverbDampRelay)
+            .withOptionsFrom(*reverbPredelayRelay)
+            .withOptionsFrom(*reverbMixRelay)
+            .withOptionsFrom(*delayModeRelay)
+            .withOptionsFrom(*chorusBypassRelay)
+            .withOptionsFrom(*delayBypassRelay)
+            .withOptionsFrom(*eqBypassRelay)
+            .withOptionsFrom(*reverbBypassRelay)
             // ─────────────────────────────────────────────────────────────────
             // v1.30.0: GLISSANDO CUSTOM DEGREE BITMASK
             // ─────────────────────────────────────────────────────────────────
@@ -958,6 +998,45 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
         *apvts.getParameter("freeTempoSync"), *freeTempoSyncRelay, nullptr);
     scaleTempoSyncAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("scaleTempoSync"), *scaleTempoSyncRelay, nullptr);
+    // v1.35.1: Effects chain attachments
+    chorusRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusRate"), *chorusRateRelay, nullptr);
+    chorusDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusDepth"), *chorusDepthRelay, nullptr);
+    chorusMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("chorusMix"), *chorusMixRelay, nullptr);
+    fxDelayTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayTime"), *fxDelayTimeRelay, nullptr);
+    delayFeedbackAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayFeedback"), *delayFeedbackRelay, nullptr);
+    delayMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("delayMix"), *delayMixRelay, nullptr);
+    eqLowGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqLowGain"), *eqLowGainRelay, nullptr);
+    eqMidGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidGain"), *eqMidGainRelay, nullptr);
+    eqMidFreqAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqMidFreq"), *eqMidFreqRelay, nullptr);
+    eqHighGainAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("eqHighGain"), *eqHighGainRelay, nullptr);
+    reverbSizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbSize"), *reverbSizeRelay, nullptr);
+    reverbDampAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbDamp"), *reverbDampRelay, nullptr);
+    reverbPredelayAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbPredelay"), *reverbPredelayRelay, nullptr);
+    reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
+    delayModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("delayMode"), *delayModeRelay, nullptr);
+    chorusBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("chorusBypass"), *chorusBypassRelay, nullptr);
+    delayBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("delayBypass"), *delayBypassRelay, nullptr);
+    eqBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("eqBypass"), *eqBypassRelay, nullptr);
+    reverbBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *apvts.getParameter("reverbBypass"), *reverbBypassRelay, nullptr);
 
     // 4️⃣ SETUP WEBVIEW
     addAndMakeVisible(*webView);

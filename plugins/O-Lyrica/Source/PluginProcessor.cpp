@@ -454,6 +454,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
         juce::ParameterID { "eqHighGain", 1 }, "EQ High Gain",
         juce::NormalisableRange<float>(-12.0f, 12.0f, 0.1f), 0.0f, "dB"));
 
+    // v1.35.0: String Crosstalk (soundboard coupling between adjacent strings)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "stringCrosstalk", 1 },
+        "String Crosstalk",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.2f
+    ));
+
     // Reverb
     layout.add(std::make_unique<juce::AudioParameterBool>(
         juce::ParameterID { "reverbBypass", 1 }, "Reverb Bypass", false));
@@ -515,6 +523,9 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
     fxCache.reverbDamp      = parameters.getRawParameterValue("reverbDamp");
     fxCache.reverbPredelay  = parameters.getRawParameterValue("reverbPredelay");
     fxCache.reverbMix       = parameters.getRawParameterValue("reverbMix");
+
+    // v1.35.0: Cache crosstalk parameter pointer
+    crosstalkParam = parameters.getRawParameterValue("stringCrosstalk");
 
     // v1.30.0: Register APVTS listeners for toggle mutual exclusion
     parameters.addParameterListener("freeToggle", this);
@@ -641,6 +652,9 @@ void OLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
         voice->prepare(sampleRate, samplesPerBlock);
     }
 
+    // v1.35.0: Compute one-pole lowpass coefficient for ~2kHz crosstalk filter
+    crosstalkLPCoeff = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * 2000.0f / static_cast<float>(sampleRate));
+
     // v1.32.0: Prepare effects chain
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
@@ -763,8 +777,66 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // v1.30.0: Update active glissando mode from keyswitches + toggles
     updateActiveGlissandoMode();
 
+    // v1.35.0: Clear per-voice output buffers for crosstalk capture
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+        static_cast<HarpSynthVoice*>(synthesiser.getVoice(i))->clearVoiceOutputBuffer();
+
     // Render MIDI to audio via synthesiser
     synthesiser.renderNextBlock(buffer, filteredMidi, 0, buffer.getNumSamples());
+
+    // v1.35.0: String crosstalk via soundboard coupling
+    // Adjacent strings (±1-2 semitones) transfer energy through the soundboard
+    // regardless of harmonic relationship — filtered through LP at ~2kHz
+    {
+        float crosstalkAmount = crosstalkParam->load(std::memory_order_relaxed);
+        if (crosstalkAmount > 0.0001f)
+        {
+            const int numVoices = synthesiser.getNumVoices();
+            const int numSamples = buffer.getNumSamples();
+
+            struct VoiceInfo { int index; int note; };
+            VoiceInfo active[32];
+            int numActive = 0;
+
+            for (int i = 0; i < numVoices && numActive < 32; ++i)
+            {
+                auto* v = static_cast<HarpSynthVoice*>(synthesiser.getVoice(i));
+                if (v->isVoiceActive())
+                    active[numActive++] = { i, v->getCurrentlyPlayingNote() };
+            }
+
+            float* ch0 = buffer.getWritePointer(0);
+
+            for (int a = 0; a < numActive; ++a)
+            {
+                for (int b = a + 1; b < numActive; ++b)
+                {
+                    int diff = std::abs(active[a].note - active[b].note);
+                    if (diff < 1 || diff > 2) continue;
+
+                    float distFactor = (diff == 1) ? 1.0f : 0.5f;
+                    float gain = crosstalkAmount * distFactor * 0.05f;
+
+                    auto* vA = static_cast<HarpSynthVoice*>(synthesiser.getVoice(active[a].index));
+                    auto* vB = static_cast<HarpSynthVoice*>(synthesiser.getVoice(active[b].index));
+
+                    const float* dataA = vA->getVoiceOutputBuffer().getReadPointer(0);
+                    const float* dataB = vB->getVoiceOutputBuffer().getReadPointer(0);
+
+                    float stateA = 0.0f, stateB = 0.0f;
+
+                    for (int s = 0; s < numSamples; ++s)
+                    {
+                        float filtA = crosstalkLPCoeff * dataA[s] + (1.0f - crosstalkLPCoeff) * stateA;
+                        stateA = filtA;
+                        float filtB = crosstalkLPCoeff * dataB[s] + (1.0f - crosstalkLPCoeff) * stateB;
+                        stateB = filtB;
+                        ch0[s] += (filtA + filtB) * gain;
+                    }
+                }
+            }
+        }
+    }
 
     // v1.33.1: Shared body resonance (post-mix, single instance for all voices)
     {

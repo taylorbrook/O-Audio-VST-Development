@@ -99,6 +99,26 @@ private:
     // v1.31.0: Tempo sync relays
     std::unique_ptr<juce::WebComboBoxRelay> freeTempoSyncRelay;
     std::unique_ptr<juce::WebComboBoxRelay> scaleTempoSyncRelay;
+    // v1.35.1: Effects chain relays
+    std::unique_ptr<juce::WebSliderRelay> chorusRateRelay;
+    std::unique_ptr<juce::WebSliderRelay> chorusDepthRelay;
+    std::unique_ptr<juce::WebSliderRelay> chorusMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> fxDelayTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayFeedbackRelay;
+    std::unique_ptr<juce::WebSliderRelay> delayMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqLowGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqMidGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqMidFreqRelay;
+    std::unique_ptr<juce::WebSliderRelay> eqHighGainRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbSizeRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbDampRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbPredelayRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> delayModeRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> chorusBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> delayBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> eqBypassRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> reverbBypassRelay;
 
     // 2️⃣ WEBVIEW SECOND (depends on relays via .withOptionsFrom())
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -168,6 +188,26 @@ private:
     // v1.31.0: Tempo sync attachments
     std::unique_ptr<juce::WebComboBoxParameterAttachment> freeTempoSyncAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> scaleTempoSyncAttachment;
+    // v1.35.1: Effects chain attachments
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusRateAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusDepthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> chorusMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> fxDelayTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayFeedbackAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> delayMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqLowGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqMidGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqMidFreqAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> eqHighGainAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbSizeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbDampAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbPredelayAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> delayModeAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> chorusBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> delayBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> eqBypassAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> reverbBypassAttachment;
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

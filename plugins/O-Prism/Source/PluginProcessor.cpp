@@ -371,6 +371,9 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createGlobalPara
         juce::ParameterID { "masterVol", 1 }, "Master Volume",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.8f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "stereoWidth", 1 }, "Stereo Width",
+        juce::NormalisableRange<float> (0.0f, 2.0f, 0.001f), 1.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "oscMix", 1 }, "Osc Mix",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
     params.push_back (std::make_unique<juce::AudioParameterChoice> (
@@ -467,14 +470,13 @@ void OPrismAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock
     juce::dsp::ProcessSpec spec { sampleRate, static_cast<juce::uint32> (samplesPerBlock), 2 };
     distortion.prepare (spec);
     chorus.prepare (spec);
-    chorus.setCentreDelay (7.0f);
-    chorus.setFeedback (0.0f);
     delay.prepare (spec);
     delay.setPlayHead (getPlayHead());
     eq.prepare (spec);
     reverbProcessor.prepare (spec);
 
     masterVolSmoothed.reset (sampleRate, 0.02);
+    stereoWidthSmoothed.reset (sampleRate, 0.02);
 
     setLatencySamples (static_cast<int> (distortion.getLatencyInSamples()));
 }
@@ -568,10 +570,7 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         chorus.setDepth (chorusDepth);
         chorus.setMix (chorusMix);
         if (chorusMix > 0.001f)
-        {
-            juce::dsp::ProcessContextReplacing<float> chorusCtx (block);
-            chorus.process (chorusCtx);
-        }
+            chorus.process (block);
     }
 
     // 3. Delay
@@ -622,15 +621,36 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             reverbProcessor.process (block);
     }
 
-    // Master volume (smoothed per-sample to prevent zipper noise)
+    // Stereo width (mid-side processing) + master volume (smoothed per-sample)
+    float stereoWidth = parameters.getRawParameterValue ("stereoWidth")->load();
     float masterVol = parameters.getRawParameterValue ("masterVol")->load();
+    stereoWidthSmoothed.setTargetValue (stereoWidth);
     masterVolSmoothed.setTargetValue (masterVol);
 
-    for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+    if (buffer.getNumChannels() >= 2)
     {
-        float gain = masterVolSmoothed.getNextValue();
-        for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
-            buffer.setSample (ch, sample, buffer.getSample (ch, sample) * gain);
+        auto* leftData = buffer.getWritePointer (0);
+        auto* rightData = buffer.getWritePointer (1);
+
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+        {
+            float width = stereoWidthSmoothed.getNextValue();
+            float gain = masterVolSmoothed.getNextValue();
+
+            float mid = (leftData[sample] + rightData[sample]) * 0.5f;
+            float side = (leftData[sample] - rightData[sample]) * 0.5f;
+
+            leftData[sample] = (mid + side * width) * gain;
+            rightData[sample] = (mid - side * width) * gain;
+        }
+    }
+    else
+    {
+        for (int sample = 0; sample < buffer.getNumSamples(); ++sample)
+        {
+            float gain = masterVolSmoothed.getNextValue();
+            buffer.setSample (0, sample, buffer.getSample (0, sample) * gain);
+        }
     }
 }
 

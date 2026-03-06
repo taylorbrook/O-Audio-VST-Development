@@ -44,6 +44,12 @@ public:
     void prepare(double sampleRate, int maxBlockSize);
 
     /**
+     * v1.35.0: Per-voice output buffer for string crosstalk processing
+     */
+    const juce::AudioBuffer<float>& getVoiceOutputBuffer() const { return voiceOutputBuffer; }
+    void clearVoiceOutputBuffer() { voiceOutputBuffer.clear(); }
+
+    /**
      * Set APVTS reference for parameter access
      */
     void setAPVTS(juce::AudioProcessorValueTreeState* apvts);
@@ -123,6 +129,9 @@ private:
 
     // Track current material type to avoid unnecessary DSP updates
     MaterialType currentMaterialType = MaterialType::Nylon;
+
+    // v1.35.0: Per-voice output buffer for crosstalk processing
+    juce::AudioBuffer<float> voiceOutputBuffer;
 
     // v1.19.0: Random generator for humanization (per-note variation)
     juce::Random humanizeRandom;

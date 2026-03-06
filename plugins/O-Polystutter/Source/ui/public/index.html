@@ -112,7 +112,7 @@
 
     .section-label {
       position: absolute;
-      top: 15px;
+      top: 10px;
       left: 20px;  /* v1.6.2: Left-aligned with compacted tape knobs */
       font-size: 11px;
       letter-spacing: 1.5px;
@@ -130,7 +130,7 @@
       justify-content: flex-start;  /* v1.6.2: Left-aligned instead of spread */
       align-items: flex-start;
       gap: 8px;  /* v1.6.2: Tighter gap (was 15px) */
-      padding-top: 35px;  /* Space for section label */
+      padding-top: 28px;  /* v1.12.2: Reduced from 35px to prevent label readout clipping */
       padding-left: 10px;  /* v1.6.2: Small left margin */
     }
 
@@ -147,7 +147,7 @@
     .tape-right-controls {
       position: absolute;
       right: 20px;
-      top: 35px;
+      top: 28px;  /* v1.12.2: Match tape-knobs-row reduction */
       display: flex;
       flex-direction: row;
       align-items: flex-start;

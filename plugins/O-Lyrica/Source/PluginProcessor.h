@@ -205,6 +205,10 @@ private:
     // v1.18.0: Tooltip system enabled state (saved with plugin state)
     std::atomic<bool> tooltipsEnabled { false };
 
+    // v1.35.0: String crosstalk (soundboard coupling)
+    std::atomic<float>* crosstalkParam = nullptr;
+    float crosstalkLPCoeff = 0.0f;
+
     // v1.33.1: Shared body resonance (post-mix, single instance for all voices)
     BodyResonance bodyResonance;
 

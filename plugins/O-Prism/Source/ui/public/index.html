@@ -1249,6 +1249,7 @@ body {
 <script type="module">
 import * as Juce from './js/juce/index.js';
 
+
 // ─── TAB SWITCHING ───
 window.switchTab = function(tabName) {
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -1603,7 +1604,7 @@ function bindLfoSync(lfoNum) {
         syncState.setValue(newVal);
     });
 
-    syncState.addListener({ handleToggleStateChange: (val) => updateSyncUI(val) });
+    syncState.valueChangedEvent.addListener(() => updateSyncUI(syncState.getValue()));
     updateSyncUI(syncState.getValue());
 }
 

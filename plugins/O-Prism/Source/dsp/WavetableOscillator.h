@@ -11,7 +11,6 @@
 #pragma once
 #include "WavetableData.h"
 #include <cmath>
-#include <atomic>
 
 class WavetableOscillator
 {
@@ -50,5 +49,5 @@ private:
     double unisonGain = 1.0;
     int unisonCount = 1;
 
-    double readSample (double phase, int mipmapLevel) const;
+    double readSample (double phase) const;
 };

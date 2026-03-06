@@ -37,6 +37,7 @@ target_sources(O-Prism
         Source/dsp/DelayProcessor.cpp
         Source/dsp/ReverbProcessor.cpp
         Source/dsp/EQProcessor.cpp
+        Source/dsp/EnsembleChorus.cpp
         Source/dsp/LFO.cpp
         Source/dsp/ModulationMatrix.cpp
 )

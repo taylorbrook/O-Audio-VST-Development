@@ -24,6 +24,7 @@
 #include "dsp/DelayProcessor.h"
 #include "dsp/ReverbProcessor.h"
 #include "dsp/EQProcessor.h"
+#include "dsp/EnsembleChorus.h"
 
 class OPrismAudioProcessor : public juce::AudioProcessor
 {
@@ -119,16 +120,16 @@ private:
 
     // Effects chain (float precision)
     DistortionProcessor distortion;
-    juce::dsp::Chorus<float> chorus;
+    EnsembleChorus chorus;
     DelayProcessor delay;
     EQProcessor eq;
     ReverbProcessor reverbProcessor;
 
-    // Master volume (smoothed)
+    // Master volume and stereo width (smoothed)
     juce::SmoothedValue<float> masterVolSmoothed { 0.8f };
+    juce::SmoothedValue<float> stereoWidthSmoothed { 1.0f };
 
     // Active MIDI note tracking for TrueKeys visualization
-    struct ActiveNote { int midiNote; double frequency; };
     std::array<std::atomic<bool>, 128> noteStates {};
 
     // MIDI CC state for modulation matrix (global sources)
