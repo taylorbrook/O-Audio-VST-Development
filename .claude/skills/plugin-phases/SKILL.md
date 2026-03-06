@@ -82,8 +82,7 @@ Interactive context gathering for a stage. Asks questions to build understanding
    ```
 5. Agent creates `stages/[N]-[name]/CONTEXT.md`
 6. Update STATUS.md phase progress
-7. Update registry
-8. Present completion menu with two-step handoff:
+7. Present completion menu with two-step handoff:
    ```
    ━━━ PHASE COMPLETE ━━━
 
@@ -144,7 +143,7 @@ Investigate implementation approach. Researches patterns, algorithms, and existi
    )
    ```
 5. Agent creates `stages/[N]-[name]/RESEARCH.md`
-6. Update STATUS.md and registry
+6. Update STATUS.md
 7. Present completion menu with two-step handoff:
    ```
    ━━━ PHASE COMPLETE ━━━
@@ -198,7 +197,7 @@ Create execution plan with detailed task breakdown.
    )
    ```
 5. Agent creates `stages/[N]-[name]/PLAN.md`
-6. Update STATUS.md and registry
+6. Update STATUS.md
 7. Present completion menu with two-step handoff:
    ```
    ━━━ PHASE COMPLETE ━━━
@@ -245,7 +244,7 @@ Run the stage-specific implementation agent.
    - ARCHITECTURE.md (stages 1-4)
    - Required Reading patterns
 6. Agent implements and creates `stages/[N]-[name]/SUMMARY.md`
-7. Update STATUS.md and registry
+7. Update STATUS.md
 8. Present completion menu with two-step handoff:
    ```
    ━━━ PHASE COMPLETE ━━━
@@ -301,7 +300,7 @@ Validate that stage goals were achieved.
    ```
 5. Also invoke validation-agent for technical validation
 6. Combine results into `stages/[N]-[name]/VERIFICATION.md`
-7. Update STATUS.md and registry
+7. Update STATUS.md
 8. If all phases complete, advance to next stage
 9. Present stage completion handoff:
    ```
@@ -354,7 +353,7 @@ Phases can be skipped with flags:
 
 **Implementation:**
 1. Parse skip flags from args
-2. Update registry with skipped phases
+2. Update STATUS.md with skipped phases
 3. Mark phases as "skipped" in STATUS.md (not "complete")
 4. Proceed to next non-skipped phase
 
@@ -401,8 +400,6 @@ Phases can be skipped with flags:
 - `plugins/[name]/.planning/BRIEF.md`
 - `plugins/[name]/.planning/research/ARCHITECTURE.md`
 - `plugins/[name]/.planning/stages/[N]-[name]/*.md`
-- `.claude/plugin-registry.json`
-
 **Writes:**
 - `plugins/[name]/.planning/stages/[N]-[name]/CONTEXT.md`
 - `plugins/[name]/.planning/stages/[N]-[name]/RESEARCH.md`
@@ -410,7 +407,6 @@ Phases can be skipped with flags:
 - `plugins/[name]/.planning/stages/[N]-[name]/SUMMARY.md`
 - `plugins/[name]/.planning/stages/[N]-[name]/VERIFICATION.md`
 - `plugins/[name]/.planning/STATUS.md`
-- `.claude/plugin-registry.json`
 
 ## Error Handling
 

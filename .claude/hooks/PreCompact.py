@@ -19,20 +19,11 @@ def main():
         lines.append(f"Generated: {datetime.utcnow().strftime('%Y-%m-%dT%H:%M:%SZ')}")
         lines.append("")
 
-        # Detect focused plugin from registry
+        # Find focused plugin from PLUGINS.md
         focused = ""
-        registry_path = project_root / ".claude" / "plugin-registry.json"
-        if registry_path.is_file():
-            try:
-                registry = json.loads(registry_path.read_text(encoding="utf-8"))
-                focused = registry.get("focused", "")
-            except (json.JSONDecodeError, OSError):
-                pass
-
-        # Find in-progress plugins from PLUGINS.md as fallback
         in_progress = ""
         plugins_md_path = project_root / "PLUGINS.md"
-        if not focused and plugins_md_path.is_file():
+        if plugins_md_path.is_file():
             try:
                 plugins_text = plugins_md_path.read_text(encoding="utf-8")
                 for line in plugins_text.splitlines():

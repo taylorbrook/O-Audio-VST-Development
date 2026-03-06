@@ -98,8 +98,7 @@ Each stage runs a full GSD cycle:
 ## Behavior
 
 1. **Resolve plugin name** (use focused if not specified)
-2. **Register in plugin-registry.json** (if not already)
-3. **Verify preconditions** (Stage 0 complete, contracts exist)
+2. **Verify preconditions** (Stage 0 complete, contracts exist)
 4. **Determine workflow mode** (flag > preferences > default)
 5. **For each stage 1-4:**
    - Run discuss phase (or skip if `--skip-discuss`)
@@ -107,7 +106,7 @@ Each stage runs a full GSD cycle:
    - Run plan phase (always)
    - Run execute phase (always)
    - Run verify phase (or skip if `--skip-verify`)
-   - Update STATUS.md and registry
+   - Update STATUS.md
    - Present checkpoint menu (manual) or auto-advance (express)
 6. **On completion:** Update PLUGINS.md to ✅ Working
 
@@ -173,7 +172,6 @@ Options:
 
 Pause workflow at any time. State is saved to:
 - `plugins/[Name]/.planning/STATUS.md`
-- `.claude/plugin-registry.json`
 - PLUGINS.md
 
 Resume with `/continue [PluginName]` or `/plugin-resume [PluginName]`

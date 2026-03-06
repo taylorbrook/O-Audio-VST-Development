@@ -25,7 +25,7 @@ try:
 except ImportError:
     HAS_JSONSCHEMA = False
 
-# Paths (follows plugin-registry.py conventions)
+# Paths
 SCRIPT_DIR = Path(__file__).parent
 CLAUDE_DIR = SCRIPT_DIR.parent
 PROJECT_ROOT = CLAUDE_DIR.parent

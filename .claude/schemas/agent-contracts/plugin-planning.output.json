@@ -44,10 +44,6 @@
       "minimum": 0,
       "description": "Estimated implementation time"
     },
-    "registry_updated": {
-      "type": "boolean",
-      "description": "Whether plugin-registry.json was updated"
-    },
     "error": {
       "type": "object",
       "properties": {

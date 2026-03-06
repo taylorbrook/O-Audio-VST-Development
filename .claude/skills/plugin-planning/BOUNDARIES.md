@@ -52,8 +52,7 @@ See: `.claude/schemas/agent-contracts/plugin-planning.output.json`
 6. Write - Create ROADMAP.md (via subagent)
 7. Write - Create Stage 0 CONTEXT.md
 8. Edit - Update STATUS.md with Stage 0 progress
-9. Edit - Update plugin-registry.json
-10. Bash - Git commits for Stage 0 artifacts
+9. Bash - Git commits for Stage 0 artifacts
 11. WebSearch - Professional plugin research
 12. Grep - Search existing implementations
 13. Glob - Find reference files

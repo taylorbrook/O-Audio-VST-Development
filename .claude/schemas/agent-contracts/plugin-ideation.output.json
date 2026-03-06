@@ -42,10 +42,6 @@
       "type": "boolean",
       "description": "Whether PLUGINS.md was updated with new entry"
     },
-    "registry_updated": {
-      "type": "boolean",
-      "description": "Whether plugin-registry.json was updated"
-    },
     "next_recommended_action": {
       "type": "string",
       "enum": ["plan", "mockup", "implement", "improve"],

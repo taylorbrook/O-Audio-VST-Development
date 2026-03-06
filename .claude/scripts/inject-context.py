@@ -28,7 +28,7 @@ except ImportError:
     print("Error: PyYAML package required. Install with: pip install pyyaml", file=sys.stderr)
     sys.exit(1)
 
-# Paths (follows plugin-registry.py / discover-resources.py conventions)
+# Paths (follows discover-resources.py conventions)
 SCRIPT_DIR = Path(__file__).parent
 CLAUDE_DIR = SCRIPT_DIR.parent
 PROJECT_ROOT = CLAUDE_DIR.parent

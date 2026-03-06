@@ -92,7 +92,7 @@ def orchestrate_implementation(plugin_name, start_stage, skip_phases, workflow_m
     stages = ["1-foundation", "2-dsp", "3-gui", "4-polish"]
     phases = ["discuss", "research", "plan", "execute", "verify"]
 
-    # Load current state from registry
+    # Load current state from STATUS.md
     current_state = load_plugin_state(plugin_name)
     current_stage = current_state.stage or start_stage
     current_phase = current_state.phase or "discuss"
@@ -104,8 +104,8 @@ def orchestrate_implementation(plugin_name, start_stage, skip_phases, workflow_m
         # Create stage directory
         ensure_stage_directory(plugin_name, stage)
 
-        # Update registry
-        update_registry(plugin_name, stage=stage, phase="discuss")
+        # Update STATUS.md
+        update_status_md(plugin_name, stage=stage, phase="discuss")
 
         for phase in phases:
             # Check if phase should be skipped
@@ -114,7 +114,6 @@ def orchestrate_implementation(plugin_name, start_stage, skip_phases, workflow_m
                 continue
 
             # Update current phase
-            update_registry(plugin_name, phase=phase)
             update_status_md(plugin_name, stage, phase)
 
             # Run phase
@@ -340,26 +339,6 @@ def run_verify_phase(plugin_name, stage):
 ```
 
 ## State Management
-
-### Registry Updates
-
-Update `.claude/plugin-registry.json` at every phase transition:
-
-```python
-def update_registry(plugin_name, stage=None, phase=None, status=None):
-    registry = load_registry()
-    plugin = registry["plugins"][plugin_name]
-
-    if stage:
-        plugin["stage"] = stage
-    if phase:
-        plugin["phase"] = phase
-    if status:
-        plugin["status"] = status
-
-    plugin["lastActivity"] = datetime.now().isoformat()
-    save_registry(registry)
-```
 
 ### STATUS.md Updates
 
@@ -657,11 +636,9 @@ Selection is automatic based on the metrics collected during execution. If no te
 - gsd-verifier, validation-agent (verify phase)
 
 **Reads:**
-- `.claude/plugin-registry.json`
 - `plugins/[Name]/.planning/*`
 
 **Writes:**
-- `.claude/plugin-registry.json`
 - `plugins/[Name]/.planning/STATUS.md`
 - `plugins/[Name]/.planning/stages/*/CONTEXT.md`
 - `plugins/[Name]/.planning/stages/*/RESEARCH.md`

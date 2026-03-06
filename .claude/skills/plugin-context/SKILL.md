@@ -50,7 +50,7 @@ Legend: → = focused
 ```
 
 **Implementation:**
-1. Run: `python3 .claude/scripts/plugin-registry.py list`
+1. Read PLUGINS.md and STATUS.md files to gather plugin states
 2. Format output as table
 3. Mark focused plugin with arrow
 
@@ -59,9 +59,8 @@ Legend: → = focused
 Set the active plugin context. Subsequent commands without explicit plugin name will use this context.
 
 **Implementation:**
-1. Validate plugin exists in registry
-2. Run: `python3 .claude/scripts/plugin-registry.py focus [plugin_name]`
-3. Update STATUS.md frontmatter: `focused: true`
+1. Validate plugin exists in PLUGINS.md
+2. Update STATUS.md frontmatter: `focused: true`
 4. Clear `focused: true` from previously focused plugin's STATUS.md
 5. Confirm: "Focused on [plugin_name] at stage [X], phase [Y]"
 
@@ -127,7 +126,7 @@ Checkpoint current work and create handoff document for later resumption.
    - "Any key decisions or context to preserve?"
    - "Any blockers or concerns?"
 4. Update STATUS.md Handoff Context section
-5. Update registry status to "paused"
+5. Update STATUS.md status to "paused"
 6. Git commit: "checkpoint: [plugin_name] paused at stage [X] phase [Y]"
 7. Confirm: "Paused [plugin_name]. Resume with /plugin-resume [plugin_name]"
 
@@ -139,7 +138,7 @@ Restore context from handoff and continue work.
 1. Resolve plugin name
 2. Read STATUS.md handoff context
 3. Read last stage's artifacts (CONTEXT.md, PLAN.md, etc.)
-4. Update registry status to "active"
+4. Update STATUS.md status to "active"
 5. Set as focused plugin
 6. Present context summary:
    ```
@@ -161,12 +160,6 @@ Restore context from handoff and continue work.
 
 ## State Management
 
-### Plugin Registry
-Global state stored in `.claude/plugin-registry.json`:
-- Focused plugin tracking
-- All plugins with stage/phase
-- Module dependencies
-
 ### STATUS.md
 Plugin-local state in `plugins/[name]/.planning/STATUS.md`:
 - Detailed phase progress tables
@@ -179,11 +172,9 @@ Plugin-local state in `plugins/[name]/.planning/STATUS.md`:
 ## Integration Points
 
 **Reads:**
-- `.claude/plugin-registry.json`
 - `plugins/[name]/.planning/STATUS.md`
 
 **Writes:**
-- `.claude/plugin-registry.json`
 - `plugins/[name]/.planning/STATUS.md`
 
 **Used by:**
@@ -212,12 +203,9 @@ No plugin currently focused.
 Use /plugin-focus [name] or /plugin-list to see available plugins.
 ```
 
-**Registry out of sync:**
+**STATUS.md missing or corrupted:**
 ```
-Warning: Registry out of sync with STATUS.md
+Warning: STATUS.md not found or unreadable for [plugin_name]
 
-Syncing from STATUS.md...
-Updated: stage 2-dsp → 3-gui, phase execute → discuss
-
-Use /reconcile for full state verification.
+Check plugins/[name]/.planning/STATUS.md exists and has valid frontmatter.
 ```
