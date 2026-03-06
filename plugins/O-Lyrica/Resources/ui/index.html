@@ -657,14 +657,14 @@
             background: rgba(255, 248, 220, 0.25);
             border: 1px solid rgba(139, 115, 85, 0.35);
             border-radius: 5px;
-            padding: 6px 10px;
+            padding: 4px 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
         }
 
         .fx-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 4px;
+            display: contents;
         }
 
         .fx-title {
@@ -673,6 +673,7 @@
             color: #2C3E10;
             text-transform: uppercase;
             letter-spacing: 1px;
+            margin-right: auto;
         }
 
         .fx-bypass-btn {
@@ -685,6 +686,8 @@
             cursor: pointer;
             transition: all 0.15s;
             font-family: inherit;
+            order: 99;
+            margin-left: auto;
         }
 
         .fx-bypass-btn.bypassed {
@@ -694,8 +697,7 @@
 
         .fx-knobs {
             display: flex;
-            gap: 14px;
-            justify-content: center;
+            gap: 10px;
             flex-wrap: wrap;
         }
 
@@ -709,7 +711,7 @@
             display: flex;
             flex-direction: column;
             align-items: center;
-            gap: 4px;
+            gap: 1px;
         }
 
         #effects-tab .knob {
@@ -2808,6 +2810,7 @@
         };
     </script>
 
+    <script type="module" src="/js/app.js"></script>
     <script type="module">
         import * as Juce from '/js/juce/index.js';
 

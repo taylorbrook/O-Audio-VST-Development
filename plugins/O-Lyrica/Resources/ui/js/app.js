@@ -8,12 +8,8 @@ import * as Juce from './juce/index.js';
 
 // Wait for DOM to be fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log('OuariconLyrica UI initializing...');
-    console.log('JUCE backend available:', typeof window.__JUCE__ !== 'undefined');
-
-    initializeParameters();
-    initializeMeters();
-    initializeEffects(); // v1.32.0
+    console.log('OuariconLyrica effects module loaded');
+    initializeEffects();
 });
 
 /**
