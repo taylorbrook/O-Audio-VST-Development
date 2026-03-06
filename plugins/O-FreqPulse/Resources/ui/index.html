@@ -26,8 +26,7 @@
         </header>
 
         <!-- Grid Area -->
-        <div class="grid-area" data-tooltip="Step sequencer grid. Each row is a frequency band; click cells to toggle steps on/off. The green playhead shows the current position.">
-            <div class="playhead" id="playhead"></div>
+        <div class="grid-area" data-tooltip="Step sequencer grid. Each row is a frequency band; click cells to toggle steps on/off. Active steps highlight green during playback.">
             <div id="grid-container"></div>
         </div>
 
@@ -54,6 +53,11 @@
                     <label>Phase</label>
                     <input type="range" class="slider" id="euc-phase" min="0" max="31" value="0">
                     <span class="value-display" id="euc-phase-value">0</span>
+                </div>
+                <div class="control-group" data-tooltip="Band Steps: Override the global step count for this band (0 = follow global). Creates polymetric loops when bands have different step counts.">
+                    <label>Steps</label>
+                    <input type="range" class="slider" id="euc-band-steps" min="0" max="32" value="0">
+                    <span class="value-display" id="euc-band-steps-value">Global</span>
                 </div>
                 <div class="control-group" data-tooltip="Depth: Controls how much the volume drops on OFF steps. At 100%, OFF steps are fully silent. At 0%, no gating occurs.">
                     <label>Depth</label>

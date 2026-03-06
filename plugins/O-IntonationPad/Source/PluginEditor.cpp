@@ -625,6 +625,14 @@ OIntonationPadAudioProcessorEditor::getResource(const juce::String& url)
         };
     }
 
+    // Shared constants module
+    if (url == "/js/constants.js") {
+        return juce::WebBrowserComponent::Resource {
+            makeVector(BinaryData::constants_js, BinaryData::constants_jsSize),
+            juce::String("text/javascript")
+        };
+    }
+
     // v1.3.0: Tuning panel JS module
     if (url == "/js/tuning-panel.js") {
         return juce::WebBrowserComponent::Resource {

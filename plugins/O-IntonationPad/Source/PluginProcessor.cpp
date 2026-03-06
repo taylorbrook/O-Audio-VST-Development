@@ -547,10 +547,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     // Advance LFO phases for next block
     lfoPhaseA += lfoPhaseIncrementA * buffer.getNumSamples();
     lfoPhaseB += lfoPhaseIncrementB * buffer.getNumSamples();
-    if (lfoPhaseA >= juce::MathConstants<double>::twoPi)
-        lfoPhaseA -= juce::MathConstants<double>::twoPi;
-    if (lfoPhaseB >= juce::MathConstants<double>::twoPi)
-        lfoPhaseB -= juce::MathConstants<double>::twoPi;
+    lfoPhaseA = std::fmod(lfoPhaseA, juce::MathConstants<double>::twoPi);
+    lfoPhaseB = std::fmod(lfoPhaseB, juce::MathConstants<double>::twoPi);
 
     // v2.0.3: Read interval snapshot from double-buffer (lock-free, no shared_ptr)
     const auto& snap = intervalSnapshots_[activeSnapshotIndex_.load(std::memory_order_acquire)];
@@ -785,6 +783,11 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
 {
     std::vector<ActiveNoteInfo> notes;
 
+    auto tryAdd = [&notes](float gain, const SubVoiceInfo& info) {
+        if (gain > 0.01f)
+            notes.push_back({ info.midiNote, info.frequencyHz, gain });
+    };
+
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
     {
         auto* voice = static_cast<const WavetableVoice*>(synthesiser.getVoice(i));
@@ -793,29 +796,9 @@ std::vector<ActiveNoteInfo> OIntonationPadAudioProcessor::getActiveNotes() const
             int subCount = voice->getActiveSubVoiceCount();
             for (int j = 0; j < subCount; ++j)
             {
-                // Base contribution
-                float baseGain = voice->getSubVoiceBaseGain(j);
-                if (baseGain > 0.01f)
-                {
-                    const auto& info = voice->getSubVoiceInfo(j);
-                    notes.push_back({ info.midiNote, info.frequencyHz, baseGain });
-                }
-
-                // Spacing (up) contribution
-                float spacingGain = voice->getSubVoiceSpacingGain(j);
-                if (spacingGain > 0.01f)
-                {
-                    const auto& info = voice->getSubVoiceSpacingInfo(j);
-                    notes.push_back({ info.midiNote, info.frequencyHz, spacingGain });
-                }
-
-                // Inversion (down) contribution
-                float inversionGain = voice->getSubVoiceInversionGain(j);
-                if (inversionGain > 0.01f)
-                {
-                    const auto& info = voice->getSubVoiceInversionInfo(j);
-                    notes.push_back({ info.midiNote, info.frequencyHz, inversionGain });
-                }
+                tryAdd(voice->getSubVoiceBaseGain(j), voice->getSubVoiceInfo(j));
+                tryAdd(voice->getSubVoiceSpacingGain(j), voice->getSubVoiceSpacingInfo(j));
+                tryAdd(voice->getSubVoiceInversionGain(j), voice->getSubVoiceInversionInfo(j));
             }
         }
     }

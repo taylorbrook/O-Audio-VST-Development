@@ -146,6 +146,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
             bandName + " Phase Offset",
             0, 31, 0));
 
+        // v1.15.0: Per-band step count (0 = follow global, 2-32 = independent loop length)
+        bandGroup->addChild(std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID { bandID + "_steps", 1 },
+            bandName + " Steps",
+            0, 32, 0));
+
         // Step grid parameters (32 per band) — velocity floats (0=off, 1=full)
         for (int m = 0; m < 32; ++m)
         {
@@ -188,10 +194,6 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
     crossover2Param = parameters.getRawParameterValue("crossover_2");
     crossover3Param = parameters.getRawParameterValue("crossover_3");
 
-    // Cache frequency boundary parameter pointers
-    freqLowParam = parameters.getRawParameterValue("freq_low");
-    freqHighParam = parameters.getRawParameterValue("freq_high");
-
     // Cache per-band parameter pointers
     for (int n = 0; n < 4; ++n)
     {
@@ -205,6 +207,7 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
         bandParams[n].eucPulses = parameters.getRawParameterValue(bandID + "_euc_pulses");
         bandParams[n].eucOffset = parameters.getRawParameterValue(bandID + "_euc_offset");
         bandParams[n].phaseOffset = parameters.getRawParameterValue(bandID + "_phase_offset");
+        bandParams[n].bandSteps = parameters.getRawParameterValue(bandID + "_steps");
 
         // Cache step grid parameters (32 per band)
         for (int m = 0; m < 32; ++m)
@@ -268,9 +271,7 @@ void OFreqPulseAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBl
 
     // Reset step sequencer
     currentStep = 0;
-    currentStepAtomic.store(0);
     lastPpqPosition = -1.0;
-    sampleAccumulator = 0.0;
 
     // IIR crossover filters have zero latency
     setLatencySamples(0);
@@ -286,9 +287,7 @@ void OFreqPulseAudioProcessor::releaseResources()
 
     // Reset step tracking
     currentStep = 0;
-    currentStepAtomic.store(0);
     lastPpqPosition = -1.0;
-    sampleAccumulator = 0.0;
 }
 
 //==============================================================================
@@ -344,13 +343,19 @@ std::array<bool, 32> OFreqPulseAudioProcessor::generateEuclidean(int steps, int 
 
 void OFreqPulseAudioProcessor::updateEuclideanPatterns()
 {
+    int globalSteps = juce::jlimit(2, 32, static_cast<int>(stepsParam->load()));
+
     for (int band = 0; band < 4; ++band)
     {
-        int steps = static_cast<int>(bandParams[band].eucSteps->load());
+        int eucSteps = static_cast<int>(bandParams[band].eucSteps->load());
         int pulses = static_cast<int>(bandParams[band].eucPulses->load());
         int offset = static_cast<int>(bandParams[band].eucOffset->load());
 
-        euclideanPatterns[band] = generateEuclidean(steps, pulses, offset);
+        // v1.15.0: Per-band step count overrides euc_steps when set
+        int bSteps = static_cast<int>(bandParams[band].bandSteps->load());
+        int effectiveSteps = (bSteps >= 2) ? bSteps : eucSteps;
+
+        euclideanPatterns[band] = generateEuclidean(effectiveSteps, pulses, offset);
     }
 }
 
@@ -407,9 +412,12 @@ float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentS
 
     if (eucOn)
     {
-        // Euclidean pattern: binary → velocity 0 or 1
+        // v1.15.0: Per-band step count overrides euc_steps when set
         int eucSteps = static_cast<int>(bandParams[bandIndex].eucSteps->load());
-        int wrappedStep = adjustedStep % eucSteps;
+        int bSteps = static_cast<int>(bandParams[bandIndex].bandSteps->load());
+        int effectiveEucSteps = (bSteps >= 2) ? bSteps : eucSteps;
+
+        int wrappedStep = adjustedStep % effectiveEucSteps;
         velocity = euclideanPatterns[bandIndex][wrappedStep] ? 1.0f : 0.0f;
     }
     else
@@ -494,6 +502,17 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     if (crossoversChanged)
         updateCrossoverFrequencies();
 
+    // v1.15.0: Per-band step count change detection
+    for (int band = 0; band < 4; ++band)
+    {
+        int bSteps = static_cast<int>(bandParams[band].bandSteps->load());
+        if (bSteps != lastBandSteps[band])
+        {
+            lastBandSteps[band] = bSteps;
+            euclideanParamsChanged = true;  // Triggers euclidean pattern regeneration
+        }
+    }
+
     if (euclideanParamsChanged)
         updateEuclideanPatterns();
 
@@ -548,11 +567,16 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     // v1.7.0: Per-band rate resolution — determine effective rate index per band
     int bandRateIndex[4];
+    // v1.15.0: Per-band effective step count (0 or 1 = follow global, 2-32 = independent)
+    int bandEffSteps[4];
     for (int band = 0; band < 4; ++band)
     {
         int bandRateChoice = static_cast<int>(bandParams[band].rate->load());
         // 0 = Global (use global rate), 1-10 = specific rate (offset by 1)
         bandRateIndex[band] = (bandRateChoice == 0) ? rateIndex : (bandRateChoice - 1);
+
+        int bSteps = static_cast<int>(bandParams[band].bandSteps->load());
+        bandEffSteps[band] = (bSteps >= 2) ? juce::jlimit(2, 32, bSteps) : numSteps;
     }
 
     // Set initial step and gain targets at block start
@@ -560,16 +584,15 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
 
     if (gotValidPosition && signalPresent)
     {
-        // Global step for playhead UI
+        // Global step (internal tracking for per-sample change detection)
         currentStep = calculateCurrentStep(blockStartPpq, numSteps, rateIndex, swing);
-        currentStepAtomic.store(currentStep);
 
-        // Per-band step positions
+        // Per-band step positions (using per-band step count)
         for (int band = 0; band < 4; ++band)
         {
-            bandSteps[band] = calculateCurrentStep(blockStartPpq, numSteps, bandRateIndex[band], swing);
+            bandSteps[band] = calculateCurrentStep(blockStartPpq, bandEffSteps[band], bandRateIndex[band], swing);
             bandStepAtomics[band].store(bandSteps[band]);
-            float targetGain = getTargetGainForBand(band, bandSteps[band], numSteps);
+            float targetGain = getTargetGainForBand(band, bandSteps[band], bandEffSteps[band]);
             bandEnvelopes[band].setTargetValue(targetGain);
         }
     }
@@ -579,8 +602,6 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
     dryWetMixer.pushDrySamples(block);
 
     // Per-sample processing: LR crossover → per-band gain → sum
-    int prevStep = currentStep;
-
     for (int sample = 0; sample < numSamples; ++sample)
     {
         // Sample-accurate step tracking (per-band)
@@ -588,24 +609,15 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         {
             double samplePpq = blockStartPpq + ppqPerSample * static_cast<double>(sample);
 
-            // Update global playhead step
-            int globalStepAtSample = calculateCurrentStep(samplePpq, numSteps, rateIndex, swing);
-            if (globalStepAtSample != prevStep)
-            {
-                currentStep = globalStepAtSample;
-                currentStepAtomic.store(currentStep);
-                prevStep = globalStepAtSample;
-            }
-
-            // Update per-band steps independently
+            // Update per-band steps independently (using per-band step count)
             for (int band = 0; band < 4; ++band)
             {
-                int stepAtSample = calculateCurrentStep(samplePpq, numSteps, bandRateIndex[band], swing);
+                int stepAtSample = calculateCurrentStep(samplePpq, bandEffSteps[band], bandRateIndex[band], swing);
                 if (stepAtSample != bandSteps[band])
                 {
                     bandSteps[band] = stepAtSample;
                     bandStepAtomics[band].store(stepAtSample);
-                    float targetGain = getTargetGainForBand(band, bandSteps[band], numSteps);
+                    float targetGain = getTargetGainForBand(band, bandSteps[band], bandEffSteps[band]);
                     bandEnvelopes[band].setTargetValue(targetGain);
                 }
             }
@@ -762,7 +774,7 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
     };
 
     // Helper lambda for band parameters
-    auto setBandParams = [this](int band, bool enable, bool eucOn, int eucSteps, int eucPulses, int eucOffset, float depth, int phaseOffset = 0) {
+    auto setBandParams = [this](int band, bool enable, bool eucOn, int eucSteps, int eucPulses, int eucOffset, float depth, int phaseOffset = 0, int bandSteps = 0) {
         juce::String bandID = "band" + juce::String(band);
 
         if (auto* p = parameters.getParameter(bandID + "_enable"))
@@ -777,6 +789,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucOffset)));
         if (auto* p = parameters.getParameter(bandID + "_phase_offset"))
             p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(phaseOffset)));
+        if (auto* p = parameters.getParameter(bandID + "_steps"))
+            p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(bandSteps)));
         if (auto* p = parameters.getParameter(bandID + "_depth"))
             p->setValueNotifyingHost(depth);
     };
@@ -996,7 +1010,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
 
     if (factoryDir.isDirectory()
         && versionFile.existsAsFile()
-        && versionFile.loadFileAsString().trimEnd() == "1.14.0")
+        && versionFile.loadFileAsString().trimEnd() == "1.15.0")
         return;
 
     if (factoryDir.isDirectory())
@@ -1038,7 +1052,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
     // Reset back to Init preset (index 0)
     loadPreset(0);
 
-    versionFile.replaceWithText("1.14.0\n");
+    versionFile.replaceWithText("1.15.0\n");
 
     juce::Logger::writeToLog("[O-FreqPulse] Factory presets initialized: " + juce::String(numPresets));
 }

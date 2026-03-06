@@ -2,6 +2,25 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.15.0] - 2026-03-05
+
+### Added
+
+- **Per-band step count** - New `band{N}_steps` parameter (integer 0-32, default 0) gives each frequency band its own loop length. When set to 0, the band follows the global Steps count. When set to 2-32, the band loops independently, creating polymetric patterns — e.g., Sub at 8 steps while Mid runs 12 steps and High runs 16 steps simultaneously.
+- **Euclidean mode integration** - Per-band step count overrides `euc_steps` when set, so euclidean patterns also generate at the band's custom length.
+- **Per-band cell visibility** - UI shows only the active number of cells per band row. Some bands may show 8 cells while others show 16, visually representing the polymetric structure.
+- **Band Steps slider in Band Controls panel** - The expand panel now includes a "Steps" slider (0-32) where 0 displays as "Global".
+
+### Technical Notes
+
+- 4 new `AudioParameterInt` parameters: `band0_steps` through `band3_steps` (range 0-32, default 0, version 1)
+- `processBlock()` calculates `bandEffSteps[band]` per-band, used for step position calculation via `calculateCurrentStep()` and gain lookup via `getTargetGainForBand()`
+- `updateEuclideanPatterns()` uses band step count instead of `euc_steps` when band has custom steps
+- Change detection added for band step parameters to trigger euclidean pattern regeneration
+- `WebSliderRelay`/`WebSliderParameterAttachment` added to `BandRelays`/`BandAttachments` structs
+- JS `updateStepVisibility()` now uses per-band effective step count
+- Backward compatible: default 0 preserves identical behavior to v1.14.0
+
 ## [1.14.0] - 2026-03-05
 
 ### Added

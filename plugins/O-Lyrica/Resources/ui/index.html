@@ -704,62 +704,65 @@
             pointer-events: none;
         }
 
-        .fx-knob-group {
+        /* SVG Vine-Arc Knobs for Effects Tab */
+        #effects-tab .knob-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 60px;
+            gap: 4px;
         }
 
-        .fx-knob-label {
-            font-size: 8px;
+        #effects-tab .knob {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        #effects-tab .knob-visual {
+            width: 44px;
+            height: 44px;
+            position: relative;
+        }
+
+        #effects-tab .knob-visual svg {
+            width: 100%;
+            height: 100%;
+            transform: rotate(-135deg);
+        }
+
+        #effects-tab .knob-track {
+            fill: none;
+            stroke: rgba(139, 115, 85, 0.3);
+            stroke-width: 2;
+        }
+
+        #effects-tab .knob-vine {
+            fill: none;
+            stroke: #6B8E23;
+            stroke-width: 3;
+            stroke-linecap: round;
+        }
+
+        #effects-tab .knob-label {
+            font-size: 9px;
             color: #3C2F2F;
+            font-weight: 600;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            margin-bottom: 2px;
         }
 
-        .fx-knob-slider {
-            -webkit-appearance: none;
-            width: 70px;
-            height: 5px;
-            background: linear-gradient(to right, #D4C4B0, #E8D5B7);
-            border-radius: 3px;
-            outline: none;
-            border: 1px solid #8B7355;
-        }
-
-        .fx-knob-slider::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            width: 14px;
-            height: 14px;
-            background: radial-gradient(circle at 40% 35%, #f5e6d3, #c4a882);
-            border-radius: 50%;
-            cursor: pointer;
-            transition: transform 0.15s;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.3), inset 0 1px 0 rgba(255,255,255,0.4);
-            border: 1px solid #8B7355;
-        }
-
-        .fx-knob-slider::-webkit-slider-thumb:hover {
-            transform: scale(1.1);
-        }
-
-        .fx-knob-slider::-webkit-slider-thumb:active {
-            transform: scale(0.95);
-        }
-
-        .fx-knob-value {
-            font-size: 8px;
+        #effects-tab .knob-value {
+            font-size: 9px;
             color: #5C4033;
-            margin-top: 1px;
+            font-weight: bold;
         }
 
         .fx-dropdown-container {
             display: flex;
             flex-direction: column;
             align-items: center;
-            min-width: 60px;
+            gap: 4px;
         }
 
         .fx-dropdown {

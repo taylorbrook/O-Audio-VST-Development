@@ -74,6 +74,9 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createSubNoisePa
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "noiseLevel", 1 }, "Noise Level",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "subRouting", 1 }, "Sub Routing",
+        juce::StringArray { "Post-Filter", "Pre-Filter" }, 0));
 
     return params;
 }
@@ -293,41 +296,38 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createEQParamete
     return params;
 }
 
+static const juce::StringArray& getLfoDivisionNames()
+{
+    static const juce::StringArray names {
+        "1/1", "1/2", "1/4", "1/8", "1/16", "1/32",
+        "1/1D", "1/2D", "1/4D", "1/8D", "1/16D", "1/32D",
+        "1/1T", "1/2T", "1/4T", "1/8T", "1/16T", "1/32T"
+    };
+    return names;
+}
+
 static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createLFOParameters()
 {
     std::vector<std::unique_ptr<juce::RangedAudioParameter>> params;
 
-    // LFO 1 (rate + shape only — routing handled by mod matrix)
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "lfo1Rate", 1 }, "LFO 1 Rate",
-        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
-    params.push_back (std::make_unique<juce::AudioParameterChoice> (
-        juce::ParameterID { "lfo1Shape", 1 }, "LFO 1 Shape",
-        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+    const auto& divNames = getLfoDivisionNames();
 
-    // LFO 2 (rate + shape only — routing handled by mod matrix)
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "lfo2Rate", 1 }, "LFO 2 Rate",
-        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
-    params.push_back (std::make_unique<juce::AudioParameterChoice> (
-        juce::ParameterID { "lfo2Shape", 1 }, "LFO 2 Shape",
-        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+    for (int i = 1; i <= 4; ++i)
+    {
+        auto n = juce::String (i);
 
-    // LFO 3 (rate + shape only — routing handled by mod matrix)
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "lfo3Rate", 1 }, "LFO 3 Rate",
-        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
-    params.push_back (std::make_unique<juce::AudioParameterChoice> (
-        juce::ParameterID { "lfo3Shape", 1 }, "LFO 3 Shape",
-        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
-
-    // LFO 4 (rate + shape only — routing handled by mod matrix)
-    params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "lfo4Rate", 1 }, "LFO 4 Rate",
-        juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
-    params.push_back (std::make_unique<juce::AudioParameterChoice> (
-        juce::ParameterID { "lfo4Shape", 1 }, "LFO 4 Shape",
-        juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+        params.push_back (std::make_unique<juce::AudioParameterFloat> (
+            juce::ParameterID { "lfo" + n + "Rate", 1 }, "LFO " + n + " Rate",
+            juce::NormalisableRange<float> (0.01f, 20.0f, 0.01f, 0.35f), 1.0f));
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { "lfo" + n + "Shape", 1 }, "LFO " + n + " Shape",
+            juce::StringArray { "Sine", "Triangle", "Saw", "Square", "S&H" }, 0));
+        params.push_back (std::make_unique<juce::AudioParameterBool> (
+            juce::ParameterID { "lfo" + n + "Sync", 1 }, "LFO " + n + " Sync", false));
+        params.push_back (std::make_unique<juce::AudioParameterChoice> (
+            juce::ParameterID { "lfo" + n + "Division", 1 }, "LFO " + n + " Division",
+            divNames, 2)); // default 1/4
+    }
 
     return params;
 }
@@ -373,6 +373,9 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createGlobalPara
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "oscMix", 1 }, "Osc Mix",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { "velocityCurve", 1 }, "Velocity Curve",
+        juce::StringArray { "Linear", "Soft", "Hard", "Fixed" }, 0));
 
     return params;
 }
@@ -482,6 +485,16 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 {
     juce::ScopedNoDenormals noDenormals;
     buffer.clear();
+
+    // Read BPM from host transport for tempo-synced LFOs
+    if (auto* playHead = getPlayHead())
+    {
+        if (auto posInfo = playHead->getPosition())
+        {
+            if (auto bpm = posInfo->getBpm())
+                currentBPM.store (*bpm, std::memory_order_relaxed);
+        }
+    }
 
     // Update TuningEngine from APVTS
     tuningEngine.setMasterTune (static_cast<double> (parameters.getRawParameterValue ("masterTune")->load()));

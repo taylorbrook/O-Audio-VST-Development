@@ -62,7 +62,6 @@ float LFO::getNextSample()
     }
 
     // Advance phase
-    double prevPhase = phase;
     phase += phaseIncrement;
 
     // Wrap and trigger S&H on wrap

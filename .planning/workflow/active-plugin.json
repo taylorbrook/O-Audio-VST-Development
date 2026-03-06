@@ -1,9 +1,9 @@
 {
   "$schema": "./schemas/active-plugin.schema.json",
-  "plugin": "O-Lyrica",
-  "focusedAt": "2026-03-01T12:00:00Z",
+  "plugin": "O-IntonationPad",
+  "focusedAt": "2026-03-04T12:00:00Z",
   "loadedContext": {
-    "statusMd": false,
+    "statusMd": true,
     "currentPlan": null,
     "currentContext": null
   }

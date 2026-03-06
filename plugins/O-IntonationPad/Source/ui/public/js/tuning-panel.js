@@ -19,6 +19,16 @@
  *   panel.init();
  */
 
+import { NOTE_NAMES } from './constants.js';
+
+function setSliderFromRange(state, value, min, max) {
+    if (!state) return;
+    const norm = (value - min) / (max - min);
+    state.sliderDragStarted();
+    state.setNormalisedValue(Math.max(0, Math.min(1, norm)));
+    state.sliderDragEnded();
+}
+
 export class TuningPanel {
     constructor(containerElement, juceApi) {
         this.container = containerElement;
@@ -36,12 +46,10 @@ export class TuningPanel {
         this.heldNotesFreqs = [];
         this.activeScaleDegrees = new Set(); // Track which scale degrees are currently sounding
 
-        // Note names for display
-        this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-
         // APVTS relay SliderStates (initialised in init after render)
         this.octaveStretchState = null;
         this.masterTuneState = null;
+        this.pitchBendRangeState = null;
     }
 
     async init() {
@@ -51,6 +59,7 @@ export class TuningPanel {
         if (this.juce && this.juce.getSliderState) {
             this.octaveStretchState = this.juce.getSliderState('tuning_octaveStretch');
             this.masterTuneState = this.juce.getSliderState('tuning_masterTune');
+            this.pitchBendRangeState = this.juce.getSliderState('tuning_pitchBendRange');
 
             // Listen for backend-initiated changes to octave stretch
             this.octaveStretchState.valueChangedEvent.addListener(() => {
@@ -71,6 +80,15 @@ export class TuningPanel {
                     indicator.style.transform = `rotate(${angle}deg)`;
                 }
                 if (valueEl) valueEl.textContent = `${hz.toFixed(1)} Hz`;
+            });
+
+            // Listen for backend-initiated changes to pitch bend range
+            this.pitchBendRangeState.valueChangedEvent.addListener(() => {
+                const st = this.pitchBendRangeState.getScaledValue();
+                const slider = this.container.querySelector('#pitch-bend-range');
+                const valueEl = this.container.querySelector('#pitch-bend-range-value');
+                if (slider) slider.value = st;
+                if (valueEl) valueEl.textContent = Math.round(st) + ' st';
             });
         }
 
@@ -172,6 +190,16 @@ export class TuningPanel {
                         </div>
                     </div>
 
+                    <!-- Pitch Bend Range -->
+                    <div class="octave-stretch-section" data-tooltip="Pitch bend range in semitones (1-48 st). Controls how far the pitch wheel bends notes">
+                        <div class="octave-stretch-row">
+                            <span class="octave-stretch-label">PB Range</span>
+                            <input type="range" id="pitch-bend-range" class="octave-stretch-slider"
+                                   min="1" max="48" step="1" value="2">
+                            <span class="octave-stretch-value" id="pitch-bend-range-value">2 st</span>
+                        </div>
+                    </div>
+
                     <!-- File Operations -->
                     <div class="tuning-file-section">
                         <div class="tuning-file-buttons">
@@ -240,6 +268,9 @@ export class TuningPanel {
         // Octave stretch
         this.container.querySelector('#octave-stretch').addEventListener('input', (e) => this.setOctaveStretch(e.target.value));
 
+        // Pitch bend range
+        this.container.querySelector('#pitch-bend-range').addEventListener('input', (e) => this.setPitchBendRange(e.target.value));
+
         // Reference pitch knob (drag)
         this.setupRefPitchKnob();
     }
@@ -267,6 +298,13 @@ export class TuningPanel {
                 const stretch = this.octaveStretchState.getScaledValue();
                 this.container.querySelector('#octave-stretch').value = stretch;
                 this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
+            }
+
+            // Get pitch bend range from APVTS relay
+            if (this.pitchBendRangeState) {
+                const st = this.pitchBendRangeState.getScaledValue();
+                this.container.querySelector('#pitch-bend-range').value = st;
+                this.container.querySelector('#pitch-bend-range-value').textContent = Math.round(st) + ' st';
             }
 
             // Update UI
@@ -303,7 +341,7 @@ export class TuningPanel {
             <div class="tonic-selector">
                 <span class="tonic-label">Tonic</span>
                 <button class="tonic-arrow" id="tonic-down">◄</button>
-                <span class="tonic-value" id="tonic-value">${this.noteNames[this.tonic]}</span>
+                <span class="tonic-value" id="tonic-value">${NOTE_NAMES[this.tonic]}</span>
                 <button class="tonic-arrow" id="tonic-up">►</button>
             </div>
         `;
@@ -317,7 +355,7 @@ export class TuningPanel {
                 <div class="interval-item ${isOctave ? 'octave' : ''}">
                     <span class="interval-degree">${degreeLabel}</span>
                     <input type="text" class="interval-input" data-index="${i}"
-                           value="${cents.toFixed(isOctave ? 1 : 1)}" ${isOctave ? 'readonly' : ''}>
+                           value="${cents.toFixed(1)}" ${isOctave ? 'readonly' : ''}>
                     <span class="interval-unit">c</span>
                 </div>
             `;
@@ -607,7 +645,7 @@ export class TuningPanel {
      * Convert MIDI note number to readable note name (e.g., 60 → "C4")
      */
     midiToNoteName(midi) {
-        return this.noteNames[midi % 12] + (Math.floor(midi / 12) - 1);
+        return NOTE_NAMES[midi % 12] + (Math.floor(midi / 12) - 1);
     }
 
     /**
@@ -641,7 +679,7 @@ export class TuningPanel {
 
         for (let mode = 0; mode < count; mode++) {
             const isCurrentTonic = mode === this.tonic;
-            const modeLabel = count === 12 ? this.noteNames[mode % 12] : mode.toString();
+            const modeLabel = count === 12 ? NOTE_NAMES[mode % 12] : mode.toString();
             html += `<tr class="${isCurrentTonic ? 'current-tonic' : ''}"><th>${modeLabel}</th>`;
 
             for (let i = 0; i < count; i++) {
@@ -945,13 +983,13 @@ export class TuningPanel {
     setOctaveStretch(value) {
         const stretch = parseFloat(value);
         this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
+        setSliderFromRange(this.octaveStretchState, stretch, 0.95, 1.25);
+    }
 
-        if (!this.octaveStretchState) return;
-        // Convert scaled value to normalised [0, 1] (linear range 0.95-1.25)
-        const norm = (stretch - 0.95) / (1.25 - 0.95);
-        this.octaveStretchState.sliderDragStarted();
-        this.octaveStretchState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
-        this.octaveStretchState.sliderDragEnded();
+    setPitchBendRange(value) {
+        const st = parseInt(value);
+        this.container.querySelector('#pitch-bend-range-value').textContent = st + ' st';
+        setSliderFromRange(this.pitchBendRangeState, st, 1, 48);
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -1027,7 +1065,7 @@ export class TuningPanel {
      */
     getNoteLabel(index, scaleSize) {
         if (scaleSize === 12) {
-            return this.noteNames[(this.tonic + index) % 12];
+            return NOTE_NAMES[(this.tonic + index) % 12];
         }
         return index.toString();
     }

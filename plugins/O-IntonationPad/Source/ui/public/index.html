@@ -542,21 +542,25 @@
         }
 
         #effects-tab {
-            gap: 6px;
+            gap: 4px;
         }
 
         .fx-section {
             background: rgba(255, 248, 220, 0.25);
             border: 1px solid rgba(139, 115, 85, 0.35);
             border-radius: 5px;
-            padding: 6px 10px;
+            padding: 4px 8px;
         }
 
         .fx-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 4px;
+            margin-bottom: 2px;
+        }
+
+        #effects-tab .knob-container {
+            gap: 1px;
         }
 
         .fx-title {
@@ -777,22 +781,20 @@
     </div>
 
     <!-- JUCE WebView Bridge -->
-    <script type="module" src="js/juce/check_native_interop.js"></script>
     <script type="module">
         import * as Juce from './js/juce/index.js';
+        import { NOTE_NAMES } from './js/constants.js';
 
         // JUCE Parameter States
         let voiceCountState, complexityState, keyRootState, stereoSpreadState, spacingState, inversionState;
         let wavetableBankState, wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let wavetableBank2State, wavetablePos2State, lfoRate2State, lfoDepth2State, gainAState, gainBState;
-        let attackTimeState, decayTimeState, sustainLevelState, releaseTimeState, filterCutoffState, masterVolumeState;
+        let attackTimeState, decayTimeState, sustainLevelState, releaseTimeState, filterCutoffState, filterLfoDepthState, velocityToFilterState, masterVolumeState;
         let chorusRateState, chorusDepthState, chorusMixState;
         let delayTimeState, delayFeedbackState, delayModeState, delayMixState;
         let eqLowGainState, eqMidGainState, eqMidFreqState, eqHighGainState;
         let reverbSizeState, reverbDampState, reverbPredelayState, reverbMixState;
         let chorusBypassState, delayBypassState, eqBypassState, reverbBypassState;
-
-        const NOTE_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
         // ====================================================================
         // KNOB FACTORY + WAVETABLE BANK DATA
@@ -831,6 +833,8 @@
             sustainLevel: 'Envelope sustain level — volume held while note is on after decay (0-100%)',
             releaseTime: 'Envelope release time — how long the sound fades out after note off (10-10000 ms)',
             filterCutoff: 'Low-pass filter cutoff frequency (20-20000 Hz)',
+            filterLfoDepth: 'Filter LFO depth — modulates cutoff using LFO A phase for sweeping filter effects (0-100%)',
+            velocityToFilter: 'Velocity to filter — MIDI velocity modulates filter cutoff. Low velocity = darker, high velocity = brighter (0-100%)',
             masterVolume: 'Master output volume in dB',
             // Synth tab - randomization
             timingRandom: 'Random delay offset per chord voice — adds organic strum feel (0-100 ms)',
@@ -1008,6 +1012,8 @@
                 { id: 'sustainLevel', label: 'Sustain' },
                 { id: 'releaseTime', label: 'Release' },
                 { id: 'filterCutoff', label: 'Filter' },
+                { id: 'filterLfoDepth', label: 'Flt LFO' },
+                { id: 'velocityToFilter', label: 'Vel>Flt' },
                 { id: 'masterVolume', label: 'Volume' },
             ]);
             populateKnobs('synth-random-knobs', [
@@ -1086,6 +1092,8 @@
             sustainLevelState = Juce.getSliderState('sustainLevel');
             releaseTimeState = Juce.getSliderState('releaseTime');
             filterCutoffState = Juce.getSliderState('filterCutoff');
+            filterLfoDepthState = Juce.getSliderState('filterLfoDepth');
+            velocityToFilterState = Juce.getSliderState('velocityToFilter');
             masterVolumeState = Juce.getSliderState('masterVolume');
 
             chorusRateState = Juce.getSliderState('chorusRate');
@@ -1132,6 +1140,8 @@
             setupKnob('sustainLevel', sustainLevelState, 0, 100, '%', v => Math.round(v));
             setupKnob('releaseTime', releaseTimeState, 10, 10000, ' ms', v => Math.round(v));
             setupKnob('filterCutoff', filterCutoffState, 20, 20000, ' Hz', v => Math.round(v));
+            setupKnob('filterLfoDepth', filterLfoDepthState, 0, 100, '%', v => Math.round(v));
+            setupKnob('velocityToFilter', velocityToFilterState, 0, 100, '%', v => Math.round(v));
             setupKnob('masterVolume', masterVolumeState, -60, 6, ' dB', v => v.toFixed(1));
 
             // Setup dropdowns

@@ -28,13 +28,12 @@ public:
      *
      * @param rootMidiNote  The played MIDI note
      * @param numVoices     Max voices to generate (2-12)
-     * @param complexity    0.0-1.0, controls how many enabled intervals are audible
      * @param keyRoot       Root note offset (0-11, for transposition)
      * @param enabledDegrees  Sorted list of scale degree offsets to use for chord building
      *                        (e.g., {0, 4, 7, 11} for root + intervals at degrees 4, 7, 11)
      * @param scaleDegreeCount  Total degrees in the scale (for octave wrapping)
      */
-    std::vector<ChordVoice> generateChord(int rootMidiNote, int numVoices, float complexity,
+    std::vector<ChordVoice> generateChord(int rootMidiNote, int numVoices,
                                            int keyRoot, const std::vector<int>& enabledDegrees,
                                            int scaleDegreeCount);
 

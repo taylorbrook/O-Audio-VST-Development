@@ -82,7 +82,7 @@ namespace PrismParamIds
         all.addArray (oscIds ("oscA"));                                           // 10
         all.addArray (oscIds ("oscB"));                                           // 10
         all.addArray ({ "subShape", "subOctave", "subLevel",
-                        "noiseType", "noiseLevel" });                             //  5
+                        "noiseType", "noiseLevel", "subRouting" });               //  6
         all.addArray ({ "ampAttack", "ampDecay", "ampSustain", "ampRelease" });   //  4
         all.addArray ({ "filtAttack", "filtDecay", "filtSustain",
                         "filtRelease", "filtEnvDepth" });                         //  5
@@ -99,11 +99,13 @@ namespace PrismParamIds
         all.addArray ({ "distType", "distDrive", "distMix" });                   //  3
         all.addArray ({ "eqLowGain", "eqMidGain", "eqMidFreq",
                         "eqHighGain" });                                         //  4
-        all.addArray ({ "lfo1Rate", "lfo1Shape", "lfo2Rate", "lfo2Shape",
-                        "lfo3Rate", "lfo3Shape", "lfo4Rate", "lfo4Shape" });   //  8
+        all.addArray ({ "lfo1Rate", "lfo1Shape", "lfo1Division",
+                        "lfo2Rate", "lfo2Shape", "lfo2Division",
+                        "lfo3Rate", "lfo3Shape", "lfo3Division",
+                        "lfo4Rate", "lfo4Shape", "lfo4Division" });            // 12
         all.addArray (modMatrixSliderIds());                                     // 48
-        all.addArray ({ "masterVol", "oscMix" });                                 //  2
-        return all;                                                              // 123
+        all.addArray ({ "masterVol", "oscMix", "velocityCurve" });                 //  3
+        return all;                                                              // 124
     }
 
 } // namespace PrismParamIds

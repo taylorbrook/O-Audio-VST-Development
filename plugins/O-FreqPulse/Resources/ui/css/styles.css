@@ -504,11 +504,6 @@ html, body {
     font-size: 11px;
 }
 
-/* Playhead (hidden — replaced by per-band cell highlighting) */
-.playhead {
-    display: none;
-}
-
 /* Per-band playing highlight */
 .step-cell.playing {
     background: var(--playhead) !important;

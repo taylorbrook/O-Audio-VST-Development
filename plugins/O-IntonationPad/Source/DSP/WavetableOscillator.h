@@ -80,8 +80,7 @@ public:
             destR[i] += output * gainR;
 
             phase += phaseIncrement;
-            if (phase >= 1.0f)
-                phase -= 1.0f;
+            phase -= std::floor(phase);
         }
     }
 

@@ -175,6 +175,12 @@ private:
     // v1.14.0: Per-sub-voice LFO phase offsets for organic ensemble movement
     std::array<float, MAX_SUB_VOICES> subVoiceLFOPhaseOffsets{};
 
+    // Initialize all 6 oscillators + infos for one sub-voice slot
+    void initializeSingleSubVoice(size_t idx,
+                                   int baseMidiNote, float baseFreq,
+                                   int spacingMidiNote, float spacingFreq,
+                                   int inversionMidiNote, float inversionFreq);
+
     // Resolve MIDI note to frequency using tuning engine (or 12-TET fallback) with cent offset
     float resolveFrequency(int midiNote, double centOffset) const;
 

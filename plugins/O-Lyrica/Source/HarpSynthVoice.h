@@ -15,7 +15,6 @@
 #include "HarpSynthSound.h"
 #include "DSP/WaveguideString.h"
 #include "DSP/StringMaterial.h"
-#include "DSP/BodyResonance.h"
 #include "DSP/SympatheticResonance.h"
 #include "DSP/TuningEngine.h"
 #include "DSP/GlissandoController.h"
@@ -89,9 +88,6 @@ private:
     // Physical modeling string (Phase 2.2 - Bidirectional Waveguide)
     WaveguideString stringModel;
 
-    // Phase 2.6: Body Resonance (modal synthesis)
-    BodyResonance bodyResonance;
-
     // Phase 2.9: Glissando Controller
     GlissandoController glissandoController;
 
@@ -117,6 +113,7 @@ private:
     float currentVelocity = 0.0f;
     int currentMidiNote = -1; // Current MIDI note number (for pitch bend)
     int voiceId = -1; // Unique ID for sympathetic tracking (v1.3.2: generated from atomic counter)
+    int cachedSympatheticSlot = -1; // v1.32.5: Cached slot index from registerVoice() to avoid per-sample lookup
 
     // v1.3.2: Static atomic counter for guaranteed unique voice IDs
     static std::atomic<int> nextVoiceId;

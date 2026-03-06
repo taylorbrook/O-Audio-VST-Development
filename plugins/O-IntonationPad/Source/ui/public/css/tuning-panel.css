@@ -18,14 +18,7 @@
     --tuning-input-bg: rgba(255, 255, 255, 0.8);
     --tuning-hover: rgba(139, 168, 112, 0.3);
     --tuning-active: rgba(139, 195, 74, 0.4);
-}
 
-
-/* ═══════════════════════════════════════════════════════════════════
-   MAIN CONTAINER
-   ═══════════════════════════════════════════════════════════════════ */
-
-.tuning-panel {
     display: grid;
     grid-template-columns: 160px 1fr 220px;
     align-items: start;
@@ -642,10 +635,6 @@
     gap: 10px;
     padding: 10px;
     font-size: 10px;
-}
-
-.tuning-panel.compact .interval-list {
-    /* No max-height — list grows with scale size, tab scrolls */
 }
 
 .tuning-panel.compact .viz-container {

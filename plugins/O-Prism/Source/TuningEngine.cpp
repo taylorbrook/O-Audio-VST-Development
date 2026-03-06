@@ -645,19 +645,6 @@ juce::String TuningEngine::generateKBMFileContent() const
     return content;
 }
 
-// Deprecated compatibility stub
-bool TuningEngine::loadScalaFile(const juce::File& scl, const juce::File& kbm)
-{
-    juce::ignoreUnused(kbm);
-    return loadScalaFile(scl);
-}
-
-bool TuningEngine::connectMTSClient()
-{
-    DBG("TuningEngine::connectMTSClient() - Not implemented");
-    return false;
-}
-
 bool TuningEngine::isNoteMapped(int midiNote) const
 {
     midiNote = juce::jlimit(0, 127, midiNote);

@@ -12,6 +12,7 @@ const state = {
     tooltipsEnabled: false,  // v1.5.0: Tooltip toggle state
     soloedBand: -1,     // v1.13.0: Which band is soloed (-1 = none)
     preSoloEnables: [true, true, true, true],  // Enable states before solo was engaged
+    bandSteps: [0, 0, 0, 0],  // v1.15.0: Per-band step count (0=follow global)
 };
 
 // Cached DOM references — populated once after renderGrid()
@@ -91,6 +92,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // v1.6.0: Initialize preset manager
     initializePresetManager();
+
+    // v1.15.0: Initialize per-band step count listeners
+    initializeBandStepsListeners();
 
     // v1.13.0: Initialize mute/solo listeners (after grid rendered)
     initializeMuteSoloListeners();
@@ -264,6 +268,10 @@ function initializeBandParameters() {
         // v1.14.0: Per-band phase offset
         const phaseOffsetState = Juce.getSliderState(`band${bandId}_phase_offset`);
         state.stepStates[`band${bandId}_phase_offset`] = phaseOffsetState;
+
+        // v1.15.0: Per-band step count
+        const bandStepsState = Juce.getSliderState(`band${bandId}_steps`);
+        state.stepStates[`band${bandId}_steps`] = bandStepsState;
     }
 }
 
@@ -644,9 +652,11 @@ function updateStepCount(count) {
 
 function updateStepVisibility() {
     for (let b = 0; b < 4; b++) {
+        // v1.15.0: Per-band step count (0 = follow global)
+        const effSteps = (state.bandSteps[b] >= 2) ? state.bandSteps[b] : state.numSteps;
         const bandCells = cachedCells[b];
         for (let s = 0; s < bandCells.length; s++) {
-            bandCells[s].style.display = s < state.numSteps ? 'block' : 'none';
+            bandCells[s].style.display = s < effSteps ? 'block' : 'none';
         }
     }
 }
@@ -774,6 +784,25 @@ function syncEuclideanControls(bandId) {
         phaseValue.textContent = Math.round(phaseState.getScaledValue());
     };
 
+    // v1.15.0: Per-band step count
+    const bandStepsState = state.stepStates[`band${bandId}_steps`];
+    const bandStepsSlider = document.getElementById('euc-band-steps');
+    const bandStepsValue = document.getElementById('euc-band-steps-value');
+
+    const bStepsVal = Math.round(bandStepsState.getScaledValue());
+    bandStepsSlider.value = bStepsVal;
+    bandStepsValue.textContent = bStepsVal === 0 ? 'Global' : bStepsVal;
+
+    bandStepsSlider.oninput = (e) => {
+        const val = parseInt(e.target.value);
+        // Skip value 1 (invalid) — snap to 0 or 2
+        const clamped = (val === 1) ? 0 : val;
+        bandStepsSlider.value = clamped;
+        const normalized = clamped / 32;
+        bandStepsState.setNormalisedValue(normalized);
+        bandStepsValue.textContent = clamped === 0 ? 'Global' : clamped;
+    };
+
     // Depth
     const depthState = state.stepStates[`band${bandId}_depth`];
     const depthSlider = document.getElementById('euc-depth');
@@ -881,7 +910,11 @@ function updateEuclideanGrid(bandId) {
         const eucPulses = Math.round(state.stepStates[`band${bandId}_euc_pulses`].getScaledValue());
         const eucOffset = Math.round(state.stepStates[`band${bandId}_euc_offset`].getScaledValue());
 
-        const pattern = generateEuclidean(eucSteps, eucPulses, eucOffset);
+        // v1.15.0: Per-band step count overrides euc_steps when set
+        const bSteps = state.bandSteps[bandId];
+        const effectiveEucSteps = (bSteps >= 2) ? bSteps : eucSteps;
+
+        const pattern = generateEuclidean(effectiveEucSteps, eucPulses, eucOffset);
 
         for (let step = 0; step < cells.length; step++) {
             const cell = cells[step];
@@ -889,7 +922,7 @@ function updateEuclideanGrid(bandId) {
             cell.classList.remove('active');
 
             // Wrap via modulo to match C++ getTargetGainForBand() behavior
-            const wrappedStep = step % eucSteps;
+            const wrappedStep = step % effectiveEucSteps;
             cell.classList.toggle('euclidean-active', pattern[wrappedStep]);
         }
     } else {
@@ -1216,6 +1249,31 @@ function updateAllSoloVisuals() {
     for (let i = 0; i < 4; i++) {
         const soloBtn = document.getElementById(`solo-${i}`);
         if (soloBtn) soloBtn.classList.toggle('active', state.soloedBand === i);
+    }
+}
+
+// ============================================================================
+// v1.15.0: Per-Band Step Count Listeners
+// ============================================================================
+
+function initializeBandStepsListeners() {
+    for (let bandId = 0; bandId < 4; bandId++) {
+        const bid = bandId;
+        const bStepsState = state.stepStates[`band${bid}_steps`];
+        if (!bStepsState) continue;
+
+        // Sync initial value
+        state.bandSteps[bid] = Math.round(bStepsState.getScaledValue());
+
+        // Listen for changes
+        bStepsState.valueChangedEvent.addListener(() => {
+            state.bandSteps[bid] = Math.round(bStepsState.getScaledValue());
+            updateStepVisibility();
+            // Refresh euclidean grid if active (band steps overrides euc_steps)
+            if (state.euclideanActive[bid]) {
+                updateEuclideanGrid(bid);
+            }
+        });
     }
 }
 

@@ -267,10 +267,6 @@ public:
      */
     std::vector<double> getScaleFrequencies(int rootNote, int numNotes);
 
-    // Deprecated compatibility stubs
-    bool loadScalaFile(const juce::File& scl, const juce::File& kbm);
-    bool connectMTSClient();
-
 private:
     // ═══════════════════════════════════════════════════════════════════
     // Internal Methods

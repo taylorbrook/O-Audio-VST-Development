@@ -31,7 +31,6 @@ public:
     const juce::String getName() const override { return "O-FreqPulse"; }
 
     // Thread-safe access for GUI timer
-    int getCurrentStep() const { return currentStepAtomic.load(); }
     int getBandStep(int band) const { return bandStepAtomics[band].load(); }
     bool getHasAudioSignal() const { return hasAudioSignal.load(); }
 
@@ -70,6 +69,7 @@ private:
         std::atomic<float>* eucPulses = nullptr;
         std::atomic<float>* eucOffset = nullptr;
         std::atomic<float>* phaseOffset = nullptr;  // v1.14.0: Per-band phase offset (0-31)
+        std::atomic<float>* bandSteps = nullptr;   // v1.15.0: Per-band step count (0=global, 2-32)
         std::array<std::atomic<float>*, 32> stepStates;  // 32 step parameters per band
     };
 
@@ -85,10 +85,6 @@ private:
     std::atomic<float>* crossover1Param = nullptr;
     std::atomic<float>* crossover2Param = nullptr;
     std::atomic<float>* crossover3Param = nullptr;
-
-    // Frequency boundary cached pointers
-    std::atomic<float>* freqLowParam = nullptr;
-    std::atomic<float>* freqHighParam = nullptr;
 
     std::array<BandParams, 4> bandParams;  // 4 bands
 
@@ -140,11 +136,7 @@ private:
 
     // Step Sequencer State
     int currentStep = 0;
-    std::atomic<int> currentStepAtomic { 0 };  // Thread-safe for GUI access
     double lastPpqPosition = -1.0;
-
-    // Free-running step counter (for standalone/no-host mode)
-    double sampleAccumulator = 0.0;
 
     // Per-band step positions (for independent per-band playhead highlighting)
     std::array<std::atomic<int>, 4> bandStepAtomics { { {0}, {0}, {0}, {0} } };
@@ -158,6 +150,7 @@ private:
     // Cached parameter values (for change detection)
     float lastCrossovers[3] = { 0.0f, 0.0f, 0.0f };
     int lastEuclideanParams[4][3] = { {0, 0, 0}, {0, 0, 0}, {0, 0, 0}, {0, 0, 0} };  // [band][steps/pulses/offset]
+    int lastBandSteps[4] = { 0, 0, 0, 0 };  // v1.15.0: Per-band step count change detection
     float lastAttackMs = -1.0f;   // Track attack parameter to avoid recompute every block
     float lastReleaseMs = -1.0f;  // Track release parameter to avoid recompute every block
 

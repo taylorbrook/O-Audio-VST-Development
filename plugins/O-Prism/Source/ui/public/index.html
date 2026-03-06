@@ -812,6 +812,12 @@ body {
                         <option>-1 Oct</option><option>-2 Oct</option><option>-3 Oct</option><option>-4 Oct</option>
                     </select>
                 </div>
+                <div class="dropdown-group">
+                    <span class="dropdown-label">Routing</span>
+                    <select id="select-subRouting" class="param-select">
+                        <option>Post-Filter</option><option>Pre-Filter</option>
+                    </select>
+                </div>
                 <div class="knob-container"><div class="knob" id="knob-subLevel"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-subLevel" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Level</span><span class="knob-value" id="val-subLevel">0%</span></div></div>
             </div>
         </div>
@@ -907,12 +913,20 @@ body {
         </div>
     </div>
 
-    <!-- LFOs (rate + shape only — routing via Mod Matrix tab) -->
+    <!-- LFOs (rate/sync + shape — routing via Mod Matrix tab) -->
     <div class="inline-sections">
-        <div class="inline-section">
-            <div class="section-header">LFO 1</div>
+        <div class="inline-section" id="lfo1-section">
+            <div class="section-header">LFO 1 <button id="toggle-lfo1Sync" class="toggle-btn">Free</button></div>
             <div class="param-row">
-                <div class="knob-container"><div class="knob" id="knob-lfo1Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo1Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo1Rate">1.0 Hz</span></div></div>
+                <div class="knob-container" id="lfo1-rate-wrap"><div class="knob" id="knob-lfo1Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo1Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo1Rate">1.0 Hz</span></div></div>
+                <div class="dropdown-group" id="lfo1-div-wrap" style="display:none">
+                    <span class="dropdown-label">Division</span>
+                    <select id="select-lfo1Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo1Shape" class="param-select">
@@ -921,10 +935,18 @@ body {
                 </div>
             </div>
         </div>
-        <div class="inline-section">
-            <div class="section-header">LFO 2</div>
+        <div class="inline-section" id="lfo2-section">
+            <div class="section-header">LFO 2 <button id="toggle-lfo2Sync" class="toggle-btn">Free</button></div>
             <div class="param-row">
-                <div class="knob-container"><div class="knob" id="knob-lfo2Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo2Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo2Rate">1.0 Hz</span></div></div>
+                <div class="knob-container" id="lfo2-rate-wrap"><div class="knob" id="knob-lfo2Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo2Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo2Rate">1.0 Hz</span></div></div>
+                <div class="dropdown-group" id="lfo2-div-wrap" style="display:none">
+                    <span class="dropdown-label">Division</span>
+                    <select id="select-lfo2Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo2Shape" class="param-select">
@@ -933,10 +955,18 @@ body {
                 </div>
             </div>
         </div>
-        <div class="inline-section">
-            <div class="section-header">LFO 3</div>
+        <div class="inline-section" id="lfo3-section">
+            <div class="section-header">LFO 3 <button id="toggle-lfo3Sync" class="toggle-btn">Free</button></div>
             <div class="param-row">
-                <div class="knob-container"><div class="knob" id="knob-lfo3Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo3Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo3Rate">1.0 Hz</span></div></div>
+                <div class="knob-container" id="lfo3-rate-wrap"><div class="knob" id="knob-lfo3Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo3Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo3Rate">1.0 Hz</span></div></div>
+                <div class="dropdown-group" id="lfo3-div-wrap" style="display:none">
+                    <span class="dropdown-label">Division</span>
+                    <select id="select-lfo3Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo3Shape" class="param-select">
@@ -945,10 +975,18 @@ body {
                 </div>
             </div>
         </div>
-        <div class="inline-section">
-            <div class="section-header">LFO 4</div>
+        <div class="inline-section" id="lfo4-section">
+            <div class="section-header">LFO 4 <button id="toggle-lfo4Sync" class="toggle-btn">Free</button></div>
             <div class="param-row">
-                <div class="knob-container"><div class="knob" id="knob-lfo4Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo4Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo4Rate">1.0 Hz</span></div></div>
+                <div class="knob-container" id="lfo4-rate-wrap"><div class="knob" id="knob-lfo4Rate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-lfo4Rate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-lfo4Rate">1.0 Hz</span></div></div>
+                <div class="dropdown-group" id="lfo4-div-wrap" style="display:none">
+                    <span class="dropdown-label">Division</span>
+                    <select id="select-lfo4Division" class="param-select">
+                        <option>1/1</option><option>1/2</option><option>1/4</option><option>1/8</option><option>1/16</option><option>1/32</option>
+                        <option>1/1D</option><option>1/2D</option><option>1/4D</option><option>1/8D</option><option>1/16D</option><option>1/32D</option>
+                        <option>1/1T</option><option>1/2T</option><option>1/4T</option><option>1/8T</option><option>1/16T</option><option>1/32T</option>
+                    </select>
+                </div>
                 <div class="dropdown-group">
                     <span class="dropdown-label">Shape</span>
                     <select id="select-lfo4Shape" class="param-select">
@@ -1469,6 +1507,7 @@ bindKnob('oscBWidth',  pct,       0.5);
 // Sub + Noise
 bindDropdown(document.getElementById('select-subShape'), 'subShape', 4);
 bindDropdown(document.getElementById('select-subOctave'), 'subOctave', 4);
+bindDropdown(document.getElementById('select-subRouting'), 'subRouting', 2);
 bindKnob('subLevel',   pct,       0.0);
 bindDropdown(document.getElementById('select-noiseType'), 'noiseType', 6);
 bindKnob('noiseLevel', pct,       0.0);
@@ -1538,21 +1577,59 @@ bindKnob('eqMidGain',  dbFmt,      0.5);
 bindKnob('eqMidFreq',  midFreqFmt, 0.1);
 bindKnob('eqHighGain', dbFmt,      0.5);
 
-// LFO 1 (rate + shape only — routing via mod matrix)
-bindKnob('lfo1Rate',  lfoRateFmt, 0.349);
+// ─── LFO Sync Toggle Binding ───
+function bindLfoSync(lfoNum) {
+    const syncBtn = document.getElementById('toggle-lfo' + lfoNum + 'Sync');
+    const rateWrap = document.getElementById('lfo' + lfoNum + '-rate-wrap');
+    const divWrap = document.getElementById('lfo' + lfoNum + '-div-wrap');
+    const syncState = Juce.getToggleState('lfo' + lfoNum + 'Sync');
+
+    function updateSyncUI(isSync) {
+        if (isSync) {
+            syncBtn.textContent = 'Sync';
+            syncBtn.classList.add('active');
+            rateWrap.style.display = 'none';
+            divWrap.style.display = '';
+        } else {
+            syncBtn.textContent = 'Free';
+            syncBtn.classList.remove('active');
+            rateWrap.style.display = '';
+            divWrap.style.display = 'none';
+        }
+    }
+
+    syncBtn.addEventListener('click', () => {
+        const newVal = !syncState.getValue();
+        syncState.setValue(newVal);
+    });
+
+    syncState.addListener({ handleToggleStateChange: (val) => updateSyncUI(val) });
+    updateSyncUI(syncState.getValue());
+}
+
+// LFO 1
+bindKnob('lfo1Rate', lfoRateFmt, 0.349);
 bindDropdown(document.getElementById('select-lfo1Shape'), 'lfo1Shape', 5);
+bindDropdown(document.getElementById('select-lfo1Division'), 'lfo1Division', 18);
+bindLfoSync(1);
 
 // LFO 2
-bindKnob('lfo2Rate',  lfoRateFmt, 0.349);
+bindKnob('lfo2Rate', lfoRateFmt, 0.349);
 bindDropdown(document.getElementById('select-lfo2Shape'), 'lfo2Shape', 5);
+bindDropdown(document.getElementById('select-lfo2Division'), 'lfo2Division', 18);
+bindLfoSync(2);
 
 // LFO 3
-bindKnob('lfo3Rate',  lfoRateFmt, 0.349);
+bindKnob('lfo3Rate', lfoRateFmt, 0.349);
 bindDropdown(document.getElementById('select-lfo3Shape'), 'lfo3Shape', 5);
+bindDropdown(document.getElementById('select-lfo3Division'), 'lfo3Division', 18);
+bindLfoSync(3);
 
 // LFO 4
-bindKnob('lfo4Rate',  lfoRateFmt, 0.349);
+bindKnob('lfo4Rate', lfoRateFmt, 0.349);
 bindDropdown(document.getElementById('select-lfo4Shape'), 'lfo4Shape', 5);
+bindDropdown(document.getElementById('select-lfo4Division'), 'lfo4Division', 18);
+bindLfoSync(4);
 
 // Global (footer)
 bindKnob('masterVol', pct,     0.8, 'small');
@@ -1565,7 +1642,7 @@ bindKnob('oscMix',    pct,     0.5, 'small');
     const destNames = ['None','OscA Pos','OscB Pos','FiltA Cut','FiltB Cut','FiltA Res','FiltB Res',
         'Osc Mix','Sub Level','Noise Level','LFO1 Rate','LFO2 Rate','LFO3 Rate','LFO4 Rate',
         'OscA Detune','OscB Detune',
-        'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol'];
+        'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol','Pitch'];
 
     const container = document.getElementById('mod-matrix-rows');
     if (!container) return;

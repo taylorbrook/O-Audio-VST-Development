@@ -39,7 +39,6 @@ bool HarpSynthVoice::canPlaySound(juce::SynthesiserSound* sound)
 void HarpSynthVoice::prepare(double sampleRate, int maxBlockSize)
 {
     stringModel.prepare(sampleRate, maxBlockSize);
-    bodyResonance.prepare(sampleRate, maxBlockSize);
     glissandoController.prepare(sampleRate);
 }
 
@@ -194,15 +193,6 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         attackNoise = applyHumanization(attackNoise, 0.10f, humanizeAmount);
         stringModel.setAttackNoise(attackNoise);
         stringModel.setBridgeBrightness(parameters->getRawParameterValue("bridgeBrightness")->load());
-
-        // Phase 2.6: Set body resonance parameters
-        float bodySize = parameters->getRawParameterValue("bodySize")->load();
-        float bodyAmount = parameters->getRawParameterValue("bodyResonance")->load();
-        int woodTypeIndex = static_cast<int>(parameters->getRawParameterValue("woodType")->load());
-        bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
-
-        // v1.3.0: Set body mode spread
-        bodyResonance.setModeSpread(parameters->getRawParameterValue("bodyModeSpread")->load());
 
         // v1.30.0: Read glissando mode from processor atomic (keyswitches + toggles)
         int modeIndex = activeGlissandoModePtr ? activeGlissandoModePtr->load(std::memory_order_acquire) : 0;
@@ -468,7 +458,6 @@ void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
         // Hard stop - reset everything
         clearCurrentNote();
         stringModel.reset();
-        bodyResonance.reset();
 
         // Phase 2.7: Unregister from sympathetic engine
         if (sympatheticEngine != nullptr)
@@ -548,14 +537,6 @@ void HarpSynthVoice::updateParametersFromAPVTS()
         stringModel.setMaterial(currentMaterial);
     }
 
-    // Update body resonance parameters
-    float bodySize = parameters->getRawParameterValue("bodySize")->load();
-    float bodyAmount = parameters->getRawParameterValue("bodyResonance")->load();
-    int woodTypeIndex = static_cast<int>(parameters->getRawParameterValue("woodType")->load());
-    bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
-
-    // v1.3.0: Update body mode spread
-    bodyResonance.setModeSpread(parameters->getRawParameterValue("bodyModeSpread")->load());
 }
 
 void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
@@ -597,18 +578,15 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         // Generate one sample from physical model (string)
         float stringSample = stringModel.processSample();
 
-        // Apply body resonance (Phase 2.6)
-        float bodySample = bodyResonance.process(stringSample);
-
         // Phase 2.7: Compute sympathetic contribution from other voices
         float sympatheticContribution = 0.0f;
         if (sympatheticEngine != nullptr)
         {
-            sympatheticContribution = sympatheticEngine->computeSympatheticContribution(cachedSympatheticSlot, bodySample);
+            sympatheticContribution = sympatheticEngine->computeSympatheticContribution(cachedSympatheticSlot, stringSample);
         }
 
-        // Combine string + body + sympathetic resonance
-        float sample = bodySample + sympatheticContribution;
+        // Combine string + sympathetic resonance (body resonance applied post-mix in processor)
+        float sample = stringSample + sympatheticContribution;
 
         // Add to output buffer (all channels)
         for (auto i = outputBuffer.getNumChannels(); --i >= 0;)

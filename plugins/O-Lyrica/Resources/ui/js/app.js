@@ -422,70 +422,162 @@ function setupCustomSemitonesVisibility(intervalId, customGroupId) {
 }
 
 // ============================================================================
-// v1.32.0: Effects Tab
+// v1.32.5: Effects Tab (SVG vine-arc knobs)
 // ============================================================================
 
+// Global knob drag state for effects knobs
+const fxKnobDrag = { active: false, state: null, lastY: 0, virtualNorm: 0 };
+
+document.addEventListener('mousemove', (e) => {
+    if (!fxKnobDrag.active) return;
+    const deltaY = fxKnobDrag.lastY - e.clientY;
+    const sensitivity = 0.005;
+    fxKnobDrag.virtualNorm = Math.max(0, Math.min(1, fxKnobDrag.virtualNorm + (deltaY * sensitivity)));
+    fxKnobDrag.state.setNormalisedValue(fxKnobDrag.virtualNorm);
+    fxKnobDrag.lastY = e.clientY;
+});
+
+document.addEventListener('mouseup', () => {
+    if (fxKnobDrag.active) {
+        fxKnobDrag.state.sliderDragEnded();
+        fxKnobDrag.active = false;
+        fxKnobDrag.state = null;
+    }
+});
+
 /**
- * Create a small knob element for the effects tab
+ * Create an SVG vine-arc knob element for the effects tab
  */
 function makeFxKnob(id, label) {
-    const group = document.createElement('div');
-    group.className = 'fx-knob-group';
+    const vb = 44;
+    const c = 22;
+    const r = 18;
+    const da = (2 * Math.PI * r * 0.75).toFixed(2);
 
-    const lbl = document.createElement('div');
-    lbl.className = 'fx-knob-label';
-    lbl.textContent = label;
-
-    const slider = document.createElement('input');
-    slider.type = 'range';
-    slider.className = 'fx-knob-slider';
-    slider.id = 'fx_' + id;
-    slider.min = '0';
-    slider.max = '1';
-    slider.step = '0.001';
-    slider.value = '0';
-
-    const val = document.createElement('div');
-    val.className = 'fx-knob-value';
-    val.id = 'fx_' + id + '_val';
-    val.textContent = '0';
-
-    group.appendChild(lbl);
-    group.appendChild(slider);
-    group.appendChild(val);
-    return group;
+    const container = document.createElement('div');
+    container.className = 'knob-container';
+    container.innerHTML =
+        `<div class="knob" id="${id}Knob">` +
+            `<div class="knob-visual">` +
+                `<svg viewBox="0 0 ${vb} ${vb}">` +
+                    `<circle class="knob-track" cx="${c}" cy="${c}" r="${r}"/>` +
+                    `<circle class="knob-vine" id="${id}Vine" cx="${c}" cy="${c}" r="${r}" stroke-dasharray="${da}" stroke-dashoffset="${da}"/>` +
+                `</svg>` +
+            `</div>` +
+        `</div>` +
+        `<div class="knob-label">${label}</div>` +
+        `<div class="knob-value" id="${id}Value"></div>`;
+    return container;
 }
 
 /**
- * Bind an fx knob to a JUCE slider state with display conversion
+ * Bind an SVG knob to a JUCE slider state with drag, wheel, and double-click editing
  */
 function setupFxKnob(id, sliderState, displayMin, displayMax, suffix, formatter) {
-    const slider = document.getElementById('fx_' + id);
-    const valEl = document.getElementById('fx_' + id + '_val');
-    if (!slider || !valEl || !sliderState) return;
+    if (!sliderState) {
+        console.error(`Failed to get slider state for ${id}`);
+        return;
+    }
 
-    const updateDisplay = (normalised) => {
-        const displayVal = displayMin + normalised * (displayMax - displayMin);
-        valEl.textContent = formatter(displayVal) + suffix;
-    };
+    const knobEl = document.getElementById(id + 'Knob');
+    const vine = document.getElementById(id + 'Vine');
+    const valueDisplay = document.getElementById(id + 'Value');
 
-    // Initialize
-    const initVal = sliderState.getNormalisedValue();
-    slider.value = initVal;
-    updateDisplay(initVal);
+    if (!knobEl || !vine || !valueDisplay) return;
 
-    // UI → C++
-    slider.addEventListener('input', (e) => {
-        const v = parseFloat(e.target.value);
-        sliderState.setNormalisedValue(v);
-        updateDisplay(v);
+    const r = parseFloat(vine.getAttribute('r'));
+    const arcLength = 2 * Math.PI * r * 0.75;
+    let isEditing = false;
+
+    function updateVisual() {
+        const normValue = sliderState.getNormalisedValue();
+        const realValue = displayMin + (normValue * (displayMax - displayMin));
+
+        // Update SVG vine arc
+        const offset = arcLength - (normValue * arcLength);
+        vine.style.strokeDashoffset = offset;
+
+        // Update value display (skip when user is editing)
+        if (!isEditing) {
+            valueDisplay.textContent = formatter(realValue) + suffix;
+        }
+    }
+
+    // JUCE -> UI
+    sliderState.valueChangedEvent.addListener(() => updateVisual());
+
+    // UI -> JUCE (drag on knob-visual)
+    const knobVisual = knobEl.querySelector('.knob-visual');
+    (knobVisual || knobEl).addEventListener('mousedown', (e) => {
+        fxKnobDrag.active = true;
+        fxKnobDrag.state = sliderState;
+        fxKnobDrag.lastY = e.clientY;
+        fxKnobDrag.virtualNorm = sliderState.getNormalisedValue();
+        sliderState.sliderDragStarted();
+        e.preventDefault();
     });
 
-    // C++ → UI
-    sliderState.valueChangedEvent.addListener(() => {
-        const v = sliderState.getNormalisedValue();
-        slider.value = v;
-        updateDisplay(v);
+    // Mouse wheel support
+    (knobVisual || knobEl).addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const currentNorm = sliderState.getNormalisedValue();
+        const delta = e.deltaY < 0 ? 0.02 : -0.02;
+        const newNorm = Math.max(0, Math.min(1, currentNorm + delta));
+        sliderState.setNormalisedValue(newNorm);
+    }, { passive: false });
+
+    updateVisual();
+
+    // Double-click to edit value
+    valueDisplay.style.cursor = 'text';
+    valueDisplay.title = 'Double-click to edit';
+    valueDisplay.addEventListener('dblclick', (e) => {
+        e.stopPropagation();
+        if (isEditing) return;
+        isEditing = true;
+
+        const normValue = sliderState.getNormalisedValue();
+        const realValue = displayMin + (normValue * (displayMax - displayMin));
+        const formatted = formatter(realValue);
+
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = formatted;
+        input.style.cssText = `
+            width: 45px; text-align: center; font-size: 9px;
+            color: #5C4033; background: rgba(255,248,220,0.9);
+            border: 1px solid #8B7355; border-radius: 3px;
+            padding: 1px 2px; outline: none; user-select: text;
+            -webkit-user-select: text;
+        `;
+
+        valueDisplay.textContent = '';
+        valueDisplay.appendChild(input);
+        input.focus();
+        input.select();
+
+        function commitValue() {
+            if (!isEditing) return;
+            const rawVal = parseFloat(input.value);
+            if (!isNaN(rawVal)) {
+                const clamped = Math.max(displayMin, Math.min(displayMax, rawVal));
+                const norm = (clamped - displayMin) / (displayMax - displayMin);
+                sliderState.sliderDragStarted();
+                sliderState.setNormalisedValue(Math.max(0, Math.min(1, norm)));
+                sliderState.sliderDragEnded();
+            }
+            isEditing = false;
+            updateVisual();
+        }
+
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter') { ev.preventDefault(); commitValue(); }
+            else if (ev.key === 'Escape') { isEditing = false; updateVisual(); }
+        });
+
+        input.addEventListener('blur', () => {
+            if (isEditing) commitValue();
+        });
     });
 }
 
@@ -548,7 +640,7 @@ function initializeEffects() {
             const modeWrap = document.createElement('div');
             modeWrap.className = 'fx-dropdown-container';
             const modeLbl = document.createElement('div');
-            modeLbl.className = 'fx-knob-label';
+            modeLbl.className = 'knob-label';
             modeLbl.textContent = 'Mode';
             const modeSel = document.createElement('select');
             modeSel.className = 'fx-dropdown';

@@ -43,6 +43,8 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
         bandRelays[i].eucSteps  = std::make_unique<juce::WebSliderRelay>(prefix + "euc_steps");
         bandRelays[i].eucPulses = std::make_unique<juce::WebSliderRelay>(prefix + "euc_pulses");
         bandRelays[i].eucOffset = std::make_unique<juce::WebSliderRelay>(prefix + "euc_offset");
+        bandRelays[i].phaseOffset = std::make_unique<juce::WebSliderRelay>(prefix + "phase_offset");
+        bandRelays[i].bandSteps = std::make_unique<juce::WebSliderRelay>(prefix + "steps");
     }
 
     // Step grid relays (128 total: 32 steps × 4 bands) — velocity sliders
@@ -90,7 +92,9 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
             .withOptionsFrom(*bandRelays[i].eucOn)
             .withOptionsFrom(*bandRelays[i].eucSteps)
             .withOptionsFrom(*bandRelays[i].eucPulses)
-            .withOptionsFrom(*bandRelays[i].eucOffset);
+            .withOptionsFrom(*bandRelays[i].eucOffset)
+            .withOptionsFrom(*bandRelays[i].phaseOffset)
+            .withOptionsFrom(*bandRelays[i].bandSteps);
     }
 
     options = options
@@ -266,6 +270,10 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
             *apvts.getParameter(prefix + "euc_pulses"), *bandRelays[i].eucPulses, nullptr);
         bandAttachments[i].eucOffset = std::make_unique<juce::WebSliderParameterAttachment>(
             *apvts.getParameter(prefix + "euc_offset"), *bandRelays[i].eucOffset, nullptr);
+        bandAttachments[i].phaseOffset = std::make_unique<juce::WebSliderParameterAttachment>(
+            *apvts.getParameter(prefix + "phase_offset"), *bandRelays[i].phaseOffset, nullptr);
+        bandAttachments[i].bandSteps = std::make_unique<juce::WebSliderParameterAttachment>(
+            *apvts.getParameter(prefix + "steps"), *bandRelays[i].bandSteps, nullptr);
     }
 
     // Step grid attachments (128 total) — velocity sliders
@@ -298,12 +306,7 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
 
 OFreqPulseAudioProcessorEditor::~OFreqPulseAudioProcessorEditor()
 {
-    // Stop timer before destruction
     stopTimer();
-
-    // Attachments destroyed first (safe - they stop using relays/webView)
-    // Then webView destroyed
-    // Then relays destroyed last
 }
 
 void OFreqPulseAudioProcessorEditor::timerCallback()
@@ -331,12 +334,6 @@ void OFreqPulseAudioProcessorEditor::timerCallback()
             + juce::String(enabled ? "true" : "false") + ");";
         webView->evaluateJavascript(tooltipJs);
     }
-}
-
-void OFreqPulseAudioProcessorEditor::paint(juce::Graphics& g)
-{
-    // WebView handles all painting
-    juce::ignoreUnused(g);
 }
 
 void OFreqPulseAudioProcessorEditor::resized()

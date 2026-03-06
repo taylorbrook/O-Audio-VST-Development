@@ -55,8 +55,9 @@ public:
      * @param voiceId Unique identifier for this voice (typically index)
      * @param frequency Fundamental frequency in Hz
      * @param material String material (affects coupling strength)
+     * @return Slot index for this voice (pass to computeSympatheticContribution), or -1 if full
      */
-    void registerVoice(int voiceId, double frequency, const StringMaterial& material);
+    int registerVoice(int voiceId, double frequency, const StringMaterial& material);
 
     /**
      * Unregister a voice when it stops playing
@@ -83,11 +84,11 @@ public:
      * Called per-sample during voice rendering to add coupled energy
      * from other harmonically related strings.
      *
-     * @param voiceId Voice requesting sympathetic contribution
+     * @param slotIndex Slot index returned by registerVoice()
      * @param voiceOutput Current sample output from this voice
      * @return Sympathetic contribution to add to voice output
      */
-    float computeSympatheticContribution(int voiceId, float voiceOutput);
+    float computeSympatheticContribution(int slotIndex, float voiceOutput);
 
     /**
      * Reset all resonators and clear voice registry

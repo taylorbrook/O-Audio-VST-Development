@@ -551,6 +551,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     // 1 toggle relay (delaySync)
     delaySyncRelay = std::make_unique<juce::WebToggleButtonRelay> ("delaySync");
 
+    // LFO sync toggle relays
+    for (int i = 1; i <= 4; ++i)
+        lfoSyncRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> ("lfo" + juce::String (i) + "Sync"));
+
     // Bypass toggle relays
     for (const auto& id : bypassIds)
         bypassRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (id));
@@ -574,6 +578,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
 
     // Add toggle relay
     options = options.withOptionsFrom (*delaySyncRelay);
+
+    // Add LFO sync toggle relays
+    for (const auto& relay : lfoSyncRelays)
+        options = options.withOptionsFrom (*relay);
 
     // Add bypass toggle relays
     for (const auto& relay : bypassRelays)
@@ -619,6 +627,19 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     {
         delaySyncAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment> (
             *delaySyncParam, *delaySyncRelay, nullptr);
+    }
+
+    // LFO sync toggle attachments
+    for (int i = 0; i < 4; ++i)
+    {
+        auto paramId = "lfo" + juce::String (i + 1) + "Sync";
+        auto* param = processorRef.getAPVTS().getParameter (paramId);
+        if (param != nullptr)
+        {
+            lfoSyncAttachments.push_back (
+                std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                    *param, *lfoSyncRelays[static_cast<size_t> (i)], nullptr));
+        }
     }
 
     // Bypass toggle attachments

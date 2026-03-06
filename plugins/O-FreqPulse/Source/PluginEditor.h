@@ -18,22 +18,26 @@ struct BandRelays
 {
     std::unique_ptr<juce::WebToggleButtonRelay> enable;
     std::unique_ptr<juce::WebSliderRelay> depth;
-    std::unique_ptr<juce::WebComboBoxRelay> rate;       // v1.7.0: Per-band rate override
+    std::unique_ptr<juce::WebComboBoxRelay> rate;
     std::unique_ptr<juce::WebToggleButtonRelay> eucOn;
     std::unique_ptr<juce::WebSliderRelay> eucSteps;
     std::unique_ptr<juce::WebSliderRelay> eucPulses;
     std::unique_ptr<juce::WebSliderRelay> eucOffset;
+    std::unique_ptr<juce::WebSliderRelay> phaseOffset;
+    std::unique_ptr<juce::WebSliderRelay> bandSteps;
 };
 
 struct BandAttachments
 {
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> enable;
     std::unique_ptr<juce::WebSliderParameterAttachment> depth;
-    std::unique_ptr<juce::WebComboBoxParameterAttachment> rate;  // v1.7.0
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> rate;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> eucOn;
     std::unique_ptr<juce::WebSliderParameterAttachment> eucSteps;
     std::unique_ptr<juce::WebSliderParameterAttachment> eucPulses;
     std::unique_ptr<juce::WebSliderParameterAttachment> eucOffset;
+    std::unique_ptr<juce::WebSliderParameterAttachment> phaseOffset;
+    std::unique_ptr<juce::WebSliderParameterAttachment> bandSteps;
 };
 
 class OFreqPulseAudioProcessorEditor : public juce::AudioProcessorEditor,
@@ -43,7 +47,6 @@ public:
     explicit OFreqPulseAudioProcessorEditor(OFreqPulseAudioProcessor&);
     ~OFreqPulseAudioProcessorEditor() override;
 
-    void paint(juce::Graphics&) override;
     void resized() override;
 
 private:

@@ -12,6 +12,7 @@
 #include <JuceHeader.h>
 #include "HarpSynthSound.h"
 #include "HarpSynthVoice.h"
+#include "DSP/BodyResonance.h"
 #include "DSP/SympatheticResonance.h"
 #include "DSP/TuningEngine.h"
 #include "DSP/DelayProcessor.h"
@@ -204,32 +205,39 @@ private:
     // v1.18.0: Tooltip system enabled state (saved with plugin state)
     std::atomic<bool> tooltipsEnabled { false };
 
+    // v1.33.1: Shared body resonance (post-mix, single instance for all voices)
+    BodyResonance bodyResonance;
+
     // v1.32.0: Effects chain (Chorus -> Delay -> EQ -> Reverb)
     juce::dsp::Chorus<float> chorus;
     DelayProcessor delay;
     EQProcessor eq;
     ReverbProcessor reverbProcessor;
 
-    // Cached parameter pointers for effects
-    std::atomic<float>* cachedChorusBypass = nullptr;
-    std::atomic<float>* cachedChorusRate = nullptr;
-    std::atomic<float>* cachedChorusDepth = nullptr;
-    std::atomic<float>* cachedChorusMix = nullptr;
-    std::atomic<float>* cachedDelayBypass = nullptr;
-    std::atomic<float>* cachedDelayTime = nullptr;
-    std::atomic<float>* cachedDelayFeedback = nullptr;
-    std::atomic<float>* cachedDelayMode = nullptr;
-    std::atomic<float>* cachedDelayMix = nullptr;
-    std::atomic<float>* cachedEqBypass = nullptr;
-    std::atomic<float>* cachedEqLowGain = nullptr;
-    std::atomic<float>* cachedEqMidGain = nullptr;
-    std::atomic<float>* cachedEqMidFreq = nullptr;
-    std::atomic<float>* cachedEqHighGain = nullptr;
-    std::atomic<float>* cachedReverbBypass = nullptr;
-    std::atomic<float>* cachedReverbSize = nullptr;
-    std::atomic<float>* cachedReverbDamp = nullptr;
-    std::atomic<float>* cachedReverbPredelay = nullptr;
-    std::atomic<float>* cachedReverbMix = nullptr;
+    // v1.32.5: Cached parameter pointers for effects chain
+    struct EffectsParamCache
+    {
+        std::atomic<float>* chorusBypass = nullptr;
+        std::atomic<float>* chorusRate = nullptr;
+        std::atomic<float>* chorusDepth = nullptr;
+        std::atomic<float>* chorusMix = nullptr;
+        std::atomic<float>* delayBypass = nullptr;
+        std::atomic<float>* delayTime = nullptr;
+        std::atomic<float>* delayFeedback = nullptr;
+        std::atomic<float>* delayMode = nullptr;
+        std::atomic<float>* delayMix = nullptr;
+        std::atomic<float>* eqBypass = nullptr;
+        std::atomic<float>* eqLowGain = nullptr;
+        std::atomic<float>* eqMidGain = nullptr;
+        std::atomic<float>* eqMidFreq = nullptr;
+        std::atomic<float>* eqHighGain = nullptr;
+        std::atomic<float>* reverbBypass = nullptr;
+        std::atomic<float>* reverbSize = nullptr;
+        std::atomic<float>* reverbDamp = nullptr;
+        std::atomic<float>* reverbPredelay = nullptr;
+        std::atomic<float>* reverbMix = nullptr;
+    };
+    EffectsParamCache fxCache;
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

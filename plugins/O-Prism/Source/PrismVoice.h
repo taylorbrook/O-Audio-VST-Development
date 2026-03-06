@@ -81,6 +81,7 @@ private:
     std::atomic<float>* pSubShape = nullptr;
     std::atomic<float>* pSubOctave = nullptr;
     std::atomic<float>* pSubLevel = nullptr;
+    std::atomic<float>* pSubRouting = nullptr;
     std::atomic<float>* pNoiseType = nullptr;
     std::atomic<float>* pNoiseLevel = nullptr;
     // Filter A
@@ -110,12 +111,22 @@ private:
     // LFOs
     std::atomic<float>* pLfo1Rate = nullptr;
     std::atomic<float>* pLfo1Shape = nullptr;
+    std::atomic<float>* pLfo1Sync = nullptr;
+    std::atomic<float>* pLfo1Division = nullptr;
     std::atomic<float>* pLfo2Rate = nullptr;
     std::atomic<float>* pLfo2Shape = nullptr;
+    std::atomic<float>* pLfo2Sync = nullptr;
+    std::atomic<float>* pLfo2Division = nullptr;
     std::atomic<float>* pLfo3Rate = nullptr;
     std::atomic<float>* pLfo3Shape = nullptr;
+    std::atomic<float>* pLfo3Sync = nullptr;
+    std::atomic<float>* pLfo3Division = nullptr;
     std::atomic<float>* pLfo4Rate = nullptr;
     std::atomic<float>* pLfo4Shape = nullptr;
+    std::atomic<float>* pLfo4Sync = nullptr;
+    std::atomic<float>* pLfo4Division = nullptr;
+    // Velocity
+    std::atomic<float>* pVelocityCurve = nullptr;
 
     double currentFrequency = 0.0;
     float noteVelocity = 0.0f;

@@ -98,7 +98,7 @@ int SympatheticResonanceEngine::findInactiveSlot() const
     return -1;
 }
 
-void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, const StringMaterial& material)
+int SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, const StringMaterial& material)
 {
     // First check if voice is already registered
     int existingSlot = findSlotForVoice(voiceId);
@@ -121,7 +121,7 @@ void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, co
 
         // Mark rebuild needed
         rebuildPending.store(true, std::memory_order_release);
-        return;
+        return existingSlot;
     }
 
     // Find an inactive slot
@@ -130,7 +130,7 @@ void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, co
     {
         // No available slots - voice limit reached
         DBG("SympatheticResonanceEngine: No available slots for voice " << voiceId);
-        return;
+        return -1;
     }
 
     // Configure the slot (before setting active)
@@ -154,6 +154,7 @@ void SympatheticResonanceEngine::registerVoice(int voiceId, double frequency, co
 
     // Mark rebuild needed (will be processed at next syncBeforeBlock)
     rebuildPending.store(true, std::memory_order_release);
+    return slotIndex;
 }
 
 void SympatheticResonanceEngine::unregisterVoice(int voiceId)
@@ -271,15 +272,10 @@ void SympatheticResonanceEngine::rebuildCouplingMatrix()
     }
 }
 
-float SympatheticResonanceEngine::computeSympatheticContribution(int voiceId, float voiceOutput)
+float SympatheticResonanceEngine::computeSympatheticContribution(int slotIndex, float voiceOutput)
 {
-    // Fast path: if intensity is zero, skip all processing
-    if (intensity <= 0.0f)
-        return 0.0f;
-
-    // Find the slot for this voice
-    int slotIndex = findSlotForVoice(voiceId);
-    if (slotIndex < 0)
+    // Fast path: if intensity is zero or invalid slot, skip all processing
+    if (intensity <= 0.0f || slotIndex < 0 || slotIndex >= MAX_VOICES)
         return 0.0f;
 
     // Read from the current read buffer (acquire to see all writes before buffer swap)

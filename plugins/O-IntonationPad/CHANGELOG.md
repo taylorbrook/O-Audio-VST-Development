@@ -1,5 +1,24 @@
 # O-IntonationPad Changelog
 
+## [2.2.7] - 2026-03-05
+
+### Refactored
+- Removed redundant `<script>` tag for `check_native_interop.js` (already imported via `juce/index.js`)
+- Merged duplicate `.tuning-panel` CSS rule blocks into one
+- Removed empty `.tuning-panel.compact .interval-list` CSS rule
+- Extracted `setSliderFromRange()` helper to deduplicate normalisation pattern in `setOctaveStretch()` and `setPitchBendRange()`
+- Fixed redundant ternary `cents.toFixed(isOctave ? 1 : 1)` → `cents.toFixed(1)`
+- Extracted `NOTE_NAMES` into shared `js/constants.js` module, replacing 3 duplicate definitions across `index.html` and `tuning-panel.js`
+
+## [2.2.6] - 2026-03-05
+
+### Refactored
+- `renderNextBlock()`: pre-compute `amplitudeGain*smoothedGainA*panL` (and panR, gainB variants) into 4 locals before the oscillator loop, eliminating 12 redundant multiplications per sub-voice per block
+- `startNote()`: extracted `initializeSingleSubVoice()` helper that initializes all 6 oscillators + 3 infos for one sub-voice slot — fallback branch now shares code with the main chord-generation loop
+- `getActiveNotes()`: extracted `tryAdd` lambda to deduplicate three near-identical gain-check-then-push blocks into one helper called 3× per sub-voice
+- `WavetableOscillator::processBlockStereo()`: replaced single `if (phase >= 1.0f) phase -= 1.0f` with `phase -= std::floor(phase)` for correctness at extreme frequencies, matching `advancePhase()` style
+- `PluginProcessor` LFO phase wrap: replaced single-subtraction wrap with `std::fmod()` for robustness when large block sizes cause multi-period phase jumps
+
 ## [2.2.5] - 2026-03-05
 
 ### Refactored

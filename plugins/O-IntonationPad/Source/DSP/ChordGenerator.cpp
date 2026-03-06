@@ -11,7 +11,7 @@
 #include <algorithm>
 #include <cmath>
 
-std::vector<ChordVoice> ChordGenerator::generateChord(int rootMidiNote, int numVoices, float complexity,
+std::vector<ChordVoice> ChordGenerator::generateChord(int rootMidiNote, int numVoices,
                                                        int keyRoot, const std::vector<int>& enabledDegrees,
                                                        int scaleDegreeCount)
 {

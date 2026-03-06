@@ -36,8 +36,7 @@ public:
 
 private:
     static juce::String generatePitchCircleSVG(const std::vector<double>& intervals,
-                                                double period,
-                                                const juce::String& scaleName);
+                                                double period);
     static juce::String approximateRatio(double cents);
     static double calculateETDeviation(double cents, int degree, int totalDegrees, double period);
     static juce::String getStyles();

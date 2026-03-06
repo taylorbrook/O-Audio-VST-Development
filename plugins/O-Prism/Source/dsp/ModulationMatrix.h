@@ -57,6 +57,7 @@ enum class ModDest
     ChorusMix,
     DistMix,
     MasterVol,
+    Pitch,
     NumDests
 };
 
@@ -74,7 +75,7 @@ inline juce::StringArray getModDestNames()
              "LFO1 Rate", "LFO2 Rate", "LFO3 Rate", "LFO4 Rate",
              "OscA Detune", "OscB Detune",
              "OscA Pan", "OscB Pan", "Reverb Mix", "Delay Mix",
-             "Chorus Mix", "Dist Mix", "Master Vol" };
+             "Chorus Mix", "Dist Mix", "Master Vol", "Pitch" };
 }
 
 // ═══════════════════════════════════════════════════════════════════

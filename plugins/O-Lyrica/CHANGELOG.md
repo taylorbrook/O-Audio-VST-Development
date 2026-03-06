@@ -2,6 +2,14 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.33.1] - 2026-03-05
+
+### Changed
+
+- Moved body resonance from per-voice to shared post-mix processing — all voices now share a single `BodyResonance` instance in `PluginProcessor`, processing the mixed synthesiser output once through 5 bandpass filters instead of 160 (32 voices × 5). More physically accurate (all strings share one soundboard) and significantly reduces CPU
+- Sympathetic resonance now driven by raw string signal instead of body-resonated signal (more physically accurate — sympathetic coupling occurs between strings, not through soundboard)
+- Voice `renderNextBlock()` outputs string + sympathetic only; body resonance applied in `processBlock()` after `synthesiser.renderNextBlock()`
+
 ## [1.33.0] - 2026-03-05
 
 ### Added

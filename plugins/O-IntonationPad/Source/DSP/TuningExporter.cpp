@@ -278,11 +278,8 @@ juce::String TuningExporter::generateIntervalRow(int degree, double cents, int t
 // ═══════════════════════════════════════════════════════════════════
 
 juce::String TuningExporter::generatePitchCircleSVG(const std::vector<double>& intervals,
-                                                     double period,
-                                                     const juce::String& scaleName)
+                                                     double period)
 {
-    juce::ignoreUnused(scaleName);
-
     const int size = 400;
     const int cx = size / 2;
     const int cy = size / 2;
@@ -416,7 +413,7 @@ juce::String TuningExporter::toHTML(const TuningEngine& engine, const juce::Stri
     // Pitch Circle
     html += "  <h2>Pitch Circle</h2>\n";
     html += "  <div class=\"pitch-circle\">\n";
-    html += generatePitchCircleSVG(intervals, period, scaleName);
+    html += generatePitchCircleSVG(intervals, period);
     html += "  </div>\n";
 
     // Interval Table

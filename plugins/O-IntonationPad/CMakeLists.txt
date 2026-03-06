@@ -62,7 +62,7 @@ juce_add_binary_data(O-IntonationPad_UIResources
         Source/ui/public/index.html
         Source/ui/public/js/juce/index.js
         Source/ui/public/js/juce/check_native_interop.js
-        Source/ui/public/modules/pitch-circle.js
+        Source/ui/public/js/constants.js
         Source/ui/public/js/tuning-panel.js
         Source/ui/public/css/tuning-panel.css
         Source/ui/public/img/paper.jpg

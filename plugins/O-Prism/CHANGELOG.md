@@ -1,5 +1,10 @@
 # O-Prism Changelog
 
+## v1.6.0 (2026-03-05)
+
+### Added
+- **Velocity curve parameter**: New `velocityCurve` choice parameter with 4 modes — Linear (default, unchanged behavior), Soft (sqrt curve, more dynamic range at low velocities), Hard (squared curve, requires harder hits), and Fixed (always full velocity regardless of key strike). Curve transformation applied in `startNote()` so `noteVelocity` is already curved before use in `renderNextBlock()`. Fully DAW-automatable.
+
 ## v1.5.0 (2026-03-05)
 
 ### Changed

@@ -496,25 +496,25 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
     synthesiser.addSound(new HarpSynthSound());
 
     // v1.32.0: Cache effects parameter pointers for real-time access
-    cachedChorusBypass    = parameters.getRawParameterValue("chorusBypass");
-    cachedChorusRate      = parameters.getRawParameterValue("chorusRate");
-    cachedChorusDepth     = parameters.getRawParameterValue("chorusDepth");
-    cachedChorusMix       = parameters.getRawParameterValue("chorusMix");
-    cachedDelayBypass     = parameters.getRawParameterValue("delayBypass");
-    cachedDelayTime       = parameters.getRawParameterValue("delayTime");
-    cachedDelayFeedback   = parameters.getRawParameterValue("delayFeedback");
-    cachedDelayMode       = parameters.getRawParameterValue("delayMode");
-    cachedDelayMix        = parameters.getRawParameterValue("delayMix");
-    cachedEqBypass        = parameters.getRawParameterValue("eqBypass");
-    cachedEqLowGain       = parameters.getRawParameterValue("eqLowGain");
-    cachedEqMidGain       = parameters.getRawParameterValue("eqMidGain");
-    cachedEqMidFreq       = parameters.getRawParameterValue("eqMidFreq");
-    cachedEqHighGain      = parameters.getRawParameterValue("eqHighGain");
-    cachedReverbBypass    = parameters.getRawParameterValue("reverbBypass");
-    cachedReverbSize      = parameters.getRawParameterValue("reverbSize");
-    cachedReverbDamp      = parameters.getRawParameterValue("reverbDamp");
-    cachedReverbPredelay  = parameters.getRawParameterValue("reverbPredelay");
-    cachedReverbMix       = parameters.getRawParameterValue("reverbMix");
+    fxCache.chorusBypass    = parameters.getRawParameterValue("chorusBypass");
+    fxCache.chorusRate      = parameters.getRawParameterValue("chorusRate");
+    fxCache.chorusDepth     = parameters.getRawParameterValue("chorusDepth");
+    fxCache.chorusMix       = parameters.getRawParameterValue("chorusMix");
+    fxCache.delayBypass     = parameters.getRawParameterValue("delayBypass");
+    fxCache.delayTime       = parameters.getRawParameterValue("delayTime");
+    fxCache.delayFeedback   = parameters.getRawParameterValue("delayFeedback");
+    fxCache.delayMode       = parameters.getRawParameterValue("delayMode");
+    fxCache.delayMix        = parameters.getRawParameterValue("delayMix");
+    fxCache.eqBypass        = parameters.getRawParameterValue("eqBypass");
+    fxCache.eqLowGain       = parameters.getRawParameterValue("eqLowGain");
+    fxCache.eqMidGain       = parameters.getRawParameterValue("eqMidGain");
+    fxCache.eqMidFreq       = parameters.getRawParameterValue("eqMidFreq");
+    fxCache.eqHighGain      = parameters.getRawParameterValue("eqHighGain");
+    fxCache.reverbBypass    = parameters.getRawParameterValue("reverbBypass");
+    fxCache.reverbSize      = parameters.getRawParameterValue("reverbSize");
+    fxCache.reverbDamp      = parameters.getRawParameterValue("reverbDamp");
+    fxCache.reverbPredelay  = parameters.getRawParameterValue("reverbPredelay");
+    fxCache.reverbMix       = parameters.getRawParameterValue("reverbMix");
 
     // v1.30.0: Register APVTS listeners for toggle mutual exclusion
     parameters.addParameterListener("freeToggle", this);
@@ -629,6 +629,9 @@ void OLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     // Phase 2.7: Prepare sympathetic resonance engine
     sympatheticEngine.prepare(sampleRate, samplesPerBlock);
+
+    // v1.33.1: Prepare shared body resonance (post-mix processing)
+    bodyResonance.prepare(sampleRate, samplesPerBlock);
 
     // Prepare all voices
     // v1.3.2: Use static_cast - all voices are HarpSynthVoice (we control voice creation)
@@ -763,16 +766,33 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     // Render MIDI to audio via synthesiser
     synthesiser.renderNextBlock(buffer, filteredMidi, 0, buffer.getNumSamples());
 
+    // v1.33.1: Shared body resonance (post-mix, single instance for all voices)
+    {
+        float bodySize = parameters.getRawParameterValue("bodySize")->load();
+        float bodyAmount = parameters.getRawParameterValue("bodyResonance")->load();
+        int woodTypeIndex = static_cast<int>(parameters.getRawParameterValue("woodType")->load());
+        bodyResonance.setBodyParameters(bodySize, woodTypeFromIndex(woodTypeIndex), bodyAmount);
+        bodyResonance.setModeSpread(parameters.getRawParameterValue("bodyModeSpread")->load());
+
+        // Process mono synth output through shared body resonance, then copy to all channels
+        float* ch0 = buffer.getWritePointer(0);
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+            ch0[i] = bodyResonance.process(ch0[i]);
+
+        for (int ch = 1; ch < buffer.getNumChannels(); ++ch)
+            buffer.copyFrom(ch, 0, ch0, buffer.getNumSamples());
+    }
+
     // v1.32.0: Effects chain (Chorus -> Delay -> EQ -> Reverb)
     juce::dsp::AudioBlock<float> block(buffer);
 
     // 1. Chorus
-    bool chorusBypassed = cachedChorusBypass->load(std::memory_order_relaxed) >= 0.5f;
+    bool chorusBypassed = fxCache.chorusBypass->load(std::memory_order_relaxed) >= 0.5f;
     if (!chorusBypassed)
     {
-        float chorusRate = cachedChorusRate->load(std::memory_order_relaxed);
-        float chorusDepth = cachedChorusDepth->load(std::memory_order_relaxed);
-        float chorusMix = cachedChorusMix->load(std::memory_order_relaxed);
+        float chorusRate = fxCache.chorusRate->load(std::memory_order_relaxed);
+        float chorusDepth = fxCache.chorusDepth->load(std::memory_order_relaxed);
+        float chorusMix = fxCache.chorusMix->load(std::memory_order_relaxed);
 
         chorus.setRate(chorusRate);
         chorus.setDepth(chorusDepth);
@@ -786,13 +806,13 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     // 2. Delay
-    bool delayBypassed = cachedDelayBypass->load(std::memory_order_relaxed) >= 0.5f;
+    bool delayBypassed = fxCache.delayBypass->load(std::memory_order_relaxed) >= 0.5f;
     if (!delayBypassed)
     {
-        float delayTimeSec = cachedDelayTime->load(std::memory_order_relaxed);
-        float delayFb = cachedDelayFeedback->load(std::memory_order_relaxed);
-        int delayModeVal = static_cast<int>(cachedDelayMode->load(std::memory_order_relaxed));
-        float delayMixVal = cachedDelayMix->load(std::memory_order_relaxed);
+        float delayTimeSec = fxCache.delayTime->load(std::memory_order_relaxed);
+        float delayFb = fxCache.delayFeedback->load(std::memory_order_relaxed);
+        int delayModeVal = static_cast<int>(fxCache.delayMode->load(std::memory_order_relaxed));
+        float delayMixVal = fxCache.delayMix->load(std::memory_order_relaxed);
 
         delay.setTime(delayTimeSec);
         delay.setFeedback(delayFb);
@@ -804,26 +824,26 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     }
 
     // 3. EQ
-    bool eqBypassed = cachedEqBypass->load(std::memory_order_relaxed) >= 0.5f;
+    bool eqBypassed = fxCache.eqBypass->load(std::memory_order_relaxed) >= 0.5f;
     if (!eqBypassed)
     {
-        eq.setLowGain(cachedEqLowGain->load(std::memory_order_relaxed));
-        eq.setMidGain(cachedEqMidGain->load(std::memory_order_relaxed));
-        eq.setMidFreq(cachedEqMidFreq->load(std::memory_order_relaxed));
-        eq.setHighGain(cachedEqHighGain->load(std::memory_order_relaxed));
+        eq.setLowGain(fxCache.eqLowGain->load(std::memory_order_relaxed));
+        eq.setMidGain(fxCache.eqMidGain->load(std::memory_order_relaxed));
+        eq.setMidFreq(fxCache.eqMidFreq->load(std::memory_order_relaxed));
+        eq.setHighGain(fxCache.eqHighGain->load(std::memory_order_relaxed));
         eq.process(block);
     }
 
     // 4. Reverb
-    bool reverbBypassed = cachedReverbBypass->load(std::memory_order_relaxed) >= 0.5f;
+    bool reverbBypassed = fxCache.reverbBypass->load(std::memory_order_relaxed) >= 0.5f;
     if (!reverbBypassed)
     {
-        reverbProcessor.setSize(cachedReverbSize->load(std::memory_order_relaxed));
-        reverbProcessor.setDamping(cachedReverbDamp->load(std::memory_order_relaxed));
-        reverbProcessor.setPredelay(cachedReverbPredelay->load(std::memory_order_relaxed));
-        reverbProcessor.setMix(cachedReverbMix->load(std::memory_order_relaxed));
+        reverbProcessor.setSize(fxCache.reverbSize->load(std::memory_order_relaxed));
+        reverbProcessor.setDamping(fxCache.reverbDamp->load(std::memory_order_relaxed));
+        reverbProcessor.setPredelay(fxCache.reverbPredelay->load(std::memory_order_relaxed));
+        reverbProcessor.setMix(fxCache.reverbMix->load(std::memory_order_relaxed));
 
-        float reverbMixVal = cachedReverbMix->load(std::memory_order_relaxed);
+        float reverbMixVal = fxCache.reverbMix->load(std::memory_order_relaxed);
         if (reverbMixVal > 0.001f)
             reverbProcessor.process(block);
     }

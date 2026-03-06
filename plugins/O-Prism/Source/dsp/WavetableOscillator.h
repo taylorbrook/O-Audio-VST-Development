@@ -51,5 +51,4 @@ private:
     int unisonCount = 1;
 
     double readSample (double phase, int mipmapLevel) const;
-    int calculateMipmapLevel() const;
 };

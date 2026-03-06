@@ -37,7 +37,7 @@ class OIntonationPadAudioProcessor : public juce::AudioProcessor,
 {
 public:
     OIntonationPadAudioProcessor();
-    ~OIntonationPadAudioProcessor() override;
+    ~OIntonationPadAudioProcessor() override = default;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -143,7 +143,12 @@ private:
     std::atomic<float>* cachedLfoDepth = nullptr;
     std::atomic<float>* cachedLfoDepth2 = nullptr;
     std::atomic<float>* cachedFilterCutoff = nullptr;
+    std::atomic<float>* cachedFilterLfoDepth = nullptr;
+    std::atomic<float>* cachedVelocityToFilter = nullptr;
     std::atomic<float>* cachedMasterVolume = nullptr;
+
+    // v2.2.0: Most-recent note-on velocity for filter modulation (audio thread only)
+    float lastNoteVelocity = 1.0f;
     // Effects
     std::atomic<float>* cachedChorusBypass = nullptr;
     std::atomic<float>* cachedChorusRate = nullptr;

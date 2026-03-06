@@ -87,6 +87,9 @@ public:
     /** Get current aftertouch value (0..1) for modulation matrix */
     float getAftertouchValue() const { return aftertouchValue.load (std::memory_order_relaxed); }
 
+    /** Get current BPM from host transport (default 120 when not playing) */
+    double getCurrentBPM() const { return currentBPM.load (std::memory_order_relaxed); }
+
     /** Get currently active MIDI notes and their microtonal frequencies */
     std::vector<std::pair<int, double>> getActiveNotes()
     {
@@ -127,11 +130,13 @@ private:
     // Active MIDI note tracking for TrueKeys visualization
     struct ActiveNote { int midiNote; double frequency; };
     std::array<std::atomic<bool>, 128> noteStates {};
-    mutable std::mutex activeNotesMutex;
 
     // MIDI CC state for modulation matrix (global sources)
     std::atomic<float> modWheelValue { 0.0f };
     std::atomic<float> aftertouchValue { 0.0f };
+
+    // Host transport BPM for tempo-synced LFOs
+    std::atomic<double> currentBPM { 120.0 };
 
     void updateWavetableAssignments();
 

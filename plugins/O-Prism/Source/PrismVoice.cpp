@@ -51,6 +51,7 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pSubShape      = apvts->getRawParameterValue ("subShape");
     pSubOctave     = apvts->getRawParameterValue ("subOctave");
     pSubLevel      = apvts->getRawParameterValue ("subLevel");
+    pSubRouting    = apvts->getRawParameterValue ("subRouting");
     pNoiseType     = apvts->getRawParameterValue ("noiseType");
     pNoiseLevel    = apvts->getRawParameterValue ("noiseLevel");
 
@@ -95,6 +96,8 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pLfo4Shape     = apvts->getRawParameterValue ("lfo4Shape");
     pLfo4Sync      = apvts->getRawParameterValue ("lfo4Sync");
     pLfo4Division  = apvts->getRawParameterValue ("lfo4Division");
+
+    pVelocityCurve = apvts->getRawParameterValue ("velocityCurve");
 }
 
 void PrismVoice::setTuningEngine (TuningEngine* engine)
@@ -147,8 +150,24 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
 {
     bool wasActive = getCurrentlyPlayingNote() >= 0;
     currentMidiNote = midiNoteNumber;
-    noteVelocity = velocity;
     currentPitchWheel = currentPitchWheelPosition;
+
+    // Apply velocity curve transformation
+    if (pVelocityCurve != nullptr)
+    {
+        int curve = static_cast<int> (pVelocityCurve->load());
+        switch (curve)
+        {
+            case 1:  noteVelocity = std::sqrt (velocity);       break; // Soft
+            case 2:  noteVelocity = velocity * velocity;         break; // Hard
+            case 3:  noteVelocity = 1.0f;                        break; // Fixed
+            default: noteVelocity = velocity;                    break; // Linear
+        }
+    }
+    else
+    {
+        noteVelocity = velocity;
+    }
 
     // Get base frequency from TuningEngine
     if (tuningEngine != nullptr)
@@ -275,6 +294,7 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float oscMix = pOscMix->load();
 
     float subLevel = pSubLevel->load();
+    int subRouting = static_cast<int> (pSubRouting->load());
     float noiseLevel = pNoiseLevel->load();
 
     // Oscillator coarse/fine tuning (integer/float params — don't change per-sample)
@@ -470,6 +490,24 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             mixedR += noiseR * modNoiseLevel;
         }
 
+        // ─── Sub oscillator with modulation ────────────────────────
+        float modSubLevel = juce::jlimit (0.0f, 1.0f,
+            subLevel + modMatrix.getModOffset (ModDest::SubLevel));
+
+        double subSample = 0.0;
+        if (modSubLevel > 0.001f)
+        {
+            subOsc.setFrequency (glidedFreq * pitchModRatio);
+            subSample = subOsc.getNextSample() * modSubLevel;
+        }
+
+        // Pre-filter sub routing: mix sub into signal before filters
+        if (subRouting == 1 && subSample != 0.0)
+        {
+            mixedL += subSample;
+            mixedR += subSample;
+        }
+
         // ─── Filters with modulation ─────────────────────────────
 
         // Filter envelope modulation on cutoff (dedicated param, always active)
@@ -531,20 +569,18 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             filteredR = filterAR.processSample (mixedR) + filterBR.processSample (mixedR);
         }
 
-        // Sub oscillator with modulation (bypasses filters, direct to output)
-        float modSubLevel = juce::jlimit (0.0f, 1.0f,
-            subLevel + modMatrix.getModOffset (ModDest::SubLevel));
-
-        double subSample = 0.0;
-        if (modSubLevel > 0.001f)
+        // Post-filter sub routing (default): add sub after filters
+        double outL = filteredL;
+        double outR = filteredR;
+        if (subRouting == 0 && subSample != 0.0)
         {
-            subOsc.setFrequency (glidedFreq * pitchModRatio);
-            subSample = subOsc.getNextSample() * modSubLevel;
+            outL += subSample;
+            outR += subSample;
         }
 
         // Apply envelope and velocity
-        double outL = (filteredL + subSample) * envVal * noteVelocity;
-        double outR = (filteredR + subSample) * envVal * noteVelocity;
+        outL *= envVal * noteVelocity;
+        outR *= envVal * noteVelocity;
 
         leftChannel[sample] += static_cast<float> (outL);
         if (rightChannel != nullptr)

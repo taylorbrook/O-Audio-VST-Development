@@ -62,7 +62,7 @@ Each task was committed atomically:
 2. **Task 2: Verify hooks.json is gone (DEAD-02)** - no commit (verification-only task, state already correct)
 3. **Task 3: Remove __pycache__ from git tracking (DEAD-05)** - `224f9d9` (chore)
 
-**Plan metadata:** (pending final commit)
+**Plan metadata:** `5dfa08b` (docs: complete plan)
 
 ## Files Created/Modified
 - `.claude/hooks/*.sh` (10 files) - Deleted: dead shell wrappers replaced by Python hooks
