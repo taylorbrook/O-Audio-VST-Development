@@ -19,13 +19,9 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     preDelayR.prepare (spec);
     dryWetMixer.prepare (spec);
 
-    juce::Reverb::Parameters reverbParams;
-    reverbParams.roomSize = targetSize.load();
-    reverbParams.damping = targetDamping.load();
-    reverbParams.wetLevel = 1.0f;
-    reverbParams.dryLevel = 0.0f;
-    reverbParams.width = 1.0f;
-    reverb.setParameters (reverbParams);
+    // Force parameter application after prepare
+    appliedSize = -1.0f;
+    applyReverbParams();
 }
 
 void ReverbProcessor::reset()
@@ -41,13 +37,13 @@ void ReverbProcessor::setDamping (float damp) { targetDamping.store (damp, std::
 void ReverbProcessor::setPredelay (float ms)  { targetPredelayMs.store (ms, std::memory_order_relaxed); }
 void ReverbProcessor::setMix (float mix)      { targetMix.store (mix, std::memory_order_relaxed); }
 
-void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
+void ReverbProcessor::applyReverbParams()
 {
-    // Read atomic targets and apply on the audio thread
     float size = targetSize.load (std::memory_order_relaxed);
     float damping = targetDamping.load (std::memory_order_relaxed);
-    float predelayMs = targetPredelayMs.load (std::memory_order_relaxed);
-    float mix = targetMix.load (std::memory_order_relaxed);
+
+    if (size == appliedSize && damping == appliedDamping)
+        return;
 
     juce::Reverb::Parameters reverbParams;
     reverbParams.roomSize = size;
@@ -57,6 +53,16 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
     reverbParams.width = 1.0f;
     reverb.setParameters (reverbParams);
 
+    appliedSize = size;
+    appliedDamping = damping;
+}
+
+void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
+{
+    applyReverbParams();
+
+    float predelayMs = targetPredelayMs.load (std::memory_order_relaxed);
+    float mix = targetMix.load (std::memory_order_relaxed);
     float preDelaySamples = predelayMs * 0.001f * currentSampleRate;
     dryWetMixer.setWetMixProportion (mix);
 

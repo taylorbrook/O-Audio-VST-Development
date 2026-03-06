@@ -27,6 +27,8 @@ public:
     void setMix (float mix);
 
 private:
+    void applyReverbParams();
+
     juce::dsp::Reverb reverb;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayL { 19200 };
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Linear> preDelayR { 19200 };
@@ -39,4 +41,8 @@ private:
     std::atomic<float> targetDamping { 0.5f };
     std::atomic<float> targetPredelayMs { 0.0f };
     std::atomic<float> targetMix { 0.0f };
+
+    // Dirty-flag caching
+    float appliedSize = -1.0f;
+    float appliedDamping = -1.0f;
 };

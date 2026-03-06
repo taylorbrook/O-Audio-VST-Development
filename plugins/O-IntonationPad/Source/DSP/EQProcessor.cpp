@@ -17,16 +17,9 @@ void EQProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     midPeak.prepare (spec);
     highShelf.prepare (spec);
 
-    // Apply initial coefficients
-    *lowShelf.state = *FilterCoeffs::makeLowShelf (
-        currentSampleRate, 200.0f, 0.707f,
-        juce::Decibels::decibelsToGain (targetLowGainDB.load()));
-    *midPeak.state = *FilterCoeffs::makePeakFilter (
-        currentSampleRate, targetMidFreqHz.load(), 1.0f,
-        juce::Decibels::decibelsToGain (targetMidGainDB.load()));
-    *highShelf.state = *FilterCoeffs::makeHighShelf (
-        currentSampleRate, 8000.0f, 0.707f,
-        juce::Decibels::decibelsToGain (targetHighGainDB.load()));
+    // Force coefficient rebuild after prepare
+    appliedLowGainDB = -999.0f;
+    updateCoefficients();
 }
 
 void EQProcessor::reset()
@@ -41,13 +34,16 @@ void EQProcessor::setMidGain (float dB)  { targetMidGainDB.store (dB, std::memor
 void EQProcessor::setMidFreq (float hz)  { targetMidFreqHz.store (hz, std::memory_order_relaxed); }
 void EQProcessor::setHighGain (float dB) { targetHighGainDB.store (dB, std::memory_order_relaxed); }
 
-void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
+void EQProcessor::updateCoefficients()
 {
-    // Read atomic targets and update coefficients on the audio thread
     float lowGain = targetLowGainDB.load (std::memory_order_relaxed);
     float midGain = targetMidGainDB.load (std::memory_order_relaxed);
     float midFreq = targetMidFreqHz.load (std::memory_order_relaxed);
     float highGain = targetHighGainDB.load (std::memory_order_relaxed);
+
+    if (lowGain == appliedLowGainDB && midGain == appliedMidGainDB
+        && midFreq == appliedMidFreqHz && highGain == appliedHighGainDB)
+        return;
 
     *lowShelf.state = *FilterCoeffs::makeLowShelf (
         currentSampleRate, 200.0f, 0.707f,
@@ -58,6 +54,16 @@ void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
     *highShelf.state = *FilterCoeffs::makeHighShelf (
         currentSampleRate, 8000.0f, 0.707f,
         juce::Decibels::decibelsToGain (highGain));
+
+    appliedLowGainDB = lowGain;
+    appliedMidGainDB = midGain;
+    appliedMidFreqHz = midFreq;
+    appliedHighGainDB = highGain;
+}
+
+void EQProcessor::process (juce::dsp::AudioBlock<float>& block)
+{
+    updateCoefficients();
 
     juce::dsp::ProcessContextReplacing<float> context (block);
     lowShelf.process (context);

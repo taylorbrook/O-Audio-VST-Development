@@ -22,6 +22,7 @@
 #include <vector>
 #include <array>
 #include <atomic>
+#include <memory>
 #include <mutex>
 
 /**
@@ -262,11 +263,12 @@ private:
     // ═══════════════════════════════════════════════════════════════════
 
     double calculate12TETFrequency(int midiNote) const;
-    double calculateCustomFrequency(int midiNote) const;
     double calculateCustomFrequencyUnlocked(int midiNote) const;
     double applyPitchBend(double baseFreq, float bendAmount) const;
     void rebuildFrequencyTable();
     void rotateIntervalsForTonic(int tonic);
+    void publishIntervalsSnapshot();
+    void ensureIntervalsInitialized();
     double parseScalaPitch(const juce::String& line) const;
 
     // ═══════════════════════════════════════════════════════════════════
@@ -289,6 +291,11 @@ private:
 
     // Scale intervals (in cents, starting with 0.0 for unison)
     std::vector<double> scaleIntervals;
+
+    // Lock-free snapshot for message-thread readers (getIntervals).
+    // Writers publish a new immutable vector after every scaleIntervals mutation.
+    // Readers call std::atomic_load — no mutex needed on the read path.
+    std::shared_ptr<const std::vector<double>> intervalsSnapshot_;
 
     // Rotated intervals cache for modal rotation
     std::vector<double> rotatedIntervals;

@@ -49,6 +49,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> sustainLevelRelay;
     std::unique_ptr<juce::WebSliderRelay> releaseTimeRelay;
     std::unique_ptr<juce::WebSliderRelay> filterCutoffRelay;
+    std::unique_ptr<juce::WebSliderRelay> filterLfoDepthRelay;
+    std::unique_ptr<juce::WebSliderRelay> velocityToFilterRelay;
     std::unique_ptr<juce::WebSliderRelay> masterVolumeRelay;
 
     // v1.6.0: Wavetable bank relay
@@ -113,6 +115,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> sustainLevelAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> releaseTimeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> filterCutoffAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> filterLfoDepthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> velocityToFilterAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> masterVolumeAttachment;
 
     // v1.6.0: Wavetable bank attachment
@@ -157,7 +161,8 @@ private:
     // v1.3.0: File chooser for tuning file dialogs
     std::shared_ptr<juce::FileChooser> tuningFileChooser;
 
-    // Resource provider helper
+    // Helpers
+    bool parseAndApplyIntervals(const juce::String& jsonStr, const juce::String& name);
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OIntonationPadAudioProcessorEditor)

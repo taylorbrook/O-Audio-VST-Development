@@ -1,5 +1,14 @@
 # O-IntonationPad Changelog
 
+## [2.2.5] - 2026-03-05
+
+### Refactored
+- EQProcessor: extracted `updateCoefficients()` helper called from both `prepare()` and `process()`, added dirty-flag caching so coefficients only recompute when parameters change (eliminates per-buffer audio-thread allocation from `makeLowShelf`/`makePeakFilter`/`makeHighShelf`)
+- ReverbProcessor: extracted `applyReverbParams()` helper with dirty-flag so `reverb.setParameters()` only called when size/damping actually change
+- TuningEngine `setBuiltInPreset()`: converted 10-case switch to `PRESET_TABLE` lookup array (data pointer, size, name, period), retains Bohlen-Pierce tritave period and Equal12TET mode handling
+- TuningEngine: extracted `ensureIntervalsInitialized()` helper to eliminate triplicated 12-TET init pattern across `setMode()`, `setSingleInterval()`, and constructor
+- PluginEditor: extracted `parseAndApplyIntervals()` method to deduplicate JSON-to-vector parsing between `setTuningIntervals` and `applyGeneratedScale` native functions
+
 ## [2.2.4] - 2026-03-05
 
 ### Fixed

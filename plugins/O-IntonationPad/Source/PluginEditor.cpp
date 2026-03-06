@@ -14,19 +14,7 @@
 #include "DSP/ScaleGenerator.h"
 #include "DSP/TuningExporter.h"
 #include "DSP/EmbeddedTunings.h"
-
-namespace {
-static juce::String doubleVectorToJSON(const std::vector<double>& v)
-{
-    juce::String json = "[";
-    for (size_t i = 0; i < v.size(); ++i) {
-        if (i > 0) json += ",";
-        json += juce::String(v[i], 6);
-    }
-    json += "]";
-    return json;
-}
-}
+#include "Util/JsonHelper.h"
 
 OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonationPadAudioProcessor& p)
     : AudioProcessorEditor(&p), processorRef(p)
@@ -58,6 +46,8 @@ void OIntonationPadAudioProcessorEditor::createRelays()
     sustainLevelRelay = std::make_unique<juce::WebSliderRelay>("sustainLevel");
     releaseTimeRelay = std::make_unique<juce::WebSliderRelay>("releaseTime");
     filterCutoffRelay = std::make_unique<juce::WebSliderRelay>("filterCutoff");
+    filterLfoDepthRelay = std::make_unique<juce::WebSliderRelay>("filterLfoDepth");
+    velocityToFilterRelay = std::make_unique<juce::WebSliderRelay>("velocityToFilter");
     masterVolumeRelay = std::make_unique<juce::WebSliderRelay>("masterVolume");
 
     wavetableBankRelay = std::make_unique<juce::WebComboBoxRelay>("wavetableBank");
@@ -121,6 +111,8 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
         .withOptionsFrom(*sustainLevelRelay)
         .withOptionsFrom(*releaseTimeRelay)
         .withOptionsFrom(*filterCutoffRelay)
+        .withOptionsFrom(*filterLfoDepthRelay)
+        .withOptionsFrom(*velocityToFilterRelay)
         .withOptionsFrom(*masterVolumeRelay)
         .withOptionsFrom(*wavetableBankRelay)
         .withOptionsFrom(*wavetablePos2Relay)
@@ -155,18 +147,12 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
 
         // --- Tuning Intervals ---
         .withNativeFunction("getTuningIntervals", [this](const juce::Array<juce::var>&, auto complete) {
-            complete(doubleVectorToJSON(processorRef.getTuningEngine().getIntervals()));
+            complete(JsonHelper::arrayToJSON(processorRef.getTuningEngine().getIntervals()));
         })
 
         .withNativeFunction("setTuningIntervals", [this](const juce::Array<juce::var>& args, auto complete) {
             if (args.size() >= 1) {
-                auto jsonArray = juce::JSON::parse(args[0].toString());
-                if (auto* arr = jsonArray.getArray()) {
-                    std::vector<double> intervals;
-                    for (const auto& val : *arr)
-                        intervals.push_back(static_cast<double>(val));
-                    processorRef.getTuningEngine().setCustomIntervals(intervals, "Custom");
-                    processorRef.checkAndResetForScaleChange();
+                if (parseAndApplyIntervals(args[0].toString(), "Custom")) {
                     complete(true);
                     return;
                 }
@@ -307,7 +293,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 int divisions = static_cast<int>(args[0]);
                 double period = static_cast<double>(args[1]);
                 auto intervals = ScaleGenerator::generateEDO(divisions, period);
-                complete(doubleVectorToJSON(intervals));
+                complete(JsonHelper::arrayToJSON(intervals));
                 return;
             }
             complete(juce::var());
@@ -318,7 +304,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 int startHarmonic = static_cast<int>(args[0]);
                 int endHarmonic = static_cast<int>(args[1]);
                 auto intervals = ScaleGenerator::generateHarmonicSeries(startHarmonic, endHarmonic);
-                complete(doubleVectorToJSON(intervals));
+                complete(JsonHelper::arrayToJSON(intervals));
                 return;
             }
             complete(juce::var());
@@ -330,7 +316,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                 double period = static_cast<double>(args[1]);
                 int count = static_cast<int>(args[2]);
                 auto intervals = ScaleGenerator::generateRank2(generator, period, count);
-                complete(doubleVectorToJSON(intervals));
+                complete(JsonHelper::arrayToJSON(intervals));
                 return;
             }
             complete(juce::var());
@@ -338,14 +324,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
 
         .withNativeFunction("applyGeneratedScale", [this](const juce::Array<juce::var>& args, auto complete) {
             if (args.size() >= 2) {
-                auto jsonArray = juce::JSON::parse(args[0].toString());
-                juce::String scaleName = args[1].toString();
-                if (auto* arr = jsonArray.getArray()) {
-                    std::vector<double> intervals;
-                    for (const auto& val : *arr)
-                        intervals.push_back(static_cast<double>(val));
-                    processorRef.getTuningEngine().setCustomIntervals(intervals, scaleName);
-                    processorRef.checkAndResetForScaleChange();
+                if (parseAndApplyIntervals(args[0].toString(), args[1].toString())) {
                     complete(true);
                     return;
                 }
@@ -356,29 +335,19 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
         // --- Embedded Tuning Library ---
         .withNativeFunction("getEmbeddedTuningList", [](const juce::Array<juce::var>&, auto complete) {
             const auto& tunings = EmbeddedTunings::getAllTunings();
-            juce::String json = "[";
-            for (size_t i = 0; i < tunings.size(); ++i) {
-                if (i > 0) json += ",";
-                json += "{";
-                json += "\"id\":\"" + juce::String(tunings[i].id) + "\",";
-                json += "\"name\":\"" + juce::String(tunings[i].name) + "\",";
-                json += "\"category\":\"" + juce::String(tunings[i].category) + "\",";
-                json += "\"noteCount\":" + juce::String(static_cast<int>(tunings[i].intervals.size()));
-                json += "}";
+            JsonHelper::JsonArrayBuilder arr;
+            for (const auto& t : tunings) {
+                arr.add(JsonHelper::JsonObjectBuilder{}
+                    .add("id", juce::String(t.id))
+                    .add("name", juce::String(t.name))
+                    .add("category", juce::String(t.category))
+                    .add("noteCount", static_cast<int>(t.intervals.size())));
             }
-            json += "]";
-            complete(json);
+            complete(arr.build());
         })
 
         .withNativeFunction("getEmbeddedTuningCategories", [](const juce::Array<juce::var>&, auto complete) {
-            auto categories = EmbeddedTunings::getCategories();
-            juce::String json = "[";
-            for (size_t i = 0; i < categories.size(); ++i) {
-                if (i > 0) json += ",";
-                json += "\"" + juce::String(categories[i]) + "\"";
-            }
-            json += "]";
-            complete(json);
+            complete(JsonHelper::arrayToJSON(EmbeddedTunings::getCategories()));
         })
 
         .withNativeFunction("loadEmbeddedTuning", [this](const juce::Array<juce::var>& args, auto complete) {
@@ -400,14 +369,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
 
         // --- Enabled Intervals ---
         .withNativeFunction("getEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
-            auto ei = processorRef.getEnabledIntervals();
-            juce::String json = "[";
-            for (size_t i = 0; i < ei.size(); ++i) {
-                if (i > 0) json += ",";
-                json += ei[i] ? "true" : "false";
-            }
-            json += "]";
-            complete(json);
+            complete(JsonHelper::arrayToJSON(processorRef.getEnabledIntervals()));
         })
 
         .withNativeFunction("setIntervalEnabled", [this](const juce::Array<juce::var>& args, auto complete) {
@@ -484,6 +446,10 @@ void OIntonationPadAudioProcessorEditor::createAttachments()
         *apvts.getParameter("releaseTime"), *releaseTimeRelay, nullptr);
     filterCutoffAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("filterCutoff"), *filterCutoffRelay, nullptr);
+    filterLfoDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("filterLfoDepth"), *filterLfoDepthRelay, nullptr);
+    velocityToFilterAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("velocityToFilter"), *velocityToFilterRelay, nullptr);
     masterVolumeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("masterVolume"), *masterVolumeRelay, nullptr);
 
@@ -564,30 +530,24 @@ void OIntonationPadAudioProcessorEditor::timerCallback()
 
     auto notes = processorRef.getActiveNotes();
 
-    // Build JSON array of active notes
-    juce::String json = "[";
-    for (int i = 0; i < static_cast<int>(notes.size()); ++i)
+    JsonHelper::JsonArrayBuilder arr;
+    for (const auto& n : notes)
     {
-        if (i > 0) json += ",";
-
-        const auto& n = notes[static_cast<size_t>(i)];
         int pitchClass = n.midiNote % 12;
         int octave = (n.midiNote / 12) - 1;
-
-        // Calculate cent deviation from 12-TET
         double tetFreq = 440.0 * std::pow(2.0, (n.midiNote - 69) / 12.0);
         double centDev = 1200.0 * std::log2(static_cast<double>(n.frequencyHz) / tetFreq);
 
-        json += "{\"midi\":" + juce::String(n.midiNote)
-             + ",\"pc\":" + juce::String(pitchClass)
-             + ",\"oct\":" + juce::String(octave)
-             + ",\"hz\":" + juce::String(n.frequencyHz, 2)
-             + ",\"cents\":" + juce::String(centDev, 1)
-             + ",\"gain\":" + juce::String(n.gain, 3) + "}";
+        arr.add(JsonHelper::JsonObjectBuilder{}
+            .add("midi", n.midiNote)
+            .add("pc", pitchClass)
+            .add("oct", octave)
+            .add("hz", static_cast<double>(n.frequencyHz))
+            .add("cents", centDev, 1)
+            .add("gain", static_cast<double>(n.gain), 3));
     }
-    json += "]";
 
-    webView->emitEventIfBrowserIsVisible("activeNotes", json);
+    webView->emitEventIfBrowserIsVisible("activeNotes", arr.build());
 }
 
 void OIntonationPadAudioProcessorEditor::paint(juce::Graphics& g)
@@ -610,6 +570,23 @@ void OIntonationPadAudioProcessorEditor::parentHierarchyChanged()
         webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
         hasNavigated = true;
     }
+}
+
+bool OIntonationPadAudioProcessorEditor::parseAndApplyIntervals(
+    const juce::String& jsonStr, const juce::String& name)
+{
+    auto jsonArray = juce::JSON::parse(jsonStr);
+    if (auto* arr = jsonArray.getArray())
+    {
+        std::vector<double> intervals;
+        intervals.reserve(static_cast<size_t>(arr->size()));
+        for (const auto& val : *arr)
+            intervals.push_back(static_cast<double>(val));
+        processorRef.getTuningEngine().setCustomIntervals(intervals, name);
+        processorRef.checkAndResetForScaleChange();
+        return true;
+    }
+    return false;
 }
 
 // Pattern #8: EXPLICIT URL MAPPING
@@ -644,14 +621,6 @@ OIntonationPadAudioProcessorEditor::getResource(const juce::String& url)
         return juce::WebBrowserComponent::Resource {
             makeVector(BinaryData::check_native_interop_js,
                       BinaryData::check_native_interop_jsSize),
-            juce::String("text/javascript")
-        };
-    }
-
-    // Pitch circle module (still used by voice tab)
-    if (url == "/modules/pitch-circle.js") {
-        return juce::WebBrowserComponent::Resource {
-            makeVector(BinaryData::pitchcircle_js, BinaryData::pitchcircle_jsSize),
             juce::String("text/javascript")
         };
     }

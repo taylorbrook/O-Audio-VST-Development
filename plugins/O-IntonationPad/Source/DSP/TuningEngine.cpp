@@ -68,6 +68,9 @@ TuningEngine::TuningEngine()
     // Initialize rotated intervals cache
     rotatedIntervals = scaleIntervals;
 
+    // Publish initial snapshot for lock-free reads
+    publishIntervalsSnapshot();
+
     // Initialize default keyboard mapping
     resetKeyboardMapping();
 
@@ -112,101 +115,75 @@ void TuningEngine::setOctaveStretch(float stretch)
 // Built-in Temperament Presets
 // ═══════════════════════════════════════════════════════════════════
 
+// Lookup table for built-in preset data
+struct PresetEntry
+{
+    const double* data;
+    size_t size;
+    const char* name;
+    double period;  // 1200.0 for octave-based, 1902.0 for tritave (Bohlen-Pierce)
+};
+
+static const std::array<PresetEntry, 10> PRESET_TABLE = {{
+    { PRESET_EQUAL.data(),              PRESET_EQUAL.size(),              "Equal 12-TET",         1200.0 },
+    { PRESET_PYTHAGOREAN.data(),        PRESET_PYTHAGOREAN.size(),        "Pythagorean",          1200.0 },
+    { PRESET_ZARLINO.data(),            PRESET_ZARLINO.size(),            "Zarlino (Just Major)",  1200.0 },
+    { PRESET_MEANTONE_QUARTER.data(),   PRESET_MEANTONE_QUARTER.size(),   "Meantone (1/4 comma)", 1200.0 },
+    { PRESET_WERCKMEISTER_III.data(),   PRESET_WERCKMEISTER_III.size(),   "Werckmeister III",     1200.0 },
+    { PRESET_KIRNBERGER_III.data(),     PRESET_KIRNBERGER_III.size(),     "Kirnberger III",       1200.0 },
+    { PRESET_VALLOTTI.data(),           PRESET_VALLOTTI.size(),           "Vallotti",             1200.0 },
+    { PRESET_WELL_TEMPERED.data(),      PRESET_WELL_TEMPERED.size(),      "Well Tempered",        1200.0 },
+    { PRESET_JUST_INTONATION.data(),    PRESET_JUST_INTONATION.size(),    "Just Intonation",      1200.0 },
+    { PRESET_BOHLEN_PIERCE.data(),      PRESET_BOHLEN_PIERCE.size(),      "Bohlen-Pierce",        1902.0 },
+}};
+
 void TuningEngine::setBuiltInPreset(BuiltInPreset preset)
 {
     currentPreset = preset;
 
-    // Custom preset - don't change intervals, user has loaded a .scl file
     if (preset == BuiltInPreset::Custom)
         return;
 
-    std::vector<double> intervals;
-    juce::String name;
+    auto idx = static_cast<size_t>(preset);
+    jassert(idx < PRESET_TABLE.size());
+    const auto& entry = PRESET_TABLE[idx];
 
-    switch (preset)
-    {
-        case BuiltInPreset::Equal12TET:
-            intervals.assign(PRESET_EQUAL.begin(), PRESET_EQUAL.end());
-            name = "Equal 12-TET";
-            break;
-        case BuiltInPreset::Pythagorean:
-            intervals.assign(PRESET_PYTHAGOREAN.begin(), PRESET_PYTHAGOREAN.end());
-            name = "Pythagorean";
-            break;
-        case BuiltInPreset::Zarlino:
-            intervals.assign(PRESET_ZARLINO.begin(), PRESET_ZARLINO.end());
-            name = "Zarlino (Just Major)";
-            break;
-        case BuiltInPreset::MeantoneQuarter:
-            intervals.assign(PRESET_MEANTONE_QUARTER.begin(), PRESET_MEANTONE_QUARTER.end());
-            name = "Meantone (1/4 comma)";
-            break;
-        case BuiltInPreset::WerckmeisterIII:
-            intervals.assign(PRESET_WERCKMEISTER_III.begin(), PRESET_WERCKMEISTER_III.end());
-            name = "Werckmeister III";
-            break;
-        case BuiltInPreset::KirnbergerIII:
-            intervals.assign(PRESET_KIRNBERGER_III.begin(), PRESET_KIRNBERGER_III.end());
-            name = "Kirnberger III";
-            break;
-        case BuiltInPreset::Vallotti:
-            intervals.assign(PRESET_VALLOTTI.begin(), PRESET_VALLOTTI.end());
-            name = "Vallotti";
-            break;
-        case BuiltInPreset::WellTempered:
-            intervals.assign(PRESET_WELL_TEMPERED.begin(), PRESET_WELL_TEMPERED.end());
-            name = "Well Tempered";
-            break;
-        case BuiltInPreset::JustIntonation:
-            intervals.assign(PRESET_JUST_INTONATION.begin(), PRESET_JUST_INTONATION.end());
-            name = "Just Intonation";
-            break;
-        case BuiltInPreset::BohlenPierce:
-            intervals.assign(PRESET_BOHLEN_PIERCE.begin(), PRESET_BOHLEN_PIERCE.end());
-            name = "Bohlen-Pierce";
-            break;
-        case BuiltInPreset::Custom:
-            return;
-    }
+    std::vector<double> intervals(entry.data, entry.data + entry.size);
+    intervals.push_back(entry.period);
 
-    // Add octave/period at the end
-    if (preset == BuiltInPreset::BohlenPierce)
-        intervals.push_back(1902.0); // Tritave
-    else
-        intervals.push_back(1200.0); // Octave
-
-    // Set mode BEFORE setCustomIntervals so rebuildFrequencyTable() uses correct mode
     if (preset == BuiltInPreset::Equal12TET)
         currentMode.store(Mode::TwelveTET, std::memory_order_relaxed);
     else
         currentMode.store(Mode::Scala, std::memory_order_relaxed);
 
-    setCustomIntervals(intervals, name);
+    setCustomIntervals(intervals, entry.name);
 
-    DBG("TuningEngine: preset -> " + name);
+    DBG("TuningEngine: preset -> " + juce::String(entry.name));
 }
 
 // ═══════════════════════════════════════════════════════════════════
 // Tuning Mode
 // ═══════════════════════════════════════════════════════════════════
 
+void TuningEngine::ensureIntervalsInitialized()
+{
+    scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
+                      600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
+    scaleDegrees = 12;
+    scaleName = "Custom";
+    publishIntervalsSnapshot();
+}
+
 void TuningEngine::setMode(Mode mode)
 {
     Mode oldMode = currentMode.load(std::memory_order_relaxed);
     if (oldMode != mode)
     {
-        // If switching to Scala mode with empty intervals, initialize to 12-TET
         if (mode == Mode::Scala)
         {
             std::lock_guard<std::mutex> lock(intervalMutex);
             if (scaleIntervals.size() < 2)
-            {
-                scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
-                                  600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
-                scaleDegrees = 12;
-                scaleName = "Custom";
-
-            }
+                ensureIntervalsInitialized();
         }
 
         currentMode.store(mode, std::memory_order_relaxed);
@@ -233,6 +210,8 @@ void TuningEngine::setCustomIntervals(const std::vector<double>& cents, const ju
 
         // Initialize rotated intervals cache
         rotatedIntervals = scaleIntervals;
+
+        publishIntervalsSnapshot();
     }
 
     // Recalculate rotated intervals for current tonic
@@ -248,20 +227,16 @@ void TuningEngine::setSingleInterval(int index, double cents)
     {
         std::lock_guard<std::mutex> lock(intervalMutex);
 
-        // Initialize to 12-TET if intervals are empty
         if (scaleIntervals.size() < 2 || scaleIntervals.size() == 12)
-        {
-            scaleIntervals = {0.0, 100.0, 200.0, 300.0, 400.0, 500.0,
-                              600.0, 700.0, 800.0, 900.0, 1000.0, 1100.0, 1200.0};
-            scaleDegrees = 12;
-            scaleName = "Custom";
-        }
+            ensureIntervalsInitialized();
 
         // Update the interval at the specified index
         if (index >= 0 && index < static_cast<int>(scaleIntervals.size()))
         {
             scaleIntervals[static_cast<size_t>(index)] = cents;
         }
+
+        publishIntervalsSnapshot();
     }
 
     // Update rotated intervals cache when tonic != 0
@@ -283,8 +258,10 @@ void TuningEngine::setSingleInterval(int index, double cents)
 
 std::vector<double> TuningEngine::getIntervals() const
 {
-    std::lock_guard<std::mutex> lock(intervalMutex);
-    return scaleIntervals;
+    auto snapshot = std::atomic_load(&intervalsSnapshot_);
+    if (snapshot)
+        return *snapshot;
+    return {};
 }
 
 juce::String TuningEngine::getActiveTuningName() const
@@ -292,8 +269,6 @@ juce::String TuningEngine::getActiveTuningName() const
     Mode mode = currentMode.load(std::memory_order_relaxed);
     if (mode == Mode::TwelveTET)
         return "12-TET Standard";
-    if (mode == Mode::MTSESP)
-        return "MTS-ESP (Not Connected)";
     return scaleName;
 }
 
@@ -717,12 +692,6 @@ double TuningEngine::calculate12TETFrequency(int midiNote) const
     return a4Frequency * std::pow(2.0, stretchedSemitones / 12.0);
 }
 
-double TuningEngine::calculateCustomFrequency(int midiNote) const
-{
-    std::lock_guard<std::mutex> lock(intervalMutex);
-    return calculateCustomFrequencyUnlocked(midiNote);
-}
-
 double TuningEngine::calculateCustomFrequencyUnlocked(int midiNote) const
 {
     if (scaleIntervals.size() < 2)
@@ -854,6 +823,12 @@ double TuningEngine::applyPitchBend(double baseFreq, float bendAmount) const
 {
     const double bendSemitones = static_cast<double>(bendAmount * pitchBendRange);
     return baseFreq * std::pow(2.0, bendSemitones / 12.0);
+}
+
+void TuningEngine::publishIntervalsSnapshot()
+{
+    std::atomic_store(&intervalsSnapshot_,
+                      std::make_shared<const std::vector<double>>(scaleIntervals));
 }
 
 void TuningEngine::rebuildFrequencyTable()
