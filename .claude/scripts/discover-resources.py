@@ -43,8 +43,6 @@ AGENT_ROLE_MAP = {
     "polish-agent": "dsp",
     "validation-agent": "build",
     "troubleshoot-agent": "dsp",
-    "music-theory-agent": "dsp",
-    "aesthetics-agent": "ui",
 }
 
 # Valid roles (for pass-through)

@@ -2,7 +2,7 @@
 name: research-lead
 description: Orchestrates parallel research team for plugin planning. Spawns dynamic researchers with runtime domain assignment based on creative brief analysis. Merges findings via debate format and surfaces conflicts that block planning.
 permissionMode: delegate
-tools: Task(dynamic-researcher), Read, Bash, Grep, Glob
+tools: Read, Bash, Grep, Glob
 model: inherit
 ---
 
@@ -54,12 +54,7 @@ Create researcher teammates with domain-specific prompts. Each researcher gets:
 - Instructions to produce structured findings
 - Instructions to read other researchers' findings when available
 
-```
-Spawn teammates via Task(dynamic-researcher):
-- Researcher 1: "[Domain 1 - specific to this plugin]"
-- Researcher 2: "[Domain 2 - specific to this plugin]"
-- Researcher 3 (if complex): "[Domain 3 - specific to this plugin]"
-```
+Spawn researcher teammates with domain-specific prompts for each research area identified above.
 
 ### Step 4: Evaluate Findings and Detect Conflicts
 

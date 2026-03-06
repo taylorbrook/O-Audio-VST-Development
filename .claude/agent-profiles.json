@@ -7,14 +7,12 @@
     "research-planning-agent":  { "effort": "max",    "rationale": "Deep research and architecture" },
     "troubleshoot-agent":       { "effort": "max",    "rationale": "Complex debugging synthesis" },
     "validation-agent":         { "effort": "high",   "rationale": "Semantic judgment layer" },
-    "music-theory-agent":       { "effort": "high",   "rationale": "Specialized domain reasoning" },
     "critic-dsp":               { "effort": "high",   "rationale": "Nuanced safety evaluation" },
     "critic-ui":                { "effort": "high",   "rationale": "Visual quality judgment" },
     "foundation-shell-agent":   { "effort": "medium", "rationale": "Template-based code generation" },
     "gui-agent":                { "effort": "medium", "rationale": "Follows established patterns" },
     "ui-design-agent":          { "effort": "medium", "rationale": "Creative but structured" },
     "ui-finalization-agent":    { "effort": "medium", "rationale": "Scaffolding generation" },
-    "aesthetics-agent":         { "effort": "medium", "rationale": "Specification only" },
     "polish-agent":             { "effort": "medium", "rationale": "Follows plan directives" }
   }
 }
