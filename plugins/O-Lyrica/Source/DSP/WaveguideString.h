@@ -159,6 +159,13 @@ public:
     void setMaterial(const StringMaterial& material);
 
     /**
+     * v1.33.0: Set dampening state (étouffé)
+     * When active, rapidly reduces feedback over ~50ms to simulate string muting
+     * @param active true = start dampening, false = stop dampening
+     */
+    void setDampening(bool active);
+
+    /**
      * Update frequency in real-time (for pitch bend)
      * @param frequency New frequency in Hz
      */
@@ -215,6 +222,11 @@ private:
     float gaugeAmount = 0.5f;            // String gauge (0=thin, 1=thick) - affects mass/damping
     float lengthAmount = 0.5f;           // String length (0=short, 1=long) - affects decay character
     float bridgeBrightnessAmount = 0.5f; // v1.3.0: Bridge brightness (0=dark, 1=bright) - direct bridge control
+
+    // v1.33.0: Étouffé dampening system
+    bool dampening = false;
+    float dampeningMultiplier = 1.0f;
+    float dampeningDecayRate = 0.999f; // Recomputed in prepare() from sample rate
 
     // Material system (Phase 2.5)
     StringMaterial currentMaterial;

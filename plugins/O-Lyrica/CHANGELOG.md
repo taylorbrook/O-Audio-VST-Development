@@ -2,6 +2,15 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.33.0] - 2026-03-05
+
+### Added
+
+- Étouffé (pedal dampening) via sustain pedal CC64: when the sustain pedal is released (CC64 < 64), all sounding voices enter rapid dampening — feedback coefficient is progressively multiplied by a decay envelope reaching -60dB in ~50ms, simulating a harpist touching strings to stop them
+- `WaveguideString::setDampening()` method with per-sample `dampeningMultiplier` ramp-down computed from sample rate
+- CC64 handling in `HarpSynthVoice::controllerMoved()` — dampening activates on pedal release, deactivates on pedal press
+- Dampening state auto-resets on new note trigger so notes played after pedal release aren't affected
+
 ## [1.32.7] - 2026-03-05
 
 ### Changed

@@ -498,9 +498,13 @@ void HarpSynthVoice::pitchWheelMoved(int newPitchWheelValue)
     }
 }
 
-void HarpSynthVoice::controllerMoved(int /*controllerNumber*/, int /*newControllerValue*/)
+void HarpSynthVoice::controllerMoved(int controllerNumber, int newControllerValue)
 {
-    // MIDI CC will be implemented in later phases
+    // v1.33.0: Étouffé (pedal dampening) via sustain pedal CC64
+    // Pedal released (< 64) = dampening ON — strings rapidly muted
+    // Pedal pressed (>= 64) = dampening OFF — strings ring freely
+    if (controllerNumber == 64)
+        stringModel.setDampening(newControllerValue < 64);
 }
 
 void HarpSynthVoice::updateParametersFromAPVTS()

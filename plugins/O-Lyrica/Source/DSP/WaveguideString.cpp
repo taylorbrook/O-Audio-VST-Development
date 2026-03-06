@@ -54,6 +54,10 @@ void WaveguideString::prepare(double sampleRate, int maxBlockSize)
     // Prepare pluck exciter
     exciter.prepare(sampleRate, maxBlockSize);
 
+    // v1.33.0: Compute étouffé dampening rate for ~50ms decay to -60dB
+    float dampeningSamples = static_cast<float>(sampleRate) * 0.05f;
+    dampeningDecayRate = std::pow(0.001f, 1.0f / dampeningSamples);
+
     updateFilters();
     reset();
 }
@@ -87,6 +91,10 @@ void WaveguideString::trigger(double frequency, float velocity, float position, 
 
     // Trigger pluck exciter
     exciter.trigger(velocity, position, hardness, frequency);
+
+    // v1.33.0: Reset dampening for new notes
+    dampening = false;
+    dampeningMultiplier = 1.0f;
 
     // Initialize energy tracking
     currentEnergy = velocity;
@@ -124,7 +132,16 @@ float WaveguideString::processSample()
 
     // v1.1.0: Apply feedback coefficient for decay time control
     // This provides uniform energy loss independent of frequency content
-    bridgeReflection *= feedbackCoefficient;
+    float effectiveFeedback = feedbackCoefficient;
+
+    // v1.33.0: Étouffé dampening — rapidly reduce feedback when strings are muted
+    if (dampening)
+    {
+        dampeningMultiplier *= dampeningDecayRate;
+        effectiveFeedback *= dampeningMultiplier;
+    }
+
+    bridgeReflection *= effectiveFeedback;
 
     // Inject excitation at pluck position
     // This creates the comb filtering effect based on pluck position
@@ -324,6 +341,13 @@ void WaveguideString::setFrequency(double frequency)
         // v1.1.0: Recalculate feedback coefficient (depends on frequency)
         feedbackCoefficient = calculateFeedbackCoefficient();
     }
+}
+
+void WaveguideString::setDampening(bool active)
+{
+    dampening = active;
+    if (active)
+        dampeningMultiplier = 1.0f; // Start fresh ramp-down
 }
 
 WaveguideString::FilterCutoffs WaveguideString::calculateFilterCutoffs() const
