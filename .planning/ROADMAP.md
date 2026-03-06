@@ -55,7 +55,7 @@
 
 **Milestone Goal:** Address all findings from the full system review -- activate dormant quality gates, remove dead code, fix research governance gaps, consolidate overlapping subsystems, and add structural improvements for agent memory and validation.
 
-- [ ] **Phase 18: Dead Code Removal** - Delete all dead .sh hooks, vestigial hooks.json, unreferenced agents, deprecated registry, and add __pycache__ to gitignore
+- [x] **Phase 18: Dead Code Removal** - Delete all dead .sh hooks, vestigial hooks.json, unreferenced agents, deprecated registry, and add __pycache__ to gitignore (completed 2026-03-06)
 - [ ] **Phase 19: Quality Gate Activation** - Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json
 - [ ] **Phase 20: Research Governance & Review** - Regenerate resource index, standardize frontmatter across all research docs, audit for coverage gaps, fill gaps, and flag stale content
 - [ ] **Phase 21: Skill & Infrastructure Consolidation** - Merge plugin-phases into plugin-workflow, update references, clean up agent memory placeholders, relocate docs-only files, exclude dev artifacts
@@ -73,7 +73,7 @@
   3. No agent definition exists that is referenced by zero commands or skills (aesthetics-agent, dynamic-researcher, music-theory-agent are gone)
   4. `.claude/plugin-registry.json` does not exist (deprecated duplicate removed)
   5. `__pycache__` directories are not tracked by git, and `.gitignore` contains `__pycache__/` and `*.pyc` patterns
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [ ] 18-01-PLAN.md -- Delete .sh hooks, verify hooks.json gone, remove __pycache__ from git
 - [ ] 18-02-PLAN.md -- Delete dead agents and deprecated plugin-registry.json, scrub references
@@ -133,7 +133,7 @@ Plans:
 | 8-9 | v1.1 | 4/4 | Complete | 2026-02-02 |
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
-| 18. Dead Code Removal | 2/3 | In Progress|  | - |
+| 18. Dead Code Removal | 3/3 | Complete   | 2026-03-06 | - |
 | 19. Quality Gate Activation | v1.4 | 0/? | Not started | - |
 | 20. Research Governance & Review | v1.4 | 0/? | Not started | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
