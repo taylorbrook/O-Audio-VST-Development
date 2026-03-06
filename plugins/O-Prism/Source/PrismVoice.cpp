@@ -81,12 +81,20 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
 
     pLfo1Rate      = apvts->getRawParameterValue ("lfo1Rate");
     pLfo1Shape     = apvts->getRawParameterValue ("lfo1Shape");
+    pLfo1Sync      = apvts->getRawParameterValue ("lfo1Sync");
+    pLfo1Division  = apvts->getRawParameterValue ("lfo1Division");
     pLfo2Rate      = apvts->getRawParameterValue ("lfo2Rate");
     pLfo2Shape     = apvts->getRawParameterValue ("lfo2Shape");
+    pLfo2Sync      = apvts->getRawParameterValue ("lfo2Sync");
+    pLfo2Division  = apvts->getRawParameterValue ("lfo2Division");
     pLfo3Rate      = apvts->getRawParameterValue ("lfo3Rate");
     pLfo3Shape     = apvts->getRawParameterValue ("lfo3Shape");
+    pLfo3Sync      = apvts->getRawParameterValue ("lfo3Sync");
+    pLfo3Division  = apvts->getRawParameterValue ("lfo3Division");
     pLfo4Rate      = apvts->getRawParameterValue ("lfo4Rate");
     pLfo4Shape     = apvts->getRawParameterValue ("lfo4Shape");
+    pLfo4Sync      = apvts->getRawParameterValue ("lfo4Sync");
+    pLfo4Division  = apvts->getRawParameterValue ("lfo4Division");
 }
 
 void PrismVoice::setTuningEngine (TuningEngine* engine)
@@ -293,14 +301,41 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     int filtRouting = static_cast<int> (pFiltRouting->load());
     float filtEnvDepth = pFiltEnvDepth->load();
 
-    // LFO parameters (rate + shape only — routing via mod matrix)
-    float lfo1Rate = pLfo1Rate->load();
+    // Note division multipliers: how many beats per LFO cycle
+    // Index order: 1/1, 1/2, 1/4, 1/8, 1/16, 1/32,
+    //              1/1D, 1/2D, 1/4D, 1/8D, 1/16D, 1/32D,
+    //              1/1T, 1/2T, 1/4T, 1/8T, 1/16T, 1/32T
+    static constexpr float kDivBeats[18] = {
+        4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f,                   // straight
+        6.0f, 3.0f, 1.5f, 0.75f, 0.375f, 0.1875f,                // dotted (1.5x)
+        2.6667f, 1.3333f, 0.6667f, 0.3333f, 0.1667f, 0.0833f     // triplet (2/3x)
+    };
+
+    // Read BPM from processor
+    double bpm = (processor != nullptr) ? processor->getCurrentBPM() : 120.0;
+
+    // Helper: compute LFO rate (Hz) from sync state
+    auto calcLfoRate = [&] (std::atomic<float>* pRate, std::atomic<float>* pSync,
+                            std::atomic<float>* pDiv) -> float
+    {
+        if (pSync->load() > 0.5f)
+        {
+            int divIdx = juce::jlimit (0, 17, static_cast<int> (pDiv->load()));
+            float beats = kDivBeats[divIdx];
+            float seconds = static_cast<float> (beats * 60.0 / bpm);
+            return 1.0f / seconds;
+        }
+        return pRate->load();
+    };
+
+    // LFO parameters (rate + shape — with optional tempo sync)
+    float lfo1Rate = calcLfoRate (pLfo1Rate, pLfo1Sync, pLfo1Division);
     int lfo1Shape = static_cast<int> (pLfo1Shape->load());
-    float lfo2Rate = pLfo2Rate->load();
+    float lfo2Rate = calcLfoRate (pLfo2Rate, pLfo2Sync, pLfo2Division);
     int lfo2Shape = static_cast<int> (pLfo2Shape->load());
-    float lfo3Rate = pLfo3Rate->load();
+    float lfo3Rate = calcLfoRate (pLfo3Rate, pLfo3Sync, pLfo3Division);
     int lfo3Shape = static_cast<int> (pLfo3Shape->load());
-    float lfo4Rate = pLfo4Rate->load();
+    float lfo4Rate = calcLfoRate (pLfo4Rate, pLfo4Sync, pLfo4Division);
     int lfo4Shape = static_cast<int> (pLfo4Shape->load());
 
     // Configure LFOs
@@ -350,9 +385,15 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Glide frequency
         double glidedFreq = glide.getNextFrequency();
 
-        // Update oscillator frequencies with glide + precomputed pitch ratios
-        oscA.setFrequency (glidedFreq * pitchRatioA);
-        oscB.setFrequency (glidedFreq * pitchRatioB);
+        // Pitch modulation from mod matrix (±12 semitones at full offset)
+        float pitchModOffset = modMatrix.getModOffset (ModDest::Pitch);
+        double pitchModRatio = 1.0;
+        if (std::abs (pitchModOffset) > 0.0001f)
+            pitchModRatio = std::pow (2.0, static_cast<double> (pitchModOffset) * 12.0 / 12.0);
+
+        // Update oscillator frequencies with glide + pitch ratios + pitch mod
+        oscA.setFrequency (glidedFreq * pitchRatioA * pitchModRatio);
+        oscB.setFrequency (glidedFreq * pitchRatioB * pitchModRatio);
 
         // ─── Per-sample modulation sources ───────────────────────
         float lfo1Val = lfo1.getNextSample();  // [-1, 1]
@@ -417,15 +458,16 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         double mixedL = oscAL * (1.0 - modOscMix) + oscBL * modOscMix;
         double mixedR = oscAR * (1.0 - modOscMix) + oscBR * modOscMix;
 
-        // Noise with modulation
+        // Noise with modulation (true stereo — independent noise per channel)
         float modNoiseLevel = juce::jlimit (0.0f, 1.0f,
             noiseLevel + modMatrix.getModOffset (ModDest::NoiseLevel));
 
         if (modNoiseLevel > 0.001f)
         {
-            double noise = noiseGen.getNextSample() * modNoiseLevel;
-            mixedL += noise;
-            mixedR += noise;
+            double noiseL, noiseR;
+            noiseGen.getNextSampleStereo (noiseL, noiseR);
+            mixedL += noiseL * modNoiseLevel;
+            mixedR += noiseR * modNoiseLevel;
         }
 
         // ─── Filters with modulation ─────────────────────────────
@@ -496,7 +538,7 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         double subSample = 0.0;
         if (modSubLevel > 0.001f)
         {
-            subOsc.setFrequency (glidedFreq);
+            subOsc.setFrequency (glidedFreq * pitchModRatio);
             subSample = subOsc.getNextSample() * modSubLevel;
         }
 

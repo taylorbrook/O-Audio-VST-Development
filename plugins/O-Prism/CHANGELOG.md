@@ -1,5 +1,20 @@
 # O-Prism Changelog
 
+## v1.5.0 (2026-03-05)
+
+### Changed
+- **Stereo noise generator**: `NoiseGenerator` now produces independent noise per channel via `getNextSampleStereo()`. White and Digital types use separate PRNG instances (randomL/randomR). Pink noise has independent Paul Kellet filter states per channel (b0L/b1L/b2L, b0R/b1R/b2R). Brown noise has independent integrator states. Vinyl has independent bandpass filters and crackle events per channel. Wind shares the LFO (coherent spectral sweep) but uses independent brown noise sources and lowpass filter states per channel. Previously a single mono sample was added identically to both L and R — now decorrelated noise provides true stereo width.
+
+## v1.4.0 (2026-03-05)
+
+### Added
+- **Tempo-synced LFO rates**: Each of the 4 LFOs now has a Sync toggle and note Division selector. When Sync is enabled, LFO rate is calculated from host BPM instead of the free-running Hz knob. 18 note divisions available: straight (1/1 through 1/32), dotted (1/1D through 1/32D), and triplet (1/1T through 1/32T). BPM is read from the DAW transport via `getPlayHead()->getPosition()->getBpm()`. 8 new APVTS parameters: `lfo1Sync`, `lfo1Division`, `lfo2Sync`, `lfo2Division`, `lfo3Sync`, `lfo3Division`, `lfo4Sync`, `lfo4Division`. UI shows Free/Sync toggle per LFO — when synced, the rate knob hides and division dropdown appears.
+
+## v1.3.0 (2026-03-05)
+
+### Added
+- **Pitch modulation destination**: Added "Pitch" as the 23rd mod destination in the modulation matrix. Routes any source (LFO, envelope, velocity, mod wheel, etc.) to pitch for vibrato, pitch envelopes, and velocity-to-pitch effects. Applied as a semitone offset (±12 semitones at full modulation) multiplied into oscillator and sub-oscillator frequency calculations.
+
 ## v1.2.2 (2026-03-05)
 
 ### Changed
