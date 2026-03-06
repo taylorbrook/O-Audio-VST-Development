@@ -1005,6 +1005,8 @@
                 this.ctx = this.canvas.getContext('2d');
                 this.samples = [];
                 this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
+                this._fetching = false;
+                this._pendingFetch = null;
                 this.resizeCanvas();
             }
 
@@ -1024,14 +1026,26 @@
                     this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
                 }
                 if (typeof this.getFrame !== 'function') return;
+                // Coalesce overlapping calls — keep only the latest request
+                if (this._fetching) {
+                    this._pendingFetch = { bankIndex, position };
+                    return;
+                }
+                this._fetching = true;
                 try {
-                    this.resizeCanvas();
                     const result = await this.getFrame(bankIndex, position);
                     if (result) {
                         this.samples = typeof result === 'string' ? JSON.parse(result) : result;
                         this.draw();
                     }
                 } catch(e) { console.error('Wavetable fetch error:', e); }
+                this._fetching = false;
+                // Process most recent pending request (drops intermediate ones)
+                if (this._pendingFetch) {
+                    const pend = this._pendingFetch;
+                    this._pendingFetch = null;
+                    this.fetchAndDraw(pend.bankIndex, pend.position);
+                }
             }
 
             draw() {

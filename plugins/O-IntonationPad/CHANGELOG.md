@@ -1,5 +1,12 @@
 # O-IntonationPad Changelog
 
+## [2.4.2] - 2026-03-06
+
+### Fixed
+- Waveform visualizer flickering during LFO animation
+  - **Root cause:** `resizeCanvas()` was called inside `fetchAndDraw()` every frame — setting `canvas.width`/`canvas.height` implicitly clears the canvas, creating a blank flash during the async native IPC round-trip
+  - **Fix:** Resize only once at construction; added fetch coalescing to prevent overlapping async calls from racing
+
 ## [2.4.1] - 2026-03-06
 
 ### Changed
