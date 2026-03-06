@@ -73,7 +73,7 @@
   3. No agent definition exists that is referenced by zero commands or skills (aesthetics-agent, dynamic-researcher, music-theory-agent are gone)
   4. `.claude/plugin-registry.json` does not exist (deprecated duplicate removed)
   5. `__pycache__` directories are not tracked by git, and `.gitignore` contains `__pycache__/` and `*.pyc` patterns
-**Plans:** 4 plans (3 complete + 1 gap closure)
+**Plans:** 4/4 plans complete
 Plans:
 - [x] 18-01-PLAN.md -- Delete .sh hooks, verify hooks.json gone, remove __pycache__ from git
 - [x] 18-02-PLAN.md -- Delete dead agents and deprecated plugin-registry.json, scrub references
@@ -134,7 +134,7 @@ Plans:
 | 8-9 | v1.1 | 4/4 | Complete | 2026-02-02 |
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
-| 18. Dead Code Removal | v1.4 | 4/4 | Complete | 2026-03-06 |
+| 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | v1.4 | 0/? | Not started | - |
 | 20. Research Governance & Review | v1.4 | 0/? | Not started | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
