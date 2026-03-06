@@ -38,10 +38,10 @@ Ouaricon Plugins:
 | O-Lyrica | 📦 Installed | 1.32.7 | Synth (Physical Modeling Harp) | 2026-03-05 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
-| O-IntonationPad | 📦 Installed | 2.2.5 | Synth (Wavetable Pad) | 2026-03-05 |
+| O-IntonationPad | 📦 Installed | 2.2.6 | Synth (Wavetable Pad) | 2026-03-05 |
 | O-Detune | 📦 Installed | 1.5.2 | Audio Effect (Detuning) | 2026-02-18 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
-| O-FreqPulse | 📦 Installed | 1.13.0 | Audio Effect (Spectral Sequencer) | 2026-03-05 |
+| O-FreqPulse | 📦 Installed | 1.14.0 | Audio Effect (Spectral Sequencer) | 2026-03-05 |
 | O-SpectralShaper | 📦 Installed | 1.1.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
 | O-GrainScatter | 📦 Installed | 2.0.1 | Audio Effect (Granular Stutter Engine) | 2026-02-09 |
 | O-Chorus | 📦 Installed | 1.2.1 | Audio Effect (Chorus) | 2026-02-25 |

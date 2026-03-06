@@ -69,6 +69,7 @@ private:
         std::atomic<float>* eucSteps = nullptr;
         std::atomic<float>* eucPulses = nullptr;
         std::atomic<float>* eucOffset = nullptr;
+        std::atomic<float>* phaseOffset = nullptr;  // v1.14.0: Per-band phase offset (0-31)
         std::array<std::atomic<float>*, 32> stepStates;  // 32 step parameters per band
     };
 
@@ -174,7 +175,7 @@ private:
     std::array<bool, 32> generateEuclidean(int steps, int pulses, int offset);
     void updateEuclideanPatterns();
     int calculateCurrentStep(double ppq, int numSteps, int rateIndex, float swing);
-    float getTargetGainForBand(int bandIndex, int currentStep);
+    float getTargetGainForBand(int bandIndex, int currentStep, int numSteps);
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();

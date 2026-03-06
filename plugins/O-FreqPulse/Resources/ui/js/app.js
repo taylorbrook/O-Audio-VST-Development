@@ -260,6 +260,10 @@ function initializeBandParameters() {
         state.stepStates[`band${bandId}_euc_steps`] = eucStepsState;
         state.stepStates[`band${bandId}_euc_pulses`] = eucPulsesState;
         state.stepStates[`band${bandId}_euc_offset`] = eucOffsetState;
+
+        // v1.14.0: Per-band phase offset
+        const phaseOffsetState = Juce.getSliderState(`band${bandId}_phase_offset`);
+        state.stepStates[`band${bandId}_phase_offset`] = phaseOffsetState;
     }
 }
 
@@ -418,12 +422,12 @@ function createBandRow(band) {
     });
     bandRow.appendChild(modeIndicator);
 
-    // Expand button (visible only in euclidean mode)
+    // Expand button (always visible — panel has Phase/Depth for both modes)
     const expandBtn = document.createElement('button');
-    expandBtn.className = 'band-expand-btn';
+    expandBtn.className = 'band-expand-btn visible';
     expandBtn.id = `expand-${band.id}`;
     expandBtn.textContent = '▶';
-    expandBtn.setAttribute('data-tooltip', 'Expand: Opens the Euclidean controls panel for this band (Steps, Pulses, Offset, Depth).');
+    expandBtn.setAttribute('data-tooltip', 'Expand: Opens the band controls panel (Phase, Depth, and Euclidean settings).');
     expandBtn.addEventListener('click', () => {
         openEuclideanPanel(band.id);
     });
@@ -756,6 +760,20 @@ function syncEuclideanControls(bandId) {
         eucOffsetValue.textContent = Math.round(eucOffsetState.getScaledValue());
     };
 
+    // v1.14.0: Phase offset
+    const phaseState = state.stepStates[`band${bandId}_phase_offset`];
+    const phaseSlider = document.getElementById('euc-phase');
+    const phaseValue = document.getElementById('euc-phase-value');
+
+    phaseSlider.value = phaseState.getScaledValue();
+    phaseValue.textContent = Math.round(phaseSlider.value);
+
+    phaseSlider.oninput = (e) => {
+        const normalized = e.target.value / 31;  // 0-31 → 0-1
+        phaseState.setNormalisedValue(normalized);
+        phaseValue.textContent = Math.round(phaseState.getScaledValue());
+    };
+
     // Depth
     const depthState = state.stepStates[`band${bandId}_depth`];
     const depthSlider = document.getElementById('euc-depth');
@@ -778,10 +796,7 @@ function updateBandModeIndicator(bandId, isEuclidean) {
         indicator.classList.toggle('euclidean', isEuclidean);
     }
 
-    const expandBtn = document.getElementById(`expand-${bandId}`);
-    if (expandBtn) {
-        expandBtn.classList.toggle('visible', isEuclidean);
-    }
+    // Expand button always visible (Phase/Depth accessible in both modes)
 }
 
 // ============================================================================
@@ -856,12 +871,7 @@ function updateEuclideanGrid(bandId) {
     state.euclideanActive[bandId] = isEuclidean;
     updateBandModeIndicator(bandId, isEuclidean);
 
-    // Close euclidean panel if switching this band to manual while panel is open
-    if (!isEuclidean && state.currentBand === bandId) {
-        const panel = document.getElementById('euclidean-panel');
-        panel.classList.remove('visible');
-        state.currentBand = null;
-    }
+    // Panel stays open in both modes (Phase/Depth work in manual too)
 
     const cells = cachedCells[bandId];
 

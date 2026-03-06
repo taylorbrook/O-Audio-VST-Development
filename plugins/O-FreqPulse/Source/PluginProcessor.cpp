@@ -140,6 +140,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreqPulseAudioProcessor::cr
             bandName + " Euc Offset",
             0, 31, 0));
 
+        // v1.14.0: Per-band phase offset (shifts pattern read position)
+        bandGroup->addChild(std::make_unique<juce::AudioParameterInt>(
+            juce::ParameterID { bandID + "_phase_offset", 1 },
+            bandName + " Phase Offset",
+            0, 31, 0));
+
         // Step grid parameters (32 per band) — velocity floats (0=off, 1=full)
         for (int m = 0; m < 32; ++m)
         {
@@ -198,6 +204,7 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
         bandParams[n].eucSteps = parameters.getRawParameterValue(bandID + "_euc_steps");
         bandParams[n].eucPulses = parameters.getRawParameterValue(bandID + "_euc_pulses");
         bandParams[n].eucOffset = parameters.getRawParameterValue(bandID + "_euc_offset");
+        bandParams[n].phaseOffset = parameters.getRawParameterValue(bandID + "_phase_offset");
 
         // Cache step grid parameters (32 per band)
         for (int m = 0; m < 32; ++m)
@@ -383,12 +390,16 @@ int OFreqPulseAudioProcessor::calculateCurrentStep(double ppq, int numSteps, int
     return step < 0 ? 0 : step;
 }
 
-float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentStep)
+float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentStep, int numSteps)
 {
     // Check if band is enabled
     bool enabled = bandParams[bandIndex].enable->load() > 0.5f;
     if (!enabled)
         return 1.0f;  // Passthrough when disabled
+
+    // v1.14.0: Apply per-band phase offset to shift pattern read position
+    int phaseOffset = static_cast<int>(bandParams[bandIndex].phaseOffset->load());
+    int adjustedStep = (currentStep + phaseOffset) % numSteps;
 
     // Determine velocity (0.0 = off, 1.0 = full)
     float velocity;
@@ -398,13 +409,13 @@ float OFreqPulseAudioProcessor::getTargetGainForBand(int bandIndex, int currentS
     {
         // Euclidean pattern: binary → velocity 0 or 1
         int eucSteps = static_cast<int>(bandParams[bandIndex].eucSteps->load());
-        int wrappedStep = currentStep % eucSteps;
+        int wrappedStep = adjustedStep % eucSteps;
         velocity = euclideanPatterns[bandIndex][wrappedStep] ? 1.0f : 0.0f;
     }
     else
     {
         // Manual step grid: read velocity float directly
-        velocity = bandParams[bandIndex].stepStates[currentStep]->load();
+        velocity = bandParams[bandIndex].stepStates[adjustedStep]->load();
     }
 
     // Interpolate gain: vel=0 → (1-depth), vel=1 → 1.0
@@ -558,7 +569,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
         {
             bandSteps[band] = calculateCurrentStep(blockStartPpq, numSteps, bandRateIndex[band], swing);
             bandStepAtomics[band].store(bandSteps[band]);
-            float targetGain = getTargetGainForBand(band, bandSteps[band]);
+            float targetGain = getTargetGainForBand(band, bandSteps[band], numSteps);
             bandEnvelopes[band].setTargetValue(targetGain);
         }
     }
@@ -594,7 +605,7 @@ void OFreqPulseAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, ju
                 {
                     bandSteps[band] = stepAtSample;
                     bandStepAtomics[band].store(stepAtSample);
-                    float targetGain = getTargetGainForBand(band, bandSteps[band]);
+                    float targetGain = getTargetGainForBand(band, bandSteps[band], numSteps);
                     bandEnvelopes[band].setTargetValue(targetGain);
                 }
             }
@@ -751,7 +762,7 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
     };
 
     // Helper lambda for band parameters
-    auto setBandParams = [this](int band, bool enable, bool eucOn, int eucSteps, int eucPulses, int eucOffset, float depth) {
+    auto setBandParams = [this](int band, bool enable, bool eucOn, int eucSteps, int eucPulses, int eucOffset, float depth, int phaseOffset = 0) {
         juce::String bandID = "band" + juce::String(band);
 
         if (auto* p = parameters.getParameter(bandID + "_enable"))
@@ -764,6 +775,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucPulses)));
         if (auto* p = parameters.getParameter(bandID + "_euc_offset"))
             p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucOffset)));
+        if (auto* p = parameters.getParameter(bandID + "_phase_offset"))
+            p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(phaseOffset)));
         if (auto* p = parameters.getParameter(bandID + "_depth"))
             p->setValueNotifyingHost(depth);
     };
@@ -983,7 +996,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
 
     if (factoryDir.isDirectory()
         && versionFile.existsAsFile()
-        && versionFile.loadFileAsString().trimEnd() == "1.12.0")
+        && versionFile.loadFileAsString().trimEnd() == "1.14.0")
         return;
 
     if (factoryDir.isDirectory())
@@ -1025,7 +1038,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
     // Reset back to Init preset (index 0)
     loadPreset(0);
 
-    versionFile.replaceWithText("1.12.0\n");
+    versionFile.replaceWithText("1.14.0\n");
 
     juce::Logger::writeToLog("[O-FreqPulse] Factory presets initialized: " + juce::String(numPresets));
 }

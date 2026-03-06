@@ -2,6 +2,14 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.14.0] - 2026-03-05
+
+### Added
+
+- **Per-band phase offset** - New `band{N}_phase_offset` parameter (integer 0-31, default 0) shifts each band's pattern read position independently. In `getTargetGainForBand`, the offset is applied as `adjustedStep = (currentStep + phaseOffset) % numSteps` before reading the step pattern, creating phase-shifted polyrhythmic patterns between frequency bands.
+- **Phase slider in Band Controls panel** - The Euclidean/Band Controls panel now includes a "Phase" slider (0-31) that works in both Manual and Euclidean modes.
+- **Always-visible expand button** - The ▶ expand button is now always visible on each band row (not just in Euclidean mode), since Phase and Depth are useful in both Manual and Euclidean modes.
+
 ## [1.13.0] - 2026-03-05
 
 ### Added
