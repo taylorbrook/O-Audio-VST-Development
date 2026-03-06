@@ -78,7 +78,7 @@ Plans:
 - [x] 18-01-PLAN.md -- Delete .sh hooks, verify hooks.json gone, remove __pycache__ from git
 - [x] 18-02-PLAN.md -- Delete dead agents and deprecated plugin-registry.json, scrub references
 - [x] 18-03-PLAN.md -- Deep scan .claude/ for additional dead code, document findings
-- [ ] 18-04-PLAN.md -- Gap closure: delete hooks.json missed by 18-01 (DEAD-02)
+- [x] 18-04-PLAN.md -- Gap closure: delete hooks.json missed by 18-01 (DEAD-02)
 
 ### Phase 19: Quality Gate Activation
 **Goal**: All three dormant quality hooks are active in settings.json and firing on their respective events
@@ -134,14 +134,14 @@ Plans:
 | 8-9 | v1.1 | 4/4 | Complete | 2026-02-02 |
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
-| 18. Dead Code Removal | v1.4 | 3/4 | Gap closure | - |
+| 18. Dead Code Removal | v1.4 | 4/4 | Complete | 2026-03-06 |
 | 19. Quality Gate Activation | v1.4 | 0/? | Not started | - |
 | 20. Research Governance & Review | v1.4 | 0/? | Not started | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
-**Total: 17 phases complete, 54 plans complete, 4 milestones shipped. v1.4: 5 phases planned (23 requirements).**
+**Total: 17 phases complete, 55 plans complete, 4 milestones shipped. v1.4: 5 phases planned (23 requirements).**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-03-06 -- Phase 18 gap closure plan 04 added (DEAD-02)*
+*Last updated: 2026-03-06 -- Phase 18 complete (4/4 plans, all gaps closed)*
