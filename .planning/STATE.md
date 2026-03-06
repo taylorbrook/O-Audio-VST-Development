@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: System Hygiene & Quality Gates
-status: unknown
-last_updated: "2026-03-06T00:47:34.905Z"
+status: executing
+last_updated: "2026-03-06T00:49:37Z"
 progress:
   total_phases: 18
   completed_phases: 17
   total_plans: 54
-  completed_plans: 52
+  completed_plans: 53
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 18 (Dead Code Removal) -- first of 5 in v1.4
-Plan: 01 of 03 complete
+Plan: 02 of 03 complete
 Status: Executing
-Last activity: 2026-03-06 -- 18-01 complete (shell hooks + __pycache__ cleanup)
+Last activity: 2026-03-06 -- 18-02 complete (dead agents + plugin-registry removal)
 
-Progress: [░░░░░░░░░░] 0% (v1.4: 0/5 phases, Phase 18: 1/3 plans)
+Progress: [░░░░░░░░░░] 0% (v1.4: 0/5 phases, Phase 18: 2/3 plans)
 
 ## Performance Metrics
 
@@ -50,6 +50,7 @@ Progress: [░░░░░░░░░░] 0% (v1.4: 0/5 phases, Phase 18: 1/3 p
 | Phase | Plan | Duration | Tasks | Files |
 |-------|------|----------|-------|-------|
 | 18 | 01 | 1min | 3 | 30 |
+| 18 | 02 | 5min | 2 | 20 |
 
 ## Accumulated Context
 
@@ -61,6 +62,8 @@ Milestone-specific decisions archived in `.planning/milestones/`.
 **v1.4 Decisions:**
 - 18-01: Skipped adding a comment to settings.json about sole hook config -- no competing file exists
 - 18-01: Task 2 (DEAD-02) produced no commit since hooks.json was already absent
+- 18-02: STATUS.md is sole source of truth for plugin state -- all registry update pseudocode updated accordingly
+- 18-02: Deleted plugin-registry.schema.json alongside plugin-registry.json since schema has no subject
 
 ### Pending Todos
 
@@ -87,10 +90,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 18-01-PLAN.md (shell hooks + __pycache__ cleanup)
+Stopped at: Completed 18-02-PLAN.md (dead agents + plugin-registry removal)
 Resume file: None
 
-Next: Execute 18-02-PLAN.md
+Next: Execute 18-03-PLAN.md
 
 ---
 *v1.3 System Modernization archived. 4 milestones shipped (v1.0-v1.3), 17 phases, 51 plans, 85+ requirements.*

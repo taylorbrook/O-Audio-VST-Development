@@ -12,8 +12,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 - [x] **DEAD-01**: All 10 dead `.sh` hook files are deleted (816 lines)
 - [x] **DEAD-02**: Vestigial `hooks.json` is deleted and `settings.json` is documented as sole authoritative hook config
-- [ ] **DEAD-03**: 3 unreferenced agent definitions are removed (aesthetics-agent, dynamic-researcher, music-theory-agent -- 473 lines)
-- [ ] **DEAD-04**: Deprecated `.claude/plugin-registry.json` is removed
+- [x] **DEAD-03**: 3 unreferenced agent definitions are removed (aesthetics-agent, dynamic-researcher, music-theory-agent -- 473 lines)
+- [x] **DEAD-04**: Deprecated `.claude/plugin-registry.json` is removed
 - [x] **DEAD-05**: `__pycache__` directories are removed from tracking and added to `.gitignore`
 
 ### Quality Gates
@@ -89,8 +89,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 |-------------|-------|--------|
 | DEAD-01 | Phase 18 | Complete |
 | DEAD-02 | Phase 18 | Complete |
-| DEAD-03 | Phase 18 | Pending |
-| DEAD-04 | Phase 18 | Pending |
+| DEAD-03 | Phase 18 | Complete |
+| DEAD-04 | Phase 18 | Complete |
 | DEAD-05 | Phase 18 | Complete |
 | GATE-01 | Phase 19 | Pending |
 | GATE-02 | Phase 19 | Pending |
