@@ -416,6 +416,39 @@ function createBandRow(band) {
     });
     bandRow.appendChild(rateSelect);
 
+    // v1.16.0: Inline per-band mix (depth) slider
+    const mixContainer = document.createElement('div');
+    mixContainer.className = 'band-mix';
+    mixContainer.setAttribute('data-tooltip', `${band.name} Mix: Controls how much the volume drops on OFF steps. At 100%, OFF steps are fully silent. At 0%, no gating occurs.`);
+
+    const mixLabel = document.createElement('label');
+    mixLabel.textContent = 'Mix';
+    mixContainer.appendChild(mixLabel);
+
+    const mixSlider = document.createElement('input');
+    mixSlider.type = 'range';
+    mixSlider.className = 'band-mix-slider';
+    mixSlider.id = `band-mix-${band.id}`;
+    mixSlider.min = '0';
+    mixSlider.max = '100';
+    mixSlider.value = '100';
+
+    const depthState = state.stepStates[`band${band.id}_depth`];
+    if (depthState) {
+        mixSlider.value = Math.round(depthState.getNormalisedValue() * 100);
+        depthState.valueChangedEvent.addListener(() => {
+            mixSlider.value = Math.round(depthState.getNormalisedValue() * 100);
+        });
+    }
+
+    mixSlider.addEventListener('input', (e) => {
+        const normalized = e.target.value / 100;
+        if (depthState) depthState.setNormalisedValue(normalized);
+    });
+
+    mixContainer.appendChild(mixSlider);
+    bandRow.appendChild(mixContainer);
+
     // Band mode toggle (clickable Manual/Euclidean)
     const modeIndicator = document.createElement('div');
     modeIndicator.className = 'band-mode';
@@ -435,7 +468,7 @@ function createBandRow(band) {
     expandBtn.className = 'band-expand-btn visible';
     expandBtn.id = `expand-${band.id}`;
     expandBtn.textContent = '▶';
-    expandBtn.setAttribute('data-tooltip', 'Expand: Opens the band controls panel (Phase, Depth, and Euclidean settings).');
+    expandBtn.setAttribute('data-tooltip', 'Expand: Opens the band controls panel (Phase, Steps, and Euclidean settings).');
     expandBtn.addEventListener('click', () => {
         openEuclideanPanel(band.id);
     });
@@ -803,19 +836,6 @@ function syncEuclideanControls(bandId) {
         bandStepsValue.textContent = clamped === 0 ? 'Global' : clamped;
     };
 
-    // Depth
-    const depthState = state.stepStates[`band${bandId}_depth`];
-    const depthSlider = document.getElementById('euc-depth');
-    const depthValue = document.getElementById('euc-depth-value');
-
-    depthSlider.value = depthState.getNormalisedValue() * 100;
-    depthValue.textContent = `${Math.round(depthSlider.value)}%`;
-
-    depthSlider.oninput = (e) => {
-        const normalized = e.target.value / 100;
-        depthState.setNormalisedValue(normalized);
-        depthValue.textContent = `${Math.round(e.target.value)}%`;
-    };
 }
 
 function updateBandModeIndicator(bandId, isEuclidean) {
@@ -825,7 +845,7 @@ function updateBandModeIndicator(bandId, isEuclidean) {
         indicator.classList.toggle('euclidean', isEuclidean);
     }
 
-    // Expand button always visible (Phase/Depth accessible in both modes)
+    // Expand button always visible (Phase/Steps accessible in both modes)
 }
 
 // ============================================================================

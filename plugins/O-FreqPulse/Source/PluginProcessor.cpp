@@ -715,17 +715,17 @@ void OFreqPulseAudioProcessor::setStateInformation(const void* data, int sizeInB
 // Preset names
 static const juce::StringArray presetNames = {
     "Init",                    // 0: Default starting point
-    "Classic Sidechain",       // 1: Sub solid, mids pump at 1/4
-    "Trance Gate 16th",        // 2: All bands 16th note gating
-    "Dubstep Pulse",           // 3: Heavy sub gate, minimal highs
-    "Ambient Shimmer",         // 4: Slow Euclidean on highs, high smoothing
-    "Polyrhythm 5-7-11",       // 5: Different Euclidean ratios per band
-    "Bass Foundation",         // 6: Sub always on, others gated
-    "Hi-Hat Chop",             // 7: Only high band gated fast
-    "Full Spectrum Gate",      // 8: Unified gating across all bands
-    "Euclidean Groove",        // 9: All bands Euclidean, musical ratios
-    "Half-Time Feel",          // 10: Slower rate, dramatic pumping
-    "Triplet Bounce"           // 11: Triplet timing groove
+    "Classic Sidechain",       // 1: Sub solid, mids pump with velocity accents
+    "Trance Gate 16th",        // 2: Velocity groove with phase-shifted highs
+    "Dubstep Pulse",           // 3: Heavy sub gate with per-band rates
+    "Ambient Shimmer",         // 4: Slow phase-shifted highs with swells
+    "Polymetric Machine",      // 5: Independent step counts and rates per band
+    "Bass Foundation",         // 6: Sub always on, others gated with velocity
+    "Hi-Hat Chop",             // 7: Realistic hi-hat velocity pattern
+    "Phase Cascade",           // 8: Same pattern, staggered phase offsets
+    "Euclidean Groove",        // 9: Musical ratios with per-band rates
+    "Half-Time Feel",          // 10: Slow dramatic swells with polymetric highs
+    "Triplet Bounce"           // 11: Triplet timing with phase shifts
 };
 
 int OFreqPulseAudioProcessor::getNumPrograms()
@@ -763,18 +763,30 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
     auto* attack = parameters.getParameter("attack");
     auto* release = parameters.getParameter("release");
 
-    // Helper lambda to set step pattern for a band
-    auto setStepPattern = [this](int band, const std::array<bool, 32>& pattern) {
+    // Helper: set step velocities for a band (0.0 = off, >0 = on with velocity)
+    auto setStepVelocities = [this](int band, const std::array<float, 32>& velocities) {
         for (int i = 0; i < 32; ++i)
         {
             juce::String stepID = "step_b" + juce::String(band) + "_s" + juce::String(i);
             if (auto* param = parameters.getParameter(stepID))
-                param->setValueNotifyingHost(pattern[i] ? 1.0f : 0.0f);
+                param->setValueNotifyingHost(velocities[i]);
         }
     };
 
-    // Helper lambda for band parameters
-    auto setBandParams = [this](int band, bool enable, bool eucOn, int eucSteps, int eucPulses, int eucOffset, float depth, int phaseOffset = 0, int bandSteps = 0) {
+    // Helper: set crossover frequencies
+    auto setCrossovers = [this](float c1, float c2, float c3) {
+        if (auto* p = parameters.getParameter("crossover_1"))
+            p->setValueNotifyingHost(p->convertTo0to1(c1));
+        if (auto* p = parameters.getParameter("crossover_2"))
+            p->setValueNotifyingHost(p->convertTo0to1(c2));
+        if (auto* p = parameters.getParameter("crossover_3"))
+            p->setValueNotifyingHost(p->convertTo0to1(c3));
+    };
+
+    // Helper: set all band parameters including per-band rate, phase offset, and step count
+    // bandRate: 0=Global, 1=1/1, 2=1/2, 3=1/4, 4=1/8, 5=1/16, 6=1/32, 7=1/8T, 8=1/16T, 9=1/4D, 10=1/8D
+    auto setBandParams = [this](int band, bool enable, bool eucOn, int eucSteps, int eucPulses, int eucOffset,
+                                 float depth, int bandRate = 0, int phaseOffset = 0, int bandSteps = 0) {
         juce::String bandID = "band" + juce::String(band);
 
         if (auto* p = parameters.getParameter(bandID + "_enable"))
@@ -787,6 +799,8 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucPulses)));
         if (auto* p = parameters.getParameter(bandID + "_euc_offset"))
             p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(eucOffset)));
+        if (auto* p = parameters.getParameter(bandID + "_rate"))
+            p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(bandRate)));
         if (auto* p = parameters.getParameter(bandID + "_phase_offset"))
             p->setValueNotifyingHost(p->convertTo0to1(static_cast<float>(phaseOffset)));
         if (auto* p = parameters.getParameter(bandID + "_steps"))
@@ -795,203 +809,310 @@ void OFreqPulseAudioProcessor::loadPreset(int presetIndex)
             p->setValueNotifyingHost(depth);
     };
 
-    // Default step pattern (alternating 8th notes)
-    std::array<bool, 32> patternAlt8th = {true, false, true, false, true, false, true, false,
-                                          true, false, true, false, true, false, true, false,
-                                          true, false, true, false, true, false, true, false,
-                                          true, false, true, false, true, false, true, false};
-
-    // 16th note pattern (all on)
-    std::array<bool, 32> patternAll = {true, true, true, true, true, true, true, true,
-                                        true, true, true, true, true, true, true, true,
-                                        true, true, true, true, true, true, true, true,
-                                        true, true, true, true, true, true, true, true};
-
-    // Quarter note pattern
-    std::array<bool, 32> patternQuarter = {true, false, false, false, true, false, false, false,
-                                           true, false, false, false, true, false, false, false,
-                                           true, false, false, false, true, false, false, false,
-                                           true, false, false, false, true, false, false, false};
-
-    // Empty pattern
-    std::array<bool, 32> patternEmpty = {};
+    std::array<float, 32> velEmpty = {};
 
     switch (presetIndex)
     {
         case 0:  // Init - Clean starting point
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
             attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
             release->setValueNotifyingHost(release->convertTo0to1(5.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
             for (int b = 0; b < 4; ++b)
             {
                 setBandParams(b, true, false, 16, 8, 0, 1.0f);
-                setStepPattern(b, patternEmpty);
+                setStepVelocities(b, velEmpty);
             }
             break;
+        }
 
-        case 1:  // Classic Sidechain - Sub solid, mids pump at 1/4
+        case 1:  // Classic Sidechain - Sub solid, mids pump with velocity accents
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));     // 1/4
             swing->setValueNotifyingHost(0.0f);
-            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(25.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(3.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(35.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            setBandParams(0, true, false, 16, 16, 0, 0.0f);  // Sub: no gating
-            setBandParams(1, true, false, 16, 8, 0, 0.8f);   // Low: pumping
-            setBandParams(2, true, false, 16, 8, 0, 1.0f);   // Mid: full pump
-            setBandParams(3, true, false, 16, 8, 0, 0.6f);   // High: subtle
+            // Sub: no gating — all steps on at full velocity
+            setBandParams(0, true, false, 16, 16, 0, 0.0f);
+            setStepVelocities(0, {1,1,1,1, 1,1,1,1, 1,1,1,1, 1,1,1,1,
+                                   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0});
 
-            setStepPattern(0, patternAll);
-            setStepPattern(1, patternQuarter);
-            setStepPattern(2, patternQuarter);
-            setStepPattern(3, patternQuarter);
+            // Low: quarter pump with accented beats 1 & 3
+            setBandParams(1, true, false, 16, 8, 0, 0.85f);
+            setStepVelocities(1, {1.0f,0,0,0, 0.7f,0,0,0, 1.0f,0,0,0, 0.7f,0,0,0,
+                                   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0});
+
+            // Mid: full pump, phase offset 1 for slight delay behind kick
+            setBandParams(2, true, false, 16, 8, 0, 1.0f, 0, 1);
+            setStepVelocities(2, {1.0f,0,0,0, 0.8f,0,0,0, 1.0f,0,0,0, 0.8f,0,0,0,
+                                   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0});
+
+            // High: 8th note shimmer with velocity groove
+            setBandParams(3, true, false, 16, 8, 0, 0.5f);
+            setStepVelocities(3, {1.0f,0,0.7f,0, 0.9f,0,0.6f,0, 1.0f,0,0.7f,0, 0.9f,0,0.6f,0,
+                                   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0});
             break;
+        }
 
-        case 2:  // Trance Gate 16th
+        case 2:  // Trance Gate 16th - Velocity groove with phase-shifted highs
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
-            swing->setValueNotifyingHost(0.0f);
+            swing->setValueNotifyingHost(0.1f);
             attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(8.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            for (int b = 0; b < 4; ++b)
-            {
-                setBandParams(b, true, false, 16, 8, 0, 1.0f);
-                setStepPattern(b, patternAlt8th);
-            }
+            // Accented groove pattern: strong-weak-medium-weak
+            std::array<float, 32> tranceGroove = {1.0f,0.5f,0.8f,0.5f, 1.0f,0.5f,0.8f,0.5f,
+                                                    1.0f,0.5f,0.8f,0.5f, 1.0f,0.5f,0.8f,0.5f,
+                                                    0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0};
+
+            setBandParams(0, true, false, 16, 8, 0, 1.0f);
+            setStepVelocities(0, tranceGroove);
+
+            setBandParams(1, true, false, 16, 8, 0, 1.0f);
+            setStepVelocities(1, tranceGroove);
+
+            // Mid: phase offset 1 creates slight stagger
+            setBandParams(2, true, false, 16, 8, 0, 1.0f, 0, 1);
+            setStepVelocities(2, tranceGroove);
+
+            // High: phase offset 2 for shimmer detachment
+            setBandParams(3, true, false, 16, 8, 0, 0.9f, 0, 2);
+            setStepVelocities(3, tranceGroove);
             break;
+        }
 
-        case 3:  // Dubstep Pulse - Heavy sub gate
+        case 3:  // Dubstep Pulse - Heavy sub gate with per-band rates
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));  // 8 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));    // 1/8
+            steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));
+            rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));     // 1/8
             swing->setValueNotifyingHost(0.0f);
             attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(2.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(15.0f));
+            setCrossovers(80.0f, 300.0f, 3000.0f);  // Wider bass range
 
-            setBandParams(0, true, true, 8, 5, 0, 1.0f);     // Sub: Euclidean 5/8
-            setBandParams(1, true, true, 8, 3, 0, 0.9f);     // Low: Euclidean 3/8
-            setBandParams(2, true, false, 8, 8, 0, 0.3f);    // Mid: subtle
-            setBandParams(3, true, false, 8, 8, 0, 0.1f);    // High: minimal
+            // Sub: Euclidean 5/8 at 1/4 rate for heavy half-time pulse
+            setBandParams(0, true, true, 8, 5, 0, 1.0f, 3);       // bandRate 3 = 1/4
+
+            // Low: Euclidean 3/8 at 1/8, phase offset 1 for push
+            setBandParams(1, true, true, 8, 3, 0, 0.9f, 4, 1);    // bandRate 4 = 1/8
+
+            // Mid: manual velocity pattern, subtle depth
+            setBandParams(2, true, false, 8, 8, 0, 0.4f);
+            setStepVelocities(2, {1.0f,0,0.6f,0, 0.8f,0,0.5f,0,
+                                   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0});
+
+            // High: minimal depth, light velocity pattern
+            setBandParams(3, true, false, 8, 8, 0, 0.15f);
+            setStepVelocities(3, {1.0f,0.6f,0.8f,0.6f, 1.0f,0.6f,0.8f,0.6f,
+                                   0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0, 0,0,0,0});
             break;
+        }
 
-        case 4:  // Ambient Shimmer - Slow highs
+        case 4:  // Ambient Shimmer - Slow phase-shifted highs with swells
+        {
             mix->setValueNotifyingHost(0.7f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));  // 32 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(1.0f));     // 1/2
             swing->setValueNotifyingHost(0.2f);
-            attack->setValueNotifyingHost(attack->convertTo0to1(40.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(60.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(80.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(120.0f));
+            setCrossovers(100.0f, 800.0f, 6000.0f);  // Wide mid for pads
 
-            setBandParams(0, true, false, 32, 32, 0, 0.0f);  // Sub: no gating
-            setBandParams(1, true, false, 32, 32, 0, 0.0f);  // Low: no gating
-            setBandParams(2, true, true, 32, 7, 0, 0.5f);    // Mid: slow Euclidean
-            setBandParams(3, true, true, 32, 11, 3, 0.7f);   // High: sparse Euclidean
+            // Sub: no gating
+            setBandParams(0, true, false, 32, 32, 0, 0.0f);
+            setStepVelocities(0, velEmpty);
+
+            // Low: no gating
+            setBandParams(1, true, false, 32, 32, 0, 0.0f);
+            setStepVelocities(1, velEmpty);
+
+            // Mid: sparse Euclidean, shifted, dotted quarter rate
+            setBandParams(2, true, true, 32, 7, 0, 0.5f, 9, 4);   // bandRate 9 = 1/4D, phase 4
+
+            // High: sparser Euclidean, further phase shift
+            setBandParams(3, true, true, 32, 11, 3, 0.7f, 0, 8);  // Global rate, phase 8
             break;
+        }
 
-        case 5:  // Polyrhythm 5-7-11
+        case 5:  // Polymetric Machine - Independent step counts and rates per band
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
             attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(15.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            setBandParams(0, true, true, 16, 5, 0, 1.0f);    // Sub: 5 pulses
-            setBandParams(1, true, true, 16, 7, 2, 1.0f);    // Low: 7 pulses, offset
-            setBandParams(2, true, true, 16, 11, 5, 1.0f);   // Mid: 11 pulses, offset
-            setBandParams(3, true, true, 16, 13, 1, 0.8f);   // High: 13 pulses
+            // Sub: 4-step loop at 1/4 rate — Euclidean 3/4
+            setBandParams(0, true, true, 4, 3, 0, 1.0f, 3, 0, 4);     // rate=1/4, bandSteps=4
+
+            // Low: 6-step loop at 1/8 rate — Euclidean 4/6
+            setBandParams(1, true, true, 6, 4, 0, 0.9f, 4, 1, 6);     // rate=1/8, phase=1, bandSteps=6
+
+            // Mid: 8-step loop at global rate — Euclidean 5/8
+            setBandParams(2, true, true, 8, 5, 0, 0.85f, 0, 2, 8);    // phase=2, bandSteps=8
+
+            // High: 12-step loop at 1/16 rate — Euclidean 7/12
+            setBandParams(3, true, true, 12, 7, 0, 0.8f, 5, 3, 12);   // rate=1/16, phase=3, bandSteps=12
             break;
+        }
 
-        case 6:  // Bass Foundation - Sub always on
+        case 6:  // Bass Foundation - Sub always on, others gated with velocity
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
-            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(8.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(20.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            setBandParams(0, false, false, 16, 8, 0, 0.0f);  // Sub: bypass (always on)
-            setBandParams(1, true, true, 16, 12, 0, 0.8f);   // Low: Euclidean
-            setBandParams(2, true, true, 16, 8, 0, 1.0f);    // Mid: Euclidean
-            setBandParams(3, true, true, 16, 8, 2, 1.0f);    // High: Euclidean offset
+            // Sub: bypass (always on)
+            setBandParams(0, false, false, 16, 8, 0, 0.0f);
+            setStepVelocities(0, velEmpty);
+
+            // Low: Euclidean 12/16
+            setBandParams(1, true, true, 16, 12, 0, 0.7f);
+
+            // Mid: Euclidean 8/16, phase offset 2
+            setBandParams(2, true, true, 16, 8, 0, 1.0f, 0, 2);
+
+            // High: Euclidean 10/16 at triplet rate, phase offset 4
+            setBandParams(3, true, true, 16, 10, 2, 0.9f, 7, 4);  // bandRate 7 = 1/8T
             break;
+        }
 
-        case 7:  // Hi-Hat Chop - Only highs gated
+        case 7:  // Hi-Hat Chop - Realistic hi-hat velocity pattern
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));  // 32 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(32.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(5.0f));     // 1/32
-            swing->setValueNotifyingHost(0.3f);
-            attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(2.0f));
+            swing->setValueNotifyingHost(0.25f);
+            attack->setValueNotifyingHost(attack->convertTo0to1(1.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(3.0f));
+            setCrossovers(120.0f, 600.0f, 5000.0f);  // Wide high range
 
-            setBandParams(0, false, false, 16, 8, 0, 0.0f);  // Sub: bypass
-            setBandParams(1, false, false, 16, 8, 0, 0.0f);  // Low: bypass
-            setBandParams(2, false, false, 16, 8, 0, 0.0f);  // Mid: bypass
-            setBandParams(3, true, true, 32, 12, 0, 1.0f);   // High: fast Euclidean
+            // Sub/Low/Mid: bypass
+            setBandParams(0, false, false, 16, 8, 0, 0.0f);
+            setStepVelocities(0, velEmpty);
+            setBandParams(1, false, false, 16, 8, 0, 0.0f);
+            setStepVelocities(1, velEmpty);
+            setBandParams(2, false, false, 16, 8, 0, 0.0f);
+            setStepVelocities(2, velEmpty);
+
+            // High: realistic hi-hat groove with ghost notes and accents
+            setBandParams(3, true, false, 32, 12, 0, 1.0f);
+            setStepVelocities(3, {1.0f,0.3f,0.6f,0.3f, 0.9f,0.3f,0.7f,0.3f,
+                                   1.0f,0.3f,0.6f,0.3f, 0.9f,0.3f,0.7f,0.4f,
+                                   1.0f,0.3f,0.6f,0.3f, 0.9f,0.3f,0.7f,0.3f,
+                                   1.0f,0.3f,0.6f,0.3f, 0.9f,0.3f,0.7f,0.4f});
             break;
+        }
 
-        case 8:  // Full Spectrum Gate - Unified gating
+        case 8:  // Phase Cascade - Same pattern, staggered phase offsets
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(4.0f));     // 1/16
             swing->setValueNotifyingHost(0.0f);
-            attack->setValueNotifyingHost(attack->convertTo0to1(2.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(3.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(10.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            for (int b = 0; b < 4; ++b)
-            {
-                setBandParams(b, true, true, 16, 8, 0, 1.0f);
-            }
+            // All bands: same Euclidean 8/16, cascading phase offsets create waterfall
+            setBandParams(0, true, true, 16, 8, 0, 1.0f, 0, 0);   // phase 0
+            setBandParams(1, true, true, 16, 8, 0, 1.0f, 0, 4);   // phase 4
+            setBandParams(2, true, true, 16, 8, 0, 1.0f, 0, 8);   // phase 8
+            setBandParams(3, true, true, 16, 8, 0, 0.9f, 0, 12);  // phase 12
             break;
+        }
 
-        case 9:  // Euclidean Groove - Musical ratios
+        case 9:  // Euclidean Groove - Musical ratios with per-band rates
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
+            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));
             rate->setValueNotifyingHost(rate->convertTo0to1(3.0f));     // 1/8
             swing->setValueNotifyingHost(0.15f);
             attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(10.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(12.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            setBandParams(0, true, true, 16, 4, 0, 1.0f);    // Sub: 4/16 (quarter feel)
-            setBandParams(1, true, true, 16, 6, 1, 0.9f);    // Low: 6/16
-            setBandParams(2, true, true, 16, 9, 0, 0.85f);   // Mid: 9/16
-            setBandParams(3, true, true, 16, 11, 2, 0.8f);   // High: 11/16
+            // Sub: 4/16 quarter feel at 1/4 rate
+            setBandParams(0, true, true, 16, 4, 0, 1.0f, 3);      // bandRate 3 = 1/4
+
+            // Low: 7/16 with phase offset 2
+            setBandParams(1, true, true, 16, 7, 1, 0.9f, 0, 2);
+
+            // Mid: 9/16 with phase offset 5
+            setBandParams(2, true, true, 16, 9, 0, 0.85f, 0, 5);
+
+            // High: 11/16 at 1/16 rate, phase offset 1
+            setBandParams(3, true, true, 16, 11, 2, 0.75f, 5, 1); // bandRate 5 = 1/16
             break;
+        }
 
-        case 10:  // Half-Time Feel - Slower, dramatic
+        case 10:  // Half-Time Feel - Slow dramatic swells with polymetric highs
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));  // 8 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));    // 1/4
+            steps->setValueNotifyingHost(steps->convertTo0to1(8.0f));
+            rate->setValueNotifyingHost(rate->convertTo0to1(2.0f));     // 1/4
             swing->setValueNotifyingHost(0.0f);
-            attack->setValueNotifyingHost(attack->convertTo0to1(15.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(40.0f));
+            attack->setValueNotifyingHost(attack->convertTo0to1(25.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(80.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            for (int b = 0; b < 4; ++b)
-            {
-                setBandParams(b, true, true, 8, 2, 0, 1.0f);  // Only 2 pulses in 8
-            }
+            // Sub: sparse 2/4 at its own 4-step loop
+            setBandParams(0, true, true, 4, 2, 0, 0.8f, 0, 0, 4);     // bandSteps=4
+
+            // Low: 3/8
+            setBandParams(1, true, true, 8, 3, 0, 1.0f);
+
+            // Mid: 3/8, phase offset 2
+            setBandParams(2, true, true, 8, 3, 0, 1.0f, 0, 2);
+
+            // High: 12-step loop at 1/8 rate for polymetric tail
+            setBandParams(3, true, true, 12, 5, 0, 0.9f, 4, 0, 12);   // rate=1/8, bandSteps=12
             break;
+        }
 
-        case 11:  // Triplet Bounce
+        case 11:  // Triplet Bounce - Triplet timing with phase shifts
+        {
             mix->setValueNotifyingHost(1.0f);
-            steps->setValueNotifyingHost(steps->convertTo0to1(16.0f));  // 16 steps
-            rate->setValueNotifyingHost(rate->convertTo0to1(6.0f));     // 1/8T (triplet)
-            swing->setValueNotifyingHost(0.0f);
-            attack->setValueNotifyingHost(attack->convertTo0to1(5.0f));
-            release->setValueNotifyingHost(release->convertTo0to1(5.0f));
+            steps->setValueNotifyingHost(steps->convertTo0to1(12.0f));
+            rate->setValueNotifyingHost(rate->convertTo0to1(6.0f));     // 1/8T
+            swing->setValueNotifyingHost(0.1f);
+            attack->setValueNotifyingHost(attack->convertTo0to1(4.0f));
+            release->setValueNotifyingHost(release->convertTo0to1(8.0f));
+            setCrossovers(120.0f, 500.0f, 4000.0f);
 
-            setBandParams(0, true, true, 12, 4, 0, 1.0f);    // Sub: 4/12
-            setBandParams(1, true, true, 12, 5, 1, 0.9f);    // Low: 5/12
-            setBandParams(2, true, true, 12, 7, 0, 1.0f);    // Mid: 7/12
-            setBandParams(3, true, true, 12, 8, 2, 0.8f);    // High: 8/12
+            // Sub: 4/12
+            setBandParams(0, true, true, 12, 4, 0, 1.0f);
+
+            // Low: 5/12 at 1/16T rate, phase offset 2
+            setBandParams(1, true, true, 12, 5, 1, 0.9f, 8, 2);       // bandRate 8 = 1/16T
+
+            // Mid: 7/12, phase offset 4
+            setBandParams(2, true, true, 12, 7, 0, 1.0f, 0, 4);
+
+            // High: 9-step loop at 1/8T, phase offset 1
+            setBandParams(3, true, true, 9, 5, 2, 0.8f, 7, 1, 9);     // rate=1/8T, bandSteps=9
             break;
+        }
 
         default:
             break;
@@ -1010,7 +1131,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
 
     if (factoryDir.isDirectory()
         && versionFile.existsAsFile()
-        && versionFile.loadFileAsString().trimEnd() == "1.15.0")
+        && versionFile.loadFileAsString().trimEnd() == "1.16.0")
         return;
 
     if (factoryDir.isDirectory())
@@ -1052,7 +1173,7 @@ void OFreqPulseAudioProcessor::initializeFactoryPresets()
     // Reset back to Init preset (index 0)
     loadPreset(0);
 
-    versionFile.replaceWithText("1.15.0\n");
+    versionFile.replaceWithText("1.16.0\n");
 
     juce::Logger::writeToLog("[O-FreqPulse] Factory presets initialized: " + juce::String(numPresets));
 }

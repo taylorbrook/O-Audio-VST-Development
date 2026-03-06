@@ -263,9 +263,63 @@ html, body {
 .band-row {
     flex: 1;
     display: grid;
-    grid-template-columns: 80px 1fr 60px 56px 80px 40px;
+    grid-template-columns: 80px 1fr 60px 56px 60px 80px 40px;
     gap: 8px;
     align-items: center;
+}
+
+/* v1.16.0: Inline per-band mix (depth) slider */
+.band-mix {
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+.band-mix label {
+    font-size: 8px;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.band-mix-slider {
+    width: 36px;
+    height: 4px;
+    background: rgba(232, 213, 183, 0.2);
+    border: none;
+    border-radius: 2px;
+    outline: none;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: grab;
+    margin: 0;
+}
+
+.band-mix-slider:active {
+    cursor: grabbing;
+}
+
+.band-mix-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 10px;
+    height: 10px;
+    background: #C9A27B;
+    border: 1px solid var(--border-accent);
+    border-radius: 50%;
+    cursor: grab;
+}
+
+.band-mix-slider:active::-webkit-slider-thumb {
+    cursor: grabbing;
+}
+
+.band-mix-slider::-moz-range-thumb {
+    width: 10px;
+    height: 10px;
+    background: #C9A27B;
+    border: 1px solid var(--border-accent);
+    border-radius: 50%;
+    cursor: grab;
 }
 
 /* Lane action buttons (Clear/Random) */

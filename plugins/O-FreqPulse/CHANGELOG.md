@@ -2,6 +2,24 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.16.0] - 2026-03-06
+
+### Added
+
+- **Inline per-band Mix slider** - The depth parameter (controls how much volume drops on OFF steps) is now visible directly in each band row, labelled "Mix". No longer hidden in the Band Controls panel.
+
+### Changed
+
+- **All 12 factory presets redesigned** to showcase features added since v1.0.0:
+  - **Step velocity** — Manual presets now use accent patterns and ghost notes (0.0–1.0 velocity) instead of binary on/off. Classic Sidechain, Trance Gate, Dubstep Pulse, and Hi-Hat Chop all feature velocity grooves.
+  - **Per-band rate** — Dubstep Pulse uses 1/4 on Sub and 1/8 on Low for polymetric bass. Euclidean Groove runs Sub at 1/4 and High at 1/16. Bass Foundation runs High at 1/8T. Half-Time Feel runs High at 1/8 with a 12-step loop.
+  - **Per-band phase offset** — Phase Cascade (formerly Full Spectrum Gate) demonstrates cascading phase offsets (0/4/8/12) across all bands. Trance Gate, Ambient Shimmer, Euclidean Groove, and Triplet Bounce all use phase offsets for band separation.
+  - **Per-band step count** — Polymetric Machine (formerly Polyrhythm 5-7-11) uses independent loop lengths (4/6/8/12 steps) per band. Half-Time Feel uses 4-step Sub and 12-step High loops. Triplet Bounce uses a 9-step High loop.
+  - **Crossover variation** — Dubstep Pulse (80/300/3k), Ambient Shimmer (100/800/6k), and Hi-Hat Chop (120/600/5k) set custom crossover frequencies.
+  - **Asymmetric attack/release** — Each preset has tuned attack/release values: fast gates (1/3ms Hi-Hat Chop), pump shapes (3/35ms Classic Sidechain), slow swells (80/120ms Ambient Shimmer).
+- **Renamed presets** — "Polyrhythm 5-7-11" → "Polymetric Machine", "Full Spectrum Gate" → "Phase Cascade"
+- **setBandParams now sets per-band rate** — All presets explicitly reset band rate, phase offset, and step count to prevent stale values when switching presets.
+
 ## [1.15.0] - 2026-03-05
 
 ### Added
