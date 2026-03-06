@@ -112,8 +112,13 @@ private:
     // Noise source for excitation
     juce::Random noiseSource;
 
-    // Position filter (comb filter effect based on pluck position)
-    juce::dsp::IIR::Filter<float> positionFilter;
+    // Position comb filter (feedforward comb for physical pluck position modeling)
+    // y[n] = x[n] - x[n - D], where D = position * period
+    // Creates spectral nulls at harmonics n = k/position, matching real string physics
+    std::vector<float> combBuffer;
+    int combWriteIndex = 0;
+    float combDelaySamples = 0.0f;
+    static constexpr int MAX_COMB_DELAY = 8192; // Covers ~20Hz at 192kHz
 
     // Brightness/hardness filter
     juce::dsp::IIR::Filter<float> brightnessFilter;

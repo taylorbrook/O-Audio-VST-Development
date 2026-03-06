@@ -2,6 +2,17 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.34.0] - 2026-03-05
+
+### Changed
+
+- Replaced PluckExciter position filter with physically accurate feedforward comb filter
+  - Previous: one-pole lowpass approximating position brightness (200Hz–4×f0 cutoff mapping)
+  - New: `y[n] = x[n] - x[n-D]` where `D = position × (sampleRate / f0)`, creating spectral nulls at harmonics n = k/position — matches real plucked string physics
+  - Position 0.5 (center) kills even harmonics for hollow/woody tone; near bridge creates dense spectral nulls for thin/nasal character; near nut has few nulls for bright/full sound
+  - Uses linear interpolation for fractional delay accuracy
+  - Position clamped to [0.05, 0.95] matching WaveguideString convention
+
 ## [1.33.1] - 2026-03-05
 
 ### Changed

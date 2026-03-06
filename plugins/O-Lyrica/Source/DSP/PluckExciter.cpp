@@ -37,7 +37,11 @@ void PluckExciter::prepare(double sampleRate, int maxBlockSize)
     spec.maximumBlockSize = 1;  // Processing sample-by-sample
     spec.numChannels = 1;
 
-    positionFilter.prepare(spec);
+    // Allocate comb filter buffer for position modeling
+    combBuffer.assign(MAX_COMB_DELAY, 0.0f);
+    combWriteIndex = 0;
+    combDelaySamples = 0.0f;
+
     brightnessFilter.prepare(spec);
     techniqueFilter.prepare(spec);
 
@@ -122,8 +126,22 @@ float PluckExciter::process()
         --noiseBurstRemaining;
     }
 
-    // Apply position filtering (comb filter effect)
-    float positionFiltered = positionFilter.processSample(noiseSample);
+    // Apply position comb filter: y[n] = x[n] - x[n - D]
+    // Creates spectral nulls at harmonics k/position, matching real pluck physics
+    combBuffer[static_cast<size_t>(combWriteIndex)] = noiseSample;
+    float delayedSample = 0.0f;
+    if (combDelaySamples > 0.0f)
+    {
+        // Fractional delay with linear interpolation
+        int delayInt = static_cast<int>(combDelaySamples);
+        float delayFrac = combDelaySamples - static_cast<float>(delayInt);
+        int readIndex0 = (combWriteIndex - delayInt + MAX_COMB_DELAY) % MAX_COMB_DELAY;
+        int readIndex1 = (readIndex0 - 1 + MAX_COMB_DELAY) % MAX_COMB_DELAY;
+        delayedSample = combBuffer[static_cast<size_t>(readIndex0)] * (1.0f - delayFrac)
+                      + combBuffer[static_cast<size_t>(readIndex1)] * delayFrac;
+    }
+    combWriteIndex = (combWriteIndex + 1) % MAX_COMB_DELAY;
+    float positionFiltered = noiseSample - delayedSample;
 
     // Apply brightness/hardness filtering
     float brightnessFiltered = brightnessFilter.processSample(positionFiltered);
@@ -146,7 +164,8 @@ bool PluckExciter::isActive() const
 void PluckExciter::reset()
 {
     envelope.reset();
-    positionFilter.reset();
+    std::fill(combBuffer.begin(), combBuffer.end(), 0.0f);
+    combWriteIndex = 0;
     brightnessFilter.reset();
     techniqueFilter.reset();
     noiseBurstRemaining = 0;
@@ -208,40 +227,24 @@ void PluckExciter::updateEnvelope()
 
 void PluckExciter::updatePositionFilter()
 {
-    // Position filter creates comb filtering effect based on pluck position
-    // Plucking at position P creates a spectral null at frequency = f0 / P
+    // Feedforward comb filter models physical pluck position.
+    // Plucking at position P (fraction of string length) excites harmonics
+    // with amplitudes proportional to sin(n*pi*P). Nulls occur at n = k/P.
     //
-    // For simplicity, we use a one-pole lowpass that approximates this:
-    // - Position near bridge (1.0) = brighter (less filtering)
-    // - Position near nut (0.0) = darker (more filtering)
+    // The comb filter y[n] = x[n] - x[n-D] with D = P * (sampleRate/f0)
+    // creates nulls at f = k * f0/P, matching the physical null pattern.
     //
-    // More sophisticated: implement actual comb filter with delay = position * period
+    // Examples:
+    //   P=0.5 (center): nulls at 2f0, 4f0, 6f0 — only odd harmonics survive (hollow)
+    //   P=0.2 (near nut): nulls at 5f0, 10f0 — bright, full spectrum
+    //   P=0.8 (near bridge): nulls at 1.25f0, 2.5f0 — thin, nasal
 
-    // Map position to cutoff frequency
-    // Position 0.5 (center) = fundamental frequency
-    // Position approaches 1.0 (bridge) = higher cutoffs (brighter)
-    // Position approaches 0.0 (nut) = lower cutoffs (darker)
+    float clampedPosition = juce::jlimit(0.05f, 0.95f, pluckPosition);
+    float period = static_cast<float>(currentSampleRate / currentFrequency);
+    combDelaySamples = clampedPosition * period;
 
-    float cutoffHz;
-    if (pluckPosition < 0.5f)
-    {
-        // Nut side: darker, map 0.0-0.5 to 200Hz-fundamental
-        cutoffHz = juce::jmap(pluckPosition, 0.0f, 0.5f, 200.0f, static_cast<float>(currentFrequency));
-    }
-    else
-    {
-        // Bridge side: brighter, map 0.5-1.0 to fundamental-4x fundamental
-        cutoffHz = juce::jmap(pluckPosition, 0.5f, 1.0f,
-                             static_cast<float>(currentFrequency),
-                             static_cast<float>(currentFrequency * 4.0));
-    }
-
-    // Clamp to reasonable range
-    cutoffHz = juce::jlimit(100.0f, 12000.0f, cutoffHz);
-
-    // Design one-pole lowpass filter
-    positionFilter.coefficients = juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass(
-        currentSampleRate, cutoffHz);
+    // Clamp to buffer size
+    combDelaySamples = juce::jlimit(1.0f, static_cast<float>(MAX_COMB_DELAY - 2), combDelaySamples);
 }
 
 void PluckExciter::updateBrightnessFilter()
