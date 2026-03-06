@@ -99,6 +99,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // v1.13.0: Initialize mute/solo listeners (after grid rendered)
     initializeMuteSoloListeners();
 
+    // v1.16.1: Display plugin version
+    try {
+        const getVersion = Juce.getNativeFunction('getPluginVersion');
+        getVersion().then(v => { document.getElementById('version-label').textContent = 'v' + v; });
+    } catch (e) {}
+
     console.log('O-FreqPulse UI initialized');
 });
 

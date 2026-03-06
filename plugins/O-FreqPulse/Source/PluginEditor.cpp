@@ -211,6 +211,10 @@ OFreqPulseAudioProcessorEditor::OFreqPulseAudioProcessorEditor(OFreqPulseAudioPr
                     complete(juce::var(result));
                 }
             );
+        })
+        .withNativeFunction("getPluginVersion", [](const juce::Array<juce::var>&,
+                                                    std::function<void(juce::var)> complete) {
+            complete(juce::var(JucePlugin_VersionString));
         });
 
     // Register all 128 step grid relays
