@@ -144,6 +144,12 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         // v1.19.0: Apply humanization to brightness (±4% variation)
         float brightness = parameters->getRawParameterValue("brightness")->load();
         brightness = applyHumanization(brightness, 0.04f, humanizeAmount);
+
+        // v1.32.7: Velocity-sensitive brightness — harder plucks excite more HF content
+        // Maps vel 0→0.85x (darker) to vel 1→1.10x (brighter)
+        brightness *= juce::jmap(velocity, 0.0f, 1.0f, 0.85f, 1.10f);
+        brightness = juce::jlimit(0.0f, 1.0f, brightness);
+
         stringModel.setBrightness(brightness);
 
         // v1.1.0: Renamed from sustain to timbre - controls tonal damping
@@ -165,6 +171,11 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
         // v1.19.0: Apply humanization to finger hardness (±8% variation)
         fingerHardness = parameters->getRawParameterValue("fingerHardness")->load();
         fingerHardness = applyHumanization(fingerHardness, 0.08f, humanizeAmount);
+
+        // v1.32.7: Velocity-sensitive hardness — harder plucks have firmer finger contact
+        // Maps vel 0→0.78x (softer) to vel 1→1.10x (harder)
+        fingerHardness *= juce::jmap(velocity, 0.0f, 1.0f, 0.78f, 1.10f);
+        fingerHardness = juce::jlimit(0.0f, 1.0f, fingerHardness);
 
         int techniqueIndex = static_cast<int>(parameters->getRawParameterValue("technique")->load());
         stringModel.setTechnique(techniqueFromIndex(techniqueIndex));
@@ -226,7 +237,7 @@ void HarpSynthVoice::startNote(int midiNoteNumber, float velocity,
     // Phase 2.7: Register voice with sympathetic resonance engine
     if (sympatheticEngine != nullptr)
     {
-        sympatheticEngine->registerVoice(voiceId, currentFrequency, currentMaterial);
+        cachedSympatheticSlot = sympatheticEngine->registerVoice(voiceId, currentFrequency, currentMaterial);
     }
 }
 
@@ -449,6 +460,7 @@ void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
         if (sympatheticEngine != nullptr)
         {
             sympatheticEngine->unregisterVoice(voiceId);
+            cachedSympatheticSlot = -1;
         }
     }
     else
@@ -462,6 +474,7 @@ void HarpSynthVoice::stopNote(float /*velocity*/, bool allowTailOff)
         if (sympatheticEngine != nullptr)
         {
             sympatheticEngine->unregisterVoice(voiceId);
+            cachedSympatheticSlot = -1;
         }
     }
 }
@@ -556,6 +569,7 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         if (sympatheticEngine != nullptr)
         {
             sympatheticEngine->unregisterVoice(voiceId);
+            cachedSympatheticSlot = -1;
         }
 
         return;
@@ -586,7 +600,7 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         float sympatheticContribution = 0.0f;
         if (sympatheticEngine != nullptr)
         {
-            sympatheticContribution = sympatheticEngine->computeSympatheticContribution(voiceId, bodySample);
+            sympatheticContribution = sympatheticEngine->computeSympatheticContribution(cachedSympatheticSlot, bodySample);
         }
 
         // Combine string + body + sympathetic resonance
@@ -607,6 +621,7 @@ void HarpSynthVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
             if (sympatheticEngine != nullptr)
             {
                 sympatheticEngine->unregisterVoice(voiceId);
+                cachedSympatheticSlot = -1;
             }
 
             break;

@@ -2,6 +2,12 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [1.32.7] - 2026-03-05
+
+### Changed
+
+- Added velocity-sensitive brightness modulation: `fingerHardness` and `brightness` in `HarpSynthVoice::startNote()` now scale with MIDI velocity — softer plucks (vel≈0.2) reduce hardness ~15% and brightness ~10%, harder plucks (vel≈1.0) boost both ~10%, matching real plucked string physics where harder plucks excite more high-frequency content
+
 ## [1.32.6] - 2026-03-05
 
 ### Fixed
