@@ -88,7 +88,9 @@ Plans:
   1. SubagentStop hook fires after every subagent completion and validates agent contracts (running SubagentStop.py)
   2. Research frontmatter is validated on every Write/Edit to `research/*.md` files (validate-research-frontmatter.py active in settings.json PostToolUse)
   3. Resource index is automatically regenerated when research files are written (regenerate-manifest.py active in settings.json PostToolUse)
-**Plans**: TBD
+**Plans:** 1 plan
+Plans:
+- [ ] 19-01-PLAN.md -- Adapt scripts for stdin JSON, activate all 3 hooks in settings.json, smoke test
 
 ### Phase 20: Research Governance & Review
 **Goal**: The research corpus has complete indexing, consistent frontmatter across all documents, identified coverage gaps filled with new docs, and stale content flagged for refresh
@@ -135,7 +137,7 @@ Plans:
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
-| 19. Quality Gate Activation | v1.4 | 0/? | Not started | - |
+| 19. Quality Gate Activation | v1.4 | 0/1 | Not started | - |
 | 20. Research Governance & Review | v1.4 | 0/? | Not started | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
@@ -144,4 +146,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-03-06 -- Phase 18 complete (4/4 plans, all gaps closed)*
+*Last updated: 2026-03-06 -- Phase 19 planned (1 plan)*
