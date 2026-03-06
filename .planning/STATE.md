@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: System Hygiene & Quality Gates
-status: unknown
-last_updated: "2026-03-06T02:22:47.040Z"
+status: in-progress
+last_updated: "2026-03-06T16:48:48Z"
 progress:
-  total_phases: 18
-  completed_phases: 18
-  total_plans: 55
-  completed_plans: 55
+  total_phases: 19
+  completed_phases: 19
+  total_plans: 56
+  completed_plans: 56
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
-**Current focus:** v1.4 System Hygiene & Quality Gates -- Phase 18: Dead Code Removal
+**Current focus:** v1.4 System Hygiene & Quality Gates -- Phase 19: Quality Gate Activation
 
 ## Current Position
 
-Phase: 18 (Dead Code Removal) -- COMPLETE (first of 5 in v1.4)
-Plan: 04 of 04 complete
+Phase: 19 (Quality Gate Activation) -- COMPLETE (second of 5 in v1.4)
+Plan: 01 of 01 complete
 Status: Phase Complete
-Last activity: 2026-03-06 -- 18-04 complete (hooks.json gap closure)
+Last activity: 2026-03-06 -- 19-01 complete (quality gate hook activation)
 
-Progress: [##░░░░░░░░] 20% (v1.4: 1/5 phases, Phase 18: 4/4 plans)
+Progress: [####░░░░░░] 40% (v1.4: 2/5 phases, Phase 19: 1/1 plans)
 
 ## Performance Metrics
 
@@ -53,6 +53,7 @@ Progress: [##░░░░░░░░] 20% (v1.4: 1/5 phases, Phase 18: 4/4 plan
 | 18 | 02 | 5min | 2 | 20 |
 | 18 | 03 | 4min | 1 | 1 |
 | 18 | 04 | 1min | 1 | 1 |
+| 19 | 01 | 4min | 2 | 3 |
 
 ## Accumulated Context
 
@@ -69,6 +70,9 @@ Milestone-specific decisions archived in `.planning/milestones/`.
 - 18-03: Documentation only -- no additional files deleted, findings cataloged for future cleanup
 - 18-03: Discovered hooks.json still exists on disk despite DEAD-02 declaring it absent -- documented as critical finding in audit
 - 18-04: Deleted hooks.json via gap closure plan -- single file deletion, no additional cleanup needed
+- 19-01: Used sys.stdin.isatty() guard to prevent blocking on interactive terminals for PostToolUse scripts
+- 19-01: Preserved backward compatibility: argv[1] fallback for frontmatter validator, FILE_PATH env var fallback for manifest regenerator
+- 19-01: SubagentStop hook has no matcher restriction -- script self-filters to relevant subagents
 
 ### Pending Todos
 
@@ -95,10 +99,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-06
-Stopped at: Completed 18-04-PLAN.md (hooks.json gap closure -- Phase 18 fully complete)
+Stopped at: Completed 19-01-PLAN.md (quality gate activation -- Phase 19 fully complete)
 Resume file: None
 
-Next: Phase 19 (next phase in v1.4 milestone)
+Next: Phase 20 (next phase in v1.4 milestone)
 
 ---
 *v1.3 System Modernization archived. 4 milestones shipped (v1.0-v1.3), 17 phases, 51 plans, 85+ requirements.*

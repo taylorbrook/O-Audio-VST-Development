@@ -18,9 +18,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Quality Gates
 
-- [ ] **GATE-01**: SubagentStop hook is activated in `settings.json` (contract validation after subagent completion)
-- [ ] **GATE-02**: Research frontmatter validation hook is activated in `settings.json`
-- [ ] **GATE-03**: Resource index auto-regeneration hook is activated in `settings.json`
+- [x] **GATE-01**: SubagentStop hook is activated in `settings.json` (contract validation after subagent completion)
+- [x] **GATE-02**: Research frontmatter validation hook is activated in `settings.json`
+- [x] **GATE-03**: Resource index auto-regeneration hook is activated in `settings.json`
 
 ### Research Governance
 
@@ -92,9 +92,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | DEAD-03 | Phase 18 | Complete |
 | DEAD-04 | Phase 18 | Complete |
 | DEAD-05 | Phase 18 | Complete |
-| GATE-01 | Phase 19 | Pending |
-| GATE-02 | Phase 19 | Pending |
-| GATE-03 | Phase 19 | Pending |
+| GATE-01 | Phase 19 | Complete |
+| GATE-02 | Phase 19 | Complete |
+| GATE-03 | Phase 19 | Complete |
 | RSRC-01 | Phase 20 | Pending |
 | RSRC-02 | Phase 20 | Pending |
 | RSRC-03 | Phase 20 | Pending |

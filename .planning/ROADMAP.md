@@ -56,7 +56,7 @@
 **Milestone Goal:** Address all findings from the full system review -- activate dormant quality gates, remove dead code, fix research governance gaps, consolidate overlapping subsystems, and add structural improvements for agent memory and validation.
 
 - [x] **Phase 18: Dead Code Removal** - Delete all dead .sh hooks, vestigial hooks.json, unreferenced agents, deprecated registry, and add __pycache__ to gitignore (completed 2026-03-06)
-- [ ] **Phase 19: Quality Gate Activation** - Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json
+- [x] **Phase 19: Quality Gate Activation** - Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json (completed 2026-03-06)
 - [ ] **Phase 20: Research Governance & Review** - Regenerate resource index, standardize frontmatter across all research docs, audit for coverage gaps, fill gaps, and flag stale content
 - [ ] **Phase 21: Skill & Infrastructure Consolidation** - Merge plugin-phases into plugin-workflow, update references, clean up agent memory placeholders, relocate docs-only files, exclude dev artifacts
 - [ ] **Phase 22: Structural Improvements** - Build agent memory write-back mechanism, resolve validation cache (activate or remove), verify and clean up canary-test.sh
@@ -88,7 +88,7 @@ Plans:
   1. SubagentStop hook fires after every subagent completion and validates agent contracts (running SubagentStop.py)
   2. Research frontmatter is validated on every Write/Edit to `research/*.md` files (validate-research-frontmatter.py active in settings.json PostToolUse)
   3. Resource index is automatically regenerated when research files are written (regenerate-manifest.py active in settings.json PostToolUse)
-**Plans:** 1 plan
+**Plans:** 1/1 plans complete
 Plans:
 - [ ] 19-01-PLAN.md -- Adapt scripts for stdin JSON, activate all 3 hooks in settings.json, smoke test
 
@@ -137,7 +137,7 @@ Plans:
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
-| 19. Quality Gate Activation | v1.4 | 0/1 | Not started | - |
+| 19. Quality Gate Activation | 1/1 | Complete   | 2026-03-06 | - |
 | 20. Research Governance & Review | v1.4 | 0/? | Not started | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
