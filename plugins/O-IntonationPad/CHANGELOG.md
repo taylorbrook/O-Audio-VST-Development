@@ -1,5 +1,14 @@
 # O-IntonationPad Changelog
 
+## [2.3.0] - 2026-03-05
+
+### Added
+- 4 new mellow wavetable banks (16→20 total):
+  - **Soft Flute** — breathy, fundamental-heavy with faint odd harmonics and micro-detuned breathiness
+  - **Velvet Pad** — ultra-smooth even harmonics with steep rolloff, creamy analog pad texture
+  - **Whisper** — micro-detuned partial pairs at low amplitudes, ghostly airy shimmer
+  - **Deep Haze** — sub-dominant with slow-blooming mid partials, foggy ambient warmth
+
 ## [2.2.7] - 2026-03-05
 
 ### Refactored

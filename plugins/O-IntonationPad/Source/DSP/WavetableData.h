@@ -4,7 +4,7 @@
     WavetableData.h
     Multi-Bank Wavetable System for O-IntonationPad
 
-    9 wavetable banks with mipmap anti-aliasing (11 band-limited levels per frame)
+    20 wavetable banks with mipmap anti-aliasing (11 band-limited levels per frame)
     Frame 0 = pure sine, Frame 255 = full character for each bank
     Banks are lazily generated on first access and cached statically
 
@@ -24,7 +24,7 @@ namespace WavetableData
     constexpr int NUM_FRAMES = 256;
     constexpr int SAMPLES_PER_FRAME = 2048;
     constexpr int NUM_MIPMAPS = 11;
-    constexpr int NUM_BANKS = 16;
+    constexpr int NUM_BANKS = 20;
     constexpr double PI = 3.14159265358979323846;
     constexpr double TWO_PI = 2.0 * PI;
     constexpr double ASSUMED_SAMPLE_RATE = 48000.0;
@@ -47,7 +47,11 @@ namespace WavetableData
         SpectralCloud,
         MetallicResonance,
         FormantVowel,
-        WarmSub
+        WarmSub,
+        SoftFlute,
+        VelvetPad,
+        Whisper,
+        DeepHaze
     };
 
     // Base frequencies for each mipmap level (octave boundaries)
@@ -322,6 +326,72 @@ namespace WavetableData
         { 5.0,    0.68, 0.88, 0.06, 0.0 },    // Major 17th — hint of brightness
     }};
 
+    // Bank 16: Soft Flute — breathy, fundamental-heavy with faint odd harmonics
+    // Emulates a wooden flute played softly: dominant fundamental, gentle upper partials, airy quality
+    constexpr std::array<Partial, 10> softFlutePartials = {{
+        { 1.0,   0.00, 0.00, 1.00, 0.0 },    // Strong fundamental
+        { 2.0,   0.08, 0.25, 0.25, 0.0 },    // Gentle octave — warmth
+        { 3.0,   0.12, 0.35, 0.15, 0.0 },    // Soft 12th — faint color
+        { 4.0,   0.25, 0.50, 0.08, 0.0 },    // Very faint double octave
+        { 5.0,   0.40, 0.65, 0.05, 0.0 },    // Barely present
+        { 1.002, 0.05, 0.18, 0.20, 1.5 },    // Micro-detune — breathiness
+        { 0.998, 0.05, 0.18, 0.20, 2.8 },    // Micro-detune — breathiness
+        { 6.0,   0.55, 0.78, 0.03, 0.0 },    // Air/breath noise hint
+        { 2.003, 0.15, 0.38, 0.12, 0.9 },    // Detuned octave — soft chorus
+        { 7.0,   0.65, 0.88, 0.02, 0.0 },    // Highest whisper
+    }};
+
+    // Bank 17: Velvet Pad — ultra-smooth with even harmonics and steep rolloff
+    // Creamy analog pad texture: strong even harmonics, suppressed odds, no inharmonics
+    constexpr std::array<Partial, 10> velvetPadPartials = {{
+        { 1.0,   0.00, 0.00, 1.00, 0.0 },    // Fundamental
+        { 2.0,   0.03, 0.15, 0.60, 0.0 },    // Dominant octave — creamy
+        { 4.0,   0.08, 0.25, 0.35, 0.0 },    // Double octave — smooth
+        { 6.0,   0.15, 0.38, 0.20, 0.0 },    // Even harmonic — warm
+        { 8.0,   0.25, 0.48, 0.12, 0.0 },    // Even harmonic — gentle
+        { 3.0,   0.30, 0.55, 0.10, 0.0 },    // Suppressed odd — subtle body
+        { 10.0,  0.40, 0.65, 0.06, 0.0 },    // High even — faint shimmer
+        { 5.0,   0.45, 0.68, 0.05, 0.0 },    // Suppressed odd — hint
+        { 12.0,  0.55, 0.78, 0.03, 0.0 },    // Very high even — sparkle
+        { 0.5,   0.20, 0.42, 0.30, 0.0 },    // Sub-octave — depth and body
+    }};
+
+    // Bank 18: Whisper — micro-detuned partials at low amplitudes, airy shimmer
+    // Ghostly, barely-there texture: chorus from detuning, late-blooming overtones
+    constexpr std::array<Partial, 14> whisperPartials = {{
+        { 1.0,    0.00, 0.00, 0.80, 0.0 },    // Fundamental — softer than usual
+        { 1.004,  0.02, 0.08, 0.65, 1.3 },    // Micro-detune pair A+
+        { 0.996,  0.02, 0.08, 0.65, 2.7 },    // Micro-detune pair A-
+        { 2.0,    0.10, 0.30, 0.20, 0.0 },    // Soft octave
+        { 2.007,  0.12, 0.32, 0.18, 1.8 },    // Detuned octave+
+        { 1.997,  0.12, 0.32, 0.18, 3.1 },    // Detuned octave-
+        { 1.5,    0.20, 0.45, 0.15, 0.5 },    // Gentle fifth
+        { 1.502,  0.22, 0.48, 0.12, 2.2 },    // Detuned fifth
+        { 3.0,    0.35, 0.60, 0.08, 0.0 },    // Very faint 12th
+        { 3.005,  0.38, 0.62, 0.06, 1.0 },    // Detuned 12th
+        { 4.0,    0.50, 0.75, 0.04, 0.0 },    // Ghost partial
+        { 0.5,    0.15, 0.40, 0.25, 0.0 },    // Sub warmth
+        { 5.0,    0.60, 0.82, 0.03, 0.0 },    // Highest ghost
+        { 1.333,  0.45, 0.70, 0.06, 1.6 },    // Soft fourth — late bloom
+    }};
+
+    // Bank 19: Deep Haze — sub-dominant with slow-blooming mid partials
+    // Foggy ambient warmth: prominent sub-octaves, very gradual mid entry, muted highs
+    constexpr std::array<Partial, 12> deepHazePartials = {{
+        { 1.0,    0.00, 0.00, 1.00, 0.0 },    // Fundamental
+        { 0.5,    0.00, 0.00, 0.75, 0.0 },    // Sub-octave — always present
+        { 0.25,   0.05, 0.20, 0.45, 0.0 },    // Deep sub — rumble
+        { 2.0,    0.20, 0.50, 0.30, 0.0 },    // Slow-blooming octave
+        { 0.75,   0.08, 0.28, 0.35, 0.0 },    // Sub-fourth — warmth
+        { 1.5,    0.30, 0.58, 0.20, 0.0 },    // Slow fifth
+        { 3.0,    0.45, 0.72, 0.10, 0.0 },    // Very late 12th
+        { 0.333,  0.12, 0.35, 0.30, 0.0 },    // Sub-fifth — deep fog
+        { 4.0,    0.60, 0.82, 0.05, 0.0 },    // Barely audible
+        { 1.001,  0.10, 0.30, 0.15, 1.4 },    // Micro-detune — haze effect
+        { 0.999,  0.10, 0.30, 0.15, 2.6 },    // Micro-detune — haze effect
+        { 2.0,    0.55, 0.78, 0.08, 1.0 },    // Detuned octave — late haze
+    }};
+
     // ========================================================================
     // Generation utilities
     // ========================================================================
@@ -465,6 +535,10 @@ namespace WavetableData
                 case 13: fillBankMipmapTable(table, metallicResonancePartials); break;
                 case 14: fillBankMipmapTable(table, formantVowelPartials); break;
                 case 15: fillBankMipmapTable(table, warmSubPartials); break;
+                case 16: fillBankMipmapTable(table, softFlutePartials); break;
+                case 17: fillBankMipmapTable(table, velvetPadPartials); break;
+                case 18: fillBankMipmapTable(table, whisperPartials); break;
+                case 19: fillBankMipmapTable(table, deepHazePartials); break;
                 default: fillBankMipmapTable(table, jiHarmonicPartials); break;
             }
         }

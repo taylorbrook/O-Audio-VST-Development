@@ -117,7 +117,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
         "cents"
     ));
 
-    // WAVETABLE_BANK - Choice (16 banks, default: 0 = JI Harmonic)
+    // WAVETABLE_BANK - Choice (20 banks, default: 0 = JI Harmonic)
     layout.add(std::make_unique<juce::AudioParameterChoice>(
         juce::ParameterID { "wavetableBank", 1 },
         "Wavetable A",
@@ -125,7 +125,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
             "JI Harmonic", "Warm Analog", "Choir", "Strings",
             "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter",
             "Sine", "Square", "Triangle",
-            "Spectral Cloud", "Metallic Resonance", "Formant Vowel", "Warm Sub" },
+            "Spectral Cloud", "Metallic Resonance", "Formant Vowel", "Warm Sub",
+            "Soft Flute", "Velvet Pad", "Whisper", "Deep Haze" },
         0
     ));
 
@@ -145,7 +146,8 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
             "JI Harmonic", "Warm Analog", "Choir", "Strings",
             "Glass", "Evolving", "Organ", "Ethereal", "Dark Matter",
             "Sine", "Square", "Triangle",
-            "Spectral Cloud", "Metallic Resonance", "Formant Vowel", "Warm Sub" },
+            "Spectral Cloud", "Metallic Resonance", "Formant Vowel", "Warm Sub",
+            "Soft Flute", "Velvet Pad", "Whisper", "Deep Haze" },
         1
     ));
 
