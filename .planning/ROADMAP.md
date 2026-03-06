@@ -73,11 +73,12 @@
   3. No agent definition exists that is referenced by zero commands or skills (aesthetics-agent, dynamic-researcher, music-theory-agent are gone)
   4. `.claude/plugin-registry.json` does not exist (deprecated duplicate removed)
   5. `__pycache__` directories are not tracked by git, and `.gitignore` contains `__pycache__/` and `*.pyc` patterns
-**Plans:** 3/3 plans complete
+**Plans:** 4 plans (3 complete + 1 gap closure)
 Plans:
-- [ ] 18-01-PLAN.md -- Delete .sh hooks, verify hooks.json gone, remove __pycache__ from git
-- [ ] 18-02-PLAN.md -- Delete dead agents and deprecated plugin-registry.json, scrub references
-- [ ] 18-03-PLAN.md -- Deep scan .claude/ for additional dead code, document findings
+- [x] 18-01-PLAN.md -- Delete .sh hooks, verify hooks.json gone, remove __pycache__ from git
+- [x] 18-02-PLAN.md -- Delete dead agents and deprecated plugin-registry.json, scrub references
+- [x] 18-03-PLAN.md -- Deep scan .claude/ for additional dead code, document findings
+- [ ] 18-04-PLAN.md -- Gap closure: delete hooks.json missed by 18-01 (DEAD-02)
 
 ### Phase 19: Quality Gate Activation
 **Goal**: All three dormant quality hooks are active in settings.json and firing on their respective events
@@ -133,14 +134,14 @@ Plans:
 | 8-9 | v1.1 | 4/4 | Complete | 2026-02-02 |
 | 10-13 | v1.2 | 12/12 | Complete | 2026-02-06 |
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
-| 18. Dead Code Removal | 3/3 | Complete   | 2026-03-06 | - |
+| 18. Dead Code Removal | v1.4 | 3/4 | Gap closure | - |
 | 19. Quality Gate Activation | v1.4 | 0/? | Not started | - |
 | 20. Research Governance & Review | v1.4 | 0/? | Not started | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
-**Total: 17 phases complete, 51 plans complete, 4 milestones shipped. v1.4: 5 phases planned (23 requirements).**
+**Total: 17 phases complete, 54 plans complete, 4 milestones shipped. v1.4: 5 phases planned (23 requirements).**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-03-05 -- Phase 18 plans created*
+*Last updated: 2026-03-06 -- Phase 18 gap closure plan 04 added (DEAD-02)*
