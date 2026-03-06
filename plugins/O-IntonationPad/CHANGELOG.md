@@ -1,5 +1,14 @@
 # O-IntonationPad Changelog
 
+## [2.4.0] - 2026-03-06
+
+### Added
+- Wavetable waveform visualization canvas next to each oscillator dropdown (OSC A & OSC B) in the Synth tab
+  - 120x68px dark-themed canvas with green waveform stroke and gradient fill matching plugin aesthetic
+  - Real-time updates when wavetable bank or morph position changes
+  - DPR-aware rendering for crisp display on Retina screens
+  - C++ native function `getWavetableFrameForPosition` bridges wavetable frame data to WebView (256 sample points per frame)
+
 ## [2.3.0] - 2026-03-05
 
 ### Added

@@ -261,6 +261,18 @@
             text-align: center;
         }
 
+        /* Wavetable waveform canvas */
+        .wt-canvas-wrap {
+            flex-shrink: 0;
+        }
+        .wt-canvas {
+            width: 120px;
+            height: 68px;
+            border: 2px solid #5C4033;
+            border-radius: 3px;
+            background: #1a1a1a;
+        }
+
         .section-divider {
             height: 1px;
             background: repeating-linear-gradient(90deg, #5C4033 0px, #5C4033 4px, transparent 4px, transparent 8px);
@@ -942,7 +954,7 @@
             return container;
         }
 
-        function makeWavetableDropdown(selectId, oscLabel) {
+        function makeWavetableDropdown(selectId, oscLabel, canvasId) {
             const wrapper = document.createElement('div');
             wrapper.className = 'dropdown-container';
             const tip = DROPDOWN_TOOLTIPS[selectId];
@@ -961,8 +973,17 @@
                 opt.textContent = name;
                 sel.appendChild(opt);
             });
+            const canvasWrap = document.createElement('div');
+            canvasWrap.className = 'wt-canvas-wrap';
+            const canvas = document.createElement('canvas');
+            canvas.className = 'wt-canvas';
+            canvas.id = canvasId;
+            canvas.width = 240;
+            canvas.height = 136;
+            canvasWrap.appendChild(canvas);
             wrapper.appendChild(lbl);
             wrapper.appendChild(sel);
+            wrapper.appendChild(canvasWrap);
             return wrapper;
         }
 
@@ -972,6 +993,124 @@
             for (const k of knobs) {
                 el.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle));
             }
+        }
+
+        // ====================================================================
+        // Wavetable Waveform Display
+        // ====================================================================
+
+        class WavetableDisplay {
+            constructor(canvasId) {
+                this.canvas = document.getElementById(canvasId);
+                this.ctx = this.canvas.getContext('2d');
+                this.samples = [];
+                this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
+                this.resizeCanvas();
+            }
+
+            resizeCanvas() {
+                const dpr = window.devicePixelRatio || 1;
+                const w = this.canvas.clientWidth;
+                const h = this.canvas.clientHeight;
+                this.canvas.width = w * dpr;
+                this.canvas.height = h * dpr;
+                this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+                this.w = w;
+                this.h = h;
+            }
+
+            async fetchAndDraw(bankIndex, position) {
+                if (typeof this.getFrame !== 'function') {
+                    this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
+                }
+                if (typeof this.getFrame !== 'function') return;
+                try {
+                    this.resizeCanvas();
+                    const result = await this.getFrame(bankIndex, position);
+                    if (result) {
+                        this.samples = typeof result === 'string' ? JSON.parse(result) : result;
+                        this.draw();
+                    }
+                } catch(e) { console.error('Wavetable fetch error:', e); }
+            }
+
+            draw() {
+                const { ctx, w, h, samples } = this;
+                if (!samples.length) return;
+                const mid = h / 2;
+
+                ctx.clearRect(0, 0, w, h);
+
+                // Dark background
+                ctx.fillStyle = '#1a1a1a';
+                ctx.fillRect(0, 0, w, h);
+
+                // Center line
+                ctx.strokeStyle = 'rgba(107, 142, 35, 0.2)';
+                ctx.lineWidth = 1;
+                ctx.beginPath();
+                ctx.moveTo(0, mid);
+                ctx.lineTo(w, mid);
+                ctx.stroke();
+
+                // Waveform fill (green gradient matching theme)
+                const grad = ctx.createLinearGradient(0, 0, 0, h);
+                grad.addColorStop(0, 'rgba(107, 142, 35, 0.3)');
+                grad.addColorStop(0.5, 'rgba(107, 142, 35, 0.08)');
+                grad.addColorStop(1, 'rgba(107, 142, 35, 0.0)');
+
+                ctx.beginPath();
+                for (let i = 0; i < samples.length; i++) {
+                    const x = (i / (samples.length - 1)) * w;
+                    const y = mid - samples[i] * mid * 0.85;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
+                ctx.lineTo(w, mid);
+                ctx.lineTo(0, mid);
+                ctx.closePath();
+                ctx.fillStyle = grad;
+                ctx.fill();
+
+                // Waveform stroke (green)
+                ctx.beginPath();
+                for (let i = 0; i < samples.length; i++) {
+                    const x = (i / (samples.length - 1)) * w;
+                    const y = mid - samples[i] * mid * 0.85;
+                    i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+                }
+                ctx.strokeStyle = '#8BC34A';
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+
+                // Border
+                ctx.strokeStyle = '#5C4033';
+                ctx.lineWidth = 1;
+                ctx.strokeRect(0, 0, w, h);
+            }
+        }
+
+        function wireWavetableDisplay(display, posState, bankState, numBanks) {
+            function refresh() {
+                const bankIdx = Math.round(bankState.getChoiceIndex());
+                const pos = posState.getNormalisedValue();
+                display.fetchAndDraw(bankIdx, pos);
+            }
+
+            posState.valueChangedEvent.addListener(refresh);
+            bankState.valueChangedEvent.addListener(refresh);
+
+            // Initial draw with retry
+            let retries = 0;
+            async function tryInitialDraw() {
+                const bankIdx = Math.round(bankState.getChoiceIndex());
+                const pos = posState.getNormalisedValue();
+                await display.fetchAndDraw(bankIdx, pos);
+                retries++;
+                if (display.samples.length === 0 && retries < 8) {
+                    setTimeout(tryInitialDraw, 500);
+                }
+            }
+            setTimeout(tryInitialDraw, 500);
         }
 
         document.addEventListener('DOMContentLoaded', () => {
@@ -989,18 +1128,18 @@
                 { id: 'inversion', label: 'Inversion' },
             ]);
 
-            // OSC A: dropdown + knobs
+            // OSC A: dropdown + waveform canvas + knobs
             const oscARow = document.getElementById('oscA-row');
-            oscARow.appendChild(makeWavetableDropdown('wavetableBankSelect', 'OSC A'));
+            oscARow.appendChild(makeWavetableDropdown('wavetableBankSelect', 'OSC A', 'canvasOscA'));
             [{ id: 'wavetablePos', label: 'Pos', size: 'small' },
              { id: 'lfoRate', label: 'Rate', size: 'small' },
              { id: 'lfoDepth', label: 'Depth', size: 'small' },
              { id: 'gainA', label: 'Gain', size: 'small', labelStyle: 'color: #6B8E23;' },
             ].forEach(k => oscARow.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle)));
 
-            // OSC B: dropdown + knobs
+            // OSC B: dropdown + waveform canvas + knobs
             const oscBRow = document.getElementById('oscB-row');
-            oscBRow.appendChild(makeWavetableDropdown('wavetableBank2Select', 'OSC B'));
+            oscBRow.appendChild(makeWavetableDropdown('wavetableBank2Select', 'OSC B', 'canvasOscB'));
             [{ id: 'wavetablePos2', label: 'Pos', size: 'small' },
              { id: 'lfoRate2', label: 'Rate', size: 'small' },
              { id: 'lfoDepth2', label: 'Depth', size: 'small' },
@@ -1150,6 +1289,12 @@
 
             setupComboBox('wavetableBank', wavetableBankState);
             setupComboBox('wavetableBank2', wavetableBank2State);
+
+            // Wavetable waveform displays
+            const wtDisplayA = new WavetableDisplay('canvasOscA');
+            const wtDisplayB = new WavetableDisplay('canvasOscB');
+            wireWavetableDisplay(wtDisplayA, wavetablePosState, wavetableBankState, 20);
+            wireWavetableDisplay(wtDisplayB, wavetablePos2State, wavetableBank2State, 20);
 
             setupKnob('chorusRate', chorusRateState, 0.1, 10, ' Hz', v => v.toFixed(2));
             setupKnob('chorusDepth', chorusDepthState, 0, 100, '%', v => Math.round(v));

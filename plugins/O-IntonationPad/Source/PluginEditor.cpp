@@ -11,6 +11,7 @@
 #include "PluginEditor.h"
 #include "BinaryData.h"
 #include "DSP/TuningEngine.h"
+#include "DSP/WavetableData.h"
 #include "DSP/ScaleGenerator.h"
 #include "DSP/TuningExporter.h"
 #include "DSP/EmbeddedTunings.h"
@@ -386,6 +387,34 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
         .withNativeFunction("resetEnabledIntervals", [this](const juce::Array<juce::var>&, auto complete) {
             processorRef.resetEnabledIntervals();
             complete(true);
+        })
+
+        // --- Wavetable Frame Data (for UI waveform display) ---
+        .withNativeFunction("getWavetableFrameForPosition", [](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                int bankIndex = juce::jlimit(0, WavetableData::NUM_BANKS - 1, static_cast<int>(args[0]));
+                float normalizedPos = juce::jlimit(0.0f, 1.0f, static_cast<float>(args[1]));
+
+                const auto& bank = WavetableData::BankCache::getBank(bankIndex);
+                int frameIndex = juce::jlimit(0, WavetableData::NUM_FRAMES - 1,
+                    static_cast<int>(normalizedPos * (WavetableData::NUM_FRAMES - 1)));
+
+                // Read from mipmap level 0 (full bandwidth) for display
+                const auto& frame = bank[0][static_cast<size_t>(frameIndex)];
+
+                // Build JSON array with stride=8 for 256 display points
+                juce::String json = "[";
+                for (int i = 0; i < WavetableData::SAMPLES_PER_FRAME; i += 8)
+                {
+                    if (i > 0) json += ",";
+                    json += juce::String(frame[static_cast<size_t>(i)], 4);
+                }
+                json += "]";
+                complete(json);
+                return;
+            }
+            complete(juce::var());
         })
 
         // --- HTML Export ---
