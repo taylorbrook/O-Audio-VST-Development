@@ -577,6 +577,13 @@ void OIntonationPadAudioProcessorEditor::timerCallback()
     }
 
     webView->emitEventIfBrowserIsVisible("activeNotes", arr.build());
+
+    // v2.4.1: Emit LFO-modulated wavetable positions for waveform display animation
+    webView->emitEventIfBrowserIsVisible("wavetableModPos",
+        JsonHelper::JsonObjectBuilder{}
+            .add("posA", static_cast<double>(processorRef.getModulatedPosA()), 4)
+            .add("posB", static_cast<double>(processorRef.getModulatedPosB()), 4)
+            .build());
 }
 
 void OIntonationPadAudioProcessorEditor::paint(juce::Graphics& g)

@@ -72,6 +72,10 @@ public:
     // UI data access: collect active sub-voice data from all synthesiser voices
     std::vector<ActiveNoteInfo> getActiveNotes() const;
 
+    // v2.4.1: LFO-modulated wavetable positions for UI waveform display
+    float getModulatedPosA() const { return currentModPosA_.load(std::memory_order_relaxed); }
+    float getModulatedPosB() const { return currentModPosB_.load(std::memory_order_relaxed); }
+
     // v1.5.0: Enabled interval management
     std::vector<bool> getEnabledIntervals() const;
     void setIntervalEnabled(int index, bool enabled);
@@ -149,6 +153,10 @@ private:
 
     // v2.2.0: Most-recent note-on velocity for filter modulation (audio thread only)
     float lastNoteVelocity = 1.0f;
+
+    // v2.4.1: LFO-modulated positions (written by audio thread, read by UI timer)
+    std::atomic<float> currentModPosA_ { 0.5f };
+    std::atomic<float> currentModPosB_ { 0.5f };
     // Effects
     std::atomic<float>* cachedChorusBypass = nullptr;
     std::atomic<float>* cachedChorusRate = nullptr;

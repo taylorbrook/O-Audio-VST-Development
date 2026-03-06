@@ -1147,18 +1147,18 @@
             ].forEach(k => oscBRow.appendChild(makeKnob(k.id, k.label, k.size, k.labelStyle)));
 
             populateKnobs('synth-env-knobs', [
-                { id: 'attackTime', label: 'Attack' },
-                { id: 'decayTime', label: 'Decay' },
-                { id: 'sustainLevel', label: 'Sustain' },
-                { id: 'releaseTime', label: 'Release' },
-                { id: 'filterCutoff', label: 'Filter' },
-                { id: 'filterLfoDepth', label: 'Flt LFO' },
-                { id: 'velocityToFilter', label: 'Vel>Flt' },
-                { id: 'masterVolume', label: 'Volume' },
+                { id: 'attackTime', label: 'Attack', size: 'small' },
+                { id: 'decayTime', label: 'Decay', size: 'small' },
+                { id: 'sustainLevel', label: 'Sustain', size: 'small' },
+                { id: 'releaseTime', label: 'Release', size: 'small' },
+                { id: 'filterCutoff', label: 'Filter', size: 'small' },
+                { id: 'filterLfoDepth', label: 'Flt LFO', size: 'small' },
+                { id: 'velocityToFilter', label: 'Vel>Flt', size: 'small' },
+                { id: 'masterVolume', label: 'Volume', size: 'small' },
             ]);
             populateKnobs('synth-random-knobs', [
-                { id: 'timingRandom', label: 'Timing' },
-                { id: 'detuneRandom', label: 'Detune' },
+                { id: 'timingRandom', label: 'Timing', size: 'small' },
+                { id: 'detuneRandom', label: 'Detune', size: 'small' },
             ]);
 
             // Effects knobs
@@ -1295,6 +1295,19 @@
             const wtDisplayB = new WavetableDisplay('canvasOscB');
             wireWavetableDisplay(wtDisplayA, wavetablePosState, wavetableBankState, 20);
             wireWavetableDisplay(wtDisplayB, wavetablePos2State, wavetableBank2State, 20);
+
+            // v2.4.1: Animate waveform displays with LFO-modulated positions (30 Hz from C++)
+            if (window.__JUCE__ && window.__JUCE__.backend) {
+                window.__JUCE__.backend.addEventListener("wavetableModPos", (raw) => {
+                    try {
+                        const data = JSON.parse(raw);
+                        const bankA = Math.round(wavetableBankState.getChoiceIndex());
+                        const bankB = Math.round(wavetableBank2State.getChoiceIndex());
+                        wtDisplayA.fetchAndDraw(bankA, data.posA);
+                        wtDisplayB.fetchAndDraw(bankB, data.posB);
+                    } catch(e) { /* ignore parse errors */ }
+                });
+            }
 
             setupKnob('chorusRate', chorusRateState, 0.1, 10, ' Hz', v => v.toFixed(2));
             setupKnob('chorusDepth', chorusDepthState, 0, 100, '%', v => Math.round(v));

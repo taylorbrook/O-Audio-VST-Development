@@ -1,5 +1,16 @@
 # O-IntonationPad Changelog
 
+## [2.4.1] - 2026-03-06
+
+### Changed
+- Wavetable waveform canvases now animate with LFO modulation — displays update at 30 Hz showing the effective wavetable position after LFO Rate + Depth are applied (per oscillator)
+- Envelope/filter row (Attack, Decay, Sustain, Release, Filter, Flt LFO, Vel>Flt, Volume) and randomization row (Timing, Detune) now use compact `small` knobs to prevent clipping
+
+### Technical
+- Added `std::atomic<float>` modulated position members to PluginProcessor, updated per processBlock
+- New `wavetableModPos` event emitted from timerCallback with `{posA, posB}` JSON payload
+- JS listener redraws both WavetableDisplay instances using current bank index + modulated position
+
 ## [2.4.0] - 2026-03-06
 
 ### Added

@@ -552,6 +552,12 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     lfoPhaseA = std::fmod(lfoPhaseA, juce::MathConstants<double>::twoPi);
     lfoPhaseB = std::fmod(lfoPhaseB, juce::MathConstants<double>::twoPi);
 
+    // v2.4.1: Store LFO-modulated positions for UI waveform display (relaxed — cosmetic only)
+    currentModPosA_.store(juce::jlimit(0.0f, 1.0f, wavetablePos + std::sin(currentLfoPhaseA) * lfoDepth),
+                          std::memory_order_relaxed);
+    currentModPosB_.store(juce::jlimit(0.0f, 1.0f, wavetablePos2 + std::sin(currentLfoPhaseB) * lfoDepth2),
+                          std::memory_order_relaxed);
+
     // v2.0.3: Read interval snapshot from double-buffer (lock-free, no shared_ptr)
     const auto& snap = intervalSnapshots_[activeSnapshotIndex_.load(std::memory_order_acquire)];
     static const std::vector<int> defaultDegrees { 0 };
