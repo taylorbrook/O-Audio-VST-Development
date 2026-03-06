@@ -13,6 +13,7 @@ Exit codes:
 Usage:
   python3 validate-research-frontmatter.py <file_path>
 """
+import json
 import sys
 import re
 from datetime import date
@@ -236,12 +237,28 @@ def validate_frontmatter(filepath: Path) -> ValidationResult:
 # ---------------------------------------------------------------------------
 
 def main() -> int:
-    """Main entry point. Accepts file path as argv[1]."""
-    if len(sys.argv) < 2:
+    """Main entry point. Accepts file path via stdin JSON (PostToolUse hook) or argv[1]."""
+    file_path_str = ""
+
+    # Try reading stdin JSON (PostToolUse hook mode)
+    if not sys.stdin.isatty():
+        try:
+            raw_input = sys.stdin.read()
+            data = json.loads(raw_input)
+            tool_input = data.get("tool_input", {})
+            file_path_str = tool_input.get("file_path", "")
+        except (json.JSONDecodeError, ValueError):
+            file_path_str = ""
+
+    # Fall back to argv[1] (CLI usage)
+    if not file_path_str and len(sys.argv) >= 2:
+        file_path_str = sys.argv[1]
+
+    if not file_path_str:
         print("Usage: validate-research-frontmatter.py <file_path>", file=sys.stderr)
         return 1
 
-    filepath = Path(sys.argv[1])
+    filepath = Path(file_path_str)
 
     # Skip non-existent files silently
     if not filepath.exists():

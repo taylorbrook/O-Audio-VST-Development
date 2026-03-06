@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """PostToolUse hook: Auto-regenerate resource-index.json when research files are written/edited."""
 
+import json
 import os
 import subprocess
 import sys
@@ -13,8 +14,21 @@ def main():
         project_root = Path(__file__).resolve().parent.parent.parent
         generator = project_root / ".claude" / "scripts" / "generate-resource-index.py"
 
-        # Check if the written/edited file is a research document
-        file_path = os.environ.get("FILE_PATH", "")
+        # Read file path from stdin JSON (PostToolUse hook mode) or env var fallback
+        file_path = ""
+        if not sys.stdin.isatty():
+            try:
+                raw_input = sys.stdin.read()
+                data = json.loads(raw_input)
+                tool_input = data.get("tool_input", {})
+                file_path = tool_input.get("file_path", "")
+            except (json.JSONDecodeError, ValueError):
+                file_path = ""
+
+        # Fall back to env var (backward compatibility)
+        if not file_path:
+            file_path = os.environ.get("FILE_PATH", "")
+
         if not file_path:
             sys.exit(0)
 
