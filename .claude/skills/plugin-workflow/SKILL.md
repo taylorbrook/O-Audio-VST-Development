@@ -1,6 +1,6 @@
 ---
 name: plugin-workflow
-description: Orchestrates JUCE plugin implementation through stages 1-4 with GSD phase cycles. Each stage runs discuss → research → plan → execute → verify. Use when implementing plugins after planning completes, or when resuming with /continue command. Invoked by /implement command.
+description: Orchestrates JUCE plugin implementation through stages 1-4 with GSD phase cycles. Each stage runs discuss → research → plan → execute → verify. Use for full orchestration (/implement) or individual phase commands (/plugin-discuss, /plugin-research, /plugin-plan, /plugin-execute, /plugin-verify).
 allowed-tools:
   - Task # REQUIRED - All phases invoke subagents
   - Bash # For git commits, builds
@@ -8,6 +8,22 @@ allowed-tools:
   - Write # For documentation
   - Edit # For state updates
   - AskUserQuestion # For discuss phase
+commands:
+  - name: plugin-discuss
+    description: Interactive context gathering for a stage
+    args: "[plugin_name?] [stage?] [--skip-*]"
+  - name: plugin-research
+    description: Investigate implementation approach
+    args: "[plugin_name?] [stage?] [--skip-*]"
+  - name: plugin-plan
+    description: Create execution plan with task breakdown
+    args: "[plugin_name?] [stage?] [--skip-*]"
+  - name: plugin-execute
+    description: Run stage-specific agent
+    args: "[plugin_name?] [stage?] [--skip-*]"
+  - name: plugin-verify
+    description: Validate goal achievement
+    args: "[plugin_name?] [stage?] [--skip-*]"
 preconditions:
   - ARCHITECTURE.md must exist at plugins/[Name]/.planning/research/ (from /plan)
   - ROADMAP.md must exist at plugins/[Name]/.planning/ (from /plan)
@@ -43,7 +59,7 @@ See `.claude/skills/contract-validation/SKILL.md` for full validation protocol.
 
 # plugin-workflow Skill
 
-**Purpose:** Orchestrate stages 1-4 of JUCE plugin implementation with GSD phase cycles. Each stage runs a full discuss → research → plan → execute → verify cycle before advancing.
+**Purpose:** Orchestrate stages 1-4 of JUCE plugin implementation with GSD phase cycles. Each stage runs a full discuss → research → plan → execute → verify cycle before advancing. Supports both full orchestration via `/implement` and granular control via individual phase commands (`/plugin-discuss`, `/plugin-research`, `/plugin-plan`, `/plugin-execute`, `/plugin-verify`).
 
 ## Overview
 
@@ -55,9 +71,30 @@ Implementation stages:
 
 Each stage runs 5 phases:
 ```
-┌─────────┐   ┌──────────┐   ┌──────┐   ┌─────────┐   ┌────────┐
-│ discuss │ → │ research │ → │ plan │ → │ execute │ → │ verify │
-└─────────┘   └──────────┘   └──────┘   └─────────┘   └────────┘
+┌─────────────────────────────────────────────────────────────┐
+│                        STAGE N                              │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────┐   ┌──────────┐   ┌──────┐   ┌─────────┐       │
+│  │ discuss │ → │ research │ → │ plan │ → │ execute │ →     │
+│  └────┬────┘   └────┬─────┘   └──────┘   └────┬────┘       │
+│       │             │                          │            │
+│       │ skippable   │ skippable                │            │
+│       ▼             ▼                          ▼            │
+│  CONTEXT.md    RESEARCH.md              SUMMARY.md         │
+│                                                             │
+│                                         ┌────────┐         │
+│                                       → │ verify │ → DONE  │
+│                                         └────┬───┘         │
+│                                              │              │
+│                                              │ skippable    │
+│                                              ▼              │
+│                                      VERIFICATION.md       │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+                              │
+                              ▼
+                      ADVANCE TO STAGE N+1
 ```
 
 ## Phase Delegation
@@ -74,6 +111,7 @@ Each phase invokes a specialized agent via Task tool:
 | verify | gsd-verifier + validation-agent | VERIFICATION.md |
 
 **Execute phase agents:**
+- Stage 0 → plugin-ideation
 - Stage 1 → foundation-shell-agent
 - Stage 2 → dsp-agent
 - Stage 3 → gui-agent
@@ -528,6 +566,19 @@ Options:
 Choose (1-5): _
 ```
 
+### Phase Out of Order
+
+```
+Error: Cannot run 'execute' phase - 'plan' phase not complete.
+
+Current state: Stage 2-dsp, Phase: discuss
+
+Run these phases first:
+1. /plugin-discuss O-IntonationPad 2-dsp
+2. /plugin-research O-IntonationPad 2-dsp (or --skip-research)
+3. /plugin-plan O-IntonationPad 2-dsp
+```
+
 ### Verification Failure
 
 ```
@@ -560,7 +611,7 @@ Before starting Stage 1, verify:
 
 ## Skip Flags
 
-Supported skip flags (from `/implement` command):
+Supported skip flags (from `/implement` command or individual phase commands):
 - `--skip-discuss` → Skip discuss phase, auto-generate CONTEXT.md
 - `--skip-research` → Skip research phase, proceed to plan
 - `--skip-verify` → Skip verify phase (not recommended)
@@ -568,6 +619,12 @@ Supported skip flags (from `/implement` command):
 **Cannot skip:** plan, execute
 
 **Note:** `--auto` auto-generates discuss and research phases (producing CONTEXT.md and RESEARCH.md from contracts), unlike `--skip-discuss`/`--skip-research` which skip those phases entirely without producing artifacts.
+
+**Individual phase command example:**
+```
+/plugin-execute O-IntonationPad 2-dsp --skip-discuss --skip-research
+```
+When used with individual phase commands, skip flags mark the specified earlier phases as skipped and proceed to the invoked phase directly.
 
 ## Research Team Integration
 
@@ -623,8 +680,13 @@ Selection is automatic based on the metrics collected during execution. If no te
 ## Integration Points
 
 **Invoked by:**
-- `/implement` command
-- `/continue` command
+- `/implement` command (full orchestration)
+- `/continue` command (resume)
+- `/plugin-discuss` command (individual phase)
+- `/plugin-research` command (individual phase)
+- `/plugin-plan` command (individual phase)
+- `/plugin-execute` command (individual phase)
+- `/plugin-verify` command (individual phase)
 
 **Invokes via Task tool:**
 - plugin-discuss-agent (discuss phase)
