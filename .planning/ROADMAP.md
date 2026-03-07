@@ -90,7 +90,7 @@ Plans:
   3. Resource index is automatically regenerated when research files are written (regenerate-manifest.py active in settings.json PostToolUse)
 **Plans:** 1/1 plans complete
 Plans:
-- [ ] 19-01-PLAN.md -- Adapt scripts for stdin JSON, activate all 3 hooks in settings.json, smoke test
+- [x] 19-01-PLAN.md -- Adapt scripts for stdin JSON, activate all 3 hooks in settings.json, smoke test
 
 ### Phase 20: Research Governance & Review
 **Goal**: The research corpus has complete indexing, consistent frontmatter across all documents, identified coverage gaps filled with new docs, and stale content flagged for refresh
@@ -102,7 +102,11 @@ Plans:
   3. `frontmatter-issues.txt` is removed (validator hook handles this going forward)
   4. A coverage audit document exists identifying which domains have research docs and which gaps were found
   5. New research documents exist for identified coverage gaps, and stale documents are flagged with frontmatter noting they need refresh
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 20-01-PLAN.md -- Update validator/generator for 5-field minimum and new vocabularies, batch-apply frontmatter, regenerate index
+- [ ] 20-02-PLAN.md -- Coverage audit against plugins, staleness flagging, user approval gate for gap-fill
+- [ ] 20-03-PLAN.md -- Create gap-fill research docs for user-approved topics
 
 ### Phase 21: Skill & Infrastructure Consolidation
 **Goal**: Overlapping skills are merged, commands reference the correct skill, and infrastructure clutter (empty placeholders, documentation-only files in wrong locations, dev artifacts) is resolved
@@ -138,7 +142,7 @@ Plans:
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
-| 20. Research Governance & Review | v1.4 | 0/? | Not started | - |
+| 20. Research Governance & Review | v1.4 | 0/3 | Planned | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
@@ -146,4 +150,4 @@ Plans:
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-03-06 -- Phase 19 planned (1 plan)*
+*Last updated: 2026-03-06 -- Phase 20 planned (3 plans)*
