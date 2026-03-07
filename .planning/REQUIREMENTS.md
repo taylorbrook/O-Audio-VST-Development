@@ -36,8 +36,8 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Skill Consolidation
 
-- [ ] **SKIL-01**: `plugin-phases` skill is merged into `plugin-workflow` skill, eliminating overlap
-- [ ] **SKIL-02**: Commands referencing `plugin-phases` are updated to reference `plugin-workflow`
+- [x] **SKIL-01**: `plugin-phases` skill is merged into `plugin-workflow` skill, eliminating overlap
+- [x] **SKIL-02**: Commands referencing `plugin-phases` are updated to reference `plugin-workflow`
 
 ### Infrastructure Cleanup
 
@@ -101,8 +101,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RSCH-01 | Phase 20 | Complete |
 | RSCH-02 | Phase 20 | Complete |
 | RSCH-03 | Phase 20 | Complete |
-| SKIL-01 | Phase 21 | Pending |
-| SKIL-02 | Phase 21 | Pending |
+| SKIL-01 | Phase 21 | Complete |
+| SKIL-02 | Phase 21 | Complete |
 | INFR-01 | Phase 21 | Pending |
 | INFR-02 | Phase 21 | Complete |
 | INFR-03 | Phase 21 | Complete |

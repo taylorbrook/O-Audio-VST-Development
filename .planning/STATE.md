@@ -3,12 +3,12 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: System Hygiene & Quality Gates
 status: in-progress
-last_updated: "2026-03-07T03:15:00.000Z"
+last_updated: "2026-03-07T03:16:00.000Z"
 progress:
   total_phases: 20
   completed_phases: 20
   total_plans: 62
-  completed_plans: 60
+  completed_plans: 61
 ---
 
 # Project State
@@ -23,11 +23,11 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 ## Current Position
 
 Phase: 21 (Skill & Infrastructure Consolidation) -- IN PROGRESS (fourth of 5 in v1.4)
-Plan: 01 of 03 complete (21-03 done, 21-01 and 21-02 pending)
+Plan: 02 of 03 complete (21-01 and 21-03 done, 21-02 pending)
 Status: In Progress
-Last activity: 2026-03-07 -- 21-03 complete (repo cleanup: doc relocation + ui-test.html removal)
+Last activity: 2026-03-07 -- 21-01 complete (merge plugin-phases into plugin-workflow)
 
-Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 21: 1/3 plans)
+Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 21: 2/3 plans)
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 21: 1/3 pla
 | 20 | 01 | 15min | 2 | 44 |
 | 20 | 02 | 1min | 2 | 6 |
 | 20 | 03 | 20min | 2 | 12 |
+| 21 | 01 | 2min | 2 | 8 |
 | 21 | 03 | 1min | 1 | 76 |
 
 ## Accumulated Context
@@ -86,6 +87,8 @@ Milestone-specific decisions archived in `.planning/milestones/`.
 - 20-03: Resource index grew to 64 total documents (53 original + 10 gap-fill + 1 coverage-audit)
 - 20-03: User verified and approved all 10 gap-fill documents at checkpoint:human-verify gate
 - 21-03: Clean break for doc file relocations -- no symlinks or backwards-compatibility shims
+- 21-01: Used best-of-both merge approach for plugin-phases into plugin-workflow -- preserved plugin-workflow structure with unique plugin-phases content
+- 21-01: Added Stage 0 (plugin-ideation) to execute agents list -- present in plugin-phases but missing from plugin-workflow
 - 21-03: Scoped gitignore to *ui-test.html specifically, not broader HTML patterns
 - 21-03: Used git rm --cached to untrack 73 ui-test.html files without deleting from disk
 
@@ -114,10 +117,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 21-03-PLAN.md (repo cleanup: doc relocation + ui-test.html removal)
+Stopped at: Completed 21-01-PLAN.md (merge plugin-phases into plugin-workflow)
 Resume file: None
 
-Next: 21-01-PLAN.md (merge plugin-phases into plugin-workflow) or 21-02-PLAN.md (agent memory seed patterns)
+Next: 21-02-PLAN.md (agent memory seed patterns)
 
 ---
 *v1.3 System Modernization archived. 4 milestones shipped (v1.0-v1.3), 17 phases, 51 plans, 85+ requirements.*

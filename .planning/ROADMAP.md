@@ -118,7 +118,7 @@ Plans:
   3. Agent memory files either contain meaningful seed patterns or do not exist (no empty "No patterns recorded yet" placeholders)
   4. `agent-profiles.json` and `preferences-README.md` are relocated out of `.claude/` root (moved to a documentation location or inlined where needed)
   5. Aesthetic test-preview HTML files are excluded from the repo via `.gitignore` or relocated to a dev-only location
-**Plans:** 3 plans
+**Plans:** 2/3 plans executed
 Plans:
 - [ ] 21-01-PLAN.md -- Merge plugin-phases into plugin-workflow SKILL.md, update all command and skill references
 - [ ] 21-02-PLAN.md -- Populate 4 empty agent memory files with seed patterns, user approval gate
@@ -147,7 +147,7 @@ Plans:
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
 | 20. Research Governance & Review | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
-| 21. Skill & Infrastructure Consolidation | v1.4 | 1/3 | In progress | - |
+| 21. Skill & Infrastructure Consolidation | 2/3 | In Progress|  | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
 **Total: 20 phases complete, 60 plans complete, 4 milestones shipped. v1.4: 3/5 phases complete (23 requirements).**
