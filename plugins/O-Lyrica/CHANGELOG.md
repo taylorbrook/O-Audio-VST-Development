@@ -2,6 +2,13 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.0.2] - 2026-03-06
+
+### Added
+
+- **Licensing module integration** — Ouaricon license manager on processor, activation overlay on editor
+  - All licensing code gated behind `OUARICON_LICENSING_ENABLED` (OFF for local dev builds)
+
 ## [2.0.1] - 2026-03-06
 
 ### Fixed
