@@ -1,5 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
+
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(OLyrica
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
@@ -71,6 +73,13 @@ target_link_libraries(OLyrica
 
 # Generate JuceHeader.h (JUCE 8 requirement - CRITICAL)
 juce_generate_juce_header(OLyrica)
+
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(OLyrica licensing)
+    target_compile_definitions(OLyrica PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(OLyrica PRIVATE juce::juce_cryptography)
+endif()
 
 # ═══════════════════════════════════════════════════════════════════
 # Phase 3.1: WebView UI Resources - Embed as BinaryData

@@ -20,6 +20,10 @@
 #include "DSP/ReverbProcessor.h"
 #include "OuariconPresetManager.h"
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
+
 // v1.7.9: MIDI event for polyphonic note tracking (visual feedback on tuning circle)
 struct MidiNoteEvent
 {
@@ -127,6 +131,10 @@ public:
      * Get preset manager for UI integration (v1.5.0)
      */
     OuariconPresetManager& getPresetManager() { return presetManager; }
+
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
 
     /**
      * v1.7.4: Trigger note from WebView keyboard visualization
@@ -248,6 +256,10 @@ private:
 
     // v1.5.0: Factory preset initialization
     void initializeFactoryPresets();
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OLyricaAudioProcessor)
 };

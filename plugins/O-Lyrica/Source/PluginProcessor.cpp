@@ -622,6 +622,11 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
             }
         }
     );
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-lyrica", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OLyricaAudioProcessor::~OLyricaAudioProcessor()
@@ -1088,20 +1093,23 @@ void OLyricaAudioProcessor::setStateInformation(const void* data, int sizeInByte
 // v1.5.0: Initialize factory presets (48 presets organized by string material)
 void OLyricaAudioProcessor::initializeFactoryPresets()
 {
-    // Check if factory presets already exist
+    // v2.0.0: Version-checked factory preset regeneration
+    static const juce::String kFactoryPresetVersion = "2.0.1";
     auto factoryDir = presetManager.getFactoryPresetsDirectory();
-    if (factoryDir.isDirectory() && factoryDir.getNumberOfChildFiles(juce::File::findFiles, "*.json") > 0)
+    auto versionFile = factoryDir.getChildFile(".version");
+
+    if (versionFile.existsAsFile() && versionFile.loadFileAsString().trim() == kFactoryPresetVersion)
     {
-        DBG("[O-Lyrica] Factory presets already exist, skipping initialization");
+        DBG("[O-Lyrica] Factory presets v" + kFactoryPresetVersion + " already up to date");
         return;
     }
 
+    // Clear old factory presets for regeneration
+    if (factoryDir.isDirectory())
+        factoryDir.deleteRecursively();
+
     std::vector<OuariconPresetManager::FactoryPresetDef> presets;
 
-    // Helper: Convert choice index to normalized value
-    // stringMaterial: 8 options (0-7)
-    // woodType, technique: 4 options (0-3)
-    // glissandoMode: 3 options (0-2)
     auto choiceNorm = [](int index, int numOptions) { return static_cast<float>(index) / static_cast<float>(numOptions - 1); };
 
     // ========================================================================
@@ -1112,7 +1120,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.4f }, { "bodySize", 0.6f }, { "bodyResonance", 0.7f },
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.4f }, { "fingerHardness", 0.3f }, { "attackNoise", 0.6f },
-        { "stringTension", 0.4f }, { "stringStiffness", 0.15f }, { "bridgeBrightness", 0.4f }
+        { "stringTension", 0.4f }, { "stringStiffness", 0.15f }, { "bridgeBrightness", 0.4f },
+        { "humanize", 0.35f }, { "stringCrosstalk", 0.4f }, { "sympatheticQ", 0.04f },
+        { "bodyModeSpread", 0.55f }, { "stringGauge", 0.55f }, { "stringLength", 0.45f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.3f }, { "reverbDamp", 0.6f },
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.2f }
     }, {} });
 
     presets.push_back({ "Fireside Tales", {
@@ -1120,7 +1135,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.35f }, { "bodySize", 0.55f }, { "bodyResonance", 0.65f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.45f }, { "fingerHardness", 0.35f }, { "attackNoise", 0.5f },
-        { "stringTension", 0.45f }, { "stringStiffness", 0.2f }, { "bridgeBrightness", 0.45f }
+        { "stringTension", 0.45f }, { "stringStiffness", 0.2f }, { "bridgeBrightness", 0.45f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.05f },
+        { "bodyModeSpread", 0.53f }, { "stringGauge", 0.5f }, { "stringLength", 0.48f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Medieval Court", {
@@ -1128,15 +1149,29 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.45f }, { "bodySize", 0.65f }, { "bodyResonance", 0.6f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.4f }, { "attackNoise", 0.55f },
-        { "stringTension", 0.5f }, { "stringStiffness", 0.18f }, { "bridgeBrightness", 0.5f }
+        { "stringTension", 0.5f }, { "stringStiffness", 0.18f }, { "bridgeBrightness", 0.5f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.38f }, { "sympatheticQ", 0.06f },
+        { "bodyModeSpread", 0.56f }, { "stringGauge", 0.52f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.4f },
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.25f }
     }, {} });
 
     presets.push_back({ "Warm Classical", {
         { "stringMaterial", choiceNorm(0, 8) }, { "brightness", 0.5f }, { "timbre", 0.75f },
-        { "decayTime", 0.5f }, { "bodySize", 0.7f }, { "bodyResonance", 0.7f },
-        { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.45f },
+        { "decayTime", 0.65f }, { "bodySize", 0.78f }, { "bodyResonance", 0.82f },
+        { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.62f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.45f }, { "attackNoise", 0.45f },
-        { "stringTension", 0.55f }, { "stringStiffness", 0.22f }, { "bridgeBrightness", 0.55f }
+        { "stringTension", 0.55f }, { "stringStiffness", 0.22f }, { "bridgeBrightness", 0.55f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.42f }, { "sympatheticQ", 0.06f },
+        { "bodyModeSpread", 0.60f }, { "stringGauge", 0.55f }, { "stringLength", 0.55f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.72f }, { "reverbDamp", 0.38f },
+        { "reverbPredelay", 0.18f }, { "reverbMix", 0.32f }
     }, {} });
 
     presets.push_back({ "Bardic Song", {
@@ -1144,7 +1179,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.38f }, { "bodySize", 0.58f }, { "bodyResonance", 0.68f },
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.42f }, { "fingerHardness", 0.38f }, { "attackNoise", 0.58f },
-        { "stringTension", 0.42f }, { "stringStiffness", 0.16f }, { "bridgeBrightness", 0.42f }
+        { "stringTension", 0.42f }, { "stringStiffness", 0.16f }, { "bridgeBrightness", 0.42f },
+        { "humanize", 0.4f }, { "stringCrosstalk", 0.42f }, { "sympatheticQ", 0.04f },
+        { "bodyModeSpread", 0.57f }, { "stringGauge", 0.52f }, { "stringLength", 0.47f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Nostalgic Whisper", {
@@ -1152,7 +1193,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.55f }, { "bodySize", 0.5f }, { "bodyResonance", 0.55f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.3f },
         { "pluckPosition", 0.35f }, { "fingerHardness", 0.25f }, { "attackNoise", 0.4f },
-        { "stringTension", 0.35f }, { "stringStiffness", 0.12f }, { "bridgeBrightness", 0.35f }
+        { "stringTension", 0.35f }, { "stringStiffness", 0.12f }, { "bridgeBrightness", 0.35f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.03f },
+        { "bodyModeSpread", 0.52f }, { "stringGauge", 0.48f }, { "stringLength", 0.42f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.65f }, { "reverbDamp", 0.55f },
+        { "reverbPredelay", 0.2f }, { "reverbMix", 0.3f }
     }, {} });
 
     // ========================================================================
@@ -1163,7 +1211,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.45f }, { "bodySize", 0.6f }, { "bodyResonance", 0.65f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.4f }, { "attackNoise", 0.35f },
-        { "stringTension", 0.5f }, { "stringStiffness", 0.15f }, { "bridgeBrightness", 0.5f }
+        { "stringTension", 0.5f }, { "stringStiffness", 0.15f }, { "bridgeBrightness", 0.5f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.06f },
+        { "bodyModeSpread", 0.52f }, { "stringGauge", 0.45f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Folk Ballad", {
@@ -1171,7 +1225,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.4f }, { "bodySize", 0.55f }, { "bodyResonance", 0.6f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.45f }, { "attackNoise", 0.4f },
-        { "stringTension", 0.52f }, { "stringStiffness", 0.18f }, { "bridgeBrightness", 0.52f }
+        { "stringTension", 0.52f }, { "stringStiffness", 0.18f }, { "bridgeBrightness", 0.52f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.05f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.48f }, { "stringLength", 0.48f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Gentle Stream", {
@@ -1179,7 +1239,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.55f }, { "bodySize", 0.65f }, { "bodyResonance", 0.7f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.45f }, { "fingerHardness", 0.35f }, { "attackNoise", 0.3f },
-        { "stringTension", 0.45f }, { "stringStiffness", 0.12f }, { "bridgeBrightness", 0.45f }
+        { "stringTension", 0.45f }, { "stringStiffness", 0.12f }, { "bridgeBrightness", 0.45f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.07f },
+        { "bodyModeSpread", 0.53f }, { "stringGauge", 0.44f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.05f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.5f },
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.2f }
     }, {} });
 
     presets.push_back({ "Morning Dew", {
@@ -1187,7 +1254,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.5f }, { "bodySize", 0.58f }, { "bodyResonance", 0.62f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.42f }, { "attackNoise", 0.38f },
-        { "stringTension", 0.48f }, { "stringStiffness", 0.16f }, { "bridgeBrightness", 0.48f }
+        { "stringTension", 0.48f }, { "stringStiffness", 0.16f }, { "bridgeBrightness", 0.48f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.06f },
+        { "bodyModeSpread", 0.51f }, { "stringGauge", 0.46f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Pastoral Scene", {
@@ -1195,7 +1268,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.48f }, { "bodySize", 0.62f }, { "bodyResonance", 0.68f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.52f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.38f }, { "attackNoise", 0.32f },
-        { "stringTension", 0.5f }, { "stringStiffness", 0.14f }, { "bridgeBrightness", 0.5f }
+        { "stringTension", 0.5f }, { "stringStiffness", 0.14f }, { "bridgeBrightness", 0.5f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.33f }, { "sympatheticQ", 0.07f },
+        { "bodyModeSpread", 0.54f }, { "stringGauge", 0.48f }, { "stringLength", 0.53f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.45f }, { "reverbDamp", 0.35f },
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.2f }
     }, {} });
 
     presets.push_back({ "Harmonic Dreams", {
@@ -1204,7 +1284,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.6f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.3f }, { "attackNoise", 0.25f },
         { "stringTension", 0.46f }, { "stringStiffness", 0.1f }, { "bridgeBrightness", 0.46f },
-        { "technique", choiceNorm(1, 4) }  // Harmonic technique
+        { "technique", choiceNorm(1, 4) },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.08f },
+        { "bodyModeSpread", 0.55f }, { "stringGauge", 0.44f }, { "stringLength", 0.55f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.04f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.2f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.5f },
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
     }, {} });
 
     // ========================================================================
@@ -1215,7 +1302,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.5f }, { "bodySize", 0.55f }, { "bodyResonance", 0.6f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.55f }, { "attackNoise", 0.5f },
-        { "stringTension", 0.6f }, { "stringStiffness", 0.25f }, { "bridgeBrightness", 0.6f }
+        { "stringTension", 0.6f }, { "stringStiffness", 0.25f }, { "bridgeBrightness", 0.6f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.1f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.52f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Articulate Pluck", {
@@ -1223,7 +1316,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.35f }, { "bodySize", 0.5f }, { "bodyResonance", 0.55f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.55f },
-        { "stringTension", 0.65f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.65f }
+        { "stringTension", 0.65f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.65f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.12f },
+        { "bodyModeSpread", 0.48f }, { "stringGauge", 0.55f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Concert Grand", {
@@ -1231,7 +1330,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.55f }, { "bodySize", 0.7f }, { "bodyResonance", 0.7f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.5f }, { "attackNoise", 0.45f },
-        { "stringTension", 0.55f }, { "stringStiffness", 0.22f }, { "bridgeBrightness", 0.55f }
+        { "stringTension", 0.55f }, { "stringStiffness", 0.22f }, { "bridgeBrightness", 0.55f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.1f },
+        { "bodyModeSpread", 0.52f }, { "stringGauge", 0.54f }, { "stringLength", 0.56f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.54f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.55f }, { "reverbDamp", 0.4f },
+        { "reverbPredelay", 0.12f }, { "reverbMix", 0.22f }
     }, {} });
 
     presets.push_back({ "Modern Classic", {
@@ -1239,7 +1345,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.48f }, { "bodySize", 0.6f }, { "bodyResonance", 0.65f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.5f }, { "fingerHardness", 0.52f }, { "attackNoise", 0.48f },
-        { "stringTension", 0.58f }, { "stringStiffness", 0.24f }, { "bridgeBrightness", 0.58f }
+        { "stringTension", 0.58f }, { "stringStiffness", 0.24f }, { "bridgeBrightness", 0.58f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.09f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.52f }, { "stringLength", 0.54f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Silver Strings", {
@@ -1247,7 +1359,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.52f }, { "bodySize", 0.52f }, { "bodyResonance", 0.58f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.42f },
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.58f }, { "attackNoise", 0.52f },
-        { "stringTension", 0.62f }, { "stringStiffness", 0.26f }, { "bridgeBrightness", 0.62f }
+        { "stringTension", 0.62f }, { "stringStiffness", 0.26f }, { "bridgeBrightness", 0.62f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.22f }, { "sympatheticQ", 0.11f },
+        { "bodyModeSpread", 0.49f }, { "stringGauge", 0.55f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.06f }, { "chorusDepth", 0.25f }, { "chorusMix", 0.12f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Pedal Technique", {
@@ -1255,7 +1373,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.6f }, { "bodySize", 0.68f }, { "bodyResonance", 0.72f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.58f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.48f }, { "attackNoise", 0.42f },
-        { "stringTension", 0.52f }, { "stringStiffness", 0.2f }, { "bridgeBrightness", 0.52f }
+        { "stringTension", 0.52f }, { "stringStiffness", 0.2f }, { "bridgeBrightness", 0.52f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.09f },
+        { "bodyModeSpread", 0.53f }, { "stringGauge", 0.5f }, { "stringLength", 0.56f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.45f },
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.18f }
     }, {} });
 
     // ========================================================================
@@ -1266,7 +1391,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.45f }, { "bodySize", 0.45f }, { "bodyResonance", 0.5f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.4f },
-        { "stringTension", 0.7f }, { "stringStiffness", 0.3f }, { "bridgeBrightness", 0.7f }
+        { "stringTension", 0.7f }, { "stringStiffness", 0.3f }, { "bridgeBrightness", 0.7f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.15f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.4f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Precision Touch", {
@@ -1274,7 +1405,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.4f }, { "bodySize", 0.48f }, { "bodyResonance", 0.52f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.3f },
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.62f }, { "attackNoise", 0.45f },
-        { "stringTension", 0.68f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.68f }
+        { "stringTension", 0.68f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.68f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.16f },
+        { "bodyModeSpread", 0.49f }, { "stringGauge", 0.42f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Extended Range", {
@@ -1282,7 +1419,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.5f }, { "bodySize", 0.55f }, { "bodyResonance", 0.55f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.42f },
-        { "stringTension", 0.65f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.65f }
+        { "stringTension", 0.65f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.65f },
+        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.13f },
+        { "bodyModeSpread", 0.51f }, { "stringGauge", 0.38f }, { "stringLength", 0.55f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Studio Session", {
@@ -1290,7 +1433,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.42f }, { "bodySize", 0.5f }, { "bodyResonance", 0.55f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.38f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.58f }, { "attackNoise", 0.48f },
-        { "stringTension", 0.62f }, { "stringStiffness", 0.26f }, { "bridgeBrightness", 0.62f }
+        { "stringTension", 0.62f }, { "stringStiffness", 0.26f }, { "bridgeBrightness", 0.62f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.14f }, { "sympatheticQ", 0.14f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.44f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.54f }, { "eqHighGain", 0.56f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Clean Articulation", {
@@ -1298,7 +1447,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.35f }, { "bodySize", 0.42f }, { "bodyResonance", 0.48f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.32f },
         { "pluckPosition", 0.62f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.5f },
-        { "stringTension", 0.72f }, { "stringStiffness", 0.34f }, { "bridgeBrightness", 0.72f }
+        { "stringTension", 0.72f }, { "stringStiffness", 0.34f }, { "bridgeBrightness", 0.72f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.18f },
+        { "bodyModeSpread", 0.48f }, { "stringGauge", 0.4f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Harmonic Purity", {
@@ -1307,7 +1462,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.25f },
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.7f }, { "attackNoise", 0.35f },
         { "stringTension", 0.75f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.75f },
-        { "technique", choiceNorm(1, 4) }  // Harmonic technique
+        { "technique", choiceNorm(1, 4) },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.14f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.38f }, { "stringLength", 0.54f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.4f }, { "reverbDamp", 0.3f },
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.18f }
     }, {} });
 
     // ========================================================================
@@ -1318,7 +1480,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.7f }, { "bodySize", 0.6f }, { "bodyResonance", 0.65f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.55f },
-        { "stringTension", 0.65f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.65f }
+        { "stringTension", 0.65f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.65f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.3f }, { "sympatheticQ", 0.1f },
+        { "bodyModeSpread", 0.52f }, { "stringGauge", 0.55f }, { "stringLength", 0.54f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Bell Tones", {
@@ -1326,7 +1494,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.65f }, { "bodySize", 0.5f }, { "bodyResonance", 0.6f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.6f },
-        { "stringTension", 0.7f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.7f }
+        { "stringTension", 0.7f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.7f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.12f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.58f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.58f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Orchestral Ring", {
@@ -1334,7 +1508,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.6f }, { "bodySize", 0.65f }, { "bodyResonance", 0.7f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.6f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.55f }, { "attackNoise", 0.5f },
-        { "stringTension", 0.6f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.6f }
+        { "stringTension", 0.6f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.6f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.1f },
+        { "bodyModeSpread", 0.53f }, { "stringGauge", 0.55f }, { "stringLength", 0.56f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.4f },
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.22f }
     }, {} });
 
     presets.push_back({ "Shimmering Heights", {
@@ -1342,7 +1523,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.68f }, { "bodySize", 0.45f }, { "bodyResonance", 0.55f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.58f },
-        { "stringTension", 0.72f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.72f }
+        { "stringTension", 0.72f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.72f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.13f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.56f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.04f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Warm Metallic", {
@@ -1350,7 +1537,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.62f }, { "bodySize", 0.68f }, { "bodyResonance", 0.72f },
         { "woodType", choiceNorm(0, 4) }, { "sympatheticAmount", 0.58f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.52f }, { "attackNoise", 0.48f },
-        { "stringTension", 0.58f }, { "stringStiffness", 0.3f }, { "bridgeBrightness", 0.58f }
+        { "stringTension", 0.58f }, { "stringStiffness", 0.3f }, { "bridgeBrightness", 0.58f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.35f }, { "sympatheticQ", 0.09f },
+        { "bodyModeSpread", 0.54f }, { "stringGauge", 0.54f }, { "stringLength", 0.55f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Ethereal Chime", {
@@ -1358,7 +1551,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.75f }, { "bodySize", 0.55f }, { "bodyResonance", 0.62f },
         { "woodType", choiceNorm(1, 4) }, { "sympatheticAmount", 0.65f },
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.62f }, { "attackNoise", 0.52f },
-        { "stringTension", 0.68f }, { "stringStiffness", 0.36f }, { "bridgeBrightness", 0.68f }
+        { "stringTension", 0.68f }, { "stringStiffness", 0.36f }, { "bridgeBrightness", 0.68f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.32f }, { "sympatheticQ", 0.11f },
+        { "bodyModeSpread", 0.55f }, { "stringGauge", 0.55f }, { "stringLength", 0.54f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.03f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.18f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.55f }, { "reverbDamp", 0.45f },
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
     }, {} });
 
     // ========================================================================
@@ -1369,7 +1569,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.55f }, { "bodySize", 0.4f }, { "bodyResonance", 0.5f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.72f }, { "attackNoise", 0.45f },
-        { "stringTension", 0.75f }, { "stringStiffness", 0.42f }, { "bridgeBrightness", 0.75f }
+        { "stringTension", 0.75f }, { "stringStiffness", 0.42f }, { "bridgeBrightness", 0.75f },
+        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.18f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.4f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.45f }, { "reverbDamp", 0.3f },
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.2f }
     }, {} });
 
     presets.push_back({ "Fragile Beauty", {
@@ -1377,7 +1584,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.5f }, { "bodySize", 0.42f }, { "bodyResonance", 0.52f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.38f },
         { "pluckPosition", 0.62f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.4f },
-        { "stringTension", 0.72f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.72f }
+        { "stringTension", 0.72f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.72f },
+        { "humanize", 0.1f }, { "stringCrosstalk", 0.14f }, { "sympatheticQ", 0.16f },
+        { "bodyModeSpread", 0.49f }, { "stringGauge", 0.42f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Ice Palace", {
@@ -1385,7 +1598,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.6f }, { "bodySize", 0.35f }, { "bodyResonance", 0.45f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.7f }, { "fingerHardness", 0.75f }, { "attackNoise", 0.38f },
-        { "stringTension", 0.78f }, { "stringStiffness", 0.45f }, { "bridgeBrightness", 0.78f }
+        { "stringTension", 0.78f }, { "stringStiffness", 0.45f }, { "bridgeBrightness", 0.78f },
+        { "humanize", 0.05f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.2f },
+        { "bodyModeSpread", 0.48f }, { "stringGauge", 0.38f }, { "stringLength", 0.55f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.75f }, { "reverbDamp", 0.25f },
+        { "reverbPredelay", 0.2f }, { "reverbMix", 0.3f }
     }, {} });
 
     presets.push_back({ "Winter Bells", {
@@ -1393,7 +1613,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.58f }, { "bodySize", 0.38f }, { "bodyResonance", 0.48f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.42f },
         { "pluckPosition", 0.68f }, { "fingerHardness", 0.7f }, { "attackNoise", 0.42f },
-        { "stringTension", 0.76f }, { "stringStiffness", 0.43f }, { "bridgeBrightness", 0.76f }
+        { "stringTension", 0.76f }, { "stringStiffness", 0.43f }, { "bridgeBrightness", 0.76f },
+        { "humanize", 0.08f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.18f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.4f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.35f },
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.22f }
     }, {} });
 
     presets.push_back({ "Delicate Touch", {
@@ -1401,7 +1628,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.52f }, { "bodySize", 0.44f }, { "bodyResonance", 0.54f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.36f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.35f },
-        { "stringTension", 0.7f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.7f }
+        { "stringTension", 0.7f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.7f },
+        { "humanize", 0.12f }, { "stringCrosstalk", 0.13f }, { "sympatheticQ", 0.15f },
+        { "bodyModeSpread", 0.51f }, { "stringGauge", 0.44f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Harmonic Prism", {
@@ -1410,7 +1643,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.3f },
         { "pluckPosition", 0.72f }, { "fingerHardness", 0.78f }, { "attackNoise", 0.32f },
         { "stringTension", 0.8f }, { "stringStiffness", 0.48f }, { "bridgeBrightness", 0.8f },
-        { "technique", choiceNorm(1, 4) }  // Harmonic technique
+        { "technique", choiceNorm(1, 4) },
+        { "humanize", 0.06f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.22f },
+        { "bodyModeSpread", 0.48f }, { "stringGauge", 0.38f }, { "stringLength", 0.54f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.05f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     // ========================================================================
@@ -1421,7 +1660,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.7f }, { "bodySize", 0.45f }, { "bodyResonance", 0.55f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.65f }, { "attackNoise", 0.35f },
-        { "stringTension", 0.7f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.7f }
+        { "stringTension", 0.7f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.7f },
+        { "humanize", 0.15f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.12f },
+        { "bodyModeSpread", 0.54f }, { "stringGauge", 0.45f }, { "stringLength", 0.52f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Mystical Glow", {
@@ -1429,7 +1674,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.75f }, { "bodySize", 0.5f }, { "bodyResonance", 0.6f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.6f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.6f }, { "attackNoise", 0.3f },
-        { "stringTension", 0.65f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.65f }
+        { "stringTension", 0.65f }, { "stringStiffness", 0.38f }, { "bridgeBrightness", 0.65f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.13f },
+        { "bodyModeSpread", 0.56f }, { "stringGauge", 0.48f }, { "stringLength", 0.55f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.65f }, { "reverbDamp", 0.5f },
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.28f }
     }, {} });
 
     presets.push_back({ "Sacred Space", {
@@ -1437,7 +1689,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.8f }, { "bodySize", 0.55f }, { "bodyResonance", 0.65f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.65f },
         { "pluckPosition", 0.52f }, { "fingerHardness", 0.55f }, { "attackNoise", 0.28f },
-        { "stringTension", 0.62f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.62f }
+        { "stringTension", 0.62f }, { "stringStiffness", 0.35f }, { "bridgeBrightness", 0.62f },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.22f }, { "sympatheticQ", 0.14f },
+        { "bodyModeSpread", 0.57f }, { "stringGauge", 0.46f }, { "stringLength", 0.56f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.8f }, { "reverbDamp", 0.45f },
+        { "reverbPredelay", 0.25f }, { "reverbMix", 0.35f }
     }, {} });
 
     presets.push_back({ "Singing Bowls", {
@@ -1445,7 +1704,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.85f }, { "bodySize", 0.6f }, { "bodyResonance", 0.7f },
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.7f },
         { "pluckPosition", 0.48f }, { "fingerHardness", 0.5f }, { "attackNoise", 0.25f },
-        { "stringTension", 0.58f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.58f }
+        { "stringTension", 0.58f }, { "stringStiffness", 0.32f }, { "bridgeBrightness", 0.58f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.28f }, { "sympatheticQ", 0.12f },
+        { "bodyModeSpread", 0.55f }, { "stringGauge", 0.5f }, { "stringLength", 0.53f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.02f }, { "chorusDepth", 0.25f }, { "chorusMix", 0.12f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.55f },
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
     }, {} });
 
     presets.push_back({ "Meditation", {
@@ -1453,7 +1719,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.9f }, { "bodySize", 0.65f }, { "bodyResonance", 0.72f },
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.72f },
         { "pluckPosition", 0.45f }, { "fingerHardness", 0.45f }, { "attackNoise", 0.2f },
-        { "stringTension", 0.55f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.55f }
+        { "stringTension", 0.55f }, { "stringStiffness", 0.28f }, { "bridgeBrightness", 0.55f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.25f }, { "sympatheticQ", 0.1f },
+        { "bodyModeSpread", 0.58f }, { "stringGauge", 0.48f }, { "stringLength", 0.58f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.7f }, { "reverbDamp", 0.6f },
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.3f }
     }, {} });
 
     presets.push_back({ "Angelic Choir", {
@@ -1462,7 +1735,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.62f },
         { "pluckPosition", 0.58f }, { "fingerHardness", 0.62f }, { "attackNoise", 0.22f },
         { "stringTension", 0.68f }, { "stringStiffness", 0.36f }, { "bridgeBrightness", 0.68f },
-        { "technique", choiceNorm(1, 4) }  // Harmonic technique
+        { "technique", choiceNorm(1, 4) },
+        { "humanize", 0.2f }, { "stringCrosstalk", 0.2f }, { "sympatheticQ", 0.15f },
+        { "bodyModeSpread", 0.55f }, { "stringGauge", 0.44f }, { "stringLength", 0.55f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.04f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.18f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.65f }, { "reverbDamp", 0.4f },
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.28f }
     }, {} });
 
     // ========================================================================
@@ -1473,7 +1753,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.6f }, { "bodySize", 0.35f }, { "bodyResonance", 0.45f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.35f },
         { "pluckPosition", 0.7f }, { "fingerHardness", 0.8f }, { "attackNoise", 0.6f },
-        { "stringTension", 0.8f }, { "stringStiffness", 0.5f }, { "bridgeBrightness", 0.8f }
+        { "stringTension", 0.8f }, { "stringStiffness", 0.5f }, { "bridgeBrightness", 0.8f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.1f }, { "sympatheticQ", 0.1f },
+        { "bodyModeSpread", 0.48f }, { "stringGauge", 0.4f }, { "stringLength", 0.45f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayTime", 0.08f }, { "delayFeedback", 0.35f }, { "delayMix", 0.2f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Plasma Resonance", {
@@ -1481,7 +1767,14 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.65f }, { "bodySize", 0.3f }, { "bodyResonance", 0.4f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.4f },
         { "pluckPosition", 0.75f }, { "fingerHardness", 0.85f }, { "attackNoise", 0.65f },
-        { "stringTension", 0.85f }, { "stringStiffness", 0.55f }, { "bridgeBrightness", 0.85f }
+        { "stringTension", 0.85f }, { "stringStiffness", 0.55f }, { "bridgeBrightness", 0.85f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.08f }, { "sympatheticQ", 0.12f },
+        { "bodyModeSpread", 0.46f }, { "stringGauge", 0.38f }, { "stringLength", 0.42f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayTime", 0.1f }, { "delayFeedback", 0.4f }, { "delayMix", 0.18f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.4f }, { "reverbDamp", 0.3f },
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.15f }
     }, {} });
 
     presets.push_back({ "Electric Dreams", {
@@ -1489,7 +1782,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.55f }, { "bodySize", 0.4f }, { "bodyResonance", 0.5f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.45f },
         { "pluckPosition", 0.65f }, { "fingerHardness", 0.75f }, { "attackNoise", 0.55f },
-        { "stringTension", 0.75f }, { "stringStiffness", 0.45f }, { "bridgeBrightness", 0.75f }
+        { "stringTension", 0.75f }, { "stringStiffness", 0.45f }, { "bridgeBrightness", 0.75f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.12f }, { "sympatheticQ", 0.09f },
+        { "bodyModeSpread", 0.5f }, { "stringGauge", 0.42f }, { "stringLength", 0.48f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.08f }, { "chorusDepth", 0.4f }, { "chorusMix", 0.2f },
+        { "delayBypass", 0.0f }, { "delayTime", 0.15f }, { "delayFeedback", 0.35f }, { "delayMix", 0.18f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Cosmic Harp", {
@@ -1497,7 +1796,15 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.7f }, { "bodySize", 0.45f }, { "bodyResonance", 0.55f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.55f },
         { "pluckPosition", 0.6f }, { "fingerHardness", 0.7f }, { "attackNoise", 0.5f },
-        { "stringTension", 0.7f }, { "stringStiffness", 0.42f }, { "bridgeBrightness", 0.7f }
+        { "stringTension", 0.7f }, { "stringStiffness", 0.42f }, { "bridgeBrightness", 0.7f },
+        { "humanize", 0.25f }, { "stringCrosstalk", 0.15f }, { "sympatheticQ", 0.1f },
+        { "bodyModeSpread", 0.52f }, { "stringGauge", 0.45f }, { "stringLength", 0.5f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayTime", 0.2f }, { "delayFeedback", 0.4f },
+        { "delayMode", 1.0f }, { "delayMix", 0.2f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.45f },
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
     }, {} });
 
     presets.push_back({ "Neon Glow", {
@@ -1505,7 +1812,13 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.58f }, { "bodySize", 0.32f }, { "bodyResonance", 0.42f },
         { "woodType", choiceNorm(3, 4) }, { "sympatheticAmount", 0.38f },
         { "pluckPosition", 0.72f }, { "fingerHardness", 0.82f }, { "attackNoise", 0.58f },
-        { "stringTension", 0.82f }, { "stringStiffness", 0.52f }, { "bridgeBrightness", 0.82f }
+        { "stringTension", 0.82f }, { "stringStiffness", 0.52f }, { "bridgeBrightness", 0.82f },
+        { "humanize", 0.3f }, { "stringCrosstalk", 0.08f }, { "sympatheticQ", 0.12f },
+        { "bodyModeSpread", 0.47f }, { "stringGauge", 0.38f }, { "stringLength", 0.44f },
+        { "chorusBypass", 0.0f }, { "chorusRate", 0.1f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.18f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
     presets.push_back({ "Future Primitive", {
@@ -1513,13 +1826,21 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "decayTime", 0.62f }, { "bodySize", 0.5f }, { "bodyResonance", 0.58f },
         { "woodType", choiceNorm(2, 4) }, { "sympatheticAmount", 0.5f },
         { "pluckPosition", 0.55f }, { "fingerHardness", 0.68f }, { "attackNoise", 0.52f },
-        { "stringTension", 0.68f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.68f }
+        { "stringTension", 0.68f }, { "stringStiffness", 0.4f }, { "bridgeBrightness", 0.68f },
+        { "humanize", 0.35f }, { "stringCrosstalk", 0.18f }, { "sympatheticQ", 0.08f },
+        { "bodyModeSpread", 0.53f }, { "stringGauge", 0.5f }, { "stringLength", 0.48f },
+        { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
+        { "delayBypass", 0.0f }, { "delayMix", 0.0f },
+        { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
     }, {} });
 
-    // Initialize all presets
+    // Initialize all presets and write version marker
     presetManager.initializeFactoryPresets(presets);
-    DBG("[O-Lyrica] Initialized " + juce::String(presets.size()) + " factory presets");
+    factoryDir.getChildFile(".version").replaceWithText(kFactoryPresetVersion);
+    DBG("[O-Lyrica] Initialized " + juce::String(presets.size()) + " factory presets (v" + kFactoryPresetVersion + ")");
 }
+
 
 // Factory function
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter()

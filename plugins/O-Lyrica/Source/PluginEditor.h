@@ -12,8 +12,15 @@
 #include "PluginProcessor.h"
 #include <JuceHeader.h>
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicenseUI.h"
+#endif
+
 class OLyricaAudioProcessorEditor : public juce::AudioProcessorEditor,
                                           private juce::Timer
+#if OUARICON_LICENSING_ENABLED
+                                        , private OuariconLicense::Listener
+#endif
 {
 public:
     explicit OLyricaAudioProcessorEditor(OLyricaAudioProcessor&);
@@ -216,6 +223,11 @@ private:
     // Uses shared_ptr so async callbacks keep FileChooser alive even if user
     // triggers another dialog before the first one completes
     std::shared_ptr<juce::FileChooser> fileChooser;
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
+    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OLyricaAudioProcessorEditor)
 };
