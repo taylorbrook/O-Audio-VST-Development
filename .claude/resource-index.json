@@ -1,7 +1,7 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-03-07T00:45:32Z",
+  "generated": "2026-03-07T01:41:32Z",
   "documents": [
     {
       "path": "research/2d-scatter-plot-concatenative-synthesis.md",
@@ -88,6 +88,65 @@
         "granular-synthesis",
         "spatial-audio",
         "spherical-harmonics"
+      ]
+    },
+    {
+      "path": "research/bass-synthesis.md",
+      "title": "Bass Synthesis",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "bass-synthesis",
+        "subtractive",
+        "sub-harmonic",
+        "waveshaping",
+        "psychoacoustic-bass",
+        "oscillator",
+        "filter-envelope",
+        "analog-modeling",
+        "juce-dsp"
+      ],
+      "summary": "Complete technical reference for bass synthesis in audio plugins, covering subtractive synthesis for bass, sub-harmonic generation, waveshaping, psychoacoustic bass enhancement, FM bass, and analog bass synth emulation with JUCE implementation.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
+      ]
+    },
+    {
+      "path": "research/chorus-modulation-effects.md",
+      "title": "Chorus & Modulation Effects",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "guide",
+      "keywords": [
+        "chorus",
+        "modulation",
+        "lfo",
+        "flanger",
+        "phaser",
+        "vibrato",
+        "bbd",
+        "ensemble",
+        "delay-modulation",
+        "juce-dsp"
+      ],
+      "summary": "Complete technical reference for chorus and modulation effects in audio plugins, covering LFO-modulated delay, ensemble chorus, dimension-style chorus, BBD emulation, flanger, phaser, and vibrato with JUCE implementation examples.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
@@ -261,6 +320,35 @@
       ]
     },
     {
+      "path": "research/detuning-pitch-thickening.md",
+      "title": "Detuning & Pitch Thickening Algorithms",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "algorithm",
+      "keywords": [
+        "detuning",
+        "pitch-thickening",
+        "unison",
+        "micro-pitch",
+        "stereo-widening",
+        "pitch-shifting",
+        "granular-pitch",
+        "phase-vocoder",
+        "juce-dsp"
+      ],
+      "summary": "Complete technical reference for detuning and pitch thickening effects in audio plugins, covering micro-detuning, unison voice management, stereo widening via detuning, pitch shifting techniques, and JUCE implementation for chorus-like thickening without modulation.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
+      ]
+    },
+    {
       "path": "research/dsp-click-prevention-debugging.md",
       "title": "DSP Click Prevention and Debugging Guide",
       "created": "2026-02-04",
@@ -288,6 +376,36 @@
       "agents": [
         "dsp",
         "build"
+      ]
+    },
+    {
+      "path": "research/dynamics-processing-compression-limiting.md",
+      "title": "Dynamics Processing: Compression & Limiting",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "guide",
+      "keywords": [
+        "compression",
+        "limiting",
+        "dynamics",
+        "multiband",
+        "sidechain",
+        "vca",
+        "fet",
+        "optical",
+        "envelope-follower",
+        "juce-dsp"
+      ],
+      "summary": "Comprehensive technical reference for dynamics processing in audio plugins, covering compressor topologies (VCA, FET, optical, vari-mu), multiband crossover design, sidechain filtering, look-ahead, limiting, and JUCE implementation with real-time safety considerations.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
@@ -357,6 +475,35 @@
         "mfcc",
         "spectral-features",
         "cpp-integration"
+      ]
+    },
+    {
+      "path": "research/freeze-spectral-freeze-effects.md",
+      "title": "Freeze & Spectral Freeze Effects",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "freeze",
+        "spectral-freeze",
+        "phase-vocoder",
+        "buffer-capture",
+        "granular-freeze",
+        "fft",
+        "stft",
+        "sustain",
+        "juce-dsp"
+      ],
+      "summary": "Complete technical reference for audio freeze effects in plugins, covering spectral freeze via FFT phase vocoder, buffer capture and loop, granular freeze, time-domain crossfade freeze, and JUCE implementation with real-time performance considerations.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
@@ -438,6 +585,63 @@
         "ambisonics",
         "plugin-architecture",
         "bus-layout"
+      ]
+    },
+    {
+      "path": "research/licensing-distribution.md",
+      "title": "Licensing & Distribution for Audio Plugins",
+      "created": "2026-03-07",
+      "domain": "architecture",
+      "type": "research",
+      "keywords": [
+        "licensing",
+        "copy-protection",
+        "activation",
+        "distribution",
+        "plugin-deployment",
+        "drm",
+        "trial-management",
+        "serial-number",
+        "online-activation"
+      ],
+      "summary": "Complete reference for plugin licensing systems, copy protection approaches, online activation, trial management, and distribution strategies for commercial audio plugin deployment across VST3, AU, and AAX formats.",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "build",
+        "research"
+      ]
+    },
+    {
+      "path": "research/mallet-percussion-physical-modeling.md",
+      "title": "Mallet Percussion Physical Modeling",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "physical-modeling",
+        "mallet-percussion",
+        "marimba",
+        "xylophone",
+        "modal-synthesis",
+        "bar-vibration",
+        "resonator",
+        "impulse-response",
+        "juce-dsp"
+      ],
+      "summary": "Complete technical reference for mallet percussion physical modeling in audio plugins, covering bar vibration modes, marimba and xylophone modal characteristics, resonator tube modeling, mallet-bar interaction, and JUCE implementation for real-time synthesis.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
@@ -687,6 +891,36 @@
         "audio-features",
         "o-texture",
         "dimensionality-reduction"
+      ]
+    },
+    {
+      "path": "research/parametric-eq-filter-design.md",
+      "title": "Parametric EQ & Filter Design",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "guide",
+      "keywords": [
+        "parametric-eq",
+        "biquad",
+        "filter-design",
+        "butterworth",
+        "chebyshev",
+        "bilinear-transform",
+        "frequency-warping",
+        "analog-modeling",
+        "juce-dsp",
+        "iir-filter"
+      ],
+      "summary": "Complete technical reference for parametric equalizer and digital filter design in audio plugins, covering biquad cascades, analog prototype design (Butterworth, Chebyshev, Bessel), bilinear transform frequency warping, cramping compensation, matched analog response techniques, and JUCE implementation.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
@@ -1077,6 +1311,35 @@
       ]
     },
     {
+      "path": "research/tremolo-amplitude-modulation.md",
+      "title": "Tremolo & Amplitude Modulation",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "guide",
+      "keywords": [
+        "tremolo",
+        "amplitude-modulation",
+        "ring-modulation",
+        "auto-pan",
+        "lfo",
+        "bias-tremolo",
+        "optical-tremolo",
+        "harmonic-tremolo",
+        "juce-dsp"
+      ],
+      "summary": "Complete technical reference for tremolo and amplitude modulation effects in audio plugins, covering bias tremolo, optical tremolo, harmonic tremolo, ring modulation, auto-pan, and analog circuit emulation with JUCE implementation.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
+      ]
+    },
+    {
       "path": "research/umap-dimensionality-reduction-audio-plugins.md",
       "title": "UMAP Dimensionality Reduction for Audio Plugin Visualization",
       "created": "2026-02-08",
@@ -1089,6 +1352,34 @@
         "audio-features",
         "pca",
         "t-sne"
+      ]
+    },
+    {
+      "path": "research/vocal-formant-synthesis.md",
+      "title": "Vocal & Formant Synthesis",
+      "created": "2026-03-07",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "formant-synthesis",
+        "vocal-modeling",
+        "singing-synthesis",
+        "source-filter",
+        "phoneme",
+        "vowel-synthesis",
+        "resonance",
+        "juce-dsp"
+      ],
+      "summary": "Complete technical reference for vocal and formant synthesis in audio plugins, covering formant filter banks, vowel modeling, source-filter decomposition, phoneme-based synthesis, singing synthesis, and JUCE implementation with real-time performance considerations.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
