@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: System Hygiene & Quality Gates
-status: unknown
-last_updated: "2026-03-07T03:51:55.697Z"
+status: complete
+last_updated: "2026-03-07T06:15:27Z"
 progress:
-  total_phases: 21
-  completed_phases: 21
-  total_plans: 62
-  completed_plans: 62
+  total_phases: 22
+  completed_phases: 22
+  total_plans: 64
+  completed_plans: 64
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-Phase: 21 (Skill & Infrastructure Consolidation) -- COMPLETE (fourth of 5 in v1.4)
-Plan: 03 of 03 complete (all plans done)
+Phase: 22 (Structural Improvements) -- COMPLETE (fifth of 5 in v1.4)
+Plan: 02 of 02 complete (all plans done)
 Status: Complete
-Last activity: 2026-03-07 -- 21-02 complete (agent memory seed patterns)
+Last activity: 2026-03-07 -- 22-02 complete (agent memory write-back hook)
 
-Progress: [########░░] 80% (v1.4: 4/5 phases complete, Phase 21: 3/3 plans)
+Progress: [##########] 100% (v1.4: 5/5 phases complete, Phase 22: 2/2 plans)
 
 ## Performance Metrics
 
@@ -60,6 +60,8 @@ Progress: [########░░] 80% (v1.4: 4/5 phases complete, Phase 21: 3/3 plans)
 | 21 | 01 | 2min | 2 | 8 |
 | 21 | 02 | 2min | 2 | 4 |
 | 21 | 03 | 1min | 1 | 76 |
+| 22 | 01 | 2min | 2 | 9 |
+| 22 | 02 | 2min | 2 | 2 |
 
 ## Accumulated Context
 
@@ -95,6 +97,12 @@ Milestone-specific decisions archived in `.planning/milestones/`.
 - 21-02: Included high-impact one-off discoveries (canvas gotcha, WebView2 static linking) alongside multi-plugin confirmed patterns
 - 21-02: Used research-planning-agent.md as gold standard format for all 4 agent memory files
 - 21-02: Set Last Updated to 2026-03-07 with "(seed patterns from Phase 21)" context tag
+- 22-01: Historical planning docs not updated to change canary-test.sh references -- would falsify historical record
+- 22-01: Validation caching section replaced with "runs fresh each time" note rather than silently removed
+- 22-02: Write-back hook runs after existing SubagentStop contract validation (independent, order doesn't matter)
+- 22-02: 10-second timeout for write-back (longer than 3s inject hook due to potential transcript file reads)
+- 22-02: 10KB file cap prevents unbounded memory growth -- manual curation expected beyond that size
+- 22-02: Key-phrase deduplication avoids re-appending known patterns to memory files
 
 ### Pending Todos
 
@@ -121,10 +129,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 21-02-PLAN.md (agent memory seed patterns)
+Stopped at: Completed 22-02-PLAN.md (agent memory write-back hook)
 Resume file: None
 
-Next: Phase 22 (Structural Improvements) -- agent memory write-back, validation cache, canary-test cleanup
+Next: v1.4 milestone complete -- all 5 phases done (18-22)
 
 ---
 *v1.3 System Modernization archived. 4 milestones shipped (v1.0-v1.3), 17 phases, 51 plans, 85+ requirements.*

@@ -59,7 +59,7 @@
 - [x] **Phase 19: Quality Gate Activation** - Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json (completed 2026-03-06)
 - [x] **Phase 20: Research Governance & Review** - Regenerate resource index, standardize frontmatter across all research docs, audit for coverage gaps, fill gaps, and flag stale content (completed 2026-03-07)
 - [x] **Phase 21: Skill & Infrastructure Consolidation** - Merge plugin-phases into plugin-workflow, update references, clean up agent memory placeholders, relocate docs-only files, exclude dev artifacts (completed 2026-03-07)
-- [ ] **Phase 22: Structural Improvements** - Build agent memory write-back mechanism, resolve validation cache (activate or remove), verify and clean up canary-test.sh
+- [x] **Phase 22: Structural Improvements** - Build agent memory write-back mechanism, resolve validation cache (activate or remove), verify and clean up canary-test.sh (completed 2026-03-07)
 
 ## Phase Details
 
@@ -132,7 +132,7 @@ Plans:
   1. A post-agent hook or equivalent mechanism exists that extracts key learnings from agent sessions and writes them to agent memory files
   2. The validation cache system is either activated (caching validation results to avoid redundant checks) or fully removed (validation-cache.md, validation-cache.sh, empty cache file all deleted)
   3. `canary-test.sh` is verified against `canary-test.py` -- if duplicate functionality, the .sh version is deleted; if unique, it is documented
-**Plans:** 2 plans
+**Plans:** 2/2 plans complete
 Plans:
 - [ ] 22-01-PLAN.md -- Delete validation cache infrastructure and duplicate canary-test.sh
 - [ ] 22-02-PLAN.md -- Build agent memory write-back hook for SubagentStop
@@ -151,7 +151,7 @@ Plans:
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
 | 20. Research Governance & Review | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
 | 21. Skill & Infrastructure Consolidation | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
-| 22. Structural Improvements | v1.4 | 0/2 | Not started | - |
+| 22. Structural Improvements | 2/2 | Complete   | 2026-03-07 | - |
 
 **Total: 21 phases complete, 62 plans complete, 4 milestones shipped. v1.4: 4/5 phases complete (23 requirements).**
 

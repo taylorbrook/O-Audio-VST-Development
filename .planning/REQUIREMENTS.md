@@ -48,9 +48,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Structural Improvements
 
-- [ ] **STRC-01**: Agent memory write-back mechanism exists (post-agent hook or equivalent that records learnings)
-- [ ] **STRC-02**: Validation cache system is either activated or dead infrastructure removed
-- [ ] **STRC-03**: `canary-test.sh` dead code is verified and removed if duplicate of `.py` version
+- [x] **STRC-01**: Agent memory write-back mechanism exists (post-agent hook or equivalent that records learnings)
+- [x] **STRC-02**: Validation cache system is either activated or dead infrastructure removed
+- [x] **STRC-03**: `canary-test.sh` dead code is verified and removed if duplicate of `.py` version
 
 ## Future Requirements
 
@@ -107,9 +107,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFR-02 | Phase 21 | Complete |
 | INFR-03 | Phase 21 | Complete |
 | INFR-04 | Phase 21 | Complete |
-| STRC-01 | Phase 22 | Pending |
-| STRC-02 | Phase 22 | Pending |
-| STRC-03 | Phase 22 | Pending |
+| STRC-01 | Phase 22 | Complete |
+| STRC-02 | Phase 22 | Complete |
+| STRC-03 | Phase 22 | Complete |
 
 **Coverage:**
 - v1.4 requirements: 23 total
