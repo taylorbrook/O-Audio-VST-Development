@@ -2,11 +2,10 @@
 
 ## Contract Verification
 
-Before starting Stage 1, verify all required planning documents exist and check cache:
+Before starting Stage 1, verify all required planning documents exist:
 
 ```bash
-# Source cache utilities
-source .claude/utils/validation-cache.sh
+# No caching -- run checks fresh each time
 
 # Define contract files
 CONTRACT_FILES=(
@@ -16,30 +15,21 @@ CONTRACT_FILES=(
     "plugins/$PLUGIN_NAME/.planning/parameter-spec.md"
 )
 
-# Check if contract verification is cached
-if is_cached "contract-checksums" "$PLUGIN_NAME" "${CONTRACT_FILES[@]}"; then
-    echo "✓ Contract integrity verified (cached)"
-    # Skip re-verification
-else
-    # Verify all contracts exist
-    MISSING_FILES=()
-    for file in "${CONTRACT_FILES[@]}"; do
-        if [ ! -f "$file" ]; then
-            MISSING_FILES+=("$file")
-        fi
-    done
-
-    if [ ${#MISSING_FILES[@]} -gt 0 ]; then
-        echo "❌ Missing required contracts:"
-        printf '%s\n' "${MISSING_FILES[@]}"
-        exit 1
+# Verify all contracts exist
+MISSING_FILES=()
+for file in "${CONTRACT_FILES[@]}"; do
+    if [ ! -f "$file" ]; then
+        MISSING_FILES+=("$file")
     fi
+done
 
-    # All contracts exist - cache the verification
-    RESULT_JSON='{"status":"success","verified":true}'
-    cache_result "contract-checksums" "$PLUGIN_NAME" 24 "$RESULT_JSON" "${CONTRACT_FILES[@]}"
-    echo "✓ Contract integrity verified and cached"
+if [ ${#MISSING_FILES[@]} -gt 0 ]; then
+    echo "Missing required contracts:"
+    printf '%s\n' "${MISSING_FILES[@]}"
+    exit 1
 fi
+
+echo "Contract integrity verified"
 ```
 
 ## Status Verification

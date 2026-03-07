@@ -29,12 +29,6 @@ def main():
     print("=== Plugin Freedom System - Environment Validation ===")
     print()
 
-    # Clean expired cache entries
-    cache_file = Path(".claude") / "utils" / "validation-cache.sh"
-    if cache_file.is_file():
-        # Cache cleaning is bash-specific; skip in Python port
-        pass
-
     # ---- CRITICAL: Python 3 (required for validators) ----
     python_cmd = "python3"
     if sys.platform == "win32":
