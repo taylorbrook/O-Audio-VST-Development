@@ -1,7 +1,7 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-03-07T00:39:23Z",
+  "generated": "2026-03-07T00:45:32Z",
   "documents": [
     {
       "path": "research/2d-scatter-plot-concatenative-synthesis.md",
@@ -159,6 +159,21 @@
         "plugin-briefs",
         "product-planning",
         "corpus-exploration"
+      ]
+    },
+    {
+      "path": "research/coverage-audit.md",
+      "title": "Research Coverage Audit",
+      "created": "2026-03-07",
+      "domain": "tooling",
+      "type": "research",
+      "keywords": [
+        "coverage-audit",
+        "research-governance",
+        "gap-analysis",
+        "staleness-detection",
+        "domain-coverage",
+        "living-reference"
       ]
     },
     {

@@ -17,6 +17,8 @@ keywords:
   - artifact-prevention
 stages: [1, 2, 3]
 agents: [dsp]
+status: stale
+stale_reason: "References deprecated API: getLatencySamples() override (non-virtual in JUCE 8)"
 ---
 
 # FFT Processing Best Practices in JUCE

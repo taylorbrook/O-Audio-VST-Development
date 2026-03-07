@@ -18,6 +18,8 @@ keywords:
   - juce-dsp
 stages: [0, 1, 2]
 agents: [dsp, research]
+status: stale
+stale_reason: "References deprecated API: getLatencySamples() const override (non-virtual in JUCE 8)"
 ---
 
 # Delay Effects - Comprehensive Implementation Guide

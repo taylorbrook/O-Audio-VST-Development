@@ -16,6 +16,8 @@ keywords:
   - transient-smearing
 stages: [2, 3]
 agents: [dsp]
+status: stale
+stale_reason: "References deprecated API: getLatencySamples() const override (non-virtual in JUCE 8)"
 ---
 
 # FFT Audio Artifact Prevention Guide
