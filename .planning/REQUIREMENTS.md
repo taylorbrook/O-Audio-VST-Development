@@ -41,7 +41,7 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Infrastructure Cleanup
 
-- [ ] **INFR-01**: Empty agent memory placeholder files are either populated with seed patterns or removed
+- [x] **INFR-01**: Empty agent memory placeholder files are either populated with seed patterns or removed
 - [x] **INFR-02**: `agent-profiles.json` (no runtime effect) is moved out of `.claude/` root or documented inline
 - [x] **INFR-03**: `preferences-README.md` (453 lines) is relocated from `.claude/` root
 - [x] **INFR-04**: Aesthetic test-preview HTML files are excluded from the repo or relocated
@@ -103,7 +103,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RSCH-03 | Phase 20 | Complete |
 | SKIL-01 | Phase 21 | Complete |
 | SKIL-02 | Phase 21 | Complete |
-| INFR-01 | Phase 21 | Pending |
+| INFR-01 | Phase 21 | Complete |
 | INFR-02 | Phase 21 | Complete |
 | INFR-03 | Phase 21 | Complete |
 | INFR-04 | Phase 21 | Complete |

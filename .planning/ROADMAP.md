@@ -58,7 +58,7 @@
 - [x] **Phase 18: Dead Code Removal** - Delete all dead .sh hooks, vestigial hooks.json, unreferenced agents, deprecated registry, and add __pycache__ to gitignore (completed 2026-03-06)
 - [x] **Phase 19: Quality Gate Activation** - Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json (completed 2026-03-06)
 - [x] **Phase 20: Research Governance & Review** - Regenerate resource index, standardize frontmatter across all research docs, audit for coverage gaps, fill gaps, and flag stale content (completed 2026-03-07)
-- [ ] **Phase 21: Skill & Infrastructure Consolidation** - Merge plugin-phases into plugin-workflow, update references, clean up agent memory placeholders, relocate docs-only files, exclude dev artifacts
+- [x] **Phase 21: Skill & Infrastructure Consolidation** - Merge plugin-phases into plugin-workflow, update references, clean up agent memory placeholders, relocate docs-only files, exclude dev artifacts (completed 2026-03-07)
 - [ ] **Phase 22: Structural Improvements** - Build agent memory write-back mechanism, resolve validation cache (activate or remove), verify and clean up canary-test.sh
 
 ## Phase Details
@@ -118,10 +118,10 @@ Plans:
   3. Agent memory files either contain meaningful seed patterns or do not exist (no empty "No patterns recorded yet" placeholders)
   4. `agent-profiles.json` and `preferences-README.md` are relocated out of `.claude/` root (moved to a documentation location or inlined where needed)
   5. Aesthetic test-preview HTML files are excluded from the repo via `.gitignore` or relocated to a dev-only location
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
-- [ ] 21-01-PLAN.md -- Merge plugin-phases into plugin-workflow SKILL.md, update all command and skill references
-- [ ] 21-02-PLAN.md -- Populate 4 empty agent memory files with seed patterns, user approval gate
+- [x] 21-01-PLAN.md -- Merge plugin-phases into plugin-workflow SKILL.md, update all command and skill references
+- [x] 21-02-PLAN.md -- Populate 4 empty agent memory files with seed patterns, user approval gate
 - [x] 21-03-PLAN.md -- Relocate doc files to .claude/references/, remove ui-test.html from git tracking
 
 ### Phase 22: Structural Improvements
@@ -147,11 +147,11 @@ Plans:
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
 | 20. Research Governance & Review | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
-| 21. Skill & Infrastructure Consolidation | 2/3 | In Progress|  | - |
+| 21. Skill & Infrastructure Consolidation | 3/3 | Complete | 2026-03-07 | 2026-03-07 |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
-**Total: 20 phases complete, 60 plans complete, 4 milestones shipped. v1.4: 3/5 phases complete (23 requirements).**
+**Total: 21 phases complete, 62 plans complete, 4 milestones shipped. v1.4: 4/5 phases complete (23 requirements).**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-03-07 -- Phase 21 planned (3 plans)*
+*Last updated: 2026-03-07 -- Phase 21 complete (3/3 plans)*

@@ -5,10 +5,10 @@ milestone_name: System Hygiene & Quality Gates
 status: in-progress
 last_updated: "2026-03-07T03:16:00.000Z"
 progress:
-  total_phases: 20
-  completed_phases: 20
+  total_phases: 21
+  completed_phases: 21
   total_plans: 62
-  completed_plans: 61
+  completed_plans: 62
 ---
 
 # Project State
@@ -18,16 +18,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-03-05)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
-**Current focus:** v1.4 System Hygiene & Quality Gates -- Phase 21: Skill & Infrastructure Consolidation
+**Current focus:** v1.4 System Hygiene & Quality Gates -- Phase 22: Structural Improvements
 
 ## Current Position
 
-Phase: 21 (Skill & Infrastructure Consolidation) -- IN PROGRESS (fourth of 5 in v1.4)
-Plan: 02 of 03 complete (21-01 and 21-03 done, 21-02 pending)
-Status: In Progress
-Last activity: 2026-03-07 -- 21-01 complete (merge plugin-phases into plugin-workflow)
+Phase: 21 (Skill & Infrastructure Consolidation) -- COMPLETE (fourth of 5 in v1.4)
+Plan: 03 of 03 complete (all plans done)
+Status: Complete
+Last activity: 2026-03-07 -- 21-02 complete (agent memory seed patterns)
 
-Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 21: 2/3 plans)
+Progress: [########░░] 80% (v1.4: 4/5 phases complete, Phase 21: 3/3 plans)
 
 ## Performance Metrics
 
@@ -58,6 +58,7 @@ Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 21: 2/3 pla
 | 20 | 02 | 1min | 2 | 6 |
 | 20 | 03 | 20min | 2 | 12 |
 | 21 | 01 | 2min | 2 | 8 |
+| 21 | 02 | 2min | 2 | 4 |
 | 21 | 03 | 1min | 1 | 76 |
 
 ## Accumulated Context
@@ -91,6 +92,9 @@ Milestone-specific decisions archived in `.planning/milestones/`.
 - 21-01: Added Stage 0 (plugin-ideation) to execute agents list -- present in plugin-phases but missing from plugin-workflow
 - 21-03: Scoped gitignore to *ui-test.html specifically, not broader HTML patterns
 - 21-03: Used git rm --cached to untrack 73 ui-test.html files without deleting from disk
+- 21-02: Included high-impact one-off discoveries (canvas gotcha, WebView2 static linking) alongside multi-plugin confirmed patterns
+- 21-02: Used research-planning-agent.md as gold standard format for all 4 agent memory files
+- 21-02: Set Last Updated to 2026-03-07 with "(seed patterns from Phase 21)" context tag
 
 ### Pending Todos
 
@@ -117,10 +121,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 21-01-PLAN.md (merge plugin-phases into plugin-workflow)
+Stopped at: Completed 21-02-PLAN.md (agent memory seed patterns)
 Resume file: None
 
-Next: 21-02-PLAN.md (agent memory seed patterns)
+Next: Phase 22 (Structural Improvements) -- agent memory write-back, validation cache, canary-test cleanup
 
 ---
 *v1.3 System Modernization archived. 4 milestones shipped (v1.0-v1.3), 17 phases, 51 plans, 85+ requirements.*
