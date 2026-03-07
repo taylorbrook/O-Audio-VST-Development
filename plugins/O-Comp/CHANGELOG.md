@@ -2,6 +2,12 @@
 
 All notable changes to this plugin will be documented in this file.
 
+## [1.4.3] - 2026-03-06
+
+### Fixed
+
+- Fixed auto-gain overcompensation making output significantly louder than input - applied 50% scaling factor to theoretical makeup gain formula (industry standard approach)
+
 ## [1.4.2] - 2026-02-13
 
 ### Fixed

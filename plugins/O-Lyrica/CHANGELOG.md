@@ -2,6 +2,39 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.0.1] - 2026-03-06
+
+### Fixed
+
+- **"Warm Classical" preset too dry** — retuned resonance and reverb parameters for acoustic concert harp character
+  - Increased `bodyResonance` (0.7→0.82), `bodySize` (0.7→0.78), `sympatheticAmount` (0.45→0.62) for fuller body and ringing
+  - Increased `decayTime` (0.5→0.65), `stringCrosstalk` (0.35→0.42), `bodyModeSpread` (0.54→0.60) for longer sustain and coupling
+  - Increased `reverbSize` (0.55→0.72), `reverbMix` (0.2→0.32), `reverbPredelay` (0.1→0.18) for concert hall ambience
+  - Reduced `reverbDamp` (0.45→0.38) for longer, more open reverb tail
+  - Bumped factory preset version to force regeneration on next load
+
+## [2.0.0] - 2026-03-06
+
+### Changed
+
+- **Complete factory preset overhaul** — All 48 presets updated with 6 new sound parameters and effects
+  - Added `humanize` (per-note variation): Gut strings 0.2-0.4, Carbon 0.05-0.1, Crystal 0.15-0.25, Energy 0.25-0.35 — values match each material's organic vs precise character
+  - Added `stringCrosstalk` (soundboard coupling): Gut 0.3-0.42, Wire 0.2-0.32, Glass 0.1-0.15, Energy 0.08-0.18 — acoustic materials couple more than synthetic
+  - Added `sympatheticQ` (resonance sharpness): differentiated per material — warm materials get broader resonance, crystalline materials get sharper
+  - Added `bodyModeSpread` (body mode coloring): historical/mystical presets get wider spread, precise/clean presets stay neutral
+  - Added `stringGauge` and `stringLength`: varied per material and instrument size character
+  - ~20 presets now include effects (reverb, chorus, delay, EQ) matched to their character:
+    - Sacred Space/Ice Palace/Meditation: large reverb for atmospheric depth
+    - Gentle Stream/Harmonic Dreams/Angelic Choir: chorus + reverb for shimmer
+    - Cosmic Harp: ping-pong delay + reverb for space
+    - Electric Dreams: chorus + delay for synthwave character
+    - Studio Session/Bell Tones: subtle EQ for presence
+  - All presets reset effect state on load (bypass flags + mix values) for clean preset switching
+
+### Added
+
+- **Factory preset version check** — Presets now use a `.version` marker file instead of directory-exists check. When the embedded version string changes, old factory presets are regenerated automatically. Existing user presets in the `User/` directory are never touched.
+
 ## [1.35.1] - 2026-03-06
 
 ### Fixed

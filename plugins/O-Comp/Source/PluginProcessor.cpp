@@ -226,7 +226,7 @@ void OCompAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     float autoGainDB = 0.0f;
     if (autoGainEnabled)
     {
-        autoGainDB = -thresholdDB * (1.0f - 1.0f / ratio);
+        autoGainDB = -thresholdDB * (1.0f - 1.0f / ratio) * 0.5f;
     }
     float totalGainDB = autoGainDB + outputGainDB;
     float makeupGainLinear = juce::Decibels::decibelsToGain(totalGainDB);
