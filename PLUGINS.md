@@ -41,7 +41,7 @@ Ouaricon Plugins:
 | O-IntonationPad | 📦 Installed | 2.4.2 | Synth (Wavetable Pad) | 2026-03-06 |
 | O-Detune | 📦 Installed | 1.5.2 | Audio Effect (Detuning) | 2026-02-18 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
-| O-FreqPulse | 📦 Installed | 1.16.1 | Audio Effect (Spectral Sequencer) | 2026-03-06 |
+| O-FreqPulse | 📦 Installed | 1.16.2 | Audio Effect (Spectral Sequencer) | 2026-03-06 |
 | O-SpectralShaper | 📦 Installed | 1.1.0 | Audio Effect (Spectral Transient Shaper) | 2026-02-07 |
 | O-GrainScatter | 📦 Installed | 2.0.1 | Audio Effect (Granular Stutter Engine) | 2026-02-09 |
 | O-Chorus | 📦 Installed | 1.2.1 | Audio Effect (Chorus) | 2026-02-25 |

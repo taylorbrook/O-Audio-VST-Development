@@ -2,6 +2,12 @@
 
 All notable changes to O-FreqPulse will be documented in this file.
 
+## [1.16.2] - 2026-03-06
+
+### Added
+
+- **Licensing module integration** - Compile-flag gated (`OUARICON_LICENSING`), off by default for local development. Adds license overlay, listener callbacks, and CMake wiring for commercial distribution.
+
 ## [1.16.0] - 2026-03-06
 
 ### Added
