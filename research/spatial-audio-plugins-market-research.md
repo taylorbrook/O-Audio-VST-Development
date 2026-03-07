@@ -1,3 +1,15 @@
+---
+title: "Spatial Audio Plugins & Libraries: Market Research"
+created: 2026-02-08
+domain: market-research
+type: market-research
+keywords:
+  - spatial-audio
+  - market-research
+  - competitive-analysis
+  - ambisonics-plugins
+  - binaural
+---
 # Spatial Audio Plugins & Libraries: Market Research
 
 > Research date: February 2026

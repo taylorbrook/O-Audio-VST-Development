@@ -1,3 +1,16 @@
+---
+title: "Sound Spatialization Algorithms for Audio Plugin Development"
+created: 2026-02-08
+domain: spatial-audio
+type: research
+keywords:
+  - spatialization
+  - vbap
+  - ambisonics
+  - binaural
+  - hrtf
+  - panning-algorithms
+---
 # Sound Spatialization Algorithms for Audio Plugin Development
 
 **Research Date:** 2026-02-07

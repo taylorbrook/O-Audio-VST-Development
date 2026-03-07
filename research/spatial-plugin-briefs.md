@@ -1,3 +1,15 @@
+---
+title: "Spatial Audio Plugin & Application Briefs"
+created: 2026-02-08
+domain: market-research
+type: market-research
+keywords:
+  - spatial-audio
+  - plugin-briefs
+  - product-planning
+  - ambisonics
+  - binaural
+---
 # Spatial Audio Plugin & Application Briefs
 
 > Based on research: `sound-spatialization-algorithms.md`, `spatial-audio-plugins-market-research.md`

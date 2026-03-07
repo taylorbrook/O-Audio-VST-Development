@@ -1,3 +1,16 @@
+---
+title: "FluCoMa C++ Library Integration Research for Concatenative Synthesis"
+created: 2026-02-08
+domain: tooling
+type: guide
+keywords:
+  - flucoma
+  - concatenative-synthesis
+  - audio-analysis
+  - mfcc
+  - spectral-features
+  - cpp-integration
+---
 # FluCoMa C++ Library Integration Research for Concatenative Synthesis
 
 ## Research Date: 2026-02-07

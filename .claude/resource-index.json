@@ -1,17 +1,46 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-02-06T21:44:39Z",
+  "generated": "2026-03-07T00:39:23Z",
   "documents": [
+    {
+      "path": "research/2d-scatter-plot-concatenative-synthesis.md",
+      "title": "2D Scatter Plot Visualization for Concatenative Synthesis",
+      "created": "2026-02-07",
+      "domain": "ui",
+      "type": "research",
+      "keywords": [
+        "scatter-plot",
+        "concatenative-synthesis",
+        "webgl",
+        "webview",
+        "umap",
+        "pca",
+        "corpus-exploration",
+        "catart",
+        "flucoma",
+        "regl-scatterplot",
+        "real-time-visualization",
+        "juce"
+      ],
+      "summary": "Deep research on building a real-time 2D scatter plot in a WebView-based JUCE plugin for concatenative synthesis corpus exploration, including CataRT/FluCoMa analysis, rendering technology comparison, JUCE-WebView communication patterns, dimensionality reduction, and differentiation analysis.",
+      "last_verified": "2026-02-07",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1
+      ],
+      "agents": [
+        "research",
+        "ui"
+      ]
+    },
     {
       "path": "research/O-Detune-market-research.md",
       "title": "O-Detune Market Research",
       "created": "2026-02-01",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Competitive landscape analysis of detuning and pitch thickening plugins, covering Soundtoys MicroShift, Eventide MicroPitch, and identifying market gaps for analog-style wobble with unison detuning.",
-      "domain": "workflow",
-      "type": "reference",
+      "domain": "market-research",
+      "type": "market-research",
       "keywords": [
         "market-research",
         "detuning",
@@ -21,6 +50,9 @@
         "stereo-widening",
         "chorus"
       ],
+      "summary": "Competitive landscape analysis of detuning and pitch thickening plugins, covering Soundtoys MicroShift, Eventide MicroPitch, and identifying market gaps for analog-style wobble with unison detuning.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0
       ],
@@ -29,12 +61,39 @@
       ]
     },
     {
+      "path": "research/ambisonics-binaural-decoding-deep-dive.md",
+      "title": "Ambisonics-to-Binaural Decoding: Complete Technical Deep Dive",
+      "created": "2026-02-08",
+      "domain": "spatial-audio",
+      "type": "research",
+      "keywords": [
+        "ambisonics",
+        "binaural",
+        "hrtf",
+        "decoding",
+        "spatial-audio",
+        "hoa"
+      ]
+    },
+    {
+      "path": "research/ambisonics-encoding-deep-dive.md",
+      "title": "Ambisonics Encoding Deep-Dive: Full HOA3 Pipeline for Per-Grain Spatial Granular Synthesis",
+      "created": "2026-02-08",
+      "domain": "spatial-audio",
+      "type": "research",
+      "keywords": [
+        "ambisonics",
+        "hoa",
+        "encoding",
+        "granular-synthesis",
+        "spatial-audio",
+        "spherical-harmonics"
+      ]
+    },
+    {
       "path": "research/circuit-modeling-fundamentals.md",
       "title": "Circuit Modeling Fundamentals for Analog Audio Effects",
       "created": "2026-01-09",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Research report covering primary techniques for digitally recreating analog audio circuits, including Wave Digital Filters, nodal analysis, distortion/saturation modeling, tape saturation, transformer modeling, and compressor/limiter emulation with C++ implementations.",
       "domain": "dsp",
       "type": "algorithm",
       "keywords": [
@@ -49,6 +108,9 @@
         "waveshaping",
         "newton-raphson"
       ],
+      "summary": "Research report covering primary techniques for digitally recreating analog audio circuits, including Wave Digital Filters, nodal analysis, distortion/saturation modeling, tape saturation, transformer modeling, and compressor/limiter emulation with C++ implementations.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -59,12 +121,50 @@
       ]
     },
     {
+      "path": "research/concatenative-synthesis-comprehensive.md",
+      "title": "Concatenative Synthesis: Comprehensive Technical Reference",
+      "created": "2026-02-08",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "concatenative-synthesis",
+        "corpus-based",
+        "audio-analysis",
+        "feature-extraction",
+        "granular"
+      ]
+    },
+    {
+      "path": "research/concatenative-synthesis-market-research.md",
+      "title": "Concatenative Synthesis: Market Research & Feature Analysis",
+      "created": "2026-02-08",
+      "domain": "market-research",
+      "type": "market-research",
+      "keywords": [
+        "concatenative-synthesis",
+        "market-research",
+        "competitive-analysis",
+        "catart",
+        "flucoma"
+      ]
+    },
+    {
+      "path": "research/concatenative-synthesis-plugin-briefs.md",
+      "title": "Concatenative Synthesis Plugin Concepts",
+      "created": "2026-02-08",
+      "domain": "market-research",
+      "type": "market-research",
+      "keywords": [
+        "concatenative-synthesis",
+        "plugin-briefs",
+        "product-planning",
+        "corpus-exploration"
+      ]
+    },
+    {
       "path": "research/cross-platform-webview-best-practices.md",
       "title": "Cross-Platform WebView UI for JUCE Plugins: Best Practices Guide",
       "created": "2026-02-05",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Best practices guide for cross-platform WebView UI in JUCE 8 plugins, covering WebView2 static linking on Windows, URL scheme differences, user data folder configuration, resource provider patterns, and CMake configuration for macOS/Windows/Linux.",
       "domain": "ui",
       "type": "guide",
       "keywords": [
@@ -77,6 +177,9 @@
         "resource-provider",
         "cmake"
       ],
+      "summary": "Best practices guide for cross-platform WebView UI in JUCE 8 plugins, covering WebView2 static linking on Windows, URL scheme differences, user data folder configuration, resource provider patterns, and CMake configuration for macOS/Windows/Linux.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         1,
         3
@@ -90,9 +193,6 @@
       "path": "research/custom-fft-implementations.md",
       "title": "Custom FFT Implementations for Audio Plugins",
       "created": "2026-02-04",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Guide to FFT libraries beyond JUCE's built-in implementation, comparing Apple Accelerate/vDSP, Intel IPP, FFTW3, PFFFT, and KissFFT with integration patterns, performance benchmarks, and real-time safety considerations.",
       "domain": "dsp",
       "type": "guide",
       "keywords": [
@@ -105,6 +205,9 @@
         "spectral-processing",
         "performance"
       ],
+      "summary": "Guide to FFT libraries beyond JUCE's built-in implementation, comparing Apple Accelerate/vDSP, Intel IPP, FFTW3, PFFFT, and KissFFT with integration patterns, performance benchmarks, and real-time safety considerations.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         2
       ],
@@ -116,9 +219,6 @@
       "path": "research/delay-effects-comprehensive-guide.md",
       "title": "Delay Effects Comprehensive Implementation Guide",
       "created": "2026-01-12",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Complete knowledge base for delay effect implementation in JUCE audio plugins, covering circular buffers, fractional delay interpolation, ping-pong, tape, analog/BBD, multi-tap, and reverse delays with feedback networks, modulation, tempo sync, and ducking techniques.",
       "domain": "dsp",
       "type": "guide",
       "keywords": [
@@ -132,6 +232,9 @@
         "tempo-sync",
         "juce-dsp"
       ],
+      "summary": "Complete knowledge base for delay effect implementation in JUCE audio plugins, covering circular buffers, fractional delay interpolation, ping-pong, tape, analog/BBD, multi-tap, and reverse delays with feedback networks, modulation, tempo sync, and ducking techniques.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         1,
@@ -146,11 +249,8 @@
       "path": "research/dsp-click-prevention-debugging.md",
       "title": "DSP Click Prevention and Debugging Guide",
       "created": "2026-02-04",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Reference for understanding, preventing, and debugging audio clicks and pops in JUCE audio plugins, covering signal discontinuities, buffer boundary issues, parameter smoothing, and JUCE-specific patterns with diagnostic techniques.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "clicks",
         "pops",
@@ -161,6 +261,9 @@
         "discontinuities",
         "juce-dsp"
       ],
+      "summary": "Reference for understanding, preventing, and debugging audio clicks and pops in JUCE audio plugins, covering signal discontinuities, buffer boundary issues, parameter smoothing, and JUCE-specific patterns with diagnostic techniques.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         1,
         2,
@@ -176,11 +279,8 @@
       "path": "research/fft-artifact-prevention.md",
       "title": "FFT Audio Artifact Prevention Guide",
       "created": "2026-02-04",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Comprehensive reference for understanding, diagnosing, and preventing artifacts in FFT-based audio processing, covering spectral leakage, discontinuity artifacts, phase issues, transient smearing, modulation artifacts, and diagnostic techniques.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "fft",
         "spectral-leakage",
@@ -190,6 +290,9 @@
         "overlap-add",
         "transient-smearing"
       ],
+      "summary": "Comprehensive reference for understanding, diagnosing, and preventing artifacts in FFT-based audio processing, covering spectral leakage, discontinuity artifacts, phase issues, transient smearing, modulation artifacts, and diagnostic techniques.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         2,
         3
@@ -202,9 +305,6 @@
       "path": "research/fft-processing-best-practices.md",
       "title": "FFT Processing Best Practices in JUCE",
       "created": "2026-02-04",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Comprehensive guide to implementing high-quality FFT-based audio processing in JUCE plugins, covering STFT architecture, buffer management, window functions, overlap-add synthesis, COLA compliance, and performance optimization strategies.",
       "domain": "dsp",
       "type": "guide",
       "keywords": [
@@ -217,6 +317,9 @@
         "buffer-management",
         "artifact-prevention"
       ],
+      "summary": "Comprehensive guide to implementing high-quality FFT-based audio processing in JUCE plugins, covering STFT architecture, buffer management, window functions, overlap-add synthesis, COLA compliance, and performance optimization strategies.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         1,
         2,
@@ -227,14 +330,26 @@
       ]
     },
     {
+      "path": "research/flucoma-core-integration-research.md",
+      "title": "FluCoMa C++ Library Integration Research for Concatenative Synthesis",
+      "created": "2026-02-08",
+      "domain": "tooling",
+      "type": "guide",
+      "keywords": [
+        "flucoma",
+        "concatenative-synthesis",
+        "audio-analysis",
+        "mfcc",
+        "spectral-features",
+        "cpp-integration"
+      ]
+    },
+    {
       "path": "research/generative-audio-algorithms-reference.md",
       "title": "Generative Audio Algorithms Technical Reference",
       "created": "2026-01-25",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Technical deep-dive into algorithmic techniques for generative audio plugins, covering Markov chains, L-systems, cellular automata, Euclidean rhythms, stochastic granular synthesis, chaos systems, advanced LFO variations, and JUCE implementation considerations.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "generative",
         "markov-chains",
@@ -245,6 +360,9 @@
         "procedural-audio",
         "algorithmic-composition"
       ],
+      "summary": "Technical deep-dive into algorithmic techniques for generative audio plugins, covering Markov chains, L-systems, cellular automata, Euclidean rhythms, stochastic granular synthesis, chaos systems, advanced LFO variations, and JUCE implementation considerations.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -258,11 +376,8 @@
       "path": "research/generative-plugins-research-synthesis.md",
       "title": "Generative Audio Plugins Research Synthesis Report",
       "created": "2026-01-26",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Synthesis of findings from 4 parallel research agents investigating the generative audio plugin landscape, covering commercial market analysis, AI/ML approaches, algorithmic techniques, community pain points, and identified market gaps.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "generative",
         "market-research",
@@ -271,6 +386,9 @@
         "plugin-landscape",
         "competitive-analysis"
       ],
+      "summary": "Synthesis of findings from 4 parallel research agents investigating the generative audio plugin landscape, covering commercial market analysis, AI/ML approaches, algorithmic techniques, community pain points, and identified market gaps.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0
       ],
@@ -279,14 +397,40 @@
       ]
     },
     {
+      "path": "research/granular-synthesis-state-of-the-art.md",
+      "title": "Granular Synthesis: State of the Art",
+      "created": "2026-02-08",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "granular-synthesis",
+        "grain-scheduling",
+        "windowing",
+        "pitch-shifting",
+        "time-stretching"
+      ]
+    },
+    {
+      "path": "research/juce8-multichannel-spatial-audio.md",
+      "title": "JUCE 8 Multichannel & Spatial Audio for Plugins",
+      "created": "2026-02-08",
+      "domain": "spatial-audio",
+      "type": "guide",
+      "keywords": [
+        "juce",
+        "multichannel",
+        "spatial-audio",
+        "ambisonics",
+        "plugin-architecture",
+        "bus-layout"
+      ]
+    },
+    {
       "path": "research/microtonality-commercial-performance.md",
       "title": "Microtonality in VST Plugins: Commercial Products, Performance, and Modern Approaches",
       "created": "2026-01-09",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Commercial product analysis and modern approaches for microtonal VST plugins, covering MTS-ESP integration, MPE maturation, MIDI 2.0 emergence, performance optimization, UI/UX design patterns, and testing methodologies.",
-      "domain": "workflow",
-      "type": "reference",
+      "domain": "market-research",
+      "type": "research",
       "keywords": [
         "microtonality",
         "mts-esp",
@@ -295,6 +439,9 @@
         "commercial-analysis",
         "tuning-systems"
       ],
+      "summary": "Commercial product analysis and modern approaches for microtonal VST plugins, covering MTS-ESP integration, MPE maturation, MIDI 2.0 emergence, performance optimization, UI/UX design patterns, and testing methodologies.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0
       ],
@@ -306,11 +453,8 @@
       "path": "research/microtonality-comprehensive-database.md",
       "title": "Comprehensive Microtonality Database for VST Development",
       "created": "2026-01-09",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Consolidated 4,683-line database covering tuning system theory, file formats (Scala, KBM, TUN, MTS-ESP), JUCE implementation patterns for synthesizers/samplers/effects, performance optimization, UI/UX design, and testing/validation approaches.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "microtonality",
         "tuning-systems",
@@ -321,6 +465,9 @@
         "juce-dsp",
         "temperament"
       ],
+      "summary": "Consolidated 4,683-line database covering tuning system theory, file formats (Scala, KBM, TUN, MTS-ESP), JUCE implementation patterns for synthesizers/samplers/effects, performance optimization, UI/UX design, and testing/validation approaches.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -334,9 +481,6 @@
       "path": "research/microtonality-implementation-juce.md",
       "title": "Microtonality Implementation in JUCE VST Plugins",
       "created": "2026-01-09",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Complete implementation guide for microtonal support in JUCE plugins, covering MTS-ESP client integration, Surge tuning library, custom tuning tables, MPE integration, practical code patterns, and common pitfalls with solutions.",
       "domain": "dsp",
       "type": "guide",
       "keywords": [
@@ -348,6 +492,9 @@
         "synthesizer",
         "pitch-mapping"
       ],
+      "summary": "Complete implementation guide for microtonal support in JUCE plugins, covering MTS-ESP client integration, Surge tuning library, custom tuning tables, MPE integration, practical code patterns, and common pitfalls with solutions.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         1,
         2
@@ -360,11 +507,8 @@
       "path": "research/microtonality-theory-formats.md",
       "title": "Comprehensive Microtonality Theory and File Formats for VST Development",
       "created": "2026-01-09",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Foundational reference covering tuning system theory (12-TET, just intonation, N-TET, historical temperaments, xenharmonic scales), file formats (Scala SCL, KBM, AnaMark TUN, MTS-ESP, MIDI 2.0), mathematical foundations, and scale classification.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "microtonality",
         "tuning-systems",
@@ -375,6 +519,9 @@
         "cents",
         "frequency-ratios"
       ],
+      "summary": "Foundational reference covering tuning system theory (12-TET, just intonation, N-TET, historical temperaments, xenharmonic scales), file formats (Scala SCL, KBM, AnaMark TUN, MTS-ESP, MIDI 2.0), mathematical foundations, and scale classification.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -385,12 +532,68 @@
       ]
     },
     {
+      "path": "research/ml-ai-audio-plugins-2024-2026.md",
+      "title": "Machine Learning & AI in Audio Plugins: State of the Art (2024-2026)",
+      "created": "2026-02-08",
+      "domain": "ml",
+      "type": "research",
+      "keywords": [
+        "machine-learning",
+        "ai",
+        "audio-plugins",
+        "neural-networks",
+        "inference",
+        "real-time"
+      ]
+    },
+    {
+      "path": "research/ml-inference-frameworks-audio-plugins.md",
+      "title": "Machine Learning Inference Frameworks for Real-Time Audio Plugins",
+      "created": "2026-02-08",
+      "domain": "ml",
+      "type": "research",
+      "keywords": [
+        "ml-inference",
+        "onnxruntime",
+        "tensorrt",
+        "libtorch",
+        "real-time",
+        "audio-plugins"
+      ]
+    },
+    {
+      "path": "research/ml-integration-juce-plugins.md",
+      "title": "Machine Learning Integration in JUCE Audio Plugins",
+      "created": "2026-02-08",
+      "domain": "ml",
+      "type": "guide",
+      "keywords": [
+        "machine-learning",
+        "juce",
+        "ml-integration",
+        "real-time",
+        "audio-plugins",
+        "onnx"
+      ]
+    },
+    {
+      "path": "research/ml-plugin-briefs.md",
+      "title": "ML/AI Plugin & Application Briefs",
+      "created": "2026-02-08",
+      "domain": "ml",
+      "type": "market-research",
+      "keywords": [
+        "ml-plugins",
+        "ai-audio",
+        "product-briefs",
+        "competitive-analysis",
+        "neural-synthesis"
+      ]
+    },
+    {
       "path": "research/modal-synthesis-bells-academic-research.md",
       "title": "Modal Synthesis for Bells and Metallic Percussion: Academic Research Compilation",
       "created": "2026-02-02",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Academic research compilation from CCRMA Stanford, IRCAM, and key papers on modal synthesis for bell and metallic percussion sounds, including frequency-dependent damping formulas, multi-stage decay envelopes, and specific parameter values for implementation.",
       "domain": "dsp",
       "type": "algorithm",
       "keywords": [
@@ -403,6 +606,9 @@
         "partials",
         "ccrma"
       ],
+      "summary": "Academic research compilation from CCRMA Stanford, IRCAM, and key papers on modal synthesis for bell and metallic percussion sounds, including frequency-dependent damping formulas, multi-stage decay envelopes, and specific parameter values for implementation.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -416,9 +622,6 @@
       "path": "research/multi-stage-decay-envelopes-comparison.md",
       "title": "Multi-Stage Decay Envelopes for Bell and Metallic Sounds",
       "created": "2026-02-02",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Comparison of multi-stage decay envelope implementations across commercial synthesizers including Ableton Collision, Kontakt, Arturia Pigments, AAS Chromaphone, and Modartt Pianoteq for bell and metallic sound design.",
       "domain": "dsp",
       "type": "algorithm",
       "keywords": [
@@ -430,6 +633,9 @@
         "frequency-dependent-damping",
         "modal-synthesis"
       ],
+      "summary": "Comparison of multi-stage decay envelope implementations across commercial synthesizers including Ableton Collision, Kontakt, Arturia Pigments, AAS Chromaphone, and Modartt Pianoteq for bell and metallic sound design.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         2
       ],
@@ -438,14 +644,42 @@
       ]
     },
     {
+      "path": "research/neural-audio-synthesis-technologies.md",
+      "title": "Neural Audio Synthesis Technologies for Real-Time Audio Plugins",
+      "created": "2026-02-08",
+      "domain": "ml",
+      "type": "research",
+      "keywords": [
+        "neural-synthesis",
+        "vae",
+        "diffusion",
+        "rave",
+        "ddsp",
+        "real-time",
+        "audio-generation"
+      ]
+    },
+    {
+      "path": "research/o-texture-custom-vae-architecture.md",
+      "title": "O-Texture: Custom 1D CNN VAE Architecture Design",
+      "created": "2026-02-14",
+      "domain": "ml",
+      "type": "algorithm",
+      "keywords": [
+        "vae",
+        "cnn",
+        "latent-space",
+        "audio-features",
+        "o-texture",
+        "dimensionality-reduction"
+      ]
+    },
+    {
       "path": "research/physical-modeling-commercial-analog-modeling-ml-approaches.md",
       "title": "Commercial Analog Modeling and Modern ML Approaches",
       "created": "2026-01-09",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Analysis of commercial analog modeling landscape including Universal Audio, Slate Digital, Softube, and neural network/ML-based approaches for tape emulation, compressor dynamics, and distortion modeling.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "analog-modeling",
         "neural-network",
@@ -456,6 +690,9 @@
         "distortion",
         "compressor"
       ],
+      "summary": "Analysis of commercial analog modeling landscape including Universal Audio, Slate Digital, Softube, and neural network/ML-based approaches for tape emulation, compressor dynamics, and distortion modeling.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -469,9 +706,6 @@
       "path": "research/physical-modeling-research-agent-3-physical-modelling-optimization.md",
       "title": "Physical Modelling Synthesis: Performance Optimization and Production Guide",
       "created": "2026-01-09",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Practical guide to CPU optimization, SIMD vectorization, algorithm complexity analysis, and hybrid approaches for physical modelling synthesis in real-time audio plugins.",
       "domain": "dsp",
       "type": "guide",
       "keywords": [
@@ -484,6 +718,9 @@
         "real-time",
         "benchmarks"
       ],
+      "summary": "Practical guide to CPU optimization, SIMD vectorization, algorithm complexity analysis, and hybrid approaches for physical modelling synthesis in real-time audio plugins.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         2
       ],
@@ -492,12 +729,36 @@
       ]
     },
     {
+      "path": "research/plugin-development-without-juce.md",
+      "title": "Building Audio Plugins Without JUCE: Benefits, Drawbacks, and Alternatives",
+      "created": "2026-02-06",
+      "domain": "architecture",
+      "type": "research",
+      "keywords": [
+        "framework-free",
+        "vst3-sdk",
+        "clap",
+        "iplug2",
+        "dpf",
+        "binary-size",
+        "cross-platform",
+        "plugin-architecture",
+        "alternatives"
+      ],
+      "summary": "Analysis of building audio plugins without JUCE, comparing framework-free and lightweight alternatives. Covers binary size trade-offs, raw VST3/AU SDK approaches, single-header libraries (clap, iPlug2, DPF), cross-platform challenges, and when going JUCE-free makes sense vs. when JUCE's ecosystem advantages outweigh the overhead.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
+      "stages": [
+        0
+      ],
+      "agents": [
+        "research"
+      ]
+    },
+    {
       "path": "research/reverb-comprehensive-research.md",
       "title": "Comprehensive Reverb Research",
       "created": "2026-01-13",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Complete technical reference for reverb algorithm design and JUCE implementation covering Schroeder, Freeverb, FDN, and Dattorro architectures, convolution reverb theory, and spatialization techniques.",
       "domain": "dsp",
       "type": "guide",
       "keywords": [
@@ -511,6 +772,9 @@
         "spatialization",
         "juce"
       ],
+      "summary": "Complete technical reference for reverb algorithm design and JUCE implementation covering Schroeder, Freeverb, FDN, and Dattorro architectures, convolution reverb theory, and spatialization techniques.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         1,
@@ -522,14 +786,98 @@
       ]
     },
     {
+      "path": "research/saf-juce-integration-guide.md",
+      "title": "SAF + JUCE 8 Integration Guide: Ambisonics Encoding & Binaural Decoding",
+      "created": "2026-02-08",
+      "domain": "spatial-audio",
+      "type": "guide",
+      "keywords": [
+        "saf",
+        "juce",
+        "ambisonics",
+        "binaural",
+        "hoa",
+        "integration",
+        "cmake"
+      ]
+    },
+    {
+      "path": "research/sound-spatialization-algorithms.md",
+      "title": "Sound Spatialization Algorithms for Audio Plugin Development",
+      "created": "2026-02-08",
+      "domain": "spatial-audio",
+      "type": "research",
+      "keywords": [
+        "spatialization",
+        "vbap",
+        "ambisonics",
+        "binaural",
+        "hrtf",
+        "panning-algorithms"
+      ]
+    },
+    {
+      "path": "research/spatial-audio-per-grain-spatialization.md",
+      "title": "Spatial Audio Techniques for Per-Grain Spatialization in Granular Synthesis",
+      "created": "2026-02-08",
+      "domain": "spatial-audio",
+      "type": "research",
+      "keywords": [
+        "per-grain-spatialization",
+        "granular-synthesis",
+        "ambisonics",
+        "binaural",
+        "spatial-audio"
+      ]
+    },
+    {
+      "path": "research/spatial-audio-plugins-market-research.md",
+      "title": "Spatial Audio Plugins & Libraries: Market Research",
+      "created": "2026-02-08",
+      "domain": "market-research",
+      "type": "market-research",
+      "keywords": [
+        "spatial-audio",
+        "market-research",
+        "competitive-analysis",
+        "ambisonics-plugins",
+        "binaural"
+      ]
+    },
+    {
+      "path": "research/spatial-granular-synthesis-research.md",
+      "title": "Spatial Granular Synthesis: Academic Research Compilation",
+      "created": "2026-02-08",
+      "domain": "spatial-audio",
+      "type": "research",
+      "keywords": [
+        "spatial-granular",
+        "academic-research",
+        "ambisonics",
+        "granular-synthesis",
+        "spatialization"
+      ]
+    },
+    {
+      "path": "research/spatial-plugin-briefs.md",
+      "title": "Spatial Audio Plugin & Application Briefs",
+      "created": "2026-02-08",
+      "domain": "market-research",
+      "type": "market-research",
+      "keywords": [
+        "spatial-audio",
+        "plugin-briefs",
+        "product-planning",
+        "ambisonics",
+        "binaural"
+      ]
+    },
+    {
       "path": "research/spectral-sequencer-research.md",
       "title": "Spectral Sequencer / Spectral Trance Gate Research",
       "created": "2026-02-03",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Deep research on FFT-based spectral sequencing combining rhythmic gating with per-frequency pattern control, covering prior art, algorithm design, JUCE implementation, and differentiation opportunities.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "spectral-processing",
         "sequencer",
@@ -540,6 +888,9 @@
         "step-sequencer",
         "juce"
       ],
+      "summary": "Deep research on FFT-based spectral sequencing combining rhythmic gating with per-frequency pattern control, covering prior art, algorithm design, JUCE implementation, and differentiation opportunities.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -553,11 +904,8 @@
       "path": "research/spectral-toolbox-synopses.md",
       "title": "SpectralToolbox Plugin Synopses",
       "created": "2026-02-03",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Product synopses for spectral processing plugins including O-SpectralShaper, O-FreqPulse, and related tools, covering target users, competitive landscape, key differentiators, and estimated pricing.",
-      "domain": "workflow",
-      "type": "reference",
+      "domain": "market-research",
+      "type": "market-research",
       "keywords": [
         "spectral-toolbox",
         "product-planning",
@@ -567,6 +915,9 @@
         "freq-pulse",
         "market-positioning"
       ],
+      "summary": "Product synopses for spectral processing plugins including O-SpectralShaper, O-FreqPulse, and related tools, covering target users, competitive landscape, key differentiators, and estimated pricing.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0
       ],
@@ -578,11 +929,8 @@
       "path": "research/spectral-transient-shaper-research.md",
       "title": "Spectral Transient Shaper Research",
       "created": "2026-02-03",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Deep research on frequency-selective transient processing combining FFT spectral analysis with per-band transient detection, covering oeksound Spiff, MolecularBytes AtomicTransient, and JUCE implementation strategies.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "transient-shaper",
         "spectral-processing",
@@ -593,6 +941,9 @@
         "transient-detection",
         "juce"
       ],
+      "summary": "Deep research on frequency-selective transient processing combining FFT spectral analysis with per-band transient detection, covering oeksound Spiff, MolecularBytes AtomicTransient, and JUCE implementation strategies.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -606,9 +957,6 @@
       "path": "research/stutter-effects/path-a-granular-stutter-engine.md",
       "title": "Granular Stutter Engine Architecture",
       "created": "2026-01-15",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Design and implementation plan for a granular stutter engine extending the Scatter plugin with beat-synchronized triggering, 64-voice granular synthesis, and musical scale quantization.",
       "domain": "dsp",
       "type": "algorithm",
       "keywords": [
@@ -620,6 +968,9 @@
         "scale-quantization",
         "voice-pool"
       ],
+      "summary": "Design and implementation plan for a granular stutter engine extending the Scatter plugin with beat-synchronized triggering, 64-voice granular synthesis, and musical scale quantization.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -633,9 +984,6 @@
       "path": "research/stutter-effects/path-b-beat-repeater.md",
       "title": "Multi-Lane Beat Repeater Architecture",
       "created": "2026-01-15",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Design for a polyrhythmic beat repeater with 4 independent repeat lanes, envelope follower triggering, Euclidean rhythm patterns, and tape degradation simulation on repeats.",
       "domain": "dsp",
       "type": "algorithm",
       "keywords": [
@@ -647,6 +995,9 @@
         "tape-degradation",
         "multi-lane"
       ],
+      "summary": "Design for a polyrhythmic beat repeater with 4 independent repeat lanes, envelope follower triggering, Euclidean rhythm patterns, and tape degradation simulation on repeats.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -660,9 +1011,6 @@
       "path": "research/stutter-effects/path-c-playhead-modulator.md",
       "title": "Playhead Modulator Architecture",
       "created": "2026-01-15",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Design for a TimeShaper-style playhead modulator with drawable envelope control, multiband time manipulation, harmonic locking during speed changes, and physics-based envelope behavior.",
       "domain": "dsp",
       "type": "algorithm",
       "keywords": [
@@ -674,6 +1022,9 @@
         "multiband",
         "drawable-envelope"
       ],
+      "summary": "Design for a TimeShaper-style playhead modulator with drawable envelope control, multiband time manipulation, harmonic locking during speed changes, and physics-based envelope behavior.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -687,11 +1038,8 @@
       "path": "research/stutter-effects/stutter-effects-research-findings.md",
       "title": "Stutter Audio Effects Research Findings",
       "created": "2026-01-15",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Overview of stutter effect implementation patterns comparing buffer capture and loop, granular engine, and playhead modulation architectures with CPU and latency trade-offs for JUCE plugins.",
       "domain": "dsp",
-      "type": "reference",
+      "type": "research",
       "keywords": [
         "stutter",
         "stutter-effects",
@@ -701,6 +1049,9 @@
         "playhead-modulation",
         "juce"
       ],
+      "summary": "Overview of stutter effect implementation patterns comparing buffer capture and loop, granular engine, and playhead modulation architectures with CPU and latency trade-offs for JUCE plugins.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         0,
         2
@@ -711,14 +1062,68 @@
       ]
     },
     {
+      "path": "research/umap-dimensionality-reduction-audio-plugins.md",
+      "title": "UMAP Dimensionality Reduction for Audio Plugin Visualization",
+      "created": "2026-02-08",
+      "domain": "ml",
+      "type": "algorithm",
+      "keywords": [
+        "umap",
+        "dimensionality-reduction",
+        "visualization",
+        "audio-features",
+        "pca",
+        "t-sne"
+      ]
+    },
+    {
+      "path": "research/wavetable-synthesis-comprehensive.md",
+      "title": "Wavetable Synthesis: Comprehensive Technical Reference",
+      "created": "2026-02-24",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "wavetable-synthesis",
+        "oscillator",
+        "anti-aliasing",
+        "mipmap",
+        "interpolation"
+      ]
+    },
+    {
+      "path": "research/wavetable-synthesis-o-intonationpad.md",
+      "title": "Wavetable Synthesis for O-IntonationPad",
+      "created": "2026-02-24",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "wavetable-synthesis",
+        "o-intonationpad",
+        "microtonality",
+        "pad-synthesis",
+        "morphing"
+      ]
+    },
+    {
+      "path": "research/wavetable-synthesis-o-prism.md",
+      "title": "Wavetable Synthesis for O-Prism: Microtonal Wavetable Synthesizer",
+      "created": "2026-02-24",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "wavetable-synthesis",
+        "o-prism",
+        "microtonal",
+        "synthesizer",
+        "anti-aliasing"
+      ]
+    },
+    {
       "path": "research/webgl-spectrogram-patterns.md",
       "title": "WebGL Spectrogram Implementation Patterns",
       "created": "2026-02-04",
-      "last_verified": "2026-02-06",
-      "juce_version": "8.0.4",
-      "summary": "Implementation patterns for real-time WebGL spectrograms with heat overlay blending for JUCE 8 WebView plugins, including fragment shader colormaps, circular buffer textures, and lock-free audio-to-GUI communication.",
       "domain": "ui",
-      "type": "pattern",
+      "type": "guide",
       "keywords": [
         "webgl",
         "spectrogram",
@@ -729,6 +1134,9 @@
         "juce",
         "colormap"
       ],
+      "summary": "Implementation patterns for real-time WebGL spectrograms with heat overlay blending for JUCE 8 WebView plugins, including fragment shader colormaps, circular buffer textures, and lock-free audio-to-GUI communication.",
+      "last_verified": "2026-02-06",
+      "juce_version": "8.0.4",
       "stages": [
         3
       ],

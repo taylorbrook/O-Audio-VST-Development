@@ -1,3 +1,15 @@
+---
+title: "Granular Synthesis: State of the Art"
+created: 2026-02-08
+domain: dsp
+type: research
+keywords:
+  - granular-synthesis
+  - grain-scheduling
+  - windowing
+  - pitch-shifting
+  - time-stretching
+---
 # Granular Synthesis: State of the Art
 
 **Researched:** 2026-02-07

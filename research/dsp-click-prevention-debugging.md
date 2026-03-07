@@ -5,7 +5,7 @@ last_verified: 2026-02-06
 juce_version: "8.0.4"
 summary: "Reference for understanding, preventing, and debugging audio clicks and pops in JUCE audio plugins, covering signal discontinuities, buffer boundary issues, parameter smoothing, and JUCE-specific patterns with diagnostic techniques."
 domain: dsp
-type: reference
+type: research
 keywords:
   - clicks
   - pops

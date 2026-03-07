@@ -1,3 +1,15 @@
+---
+title: "Concatenative Synthesis: Market Research & Feature Analysis"
+created: 2026-02-08
+domain: market-research
+type: market-research
+keywords:
+  - concatenative-synthesis
+  - market-research
+  - competitive-analysis
+  - catart
+  - flucoma
+---
 # Concatenative Synthesis: Market Research & Feature Analysis
 
 *Research Date: 2026-02-07*

@@ -1,3 +1,16 @@
+---
+title: "UMAP Dimensionality Reduction for Audio Plugin Visualization"
+created: 2026-02-08
+domain: ml
+type: algorithm
+keywords:
+  - umap
+  - dimensionality-reduction
+  - visualization
+  - audio-features
+  - pca
+  - t-sne
+---
 # UMAP Dimensionality Reduction for Audio Plugin Visualization
 
 ## Research Summary

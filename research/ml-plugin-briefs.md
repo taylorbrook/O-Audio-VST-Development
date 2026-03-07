@@ -1,3 +1,15 @@
+---
+title: "ML/AI Plugin & Application Briefs"
+created: 2026-02-08
+domain: ml
+type: market-research
+keywords:
+  - ml-plugins
+  - ai-audio
+  - product-briefs
+  - competitive-analysis
+  - neural-synthesis
+---
 # ML/AI Plugin & Application Briefs
 
 Based on deep research into neural audio synthesis, ML inference frameworks, and market opportunities (Feb 2026).

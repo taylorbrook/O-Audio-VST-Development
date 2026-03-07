@@ -1,3 +1,15 @@
+---
+title: "Wavetable Synthesis for O-Prism: Microtonal Wavetable Synthesizer"
+created: 2026-02-24
+domain: dsp
+type: research
+keywords:
+  - wavetable-synthesis
+  - o-prism
+  - microtonal
+  - synthesizer
+  - anti-aliasing
+---
 # Research Findings: Wavetable Synthesis for O-Prism -- Microtonal Wavetable Synthesizer
 
 ## Domain

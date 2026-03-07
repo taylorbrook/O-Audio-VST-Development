@@ -1,3 +1,16 @@
+---
+title: "Ambisonics-to-Binaural Decoding: Complete Technical Deep Dive"
+created: 2026-02-08
+domain: spatial-audio
+type: research
+keywords:
+  - ambisonics
+  - binaural
+  - hrtf
+  - decoding
+  - spatial-audio
+  - hoa
+---
 # Ambisonics-to-Binaural Decoding: Complete Technical Deep Dive
 
 **Research Date:** 2026-02-08

@@ -1,3 +1,14 @@
+---
+title: "Concatenative Synthesis Plugin Concepts"
+created: 2026-02-08
+domain: market-research
+type: market-research
+keywords:
+  - concatenative-synthesis
+  - plugin-briefs
+  - product-planning
+  - corpus-exploration
+---
 # Concatenative Synthesis Plugin Concepts
 
 Based on deep research into concatenative synthesis, corpus-based audio, 2D scatter plot visualization, FluCoMa C++ algorithms, and market gap analysis. All concepts leverage the WebView scatter plot as a differentiating feature.

@@ -1,3 +1,16 @@
+---
+title: "Machine Learning Inference Frameworks for Real-Time Audio Plugins"
+created: 2026-02-08
+domain: ml
+type: research
+keywords:
+  - ml-inference
+  - onnxruntime
+  - tensorrt
+  - libtorch
+  - real-time
+  - audio-plugins
+---
 # Machine Learning Inference Frameworks for Real-Time Audio Plugins
 
 ## Comprehensive Research Report

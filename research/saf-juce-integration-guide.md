@@ -1,3 +1,17 @@
+---
+title: "SAF + JUCE 8 Integration Guide: Ambisonics Encoding & Binaural Decoding"
+created: 2026-02-08
+domain: spatial-audio
+type: guide
+keywords:
+  - saf
+  - juce
+  - ambisonics
+  - binaural
+  - hoa
+  - integration
+  - cmake
+---
 # SAF + JUCE 8 Integration Guide: Ambisonics Encoding & Binaural Decoding
 
 **Research Date:** 2026-02-08

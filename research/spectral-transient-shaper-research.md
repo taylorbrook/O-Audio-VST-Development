@@ -5,7 +5,7 @@ last_verified: 2026-02-06
 juce_version: "8.0.4"
 summary: "Deep research on frequency-selective transient processing combining FFT spectral analysis with per-band transient detection, covering oeksound Spiff, MolecularBytes AtomicTransient, and JUCE implementation strategies."
 domain: dsp
-type: reference
+type: research
 keywords:
   - transient-shaper
   - spectral-processing

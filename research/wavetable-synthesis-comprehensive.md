@@ -1,3 +1,15 @@
+---
+title: "Wavetable Synthesis: Comprehensive Technical Reference"
+created: 2026-02-24
+domain: dsp
+type: research
+keywords:
+  - wavetable-synthesis
+  - oscillator
+  - anti-aliasing
+  - mipmap
+  - interpolation
+---
 # Research Findings: Wavetable Synthesis -- Comprehensive Technical Reference
 
 ## Domain

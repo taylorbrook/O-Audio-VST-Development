@@ -1,3 +1,17 @@
+---
+title: "Neural Audio Synthesis Technologies for Real-Time Audio Plugins"
+created: 2026-02-08
+domain: ml
+type: research
+keywords:
+  - neural-synthesis
+  - vae
+  - diffusion
+  - rave
+  - ddsp
+  - real-time
+  - audio-generation
+---
 # Neural Audio Synthesis Technologies for Real-Time Audio Plugins
 
 ## Deep Technical Research Report

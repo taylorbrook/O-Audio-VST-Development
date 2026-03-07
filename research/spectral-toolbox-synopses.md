@@ -4,8 +4,8 @@ created: 2026-02-03
 last_verified: 2026-02-06
 juce_version: "8.0.4"
 summary: "Product synopses for spectral processing plugins including O-SpectralShaper, O-FreqPulse, and related tools, covering target users, competitive landscape, key differentiators, and estimated pricing."
-domain: workflow
-type: reference
+domain: market-research
+type: market-research
 keywords:
   - spectral-toolbox
   - product-planning

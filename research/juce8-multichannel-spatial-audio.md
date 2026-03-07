@@ -1,3 +1,16 @@
+---
+title: "JUCE 8 Multichannel & Spatial Audio for Plugins"
+created: 2026-02-08
+domain: spatial-audio
+type: guide
+keywords:
+  - juce
+  - multichannel
+  - spatial-audio
+  - ambisonics
+  - plugin-architecture
+  - bus-layout
+---
 # JUCE 8 Multichannel & Spatial Audio for Plugins
 
 ## Research Date: 2026-02-07

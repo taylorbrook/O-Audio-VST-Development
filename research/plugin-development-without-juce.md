@@ -5,7 +5,7 @@ last_verified: 2026-02-06
 juce_version: "8.0.4"
 summary: "Analysis of building audio plugins without JUCE, comparing framework-free and lightweight alternatives. Covers binary size trade-offs, raw VST3/AU SDK approaches, single-header libraries (clap, iPlug2, DPF), cross-platform challenges, and when going JUCE-free makes sense vs. when JUCE's ecosystem advantages outweigh the overhead."
 domain: architecture
-type: analysis
+type: research
 keywords:
   - framework-free
   - vst3-sdk

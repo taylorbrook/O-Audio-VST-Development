@@ -1,3 +1,16 @@
+---
+title: "Machine Learning & AI in Audio Plugins: State of the Art (2024-2026)"
+created: 2026-02-08
+domain: ml
+type: research
+keywords:
+  - machine-learning
+  - ai
+  - audio-plugins
+  - neural-networks
+  - inference
+  - real-time
+---
 # Machine Learning & AI in Audio Plugins: State of the Art (2024-2026)
 
 *Research compiled February 2026*

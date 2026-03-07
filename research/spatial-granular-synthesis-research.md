@@ -1,3 +1,15 @@
+---
+title: "Spatial Granular Synthesis: Academic Research Compilation"
+created: 2026-02-08
+domain: spatial-audio
+type: research
+keywords:
+  - spatial-granular
+  - academic-research
+  - ambisonics
+  - granular-synthesis
+  - spatialization
+---
 # Spatial Granular Synthesis: Academic Research Compilation
 
 **Researched:** 2026-02-07

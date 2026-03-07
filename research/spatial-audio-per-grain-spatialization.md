@@ -1,3 +1,15 @@
+---
+title: "Spatial Audio Techniques for Per-Grain Spatialization in Granular Synthesis"
+created: 2026-02-08
+domain: spatial-audio
+type: research
+keywords:
+  - per-grain-spatialization
+  - granular-synthesis
+  - ambisonics
+  - binaural
+  - spatial-audio
+---
 # Spatial Audio Techniques for Per-Grain Spatialization in Granular Synthesis
 
 **Researched:** 2026-02-07

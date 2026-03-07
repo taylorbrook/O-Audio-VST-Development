@@ -1,3 +1,16 @@
+---
+title: "Ambisonics Encoding Deep-Dive: Full HOA3 Pipeline for Per-Grain Spatial Granular Synthesis"
+created: 2026-02-08
+domain: spatial-audio
+type: research
+keywords:
+  - ambisonics
+  - hoa
+  - encoding
+  - granular-synthesis
+  - spatial-audio
+  - spherical-harmonics
+---
 # Ambisonics Encoding Deep-Dive: Full HOA3 Pipeline for Per-Grain Spatial Granular Synthesis
 
 **Researched:** 2026-02-08

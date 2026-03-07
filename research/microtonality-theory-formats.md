@@ -5,7 +5,7 @@ last_verified: 2026-02-06
 juce_version: "8.0.4"
 summary: "Foundational reference covering tuning system theory (12-TET, just intonation, N-TET, historical temperaments, xenharmonic scales), file formats (Scala SCL, KBM, AnaMark TUN, MTS-ESP, MIDI 2.0), mathematical foundations, and scale classification."
 domain: dsp
-type: reference
+type: research
 keywords:
   - microtonality
   - tuning-systems

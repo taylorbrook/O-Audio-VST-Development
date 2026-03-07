@@ -5,7 +5,7 @@ last_verified: 2026-02-06
 juce_version: "8.0.4"
 summary: "Implementation patterns for real-time WebGL spectrograms with heat overlay blending for JUCE 8 WebView plugins, including fragment shader colormaps, circular buffer textures, and lock-free audio-to-GUI communication."
 domain: ui
-type: pattern
+type: guide
 keywords:
   - webgl
   - spectrogram

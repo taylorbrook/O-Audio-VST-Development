@@ -1,3 +1,15 @@
+---
+title: "Wavetable Synthesis for O-IntonationPad"
+created: 2026-02-24
+domain: dsp
+type: research
+keywords:
+  - wavetable-synthesis
+  - o-intonationpad
+  - microtonality
+  - pad-synthesis
+  - morphing
+---
 # Research Findings: Wavetable Synthesis for O-IntonationPad
 
 ## Domain

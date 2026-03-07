@@ -1,3 +1,15 @@
+---
+title: "Concatenative Synthesis: Comprehensive Technical Reference"
+created: 2026-02-08
+domain: dsp
+type: research
+keywords:
+  - concatenative-synthesis
+  - corpus-based
+  - audio-analysis
+  - feature-extraction
+  - granular
+---
 # Concatenative Synthesis: Comprehensive Technical Reference
 
 ## Table of Contents

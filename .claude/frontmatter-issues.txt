@@ -1,1 +1,0 @@
-[2026-02-06] research/plugin-development-without-juce.md: no frontmatter

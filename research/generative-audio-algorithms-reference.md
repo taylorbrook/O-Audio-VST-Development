@@ -5,7 +5,7 @@ last_verified: 2026-02-06
 juce_version: "8.0.4"
 summary: "Technical deep-dive into algorithmic techniques for generative audio plugins, covering Markov chains, L-systems, cellular automata, Euclidean rhythms, stochastic granular synthesis, chaos systems, advanced LFO variations, and JUCE implementation considerations."
 domain: dsp
-type: reference
+type: research
 keywords:
   - generative
   - markov-chains

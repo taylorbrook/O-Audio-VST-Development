@@ -1,3 +1,16 @@
+---
+title: "Machine Learning Integration in JUCE Audio Plugins"
+created: 2026-02-08
+domain: ml
+type: guide
+keywords:
+  - machine-learning
+  - juce
+  - ml-integration
+  - real-time
+  - audio-plugins
+  - onnx
+---
 # Machine Learning Integration in JUCE Audio Plugins
 
 ## Practical Implementation Guide

@@ -1,3 +1,16 @@
+---
+title: "O-Texture: Custom 1D CNN VAE Architecture Design"
+created: 2026-02-14
+domain: ml
+type: algorithm
+keywords:
+  - vae
+  - cnn
+  - latent-space
+  - audio-features
+  - o-texture
+  - dimensionality-reduction
+---
 # O-Texture: Custom 1D CNN VAE Architecture Design
 
 ## Design Goals
