@@ -1,7 +1,7 @@
 ---
 name: plugin-execute
 description: Run stage-specific implementation agent
-skill: plugin-phases
+skill: plugin-workflow
 args: "[plugin_name?] [stage?] [--force?]"
 ---
 

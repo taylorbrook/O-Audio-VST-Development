@@ -1,7 +1,7 @@
 ---
 name: plugin-discuss
 description: Interactive context gathering for a stage (GSD discuss phase)
-skill: plugin-phases
+skill: plugin-workflow
 args: "[plugin_name?] [stage?]"
 ---
 

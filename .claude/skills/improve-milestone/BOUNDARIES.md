@@ -113,7 +113,7 @@ Guaranteed on success:
 | plugin-improve | plugin-improve for Tier 1-2 (single context); improve-milestone for Tier 3 (phase cycles). /improve auto-detects and suggests. |
 | deep-research | deep-research for ad-hoc investigation; improve-milestone research phase for structured milestone work. |
 | plugin-workflow | plugin-workflow for initial implementation (new plugins); improve-milestone for improvements to completed plugins. |
-| plugin-phases | plugin-phases for implementation stage phases; improve-milestone for post-completion improvement phases. |
+| plugin-workflow | plugin-workflow for implementation stage phases; improve-milestone for post-completion improvement phases. |
 
 ## State Persistence
 

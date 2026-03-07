@@ -1,7 +1,7 @@
 ---
 name: plugin-research
 description: Investigate implementation approach for a stage
-skill: plugin-phases
+skill: plugin-workflow
 args: "[plugin_name?] [stage?]"
 ---
 

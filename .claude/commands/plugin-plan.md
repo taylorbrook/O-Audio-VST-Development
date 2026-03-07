@@ -1,7 +1,7 @@
 ---
 name: plugin-plan
 description: Create execution plan with task breakdown
-skill: plugin-phases
+skill: plugin-workflow
 args: "[plugin_name?] [stage?] [--skip-discuss] [--skip-research]"
 ---
 

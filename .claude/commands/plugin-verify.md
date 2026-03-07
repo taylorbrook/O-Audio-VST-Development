@@ -1,7 +1,7 @@
 ---
 name: plugin-verify
 description: Validate stage goal achievement through goal-backward analysis (GSD verify phase)
-skill: plugin-phases
+skill: plugin-workflow
 args: "[plugin_name?] [stage?]"
 ---
 
