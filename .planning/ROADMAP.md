@@ -118,7 +118,11 @@ Plans:
   3. Agent memory files either contain meaningful seed patterns or do not exist (no empty "No patterns recorded yet" placeholders)
   4. `agent-profiles.json` and `preferences-README.md` are relocated out of `.claude/` root (moved to a documentation location or inlined where needed)
   5. Aesthetic test-preview HTML files are excluded from the repo via `.gitignore` or relocated to a dev-only location
-**Plans**: TBD
+**Plans:** 3 plans
+Plans:
+- [ ] 21-01-PLAN.md -- Merge plugin-phases into plugin-workflow SKILL.md, update all command and skill references
+- [ ] 21-02-PLAN.md -- Populate 4 empty agent memory files with seed patterns, user approval gate
+- [ ] 21-03-PLAN.md -- Relocate doc files to .claude/references/, remove ui-test.html from git tracking
 
 ### Phase 22: Structural Improvements
 **Goal**: Agents can persist learnings across sessions via a write-back mechanism, and dead infrastructure (validation cache, duplicate canary scripts) is resolved
@@ -143,11 +147,11 @@ Plans:
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
 | 20. Research Governance & Review | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
-| 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
+| 21. Skill & Infrastructure Consolidation | v1.4 | 0/3 | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
 **Total: 20 phases complete, 60 plans complete, 4 milestones shipped. v1.4: 3/5 phases complete (23 requirements).**
 
 ---
 *Roadmap created: 2026-01-30*
-*Last updated: 2026-03-06 -- Phase 20 planned (3 plans)*
+*Last updated: 2026-03-07 -- Phase 21 planned (3 plans)*
