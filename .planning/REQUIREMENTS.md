@@ -24,9 +24,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Research Governance
 
-- [ ] **RSRC-01**: `resource-index.json` is regenerated to cover all research docs (currently 27 of 54)
-- [ ] **RSRC-02**: All research docs have standardized YAML frontmatter (currently ~50% lack it)
-- [ ] **RSRC-03**: `frontmatter-issues.txt` is cleaned up or removed
+- [x] **RSRC-01**: `resource-index.json` is regenerated to cover all research docs (currently 27 of 54)
+- [x] **RSRC-02**: All research docs have standardized YAML frontmatter (currently ~50% lack it)
+- [x] **RSRC-03**: `frontmatter-issues.txt` is cleaned up or removed
 
 ### Research Review
 
@@ -95,9 +95,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | GATE-01 | Phase 19 | Complete |
 | GATE-02 | Phase 19 | Complete |
 | GATE-03 | Phase 19 | Complete |
-| RSRC-01 | Phase 20 | Pending |
-| RSRC-02 | Phase 20 | Pending |
-| RSRC-03 | Phase 20 | Pending |
+| RSRC-01 | Phase 20 | Complete |
+| RSRC-02 | Phase 20 | Complete |
+| RSRC-03 | Phase 20 | Complete |
 | RSCH-01 | Phase 20 | Pending |
 | RSCH-02 | Phase 20 | Pending |
 | RSCH-03 | Phase 20 | Pending |
