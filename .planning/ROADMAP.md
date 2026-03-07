@@ -147,7 +147,7 @@ Plans:
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
 | 20. Research Governance & Review | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
-| 21. Skill & Infrastructure Consolidation | 3/3 | Complete | 2026-03-07 | 2026-03-07 |
+| 21. Skill & Infrastructure Consolidation | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
 **Total: 21 phases complete, 62 plans complete, 4 milestones shipped. v1.4: 4/5 phases complete (23 requirements).**
