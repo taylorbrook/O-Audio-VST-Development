@@ -14,6 +14,9 @@
 #include "OuariconPresetManager.h"
 #include <array>
 #include <atomic>
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
 
 class OFreqPulseAudioProcessor : public juce::AudioProcessor
 {
@@ -56,6 +59,10 @@ public:
     // v1.6.0: Preset management
     juce::AudioProcessorValueTreeState parameters;
     OuariconPresetManager presetManager;
+
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
 
 private:
     // Per-band parameter cache structure
@@ -172,6 +179,10 @@ private:
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OFreqPulseAudioProcessor)
 };

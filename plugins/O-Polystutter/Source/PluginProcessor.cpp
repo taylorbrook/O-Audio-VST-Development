@@ -1119,6 +1119,11 @@ OPolystutterAudioProcessor::OPolystutterAudioProcessor()
 
         presetManager.initializeFactoryPresets(factoryPresets);
     }
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-polystutter", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OPolystutterAudioProcessor::~OPolystutterAudioProcessor()

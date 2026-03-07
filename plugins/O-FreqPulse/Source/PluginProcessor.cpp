@@ -219,6 +219,11 @@ OFreqPulseAudioProcessor::OFreqPulseAudioProcessor()
 
     // v1.6.0: Initialize factory presets using preset manager
     initializeFactoryPresets();
+
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-frequency-pulse", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OFreqPulseAudioProcessor::~OFreqPulseAudioProcessor()

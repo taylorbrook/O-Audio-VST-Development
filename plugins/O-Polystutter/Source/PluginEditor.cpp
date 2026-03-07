@@ -837,6 +837,20 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
 {
     addAndMakeVisible(*webView);
 
+#if OUARICON_LICENSING_ENABLED
+    // Licensing: activation overlay (visible until licensed)
+    auto& license = processorRef.getLicenseManager();
+    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
+    addAndMakeVisible(licenseOverlay.get());
+
+    license.addListener(this);
+
+    if (! license.isLicensed())
+        webView->setVisible(false);
+    else
+        licenseOverlay->setVisible(false);
+#endif
+
     // Navigate to UI (served from BinaryData)
     webView->goToURL(juce::WebBrowserComponent::getResourceProviderRoot());
 
@@ -851,6 +865,9 @@ OPolystutterAudioProcessorEditor::OPolystutterAudioProcessorEditor(OPolystutterA
 
 OPolystutterAudioProcessorEditor::~OPolystutterAudioProcessorEditor()
 {
+#if OUARICON_LICENSING_ENABLED
+    processorRef.getLicenseManager().removeListener(this);
+#endif
     // v1.5.0: Stop timer before destruction
     stopTimer();
 }
@@ -866,6 +883,11 @@ void OPolystutterAudioProcessorEditor::resized()
     // WebView fills entire editor window
     if (webView)
         webView->setBounds(getLocalBounds());
+
+#if OUARICON_LICENSING_ENABLED
+    if (licenseOverlay != nullptr)
+        licenseOverlay->setBounds(getLocalBounds());
+#endif
 }
 
 std::optional<juce::WebBrowserComponent::Resource>
@@ -985,3 +1007,19 @@ void OPolystutterAudioProcessorEditor::timerCallback()
         webView->emitEventIfBrowserIsVisible("laneProgress", juce::var(payload.release()));
     }
 }
+
+#if OUARICON_LICENSING_ENABLED
+//==============================================================================
+void OPolystutterAudioProcessorEditor::licenseStatusChanged(
+    OuariconLicense&, OuariconLicense::Status newStatus)
+{
+    juce::MessageManager::callAsync([this, newStatus]()
+    {
+        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
+        webView->setVisible(licensed);
+
+        if (licenseOverlay)
+            licenseOverlay->setVisible(! licensed);
+    });
+}
+#endif

@@ -13,6 +13,9 @@
 #include <juce_gui_basics/juce_gui_basics.h>
 #include <juce_gui_extra/juce_gui_extra.h>
 #include <array>
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicenseUI.h"
+#endif
 
 struct BandRelays
 {
@@ -42,6 +45,9 @@ struct BandAttachments
 
 class OFreqPulseAudioProcessorEditor : public juce::AudioProcessorEditor,
                                        private juce::Timer
+#if OUARICON_LICENSING_ENABLED
+                                     , private OuariconLicense::Listener
+#endif
 {
 public:
     explicit OFreqPulseAudioProcessorEditor(OFreqPulseAudioProcessor&);
@@ -120,6 +126,11 @@ private:
 
     // Helper for serving UI resources from BinaryData
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicenseOverlay> licenseOverlay;
+    void licenseStatusChanged(OuariconLicense&, OuariconLicense::Status) override;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OFreqPulseAudioProcessorEditor)
 };
