@@ -32,12 +32,12 @@ except ImportError:
 # Constants
 # ---------------------------------------------------------------------------
 
-REQUIRED_FIELDS = {"title", "summary", "domain", "type", "keywords", "stages", "agents",
-                   "created", "last_verified", "juce_version"}
+REQUIRED_FIELDS = {"title", "created", "domain", "type", "keywords"}
 
-VALID_DOMAINS = {"dsp", "ui", "build", "workflow"}
-VALID_TYPES = {"algorithm", "pattern", "guide", "reference"}
-VALID_AGENTS = {"dsp", "ui", "build", "research"}
+VALID_DOMAINS = {"dsp", "ui", "architecture", "tooling", "market-research", "ml",
+                 "spatial-audio", "cross-platform"}
+VALID_TYPES = {"research", "algorithm", "guide", "market-research"}
+VALID_AGENTS = {"dsp", "ui", "build", "research"}  # Used for optional validation when agents field is present
 
 KEYWORD_PATTERN = re.compile(r"^[a-z0-9-]+$")
 FRONTMATTER_PATTERN = re.compile(r"^---\n(.*?)\n---", re.DOTALL)

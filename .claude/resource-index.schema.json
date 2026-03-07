@@ -18,7 +18,7 @@
   "$defs": {
     "DocumentEntry": {
       "type": "object",
-      "required": ["path", "title", "created", "last_verified", "juce_version", "summary", "domain", "type", "keywords", "stages", "agents"],
+      "required": ["path", "title", "created", "domain", "type", "keywords"],
       "additionalProperties": false,
       "properties": {
         "path": { "type": "string", "pattern": "^research/.+\\.md$" },
@@ -39,8 +39,14 @@
           "description": "JUCE version content was last verified against (e.g., 8.0.4)"
         },
         "summary": { "type": "string", "minLength": 10, "maxLength": 500 },
-        "domain": { "type": "string", "enum": ["dsp", "ui", "build", "workflow"] },
-        "type": { "type": "string", "enum": ["algorithm", "pattern", "guide", "reference"] },
+        "domain": {
+          "type": "string",
+          "enum": ["dsp", "ui", "architecture", "tooling", "market-research", "ml", "spatial-audio", "cross-platform"]
+        },
+        "type": {
+          "type": "string",
+          "enum": ["research", "algorithm", "guide", "market-research"]
+        },
         "keywords": {
           "type": "array",
           "items": { "type": "string", "pattern": "^[a-z0-9-]+$" },

@@ -34,9 +34,11 @@ SCHEMA_PATH = CLAUDE_DIR / "resource-index.schema.json"
 OUTPUT_PATH = CLAUDE_DIR / "resource-index.json"
 ISSUES_PATH = CLAUDE_DIR / "frontmatter-issues.txt"
 
-# Required frontmatter fields
-REQUIRED_FIELDS = ["title", "summary", "domain", "type", "keywords", "stages", "agents",
-                   "created", "last_verified", "juce_version"]
+# Required frontmatter fields (5-field minimum)
+REQUIRED_FIELDS = ["title", "created", "domain", "type", "keywords"]
+
+# Optional fields to include in index entry when present in frontmatter
+OPTIONAL_FIELDS = ["summary", "last_verified", "juce_version", "stages", "agents"]
 
 
 def parse_frontmatter(file_path):
@@ -73,41 +75,52 @@ def parse_frontmatter(file_path):
     return data, None
 
 
+def _date_to_str(value):
+    """Convert a date value (PyYAML date object or string) to ISO string."""
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value)
+
+
 def build_document_entry(file_path, frontmatter):
-    """Build a document entry dict from file path and parsed frontmatter."""
+    """Build a document entry dict from file path and parsed frontmatter.
+
+    Always includes the 5 required fields (path, title, created, domain, type, keywords).
+    Optional fields (summary, last_verified, juce_version, stages, agents) are included
+    only when present in frontmatter.
+    """
     # Use relative path from project root
     rel_path = file_path.relative_to(PROJECT_ROOT)
     # Normalize to forward slashes (for cross-platform consistency)
     path_str = str(rel_path).replace("\\", "/")
 
-    # Handle PyYAML date objects -> ISO string
-    created = frontmatter["created"]
-    if isinstance(created, date):
-        created = created.isoformat()
-    else:
-        created = str(created)
-
-    last_verified = frontmatter["last_verified"]
-    if isinstance(last_verified, date):
-        last_verified = last_verified.isoformat()
-    else:
-        last_verified = str(last_verified)
-
-    juce_version = str(frontmatter["juce_version"])
-
-    return {
+    # Required fields
+    entry = {
         "path": path_str,
         "title": frontmatter["title"],
-        "created": created,
-        "last_verified": last_verified,
-        "juce_version": juce_version,
-        "summary": frontmatter["summary"],
+        "created": _date_to_str(frontmatter["created"]),
         "domain": frontmatter["domain"],
         "type": frontmatter["type"],
         "keywords": frontmatter["keywords"],
-        "stages": frontmatter["stages"],
-        "agents": frontmatter["agents"],
     }
+
+    # Optional fields -- only include if present in frontmatter
+    if "summary" in frontmatter:
+        entry["summary"] = frontmatter["summary"]
+
+    if "last_verified" in frontmatter:
+        entry["last_verified"] = _date_to_str(frontmatter["last_verified"])
+
+    if "juce_version" in frontmatter:
+        entry["juce_version"] = str(frontmatter["juce_version"])
+
+    if "stages" in frontmatter:
+        entry["stages"] = frontmatter["stages"]
+
+    if "agents" in frontmatter:
+        entry["agents"] = frontmatter["agents"]
+
+    return entry
 
 
 def load_schema():
