@@ -2,13 +2,13 @@
 gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: System Hygiene & Quality Gates
-status: unknown
-last_updated: "2026-03-07T02:17:44.512Z"
+status: in-progress
+last_updated: "2026-03-07T03:15:00.000Z"
 progress:
   total_phases: 20
   completed_phases: 20
-  total_plans: 59
-  completed_plans: 59
+  total_plans: 62
+  completed_plans: 60
 ---
 
 # Project State
@@ -22,12 +22,12 @@ See: .planning/PROJECT.md (updated 2026-03-05)
 
 ## Current Position
 
-Phase: 20 (Research Governance Review) -- COMPLETE (third of 5 in v1.4)
-Plan: 03 of 03 complete
-Status: Phase Complete
-Last activity: 2026-03-07 -- 20-03 complete (gap-fill research creation)
+Phase: 21 (Skill & Infrastructure Consolidation) -- IN PROGRESS (fourth of 5 in v1.4)
+Plan: 01 of 03 complete (21-03 done, 21-01 and 21-02 pending)
+Status: In Progress
+Last activity: 2026-03-07 -- 21-03 complete (repo cleanup: doc relocation + ui-test.html removal)
 
-Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 20: 3/3 plans)
+Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 21: 1/3 plans)
 
 ## Performance Metrics
 
@@ -57,6 +57,7 @@ Progress: [######░░░░] 60% (v1.4: 3/5 phases complete, Phase 20: 3/3 pla
 | 20 | 01 | 15min | 2 | 44 |
 | 20 | 02 | 1min | 2 | 6 |
 | 20 | 03 | 20min | 2 | 12 |
+| 21 | 03 | 1min | 1 | 76 |
 
 ## Accumulated Context
 
@@ -84,6 +85,9 @@ Milestone-specific decisions archived in `.planning/milestones/`.
 - 20-03: All 10 gap-fill docs created as full deep-dives with JUCE C++ examples and broader techniques
 - 20-03: Resource index grew to 64 total documents (53 original + 10 gap-fill + 1 coverage-audit)
 - 20-03: User verified and approved all 10 gap-fill documents at checkpoint:human-verify gate
+- 21-03: Clean break for doc file relocations -- no symlinks or backwards-compatibility shims
+- 21-03: Scoped gitignore to *ui-test.html specifically, not broader HTML patterns
+- 21-03: Used git rm --cached to untrack 73 ui-test.html files without deleting from disk
 
 ### Pending Todos
 
@@ -110,10 +114,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 20-03-PLAN.md (gap-fill research creation -- Phase 20 complete)
+Stopped at: Completed 21-03-PLAN.md (repo cleanup: doc relocation + ui-test.html removal)
 Resume file: None
 
-Next: Phase 21 (Skill & Infrastructure Consolidation) -- needs planning
+Next: 21-01-PLAN.md (merge plugin-phases into plugin-workflow) or 21-02-PLAN.md (agent memory seed patterns)
 
 ---
 *v1.3 System Modernization archived. 4 milestones shipped (v1.0-v1.3), 17 phases, 51 plans, 85+ requirements.*

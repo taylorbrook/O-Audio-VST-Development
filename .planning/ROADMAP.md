@@ -122,7 +122,7 @@ Plans:
 Plans:
 - [ ] 21-01-PLAN.md -- Merge plugin-phases into plugin-workflow SKILL.md, update all command and skill references
 - [ ] 21-02-PLAN.md -- Populate 4 empty agent memory files with seed patterns, user approval gate
-- [ ] 21-03-PLAN.md -- Relocate doc files to .claude/references/, remove ui-test.html from git tracking
+- [x] 21-03-PLAN.md -- Relocate doc files to .claude/references/, remove ui-test.html from git tracking
 
 ### Phase 22: Structural Improvements
 **Goal**: Agents can persist learnings across sessions via a write-back mechanism, and dead infrastructure (validation cache, duplicate canary scripts) is resolved
@@ -147,7 +147,7 @@ Plans:
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
 | 20. Research Governance & Review | 3/3 | Complete    | 2026-03-07 | 2026-03-07 |
-| 21. Skill & Infrastructure Consolidation | v1.4 | 0/3 | Not started | - |
+| 21. Skill & Infrastructure Consolidation | v1.4 | 1/3 | In progress | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
 **Total: 20 phases complete, 60 plans complete, 4 milestones shipped. v1.4: 3/5 phases complete (23 requirements).**
