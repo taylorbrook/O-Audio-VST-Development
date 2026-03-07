@@ -57,7 +57,7 @@
 
 - [x] **Phase 18: Dead Code Removal** - Delete all dead .sh hooks, vestigial hooks.json, unreferenced agents, deprecated registry, and add __pycache__ to gitignore (completed 2026-03-06)
 - [x] **Phase 19: Quality Gate Activation** - Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json (completed 2026-03-06)
-- [ ] **Phase 20: Research Governance & Review** - Regenerate resource index, standardize frontmatter across all research docs, audit for coverage gaps, fill gaps, and flag stale content
+- [x] **Phase 20: Research Governance & Review** - Regenerate resource index, standardize frontmatter across all research docs, audit for coverage gaps, fill gaps, and flag stale content (completed 2026-03-07)
 - [ ] **Phase 21: Skill & Infrastructure Consolidation** - Merge plugin-phases into plugin-workflow, update references, clean up agent memory placeholders, relocate docs-only files, exclude dev artifacts
 - [ ] **Phase 22: Structural Improvements** - Build agent memory write-back mechanism, resolve validation cache (activate or remove), verify and clean up canary-test.sh
 
@@ -102,11 +102,11 @@ Plans:
   3. `frontmatter-issues.txt` is removed (validator hook handles this going forward)
   4. A coverage audit document exists identifying which domains have research docs and which gaps were found
   5. New research documents exist for identified coverage gaps, and stale documents are flagged with frontmatter noting they need refresh
-**Plans:** 2/3 plans executed
+**Plans:** 3/3 plans complete
 Plans:
 - [x] 20-01-PLAN.md -- Update validator/generator for 5-field minimum and new vocabularies, batch-apply frontmatter, regenerate index
 - [x] 20-02-PLAN.md -- Coverage audit against plugins, staleness flagging, user approval gate for gap-fill
-- [ ] 20-03-PLAN.md -- Create gap-fill research docs for user-approved topics
+- [x] 20-03-PLAN.md -- Create gap-fill research docs for user-approved topics
 
 ### Phase 21: Skill & Infrastructure Consolidation
 **Goal**: Overlapping skills are merged, commands reference the correct skill, and infrastructure clutter (empty placeholders, documentation-only files in wrong locations, dev artifacts) is resolved
@@ -142,11 +142,11 @@ Plans:
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
-| 20. Research Governance & Review | 2/3 | In Progress|  | - |
+| 20. Research Governance & Review | 3/3 | Complete | 2026-03-07 | 2026-03-07 |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 
-**Total: 17 phases complete, 55 plans complete, 4 milestones shipped. v1.4: 5 phases planned (23 requirements).**
+**Total: 20 phases complete, 60 plans complete, 4 milestones shipped. v1.4: 3/5 phases complete (23 requirements).**
 
 ---
 *Roadmap created: 2026-01-30*
