@@ -182,4 +182,29 @@ These are not plugin-technique gaps (Section 3) but domain-level coverage thinne
 
 ---
 
+---
+
+## 7. Gap-Fill Approval
+
+**Decision date:** 2026-03-07
+**Decision:** approve-all
+**Approved by:** User (via checkpoint:decision gate in Plan 20-02)
+
+All 10 identified gaps are approved for research doc creation in Plan 20-03:
+
+1. Dynamics Processing (Compression & Limiting)
+2. Parametric EQ & Filter Design
+3. Chorus & Modulation Effects
+4. Vocal & Formant Synthesis
+5. Freeze & Spectral Freeze Effects
+6. Tremolo & Amplitude Modulation
+7. Bass Synthesis
+8. Detuning & Pitch Thickening Algorithms
+9. Mallet Percussion Physical Modeling
+10. Licensing & Distribution
+
+**Status:** Queued for Plan 20-03 (gap-fill research creation).
+
+---
+
 *Living document. Updated: 2026-03-07. Re-audit when plugins are added or research docs are created.*
