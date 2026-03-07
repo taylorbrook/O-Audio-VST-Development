@@ -2,6 +2,12 @@
 
 All notable changes to O-Polystutter will be documented in this file.
 
+## [1.12.2] - 2026-03-06
+
+### Added
+
+- **Licensing module integration** — activation overlay and license validation gated behind `OUARICON_LICENSING_ENABLED` compile flag (no impact on local dev builds)
+
 ## [1.12.1] - 2026-03-04
 
 ### Fixed
