@@ -102,10 +102,10 @@ Plans:
   3. `frontmatter-issues.txt` is removed (validator hook handles this going forward)
   4. A coverage audit document exists identifying which domains have research docs and which gaps were found
   5. New research documents exist for identified coverage gaps, and stale documents are flagged with frontmatter noting they need refresh
-**Plans:** 1/3 plans executed
+**Plans:** 2/3 plans executed
 Plans:
-- [ ] 20-01-PLAN.md -- Update validator/generator for 5-field minimum and new vocabularies, batch-apply frontmatter, regenerate index
-- [ ] 20-02-PLAN.md -- Coverage audit against plugins, staleness flagging, user approval gate for gap-fill
+- [x] 20-01-PLAN.md -- Update validator/generator for 5-field minimum and new vocabularies, batch-apply frontmatter, regenerate index
+- [x] 20-02-PLAN.md -- Coverage audit against plugins, staleness flagging, user approval gate for gap-fill
 - [ ] 20-03-PLAN.md -- Create gap-fill research docs for user-approved topics
 
 ### Phase 21: Skill & Infrastructure Consolidation
@@ -142,7 +142,7 @@ Plans:
 | 14-17 | v1.3 | 14/14 | Complete | 2026-02-10 |
 | 18. Dead Code Removal | v1.4 | Complete    | 2026-03-06 | 2026-03-06 |
 | 19. Quality Gate Activation | 1/1 | Complete    | 2026-03-06 | - |
-| 20. Research Governance & Review | 1/3 | In Progress|  | - |
+| 20. Research Governance & Review | 2/3 | In Progress|  | - |
 | 21. Skill & Infrastructure Consolidation | v1.4 | 0/? | Not started | - |
 | 22. Structural Improvements | v1.4 | 0/? | Not started | - |
 

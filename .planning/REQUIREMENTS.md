@@ -30,9 +30,9 @@ Requirements for this milestone. Each maps to roadmap phases.
 
 ### Research Review
 
-- [ ] **RSCH-01**: Audit all research docs for topical coverage gaps -- identify domains with missing or thin documentation
+- [x] **RSCH-01**: Audit all research docs for topical coverage gaps -- identify domains with missing or thin documentation
 - [ ] **RSCH-02**: Create new research documents to fill identified gaps (e.g., missing DSP topics, underserved JUCE API areas, cross-platform patterns)
-- [ ] **RSCH-03**: Flag and refresh stale or outdated research documents (pre-JUCE 8 content, deprecated APIs, superseded techniques)
+- [x] **RSCH-03**: Flag and refresh stale or outdated research documents (pre-JUCE 8 content, deprecated APIs, superseded techniques)
 
 ### Skill Consolidation
 
@@ -98,9 +98,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 | RSRC-01 | Phase 20 | Complete |
 | RSRC-02 | Phase 20 | Complete |
 | RSRC-03 | Phase 20 | Complete |
-| RSCH-01 | Phase 20 | Pending |
+| RSCH-01 | Phase 20 | Complete |
 | RSCH-02 | Phase 20 | Pending |
-| RSCH-03 | Phase 20 | Pending |
+| RSCH-03 | Phase 20 | Complete |
 | SKIL-01 | Phase 21 | Pending |
 | SKIL-02 | Phase 21 | Pending |
 | INFR-01 | Phase 21 | Pending |
