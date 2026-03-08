@@ -25,6 +25,7 @@
 #include "dsp/ReverbProcessor.h"
 #include "dsp/EQProcessor.h"
 #include "dsp/EnsembleChorus.h"
+#include "dsp/UserWavetableManager.h"
 
 class OPrismAudioProcessor : public juce::AudioProcessor
 {
@@ -82,6 +83,25 @@ public:
         return {};
     }
 
+    // ─── User Wavetable API ───
+
+    UserWavetableManager& getUserWavetableManager() { return userWavetableManager; }
+
+    /** Select a user wavetable override for an oscillator (0=A, 1=B). */
+    void selectUserWavetable (int oscIndex, const juce::String& name);
+
+    /** Clear user wavetable override, revert to factory. */
+    void clearUserWavetableOverride (int oscIndex);
+
+    /** Get the active wavetable for an oscillator (factory or user). */
+    const WavetableData* getActiveOscTable (int oscIndex) const;
+
+    /** Get the name of the active user table (empty if factory). */
+    juce::String getActiveUserTableName (int oscIndex) const;
+
+    /** Check if a user table is active for an oscillator. */
+    bool isUserTableActive (int oscIndex) const;
+
     /** Get current mod wheel value (0..1) for modulation matrix */
     float getModWheelValue() const { return modWheelValue.load (std::memory_order_relaxed); }
 
@@ -113,10 +133,17 @@ private:
     // Factory wavetable library (28 tables across 5 categories)
     std::vector<std::unique_ptr<WavetableData>> factoryTables;
     std::vector<TableInfo> tableInfoList;
-    int lastOscATable = -1;
-    int lastOscBTable = -1;
     int lastTuningPreset = -1;
     int lastTonic = -1;
+
+    // User wavetable system
+    UserWavetableManager userWavetableManager;
+    juce::String userTableNameA;
+    juce::String userTableNameB;
+    std::atomic<const WavetableData*> userTablePtrA { nullptr };
+    std::atomic<const WavetableData*> userTablePtrB { nullptr };
+    const WavetableData* lastAssignedTableA = nullptr;
+    const WavetableData* lastAssignedTableB = nullptr;
 
     // Effects chain (float precision)
     DistortionProcessor distortion;

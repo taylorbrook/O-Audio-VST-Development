@@ -1,5 +1,15 @@
 # O-Prism Changelog
 
+## v1.9.0 (2026-03-08)
+
+### Added
+- **Custom wavetable import from .wav files**: FFT-based analysis slices audio into 2048-sample frames (up to 256 frames), builds band-limited mipmap hierarchy, and registers as a selectable user wavetable. Follows Serum's FFT 2048 import standard — short files produce fewer frames, long files truncate at 256 frames. Supports WAV, AIFF, FLAC via JUCE AudioFormatManager.
+- **Drag-and-drop .wav import**: Drop audio files directly onto oscillator A or B canvas in the WebView UI. Files are read via HTML5 FileReader, base64-encoded, and decoded in C++ for FFT processing.
+- **Persistent user wavetable storage**: Imported wavetables saved as 32-bit float WAV files in `~/.ouaricon/wavetables/` — survive sessions and plugin restarts. Loaded on plugin construction.
+- **User wavetable management modal**: View and delete imported wavetables from the UI. Deletions auto-clear any active oscillator overrides.
+- **User wavetable state persistence**: Active user table selections saved/restored in plugin state via `getStateInformation`/`setStateInformation` (backward compatible — old presets load without user tables).
+- **New C++ classes**: `WavetableImporter` (FFT import pipeline), `UserWavetableManager` (persistent storage + registry). Non-APVTS override architecture preserves factory parameter range (0-27) for full backward compatibility.
+
 ## v1.8.1 (2026-03-06)
 
 ### Fixed

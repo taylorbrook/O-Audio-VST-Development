@@ -432,6 +432,9 @@ OPrismAudioProcessor::OPrismAudioProcessor()
     for (auto& entry : factoryLib)
         factoryTables.push_back (std::move (entry.table));
 
+    // Load user wavetables from persistent directory
+    userWavetableManager.loadFromDisk();
+
     // Create 16 voices
     for (int i = 0; i < 16; ++i)
     {
@@ -445,8 +448,8 @@ OPrismAudioProcessor::OPrismAudioProcessor()
     }
 
     synthesiser.addSound (new PrismSound());
-    lastOscATable = 0;
-    lastOscBTable = 0;
+    lastAssignedTableA = factoryTables[0].get();
+    lastAssignedTableB = factoryTables[0].get();
 }
 
 OPrismAudioProcessor::~OPrismAudioProcessor() = default;
@@ -656,29 +659,122 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 
 void OPrismAudioProcessor::updateWavetableAssignments()
 {
-    int oscATable = static_cast<int> (parameters.getRawParameterValue ("oscATable")->load());
-    int oscBTable = static_cast<int> (parameters.getRawParameterValue ("oscBTable")->load());
+    int numFactoryTables = static_cast<int> (factoryTables.size());
 
-    // Clamp to factory table range
-    int numTables = static_cast<int> (factoryTables.size());
-    oscATable = juce::jlimit (0, numTables - 1, oscATable);
-    oscBTable = juce::jlimit (0, numTables - 1, oscBTable);
+    // Determine target table for each oscillator (user override takes priority)
+    auto* currentUserA = userTablePtrA.load (std::memory_order_relaxed);
+    auto* currentUserB = userTablePtrB.load (std::memory_order_relaxed);
 
-    if (oscATable != lastOscATable || oscBTable != lastOscBTable)
+    const WavetableData* targetA;
+    const WavetableData* targetB;
+
+    if (currentUserA != nullptr)
+    {
+        targetA = currentUserA;
+    }
+    else
+    {
+        int oscATable = juce::jlimit (0, numFactoryTables - 1,
+            static_cast<int> (parameters.getRawParameterValue ("oscATable")->load()));
+        targetA = factoryTables[static_cast<size_t> (oscATable)].get();
+    }
+
+    if (currentUserB != nullptr)
+    {
+        targetB = currentUserB;
+    }
+    else
+    {
+        int oscBTable = juce::jlimit (0, numFactoryTables - 1,
+            static_cast<int> (parameters.getRawParameterValue ("oscBTable")->load()));
+        targetB = factoryTables[static_cast<size_t> (oscBTable)].get();
+    }
+
+    if (targetA != lastAssignedTableA || targetB != lastAssignedTableB)
     {
         for (int i = 0; i < synthesiser.getNumVoices(); ++i)
         {
             if (auto* voice = dynamic_cast<PrismVoice*> (synthesiser.getVoice (i)))
             {
-                if (oscATable != lastOscATable)
-                    voice->setWavetableA (factoryTables[static_cast<size_t> (oscATable)].get());
-                if (oscBTable != lastOscBTable)
-                    voice->setWavetableB (factoryTables[static_cast<size_t> (oscBTable)].get());
+                if (targetA != lastAssignedTableA)
+                    voice->setWavetableA (targetA);
+                if (targetB != lastAssignedTableB)
+                    voice->setWavetableB (targetB);
             }
         }
-        lastOscATable = oscATable;
-        lastOscBTable = oscBTable;
+        lastAssignedTableA = targetA;
+        lastAssignedTableB = targetB;
     }
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// User Wavetable API
+// ═══════════════════════════════════════════════════════════════════
+
+void OPrismAudioProcessor::selectUserWavetable (int oscIndex, const juce::String& name)
+{
+    auto* table = userWavetableManager.getTable (name);
+    if (table == nullptr)
+        return;
+
+    if (oscIndex == 0)
+    {
+        userTableNameA = name;
+        userTablePtrA.store (table, std::memory_order_relaxed);
+    }
+    else
+    {
+        userTableNameB = name;
+        userTablePtrB.store (table, std::memory_order_relaxed);
+    }
+}
+
+void OPrismAudioProcessor::clearUserWavetableOverride (int oscIndex)
+{
+    if (oscIndex == 0)
+    {
+        userTableNameA = {};
+        userTablePtrA.store (nullptr, std::memory_order_relaxed);
+    }
+    else
+    {
+        userTableNameB = {};
+        userTablePtrB.store (nullptr, std::memory_order_relaxed);
+    }
+}
+
+const WavetableData* OPrismAudioProcessor::getActiveOscTable (int oscIndex) const
+{
+    if (oscIndex == 0)
+    {
+        auto* userTable = userTablePtrA.load (std::memory_order_relaxed);
+        if (userTable != nullptr)
+            return userTable;
+        int idx = juce::jlimit (0, static_cast<int> (factoryTables.size()) - 1,
+            static_cast<int> (parameters.getRawParameterValue ("oscATable")->load()));
+        return factoryTables[static_cast<size_t> (idx)].get();
+    }
+    else
+    {
+        auto* userTable = userTablePtrB.load (std::memory_order_relaxed);
+        if (userTable != nullptr)
+            return userTable;
+        int idx = juce::jlimit (0, static_cast<int> (factoryTables.size()) - 1,
+            static_cast<int> (parameters.getRawParameterValue ("oscBTable")->load()));
+        return factoryTables[static_cast<size_t> (idx)].get();
+    }
+}
+
+juce::String OPrismAudioProcessor::getActiveUserTableName (int oscIndex) const
+{
+    return oscIndex == 0 ? userTableNameA : userTableNameB;
+}
+
+bool OPrismAudioProcessor::isUserTableActive (int oscIndex) const
+{
+    return oscIndex == 0
+        ? userTablePtrA.load (std::memory_order_relaxed) != nullptr
+        : userTablePtrB.load (std::memory_order_relaxed) != nullptr;
 }
 
 // ═══════════════════════════════════════════════════════════════════
@@ -703,6 +799,11 @@ void OPrismAudioProcessor::getStateInformation (juce::MemoryBlock& destData)
     tuningState.setProperty ("intervals", intervalsStr, nullptr);
     tuningState.setProperty ("scaleName", tuningEngine.getActiveTuningName(), nullptr);
     tuningState.setProperty ("tonic", tuningEngine.getTonicNote(), nullptr);
+
+    // Save user wavetable selections
+    auto userWtState = state.getOrCreateChildWithName ("userWavetables", nullptr);
+    userWtState.setProperty ("oscAUserTable", userTableNameA, nullptr);
+    userWtState.setProperty ("oscBUserTable", userTableNameB, nullptr);
 
     std::unique_ptr<juce::XmlElement> xml (state.createXml());
     copyXmlToBinary (*xml, destData);
@@ -740,6 +841,19 @@ void OPrismAudioProcessor::setStateInformation (const void* data, int sizeInByte
 
             int tonic = tuningState.getProperty ("tonic", 0);
             tuningEngine.setTonicNote (tonic);
+        }
+
+        // Restore user wavetable selections
+        auto userWtState = state.getChildWithName ("userWavetables");
+        if (userWtState.isValid())
+        {
+            juce::String nameA = userWtState.getProperty ("oscAUserTable", "").toString();
+            juce::String nameB = userWtState.getProperty ("oscBUserTable", "").toString();
+
+            if (nameA.isNotEmpty())
+                selectUserWavetable (0, nameA);
+            if (nameB.isNotEmpty())
+                selectUserWavetable (1, nameB);
         }
     }
 }

@@ -507,6 +507,174 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 });
         });
 
+    // ─── User Wavetable Native Functions ───
+
+    // Get list of user wavetable names
+    options = options.withNativeFunction ("getUserWavetableList",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            auto names = processorRef.getUserWavetableManager().getTableNames();
+            complete (toJsonArray (names, [] (const juce::String& s) {
+                return "\"" + s.replace ("\"", "\\\"") + "\"";
+            }));
+        });
+
+    // Import wavetable from file chooser
+    options = options.withNativeFunction ("importUserWavetable",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            int oscIndex = args.size() >= 1 ? static_cast<int> (args[0]) : 0;
+
+            auto chooser = std::make_shared<juce::FileChooser> (
+                "Import Wavetable",
+                juce::File::getSpecialLocation (juce::File::userDocumentsDirectory),
+                "*.wav;*.aiff;*.flac");
+
+            chooser->launchAsync (juce::FileBrowserComponent::openMode
+                                | juce::FileBrowserComponent::canSelectFiles,
+                [this, chooser, complete, oscIndex] (const juce::FileChooser& fc) {
+                    auto file = fc.getResult();
+                    if (file.existsAsFile())
+                    {
+                        auto name = processorRef.getUserWavetableManager().importFile (file);
+                        if (name.isNotEmpty())
+                        {
+                            processorRef.selectUserWavetable (oscIndex, name);
+                            complete ("{\"success\":true,\"name\":\"" + name.replace ("\"", "\\\"") + "\"}");
+                            return;
+                        }
+                    }
+                    complete ("{\"success\":false}");
+                });
+        });
+
+    // Import wavetable from base64 data (drag-and-drop from WebView)
+    options = options.withNativeFunction ("importUserWavetableData",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() < 3)
+            {
+                complete ("{\"success\":false,\"error\":\"Missing arguments\"}");
+                return;
+            }
+
+            int oscIndex = static_cast<int> (args[0]);
+            auto base64Data = args[1].toString();
+            auto filename = args[2].toString();
+
+            juce::MemoryOutputStream decoded;
+            if (! juce::Base64::convertFromBase64 (decoded, base64Data))
+            {
+                complete ("{\"success\":false,\"error\":\"Invalid base64 data\"}");
+                return;
+            }
+
+            auto name = processorRef.getUserWavetableManager().importFromMemory (
+                decoded.getData(), decoded.getDataSize(), filename);
+
+            if (name.isNotEmpty())
+            {
+                processorRef.selectUserWavetable (oscIndex, name);
+                complete ("{\"success\":true,\"name\":\"" + name.replace ("\"", "\\\"") + "\"}");
+            }
+            else
+            {
+                complete ("{\"success\":false,\"error\":\"Import failed\"}");
+            }
+        });
+
+    // Select user wavetable for oscillator
+    options = options.withNativeFunction ("selectUserWavetable",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                int oscIndex = static_cast<int> (args[0]);
+                auto name = args[1].toString();
+                processorRef.selectUserWavetable (oscIndex, name);
+                complete (true);
+                return;
+            }
+            complete (false);
+        });
+
+    // Clear user wavetable override (revert to factory)
+    options = options.withNativeFunction ("clearUserWavetableOverride",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                int oscIndex = static_cast<int> (args[0]);
+                processorRef.clearUserWavetableOverride (oscIndex);
+                complete (true);
+                return;
+            }
+            complete (false);
+        });
+
+    // Delete user wavetable
+    options = options.withNativeFunction ("deleteUserWavetable",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                auto name = args[0].toString();
+                // Clear override if this table is active
+                if (processorRef.getActiveUserTableName (0) == name)
+                    processorRef.clearUserWavetableOverride (0);
+                if (processorRef.getActiveUserTableName (1) == name)
+                    processorRef.clearUserWavetableOverride (1);
+                complete (processorRef.getUserWavetableManager().deleteWavetable (name));
+                return;
+            }
+            complete (false);
+        });
+
+    // Get active osc info (factory or user)
+    options = options.withNativeFunction ("getActiveOscInfo",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                int oscIndex = static_cast<int> (args[0]);
+                bool isUser = processorRef.isUserTableActive (oscIndex);
+                if (isUser)
+                {
+                    auto name = processorRef.getActiveUserTableName (oscIndex);
+                    auto* table = processorRef.getActiveOscTable (oscIndex);
+                    int numFrames = table ? table->numFrames : 0;
+                    complete ("{\"isUser\":true,\"name\":\"" + name.replace ("\"", "\\\"")
+                            + "\",\"numFrames\":" + juce::String (numFrames) + "}");
+                }
+                else
+                {
+                    auto paramId = oscIndex == 0 ? "oscATable" : "oscBTable";
+                    int factoryIdx = static_cast<int> (processorRef.getAPVTS().getRawParameterValue (paramId)->load());
+                    factoryIdx = juce::jlimit (0, processorRef.getNumFactoryTables() - 1, factoryIdx);
+                    auto name = processorRef.getTableName (factoryIdx);
+                    auto* table = processorRef.getFactoryTable (factoryIdx);
+                    int numFrames = table ? table->numFrames : 0;
+                    complete ("{\"isUser\":false,\"factoryIndex\":" + juce::String (factoryIdx)
+                            + ",\"name\":\"" + name + "\",\"numFrames\":" + juce::String (numFrames) + "}");
+                }
+                return;
+            }
+            complete (juce::var());
+        });
+
+    // Get frame data from the currently active table for an oscillator
+    options = options.withNativeFunction ("getActiveOscFrame",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                int oscIndex = static_cast<int> (args[0]);
+                float normalizedPos = static_cast<float> (args[1]);
+                auto* table = processorRef.getActiveOscTable (oscIndex);
+                if (table != nullptr && table->numFrames > 0)
+                {
+                    int frameIndex = juce::jlimit (0, table->numFrames - 1,
+                        static_cast<int> (normalizedPos * (table->numFrames - 1)));
+                    const float* frameData = table->getFrameData (0, frameIndex);
+                    complete (toJsonFloatArray (frameData, WavetableData::kTableSize, 8, 4));
+                    return;
+                }
+            }
+            complete (juce::var());
+        });
+
     // Mod matrix source/dest name lists for UI dropdowns
     options = options.withNativeFunction ("getModSourceNames",
         [] (const juce::Array<juce::var>&, auto complete) {

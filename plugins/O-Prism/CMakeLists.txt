@@ -30,6 +30,8 @@ target_sources(O-Prism
         Source/dsp/WavetableGenerator.cpp
         Source/dsp/WavetableFactory.cpp
         Source/dsp/WavetableOscillator.cpp
+        Source/dsp/WavetableImporter.cpp
+        Source/dsp/UserWavetableManager.cpp
         Source/dsp/SubOscillator.cpp
         Source/dsp/NoiseGenerator.cpp
         Source/dsp/SVFFilter.cpp

@@ -298,6 +298,107 @@ body {
 }
 .param-select:focus { outline: 1px solid #C9A27B; }
 
+/* ─── WAVETABLE DRAG-DROP ─── */
+.osc-canvas-wrap {
+    position: relative;
+}
+.wt-drop-overlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    background: rgba(139, 105, 20, 0.3);
+    border: 2px dashed #8B6914;
+    border-radius: 4px;
+    z-index: 10;
+    pointer-events: none;
+    align-items: center;
+    justify-content: center;
+    font-family: 'Garamond', 'Georgia', serif;
+    font-size: 12px;
+    color: #5C4033;
+    font-weight: bold;
+}
+.osc-canvas-wrap.drag-over .wt-drop-overlay {
+    display: flex;
+}
+
+/* ─── WAVETABLE MANAGER MODAL ─── */
+.wt-modal-backdrop {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.5);
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+}
+.wt-modal-backdrop.visible {
+    display: flex;
+}
+.wt-modal {
+    background: #F5E6D3;
+    border: 2px solid #8B7355;
+    border-radius: 6px;
+    padding: 16px;
+    min-width: 280px;
+    max-width: 400px;
+    max-height: 400px;
+    font-family: 'Garamond', 'Georgia', serif;
+    color: #3C2F2F;
+}
+.wt-modal h3 {
+    margin: 0 0 12px;
+    font-size: 14px;
+    border-bottom: 1px solid #8B7355;
+    padding-bottom: 6px;
+}
+.wt-modal-list {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 12px;
+    max-height: 250px;
+    overflow-y: auto;
+}
+.wt-modal-list li {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(139, 115, 85, 0.2);
+}
+.wt-modal-list li span {
+    font-size: 11px;
+}
+.wt-modal-list .wt-delete-btn {
+    background: transparent;
+    border: 1px solid #A0522D;
+    color: #A0522D;
+    font-size: 9px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+}
+.wt-modal-list .wt-delete-btn:hover {
+    background: #A0522D;
+    color: #F5E6D3;
+}
+.wt-modal-close {
+    background: #8B7355;
+    color: #F5E6D3;
+    border: none;
+    padding: 4px 14px;
+    border-radius: 3px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 11px;
+}
+.wt-modal-empty {
+    font-size: 11px;
+    color: #8B7355;
+    font-style: italic;
+    padding: 8px 0;
+}
+
 /* ─── TOGGLE BUTTON ─── */
 .toggle-btn {
     background: #EBD9C7;
@@ -706,8 +807,9 @@ body {
     <!-- Oscillator A -->
     <div class="section-header">Oscillator A</div>
     <div class="osc-section">
-        <div class="osc-canvas-wrap">
+        <div class="osc-canvas-wrap" id="canvasWrapA">
             <canvas id="canvasOscA" class="osc-canvas" width="320" height="180"></canvas>
+            <div class="wt-drop-overlay">Drop WAV</div>
         </div>
         <div class="osc-params">
             <div class="dropdown-group">
@@ -752,8 +854,9 @@ body {
     <!-- Oscillator B -->
     <div class="section-header">Oscillator B</div>
     <div class="osc-section">
-        <div class="osc-canvas-wrap">
+        <div class="osc-canvas-wrap" id="canvasWrapB">
             <canvas id="canvasOscB" class="osc-canvas" width="320" height="180"></canvas>
+            <div class="wt-drop-overlay">Drop WAV</div>
         </div>
         <div class="osc-params">
             <div class="dropdown-group">
@@ -1481,8 +1584,7 @@ const lfoRateFmt = (n) => {
 
 // ─── BIND SLIDER PARAMS ───
 
-// Osc A (9 knobs + 1 dropdown)
-bindDropdown(document.getElementById('select-oscATable'), 'oscATable', 28);
+// Osc A (9 knobs + 1 dropdown — wavetable selector handles dropdown binding)
 bindKnob('oscAPos',    pct,       0.0);
 bindKnob('oscALevel',  pct,       0.8);
 bindKnob('oscAPan',    panFmt,    0.5);
@@ -1493,8 +1595,7 @@ bindKnob('oscAUnison', unisonFmt, 0.0);
 bindKnob('oscADetune', pct,       0.2);
 bindKnob('oscAWidth',  pct,       0.5);
 
-// Osc B (9 knobs + 1 dropdown)
-bindDropdown(document.getElementById('select-oscBTable'), 'oscBTable', 28);
+// Osc B (9 knobs + 1 dropdown — wavetable selector handles dropdown binding)
 bindKnob('oscBPos',    pct,       0.0);
 bindKnob('oscBLevel',  pct,       0.0);
 bindKnob('oscBPan',    panFmt,    0.5);
@@ -1827,14 +1928,14 @@ bindBypassToggle('chorusBypass', 'toggle-chorusBypass', 'section-chorus');
 bindBypassToggle('distBypass', 'toggle-distBypass', 'section-dist');
 bindBypassToggle('eqBypass', 'toggle-eqBypass', 'section-eq');
 
-// ─── WAVETABLE DISPLAY ───
+// ─── WAVETABLE DISPLAY (uses getActiveOscFrame for factory + user tables) ───
 class WavetableDisplay {
-    constructor(canvasId, oscParamPrefix) {
+    constructor(canvasId, oscIndex) {
         this.canvas = document.getElementById(canvasId);
         this.ctx = this.canvas.getContext('2d');
-        this.oscPrefix = oscParamPrefix;
+        this.oscIndex = oscIndex;
         this.samples = [];
-        this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
+        this.getFrame = Juce.getNativeFunction('getActiveOscFrame');
         this.resizeCanvas();
     }
 
@@ -1849,14 +1950,14 @@ class WavetableDisplay {
         this.h = h;
     }
 
-    async fetchAndDraw(oscTableIndex, position) {
+    async fetchAndDraw(position) {
         if (typeof this.getFrame !== 'function') {
-            this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
+            this.getFrame = Juce.getNativeFunction('getActiveOscFrame');
         }
         if (typeof this.getFrame !== 'function') return;
         try {
             this.resizeCanvas();
-            const result = await this.getFrame(oscTableIndex, position);
+            const result = await this.getFrame(this.oscIndex, position);
             if (result) {
                 this.samples = typeof result === 'string' ? JSON.parse(result) : result;
                 this.draw();
@@ -1868,91 +1969,287 @@ class WavetableDisplay {
         const { ctx, w, h, samples } = this;
         if (!samples.length) return;
         const mid = h / 2;
-
         ctx.clearRect(0, 0, w, h);
-
-        // Aged paper background
         ctx.fillStyle = '#EBD9C7';
         ctx.fillRect(0, 0, w, h);
-
-        // Center line
         ctx.strokeStyle = 'rgba(139, 115, 85, 0.3)';
         ctx.lineWidth = 1;
-        ctx.beginPath();
-        ctx.moveTo(0, mid);
-        ctx.lineTo(w, mid);
-        ctx.stroke();
-
-        // Waveform fill (amber gradient)
+        ctx.beginPath(); ctx.moveTo(0, mid); ctx.lineTo(w, mid); ctx.stroke();
         const grad = ctx.createLinearGradient(0, 0, 0, h);
         grad.addColorStop(0, 'rgba(139, 105, 20, 0.25)');
         grad.addColorStop(0.5, 'rgba(139, 105, 20, 0.06)');
         grad.addColorStop(1, 'rgba(139, 105, 20, 0.0)');
-
         ctx.beginPath();
         for (let i = 0; i < samples.length; i++) {
             const x = (i / (samples.length - 1)) * w;
             const y = mid - samples[i] * mid * 0.85;
             i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
-        ctx.lineTo(w, mid);
-        ctx.lineTo(0, mid);
-        ctx.closePath();
-        ctx.fillStyle = grad;
-        ctx.fill();
-
-        // Waveform stroke (brown ink)
+        ctx.lineTo(w, mid); ctx.lineTo(0, mid); ctx.closePath();
+        ctx.fillStyle = grad; ctx.fill();
         ctx.beginPath();
         for (let i = 0; i < samples.length; i++) {
             const x = (i / (samples.length - 1)) * w;
             const y = mid - samples[i] * mid * 0.85;
             i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
         }
-        ctx.strokeStyle = '#5C4033';
-        ctx.lineWidth = 1.5;
-        ctx.stroke();
-
-        // Border
-        ctx.strokeStyle = '#8B7355';
-        ctx.lineWidth = 1;
-        ctx.strokeRect(0, 0, w, h);
+        ctx.strokeStyle = '#5C4033'; ctx.lineWidth = 1.5; ctx.stroke();
+        ctx.strokeStyle = '#8B7355'; ctx.lineWidth = 1; ctx.strokeRect(0, 0, w, h);
     }
 }
 
-// Create wavetable displays
-const wtDisplayA = new WavetableDisplay('canvasOscA', 'oscA');
-const wtDisplayB = new WavetableDisplay('canvasOscB', 'oscB');
+const wtDisplayA = new WavetableDisplay('canvasOscA', 0);
+const wtDisplayB = new WavetableDisplay('canvasOscB', 1);
 
-// Wire to position + table changes
-function wireWavetableDisplay(display, posParam, tableParam, tableSelectId) {
-    const posState = Juce.getSliderState(posParam);
-    const tableState = Juce.getSliderState(tableParam);
-
-    function refresh() {
-        const tableIdx = Math.round(tableState.getNormalisedValue() * 27);
-        const pos = posState.getNormalisedValue();
-        display.fetchAndDraw(tableIdx, pos);
+// ─── WAVETABLE SELECTOR (factory + user dropdown + drag-drop + management) ───
+class WavetableSelector {
+    constructor(selectId, oscIndex, canvasWrapId, display) {
+        this.selectEl = document.getElementById(selectId);
+        this.oscIndex = oscIndex;
+        this.canvasWrap = document.getElementById(canvasWrapId);
+        this.display = display;
+        this.factoryCount = 28;
+        this.userTableNames = [];
+        this.isUserActive = false;
+        this.currentUserName = '';
+        this.tableState = Juce.getSliderState(oscIndex === 0 ? 'oscATable' : 'oscBTable');
+        this.posState = Juce.getSliderState(oscIndex === 0 ? 'oscAPos' : 'oscBPos');
+        this.getUserList = Juce.getNativeFunction('getUserWavetableList');
+        this.importWt = Juce.getNativeFunction('importUserWavetable');
+        this.importWtData = Juce.getNativeFunction('importUserWavetableData');
+        this.selectUserWt = Juce.getNativeFunction('selectUserWavetable');
+        this.clearUserWt = Juce.getNativeFunction('clearUserWavetableOverride');
+        this.getActiveInfo = Juce.getNativeFunction('getActiveOscInfo');
+        this.init();
     }
 
-    posState.valueChangedEvent.addListener(refresh);
-    tableState.valueChangedEvent.addListener(refresh);
+    async init() {
+        await this.refreshUserList();
+        this.rebuildDropdown();
+        this.bindEvents();
+        this.setupDragDrop();
+        this.wireDisplay();
+        // Sync initial state from C++
+        const info = await this.getActiveInfo(this.oscIndex);
+        if (info) {
+            const parsed = typeof info === 'string' ? JSON.parse(info) : info;
+            if (parsed.isUser) {
+                this.isUserActive = true;
+                this.currentUserName = parsed.name;
+                this.syncDropdownToUser(parsed.name);
+            } else {
+                this.selectEl.selectedIndex = parsed.factoryIndex || 0;
+            }
+        }
+        this.refreshDisplay();
+    }
 
-    // Initial draw with retry (await fetch so samples.length check is valid)
-    let retries = 0;
-    async function tryInitialDraw() {
-        const tableIdx = Math.round(tableState.getNormalisedValue() * 27);
-        const pos = posState.getNormalisedValue();
-        await display.fetchAndDraw(tableIdx, pos);
-        retries++;
-        if (display.samples.length === 0 && retries < 8) {
-            setTimeout(tryInitialDraw, 500);
+    async refreshUserList() {
+        try {
+            const result = await this.getUserList();
+            this.userTableNames = result ? (typeof result === 'string' ? JSON.parse(result) : result) : [];
+        } catch(e) { this.userTableNames = []; }
+    }
+
+    rebuildDropdown() {
+        // Remove existing user/import/manage options
+        const old = this.selectEl.querySelectorAll('optgroup[label="User"], option[data-action]');
+        old.forEach(el => el.remove());
+
+        if (this.userTableNames.length > 0) {
+            const userGroup = document.createElement('optgroup');
+            userGroup.label = 'User';
+            for (const name of this.userTableNames) {
+                const opt = document.createElement('option');
+                opt.textContent = name;
+                opt.dataset.userTable = name;
+                userGroup.appendChild(opt);
+            }
+            this.selectEl.appendChild(userGroup);
+        }
+
+        const importOpt = document.createElement('option');
+        importOpt.dataset.action = 'import';
+        importOpt.textContent = 'Import WAV...';
+        this.selectEl.appendChild(importOpt);
+
+        if (this.userTableNames.length > 0) {
+            const manageOpt = document.createElement('option');
+            manageOpt.dataset.action = 'manage';
+            manageOpt.textContent = 'Manage...';
+            this.selectEl.appendChild(manageOpt);
+        }
+
+        if (this.isUserActive) this.syncDropdownToUser(this.currentUserName);
+    }
+
+    syncDropdownToUser(name) {
+        for (let i = 0; i < this.selectEl.options.length; i++) {
+            if (this.selectEl.options[i].dataset.userTable === name) {
+                this.selectEl.selectedIndex = i;
+                return;
+            }
         }
     }
-    setTimeout(tryInitialDraw, 500);
+
+    bindEvents() {
+        let prevIdx = this.selectEl.selectedIndex;
+        this.selectEl.addEventListener('change', async () => {
+            const opt = this.selectEl.options[this.selectEl.selectedIndex];
+
+            if (opt.dataset.action === 'import') {
+                this.selectEl.selectedIndex = prevIdx;
+                const result = await this.importWt(this.oscIndex);
+                if (result) {
+                    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (parsed.success) {
+                        this.isUserActive = true;
+                        this.currentUserName = parsed.name;
+                        await this.refreshUserList();
+                        this.rebuildDropdown();
+                        this.syncDropdownToUser(parsed.name);
+                        prevIdx = this.selectEl.selectedIndex;
+                        this.refreshDisplay();
+                        if (window._wtSelectors) window._wtSelectors.forEach(s => { if (s !== this) { s.refreshUserList().then(() => s.rebuildDropdown()); } });
+                    }
+                }
+                return;
+            }
+
+            if (opt.dataset.action === 'manage') {
+                this.selectEl.selectedIndex = prevIdx;
+                showWavetableManager();
+                return;
+            }
+
+            if (opt.dataset.userTable) {
+                const name = opt.dataset.userTable;
+                await this.selectUserWt(this.oscIndex, name);
+                this.isUserActive = true;
+                this.currentUserName = name;
+                prevIdx = this.selectEl.selectedIndex;
+                this.refreshDisplay();
+                return;
+            }
+
+            // Factory table selected
+            if (this.isUserActive) {
+                await this.clearUserWt(this.oscIndex);
+                this.isUserActive = false;
+                this.currentUserName = '';
+            }
+            const idx = this.selectEl.selectedIndex;
+            this.tableState.sliderDragStarted();
+            this.tableState.setNormalisedValue(idx / Math.max(1, this.factoryCount - 1));
+            this.tableState.sliderDragEnded();
+            prevIdx = idx;
+            this.refreshDisplay();
+        });
+
+        // Sync from C++ APVTS changes (e.g., preset recall)
+        this.tableState.valueChangedEvent.addListener(() => {
+            if (!this.isUserActive) {
+                const factoryIdx = Math.round(this.tableState.getNormalisedValue() * (this.factoryCount - 1));
+                if (this.selectEl.selectedIndex !== factoryIdx)
+                    this.selectEl.selectedIndex = factoryIdx;
+                this.refreshDisplay();
+            }
+        });
+    }
+
+    setupDragDrop() {
+        const wrap = this.canvasWrap;
+        wrap.addEventListener('dragover', (e) => { e.preventDefault(); e.stopPropagation(); wrap.classList.add('drag-over'); });
+        wrap.addEventListener('dragleave', (e) => { e.preventDefault(); wrap.classList.remove('drag-over'); });
+        wrap.addEventListener('drop', async (e) => {
+            e.preventDefault(); e.stopPropagation(); wrap.classList.remove('drag-over');
+            const files = e.dataTransfer?.files;
+            if (!files || files.length === 0) return;
+            const file = files[0];
+            if (!file.name.match(/\.(wav|aiff|flac)$/i)) return;
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const bytes = new Uint8Array(arrayBuffer);
+                let binary = '';
+                for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+                const base64 = btoa(binary);
+                const result = await this.importWtData(this.oscIndex, base64, file.name);
+                if (result) {
+                    const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+                    if (parsed.success) {
+                        this.isUserActive = true;
+                        this.currentUserName = parsed.name;
+                        await this.refreshUserList();
+                        this.rebuildDropdown();
+                        this.syncDropdownToUser(parsed.name);
+                        this.refreshDisplay();
+                        if (window._wtSelectors) window._wtSelectors.forEach(s => { if (s !== this) { s.refreshUserList().then(() => s.rebuildDropdown()); } });
+                    }
+                }
+            } catch(err) { console.error('Drag-drop import error:', err); }
+        });
+    }
+
+    wireDisplay() {
+        this.posState.valueChangedEvent.addListener(() => this.refreshDisplay());
+    }
+
+    refreshDisplay() {
+        const pos = this.posState.getNormalisedValue();
+        this.display.fetchAndDraw(pos);
+    }
 }
 
-wireWavetableDisplay(wtDisplayA, 'oscAPos', 'oscATable', 'select-oscATable');
-wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
+// ─── WAVETABLE MANAGEMENT MODAL ───
+async function showWavetableManager() {
+    const backdrop = document.getElementById('wt-modal-backdrop');
+    const list = document.getElementById('wt-modal-list');
+    const getUserList = Juce.getNativeFunction('getUserWavetableList');
+    const deleteUserWt = Juce.getNativeFunction('deleteUserWavetable');
+
+    async function refresh() {
+        list.innerHTML = '';
+        let names = [];
+        try {
+            const result = await getUserList();
+            names = result ? (typeof result === 'string' ? JSON.parse(result) : result) : [];
+        } catch(e) {}
+        if (names.length === 0) {
+            list.innerHTML = '<li class="wt-modal-empty">No user wavetables imported yet.</li>';
+            return;
+        }
+        for (const name of names) {
+            const li = document.createElement('li');
+            const span = document.createElement('span');
+            span.textContent = name;
+            const btn = document.createElement('button');
+            btn.className = 'wt-delete-btn';
+            btn.textContent = 'Delete';
+            btn.addEventListener('click', async () => {
+                await deleteUserWt(name);
+                await refresh();
+                if (window._wtSelectors) window._wtSelectors.forEach(s => s.refreshUserList().then(() => s.rebuildDropdown()));
+            });
+            li.appendChild(span);
+            li.appendChild(btn);
+            list.appendChild(li);
+        }
+    }
+
+    await refresh();
+    backdrop.classList.add('visible');
+}
+document.getElementById('wt-modal-close').addEventListener('click', () => {
+    document.getElementById('wt-modal-backdrop').classList.remove('visible');
+});
+document.getElementById('wt-modal-backdrop').addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) e.currentTarget.classList.remove('visible');
+});
+
+// Initialize wavetable selectors
+const wtSelectorA = new WavetableSelector('select-oscATable', 0, 'canvasWrapA', wtDisplayA);
+const wtSelectorB = new WavetableSelector('select-oscBTable', 1, 'canvasWrapB', wtDisplayB);
+window._wtSelectors = [wtSelectorA, wtSelectorB];
 
 // ═══════════════════════════════════════════════════════════════════
 // TUNING SYSTEM (Inline O-Lyrica-style implementation)
@@ -2629,5 +2926,15 @@ wireWavetableDisplay(wtDisplayB, 'oscBPos', 'oscBTable', 'select-oscBTable');
     setTimeout(tryInit, 300);
 })();
 </script>
+
+<!-- Wavetable Manager Modal -->
+<div class="wt-modal-backdrop" id="wt-modal-backdrop">
+    <div class="wt-modal">
+        <h3>User Wavetables</h3>
+        <ul class="wt-modal-list" id="wt-modal-list"></ul>
+        <button class="wt-modal-close" id="wt-modal-close">Close</button>
+    </div>
+</div>
+
 </body>
 </html>

@@ -1,0 +1,183 @@
+/*
+  ==============================================================================
+
+    UserWavetableManager.cpp
+    O-Prism - Microtonal Wavetable Synthesizer
+    Ouaricon Audio
+
+    Persistent user wavetable storage and management.
+
+  ==============================================================================
+*/
+
+#include "UserWavetableManager.h"
+
+UserWavetableManager::UserWavetableManager()
+{
+    wavetableDir = juce::File::getSpecialLocation (juce::File::userHomeDirectory)
+                       .getChildFile (".ouaricon")
+                       .getChildFile ("wavetables");
+    wavetableDir.createDirectory();
+}
+
+void UserWavetableManager::loadFromDisk()
+{
+    entries.clear();
+
+    auto files = wavetableDir.findChildFiles (juce::File::findFiles, false, "*.wav");
+    files.sort();
+
+    for (const auto& file : files)
+    {
+        auto importResult = WavetableImporter::importFromFile (file);
+        if (importResult.success && importResult.table)
+        {
+            UserWavetableEntry entry;
+            entry.name = file.getFileNameWithoutExtension();
+            entry.table = std::move (importResult.table);
+            entries.push_back (std::move (entry));
+        }
+    }
+}
+
+juce::String UserWavetableManager::importFile (const juce::File& file)
+{
+    auto importResult = WavetableImporter::importFromFile (file);
+    if (! importResult.success || ! importResult.table)
+        return {};
+
+    auto baseName = file.getFileNameWithoutExtension();
+    auto uniqueName = makeUniqueName (baseName);
+    auto destFile = wavetableDir.getChildFile (uniqueName + ".wav");
+
+    if (! saveToWav (*importResult.table, destFile))
+        return {};
+
+    UserWavetableEntry entry;
+    entry.name = uniqueName;
+    entry.table = std::move (importResult.table);
+    entries.push_back (std::move (entry));
+
+    return uniqueName;
+}
+
+juce::String UserWavetableManager::importFromMemory (const void* data, size_t sizeInBytes,
+                                                      const juce::String& suggestedName)
+{
+    auto importResult = WavetableImporter::importFromMemory (data, sizeInBytes);
+    if (! importResult.success || ! importResult.table)
+        return {};
+
+    auto baseName = suggestedName.isNotEmpty() ? suggestedName : "Imported";
+    // Strip file extension if present
+    if (baseName.containsChar ('.'))
+        baseName = baseName.upToLastOccurrenceOf (".", false, false);
+
+    auto uniqueName = makeUniqueName (baseName);
+    auto destFile = wavetableDir.getChildFile (uniqueName + ".wav");
+
+    if (! saveToWav (*importResult.table, destFile))
+        return {};
+
+    UserWavetableEntry entry;
+    entry.name = uniqueName;
+    entry.table = std::move (importResult.table);
+    entries.push_back (std::move (entry));
+
+    return uniqueName;
+}
+
+bool UserWavetableManager::deleteWavetable (const juce::String& name)
+{
+    for (auto it = entries.begin(); it != entries.end(); ++it)
+    {
+        if (it->name == name)
+        {
+            wavetableDir.getChildFile (name + ".wav").deleteFile();
+            entries.erase (it);
+            return true;
+        }
+    }
+    return false;
+}
+
+const WavetableData* UserWavetableManager::getTable (const juce::String& name) const
+{
+    for (const auto& entry : entries)
+    {
+        if (entry.name == name)
+            return entry.table.get();
+    }
+    return nullptr;
+}
+
+juce::StringArray UserWavetableManager::getTableNames() const
+{
+    juce::StringArray names;
+    for (const auto& entry : entries)
+        names.add (entry.name);
+    return names;
+}
+
+bool UserWavetableManager::saveToWav (const WavetableData& table, const juce::File& file)
+{
+    // Save as 32-bit float WAV: all frames concatenated (level 0 only)
+    int totalSamples = table.numFrames * WavetableData::kTableSize;
+    juce::AudioBuffer<float> buffer (1, totalSamples);
+
+    for (int frame = 0; frame < table.numFrames; ++frame)
+    {
+        const float* frameData = table.getFrameData (0, frame);
+        int startSample = frame * WavetableData::kTableSize;
+        for (int i = 0; i < WavetableData::kTableSize; ++i)
+            buffer.setSample (0, startSample + i, frameData[i]);
+    }
+
+    auto outputStream = std::make_unique<juce::FileOutputStream> (file);
+    if (! outputStream->openedOk())
+        return false;
+
+    juce::WavAudioFormat wavFormat;
+    std::unique_ptr<juce::AudioFormatWriter> writer (
+        wavFormat.createWriterFor (outputStream.get(), 44100.0, 1, 32, {}, 0));
+
+    if (! writer)
+        return false;
+
+    outputStream.release(); // Writer takes ownership
+    return writer->writeFromAudioSampleBuffer (buffer, 0, totalSamples);
+}
+
+juce::String UserWavetableManager::makeUniqueName (const juce::String& baseName) const
+{
+    bool exists = false;
+    for (const auto& entry : entries)
+    {
+        if (entry.name == baseName)
+        {
+            exists = true;
+            break;
+        }
+    }
+
+    if (! exists)
+        return baseName;
+
+    for (int i = 2; i < 1000; ++i)
+    {
+        auto candidate = baseName + " " + juce::String (i);
+        bool found = false;
+        for (const auto& entry : entries)
+        {
+            if (entry.name == candidate)
+            {
+                found = true;
+                break;
+            }
+        }
+        if (! found)
+            return candidate;
+    }
+
+    return baseName + " " + juce::String (juce::Time::currentTimeMillis());
+}
