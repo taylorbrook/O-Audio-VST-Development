@@ -1,4 +1,5 @@
 cmake_minimum_required(VERSION 3.15)
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-IntonationPad
@@ -55,6 +56,13 @@ target_link_libraries(O-IntonationPad
 
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-IntonationPad)
+
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(O-IntonationPad licensing)
+    target_compile_definitions(O-IntonationPad PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(O-IntonationPad PRIVATE juce::juce_cryptography)
+endif()
 
 # WebView UI Resources
 juce_add_binary_data(O-IntonationPad_UIResources

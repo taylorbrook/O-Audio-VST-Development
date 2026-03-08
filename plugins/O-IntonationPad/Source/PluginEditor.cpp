@@ -25,6 +25,24 @@ OIntonationPadAudioProcessorEditor::OIntonationPadAudioProcessorEditor(OIntonati
     createAttachments();
 
     addAndMakeVisible(*webView);
+
+#if OUARICON_LICENSING_ENABLED
+    // Licensing: activation overlay (visible until licensed)
+    // Native WebView renders on top of JUCE components, so we must
+    // hide the WebView while the overlay is showing.
+    // License manager lives on the processor (persists across editor open/close).
+    auto& license = processorRef.getLicenseManager();
+    licenseOverlay = std::make_unique<OuariconLicenseOverlay>(license);
+    addAndMakeVisible(licenseOverlay.get());
+
+    license.addListener(this);
+
+    if (! license.isLicensed())
+        webView->setVisible(false);
+    else
+        licenseOverlay->setVisible(false);
+#endif
+
     setSize(800, 500);
     startTimerHz(30);
 }
@@ -549,6 +567,9 @@ void OIntonationPadAudioProcessorEditor::createAttachments()
 
 OIntonationPadAudioProcessorEditor::~OIntonationPadAudioProcessorEditor()
 {
+#if OUARICON_LICENSING_ENABLED
+    processorRef.getLicenseManager().removeListener(this);
+#endif
     stopTimer();
 }
 
@@ -596,6 +617,11 @@ void OIntonationPadAudioProcessorEditor::resized()
 {
     // WebView fills entire editor
     webView->setBounds(getLocalBounds());
+
+#if OUARICON_LICENSING_ENABLED
+    if (licenseOverlay != nullptr)
+        licenseOverlay->setBounds(getLocalBounds());
+#endif
 }
 
 void OIntonationPadAudioProcessorEditor::parentHierarchyChanged()
@@ -705,3 +731,19 @@ OIntonationPadAudioProcessorEditor::getResource(const juce::String& url)
     DBG("Resource not found: " + url);
     return std::nullopt;
 }
+
+#if OUARICON_LICENSING_ENABLED
+//==============================================================================
+void OIntonationPadAudioProcessorEditor::licenseStatusChanged(
+    OuariconLicense&, OuariconLicense::Status newStatus)
+{
+    juce::MessageManager::callAsync([this, newStatus]()
+    {
+        bool licensed = (newStatus == OuariconLicense::Status::Licensed);
+        webView->setVisible(licensed);
+
+        if (licenseOverlay)
+            licenseOverlay->setVisible(! licensed);
+    });
+}
+#endif

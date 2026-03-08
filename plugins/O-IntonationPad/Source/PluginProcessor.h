@@ -16,6 +16,9 @@
 #include "DSP/DelayProcessor.h"
 #include "DSP/EQProcessor.h"
 #include "DSP/ReverbProcessor.h"
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
 
 // Immutable snapshot published by UI thread, read lock-free by audio thread
 struct IntervalSnapshot
@@ -83,6 +86,10 @@ public:
     void checkAndResetForScaleChange();  // Call after tuning changes that may alter degree count
     int getScaleDegreeCount() const;
     std::vector<int> getEnabledDegreeOffsets() const;  // Returns sorted list of enabled degree indices
+
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
 
 private:
     // DSP Components (declare BEFORE parameters for initialization order)
@@ -177,6 +184,10 @@ private:
     std::atomic<float>* cachedReverbDamp = nullptr;
     std::atomic<float>* cachedReverbPredelay = nullptr;
     std::atomic<float>* cachedReverbMix = nullptr;
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OIntonationPadAudioProcessor)
 };
