@@ -49,6 +49,7 @@ Ouaricon Plugins:
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
 | O-Prism | 📦 Installed | 1.8.1 | Synth (Microtonal Wavetable) | 2026-03-06 |
+| O-Gain | 🚧 Stage 0 | - | Audio Effect (Gain Staging Utility) | 2026-03-07 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |
