@@ -3,7 +3,7 @@ gsd_state_version: 1.0
 milestone: v1.4
 milestone_name: System Hygiene & Quality Gates
 status: unknown
-last_updated: "2026-03-07T06:21:42.117Z"
+last_updated: "2026-03-07T18:58:38.830Z"
 progress:
   total_phases: 22
   completed_phases: 22
@@ -15,26 +15,25 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-03-05)
+See: .planning/PROJECT.md (updated 2026-03-07)
 
 **Core value:** Reliable collaborative workflow that produces professional-quality plugins -- where agents execute quality work that doesn't require constant rework.
-**Current focus:** v1.4 System Hygiene & Quality Gates -- Phase 22: Structural Improvements
+**Current focus:** Planning next milestone
 
 ## Current Position
 
-Phase: 22 (Structural Improvements) -- COMPLETE (fifth of 5 in v1.4)
-Plan: 02 of 02 complete (all plans done)
-Status: Complete
-Last activity: 2026-03-07 -- 22-02 complete (agent memory write-back hook)
+Milestone: v1.4 System Hygiene & Quality Gates -- SHIPPED 2026-03-07
+Status: Complete -- all 5 phases, 13 plans, 23 requirements satisfied
+Last activity: 2026-03-07 -- v1.4 milestone archived
 
-Progress: [##########] 100% (v1.4: 5/5 phases complete, Phase 22: 2/2 plans)
+Next: `/gsd:new-milestone` to start next version
 
 ## Performance Metrics
 
-**Cumulative (v1.0-v1.3):**
-- Total phases completed: 17
-- Total plans completed: 51
-- Total requirements satisfied: 85+
+**Cumulative (v1.0-v1.4):**
+- Total phases completed: 22
+- Total plans completed: 64
+- Total requirements satisfied: 108
 
 **By Milestone:**
 
@@ -44,6 +43,7 @@ Progress: [##########] 100% (v1.4: 5/5 phases complete, Phase 22: 2/2 plans)
 | v1.1 | 8-9 | 4 | 13 | 2 days |
 | v1.2 | 10-13 | 12 | 15 | 2 days |
 | v1.3 | 14-17 | 14 | 22 | 3 days |
+| v1.4 | 18-22 | 13 | 23 | 2 days |
 
 **v1.4 Plan Metrics:**
 
@@ -67,42 +67,8 @@ Progress: [##########] 100% (v1.4: 5/5 phases complete, Phase 22: 2/2 plans)
 
 ### Decisions
 
-All v1.0-v1.3 decisions logged in PROJECT.md Key Decisions table.
+All v1.0-v1.4 decisions logged in PROJECT.md Key Decisions table.
 Milestone-specific decisions archived in `.planning/milestones/`.
-
-**v1.4 Decisions:**
-- 18-01: Skipped adding a comment to settings.json about sole hook config -- no competing file exists
-- 18-01: Task 2 (DEAD-02) produced no commit since hooks.json was already absent
-- 18-02: STATUS.md is sole source of truth for plugin state -- all registry update pseudocode updated accordingly
-- 18-02: Deleted plugin-registry.schema.json alongside plugin-registry.json since schema has no subject
-- 18-03: Documentation only -- no additional files deleted, findings cataloged for future cleanup
-- 18-03: Discovered hooks.json still exists on disk despite DEAD-02 declaring it absent -- documented as critical finding in audit
-- 18-04: Deleted hooks.json via gap closure plan -- single file deletion, no additional cleanup needed
-- 19-01: Used sys.stdin.isatty() guard to prevent blocking on interactive terminals for PostToolUse scripts
-- 19-01: Preserved backward compatibility: argv[1] fallback for frontmatter validator, FILE_PATH env var fallback for manifest regenerator
-- 19-01: SubagentStop hook has no matcher restriction -- script self-filters to relevant subagents
-- 20-01: Actual research doc count is 53 (not 49 as planned) -- all 53 handled
-- 20-01: Updated resource-index.schema.json alongside validator/generator for 5-field minimum (Rule 3 blocking fix)
-- 20-02: User approved all 10 identified research gaps for creation (approve-all at checkpoint:decision gate)
-- 20-02: Staleness detection used deterministic pattern matching -- 4 docs flagged for getLatencySamples() override (non-virtual in JUCE 8)
-- 20-02: Coverage audit is a living document, designed for re-audit as plugins/docs change
-- 20-03: All 10 gap-fill docs created as full deep-dives with JUCE C++ examples and broader techniques
-- 20-03: Resource index grew to 64 total documents (53 original + 10 gap-fill + 1 coverage-audit)
-- 20-03: User verified and approved all 10 gap-fill documents at checkpoint:human-verify gate
-- 21-03: Clean break for doc file relocations -- no symlinks or backwards-compatibility shims
-- 21-01: Used best-of-both merge approach for plugin-phases into plugin-workflow -- preserved plugin-workflow structure with unique plugin-phases content
-- 21-01: Added Stage 0 (plugin-ideation) to execute agents list -- present in plugin-phases but missing from plugin-workflow
-- 21-03: Scoped gitignore to *ui-test.html specifically, not broader HTML patterns
-- 21-03: Used git rm --cached to untrack 73 ui-test.html files without deleting from disk
-- 21-02: Included high-impact one-off discoveries (canvas gotcha, WebView2 static linking) alongside multi-plugin confirmed patterns
-- 21-02: Used research-planning-agent.md as gold standard format for all 4 agent memory files
-- 21-02: Set Last Updated to 2026-03-07 with "(seed patterns from Phase 21)" context tag
-- 22-01: Historical planning docs not updated to change canary-test.sh references -- would falsify historical record
-- 22-01: Validation caching section replaced with "runs fresh each time" note rather than silently removed
-- 22-02: Write-back hook runs after existing SubagentStop contract validation (independent, order doesn't matter)
-- 22-02: 10-second timeout for write-back (longer than 3s inject hook due to potential transcript file reads)
-- 22-02: 10KB file cap prevents unbounded memory growth -- manual curation expected beyond that size
-- 22-02: Key-phrase deduplication avoids re-appending known patterns to memory files
 
 ### Pending Todos
 
@@ -129,10 +95,10 @@ None currently.
 ## Session Continuity
 
 Last session: 2026-03-07
-Stopped at: Completed 22-02-PLAN.md (agent memory write-back hook)
+Stopped at: v1.4 milestone archived
 Resume file: None
 
-Next: v1.4 milestone complete -- all 5 phases done (18-22)
+Next: `/gsd:new-milestone` to define next version
 
 ---
-*v1.3 System Modernization archived. 4 milestones shipped (v1.0-v1.3), 17 phases, 51 plans, 85+ requirements.*
+*v1.4 System Hygiene & Quality Gates archived. 5 milestones shipped (v1.0-v1.4), 22 phases, 64 plans, 108 requirements.*

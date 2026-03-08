@@ -10,20 +10,21 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 
 ## Current State
 
-**Latest shipped:** v1.3 System Modernization (2026-02-10)
-**Current milestone:** v1.4 System Hygiene & Quality Gates
+**Latest shipped:** v1.4 System Hygiene & Quality Gates (2026-03-07)
 
 **System overview:**
-- 17 phases completed across 4 milestones
-- 51 plans executed
-- 85+ requirements satisfied
+- 22 phases completed across 5 milestones
+- 64 plans executed
+- 108 requirements satisfied
 - Repository: 58MB (91% reduction from 636MB)
 - Clone time: 4 seconds
-- 27 research documents indexed with 10-field frontmatter
+- 64 research documents indexed with 5-field minimum YAML frontmatter
 - All agents running on Opus 4.6 with effort-level tuning
-- Multi-layer context persistence (compaction snapshots, DIGEST.json, agent memory)
+- Multi-layer context persistence (compaction snapshots, DIGEST.json, agent memory with write-back)
 - Agent teams available for parallel research and review
 - gsd-tools CLI handles all state operations
+- 3 active quality gates: SubagentStop contract validation, research frontmatter validation, resource index auto-regeneration
+- Agent memory write-back: learnings persist across sessions with deduplication and 10KB cap
 
 ## Requirements
 
@@ -62,21 +63,17 @@ Reliable collaborative workflow that produces professional-quality plugins — w
 - ✓ Configurable branching strategy (none/phase/milestone) — v1.3
 - ✓ Template auto-selection (minimal/standard/complex based on task complexity) — v1.3
 - ✓ Auto mode for express plugin creation (--auto flag) — v1.3
+- ✓ Dead code removal (10 .sh hooks, hooks.json, 3 dead agents, deprecated registry) — v1.4
+- ✓ Quality gate activation (SubagentStop, frontmatter validation, resource index regen) — v1.4
+- ✓ Research governance (64 docs with standardized frontmatter, 10 gap-fill deep-dives) — v1.4
+- ✓ Skill consolidation (plugin-phases merged into plugin-workflow) — v1.4
+- ✓ Agent memory seed patterns (4 agents populated with production experience) — v1.4
+- ✓ Agent memory write-back mechanism (persistent learning via SubagentStop) — v1.4
+- ✓ Infrastructure cleanup (validation cache removed, canary-test deduplicated, doc files relocated) — v1.4
 
 ### Active
 
-## Current Milestone: v1.4 System Hygiene & Quality Gates
-
-**Goal:** Address all findings from the full system review — activate dormant quality gates, remove dead code, fix research governance gaps, consolidate overlapping subsystems, and add structural improvements for agent memory and validation.
-
-**Target features:**
-- Activate 3 dormant hooks (SubagentStop, research frontmatter, resource index regen) in settings.json
-- Remove all dead code (816 lines of .sh hooks, vestigial hooks.json, 3 dead agents, deprecated registry)
-- Fix resource index 50% coverage gap and standardize research doc frontmatter
-- Merge overlapping skills (plugin-phases into plugin-workflow)
-- Clean up infrastructure (__pycache__ gitignore, empty agent memory, documentation-only files)
-- Add agent memory write-back mechanism
-- Evaluate and activate validation cache and schema enforcement
+(No active milestone — run `/gsd:new-milestone` to start next version)
 
 ### Deferred (v2+)
 
@@ -169,6 +166,13 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 - Agent teams for parallel research and critic review
 - Context compliance verification and TaskCompleted hooks
 
+**v1.4 — System Hygiene & Quality Gates (Phases 18-22):**
+- Dead code purge: 10 .sh hooks, hooks.json, 3 dead agents, deprecated registry, __pycache__
+- 3 quality gates activated: SubagentStop, research frontmatter, resource index regen
+- Research corpus standardized (64 docs, 5-field frontmatter) with 10 gap-fill deep-dives
+- Skill consolidation (plugin-phases -> plugin-workflow) and agent memory seed patterns
+- Agent memory write-back mechanism with deduplication and 10KB cap
+
 ### Remaining Concerns
 
 **Deployment:**
@@ -212,6 +216,11 @@ The Plugin Freedom System is a JUCE 8-based audio plugin development framework w
 | gsd-tools for all state operations | Eliminates manual STATE.md parsing errors | ✓ Good — 8 workflows migrated |
 | Tokenized keyword matching for context compliance | Semantic analysis would be too slow for CLI pre-check | ✓ Good — fast deterministic layer + agent override |
 | Canary plugin testing after every change | 35+ production plugins depend on system stability | ✓ Good — O-SimpleReverb confirmed no regressions |
+| Full system review before cleanup milestone | Data-driven prioritization of hygiene work | ✓ Good — 632K token review found 15 recommendations, 9 quick wins |
+| Remove validation cache rather than activate | Dead infrastructure adds confusion; validation runs fast enough | ✓ Good — clean deletion, no perf regression |
+| 10KB cap on agent memory files | Prevent unbounded growth, force manual curation | ✓ Good — sustainable long-term pattern |
+| Write-back deduplication via key phrases | Avoid re-appending known patterns to memory files | ✓ Good — prevents memory bloat across sessions |
+| 5-field minimum frontmatter standard | Consistent metadata across all 64 research docs | ✓ Good — validator hook enforces going forward |
 
 ---
-*Last updated: 2026-03-05 after v1.4 milestone start*
+*Last updated: 2026-03-07 after v1.4 milestone*

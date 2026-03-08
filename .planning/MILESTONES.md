@@ -1,5 +1,40 @@
 # Project Milestones: Plugin Freedom System
 
+## v1.4 System Hygiene & Quality Gates (Shipped: 2026-03-07)
+
+**Delivered:** Complete system hygiene pass driven by full system review -- dead code purged, quality gates activated, research corpus standardized and expanded, skills consolidated, and agent memory write-back mechanism built for persistent learning
+
+**Phases completed:** 18-22 (13 plans, 24 tasks)
+
+**Key accomplishments:**
+
+- Purged all dead code: 10 .sh hooks (816 lines), hooks.json, 3 dead agents (473 lines), deprecated registry, __pycache__ from git tracking
+- Activated 3 dormant quality gates in settings.json: SubagentStop contract validation, research frontmatter validation, resource index auto-regeneration
+- Standardized all 53 research docs with 5-field YAML frontmatter, grew corpus to 64 docs with 10 gap-fill deep-dives covering all plugin technique domains
+- Merged plugin-phases into plugin-workflow skill, populated 4 agent memory files with seed patterns from production experience
+- Built agent memory write-back hook: agents now persist learnings across sessions via SubagentStop with deduplication and 10KB cap
+- Removed validation cache dead infrastructure (5 files) and duplicate canary-test.sh
+
+**Stats:**
+
+- 328 files changed
+- 20,873 lines added, 50,581 lines deleted (-29,708 net)
+- 5 phases, 13 plans, 24 tasks
+- 23 requirements satisfied (100% coverage)
+- 2 days from start to ship (2026-03-05 -> 2026-03-07)
+
+**Git range:** `5bc7a2e` -> `02f78a0`
+
+**Tech debt (4 items):**
+- SubagentStop.py subprocess timeout (60s) exceeds settings.json hook timeout (30s) -- non-blocking
+- Stop.py and UserPromptSubmit.py are orphaned hooks (not wired in settings.json)
+- write-back-agent-memory.py has intentional pass in JUCE investigation branch
+- End-to-end write-back test requires real subagent sessions (human-verification)
+
+**What's next:** `/gsd:new-milestone` for next version
+
+---
+
 ## v1.3 System Modernization (Shipped: 2026-02-10)
 
 **Delivered:** Opus 4.6 platform migration, multi-layer context persistence, GSD state deduplication, and agent team infrastructure for parallel research and review — with canary validation protecting 35+ production plugins
