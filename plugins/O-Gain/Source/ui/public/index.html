@@ -1,0 +1,1119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>O-Gain</title>
+  <style>
+    /* CRITICAL: WebView constraints - no viewport units */
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    *, *::before, *::after {
+      box-sizing: border-box;
+    }
+    body {
+      user-select: none;
+      -webkit-user-select: none;
+      cursor: default;
+      overflow: hidden;
+      background: #F5E6D3;
+      color: #3C2F2F;
+      font-family: Garamond, 'Georgia', 'Times New Roman', serif;
+      font-size: 11px;
+    }
+
+    /* Paper texture background */
+    .paper-background {
+      position: absolute;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background-image: url('/images/paper1.jpg');
+      background-size: cover;
+      background-position: center;
+      z-index: 0;
+    }
+
+    /* Shell illustration overlay */
+    .shell-decoration {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 280px;
+      height: auto;
+      opacity: 0.07;
+      pointer-events: none;
+      z-index: 0;
+      mix-blend-mode: multiply;
+    }
+
+    .container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 6px;
+      position: relative;
+      z-index: 1;
+    }
+
+    /* Header */
+    .header {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 22px;
+      flex-shrink: 0;
+    }
+    .title {
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 3px;
+      color: #3C2F2F;
+      text-transform: uppercase;
+    }
+
+    /* Meter Area */
+    .meter-section {
+      display: flex;
+      gap: 8px;
+      flex: 1;
+      min-height: 0;
+    }
+
+    /* Meter column (L/R pair) */
+    .meter-column {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      width: 44px;
+      flex-shrink: 0;
+      gap: 2px;
+    }
+    .meter-label {
+      font-size: 9px;
+      color: #8B7355;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+    .meter-pair {
+      display: flex;
+      gap: 3px;
+      flex: 1;
+      width: 100%;
+    }
+    .meter-bar-container {
+      flex: 1;
+      background: rgba(139, 115, 85, 0.12);
+      border: 1px solid #8B7355;
+      border-radius: 2px;
+      position: relative;
+      overflow: hidden;
+    }
+    .meter-bar {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 0%;
+      transition: height 0.06s linear;
+    }
+    .meter-bar.green {
+      background: linear-gradient(to top, #5a7a4e, #6B8E4E, #8BA870);
+    }
+    .meter-clip-indicator {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 3px;
+      background: transparent;
+      border-radius: 2px 2px 0 0;
+    }
+    .meter-clip-indicator.clipping {
+      background: #a04030;
+    }
+    .meter-db-label {
+      font-size: 8px;
+      color: #5C4033;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    /* Gain display area (center) */
+    .center-section {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      min-width: 0;
+    }
+
+    /* Large gain display */
+    .gain-display {
+      text-align: center;
+      padding: 8px 16px;
+      background: rgba(255, 248, 220, 0.55);
+      border: 1px solid #8B7355;
+      border-radius: 6px;
+      width: 100%;
+      max-width: 220px;
+    }
+    .gain-display-label {
+      font-size: 9px;
+      color: #8B7355;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      margin-bottom: 2px;
+    }
+    .gain-display-value {
+      font-size: 32px;
+      font-weight: 700;
+      color: #3C2F2F;
+      font-variant-numeric: tabular-nums;
+      line-height: 1.1;
+    }
+    .gain-display-unit {
+      font-size: 12px;
+      color: #8B7355;
+      margin-left: 2px;
+    }
+
+    /* Knob/Slider row */
+    .knob-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      max-width: 220px;
+    }
+    .knob-group {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      flex: 1;
+      gap: 2px;
+    }
+    .knob-label {
+      font-size: 9px;
+      color: #8B7355;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .knob-value {
+      font-size: 10px;
+      color: #3C2F2F;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* SVG Knob */
+    .knob-svg-container {
+      width: 48px;
+      height: 48px;
+      cursor: pointer;
+    }
+    .knob-svg-container.small {
+      width: 36px;
+      height: 36px;
+    }
+    .knob-track {
+      fill: none;
+      stroke: rgba(139, 115, 85, 0.3);
+      stroke-width: 4;
+      stroke-linecap: round;
+    }
+    .knob-fill {
+      fill: none;
+      stroke: #6B8E4E;
+      stroke-width: 4;
+      stroke-linecap: round;
+      transition: stroke-dashoffset 0.06s linear;
+    }
+    .knob-fill.trim {
+      stroke: #C9A27B;
+    }
+    .knob-dot {
+      fill: #3C2F2F;
+    }
+
+    /* Learn section */
+    .learn-section {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+      max-width: 220px;
+    }
+    .learn-btn {
+      padding: 6px 16px;
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      background: #EBD9C7;
+      color: #5C4033;
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 1px;
+      cursor: pointer;
+      transition: all 0.15s;
+      flex-shrink: 0;
+      font-family: inherit;
+    }
+    .learn-btn:hover {
+      background: #d4c4b0;
+      border-color: #6B8E4E;
+    }
+    .learn-btn.learning {
+      background: rgba(107, 142, 78, 0.25);
+      border-color: #6B8E4E;
+      color: #4a6e35;
+      animation: learnPulse 1.2s ease-in-out infinite;
+    }
+    .learn-btn.complete {
+      background: rgba(107, 142, 78, 0.2);
+      border-color: #6B8E4E;
+      color: #6B8E4E;
+    }
+    @keyframes learnPulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.7; }
+    }
+
+    .target-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      flex: 1;
+    }
+    .target-label {
+      font-size: 9px;
+      color: #8B7355;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .target-value {
+      font-size: 10px;
+      color: #3C2F2F;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Target knob row */
+    .target-knob-row {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      width: 100%;
+      max-width: 220px;
+    }
+
+    /* Mode selectors */
+    .mode-row {
+      display: flex;
+      gap: 8px;
+      width: 100%;
+      max-width: 300px;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .mode-group {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      align-items: center;
+    }
+    .mode-label {
+      font-size: 8px;
+      color: #8B7355;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .mode-selector {
+      display: flex;
+      gap: 1px;
+      background: rgba(139, 115, 85, 0.1);
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      overflow: hidden;
+    }
+    .mode-option {
+      padding: 3px 8px;
+      font-size: 9px;
+      color: #5C4033;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      transition: all 0.1s;
+      font-family: inherit;
+    }
+    .mode-option:hover {
+      color: #3C2F2F;
+      background: rgba(139, 115, 85, 0.15);
+    }
+    .mode-option.active {
+      color: #F5E6D3;
+      background: #5C4033;
+    }
+
+    /* Learn info panel */
+    .learn-info {
+      background: rgba(255, 248, 220, 0.55);
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      padding: 6px 10px;
+      width: 100%;
+      max-width: 300px;
+      display: none;
+      flex-shrink: 0;
+    }
+    .learn-info.visible {
+      display: block;
+    }
+    .learn-info-title {
+      font-size: 9px;
+      color: #8B7355;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+    .learn-info-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 2px 12px;
+    }
+    .learn-info-item {
+      display: flex;
+      justify-content: space-between;
+      gap: 6px;
+    }
+    .learn-info-label {
+      font-size: 9px;
+      color: #8B7355;
+    }
+    .learn-info-value {
+      font-size: 9px;
+      color: #3C2F2F;
+      font-variant-numeric: tabular-nums;
+      text-align: right;
+    }
+    .confidence-low { color: #a04030; }
+    .confidence-medium { color: #C9A27B; }
+    .confidence-high { color: #6B8E4E; }
+
+    /* Utility buttons */
+    .utility-row {
+      display: flex;
+      gap: 4px;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .utility-btn {
+      padding: 4px 10px;
+      border: 1px solid #8B7355;
+      border-radius: 3px;
+      background: #EBD9C7;
+      color: #5C4033;
+      font-size: 10px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.1s;
+      font-family: inherit;
+    }
+    .utility-btn:hover {
+      background: #d4c4b0;
+      border-color: #6B8E4E;
+    }
+    .utility-btn.active {
+      background: rgba(107, 142, 78, 0.25);
+      border-color: #6B8E4E;
+      color: #4a6e35;
+    }
+    .utility-btn.ms-active {
+      background: rgba(90, 122, 106, 0.25);
+      border-color: #5a7a6a;
+      color: #5a7a6a;
+    }
+
+    /* Help toggle */
+    .help-btn {
+      position: absolute;
+      right: 8px;
+      top: 0;
+      width: 18px;
+      height: 18px;
+      border: 1px solid #8B7355;
+      border-radius: 50%;
+      background: transparent;
+      color: #8B7355;
+      font-size: 11px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.15s;
+      line-height: 1;
+      padding: 0;
+    }
+    .help-btn:hover {
+      border-color: #5C4033;
+      color: #5C4033;
+    }
+    .help-btn.active {
+      border-color: #6B8E4E;
+      color: #6B8E4E;
+      background: rgba(107, 142, 78, 0.1);
+    }
+
+    /* Tooltips */
+    [data-tooltip] {
+      position: relative;
+    }
+    [data-tooltip]::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 50%;
+      bottom: calc(100% + 6px);
+      transform: translateX(-50%);
+      background: #3C2F2F;
+      color: #F5E6D3;
+      border: 1px solid #8B7355;
+      border-radius: 4px;
+      padding: 5px 8px;
+      font-size: 10px;
+      font-weight: 400;
+      line-height: 1.35;
+      white-space: normal;
+      width: max-content;
+      max-width: 220px;
+      z-index: 100;
+      pointer-events: none;
+      opacity: 0;
+      transition: opacity 0.15s;
+      text-transform: none;
+      letter-spacing: 0;
+    }
+    /* Show tooltips only when help mode active AND hovering */
+    body.tooltips-active [data-tooltip]:hover::after {
+      opacity: 1;
+    }
+    /* Bottom-positioned tooltips for elements near top */
+    [data-tooltip-pos="bottom"]::after {
+      bottom: auto;
+      top: calc(100% + 6px);
+    }
+    /* Right-aligned tooltip for elements near left edge */
+    [data-tooltip-pos="right"]::after {
+      left: 0;
+      transform: none;
+    }
+    /* Left-aligned tooltip for elements near right edge */
+    [data-tooltip-pos="left"]::after {
+      left: auto;
+      right: 0;
+      transform: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="paper-background"></div>
+  <img class="shell-decoration" src="/images/shell_decoration.png" alt="" />
+  <div class="container">
+    <!-- Header -->
+    <div class="header" style="position: relative;">
+      <div class="title">O-Gain</div>
+      <button class="help-btn" id="help-btn" title="Toggle tooltips">?</button>
+    </div>
+
+    <!-- Meter + Gain Display -->
+    <div class="meter-section">
+      <!-- Input Meters -->
+      <div class="meter-column" data-tooltip="Input level after channel utilities, before gain is applied" data-tooltip-pos="bottom">
+        <div class="meter-label">Input</div>
+        <div class="meter-pair">
+          <div class="meter-bar-container" id="input-meter-l-container">
+            <div class="meter-clip-indicator" id="input-clip-l"></div>
+            <div class="meter-bar green" id="input-meter-l"></div>
+          </div>
+          <div class="meter-bar-container" id="input-meter-r-container">
+            <div class="meter-clip-indicator" id="input-clip-r"></div>
+            <div class="meter-bar green" id="input-meter-r"></div>
+          </div>
+        </div>
+        <div class="meter-db-label" id="input-db-label">-inf</div>
+      </div>
+
+      <!-- Center: Gain + Controls -->
+      <div class="center-section">
+        <!-- Gain Display -->
+        <div class="gain-display" data-tooltip="Main gain offset. Set by Learn or adjust manually. Range: -40 to +40 dB">
+          <div class="gain-display-label">Gain Offset</div>
+          <div>
+            <span class="gain-display-value" id="gain-value">0.0</span>
+            <span class="gain-display-unit">dB</span>
+          </div>
+        </div>
+
+        <!-- Gain + Trim Knobs -->
+        <div class="knob-row">
+          <div class="knob-group" data-tooltip="Drag to set gain. Double-click to reset. Hold Shift for fine control">
+            <svg class="knob-svg-container" id="gain-knob" viewBox="0 0 48 48" data-param="gain_offset">
+              <path class="knob-track" id="gain-track" />
+              <path class="knob-fill" id="gain-fill" />
+              <circle class="knob-dot" id="gain-dot" r="2" />
+            </svg>
+            <div class="knob-label">Gain</div>
+          </div>
+          <div class="knob-group" data-tooltip="Fine adjustment after Learn mode. Range: -6 to +6 dB. Double-click to reset">
+            <svg class="knob-svg-container small" id="trim-knob" viewBox="0 0 48 48" data-param="trim">
+              <path class="knob-track" id="trim-track" />
+              <path class="knob-fill trim" id="trim-fill" />
+              <circle class="knob-dot" id="trim-dot" r="2" />
+            </svg>
+            <div class="knob-label">Trim</div>
+            <div class="knob-value" id="trim-value">0.0 dB</div>
+          </div>
+        </div>
+
+        <!-- Learn + Target -->
+        <div class="learn-section">
+          <button class="learn-btn" id="learn-btn" data-tooltip="Click to start measuring. Play audio for 10-30s, then click again. Gain is set automatically">LEARN</button>
+          <div class="target-group" data-tooltip="Target loudness for Learn. -18 dB = 0 VU (standard), -14 LUFS = Spotify, -23 LUFS = EBU R128">
+            <div class="target-label">Target</div>
+            <div class="target-value" id="target-value">-18.0 dB</div>
+          </div>
+        </div>
+
+        <!-- Target Knob -->
+        <div class="target-knob-row">
+          <svg class="knob-svg-container small" id="target-knob" viewBox="0 0 48 48" data-param="target_level">
+            <path class="knob-track" id="target-track" />
+            <path class="knob-fill" id="target-fill" />
+            <circle class="knob-dot" id="target-dot" r="2" />
+          </svg>
+          <div class="knob-group" style="align-items: flex-start;" data-tooltip="Desired output loudness. Drag knob or double-click to reset to -18 dB">
+            <div class="knob-label">Target Level</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Output Meters -->
+      <div class="meter-column" data-tooltip="Output level after gain is applied" data-tooltip-pos="bottom">
+        <div class="meter-label">Output</div>
+        <div class="meter-pair">
+          <div class="meter-bar-container" id="output-meter-l-container">
+            <div class="meter-clip-indicator" id="output-clip-l"></div>
+            <div class="meter-bar green" id="output-meter-l"></div>
+          </div>
+          <div class="meter-bar-container" id="output-meter-r-container">
+            <div class="meter-clip-indicator" id="output-clip-r"></div>
+            <div class="meter-bar green" id="output-meter-r"></div>
+          </div>
+        </div>
+        <div class="meter-db-label" id="output-db-label">-inf</div>
+      </div>
+    </div>
+
+    <!-- Mode Selectors -->
+    <div class="mode-row">
+      <div class="mode-group" data-tooltip="Algorithm used by Learn. LUFS = K-weighted loudness (recommended, industry standard). RMS = simple average level" data-tooltip-pos="bottom">
+        <div class="mode-label">Measure</div>
+        <div class="mode-selector" id="measurement-mode-selector">
+          <button class="mode-option active" data-index="0">LUFS</button>
+          <button class="mode-option" data-index="1">RMS</button>
+        </div>
+      </div>
+      <div class="mode-group" data-tooltip="Meter display type. Peak = instantaneous peaks. RMS = average level. VU = analog-style 300ms ballistics. LUFS = loudness units" data-tooltip-pos="bottom">
+        <div class="mode-label">Meter</div>
+        <div class="mode-selector" id="meter-mode-selector">
+          <button class="mode-option" data-index="0">Peak</button>
+          <button class="mode-option" data-index="1">RMS</button>
+          <button class="mode-option active" data-index="2">VU</button>
+          <button class="mode-option" data-index="3">LUFS</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Learn Info Panel -->
+    <div class="learn-info" id="learn-info">
+      <div class="learn-info-title">Learn Analysis</div>
+      <div class="learn-info-grid">
+        <div class="learn-info-item" data-tooltip="Loudness of the last 400ms window">
+          <span class="learn-info-label">Momentary</span>
+          <span class="learn-info-value" id="lufs-momentary">-- LUFS</span>
+        </div>
+        <div class="learn-info-item" data-tooltip="Loudness averaged over the last 3 seconds">
+          <span class="learn-info-label">Short-term</span>
+          <span class="learn-info-value" id="lufs-short-term">-- LUFS</span>
+        </div>
+        <div class="learn-info-item" data-tooltip="Overall loudness since Learn started (gated, used for gain calculation)">
+          <span class="learn-info-label">Integrated</span>
+          <span class="learn-info-value" id="lufs-integrated">-- LUFS</span>
+        </div>
+        <div class="learn-info-item" data-tooltip="Highest inter-sample peak detected. Gain is clamped so output stays below -1 dBTP">
+          <span class="learn-info-label">True Peak</span>
+          <span class="learn-info-value" id="lufs-true-peak">-- dBTP</span>
+        </div>
+        <div class="learn-info-item" data-tooltip="How long Learn has been running. 10-30 seconds recommended">
+          <span class="learn-info-label">Elapsed</span>
+          <span class="learn-info-value" id="learn-elapsed">0.0s</span>
+        </div>
+        <div class="learn-info-item" data-tooltip="Measurement quality. Low = under 5s. Medium = 5-15s. High = over 15s with stable signal">
+          <span class="learn-info-label">Confidence</span>
+          <span class="learn-info-value" id="learn-confidence">--</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Utility Buttons -->
+    <div class="utility-row">
+      <button class="utility-btn" id="phase-l-btn" data-param="phase_invert_l" data-tooltip="Flip left channel polarity (180 degree phase inversion)">PH L</button>
+      <button class="utility-btn" id="phase-r-btn" data-param="phase_invert_r" data-tooltip="Flip right channel polarity (180 degree phase inversion)">PH R</button>
+      <button class="utility-btn" id="swap-btn" data-param="channel_swap" data-tooltip="Swap left and right channels">SWAP</button>
+      <button class="utility-btn" id="mono-btn" data-param="mono_sum" data-tooltip="Sum to mono: (L+R)/2 on both channels">MONO</button>
+      <button class="utility-btn" id="ms-off-btn" data-ms="0" data-tooltip="Mid-Side processing off (normal stereo)">M/S OFF</button>
+      <button class="utility-btn" id="ms-enc-btn" data-ms="1" data-tooltip="Encode L/R to Mid/Side. Use with a second O-Gain set to DEC after processing">ENC</button>
+      <button class="utility-btn" id="ms-dec-btn" data-ms="2" data-tooltip="Decode Mid/Side back to L/R. Place after M/S processing chain">DEC</button>
+    </div>
+  </div>
+
+  <!-- JUCE WebView Integration -->
+  <script type="module">
+    import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './js/juce/index.js';
+
+    // Disable context menu
+    document.addEventListener('contextmenu', (e) => { e.preventDefault(); return false; });
+
+    // =========================================================================
+    // SVG Knob Drawing
+    // =========================================================================
+    const KNOB_CX = 24, KNOB_CY = 24, KNOB_R = 18;
+    const START_ANGLE = 135;   // degrees (7 o'clock)
+    const END_ANGLE = 405;     // degrees (5 o'clock) = 135 + 270
+    const SWEEP = 270;
+
+    function degToRad(deg) { return deg * Math.PI / 180; }
+
+    function polarToXY(cx, cy, r, angleDeg) {
+      const rad = degToRad(angleDeg);
+      return { x: cx + r * Math.cos(rad), y: cy + r * Math.sin(rad) };
+    }
+
+    function describeArc(cx, cy, r, startAngle, endAngle) {
+      const start = polarToXY(cx, cy, r, startAngle);
+      const end = polarToXY(cx, cy, r, endAngle);
+      const sweep = endAngle - startAngle;
+      const largeArc = sweep > 180 ? 1 : 0;
+      return `M ${start.x} ${start.y} A ${r} ${r} 0 ${largeArc} 1 ${end.x} ${end.y}`;
+    }
+
+    function drawKnob(trackId, fillId, dotId, normalizedValue) {
+      const track = document.getElementById(trackId);
+      const fill = document.getElementById(fillId);
+      const dot = document.getElementById(dotId);
+      if (!track || !fill || !dot) return;
+
+      // Full arc (track)
+      track.setAttribute('d', describeArc(KNOB_CX, KNOB_CY, KNOB_R, START_ANGLE, END_ANGLE));
+
+      // Value arc
+      const valueAngle = START_ANGLE + normalizedValue * SWEEP;
+      if (normalizedValue > 0.005) {
+        fill.setAttribute('d', describeArc(KNOB_CX, KNOB_CY, KNOB_R, START_ANGLE, valueAngle));
+      } else {
+        fill.setAttribute('d', '');
+      }
+
+      // Dot position
+      const dotPos = polarToXY(KNOB_CX, KNOB_CY, KNOB_R, valueAngle);
+      dot.setAttribute('cx', dotPos.x);
+      dot.setAttribute('cy', dotPos.y);
+    }
+
+    // =========================================================================
+    // Parameter Definitions
+    // =========================================================================
+    const paramDefs = {
+      gain_offset:  { min: -40.0, max: 40.0, unit: ' dB', format: v => (v >= 0 ? '+' : '') + v.toFixed(1) },
+      trim:         { min: -6.0,  max: 6.0,  unit: ' dB', format: v => (v >= 0 ? '+' : '') + v.toFixed(1) },
+      target_level: { min: -36.0, max: 0.0,  unit: ' dB', format: v => v.toFixed(1) }
+    };
+
+    function normToScaled(paramId, norm) {
+      const p = paramDefs[paramId];
+      return p.min + norm * (p.max - p.min);
+    }
+
+    function formatParam(paramId, norm) {
+      const p = paramDefs[paramId];
+      const val = normToScaled(paramId, norm);
+      return p.format(val) + p.unit;
+    }
+
+    // =========================================================================
+    // Slider Knob Binding
+    // =========================================================================
+    const knobConfigs = {
+      gain_offset:  { trackId: 'gain-track',   fillId: 'gain-fill',   dotId: 'gain-dot',   svgId: 'gain-knob' },
+      trim:         { trackId: 'trim-track',   fillId: 'trim-fill',   dotId: 'trim-dot',   svgId: 'trim-knob' },
+      target_level: { trackId: 'target-track', fillId: 'target-fill', dotId: 'target-dot', svgId: 'target-knob' }
+    };
+
+    // Shared drag state
+    let activeDrag = null;
+    document.addEventListener('mousemove', (e) => {
+      if (!activeDrag) return;
+      const delta = activeDrag.lastY - e.clientY;
+      const current = activeDrag.state.getNormalisedValue();
+      const sensitivity = e.shiftKey ? 600 : 200;
+      activeDrag.state.setNormalisedValue(Math.max(0, Math.min(1, current + delta / sensitivity)));
+      activeDrag.lastY = e.clientY;
+    });
+    document.addEventListener('mouseup', () => {
+      if (activeDrag) {
+        activeDrag.state.sliderDragEnded();
+        activeDrag = null;
+      }
+    });
+
+    function setupSliderKnob(paramId) {
+      const config = knobConfigs[paramId];
+      const state = getSliderState(paramId);
+      if (!state) { console.error('No slider state for', paramId); return; }
+
+      // Initialize
+      const initNorm = state.getNormalisedValue();
+      drawKnob(config.trackId, config.fillId, config.dotId, initNorm);
+      updateSliderDisplay(paramId, initNorm);
+
+      // Listen to C++ changes
+      state.valueChangedEvent.addListener(() => {
+        const norm = state.getNormalisedValue();
+        drawKnob(config.trackId, config.fillId, config.dotId, norm);
+        updateSliderDisplay(paramId, norm);
+      });
+
+      // Mouse drag
+      const svg = document.getElementById(config.svgId);
+      svg.addEventListener('mousedown', (e) => {
+        state.sliderDragStarted();
+        activeDrag = { state, lastY: e.clientY };
+        e.preventDefault();
+      });
+
+      // Double-click to reset
+      svg.addEventListener('dblclick', () => {
+        const defaults = { gain_offset: 0.5, trim: 0.5, target_level: 0.5 };
+        state.setNormalisedValue(defaults[paramId] || 0.5);
+      });
+
+      // Mouse wheel
+      svg.addEventListener('wheel', (e) => {
+        e.preventDefault();
+        const step = e.shiftKey ? 0.005 : 0.02;
+        const delta = e.deltaY < 0 ? step : -step;
+        const current = state.getNormalisedValue();
+        state.setNormalisedValue(Math.max(0, Math.min(1, current + delta)));
+      }, { passive: false });
+    }
+
+    function updateSliderDisplay(paramId, norm) {
+      if (paramId === 'gain_offset') {
+        const val = normToScaled('gain_offset', norm);
+        document.getElementById('gain-value').textContent = (val >= 0 ? '+' : '') + val.toFixed(1);
+      } else if (paramId === 'trim') {
+        document.getElementById('trim-value').textContent = formatParam('trim', norm);
+      } else if (paramId === 'target_level') {
+        document.getElementById('target-value').textContent = formatParam('target_level', norm);
+      }
+    }
+
+    // =========================================================================
+    // Toggle Button Binding
+    // =========================================================================
+    function setupToggle(btnId, paramId) {
+      const btn = document.getElementById(btnId);
+      const state = getToggleState(paramId);
+      if (!state) { console.error('No toggle state for', paramId); return; }
+
+      const updateVisual = () => {
+        const val = state.getValue();
+        btn.classList.toggle('active', val);
+      };
+
+      state.valueChangedEvent.addListener(updateVisual);
+      btn.addEventListener('click', () => {
+        state.setValue(!state.getValue());
+      });
+      updateVisual();
+    }
+
+    // =========================================================================
+    // ComboBox Binding (Mode Selectors)
+    // =========================================================================
+    function setupComboBox(selectorId, paramId) {
+      const container = document.getElementById(selectorId);
+      const state = getComboBoxState(paramId);
+      if (!state) { console.error('No combobox state for', paramId); return; }
+
+      const options = container.querySelectorAll('.mode-option');
+
+      const updateVisual = () => {
+        const idx = state.getChoiceIndex();
+        options.forEach((opt, i) => {
+          opt.classList.toggle('active', i === idx);
+        });
+      };
+
+      state.valueChangedEvent.addListener(updateVisual);
+
+      // Wait for properties to be available, then update
+      state.propertiesChangedEvent.addListener(updateVisual);
+
+      options.forEach((opt) => {
+        opt.addEventListener('click', () => {
+          const idx = parseInt(opt.dataset.index, 10);
+          state.setChoiceIndex(idx);
+        });
+      });
+
+      updateVisual();
+    }
+
+    // =========================================================================
+    // M/S Mode (ComboBox with separate buttons)
+    // =========================================================================
+    function setupMsMode() {
+      const state = getComboBoxState('ms_mode');
+      if (!state) { console.error('No combobox state for ms_mode'); return; }
+
+      const buttons = [
+        document.getElementById('ms-off-btn'),
+        document.getElementById('ms-enc-btn'),
+        document.getElementById('ms-dec-btn')
+      ];
+
+      const updateVisual = () => {
+        const idx = state.getChoiceIndex();
+        buttons.forEach((btn, i) => {
+          btn.classList.toggle('ms-active', i === idx && i > 0);
+          btn.classList.toggle('active', i === idx && i === 0);
+        });
+      };
+
+      state.valueChangedEvent.addListener(updateVisual);
+      state.propertiesChangedEvent.addListener(updateVisual);
+
+      buttons.forEach((btn, i) => {
+        btn.addEventListener('click', () => {
+          state.setChoiceIndex(i);
+        });
+      });
+
+      updateVisual();
+    }
+
+    // =========================================================================
+    // Learn Button (Native Function)
+    // =========================================================================
+    const toggleLearn = getNativeFunction('toggleLearn');
+
+    function setupLearnButton() {
+      const btn = document.getElementById('learn-btn');
+      btn.addEventListener('click', async () => {
+        try {
+          const result = await toggleLearn();
+          // State will be updated via metering timer
+        } catch (e) {
+          console.error('toggleLearn error:', e);
+        }
+      });
+    }
+
+    // =========================================================================
+    // Metering (called from C++ via evaluateJavascript)
+    // =========================================================================
+    let currentMeterMode = 2; // default VU
+    let lastLearnState = 0;
+
+    // Convert linear amplitude to dB
+    function ampToDb(amp) {
+      if (amp <= 0.00001) return -100;
+      return 20 * Math.log10(amp);
+    }
+
+    // Convert dB to meter percentage (0-100), range -60 to 0 dB
+    function dbToPercent(db) {
+      return Math.max(0, Math.min(100, ((db + 60) / 60) * 100));
+    }
+
+    window.updateMeters = function(data) {
+      // Determine which meter values to display based on meter_mode
+      let inL, inR, outL, outR;
+
+      switch (currentMeterMode) {
+        case 0: // Peak
+          inL = ampToDb(data.inputPeakL);
+          inR = ampToDb(data.inputPeakR);
+          outL = ampToDb(data.outputPeakL);
+          outR = ampToDb(data.outputPeakR);
+          break;
+        case 1: // RMS
+          inL = ampToDb(data.inputRmsL);
+          inR = ampToDb(data.inputRmsR);
+          outL = ampToDb(data.outputRmsL);
+          outR = ampToDb(data.outputRmsR);
+          break;
+        case 2: // VU
+          inL = ampToDb(data.vuLevelL);
+          inR = ampToDb(data.vuLevelR);
+          outL = ampToDb(data.outputRmsL);
+          outR = ampToDb(data.outputRmsR);
+          break;
+        case 3: // LUFS (show input RMS, output RMS as fallback)
+          inL = ampToDb(data.inputRmsL);
+          inR = ampToDb(data.inputRmsR);
+          outL = ampToDb(data.outputRmsL);
+          outR = ampToDb(data.outputRmsR);
+          break;
+        default:
+          inL = inR = outL = outR = -100;
+      }
+
+      // Update meter bars
+      document.getElementById('input-meter-l').style.height = dbToPercent(inL) + '%';
+      document.getElementById('input-meter-r').style.height = dbToPercent(inR) + '%';
+      document.getElementById('output-meter-l').style.height = dbToPercent(outL) + '%';
+      document.getElementById('output-meter-r').style.height = dbToPercent(outR) + '%';
+
+      // Clip indicators (above -0.5 dBFS)
+      const inPeakL = ampToDb(data.inputPeakL);
+      const inPeakR = ampToDb(data.inputPeakR);
+      const outPeakL = ampToDb(data.outputPeakL);
+      const outPeakR = ampToDb(data.outputPeakR);
+
+      document.getElementById('input-clip-l').classList.toggle('clipping', inPeakL > -0.5);
+      document.getElementById('input-clip-r').classList.toggle('clipping', inPeakR > -0.5);
+      document.getElementById('output-clip-l').classList.toggle('clipping', outPeakL > -0.5);
+      document.getElementById('output-clip-r').classList.toggle('clipping', outPeakR > -0.5);
+
+      // dB readouts under meters
+      const maxInDb = Math.max(inL, inR);
+      const maxOutDb = Math.max(outL, outR);
+      document.getElementById('input-db-label').textContent = maxInDb > -99 ? maxInDb.toFixed(0) : '-inf';
+      document.getElementById('output-db-label').textContent = maxOutDb > -99 ? maxOutDb.toFixed(0) : '-inf';
+
+      // Apply meter bar color gradient based on level
+      applyMeterColor('input-meter-l', inL);
+      applyMeterColor('input-meter-r', inR);
+      applyMeterColor('output-meter-l', outL);
+      applyMeterColor('output-meter-r', outR);
+
+      // Learn state
+      const learnBtn = document.getElementById('learn-btn');
+      const learnInfo = document.getElementById('learn-info');
+
+      if (data.learnState !== lastLearnState) {
+        lastLearnState = data.learnState;
+        learnBtn.classList.remove('learning', 'complete');
+        if (data.learnState === 1) {
+          learnBtn.classList.add('learning');
+          learnBtn.textContent = 'LEARNING...';
+          learnInfo.classList.add('visible');
+        } else if (data.learnState === 2) {
+          learnBtn.classList.add('complete');
+          learnBtn.textContent = 'DONE';
+          learnInfo.classList.add('visible');
+        } else {
+          learnBtn.textContent = 'LEARN';
+          learnInfo.classList.remove('visible');
+        }
+      }
+
+      // Learn info panel updates
+      if (data.learnState >= 1) {
+        const momLufs = data.momentaryLUFS > -99 ? data.momentaryLUFS.toFixed(1) + ' LUFS' : '-- LUFS';
+        const stLufs = data.shortTermLUFS > -99 ? data.shortTermLUFS.toFixed(1) + ' LUFS' : '-- LUFS';
+        const intLufs = data.integratedLUFS > -99 ? data.integratedLUFS.toFixed(1) + ' LUFS' : '-- LUFS';
+        const tp = data.truePeakDBTP > -99 ? data.truePeakDBTP.toFixed(1) + ' dBTP' : '-- dBTP';
+
+        document.getElementById('lufs-momentary').textContent = momLufs;
+        document.getElementById('lufs-short-term').textContent = stLufs;
+        document.getElementById('lufs-integrated').textContent = intLufs;
+        document.getElementById('lufs-true-peak').textContent = tp;
+        document.getElementById('learn-elapsed').textContent = data.learnElapsedSeconds.toFixed(1) + 's';
+
+        const confEl = document.getElementById('learn-confidence');
+        const confLabels = ['--', 'LOW', 'MED', 'HIGH'];
+        const confClasses = ['', 'confidence-low', 'confidence-medium', 'confidence-high'];
+        confEl.textContent = confLabels[data.learnConfidence] || '--';
+        confEl.className = 'learn-info-value ' + (confClasses[data.learnConfidence] || '');
+      }
+    };
+
+    function applyMeterColor(elementId, db) {
+      const el = document.getElementById(elementId);
+      if (db > -6) {
+        el.style.background = 'linear-gradient(to top, #5a7a4e, #6B8E4E, #C9A27B, #a04030)';
+      } else if (db > -18) {
+        el.style.background = 'linear-gradient(to top, #5a7a4e, #6B8E4E, #C9A27B)';
+      } else {
+        el.style.background = 'linear-gradient(to top, #5a7a4e, #6B8E4E, #8BA870)';
+      }
+    }
+
+    // Track meter mode changes to update display
+    function watchMeterMode() {
+      const state = getComboBoxState('meter_mode');
+      if (!state) return;
+
+      state.valueChangedEvent.addListener(() => {
+        currentMeterMode = state.getChoiceIndex();
+      });
+      state.propertiesChangedEvent.addListener(() => {
+        currentMeterMode = state.getChoiceIndex();
+      });
+    }
+
+    // =========================================================================
+    // Initialize
+    // =========================================================================
+    window.addEventListener('DOMContentLoaded', () => {
+      // Slider knobs
+      setupSliderKnob('gain_offset');
+      setupSliderKnob('trim');
+      setupSliderKnob('target_level');
+
+      // Toggle buttons
+      setupToggle('phase-l-btn', 'phase_invert_l');
+      setupToggle('phase-r-btn', 'phase_invert_r');
+      setupToggle('swap-btn', 'channel_swap');
+      setupToggle('mono-btn', 'mono_sum');
+
+      // ComboBox mode selectors
+      setupComboBox('measurement-mode-selector', 'measurement_mode');
+      setupComboBox('meter-mode-selector', 'meter_mode');
+      setupMsMode();
+
+      // Watch meter mode for display
+      watchMeterMode();
+
+      // Learn button
+      setupLearnButton();
+
+      // Help toggle
+      const helpBtn = document.getElementById('help-btn');
+      helpBtn.addEventListener('click', () => {
+        document.body.classList.toggle('tooltips-active');
+        helpBtn.classList.toggle('active');
+      });
+
+      console.log('O-Gain v1.0.0 UI loaded');
+    });
+  </script>
+</body>
+</html>
