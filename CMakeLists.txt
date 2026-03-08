@@ -13,6 +13,20 @@ option(OUARICON_LICENSING "Enable license checking in plugins" OFF)
 # Release branding: OFF for local dev, ON in GitHub Actions publish builds
 option(OUARICON_RELEASE "Use production branding (no -dev suffix)" OFF)
 
+# Safety: Force dev branding + no licensing for local builds.
+# These flags can get stuck ON in the CMake cache if someone tests with -DOUARICON_RELEASE=ON locally.
+# Only CI (GitHub Actions) should use release branding/licensing.
+if(NOT DEFINED ENV{CI})
+    if(OUARICON_RELEASE)
+        message(WARNING "[Ouaricon] OUARICON_RELEASE=ON outside CI — forcing OFF (stale cache?). Use GitHub Actions for release builds.")
+    endif()
+    if(OUARICON_LICENSING)
+        message(WARNING "[Ouaricon] OUARICON_LICENSING=ON outside CI — forcing OFF (stale cache?). Use GitHub Actions for licensed builds.")
+    endif()
+    set(OUARICON_RELEASE OFF)
+    set(OUARICON_LICENSING OFF)
+endif()
+
 if(OUARICON_RELEASE)
     set(OUARICON_COMPANY_NAME "Ouaricon Audio")
     set(OUARICON_MANUFACTURER_CODE OuAu)

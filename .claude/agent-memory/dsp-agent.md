@@ -13,10 +13,16 @@
 - General: FFT overlap-add requires COLA-compliant windows (e.g., Hann with 50% overlap) -- non-COLA windows cause periodic clicking at frame boundaries
 - General: Parameter changes in processBlock must be smoothed (juce::SmoothedValue or linear interpolation per sample) to prevent zipper noise -- never apply raw parameter values directly to gain/frequency
 
+- O-Gain: For LUFS 400ms overlapping blocks with 100ms hop, use 4 sub-block accumulators (ring buffer of 100ms power sums) and combine all 4 for each 400ms block -- avoids storing raw sample history
+- O-Gain: juce::dsp::IIR::Coefficients<double> constructor takes (b0, b1, b2, a0, a1, a2) -- assign via ReferenceCountedObjectPtr to filter.coefficients (not dereference assignment)
+- O-Gain: BS.1770 K-weight filter coefficients are ONLY published for 48kHz -- must pre-calculate for 44100/88200/96000 via bilinear transform from analog prototype
+- O-Gain: EBU R128 dual-gate runs in power domain: absolute gate threshold = 10^((-70+0.691)/10), relative gate = absoluteGatedMeanPower * 0.1 (which is -10 LU in power)
+- O-Gain: BallisticsFilter uses processSample(channel, value) for per-sample processing -- channel index is always 0 when using separate L/R filter instances
+
 ## Common Issues
 - WebSearch returns outdated JUCE 6/7 docs; always verify JUCE API by reading local source at /Users/taylorbrook/JUCE/modules/
 - Bilinear transform introduces frequency warping near Nyquist -- biquad EQ filters sound compressed at high frequencies without cramping compensation
 - Buffer boundary clicks: state variables (filter history, oscillator phase) must persist between processBlock calls -- reinitializing per buffer causes clicks
 
 ## Last Updated
-2026-03-07 (seed patterns from Phase 21)
+2026-03-07 (O-Gain Stage 2 DSP implementation)

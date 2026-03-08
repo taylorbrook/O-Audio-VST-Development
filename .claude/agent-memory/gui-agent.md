@@ -17,5 +17,15 @@
 - WebView resource loading fails silently -- if withResourceProvider returns empty Optional for a path, the page shows "Frame load interrupted" with no console error
 - JUCE WebBrowserComponent options must be set before construction -- cannot change WebView2 options after the component is created
 
+- O-Gain: For plugins with many atomic metering values (17+), juce::String::formatted() with %f works reliably for passing data from C++ timer to JS updateMeters() -- no need for JSON serialization
+- O-Gain: SVG arc knobs via describeArc(cx,cy,r,startAngle,endAngle) with 135-405 degree sweep (270 deg total) render cleanly in WebView; use stroke-dashoffset animation or direct path d= updates
+- O-Gain: When a plugin has both APVTS parameters (gain_offset) and transient UI state (learnActive atomic bool), use native functions (toggleLearn) for non-parameter interactions and timer polling for state readback
+- O-Gain: ComboBox properties (choices array) may not be available immediately on page load -- listen to propertiesChangedEvent in addition to valueChangedEvent for reliable initial state
+
+## Common Issues
+- Blank WebView on Windows: first check static vs dynamic linking flags, then check user data folder permissions, then check if IE fallback occurred
+- WebView resource loading fails silently -- if withResourceProvider returns empty Optional for a path, the page shows "Frame load interrupted" with no console error
+- JUCE WebBrowserComponent options must be set before construction -- cannot change WebView2 options after the component is created
+
 ## Last Updated
-2026-03-07 (seed patterns from Phase 21)
+2026-03-07 (O-Gain Stage 3)

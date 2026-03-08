@@ -126,12 +126,15 @@ def main():
                 validator_path = validators_dir / validator_script
                 if validator_path.is_file():
                     try:
+                        env = os.environ.copy()
+                        env["ACTIVE_PLUGIN"] = plugin_name
                         result = subprocess.run(
                             [python_cmd, str(validator_path)],
                             capture_output=True,
                             text=True,
                             cwd=project_dir,
                             timeout=60,
+                            env=env,
                         )
                         if result.returncode != 0:
                             output = (

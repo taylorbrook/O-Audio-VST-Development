@@ -1,0 +1,3 @@
+[2026-03-07] research/gain-staging-metering-loudness-textbook-research.md: no frontmatter
+[2026-03-07] research/gain-staging-plugin-market-research.md: no frontmatter
+[2026-03-07] research/serum-2-feature-breakdown-competitive-analysis.md: no frontmatter

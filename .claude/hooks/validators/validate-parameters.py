@@ -5,6 +5,7 @@ Validates that all parameters from parameter-spec.md exist in PluginProcessor.cp
 Exit 0: PASS, Exit 1: FAIL
 """
 
+import os
 import re
 import sys
 from pathlib import Path
@@ -15,6 +16,13 @@ def find_plugin_directory() -> Path:
     plugins_dir = Path("plugins")
     if not plugins_dir.exists():
         return None
+
+    # Check ACTIVE_PLUGIN env var first
+    active = os.environ.get("ACTIVE_PLUGIN", "")
+    if active:
+        plugin_dir = plugins_dir / active
+        if plugin_dir.is_dir() and (plugin_dir / ".planning" / "parameter-spec.md").exists():
+            return plugin_dir
 
     for plugin_dir in plugins_dir.iterdir():
         if plugin_dir.is_dir():
@@ -73,8 +81,8 @@ def parse_plugin_processor(processor_path: Path) -> Dict[str, Dict]:
     parameters = {}
 
     # Match JUCE 8 parameter declarations with ParameterID
-    # Pattern: AudioParameter(Float|Bool|Choice)(...ParameterID { "id", 1 }...)
-    param_pattern = r'AudioParameter(Float|Bool|Choice)\s*\(\s*ParameterID\s*\{\s*"(\w+)"'
+    # Handles both direct construction and std::make_unique<juce::AudioParameterFloat>(...)
+    param_pattern = r'AudioParameter(Float|Bool|Choice)[\s\S]*?ParameterID\s*\{\s*"(\w+)"'
 
     for match in re.finditer(param_pattern, content):
         param_type = match.group(1)
