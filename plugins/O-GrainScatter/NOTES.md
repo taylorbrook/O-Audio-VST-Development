@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.2.0
+- **Version:** 2.4.0
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-03-09 (v2.4.0):** Added grain scan position (`scan_position` 0-100%) — sweeps base grain read position through delay/freeze buffer (0-2 seconds)
 - **2026-03-08 (v2.2.0):** Added grain size randomization (`size_random`) and per-grain amplitude randomization (`amp_random`) — both 0-100% with UI knobs
 - **2026-03-08 (v2.0.3):** Fixed zipper noise on feedback/dry-wet automation in spatial mode (SmoothedValue bypass)
 - **2026-03-08 (v2.0.2):** Fixed critical stack buffer overflow in binaural decode + hoaBus sizing

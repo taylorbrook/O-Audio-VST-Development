@@ -185,6 +185,7 @@ import * as Juce from './juce/index.js';
         // Sliders (12) — last arg is normalized default for double-click reset
         setupKnob('grain_size',       Juce.getSliderState('grain_size'),       grainSizeFormatter, 0.4286);
         setupKnob('density',          Juce.getSliderState('density'),          densityFormatter,   0.4949);
+        setupKnob('scan_position',    Juce.getSliderState('scan_position'),    pctFormatter,       0.0);
         setupKnob('spread',           Juce.getSliderState('spread'),           pctFormatter,       0.0);
         setupKnob('reverse',          Juce.getSliderState('reverse'),          pctFormatter,       0.0);
         setupKnob('feedback',         Juce.getSliderState('feedback'),         pctFormatter,       0.0);

@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.4.0] - 2026-03-09
+
+### Added
+- **Grain scan position** (`scan_position` 0-100%): sets the base grain read position in the delay buffer, mapping 0% (write head / most recent audio) to 100% (2 seconds back). Replaces the previous fixed `basePosition = grainSizeSamples` with user-controllable buffer scanning
+- Spread parameter now scatters grains around the scan position instead of around `grainSizeSamples`
+- In freeze mode, the full 2-second delay buffer is captured so scan position can sweep through the entire frozen buffer
+- "Scan" knob in Core Engine UI group (between Density and Spread)
+
 ## [2.3.0] - 2026-03-08
 
 ### Added

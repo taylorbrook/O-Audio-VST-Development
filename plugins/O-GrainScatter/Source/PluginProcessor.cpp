@@ -29,6 +29,7 @@ GrainScatterProcessor::GrainScatterProcessor()
     stutterGateParam       = parameters.getRawParameterValue("stutter_gate");
     sizeRandomParam      = parameters.getRawParameterValue("size_random");
     ampRandomParam       = parameters.getRawParameterValue("amp_random");
+    scanPositionParam    = parameters.getRawParameterValue("scan_position");
     grainShapeParam      = parameters.getRawParameterValue("grain_shape");
 
     // Spatial parameters
@@ -124,6 +125,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
     coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "amp_random", 1 },
         "Amp Random",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f));
+
+    coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "scan_position", 1 },
+        "Scan Position",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         0.0f));
 
@@ -401,6 +408,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     bool  stutterGate    = stutterGateParam->load() > 0.5f;
     float sizeRandom     = sizeRandomParam->load() / 100.0f;
     float ampRandom      = ampRandomParam->load() / 100.0f;
+    float scanPosition   = scanPositionParam->load() / 100.0f;
     int   grainShapeIdx  = static_cast<int>(grainShapeParam->load());
 
     // Spatial parameters
@@ -452,8 +460,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     }
 
     // Freeze engage/release (with crossfade on both transitions)
+    // Capture full delay buffer so scan_position can sweep through it
     if (freeze && !wasFrozen)
-        freezeManager.engage(delayBuffer, grainSizeSamples);
+        freezeManager.engage(delayBuffer, static_cast<int>(currentSampleRate * 2.0));
     else if (!freeze && wasFrozen)
         freezeManager.release();  // Starts release crossfade; active stays true until crossfade completes
     wasFrozen = freeze;
@@ -528,11 +537,11 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             if (ampRandom > 0.0f)
                 gp.amplitude = 1.0f - grainRng.nextFloat() * ampRandom;
 
-            // Position offset: base + spread scatter
-            float basePosition = static_cast<float>(grainSizeSamples);
+            // Position offset: scan position + spread scatter
+            float scanPositionSamples = scanPosition * static_cast<float>(currentSampleRate * 2.0);
             float spreadOffset = (spread / 100.0f) * (grainRng.nextFloat() * 2.0f - 1.0f)
                                  * static_cast<float>(grainSizeSamples);
-            gp.positionInSamples = basePosition + spreadOffset;
+            gp.positionInSamples = scanPositionSamples + spreadOffset;
 
             // Pitch
             gp.playbackRate = scaleQuantizer.getNextPitch(pitchMode, scaleIndex, rootNote,

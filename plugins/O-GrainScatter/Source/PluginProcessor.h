@@ -103,6 +103,7 @@ private:
     std::atomic<float>* stutterGateParam = nullptr;
     std::atomic<float>* sizeRandomParam = nullptr;
     std::atomic<float>* ampRandomParam = nullptr;
+    std::atomic<float>* scanPositionParam = nullptr;
 
     // Grain envelope shape
     std::atomic<float>* grainShapeParam = nullptr;
