@@ -1,5 +1,16 @@
 # O-IntonationPad Changelog
 
+## [2.6.0] - 2026-03-09
+
+### Added
+- Parameter randomization with three modes callable from UI dice button:
+  - **Gentle**: ±15% variation from current values — subtle exploration
+  - **Wild**: Full range randomization with musically constrained ranges (filter cutoff biased to 200Hz–12kHz, wet mixes capped at 50–65%, sustain stays above 20%)
+  - **Sound Only**: Randomizes wavetable banks, positions, filter, LFO, envelope, and effects — preserves key root, voicing mode, voice count, complexity, stereo spread, all tuning parameters, and master volume
+- Dice button (🎲) in the header area with click-to-open dropdown menu for mode selection
+- Roll animation on the dice button when randomizing
+- `randomizeParameters` native function for WebView → C++ communication
+
 ## [2.5.0] - 2026-03-09
 
 ### Added

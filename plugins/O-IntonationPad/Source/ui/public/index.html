@@ -643,6 +643,83 @@
             box-shadow: 0 0 8px rgba(107, 142, 35, 0.4);
         }
 
+        /* ═══ Dice Randomize Button ═══ */
+        .dice-wrapper {
+            position: relative;
+            flex-shrink: 0;
+        }
+
+        .dice-btn {
+            width: 26px;
+            height: 26px;
+            border: 2px solid #5C4033;
+            border-radius: 50%;
+            background: rgba(139, 168, 112, 0.3);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .dice-btn:hover {
+            background: rgba(139, 168, 112, 0.5);
+        }
+
+        .dice-btn.rolling {
+            animation: dice-roll 0.4s ease-out;
+        }
+
+        @keyframes dice-roll {
+            0% { transform: rotate(0deg) scale(1); }
+            50% { transform: rotate(180deg) scale(1.2); }
+            100% { transform: rotate(360deg) scale(1); }
+        }
+
+        .dice-menu {
+            display: none;
+            position: absolute;
+            top: 32px;
+            right: 0;
+            background: rgba(62, 52, 40, 0.95);
+            border: 2px solid #5C4033;
+            border-radius: 6px;
+            padding: 4px 0;
+            z-index: 100;
+            min-width: 140px;
+            box-shadow: 0 4px 16px rgba(0,0,0,0.4);
+        }
+
+        .dice-menu.open {
+            display: block;
+        }
+
+        .dice-menu-item {
+            display: block;
+            width: 100%;
+            padding: 6px 12px;
+            background: none;
+            border: none;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            color: #d4c9b0;
+            text-align: left;
+            cursor: pointer;
+            transition: background 0.15s;
+        }
+
+        .dice-menu-item:hover {
+            background: rgba(139, 168, 112, 0.3);
+        }
+
+        .dice-menu-item .mode-desc {
+            display: block;
+            font-size: 9px;
+            color: rgba(212, 201, 176, 0.6);
+            margin-top: 1px;
+        }
+
         .tooltip-popup {
             position: fixed;
             max-width: 220px;
@@ -684,6 +761,23 @@
                     <button class="tab-button" data-tab="tuning" data-tooltip="Microtonal tuning system: scale editor, visualizations, presets, and generators">Tuning</button>
                     <button class="tab-button" data-tab="synth" data-tooltip="Synthesis controls: dual wavetable oscillators, envelope, filter, and randomization">Synth</button>
                     <button class="tab-button" data-tab="effects" data-tooltip="Post-synthesis effects chain: Chorus, Delay, EQ, and Reverb">Effects</button>
+                    <div class="dice-wrapper">
+                        <button class="dice-btn" id="diceBtn" title="Randomize parameters">&#x1F3B2;</button>
+                        <div class="dice-menu" id="diceMenu">
+                            <button class="dice-menu-item" data-mode="gentle">
+                                Gentle
+                                <span class="mode-desc">&plusmn;15% variation from current</span>
+                            </button>
+                            <button class="dice-menu-item" data-mode="wild">
+                                Wild
+                                <span class="mode-desc">Full range randomization</span>
+                            </button>
+                            <button class="dice-menu-item" data-mode="soundOnly">
+                                Sound Only
+                                <span class="mode-desc">Preserve tuning, chord &amp; volume</span>
+                            </button>
+                        </div>
+                    </div>
                     <button class="help-toggle" id="helpToggle" title="Toggle tooltips">?</button>
                 </div>
             </div>
@@ -1155,6 +1249,46 @@
 
             // Initialize tooltip system
             initTooltipSystem();
+
+            // v2.6.0: Dice randomization button
+            {
+                const diceBtn = document.getElementById('diceBtn');
+                const diceMenu = document.getElementById('diceMenu');
+                let menuOpen = false;
+
+                diceBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    menuOpen = !menuOpen;
+                    diceMenu.classList.toggle('open', menuOpen);
+                });
+
+                document.addEventListener('click', () => {
+                    if (menuOpen) {
+                        menuOpen = false;
+                        diceMenu.classList.remove('open');
+                    }
+                });
+
+                diceMenu.addEventListener('click', async (e) => {
+                    const item = e.target.closest('.dice-menu-item');
+                    if (!item) return;
+                    e.stopPropagation();
+                    const mode = item.dataset.mode;
+
+                    // Roll animation
+                    diceBtn.classList.add('rolling');
+                    setTimeout(() => diceBtn.classList.remove('rolling'), 400);
+
+                    // Close menu
+                    menuOpen = false;
+                    diceMenu.classList.remove('open');
+
+                    // Call native function
+                    if (window.__JUCE__?.backend) {
+                        await Juce.getNativeFunction('randomizeParameters')(mode);
+                    }
+                });
+            }
 
             // Build knob DOM from config
             populateKnobs('voice-knobs', [

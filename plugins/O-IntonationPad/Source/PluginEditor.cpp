@@ -456,6 +456,87 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
                         complete(false);
                     }
                 });
+        })
+
+        // --- v2.6.0: Parameter Randomization ---
+        .withNativeFunction("randomizeParameters", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.isEmpty()) { complete(false); return; }
+            juce::String mode = args[0].toString();
+            auto& apvts = processorRef.getAPVTS();
+            juce::Random rng;
+
+            // Parameters preserved in Sound-Only mode (tuning, chord, master volume)
+            static const juce::StringArray preservedInSoundOnly {
+                "keyRoot", "voicingMode", "voiceCount", "complexity",
+                "tuning_masterTune", "tuning_octaveStretch", "tuning_pitchBendRange",
+                "tuning_temperamentPreset", "masterVolume", "stereoSpread"
+            };
+
+            // Musically constrained ranges: paramID -> {min, max} as normalized 0-1
+            // These bias randomization toward useful values
+            struct ConstrainedRange { float min; float max; };
+            std::map<juce::String, ConstrainedRange> constraints;
+            constraints["filterCutoff"]    = { 0.15f, 0.85f };  // ~200Hz - 12kHz (skewed)
+            constraints["attackTime"]      = { 0.05f, 0.70f };  // ~10ms - 2s (skewed)
+            constraints["releaseTime"]     = { 0.10f, 0.75f };  // ~50ms - 5s (skewed)
+            constraints["decayTime"]       = { 0.05f, 0.60f };  // ~20ms - 1.5s (skewed)
+            constraints["sustainLevel"]    = { 0.20f, 1.00f };  // 20% - 100%
+            constraints["chorusMix"]       = { 0.00f, 0.60f };  // 0% - 60%
+            constraints["delayMix"]        = { 0.00f, 0.50f };  // 0% - 50%
+            constraints["delayFeedback"]   = { 0.00f, 0.65f };  // 0% - ~62% (of 0.95 max)
+            constraints["reverbMix"]       = { 0.00f, 0.65f };  // 0% - 65%
+            constraints["reverbPredelay"]  = { 0.00f, 0.50f };  // 0ms - 100ms (of 200 max)
+            constraints["lfoRate"]         = { 0.05f, 0.55f };  // ~0.1Hz - 5Hz (skewed)
+            constraints["lfoRate2"]        = { 0.05f, 0.55f };
+            constraints["chorusRate"]      = { 0.10f, 0.60f };  // ~0.5Hz - 4Hz (skewed)
+
+            auto randomizeParam = [&](const juce::String& paramID) {
+                auto* param = apvts.getParameter(paramID);
+                if (param == nullptr) return;
+
+                float currentNorm = param->getValue();  // normalized 0-1
+                float newNorm;
+
+                if (mode == "gentle")
+                {
+                    // ±15% variation from current value
+                    float variation = (rng.nextFloat() * 0.30f) - 0.15f;
+                    newNorm = juce::jlimit(0.0f, 1.0f, currentNorm + variation);
+                }
+                else  // "wild" or "soundOnly"
+                {
+                    // Full range, but constrained to musical values if defined
+                    auto it = constraints.find(paramID);
+                    if (it != constraints.end())
+                        newNorm = it->second.min + rng.nextFloat() * (it->second.max - it->second.min);
+                    else
+                        newNorm = rng.nextFloat();
+                }
+
+                param->setValueNotifyingHost(newNorm);
+            };
+
+            // Iterate all APVTS parameters
+            for (int i = 0; i < apvts.processor.getParameters().size(); ++i)
+            {
+                auto* param = apvts.processor.getParameters()[i];
+                auto* rpwdi = dynamic_cast<juce::RangedAudioParameter*>(param);
+                if (rpwdi == nullptr) continue;
+
+                juce::String paramID = rpwdi->getParameterID();
+
+                // Skip preserved params in Sound-Only mode
+                if (mode == "soundOnly" && preservedInSoundOnly.contains(paramID))
+                    continue;
+
+                // Skip bypass toggles in gentle mode (don't randomly enable effects)
+                if (mode == "gentle" && paramID.containsIgnoreCase("Bypass"))
+                    continue;
+
+                randomizeParam(paramID);
+            }
+
+            complete(true);
         });
 }
 
