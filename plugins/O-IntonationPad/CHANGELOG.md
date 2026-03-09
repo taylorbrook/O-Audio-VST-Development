@@ -1,5 +1,10 @@
 # O-IntonationPad Changelog
 
+## [2.4.3] - 2026-03-08
+
+### Added
+- Integrated Ouaricon licensing module (compile-flag gated, OFF for local dev builds)
+
 ## [2.4.2] - 2026-03-06
 
 ### Fixed
