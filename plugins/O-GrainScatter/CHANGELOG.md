@@ -1,5 +1,26 @@
 # Changelog
 
+## [2.2.0] - 2026-03-08
+
+### Added
+- **Grain size randomization** (`size_random` 0-100%): each grain's duration is varied by `grainSize * (1.0 + random * sizeRandom)`, creating more organic, less mechanical grain textures
+- **Per-grain amplitude randomization** (`amp_random` 0-100%): each grain's amplitude is scaled by `1.0 - random * ampRandom`, adding natural dynamic variation to the grain cloud
+- Two new knobs ("Size Rnd", "Amp Rnd") in the Core Engine UI group
+- Both parameters default to 0% (no change to existing behavior)
+
+## [2.1.0] - 2026-03-08
+
+### Added
+- Grain envelope shape selection: new `grain_shape` parameter with 6 window types
+  - **Hann** (default): smooth cosine bell — classic granular sound, zero at edges
+  - **Triangle**: linear attack/decay — brighter, more percussive than Hann
+  - **Trapezoid**: flat sustain (20-80%) with linear ramps — preserves transients
+  - **Tukey** (α=0.5): cosine taper first/last 25%, flat middle — hybrid of Hann and rectangular
+  - **Blackman**: narrower main lobe than Hann — reduced spectral leakage, darker tone
+  - **Exp Decay**: exponential falloff — plucked/percussive character with sharp attack
+- UI dropdown in Core Engine group for shape selection
+- Visualization reflects selected envelope shape in real-time
+
 ## [2.0.5] - 2026-03-08
 
 ### Changed

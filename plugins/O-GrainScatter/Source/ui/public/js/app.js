@@ -181,16 +181,19 @@ import * as Juce from './juce/index.js';
         setupKnob('dry_wet',          Juce.getSliderState('dry_wet'),          pctFormatter,       0.5);
         setupKnob('pitch_random',     Juce.getSliderState('pitch_random'),     pctFormatter,       0.0);
         setupKnob('pan_random',       Juce.getSliderState('pan_random'),       pctFormatter,       0.0);
+        setupKnob('size_random',      Juce.getSliderState('size_random'),      pctFormatter,       0.0);
+        setupKnob('amp_random',       Juce.getSliderState('amp_random'),       pctFormatter,       0.0);
         setupKnob('probability',      Juce.getSliderState('probability'),      pctFormatter, 1.0);
         setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter,   0.2);
         setupKnob('euclidean_pulses', Juce.getSliderState('euclidean_pulses'), eucPulsesFormatter, 0.2);
         setupKnob('euclidean_steps',  Juce.getSliderState('euclidean_steps'),  eucStepsFormatter,  0.4286);
 
-        // ComboBoxes (4)
-        setupComboBox('scale',      Juce.getComboBoxState('scale'));
-        setupComboBox('root_note',  Juce.getComboBoxState('root_note'));
-        setupComboBox('pitch_mode', Juce.getComboBoxState('pitch_mode'));
-        setupComboBox('sync_mode',  Juce.getComboBoxState('sync_mode'));
+        // ComboBoxes (5)
+        setupComboBox('scale',       Juce.getComboBoxState('scale'));
+        setupComboBox('root_note',   Juce.getComboBoxState('root_note'));
+        setupComboBox('pitch_mode',  Juce.getComboBoxState('pitch_mode'));
+        setupComboBox('sync_mode',   Juce.getComboBoxState('sync_mode'));
+        setupComboBox('grain_shape', Juce.getComboBoxState('grain_shape'));
 
         // Toggles (2)
         setupToggle('freeze',       Juce.getToggleState('freeze'));

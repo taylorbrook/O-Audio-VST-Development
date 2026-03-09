@@ -25,6 +25,9 @@ GrainScatterProcessor::GrainScatterProcessor()
     euclideanPulsesParam = parameters.getRawParameterValue("euclidean_pulses");
     euclideanStepsParam  = parameters.getRawParameterValue("euclidean_steps");
     stutterGateParam     = parameters.getRawParameterValue("stutter_gate");
+    sizeRandomParam      = parameters.getRawParameterValue("size_random");
+    ampRandomParam       = parameters.getRawParameterValue("amp_random");
+    grainShapeParam      = parameters.getRawParameterValue("grain_shape");
 
     // Spatial parameters
     spatialModeParam     = parameters.getRawParameterValue("spatial_mode");
@@ -103,6 +106,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         "Dry/Wet",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         50.0f));
+
+    coreGroup->addChild(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "grain_shape", 1 },
+        "Grain Shape",
+        juce::StringArray { "Hann", "Triangle", "Trapezoid", "Tukey", "Blackman", "Exp Decay" },
+        0));
+
+    coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "size_random", 1 },
+        "Size Random",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f));
+
+    coreGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "amp_random", 1 },
+        "Amp Random",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        0.0f));
 
     layout.add(std::move(coreGroup));
 
@@ -363,6 +384,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     int   eucSteps       = static_cast<int>(euclideanStepsParam->load());
     int   eucPulses      = static_cast<int>(euclideanPulsesParam->load());
     bool  stutterGate    = stutterGateParam->load() > 0.5f;
+    float sizeRandom     = sizeRandomParam->load() / 100.0f;
+    float ampRandom      = ampRandomParam->load() / 100.0f;
+    int   grainShapeIdx  = static_cast<int>(grainShapeParam->load());
 
     // Spatial parameters
     int   spatialMode    = static_cast<int>(spatialModeParam->load());
@@ -447,6 +471,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                   return a.sampleOffset < b.sampleOffset;
               });
 
+    // Set grain envelope shape
+    grainPool.setGrainShape(grainShapeIdx);
+
     // Update spatial smoothing time once per block
     if (spatialMode > 0)
         grainPool.setSpatialSmoothTime(spatialSmooth);
@@ -474,8 +501,16 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         {
             GrainParams gp;
 
-            // Grain size
-            gp.grainLengthSamples = grainSizeSamples;
+            // Grain size with optional randomization
+            int actualGrainSize = grainSizeSamples;
+            if (sizeRandom > 0.0f)
+                actualGrainSize = juce::jmax(1, static_cast<int>(grainSizeSamples
+                    * (1.0f + grainRng.nextFloat() * sizeRandom)));
+            gp.grainLengthSamples = actualGrainSize;
+
+            // Per-grain amplitude randomization
+            if (ampRandom > 0.0f)
+                gp.amplitude = 1.0f - grainRng.nextFloat() * ampRandom;
 
             // Position offset: base + spread scatter
             float basePosition = static_cast<float>(grainSizeSamples);
@@ -661,11 +696,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
                     : 0.0f;
                 sv.pitchSemitones = 12.0f * std::log2 (std::max (gv.playbackRate, 0.001f));
                 sv.pan = gv.panPosition;
-                sv.envelope = (gv.grainLengthSamples > 0)
+                float vizPhase = (gv.grainLengthSamples > 0)
                     ? 1.0f - static_cast<float> (gv.samplesRemaining) / static_cast<float> (gv.grainLengthSamples)
                     : 0.0f;
-                // Apply Hann for display consistency
-                sv.envelope = 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * sv.envelope));
+                sv.envelope = GrainPool::computeEnvelope (vizPhase, grainShapeIdx);
                 sv.reverse = gv.reverse;
                 sv.frozen = gv.readFromFrozen;
                 sv.azimuth = gv.azimuth;

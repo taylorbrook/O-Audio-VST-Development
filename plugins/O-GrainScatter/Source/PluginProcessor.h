@@ -98,6 +98,11 @@ private:
     std::atomic<float>* euclideanPulsesParam = nullptr;
     std::atomic<float>* euclideanStepsParam = nullptr;
     std::atomic<float>* stutterGateParam = nullptr;
+    std::atomic<float>* sizeRandomParam = nullptr;
+    std::atomic<float>* ampRandomParam = nullptr;
+
+    // Grain envelope shape
+    std::atomic<float>* grainShapeParam = nullptr;
 
     // Spatial parameters (8 new)
     std::atomic<float>* spatialModeParam = nullptr;

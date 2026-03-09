@@ -21,6 +21,9 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
     pitchModeRelay      = std::make_unique<juce::WebComboBoxRelay>("pitch_mode");
     freezeRelay         = std::make_unique<juce::WebToggleButtonRelay>("freeze");
     stutterGateRelay    = std::make_unique<juce::WebToggleButtonRelay>("stutter_gate");
+    grainShapeRelay      = std::make_unique<juce::WebComboBoxRelay>("grain_shape");
+    sizeRandomRelay      = std::make_unique<juce::WebSliderRelay>("size_random");
+    ampRandomRelay       = std::make_unique<juce::WebSliderRelay>("amp_random");
     euclideanPulsesRelay = std::make_unique<juce::WebSliderRelay>("euclidean_pulses");
     euclideanStepsRelay  = std::make_unique<juce::WebSliderRelay>("euclidean_steps");
     // Spatial
@@ -66,6 +69,9 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
             .withOptionsFrom(*pitchModeRelay)
             .withOptionsFrom(*freezeRelay)
             .withOptionsFrom(*stutterGateRelay)
+            .withOptionsFrom(*grainShapeRelay)
+            .withOptionsFrom(*sizeRandomRelay)
+            .withOptionsFrom(*ampRandomRelay)
             .withOptionsFrom(*euclideanPulsesRelay)
             .withOptionsFrom(*euclideanStepsRelay)
             .withOptionsFrom(*spatialModeRelay)
@@ -117,6 +123,12 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
         *audioProcessor.parameters.getParameter("freeze"), *freezeRelay, nullptr);
     stutterGateAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *audioProcessor.parameters.getParameter("stutter_gate"), *stutterGateRelay, nullptr);
+    grainShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *audioProcessor.parameters.getParameter("grain_shape"), *grainShapeRelay, nullptr);
+    sizeRandomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("size_random"), *sizeRandomRelay, nullptr);
+    ampRandomAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("amp_random"), *ampRandomRelay, nullptr);
     euclideanPulsesAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("euclidean_pulses"), *euclideanPulsesRelay, nullptr);
     euclideanStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

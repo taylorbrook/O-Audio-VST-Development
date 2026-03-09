@@ -13,6 +13,7 @@ struct GrainParams
     float playbackRate = 1.0f;
     float panPosition = 0.5f;         // 0=left, 1=right
     int grainLengthSamples = 4410;
+    float amplitude = 1.0f;           // Per-grain amplitude (0-1)
     bool reverse = false;
     bool readFromFrozen = false;
 
@@ -31,6 +32,7 @@ struct GrainVoice
     float panPosition = 0.5f;
     int samplesRemaining = 0;
     int grainLengthSamples = 0;
+    float amplitude = 1.0f;           // Per-grain amplitude (0-1)
     bool reverse = false;
     bool readFromFrozen = false;
     float positionOffset = 0.0f;      // Base position in delay buffer
@@ -45,10 +47,66 @@ struct GrainVoice
     float dopplerFactor = 1.0f;         // Per-grain Doppler pitch mod (computed from angular velocity)
 };
 
+// Grain envelope shapes
+enum GrainShape
+{
+    Hann = 0,
+    Triangle,
+    Trapezoid,
+    Tukey,
+    Blackman,
+    ExponentialDecay,
+    NumShapes
+};
+
 class GrainPool
 {
 public:
     static constexpr int MaxVoices = 64;
+
+    void setGrainShape (int shape) { grainShape = shape; }
+
+    // Compute envelope value for a given phase (0..1) and shape
+    static float computeEnvelope (float phase, int shape)
+    {
+        switch (shape)
+        {
+            case GrainShape::Hann:
+            default:
+                return 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * phase));
+
+            case GrainShape::Triangle:
+                return 1.0f - std::abs (2.0f * phase - 1.0f);
+
+            case GrainShape::Trapezoid:
+            {
+                // Linear ramp 0-20%, flat 20-80%, ramp 80-100%
+                if (phase < 0.2f)
+                    return phase * 5.0f;
+                if (phase > 0.8f)
+                    return (1.0f - phase) * 5.0f;
+                return 1.0f;
+            }
+
+            case GrainShape::Tukey:
+            {
+                // Tukey window with alpha=0.5 (cosine taper first/last 25%, flat middle 50%)
+                constexpr float alpha = 0.5f;
+                if (phase < alpha * 0.5f)
+                    return 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * phase / alpha));
+                if (phase > 1.0f - alpha * 0.5f)
+                    return 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * (1.0f - phase) / alpha));
+                return 1.0f;
+            }
+
+            case GrainShape::Blackman:
+                return 0.42f - 0.5f * std::cos (juce::MathConstants<float>::twoPi * phase)
+                             + 0.08f * std::cos (2.0f * juce::MathConstants<float>::twoPi * phase);
+
+            case GrainShape::ExponentialDecay:
+                return std::exp (-5.0f * phase);
+        }
+    }
 
     void spawnGrain (const GrainParams& params)
     {
@@ -84,6 +142,7 @@ public:
         v.panPosition = params.panPosition;
         v.grainLengthSamples = params.grainLengthSamples;
         v.samplesRemaining = params.grainLengthSamples;
+        v.amplitude = params.amplitude;
         v.reverse = params.reverse;
         v.readFromFrozen = params.readFromFrozen;
 
@@ -121,10 +180,10 @@ public:
         {
             if (!v.active) continue;
 
-            // Hann window envelope
+            // Grain envelope
             float phase = 1.0f - static_cast<float> (v.samplesRemaining)
                                 / static_cast<float> (v.grainLengthSamples);
-            float envelope = 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * phase));
+            float envelope = computeEnvelope (phase, grainShape);
 
             // Read sample from delay buffer or frozen buffer
             float sample = 0.0f;
@@ -147,8 +206,8 @@ public:
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
 
-            sample  *= envelope;
-            sampleR *= envelope;
+            sample  *= envelope * v.amplitude;
+            sampleR *= envelope * v.amplitude;
 
             // Pan: equal-power
             float panL = std::cos (v.panPosition * juce::MathConstants<float>::halfPi);
@@ -179,10 +238,10 @@ public:
         {
             if (!v.active) continue;
 
-            // Hann window envelope
+            // Grain envelope
             float phase = 1.0f - static_cast<float> (v.samplesRemaining)
                                 / static_cast<float> (v.grainLengthSamples);
-            float envelope = 0.5f * (1.0f - std::cos (juce::MathConstants<float>::twoPi * phase));
+            float envelope = computeEnvelope (phase, grainShape);
 
             // Read sample (stereo -> mono)
             float sampleL = 0.0f;
@@ -201,7 +260,7 @@ public:
                 sampleR = delayBuf.readSample (1, delaySamples);
             }
 
-            float mono = (sampleL + sampleR) * 0.5f * envelope;
+            float mono = (sampleL + sampleR) * 0.5f * envelope * v.amplitude;
 
             // Distance attenuation (kDistanceScale controls attenuation steepness)
             static constexpr float kDistanceScale = 3.0f;
@@ -241,4 +300,5 @@ public:
 private:
     std::array<GrainVoice, MaxVoices> voices {};
     int nextVoice = 0;
+    int grainShape = GrainShape::Hann;
 };

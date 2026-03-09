@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.0.3
+- **Version:** 2.2.0
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-03-08 (v2.2.0):** Added grain size randomization (`size_random`) and per-grain amplitude randomization (`amp_random`) — both 0-100% with UI knobs
 - **2026-03-08 (v2.0.3):** Fixed zipper noise on feedback/dry-wet automation in spatial mode (SmoothedValue bypass)
 - **2026-03-08 (v2.0.2):** Fixed critical stack buffer overflow in binaural decode + hoaBus sizing
 - **2026-02-09 (v2.0.1):** Fixed density parameter exponential curve

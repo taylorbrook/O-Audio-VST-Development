@@ -46,6 +46,11 @@ private:
     std::unique_ptr<juce::WebToggleButtonRelay> freezeRelay;
     // Stutter Gate
     std::unique_ptr<juce::WebToggleButtonRelay> stutterGateRelay;
+    // Grain Shape
+    std::unique_ptr<juce::WebComboBoxRelay> grainShapeRelay;
+    // Randomization
+    std::unique_ptr<juce::WebSliderRelay> sizeRandomRelay;
+    std::unique_ptr<juce::WebSliderRelay> ampRandomRelay;
     // Euclidean
     std::unique_ptr<juce::WebSliderRelay> euclideanPulsesRelay;
     std::unique_ptr<juce::WebSliderRelay> euclideanStepsRelay;
@@ -87,6 +92,11 @@ private:
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> freezeAttachment;
     // Stutter Gate
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> stutterGateAttachment;
+    // Grain Shape
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> grainShapeAttachment;
+    // Randomization
+    std::unique_ptr<juce::WebSliderParameterAttachment> sizeRandomAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> ampRandomAttachment;
     // Euclidean
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanPulsesAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanStepsAttachment;
