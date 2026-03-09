@@ -42,6 +42,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> voiceCountRelay;
     std::unique_ptr<juce::WebSliderRelay> complexityRelay;
     std::unique_ptr<juce::WebSliderRelay> keyRootRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> voicingModeRelay;
     std::unique_ptr<juce::WebSliderRelay> stereoSpreadRelay;
     std::unique_ptr<juce::WebSliderRelay> spacingRelay;
     std::unique_ptr<juce::WebSliderRelay> inversionRelay;
@@ -108,6 +109,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> voiceCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> complexityAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> keyRootAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> voicingModeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> stereoSpreadAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> spacingAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> inversionAttachment;

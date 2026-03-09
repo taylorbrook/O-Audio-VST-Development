@@ -715,6 +715,19 @@
                             </select>
                         </div>
 
+                        <div class="dropdown-container" data-tooltip="Chord voicing strategy: how sub-voices are distributed across octaves">
+                            <div class="knob-label">Voicing</div>
+                            <select class="dropdown" id="voicingModeSelect">
+                                <option value="0">Free</option>
+                                <option value="1">Close</option>
+                                <option value="2">Open</option>
+                                <option value="3">Drop-2</option>
+                                <option value="4">Thirds</option>
+                                <option value="5">Quartal</option>
+                                <option value="6">Quintal</option>
+                            </select>
+                        </div>
+
                         <!-- Interval Selector -->
                         <div class="interval-selector" data-tooltip="Toggle scale degrees used for chord generation. Only enabled intervals produce chord voices">
                             <div class="interval-selector-header">
@@ -798,7 +811,7 @@
         import { NOTE_NAMES } from './js/constants.js';
 
         // JUCE Parameter States
-        let voiceCountState, complexityState, keyRootState, stereoSpreadState, spacingState, inversionState;
+        let voiceCountState, complexityState, keyRootState, voicingModeState, stereoSpreadState, spacingState, inversionState;
         let wavetableBankState, wavetablePosState, lfoRateState, lfoDepthState, timingRandomState, detuneRandomState;
         let wavetableBank2State, wavetablePos2State, lfoRate2State, lfoDepth2State, gainAState, gainBState;
         let attackTimeState, decayTimeState, sustainLevelState, releaseTimeState, filterCutoffState, filterLfoDepthState, velocityToFilterState, masterVolumeState;
@@ -828,6 +841,7 @@
             voiceCount: 'Number of chord voices generated from a single MIDI note (2-12)',
             complexity: 'How many chord extensions (7th, 9th, 11th, 13th) are added to the basic triad',
             stereoSpread: 'Distributes chord voices across the stereo field. 0% = mono, 100% = full width',
+            voicingMode: 'Chord voicing strategy: Free (default), Close (1 oct), Open (2 oct), Drop-2, Thirds, Quartal (4ths), Quintal (5ths)',
             spacing: 'Octave displacement of chord voices for wider/tighter voicings',
             inversion: 'Randomly shifts voices to different octaves for varied chord inversions',
             // Synth tab - OSC A
@@ -1004,16 +1018,24 @@
                 this.canvas = document.getElementById(canvasId);
                 this.ctx = this.canvas.getContext('2d');
                 this.samples = [];
+                this.w = 0;
+                this.h = 0;
                 this.getFrame = Juce.getNativeFunction('getWavetableFrameForPosition');
                 this._fetching = false;
                 this._pendingFetch = null;
-                this.resizeCanvas();
+                // Use ResizeObserver to size canvas when layout is computed
+                this._resizeObserver = new ResizeObserver(() => {
+                    this.resizeCanvas();
+                    if (this.samples.length) this.draw();
+                });
+                this._resizeObserver.observe(this.canvas);
             }
 
             resizeCanvas() {
                 const dpr = window.devicePixelRatio || 1;
                 const w = this.canvas.clientWidth;
                 const h = this.canvas.clientHeight;
+                if (w === 0 || h === 0) return;
                 this.canvas.width = w * dpr;
                 this.canvas.height = h * dpr;
                 this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -1049,8 +1071,9 @@
             }
 
             draw() {
+                if (this.w === 0 || this.h === 0) this.resizeCanvas();
                 const { ctx, w, h, samples } = this;
-                if (!samples.length) return;
+                if (!samples.length || w === 0 || h === 0) return;
                 const mid = h / 2;
 
                 ctx.clearRect(0, 0, w, h);
@@ -1226,6 +1249,7 @@
             voiceCountState = Juce.getSliderState('voiceCount');
             complexityState = Juce.getSliderState('complexity');
             keyRootState = Juce.getSliderState('keyRoot');
+            voicingModeState = Juce.getComboBoxState('voicingMode');
             stereoSpreadState = Juce.getSliderState('stereoSpread');
             spacingState = Juce.getSliderState('spacing');
             inversionState = Juce.getSliderState('inversion');
@@ -1300,6 +1324,7 @@
 
             // Setup dropdowns
             setupDropdown('keyRoot', keyRootState, 12);
+            setupComboBox('voicingMode', voicingModeState);
 
             setupComboBox('wavetableBank', wavetableBankState);
             setupComboBox('wavetableBank2', wavetableBank2State);
@@ -1309,6 +1334,18 @@
             const wtDisplayB = new WavetableDisplay('canvasOscB');
             wireWavetableDisplay(wtDisplayA, wavetablePosState, wavetableBankState, 20);
             wireWavetableDisplay(wtDisplayB, wavetablePos2State, wavetableBank2State, 20);
+
+            // Refresh wavetable canvases when Synth tab becomes visible
+            document.querySelector('[data-tab="synth"]').addEventListener('click', () => {
+                requestAnimationFrame(() => {
+                    wtDisplayA.resizeCanvas();
+                    wtDisplayB.resizeCanvas();
+                    const bankA = Math.round(wavetableBankState.getChoiceIndex());
+                    const bankB = Math.round(wavetableBank2State.getChoiceIndex());
+                    wtDisplayA.fetchAndDraw(bankA, wavetablePosState.getNormalisedValue());
+                    wtDisplayB.fetchAndDraw(bankB, wavetablePos2State.getNormalisedValue());
+                });
+            });
 
             // v2.4.1: Animate waveform displays with LFO-modulated positions (30 Hz from C++)
             if (window.__JUCE__ && window.__JUCE__.backend) {

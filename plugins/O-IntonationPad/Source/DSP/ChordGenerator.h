@@ -11,6 +11,18 @@
 #pragma once
 #include <vector>
 
+// v2.5.0: Voicing mode for chord voice distribution
+enum class VoicingMode
+{
+    Free = 0,     // Current behavior: spread across octaves
+    Close,        // All notes within one octave
+    Open,         // Spread across 2 octaves (alternating octave displacement)
+    Drop2,        // Close voicing with 2nd-highest note dropped an octave
+    Thirds,       // Stacked 3rds from root
+    Quartal,      // Stacked 4ths from root
+    Quintal       // Stacked 5ths from root
+};
+
 struct ChordVoice
 {
     int midiNote;              // Absolute MIDI note number
@@ -32,10 +44,12 @@ public:
      * @param enabledDegrees  Sorted list of scale degree offsets to use for chord building
      *                        (e.g., {0, 4, 7, 11} for root + intervals at degrees 4, 7, 11)
      * @param scaleDegreeCount  Total degrees in the scale (for octave wrapping)
+     * @param voicingMode   How to distribute voices (Free, Close, Open, Drop2, Thirds, Quartal, Quintal)
      */
     std::vector<ChordVoice> generateChord(int rootMidiNote, int numVoices,
                                            int keyRoot, const std::vector<int>& enabledDegrees,
-                                           int scaleDegreeCount);
+                                           int scaleDegreeCount,
+                                           VoicingMode voicingMode = VoicingMode::Free);
 
 private:
     // Map MIDI note to nearest enabled scale degree
@@ -49,5 +63,6 @@ private:
     // Distribute voices across available intervals and octaves
     std::vector<ChordVoice> distributeVoices(int rootMidiNote, int rootDegreeInScale,
                                               const std::vector<int>& intervals, int numVoices,
-                                              int scaleDegreeCount) const;
+                                              int scaleDegreeCount,
+                                              VoicingMode voicingMode) const;
 };

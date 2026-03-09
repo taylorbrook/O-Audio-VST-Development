@@ -52,6 +52,7 @@ void OIntonationPadAudioProcessorEditor::createRelays()
     voiceCountRelay = std::make_unique<juce::WebSliderRelay>("voiceCount");
     complexityRelay = std::make_unique<juce::WebSliderRelay>("complexity");
     keyRootRelay = std::make_unique<juce::WebSliderRelay>("keyRoot");
+    voicingModeRelay = std::make_unique<juce::WebComboBoxRelay>("voicingMode");
     stereoSpreadRelay = std::make_unique<juce::WebSliderRelay>("stereoSpread");
     spacingRelay = std::make_unique<juce::WebSliderRelay>("spacing");
     inversionRelay = std::make_unique<juce::WebSliderRelay>("inversion");
@@ -117,6 +118,7 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
         .withOptionsFrom(*voiceCountRelay)
         .withOptionsFrom(*complexityRelay)
         .withOptionsFrom(*keyRootRelay)
+        .withOptionsFrom(*voicingModeRelay)
         .withOptionsFrom(*stereoSpreadRelay)
         .withOptionsFrom(*spacingRelay)
         .withOptionsFrom(*inversionRelay)
@@ -467,6 +469,8 @@ void OIntonationPadAudioProcessorEditor::createAttachments()
         *apvts.getParameter("complexity"), *complexityRelay, nullptr);
     keyRootAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("keyRoot"), *keyRootRelay, nullptr);
+    voicingModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *apvts.getParameter("voicingMode"), *voicingModeRelay, nullptr);
     stereoSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("stereoSpread"), *stereoSpreadRelay, nullptr);
     spacingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(

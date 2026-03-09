@@ -1,5 +1,19 @@
 # O-IntonationPad Changelog
 
+## [2.5.0] - 2026-03-09
+
+### Added
+- Voicing Mode parameter with 7 chord voicing strategies:
+  - **Free** (default): Original behavior — voices spread across octaves round-robin
+  - **Close**: All voices constrained within one octave
+  - **Open**: Voices spread across 2 octaves (odd voices shifted up one octave)
+  - **Drop-2**: Close voicing with 2nd-highest note dropped down one octave
+  - **Thirds**: Voices stacked in major 3rds from root (scales proportionally for microtonal tunings)
+  - **Quartal**: Voices stacked in perfect 4ths from root
+  - **Quintal**: Voices stacked in perfect 5ths from root
+- Voicing Mode dropdown in the Voice tab UI (between Key Root and Intervals)
+- `voicingMode` APVTS choice parameter (automatable, saved in presets)
+
 ## [2.4.8] - 2026-03-09
 
 ### Fixed

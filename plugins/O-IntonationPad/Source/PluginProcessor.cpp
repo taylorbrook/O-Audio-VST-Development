@@ -42,6 +42,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
 
     // v1.5.0: keyScale parameter removed — replaced by dynamic interval selection
 
+    // v2.5.0: VOICING_MODE - Choice (7 modes, default: Free)
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "voicingMode", 1 },
+        "Voicing Mode",
+        juce::StringArray { "Free", "Close", "Open", "Drop-2", "Thirds", "Quartal", "Quintal" },
+        0
+    ));
+
     // TUNING: Master Tune (A4 reference, 400-480 Hz, default 440)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "tuning_masterTune", 1 },
@@ -361,6 +369,7 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     cachedVoiceCount = parameters.getRawParameterValue("voiceCount");
     cachedComplexity = parameters.getRawParameterValue("complexity");
     cachedKeyRoot = parameters.getRawParameterValue("keyRoot");
+    cachedVoicingMode = parameters.getRawParameterValue("voicingMode");
     cachedStereoSpread = parameters.getRawParameterValue("stereoSpread");
     cachedSpacing = parameters.getRawParameterValue("spacing");
     cachedInversion = parameters.getRawParameterValue("inversion");
@@ -518,6 +527,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     int voiceCount = static_cast<int>(cachedVoiceCount->load());
     float complexity = cachedComplexity->load();
     int keyRoot = static_cast<int>(cachedKeyRoot->load());
+    int voicingMode = static_cast<int>(cachedVoicingMode->load());
     float lfoRate = cachedLfoRate->load();
     float lfoRate2 = cachedLfoRate2->load();
     float lfoDepth = cachedLfoDepth->load();
@@ -611,6 +621,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot,
                                             currentEnabledDegrees, currentScaleDegreeCount,
                                             spacing, inversion, detuneRandom, timingRandom,
+                                            voicingMode,
                                             &chordGenerator, &tuningEngine, &randomGenerator);
         }
     }

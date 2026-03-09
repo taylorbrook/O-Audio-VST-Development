@@ -138,6 +138,7 @@ private:
     std::atomic<float>* cachedVoiceCount = nullptr;
     std::atomic<float>* cachedComplexity = nullptr;
     std::atomic<float>* cachedKeyRoot = nullptr;
+    std::atomic<float>* cachedVoicingMode = nullptr;
     std::atomic<float>* cachedStereoSpread = nullptr;
     std::atomic<float>* cachedSpacing = nullptr;
     std::atomic<float>* cachedInversion = nullptr;

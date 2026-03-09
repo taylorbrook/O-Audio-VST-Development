@@ -3,6 +3,7 @@
 
     ChordGenerator.cpp
     v1.5.0: Dynamic interval-based chord generation
+    v2.5.0: Voicing mode presets (Free, Close, Open, Drop-2, Thirds, Quartal, Quintal)
 
   ==============================================================================
 */
@@ -13,7 +14,8 @@
 
 std::vector<ChordVoice> ChordGenerator::generateChord(int rootMidiNote, int numVoices,
                                                        int keyRoot, const std::vector<int>& enabledDegrees,
-                                                       int scaleDegreeCount)
+                                                       int scaleDegreeCount,
+                                                       VoicingMode voicingMode)
 {
     if (enabledDegrees.empty() || scaleDegreeCount <= 0)
     {
@@ -28,7 +30,7 @@ std::vector<ChordVoice> ChordGenerator::generateChord(int rootMidiNote, int numV
     auto intervals = buildChordIntervals(rootDegreeInScale, enabledDegrees, scaleDegreeCount);
 
     // Distribute voices across the intervals
-    return distributeVoices(rootMidiNote, rootDegreeInScale, intervals, numVoices, scaleDegreeCount);
+    return distributeVoices(rootMidiNote, rootDegreeInScale, intervals, numVoices, scaleDegreeCount, voicingMode);
 }
 
 int ChordGenerator::findNearestDegree(int midiNote, int keyRoot, const std::vector<int>& enabledDegrees,
@@ -84,7 +86,8 @@ std::vector<int> ChordGenerator::buildChordIntervals(int rootDegreeInScale,
 
 std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int rootDegreeInScale,
                                                           const std::vector<int>& intervals,
-                                                          int numVoices, int scaleDegreeCount) const
+                                                          int numVoices, int scaleDegreeCount,
+                                                          VoicingMode voicingMode) const
 {
     std::vector<ChordVoice> voices;
     int availableIntervals = static_cast<int>(intervals.size());
@@ -94,37 +97,171 @@ std::vector<ChordVoice> ChordGenerator::distributeVoices(int rootMidiNote, int r
 
     // Assign complexity thresholds: root interval gets 0.0 (always on),
     // subsequent intervals get progressively higher thresholds
-    auto getThreshold = [&](int intervalIndex) -> float {
-        if (intervalIndex == 0) return 0.0f;  // Root always audible
-        if (availableIntervals <= 1) return 0.0f;
-        // Distribute thresholds evenly from 0.0 to ~0.85
-        return static_cast<float>(intervalIndex) / static_cast<float>(availableIntervals) * 0.85f;
+    auto getThreshold = [](int voiceIndex, int totalVoices) -> float {
+        if (voiceIndex == 0) return 0.0f;  // Root always audible
+        if (totalVoices <= 1) return 0.0f;
+        return static_cast<float>(voiceIndex) / static_cast<float>(totalVoices) * 0.85f;
     };
 
-    for (int i = 0; i < numVoices; ++i)
+    switch (voicingMode)
     {
-        int intervalIndex;
-        int octaveOffset;
-
-        if (numVoices <= availableIntervals)
+        case VoicingMode::Close:
         {
-            intervalIndex = i;
-            octaveOffset = 0;
+            // All voices within one octave — no octave shifts
+            for (int i = 0; i < numVoices; ++i)
+            {
+                int intervalIndex = (availableIntervals > 0) ? (i % availableIntervals) : 0;
+                int degreeOffset = intervals[intervalIndex];
+
+                voices.push_back({
+                    rootMidiNote + degreeOffset,
+                    0,
+                    getThreshold(i, numVoices)
+                });
+            }
+            break;
         }
-        else
+
+        case VoicingMode::Open:
         {
-            intervalIndex = (i * availableIntervals) / numVoices;
-            octaveOffset = i / availableIntervals;
+            // Spread across 2 octaves: odd-indexed voices shifted up one octave
+            for (int i = 0; i < numVoices; ++i)
+            {
+                int intervalIndex = (availableIntervals > 0) ? (i % availableIntervals) : 0;
+                int degreeOffset = intervals[intervalIndex];
+                int octaveShift = (i % 2 != 0) ? 1 : 0;
+
+                voices.push_back({
+                    rootMidiNote + degreeOffset + (octaveShift * scaleDegreeCount),
+                    octaveShift,
+                    getThreshold(i, numVoices)
+                });
+            }
+            break;
         }
 
-        int degreeOffset = intervals[intervalIndex];
+        case VoicingMode::Drop2:
+        {
+            // Build close voicing first, then drop 2nd-highest note down one octave
+            std::vector<ChordVoice> closeVoices;
+            for (int i = 0; i < numVoices; ++i)
+            {
+                int intervalIndex = (availableIntervals > 0) ? (i % availableIntervals) : 0;
+                int degreeOffset = intervals[intervalIndex];
 
-        ChordVoice voice;
-        voice.midiNote = rootMidiNote + degreeOffset + (octaveOffset * scaleDegreeCount);
-        voice.octaveShift = octaveOffset;
-        voice.complexityThreshold = getThreshold(intervalIndex);
+                closeVoices.push_back({
+                    rootMidiNote + degreeOffset,
+                    0,
+                    getThreshold(i, numVoices)
+                });
+            }
 
-        voices.push_back(voice);
+            // Sort by MIDI note (ascending) to find 2nd-highest
+            std::sort(closeVoices.begin(), closeVoices.end(),
+                      [](const ChordVoice& a, const ChordVoice& b) { return a.midiNote < b.midiNote; });
+
+            // Drop the 2nd-highest note down one octave (if we have at least 2 voices)
+            if (static_cast<int>(closeVoices.size()) >= 2)
+            {
+                auto& drop = closeVoices[closeVoices.size() - 2];
+                drop.midiNote -= 12;  // Always 12 semitones (one standard octave)
+                drop.octaveShift = -1;
+            }
+
+            voices = std::move(closeVoices);
+            break;
+        }
+
+        case VoicingMode::Thirds:
+        {
+            // Stack in 3rds from root: approximate major 3rd = scaleDegreeCount * 4 / 12
+            int thirdInterval = std::max(1, (scaleDegreeCount * 4 + 6) / 12);  // Rounded
+
+            for (int i = 0; i < numVoices; ++i)
+            {
+                int degreeOffset = thirdInterval * i;
+                int octaveShift = degreeOffset / scaleDegreeCount;
+                int midiOffset = degreeOffset;
+
+                voices.push_back({
+                    rootMidiNote + midiOffset,
+                    octaveShift,
+                    getThreshold(i, numVoices)
+                });
+            }
+            break;
+        }
+
+        case VoicingMode::Quartal:
+        {
+            // Stack in 4ths from root: approximate perfect 4th = scaleDegreeCount * 5 / 12
+            int fourthInterval = std::max(1, (scaleDegreeCount * 5 + 6) / 12);  // Rounded
+
+            for (int i = 0; i < numVoices; ++i)
+            {
+                int degreeOffset = fourthInterval * i;
+                int octaveShift = degreeOffset / scaleDegreeCount;
+                int midiOffset = degreeOffset;
+
+                voices.push_back({
+                    rootMidiNote + midiOffset,
+                    octaveShift,
+                    getThreshold(i, numVoices)
+                });
+            }
+            break;
+        }
+
+        case VoicingMode::Quintal:
+        {
+            // Stack in 5ths from root: approximate perfect 5th = scaleDegreeCount * 7 / 12
+            int fifthInterval = std::max(1, (scaleDegreeCount * 7 + 6) / 12);  // Rounded
+
+            for (int i = 0; i < numVoices; ++i)
+            {
+                int degreeOffset = fifthInterval * i;
+                int octaveShift = degreeOffset / scaleDegreeCount;
+                int midiOffset = degreeOffset;
+
+                voices.push_back({
+                    rootMidiNote + midiOffset,
+                    octaveShift,
+                    getThreshold(i, numVoices)
+                });
+            }
+            break;
+        }
+
+        case VoicingMode::Free:
+        default:
+        {
+            // Original behavior: spread across octaves
+            for (int i = 0; i < numVoices; ++i)
+            {
+                int intervalIndex;
+                int octaveOffset;
+
+                if (numVoices <= availableIntervals)
+                {
+                    intervalIndex = i;
+                    octaveOffset = 0;
+                }
+                else
+                {
+                    intervalIndex = (i * availableIntervals) / numVoices;
+                    octaveOffset = i / availableIntervals;
+                }
+
+                int degreeOffset = intervals[intervalIndex];
+
+                voices.push_back({
+                    rootMidiNote + degreeOffset + (octaveOffset * scaleDegreeCount),
+                    octaveOffset,
+                    getThreshold(i, numVoices)
+                });
+            }
+            break;
+        }
     }
 
     return voices;

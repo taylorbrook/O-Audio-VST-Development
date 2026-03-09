@@ -66,6 +66,7 @@ public:
                                    const std::vector<int>& enabledDegrees, int scaleDegreeCount,
                                    float spacing, float inversion,
                                    float detuneRandom, float timingRandom,
+                                   int voicingMode,
                                    ChordGenerator* chordGen, class TuningEngine* tuning,
                                    juce::Random* random);
     void setStereoSpread(float spread);
@@ -138,6 +139,7 @@ private:
     float cachedInversion = 0.3f;
     float cachedDetuneRandom = 5.0f;
     float cachedTimingRandom = 10.0f;  // ms
+    int cachedVoicingMode = 0;         // v2.5.0: VoicingMode enum as int
     ChordGenerator* chordGeneratorPtr = nullptr;
     TuningEngine* tuningEnginePtr = nullptr;
     juce::Random* randomPtr = nullptr;

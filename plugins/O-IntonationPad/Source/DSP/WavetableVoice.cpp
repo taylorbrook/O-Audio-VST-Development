@@ -112,7 +112,8 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         // complexity, spacing, and inversion can all be changed in real-time on held notes
         auto chordVoices = chordGeneratorPtr->generateChord(midiNoteNumber, MAX_SUB_VOICES,
                                                              cachedKeyRoot, cachedEnabledDegrees,
-                                                             cachedScaleDegreeCount);
+                                                             cachedScaleDegreeCount,
+                                                             static_cast<VoicingMode>(cachedVoicingMode));
 
         // All 12 sub-voices are always initialized
         int numSubVoices = juce::jmin(static_cast<int>(chordVoices.size()), MAX_SUB_VOICES);
@@ -563,6 +564,7 @@ void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, 
                                                 const std::vector<int>& enabledDegrees, int scaleDegreeCount,
                                                 float spacing, float inversion,
                                                 float detuneRandom, float timingRandom,
+                                                int voicingMode,
                                                 ChordGenerator* chordGen, TuningEngine* tuning,
                                                 juce::Random* random)
 {
@@ -575,6 +577,7 @@ void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, 
     cachedInversion = inversion;
     cachedDetuneRandom = detuneRandom;
     cachedTimingRandom = timingRandom;
+    cachedVoicingMode = voicingMode;
     chordGeneratorPtr = chordGen;
     tuningEnginePtr = tuning;
     randomPtr = random;
