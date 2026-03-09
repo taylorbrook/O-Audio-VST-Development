@@ -210,9 +210,12 @@ void OSpectralShaperAudioProcessorEditor::parentHierarchyChanged()
         hasNavigated = true;
 
         // Send initial curve data to JavaScript after a short delay
-        juce::Timer::callAfterDelay(100, [this]() {
-            sendAttackCurveToJS();
-            sendSustainCurveToJS();
+        // SafePointer prevents dangling-this crash if editor is destroyed within 100ms
+        auto safeThis = juce::Component::SafePointer<OSpectralShaperAudioProcessorEditor>(this);
+        juce::Timer::callAfterDelay(100, [safeThis]() {
+            if (safeThis == nullptr) return;
+            safeThis->sendAttackCurveToJS();
+            safeThis->sendSustainCurveToJS();
         });
     }
 }
@@ -337,7 +340,10 @@ void OSpectralShaperAudioProcessorEditor::handleAttackCurveUpdate(const juce::Ar
 
     std::array<float, 32> curveData;
     for (int i = 0; i < 32; ++i)
-        curveData[i] = static_cast<float>(args[i]);
+    {
+        auto val = static_cast<float>(args[i]);
+        curveData[i] = std::isnan(val) ? 0.0f : juce::jlimit(-1.0f, 1.0f, val);
+    }
 
     processorRef.setAttackCurve(curveData);
 }
@@ -348,7 +354,10 @@ void OSpectralShaperAudioProcessorEditor::handleSustainCurveUpdate(const juce::A
 
     std::array<float, 32> curveData;
     for (int i = 0; i < 32; ++i)
-        curveData[i] = static_cast<float>(args[i]);
+    {
+        auto val = static_cast<float>(args[i]);
+        curveData[i] = std::isnan(val) ? 0.0f : juce::jlimit(-1.0f, 1.0f, val);
+    }
 
     processorRef.setSustainCurve(curveData);
 }
@@ -384,19 +393,23 @@ void OSpectralShaperAudioProcessorEditor::emitVisualizationFrame(
 {
     if (!webView) return;
 
-    juce::String json = "{\"fft\":[";
+    // Pre-allocate to avoid repeated heap allocations at 60fps
+    // 257 bins * ~10 chars + 32 bands * ~10 chars + overhead ≈ 3200 bytes
+    juce::String json;
+    json.preallocateBytes(4096);
+    json << "{\"fft\":[";
     for (size_t i = 0; i < frame.fftMagnitudes.size(); ++i)
     {
-        json += juce::String(frame.fftMagnitudes[i], 6);
-        if (i < frame.fftMagnitudes.size() - 1) json += ",";
+        if (i > 0) json << ',';
+        json << juce::String(frame.fftMagnitudes[i], 6);
     }
-    json += "],\"transients\":[";
+    json << "],\"transients\":[";
     for (size_t i = 0; i < frame.transientActivity.size(); ++i)
     {
-        json += juce::String(frame.transientActivity[i], 6);
-        if (i < frame.transientActivity.size() - 1) json += ",";
+        if (i > 0) json << ',';
+        json << juce::String(frame.transientActivity[i], 6);
     }
-    json += "]}";
+    json << "]}";
 
     webView->emitEventIfBrowserIsVisible("visualizationUpdate", json);
 }

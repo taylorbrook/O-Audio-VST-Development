@@ -46,11 +46,11 @@ void STFTProcessor::prepare(double sr)
     // Setup band boundaries (logarithmic spacing 20Hz-Nyquist)
     setupBandBoundaries(sr);
 
-    // Calculate envelope coefficients
+    // Calculate envelope coefficients from stored parameter values
     auto srFloat = static_cast<float>(sr);
-    fastCoeff = calculateEnvelopeCoefficient(1.0f, srFloat, HOP_SIZE);      // 1ms fast attack
-    slowCoeff = calculateEnvelopeCoefficient(15.0f, srFloat, HOP_SIZE);     // 15ms slow attack
-    releaseCoeff = calculateEnvelopeCoefficient(50.0f, srFloat, HOP_SIZE);  // 50ms release
+    fastCoeff = calculateEnvelopeCoefficient(attackTimeMs, srFloat, HOP_SIZE);
+    slowCoeff = calculateEnvelopeCoefficient(sustainTimeMs, srFloat, HOP_SIZE);
+    releaseCoeff = calculateEnvelopeCoefficient(sustainTimeMs * 3.33f, srFloat, HOP_SIZE);
 
     // Prepare smoothed gain values (50ms ramp time)
     // SmoothedValue is called once per FFT frame (at hop rate), NOT per sample.
@@ -217,13 +217,12 @@ void STFTProcessor::detectTransients()
         const int endBin = bandBoundaries[band].endBin;
 
         // Calculate band magnitude (RMS of all bins in this band)
+        // Reuse lastMagnitudes[] computed above instead of recomputing sqrt(r²+i²)
         float bandMagnitude = 0.0f;
         for (int bin = startBin; bin < endBin; ++bin)
         {
-            float real = fftData[bin * 2];
-            float imag = fftData[bin * 2 + 1];
-            float binMagnitude = std::sqrt(real * real + imag * imag);
-            bandMagnitude += binMagnitude * binMagnitude;
+            float binMag = lastMagnitudes[bin];
+            bandMagnitude += binMag * binMag;
         }
         bandMagnitude = std::sqrt(bandMagnitude / (endBin - startBin));
 
@@ -340,11 +339,14 @@ void STFTProcessor::setSustainCurve(const std::array<float, NUM_BANDS>& curve)
 void STFTProcessor::setAttackTime(float ms)
 {
     attackTimeMs = ms;
+    fastCoeff = calculateEnvelopeCoefficient(ms, sampleRate, HOP_SIZE);
 }
 
 void STFTProcessor::setSustainTime(float ms)
 {
     sustainTimeMs = ms;
+    slowCoeff = calculateEnvelopeCoefficient(ms, sampleRate, HOP_SIZE);
+    releaseCoeff = calculateEnvelopeCoefficient(ms * 3.33f, sampleRate, HOP_SIZE);
 }
 
 void STFTProcessor::setSensitivity(float value)

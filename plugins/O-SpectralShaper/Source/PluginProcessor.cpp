@@ -192,6 +192,15 @@ OSpectralShaperAudioProcessor::OSpectralShaperAudioProcessor()
     };
 
     presetManager.initializeFactoryPresets(factoryPresets);
+
+    // Cache parameter pointers (avoids string hash lookup 7x per processBlock)
+    cachedMix = parameters.getRawParameterValue("MIX");
+    cachedSensitivity = parameters.getRawParameterValue("SENSITIVITY");
+    cachedAttackTime = parameters.getRawParameterValue("ATTACK_TIME");
+    cachedSustainTime = parameters.getRawParameterValue("SUSTAIN_TIME");
+    cachedLookaheadEnabled = parameters.getRawParameterValue("LOOKAHEAD_ENABLED");
+    cachedLookaheadTime = parameters.getRawParameterValue("LOOKAHEAD_TIME");
+    cachedOutputGain = parameters.getRawParameterValue("OUTPUT_GAIN");
 }
 
 OSpectralShaperAudioProcessor::~OSpectralShaperAudioProcessor()
@@ -206,8 +215,8 @@ void OSpectralShaperAudioProcessor::prepareToPlay(double sampleRate, int samples
 {
     currentSampleRate = sampleRate;
 
-    // Report fixed 512-sample latency (FFT size)
-    setLatencySamples(512);
+    // Report base latency (FFT size); updated dynamically when lookahead changes
+    setLatencySamples(STFTProcessor::FFT_SIZE);
 
     // Prepare STFT processors (one per channel)
     for (int ch = 0; ch < 2; ++ch)
@@ -216,8 +225,8 @@ void OSpectralShaperAudioProcessor::prepareToPlay(double sampleRate, int samples
         stftProcessor[ch].reset();
     }
 
-    // Preallocate dry delay buffer (512 samples for latency matching)
-    dryDelayBuffer.setSize(2, 512);
+    // Preallocate dry delay buffer (FFT_SIZE samples for latency matching)
+    dryDelayBuffer.setSize(2, STFTProcessor::FFT_SIZE);
     dryDelayBuffer.clear();
     dryDelayWritePosition = 0;
 
@@ -251,25 +260,17 @@ void OSpectralShaperAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     const int numChannels = juce::jmin(buffer.getNumChannels(), 2);  // Stereo only
     const int numSamples = buffer.getNumSamples();
 
-    // Read parameters (atomic, real-time safe)
-    auto* mixParam = parameters.getRawParameterValue("MIX");
-    auto* sensitivityParam = parameters.getRawParameterValue("SENSITIVITY");
-    auto* attackTimeParam = parameters.getRawParameterValue("ATTACK_TIME");
-    auto* sustainTimeParam = parameters.getRawParameterValue("SUSTAIN_TIME");
-    auto* lookaheadEnabledParam = parameters.getRawParameterValue("LOOKAHEAD_ENABLED");
-    auto* lookaheadTimeParam = parameters.getRawParameterValue("LOOKAHEAD_TIME");
-    auto* outputGainParam = parameters.getRawParameterValue("OUTPUT_GAIN");
-
-    float mixValue = mixParam->load();
-    float sensitivity = sensitivityParam->load();
-    float attackTime = attackTimeParam->load();
-    float sustainTime = sustainTimeParam->load();
-    lookaheadEnabled = lookaheadEnabledParam->load() > 0.5f;
-    float lookaheadTimeMs = lookaheadTimeParam->load();
-    float outputGainDB = outputGainParam->load();
+    // Read parameters (atomic, real-time safe — pointers cached in constructor)
+    float mixValue = cachedMix->load();
+    float sensitivity = cachedSensitivity->load();
+    float attackTime = cachedAttackTime->load();
+    float sustainTime = cachedSustainTime->load();
+    lookaheadEnabled = cachedLookaheadEnabled->load() > 0.5f;
+    float lookaheadTimeMs = cachedLookaheadTime->load();
+    float outputGainDB = cachedOutputGain->load();
     float outputGain = juce::Decibels::decibelsToGain(outputGainDB);
 
-    // Calculate lookahead delay length
+    // Calculate lookahead delay length and update reported latency
     if (lookaheadEnabled)
     {
         lookaheadDelayLength = static_cast<int>(currentSampleRate * lookaheadTimeMs / 1000.0);
@@ -279,6 +280,7 @@ void OSpectralShaperAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
     {
         lookaheadDelayLength = 0;
     }
+    setLatencySamples(STFTProcessor::FFT_SIZE + lookaheadDelayLength);
 
     // Update STFT parameters
     for (int ch = 0; ch < numChannels; ++ch)
@@ -286,8 +288,6 @@ void OSpectralShaperAudioProcessor::processBlock(juce::AudioBuffer<float>& buffe
         stftProcessor[ch].setSensitivity(sensitivity);
         stftProcessor[ch].setAttackTime(attackTime);
         stftProcessor[ch].setSustainTime(sustainTime);
-        stftProcessor[ch].setAttackCurve(attackCurve);
-        stftProcessor[ch].setSustainCurve(sustainCurve);
     }
 
     // Process sample-by-sample
@@ -387,14 +387,14 @@ float OSpectralShaperAudioProcessor::getDryDelayedSample(int channel, float inpu
     // Write current input to delay buffer
     dryDelayBuffer.setSample(channel, dryDelayWritePosition, input);
 
-    // Read delayed sample (512 samples ago for latency matching)
-    int readPosition = (dryDelayWritePosition + 1) % 512;
+    // Read delayed sample (FFT_SIZE samples ago for latency matching)
+    int readPosition = (dryDelayWritePosition + 1) % STFTProcessor::FFT_SIZE;
     return dryDelayBuffer.getSample(channel, readPosition);
 }
 
 void OSpectralShaperAudioProcessor::advanceDryDelay()
 {
-    dryDelayWritePosition = (dryDelayWritePosition + 1) % 512;
+    dryDelayWritePosition = (dryDelayWritePosition + 1) % STFTProcessor::FFT_SIZE;
 }
 
 float OSpectralShaperAudioProcessor::getLookaheadDelayedSample(int channel, float input)

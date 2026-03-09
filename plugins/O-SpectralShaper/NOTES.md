@@ -1,17 +1,21 @@
 # O-SpectralShaper Notes
 
 ## Status
-- **Current Status:** 💡 Ideated
-- **Version:** N/A
+- **Current Status:** 📦 Installed
+- **Version:** 1.1.3
 - **Type:** Audio Effect (Spectral Transient Shaper)
 
 ## Lifecycle Timeline
 
 - **2026-02-03:** Creative brief completed — per-frequency transient shaping concept finalized
+- **2026-02-07:** v1.1.0 released and installed
+- **2026-03-08 (v1.1.1):** Fix three critical bugs — attack/sustain time knobs, curve data race, lookahead latency reporting
+- **2026-03-08 (v1.1.2):** Fix thread safety — SafePointer for callAfterDelay, curve value clamping/NaN protection, division-by-zero in NodeCurve
+- **2026-03-08 (v1.1.3):** Performance optimizations — cache APVTS pointers, eliminate magic numbers, reuse FFT magnitudes, pre-allocate JSON, cache band frequencies
 
 ## Known Issues
 
-None (not yet implemented)
+None
 
 ## Description
 

@@ -96,6 +96,15 @@ private:
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
+    // Cached parameter pointers (initialized in constructor, avoids string lookup per processBlock)
+    std::atomic<float>* cachedMix = nullptr;
+    std::atomic<float>* cachedSensitivity = nullptr;
+    std::atomic<float>* cachedAttackTime = nullptr;
+    std::atomic<float>* cachedSustainTime = nullptr;
+    std::atomic<float>* cachedLookaheadEnabled = nullptr;
+    std::atomic<float>* cachedLookaheadTime = nullptr;
+    std::atomic<float>* cachedOutputGain = nullptr;
+
     // Helper methods
     float getDryDelayedSample(int channel, float input);
     void advanceDryDelay();

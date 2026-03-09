@@ -21,6 +21,14 @@ export class CurveEditor {
         this.gridColor = 'rgba(232, 224, 212, 0.15)';
         this.textColor = '#A89888';
 
+        // Cached log constants (used by freqToX/xToFreq every frame)
+        this.logMinFreq = Math.log(this.minFreq);
+        this.logMaxFreq = Math.log(this.maxFreq);
+        this.logFreqRange = this.logMaxFreq - this.logMinFreq;
+
+        // Cached band frequencies (immutable — depend only on minFreq/maxFreq/numBands)
+        this.bandFrequencies = this._computeBandFrequencies();
+
         // Curve data (32 values, -1.0 to +1.0)
         this.curveData = new Array(this.numBands).fill(0.0);
 
@@ -78,10 +86,7 @@ export class CurveEditor {
      * Convert frequency to X pixel coordinate (logarithmic)
      */
     freqToX(freq) {
-        const logMin = Math.log(this.minFreq);
-        const logMax = Math.log(this.maxFreq);
-        const logFreq = Math.log(freq);
-        const normalized = (logFreq - logMin) / (logMax - logMin);
+        const normalized = (Math.log(freq) - this.logMinFreq) / this.logFreqRange;
         return normalized * this.width;
     }
 
@@ -90,10 +95,7 @@ export class CurveEditor {
      */
     xToFreq(x) {
         const normalized = x / this.width;
-        const logMin = Math.log(this.minFreq);
-        const logMax = Math.log(this.maxFreq);
-        const logFreq = logMin + normalized * (logMax - logMin);
-        return Math.exp(logFreq);
+        return Math.exp(this.logMinFreq + normalized * this.logFreqRange);
     }
 
     /**
@@ -116,12 +118,17 @@ export class CurveEditor {
      * Get 32 logarithmically-spaced band center frequencies
      */
     getBandFrequencies() {
+        return this.bandFrequencies;
+    }
+
+    /**
+     * Compute band frequencies (called once in constructor)
+     */
+    _computeBandFrequencies() {
         const bands = [];
-        const logMin = Math.log(this.minFreq);
-        const logMax = Math.log(this.maxFreq);
         for (let i = 0; i < this.numBands; i++) {
             const t = i / (this.numBands - 1);
-            const logFreq = logMin + t * (logMax - logMin);
+            const logFreq = this.logMinFreq + t * this.logFreqRange;
             bands.push(Math.exp(logFreq));
         }
         return bands;
