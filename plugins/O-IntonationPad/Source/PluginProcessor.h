@@ -10,6 +10,7 @@
 
 #pragma once
 #include <JuceHeader.h>
+#include <future>
 #include "DSP/ChordGenerator.h"
 #include "DSP/TuningEngine.h"
 #include "DSP/WavetableVoice.h"
@@ -40,7 +41,7 @@ class OIntonationPadAudioProcessor : public juce::AudioProcessor,
 {
 public:
     OIntonationPadAudioProcessor();
-    ~OIntonationPadAudioProcessor() override = default;
+    ~OIntonationPadAudioProcessor() override;
 
     void prepareToPlay(double sampleRate, int samplesPerBlock) override;
     void releaseResources() override;
@@ -127,6 +128,9 @@ private:
     std::atomic<int> activeSnapshotIndex_ { 0 };
     int lastKnownScaleSize_ = 0;  // Message-thread only: tracks scale changes for auto-reset
 
+    // Background pre-warm task (joined in destructor)
+    std::future<void> preWarmFuture_;
+
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
 
@@ -157,6 +161,10 @@ private:
     std::atomic<float>* cachedFilterLfoDepth = nullptr;
     std::atomic<float>* cachedVelocityToFilter = nullptr;
     std::atomic<float>* cachedMasterVolume = nullptr;
+
+    // v2.4.6: Smoothed parameters to eliminate zipper noise on automation
+    juce::SmoothedValue<float> smoothedMasterVolume { 1.0f };
+    juce::SmoothedValue<float> smoothedFilterCutoff { 8000.0f };
 
     // v2.2.0: Most-recent note-on velocity for filter modulation (audio thread only)
     float lastNoteVelocity = 1.0f;

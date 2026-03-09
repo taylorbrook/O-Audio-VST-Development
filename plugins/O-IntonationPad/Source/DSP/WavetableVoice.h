@@ -63,7 +63,7 @@ public:
     void setGainB(float gain);
     void setEnvelopeParameters(float attack, float decay, float sustain, float release);
     void setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
-                                   const std::vector<int>* enabledDegrees, int scaleDegreeCount,
+                                   const std::vector<int>& enabledDegrees, int scaleDegreeCount,
                                    float spacing, float inversion,
                                    float detuneRandom, float timingRandom,
                                    ChordGenerator* chordGen, class TuningEngine* tuning,
@@ -132,7 +132,7 @@ private:
     int cachedVoiceCount = 5;
     float cachedComplexity = 0.5f;
     int cachedKeyRoot = 0;
-    const std::vector<int>* cachedEnabledDegrees = nullptr;
+    std::vector<int> cachedEnabledDegrees;
     int cachedScaleDegreeCount = 12;
     float cachedSpacing = 0.0f;
     float cachedInversion = 0.3f;

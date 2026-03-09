@@ -423,9 +423,19 @@ OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
 #endif
 }
 
+OIntonationPadAudioProcessor::~OIntonationPadAudioProcessor()
+{
+    if (preWarmFuture_.valid())
+        preWarmFuture_.wait();
+}
 
 void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
+    // Pre-warm all 20 wavetable banks in a background thread to avoid
+    // ~22MB allocations under mutex on the audio thread during first bank switch
+    if (!preWarmFuture_.valid())
+        preWarmFuture_ = std::async(std::launch::async, [] { WavetableData::BankCache::preWarmAll(); });
+
     // Prepare synthesiser
     synthesiser.setCurrentPlaybackSampleRate(sampleRate);
 
@@ -439,6 +449,12 @@ void OIntonationPadAudioProcessor::prepareToPlay(double sampleRate, int samplesP
     filter.reset();
     filter.setType(juce::dsp::StateVariableTPTFilterType::lowpass);
     filter.setResonance(0.707f);  // Butterworth response
+
+    // v2.4.6: Initialize smoothed parameters (20ms ramp eliminates zipper noise)
+    smoothedMasterVolume.reset(sampleRate, 0.02);
+    smoothedMasterVolume.setCurrentAndTargetValue(cachedMasterVolume->load());
+    smoothedFilterCutoff.reset(sampleRate, 0.02);
+    smoothedFilterCutoff.setCurrentAndTargetValue(cachedFilterCutoff->load());
 
     // Initialize LFOs (independent per oscillator)
     // Phase increments are computed per-block in processBlock — no need to seed here
@@ -593,7 +609,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
             // Store chord generation parameters for voices to use on note-on
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot,
-                                            &currentEnabledDegrees, currentScaleDegreeCount,
+                                            currentEnabledDegrees, currentScaleDegreeCount,
                                             spacing, inversion, detuneRandom, timingRandom,
                                             &chordGenerator, &tuningEngine, &randomGenerator);
         }
@@ -609,22 +625,39 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     if (velocityToFilter > 0.0f)
         filterCutoff *= (1.0f - velocityToFilter * (1.0f - lastNoteVelocity));
 
-    // Apply filter (with optional LFO A modulation)
+    // v2.4.6: Smooth filter cutoff to eliminate zipper noise on automation
+    smoothedFilterCutoff.setTargetValue(filterCutoff);
+
+    // Apply filter in sub-blocks for smooth cutoff transitions
     float filterLfoDepth = cachedFilterLfoDepth->load();
-    if (filterLfoDepth > 0.0f)
+    const int numSamples = buffer.getNumSamples();
+    constexpr int subBlockSize = 32;
+    juce::dsp::AudioBlock<float> fullBlock(buffer);
+
+    for (int startSample = 0; startSample < numSamples; startSample += subBlockSize)
     {
-        float lfoValue = std::sin(currentLfoPhaseA);
-        float modulatedCutoff = filterCutoff * std::pow(2.0f, lfoValue * filterLfoDepth * 2.0f);
-        modulatedCutoff = juce::jlimit(20.0f, 20000.0f, modulatedCutoff);
-        filter.setCutoffFrequency(modulatedCutoff);
+        const int samplesThisBlock = juce::jmin(subBlockSize, numSamples - startSample);
+        float smoothedCutoff = smoothedFilterCutoff.skip(samplesThisBlock);
+
+        if (filterLfoDepth > 0.0f)
+        {
+            float lfoValue = std::sin(currentLfoPhaseA);
+            float modulatedCutoff = smoothedCutoff * std::pow(2.0f, lfoValue * filterLfoDepth * 2.0f);
+            modulatedCutoff = juce::jlimit(20.0f, 20000.0f, modulatedCutoff);
+            filter.setCutoffFrequency(modulatedCutoff);
+        }
+        else
+        {
+            filter.setCutoffFrequency(smoothedCutoff);
+        }
+
+        auto subBlock = fullBlock.getSubBlock(static_cast<size_t>(startSample),
+                                              static_cast<size_t>(samplesThisBlock));
+        juce::dsp::ProcessContextReplacing<float> ctx(subBlock);
+        filter.process(ctx);
     }
-    else
-    {
-        filter.setCutoffFrequency(filterCutoff);
-    }
+
     juce::dsp::AudioBlock<float> block(buffer);
-    juce::dsp::ProcessContextReplacing<float> filterContext(block);
-    filter.process(filterContext);
 
     // ═══════════════════════════════════════════════════════════════════
     // v1.11.0: EFFECTS CHAIN (Chorus -> Delay -> EQ -> Reverb)
@@ -676,8 +709,23 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
             reverbProcessor.process(block);
     }
 
-    // Apply master volume
-    buffer.applyGain(masterVolume);
+    // v2.4.6: Smooth master volume to eliminate zipper noise on automation
+    smoothedMasterVolume.setTargetValue(masterVolume);
+    if (smoothedMasterVolume.isSmoothing())
+    {
+        const int numCh = buffer.getNumChannels();
+        const int numSamp = buffer.getNumSamples();
+        for (int i = 0; i < numSamp; ++i)
+        {
+            const float gain = smoothedMasterVolume.getNextValue();
+            for (int ch = 0; ch < numCh; ++ch)
+                buffer.getWritePointer(ch)[i] *= gain;
+        }
+    }
+    else
+    {
+        buffer.applyGain(smoothedMasterVolume.getTargetValue());
+    }
 }
 
 juce::AudioProcessorEditor* OIntonationPadAudioProcessor::createEditor()
@@ -773,20 +821,26 @@ void OIntonationPadAudioProcessor::setStateInformation(const void* data, int siz
                 juce::StringArray eiTokens;
                 eiTokens.addTokens(eiStr, ",", "");
                 int current = activeSnapshotIndex_.load(std::memory_order_relaxed);
-                int inactive = 1 - current;
-                auto& snap = intervalSnapshots_[inactive];
-                snap.enabledFlags.clear();
-                snap.enabledDegrees.clear();
-                snap.scaleDegreeCount = tuningEngine.getScaleDegrees();
-                for (const auto& token : eiTokens)
-                    snap.enabledFlags.push_back(token == "1");
-                for (int i = 0; i < static_cast<int>(snap.enabledFlags.size()); ++i)
-                    if (snap.enabledFlags[static_cast<size_t>(i)])
-                        snap.enabledDegrees.push_back(i);
-                if (snap.enabledDegrees.empty())
-                    snap.enabledDegrees.push_back(0);
-                lastKnownScaleSize_ = snap.scaleDegreeCount;
-                activeSnapshotIndex_.store(inactive, std::memory_order_release);
+                for (;;)
+                {
+                    int inactive = 1 - current;
+                    auto& snap = intervalSnapshots_[inactive];
+                    snap.enabledFlags.clear();
+                    snap.enabledDegrees.clear();
+                    snap.scaleDegreeCount = tuningEngine.getScaleDegrees();
+                    for (const auto& token : eiTokens)
+                        snap.enabledFlags.push_back(token == "1");
+                    for (int i = 0; i < static_cast<int>(snap.enabledFlags.size()); ++i)
+                        if (snap.enabledFlags[static_cast<size_t>(i)])
+                            snap.enabledDegrees.push_back(i);
+                    if (snap.enabledDegrees.empty())
+                        snap.enabledDegrees.push_back(0);
+                    if (activeSnapshotIndex_.compare_exchange_weak(current, inactive,
+                                                                    std::memory_order_release,
+                                                                    std::memory_order_relaxed))
+                        break;
+                }
+                lastKnownScaleSize_ = tuningEngine.getScaleDegrees();
             }
         }
     }
@@ -832,38 +886,52 @@ std::vector<bool> OIntonationPadAudioProcessor::getEnabledIntervals() const
 void OIntonationPadAudioProcessor::setIntervalEnabled(int index, bool enabled)
 {
     int current = activeSnapshotIndex_.load(std::memory_order_relaxed);
-    const auto& active = intervalSnapshots_[current];
-    if (active.enabledFlags.empty() || index < 0 || index >= static_cast<int>(active.enabledFlags.size()))
-        return;
+    for (;;)
+    {
+        const auto& active = intervalSnapshots_[current];
+        if (active.enabledFlags.empty() || index < 0 || index >= static_cast<int>(active.enabledFlags.size()))
+            return;
 
-    int inactive = 1 - current;
-    auto& snap = intervalSnapshots_[inactive];
-    snap.enabledFlags = active.enabledFlags;
-    snap.scaleDegreeCount = active.scaleDegreeCount;
-    snap.enabledFlags[static_cast<size_t>(index)] = enabled;
+        int inactive = 1 - current;
+        auto& snap = intervalSnapshots_[inactive];
+        snap.enabledFlags = active.enabledFlags;
+        snap.scaleDegreeCount = active.scaleDegreeCount;
+        snap.enabledFlags[static_cast<size_t>(index)] = enabled;
 
-    snap.enabledDegrees.clear();
-    for (int i = 0; i < static_cast<int>(snap.enabledFlags.size()); ++i)
-        if (snap.enabledFlags[static_cast<size_t>(i)])
-            snap.enabledDegrees.push_back(i);
-    if (snap.enabledDegrees.empty())
-        snap.enabledDegrees.push_back(0);
+        snap.enabledDegrees.clear();
+        for (int i = 0; i < static_cast<int>(snap.enabledFlags.size()); ++i)
+            if (snap.enabledFlags[static_cast<size_t>(i)])
+                snap.enabledDegrees.push_back(i);
+        if (snap.enabledDegrees.empty())
+            snap.enabledDegrees.push_back(0);
 
-    activeSnapshotIndex_.store(inactive, std::memory_order_release);
+        if (activeSnapshotIndex_.compare_exchange_weak(current, inactive,
+                                                        std::memory_order_release,
+                                                        std::memory_order_relaxed))
+            break;
+        // CAS failed: another call flipped the index — retry with updated current
+    }
 }
 
 void OIntonationPadAudioProcessor::resetEnabledIntervals()
 {
     int scaleSize = tuningEngine.getScaleDegrees();
     int current = activeSnapshotIndex_.load(std::memory_order_relaxed);
-    int inactive = 1 - current;
-    auto& snap = intervalSnapshots_[inactive];
-    snap.scaleDegreeCount = scaleSize;
-    snap.enabledFlags.assign(static_cast<size_t>(scaleSize), true);
-    snap.enabledDegrees.clear();
-    for (int i = 0; i < scaleSize; ++i)
-        snap.enabledDegrees.push_back(i);
-    activeSnapshotIndex_.store(inactive, std::memory_order_release);
+    for (;;)
+    {
+        int inactive = 1 - current;
+        auto& snap = intervalSnapshots_[inactive];
+        snap.scaleDegreeCount = scaleSize;
+        snap.enabledFlags.assign(static_cast<size_t>(scaleSize), true);
+        snap.enabledDegrees.clear();
+        for (int i = 0; i < scaleSize; ++i)
+            snap.enabledDegrees.push_back(i);
+
+        if (activeSnapshotIndex_.compare_exchange_weak(current, inactive,
+                                                        std::memory_order_release,
+                                                        std::memory_order_relaxed))
+            break;
+    }
     lastKnownScaleSize_ = scaleSize;
 }
 

@@ -1,5 +1,39 @@
 # O-IntonationPad Changelog
 
+## [2.4.7] - 2026-03-09
+
+### Fixed
+- Detached `std::thread` for BankCache pre-warming could outlive plugin instance
+  - **Root cause:** `std::thread(...).detach()` in `prepareToPlay()` is fire-and-forget — if the plugin is destroyed while the thread is still running, undefined behavior
+  - **Fix:** Replaced with `std::async` stored as `std::future<void>` member; destructor calls `.wait()` to join before teardown
+- Double-buffer race in `setIntervalEnabled`/`resetEnabledIntervals` when two UI calls interleave
+  - **Root cause:** Both functions read `activeSnapshotIndex_` with relaxed ordering, write to the computed inactive slot, then store. Two interleaved calls read the same index, both write to the same slot, and the second store silently drops the first's changes
+  - **Fix:** Replaced `store` with `compare_exchange_weak` CAS loop — if another call flipped the index between read and write, retry from the updated index. Applied to all 3 double-buffer write sites (`setIntervalEnabled`, `resetEnabledIntervals`, `setStateInformation`)
+- Dangling pointer to interval snapshot data readable by audio-thread voices
+  - **Root cause:** `WavetableVoice::cachedEnabledDegrees` stored a `const std::vector<int>*` pointing into the active `IntervalSnapshot`. After the UI flips the active index, the old slot becomes the inactive target for the next UI write — creating a data race if a voice reads the stale pointer during `startNote()` while the UI mutates the now-inactive slot
+  - **Fix:** Changed from `const std::vector<int>*` to `std::vector<int>` (value copy). `setChordGenerationParams` now accepts `const std::vector<int>&` and copies by value, isolating voice data from snapshot mutations
+
+## [2.4.6] - 2026-03-08
+
+### Fixed
+- Zipper noise on master volume and filter cutoff when automated
+  - **Root cause:** `buffer.applyGain(masterVolume)` applied a single gain value per block with no interpolation; `filter.setCutoffFrequency()` set cutoff once per block — both produce audible stairstepping when DAW automation changes the value between blocks
+  - **Fix:** Added `juce::SmoothedValue<float>` (20ms linear ramp) for both parameters. Master volume now applies per-sample smoothed gain. Filter cutoff processes in 32-sample sub-blocks with smoothed cutoff updates, preserving LFO and velocity modulation on top of the smoothed base value
+
+## [2.4.5] - 2026-03-08
+
+### Fixed
+- Audio dropouts on first wavetable bank switch
+  - **Root cause:** `BankCache::getBank()` lazy-allocated ~22MB `MipmapTable` under per-bank mutex on the audio thread when a bank was accessed for the first time, blocking `processBlock()` for the duration of generation
+  - **Fix:** Added `BankCache::preWarmAll()` static method; `prepareToPlay()` now spawns a detached background thread that pre-generates all 20 banks before the audio thread needs them. Existing double-checked locking (acquire/release atomics + per-bank mutex) ensures correct synchronization if the audio thread races a bank still being warmed
+
+## [2.4.4] - 2026-03-08
+
+### Fixed
+- Wavetable waveform canvases in Synth tab displaying solid black with no wave shape
+  - **Root cause:** `resizeCanvas()` called in constructor before canvas was inserted into DOM — `clientWidth`/`clientHeight` returned 0, creating a 0x0 canvas buffer that could never render. Regression from v2.4.2 fix which moved resize to construction-only.
+  - **Fix:** Replaced eager `resizeCanvas()` with `ResizeObserver` that fires after browser computes layout. Added guard against zero dimensions. Observer also triggers redraw on any future resize.
+
 ## [2.4.3] - 2026-03-08
 
 ### Added
