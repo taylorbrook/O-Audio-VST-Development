@@ -249,6 +249,10 @@ function initializeCurveEditors() {
     // Undo/redo buttons
     setupUndoRedoButtons('attack');
     setupUndoRedoButtons('sustain');
+
+    // Spectrum overlay toggles
+    setupSpectrumToggle('attack');
+    setupSpectrumToggle('sustain');
 }
 
 function setupModeToggle(curveType) {
@@ -265,8 +269,9 @@ function setupModeToggle(curveType) {
         // Update button text
         toggleButton.textContent = newMode === 'freehand' ? 'Freehand' : 'Node';
 
-        // Get current curve data
+        // Get current curve data and spectrum state
         const currentData = app.curveEditors[curveType].getCurveData();
+        const spectrumVisible = app.curveEditors[curveType].showSpectrum;
 
         // Replace editor
         if (newMode === 'freehand') {
@@ -281,8 +286,9 @@ function setupModeToggle(curveType) {
             });
         }
 
-        // Restore curve data
+        // Restore curve data and spectrum state
         app.curveEditors[curveType].setCurveData(currentData);
+        app.curveEditors[curveType].showSpectrum = spectrumVisible;
 
         // Attach callbacks
         app.curveEditors[curveType].onCurveChange = (data) => {
@@ -328,6 +334,19 @@ function setupResetButton(curveType) {
     resetButton.addEventListener('click', () => {
         app.curveEditors[curveType].resetCurve();
         console.log(`${curveType} curve reset to flat`);
+    });
+}
+
+function setupSpectrumToggle(curveType) {
+    const btn = document.getElementById(`${curveType}-spectrum-btn`);
+    if (!btn) return;
+
+    btn.addEventListener('click', () => {
+        const editor = app.curveEditors[curveType];
+        editor.showSpectrum = !editor.showSpectrum;
+        btn.classList.toggle('active', editor.showSpectrum);
+        // Re-render immediately to show/hide
+        editor.render();
     });
 }
 
@@ -422,9 +441,11 @@ function initializeSpectrogram() {
                     // Route transient data to curve editors for glow animation
                     if (app.curveEditors.attack) {
                         app.curveEditors.attack.setTransientActivity(data.transients);
+                        app.curveEditors.attack.setSpectrumData(data.fft);
                     }
                     if (app.curveEditors.sustain) {
                         app.curveEditors.sustain.setTransientActivity(data.transients);
+                        app.curveEditors.sustain.setSpectrumData(data.fft);
                     }
                 }
             } catch (error) {
@@ -445,11 +466,11 @@ function startRenderLoop() {
             app.spectrogram.draw();
         }
 
-        // Re-render curve editors when transients are active (glow animation)
-        if (app.curveEditors.attack && app.curveEditors.attack.hasActiveTransients) {
+        // Re-render curve editors when transients are active or spectrum overlay is shown
+        if (app.curveEditors.attack && (app.curveEditors.attack.hasActiveTransients || app.curveEditors.attack.showSpectrum)) {
             app.curveEditors.attack.render();
         }
-        if (app.curveEditors.sustain && app.curveEditors.sustain.hasActiveTransients) {
+        if (app.curveEditors.sustain && (app.curveEditors.sustain.hasActiveTransients || app.curveEditors.sustain.showSpectrum)) {
             app.curveEditors.sustain.render();
         }
 

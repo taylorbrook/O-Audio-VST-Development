@@ -41,6 +41,11 @@ export class CurveEditor {
         this.transientActivity = new Float32Array(this.numBands);
         this.hasActiveTransients = false;
 
+        // Spectrum overlay data (257 FFT bins, raw magnitudes)
+        this.spectrumData = null;
+        this.showSpectrum = false;
+        this.spectrumColor = config.accentColor || '#4A90D9';
+
         // Callback for curve updates
         this.onCurveChange = null;
 
@@ -290,6 +295,74 @@ export class CurveEditor {
     }
 
     /**
+     * Set FFT spectrum data for overlay rendering
+     * @param {number[]} fftBins - 257 float values (raw magnitudes, 0.0+)
+     */
+    setSpectrumData(fftBins) {
+        this.spectrumData = fftBins;
+    }
+
+    /**
+     * Draw real-time input spectrum as a semi-transparent filled shape behind the curve.
+     * Maps 257 linear FFT bins onto the logarithmic X-axis.
+     */
+    drawSpectrumOverlay() {
+        if (!this.showSpectrum || !this.spectrumData) return;
+
+        const ctx = this.ctx;
+        const bins = this.spectrumData;
+        const numBins = bins.length; // 257
+        // Nyquist frequency — bins are linearly spaced 0..maxFreq
+        const nyquist = this.maxFreq;
+
+        ctx.save();
+
+        // Build filled path from bin 1 (skip DC at bin 0)
+        ctx.beginPath();
+        ctx.moveTo(0, this.height); // Start at bottom-left
+
+        let started = false;
+        for (let i = 1; i < numBins; i++) {
+            // Linear frequency for this bin
+            const freq = (i / (numBins - 1)) * nyquist;
+            if (freq < this.minFreq) continue;
+
+            const x = this.freqToX(freq);
+
+            // Convert magnitude to dB, normalize to 0..1 (60dB range)
+            const mag = bins[i] || 0;
+            const db = 20 * Math.log10(Math.max(mag, 0.000001));
+            const normalized = Math.max(0, Math.min(1, (db + 60) / 60));
+
+            // Map to canvas Y (fills from bottom)
+            const y = this.height - (normalized * this.height);
+
+            if (!started) {
+                ctx.moveTo(x, this.height);
+                ctx.lineTo(x, y);
+                started = true;
+            } else {
+                ctx.lineTo(x, y);
+            }
+        }
+
+        // Close path along bottom
+        ctx.lineTo(this.width, this.height);
+        ctx.closePath();
+
+        // Semi-transparent fill using curve accent color
+        ctx.fillStyle = this.spectrumColor + '25'; // ~15% opacity (hex alpha)
+        ctx.fill();
+
+        // Subtle top edge stroke
+        ctx.strokeStyle = this.spectrumColor + '40'; // ~25% opacity
+        ctx.lineWidth = 1;
+        ctx.stroke();
+
+        ctx.restore();
+    }
+
+    /**
      * Main render loop
      */
     render() {
@@ -298,6 +371,9 @@ export class CurveEditor {
 
         // Draw grid
         this.drawGrid();
+
+        // Draw spectrum overlay (behind everything else)
+        this.drawSpectrumOverlay();
 
         // Draw transient glow (behind curve)
         this.drawTransientGlow();

@@ -260,6 +260,7 @@ body::after {
     z-index: 10;
 }
 
+.curve-spectrum-btn,
 .curve-mode-toggle,
 .curve-reset-btn,
 .curve-undo-btn,
@@ -284,6 +285,7 @@ body::after {
     min-width: 22px;
 }
 
+.curve-spectrum-btn:hover,
 .curve-mode-toggle:hover,
 .curve-reset-btn:hover,
 .curve-undo-btn:hover:not(:disabled),
@@ -292,11 +294,25 @@ body::after {
     border-color: rgba(232, 224, 212, 0.5);
 }
 
+.curve-spectrum-btn:active,
 .curve-mode-toggle:active,
 .curve-reset-btn:active,
 .curve-undo-btn:active:not(:disabled),
 .curve-redo-btn:active:not(:disabled) {
     background: rgba(20, 20, 20, 0.9);
+}
+
+/* Spectrum toggle active state — accent color highlight per curve type */
+.attack-curve-container .curve-spectrum-btn.active {
+    background: rgba(74, 144, 217, 0.25);
+    border-color: #4A90D9;
+    color: #4A90D9;
+}
+
+.sustain-curve-container .curve-spectrum-btn.active {
+    background: rgba(217, 148, 74, 0.25);
+    border-color: #D9944A;
+    color: #D9944A;
 }
 
 .curve-undo-btn:disabled,

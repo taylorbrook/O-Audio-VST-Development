@@ -18,7 +18,7 @@
                 <button class="preset-action-btn" id="preset-save" title="Save preset">Save</button>
                 <button class="preset-action-btn" id="preset-load" title="Load preset from file">Load</button>
             </div>
-            <div class="version">v1.1.0</div>
+            <div class="version">v1.3.0</div>
         </div>
 
         <!-- SPECTROGRAM (Main display area) -->
@@ -32,6 +32,7 @@
             <canvas id="attack-curve-canvas" class="curve-canvas"></canvas>
             <div class="curve-label">Attack Curve</div>
             <div class="curve-controls">
+                <button id="attack-spectrum-btn" class="curve-spectrum-btn" title="Show/hide input spectrum">Spectrum</button>
                 <button id="attack-undo-btn" class="curve-undo-btn" title="Undo (Ctrl+Z)" disabled>&#x21A9;</button>
                 <button id="attack-redo-btn" class="curve-redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>&#x21AA;</button>
                 <button id="attack-reset-btn" class="curve-reset-btn" title="Reset curve to flat">Reset</button>
@@ -44,6 +45,7 @@
             <canvas id="sustain-curve-canvas" class="curve-canvas"></canvas>
             <div class="curve-label">Sustain Curve</div>
             <div class="curve-controls">
+                <button id="sustain-spectrum-btn" class="curve-spectrum-btn" title="Show/hide input spectrum">Spectrum</button>
                 <button id="sustain-undo-btn" class="curve-undo-btn" title="Undo (Ctrl+Z)" disabled>&#x21A9;</button>
                 <button id="sustain-redo-btn" class="curve-redo-btn" title="Redo (Ctrl+Shift+Z)" disabled>&#x21AA;</button>
                 <button id="sustain-reset-btn" class="curve-reset-btn" title="Reset curve to flat">Reset</button>
