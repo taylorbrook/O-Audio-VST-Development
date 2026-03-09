@@ -1,5 +1,21 @@
 # O-IntonationPad Changelog
 
+## [2.4.8] - 2026-03-09
+
+### Fixed
+- Voice state race in `getActiveNotes()` — UI timer could read partially-initialized sub-voice arrays
+  - **Root cause:** `activeSubVoices` was a plain `int` set BEFORE array initialization in `startNote()`. The 30Hz UI timer calling `getActiveNotes()` could observe the new count while info/gain arrays were still being populated, reading uninitialized data
+  - **Fix:** Changed `activeSubVoices` to `std::atomic<int>` with `memory_order_release` store AFTER all arrays are fully initialized. UI reads via `memory_order_acquire`, guaranteeing all array writes are visible before the count
+- Weak memory ordering on `TuningEngine::frequencyTable` — audio thread could see partially-rebuilt table
+  - **Root cause:** All 128 atomic stores in `rebuildFrequencyTable()` and the load in `getFrequency()` used `memory_order_relaxed`, providing no cross-thread visibility guarantee. After a temperament change, the audio thread could read a mix of old and new frequencies
+  - **Fix:** Added `frequencyTableVersion` atomic counter — `rebuildFrequencyTable()` increments with `memory_order_release` after all stores; `getFrequency()` loads with `memory_order_acquire` before reading, ensuring the fully-rebuilt table is visible
+- Unguarded `scaleName` read in `getActiveTuningName()` — data race with UI thread
+  - **Root cause:** `scaleName` (a `juce::String`) was read without holding `intervalMutex`, but written under the mutex in `setCustomIntervals()`/`setSingleInterval()`. Concurrent UI read during a temperament preset change could observe a torn string
+  - **Fix:** Added `std::lock_guard<std::mutex>` on `intervalMutex` around the `scaleName` read (only taken in the non-12-TET path, so no overhead for the common case)
+- Stale filter LFO phase — cutoff modulation frozen within each audio block
+  - **Root cause:** `currentLfoPhaseA` was captured once at block start (line 567) and reused unchanged across all 32-sample sub-blocks in the filter modulation loop. The LFO value was identical for every sub-block, causing the filter to step rather than sweep
+  - **Fix:** Replaced static capture with a running phase variable (`filterLfoRunningPhase`) that advances by `lfoPhaseIncrementA * samplesThisBlock` after each sub-block, producing smooth per-sub-block filter movement
+
 ## [2.4.7] - 2026-03-09
 
 ### Fixed

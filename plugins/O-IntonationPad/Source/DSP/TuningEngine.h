@@ -304,6 +304,7 @@ private:
 
     // Pre-computed frequency table for lock-free audio access
     std::array<std::atomic<double>, 128> frequencyTable;
+    std::atomic<uint32_t> frequencyTableVersion{0};  // v2.4.8: release/acquire sync for full-table visibility
 
     // Per-note pitch bend storage
     static constexpr float NO_BEND = 2.0f;

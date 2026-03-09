@@ -72,8 +72,8 @@ public:
     void setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth);
     void setWavetablePosition2WithLFO(float basePos, float lfoPhase, float lfoDepth);
 
-    // UI data access (read from message thread)
-    int getActiveSubVoiceCount() const { return activeSubVoices; }
+    // UI data access (read from message thread — acquire pairs with release in startNote)
+    int getActiveSubVoiceCount() const { return activeSubVoices.load(std::memory_order_acquire); }
 
     // Base note info and gain
     const SubVoiceInfo& getSubVoiceInfo(int index) const { return subVoiceInfos[static_cast<size_t>(index)]; }
@@ -120,7 +120,7 @@ private:
     std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInfos{};                     // base note info
     std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceSpacingInfos{};              // spacing note info
     std::array<SubVoiceInfo, MAX_SUB_VOICES> subVoiceInversionInfos{};            // inversion note info
-    int activeSubVoices = 1;
+    std::atomic<int> activeSubVoices{1};
 
     juce::ADSR envelope;
     juce::ADSR::Parameters envelopeParams;

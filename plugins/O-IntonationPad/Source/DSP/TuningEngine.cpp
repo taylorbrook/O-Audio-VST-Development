@@ -269,6 +269,8 @@ juce::String TuningEngine::getActiveTuningName() const
     Mode mode = currentMode.load(std::memory_order_relaxed);
     if (mode == Mode::TwelveTET)
         return "12-TET Standard";
+    // v2.4.8: Guard read — scaleName is written under intervalMutex in setCustomIntervals/setSingleInterval
+    std::lock_guard<std::mutex> lock(intervalMutex);
     return scaleName;
 }
 
@@ -650,6 +652,8 @@ double TuningEngine::getFrequency(int midiNote, int midiChannel)
     juce::ignoreUnused(midiChannel);
     midiNote = juce::jlimit(0, 127, midiNote);
 
+    // v2.4.8: Acquire syncs with release in rebuildFrequencyTable — sees fully-rebuilt table
+    frequencyTableVersion.load(std::memory_order_acquire);
     double baseFreq = frequencyTable[static_cast<size_t>(midiNote)].load(std::memory_order_relaxed);
 
     float bendAmount = notePitchBends[static_cast<size_t>(midiNote)].load(std::memory_order_relaxed);
@@ -852,4 +856,8 @@ void TuningEngine::rebuildFrequencyTable()
             frequencyTable[static_cast<size_t>(midiNote)].store(freq, std::memory_order_relaxed);
         }
     }
+
+    // v2.4.8: Release fence — ensures all 128 stores are visible to audio thread
+    // when it acquires the version counter in getFrequency()
+    frequencyTableVersion.fetch_add(1, std::memory_order_release);
 }

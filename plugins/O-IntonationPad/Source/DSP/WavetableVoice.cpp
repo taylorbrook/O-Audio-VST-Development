@@ -115,12 +115,12 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
                                                              cachedScaleDegreeCount);
 
         // All 12 sub-voices are always initialized
-        activeSubVoices = juce::jmin(static_cast<int>(chordVoices.size()), MAX_SUB_VOICES);
+        int numSubVoices = juce::jmin(static_cast<int>(chordVoices.size()), MAX_SUB_VOICES);
 
         // Calculate max delay in samples from timingRandom (ms)
         int maxDelaySamples = static_cast<int>((cachedTimingRandom / 1000.0f) * currentSampleRate);
 
-        for (int i = 0; i < activeSubVoices; ++i)
+        for (int i = 0; i < numSubVoices; ++i)
         {
             auto idx = static_cast<size_t>(i);
             int baseMidiNote = chordVoices[idx].midiNote;
@@ -213,11 +213,13 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
             subVoiceLFOPhaseOffsets[idx] = (i == 0) ? 0.0f
                 : (randomPtr != nullptr ? randomPtr->nextFloat() * juce::MathConstants<float>::twoPi : 0.0f);
         }
+
+        // v2.4.8: Publish count AFTER all arrays are initialized (release pairs with acquire in getActiveSubVoiceCount)
+        activeSubVoices.store(numSubVoices, std::memory_order_release);
     }
     else
     {
         // Fallback: single voice at root frequency
-        activeSubVoices = 1;
         float frequency = static_cast<float>(juce::MidiMessage::getMidiNoteInHertz(midiNoteNumber));
         initializeSingleSubVoice(0, midiNoteNumber, frequency,
                                  midiNoteNumber, frequency,
@@ -231,6 +233,7 @@ void WavetableVoice::startNote(int midiNoteNumber, float velocity, juce::Synthes
         subVoicePanFactor[0] = 0.0f;
         smoothedPan[0] = 0.0f;
         subVoiceLFOPhaseOffsets[0] = 0.0f;
+        activeSubVoices.store(1, std::memory_order_release);
     }
 
     // Start envelope
@@ -274,7 +277,8 @@ void WavetableVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer, int
     smoothedGainB += (cachedGainB - smoothedGainB) * blockCoeff;
 
     // Voice-major loop: each sub-voice processes the entire block
-    for (int i = 0; i < activeSubVoices; ++i)
+    int localActiveSubVoices = activeSubVoices.load(std::memory_order_relaxed);
+    for (int i = 0; i < localActiveSubVoices; ++i)
     {
         auto idx = static_cast<size_t>(i);
 
@@ -477,7 +481,7 @@ void WavetableVoice::setWavetableBank(int bankIndex)
 
 void WavetableVoice::setWavetablePosition(float pos)
 {
-    auto count = static_cast<size_t>(activeSubVoices);
+    auto count = static_cast<size_t>(activeSubVoices.load(std::memory_order_relaxed));
     for (size_t i = 0; i < count; ++i)
     {
         subVoiceOscillators[i].setWavetablePosition(pos);
@@ -499,7 +503,7 @@ void WavetableVoice::setWavetableBank2(int bankIndex)
 
 void WavetableVoice::setWavetablePosition2(float pos)
 {
-    auto count = static_cast<size_t>(activeSubVoices);
+    auto count = static_cast<size_t>(activeSubVoices.load(std::memory_order_relaxed));
     for (size_t i = 0; i < count; ++i)
     {
         subVoiceOscillators2[i].setWavetablePosition(pos);
@@ -510,7 +514,7 @@ void WavetableVoice::setWavetablePosition2(float pos)
 
 void WavetableVoice::setWavetablePositionWithLFO(float basePos, float lfoPhase, float lfoDepth)
 {
-    auto count = static_cast<size_t>(activeSubVoices);
+    auto count = static_cast<size_t>(activeSubVoices.load(std::memory_order_relaxed));
     for (size_t i = 0; i < count; ++i)
     {
         float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[i];
@@ -524,7 +528,7 @@ void WavetableVoice::setWavetablePositionWithLFO(float basePos, float lfoPhase, 
 
 void WavetableVoice::setWavetablePosition2WithLFO(float basePos, float lfoPhase, float lfoDepth)
 {
-    auto count = static_cast<size_t>(activeSubVoices);
+    auto count = static_cast<size_t>(activeSubVoices.load(std::memory_order_relaxed));
     for (size_t i = 0; i < count; ++i)
     {
         float offsetPhase = lfoPhase + subVoiceLFOPhaseOffsets[i];

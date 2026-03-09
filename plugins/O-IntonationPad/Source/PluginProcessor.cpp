@@ -634,6 +634,9 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
     constexpr int subBlockSize = 32;
     juce::dsp::AudioBlock<float> fullBlock(buffer);
 
+    // v2.4.8: Running phase variable — advances per sub-block instead of using stale block-start value
+    double filterLfoRunningPhase = static_cast<double>(currentLfoPhaseA);
+
     for (int startSample = 0; startSample < numSamples; startSample += subBlockSize)
     {
         const int samplesThisBlock = juce::jmin(subBlockSize, numSamples - startSample);
@@ -641,7 +644,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
         if (filterLfoDepth > 0.0f)
         {
-            float lfoValue = std::sin(currentLfoPhaseA);
+            float lfoValue = std::sin(static_cast<float>(filterLfoRunningPhase));
             float modulatedCutoff = smoothedCutoff * std::pow(2.0f, lfoValue * filterLfoDepth * 2.0f);
             modulatedCutoff = juce::jlimit(20.0f, 20000.0f, modulatedCutoff);
             filter.setCutoffFrequency(modulatedCutoff);
@@ -655,6 +658,8 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
                                               static_cast<size_t>(samplesThisBlock));
         juce::dsp::ProcessContextReplacing<float> ctx(subBlock);
         filter.process(ctx);
+
+        filterLfoRunningPhase += lfoPhaseIncrementA * samplesThisBlock;
     }
 
     juce::dsp::AudioBlock<float> block(buffer);
