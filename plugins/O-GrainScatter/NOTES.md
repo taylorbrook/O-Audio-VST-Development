@@ -1,12 +1,14 @@
 # O-GrainScatter Notes
 
 ## Status
-- **Current Status:** Ideated
-- **Version:** N/A
+- **Current Status:** 📦 Installed
+- **Version:** 2.0.2
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-03-08 (v2.0.2):** Fixed critical stack buffer overflow in binaural decode + hoaBus sizing
+- **2026-02-09 (v2.0.1):** Fixed density parameter exponential curve
 - **2026-02-06:** Ideated — Creative brief and requirements created
 - **2026-02-06:** Research reference: `research/stutter-effects/path-a-granular-stutter-engine.md`
 
@@ -18,7 +20,7 @@ Built on the granular engine from the Scatter plugin (TACHES):
 
 ## Known Issues
 
-None (not yet implemented)
+None
 
 ## Additional Notes
 

@@ -124,6 +124,9 @@ private:
     // HOA3 internal accumulation bus (16 channels)
     juce::AudioBuffer<float> hoaBus;
 
+    // Heap-allocated binaural decode buffers (sized in prepareToPlay)
+    std::vector<float> binauralL, binauralR;
+
     // Distance LPF (1-pole per channel for air absorption approximation)
     float distanceLpfState[2] = { 0.0f, 0.0f };
 

@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.2] - 2026-03-08
+
+### Fixed
+- Critical stack buffer overflow: replaced stack-allocated `binauralL/R[2048]` arrays with heap-allocated member buffers sized to actual `samplesPerBlock`
+- Incorrect `hoaBus` and `binauralDecoder` sizing: was using `sampleRate * 0.02 + 1024` (arbitrary formula), now uses `samplesPerBlock` from host
+- Root cause: `prepareToPlay` ignored its `samplesPerBlock` parameter entirely
+
 ## [2.0.1] - 2026-02-09
 
 ### Fixed

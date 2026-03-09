@@ -250,7 +250,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
     return layout;
 }
 
-void GrainScatterProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlock*/)
+void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 {
     currentSampleRate = sampleRate;
 
@@ -280,9 +280,11 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int /*samplesPerBlo
     cachedScaleIndex = -1;
     cachedPitchMode = -1;
 
-    // Spatial audio
-    hoaBus.setSize (kHOA3Channels, static_cast<int> (sampleRate * 0.02) + 1024, false, true, false);
-    binauralDecoder.prepare (sampleRate, static_cast<int> (sampleRate * 0.02) + 1024);
+    // Spatial audio — size to actual block size, not arbitrary formula
+    hoaBus.setSize (kHOA3Channels, samplesPerBlock, false, true, false);
+    binauralDecoder.prepare (sampleRate, samplesPerBlock);
+    binauralL.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
+    binauralR.resize (static_cast<size_t> (samplesPerBlock), 0.0f);
     grainPool.prepareSpatial (static_cast<float> (sampleRate));
     distanceLpfState[0] = 0.0f;
     distanceLpfState[1] = 0.0f;
@@ -560,11 +562,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         for (int ch = 0; ch < kHOA3Channels; ++ch)
             hoaChannels[ch] = hoaBus.getReadPointer(ch);
 
-        float binauralL[2048];
-        float binauralR[2048];
-        jassert(numSamples <= 2048);
-
-        binauralDecoder.process(hoaChannels, numSamples, binauralL, binauralR);
+        binauralDecoder.process(hoaChannels, numSamples, binauralL.data(), binauralR.data());
 
         // Distance LPF (1-pole low-pass for air absorption)
         // distLpfAmt scales how much distance affects the cutoff (0=no darkening, 1=full)
