@@ -35,6 +35,7 @@ struct GrainVizSnapshot
     std::array<bool, 16> euclideanPattern {};
     int euclideanSteps = 0;
     int euclideanStep = 0;
+    int euclideanRotation = 0;
 };
 
 class GrainScatterProcessor : public juce::AudioProcessor
@@ -97,6 +98,8 @@ private:
     std::atomic<float>* freezeParam = nullptr;
     std::atomic<float>* euclideanPulsesParam = nullptr;
     std::atomic<float>* euclideanStepsParam = nullptr;
+    std::atomic<float>* euclideanRotationParam = nullptr;
+    std::atomic<float>* euclideanSwingParam = nullptr;
     std::atomic<float>* stutterGateParam = nullptr;
     std::atomic<float>* sizeRandomParam = nullptr;
     std::atomic<float>* ampRandomParam = nullptr;

@@ -24,8 +24,10 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
     grainShapeRelay      = std::make_unique<juce::WebComboBoxRelay>("grain_shape");
     sizeRandomRelay      = std::make_unique<juce::WebSliderRelay>("size_random");
     ampRandomRelay       = std::make_unique<juce::WebSliderRelay>("amp_random");
-    euclideanPulsesRelay = std::make_unique<juce::WebSliderRelay>("euclidean_pulses");
-    euclideanStepsRelay  = std::make_unique<juce::WebSliderRelay>("euclidean_steps");
+    euclideanPulsesRelay   = std::make_unique<juce::WebSliderRelay>("euclidean_pulses");
+    euclideanStepsRelay    = std::make_unique<juce::WebSliderRelay>("euclidean_steps");
+    euclideanRotationRelay = std::make_unique<juce::WebSliderRelay>("euclidean_rotation");
+    euclideanSwingRelay    = std::make_unique<juce::WebSliderRelay>("euclidean_swing");
     // Spatial
     spatialModeRelay     = std::make_unique<juce::WebComboBoxRelay>("spatial_mode");
     azimuthRelay         = std::make_unique<juce::WebSliderRelay>("azimuth");
@@ -74,6 +76,8 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
             .withOptionsFrom(*ampRandomRelay)
             .withOptionsFrom(*euclideanPulsesRelay)
             .withOptionsFrom(*euclideanStepsRelay)
+            .withOptionsFrom(*euclideanRotationRelay)
+            .withOptionsFrom(*euclideanSwingRelay)
             .withOptionsFrom(*spatialModeRelay)
             .withOptionsFrom(*azimuthRelay)
             .withOptionsFrom(*elevationRelay)
@@ -133,6 +137,10 @@ GrainScatterEditor::GrainScatterEditor(GrainScatterProcessor& p)
         *audioProcessor.parameters.getParameter("euclidean_pulses"), *euclideanPulsesRelay, nullptr);
     euclideanStepsAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *audioProcessor.parameters.getParameter("euclidean_steps"), *euclideanStepsRelay, nullptr);
+    euclideanRotationAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("euclidean_rotation"), *euclideanRotationRelay, nullptr);
+    euclideanSwingAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *audioProcessor.parameters.getParameter("euclidean_swing"), *euclideanSwingRelay, nullptr);
     // Spatial
     spatialModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *audioProcessor.parameters.getParameter("spatial_mode"), *spatialModeRelay, nullptr);
@@ -219,7 +227,9 @@ void GrainScatterEditor::timerCallback()
         if (i > 0) eucJson += ",";
         eucJson += snap.euclideanPattern[static_cast<size_t> (i)] ? "1" : "0";
     }
-    eucJson += "],\"s\":" + juce::String (step) + ",\"n\":" + juce::String (steps) + "}";
+    int rotation = snap.euclideanRotation;
+    eucJson += "],\"s\":" + juce::String (step) + ",\"n\":" + juce::String (steps)
+             + ",\"r\":" + juce::String (rotation) + "}";
     webView->emitEventIfBrowserIsVisible ("euclideanUpdate", eucJson);
 }
 

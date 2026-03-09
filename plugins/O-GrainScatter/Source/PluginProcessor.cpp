@@ -22,9 +22,11 @@ GrainScatterProcessor::GrainScatterProcessor()
     spreadParam          = parameters.getRawParameterValue("spread");
     pitchModeParam       = parameters.getRawParameterValue("pitch_mode");
     freezeParam          = parameters.getRawParameterValue("freeze");
-    euclideanPulsesParam = parameters.getRawParameterValue("euclidean_pulses");
-    euclideanStepsParam  = parameters.getRawParameterValue("euclidean_steps");
-    stutterGateParam     = parameters.getRawParameterValue("stutter_gate");
+    euclideanPulsesParam   = parameters.getRawParameterValue("euclidean_pulses");
+    euclideanStepsParam    = parameters.getRawParameterValue("euclidean_steps");
+    euclideanRotationParam = parameters.getRawParameterValue("euclidean_rotation");
+    euclideanSwingParam    = parameters.getRawParameterValue("euclidean_swing");
+    stutterGateParam       = parameters.getRawParameterValue("stutter_gate");
     sizeRandomParam      = parameters.getRawParameterValue("size_random");
     ampRandomParam       = parameters.getRawParameterValue("amp_random");
     grainShapeParam      = parameters.getRawParameterValue("grain_shape");
@@ -188,6 +190,17 @@ juce::AudioProcessorValueTreeState::ParameterLayout GrainScatterProcessor::creat
         juce::ParameterID { "euclidean_steps", 1 },
         "Euclidean Steps",
         2, 16, 8));
+
+    euclideanGroup->addChild(std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID { "euclidean_rotation", 1 },
+        "Euclidean Rotation",
+        0, 15, 0));
+
+    euclideanGroup->addChild(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "euclidean_swing", 1 },
+        "Swing",
+        juce::NormalisableRange<float>(50.0f, 75.0f, 0.1f),
+        50.0f));
 
     layout.add(std::move(euclideanGroup));
 
@@ -383,6 +396,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     bool  freeze         = freezeParam->load() > 0.5f;
     int   eucSteps       = static_cast<int>(euclideanStepsParam->load());
     int   eucPulses      = static_cast<int>(euclideanPulsesParam->load());
+    int   eucRotation    = static_cast<int>(euclideanRotationParam->load());
+    float eucSwing       = euclideanSwingParam->load();
     bool  stutterGate    = stutterGateParam->load() > 0.5f;
     float sizeRandom     = sizeRandomParam->load() / 100.0f;
     float ampRandom      = ampRandomParam->load() / 100.0f;
@@ -461,7 +476,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     else  // Sync mode
     {
         scheduler.processBlockSync(numSamples, syncInfo, syncMode, probability,
-                                   repeats, euclideanPattern, eucSteps, stutterGate,
+                                   repeats, euclideanPattern, eucSteps, eucRotation,
+                                   eucSwing, stutterGate,
                                    spawnRequests, stutterGateStart, stutterGateEnd);
     }
 
@@ -715,6 +731,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         snap.euclideanPattern = euclideanPattern;
         snap.euclideanSteps = cachedEuclideanSteps.load (std::memory_order_relaxed);
         snap.euclideanStep = scheduler.getEuclideanStep();
+        snap.euclideanRotation = eucRotation;
 
         vizBuffer.publish();
     }

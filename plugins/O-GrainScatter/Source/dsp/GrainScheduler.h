@@ -42,13 +42,18 @@ public:
     void processBlockSync (int numSamples, const SyncInfo& syncInfo,
                            int subdivIndex, float probability, int repeats,
                            const std::array<bool, 16>& euclideanPattern,
-                           int euclideanLength, bool stutterGateOn,
+                           int euclideanLength, int euclideanRotation,
+                           float swingPct, bool stutterGateOn,
                            std::vector<SpawnRequest>& outRequests,
                            int& stutterGateStart, int& stutterGateEnd)
     {
         static constexpr double subdivPpq[] = { 0.0, 1.0, 0.5, 0.25, 0.125, 1.0 / 3.0, 1.0 / 6.0 };
         double subdiv = subdivPpq[juce::jlimit (0, 6, subdivIndex)];
         if (subdiv <= 0.0) return;
+
+        // Swing: offset even-numbered subdivisions by swingPct (50% = no swing, 75% = max shuffle)
+        // swingRatio converts 50-75% to 0.0-0.5 fractional offset of one subdivision
+        double swingRatio = (static_cast<double> (swingPct) - 50.0) / 50.0;  // 0.0 to 0.5
 
         stutterGateStart = -1;
         stutterGateEnd = -1;
@@ -60,16 +65,33 @@ public:
 
             if (i == 0 && syncInfo.ppqPerSample <= 0.0) continue;
 
+            // Apply swing: shift even-numbered subdivision boundaries forward
             double currentDiv = std::floor (ppqAtSample / subdiv);
             double prevDiv    = std::floor (ppqAtSamplePrev / subdiv);
 
             if (currentDiv > prevDiv)
             {
-                // Euclidean gate check
+                // Check if this is an even-numbered subdivision (0-indexed: 0,2,4... are on-beat)
+                int divIndex = static_cast<int> (currentDiv);
+                bool isEvenSubdiv = (divIndex % 2) != 0;  // odd divisions are the "off-beats" we swing
+
+                if (isEvenSubdiv && swingRatio > 0.001)
+                {
+                    // Delay this trigger by swingRatio * subdiv in PPQ
+                    double swingOffsetPpq = swingRatio * subdiv;
+                    double swungBoundary = currentDiv * subdiv + swingOffsetPpq;
+
+                    // Check if the swung boundary falls within [ppqAtSamplePrev, ppqAtSample)
+                    if (swungBoundary > ppqAtSample || swungBoundary <= ppqAtSamplePrev)
+                        continue;  // Not yet reached the swung position
+                }
+
+                // Euclidean gate check (with rotation offset)
                 bool euclideanPass = true;
                 if (euclideanLength > 0)
                 {
-                    euclideanPass = euclideanPattern[static_cast<size_t> (euclideanStep % euclideanLength)];
+                    int rotatedStep = (euclideanStep + euclideanRotation) % euclideanLength;
+                    euclideanPass = euclideanPattern[static_cast<size_t> (rotatedStep)];
                     euclideanStep = (euclideanStep + 1) % euclideanLength;
                 }
 

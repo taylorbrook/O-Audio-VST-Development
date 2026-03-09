@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.3.0] - 2026-03-08
+
+### Added
+- **Euclidean rotation** (`euclidean_rotation` 0-15): rotates the Euclidean pattern by reading `pattern[(step + rotation) % steps]`, shifting which pulses land on which subdivisions without regenerating the pattern
+- **Swing** (`euclidean_swing` 50-75%): offsets even-numbered (off-beat) subdivision boundaries forward in time — 50% = straight, 75% = maximum shuffle
+- "Rotation" and "Swing" knobs in Euclidean Rhythm UI group
+- Euclidean circle visualization now reflects rotation offset: dots show the rotated pattern readout, dashed line indicates rotation origin, center label shows `r{N}` when rotation > 0
+
 ## [2.2.0] - 2026-03-08
 
 ### Added

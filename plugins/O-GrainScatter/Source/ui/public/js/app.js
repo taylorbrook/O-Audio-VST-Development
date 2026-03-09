@@ -144,6 +144,16 @@ import * as Juce from './juce/index.js';
         return String(val);
     }
 
+    function eucRotationFormatter(norm) {
+        const val = Math.round(norm * 15);
+        return String(val);
+    }
+
+    function swingFormatter(norm) {
+        const val = 50 + norm * 25;
+        return val.toFixed(0) + '%';
+    }
+
     // Spatial formatters — degree formatter factory for linear-range params
     function degreeFormatter(range, offset = 0) {
         return (norm) => Math.round(offset + norm * range) + '\u00B0';
@@ -185,8 +195,10 @@ import * as Juce from './juce/index.js';
         setupKnob('amp_random',       Juce.getSliderState('amp_random'),       pctFormatter,       0.0);
         setupKnob('probability',      Juce.getSliderState('probability'),      pctFormatter, 1.0);
         setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter,   0.2);
-        setupKnob('euclidean_pulses', Juce.getSliderState('euclidean_pulses'), eucPulsesFormatter, 0.2);
-        setupKnob('euclidean_steps',  Juce.getSliderState('euclidean_steps'),  eucStepsFormatter,  0.4286);
+        setupKnob('euclidean_pulses',   Juce.getSliderState('euclidean_pulses'),   eucPulsesFormatter,   0.2);
+        setupKnob('euclidean_steps',    Juce.getSliderState('euclidean_steps'),    eucStepsFormatter,    0.4286);
+        setupKnob('euclidean_rotation', Juce.getSliderState('euclidean_rotation'), eucRotationFormatter, 0.0);
+        setupKnob('euclidean_swing',    Juce.getSliderState('euclidean_swing'),    swingFormatter,       0.0);
 
         // ComboBoxes (5)
         setupComboBox('scale',       Juce.getComboBoxState('scale'));
@@ -399,6 +411,7 @@ import * as Juce from './juce/index.js';
             this.pattern = [];
             this.currentStep = 0;
             this.steps = 8;
+            this.rotation = 0;
             this.resize();
         }
 
@@ -410,6 +423,7 @@ import * as Juce from './juce/index.js';
             this.pattern = data.p || [];
             this.currentStep = data.s || 0;
             this.steps = data.n || 8;
+            this.rotation = data.r || 0;
         }
 
         draw() {
@@ -421,6 +435,11 @@ import * as Juce from './juce/index.js';
             const radius = Math.min(cx, cy) - 20;
 
             ctx.clearRect(0, 0, w, h);
+
+            // Rotation offset in radians (rotate entire pattern display)
+            const rotOffset = this.steps > 0
+                ? (this.rotation / this.steps) * Math.PI * 2
+                : 0;
 
             // Outer circle
             ctx.strokeStyle = 'rgba(139,115,85,0.25)';
@@ -437,10 +456,25 @@ import * as Juce from './juce/index.js';
 
             if (this.steps === 0) return;
 
-            // Connect active steps with arcs
+            // Rotation indicator line (from center to rotation start position)
+            if (this.rotation > 0) {
+                const rotAngle = -Math.PI / 2 + rotOffset;
+                ctx.strokeStyle = 'rgba(107,142,78,0.35)';
+                ctx.lineWidth = 1;
+                ctx.setLineDash([3, 3]);
+                ctx.beginPath();
+                ctx.moveTo(cx, cy);
+                ctx.lineTo(cx + radius * 0.95 * Math.cos(rotAngle),
+                           cy + radius * 0.95 * Math.sin(rotAngle));
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            // Connect active steps with polygon (using rotated positions)
             const activePositions = [];
             for (let i = 0; i < this.steps; i++) {
-                if (this.pattern[i]) {
+                const rotIdx = (i + this.rotation) % this.steps;
+                if (this.pattern[rotIdx]) {
                     const angle = (i / this.steps) * Math.PI * 2 - Math.PI / 2;
                     activePositions.push({
                         x: cx + radius * Math.cos(angle),
@@ -460,14 +494,15 @@ import * as Juce from './juce/index.js';
                 ctx.stroke();
             }
 
-            // Draw step dots
+            // Draw step dots (rotated pattern readout)
             for (let i = 0; i < this.steps; i++) {
                 const angle = (i / this.steps) * Math.PI * 2 - Math.PI / 2;
                 const x = cx + radius * Math.cos(angle);
                 const y = cy + radius * Math.sin(angle);
 
                 const isCurrent = i === this.currentStep;
-                const isActive = !!this.pattern[i];
+                const rotIdx = (i + this.rotation) % this.steps;
+                const isActive = !!this.pattern[rotIdx];
 
                 const dotRadius = isCurrent ? 8 : 5;
 
@@ -493,13 +528,15 @@ import * as Juce from './juce/index.js';
                 }
             }
 
-            // Step counter in center
+            // Step counter in center (show rotation if non-zero)
             ctx.fillStyle = 'rgba(139,115,85,0.4)';
             ctx.font = '10px Georgia';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
             const activeCount = this.pattern.filter(Boolean).length;
-            ctx.fillText(activeCount + '/' + this.steps, cx, cy);
+            let label = activeCount + '/' + this.steps;
+            if (this.rotation > 0) label += ' r' + this.rotation;
+            ctx.fillText(label, cx, cy);
             ctx.textBaseline = 'alphabetic';
             ctx.textAlign = 'left';
         }

@@ -54,6 +54,8 @@ private:
     // Euclidean
     std::unique_ptr<juce::WebSliderRelay> euclideanPulsesRelay;
     std::unique_ptr<juce::WebSliderRelay> euclideanStepsRelay;
+    std::unique_ptr<juce::WebSliderRelay> euclideanRotationRelay;
+    std::unique_ptr<juce::WebSliderRelay> euclideanSwingRelay;
     // Spatial
     std::unique_ptr<juce::WebComboBoxRelay> spatialModeRelay;
     std::unique_ptr<juce::WebSliderRelay> azimuthRelay;
@@ -100,6 +102,8 @@ private:
     // Euclidean
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanPulsesAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> euclideanStepsAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> euclideanRotationAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> euclideanSwingAttachment;
     // Spatial
     std::unique_ptr<juce::WebComboBoxParameterAttachment> spatialModeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> azimuthAttachment;
