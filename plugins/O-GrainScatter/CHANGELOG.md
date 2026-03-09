@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.3] - 2026-03-08
+
+### Fixed
+- Zipper noise on feedback/dry-wet automation in spatial mode: post-processing loop was reading raw `feedbackParam->load()` and `dryWetParam->load()` per-sample instead of using `feedbackSmoothed`/`dryWetSmoothed` SmoothedValue instances
+- Root cause: stereo path correctly used SmoothedValues, but spatial post-processing loop bypassed them entirely
+- Removed redundant SmoothedValue advancement in per-sample spatial branch; values now consumed in the post-processing loop where they're actually needed
+
 ## [2.0.2] - 2026-03-08
 
 ### Fixed

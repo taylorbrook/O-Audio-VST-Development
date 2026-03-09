@@ -2,11 +2,12 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 2.0.2
+- **Version:** 2.0.3
 - **Type:** Audio Effect (Granular Stutter Engine)
 
 ## Lifecycle Timeline
 
+- **2026-03-08 (v2.0.3):** Fixed zipper noise on feedback/dry-wet automation in spatial mode (SmoothedValue bypass)
 - **2026-03-08 (v2.0.2):** Fixed critical stack buffer overflow in binaural decode + hoaBus sizing
 - **2026-02-09 (v2.0.1):** Fixed density parameter exponential curve
 - **2026-02-06:** Ideated — Creative brief and requirements created

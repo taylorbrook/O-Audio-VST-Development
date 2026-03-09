@@ -546,12 +546,7 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             outBufL[i] = dryL * (1.0f - mix) + wetL * mix;
             outBufR[i] = dryR * (1.0f - mix) + wetR * mix;
         }
-        else
-        {
-            // Spatial mode: advance smoothing values to keep them in sync
-            feedbackSmoothed.getNextValue();
-            dryWetSmoothed.getNextValue();
-        }
+        // (Spatial mode: SmoothedValues consumed in post-processing loop below)
     }
 
     // === SPATIAL POST-PROCESSING: binaural decode HOA bus to stereo ===
@@ -580,12 +575,12 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             float wetBinL = std::tanh(distanceLpfState[0]);
             float wetBinR = std::tanh(distanceLpfState[1]);
 
-            // Feedback from binaural output
-            float fbAmount = feedbackParam->load() / 100.0f;
+            // Feedback from binaural output (smoothed to avoid zipper noise)
+            float fbAmount = feedbackSmoothed.getNextValue();
             feedbackL = std::tanh(wetBinL * fbAmount * 3.0f) * 1.00497f * 0.95f;
             feedbackR = std::tanh(wetBinR * fbAmount * 3.0f) * 1.00497f * 0.95f;
 
-            float mix = dryWetParam->load() / 100.0f;
+            float mix = dryWetSmoothed.getNextValue();
             float dryL = inL[i];
             float dryR = inR[i];
 
