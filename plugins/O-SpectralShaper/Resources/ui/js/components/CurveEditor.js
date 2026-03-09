@@ -32,6 +32,11 @@ export class CurveEditor {
         // Curve data (32 values, -1.0 to +1.0)
         this.curveData = new Array(this.numBands).fill(0.0);
 
+        // Undo/redo stacks (curveData snapshots, max 30)
+        this.undoStack = [];
+        this.redoStack = [];
+        this.maxUndoSteps = 30;
+
         // Transient activity data (32 values, 0.0-1.0) for glow animation
         this.transientActivity = new Float32Array(this.numBands);
         this.hasActiveTransients = false;
@@ -39,11 +44,28 @@ export class CurveEditor {
         // Callback for curve updates
         this.onCurveChange = null;
 
+        // Callback for undo/redo state changes (for button enable/disable)
+        this.onUndoStateChange = null;
+
+        // Focus tracking for keyboard shortcuts
+        this._boundFocusHandler = () => { CurveEditor._focusedEditor = this; };
+        this.canvas.addEventListener('mousedown', this._boundFocusHandler);
+
+        // Attach global undo/redo keyboard listener (once across all instances)
+        if (!CurveEditor._keyboardListenerAttached) {
+            CurveEditor._keyboardListenerAttached = true;
+            document.addEventListener('keydown', (e) => {
+                if (!CurveEditor._focusedEditor) return;
+                CurveEditor._focusedEditor._handleUndoRedoKey(e);
+            });
+        }
+
         // Setup canvas size (may need to wait for layout)
         this.resizeCanvas();
 
         // Handle window resize
-        window.addEventListener('resize', () => this.handleResize());
+        this._boundHandleResize = () => this.handleResize();
+        window.addEventListener('resize', this._boundHandleResize);
 
         // Initial render (deferred to ensure layout is complete)
         requestAnimationFrame(() => {
@@ -307,9 +329,103 @@ export class CurveEditor {
      * Reset curve to flat (0dB across all bands)
      */
     resetCurve() {
+        this.pushUndoSnapshot();
         this.curveData = new Array(this.numBands).fill(0.0);
         this.render();
         this.notifyCurveChange();
+    }
+
+    // =====================================================================
+    // UNDO / REDO
+    // =====================================================================
+
+    /**
+     * Get a snapshot of the current editor state.
+     * Subclasses override to include additional state (e.g. nodes).
+     */
+    getSnapshot() {
+        return { curveData: [...this.curveData] };
+    }
+
+    /**
+     * Restore editor state from a snapshot.
+     * Subclasses override to restore additional state.
+     */
+    restoreSnapshot(snapshot) {
+        this.curveData = [...snapshot.curveData];
+        this.render();
+    }
+
+    /**
+     * Push current state onto the undo stack. Call before making changes.
+     * Clears the redo stack (new action invalidates redo history).
+     */
+    pushUndoSnapshot() {
+        this.undoStack.push(this.getSnapshot());
+        if (this.undoStack.length > this.maxUndoSteps) {
+            this.undoStack.shift();
+        }
+        this.redoStack.length = 0;
+        this._notifyUndoState();
+    }
+
+    /**
+     * Undo: restore previous state, push current state onto redo stack.
+     */
+    undo() {
+        if (this.undoStack.length === 0) return;
+        this.redoStack.push(this.getSnapshot());
+        const snapshot = this.undoStack.pop();
+        this.restoreSnapshot(snapshot);
+        this.notifyCurveChange();
+        this._notifyUndoState();
+    }
+
+    /**
+     * Redo: restore next state, push current state onto undo stack.
+     */
+    redo() {
+        if (this.redoStack.length === 0) return;
+        this.undoStack.push(this.getSnapshot());
+        const snapshot = this.redoStack.pop();
+        this.restoreSnapshot(snapshot);
+        this.notifyCurveChange();
+        this._notifyUndoState();
+    }
+
+    get canUndo() { return this.undoStack.length > 0; }
+    get canRedo() { return this.redoStack.length > 0; }
+
+    _notifyUndoState() {
+        if (this.onUndoStateChange) {
+            this.onUndoStateChange(this.canUndo, this.canRedo);
+        }
+    }
+
+    /**
+     * Handle Ctrl+Z / Ctrl+Shift+Z keyboard shortcuts
+     */
+    _handleUndoRedoKey(e) {
+        const isCtrlOrMeta = e.ctrlKey || e.metaKey;
+        if (!isCtrlOrMeta || e.key.toLowerCase() !== 'z') return;
+
+        e.preventDefault();
+        if (e.shiftKey) {
+            this.redo();
+        } else {
+            this.undo();
+        }
+    }
+
+    /**
+     * Remove event listeners for cleanup
+     */
+    destroy() {
+        window.removeEventListener('resize', this._boundHandleResize);
+        this.canvas.removeEventListener('mousedown', this._boundFocusHandler);
+        if (CurveEditor._focusedEditor === this) {
+            CurveEditor._focusedEditor = null;
+        }
     }
 
     /**
@@ -321,3 +437,7 @@ export class CurveEditor {
         }
     }
 }
+
+// Static state for focus tracking and single keyboard listener
+CurveEditor._focusedEditor = null;
+CurveEditor._keyboardListenerAttached = false;

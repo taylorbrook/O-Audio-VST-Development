@@ -144,31 +144,15 @@ import * as Juce from './juce/index.js';
         return String(val);
     }
 
-    function probabilityFormatter(norm) {
-        return Math.round(norm * 100) + '%';
+    // Spatial formatters — degree formatter factory for linear-range params
+    function degreeFormatter(range, offset = 0) {
+        return (norm) => Math.round(offset + norm * range) + '\u00B0';
     }
 
-    // Spatial formatters
-    function azimuthFormatter(norm) {
-        // 0-360°
-        return Math.round(norm * 360) + '\u00B0';
-    }
-
-    function elevationFormatter(norm) {
-        // -90 to +90° (norm 0=−90, 0.5=0, 1=+90)
-        const val = -90 + norm * 180;
-        return Math.round(val) + '\u00B0';
-    }
-
-    function azSpreadFormatter(norm) {
-        // 0-360°
-        return Math.round(norm * 360) + '\u00B0';
-    }
-
-    function elSpreadFormatter(norm) {
-        // 0-180°
-        return Math.round(norm * 180) + '\u00B0';
-    }
+    const azimuthFormatter   = degreeFormatter(360);       // 0-360°
+    const elevationFormatter = degreeFormatter(180, -90);  // -90 to +90°
+    const azSpreadFormatter  = degreeFormatter(360);       // 0-360°
+    const elSpreadFormatter  = degreeFormatter(180);       // 0-180°
 
     function trajSpeedFormatter(norm) {
         // 0-400%
@@ -197,7 +181,7 @@ import * as Juce from './juce/index.js';
         setupKnob('dry_wet',          Juce.getSliderState('dry_wet'),          pctFormatter,       0.5);
         setupKnob('pitch_random',     Juce.getSliderState('pitch_random'),     pctFormatter,       0.0);
         setupKnob('pan_random',       Juce.getSliderState('pan_random'),       pctFormatter,       0.0);
-        setupKnob('probability',      Juce.getSliderState('probability'),      probabilityFormatter, 1.0);
+        setupKnob('probability',      Juce.getSliderState('probability'),      pctFormatter, 1.0);
         setupKnob('repeats',          Juce.getSliderState('repeats'),          repeatsFormatter,   0.2);
         setupKnob('euclidean_pulses', Juce.getSliderState('euclidean_pulses'), eucPulsesFormatter, 0.2);
         setupKnob('euclidean_steps',  Juce.getSliderState('euclidean_steps'),  eucStepsFormatter,  0.4286);
@@ -287,6 +271,22 @@ import * as Juce from './juce/index.js';
     }
 
     // ════════════════════════════════════════════════════════════════════
+    // Shared canvas resize (DPR-aware backing store)
+    // ════════════════════════════════════════════════════════════════════
+
+    function resizeCanvas(viz) {
+        const dpr = window.devicePixelRatio || 1;
+        const rect = viz.canvas.parentElement.getBoundingClientRect();
+        viz.w = rect.width;
+        viz.h = rect.height;
+        viz.canvas.width = viz.w * dpr;
+        viz.canvas.height = viz.h * dpr;
+        viz.canvas.style.width = viz.w + 'px';
+        viz.canvas.style.height = viz.h + 'px';
+        viz.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+
+    // ════════════════════════════════════════════════════════════════════
     // Grain Scatter Visualization (Canvas 2D)
     // ════════════════════════════════════════════════════════════════════
 
@@ -300,15 +300,7 @@ import * as Juce from './juce/index.js';
         }
 
         resize() {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = this.canvas.parentElement.getBoundingClientRect();
-            this.w = rect.width;
-            this.h = rect.height;
-            this.canvas.width = this.w * dpr;
-            this.canvas.height = this.h * dpr;
-            this.canvas.style.width = this.w + 'px';
-            this.canvas.style.height = this.h + 'px';
-            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            resizeCanvas(this);
         }
 
         update(data) {
@@ -408,15 +400,7 @@ import * as Juce from './juce/index.js';
         }
 
         resize() {
-            const dpr = window.devicePixelRatio || 1;
-            const rect = this.canvas.parentElement.getBoundingClientRect();
-            this.w = rect.width;
-            this.h = rect.height;
-            this.canvas.width = this.w * dpr;
-            this.canvas.height = this.h * dpr;
-            this.canvas.style.width = this.w + 'px';
-            this.canvas.style.height = this.h + 'px';
-            this.ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+            resizeCanvas(this);
         }
 
         update(data) {

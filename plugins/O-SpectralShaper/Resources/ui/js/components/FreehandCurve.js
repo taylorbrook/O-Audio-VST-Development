@@ -34,6 +34,7 @@ export class FreehandCurve extends CurveEditor {
 
     onMouseDown(e) {
         e.preventDefault();
+        this.pushUndoSnapshot();
         this.isDrawing = true;
 
         // Start new stroke (curveData is preserved from previous strokes)
@@ -187,17 +188,9 @@ export class FreehandCurve extends CurveEditor {
     }
 
     /**
-     * Draw the freehand curve - always renders from curveData
-     * so partial strokes are visually consistent
+     * Draw the freehand curve from band data
      */
     drawCurve() {
-        this.drawDataCurve();
-    }
-
-    /**
-     * Draw curve from band data
-     */
-    drawDataCurve() {
         const bandFreqs = this.getBandFrequencies();
 
         this.ctx.strokeStyle = this.accentColor;

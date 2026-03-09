@@ -261,7 +261,9 @@ body::after {
 }
 
 .curve-mode-toggle,
-.curve-reset-btn {
+.curve-reset-btn,
+.curve-undo-btn,
+.curve-redo-btn {
     padding: 4px 10px;
     font-size: 9px;
     font-family: 'Georgia', serif;
@@ -274,15 +276,33 @@ body::after {
     transition: all 0.2s ease;
 }
 
+.curve-undo-btn,
+.curve-redo-btn {
+    padding: 4px 6px;
+    font-size: 11px;
+    font-family: sans-serif;
+    min-width: 22px;
+}
+
 .curve-mode-toggle:hover,
-.curve-reset-btn:hover {
+.curve-reset-btn:hover,
+.curve-undo-btn:hover:not(:disabled),
+.curve-redo-btn:hover:not(:disabled) {
     background: rgba(40, 40, 40, 0.9);
     border-color: rgba(232, 224, 212, 0.5);
 }
 
 .curve-mode-toggle:active,
-.curve-reset-btn:active {
+.curve-reset-btn:active,
+.curve-undo-btn:active:not(:disabled),
+.curve-redo-btn:active:not(:disabled) {
     background: rgba(20, 20, 20, 0.9);
+}
+
+.curve-undo-btn:disabled,
+.curve-redo-btn:disabled {
+    opacity: 0.3;
+    cursor: default;
 }
 
 /* ============================================================================

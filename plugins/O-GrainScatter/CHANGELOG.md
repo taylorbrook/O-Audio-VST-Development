@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.0.5] - 2026-03-08
+
+### Changed
+- Removed dead code: `lastSubdivIndex` (GrainScheduler), `ppqJumped`/`didPpqJump` (TempoTracker), `scratchL`/`scratchR` (BinauralDecoder), `getActiveCount` (GrainPool), duplicate `probabilityFormatter` (app.js)
+- Extracted shared `lagrangeInterpolate()` function (LagrangeInterpolation.h) used by DelayBuffer and FreezeManager — eliminates duplicated 3rd-order Lagrange interpolation code
+- Consolidated duplicate degree formatters in app.js into `degreeFormatter(range, offset)` factory
+- Extracted shared `resizeCanvas()` function for GrainScatterViz and EuclideanCircleViz — eliminates duplicated DPR-aware canvas sizing code
+- Moved `setSpatialSmoothTime()` call from inside per-sample loop to once-per-block before the loop
+- Named magic feedback constants: `kFeedbackDrive` (3.0), `kTanhCompensation` (1.00497), `kStabilityMargin` (0.95)
+- Named distance attenuation constant: `kDistanceScale` (3.0) in GrainPool spatial processing
+- Extracted `numHoaChannels` and `numChannels` local variables for HOA bus size expressions in BinauralDecoder and PluginProcessor
+
 ## [2.0.4] - 2026-03-08
 
 ### Fixed

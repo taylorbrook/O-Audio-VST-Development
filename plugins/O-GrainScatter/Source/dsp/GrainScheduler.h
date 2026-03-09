@@ -16,7 +16,6 @@ public:
         sampleRate = newSampleRate;
         samplesUntilNextGrain = 0;
         euclideanStep = 0;
-        lastSubdivIndex = -1;
     }
 
     // Free mode: density (1-100%) → inter-grain interval (exponential curve)
@@ -114,6 +113,5 @@ private:
     double sampleRate = 44100.0;
     int samplesUntilNextGrain = 0;
     int euclideanStep = 0;
-    int lastSubdivIndex = -1;
     juce::Random rng;
 };

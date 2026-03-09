@@ -203,8 +203,9 @@ public:
 
             float mono = (sampleL + sampleR) * 0.5f * envelope;
 
-            // Distance attenuation
-            float distGain = 1.0f / (1.0f + v.distance * 3.0f);
+            // Distance attenuation (kDistanceScale controls attenuation steepness)
+            static constexpr float kDistanceScale = 3.0f;
+            float distGain = 1.0f / (1.0f + v.distance * kDistanceScale);
             mono *= distGain;
 
             // Advance SH coefficient smoothing
@@ -232,14 +233,6 @@ public:
     {
         for (auto& v : voices)
             v.shCoeffs.setSmoothTime (smoothTimeMs);
-    }
-
-    int getActiveCount() const
-    {
-        int count = 0;
-        for (const auto& v : voices)
-            if (v.active) ++count;
-        return count;
     }
 
     const std::array<GrainVoice, MaxVoices>& getVoices() const { return voices; }

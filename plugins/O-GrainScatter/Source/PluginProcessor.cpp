@@ -384,6 +384,14 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     float azSpreadRad    = juce::degreesToRadians (azSpreadDeg);
     float elSpreadRad    = juce::degreesToRadians (elSpreadDeg);
 
+    // Feedback shaping constants:
+    // Drive pushes signal into tanh saturation curve for warm distortion
+    // tanhCompensation corrects tanh's gain reduction near zero (tanh(x)/x ≈ 0.9950 at x=0.3)
+    // stabilityMargin ensures feedback decays to silence (gain < 1.0)
+    static constexpr float kFeedbackDrive = 3.0f;
+    static constexpr float kTanhCompensation = 1.00497f;
+    static constexpr float kStabilityMargin = 0.95f;
+
     int grainSizeSamples = juce::jmax(1, static_cast<int>(grainSizeMs * currentSampleRate / 1000.0));
 
     // Update Euclidean pattern on parameter change
@@ -438,6 +446,10 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
               [](const SpawnRequest& a, const SpawnRequest& b) {
                   return a.sampleOffset < b.sampleOffset;
               });
+
+    // Update spatial smoothing time once per block
+    if (spatialMode > 0)
+        grainPool.setSpatialSmoothTime(spatialSmooth);
 
     auto* inL = buffer.getReadPointer(0);
     auto* inR = buffer.getReadPointer(1);
@@ -506,10 +518,6 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
         else
         {
-            // === SPATIAL PATH: per-grain HOA3 encoding ===
-            // Update spatial smoothing time (once per block is enough, but fine per-sample)
-            if (i == 0)
-                grainPool.setSpatialSmoothTime(spatialSmooth);
 
             // Update grain trajectories before processing
             auto& poolVoices = grainPool.getVoices();
@@ -565,8 +573,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
             float fbAmount = feedbackSmoothed.getNextValue();
             float rawFbL = wetL * fbAmount;
             float rawFbR = wetR * fbAmount;
-            feedbackL = std::tanh(rawFbL * 3.0f) * 1.00497f * 0.95f;
-            feedbackR = std::tanh(rawFbR * 3.0f) * 1.00497f * 0.95f;
+            feedbackL = std::tanh(rawFbL * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
+            feedbackR = std::tanh(rawFbR * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
 
             // Dry/wet mix
             float mix = dryWetSmoothed.getNextValue();
@@ -589,8 +597,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     if (spatialMode > 0)
     {
         // Binaural decode: 16ch HOA3 -> stereo
-        const float* hoaChannels[kHOA3Channels];
-        for (int ch = 0; ch < kHOA3Channels; ++ch)
+        constexpr int numHoaChannels = kHOA3Channels;
+        const float* hoaChannels[numHoaChannels];
+        for (int ch = 0; ch < numHoaChannels; ++ch)
             hoaChannels[ch] = hoaBus.getReadPointer(ch);
 
         binauralDecoder.process(hoaChannels, numSamples, binauralL.data(), binauralR.data());
@@ -613,8 +622,8 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
 
             // Feedback from binaural output (smoothed to avoid zipper noise)
             float fbAmount = feedbackSmoothed.getNextValue();
-            feedbackL = std::tanh(wetBinL * fbAmount * 3.0f) * 1.00497f * 0.95f;
-            feedbackR = std::tanh(wetBinR * fbAmount * 3.0f) * 1.00497f * 0.95f;
+            feedbackL = std::tanh(wetBinL * fbAmount * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
+            feedbackR = std::tanh(wetBinR * fbAmount * kFeedbackDrive) * kTanhCompensation * kStabilityMargin;
 
             float mix = dryWetSmoothed.getNextValue();
             float dryL = inL[i];

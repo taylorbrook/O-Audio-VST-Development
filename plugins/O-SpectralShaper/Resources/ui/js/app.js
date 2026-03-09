@@ -246,8 +246,9 @@ function initializeCurveEditors() {
     setupResetButton('attack');
     setupResetButton('sustain');
 
-    // Load initial curve data from C++
-    loadCurvesFromProcessor();
+    // Undo/redo buttons
+    setupUndoRedoButtons('attack');
+    setupUndoRedoButtons('sustain');
 }
 
 function setupModeToggle(curveType) {
@@ -283,13 +284,42 @@ function setupModeToggle(curveType) {
         // Restore curve data
         app.curveEditors[curveType].setCurveData(currentData);
 
-        // Attach callback
+        // Attach callbacks
         app.curveEditors[curveType].onCurveChange = (data) => {
             sendCurveToProcessor(curveType, data);
         };
 
+        // Rewire undo/redo state callback for buttons
+        const undoBtn = document.getElementById(`${curveType}-undo-btn`);
+        const redoBtn = document.getElementById(`${curveType}-redo-btn`);
+        undoBtn.disabled = true;
+        redoBtn.disabled = true;
+        app.curveEditors[curveType].onUndoStateChange = (canUndo, canRedo) => {
+            undoBtn.disabled = !canUndo;
+            redoBtn.disabled = !canRedo;
+        };
+
         console.log(`${curveType} curve mode: ${newMode}`);
     });
+}
+
+function setupUndoRedoButtons(curveType) {
+    const undoBtn = document.getElementById(`${curveType}-undo-btn`);
+    const redoBtn = document.getElementById(`${curveType}-redo-btn`);
+
+    undoBtn.addEventListener('click', () => {
+        app.curveEditors[curveType].undo();
+    });
+
+    redoBtn.addEventListener('click', () => {
+        app.curveEditors[curveType].redo();
+    });
+
+    // Bind state change callback to enable/disable buttons
+    app.curveEditors[curveType].onUndoStateChange = (canUndo, canRedo) => {
+        undoBtn.disabled = !canUndo;
+        redoBtn.disabled = !canRedo;
+    };
 }
 
 function setupResetButton(curveType) {
@@ -342,14 +372,6 @@ window.setSustainCurveFromCPP = function(data) {
         console.log('Loaded sustain curve from C++');
     }
 };
-
-/**
- * Load initial curve data from C++ processor
- * (C++ will call setAttackCurveFromCPP/setSustainCurveFromCPP when ready)
- */
-function loadCurvesFromProcessor() {
-    console.log('Waiting for initial curve data from C++...');
-}
 
 // ============================================================================
 // PRESET MANAGER INITIALIZATION

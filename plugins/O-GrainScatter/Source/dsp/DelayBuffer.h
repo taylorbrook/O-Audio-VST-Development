@@ -1,6 +1,7 @@
 #pragma once
 
 #include <JuceHeader.h>
+#include "LagrangeInterpolation.h"
 
 class DelayBuffer
 {
@@ -36,17 +37,8 @@ public:
         int i2  = (i0 + 2) % bufferSize;
 
         auto* data = buffer.getReadPointer (channel);
-        float ym1 = data[im1];
-        float y0  = data[i0];
-        float y1  = data[i1];
-        float y2  = data[i2];
 
-        float c0 = y0;
-        float c1 = y1 - (1.0f / 3.0f) * ym1 - 0.5f * y0 - (1.0f / 6.0f) * y2;
-        float c2 = 0.5f * (ym1 + y1) - y0;
-        float c3 = (1.0f / 6.0f) * (y2 - ym1) + 0.5f * (y0 - y1);
-
-        return ((c3 * frac + c2) * frac + c1) * frac + c0;
+        return lagrangeInterpolate (data[im1], data[i0], data[i1], data[i2], frac);
     }
 
     void copyRegion (juce::AudioBuffer<float>& dest, int startOffset, int length) const

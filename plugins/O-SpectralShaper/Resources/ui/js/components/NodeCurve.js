@@ -46,6 +46,7 @@ export class NodeCurve extends CurveEditor {
 
     onDoubleClick(e) {
         e.preventDefault();
+        this.pushUndoSnapshot();
         const rect = this.canvas.getBoundingClientRect();
         const x = e.clientX - rect.left;
         const y = e.clientY - rect.top;
@@ -73,6 +74,7 @@ export class NodeCurve extends CurveEditor {
         // Check if clicking on a node
         this.selectedNode = this.findNodeAt(x, y);
         if (this.selectedNode !== null) {
+            this.pushUndoSnapshot();
             this.isDragging = true;
             document.addEventListener('mousemove', this.onMouseMove);
             document.addEventListener('mouseup', this.onMouseUp);
@@ -110,6 +112,7 @@ export class NodeCurve extends CurveEditor {
     onKeyDown(e) {
         if (e.key === 'Delete' || e.key === 'Backspace') {
             if (this.selectedNode !== null && this.nodes.length > 2) {
+                this.pushUndoSnapshot();
                 // Don't delete if it's the only node
                 this.nodes.splice(this.selectedNode, 1);
                 this.selectedNode = null;
@@ -162,7 +165,9 @@ export class NodeCurve extends CurveEditor {
             }
 
             // Linear interpolation (simple Bezier with no control points)
-            const t = (freq - leftNode.freq) / (rightNode.freq - leftNode.freq);
+            // Guard against division by zero when two nodes share the same frequency
+            const denom = rightNode.freq - leftNode.freq;
+            const t = denom === 0 ? 0.0 : (freq - leftNode.freq) / denom;
             const gain = leftNode.gain + t * (rightNode.gain - leftNode.gain);
 
             this.curveData[i] = Math.max(-1.0, Math.min(1.0, gain));
@@ -211,12 +216,40 @@ export class NodeCurve extends CurveEditor {
     }
 
     /**
+     * Snapshot includes node positions so undo restores the full node state.
+     */
+    getSnapshot() {
+        return {
+            curveData: [...this.curveData],
+            nodes: this.nodes.map(n => ({ ...n }))
+        };
+    }
+
+    restoreSnapshot(snapshot) {
+        this.curveData = [...snapshot.curveData];
+        this.nodes = snapshot.nodes.map(n => ({ ...n }));
+        this.selectedNode = null;
+        this.render();
+    }
+
+    /**
      * Reset curve to flat, resetting nodes to default positions
      */
     resetCurve() {
+        this.pushUndoSnapshot();
         this.selectedNode = null;
         this.initializeDefaultNodes();
         this.notifyCurveChange();
+    }
+
+    /**
+     * Remove event listeners for cleanup
+     */
+    destroy() {
+        document.removeEventListener('keydown', this.onKeyDown);
+        this.canvas.removeEventListener('mousedown', this.onMouseDown);
+        this.canvas.removeEventListener('dblclick', this.onDoubleClick);
+        super.destroy();
     }
 
     /**

@@ -42,12 +42,6 @@ public:
                     info.isPlaying = playing;
                     info.ppqPerSample = info.bpm / (60.0 * sampleRate);
 
-                    // Guard against PPQ backward jump on DAW loop
-                    if (info.ppqPosition < lastPpq - 0.01)
-                        ppqJumped = true;
-                    else
-                        ppqJumped = false;
-
                     lastPpq = info.ppqPosition;
                     gotPosition = true;
                 }
@@ -64,17 +58,13 @@ public:
 
             manualPpq += info.ppqPerSample * numSamples;
             lastPpq = manualPpq;
-            ppqJumped = false;
         }
 
         return info;
     }
 
-    bool didPpqJump() const { return ppqJumped; }
-
 private:
     double sampleRate = 44100.0;
     double manualPpq = 0.0;
     double lastPpq = 0.0;
-    bool ppqJumped = false;
 };

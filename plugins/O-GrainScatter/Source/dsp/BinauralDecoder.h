@@ -16,23 +16,22 @@
 class BinauralDecoder
 {
 public:
-    void prepare (double /*sampleRate*/, int maxBlockSize)
+    void prepare (double /*sampleRate*/, int /*maxBlockSize*/)
     {
-        // Allocate delay lines for each of the 16 input channels
-        for (size_t ch = 0; ch < static_cast<size_t> (kHOA3Channels); ++ch)
+        constexpr size_t numChannels = kHOA3Channels;
+
+        for (size_t ch = 0; ch < numChannels; ++ch)
         {
             delayLines[ch].resize (static_cast<size_t> (kBinauralFilterLength), 0.0f);
             writePos[ch] = 0;
         }
-
-        // Pre-allocate output scratch
-        scratchL.resize (static_cast<size_t> (maxBlockSize), 0.0f);
-        scratchR.resize (static_cast<size_t> (maxBlockSize), 0.0f);
     }
 
     void reset()
     {
-        for (size_t ch = 0; ch < static_cast<size_t> (kHOA3Channels); ++ch)
+        constexpr size_t numChannels = kHOA3Channels;
+
+        for (size_t ch = 0; ch < numChannels; ++ch)
         {
             std::fill (delayLines[ch].begin(), delayLines[ch].end(), 0.0f);
             writePos[ch] = 0;
@@ -50,7 +49,9 @@ public:
         std::memset (outL, 0, static_cast<size_t> (numSamples) * sizeof (float));
         std::memset (outR, 0, static_cast<size_t> (numSamples) * sizeof (float));
 
-        for (size_t ch = 0; ch < static_cast<size_t> (kHOA3Channels); ++ch)
+        constexpr size_t numChannels = kHOA3Channels;
+
+        for (size_t ch = 0; ch < numChannels; ++ch)
         {
             const float* input = hoaBus[ch];
             const float* filterL = kBinauralFilters[ch][0];
@@ -94,5 +95,4 @@ public:
 private:
     std::array<std::vector<float>, kHOA3Channels> delayLines;
     std::array<size_t, kHOA3Channels> writePos {};
-    std::vector<float> scratchL, scratchR;
 };
