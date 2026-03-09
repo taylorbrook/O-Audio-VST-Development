@@ -10,6 +10,7 @@
 #include "dsp/FreezeManager.h"
 #include "dsp/BinauralDecoder.h"
 #include "dsp/GrainTrajectory.h"
+#include "dsp/TripleBuffer.h"
 
 struct GrainVizSnapshot
 {
@@ -29,6 +30,11 @@ struct GrainVizSnapshot
     };
     std::array<Voice, 64> voices {};
     int activeCount = 0;
+
+    // Euclidean visualization (copied from audio thread, safe to read from GUI)
+    std::array<bool, 16> euclideanPattern {};
+    int euclideanSteps = 0;
+    int euclideanStep = 0;
 };
 
 class GrainScatterProcessor : public juce::AudioProcessor
@@ -65,15 +71,10 @@ public:
 
     juce::AudioProcessorValueTreeState parameters;
 
-    // Visualization getters (lock-free, called from GUI thread)
-    const GrainVizSnapshot& getVizSnapshot() const
-    {
-        return vizSnapshots[static_cast<size_t> (1 - vizWriteIndex.load (std::memory_order_acquire))];
-    }
+    // Visualization getter (lock-free triple buffer, called from GUI thread)
+    const GrainVizSnapshot& getVizSnapshot() { return vizBuffer.read(); }
 
-    const std::array<bool, 16>& getEuclideanPattern() const { return euclideanPattern; }
-    int getEuclideanStep() const { return currentEuclideanStep.load (std::memory_order_relaxed); }
-    int getEuclideanSteps() const { return cachedEuclideanSteps; }
+    void reset() override;
 
 private:
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
@@ -134,15 +135,13 @@ private:
     juce::SmoothedValue<float> dryWetSmoothed;
     juce::SmoothedValue<float> feedbackSmoothed;
 
-    // Euclidean pattern cache
+    // Euclidean pattern cache (audio thread only writes; atomics for cross-thread reads)
     std::array<bool, 16> euclideanPattern {};
-    int cachedEuclideanSteps = 0;
-    int cachedEuclideanPulses = 0;
+    std::atomic<int> cachedEuclideanSteps { 0 };
+    std::atomic<int> cachedEuclideanPulses { 0 };
 
-    // Visualization double-buffer (lock-free audio→GUI)
-    std::array<GrainVizSnapshot, 2> vizSnapshots {};
-    std::atomic<int> vizWriteIndex { 0 };
-    std::atomic<int> currentEuclideanStep { 0 };
+    // Visualization triple-buffer (lock-free audio→GUI)
+    TripleBuffer<GrainVizSnapshot> vizBuffer;
 
     // Freeze state tracking
     bool wasFrozen = false;

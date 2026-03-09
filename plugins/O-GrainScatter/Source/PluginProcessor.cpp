@@ -292,6 +292,41 @@ void GrainScatterProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
 void GrainScatterProcessor::releaseResources() {}
 
+void GrainScatterProcessor::reset()
+{
+    // Kill all active grains
+    for (auto& v : grainPool.getVoices())
+        v.active = false;
+
+    // Clear delay buffer contents
+    delayBuffer.prepare (currentSampleRate, 2.0f);
+
+    // Reset feedback accumulators
+    feedbackL = 0.0f;
+    feedbackR = 0.0f;
+
+    // Snap SmoothedValues to current targets (avoid ramp after jump)
+    dryWetSmoothed.setCurrentAndTargetValue (dryWetSmoothed.getTargetValue());
+    feedbackSmoothed.setCurrentAndTargetValue (feedbackSmoothed.getTargetValue());
+
+    // Reset freeze state
+    freezeManager.prepare (currentSampleRate,
+                           static_cast<int> (currentSampleRate * 2.0) + 1);
+    wasFrozen = false;
+
+    // Reset scheduler timing
+    scheduler.prepare (currentSampleRate);
+
+    // Clear distance LPF state
+    distanceLpfState[0] = 0.0f;
+    distanceLpfState[1] = 0.0f;
+
+    // Clear HOA bus
+    hoaBus.clear();
+    std::fill (binauralL.begin(), binauralL.end(), 0.0f);
+    std::fill (binauralR.begin(), binauralR.end(), 0.0f);
+}
+
 bool GrainScatterProcessor::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     if (layouts.getMainOutputChannelSet() != juce::AudioChannelSet::stereo())
@@ -352,11 +387,12 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
     int grainSizeSamples = juce::jmax(1, static_cast<int>(grainSizeMs * currentSampleRate / 1000.0));
 
     // Update Euclidean pattern on parameter change
-    if (eucSteps != cachedEuclideanSteps || eucPulses != cachedEuclideanPulses)
+    if (eucSteps != cachedEuclideanSteps.load (std::memory_order_relaxed)
+        || eucPulses != cachedEuclideanPulses.load (std::memory_order_relaxed))
     {
         euclideanPattern = EuclideanGenerator::generate(eucSteps, eucPulses);
-        cachedEuclideanSteps = eucSteps;
-        cachedEuclideanPulses = eucPulses;
+        cachedEuclideanSteps.store (eucSteps, std::memory_order_relaxed);
+        cachedEuclideanPulses.store (eucPulses, std::memory_order_relaxed);
         scheduler.resetEuclideanStep(eucSteps);
     }
 
@@ -595,9 +631,9 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
     }
 
-    // Populate visualization snapshot (lock-free double buffer)
+    // Populate visualization snapshot (lock-free triple buffer)
     {
-        auto& snap = vizSnapshots[static_cast<size_t> (vizWriteIndex.load (std::memory_order_relaxed))];
+        auto& snap = vizBuffer.getWriteBuffer();
         const auto& poolVoices = grainPool.getVoices();
         int activeCount = 0;
 
@@ -631,11 +667,14 @@ void GrainScatterProcessor::processBlock(juce::AudioBuffer<float>& buffer,
         }
 
         snap.activeCount = activeCount;
-        vizWriteIndex.store (1 - vizWriteIndex.load (std::memory_order_relaxed), std::memory_order_release);
-    }
 
-    // Store Euclidean step for visualization
-    currentEuclideanStep.store (scheduler.getEuclideanStep(), std::memory_order_relaxed);
+        // Copy euclidean state into snapshot (avoids cross-thread reference)
+        snap.euclideanPattern = euclideanPattern;
+        snap.euclideanSteps = cachedEuclideanSteps.load (std::memory_order_relaxed);
+        snap.euclideanStep = scheduler.getEuclideanStep();
+
+        vizBuffer.publish();
+    }
 }
 
 juce::AudioProcessorEditor* GrainScatterProcessor::createEditor()

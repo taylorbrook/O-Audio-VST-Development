@@ -173,8 +173,10 @@ void GrainScatterEditor::resized()
 
 void GrainScatterEditor::timerCallback()
 {
-    // Grain visualization data
+    // Read snapshot once (triple-buffered, thread-safe)
     const auto& snap = audioProcessor.getVizSnapshot();
+
+    // Grain visualization data
     juce::String grainJson = "{\"g\":[";
     bool first = true;
     for (int i = 0; i < 64; ++i)
@@ -196,15 +198,14 @@ void GrainScatterEditor::timerCallback()
     grainJson += "],\"ac\":" + juce::String (snap.activeCount) + "}";
     webView->emitEventIfBrowserIsVisible ("grainUpdate", grainJson);
 
-    // Euclidean visualization data
-    const auto& pattern = audioProcessor.getEuclideanPattern();
-    int steps = audioProcessor.getEuclideanSteps();
-    int step = audioProcessor.getEuclideanStep();
+    // Euclidean visualization data (read from snapshot, not cross-thread reference)
+    int steps = snap.euclideanSteps;
+    int step = snap.euclideanStep;
     juce::String eucJson = "{\"p\":[";
     for (int i = 0; i < steps; ++i)
     {
         if (i > 0) eucJson += ",";
-        eucJson += pattern[static_cast<size_t> (i)] ? "1" : "0";
+        eucJson += snap.euclideanPattern[static_cast<size_t> (i)] ? "1" : "0";
     }
     eucJson += "],\"s\":" + juce::String (step) + ",\"n\":" + juce::String (steps) + "}";
     webView->emitEventIfBrowserIsVisible ("euclideanUpdate", eucJson);

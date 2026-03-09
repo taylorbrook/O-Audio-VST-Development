@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.4] - 2026-03-08
+
+### Fixed
+- Thread safety: replaced visualization double-buffer with lock-free triple buffer to prevent torn reads when audio thread publishes faster than GUI consumes
+- Thread safety: made `cachedEuclideanSteps`/`cachedEuclideanPulses` `std::atomic<int>` and moved euclidean pattern + step data into `GrainVizSnapshot` — GUI no longer holds a direct reference to audio-thread-owned `euclideanPattern` array
+- Added `reset()` override to clear all DSP state (grain voices, delay buffer, feedback, freeze, scheduler, distance LPF, HOA bus) on transport stop/seek/loop — prevents stale audio artifacts after DAW transport jumps
+- Root cause: double-buffer allowed audio thread to overwrite the slot GUI was reading mid-frame; euclidean data was exposed via raw `const&` across threads with no synchronization
+
 ## [2.0.3] - 2026-03-08
 
 ### Fixed
