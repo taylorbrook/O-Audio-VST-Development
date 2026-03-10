@@ -9,7 +9,7 @@ juce_add_plugin(O-Prism
     PLUGIN_CODE OuPr
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-Prism${OUARICON_DEV_SUFFIX}"
-    VERSION 1.3.0
+    VERSION 1.10.0
     IS_SYNTH TRUE
     NEEDS_MIDI_INPUT TRUE
     NEEDS_MIDI_OUTPUT FALSE
@@ -42,6 +42,7 @@ target_sources(O-Prism
         Source/dsp/EnsembleChorus.cpp
         Source/dsp/LFO.cpp
         Source/dsp/ModulationMatrix.cpp
+        Source/dsp/WavetableEditor.cpp
 )
 
 # Include paths
@@ -86,6 +87,8 @@ juce_add_binary_data(O-Prism_UIResources
         Source/ui/public/js/juce/check_native_interop.js
         Source/ui/public/js/tuning-panel.js
         Source/ui/public/css/tuning-panel.css
+        Source/ui/public/js/wavetable-editor.js
+        Source/ui/public/css/wavetable-editor.css
 )
 
 target_link_libraries(O-Prism

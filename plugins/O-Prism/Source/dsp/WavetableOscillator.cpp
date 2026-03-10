@@ -12,6 +12,27 @@
 #include "MathConstants.h"
 #include <JuceHeader.h>
 
+void WavetableOscillator::setWarpType (WarpType type)
+{
+    if (warpType != type)
+    {
+        warpType = type;
+        // Reset master phases when switching warp modes
+        for (int i = 0; i < kMaxUnison; ++i)
+            masterPhases[i] = phaseAccumulators[i];
+    }
+}
+
+void WavetableOscillator::setWarpAmount (float amount)
+{
+    warpAmount = amount;
+}
+
+void WavetableOscillator::setFMInput (double value)
+{
+    fmInput = value;
+}
+
 void WavetableOscillator::prepare (double sampleRate)
 {
     currentSampleRate = sampleRate;
@@ -37,13 +58,19 @@ void WavetableOscillator::setWavetable (const WavetableData* table)
 void WavetableOscillator::reset()
 {
     for (int i = 0; i < kMaxUnison; ++i)
+    {
         phaseAccumulators[i] = 0.0;
+        masterPhases[i] = 0.0;
+    }
 }
 
 void WavetableOscillator::resetWithPhase (double phase)
 {
     for (int i = 0; i < kMaxUnison; ++i)
+    {
         phaseAccumulators[i] = phase;
+        masterPhases[i] = phase;
+    }
 }
 
 void WavetableOscillator::resetWithRandomPhases()
@@ -54,6 +81,7 @@ void WavetableOscillator::resetWithRandomPhases()
     {
         seed = seed * 1664525u + 1013904223u;
         phaseAccumulators[i] = static_cast<double> (seed) / 4294967296.0;
+        masterPhases[i] = phaseAccumulators[i];
     }
 }
 
@@ -133,6 +161,28 @@ double WavetableOscillator::readSample (double phase) const
     return lerp (v0, v1, levelFrac);
 }
 
+double WavetableOscillator::applyWarp (double phase, int voiceIndex) const
+{
+    switch (warpType)
+    {
+        case WarpType::Bend:
+        {
+            // Phase distortion: pow(phase, exponent) where exponent 1..4
+            double exponent = 1.0 + static_cast<double> (warpAmount) * 3.0;
+            return std::pow (phase, exponent);
+        }
+        case WarpType::FM:
+        {
+            // Phase modulation: add other osc output to phase
+            double warped = phase + fmInput * static_cast<double> (warpAmount);
+            warped = warped - std::floor (warped); // wrap to [0, 1)
+            return warped;
+        }
+        default:
+            return phase;
+    }
+}
+
 double WavetableOscillator::getNextSample()
 {
     if (wavetable == nullptr)
@@ -140,13 +190,53 @@ double WavetableOscillator::getNextSample()
 
     double output = 0.0;
 
+    bool isSyncMode = (warpType == WarpType::Sync || warpType == WarpType::Window)
+                      && warpAmount > 0.001f;
+
     for (int i = 0; i < unisonCount; ++i)
     {
-        output += readSample (phaseAccumulators[i]) * unisonGain;
+        double readPhase = phaseAccumulators[i];
 
-        phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
-        if (phaseAccumulators[i] >= 1.0)
-            phaseAccumulators[i] -= 1.0;
+        if (isSyncMode)
+        {
+            // Sync/Window: read from slave phase (phaseAccumulators),
+            // master controls reset timing
+            double sample = readSample (readPhase) * unisonGain;
+
+            if (warpType == WarpType::Window)
+                sample *= std::sin (kPi * masterPhases[i]);
+
+            output += sample;
+
+            // Advance master at normal rate
+            double masterInc = phaseIncrement * unisonDetuneFactors[i];
+            masterPhases[i] += masterInc;
+
+            // Advance slave at faster rate
+            double syncRatio = 1.0 + static_cast<double> (warpAmount) * 3.0;
+            phaseAccumulators[i] += masterInc * syncRatio;
+
+            // Wrap slave
+            if (phaseAccumulators[i] >= 1.0)
+                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
+
+            // Master wrap → reset slave
+            if (masterPhases[i] >= 1.0)
+            {
+                masterPhases[i] -= 1.0;
+                phaseAccumulators[i] = masterPhases[i] * syncRatio;
+            }
+        }
+        else
+        {
+            // Bend/FM/Off: apply warp to phase before lookup
+            double warped = applyWarp (readPhase, i);
+            output += readSample (warped) * unisonGain;
+
+            phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
+            if (phaseAccumulators[i] >= 1.0)
+                phaseAccumulators[i] -= 1.0;
+        }
     }
 
     return output;
@@ -163,14 +253,48 @@ void WavetableOscillator::getNextSampleStereo (double& outL, double& outR)
     outL = 0.0;
     outR = 0.0;
 
+    bool isSyncMode = (warpType == WarpType::Sync || warpType == WarpType::Window)
+                      && warpAmount > 0.001f;
+
     for (int i = 0; i < unisonCount; ++i)
     {
-        double sample = readSample (phaseAccumulators[i]) * unisonGain;
-        outL += sample * unisonPanL[i];
-        outR += sample * unisonPanR[i];
+        double readPhase = phaseAccumulators[i];
 
-        phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
-        if (phaseAccumulators[i] >= 1.0)
-            phaseAccumulators[i] -= 1.0;
+        if (isSyncMode)
+        {
+            double sample = readSample (readPhase) * unisonGain;
+
+            if (warpType == WarpType::Window)
+                sample *= std::sin (kPi * masterPhases[i]);
+
+            outL += sample * unisonPanL[i];
+            outR += sample * unisonPanR[i];
+
+            double masterInc = phaseIncrement * unisonDetuneFactors[i];
+            masterPhases[i] += masterInc;
+
+            double syncRatio = 1.0 + static_cast<double> (warpAmount) * 3.0;
+            phaseAccumulators[i] += masterInc * syncRatio;
+
+            if (phaseAccumulators[i] >= 1.0)
+                phaseAccumulators[i] -= std::floor (phaseAccumulators[i]);
+
+            if (masterPhases[i] >= 1.0)
+            {
+                masterPhases[i] -= 1.0;
+                phaseAccumulators[i] = masterPhases[i] * syncRatio;
+            }
+        }
+        else
+        {
+            double warped = applyWarp (readPhase, i);
+            double sample = readSample (warped) * unisonGain;
+            outL += sample * unisonPanL[i];
+            outR += sample * unisonPanR[i];
+
+            phaseAccumulators[i] += phaseIncrement * unisonDetuneFactors[i];
+            if (phaseAccumulators[i] >= 1.0)
+                phaseAccumulators[i] -= 1.0;
+        }
     }
 }

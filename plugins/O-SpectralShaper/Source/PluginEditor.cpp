@@ -31,6 +31,13 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
     // 2. Create WebView SECOND with all relay options registered
     // ============================================================================
 
+    auto makeDialogResult = [](bool success, const juce::String& name) -> juce::var {
+        auto* result = new juce::DynamicObject();
+        result->setProperty("success", success);
+        result->setProperty("name", name);
+        return juce::var(result);
+    };
+
     webView = std::make_unique<juce::WebBrowserComponent>(
         juce::WebBrowserComponent::Options{}
             .withBackend(juce::WebBrowserComponent::Options::Backend::webview2)
@@ -48,10 +55,10 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
             .withOptionsFrom(*lookaheadTimeRelay)
             .withOptionsFrom(*outputGainRelay)
             .withNativeFunction("setAttackCurve", [this](const juce::Array<juce::var>& args, auto) {
-                handleAttackCurveUpdate(args);
+                handleCurveUpdate(args, &OSpectralShaperAudioProcessor::setAttackCurve);
             })
             .withNativeFunction("setSustainCurve", [this](const juce::Array<juce::var>& args, auto) {
-                handleSustainCurveUpdate(args);
+                handleCurveUpdate(args, &OSpectralShaperAudioProcessor::setSustainCurve);
             })
             // Preset Manager native functions
             .withNativeFunction("savePreset", [this](auto& args, auto complete) {
@@ -60,7 +67,7 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
                 else
                     complete(false);
             })
-            .withNativeFunction("savePresetWithDialog", [this](auto&, auto complete) {
+            .withNativeFunction("savePresetWithDialog", [this, makeDialogResult](auto&, auto complete) {
                 fileChooser = std::make_unique<juce::FileChooser>(
                     "Save Preset",
                     processorRef.presetManager.getUserPresetsDirectory(),
@@ -68,21 +75,15 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
                 );
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::saveMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, complete, makeDialogResult](const juce::FileChooser& fc) {
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
-                            auto* result = new juce::DynamicObject();
-                            result->setProperty("success", false);
-                            result->setProperty("name", "");
-                            complete(juce::var(result));
+                            complete(makeDialogResult(false, ""));
                             return;
                         }
                         auto presetName = results.getFirst().getFileNameWithoutExtension();
                         bool success = processorRef.presetManager.savePreset(presetName);
-                        auto* result = new juce::DynamicObject();
-                        result->setProperty("success", success);
-                        result->setProperty("name", success ? presetName : juce::String());
-                        complete(juce::var(result));
+                        complete(makeDialogResult(success, success ? presetName : juce::String()));
                     }
                 );
             })
@@ -122,7 +123,7 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
                 else
                     complete(false);
             })
-            .withNativeFunction("loadPresetFromFile", [this](auto&, auto complete) {
+            .withNativeFunction("loadPresetFromFile", [this, makeDialogResult](auto&, auto complete) {
                 fileChooser = std::make_unique<juce::FileChooser>(
                     "Load Preset",
                     processorRef.presetManager.getUserPresetsDirectory(),
@@ -130,21 +131,15 @@ OSpectralShaperAudioProcessorEditor::OSpectralShaperAudioProcessorEditor(
                 );
                 fileChooser->launchAsync(
                     juce::FileBrowserComponent::openMode | juce::FileBrowserComponent::canSelectFiles,
-                    [this, complete](const juce::FileChooser& fc) {
+                    [this, complete, makeDialogResult](const juce::FileChooser& fc) {
                         auto results = fc.getResults();
                         if (results.isEmpty()) {
-                            auto* result = new juce::DynamicObject();
-                            result->setProperty("success", false);
-                            result->setProperty("name", "");
-                            complete(juce::var(result));
+                            complete(makeDialogResult(false, ""));
                             return;
                         }
                         auto file = results.getFirst();
                         bool success = processorRef.presetManager.loadPresetFromFile(file);
-                        auto* result = new juce::DynamicObject();
-                        result->setProperty("success", success);
-                        result->setProperty("name", success ? file.getFileNameWithoutExtension() : juce::String());
-                        complete(juce::var(result));
+                        complete(makeDialogResult(success, success ? file.getFileNameWithoutExtension() : juce::String()));
                     }
                 );
             })
@@ -334,7 +329,9 @@ OSpectralShaperAudioProcessorEditor::getResource(const juce::String& url)
     return std::nullopt;
 }
 
-void OSpectralShaperAudioProcessorEditor::handleAttackCurveUpdate(const juce::Array<juce::var>& args)
+void OSpectralShaperAudioProcessorEditor::handleCurveUpdate(
+    const juce::Array<juce::var>& args,
+    void (OSpectralShaperAudioProcessor::*setter)(const std::array<float, 32>&))
 {
     if (args.size() != 32) return;
 
@@ -345,21 +342,7 @@ void OSpectralShaperAudioProcessorEditor::handleAttackCurveUpdate(const juce::Ar
         curveData[i] = std::isnan(val) ? 0.0f : juce::jlimit(-1.0f, 1.0f, val);
     }
 
-    processorRef.setAttackCurve(curveData);
-}
-
-void OSpectralShaperAudioProcessorEditor::handleSustainCurveUpdate(const juce::Array<juce::var>& args)
-{
-    if (args.size() != 32) return;
-
-    std::array<float, 32> curveData;
-    for (int i = 0; i < 32; ++i)
-    {
-        auto val = static_cast<float>(args[i]);
-        curveData[i] = std::isnan(val) ? 0.0f : juce::jlimit(-1.0f, 1.0f, val);
-    }
-
-    processorRef.setSustainCurve(curveData);
+    (processorRef.*setter)(curveData);
 }
 
 void OSpectralShaperAudioProcessorEditor::sendCurveToJS(

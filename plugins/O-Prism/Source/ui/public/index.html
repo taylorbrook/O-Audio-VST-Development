@@ -794,6 +794,7 @@ body {
     <div class="tab" data-tab="mod" onclick="switchTab('mod')">Mod</div>
     <div class="tab" data-tab="tuning" onclick="switchTab('tuning')">Tuning</div>
     <div class="tab" data-tab="effects" onclick="switchTab('effects')">Effects</div>
+    <div class="tab" data-tab="wavetable" onclick="switchTab('wavetable')">Wavetable</div>
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -848,6 +849,13 @@ body {
             <div class="knob-container"><div class="knob" id="knob-oscAUnison"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAUnison" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Unison</span><span class="knob-value" id="val-oscAUnison">1</span></div></div>
             <div class="knob-container"><div class="knob" id="knob-oscADetune"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscADetune" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Detune</span><span class="knob-value" id="val-oscADetune">20%</span></div></div>
             <div class="knob-container"><div class="knob" id="knob-oscAWidth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAWidth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Width</span><span class="knob-value" id="val-oscAWidth">50%</span></div></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label">Warp</span>
+                <select id="select-oscAWarpType" class="param-select">
+                    <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                </select>
+            </div>
+            <div class="knob-container"><div class="knob" id="knob-oscAWarpAmt"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscAWarpAmt" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Warp Amt</span><span class="knob-value" id="val-oscAWarpAmt">0%</span></div></div>
         </div>
     </div>
 
@@ -895,6 +903,13 @@ body {
             <div class="knob-container"><div class="knob" id="knob-oscBUnison"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBUnison" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Unison</span><span class="knob-value" id="val-oscBUnison">1</span></div></div>
             <div class="knob-container"><div class="knob" id="knob-oscBDetune"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBDetune" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Detune</span><span class="knob-value" id="val-oscBDetune">20%</span></div></div>
             <div class="knob-container"><div class="knob" id="knob-oscBWidth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBWidth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Width</span><span class="knob-value" id="val-oscBWidth">50%</span></div></div>
+            <div class="dropdown-group">
+                <span class="dropdown-label">Warp</span>
+                <select id="select-oscBWarpType" class="param-select">
+                    <option>Off</option><option>Sync</option><option>Bend</option><option>FM</option><option>Window</option>
+                </select>
+            </div>
+            <div class="knob-container"><div class="knob" id="knob-oscBWarpAmt"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-oscBWarpAmt" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Warp Amt</span><span class="knob-value" id="val-oscBWarpAmt">0%</span></div></div>
         </div>
     </div>
 
@@ -1328,6 +1343,70 @@ body {
 
 </div><!-- /effects-tab -->
 
+<!-- ─── WAVETABLE EDITOR TAB ─── -->
+<div id="wavetable-tab" class="tab-content">
+
+    <!-- Osc A/B Toggle -->
+    <div class="wt-osc-toggle">
+        <button class="wt-osc-btn active" data-osc="0">Osc A</button>
+        <button class="wt-osc-btn" data-osc="1">Osc B</button>
+    </div>
+
+    <!-- Frame Strip -->
+    <div class="wt-frame-strip-container">
+        <canvas id="wt-frame-strip" class="wt-frame-strip-canvas"></canvas>
+    </div>
+
+    <!-- Harmonic Editor -->
+    <div class="wt-harmonic-area">
+        <div class="wt-harmonic-toolbar">
+            <span class="wt-label">Harmonics</span>
+            <button class="wt-bin-btn" data-bins="32">32</button>
+            <button class="wt-bin-btn" data-bins="64">64</button>
+            <button class="wt-bin-btn active" data-bins="128">128</button>
+            <button class="wt-bin-btn" data-bins="256">256</button>
+        </div>
+        <div class="wt-harmonic-panel">
+            <div class="wt-harmonic-canvas-wrap">
+                <canvas id="wt-harmonic-canvas" class="wt-harmonic-canvas"></canvas>
+            </div>
+            <div class="wt-waveform-preview-wrap">
+                <span class="wt-waveform-preview-label">Waveform</span>
+                <canvas id="wt-waveform-preview" class="wt-waveform-canvas"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Operations Bar -->
+    <div class="wt-ops-bar">
+        <button class="wt-op-btn" id="wt-op-normalize">Normalize</button>
+        <button class="wt-op-btn" id="wt-op-normalizeGlobal">Normalize Global</button>
+        <div class="wt-op-separator"></div>
+        <button class="wt-op-btn" id="wt-op-fade">Fade Edges</button>
+        <button class="wt-op-btn" id="wt-op-reverse">Reverse</button>
+        <button class="wt-op-btn" id="wt-op-reverseOrder">Reverse Order</button>
+        <button class="wt-op-btn" id="wt-op-smooth">Smooth</button>
+        <div class="wt-op-separator"></div>
+        <button class="wt-op-btn" id="wt-op-save" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+        <div class="wt-op-separator"></div>
+        <button class="wt-undo-btn" id="wt-undo-btn" disabled title="Undo (Ctrl+Z)">&#x21A9;</button>
+        <button class="wt-undo-btn" id="wt-redo-btn" disabled title="Redo (Ctrl+Shift+Z)">&#x21AA;</button>
+    </div>
+
+</div><!-- /wavetable-tab -->
+
+<!-- Save Modal -->
+<div id="wt-save-modal-overlay" class="wt-save-modal-overlay">
+    <div class="wt-save-modal">
+        <h3>Save Wavetable</h3>
+        <input type="text" id="wt-save-name-input" placeholder="Wavetable name...">
+        <div class="wt-save-modal-buttons">
+            <button class="wt-op-btn" id="wt-save-cancel">Cancel</button>
+            <button class="wt-op-btn" id="wt-save-confirm" style="background:#5a7a6a;color:#F5E6D3;border-color:#5a7a6a;">Save</button>
+        </div>
+    </div>
+</div>
+
 </div><!-- /tab-content-area -->
 
 <!-- ═══════════════════════════════════════════════════════════════════
@@ -1352,13 +1431,23 @@ body {
 <script type="module">
 import * as Juce from './js/juce/index.js';
 
+// Expose getNativeFunction for non-module scripts (wavetable-editor.js)
+window.JuceGetNativeFunction = Juce.getNativeFunction;
 
 // ─── TAB SWITCHING ───
 window.switchTab = function(tabName) {
+    // Notify wavetable editor of tab changes
+    const wasWavetable = document.getElementById('wavetable-tab')?.classList.contains('active');
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
     document.getElementById(tabName + '-tab').classList.add('active');
     document.querySelector(`[data-tab="${tabName}"]`).classList.add('active');
+
+    if (tabName === 'wavetable' && window.WavetableEditor) {
+        window.WavetableEditor.onTabActivated();
+    } else if (wasWavetable && tabName !== 'wavetable' && window.WavetableEditor) {
+        window.WavetableEditor.onTabDeactivated();
+    }
 };
 
 // ─── SVG VINE KNOB INFRASTRUCTURE ───
@@ -1594,6 +1683,8 @@ bindKnob('oscAPhase',  pct,       0.0);
 bindKnob('oscAUnison', unisonFmt, 0.0);
 bindKnob('oscADetune', pct,       0.2);
 bindKnob('oscAWidth',  pct,       0.5);
+bindKnob('oscAWarpAmt', pct,     0.0);
+bindDropdown(document.getElementById('select-oscAWarpType'), 'oscAWarpType', 5);
 
 // Osc B (9 knobs + 1 dropdown — wavetable selector handles dropdown binding)
 bindKnob('oscBPos',    pct,       0.0);
@@ -1605,6 +1696,8 @@ bindKnob('oscBPhase',  pct,       0.0);
 bindKnob('oscBUnison', unisonFmt, 0.0);
 bindKnob('oscBDetune', pct,       0.2);
 bindKnob('oscBWidth',  pct,       0.5);
+bindKnob('oscBWarpAmt', pct,     0.0);
+bindDropdown(document.getElementById('select-oscBWarpType'), 'oscBWarpType', 5);
 
 // Sub + Noise
 bindDropdown(document.getElementById('select-subShape'), 'subShape', 4);
@@ -1744,7 +1837,8 @@ bindKnob('oscMix',    pct,     0.5, 'small');
     const destNames = ['None','OscA Pos','OscB Pos','FiltA Cut','FiltB Cut','FiltA Res','FiltB Res',
         'Osc Mix','Sub Level','Noise Level','LFO1 Rate','LFO2 Rate','LFO3 Rate','LFO4 Rate',
         'OscA Detune','OscB Detune',
-        'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol','Pitch'];
+        'OscA Pan','OscB Pan','Reverb Mix','Delay Mix','Chorus Mix','Dist Mix','Master Vol','Pitch',
+        'OscA Warp','OscB Warp'];
 
     const container = document.getElementById('mod-matrix-rows');
     if (!container) return;
@@ -2935,6 +3029,9 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
         <button class="wt-modal-close" id="wt-modal-close">Close</button>
     </div>
 </div>
+
+<link rel="stylesheet" href="./css/wavetable-editor.css">
+<script src="./js/wavetable-editor.js"></script>
 
 </body>
 </html>

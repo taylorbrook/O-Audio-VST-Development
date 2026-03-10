@@ -26,11 +26,6 @@ public:
     // Timer callback for 60fps visualization updates
     void timerCallback() override;
 
-    void handleAttackCurveUpdate(const juce::Array<juce::var>& args);
-    void handleSustainCurveUpdate(const juce::Array<juce::var>& args);
-    void sendAttackCurveToJS();
-    void sendSustainCurveToJS();
-
 private:
     OSpectralShaperAudioProcessor& processorRef;
 
@@ -65,7 +60,11 @@ private:
     std::unique_ptr<juce::FileChooser> fileChooser;
 
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
+    void handleCurveUpdate(const juce::Array<juce::var>& args,
+        void (OSpectralShaperAudioProcessor::*setter)(const std::array<float, 32>&));
     void sendCurveToJS(const char* functionName, const std::array<float, 32>& curve);
+    void sendAttackCurveToJS();
+    void sendSustainCurveToJS();
     void emitVisualizationFrame(const OSpectralShaperAudioProcessor::VisualizationFrame& frame);
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OSpectralShaperAudioProcessorEditor)

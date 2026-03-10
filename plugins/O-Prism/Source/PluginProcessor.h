@@ -26,6 +26,7 @@
 #include "dsp/EQProcessor.h"
 #include "dsp/EnsembleChorus.h"
 #include "dsp/UserWavetableManager.h"
+#include "dsp/WavetableEditor.h"
 
 class OPrismAudioProcessor : public juce::AudioProcessor
 {
@@ -102,6 +103,19 @@ public:
     /** Check if a user table is active for an oscillator. */
     bool isUserTableActive (int oscIndex) const;
 
+    // ─── Wavetable Editor API ───
+
+    WavetableEditor& getWavetableEditor() { return wavetableEditor; }
+
+    /** Start editing: clone the active table into working copy, point oscillator at it. */
+    void startEditing (int oscIndex);
+
+    /** Stop editing: revert oscillator to its original table source. */
+    void stopEditing (int oscIndex);
+
+    /** Get which oscillator is being edited (-1 = none). */
+    int getEditingOscIndex() const { return editingOscIndex; }
+
     /** Get current mod wheel value (0..1) for modulation matrix */
     float getModWheelValue() const { return modWheelValue.load (std::memory_order_relaxed); }
 
@@ -138,6 +152,8 @@ private:
 
     // User wavetable system
     UserWavetableManager userWavetableManager;
+    WavetableEditor wavetableEditor;
+    int editingOscIndex = -1;
     juce::String userTableNameA;
     juce::String userTableNameB;
     std::atomic<const WavetableData*> userTablePtrA { nullptr };

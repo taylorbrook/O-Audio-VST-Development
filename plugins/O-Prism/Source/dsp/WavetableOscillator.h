@@ -12,6 +12,15 @@
 #include "WavetableData.h"
 #include <cmath>
 
+enum class WarpType
+{
+    Off = 0,
+    Sync,
+    Bend,
+    FM,
+    Window
+};
+
 class WavetableOscillator
 {
 public:
@@ -31,6 +40,11 @@ public:
     void setUnison (int count, float detune, float width);
     void resetWithRandomPhases();
 
+    // Warp
+    void setWarpType (WarpType type);
+    void setWarpAmount (float amount);
+    void setFMInput (double value);
+
     double getFrequency() const { return frequency; }
 
 private:
@@ -49,5 +63,12 @@ private:
     double unisonGain = 1.0;
     int unisonCount = 1;
 
+    // Warp state
+    WarpType warpType = WarpType::Off;
+    float warpAmount = 0.0f;
+    double fmInput = 0.0;
+    double masterPhases[kMaxUnison] = {};
+
     double readSample (double phase) const;
+    double applyWarp (double phase, int voiceIndex) const;
 };

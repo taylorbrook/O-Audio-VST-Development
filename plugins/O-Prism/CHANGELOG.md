@@ -1,5 +1,37 @@
 # O-Prism Changelog
 
+## v1.11.0 (2026-03-09)
+
+### Added
+- **Oscillator warp modes**: 4 post-wavetable-lookup warp algorithms applied per-unison-voice for maximum richness:
+  - **Sync** — Hard self-sync with dual phase accumulators. Slave runs at up to 4x master frequency, hard-resets on master wrap. Creates classic formant-shifting buzz.
+  - **Bend** — Asymmetric phase distortion via `pow(phase, exponent)` where exponent ranges 1-4. Shifts harmonics through nonlinear phase remapping (Casio CZ-style).
+  - **FM** — Phase modulation from the other oscillator's previous sample output. Safe cross-routing allows mutual FM without ordering dependency.
+  - **Window** — Windowed sync: same as Sync but with `sin(pi * masterPhase)` amplitude envelope per cycle, smoothing reset discontinuities for cleaner formant character.
+- **New parameters**: `oscAWarpType` / `oscBWarpType` (Choice: Off, Sync, Bend, FM, Window) and `oscAWarpAmt` / `oscBWarpAmt` (Float 0-1) per oscillator.
+- **Mod matrix destinations**: `OscA Warp` and `OscB Warp` added as modulation targets, enabling LFO/envelope-driven warp amount sweeps.
+
+### Technical Notes
+- Domain: DSP + GUI
+- Per-voice FM cross-routing uses 1-sample delay (mono sum of other osc's stereo output) for stable mutual modulation
+- Sync ratio range: 1x-4x (warp amount 0-100%)
+- Bend exponent range: 1.0-4.0
+- No breaking parameter changes — full backward compatibility with existing presets
+
+## v1.10.0 (2026-03-08)
+
+### Added
+- **Wavetable Editor** (5th tab): Per-frame harmonic bar editing with real-time iFFT preview. Canvas-based frame strip with click/shift+click/ctrl+click multi-selection. Osc A/B toggle to edit either oscillator's table. Configurable bin count (32/64/128/256). Frame operations: Normalize (per-frame/global), Fade Edges, Reverse Audio, Reverse Order, Smooth (6dB/oct spectral rolloff). Save edited tables as new user wavetables. Undo/redo support (Ctrl+Z / Ctrl+Shift+Z, max 50 entries). DPR-aware canvas rendering for Retina displays.
+- **Per-frame mipmap regeneration**: `WavetableGenerator::generateMipmapsForFrame()` regenerates all 10 mipmap levels for a single frame (~0.05ms vs ~12ms for full table), enabling real-time harmonic editing without audio glitches.
+- **WavetableEditor C++ class**: Deep-copy working table management, FFT-based harmonic analysis with phase preservation, and 5 frame operations. Editor points oscillator at working copy via atomic pointer for live preview.
+- 8 new native functions for WebView ↔ C++ communication: `startWavetableEditor`, `stopWavetableEditor`, `getEditorFrameWaveform`, `getFrameHarmonics`, `setFrameHarmonics`, `applyFrameOperation`, `saveEditedWavetable`, `getAllEditorFrameWaveforms`.
+
+### Technical Notes
+- Domain: Mixed (DSP + GUI)
+- Milestone: add-wavetable-editor
+- No new APVTS parameters — editor uses native functions for all state
+- Full backward compatibility — no preset or parameter changes
+
 ## v1.9.0 (2026-03-08)
 
 ### Added

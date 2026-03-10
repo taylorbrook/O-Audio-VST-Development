@@ -58,8 +58,9 @@ private:
     juce::dsp::FFT forwardFFT { FFT_ORDER };
     juce::dsp::FFT inverseFFT { FFT_ORDER };
 
-    // Window table (pre-computed Hann window)
-    std::array<float, FFT_SIZE> windowTable {};
+    // Window tables
+    std::array<float, FFT_SIZE> windowTable {};           // Analysis (Hann)
+    std::array<float, FFT_SIZE> synthesisWindowTable {};   // Synthesis (Hann with WOLA normalization)
 
     // Input/Output FIFOs for sample-by-sample interface
     std::array<float, FFT_SIZE> inputFIFO {};
@@ -94,7 +95,6 @@ private:
     float attackTimeMs = 10.0f;
     float sustainTimeMs = 100.0f;
     float sampleRate = 44100.0f;
-    float hopTime = 0.0f;  // HOP_SIZE / sampleRate
     float fastCoeff = 0.0f;
     float slowCoeff = 0.0f;
     float releaseCoeff = 0.0f;

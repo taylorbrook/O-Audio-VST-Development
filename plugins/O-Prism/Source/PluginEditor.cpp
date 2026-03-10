@@ -51,6 +51,14 @@ OPrismAudioProcessorEditor::getResource (const juce::String& url)
         return makeBinaryResource (BinaryData::tuningpanel_css,
                                    BinaryData::tuningpanel_cssSize, "text/css");
 
+    if (url == "/js/wavetable-editor.js")
+        return makeBinaryResource (BinaryData::wavetableeditor_js,
+                                   BinaryData::wavetableeditor_jsSize, "application/javascript");
+
+    if (url == "/css/wavetable-editor.css")
+        return makeBinaryResource (BinaryData::wavetableeditor_css,
+                                   BinaryData::wavetableeditor_cssSize, "text/css");
+
     return std::nullopt;
 }
 
@@ -690,6 +698,192 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
             complete (toJsonArray (names, [] (const juce::String& s) {
                 return "\"" + s + "\"";
             }));
+        });
+
+    // ─── Wavetable Editor Native Functions ───
+
+    options = options.withNativeFunction ("startWavetableEditor",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            int oscIndex = args.size() >= 1 ? static_cast<int> (args[0]) : 0;
+            processorRef.startEditing (oscIndex);
+            auto& editor = processorRef.getWavetableEditor();
+            if (editor.hasWorkingTable())
+            {
+                int numFrames = editor.getNumFrames();
+                auto harmonics = editor.getFrameHarmonics (0, 128);
+                juce::String harmJson = "[";
+                for (size_t i = 0; i < harmonics.size(); ++i)
+                {
+                    if (i > 0) harmJson += ",";
+                    harmJson += juce::String (harmonics[i], 4);
+                }
+                harmJson += "]";
+                complete ("{\"numFrames\":" + juce::String (numFrames)
+                        + ",\"harmonics\":" + harmJson + "}");
+            }
+            else
+            {
+                complete ("{\"error\":\"Failed to load table\"}");
+            }
+        });
+
+    options = options.withNativeFunction ("stopWavetableEditor",
+        [this] (const juce::Array<juce::var>&, auto complete) {
+            int oscIdx = processorRef.getEditingOscIndex();
+            if (oscIdx >= 0)
+                processorRef.stopEditing (oscIdx);
+            complete (true);
+        });
+
+    options = options.withNativeFunction ("getEditorFrameWaveform",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                int frameIndex = static_cast<int> (args[0]);
+                auto& editor = processorRef.getWavetableEditor();
+                auto waveform = editor.getFrameWaveform (frameIndex);
+                if (! waveform.empty())
+                {
+                    // Stride by 8 for ~256 display points
+                    complete (toJsonFloatArray (waveform.data(),
+                        static_cast<int> (waveform.size()), 8, 4));
+                    return;
+                }
+            }
+            complete (juce::var());
+        });
+
+    options = options.withNativeFunction ("getFrameHarmonics",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                int frameIndex = static_cast<int> (args[0]);
+                int numBins = static_cast<int> (args[1]);
+                auto harmonics = processorRef.getWavetableEditor()
+                    .getFrameHarmonics (frameIndex, numBins);
+                if (! harmonics.empty())
+                {
+                    juce::String json = "[";
+                    for (size_t i = 0; i < harmonics.size(); ++i)
+                    {
+                        if (i > 0) json += ",";
+                        json += juce::String (harmonics[i], 4);
+                    }
+                    json += "]";
+                    complete (json);
+                    return;
+                }
+            }
+            complete (juce::var());
+        });
+
+    options = options.withNativeFunction ("setFrameHarmonics",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                int frameIndex = static_cast<int> (args[0]);
+                auto jsonArray = juce::JSON::parse (args[1].toString());
+                if (auto* arr = jsonArray.getArray())
+                {
+                    std::vector<float> magnitudes;
+                    magnitudes.reserve (static_cast<size_t> (arr->size()));
+                    for (const auto& val : *arr)
+                        magnitudes.push_back (static_cast<float> (val));
+
+                    processorRef.getWavetableEditor()
+                        .setFrameHarmonics (frameIndex, magnitudes);
+
+                    // Return updated waveform for display
+                    auto waveform = processorRef.getWavetableEditor()
+                        .getFrameWaveform (frameIndex);
+                    if (! waveform.empty())
+                    {
+                        complete (toJsonFloatArray (waveform.data(),
+                            static_cast<int> (waveform.size()), 8, 4));
+                        return;
+                    }
+                }
+            }
+            complete (juce::var());
+        });
+
+    options = options.withNativeFunction ("applyFrameOperation",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                auto opType = args[0].toString();
+                auto framesJson = juce::JSON::parse (args[1].toString());
+
+                std::vector<int> frameIndices;
+                if (auto* arr = framesJson.getArray())
+                    for (const auto& val : *arr)
+                        frameIndices.push_back (static_cast<int> (val));
+
+                auto& editor = processorRef.getWavetableEditor();
+
+                if (opType == "normalize")
+                    editor.normalizeFrames (frameIndices, true);
+                else if (opType == "normalizeGlobal")
+                    editor.normalizeFrames (frameIndices, false);
+                else if (opType == "fade")
+                {
+                    float pct = args.size() >= 3 ? static_cast<float> (args[2]) : 10.0f;
+                    editor.fadeEdges (frameIndices, pct);
+                }
+                else if (opType == "reverse")
+                    editor.reverseFrames (frameIndices);
+                else if (opType == "reverseOrder")
+                    editor.reverseOrder (frameIndices);
+                else if (opType == "smooth")
+                {
+                    float strength = args.size() >= 3 ? static_cast<float> (args[2]) : 0.5f;
+                    editor.smoothFrames (frameIndices, strength);
+                }
+
+                complete (true);
+                return;
+            }
+            complete (false);
+        });
+
+    options = options.withNativeFunction ("saveEditedWavetable",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                auto name = args[0].toString();
+                auto& editor = processorRef.getWavetableEditor();
+                bool success = editor.saveAsUserWavetable (
+                    name, processorRef.getUserWavetableManager());
+                if (success)
+                {
+                    complete ("{\"success\":true,\"name\":\"" + name.replace ("\"", "\\\"") + "\"}");
+                    return;
+                }
+            }
+            complete ("{\"success\":false}");
+        });
+
+    options = options.withNativeFunction ("getAllEditorFrameWaveforms",
+        [this] (const juce::Array<juce::var>& args, auto complete) {
+            int samplesPerFrame = args.size() >= 1 ? static_cast<int> (args[0]) : 64;
+            auto& editor = processorRef.getWavetableEditor();
+            auto allWaveforms = editor.getAllFrameWaveforms (samplesPerFrame);
+
+            juce::String json = "[";
+            for (size_t f = 0; f < allWaveforms.size(); ++f)
+            {
+                if (f > 0) json += ",";
+                json += "[";
+                for (size_t s = 0; s < allWaveforms[f].size(); ++s)
+                {
+                    if (s > 0) json += ",";
+                    json += juce::String (allWaveforms[f][s], 3);
+                }
+                json += "]";
+            }
+            json += "]";
+
+            complete (json);
         });
 
     return options;

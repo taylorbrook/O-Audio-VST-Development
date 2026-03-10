@@ -34,14 +34,24 @@ STFTProcessor::STFTProcessor()
 void STFTProcessor::prepare(double sr)
 {
     this->sampleRate = static_cast<float>(sr);
-    hopTime = HOP_SIZE / static_cast<float>(sr);
 
-    // Create Hann window table
+    // Create Hann analysis window table
     juce::dsp::WindowingFunction<float>::fillWindowingTables(
         windowTable.data(),
         FFT_SIZE,
         juce::dsp::WindowingFunction<float>::hann,
         false);  // No normalization
+
+    // Create synthesis window with WOLA normalization for Hann×Hann at 50% overlap.
+    // Hann² is NOT COLA at 50% overlap (sum varies 0.5–1.0), so fold per-sample
+    // normalization into the synthesis window: synthW[i] = w[i] / (w²[i] + w²[i+H])
+    for (int i = 0; i < FFT_SIZE; ++i)
+    {
+        float w  = windowTable[static_cast<size_t>(i)];
+        float wH = windowTable[static_cast<size_t>((i + HOP_SIZE) % FFT_SIZE)];
+        float normSum = w * w + wH * wH;
+        synthesisWindowTable[static_cast<size_t>(i)] = (normSum > 1e-7f) ? (w / normSum) : 0.0f;
+    }
 
     // Setup band boundaries (logarithmic spacing 20Hz-Nyquist)
     setupBandBoundaries(sr);
@@ -154,11 +164,13 @@ void STFTProcessor::processFrame()
     // Output: fftData[0..FFT_SIZE-1] as real samples
     inverseFFT.performRealOnlyInverseTransform(fftData.data());
 
-    // Overlap-add: JUCE's inverse FFT already includes 1/N normalization,
-    // and Hann COLA at 50% overlap sums to 1.0 — no additional scaling needed.
+    // Apply synthesis window (Hann with WOLA normalization) and overlap-add.
+    // The synthesis window smooths frame-boundary discontinuities caused by
+    // spectral modification, reducing metallic ringing and musical noise.
+    // JUCE's inverse FFT already includes 1/N normalization.
     for (int i = 0; i < FFT_SIZE; ++i)
     {
-        outputFIFO[static_cast<size_t>(i)] += fftData[static_cast<size_t>(i)];
+        outputFIFO[static_cast<size_t>(i)] += fftData[static_cast<size_t>(i)] * synthesisWindowTable[static_cast<size_t>(i)];
     }
 }
 

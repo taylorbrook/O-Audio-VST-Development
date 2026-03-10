@@ -25,6 +25,7 @@ class WavetableGenerator
 public:
     static std::unique_ptr<WavetableData> generateProceduralTable (WaveShape shape);
     static void generateMipmaps (WavetableData& table);
+    static void generateMipmapsForFrame (WavetableData& table, int frameIndex);
 
 private:
     static void generateSaw (float* buffer, int size);

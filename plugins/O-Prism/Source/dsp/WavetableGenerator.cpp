@@ -172,3 +172,58 @@ void WavetableGenerator::generateMipmaps (WavetableData& table)
     // Set guard samples for all levels and frames
     table.setGuardSamples();
 }
+
+void WavetableGenerator::generateMipmapsForFrame (WavetableData& table, int frameIndex)
+{
+    static constexpr int fftOrder = 11;
+    static constexpr int fftSize = 1 << fftOrder;
+
+    juce::dsp::FFT fft (fftOrder);
+    std::vector<float> fftBuffer (fftSize * 2, 0.0f);
+    std::vector<float> workBuffer (fftSize * 2, 0.0f);
+
+    // Copy level 0 frame data into FFT buffer
+    const float* srcFrame = table.getFrameData (0, frameIndex);
+    std::copy (srcFrame, srcFrame + fftSize, fftBuffer.begin());
+    std::fill (fftBuffer.begin() + fftSize, fftBuffer.end(), 0.0f);
+
+    fft.performRealOnlyForwardTransform (fftBuffer.data(), false);
+
+    for (int level = 0; level < WavetableData::kNumMipmapLevels; ++level)
+    {
+        int maxHarmonic = (fftSize / 2) >> level;
+
+        std::copy (fftBuffer.begin(), fftBuffer.end(), workBuffer.begin());
+
+        workBuffer[0] = 0.0f;
+        workBuffer[1] = 0.0f;
+
+        for (int bin = maxHarmonic + 1; bin <= fftSize / 2; ++bin)
+        {
+            workBuffer[bin * 2] = 0.0f;
+            workBuffer[bin * 2 + 1] = 0.0f;
+        }
+
+        for (int bin = 1; bin < fftSize / 2; ++bin)
+        {
+            if (bin > maxHarmonic)
+            {
+                int negBin = fftSize - bin;
+                if (negBin < fftSize)
+                {
+                    workBuffer[negBin * 2] = 0.0f;
+                    workBuffer[negBin * 2 + 1] = 0.0f;
+                }
+            }
+        }
+
+        fft.performRealOnlyInverseTransform (workBuffer.data());
+
+        float* destFrame = table.getFrameData (level, frameIndex);
+        std::copy (workBuffer.begin(), workBuffer.begin() + fftSize, destFrame);
+
+        // Set guard sample for this frame at this level
+        table.setSample (level, frameIndex, WavetableData::kTableSize,
+                         table.getSample (level, frameIndex, 0));
+    }
+}

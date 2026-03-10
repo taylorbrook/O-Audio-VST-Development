@@ -36,6 +36,8 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pOscAPos       = apvts->getRawParameterValue ("oscAPos");
     pOscALevel     = apvts->getRawParameterValue ("oscALevel");
     pOscAPan       = apvts->getRawParameterValue ("oscAPan");
+    pOscAWarpType  = apvts->getRawParameterValue ("oscAWarpType");
+    pOscAWarpAmt   = apvts->getRawParameterValue ("oscAWarpAmt");
 
     pOscBCoarse    = apvts->getRawParameterValue ("oscBCoarse");
     pOscBFine      = apvts->getRawParameterValue ("oscBFine");
@@ -45,6 +47,8 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pOscBPos       = apvts->getRawParameterValue ("oscBPos");
     pOscBLevel     = apvts->getRawParameterValue ("oscBLevel");
     pOscBPan       = apvts->getRawParameterValue ("oscBPan");
+    pOscBWarpType  = apvts->getRawParameterValue ("oscBWarpType");
+    pOscBWarpAmt   = apvts->getRawParameterValue ("oscBWarpAmt");
 
     pOscMix        = apvts->getRawParameterValue ("oscMix");
 
@@ -234,6 +238,10 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     noiseGen.setType (noiseType);
     noiseGen.reset();
 
+    // Reset FM cross-routing state
+    lastOscAOut = 0.0;
+    lastOscBOut = 0.0;
+
     // Reset filters for new note
     filterAL.reset();
     filterAR.reset();
@@ -292,6 +300,15 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float oscBLevel = pOscBLevel->load();
     float oscBPan = pOscBPan->load();
     float oscMix = pOscMix->load();
+
+    // Warp parameters
+    int warpTypeA = static_cast<int> (pOscAWarpType->load());
+    float warpAmtA = pOscAWarpAmt->load();
+    int warpTypeB = static_cast<int> (pOscBWarpType->load());
+    float warpAmtB = pOscBWarpAmt->load();
+
+    oscA.setWarpType (static_cast<WarpType> (warpTypeA));
+    oscB.setWarpType (static_cast<WarpType> (warpTypeB));
 
     float subLevel = pSubLevel->load();
     int subRouting = static_cast<int> (pSubRouting->load());
@@ -446,10 +463,26 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         oscA.setPosition (modulatedPosA);
         oscB.setPosition (modulatedPosB);
 
+        // Warp amounts with modulation (additive, clamped 0-1)
+        float modWarpA = juce::jlimit (0.0f, 1.0f,
+            warpAmtA + modMatrix.getModOffset (ModDest::OscAWarpAmt));
+        float modWarpB = juce::jlimit (0.0f, 1.0f,
+            warpAmtB + modMatrix.getModOffset (ModDest::OscBWarpAmt));
+        oscA.setWarpAmount (modWarpA);
+        oscB.setWarpAmount (modWarpB);
+
+        // FM cross-routing: each osc uses previous sample from the other
+        oscA.setFMInput (lastOscBOut);
+        oscB.setFMInput (lastOscAOut);
+
         // Oscillator stereo output
         double oscAL, oscAR, oscBL, oscBR;
         oscA.getNextSampleStereo (oscAL, oscAR);
         oscB.getNextSampleStereo (oscBL, oscBR);
+
+        // Store mono output for FM cross-routing on next sample
+        lastOscAOut = (oscAL + oscAR) * 0.5;
+        lastOscBOut = (oscBL + oscBR) * 0.5;
 
         // Osc pan with modulation (equal-power)
         float modPanA = juce::jlimit (-1.0f, 1.0f,

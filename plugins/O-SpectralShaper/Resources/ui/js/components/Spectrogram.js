@@ -72,9 +72,11 @@ export class Spectrogram {
 
         console.log('WebGL initialized:', this.gl instanceof WebGL2RenderingContext ? 'WebGL2' : 'WebGL1');
 
-        // Setup context loss handling
-        this.canvas.addEventListener('webglcontextlost', this.handleContextLost.bind(this), false);
-        this.canvas.addEventListener('webglcontextrestored', this.handleContextRestored.bind(this), false);
+        // Setup context loss handling (store bound references for cleanup in destroy())
+        this._boundHandleContextLost = this.handleContextLost.bind(this);
+        this._boundHandleContextRestored = this.handleContextRestored.bind(this);
+        this.canvas.addEventListener('webglcontextlost', this._boundHandleContextLost, false);
+        this.canvas.addEventListener('webglcontextrestored', this._boundHandleContextRestored, false);
 
         // Create shaders and program
         this.createShaderProgram();
@@ -414,8 +416,8 @@ export class Spectrogram {
             gl.deleteProgram(this.program);
         }
 
-        this.canvas.removeEventListener('webglcontextlost', this.handleContextLost);
-        this.canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
+        this.canvas.removeEventListener('webglcontextlost', this._boundHandleContextLost);
+        this.canvas.removeEventListener('webglcontextrestored', this._boundHandleContextRestored);
 
         this.isReady = false;
     }

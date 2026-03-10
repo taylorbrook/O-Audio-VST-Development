@@ -26,7 +26,8 @@ namespace PrismParamIds
     {
         juce::StringArray ids;
         for (const auto* s : { "Table", "Pos", "Level", "Pan", "Coarse",
-                                "Fine", "Phase", "Unison", "Detune", "Width" })
+                                "Fine", "Phase", "Unison", "Detune", "Width",
+                                "WarpType", "WarpAmt" })
             ids.add (prefix + s);
         return ids;
     }
@@ -79,8 +80,8 @@ namespace PrismParamIds
     inline juce::StringArray allSliderIds()
     {
         juce::StringArray all;
-        all.addArray (oscIds ("oscA"));                                           // 10
-        all.addArray (oscIds ("oscB"));                                           // 10
+        all.addArray (oscIds ("oscA"));                                           // 12
+        all.addArray (oscIds ("oscB"));                                           // 12
         all.addArray ({ "subShape", "subOctave", "subLevel",
                         "noiseType", "noiseLevel", "subRouting" });               //  6
         all.addArray ({ "ampAttack", "ampDecay", "ampSustain", "ampRelease" });   //  4

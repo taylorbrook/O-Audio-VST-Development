@@ -145,6 +145,62 @@ OSpectralShaperAudioProcessor::OSpectralShaperAudioProcessor()
         }
     );
 
+    // Helper to build customState var from curve arrays
+    auto makeCurveState = [](const std::array<float, 32>& attack,
+                             const std::array<float, 32>& sustain) -> juce::var
+    {
+        auto* obj = new juce::DynamicObject();
+        juce::Array<juce::var> attackArr, sustainArr;
+        for (int i = 0; i < 32; ++i)
+        {
+            attackArr.add(static_cast<double>(attack[i]));
+            sustainArr.add(static_cast<double>(sustain[i]));
+        }
+        obj->setProperty("attackCurve", juce::var(attackArr));
+        obj->setProperty("sustainCurve", juce::var(sustainArr));
+        return juce::var(obj);
+    };
+
+    // Curve definitions for factory presets
+    // 32 logarithmic bands @ 44.1kHz: band 0=20Hz, 6=68Hz, 9=126Hz, 11=189Hz,
+    // 12=232Hz, 15=428Hz, 18=789Hz, 22=1786Hz, 25=3293Hz, 26=4039Hz,
+    // 27=4954Hz, 28=6076Hz, 29=7452Hz, 30=9139Hz, 31=11210Hz..Nyquist
+
+    // Punch Enhancer: boost attack 60-200Hz, cut sustain 200-800Hz
+    std::array<float, 32> punchAtk {};
+    punchAtk[6] = 0.3f;  punchAtk[7] = 0.6f;  punchAtk[8] = 0.8f;
+    punchAtk[9] = 0.8f;  punchAtk[10] = 0.6f;  punchAtk[11] = 0.3f;
+    std::array<float, 32> punchSus {};
+    punchSus[12] = -0.3f;  punchSus[13] = -0.5f;  punchSus[14] = -0.6f;
+    punchSus[15] = -0.7f;  punchSus[16] = -0.6f;  punchSus[17] = -0.5f;
+    punchSus[18] = -0.3f;
+
+    // Transient Tamer: cut attack in upper-mids (2-8kHz)
+    std::array<float, 32> tamerAtk {};
+    tamerAtk[22] = -0.2f;  tamerAtk[23] = -0.5f;  tamerAtk[24] = -0.7f;
+    tamerAtk[25] = -0.8f;  tamerAtk[26] = -0.8f;  tamerAtk[27] = -0.6f;
+    tamerAtk[28] = -0.4f;  tamerAtk[29] = -0.2f;
+    std::array<float, 32> tamerSus {};
+
+    // De-Esser: target 4-8kHz sustain reduction
+    std::array<float, 32> deessAtk {};
+    std::array<float, 32> deessSus {};
+    deessSus[25] = -0.2f;  deessSus[26] = -0.6f;  deessSus[27] = -0.8f;
+    deessSus[28] = -0.8f;  deessSus[29] = -0.5f;  deessSus[30] = -0.2f;
+
+    // Cymbal Control: cut attack 6-16kHz
+    std::array<float, 32> cymbAtk {};
+    cymbAtk[27] = -0.2f;  cymbAtk[28] = -0.6f;  cymbAtk[29] = -0.8f;
+    cymbAtk[30] = -0.8f;  cymbAtk[31] = -0.7f;
+    std::array<float, 32> cymbSus {};
+
+    // Warm Sustain: boost sustain 200-800Hz
+    std::array<float, 32> warmAtk {};
+    std::array<float, 32> warmSus {};
+    warmSus[12] = 0.3f;  warmSus[13] = 0.5f;  warmSus[14] = 0.7f;
+    warmSus[15] = 0.7f;  warmSus[16] = 0.6f;  warmSus[17] = 0.4f;
+    warmSus[18] = 0.2f;
+
     // Initialize factory presets
     std::vector<OuariconPresetManager::FactoryPresetDef> factoryPresets = {
         {
@@ -155,18 +211,39 @@ OSpectralShaperAudioProcessor::OSpectralShaperAudioProcessor()
             juce::var()
         },
         {
-            "Transient Tamer",
-            {{"MIX", 0.75f}, {"ATTACK_TIME", 0.05f}, {"SUSTAIN_TIME", 0.10f},
-             {"SENSITIVITY", 0.7f}, {"LOOKAHEAD_ENABLED", 1.0f},
-             {"LOOKAHEAD_TIME", 0.30f}, {"OUTPUT_GAIN", 0.5f}},
-            juce::var()
-        },
-        {
             "Punch Enhancer",
             {{"MIX", 0.85f}, {"ATTACK_TIME", 0.30f}, {"SUSTAIN_TIME", 0.05f},
              {"SENSITIVITY", 0.6f}, {"LOOKAHEAD_ENABLED", 0.0f},
              {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.54f}},
-            juce::var()
+            makeCurveState(punchAtk, punchSus)
+        },
+        {
+            "Transient Tamer",
+            {{"MIX", 0.75f}, {"ATTACK_TIME", 0.05f}, {"SUSTAIN_TIME", 0.10f},
+             {"SENSITIVITY", 0.7f}, {"LOOKAHEAD_ENABLED", 1.0f},
+             {"LOOKAHEAD_TIME", 0.30f}, {"OUTPUT_GAIN", 0.5f}},
+            makeCurveState(tamerAtk, tamerSus)
+        },
+        {
+            "De-Esser",
+            {{"MIX", 0.80f}, {"ATTACK_TIME", 0.25f}, {"SUSTAIN_TIME", 0.20f},
+             {"SENSITIVITY", 0.60f}, {"LOOKAHEAD_ENABLED", 0.0f},
+             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.5f}},
+            makeCurveState(deessAtk, deessSus)
+        },
+        {
+            "Cymbal Control",
+            {{"MIX", 0.75f}, {"ATTACK_TIME", 0.08f}, {"SUSTAIN_TIME", 0.08f},
+             {"SENSITIVITY", 0.70f}, {"LOOKAHEAD_ENABLED", 1.0f},
+             {"LOOKAHEAD_TIME", 0.40f}, {"OUTPUT_GAIN", 0.5f}},
+            makeCurveState(cymbAtk, cymbSus)
+        },
+        {
+            "Warm Sustain",
+            {{"MIX", 0.65f}, {"ATTACK_TIME", 0.30f}, {"SUSTAIN_TIME", 0.45f},
+             {"SENSITIVITY", 0.40f}, {"LOOKAHEAD_ENABLED", 0.0f},
+             {"LOOKAHEAD_TIME", 0.192f}, {"OUTPUT_GAIN", 0.52f}},
+            makeCurveState(warmAtk, warmSus)
         },
         {
             "Gentle Shaping",

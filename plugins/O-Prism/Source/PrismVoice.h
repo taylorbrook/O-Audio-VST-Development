@@ -66,6 +66,9 @@ private:
     std::atomic<float>* pOscAPos = nullptr;
     std::atomic<float>* pOscALevel = nullptr;
     std::atomic<float>* pOscAPan = nullptr;
+    // Osc A warp
+    std::atomic<float>* pOscAWarpType = nullptr;
+    std::atomic<float>* pOscAWarpAmt = nullptr;
     // Osc B
     std::atomic<float>* pOscBCoarse = nullptr;
     std::atomic<float>* pOscBFine = nullptr;
@@ -75,6 +78,9 @@ private:
     std::atomic<float>* pOscBPos = nullptr;
     std::atomic<float>* pOscBLevel = nullptr;
     std::atomic<float>* pOscBPan = nullptr;
+    // Osc B warp
+    std::atomic<float>* pOscBWarpType = nullptr;
+    std::atomic<float>* pOscBWarpAmt = nullptr;
     // Osc mix
     std::atomic<float>* pOscMix = nullptr;
     // Sub & Noise
@@ -137,6 +143,8 @@ private:
     // Oscillators
     WavetableOscillator oscA;
     WavetableOscillator oscB;
+    double lastOscAOut = 0.0;
+    double lastOscBOut = 0.0;
 
     // Sub & Noise
     SubOscillator subOsc;

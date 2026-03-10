@@ -12,6 +12,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "dsp/ModulationMatrix.h"
+#include "dsp/WavetableOscillator.h"
 
 // ═══════════════════════════════════════════════════════════════════
 // Parameter Helper Functions
@@ -51,6 +52,12 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createOscParamet
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { prefix + "Width", 1 }, label + " Width",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.5f));
+    params.push_back (std::make_unique<juce::AudioParameterChoice> (
+        juce::ParameterID { prefix + "WarpType", 1 }, label + " Warp Type",
+        juce::StringArray { "Off", "Sync", "Bend", "FM", "Window" }, 0));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { prefix + "WarpAmt", 1 }, label + " Warp Amount",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
 
     return params;
 }
@@ -775,6 +782,69 @@ bool OPrismAudioProcessor::isUserTableActive (int oscIndex) const
     return oscIndex == 0
         ? userTablePtrA.load (std::memory_order_relaxed) != nullptr
         : userTablePtrB.load (std::memory_order_relaxed) != nullptr;
+}
+
+// ═══════════════════════════════════════════════════════════════════
+// Wavetable Editor
+// ═══════════════════════════════════════════════════════════════════
+
+void OPrismAudioProcessor::startEditing (int oscIndex)
+{
+    // Stop any existing editing session
+    if (editingOscIndex >= 0)
+        stopEditing (editingOscIndex);
+
+    const WavetableData* sourceTable = getActiveOscTable (oscIndex);
+    if (sourceTable == nullptr)
+        return;
+
+    wavetableEditor.loadTable (sourceTable);
+    editingOscIndex = oscIndex;
+
+    // Point the oscillator at the working copy for live preview
+    auto* workingTable = wavetableEditor.getWorkingTable();
+    if (workingTable != nullptr)
+    {
+        if (oscIndex == 0)
+            userTablePtrA.store (workingTable, std::memory_order_relaxed);
+        else
+            userTablePtrB.store (workingTable, std::memory_order_relaxed);
+    }
+}
+
+void OPrismAudioProcessor::stopEditing (int oscIndex)
+{
+    if (editingOscIndex != oscIndex)
+        return;
+
+    // Revert oscillator to its original source
+    if (oscIndex == 0)
+    {
+        if (userTableNameA.isNotEmpty())
+        {
+            auto* userTable = userWavetableManager.getTable (userTableNameA);
+            userTablePtrA.store (userTable, std::memory_order_relaxed);
+        }
+        else
+        {
+            userTablePtrA.store (nullptr, std::memory_order_relaxed);
+        }
+    }
+    else
+    {
+        if (userTableNameB.isNotEmpty())
+        {
+            auto* userTable = userWavetableManager.getTable (userTableNameB);
+            userTablePtrB.store (userTable, std::memory_order_relaxed);
+        }
+        else
+        {
+            userTablePtrB.store (nullptr, std::memory_order_relaxed);
+        }
+    }
+
+    wavetableEditor.clearWorkingTable();
+    editingOscIndex = -1;
 }
 
 // ═══════════════════════════════════════════════════════════════════
