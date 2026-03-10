@@ -38,7 +38,7 @@ Ouaricon Plugins:
 | O-Lyrica | 📦 Installed | 2.0.2 | Synth (Physical Modeling Harp) | 2026-03-06 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
-| O-IntonationPad | 📦 Installed | 2.6.0 | Synth (Wavetable Pad) | 2026-03-09 |
+| O-IntonationPad | 📦 Installed | 2.7.1 | Synth (Wavetable Pad) | 2026-03-09 |
 | O-Detune | 📦 Installed | 1.5.2 | Audio Effect (Detuning) | 2026-02-18 |
 | O-Freeze | 📦 Installed 🐛 Has Issues | 1.2.2 | Audio Effect (Granular Freeze) | 2026-02-03 |
 | O-FreqPulse | 📦 Installed | 1.16.2 | Audio Effect (Spectral Sequencer) | 2026-03-06 |
@@ -48,7 +48,7 @@ Ouaricon Plugins:
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
-| O-Prism | 📦 Installed | 1.9.0 | Synth (Microtonal Wavetable) | 2026-03-08 |
+| O-Prism | 📦 Installed | 1.11.0 | Synth (Microtonal Wavetable) | 2026-03-09 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**

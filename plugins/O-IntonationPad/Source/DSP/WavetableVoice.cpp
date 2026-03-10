@@ -561,7 +561,7 @@ void WavetableVoice::setEnvelopeParameters(float attack, float decay, float sust
 }
 
 void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
-                                                const std::vector<int>& enabledDegrees, int scaleDegreeCount,
+                                                const int* enabledDegrees, size_t enabledDegreesCount, int scaleDegreeCount,
                                                 float spacing, float inversion,
                                                 float detuneRandom, float timingRandom,
                                                 int voicingMode,
@@ -571,7 +571,7 @@ void WavetableVoice::setChordGenerationParams(int voiceCount, float complexity, 
     cachedVoiceCount = voiceCount;
     cachedComplexity = complexity;
     cachedKeyRoot = keyRoot;
-    cachedEnabledDegrees = enabledDegrees;  // copy by value — safe from snapshot mutation
+    cachedEnabledDegrees.assign(enabledDegrees, enabledDegrees + enabledDegreesCount);
     cachedScaleDegreeCount = scaleDegreeCount;
     cachedSpacing = spacing;
     cachedInversion = inversion;

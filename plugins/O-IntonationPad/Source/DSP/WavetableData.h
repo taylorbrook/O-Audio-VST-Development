@@ -484,6 +484,13 @@ namespace WavetableData
     class BankCache
     {
     public:
+        // Pre-warm all banks in the calling thread (call from background thread)
+        static void preWarmAll()
+        {
+            for (int i = 0; i < NUM_BANKS; ++i)
+                getBank(i);
+        }
+
         static const MipmapTable& getBank(int bankIndex)
         {
             auto& instance = getInstance();

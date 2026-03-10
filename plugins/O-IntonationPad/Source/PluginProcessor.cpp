@@ -11,6 +11,7 @@
 #include "PluginProcessor.h"
 #include "PluginEditor.h"
 #include "DSP/WavetableSound.h"
+#include <array>
 
 juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor::createParameterLayout()
 {
@@ -355,6 +356,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OIntonationPadAudioProcessor
 OIntonationPadAudioProcessor::OIntonationPadAudioProcessor()
     : AudioProcessor(BusesProperties()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
+    , presetManager(*this)
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
     // Initialize synthesiser with 8 voices (Phase 2.1: single oscillator per voice)
@@ -591,8 +593,9 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
     // v2.0.3: Read interval snapshot from double-buffer (lock-free, no shared_ptr)
     const auto& snap = intervalSnapshots_[activeSnapshotIndex_.load(std::memory_order_acquire)];
-    static const std::vector<int> defaultDegrees { 0 };
-    const auto& currentEnabledDegrees = snap.enabledDegrees.empty() ? defaultDegrees : snap.enabledDegrees;
+    static constexpr std::array<int, 1> defaultDegrees { 0 };
+    const int* currentDegreesPtr = snap.enabledDegrees.empty() ? defaultDegrees.data() : snap.enabledDegrees.data();
+    size_t currentDegreesCount = snap.enabledDegrees.empty() ? defaultDegrees.size() : snap.enabledDegrees.size();
     int currentScaleDegreeCount = snap.scaleDegreeCount > 0 ? snap.scaleDegreeCount : 12;
 
     // v2.2.0: Scan MIDI for most-recent note-on velocity (before synth renders)
@@ -619,7 +622,7 @@ void OIntonationPadAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer
 
             // Store chord generation parameters for voices to use on note-on
             voice->setChordGenerationParams(voiceCount, complexity, keyRoot,
-                                            currentEnabledDegrees, currentScaleDegreeCount,
+                                            currentDegreesPtr, currentDegreesCount, currentScaleDegreeCount,
                                             spacing, inversion, detuneRandom, timingRandom,
                                             voicingMode,
                                             &chordGenerator, &tuningEngine, &randomGenerator);

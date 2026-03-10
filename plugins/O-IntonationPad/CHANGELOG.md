@@ -1,5 +1,30 @@
 # O-IntonationPad Changelog
 
+## [2.7.1] - 2026-03-09
+
+### Fixed
+- CMakeLists.txt `PLUGIN_VERSION` synced to 2.7.0 (was stale at 2.4.7)
+- `PresetManager::getUserPresetFolder()` now uses platform-conditional paths (macOS: `~/Library/Audio/Presets/`, Windows/Linux: `userApplicationDataDirectory`)
+- Replaced `static const std::vector<int>` in `processBlock` with `constexpr std::array` and pointer-based interface to eliminate heap allocation
+
+## [2.7.0] - 2026-03-09
+
+### Added
+- **Preset system** with save/load/browse/rename/delete functionality
+  - User presets stored as XML in `~/Library/Audio/Presets/Ouaricon/O-IntonationPad/`
+  - Preset browser overlay with category filtering (Ambient, Cinematic, Classic Pads, Drones, Experimental)
+  - Prev/Next navigation buttons for quick preset browsing
+  - Save dialog with name input and category selection
+  - Rename and delete support for user presets (factory presets are read-only)
+- **12 factory presets** demonstrating the plugin's range:
+  - **Classic Pads:** Init, Pythagorean Fifths, Glass Bells, Warm Analog
+  - **Ambient:** Deep Space, Crystal Cave
+  - **Cinematic:** Film Score, Cinematic Tension
+  - **Drones:** Ancient Drone, Sacred Geometry
+  - **Experimental:** Microtonal Explorer, Whisper Texture
+- `PresetManager` class handling all preset I/O via native functions
+- 9 new native functions: `getPresetList`, `getPresetCategories`, `loadPreset`, `savePreset`, `deletePreset`, `renamePreset`, `loadNextPreset`, `loadPrevPreset`, `getCurrentPresetName`
+
 ## [2.6.0] - 2026-03-09
 
 ### Added

@@ -63,7 +63,7 @@ public:
     void setGainB(float gain);
     void setEnvelopeParameters(float attack, float decay, float sustain, float release);
     void setChordGenerationParams(int voiceCount, float complexity, int keyRoot,
-                                   const std::vector<int>& enabledDegrees, int scaleDegreeCount,
+                                   const int* enabledDegrees, size_t enabledDegreesCount, int scaleDegreeCount,
                                    float spacing, float inversion,
                                    float detuneRandom, float timingRandom,
                                    int voicingMode,

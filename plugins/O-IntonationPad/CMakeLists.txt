@@ -6,7 +6,7 @@ juce_add_plugin(O-IntonationPad
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OuIP
-    PLUGIN_VERSION "2.4.7"
+    PLUGIN_VERSION "2.7.1"
     FORMATS VST3 AU Standalone
     PRODUCT_NAME "O-IntonationPad${OUARICON_DEV_SUFFIX}"
     IS_SYNTH TRUE
@@ -20,6 +20,7 @@ target_sources(O-IntonationPad
     PRIVATE
         Source/PluginProcessor.cpp
         Source/PluginEditor.cpp
+        Source/PresetManager.cpp
         Source/DSP/WavetableVoice.cpp
         Source/DSP/ChordGenerator.cpp
         Source/DSP/TuningEngine.cpp

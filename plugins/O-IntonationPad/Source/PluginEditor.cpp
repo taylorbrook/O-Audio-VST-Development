@@ -537,6 +537,95 @@ juce::WebBrowserComponent::Options OIntonationPadAudioProcessorEditor::buildWebV
             }
 
             complete(true);
+        })
+
+        // --- v2.7.0: Preset System ---
+        .withNativeFunction("getPresetList", [this](const juce::Array<juce::var>&, auto complete) {
+            auto presets = processorRef.getPresetManager().getAllPresets();
+            JsonHelper::JsonArrayBuilder arr;
+            for (const auto& p : presets)
+            {
+                arr.add(JsonHelper::JsonObjectBuilder{}
+                    .add("name", p.name)
+                    .add("category", p.category)
+                    .add("isFactory", p.isFactory ? 1 : 0));
+            }
+            complete(arr.build());
+        })
+
+        .withNativeFunction("getPresetCategories", [this](const juce::Array<juce::var>&, auto complete) {
+            auto cats = processorRef.getPresetManager().getCategories();
+            JsonHelper::JsonArrayBuilder arr;
+            for (const auto& c : cats)
+                arr.add(JsonHelper::JsonObjectBuilder{}.add("name", c));
+            complete(arr.build());
+        })
+
+        .withNativeFunction("loadPreset", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                juce::String name = args[0].toString();
+                bool isFactory = static_cast<int>(args[1]) != 0;
+                bool success = processorRef.getPresetManager().loadPreset(name, isFactory);
+                complete(success);
+                return;
+            }
+            complete(false);
+        })
+
+        .withNativeFunction("savePreset", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                juce::String name = args[0].toString();
+                juce::String category = args[1].toString();
+                bool success = processorRef.getPresetManager().savePreset(name, category);
+                complete(success);
+                return;
+            }
+            complete(false);
+        })
+
+        .withNativeFunction("deletePreset", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 1)
+            {
+                juce::String name = args[0].toString();
+                bool success = processorRef.getPresetManager().deletePreset(name);
+                complete(success);
+                return;
+            }
+            complete(false);
+        })
+
+        .withNativeFunction("renamePreset", [this](const juce::Array<juce::var>& args, auto complete) {
+            if (args.size() >= 2)
+            {
+                juce::String oldName = args[0].toString();
+                juce::String newName = args[1].toString();
+                bool success = processorRef.getPresetManager().renamePreset(oldName, newName);
+                complete(success);
+                return;
+            }
+            complete(false);
+        })
+
+        .withNativeFunction("loadNextPreset", [this](const juce::Array<juce::var>&, auto complete) {
+            bool success = processorRef.getPresetManager().loadNextPreset();
+            if (success)
+                complete(processorRef.getPresetManager().getCurrentPresetName());
+            else
+                complete(juce::var());
+        })
+
+        .withNativeFunction("loadPrevPreset", [this](const juce::Array<juce::var>&, auto complete) {
+            bool success = processorRef.getPresetManager().loadPrevPreset();
+            if (success)
+                complete(processorRef.getPresetManager().getCurrentPresetName());
+            else
+                complete(juce::var());
+        })
+
+        .withNativeFunction("getCurrentPresetName", [this](const juce::Array<juce::var>&, auto complete) {
+            complete(processorRef.getPresetManager().getCurrentPresetName());
         });
 }
 

@@ -17,6 +17,7 @@
 #include "DSP/DelayProcessor.h"
 #include "DSP/EQProcessor.h"
 #include "DSP/ReverbProcessor.h"
+#include "PresetManager.h"
 #if OUARICON_LICENSING_ENABLED
   #include "OuariconLicense.h"
 #endif
@@ -70,6 +71,9 @@ public:
     // Tuning engine access
     TuningEngine& getTuningEngine() { return tuningEngine; }
 
+    // v2.7.0: Preset manager access
+    PresetManager& getPresetManager() { return presetManager; }
+
     // APVTS listener
     void parameterChanged(const juce::String& parameterID, float newValue) override;
 
@@ -93,6 +97,9 @@ public:
 #endif
 
 private:
+    // v2.7.0: Preset manager (declare early — no DSP dependency)
+    PresetManager presetManager;
+
     // DSP Components (declare BEFORE parameters for initialization order)
     juce::Synthesiser synthesiser;
     ChordGenerator chordGenerator;

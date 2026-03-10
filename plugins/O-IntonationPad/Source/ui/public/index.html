@@ -71,12 +71,13 @@
         }
 
         .title {
-            font-size: 22px;
+            font-size: 17px;
             color: #3C2F2F;
             letter-spacing: 3px;
             font-weight: normal;
             text-transform: uppercase;
             text-shadow: 1px 1px 2px rgba(255,255,255,0.5);
+            white-space: nowrap;
         }
 
         /* Tab Navigation */
@@ -746,6 +747,365 @@
             outline: 1px dashed rgba(107, 142, 35, 0.5);
             outline-offset: 2px;
         }
+
+        /* ═══ v2.7.0: Preset Browser ═══ */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 6px;
+            padding: 4px 8px;
+            background: rgba(92, 64, 51, 0.15);
+            border: 1px solid rgba(92, 64, 51, 0.3);
+            border-radius: 4px;
+            height: 28px;
+            flex-shrink: 0;
+        }
+
+        .preset-nav-btn {
+            width: 20px;
+            height: 20px;
+            border: 1px solid rgba(92, 64, 51, 0.4);
+            border-radius: 3px;
+            background: rgba(139, 168, 112, 0.2);
+            color: #3C2F2F;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .preset-nav-btn:hover {
+            background: rgba(139, 168, 112, 0.4);
+        }
+
+        .preset-name-display {
+            flex: 1;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            color: #3C2F2F;
+            text-align: center;
+            cursor: pointer;
+            padding: 2px 8px;
+            border-radius: 3px;
+            transition: background 0.15s;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preset-name-display:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        .preset-save-btn {
+            padding: 2px 8px;
+            border: 1px solid rgba(92, 64, 51, 0.4);
+            border-radius: 3px;
+            background: rgba(139, 168, 112, 0.2);
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            color: #3C2F2F;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.15s;
+            flex-shrink: 0;
+        }
+
+        .preset-save-btn:hover {
+            background: rgba(139, 168, 112, 0.4);
+        }
+
+        /* Preset Browser Overlay */
+        .preset-browser-overlay {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(42, 36, 30, 0.95);
+            z-index: 200;
+            flex-direction: column;
+            padding: 15px;
+        }
+
+        .preset-browser-overlay.open {
+            display: flex;
+        }
+
+        .preset-browser-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .preset-browser-title {
+            font-family: 'Garamond', serif;
+            font-size: 16px;
+            color: #d4c9b0;
+            letter-spacing: 2px;
+            text-transform: uppercase;
+        }
+
+        .preset-browser-close {
+            width: 24px;
+            height: 24px;
+            border: 1px solid rgba(212, 201, 176, 0.3);
+            border-radius: 50%;
+            background: none;
+            color: #d4c9b0;
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preset-browser-close:hover {
+            background: rgba(212, 201, 176, 0.1);
+        }
+
+        .preset-categories {
+            display: flex;
+            gap: 6px;
+            margin-bottom: 10px;
+            flex-wrap: wrap;
+        }
+
+        .preset-category-btn {
+            padding: 4px 10px;
+            border: 1px solid rgba(139, 168, 112, 0.3);
+            border-radius: 12px;
+            background: none;
+            font-family: 'Garamond', serif;
+            font-size: 10px;
+            color: #d4c9b0;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            transition: all 0.15s;
+        }
+
+        .preset-category-btn:hover {
+            background: rgba(139, 168, 112, 0.2);
+        }
+
+        .preset-category-btn.active {
+            background: rgba(107, 142, 35, 0.5);
+            color: #e8e0d0;
+            border-color: rgba(107, 142, 35, 0.6);
+        }
+
+        .preset-list {
+            flex: 1;
+            overflow-y: auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 4px;
+            align-content: start;
+        }
+
+        .preset-list::-webkit-scrollbar { width: 5px; }
+        .preset-list::-webkit-scrollbar-track { background: transparent; }
+        .preset-list::-webkit-scrollbar-thumb {
+            background: rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+        }
+
+        .preset-item {
+            display: flex;
+            align-items: center;
+            padding: 6px 10px;
+            border: 1px solid rgba(92, 64, 51, 0.2);
+            border-radius: 4px;
+            cursor: pointer;
+            transition: all 0.15s;
+            gap: 6px;
+        }
+
+        .preset-item:hover {
+            background: rgba(139, 168, 112, 0.15);
+            border-color: rgba(139, 168, 112, 0.3);
+        }
+
+        .preset-item.active {
+            background: rgba(107, 142, 35, 0.25);
+            border-color: rgba(107, 142, 35, 0.5);
+        }
+
+        .preset-item-name {
+            flex: 1;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            color: #d4c9b0;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .preset-item-category {
+            font-family: -apple-system, sans-serif;
+            font-size: 8px;
+            color: rgba(212, 201, 176, 0.5);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            flex-shrink: 0;
+        }
+
+        .preset-item-factory {
+            font-size: 8px;
+            color: rgba(139, 168, 112, 0.6);
+            flex-shrink: 0;
+        }
+
+        .preset-item-actions {
+            display: flex;
+            gap: 4px;
+            flex-shrink: 0;
+            opacity: 0;
+            transition: opacity 0.15s;
+        }
+
+        .preset-item:hover .preset-item-actions {
+            opacity: 1;
+        }
+
+        .preset-item-action-btn {
+            width: 18px;
+            height: 18px;
+            border: 1px solid rgba(212, 201, 176, 0.2);
+            border-radius: 3px;
+            background: none;
+            color: rgba(212, 201, 176, 0.5);
+            font-size: 10px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .preset-item-action-btn:hover {
+            background: rgba(212, 201, 176, 0.1);
+            color: #d4c9b0;
+        }
+
+        .preset-item-action-btn.delete:hover {
+            background: rgba(180, 60, 60, 0.2);
+            color: #c44;
+        }
+
+        /* Save Dialog */
+        .preset-save-dialog {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(52, 44, 36, 0.98);
+            border: 2px solid #5C4033;
+            border-radius: 8px;
+            padding: 20px;
+            z-index: 300;
+            width: 300px;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        }
+
+        .preset-save-dialog.open {
+            display: block;
+        }
+
+        .preset-save-dialog-title {
+            font-family: 'Garamond', serif;
+            font-size: 14px;
+            color: #d4c9b0;
+            letter-spacing: 1px;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+
+        .preset-save-input {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid rgba(92, 64, 51, 0.5);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            color: #d4c9b0;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            margin-bottom: 10px;
+            outline: none;
+        }
+
+        .preset-save-input:focus {
+            border-color: rgba(139, 168, 112, 0.5);
+        }
+
+        .preset-save-category-select {
+            width: 100%;
+            padding: 6px 8px;
+            border: 1px solid rgba(92, 64, 51, 0.5);
+            border-radius: 4px;
+            background: rgba(0, 0, 0, 0.2);
+            color: #d4c9b0;
+            font-family: 'Garamond', serif;
+            font-size: 12px;
+            margin-bottom: 12px;
+            outline: none;
+        }
+
+        .preset-save-btns {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-end;
+        }
+
+        .preset-save-btns button {
+            padding: 5px 14px;
+            border: 1px solid rgba(92, 64, 51, 0.5);
+            border-radius: 4px;
+            font-family: 'Garamond', serif;
+            font-size: 11px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .preset-save-cancel {
+            background: none;
+            color: #d4c9b0;
+        }
+
+        .preset-save-confirm {
+            background: rgba(107, 142, 35, 0.5);
+            color: #e8e0d0;
+            border-color: rgba(107, 142, 35, 0.6) !important;
+        }
+
+        .preset-save-confirm:hover {
+            background: rgba(107, 142, 35, 0.7);
+        }
+
+        /* Dim backdrop when save dialog is open */
+        .preset-save-backdrop {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 250;
+        }
+
+        .preset-save-backdrop.open {
+            display: block;
+        }
     </style>
 </head>
 <body>
@@ -782,6 +1142,42 @@
                 </div>
             </div>
             <div class="tooltip-popup" id="tooltipPopup"></div>
+
+            <!-- v2.7.0: Preset Bar -->
+            <div class="preset-bar">
+                <button class="preset-nav-btn" id="presetPrevBtn" title="Previous preset">&#x25C0;</button>
+                <div class="preset-name-display" id="presetNameDisplay" title="Click to browse presets">Init</div>
+                <button class="preset-nav-btn" id="presetNextBtn" title="Next preset">&#x25B6;</button>
+                <button class="preset-save-btn" id="presetSaveBtn" title="Save current settings as preset">Save</button>
+            </div>
+
+            <!-- Preset Browser Overlay -->
+            <div class="preset-browser-overlay" id="presetBrowser">
+                <div class="preset-browser-header">
+                    <span class="preset-browser-title">Preset Browser</span>
+                    <button class="preset-browser-close" id="presetBrowserClose">&times;</button>
+                </div>
+                <div class="preset-categories" id="presetCategories"></div>
+                <div class="preset-list" id="presetList"></div>
+            </div>
+
+            <!-- Save Dialog -->
+            <div class="preset-save-backdrop" id="presetSaveBackdrop"></div>
+            <div class="preset-save-dialog" id="presetSaveDialog">
+                <div class="preset-save-dialog-title">Save Preset</div>
+                <input class="preset-save-input" id="presetSaveNameInput" type="text" placeholder="Preset name..." maxlength="64">
+                <select class="preset-save-category-select" id="presetSaveCategorySelect">
+                    <option value="Ambient">Ambient</option>
+                    <option value="Cinematic">Cinematic</option>
+                    <option value="Classic Pads">Classic Pads</option>
+                    <option value="Drones">Drones</option>
+                    <option value="Experimental">Experimental</option>
+                </select>
+                <div class="preset-save-btns">
+                    <button class="preset-save-cancel" id="presetSaveCancelBtn">Cancel</button>
+                    <button class="preset-save-confirm" id="presetSaveConfirmBtn">Save</button>
+                </div>
+            </div>
 
             <div class="main-section">
                 <!-- Voice Tab -->
@@ -854,7 +1250,7 @@
                 </div>
 
                 <!-- Synth Tab -->
-                <div class="tab-content" id="synth-tab" style="gap: 6px;">
+                <div class="tab-content scrollable-tab" id="synth-tab" style="gap: 6px;">
                     <div class="knob-row" id="oscA-row" style="align-items: flex-end; gap: 12px;"></div>
                     <div class="section-divider" style="margin: 2px 0;"></div>
                     <div class="knob-row" id="oscB-row" style="align-items: flex-end; gap: 12px;"></div>
@@ -1431,6 +1827,9 @@
             // Setup tab switching
             setupTabs();
 
+            // v2.7.0: Setup preset system
+            setupPresetSystem();
+
             // Setup all knobs
             setupKnob('voiceCount', voiceCountState, 2, 12, '', v => Math.round(v));
             setupKnob('complexity', complexityState, 0, 100, '%', v => Math.round(v));
@@ -1571,6 +1970,218 @@
                     document.getElementById(`${targetTab}-tab`).classList.add('active');
                 });
             });
+        }
+
+        // ═══ v2.7.0: Preset System ═══
+        function setupPresetSystem() {
+            const nameDisplay = document.getElementById('presetNameDisplay');
+            const prevBtn = document.getElementById('presetPrevBtn');
+            const nextBtn = document.getElementById('presetNextBtn');
+            const saveBtn = document.getElementById('presetSaveBtn');
+            const browser = document.getElementById('presetBrowser');
+            const browserClose = document.getElementById('presetBrowserClose');
+            const categoriesEl = document.getElementById('presetCategories');
+            const listEl = document.getElementById('presetList');
+            const saveDialog = document.getElementById('presetSaveDialog');
+            const saveBackdrop = document.getElementById('presetSaveBackdrop');
+            const saveNameInput = document.getElementById('presetSaveNameInput');
+            const saveCategorySelect = document.getElementById('presetSaveCategorySelect');
+            const saveCancelBtn = document.getElementById('presetSaveCancelBtn');
+            const saveConfirmBtn = document.getElementById('presetSaveConfirmBtn');
+
+            let allPresets = [];
+            let activeCategory = 'All';
+
+            // Load initial preset name
+            (async () => {
+                try {
+                    const name = await Juce.getNativeFunction('getCurrentPresetName')();
+                    if (name) nameDisplay.textContent = name;
+                } catch (e) { console.warn('[Presets] Could not get current name:', e); }
+            })();
+
+            // Navigation
+            prevBtn.addEventListener('click', async () => {
+                try {
+                    const name = await Juce.getNativeFunction('loadPrevPreset')();
+                    if (name) nameDisplay.textContent = name;
+                } catch (e) { console.error('[Presets] Prev failed:', e); }
+            });
+
+            nextBtn.addEventListener('click', async () => {
+                try {
+                    const name = await Juce.getNativeFunction('loadNextPreset')();
+                    if (name) nameDisplay.textContent = name;
+                } catch (e) { console.error('[Presets] Next failed:', e); }
+            });
+
+            // Open browser
+            nameDisplay.addEventListener('click', async () => {
+                await refreshBrowser();
+                browser.classList.add('open');
+            });
+
+            // Close browser
+            browserClose.addEventListener('click', () => {
+                browser.classList.remove('open');
+            });
+
+            // Save button → open dialog
+            saveBtn.addEventListener('click', () => {
+                saveNameInput.value = nameDisplay.textContent || '';
+                saveBackdrop.classList.add('open');
+                saveDialog.classList.add('open');
+                saveNameInput.focus();
+                saveNameInput.select();
+            });
+
+            // Save dialog cancel
+            saveCancelBtn.addEventListener('click', closeSaveDialog);
+            saveBackdrop.addEventListener('click', closeSaveDialog);
+
+            function closeSaveDialog() {
+                saveDialog.classList.remove('open');
+                saveBackdrop.classList.remove('open');
+            }
+
+            // Save dialog confirm
+            saveConfirmBtn.addEventListener('click', async () => {
+                const name = saveNameInput.value.trim();
+                const category = saveCategorySelect.value;
+                if (!name) return;
+
+                try {
+                    const success = await Juce.getNativeFunction('savePreset')(name, category);
+                    if (success) {
+                        nameDisplay.textContent = name;
+                        closeSaveDialog();
+                    }
+                } catch (e) { console.error('[Presets] Save failed:', e); }
+            });
+
+            // Enter key in save dialog
+            saveNameInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') saveConfirmBtn.click();
+                if (e.key === 'Escape') closeSaveDialog();
+            });
+
+            // Refresh browser data
+            async function refreshBrowser() {
+                try {
+                    const raw = await Juce.getNativeFunction('getPresetList')();
+                    allPresets = typeof raw === 'string' ? JSON.parse(raw) : raw;
+                } catch (e) {
+                    console.error('[Presets] Failed to load list:', e);
+                    allPresets = [];
+                }
+                renderCategories();
+                renderList();
+            }
+
+            // Render category buttons
+            function renderCategories() {
+                const cats = ['All', 'Ambient', 'Cinematic', 'Classic Pads', 'Drones', 'Experimental'];
+                categoriesEl.innerHTML = '';
+                for (const cat of cats) {
+                    const btn = document.createElement('button');
+                    btn.className = 'preset-category-btn' + (cat === activeCategory ? ' active' : '');
+                    btn.textContent = cat;
+                    btn.addEventListener('click', () => {
+                        activeCategory = cat;
+                        categoriesEl.querySelectorAll('.preset-category-btn').forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                        renderList();
+                    });
+                    categoriesEl.appendChild(btn);
+                }
+            }
+
+            // Render preset list
+            function renderList() {
+                listEl.innerHTML = '';
+                const currentName = nameDisplay.textContent;
+                const filtered = activeCategory === 'All'
+                    ? allPresets
+                    : allPresets.filter(p => p.category === activeCategory);
+
+                for (const preset of filtered) {
+                    const item = document.createElement('div');
+                    item.className = 'preset-item' + (preset.name === currentName ? ' active' : '');
+
+                    const nameSpan = document.createElement('span');
+                    nameSpan.className = 'preset-item-name';
+                    nameSpan.textContent = preset.name;
+                    item.appendChild(nameSpan);
+
+                    const catSpan = document.createElement('span');
+                    catSpan.className = 'preset-item-category';
+                    catSpan.textContent = preset.category;
+                    item.appendChild(catSpan);
+
+                    if (preset.isFactory) {
+                        const badge = document.createElement('span');
+                        badge.className = 'preset-item-factory';
+                        badge.textContent = 'F';
+                        badge.title = 'Factory preset';
+                        item.appendChild(badge);
+                    } else {
+                        // User preset actions: rename, delete
+                        const actions = document.createElement('div');
+                        actions.className = 'preset-item-actions';
+
+                        const renameBtn = document.createElement('button');
+                        renameBtn.className = 'preset-item-action-btn';
+                        renameBtn.textContent = '\u270E'; // pencil
+                        renameBtn.title = 'Rename';
+                        renameBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            const newName = prompt('Rename preset:', preset.name);
+                            if (newName && newName !== preset.name) {
+                                const ok = await Juce.getNativeFunction('renamePreset')(preset.name, newName);
+                                if (ok) {
+                                    if (nameDisplay.textContent === preset.name) nameDisplay.textContent = newName;
+                                    await refreshBrowser();
+                                }
+                            }
+                        });
+                        actions.appendChild(renameBtn);
+
+                        const delBtn = document.createElement('button');
+                        delBtn.className = 'preset-item-action-btn delete';
+                        delBtn.textContent = '\u2715'; // x
+                        delBtn.title = 'Delete';
+                        delBtn.addEventListener('click', async (e) => {
+                            e.stopPropagation();
+                            if (confirm('Delete preset "' + preset.name + '"?')) {
+                                await Juce.getNativeFunction('deletePreset')(preset.name);
+                                await refreshBrowser();
+                            }
+                        });
+                        actions.appendChild(delBtn);
+
+                        item.appendChild(actions);
+                    }
+
+                    // Click to load
+                    item.addEventListener('click', async () => {
+                        const isFactory = preset.isFactory ? 1 : 0;
+                        const success = await Juce.getNativeFunction('loadPreset')(preset.name, isFactory);
+                        if (success) {
+                            nameDisplay.textContent = preset.name;
+                            browser.classList.remove('open');
+                        }
+                    });
+
+                    listEl.appendChild(item);
+                }
+
+                if (filtered.length === 0) {
+                    const empty = document.createElement('div');
+                    empty.style.cssText = 'grid-column: 1/-1; text-align: center; color: rgba(212,201,176,0.4); font-family: Garamond, serif; font-size: 12px; padding: 20px;';
+                    empty.textContent = 'No presets in this category';
+                    listEl.appendChild(empty);
+                }
+            }
         }
 
         // Global knob drag state — one pair of document-level listeners for all knobs
