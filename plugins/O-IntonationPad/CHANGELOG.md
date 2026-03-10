@@ -1,5 +1,15 @@
 # O-IntonationPad Changelog
 
+## [2.7.2] - 2026-03-09
+
+### Added
+- Preset system with save/load/browse/rename/delete and 12 factory presets
+
+### Fixed
+- CMakeLists.txt version synced (was stale at 2.4.7)
+- Cross-platform preset folder paths for Windows/Linux compatibility
+- Replaced heap-allocating vector with constexpr array in processBlock
+
 ## [2.7.1] - 2026-03-09
 
 ### Fixed
