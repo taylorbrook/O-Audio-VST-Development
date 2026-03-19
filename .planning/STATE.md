@@ -24,7 +24,7 @@ See: .planning/PROJECT.md (updated 2026-03-07)
 
 Milestone: v1.4 System Hygiene & Quality Gates -- SHIPPED 2026-03-07
 Status: Complete -- all 5 phases, 13 plans, 23 requirements satisfied
-Last activity: 2026-03-07 -- v1.4 milestone archived
+Last activity: 2026-03-19 - Completed quick task 260319-e4q: sweep repo root for misplaced screenshots and files
 
 Next: `/gsd:new-milestone` to start next version
 
