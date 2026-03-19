@@ -189,3 +189,13 @@ plugins/*/.continue-here.md
 # Aesthetic Test Previews
 # =============================================================================
 *ui-test.html
+
+# =============================================================================
+# Debug Artifacts (screenshots, audio captures, playwright)
+# =============================================================================
+# Root-level debug screenshots and audio captures
+/*.png
+/*.wav
+
+# Playwright MCP debug artifacts
+.playwright-mcp/
