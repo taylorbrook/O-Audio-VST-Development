@@ -188,6 +188,10 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     nextGrainIndex = 0;
     stopTriggeringNewGrains = false;
 
+    // Initialize WSOLA state
+    lastGrainTail.fill(0.0f);
+    hasLastGrainTail = false;
+
     // Initialize drift state
     frozenDriftOffset = 0.0f;
     smoothedDriftOffset.reset(sampleRate, 0.015); // 15ms smoothing to eliminate clicks
@@ -214,6 +218,9 @@ void OFreezeAudioProcessor::releaseResources()
     freezeGain.setCurrentAndTargetValue(0.0f);
     bufferFrozen = false;
     stopTriggeringNewGrains = false;
+
+    lastGrainTail.fill(0.0f);
+    hasLastGrainTail = false;
 }
 
 void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -384,6 +391,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             freezeGain.reset(currentSampleRate, 0.050); // 50ms fade-in
             freezeGain.setTargetValue(1.0f);
 
+            // Reset WSOLA state for fresh freeze
+            hasLastGrainTail = false;
+
             // LOCK drift offset at freeze moment - all grains share this for COLA
             // Pick a random offset (adds variation between freeze engages)
             frozenDriftOffset = random.nextFloat();
@@ -460,9 +470,56 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 int basePos = reverseActive
                     ? (writePosition - 1 + freezeBufferLength) % freezeBufferLength
                     : (writePosition - grainSize + freezeBufferLength) % freezeBufferLength;
+
+                // WSOLA: search for best-overlap position with previous grain's tail
+                if (hasLastGrainTail)
+                {
+                    int searchRange = grainSize / 4;
+                    int bestOffset = 0;
+                    float bestCorrelation = -1.0f;
+
+                    // Precompute energy of lastGrainTail (constant across all offsets)
+                    float sumX2 = 0.0f;
+                    for (int i = 0; i < WSOLA_TAIL_SIZE; ++i)
+                        sumX2 += lastGrainTail[i] * lastGrainTail[i];
+
+                    for (int offset = -searchRange; offset <= searchRange; offset += 4)
+                    {
+                        int candidateStart = (basePos + offset + freezeBufferLength) % freezeBufferLength;
+
+                        float sumXY = 0.0f;
+                        float sumY2 = 0.0f;
+                        for (int i = 0; i < WSOLA_TAIL_SIZE; ++i)
+                        {
+                            int samplePos = reverseActive
+                                ? (candidateStart - i + freezeBufferLength) % freezeBufferLength
+                                : (candidateStart + i) % freezeBufferLength;
+
+                            float mono = 0.0f;
+                            for (int ch = 0; ch < numChannels; ++ch)
+                                mono += freezeBuffer.getReadPointer(ch)[samplePos];
+                            mono /= static_cast<float>(numChannels);
+
+                            sumXY += lastGrainTail[i] * mono;
+                            sumY2 += mono * mono;
+                        }
+
+                        float denom = std::sqrt(sumX2 * sumY2);
+                        float corr = (denom > 1e-6f) ? (sumXY / denom) : 0.0f;
+
+                        if (corr > bestCorrelation)
+                        {
+                            bestCorrelation = corr;
+                            bestOffset = offset;
+                        }
+                    }
+
+                    basePos = (basePos + bestOffset + freezeBufferLength) % freezeBufferLength;
+                }
+
                 newGrain.position = basePos;
 
-                // Per-grain random jitter to decorrelate overlapping grains
+                // Per-grain random jitter ON TOP of WSOLA-chosen position
                 // Range scales with grain size and drift amount
                 float jitterRange = static_cast<float>(grainSize) * driftValue;
                 newGrain.jitterOffset = static_cast<int>(random.nextFloat() * jitterRange);
@@ -555,6 +612,20 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 // Deactivate grain when complete
                 if (grain.startSample >= grainSize)
                 {
+                    // Capture final 64 samples for WSOLA overlap matching (mono sum)
+                    for (int i = 0; i < WSOLA_TAIL_SIZE; ++i)
+                    {
+                        int pos = reverseActive
+                            ? (grain.position + WSOLA_TAIL_SIZE - i + freezeBufferLength) % freezeBufferLength
+                            : (grain.position - WSOLA_TAIL_SIZE + i + freezeBufferLength) % freezeBufferLength;
+
+                        float mono = 0.0f;
+                        for (int ch = 0; ch < numChannels; ++ch)
+                            mono += freezeBuffer.getReadPointer(ch)[pos];
+                        lastGrainTail[i] = mono / static_cast<float>(numChannels);
+                    }
+                    hasLastGrainTail = true;
+
                     grain.active = false;
                 }
             }

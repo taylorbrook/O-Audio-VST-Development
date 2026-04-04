@@ -2,6 +2,24 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.8.0] - 2026-04-04
+
+### Added
+- **WSOLA-style best-overlap grain positioning** — when activating a new grain, searches ±(grainSize/4) samples around the nominal position to find the offset that maximizes normalized cross-correlation with the previous grain's tail, producing smoother transitions on pitched/tonal content
+- Cross-correlation computed on 64-sample mono segments (both channels summed), stepping by 4 samples for CPU efficiency
+- First grain after freeze engage uses nominal position (no previous tail to compare against)
+- Per-grain jitter offset applied ON TOP of WSOLA-chosen position (both features stack)
+
+### Technical Notes
+- `lastGrainTail[64]` member stores final 64 samples of each completed grain (mono, playback order)
+- `hasLastGrainTail` flag reset on freeze engage, set true on first grain completion
+- Search window: `grainSize/4` samples in each direction, step 4 → ~1100 xcorr evaluations per grain activation at 400ms grain size
+- Normalized cross-correlation: `sumXY / sqrt(sumX2 * sumY2)` with epsilon guard (1e-6)
+- `sumX2` (tail energy) precomputed once per search — constant across all offsets
+- Tail capture handles both forward and reverse playback directions
+- No new parameters — transparent improvement to existing granular engine
+- Existing presets unaffected (WSOLA only adjusts internal grain start positions)
+
 ## [1.7.1] - 2026-04-04
 
 ### Fixed

@@ -88,6 +88,11 @@ private:
     juce::Random random;
     bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
 
+    // WSOLA overlap matching (best-overlap grain positioning)
+    static constexpr int WSOLA_TAIL_SIZE = 64;
+    std::array<float, WSOLA_TAIL_SIZE> lastGrainTail{};
+    bool hasLastGrainTail = false;
+
     // Drift offset (locked at freeze engage, shared by all grains)
     float frozenDriftOffset = 0.0f;    // Offset locked at freeze moment (0 to 1)
     juce::LinearSmoothedValue<float> smoothedDriftOffset; // Smoothed drift in samples (prevents clicks)
