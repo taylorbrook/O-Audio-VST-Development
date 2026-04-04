@@ -211,7 +211,7 @@
             top: 330px;
             left: 50%;
             transform: translateX(-50%);
-            width: 400px;
+            width: 430px;
             display: flex;
             justify-content: space-around;
             z-index: 5;
@@ -372,6 +372,19 @@
                 <div class="knob-value">0%</div>
             </div>
 
+            <!-- Grain Size knob -->
+            <div class="knob" id="grain-size-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="82.78"/>
+                    </svg>
+                </div>
+                <div class="knob-label">Grain</div>
+                <div class="knob-value">400 ms</div>
+            </div>
+
             <!-- Mix knob -->
             <div class="knob" id="mix-knob">
                 <div class="knob-visual">
@@ -391,7 +404,7 @@
         import * as Juce from './js/juce/index.js';
 
         // Parameter states
-        let freezeState, thresholdState, modeState, driftState, mixState;
+        let freezeState, thresholdState, modeState, driftState, grainSizeState, mixState;
 
         // Global drag state (fixes the scope issue with knob dragging)
         const dragState = {
@@ -458,8 +471,9 @@
             // Get parameter states
             freezeState = Juce.getToggleState('FREEZE');
             thresholdState = Juce.getSliderState('THRESHOLD');
-            modeState = Juce.getToggleState('MODE');
+            modeState = Juce.getComboBoxState('MODE');
             driftState = Juce.getSliderState('DRIFT');
+            grainSizeState = Juce.getSliderState('GRAIN_SIZE');
             mixState = Juce.getSliderState('MIX');
 
             // Initialize UI from parameter values
@@ -467,6 +481,7 @@
             updateThresholdUI();
             updateModeUI();
             updateDriftUI();
+            updateGrainSizeUI();
             updateMixUI();
 
             // Set up parameter listeners
@@ -486,6 +501,10 @@
                 updateDriftUI();
             });
 
+            grainSizeState.valueChangedEvent.addListener(() => {
+                updateGrainSizeUI();
+            });
+
             mixState.valueChangedEvent.addListener(() => {
                 updateMixUI();
             });
@@ -501,8 +520,7 @@
         function setupFreezeButton() {
             const freezeBtn = document.getElementById('freeze-button');
             freezeBtn.addEventListener('click', () => {
-                const currentMode = modeState.getValue();
-                if (currentMode) return; // Disabled in Threshold mode
+                if (modeState.getChoiceIndex() === 1) return; // Disabled in Threshold mode
 
                 const newValue = !freezeState.getValue();
                 freezeState.setValue(newValue);
@@ -513,7 +531,7 @@
             const freezeBtn = document.getElementById('freeze-button');
             const particles = document.getElementById('grain-particles');
             const isActive = freezeState.getValue();
-            const isManualMode = !modeState.getValue();
+            const isManualMode = modeState.getChoiceIndex() === 0;
 
             if (isActive) {
                 freezeBtn.classList.add('active');
@@ -536,15 +554,15 @@
             modeOptions.forEach(option => {
                 option.addEventListener('click', () => {
                     const modeIndex = parseInt(option.dataset.mode);
-                    modeState.setValue(modeIndex === 1);
+                    modeState.setChoiceIndex(modeIndex);
                 });
             });
         }
 
         function updateModeUI() {
             const modeOptions = document.querySelectorAll('.mode-option');
-            const isThresholdMode = modeState.getValue();
-            const modeIndex = isThresholdMode ? 1 : 0;
+            const modeIndex = modeState.getChoiceIndex();
+            const isThresholdMode = modeIndex === 1;
 
             modeOptions.forEach((option, index) => {
                 if (index === modeIndex) {
@@ -600,6 +618,7 @@
         function setupKnobs() {
             setupKnob('threshold-knob', thresholdState, -60, 0, val => `${val.toFixed(1)} dB`, 'dB');
             setupKnob('drift-knob', driftState, 0, 100, val => `${val.toFixed(0)}%`, '%');
+            setupKnob('grain-size-knob', grainSizeState, 50, 1000, val => `${val.toFixed(0)} ms`, 'ms');
             setupKnob('mix-knob', mixState, 0, 100, val => `${val.toFixed(0)}%`, '%');
         }
 
@@ -730,6 +749,11 @@
 
         function updateDriftUI() {
             const knob = document.getElementById('drift-knob');
+            if (knob.updateVisual) knob.updateVisual();
+        }
+
+        function updateGrainSizeUI() {
+            const knob = document.getElementById('grain-size-knob');
             if (knob.updateVisual) knob.updateVisual();
         }
 

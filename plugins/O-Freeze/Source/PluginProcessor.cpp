@@ -41,7 +41,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreezeAudioProcessor::creat
         juce::ParameterID { "DRIFT", 1 },
         "Drift",
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
-        25.0f,
+        0.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
 
     // MIX - Dry/Wet blend
@@ -51,6 +51,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreezeAudioProcessor::creat
         juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
         100.0f,
         juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // GRAIN_SIZE - Granular grain size in milliseconds
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "GRAIN_SIZE", 1 },
+        "Grain Size",
+        juce::NormalisableRange<float>(50.0f, 1000.0f, 1.0f),
+        400.0f,
+        juce::AudioParameterFloatAttributes().withLabel("ms")));
 
     return layout;
 }
@@ -107,19 +115,25 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     gateState = GateState::Idle;
 
     // Initialize granular synthesis components
-    grainSize = static_cast<int>(sampleRate * 0.400); // 400ms grains
+    // Pre-allocate Hann window for max grain size (1000ms) to avoid audio-thread allocations
+    maxGrainSize = static_cast<int>(sampleRate * 1.0);
+    hannWindow.resize(maxGrainSize);
+
+    // Read initial grain size from parameter
+    auto* grainSizeParam = parameters.getRawParameterValue("GRAIN_SIZE");
+    float grainSizeMs = grainSizeParam->load();
+    lastGrainSizeMs = grainSizeMs;
+    grainSize = static_cast<int>(sampleRate * grainSizeMs / 1000.0);
     grainTriggerInterval = grainSize / NUM_GRAINS; // 8 grains with 87.5% overlap
 
     // True Hann window scaled for COLA (Constant Overlap-Add)
-    // With 8 grains at 87.5% overlap (hop = N/8), Hann windows sum to 4.0
-    // Scale by 0.25 so overlapping grains sum to 1.0 (no normalization needed)
-    hannWindow.resize(grainSize);
+    // With NUM_GRAINS at (1 - 1/NUM_GRAINS) overlap, Hann windows sum to NUM_GRAINS/2
+    // Scale by 2/NUM_GRAINS so overlapping grains sum to 1.0 (no normalization needed)
     const double PI = juce::MathConstants<double>::pi;
-    const float colaScale = 0.25f;  // 1/4 scaling for 8-grain COLA sum = 1.0
+    const float colaScale = 2.0f / static_cast<float>(NUM_GRAINS);
 
     for (int i = 0; i < grainSize; ++i)
     {
-        // Standard Hann window: 0.5 * (1 - cos(2πn/N))
         double phase = static_cast<double>(i) / static_cast<double>(grainSize);
         float hannValue = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
         hannWindow[i] = hannValue * colaScale;
@@ -143,7 +157,18 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
 void OFreezeAudioProcessor::releaseResources()
 {
-    // Cleanup will be added in Stage 2 (DSP)
+    freezeBuffer.setSize(0, 0);
+
+    for (auto& grain : grains)
+    {
+        grain.active = false;
+        grain.startSample = 0;
+        grain.position = 0;
+    }
+
+    freezeGain.setCurrentAndTargetValue(0.0f);
+    bufferFrozen = false;
+    stopTriggeringNewGrains = false;
 }
 
 void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -162,10 +187,38 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* modeParam = parameters.getRawParameterValue("MODE");
     auto* thresholdParam = parameters.getRawParameterValue("THRESHOLD");
     auto* mixParam = parameters.getRawParameterValue("MIX");
+    auto* grainSizeParam = parameters.getRawParameterValue("GRAIN_SIZE");
 
     int modeValue = static_cast<int>(modeParam->load());
     float thresholdDB = thresholdParam->load();
     float mixValue = mixParam->load() / 100.0f; // Convert 0-100% to 0-1
+    float grainSizeMs = grainSizeParam->load();
+
+    // Recalculate grain size, hop size, and Hann window on parameter change
+    if (grainSizeMs != lastGrainSizeMs)
+    {
+        lastGrainSizeMs = grainSizeMs;
+        grainSize = juce::jmin(static_cast<int>(currentSampleRate * grainSizeMs / 1000.0), maxGrainSize);
+        grainTriggerInterval = grainSize / NUM_GRAINS;
+
+        // Rebuild Hann window for new grain size (pre-allocated buffer, no alloc)
+        const double PI = juce::MathConstants<double>::pi;
+        const float colaScale = 2.0f / static_cast<float>(NUM_GRAINS);
+
+        for (int i = 0; i < grainSize; ++i)
+        {
+            double phase = static_cast<double>(i) / static_cast<double>(grainSize);
+            float hannValue = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
+            hannWindow[i] = hannValue * colaScale;
+        }
+
+        // Deactivate grains that are past new grain size boundary
+        for (auto& grain : grains)
+        {
+            if (grain.active && grain.startSample >= grainSize)
+                grain.active = false;
+        }
+    }
 
     // Determine freeze state based on mode
     bool freezeActive = false;
@@ -261,9 +314,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Stop triggering NEW grains, but let active grains complete their cycle
             stopTriggeringNewGrains = true;
 
-            // Extended fade-out to cover grain completion time (grainSize samples ≈ 350ms)
-            // Add extra 50ms safety margin
-            freezeGain.reset(currentSampleRate, 0.400); // 400ms fade-out
+            // Fade-out covers grain completion time + 50ms safety margin
+            float grainDurationSec = static_cast<float>(grainSize) / static_cast<float>(currentSampleRate);
+            freezeGain.reset(currentSampleRate, static_cast<double>(grainDurationSec) + 0.050);
             freezeGain.setTargetValue(0.0f);
 
             // DON'T deactivate grains here - they'll naturally complete

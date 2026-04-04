@@ -20,9 +20,10 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
 
     thresholdRelay = std::make_unique<juce::WebSliderRelay>("THRESHOLD");
     driftRelay = std::make_unique<juce::WebSliderRelay>("DRIFT");
+    grainSizeRelay = std::make_unique<juce::WebSliderRelay>("GRAIN_SIZE");
     mixRelay = std::make_unique<juce::WebSliderRelay>("MIX");
     freezeRelay = std::make_unique<juce::WebToggleButtonRelay>("FREEZE");
-    modeRelay = std::make_unique<juce::WebToggleButtonRelay>("MODE");
+    modeRelay = std::make_unique<juce::WebComboBoxRelay>("MODE");
 
     // ============================================================================
     // 2. Create WebView SECOND with all relay options registered
@@ -39,6 +40,7 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
             .withResourceProvider([this](auto& url) { return getResource(url); })
             .withOptionsFrom(*thresholdRelay)
             .withOptionsFrom(*driftRelay)
+            .withOptionsFrom(*grainSizeRelay)
             .withOptionsFrom(*mixRelay)
             .withOptionsFrom(*freezeRelay)
             .withOptionsFrom(*modeRelay)
@@ -52,11 +54,13 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
         *processorRef.getAPVTS().getParameter("THRESHOLD"), *thresholdRelay, nullptr);
     driftAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.getAPVTS().getParameter("DRIFT"), *driftRelay, nullptr);
+    grainSizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("GRAIN_SIZE"), *grainSizeRelay, nullptr);
     mixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.getAPVTS().getParameter("MIX"), *mixRelay, nullptr);
     freezeAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.getAPVTS().getParameter("FREEZE"), *freezeRelay, nullptr);
-    modeAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+    modeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.getAPVTS().getParameter("MODE"), *modeRelay, nullptr);
 
     // ============================================================================

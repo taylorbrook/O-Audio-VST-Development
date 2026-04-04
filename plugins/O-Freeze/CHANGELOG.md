@@ -2,6 +2,32 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.3.1] - 2026-04-03
+
+### Fixed
+- `releaseResources()` now properly clears freeze buffer, resets all grain states, and resets crossfade gain (was empty stub from Stage 2)
+- MODE relay changed from `WebToggleButtonRelay` to `WebComboBoxRelay` to correctly match the `AudioParameterChoice` type; JS updated from boolean `getToggleState` to index-based `getComboBoxState`
+- DRIFT parameter default changed from 25% to 0% to match documentation
+- STATUS.md Known Issues updated to reflect drift clicking was resolved in v1.2.2
+
+## [1.3.0] - 2026-04-03
+
+### Added
+- **Grain Size parameter** (GRAIN_SIZE, 50ms–1000ms, default 400ms) — replaces hardcoded 400ms grain size
+- Rotary knob in WebView UI matching existing botanical aesthetic
+
+### Changed
+- Granular engine dynamically recalculates grain size, hop size (grainSize/8), and Hann window on parameter change
+- COLA scaling factor computed from NUM_GRAINS (2/NUM_GRAINS) for unity gain at any grain size
+- Release fade time now tracks current grain size instead of hardcoded 400ms
+- Hann window pre-allocated for max grain size (1000ms) — no audio-thread allocations on parameter change
+- Active grains past new grain boundary are deactivated cleanly on size reduction
+
+### Technical Notes
+- COLA identity preserved: 8 Hann windows at 87.5% overlap sum to NUM_GRAINS/2 = 4.0, scaled by 0.25 → unity
+- Overlap ratio (87.5%) is grain-size-independent — only depends on NUM_GRAINS
+- Parameter change detection via `lastGrainSizeMs` comparison avoids per-block recalculation
+
 ## [1.2.2] - 2026-02-03
 
 ### Fixed

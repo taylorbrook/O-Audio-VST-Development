@@ -76,6 +76,8 @@ private:
     std::array<Grain, NUM_GRAINS> grains;
     std::vector<float> hannWindow;
     int grainSize = 0;
+    int maxGrainSize = 0;
+    float lastGrainSizeMs = 400.0f;
     int grainTriggerInterval = 0;
     int grainTriggerCounter = 0;
     int nextGrainIndex = 0;

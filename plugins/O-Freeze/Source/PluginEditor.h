@@ -31,9 +31,10 @@ private:
     // 1. RELAYS FIRST (no dependencies)
     std::unique_ptr<juce::WebSliderRelay> thresholdRelay;
     std::unique_ptr<juce::WebSliderRelay> driftRelay;
+    std::unique_ptr<juce::WebSliderRelay> grainSizeRelay;
     std::unique_ptr<juce::WebSliderRelay> mixRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> freezeRelay;
-    std::unique_ptr<juce::WebToggleButtonRelay> modeRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> modeRelay;
 
     // 2. WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -44,9 +45,10 @@ private:
     // 4. ATTACHMENTS LAST (depend on both relays and webView)
     std::unique_ptr<juce::WebSliderParameterAttachment> thresholdAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> driftAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> grainSizeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> freezeAttachment;
-    std::unique_ptr<juce::WebToggleButtonParameterAttachment> modeAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> modeAttachment;
 
     // Helper for resource serving
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);
