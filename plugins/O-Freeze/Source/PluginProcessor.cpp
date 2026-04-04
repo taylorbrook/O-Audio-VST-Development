@@ -184,6 +184,7 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     }
 
     grainTriggerCounter = 0;
+    nextTriggerInterval = grainTriggerInterval;
     nextGrainIndex = 0;
     stopTriggeringNewGrains = false;
 
@@ -251,6 +252,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         numGrains = grainCountValue;
         grainSize = juce::jmin(static_cast<int>(currentSampleRate * grainSizeMs / 1000.0), maxGrainSize);
         grainTriggerInterval = grainSize / numGrains;
+        nextTriggerInterval = grainTriggerInterval;
 
         // Rebuild raw Hann window (pre-allocated buffer, no alloc)
         const double PI = juce::MathConstants<double>::pi;
@@ -446,7 +448,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Do NOT update drift while frozen - all grains must share the same offset
             // for COLA phase alignment to work correctly
 
-            if (grainTriggerCounter >= grainTriggerInterval)
+            if (grainTriggerCounter >= nextTriggerInterval)
             {
                 // Activate new grain
                 Grain& newGrain = grains[nextGrainIndex];
@@ -467,8 +469,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 // Advance grain index (round-robin within active count)
                 nextGrainIndex = (nextGrainIndex + 1) % numGrains;
 
-                // Reset trigger counter
+                // Reset trigger counter and compute jittered interval for next trigger
                 grainTriggerCounter = 0;
+                int jitter = static_cast<int>((random.nextFloat() * 2.0f - 1.0f) * grainTriggerInterval * 0.3f);
+                nextTriggerInterval = juce::jmax(grainTriggerInterval / 2, grainTriggerInterval + jitter);
             }
             else
             {

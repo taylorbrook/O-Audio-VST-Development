@@ -2,6 +2,19 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.7.1] - 2026-04-04
+
+### Fixed
+- **Stochastic grain trigger timing** — grain trigger intervals now randomized ±30% from nominal to break up periodic comb-filter artifacts caused by perfectly regular grain spacing
+- Minimum trigger interval clamped to `grainTriggerInterval / 2` to prevent grain stacking
+
+### Technical Notes
+- New `nextTriggerInterval` member computed each time a grain fires: `grainTriggerInterval + random(±30%)`
+- Comparison changed from fixed `grainTriggerInterval` to jittered `nextTriggerInterval`
+- `nextTriggerInterval` reset to nominal when grain parameters change or `prepareToPlay` called
+- No new parameters — transparent improvement to existing granular engine
+- Existing presets unaffected (timing jitter is purely internal, no parameter changes)
+
 ## [1.7.0] - 2026-04-04
 
 ### Added

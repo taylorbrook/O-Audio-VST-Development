@@ -82,6 +82,7 @@ private:
     int maxGrainSize = 0;
     float lastGrainSizeMs = 400.0f;
     int grainTriggerInterval = 0;
+    int nextTriggerInterval = 0;  // Jittered interval for next grain trigger
     int grainTriggerCounter = 0;
     int nextGrainIndex = 0;
     juce::Random random;
