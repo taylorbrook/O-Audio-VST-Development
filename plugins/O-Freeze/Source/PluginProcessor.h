@@ -52,6 +52,7 @@ private:
     {
         int startSample = 0;      // Position within grain (0 to grainSize)
         int position = 0;         // Position in freeze buffer
+        int jitterOffset = 0;     // Per-grain random position offset (decorrelates overlapping grains)
         bool active = false;      // Grain active flag
     };
 
@@ -86,8 +87,14 @@ private:
     juce::Random random;
     bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
 
-    // Drift offset (locked at freeze engage, shared by all grains for COLA)
+    // Drift offset (locked at freeze engage, shared by all grains)
     float frozenDriftOffset = 0.0f;    // Offset locked at freeze moment (0 to 1)
+    juce::LinearSmoothedValue<float> smoothedDriftOffset; // Smoothed drift in samples (prevents clicks)
+
+    // LFO state (computed per-block for efficiency)
+    float lfoPhase = 0.0f;            // 0 to 1 phase accumulator
+    float lfoCurrentValue = 0.0f;     // Current LFO output (-1 to +1)
+    float randomHoldValue = 0.0f;     // Sample-and-hold value for Random shape
 
     // APVTS comes AFTER DSP components
     juce::AudioProcessorValueTreeState parameters;

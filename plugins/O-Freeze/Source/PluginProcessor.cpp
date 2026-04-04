@@ -66,6 +66,35 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreezeAudioProcessor::creat
         "Grain Count",
         2, 32, 8));
 
+    // LFO_RATE - LFO frequency in Hz
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "LFO_RATE", 1 },
+        "LFO Rate",
+        juce::NormalisableRange<float>(0.01f, 10.0f, 0.01f, 0.4f),
+        0.5f,
+        juce::AudioParameterFloatAttributes().withLabel("Hz")));
+
+    // LFO_DEPTH - LFO modulation depth
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "LFO_DEPTH", 1 },
+        "LFO Depth",
+        juce::NormalisableRange<float>(0.0f, 100.0f, 0.1f),
+        50.0f,
+        juce::AudioParameterFloatAttributes().withLabel("%")));
+
+    // LFO_SHAPE - LFO waveform shape
+    layout.add(std::make_unique<juce::AudioParameterChoice>(
+        juce::ParameterID { "LFO_SHAPE", 1 },
+        "LFO Shape",
+        juce::StringArray { "Sine", "Triangle", "Random" },
+        0));
+
+    // REVERSE - Toggle reverse grain playback direction
+    layout.add(std::make_unique<juce::AudioParameterBool>(
+        juce::ParameterID { "REVERSE", 1 },
+        "Reverse",
+        false));
+
     return layout;
 }
 
@@ -135,17 +164,14 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     grainSize = static_cast<int>(sampleRate * grainSizeMs / 1000.0);
     grainTriggerInterval = grainSize / numGrains;
 
-    // True Hann window scaled for COLA (Constant Overlap-Add)
-    // With N grains at (1 - 1/N) overlap, Hann windows sum to N/2
-    // Scale by 2/N so overlapping grains sum to 1.0 (no normalization needed)
+    // Raw Hann window (no COLA scaling — per-grain jitter breaks COLA alignment)
+    // Normalization done per-sample by dividing by sum of active window values
     const double PI = juce::MathConstants<double>::pi;
-    const float colaScale = 2.0f / static_cast<float>(numGrains);
 
     for (int i = 0; i < grainSize; ++i)
     {
         double phase = static_cast<double>(i) / static_cast<double>(grainSize);
-        float hannValue = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
-        hannWindow[i] = hannValue * colaScale;
+        hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
     }
 
     // Reset all grains to inactive
@@ -154,6 +180,7 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
         grain.active = false;
         grain.startSample = 0;
         grain.position = 0;
+        grain.jitterOffset = 0;
     }
 
     grainTriggerCounter = 0;
@@ -162,6 +189,13 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     // Initialize drift state
     frozenDriftOffset = 0.0f;
+    smoothedDriftOffset.reset(sampleRate, 0.015); // 15ms smoothing to eliminate clicks
+    smoothedDriftOffset.setCurrentAndTargetValue(0.0f);
+
+    // Initialize LFO state
+    lfoPhase = 0.0f;
+    lfoCurrentValue = 0.0f;
+    randomHoldValue = 0.0f;
 }
 
 void OFreezeAudioProcessor::releaseResources()
@@ -173,6 +207,7 @@ void OFreezeAudioProcessor::releaseResources()
         grain.active = false;
         grain.startSample = 0;
         grain.position = 0;
+        grain.jitterOffset = 0;
     }
 
     freezeGain.setCurrentAndTargetValue(0.0f);
@@ -198,12 +233,14 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* mixParam = parameters.getRawParameterValue("MIX");
     auto* grainSizeParam = parameters.getRawParameterValue("GRAIN_SIZE");
     auto* grainCountParam = parameters.getRawParameterValue("GRAIN_COUNT");
+    auto* reverseParam = parameters.getRawParameterValue("REVERSE");
 
     int modeValue = static_cast<int>(modeParam->load());
     float thresholdDB = thresholdParam->load();
     float mixValue = mixParam->load() / 100.0f; // Convert 0-100% to 0-1
     float grainSizeMs = grainSizeParam->load();
     int grainCountValue = static_cast<int>(grainCountParam->load());
+    bool reverseActive = reverseParam->load() > 0.5f;
 
     // Recalculate grain parameters when size or count changes
     bool grainParamsChanged = (grainSizeMs != lastGrainSizeMs) || (grainCountValue != lastGrainCount);
@@ -215,15 +252,13 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         grainSize = juce::jmin(static_cast<int>(currentSampleRate * grainSizeMs / 1000.0), maxGrainSize);
         grainTriggerInterval = grainSize / numGrains;
 
-        // Rebuild Hann window with new COLA scale (pre-allocated buffer, no alloc)
+        // Rebuild raw Hann window (pre-allocated buffer, no alloc)
         const double PI = juce::MathConstants<double>::pi;
-        const float colaScale = 2.0f / static_cast<float>(numGrains);
 
         for (int i = 0; i < grainSize; ++i)
         {
             double phase = static_cast<double>(i) / static_cast<double>(grainSize);
-            float hannValue = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
-            hannWindow[i] = hannValue * colaScale;
+            hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
         }
 
         // Deactivate grains past new grain size boundary or beyond active count
@@ -288,6 +323,51 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* driftParam = parameters.getRawParameterValue("DRIFT");
     float driftValue = driftParam->load() / 100.0f; // Convert 0-100% to 0-1
 
+    // Read LFO parameters
+    auto* lfoRateParam = parameters.getRawParameterValue("LFO_RATE");
+    auto* lfoDepthParam = parameters.getRawParameterValue("LFO_DEPTH");
+    auto* lfoShapeParam = parameters.getRawParameterValue("LFO_SHAPE");
+    float lfoRate = lfoRateParam->load();
+    float lfoDepth = lfoDepthParam->load() / 100.0f; // Convert 0-100% to 0-1
+    int lfoShape = static_cast<int>(lfoShapeParam->load());
+
+    // Compute LFO per-block (not per-sample) for efficiency
+    if (bufferFrozen && lfoDepth > 0.0f)
+    {
+        // Advance LFO phase
+        float phaseIncrement = lfoRate * static_cast<float>(numSamples) / static_cast<float>(currentSampleRate);
+        lfoPhase += phaseIncrement;
+
+        // Wrap phase and handle random S&H trigger
+        if (lfoPhase >= 1.0f)
+        {
+            lfoPhase -= std::floor(lfoPhase);
+            // New random value each cycle for S&H
+            randomHoldValue = random.nextFloat() * 2.0f - 1.0f;
+        }
+
+        // Compute LFO value based on shape (-1 to +1)
+        switch (lfoShape)
+        {
+            case 0: // Sine
+                lfoCurrentValue = std::sin(lfoPhase * juce::MathConstants<float>::twoPi);
+                break;
+            case 1: // Triangle
+                lfoCurrentValue = 4.0f * std::abs(lfoPhase - 0.5f) - 1.0f;
+                break;
+            case 2: // Random (Sample & Hold)
+                lfoCurrentValue = randomHoldValue;
+                break;
+            default:
+                lfoCurrentValue = 0.0f;
+                break;
+        }
+    }
+    else if (!bufferFrozen)
+    {
+        lfoCurrentValue = 0.0f;
+    }
+
     // Push dry signal to mixer
     dryWetMixer.pushDrySamples(juce::dsp::AudioBlock<float>(buffer));
 
@@ -309,12 +389,15 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             // Staggered activation: only activate FIRST grain immediately
             // Subsequent grains will be activated by normal trigger mechanism
             const int freezeBufLen = freezeBuffer.getNumSamples();
-            int startPos = (writePosition - grainSize + freezeBufLen) % freezeBufLen;
+            int startPos = reverseActive
+                ? (writePosition - 1 + freezeBufLen) % freezeBufLen
+                : (writePosition - grainSize + freezeBufLen) % freezeBufLen;
 
-            // Activate only the first grain
+            // Activate only the first grain (jitterOffset=0 for clean initial capture)
             grains[0].active = true;
             grains[0].startSample = 0;
             grains[0].position = startPos;
+            grains[0].jitterOffset = 0;
 
             // Deactivate all other grains - they'll be triggered naturally
             for (int i = 1; i < MAX_GRAINS; ++i)
@@ -344,6 +427,15 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
     const int freezeBufferLength = freezeBuffer.getNumSamples();
 
+    // Compute target drift offset in samples (smoothed per-sample to prevent clicks)
+    {
+        float modulatedDriftOffset = frozenDriftOffset + (lfoCurrentValue * lfoDepth);
+        modulatedDriftOffset = juce::jlimit(0.0f, 1.0f, modulatedDriftOffset);
+        float driftRangeF = static_cast<float>(grainSize) * driftValue;
+        float targetDriftSamples = modulatedDriftOffset * driftRangeF;
+        smoothedDriftOffset.setTargetValue(targetDriftSamples);
+    }
+
     // Process sample-by-sample (all channels together) so grain state stays in sync
     for (int sample = 0; sample < numSamples; ++sample)
     {
@@ -361,9 +453,16 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 newGrain.active = true;
                 newGrain.startSample = 0;
 
-                // Store BASE position only - drift applied at read time for COLA
-                int basePos = (writePosition - grainSize + freezeBufferLength) % freezeBufferLength;
+                // Store BASE position only - drift applied at read time
+                int basePos = reverseActive
+                    ? (writePosition - 1 + freezeBufferLength) % freezeBufferLength
+                    : (writePosition - grainSize + freezeBufferLength) % freezeBufferLength;
                 newGrain.position = basePos;
+
+                // Per-grain random jitter to decorrelate overlapping grains
+                // Range scales with grain size and drift amount
+                float jitterRange = static_cast<float>(grainSize) * driftValue;
+                newGrain.jitterOffset = static_cast<int>(random.nextFloat() * jitterRange);
 
                 // Advance grain index (round-robin within active count)
                 nextGrainIndex = (nextGrainIndex + 1) % numGrains;
@@ -377,9 +476,8 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             }
         }
 
-        // Calculate shared drift offset (all grains use same offset for COLA)
-        int driftRange = static_cast<int>(grainSize * driftValue);
-        int sharedDriftOffset = static_cast<int>(frozenDriftOffset * driftRange);
+        // Smoothed drift offset (ramps per-sample to prevent clicks from knob/LFO changes)
+        int sharedDriftOffset = static_cast<int>(smoothedDriftOffset.getNextValue());
 
         // Get current window values and positions for all active grains (before advancing)
         float windowValues[MAX_GRAINS] = {0};
@@ -390,8 +488,8 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             if (grains[g].active)
             {
                 windowValues[g] = hannWindow[grains[g].startSample];
-                // Apply shared drift offset at READ time (maintains COLA phase alignment)
-                grainPositions[g] = (grains[g].position + sharedDriftOffset + freezeBufferLength) % freezeBufferLength;
+                // Apply per-grain jitter + shared drift offset at read time
+                grainPositions[g] = (grains[g].position + grains[g].jitterOffset + sharedDriftOffset + freezeBufferLength) % freezeBufferLength;
             }
         }
 
@@ -414,24 +512,22 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             if (bufferFrozen || freezeGain.getCurrentValue() > 0.001f)
             {
                 // Sum all active grains (overlap-add synthesis)
-                // COLA property: N Hann windows at (1-1/N) overlap sum to N/2
-                // Window is pre-scaled by 2/N so sum = 1.0 (no normalization needed)
+                // Per-grain jitter breaks COLA — normalize by sum of active window values
                 float granularSum = 0.0f;
+                float windowSum = 0.0f;
 
                 for (int g = 0; g < numGrains; ++g)
                 {
                     if (grains[g].active)
                     {
-                        // Read from freeze buffer at grain position
                         float grainSample = freezeData[grainPositions[g]];
-
-                        // Apply pre-scaled Hann window
                         granularSum += grainSample * windowValues[g];
+                        windowSum += windowValues[g];
                     }
                 }
 
-                // Direct sum - COLA guarantees constant amplitude
-                float frozenSample = granularSum;
+                // Normalize by window sum to maintain constant amplitude
+                float frozenSample = (windowSum > 1e-6f) ? (granularSum / windowSum) : 0.0f;
 
                 // Apply crossfade envelope
                 float currentGain = freezeGain.getNextValue();
@@ -447,7 +543,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             if (grain.active)
             {
                 grain.startSample++;
-                grain.position = (grain.position + 1) % freezeBufferLength;
+                grain.position = reverseActive
+                    ? (grain.position - 1 + freezeBufferLength) % freezeBufferLength
+                    : (grain.position + 1) % freezeBufferLength;
 
                 // Deactivate grain when complete
                 if (grain.startSample >= grainSize)

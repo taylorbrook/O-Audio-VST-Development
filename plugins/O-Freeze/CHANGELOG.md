@@ -2,6 +2,65 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.7.0] - 2026-04-04
+
+### Added
+- **Per-grain position jitter** — each grain receives a random buffer offset at activation, decorrelating overlapping grains for richer, less phasey frozen textures
+- Jitter range scales with grain size and DRIFT parameter: `jitterOffset = random * grainSize * driftValue`
+- First grain activated at freeze engage always gets `jitterOffset = 0` for clean initial capture
+
+### Changed
+- **Replaced COLA normalization with per-sample window normalization** — granular sum divided by sum of active Hann window values each sample, maintaining constant amplitude regardless of grain phase alignment
+- Removed COLA scaling factor (`2/N`) from Hann window; raw Hann values stored instead
+- Drift parameter now serves dual purpose: controls both shared drift range and per-grain jitter spread
+
+### Technical Notes
+- `jitterOffset` stored per-grain in Grain struct (int, computed once at activation)
+- Jitter uses existing `driftValue` (0–1) so drift=0 means zero jitter (backward compatible)
+- Window normalization: `frozenSample = granularSum / windowSum` with epsilon guard (1e-6) to avoid division by zero
+- No new parameters — reuses DRIFT for jitter control
+- Existing presets unaffected when drift=0 (jitter range is zero)
+
+## [1.6.0] - 2026-04-04
+
+### Added
+- **Reverse playback mode** (REVERSE, toggle, default off) — reads grains backwards through the freeze buffer when enabled
+- Grain start positions calculated from end of grain region, read index decrements instead of incrementing
+- Hann window envelope remains forward (fade-in then fade-out) regardless of read direction — preserves COLA compliance
+- Toggle button in WebView UI below the freeze button, matching existing botanical aesthetic
+
+### Technical Notes
+- REVERSE parameter read once per processBlock (atomic, real-time safe)
+- Reverse affects both initial freeze grain and subsequent triggered grains
+- Drift offset applied identically in both directions (read-time application preserved)
+- Can toggle reverse while frozen — grains change direction immediately
+- Existing presets default to off (non-breaking — playback behavior unchanged)
+
+## [1.5.1] - 2026-04-03
+
+### Changed
+- Moved freeze button up 25px for better visual balance
+- Lightened Drift LFO group box background for better visibility
+- Darkened all font colors for richer, more saturated text appearance
+
+## [1.5.0] - 2026-04-03
+
+### Added
+- **LFO modulation for Drift parameter** with 3 new controls:
+  - **LFO Rate** (LFO_RATE, 0.01–10 Hz, default 0.5 Hz) — skewed range for fine control at low frequencies
+  - **LFO Depth** (LFO_DEPTH, 0–100%, default 50%) — scales LFO influence on drift offset
+  - **LFO Shape** (LFO_SHAPE, Sine/Triangle/Random) — waveform selector; Random uses sample-and-hold (new value each cycle)
+- LFO group in WebView UI: two small knobs (Rate, Depth) + shape toggle, grouped below existing knob row with "Drift LFO" label
+- Editor height increased from 450px to 530px to accommodate LFO group
+
+### Technical Notes
+- LFO computed once per processBlock (per-block, not per-sample) for efficiency
+- LFO phase accumulates by `rate * blockSize / sampleRate` per block
+- LFO output (-1 to +1) scaled by depth and added to frozen drift offset, clamped 0–1
+- COLA phase alignment preserved — all grains still share the same modulated drift offset
+- LFO only active while frozen and depth > 0 (no unnecessary computation)
+- Existing presets default to 50% depth with Sine shape (non-breaking — drift behavior unchanged when depth is 0)
+
 ## [1.4.0] - 2026-04-03
 
 ### Added
