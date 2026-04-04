@@ -2,6 +2,24 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.4.0] - 2026-04-03
+
+### Added
+- **Grain Count parameter** (GRAIN_COUNT, 2–32, default 8, integer steps) — replaces hardcoded 8-grain system with dynamic grain pool
+- Rotary knob in WebView UI matching existing botanical aesthetic (labeled "Grains")
+
+### Changed
+- Granular engine dynamically recalculates hop size (`grainSize / grainCount`) and COLA scaling factor (`2.0 / grainCount`) on parameter change
+- Grain array expanded to MAX_GRAINS=32; only `grainCount` grains are activated from the pool
+- Grains beyond active count are cleanly deactivated on count reduction; `nextGrainIndex` clamped to new range
+- Editor width increased from 450px to 500px to accommodate 5 knobs
+- Grain Size knob label shortened from "Grain" to "Size" to avoid confusion with new "Grains" knob
+
+### Technical Notes
+- COLA identity preserved for all grain counts: N Hann windows at (1−1/N) overlap sum to N/2, scaled by 2/N → unity
+- Existing presets default to 8 grains (non-breaking — matches previous hardcoded behavior)
+- No audio-thread allocations: window buffer pre-allocated for MAX_GRAINS=32, Hann window pre-allocated for max grain size (1000ms)
+
 ## [1.3.1] - 2026-04-03
 
 ### Fixed

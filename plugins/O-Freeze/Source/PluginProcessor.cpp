@@ -60,6 +60,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreezeAudioProcessor::creat
         400.0f,
         juce::AudioParameterFloatAttributes().withLabel("ms")));
 
+    // GRAIN_COUNT - Number of active grains (2-32, integer steps)
+    layout.add(std::make_unique<juce::AudioParameterInt>(
+        juce::ParameterID { "GRAIN_COUNT", 1 },
+        "Grain Count",
+        2, 32, 8));
+
     return layout;
 }
 
@@ -119,18 +125,21 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     maxGrainSize = static_cast<int>(sampleRate * 1.0);
     hannWindow.resize(maxGrainSize);
 
-    // Read initial grain size from parameter
+    // Read initial grain size and grain count from parameters
     auto* grainSizeParam = parameters.getRawParameterValue("GRAIN_SIZE");
+    auto* grainCountParam = parameters.getRawParameterValue("GRAIN_COUNT");
     float grainSizeMs = grainSizeParam->load();
+    numGrains = static_cast<int>(grainCountParam->load());
     lastGrainSizeMs = grainSizeMs;
+    lastGrainCount = numGrains;
     grainSize = static_cast<int>(sampleRate * grainSizeMs / 1000.0);
-    grainTriggerInterval = grainSize / NUM_GRAINS; // 8 grains with 87.5% overlap
+    grainTriggerInterval = grainSize / numGrains;
 
     // True Hann window scaled for COLA (Constant Overlap-Add)
-    // With NUM_GRAINS at (1 - 1/NUM_GRAINS) overlap, Hann windows sum to NUM_GRAINS/2
-    // Scale by 2/NUM_GRAINS so overlapping grains sum to 1.0 (no normalization needed)
+    // With N grains at (1 - 1/N) overlap, Hann windows sum to N/2
+    // Scale by 2/N so overlapping grains sum to 1.0 (no normalization needed)
     const double PI = juce::MathConstants<double>::pi;
-    const float colaScale = 2.0f / static_cast<float>(NUM_GRAINS);
+    const float colaScale = 2.0f / static_cast<float>(numGrains);
 
     for (int i = 0; i < grainSize; ++i)
     {
@@ -188,22 +197,27 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* thresholdParam = parameters.getRawParameterValue("THRESHOLD");
     auto* mixParam = parameters.getRawParameterValue("MIX");
     auto* grainSizeParam = parameters.getRawParameterValue("GRAIN_SIZE");
+    auto* grainCountParam = parameters.getRawParameterValue("GRAIN_COUNT");
 
     int modeValue = static_cast<int>(modeParam->load());
     float thresholdDB = thresholdParam->load();
     float mixValue = mixParam->load() / 100.0f; // Convert 0-100% to 0-1
     float grainSizeMs = grainSizeParam->load();
+    int grainCountValue = static_cast<int>(grainCountParam->load());
 
-    // Recalculate grain size, hop size, and Hann window on parameter change
-    if (grainSizeMs != lastGrainSizeMs)
+    // Recalculate grain parameters when size or count changes
+    bool grainParamsChanged = (grainSizeMs != lastGrainSizeMs) || (grainCountValue != lastGrainCount);
+    if (grainParamsChanged)
     {
         lastGrainSizeMs = grainSizeMs;
+        lastGrainCount = grainCountValue;
+        numGrains = grainCountValue;
         grainSize = juce::jmin(static_cast<int>(currentSampleRate * grainSizeMs / 1000.0), maxGrainSize);
-        grainTriggerInterval = grainSize / NUM_GRAINS;
+        grainTriggerInterval = grainSize / numGrains;
 
-        // Rebuild Hann window for new grain size (pre-allocated buffer, no alloc)
+        // Rebuild Hann window with new COLA scale (pre-allocated buffer, no alloc)
         const double PI = juce::MathConstants<double>::pi;
-        const float colaScale = 2.0f / static_cast<float>(NUM_GRAINS);
+        const float colaScale = 2.0f / static_cast<float>(numGrains);
 
         for (int i = 0; i < grainSize; ++i)
         {
@@ -212,12 +226,16 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             hannWindow[i] = hannValue * colaScale;
         }
 
-        // Deactivate grains that are past new grain size boundary
-        for (auto& grain : grains)
+        // Deactivate grains past new grain size boundary or beyond active count
+        for (int g = 0; g < MAX_GRAINS; ++g)
         {
-            if (grain.active && grain.startSample >= grainSize)
-                grain.active = false;
+            if (grains[g].active && (grains[g].startSample >= grainSize || g >= numGrains))
+                grains[g].active = false;
         }
+
+        // Clamp next grain index to new count
+        if (nextGrainIndex >= numGrains)
+            nextGrainIndex = 0;
     }
 
     // Determine freeze state based on mode
@@ -299,7 +317,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             grains[0].position = startPos;
 
             // Deactivate all other grains - they'll be triggered naturally
-            for (int i = 1; i < NUM_GRAINS; ++i)
+            for (int i = 1; i < MAX_GRAINS; ++i)
             {
                 grains[i].active = false;
             }
@@ -347,8 +365,8 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 int basePos = (writePosition - grainSize + freezeBufferLength) % freezeBufferLength;
                 newGrain.position = basePos;
 
-                // Advance grain index (round-robin)
-                nextGrainIndex = (nextGrainIndex + 1) % NUM_GRAINS;
+                // Advance grain index (round-robin within active count)
+                nextGrainIndex = (nextGrainIndex + 1) % numGrains;
 
                 // Reset trigger counter
                 grainTriggerCounter = 0;
@@ -364,10 +382,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         int sharedDriftOffset = static_cast<int>(frozenDriftOffset * driftRange);
 
         // Get current window values and positions for all active grains (before advancing)
-        float windowValues[NUM_GRAINS] = {0};
-        int grainPositions[NUM_GRAINS] = {0};
+        float windowValues[MAX_GRAINS] = {0};
+        int grainPositions[MAX_GRAINS] = {0};
 
-        for (int g = 0; g < NUM_GRAINS; ++g)
+        for (int g = 0; g < numGrains; ++g)
         {
             if (grains[g].active)
             {
@@ -396,11 +414,11 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             if (bufferFrozen || freezeGain.getCurrentValue() > 0.001f)
             {
                 // Sum all active grains (overlap-add synthesis)
-                // COLA property: 8 Hann windows at 87.5% overlap sum to constant
-                // Window is pre-scaled by 0.25 so sum = 1.0 (no normalization needed)
+                // COLA property: N Hann windows at (1-1/N) overlap sum to N/2
+                // Window is pre-scaled by 2/N so sum = 1.0 (no normalization needed)
                 float granularSum = 0.0f;
 
-                for (int g = 0; g < NUM_GRAINS; ++g)
+                for (int g = 0; g < numGrains; ++g)
                 {
                     if (grains[g].active)
                     {

@@ -32,6 +32,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> thresholdRelay;
     std::unique_ptr<juce::WebSliderRelay> driftRelay;
     std::unique_ptr<juce::WebSliderRelay> grainSizeRelay;
+    std::unique_ptr<juce::WebSliderRelay> grainCountRelay;
     std::unique_ptr<juce::WebSliderRelay> mixRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> freezeRelay;
     std::unique_ptr<juce::WebComboBoxRelay> modeRelay;
@@ -46,6 +47,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> thresholdAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> driftAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> grainSizeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> grainCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> freezeAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> modeAttachment;

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=450, initial-scale=1.0">
+    <meta name="viewport" content="width=500, initial-scale=1.0">
     <title>O-Freeze - Ouaricon Granular Freeze</title>
     <style>
         * {
@@ -12,7 +12,7 @@
         }
 
         html, body {
-            width: 450px;
+            width: 500px;
             height: 450px;
             overflow: hidden;
             user-select: none;
@@ -22,7 +22,7 @@
         }
 
         #app {
-            width: 450px;
+            width: 500px;
             height: 450px;
             position: relative;
             background-image: url('assets/paper1.jpg');
@@ -211,7 +211,7 @@
             top: 330px;
             left: 50%;
             transform: translateX(-50%);
-            width: 430px;
+            width: 480px;
             display: flex;
             justify-content: space-around;
             z-index: 5;
@@ -381,8 +381,21 @@
                             stroke-dasharray="157" stroke-dashoffset="82.78"/>
                     </svg>
                 </div>
-                <div class="knob-label">Grain</div>
+                <div class="knob-label">Size</div>
                 <div class="knob-value">400 ms</div>
+            </div>
+
+            <!-- Grain Count knob -->
+            <div class="knob" id="grain-count-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="117.75"/>
+                    </svg>
+                </div>
+                <div class="knob-label">Grains</div>
+                <div class="knob-value">8</div>
             </div>
 
             <!-- Mix knob -->
@@ -404,7 +417,7 @@
         import * as Juce from './js/juce/index.js';
 
         // Parameter states
-        let freezeState, thresholdState, modeState, driftState, grainSizeState, mixState;
+        let freezeState, thresholdState, modeState, driftState, grainSizeState, grainCountState, mixState;
 
         // Global drag state (fixes the scope issue with knob dragging)
         const dragState = {
@@ -474,6 +487,7 @@
             modeState = Juce.getComboBoxState('MODE');
             driftState = Juce.getSliderState('DRIFT');
             grainSizeState = Juce.getSliderState('GRAIN_SIZE');
+            grainCountState = Juce.getSliderState('GRAIN_COUNT');
             mixState = Juce.getSliderState('MIX');
 
             // Initialize UI from parameter values
@@ -482,6 +496,7 @@
             updateModeUI();
             updateDriftUI();
             updateGrainSizeUI();
+            updateGrainCountUI();
             updateMixUI();
 
             // Set up parameter listeners
@@ -503,6 +518,10 @@
 
             grainSizeState.valueChangedEvent.addListener(() => {
                 updateGrainSizeUI();
+            });
+
+            grainCountState.valueChangedEvent.addListener(() => {
+                updateGrainCountUI();
             });
 
             mixState.valueChangedEvent.addListener(() => {
@@ -619,6 +638,7 @@
             setupKnob('threshold-knob', thresholdState, -60, 0, val => `${val.toFixed(1)} dB`, 'dB');
             setupKnob('drift-knob', driftState, 0, 100, val => `${val.toFixed(0)}%`, '%');
             setupKnob('grain-size-knob', grainSizeState, 50, 1000, val => `${val.toFixed(0)} ms`, 'ms');
+            setupKnob('grain-count-knob', grainCountState, 2, 32, val => `${Math.round(val)}`, '');
             setupKnob('mix-knob', mixState, 0, 100, val => `${val.toFixed(0)}%`, '%');
         }
 
@@ -754,6 +774,11 @@
 
         function updateGrainSizeUI() {
             const knob = document.getElementById('grain-size-knob');
+            if (knob.updateVisual) knob.updateVisual();
+        }
+
+        function updateGrainCountUI() {
+            const knob = document.getElementById('grain-count-knob');
             if (knob.updateVisual) knob.updateVisual();
         }
 

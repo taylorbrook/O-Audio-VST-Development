@@ -21,6 +21,7 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
     thresholdRelay = std::make_unique<juce::WebSliderRelay>("THRESHOLD");
     driftRelay = std::make_unique<juce::WebSliderRelay>("DRIFT");
     grainSizeRelay = std::make_unique<juce::WebSliderRelay>("GRAIN_SIZE");
+    grainCountRelay = std::make_unique<juce::WebSliderRelay>("GRAIN_COUNT");
     mixRelay = std::make_unique<juce::WebSliderRelay>("MIX");
     freezeRelay = std::make_unique<juce::WebToggleButtonRelay>("FREEZE");
     modeRelay = std::make_unique<juce::WebComboBoxRelay>("MODE");
@@ -41,6 +42,7 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
             .withOptionsFrom(*thresholdRelay)
             .withOptionsFrom(*driftRelay)
             .withOptionsFrom(*grainSizeRelay)
+            .withOptionsFrom(*grainCountRelay)
             .withOptionsFrom(*mixRelay)
             .withOptionsFrom(*freezeRelay)
             .withOptionsFrom(*modeRelay)
@@ -56,6 +58,8 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
         *processorRef.getAPVTS().getParameter("DRIFT"), *driftRelay, nullptr);
     grainSizeAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.getAPVTS().getParameter("GRAIN_SIZE"), *grainSizeRelay, nullptr);
+    grainCountAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("GRAIN_COUNT"), *grainCountRelay, nullptr);
     mixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.getAPVTS().getParameter("MIX"), *mixRelay, nullptr);
     freezeAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
@@ -69,8 +73,8 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
 
     addAndMakeVisible(*webView);
 
-    // Set editor size (450x450 square from PLAN.md)
-    setSize(450, 450);
+    // Set editor size (500x450 to accommodate 5 knobs)
+    setSize(500, 450);
 }
 
 OFreezeAudioProcessorEditor::~OFreezeAudioProcessorEditor()

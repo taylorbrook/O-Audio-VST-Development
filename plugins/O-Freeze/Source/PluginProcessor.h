@@ -72,8 +72,10 @@ private:
     int rmsSamplesPerWindow = 0;
 
     // Granular synthesis components
-    static constexpr int NUM_GRAINS = 8;  // 8 grains for 87.5% overlap (COLA compliant)
-    std::array<Grain, NUM_GRAINS> grains;
+    static constexpr int MAX_GRAINS = 32;
+    int numGrains = 8;         // Active grain count (from GRAIN_COUNT parameter)
+    int lastGrainCount = 8;    // Change detection
+    std::array<Grain, MAX_GRAINS> grains;
     std::vector<float> hannWindow;
     int grainSize = 0;
     int maxGrainSize = 0;
