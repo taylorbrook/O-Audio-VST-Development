@@ -409,6 +409,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
 
             nextGrainIndex = 1;  // Next grain to trigger
             grainTriggerCounter = 0;
+            nextTriggerInterval = grainTriggerInterval;  // Reset to nominal for clean first cycle
             stopTriggeringNewGrains = false;  // Ensure we're triggering grains
         }
         else
