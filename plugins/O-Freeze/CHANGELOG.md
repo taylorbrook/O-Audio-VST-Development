@@ -2,6 +2,13 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.9.5] - 2026-04-04
+
+### Changed
+- **Replaced 8 identical one-liner knob update functions** (`updateThresholdUI`, `updateDriftUI`, `updateGrainSizeUI`, `updateGrainCountUI`, `updateDetuneUI`, `updateMixUI`, `updateLfoRateUI`, `updateLfoDepthUI`) with single generic `updateKnobUI(knobId)`
+- **Replaced manual `classList.add`/`remove` with `classList.toggle(cls, condition)`** in `updateFreezeUI`, `updateReverseUI`, `updateModeUI`, `updateLfoShapeUI`
+- Collapsed verbose 3-line listener registrations to one-liner arrows
+
 ## [1.9.4] - 2026-04-04
 
 ### Changed

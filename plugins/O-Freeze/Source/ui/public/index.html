@@ -692,16 +692,16 @@
             // Initialize UI from parameter values
             updateFreezeUI();
             updateReverseUI();
-            updateThresholdUI();
             updateModeUI();
-            updateDriftUI();
-            updateGrainSizeUI();
-            updateGrainCountUI();
-            updateDetuneUI();
-            updateMixUI();
-            updateLfoRateUI();
-            updateLfoDepthUI();
             updateLfoShapeUI();
+            updateKnobUI('threshold-knob');
+            updateKnobUI('drift-knob');
+            updateKnobUI('grain-size-knob');
+            updateKnobUI('grain-count-knob');
+            updateKnobUI('detune-knob');
+            updateKnobUI('mix-knob');
+            updateKnobUI('lfo-rate-knob');
+            updateKnobUI('lfo-depth-knob');
 
             // Set up parameter listeners
             freezeState.valueChangedEvent.addListener(() => {
@@ -712,45 +712,16 @@
                 updateReverseUI();
             });
 
-            thresholdState.valueChangedEvent.addListener(() => {
-                updateThresholdUI();
-            });
-
-            modeState.valueChangedEvent.addListener(() => {
-                updateModeUI();
-            });
-
-            driftState.valueChangedEvent.addListener(() => {
-                updateDriftUI();
-            });
-
-            grainSizeState.valueChangedEvent.addListener(() => {
-                updateGrainSizeUI();
-            });
-
-            grainCountState.valueChangedEvent.addListener(() => {
-                updateGrainCountUI();
-            });
-
-            detuneState.valueChangedEvent.addListener(() => {
-                updateDetuneUI();
-            });
-
-            mixState.valueChangedEvent.addListener(() => {
-                updateMixUI();
-            });
-
-            lfoRateState.valueChangedEvent.addListener(() => {
-                updateLfoRateUI();
-            });
-
-            lfoDepthState.valueChangedEvent.addListener(() => {
-                updateLfoDepthUI();
-            });
-
-            lfoShapeState.valueChangedEvent.addListener(() => {
-                updateLfoShapeUI();
-            });
+            thresholdState.valueChangedEvent.addListener(() => updateKnobUI('threshold-knob'));
+            modeState.valueChangedEvent.addListener(() => updateModeUI());
+            driftState.valueChangedEvent.addListener(() => updateKnobUI('drift-knob'));
+            grainSizeState.valueChangedEvent.addListener(() => updateKnobUI('grain-size-knob'));
+            grainCountState.valueChangedEvent.addListener(() => updateKnobUI('grain-count-knob'));
+            detuneState.valueChangedEvent.addListener(() => updateKnobUI('detune-knob'));
+            mixState.valueChangedEvent.addListener(() => updateKnobUI('mix-knob'));
+            lfoRateState.valueChangedEvent.addListener(() => updateKnobUI('lfo-rate-knob'));
+            lfoDepthState.valueChangedEvent.addListener(() => updateKnobUI('lfo-depth-knob'));
+            lfoShapeState.valueChangedEvent.addListener(() => updateLfoShapeUI());
 
             // Set up UI event handlers
             setupFreezeButton();
@@ -778,19 +749,9 @@
             const isActive = freezeState.getValue();
             const isManualMode = modeState.getChoiceIndex() === 0;
 
-            if (isActive) {
-                freezeBtn.classList.add('active');
-                particles.classList.add('active');
-            } else {
-                freezeBtn.classList.remove('active');
-                particles.classList.remove('active');
-            }
-
-            if (!isManualMode) {
-                freezeBtn.classList.add('disabled');
-            } else {
-                freezeBtn.classList.remove('disabled');
-            }
+            freezeBtn.classList.toggle('active', isActive);
+            particles.classList.toggle('active', isActive);
+            freezeBtn.classList.toggle('disabled', !isManualMode);
         }
 
         // Reverse toggle
@@ -804,11 +765,7 @@
 
         function updateReverseUI() {
             const reverseBtn = document.getElementById('reverse-toggle');
-            if (reverseState.getValue()) {
-                reverseBtn.classList.add('active');
-            } else {
-                reverseBtn.classList.remove('active');
-            }
+            reverseBtn.classList.toggle('active', reverseState.getValue());
         }
 
         // Mode toggle
@@ -828,24 +785,13 @@
             const isThresholdMode = modeIndex === 1;
 
             modeOptions.forEach((option, index) => {
-                if (index === modeIndex) {
-                    option.classList.add('active');
-                } else {
-                    option.classList.remove('active');
-                }
+                option.classList.toggle('active', index === modeIndex);
             });
 
-            // Update disabled states
             const freezeBtn = document.getElementById('freeze-button');
             const thresholdKnob = document.getElementById('threshold-knob');
-
-            if (isThresholdMode) {
-                freezeBtn.classList.add('disabled');
-                thresholdKnob.classList.remove('disabled');
-            } else {
-                freezeBtn.classList.remove('disabled');
-                thresholdKnob.classList.add('disabled');
-            }
+            freezeBtn.classList.toggle('disabled', isThresholdMode);
+            thresholdKnob.classList.toggle('disabled', !isThresholdMode);
         }
 
         // Global drag handlers (set up once)
@@ -1009,43 +955,8 @@
             });
         }
 
-        function updateThresholdUI() {
-            const knob = document.getElementById('threshold-knob');
-            if (knob.updateVisual) knob.updateVisual();
-        }
-
-        function updateDriftUI() {
-            const knob = document.getElementById('drift-knob');
-            if (knob.updateVisual) knob.updateVisual();
-        }
-
-        function updateGrainSizeUI() {
-            const knob = document.getElementById('grain-size-knob');
-            if (knob.updateVisual) knob.updateVisual();
-        }
-
-        function updateGrainCountUI() {
-            const knob = document.getElementById('grain-count-knob');
-            if (knob.updateVisual) knob.updateVisual();
-        }
-
-        function updateDetuneUI() {
-            const knob = document.getElementById('detune-knob');
-            if (knob.updateVisual) knob.updateVisual();
-        }
-
-        function updateMixUI() {
-            const knob = document.getElementById('mix-knob');
-            if (knob.updateVisual) knob.updateVisual();
-        }
-
-        function updateLfoRateUI() {
-            const knob = document.getElementById('lfo-rate-knob');
-            if (knob.updateVisual) knob.updateVisual();
-        }
-
-        function updateLfoDepthUI() {
-            const knob = document.getElementById('lfo-depth-knob');
+        function updateKnobUI(knobId) {
+            const knob = document.getElementById(knobId);
             if (knob.updateVisual) knob.updateVisual();
         }
 
@@ -1063,11 +974,7 @@
             const shapeOptions = document.querySelectorAll('.lfo-shape-option');
             const shapeIndex = lfoShapeState.getChoiceIndex();
             shapeOptions.forEach((option, index) => {
-                if (index === shapeIndex) {
-                    option.classList.add('active');
-                } else {
-                    option.classList.remove('active');
-                }
+                option.classList.toggle('active', index === shapeIndex);
             });
         }
 
