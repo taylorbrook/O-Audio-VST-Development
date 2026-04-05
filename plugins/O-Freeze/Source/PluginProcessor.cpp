@@ -112,6 +112,10 @@ OFreezeAudioProcessor::OFreezeAudioProcessor()
                         .withOutput("Output", juce::AudioChannelSet::stereo(), true))
     , parameters(*this, nullptr, "Parameters", createParameterLayout())
 {
+#if OUARICON_LICENSING_ENABLED
+    licenseManager = std::make_unique<OuariconLicense>(
+        "ouaricon-freeze", OUARICON_SUPABASE_URL, OUARICON_SUPABASE_ANON_KEY);
+#endif
 }
 
 OFreezeAudioProcessor::~OFreezeAudioProcessor()
@@ -593,6 +597,9 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             }
         }
 
+        // Advance freeze crossfade smoother once per sample (NOT per channel)
+        float currentFreezeGain = freezeGain.getNextValue();
+
         // Process each channel using the same grain state
         for (int channel = 0; channel < numChannels; ++channel)
         {
@@ -633,8 +640,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 float frozenSample = (windowSum > 1e-6f) ? (granularSum / windowSum) : 0.0f;
 
                 // Apply crossfade envelope
-                float currentGain = freezeGain.getNextValue();
-                outputSample = inputSample * (1.0f - currentGain) + frozenSample * currentGain;
+                outputSample = inputSample * (1.0f - currentFreezeGain) + frozenSample * currentFreezeGain;
             }
 
             channelData[sample] = outputSample;

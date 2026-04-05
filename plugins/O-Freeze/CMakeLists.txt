@@ -1,8 +1,9 @@
 cmake_minimum_required(VERSION 3.15)
+include(${CMAKE_SOURCE_DIR}/modules/cmake/OuariconModules.cmake)
 
 # Plugin formats: VST3, AU, Standalone
 juce_add_plugin(O-Freeze
-    VERSION 1.9.0
+    VERSION 1.9.1
     COMPANY_NAME "${OUARICON_COMPANY_NAME}"
     PLUGIN_MANUFACTURER_CODE ${OUARICON_MANUFACTURER_CODE}
     PLUGIN_CODE OFCR
@@ -49,6 +50,13 @@ target_link_libraries(O-Freeze
 
 # Generate JuceHeader.h (JUCE 8 requirement)
 juce_generate_juce_header(O-Freeze)
+
+# Licensing module (compile-flag gated, OFF for local dev)
+if(OUARICON_LICENSING)
+    ouaricon_add_module(O-Freeze licensing)
+    target_compile_definitions(O-Freeze PRIVATE OUARICON_LICENSING_ENABLED=1)
+    target_link_libraries(O-Freeze PRIVATE juce::juce_cryptography)
+endif()
 
 # WebView UI Resources
 juce_add_binary_data(O-Freeze_UIResources
