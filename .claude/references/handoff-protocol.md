@@ -57,6 +57,8 @@ Files created/modified:
 
 **Every handoff is a two-step process: `/clear` first, then the next command.**
 
+### Stage Boundary Handoffs
+
 | After | Step 1 | Step 2 | Alternatives |
 |-------|--------|--------|--------------|
 | Ideation (BRIEF.md) | `/clear` | `/plan [Name]` | `/start [Name]` (mockup), save |
@@ -65,6 +67,21 @@ Files created/modified:
 | Stage 2 (DSP) | `/clear` | `/implement [Name]` | test, review, save |
 | Stage 3 (GUI) | `/clear` | `/implement [Name]` | test, review, save |
 | Stage 4 (Polish) | `/clear` | `/install-plugin [Name]` | test, package, save |
+
+### Individual Phase Handoffs (Manual Mode)
+
+**CRITICAL: When using individual phase commands (`/plugin-discuss`, `/plugin-research`, etc.), the next command MUST be the specific next phase command — NOT `/implement`.**
+
+| After Phase | Step 1 | Step 2 |
+|-------------|--------|--------|
+| `/plugin-discuss [Name]` | `/clear` | `/plugin-research [Name]` |
+| `/plugin-research [Name]` | `/clear` | `/plugin-plan [Name]` |
+| `/plugin-plan [Name]` | `/clear` | `/plugin-execute [Name]` |
+| `/plugin-execute [Name]` | `/clear` | `/plugin-verify [Name]` |
+| `/plugin-verify [Name]` (not final stage) | `/clear` | `/plugin-discuss [Name]` (next stage) |
+| `/plugin-verify [Name]` (Stage 4) | `/clear` | `/install-plugin [Name]` |
+
+This applies WITHOUT EXCEPTION — every phase completion must include the copy-paste-ready slash command for the next phase.
 
 ## Anti-Patterns
 

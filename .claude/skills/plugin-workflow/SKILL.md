@@ -413,6 +413,10 @@ git commit -m "stage: ${PLUGIN_NAME} ${STAGE} complete"
 
 ### Phase Completion Menu (Manual Mode)
 
+**CRITICAL: In manual mode, ALWAYS show the specific next phase command — NOT `/implement`.**
+
+Phase command sequence: `plugin-discuss` → `plugin-research` → `plugin-plan` → `plugin-execute` → `plugin-verify` → (next stage `plugin-discuss` OR `/install-plugin` if Stage 4)
+
 ```
 ━━━ PHASE COMPLETE ━━━
 
@@ -429,8 +433,8 @@ RESEARCH.md created with:
 
 **plan phase** — Create execution plan
 
-**Step 1:** `/clear` — fresh context window (recommended)
-**Step 2:** `/implement [PluginName]`
+**Step 1:** `/clear` — fresh context window
+**Step 2:** `/plugin-plan [PluginName]`
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -443,6 +447,17 @@ RESEARCH.md created with:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ```
+
+**Phase-to-command mapping (always use the specific next phase command):**
+
+| Completed Phase | Next Command |
+|----------------|--------------|
+| discuss | `/plugin-research [PluginName]` |
+| research | `/plugin-plan [PluginName]` |
+| plan | `/plugin-execute [PluginName]` |
+| execute | `/plugin-verify [PluginName]` |
+| verify (not final stage) | `/plugin-discuss [PluginName]` |
+| verify (Stage 4) | `/install-plugin [PluginName]` |
 
 ### Stage Completion Menu (Handoff Point)
 

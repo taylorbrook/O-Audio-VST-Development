@@ -66,9 +66,24 @@ The handoff format is:
 
 This applies to ALL of these commands: `/plugin-discuss`, `/plugin-research`, `/plugin-plan`, `/plugin-execute`, `/plugin-verify`, `/plugin-handoff`, `/implement`.
 
+### MANDATORY: Use Specific Next Phase Commands (Manual Mode)
+
+**When using individual phase commands, Step 2 MUST be the exact next phase command — NOT `/implement`.**
+
+| After | Step 2 (Next Command) |
+|-------|----------------------|
+| `/plugin-discuss [Name]` | `/plugin-research [Name]` |
+| `/plugin-research [Name]` | `/plugin-plan [Name]` |
+| `/plugin-plan [Name]` | `/plugin-execute [Name]` |
+| `/plugin-execute [Name]` | `/plugin-verify [Name]` |
+| `/plugin-verify [Name]` (mid-stage) | `/plugin-discuss [Name]` (next stage) |
+| `/plugin-verify [Name]` (Stage 4) | `/install-plugin [Name]` |
+
+**No exceptions.** Every phase completion = copy-paste-ready slash command for the next phase.
+
 See `.claude/references/handoff-protocol.md` for the full format specification.
 
-**If you forget: the user MUST see `/clear` as Step 1 and the next command as Step 2 before you stop.**
+**If you forget: the user MUST see `/clear` as Step 1 and the specific next phase command as Step 2 before you stop.**
 
 ## Project Structure
 - Plugins are in `plugins/[PluginName]/`
