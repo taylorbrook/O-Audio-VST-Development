@@ -51,8 +51,10 @@ private:
     struct Grain
     {
         int startSample = 0;      // Position within grain (0 to grainSize)
-        int position = 0;         // Position in freeze buffer
+        int position = 0;         // Base position in freeze buffer (set at activation, fixed)
         int jitterOffset = 0;     // Per-grain random position offset (decorrelates overlapping grains)
+        float playbackRate = 1.0f;        // Pitch micro-detuning rate multiplier
+        float fractionalPosition = 0.0f;  // Fractional read offset from base position
         bool active = false;      // Grain active flag
     };
 

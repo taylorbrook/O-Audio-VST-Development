@@ -34,8 +34,13 @@ private:
     std::unique_ptr<juce::WebSliderRelay> grainSizeRelay;
     std::unique_ptr<juce::WebSliderRelay> grainCountRelay;
     std::unique_ptr<juce::WebSliderRelay> mixRelay;
+    std::unique_ptr<juce::WebSliderRelay> detuneRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> freezeRelay;
+    std::unique_ptr<juce::WebToggleButtonRelay> reverseRelay;
     std::unique_ptr<juce::WebComboBoxRelay> modeRelay;
+    std::unique_ptr<juce::WebSliderRelay> lfoRateRelay;
+    std::unique_ptr<juce::WebSliderRelay> lfoDepthRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> lfoShapeRelay;
 
     // 2. WEBVIEW SECOND (depends on relays via withOptionsFrom)
     std::unique_ptr<juce::WebBrowserComponent> webView;
@@ -49,8 +54,13 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> grainSizeAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> grainCountAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> mixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> detuneAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> freezeAttachment;
+    std::unique_ptr<juce::WebToggleButtonParameterAttachment> reverseAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> modeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lfoRateAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> lfoDepthAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> lfoShapeAttachment;
 
     // Helper for resource serving
     std::optional<juce::WebBrowserComponent::Resource> getResource(const juce::String& url);

@@ -23,8 +23,13 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
     grainSizeRelay = std::make_unique<juce::WebSliderRelay>("GRAIN_SIZE");
     grainCountRelay = std::make_unique<juce::WebSliderRelay>("GRAIN_COUNT");
     mixRelay = std::make_unique<juce::WebSliderRelay>("MIX");
+    detuneRelay = std::make_unique<juce::WebSliderRelay>("DETUNE");
     freezeRelay = std::make_unique<juce::WebToggleButtonRelay>("FREEZE");
+    reverseRelay = std::make_unique<juce::WebToggleButtonRelay>("REVERSE");
     modeRelay = std::make_unique<juce::WebComboBoxRelay>("MODE");
+    lfoRateRelay = std::make_unique<juce::WebSliderRelay>("LFO_RATE");
+    lfoDepthRelay = std::make_unique<juce::WebSliderRelay>("LFO_DEPTH");
+    lfoShapeRelay = std::make_unique<juce::WebComboBoxRelay>("LFO_SHAPE");
 
     // ============================================================================
     // 2. Create WebView SECOND with all relay options registered
@@ -44,8 +49,13 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
             .withOptionsFrom(*grainSizeRelay)
             .withOptionsFrom(*grainCountRelay)
             .withOptionsFrom(*mixRelay)
+            .withOptionsFrom(*detuneRelay)
             .withOptionsFrom(*freezeRelay)
+            .withOptionsFrom(*reverseRelay)
             .withOptionsFrom(*modeRelay)
+            .withOptionsFrom(*lfoRateRelay)
+            .withOptionsFrom(*lfoDepthRelay)
+            .withOptionsFrom(*lfoShapeRelay)
     );
 
     // ============================================================================
@@ -62,10 +72,20 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
         *processorRef.getAPVTS().getParameter("GRAIN_COUNT"), *grainCountRelay, nullptr);
     mixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *processorRef.getAPVTS().getParameter("MIX"), *mixRelay, nullptr);
+    detuneAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("DETUNE"), *detuneRelay, nullptr);
     freezeAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
         *processorRef.getAPVTS().getParameter("FREEZE"), *freezeRelay, nullptr);
+    reverseAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("REVERSE"), *reverseRelay, nullptr);
     modeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *processorRef.getAPVTS().getParameter("MODE"), *modeRelay, nullptr);
+    lfoRateAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("LFO_RATE"), *lfoRateRelay, nullptr);
+    lfoDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("LFO_DEPTH"), *lfoDepthRelay, nullptr);
+    lfoShapeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
+        *processorRef.getAPVTS().getParameter("LFO_SHAPE"), *lfoShapeRelay, nullptr);
 
     // ============================================================================
     // Add WebView to editor (navigation happens in parentHierarchyChanged)
@@ -73,8 +93,8 @@ OFreezeAudioProcessorEditor::OFreezeAudioProcessorEditor(OFreezeAudioProcessor& 
 
     addAndMakeVisible(*webView);
 
-    // Set editor size (500x450 to accommodate 5 knobs)
-    setSize(500, 450);
+    // Set editor size (550x530 to accommodate 6 knobs + LFO group)
+    setSize(550, 530);
 }
 
 OFreezeAudioProcessorEditor::~OFreezeAudioProcessorEditor()

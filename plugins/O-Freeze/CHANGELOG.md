@@ -2,6 +2,27 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.9.0] - 2026-04-04
+
+### Added
+- **Per-grain pitch micro-detuning** (DETUNE, 0–50 cents, default 5, step 0.1) — each grain receives a random playback rate offset that spectrally decorrelates overlapping grains for richer, chorus-like frozen textures
+- **Linear interpolation on grain reads** — fractional sample positions produce smooth pitch-shifted output without aliasing artifacts
+- Detune knob in WebView UI between Grains and Mix knobs
+
+### Changed
+- Grain position advancement replaced from integer increment to fractional accumulator (`fractionalPosition += playbackRate` per sample)
+- Editor width increased from 500px to 550px to accommodate 6-knob row
+
+### Technical Notes
+- `playbackRate` stored per-grain: `1.0 + random(±1) * (cents / 1200)` — cents-to-rate conversion
+- First grain at freeze engage always gets `playbackRate = 1.0` (no detune) for clean initial capture
+- `fractionalPosition` (float) accumulates playback rate; integer part selects buffer sample, fractional part drives linear interpolation between `floor` and `floor+1`
+- At max detune (50 cents), playback rate varies ±0.0417 — subtle pitch shift with effective spectral decorrelation
+- WSOLA tail capture updated to compute end position from `base + int(fractionalPosition)` rather than advanced integer position
+- Reverse playback direction fully supported (interpolation direction flips correctly)
+- No breaking changes — existing presets default to 5 cents detune; set to 0 for previous behavior
+- Float precision sufficient: max `fractionalPosition` ≈ 49000 at 1000ms/48kHz, well within float mantissa range
+
 ## [1.8.0] - 2026-04-04
 
 ### Added

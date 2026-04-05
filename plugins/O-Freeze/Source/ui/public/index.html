@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=500, initial-scale=1.0">
+    <meta name="viewport" content="width=550, initial-scale=1.0, height=530">
     <title>O-Freeze - Ouaricon Granular Freeze</title>
     <style>
         * {
@@ -12,8 +12,8 @@
         }
 
         html, body {
-            width: 500px;
-            height: 450px;
+            width: 550px;
+            height: 530px;
             overflow: hidden;
             user-select: none;
             -webkit-user-select: none;
@@ -22,8 +22,8 @@
         }
 
         #app {
-            width: 500px;
-            height: 450px;
+            width: 550px;
+            height: 530px;
             position: relative;
             background-image: url('assets/paper1.jpg');
             background-size: cover;
@@ -64,14 +64,14 @@
             font-size: 18px;
             font-weight: 400;
             letter-spacing: 1.5px;
-            color: #d4c5b0;
+            color: #b0a590;
             text-transform: uppercase;
         }
 
         /* Central freeze button */
         #freeze-container {
             position: absolute;
-            top: 50%;
+            top: calc(50% - 25px);
             left: 50%;
             transform: translate(-50%, -50%);
             z-index: 5;
@@ -127,7 +127,7 @@
             font-size: 16px;
             font-weight: 600;
             letter-spacing: 2px;
-            color: #d4c5b0;
+            color: #b0a590;
             text-transform: uppercase;
             text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
             pointer-events: none;
@@ -136,7 +136,7 @@
         /* Grain activity visualization */
         #grain-particles {
             position: absolute;
-            top: 50%;
+            top: calc(50% - 25px);
             left: 50%;
             width: 160px;
             height: 160px;
@@ -165,6 +165,37 @@
             50% { opacity: 0.6; }
         }
 
+        /* Reverse toggle */
+        #reverse-container {
+            position: absolute;
+            top: calc(50% - 125px);
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 5;
+        }
+
+        #reverse-toggle {
+            padding: 6px 18px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #6a5540;
+            cursor: pointer;
+            text-transform: uppercase;
+            border: 1px solid rgba(139, 115, 85, 0.4);
+            border-radius: 3px;
+            background: rgba(42, 35, 28, 0.5);
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        #reverse-toggle:hover {
+            background: rgba(139, 115, 85, 0.2);
+        }
+
+        #reverse-toggle.active {
+            background: rgba(90, 122, 106, 0.6);
+            color: #b0a590;
+        }
+
         /* Mode toggle */
         #mode-toggle-container {
             position: absolute;
@@ -186,7 +217,7 @@
             padding: 8px 20px;
             font-size: 11px;
             letter-spacing: 0.5px;
-            color: #8b7355;
+            color: #6a5540;
             cursor: pointer;
             transition: background 0.2s ease, color 0.2s ease;
             text-transform: uppercase;
@@ -198,7 +229,7 @@
 
         .mode-option.active {
             background: rgba(90, 122, 106, 0.6);
-            color: #d4c5b0;
+            color: #b0a590;
         }
 
         .mode-option:not(:last-child) {
@@ -208,13 +239,116 @@
         /* Knobs container */
         #knobs-container {
             position: absolute;
-            top: 330px;
+            top: 320px;
             left: 50%;
             transform: translateX(-50%);
-            width: 480px;
+            width: 530px;
             display: flex;
             justify-content: space-around;
             z-index: 5;
+        }
+
+        /* LFO group below Drift knob */
+        #lfo-group {
+            position: absolute;
+            top: 430px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            align-items: flex-start;
+            gap: 12px;
+            z-index: 5;
+            padding: 8px 16px;
+            background: rgba(120, 105, 85, 0.45);
+            border: 1px solid rgba(160, 140, 110, 0.4);
+            border-radius: 4px;
+        }
+
+        #lfo-group-label {
+            position: absolute;
+            top: -9px;
+            left: 12px;
+            font-size: 11px;
+            letter-spacing: 1.5px;
+            color: #111;
+            text-transform: uppercase;
+            background: #3a3228;
+            padding: 0 4px;
+        }
+
+        .knob-small {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            cursor: pointer;
+        }
+
+        .knob-small .knob-visual {
+            width: 42px;
+            height: 42px;
+        }
+
+        .knob-small .knob-vine {
+            stroke: #7ab08a;
+            stroke-width: 3.5;
+        }
+
+        .knob-small .knob-label {
+            margin-top: 4px;
+            font-size: 11px;
+            color: #111;
+        }
+
+        .knob-small .knob-value {
+            margin-top: 1px;
+            font-size: 12px;
+            color: #111;
+        }
+
+        /* LFO shape toggle (reuses mode-toggle style) */
+        #lfo-shape-toggle {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #lfo-shape-selector {
+            display: flex;
+            border: 1px solid rgba(139, 115, 85, 0.3);
+            border-radius: 3px;
+            overflow: hidden;
+            background: rgba(42, 35, 28, 0.5);
+        }
+
+        .lfo-shape-option {
+            padding: 4px 8px;
+            font-size: 11px;
+            letter-spacing: 0.3px;
+            color: #111;
+            cursor: pointer;
+            transition: background 0.2s ease, color 0.2s ease;
+        }
+
+        .lfo-shape-option:hover {
+            background: rgba(139, 115, 85, 0.2);
+        }
+
+        .lfo-shape-option.active {
+            background: rgba(90, 122, 106, 0.6);
+            color: #b0a590;
+        }
+
+        .lfo-shape-option:not(:last-child) {
+            border-right: 1px solid rgba(139, 115, 85, 0.2);
+        }
+
+        #lfo-shape-label {
+            margin-bottom: 4px;
+            font-size: 11px;
+            letter-spacing: 1px;
+            color: #111;
+            text-transform: uppercase;
         }
 
         .knob {
@@ -259,21 +393,21 @@
             margin-top: 8px;
             font-size: 10px;
             letter-spacing: 1px;
-            color: #8b7355;
+            color: #6a5540;
             text-transform: uppercase;
         }
 
         .knob-value {
             margin-top: 2px;
             font-size: 11px;
-            color: #a08870;
+            color: #7a6850;
             cursor: pointer;
             min-width: 60px;
             text-align: center;
         }
 
         .knob-value:hover {
-            color: #d4c5b0;
+            color: #b0a590;
         }
 
         .knob-input {
@@ -281,7 +415,7 @@
             margin-top: 2px;
             font-size: 11px;
             font-family: 'Georgia', 'Times New Roman', serif;
-            color: #d4c5b0;
+            color: #b0a590;
             background: rgba(42, 35, 28, 0.9);
             border: 1px solid rgba(139, 115, 85, 0.5);
             border-radius: 3px;
@@ -334,6 +468,11 @@
                 </svg>
                 <div id="freeze-label">Freeze</div>
             </div>
+        </div>
+
+        <!-- Reverse toggle -->
+        <div id="reverse-container">
+            <div id="reverse-toggle">Reverse</div>
         </div>
 
         <!-- Mode toggle -->
@@ -398,6 +537,19 @@
                 <div class="knob-value">8</div>
             </div>
 
+            <!-- Detune knob -->
+            <div class="knob" id="detune-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="94.2"/>
+                    </svg>
+                </div>
+                <div class="knob-label">Detune</div>
+                <div class="knob-value">5.0 ct</div>
+            </div>
+
             <!-- Mix knob -->
             <div class="knob" id="mix-knob">
                 <div class="knob-visual">
@@ -411,13 +563,55 @@
                 <div class="knob-value">100%</div>
             </div>
         </div>
+
+        <!-- LFO modulation group -->
+        <div id="lfo-group">
+            <div id="lfo-group-label">Drift LFO</div>
+
+            <!-- LFO Rate knob (small) -->
+            <div class="knob-small knob" id="lfo-rate-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="117.75"/>
+                    </svg>
+                </div>
+                <div class="knob-label">Rate</div>
+                <div class="knob-value">0.50 Hz</div>
+            </div>
+
+            <!-- LFO Depth knob (small) -->
+            <div class="knob-small knob" id="lfo-depth-knob">
+                <div class="knob-visual">
+                    <svg viewBox="0 0 60 60">
+                        <circle class="knob-track" cx="30" cy="30" r="25"/>
+                        <circle class="knob-vine" cx="30" cy="30" r="25"
+                            stroke-dasharray="157" stroke-dashoffset="78.5"/>
+                    </svg>
+                </div>
+                <div class="knob-label">Depth</div>
+                <div class="knob-value">50%</div>
+            </div>
+
+            <!-- LFO Shape selector -->
+            <div id="lfo-shape-toggle">
+                <div id="lfo-shape-label">Shape</div>
+                <div id="lfo-shape-selector">
+                    <div class="lfo-shape-option active" data-shape="0">Sin</div>
+                    <div class="lfo-shape-option" data-shape="1">Tri</div>
+                    <div class="lfo-shape-option" data-shape="2">Rnd</div>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script type="module">
         import * as Juce from './js/juce/index.js';
 
         // Parameter states
-        let freezeState, thresholdState, modeState, driftState, grainSizeState, grainCountState, mixState;
+        let freezeState, reverseState, thresholdState, modeState, driftState, grainSizeState, grainCountState, detuneState, mixState;
+        let lfoRateState, lfoDepthState, lfoShapeState;
 
         // Global drag state (fixes the scope issue with knob dragging)
         const dragState = {
@@ -483,25 +677,39 @@
 
             // Get parameter states
             freezeState = Juce.getToggleState('FREEZE');
+            reverseState = Juce.getToggleState('REVERSE');
             thresholdState = Juce.getSliderState('THRESHOLD');
             modeState = Juce.getComboBoxState('MODE');
             driftState = Juce.getSliderState('DRIFT');
             grainSizeState = Juce.getSliderState('GRAIN_SIZE');
             grainCountState = Juce.getSliderState('GRAIN_COUNT');
+            detuneState = Juce.getSliderState('DETUNE');
             mixState = Juce.getSliderState('MIX');
+            lfoRateState = Juce.getSliderState('LFO_RATE');
+            lfoDepthState = Juce.getSliderState('LFO_DEPTH');
+            lfoShapeState = Juce.getComboBoxState('LFO_SHAPE');
 
             // Initialize UI from parameter values
             updateFreezeUI();
+            updateReverseUI();
             updateThresholdUI();
             updateModeUI();
             updateDriftUI();
             updateGrainSizeUI();
             updateGrainCountUI();
+            updateDetuneUI();
             updateMixUI();
+            updateLfoRateUI();
+            updateLfoDepthUI();
+            updateLfoShapeUI();
 
             // Set up parameter listeners
             freezeState.valueChangedEvent.addListener(() => {
                 updateFreezeUI();
+            });
+
+            reverseState.valueChangedEvent.addListener(() => {
+                updateReverseUI();
             });
 
             thresholdState.valueChangedEvent.addListener(() => {
@@ -524,14 +732,32 @@
                 updateGrainCountUI();
             });
 
+            detuneState.valueChangedEvent.addListener(() => {
+                updateDetuneUI();
+            });
+
             mixState.valueChangedEvent.addListener(() => {
                 updateMixUI();
             });
 
+            lfoRateState.valueChangedEvent.addListener(() => {
+                updateLfoRateUI();
+            });
+
+            lfoDepthState.valueChangedEvent.addListener(() => {
+                updateLfoDepthUI();
+            });
+
+            lfoShapeState.valueChangedEvent.addListener(() => {
+                updateLfoShapeUI();
+            });
+
             // Set up UI event handlers
             setupFreezeButton();
+            setupReverseToggle();
             setupModeToggle();
             setupKnobs();
+            setupLfoShapeToggle();
             setupGlobalDragHandlers();
         }
 
@@ -564,6 +790,24 @@
                 freezeBtn.classList.add('disabled');
             } else {
                 freezeBtn.classList.remove('disabled');
+            }
+        }
+
+        // Reverse toggle
+        function setupReverseToggle() {
+            const reverseBtn = document.getElementById('reverse-toggle');
+            reverseBtn.addEventListener('click', () => {
+                const newValue = !reverseState.getValue();
+                reverseState.setValue(newValue);
+            });
+        }
+
+        function updateReverseUI() {
+            const reverseBtn = document.getElementById('reverse-toggle');
+            if (reverseState.getValue()) {
+                reverseBtn.classList.add('active');
+            } else {
+                reverseBtn.classList.remove('active');
             }
         }
 
@@ -639,7 +883,10 @@
             setupKnob('drift-knob', driftState, 0, 100, val => `${val.toFixed(0)}%`, '%');
             setupKnob('grain-size-knob', grainSizeState, 50, 1000, val => `${val.toFixed(0)} ms`, 'ms');
             setupKnob('grain-count-knob', grainCountState, 2, 32, val => `${Math.round(val)}`, '');
+            setupKnob('detune-knob', detuneState, 0, 50, val => `${val.toFixed(1)} ct`, 'ct');
             setupKnob('mix-knob', mixState, 0, 100, val => `${val.toFixed(0)}%`, '%');
+            setupKnob('lfo-rate-knob', lfoRateState, 0.01, 10, val => `${val.toFixed(2)} Hz`, 'Hz');
+            setupKnob('lfo-depth-knob', lfoDepthState, 0, 100, val => `${val.toFixed(0)}%`, '%');
         }
 
         function setupKnob(knobId, state, min, max, formatValue, unit) {
@@ -782,9 +1029,46 @@
             if (knob.updateVisual) knob.updateVisual();
         }
 
+        function updateDetuneUI() {
+            const knob = document.getElementById('detune-knob');
+            if (knob.updateVisual) knob.updateVisual();
+        }
+
         function updateMixUI() {
             const knob = document.getElementById('mix-knob');
             if (knob.updateVisual) knob.updateVisual();
+        }
+
+        function updateLfoRateUI() {
+            const knob = document.getElementById('lfo-rate-knob');
+            if (knob.updateVisual) knob.updateVisual();
+        }
+
+        function updateLfoDepthUI() {
+            const knob = document.getElementById('lfo-depth-knob');
+            if (knob.updateVisual) knob.updateVisual();
+        }
+
+        function setupLfoShapeToggle() {
+            const shapeOptions = document.querySelectorAll('.lfo-shape-option');
+            shapeOptions.forEach(option => {
+                option.addEventListener('click', () => {
+                    const shapeIndex = parseInt(option.dataset.shape);
+                    lfoShapeState.setChoiceIndex(shapeIndex);
+                });
+            });
+        }
+
+        function updateLfoShapeUI() {
+            const shapeOptions = document.querySelectorAll('.lfo-shape-option');
+            const shapeIndex = lfoShapeState.getChoiceIndex();
+            shapeOptions.forEach((option, index) => {
+                if (index === shapeIndex) {
+                    option.classList.add('active');
+                } else {
+                    option.classList.remove('active');
+                }
+            });
         }
 
         // Initialize when DOM is ready

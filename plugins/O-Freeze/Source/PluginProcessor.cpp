@@ -95,6 +95,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFreezeAudioProcessor::creat
         "Reverse",
         false));
 
+    // DETUNE - Per-grain pitch micro-detuning range in cents
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "DETUNE", 1 },
+        "Detune",
+        juce::NormalisableRange<float>(0.0f, 50.0f, 0.1f),
+        5.0f,
+        juce::AudioParameterFloatAttributes().withLabel("cents")));
+
     return layout;
 }
 
@@ -181,6 +189,8 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
         grain.startSample = 0;
         grain.position = 0;
         grain.jitterOffset = 0;
+        grain.playbackRate = 1.0f;
+        grain.fractionalPosition = 0.0f;
     }
 
     grainTriggerCounter = 0;
@@ -213,6 +223,8 @@ void OFreezeAudioProcessor::releaseResources()
         grain.startSample = 0;
         grain.position = 0;
         grain.jitterOffset = 0;
+        grain.playbackRate = 1.0f;
+        grain.fractionalPosition = 0.0f;
     }
 
     freezeGain.setCurrentAndTargetValue(0.0f);
@@ -242,6 +254,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     auto* grainSizeParam = parameters.getRawParameterValue("GRAIN_SIZE");
     auto* grainCountParam = parameters.getRawParameterValue("GRAIN_COUNT");
     auto* reverseParam = parameters.getRawParameterValue("REVERSE");
+    auto* detuneParam = parameters.getRawParameterValue("DETUNE");
 
     int modeValue = static_cast<int>(modeParam->load());
     float thresholdDB = thresholdParam->load();
@@ -249,6 +262,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     float grainSizeMs = grainSizeParam->load();
     int grainCountValue = static_cast<int>(grainCountParam->load());
     bool reverseActive = reverseParam->load() > 0.5f;
+    float detuneValue = detuneParam->load();
 
     // Recalculate grain parameters when size or count changes
     bool grainParamsChanged = (grainSizeMs != lastGrainSizeMs) || (grainCountValue != lastGrainCount);
@@ -410,6 +424,8 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             grains[0].startSample = 0;
             grains[0].position = startPos;
             grains[0].jitterOffset = 0;
+            grains[0].playbackRate = 1.0f;  // No detune on first grain
+            grains[0].fractionalPosition = 0.0f;
 
             // Deactivate all other grains - they'll be triggered naturally
             for (int i = 1; i < MAX_GRAINS; ++i)
@@ -524,6 +540,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 float jitterRange = static_cast<float>(grainSize) * driftValue;
                 newGrain.jitterOffset = static_cast<int>(random.nextFloat() * jitterRange);
 
+                // Per-grain pitch micro-detuning (cents → rate multiplier)
+                newGrain.playbackRate = 1.0f + (random.nextFloat() * 2.0f - 1.0f) * (detuneValue / 1200.0f);
+                newGrain.fractionalPosition = 0.0f;
+
                 // Advance grain index (round-robin within active count)
                 nextGrainIndex = (nextGrainIndex + 1) % numGrains;
 
@@ -541,17 +561,35 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         // Smoothed drift offset (ramps per-sample to prevent clicks from knob/LFO changes)
         int sharedDriftOffset = static_cast<int>(smoothedDriftOffset.getNextValue());
 
-        // Get current window values and positions for all active grains (before advancing)
+        // Get current window values and interpolated positions for all active grains (before advancing)
         float windowValues[MAX_GRAINS] = {0};
-        int grainPositions[MAX_GRAINS] = {0};
+        int grainPos0[MAX_GRAINS] = {0};
+        int grainPos1[MAX_GRAINS] = {0};
+        float grainFrac[MAX_GRAINS] = {0};
 
         for (int g = 0; g < numGrains; ++g)
         {
             if (grains[g].active)
             {
                 windowValues[g] = hannWindow[grains[g].startSample];
-                // Apply per-grain jitter + shared drift offset at read time
-                grainPositions[g] = (grains[g].position + grains[g].jitterOffset + sharedDriftOffset + freezeBufferLength) % freezeBufferLength;
+
+                // Fractional position for pitch-shifted grain read
+                float fp = grains[g].fractionalPosition;
+                int intPart = static_cast<int>(fp);
+                float frac = fp - static_cast<float>(intPart);
+
+                // Compute interpolation sample positions (base + fractional offset + jitter + drift)
+                if (reverseActive)
+                {
+                    grainPos0[g] = (grains[g].position - intPart + grains[g].jitterOffset + sharedDriftOffset + freezeBufferLength * 2) % freezeBufferLength;
+                    grainPos1[g] = (grainPos0[g] - 1 + freezeBufferLength) % freezeBufferLength;
+                }
+                else
+                {
+                    grainPos0[g] = (grains[g].position + intPart + grains[g].jitterOffset + sharedDriftOffset + freezeBufferLength) % freezeBufferLength;
+                    grainPos1[g] = (grainPos0[g] + 1) % freezeBufferLength;
+                }
+                grainFrac[g] = frac;
             }
         }
 
@@ -582,7 +620,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                 {
                     if (grains[g].active)
                     {
-                        float grainSample = freezeData[grainPositions[g]];
+                        // Linear interpolation between adjacent buffer samples
+                        float s0 = freezeData[grainPos0[g]];
+                        float s1 = freezeData[grainPos1[g]];
+                        float grainSample = s0 + grainFrac[g] * (s1 - s0);
                         granularSum += grainSample * windowValues[g];
                         windowSum += windowValues[g];
                     }
@@ -605,19 +646,23 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             if (grain.active)
             {
                 grain.startSample++;
-                grain.position = reverseActive
-                    ? (grain.position - 1 + freezeBufferLength) % freezeBufferLength
-                    : (grain.position + 1) % freezeBufferLength;
+                grain.fractionalPosition += grain.playbackRate;
 
                 // Deactivate grain when complete
                 if (grain.startSample >= grainSize)
                 {
+                    // Compute final buffer position from fractional offset
+                    int endOffset = static_cast<int>(grain.fractionalPosition);
+                    int endPos = reverseActive
+                        ? (grain.position - endOffset + freezeBufferLength * 2) % freezeBufferLength
+                        : (grain.position + endOffset) % freezeBufferLength;
+
                     // Capture final 64 samples for WSOLA overlap matching (mono sum)
                     for (int i = 0; i < WSOLA_TAIL_SIZE; ++i)
                     {
                         int pos = reverseActive
-                            ? (grain.position + WSOLA_TAIL_SIZE - i + freezeBufferLength) % freezeBufferLength
-                            : (grain.position - WSOLA_TAIL_SIZE + i + freezeBufferLength) % freezeBufferLength;
+                            ? (endPos + WSOLA_TAIL_SIZE - i + freezeBufferLength) % freezeBufferLength
+                            : (endPos - WSOLA_TAIL_SIZE + i + freezeBufferLength) % freezeBufferLength;
 
                         float mono = 0.0f;
                         for (int ch = 0; ch < numChannels; ++ch)
