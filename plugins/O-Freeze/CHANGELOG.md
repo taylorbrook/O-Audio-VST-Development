@@ -2,6 +2,13 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.9.2] - 2026-04-04
+
+### Fixed
+- **RMS threshold calculation ~3dB too low in stereo** — `rmsSamplesPerWindow * numChannels` divided by 2x the actual buffer size since the circular buffer holds `rmsSamplesPerWindow` interleaved entries (both channels), not `rmsSamplesPerWindow` per channel
+- Root cause: divisor assumed per-channel buffer size, but write index wraps at `rmsSamplesPerWindow` regardless of channel count, so stereo writes interleave into the same buffer
+- Effect: threshold gate triggered ~3dB earlier than the knob indicated in stereo; mono operation was unaffected
+
 ## [1.9.0] - 2026-04-04
 
 ### Added

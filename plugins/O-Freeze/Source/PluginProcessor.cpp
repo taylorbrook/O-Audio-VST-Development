@@ -328,7 +328,7 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         for (float squaredSample : rmsBuffer)
             sumSquares += squaredSample;
 
-        float rms = std::sqrt(sumSquares / static_cast<float>(rmsSamplesPerWindow * numChannels));
+        float rms = std::sqrt(sumSquares / static_cast<float>(rmsSamplesPerWindow));
         rmsLevel = 20.0f * std::log10(rms + 1e-6f); // Convert to dB
 
         // Threshold gate with hysteresis (3dB)
