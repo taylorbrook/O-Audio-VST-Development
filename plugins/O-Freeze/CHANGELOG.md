@@ -2,6 +2,20 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [2.0.0] - 2026-04-04
+
+### Added
+- First public release
+- Licensing overlay integration (conditional compilation)
+
+### Changed
+- Simplified UI update functions (single generic handler)
+- Inlined PI constants, hoisted grain scratch arrays to class members
+- Removed dead `readPosition` member
+
+### Fixed
+- Stereo RMS threshold calculation (~3dB too low)
+
 ## [1.9.5] - 2026-04-04
 
 ### Changed
