@@ -47,6 +47,18 @@
 - O-Wind: Use Lagrange3rd (not Thiran) for jet delay line because it's continuously modulated by embouchure. JUCE docs explicitly warn Thiran "is unsuitable for applications requiring fast delay modulation."
 - O-Wind: Flute vibrato should modulate breath pressure (not pitch) -- produces correlated pitch+amplitude variation matching real flute physics. All serious implementations (SWAM, STK) use this approach.
 
+- the nonlinear solver (Newton-Raphson for enhanced/quality tiers).\n287\t- O-Wind Flute: Jet excitation reads the bore output from the previous sample and injects new energy. No simultaneous coupling -
+- Error resolved: {"parentUuid":"e11cfef1-2ff2-44a0-84eb-0dba5ad0c3ba","isSidechain":true,"promptId":"0f0ee55a-caee-47
+- Error resolved: {"parentUuid":"92d2dd8f-d6d1-4bd5-a062-9279e258fc21","isSidechain":true,"promptId":"0f0ee55a-caee-47
+- Error resolved: {"parentUuid":"97590c88-51c7-4fb3-a2e9-0832560c3ce0","isSidechain":true,"promptId":"0f0ee55a-caee-47
+- Error resolved: {"parentUuid":"79a977b6-dc74-4703-a786-b48be19d3b4f","isSidechain":true,"promptId":"0f0ee55a-caee-47
+
+- O-Reed: Guillemain Psi parameter (confined jet loss) is a single-term denominator addition to the Bernoulli flow equation -- computationally trivial but acoustically transformative for single-to-double-reed morphing
+- O-Reed: For reed wind PM, use Strategy B (cylindrical waveguide + conical correction filter) initially -- Strategy C (true conical sections) has junction instabilities at taper transitions that add risk without proportional quality gain for v1.0
+- O-Reed: Static reed table (STK-style piecewise linear with clamp) should always be Phase 1 -- validates bore waveguide independently before adding dynamic reed ODE complexity
+- O-Reed: sqrt() in Bernoulli flow requires epsilon guard: sqrt(max(|dp|, 1e-10)) -- zero pressure difference causes denormals and NaN propagation
+- O-Reed: Tone hole scattering junctions cost ~5-10 multiplies each per sample -- use 4 virtual holes + register hole (not full 24-hole clarinet lattice) for production quality at acceptable CPU
+
 ## Common Issues
 - WebSearch returns outdated JUCE 6 docs; always verify JUCE API by reading local JUCE source at /Users/taylorbrook/JUCE/modules/
 - JUCE getLatencySamples() is NOT virtual in JUCE 8 -- must use setLatencySamples() instead
