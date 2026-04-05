@@ -142,7 +142,6 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     // Reset positions
     writePosition = 0;
-    readPosition = 0;
     bufferFrozen = false;
 
     // Initialize crossfade smoother (50ms fade-in, 100ms fade-out)
@@ -178,12 +177,10 @@ void OFreezeAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
 
     // Raw Hann window (no COLA scaling — per-grain jitter breaks COLA alignment)
     // Normalization done per-sample by dividing by sum of active window values
-    const double PI = juce::MathConstants<double>::pi;
-
     for (int i = 0; i < grainSize; ++i)
     {
         double phase = static_cast<double>(i) / static_cast<double>(grainSize);
-        hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
+        hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * juce::MathConstants<double>::pi * phase)));
     }
 
     // Reset all grains to inactive
@@ -280,12 +277,10 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         nextTriggerInterval = grainTriggerInterval;
 
         // Rebuild raw Hann window (pre-allocated buffer, no alloc)
-        const double PI = juce::MathConstants<double>::pi;
-
         for (int i = 0; i < grainSize; ++i)
         {
             double phase = static_cast<double>(i) / static_cast<double>(grainSize);
-            hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * PI * phase)));
+            hannWindow[i] = static_cast<float>(0.5 * (1.0 - std::cos(2.0 * juce::MathConstants<double>::pi * phase)));
         }
 
         // Deactivate grains past new grain size boundary or beyond active count
@@ -566,10 +561,6 @@ void OFreezeAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         int sharedDriftOffset = static_cast<int>(smoothedDriftOffset.getNextValue());
 
         // Get current window values and interpolated positions for all active grains (before advancing)
-        float windowValues[MAX_GRAINS] = {0};
-        int grainPos0[MAX_GRAINS] = {0};
-        int grainPos1[MAX_GRAINS] = {0};
-        float grainFrac[MAX_GRAINS] = {0};
 
         for (int g = 0; g < numGrains; ++g)
         {

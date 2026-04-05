@@ -13,6 +13,10 @@
 #include <juce_dsp/juce_dsp.h>
 #include <array>
 
+#if OUARICON_LICENSING_ENABLED
+  #include "OuariconLicense.h"
+#endif
+
 class OFreezeAudioProcessor : public juce::AudioProcessor
 {
 public:
@@ -43,6 +47,10 @@ public:
 
     juce::AudioProcessorValueTreeState& getAPVTS() { return parameters; }
 
+#if OUARICON_LICENSING_ENABLED
+    OuariconLicense& getLicenseManager() { return *licenseManager; }
+#endif
+
 private:
     // Gate state machine
     enum class GateState { Idle, Frozen };
@@ -61,7 +69,6 @@ private:
     // DSP Components (declared BEFORE parameters for initialization order)
     juce::AudioBuffer<float> freezeBuffer;
     int writePosition = 0;
-    int readPosition = 0;
     bool bufferFrozen = false;
     double currentSampleRate = 44100.0;
     juce::LinearSmoothedValue<float> freezeGain;
@@ -90,6 +97,12 @@ private:
     juce::Random random;
     bool stopTriggeringNewGrains = false;  // Soft release: let active grains complete
 
+    // Per-sample grain scratch buffers (class members to avoid stack zero-init each sample)
+    float windowValues[MAX_GRAINS] {};
+    int grainPos0[MAX_GRAINS] {};
+    int grainPos1[MAX_GRAINS] {};
+    float grainFrac[MAX_GRAINS] {};
+
     // WSOLA overlap matching (best-overlap grain positioning)
     static constexpr int WSOLA_TAIL_SIZE = 64;
     std::array<float, WSOLA_TAIL_SIZE> lastGrainTail{};
@@ -109,6 +122,10 @@ private:
 
     // Parameter layout creation
     static juce::AudioProcessorValueTreeState::ParameterLayout createParameterLayout();
+
+#if OUARICON_LICENSING_ENABLED
+    std::unique_ptr<OuariconLicense> licenseManager;
+#endif
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(OFreezeAudioProcessor)
 };

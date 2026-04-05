@@ -2,6 +2,17 @@
 
 All notable changes to O-Freeze will be documented in this file.
 
+## [1.9.4] - 2026-04-04
+
+### Changed
+- **Inlined `juce::MathConstants<double>::pi`** — removed duplicate `const double PI` locals in `prepareToPlay` and the grain-size-change block
+- **Moved per-sample grain scratch arrays to class members** — `windowValues`, `grainPos0`, `grainPos1`, `grainFrac` (all `MAX_GRAINS`-sized) were stack-allocated and zero-initialized every sample inside the inner loop; now persistent members with no per-sample init cost
+
+## [1.9.3] - 2026-04-04
+
+### Changed
+- **Removed dead `readPosition` member** — declared in PluginProcessor.h and assigned in `prepareToPlay` but never read; vestige of pre-granular design where a single read head traversed the freeze buffer (each grain now tracks its own position via `Grain::position` and `Grain::fractionalPosition`)
+
 ## [1.9.2] - 2026-04-04
 
 ### Fixed
