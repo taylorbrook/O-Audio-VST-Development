@@ -1,7 +1,7 @@
 {
   "$schema": "./resource-index.schema.json",
   "version": "1.0.0",
-  "generated": "2026-03-08T06:21:45Z",
+  "generated": "2026-04-05T02:51:26Z",
   "documents": [
     {
       "path": "research/2d-scatter-plot-concatenative-synthesis.md",
@@ -33,6 +33,34 @@
       "agents": [
         "research",
         "ui"
+      ]
+    },
+    {
+      "path": "research/2d-vowel-morph-xy-pad.md",
+      "title": "2D Vowel Morph XY Pad",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "formant-synthesis",
+        "vowel-morphing",
+        "xy-pad",
+        "2d-interpolation",
+        "barycentric",
+        "shepard",
+        "inverse-distance-weighting",
+        "juce-dsp"
+      ],
+      "summary": "Technical reference for mapping 5 cardinal vowels onto a 2D XY pad with real-time formant interpolation. Covers vowel space geometry, interpolation methods (barycentric, IDW, Shepard, RBF), log-frequency morphing, smoothing, and JUCE implementation.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
@@ -218,6 +246,35 @@
         "plugin-briefs",
         "product-planning",
         "corpus-exploration"
+      ]
+    },
+    {
+      "path": "research/consonant-noise-synthesis.md",
+      "title": "Consonant Noise Synthesis for Playable Vocal Synthesizer",
+      "created": "2026-04-04",
+      "domain": "dsp",
+      "type": "research",
+      "keywords": [
+        "consonant-synthesis",
+        "fricative",
+        "plosive",
+        "nasal",
+        "sibilance",
+        "noise-shaping",
+        "klatt",
+        "vocal-synthesis",
+        "formant"
+      ],
+      "summary": "Deep technical reference for synthesizing consonant sounds (fricatives, plosives, nasals, sibilants) as musically playable features. Covers filter parameters, noise shaping, burst generation, anti-formants, and real-time control mapping for O-Formant plugin.",
+      "juce_version": "8.0.4",
+      "stages": [
+        0,
+        1,
+        2
+      ],
+      "agents": [
+        "dsp",
+        "research"
       ]
     },
     {
