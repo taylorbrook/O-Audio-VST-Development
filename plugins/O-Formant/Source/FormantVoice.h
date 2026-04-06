@@ -1,0 +1,109 @@
+/*
+  ==============================================================================
+
+    FormantVoice.h
+    O-Formant - Physical Model Vocal Synthesizer
+    Ouaricon Audio
+    Developer: Taylor Brook
+
+  ==============================================================================
+*/
+
+#pragma once
+#include <JuceHeader.h>
+#include "dsp/LFGlottalSource.h"
+#include "dsp/AspirationNoise.h"
+#include "dsp/FormantFilterBank.h"
+#include "dsp/VowelMorpher.h"
+#include "dsp/GlottalWavetable.h"
+#include "dsp/VibratoLFO.h"
+#include "dsp/PitchGlide.h"
+#include "dsp/ConsonantEngine.h"
+
+class FormantVoice : public juce::MPESynthesiserVoice
+{
+public:
+    FormantVoice (int voiceIndex = 0);
+
+    void setAPVTS (juce::AudioProcessorValueTreeState* apvts);
+    void setWavetable (const GlottalWavetable* wt);
+    void prepare (double sampleRate);
+
+    // --- MPESynthesiserVoice pure virtual overrides ---
+    void noteStarted() override;
+    void noteStopped (bool allowTailOff) override;
+    void notePressureChanged() override;
+    void notePitchbendChanged() override;
+    void noteTimbreChanged() override;
+    void noteKeyStateChanged() override;
+    void renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
+                          int startSample, int numSamples) override;
+
+private:
+    // --- DSP Components ---
+    LFGlottalSource glottalSource;
+    AspirationNoise aspirationNoise;
+    FormantFilterBank filterBank;
+    VowelMorpher vowelMorpher;
+    VibratoLFO vibratoLFO;
+    PitchGlide pitchGlide;
+    ConsonantEngine consonantEngine;
+    juce::ADSR adsr;
+
+    // --- Voice state ---
+    bool voiceActive = false;
+    bool wasActive = false;
+    int voiceIdx = 0;
+    int sampleCounter = 0;
+
+    // Per-voice MPE modulation state
+    float mpeBreathOffset = 0.0f;
+    float mpeVowelYOffset = 0.0f;
+    float noteVelocity = 0.0f;
+
+    // Block-rate formant data (updated every kCoeffUpdateInterval samples)
+    static constexpr int kCoeffUpdateInterval = 32;
+    float formantFreqs[5] = {};
+    float formantBWs[5] = {};
+    float formantGains[5] = {};
+
+    // --- APVTS ---
+    juce::AudioProcessorValueTreeState* parameters = nullptr;
+
+    // --- Cached APVTS parameter pointers (set once in setAPVTS) ---
+
+    // Vowel Morph
+    std::atomic<float>* pVowelX        = nullptr;
+    std::atomic<float>* pVowelY        = nullptr;
+    std::atomic<float>* pVowelFocus    = nullptr;
+
+    // Glottal Source
+    std::atomic<float>* pGlottalRd     = nullptr;
+    std::atomic<float>* pBreathiness   = nullptr;
+    std::atomic<float>* pVibratoRate   = nullptr;
+    std::atomic<float>* pVibratoDepth  = nullptr;
+    std::atomic<float>* pVibratoDelay  = nullptr;
+
+    // Consonant / Noise
+    std::atomic<float>* pConsonantLevel = nullptr;
+    std::atomic<float>* pConsonantTone  = nullptr;
+    std::atomic<float>* pSibilance      = nullptr;
+    std::atomic<float>* pAutoConsonant  = nullptr;
+
+    // Envelope
+    std::atomic<float>* pAttack  = nullptr;
+    std::atomic<float>* pDecay   = nullptr;
+    std::atomic<float>* pSustain = nullptr;
+    std::atomic<float>* pRelease = nullptr;
+
+    // Voice Character
+    std::atomic<float>* pFormantShift  = nullptr;
+    std::atomic<float>* pFormantSpread = nullptr;
+    std::atomic<float>* pPitchGlide    = nullptr;
+
+    // Output
+    std::atomic<float>* pOutputGain   = nullptr;
+    std::atomic<float>* pStereoWidth  = nullptr;
+
+    JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FormantVoice)
+};

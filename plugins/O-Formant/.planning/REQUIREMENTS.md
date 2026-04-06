@@ -19,58 +19,58 @@ lastUpdated: 2026-04-04
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Generate voice from LF glottal pulse model with Rd voice quality control (0.3-2.7) | must | pending | stage-2 |
-| FUNC-02 | 5-formant parallel bandpass filter bank modeling vocal tract | must | pending | stage-2 |
-| FUNC-03 | 2D XY vowel morph pad with 5 cardinal vowels at acoustic positions | must | pending | stage-2 |
-| FUNC-04 | Shepard interpolation (p=2.5 default) with log-frequency domain blending | must | pending | stage-2 |
-| FUNC-05 | Consonant noise injection via KLATT dual-branch parallel topology | must | pending | stage-2 |
-| FUNC-06 | ADSR amplitude envelope per voice | must | pending | stage-2 |
-| FUNC-07 | MPE support: pressure->breathiness, slide->vowel Y, velocity->attack character | should | pending | stage-2 |
-| FUNC-08 | Legacy MIDI mode fallback via enableLegacyMode() | should | pending | stage-2 |
-| FUNC-09 | Auto-consonant: plosive burst (10-25ms) on note-on with crossfade into vowel | should | pending | stage-2 |
-| FUNC-10 | Vibrato LFO with rate, depth, and onset delay parameters | should | pending | stage-2 |
-| FUNC-11 | Portamento/pitch glide between notes (0-1000ms) | nice | pending | stage-2 |
-| FUNC-12 | Genre-based factory preset packs (cinematic, electronic, ambient, speech) | nice | pending | stage-4 |
+| FUNC-01 | Generate voice from LF glottal pulse model with Rd voice quality control (0.3-2.7) | must | complete | stage-2 |
+| FUNC-02 | 5-formant parallel bandpass filter bank modeling vocal tract | must | complete | stage-2 |
+| FUNC-03 | 2D XY vowel morph pad with 5 cardinal vowels at acoustic positions | must | complete | stage-2 |
+| FUNC-04 | Shepard interpolation (p=2.5 default) with log-frequency domain blending | must | complete | stage-2 |
+| FUNC-05 | Consonant noise injection via KLATT dual-branch parallel topology | must | complete | stage-2 |
+| FUNC-06 | ADSR amplitude envelope per voice | must | complete | stage-2 |
+| FUNC-07 | MPE support: pressure->breathiness, slide->vowel Y, velocity->attack character | should | complete | stage-2 |
+| FUNC-08 | Legacy MIDI mode fallback via enableLegacyMode() | should | complete | stage-2 |
+| FUNC-09 | Auto-consonant: plosive burst (10-25ms) on note-on with crossfade into vowel | should | complete | stage-2 |
+| FUNC-10 | Vibrato LFO with rate, depth, and onset delay parameters | should | complete | stage-2 |
+| FUNC-11 | Portamento/pitch glide between notes (0-1000ms) | nice | complete | stage-2 |
+| FUNC-12 | Genre-based factory preset packs (cinematic, electronic, ambient, speech) | nice | complete | stage-4 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | LF glottal source with Fant 1995 Rd-to-R-parameter regression | must | pending | stage-2 |
-| DSP-02 | Custom biquad bandpass filters for formant bank (cache-local structs) | must | pending | stage-2 |
-| DSP-03 | Block-rate coefficient updates every 32 samples | must | pending | stage-2 |
-| DSP-04 | Aspiration noise mix controlled by breathiness parameter | must | pending | stage-2 |
-| DSP-05 | Formant shift (semitones) and formant spread (spacing multiplier) | should | pending | stage-2 |
-| DSP-06 | Two-layer smoothing: XY position (~30ms) + formant parameters (~20ms) | should | pending | stage-2 |
-| DSP-07 | Anti-aliasing for glottal source (PolyBLEP minimum, mipmapped wavetable preferred) | should | pending | stage-2 |
-| DSP-08 | Consonant tone shaping (dark/bright filter) and sibilance emphasis | should | pending | stage-2 |
+| DSP-01 | LF glottal source with Fant 1995 Rd-to-R-parameter regression | must | complete | stage-2 |
+| DSP-02 | Custom biquad bandpass filters for formant bank (cache-local structs) | must | complete | stage-2 |
+| DSP-03 | Block-rate coefficient updates every 32 samples | must | complete | stage-2 |
+| DSP-04 | Aspiration noise mix controlled by breathiness parameter | must | complete | stage-2 |
+| DSP-05 | Formant shift (semitones) and formant spread (spacing multiplier) | should | complete | stage-2 |
+| DSP-06 | Two-layer smoothing: XY position (~30ms) + formant parameters (~20ms) | should | partial | stage-2 |
+| DSP-07 | Anti-aliasing for glottal source (PolyBLEP minimum, mipmapped wavetable preferred) | should | complete | stage-2 |
+| DSP-08 | Consonant tone shaping (dark/bright filter) and sibilance emphasis | should | complete | stage-2 |
 
 ### UI (UI)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | 2D XY vowel morph pad with draggable cursor and vowel labels | must | pending | stage-3 |
-| UI-02 | Real-time formant peaks overlay (F1-F5 frequency bars) on XY pad | nice | pending | stage-3 |
-| UI-03 | Organized parameter layout: Glottal, Consonant, Character groups | nice | pending | stage-3 |
+| UI-01 | 2D XY vowel morph pad with draggable cursor and vowel labels | must | complete | stage-3 |
+| UI-02 | Real-time formant peaks overlay (F1-F5 frequency bars) on XY pad | nice | complete | stage-3 |
+| UI-03 | Organized parameter layout: Glottal, Consonant, Character groups | nice | complete | stage-3 |
 
 ### Performance (PERF)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | pending | stage-2 |
-| PERF-02 | 16-voice polyphony at <5% single core CPU at 48kHz | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | complete | stage-2 |
+| PERF-02 | 16-voice polyphony at <5% single core CPU at 48kHz | must | complete | stage-2 |
 
 ### Compatibility (COMPAT)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) level 10 | must | complete | stage-4 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges | must | pending | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges | must | complete | stage-2 |
 
 ## Acceptance Criteria Details
 
@@ -165,9 +165,9 @@ lastUpdated: 2026-04-04
 **Description:** Plugin passes automated validation for both VST3 and AU formats.
 
 **Acceptance Criteria:**
-- [ ] pluginval level 5 passes for VST3
-- [ ] pluginval level 5 passes for AU
-- [ ] No crashes during parameter randomization test
+- [x] pluginval level 10 passes for VST3 (seed: 0x10531f3)
+- [x] pluginval level 10 passes for AU (seed: 0x43a9383)
+- [x] No crashes during parameter randomization test (fuzz parameters PASS)
 
 ### QUAL-01: Audio Quality
 

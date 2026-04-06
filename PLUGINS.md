@@ -50,10 +50,10 @@ Ouaricon Plugins:
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
 | O-Prism | 📦 Installed | 1.11.0 | Synth (Microtonal Wavetable) | 2026-03-09 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
-| O-Formant | 🚧 Stage 0 | - | Synth (Physical Model Vocal) | 2026-04-04 |
+| O-Formant | 📦 Installed | 1.1.0 | Synth (Physical Model Vocal) | 2026-04-05 |
 | O-Bowed | 🚧 Stage 0 | - | Synth (Physical Model Bowed String) | 2026-04-04 |
 | O-Reed | 🚧 Stage 0 | - | Synth (Physical Modeling Reed Wind) | 2026-04-04 |
-| O-Wind | 🚧 Stage 0 | - | Synth (Physical Model Flute) | 2026-04-04 |
+| O-Wind | 📦 Installed | 1.0.0 | Synth (Physical Model Flute) | 2026-04-05 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

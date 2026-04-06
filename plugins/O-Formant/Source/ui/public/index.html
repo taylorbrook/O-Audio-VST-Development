@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>O-Formant</title>
+<script src="js/juce/check_native_interop.js"></script>
+<script type="module" src="js/juce/index.js"></script>
+<script type="module" src="js/main.js"></script>
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 800px; height: 600px;
+  overflow: hidden;
+  font-family: 'Garamond', 'Times New Roman', serif;
+  background: #F5E6D3;
+  color: #3C2F2F;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.container {
+  width: 800px; height: 600px;
+  position: relative;
+  display: grid;
+  grid-template-rows: 36px 28px 1fr 170px;
+  grid-template-columns: 390px 1fr;
+}
+
+/* Header */
+.header {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  padding: 0 20px;
+  border-bottom: 1px solid #8B7355;
+  background: linear-gradient(180deg, #F5E6D3 0%, #EDD9C4 100%);
+}
+.header h1 {
+  font-size: 16px;
+  font-weight: normal;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+  color: #3C2F2F;
+}
+.header span {
+  font-size: 11px;
+  color: #8B7355;
+  margin-left: 12px;
+  font-style: italic;
+}
+
+/* Preset bar */
+.preset-bar {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 0 16px;
+  background: #EDD9C4;
+  border-bottom: 1px solid rgba(139,115,85,0.3);
+  font-size: 12px;
+}
+.preset-bar .preset-nav {
+  background: none;
+  border: none;
+  font-size: 16px;
+  color: #6B8E4E;
+  cursor: pointer;
+  padding: 0 4px;
+  font-family: 'Garamond', serif;
+  line-height: 1;
+}
+.preset-bar .preset-nav:hover {
+  color: #4A6B35;
+}
+.preset-bar .preset-name {
+  min-width: 140px;
+  text-align: center;
+  color: #3C2F2F;
+  font-style: italic;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.preset-bar select {
+  background: #F5E6D3;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  color: #3C2F2F;
+  font-family: 'Garamond', serif;
+  font-size: 10px;
+  padding: 1px 4px;
+  cursor: pointer;
+}
+.preset-bar .preset-save-btn {
+  background: none;
+  border: 1px solid rgba(139,115,85,0.4);
+  border-radius: 3px;
+  color: #8B7355;
+  font-family: 'Garamond', serif;
+  font-size: 10px;
+  padding: 1px 8px;
+  cursor: pointer;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.preset-bar .preset-save-btn:hover {
+  background: rgba(139,115,85,0.1);
+  color: #3C2F2F;
+}
+
+/* XY Pad area */
+.xy-area {
+  padding: 12px 8px 12px 16px;
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid #8B7355;
+}
+.xy-area h2 {
+  font-size: 11px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+  margin-bottom: 6px;
+}
+.xy-canvas-wrap {
+  flex: 1;
+  position: relative;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  background: #EDE0CF;
+  overflow: hidden;
+}
+canvas#xy-pad {
+  display: block;
+  position: absolute;
+  left: 0; top: 0;
+  cursor: crosshair;
+}
+
+/* Right column: parameter groups */
+.right-col {
+  padding: 8px 16px 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  overflow: hidden;
+  position: relative;
+}
+
+.param-group {
+  position: relative;
+  z-index: 1;
+}
+.param-group h3 {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+  margin-bottom: 4px;
+  border-bottom: 1px solid rgba(139,115,85,0.3);
+  padding-bottom: 2px;
+}
+.param-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+}
+
+/* Botanical overlay */
+.botanical-overlay {
+  position: absolute;
+  right: -20px;
+  bottom: -30px;
+  width: 280px;
+  height: 280px;
+  opacity: 0.35;
+  pointer-events: none;
+  z-index: 0;
+  object-fit: contain;
+}
+
+/* Bottom row */
+.bottom-row {
+  grid-column: 1 / -1;
+  display: flex;
+  border-top: 1px solid #8B7355;
+  background: linear-gradient(0deg, #EDD9C4 0%, #F5E6D3 100%);
+}
+.bottom-group {
+  flex: 1;
+  padding: 8px 16px;
+}
+.bottom-group:first-child {
+  border-right: 1px solid rgba(139,115,85,0.3);
+}
+.bottom-group h3 {
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  color: #8B7355;
+  margin-bottom: 4px;
+}
+.bottom-group .param-row {
+  gap: 14px;
+}
+
+/* Knob */
+.knob-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 55px;
+}
+.knob {
+  width: 55px; height: 55px;
+  border-radius: 50%;
+  position: relative;
+  cursor: grab;
+  background: conic-gradient(
+    #C4A882 0deg,   #B89B74 36deg,
+    #D4BFA0 36deg,  #C4A882 72deg,
+    #B89B74 72deg,  #A88E6A 108deg,
+    #D4BFA0 108deg, #C4A882 144deg,
+    #B89B74 144deg, #A88E6A 180deg,
+    #C4A882 180deg, #B89B74 216deg,
+    #D4BFA0 216deg, #C4A882 252deg,
+    #B89B74 252deg, #A88E6A 288deg,
+    #D4BFA0 288deg, #C4A882 324deg,
+    #B89B74 324deg, #C4A882 360deg
+  );
+  border: 2px solid #8B7355;
+  box-shadow: 0 1px 3px rgba(60,47,47,0.25), inset 0 1px 2px rgba(255,255,255,0.15);
+}
+.knob:active { cursor: grabbing; }
+.knob-indicator {
+  position: absolute;
+  width: 3px; height: 14px;
+  background: #3C2F2F;
+  border-radius: 1px;
+  left: 50%; top: 4px;
+  transform-origin: 50% 23.5px;
+  transform: translateX(-50%) rotate(-135deg);
+  pointer-events: none;
+}
+.knob-center {
+  position: absolute;
+  width: 15px; height: 15px;
+  background: radial-gradient(circle, #F5E6D3 0%, #D4BFA0 100%);
+  border: 1px solid #A88E6A;
+  border-radius: 50%;
+  left: 50%; top: 50%;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+.knob-label {
+  font-size: 9px;
+  color: #3C2F2F;
+  margin-top: 3px;
+  text-align: center;
+  white-space: nowrap;
+}
+.knob-value {
+  font-size: 8px;
+  color: #8B7355;
+  text-align: center;
+  font-style: italic;
+}
+
+/* Toggle */
+.toggle-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 55px;
+}
+.toggle-btn {
+  width: 42px; height: 22px;
+  border-radius: 11px;
+  border: 1.5px solid #8B7355;
+  background: #D4BFA0;
+  position: relative;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.toggle-btn.active {
+  background: #8BA870;
+  border-color: #6E8A58;
+}
+.toggle-thumb {
+  position: absolute;
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: #F5E6D3;
+  border: 1px solid #8B7355;
+  top: 2px; left: 2px;
+  transition: left 0.15s;
+  pointer-events: none;
+}
+.toggle-btn.active .toggle-thumb {
+  left: 22px;
+  border-color: #6E8A58;
+}
+#adsr-canvas {
+  width: 100%;
+  height: 50px;
+  margin-top: 4px;
+}
+.toggle-label {
+  font-size: 9px;
+  color: #3C2F2F;
+  margin-top: 3px;
+  text-align: center;
+}
+
+/* Consonant XY pad layout */
+.consonant-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+.consonant-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.consonant-xy-wrap {
+  flex: 1;
+  height: 80px;
+  position: relative;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  background: #EDE0CF;
+  overflow: hidden;
+}
+canvas#consonant-xy-pad {
+  display: block;
+  position: absolute;
+  left: 0; top: 0;
+  cursor: crosshair;
+}
+.consonant-xy-labels {
+  pointer-events: none;
+  position: absolute;
+  left: 0; top: 0; right: 0; bottom: 0;
+}
+.cxy-label {
+  position: absolute;
+  font-size: 8px;
+  color: rgba(139,115,85,0.6);
+  letter-spacing: 0.5px;
+}
+.cxy-left { left: 4px; bottom: 2px; }
+.cxy-mid-left { left: 30%; bottom: 2px; transform: translateX(-50%); }
+.cxy-mid-right { left: 64%; bottom: 2px; transform: translateX(-50%); }
+.cxy-right { right: 4px; bottom: 2px; }
+.cxy-top { right: 4px; top: 2px; font-style: italic; }
+.cxy-bottom { right: 4px; bottom: 2px; display: none; }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <div class="header">
+    <h1>O-Formant</h1>
+    <span>vocal synthesizer</span>
+  </div>
+
+  <div class="preset-bar">
+    <select id="preset-category">
+      <option value="all">All</option>
+    </select>
+    <button class="preset-nav" id="preset-prev" title="Previous preset">&#8249;</button>
+    <span class="preset-name" id="preset-name">Default</span>
+    <button class="preset-nav" id="preset-next" title="Next preset">&#8250;</button>
+    <button class="preset-save-btn" id="preset-save">Save</button>
+  </div>
+
+  <div class="xy-area">
+    <h2>Vowel Morph</h2>
+    <div class="xy-canvas-wrap">
+      <canvas id="xy-pad"></canvas>
+    </div>
+  </div>
+
+  <div class="right-col">
+    <div class="param-group">
+      <h3>Glottal Source</h3>
+      <div class="param-row">
+        <div class="knob-wrap" data-param="glottalRd">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Voice Q</div>
+          <div class="knob-value">1.00</div>
+        </div>
+        <div class="knob-wrap" data-param="breathiness">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Breath</div>
+          <div class="knob-value">0.10</div>
+        </div>
+        <div class="knob-wrap" data-param="vibratoRate">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Vib Rate</div>
+          <div class="knob-value">5.5 Hz</div>
+        </div>
+        <div class="knob-wrap" data-param="vibratoDepth">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Vib Depth</div>
+          <div class="knob-value">15 ct</div>
+        </div>
+        <div class="knob-wrap" data-param="vibratoDelay">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Vib Delay</div>
+          <div class="knob-value">300 ms</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <h3>Consonant</h3>
+      <div class="consonant-row">
+        <div class="consonant-controls">
+          <div class="knob-wrap" data-param="consonantLevel">
+            <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+            <div class="knob-label">Level</div>
+            <div class="knob-value">0.30</div>
+          </div>
+          <div class="toggle-wrap" data-param="autoConsonant">
+            <div class="toggle-btn" id="autoConsonant-toggle"><div class="toggle-thumb"></div></div>
+            <div class="toggle-label">Auto</div>
+          </div>
+        </div>
+        <div class="consonant-xy-wrap">
+          <canvas id="consonant-xy-pad"></canvas>
+          <div class="consonant-xy-labels">
+            <span class="cxy-label cxy-left">Lab</span>
+            <span class="cxy-label cxy-mid-left">Alv</span>
+            <span class="cxy-label cxy-mid-right">Pal</span>
+            <span class="cxy-label cxy-right">Vel</span>
+            <span class="cxy-label cxy-top">Fric</span>
+            <span class="cxy-label cxy-bottom">Plos</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="param-group">
+      <h3>Character</h3>
+      <div class="param-row">
+        <div class="knob-wrap" data-param="formantShift">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Shift</div>
+          <div class="knob-value">0 st</div>
+        </div>
+        <div class="knob-wrap" data-param="formantSpread">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Spread</div>
+          <div class="knob-value">1.00</div>
+        </div>
+        <div class="knob-wrap" data-param="pitchGlide">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Glide</div>
+          <div class="knob-value">0 ms</div>
+        </div>
+        <div class="knob-wrap" data-param="vowelFocus">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Focus</div>
+          <div class="knob-value">2.50</div>
+        </div>
+      </div>
+    </div>
+
+    <img src="img/flora.png" class="botanical-overlay" alt="">
+  </div>
+
+  <div class="bottom-row">
+    <div class="bottom-group">
+      <h3>Envelope</h3>
+      <div class="param-row">
+        <div class="knob-wrap" data-param="attack">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Attack</div>
+          <div class="knob-value">10 ms</div>
+        </div>
+        <div class="knob-wrap" data-param="decay">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Decay</div>
+          <div class="knob-value">300 ms</div>
+        </div>
+        <div class="knob-wrap" data-param="sustain">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Sustain</div>
+          <div class="knob-value">0.80</div>
+        </div>
+        <div class="knob-wrap" data-param="release">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Release</div>
+          <div class="knob-value">500 ms</div>
+        </div>
+      </div>
+      <canvas id="adsr-canvas"></canvas>
+    </div>
+    <div class="bottom-group">
+      <h3>Output</h3>
+      <div class="param-row">
+        <div class="knob-wrap" data-param="outputGain">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Gain</div>
+          <div class="knob-value">0.0 dB</div>
+        </div>
+        <div class="knob-wrap" data-param="stereoWidth">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Width</div>
+          <div class="knob-value">0.50</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+</body>
+</html>
