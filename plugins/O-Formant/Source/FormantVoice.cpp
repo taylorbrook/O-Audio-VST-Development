@@ -255,24 +255,31 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Mix with aspiration noise
         float source = aspirationNoise.process (glottal);
 
-        // Consonant noise (shaped by tone/sibilance filters)
+        // Consonant noise (shaped by tone/sibilance filters + own envelope when autoConsonant)
         float consonantNoise = consonantEngine.getNextSample (consonantLevel, autoConsonant);
         float onsetSuppression = consonantEngine.getOnsetSuppression();
 
         // During plosive onset, suppress glottal source so noise dominates
         float voiceSource = source * (1.0f - 0.7f * onsetSuppression);
 
-        // Route consonant noise through formant filters alongside voice source
-        float fullSource = voiceSource + consonantNoise;
+        // ADSR envelope — applied to voiced source only (consonant has its own envelope)
+        float env = adsr.getNextSample();
+        float voiceWithEnv = voiceSource * env;
 
-        // Formant filtering shapes both voice and consonant through the vocal tract
+        // When autoConsonant is off, consonant follows main ADSR;
+        // when on, ConsonantEngine applies its own Attack/Hold/Decay envelope
+        float consonantOut = autoConsonant ? consonantNoise : (consonantNoise * env);
+
+        // Route through formant filters (vocal tract resonance for both)
+        float fullSource = voiceWithEnv + consonantOut;
         float mixed = filterBank.process (fullSource);
 
-        // Apply ADSR envelope
-        float env = adsr.getNextSample();
-        float sample = mixed * env;
+        float sample = mixed;
 
-        // Final NaN/Inf guard
+        // Soft-clip to prevent extreme amplitudes from resonant filters
+        sample = std::tanh (sample);
+
+        // NaN/Inf guard (belt-and-suspenders after tanh)
         if (! std::isfinite (sample))
         {
             sample = 0.0f;
