@@ -105,6 +105,16 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     // Apply instrument preset coefficients
     applyPresetCoefficients();
 
+    // Chiff pitch overshoot: start bore delay 1-2% shorter than target
+    // Scale overshoot amount by attackChiff param (1% at 0, 2% at 1)
+    float overshootPct = juce::jmap (attackChiffParam, 0.0f, 1.0f, 0.01f, 0.02f);
+    pitchOvershootFactor = 1.0f - overshootPct * velocity;
+    pitchOvershootTarget = 1.0f;
+    // One-pole settle: 50-100ms (faster at higher velocity)
+    float settleMs = juce::jmap (velocity, 0.0f, 1.0f, 100.0f, 50.0f);
+    float settleSamples = static_cast<float> (internalSampleRate * settleMs * 0.001);
+    pitchOvershootCoeff = 1.0f - std::exp (-3.0f / std::max (1.0f, settleSamples));
+
     // Start breath attack envelope
     jetExciter.startNote (velocity);
 
@@ -257,6 +267,13 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         totalDelay -= filterDelayCompensation;
         totalDelay = std::max (4.0f, totalDelay);
 
+        // Chiff pitch overshoot: shorten bore delay during onset, settle to target
+        if (pitchOvershootFactor < 0.9999f)
+        {
+            pitchOvershootFactor += pitchOvershootCoeff * (pitchOvershootTarget - pitchOvershootFactor);
+            totalDelay *= pitchOvershootFactor;
+        }
+
         // Apply pitch vibrato (modulates delay for true frequency vibrato)
         if (vibratoDepthParam > 0.0f)
         {
@@ -354,10 +371,15 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     float reversedJet    = parameters->getRawParameterValue ("reversedJet")->load();
     float subHarmonics   = parameters->getRawParameterValue ("subHarmonics")->load();
 
+    float attackChiff     = parameters->getRawParameterValue ("attackChiff")->load();
+
     // CC overrides (CC takes priority when non-zero)
     if (ccBreathPressure > 0.0f) breathPressure = ccBreathPressure;
     if (ccEmbouchure > 0.0f) embouchure = ccEmbouchure;
     if (ccVibratoDepth > 0.0f) vibratoDepth = ccVibratoDepth;
+
+    // Cache attackChiff for startNote pitch overshoot calculation
+    attackChiffParam = attackChiff;
 
     // Store breath pressure for per-sample register transition mapping
     breathPressureParam = breathPressure;
@@ -377,6 +399,7 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     jetExciter.setBreathPressure (breathPressure);
     jetExciter.setBreathNoise (breathNoise);
     jetExciter.setJetReflection (jetReflMapped);
+    jetExciter.setAttackChiff (attackChiff);
     jetExciter.setVibratoRate (0.0f);
     jetExciter.setVibratoDepth (0.0f);
 

@@ -1,5 +1,29 @@
 # O-Wind Changelog
 
+## [1.2.0] - 2026-04-06
+
+### Added — Attack Transient "Chiff" Modeling
+
+Models the four-phase flute onset (noise burst, vortex shedding, edge-tone, pipe-tone) per Auvray et al. (2014):
+
+**Chiff Noise Burst (JetExciter):**
+- On noteOn, turbulence noise is boosted 3-6x above steady-state level (scaled by `attackChiff * velocity`)
+- Exponential decay over 20-40ms (faster at higher velocity) back to normal noise floor
+- Near-zero CPU cost — envelope-gated, active only during first ~40ms per note
+
+**Pitch Overshoot (FluteSynthVoice):**
+- Bore delay starts 1-2% shorter than target at noteOn (sharper pitch), scaled by `attackChiff * velocity`
+- Settles to target pitch over 50-100ms via one-pole smoothing filter
+- Models jet-bore coupling delay before pipe-tone regime locks
+
+**New APVTS Parameter:**
+- `attackChiff` (0.0-1.0, default 0.5) — controls transient noise burst intensity and pitch overshoot amount
+
+**Factory Preset Values:**
+- Shakuhachi: 0.70 (prominent chiff), Pan Flute: 0.65, Bansuri: 0.55
+- Concert Flute: 0.50, Piccolo: 0.45, Native Am. Flute: 0.40
+- Recorder: 0.25, Ocarina: 0.15 (minimal chiff)
+
 ## [1.1.0] - 2026-04-06
 
 ### Improved — Noise Model & Spectral Realism

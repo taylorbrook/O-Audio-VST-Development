@@ -86,6 +86,10 @@ private:
     // Dynamic filter delay compensation (computed once per block)
     float filterDelayCompensation = 2.0f;
 
+    // Register transition state (stored per-block for per-sample use)
+    float breathPressureParam = 0.5f;
+    float currentOverblowEase = 0.6f;
+
     // Voice state
     float outputGainLinear = 1.0f;
     float currentFrequency = 440.0f;
@@ -115,6 +119,12 @@ private:
     // Pitch bend state
     float pitchBendSemitones = 0.0f;
     static constexpr float pitchBendRange = 2.0f;  // +/- 2 semitones
+
+    // Chiff: pitch overshoot state (bore delay starts short, settles to target)
+    float pitchOvershootFactor = 1.0f;   // current multiplier on total delay (< 1.0 = sharper)
+    float pitchOvershootTarget = 1.0f;   // always 1.0 (steady-state = no overshoot)
+    float pitchOvershootCoeff = 0.0f;    // one-pole smoothing coefficient
+    float attackChiffParam = 0.5f;       // cached from APVTS
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FluteSynthVoice)
 };

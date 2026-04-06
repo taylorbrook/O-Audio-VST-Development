@@ -47,6 +47,7 @@ public:
         envelopeTarget = 0.0f;
         envelopeIncrement = 0.0f;
         vibratoPhase = 0.0f;
+        chiffLevel = 0.0f;
     }
 
     // Called once per block from voice
@@ -56,8 +57,9 @@ public:
     void setVibratoRate (float rateHz)      { vibratoRate = rateHz; }
     void setVibratoDepth (float depth)      { vibratoDepth = depth; }
     void setJetAmplification (float mu)      { jetAmplification = mu; }
+    void setAttackChiff (float chiff)         { attackChiffParam = chiff; }
 
-    // Start note: begin attack envelope ramp
+    // Start note: begin attack envelope ramp + chiff transient
     void startNote (float velocity)
     {
         // Velocity 127 = 5ms attack, velocity 1 = 30ms attack
@@ -67,6 +69,20 @@ public:
         envelopeIncrement = (envelopeTarget - breathEnvelope)
                             / std::max (1.0f, attackSamples);
         releasing = false;
+
+        // Chiff transient: noise boost during first 20-40ms of attack
+        // Boost = 3-6x steady-state noise, scaled by attackChiff * velocity
+        // Higher velocity = shorter chiff (20ms), lower = longer (40ms)
+        float chiffMs = juce::jmap (velocity, 0.0f, 1.0f, 40.0f, 20.0f);
+        float chiffSamples = static_cast<float> (sampleRate * chiffMs * 0.001);
+
+        // Peak boost: 3x at low chiff, 6x at full chiff, scaled by velocity
+        float peakBoost = juce::jmap (attackChiffParam, 0.0f, 1.0f, 3.0f, 6.0f);
+        chiffLevel = peakBoost * velocity;
+
+        // Exponential decay coefficient: reach ~5% of peak by chiffMs
+        // exp(-3/tau * chiffSamples) ≈ 0.05 → tau = chiffSamples / 3
+        chiffDecayCoeff = std::exp (-3.0f / std::max (1.0f, chiffSamples));
     }
 
     // Stop note: begin release envelope ramp
@@ -119,6 +135,14 @@ public:
             float whiteNoise = noiseRng.nextFloat() * 2.0f - 1.0f;
             float filteredNoise = noiseBandpass.processSample (whiteNoise);
             float noiseGain = breathNoiseParam * jetVelocity * jetVelocity;
+
+            // Chiff transient: multiply noise by decaying boost during attack
+            if (chiffLevel > 0.01f)
+            {
+                noiseGain *= (1.0f + chiffLevel);
+                chiffLevel *= chiffDecayCoeff;
+            }
+
             turbulence = filteredNoise * noiseGain;
         }
 
@@ -182,6 +206,11 @@ private:
     float envelopeTarget = 0.0f;
     float envelopeIncrement = 0.0f;
     bool releasing = false;
+
+    // Chiff transient state (attack noise burst)
+    float attackChiffParam = 0.5f;  // APVTS parameter: 0-1
+    float chiffLevel = 0.0f;       // current boost multiplier (decays per sample)
+    float chiffDecayCoeff = 0.0f;  // exponential decay coefficient
 
     // Jet velocity for Verge (1995) model (read by voice for nonlinearity)
     float lastJetVelocity = 0.0f;
