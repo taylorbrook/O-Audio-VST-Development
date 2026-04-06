@@ -53,8 +53,9 @@ public:
         boreBwd.prepare (spec);
         boreBwd.setMaximumDelayInSamples (2048);
 
-        // Prepare filters
-        boreLossFilter.prepare (spec);
+        // Prepare filters (two cascaded lowpass for frequency-dependent bore loss)
+        boreLossLow.prepare (spec);
+        boreLossHigh.prepare (spec);
         endReflectionFilter.prepare (spec);
         radiationFilter.prepare (spec);
 
@@ -71,7 +72,8 @@ public:
     {
         boreFwd.reset();
         boreBwd.reset();
-        boreLossFilter.reset();
+        boreLossLow.reset();
+        boreLossHigh.reset();
         endReflectionFilter.reset();
         radiationFilter.reset();
         boreFeedback = 0.0f;
@@ -90,22 +92,37 @@ public:
     void setInfiniteSustain (float amount)  { infiniteSustainParam = amount; }
     void setSubHarmonics (float amount)     { subHarmonicsParam = amount; }
 
-    // Update filter coefficients (call on parameter change, not per-sample)
+    // Update bore loss: two cascaded 1st-order lowpass filters for frequency-dependent loss.
+    // Low cutoff (~2kHz) provides base viscothermal damping.
+    // High cutoff (~8kHz) adds extra harmonic rolloff — higher harmonics lose more energy
+    // per round trip, creating natural spectral thinning.
+    // The cutoffHz and q parameters from APVTS scale both cutoffs proportionally.
     void updateBoreLossFilter (float cutoffHz, float q)
     {
         if (sampleRate <= 0.0) return;
-        float clampedCutoff = juce::jlimit (200.0f, static_cast<float> (sampleRate * 0.45), cutoffHz);
-        float clampedQ = juce::jlimit (0.1f, 5.0f, q);
-        *boreLossFilter.coefficients = juce::dsp::IIR::Coefficients<float> (
-            juce::dsp::IIR::ArrayCoefficients<float>::makeLowPass (sampleRate, clampedCutoff, clampedQ));
+        // Scale factor from user toneColor control (cutoffHz ranges ~1000-12000)
+        float scale = cutoffHz / 6000.0f;  // normalized to default
+        float lowCut  = juce::jlimit (500.0f,  static_cast<float> (sampleRate * 0.45), 2000.0f * scale);
+        float highCut = juce::jlimit (2000.0f, static_cast<float> (sampleRate * 0.45), 8000.0f * scale);
+        juce::ignoreUnused (q);
+        *boreLossLow.coefficients = juce::dsp::IIR::Coefficients<float> (
+            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, lowCut));
+        *boreLossHigh.coefficients = juce::dsp::IIR::Coefficients<float> (
+            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, highCut));
     }
 
+    // End reflection: high-shelf that reduces reflection above ~2kHz.
+    // Higher frequencies radiate more efficiently from the open end,
+    // so less energy reflects back into the bore at high frequencies.
     void updateEndReflectionFilter (float cutoffHz)
     {
         if (sampleRate <= 0.0) return;
-        float clampedCutoff = juce::jlimit (200.0f, static_cast<float> (sampleRate * 0.45), cutoffHz);
+        float shelfFreq = juce::jlimit (500.0f, static_cast<float> (sampleRate * 0.45), cutoffHz);
+        // High-shelf with negative gain: attenuates above shelfFreq
+        // -6dB shelf gives realistic open-end radiation loss for upper harmonics
+        float shelfGainDb = -6.0f;
         *endReflectionFilter.coefficients = juce::dsp::IIR::Coefficients<float> (
-            juce::dsp::IIR::ArrayCoefficients<float>::makeFirstOrderLowPass (sampleRate, clampedCutoff));
+            juce::dsp::IIR::ArrayCoefficients<float>::makeHighShelf (sampleRate, shelfFreq, 0.707f, juce::Decibels::decibelsToGain (shelfGainDb)));
     }
 
     void updateRadiationFilter (float cutoffHz)
@@ -128,19 +145,19 @@ public:
         boreFwd.pushSample (0, dcBlockedInput);
         float pPlus = boreFwd.popSample (0, halfDelay);
 
-        // Bore loss filter (inside loop -- models viscothermal loss)
+        // Bore loss: cascaded 1st-order lowpass filters for frequency-dependent loss.
+        // boreLossLow (~2kHz) = base viscothermal damping
+        // boreLossHigh (~8kHz) = extra harmonic rolloff
         float pPlusFiltered;
         if (infiniteSustainParam > 0.0f)
         {
-            // Infinite sustain: blend between filtered (lossy) and unfiltered (lossless)
-            float lossAmount = 1.0f - infiniteSustainParam * 0.95f;  // never fully zero loss
-            float filtered = boreLossFilter.processSample (pPlus);
-            // Blend: at lossAmount=1 (no sustain), fully filtered; at lossAmount~0.05, mostly direct
+            float lossAmount = 1.0f - infiniteSustainParam * 0.95f;
+            float filtered = boreLossHigh.processSample (boreLossLow.processSample (pPlus));
             pPlusFiltered = filtered * lossAmount + pPlus * (1.0f - lossAmount);
         }
         else
         {
-            pPlusFiltered = boreLossFilter.processSample (pPlus);
+            pPlusFiltered = boreLossHigh.processSample (boreLossLow.processSample (pPlus));
         }
 
         // Sub-harmonics: asymmetric soft-clipping for period doubling
@@ -181,10 +198,17 @@ public:
         // Phase delay in samples = -phase(radians) / omega
         float totalDelay = 0.0f;
 
-        if (boreLossFilter.coefficients != nullptr)
+        if (boreLossLow.coefficients != nullptr)
         {
             auto phase = static_cast<float> (
-                boreLossFilter.coefficients->getPhaseForFrequency (freq, sampleRate));
+                boreLossLow.coefficients->getPhaseForFrequency (freq, sampleRate));
+            totalDelay += -phase / omega;
+        }
+
+        if (boreLossHigh.coefficients != nullptr)
+        {
+            auto phase = static_cast<float> (
+                boreLossHigh.coefficients->getPhaseForFrequency (freq, sampleRate));
             totalDelay += -phase / omega;
         }
 
@@ -226,9 +250,10 @@ private:
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Thiran> boreFwd;
     juce::dsp::DelayLine<float, juce::dsp::DelayLineInterpolationTypes::Thiran> boreBwd;
 
-    // Filters
-    juce::dsp::IIR::Filter<float> boreLossFilter;
-    juce::dsp::IIR::Filter<float> endReflectionFilter;
+    // Filters (two cascaded lowpass for frequency-dependent bore loss)
+    juce::dsp::IIR::Filter<float> boreLossLow;   // base damping ~2kHz
+    juce::dsp::IIR::Filter<float> boreLossHigh;  // harmonic rolloff ~8kHz
+    juce::dsp::IIR::Filter<float> endReflectionFilter;  // high-shelf for open-end radiation
     juce::dsp::IIR::Filter<float> radiationFilter;
 
     // State
@@ -243,9 +268,9 @@ private:
     // Filter group delay compensation (approx 2 samples from bore loss + end refl)
     static constexpr float filterGroupDelay = 2.0f;
 
-    // Feedback gain: compensates per-round-trip IIR filter losses to sustain oscillation.
-    // Safe because JetNonlinearity gates to zero on release, breaking the feedback loop.
-    static constexpr float feedbackGain = 1.02f;
+    // Feedback gain: bore is properly lossy (1.0 = no artificial energy injection).
+    // Jet spatial amplification in JetExciter provides the energy source per Verge (1995).
+    static constexpr float feedbackGain = 1.0f;
 
     // Bore delay lookup table (Tier 1 tone holes)
     std::array<float, 128> boreDelayTable {};

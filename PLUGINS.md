@@ -53,7 +53,7 @@ Ouaricon Plugins:
 | O-Formant | 📦 Installed | 1.2.0 | Synth (Physical Model Vocal) | 2026-04-06 |
 | O-Bowed | 📦 Installed | 1.0.1 | Synth (Physical Model Bowed String) | 2026-04-06 |
 | O-Reed | 🚧 Stage 0 | - | Synth (Physical Modeling Reed Wind) | 2026-04-04 |
-| O-Wind | 📦 Installed | 1.0.1 | Synth (Physical Model Flute) | 2026-04-05 |
+| O-Wind | 📦 Installed | 1.1.0 | Synth (Physical Model Flute) | 2026-04-06 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

@@ -26,6 +26,34 @@
 #include "TuningEngine.h"
 #include <juce_audio_basics/juce_audio_basics.h>
 
+// Non-linear embouchure-to-jet-ratio mapping with register sweet spots.
+// Creates sticky plateaus at physical harmonic ratios (~0.33 fundamental,
+// ~0.25 octave, ~0.20 third harmonic) with smooth tanh transitions.
+// Higher breath pressure shifts transitions lower, making overblowing easier.
+static float embouchureToJetRatio (float emb, float breathPressure, float overblowEase)
+{
+    // Physical harmonic ratios: jet/(jet+bore) for mode locking
+    constexpr float r1 = 0.33f;  // fundamental: jet ≈ 1/3 total
+    constexpr float r2 = 0.25f;  // 2nd harmonic: jet ≈ 1/4 total
+    constexpr float r3 = 0.20f;  // 3rd harmonic: jet ≈ 1/5 total
+
+    // Breath pressure shifts transition points downward in embouchure space
+    float pressureShift = breathPressure * overblowEase * 0.15f;
+
+    // Transition centers in embouchure [0,1] space
+    float t1 = juce::jlimit (0.15f, 0.55f, 0.38f - pressureShift);
+    float t2 = juce::jlimit (0.45f, 0.88f, 0.70f - pressureShift);
+
+    // Steepness controls how sticky each register plateau feels
+    constexpr float k = 10.0f;
+
+    // Sigmoid blending between register plateaus
+    float s1 = 0.5f * (1.0f + std::tanh (k * (emb - t1)));
+    float s2 = 0.5f * (1.0f + std::tanh (k * (emb - t2)));
+
+    return r1 + (r2 - r1) * s1 + (r3 - r2) * s2;
+}
+
 FluteSynthVoice::FluteSynthVoice (juce::AudioProcessorValueTreeState* apvts,
                                     TuningEngine* tuning)
     : parameters (apvts), tuningEngine (tuning)
@@ -63,10 +91,12 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     // Store total loop delay (split between bore and jet in render loop)
     totalDelaySmoothed.setCurrentAndTargetValue (totalLoopDelay);
 
-    // Set initial bore delay estimate based on current embouchure
+    // Set initial bore delay estimate based on current embouchure + register mapping
     float initEmb = (parameters != nullptr)
         ? parameters->getRawParameterValue ("embouchure")->load() : 0.5f;
-    float initJetRatio = juce::jmap (initEmb, 0.3f, 0.6f);
+    float initBreath = (parameters != nullptr)
+        ? parameters->getRawParameterValue ("breathPressure")->load() : 0.5f;
+    float initJetRatio = embouchureToJetRatio (initEmb, initBreath, currentOverblowEase);
     boreWaveguide.setBoreDelay (totalLoopDelay / (1.0f + initJetRatio));
 
     // Reset vibrato phase for new note
@@ -237,9 +267,9 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                 vibratoPhase -= juce::MathConstants<float>::twoPi;
         }
 
-        // Split total delay between bore and jet based on embouchure
+        // Split total delay between bore and jet based on embouchure (register-aware)
         float emb = embouchureSmoothed.getNextValue();
-        float jetDelayRatio = juce::jmap (emb, 0.3f, 0.6f);
+        float jetDelayRatio = embouchureToJetRatio (emb, breathPressureParam, currentOverblowEase);
         float boreDelay = totalDelay / (1.0f + jetDelayRatio);
         boreWaveguide.setBoreDelay (boreDelay);
 
@@ -329,6 +359,9 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     if (ccEmbouchure > 0.0f) embouchure = ccEmbouchure;
     if (ccVibratoDepth > 0.0f) vibratoDepth = ccVibratoDepth;
 
+    // Store breath pressure for per-sample register transition mapping
+    breathPressureParam = breathPressure;
+
     // Update embouchure smooth target
     embouchureSmoothed.setTargetValue (embouchure);
 
@@ -367,9 +400,8 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     float lossQ = 0.707f * (1.0f - airColumn * 0.3f);
     boreWaveguide.updateBoreLossFilter (lossCutoff, lossQ);
 
-    // Update noise filter cutoff proportional to breath pressure
-    float noiseCutoff = 1000.0f + breathPressure * 5000.0f;
-    jetExciter.updateNoiseFilterCutoff (noiseCutoff);
+    // Update Strouhal bandpass: center frequency scales with breath pressure
+    jetExciter.updateStrouhalBandpass (breathPressure);
 
     // Output gain (dB to linear)
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
@@ -404,14 +436,13 @@ void FluteSynthVoice::applyPresetCoefficients()
 
     // Apply preset internal coefficients to DSP components
     jetNonlinearity.setJetGain (currentPreset.jetGain);
-    jetExciter.setJetGain (currentPreset.jetGain);
+    jetExciter.setJetAmplification (currentPreset.jetAmplification);
+    jetExciter.setJetDiameter (currentPreset.jetDiameter);
+    currentOverblowEase = currentPreset.overblowEase;
 
     // Update radiation filter cutoff from preset
     boreWaveguide.updateRadiationFilter (currentPreset.radiationCutoff);
 
     // Update end reflection filter cutoff from preset
     boreWaveguide.updateEndReflectionFilter (currentPreset.endReflCutoff);
-
-    // Update noise filter from preset
-    jetExciter.updateNoiseFilterCutoff (currentPreset.noiseCutoffBase);
 }
