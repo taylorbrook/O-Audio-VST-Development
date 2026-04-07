@@ -1,5 +1,33 @@
 # O-Wind Changelog
 
+## [1.4.0] - 2026-04-06
+
+### Added — Per-Note Humanization System
+
+Eliminates "machine gun" effect on repeated notes per RESEARCH-realism-v2.md §1.3:
+
+**New APVTS Parameter:**
+- `humanize` (0.0-1.0, default 0.3) — master scale for all per-note randomization amounts
+
+**Per-Note Random Offsets (drawn at each noteOn via per-voice juce::Random):**
+
+| Offset | Range | Effect |
+|--------|-------|--------|
+| Attack time | +/-20% of base | No two attacks identical |
+| Noise burst amplitude | +/-30% of chiff level | Varied chiff intensity |
+| Embouchure delay | +/-1% of bore delay | Slight timbre shift per note |
+| Strouhal noise center | +/-10% of center freq | Subtle breath color variation |
+| Vibrato onset delay | +/-50ms | Natural onset variation |
+
+**Implementation Details:**
+- Offsets stored as member variables in FluteSynthVoice, applied continuously per note
+- Attack time and noise burst scales passed to JetExciter::startNote()
+- Embouchure offset applied as bore delay multiplier in render loop
+- Strouhal freq scale passed to JetExciter::updateStrouhalBandpass()
+- Vibrato onset offset added to base vibratoOnset parameter (clamped >= 0)
+- All offset magnitudes scale linearly with humanize parameter (0 = no randomization)
+- Zero per-sample CPU cost — random numbers drawn only at noteOn
+
 ## [1.3.0] - 2026-04-06
 
 ### Improved — Vibrato Humanization

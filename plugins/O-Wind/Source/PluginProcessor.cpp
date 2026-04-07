@@ -77,7 +77,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         0.5f
     ));
 
-    // ========== Attack Transient (1) ==========
+    // ========== Attack Transient (2) ==========
 
     // ATTACK_CHIFF - Chiff transient intensity (noise burst + pitch overshoot at note onset)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -85,6 +85,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "Attack Chiff",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.5f
+    ));
+
+    // HUMANIZE - Master scale for per-note randomization amounts
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "humanize", 1 },
+        "Humanize",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.3f
     ));
 
     // ========== Modulation (3) ==========

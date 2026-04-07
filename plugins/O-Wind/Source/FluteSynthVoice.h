@@ -135,5 +135,14 @@ private:
     float pitchOvershootCoeff = 0.0f;    // one-pole smoothing coefficient
     float attackChiffParam = 0.5f;       // cached from APVTS
 
+    // Per-note humanization (drawn at noteOn, scaled by humanize param)
+    juce::Random voiceRng;
+    float humanizeParam = 0.3f;
+    float attackTimeScale = 1.0f;         // +/-20% of base attack time
+    float noiseBurstScale = 1.0f;         // +/-30% of chiff noise amplitude
+    float embouchureDelayOffset = 0.0f;   // +/-1% of bore delay (timbre shift)
+    float strouhalFreqScale = 1.0f;       // +/-10% of Strouhal center freq
+    float vibratoOnsetOffsetMs = 0.0f;    // +/-50ms of vibrato onset delay
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FluteSynthVoice)
 };

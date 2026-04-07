@@ -125,8 +125,16 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     float settleSamples = static_cast<float> (internalSampleRate * settleMs * 0.001);
     pitchOvershootCoeff = 1.0f - std::exp (-3.0f / std::max (1.0f, settleSamples));
 
-    // Start breath attack envelope
-    jetExciter.startNote (velocity);
+    // Per-note humanization: draw random offsets scaled by humanize param
+    float h = humanizeParam;
+    attackTimeScale    = 1.0f + (voiceRng.nextFloat() * 2.0f - 1.0f) * 0.20f * h;
+    noiseBurstScale    = 1.0f + (voiceRng.nextFloat() * 2.0f - 1.0f) * 0.30f * h;
+    embouchureDelayOffset = (voiceRng.nextFloat() * 2.0f - 1.0f) * 0.01f * h;
+    strouhalFreqScale  = 1.0f + (voiceRng.nextFloat() * 2.0f - 1.0f) * 0.10f * h;
+    vibratoOnsetOffsetMs = (voiceRng.nextFloat() * 2.0f - 1.0f) * 50.0f * h;
+
+    // Start breath attack envelope (with humanized attack time and chiff amplitude)
+    jetExciter.startNote (velocity, attackTimeScale, noiseBurstScale);
 
     // Reset silence counter and release fade
     silentSampleCount = 0;
@@ -290,6 +298,9 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             totalDelay *= pitchOvershootFactor;
         }
 
+        // Per-note humanization: embouchure delay offset (+/-1% of bore delay)
+        totalDelay *= (1.0f + embouchureDelayOffset);
+
         // Apply humanized pitch vibrato (modulates delay for true frequency vibrato)
         if (vibratoDepthParam > 0.0f)
         {
@@ -415,6 +426,7 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     float subHarmonics   = parameters->getRawParameterValue ("subHarmonics")->load();
 
     float attackChiff     = parameters->getRawParameterValue ("attackChiff")->load();
+    float humanize        = parameters->getRawParameterValue ("humanize")->load();
 
     // CC overrides (CC takes priority when non-zero)
     if (ccBreathPressure > 0.0f) breathPressure = ccBreathPressure;
@@ -423,6 +435,9 @@ void FluteSynthVoice::updateParametersFromAPVTS()
 
     // Cache attackChiff for startNote pitch overshoot calculation
     attackChiffParam = attackChiff;
+
+    // Cache humanize for per-note randomization in startNote
+    humanizeParam = humanize;
 
     // Store breath pressure for per-sample register transition mapping
     breathPressureParam = breathPressure;
@@ -451,9 +466,9 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     vibratoPhaseInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
                                            * vibratoRate / internalSampleRate);
 
-    // Vibrato onset delay
+    // Vibrato onset delay (with per-note humanization offset)
     float vibratoOnset = parameters->getRawParameterValue ("vibratoOnset")->load();
-    vibratoOnsetMs = vibratoOnset;
+    vibratoOnsetMs = std::max (0.0f, vibratoOnset + vibratoOnsetOffsetMs);
     vibratoOnsetSamples = static_cast<int> (internalSampleRate * vibratoOnsetMs * 0.001);
 
     // Update jet nonlinearity
@@ -472,7 +487,8 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     boreWaveguide.updateBoreLossFilter (lossCutoff, lossQ);
 
     // Update Strouhal bandpass: center frequency scales with breath pressure
-    jetExciter.updateStrouhalBandpass (breathPressure);
+    // Per-note humanization: shift center freq by +/-10%
+    jetExciter.updateStrouhalBandpass (breathPressure, strouhalFreqScale);
 
     // Output gain (dB to linear)
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);

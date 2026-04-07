@@ -60,10 +60,12 @@ public:
     void setAttackChiff (float chiff)         { attackChiffParam = chiff; }
 
     // Start note: begin attack envelope ramp + chiff transient
-    void startNote (float velocity)
+    // attackTimeScale: per-note humanization multiplier on attack duration (+/-20%)
+    // noiseBurstScale: per-note humanization multiplier on chiff amplitude (+/-30%)
+    void startNote (float velocity, float attackTimeScale = 1.0f, float noiseBurstScale = 1.0f)
     {
         // Velocity 127 = 5ms attack, velocity 1 = 30ms attack
-        float attackMs = juce::jmap (velocity, 0.0f, 1.0f, 30.0f, 5.0f);
+        float attackMs = juce::jmap (velocity, 0.0f, 1.0f, 30.0f, 5.0f) * attackTimeScale;
         float attackSamples = static_cast<float> (sampleRate * attackMs * 0.001);
         envelopeTarget = 1.0f;
         envelopeIncrement = (envelopeTarget - breathEnvelope)
@@ -78,7 +80,7 @@ public:
 
         // Peak boost: 3x at low chiff, 6x at full chiff, scaled by velocity
         float peakBoost = juce::jmap (attackChiffParam, 0.0f, 1.0f, 3.0f, 6.0f);
-        chiffLevel = peakBoost * velocity;
+        chiffLevel = peakBoost * velocity * noiseBurstScale;
 
         // Exponential decay coefficient: reach ~5% of peak by chiffMs
         // exp(-3/tau * chiffSamples) ≈ 0.05 → tau = chiffSamples / 3
@@ -167,12 +169,13 @@ public:
     // Update Strouhal bandpass: center frequency scales with breath pressure
     // f_s = 0.2 * jetVelocity_physical / jetDiameter
     // jetVelocity_physical ~ pressure * maxJetSpeed (≈40 m/s for concert flute)
-    void updateStrouhalBandpass (float breathPressure)
+    // freqScale: per-note humanization multiplier on center frequency (+/-10%)
+    void updateStrouhalBandpass (float breathPressure, float freqScale = 1.0f)
     {
         if (sampleRate <= 0.0 || jetDiameter <= 0.0f) return;
 
         float jetVelPhysical = breathPressure * maxJetSpeed;
-        float strouhalFreq = 0.2f * jetVelPhysical / jetDiameter;
+        float strouhalFreq = 0.2f * jetVelPhysical / jetDiameter * freqScale;
         strouhalFreq = juce::jlimit (500.0f, static_cast<float> (sampleRate * 0.45), strouhalFreq);
         updateNoiseBandpass (strouhalFreq);
     }
