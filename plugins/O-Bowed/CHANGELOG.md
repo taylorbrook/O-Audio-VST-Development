@@ -2,6 +2,12 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.0.2] - 2026-04-06
+
+### Fixed
+- Critical waveguide scattering junction bug: outgoing waves were pushed back into the same delay line they came from instead of crossing to the opposite side, causing incorrect wave propagation in both `processSample()` and `writeJunction()`
+- Bridge output now correctly reads from nut reflection (wave traveling toward bridge)
+
 ## [1.0.1] - 2026-04-06
 
 ### Fixed
