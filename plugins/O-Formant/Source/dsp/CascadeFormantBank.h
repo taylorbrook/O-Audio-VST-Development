@@ -28,6 +28,11 @@ public:
     void prepare (double sr) noexcept
     {
         sampleRate = sr;
+        for (int i = 0; i < 5; ++i)
+        {
+            smoothedFreq[i].reset (sr, 0.0);
+            smoothedBW[i].reset (sr, 0.0);
+        }
         reset();
     }
 
@@ -35,6 +40,28 @@ public:
     {
         for (int i = 0; i < 5; ++i)
             filters[i].reset();
+    }
+
+    // Configure per-formant transition ramp times (same schedule as parallel bank)
+    void setTransitionTime (float normTime) noexcept
+    {
+        static constexpr float maxTimesMs[5] = { 50.0f, 80.0f, 80.0f, 120.0f, 120.0f };
+        for (int i = 0; i < 5; ++i)
+        {
+            double timeSec = static_cast<double> (normTime * maxTimesMs[i]) * 0.001;
+            smoothedFreq[i].reset (sampleRate, timeSec);
+            smoothedBW[i].reset (sampleRate, timeSec);
+        }
+    }
+
+    // Snap all SmoothedValues to current targets (use on note onset)
+    void snapToTargets() noexcept
+    {
+        for (int i = 0; i < 5; ++i)
+        {
+            smoothedFreq[i].setCurrentAndTargetValue (smoothedFreq[i].getTargetValue());
+            smoothedBW[i].setCurrentAndTargetValue (smoothedBW[i].getTargetValue());
+        }
     }
 
     // Set number of cascade stages (5 = full cascade, 3 = hybrid F1-F3 cascade + F4-F5 parallel)
@@ -71,18 +98,39 @@ public:
             finalFreq = std::max (20.0f, std::min (finalFreq, nyquistLimit));
 
             float scaledBW = bw[i] * shiftFactor;
-            float Q = finalFreq / std::max (scaledBW, 1.0f);
-            Q = juce::jlimit (0.5f, 25.0f, Q);
 
-            auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, finalFreq, Q);
-            filters[i].setCoefficients (coeffs);
-            filters[i].gain = 1.0f; // Unity gain per stage — cascade handles amplitude naturally
+            smoothedFreq[i].setTargetValue (finalFreq);
+            smoothedBW[i].setTargetValue (scaledBW);
+            filters[i].gain = 1.0f;
+
+            if (! smoothedFreq[i].isSmoothing() && ! smoothedBW[i].isSmoothing())
+            {
+                float Q = finalFreq / std::max (scaledBW, 1.0f);
+                Q = juce::jlimit (0.5f, 25.0f, Q);
+                auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, finalFreq, Q);
+                filters[i].setCoefficients (coeffs);
+            }
         }
     }
 
     // Process: first numCascade filters in series, remaining in parallel
     inline float process (float input) noexcept
     {
+        // Advance smoothed values and recompute coefficients for transitioning formants
+        for (int i = 0; i < 5; ++i)
+        {
+            if (smoothedFreq[i].isSmoothing() || smoothedBW[i].isSmoothing())
+            {
+                float f = smoothedFreq[i].getNextValue();
+                float bw = smoothedBW[i].getNextValue();
+                float Q = f / std::max (bw, 1.0f);
+                Q = juce::jlimit (0.5f, 25.0f, Q);
+                auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (
+                    sampleRate, f, Q);
+                filters[i].setCoefficients (coeffs);
+            }
+        }
+
         // Cascade path: chain filters in series
         float cascadeOut = input;
         for (int i = 0; i < numCascade; ++i)
@@ -98,6 +146,8 @@ public:
 
 private:
     FormantBiquad filters[5];
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedFreq[5];
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedBW[5];
     int numCascade = 5;
     float compensationGain = 4.0f; // ~12 dB for 5 stages
     double sampleRate = 44100.0;

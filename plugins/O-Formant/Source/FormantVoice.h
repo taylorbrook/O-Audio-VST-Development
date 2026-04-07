@@ -116,6 +116,7 @@ private:
     std::atomic<float>* pFormantShift  = nullptr;
     std::atomic<float>* pFormantSpread = nullptr;
     std::atomic<float>* pPitchGlide    = nullptr;
+    std::atomic<float>* pTransitionTime = nullptr;
 
     // Output
     std::atomic<float>* pOutputGain   = nullptr;

@@ -53,6 +53,7 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pFormantShift  = apvts->getRawParameterValue ("formantShift");
     pFormantSpread = apvts->getRawParameterValue ("formantSpread");
     pPitchGlide    = apvts->getRawParameterValue ("pitchGlide");
+    pTransitionTime = apvts->getRawParameterValue ("transitionTime");
 
     pOutputGain   = apvts->getRawParameterValue ("outputGain");
     pStereoWidth  = apvts->getRawParameterValue ("stereoWidth");
@@ -88,6 +89,10 @@ void FormantVoice::noteStarted()
     cascadeBank.reset();
     vibratoLFO.reset();
     consonantEngine.reset();
+
+    // Snap formant SmoothedValues to current targets for click-free onset
+    filterBank.snapToTargets();
+    cascadeBank.snapToTargets();
 
     // MPE state reset
     mpeBreathOffset = 0.0f;
@@ -262,6 +267,11 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
     // Formant topology: 0=Cascade, 1=Parallel (legacy), 2=Hybrid
     int topology = pFormantTopology != nullptr ? static_cast<int> (pFormantTopology->load()) : 0;
+
+    // Formant transition time: per-formant SmoothedValue ramp durations
+    float transitionTime = pTransitionTime != nullptr ? pTransitionTime->load() : 0.4f;
+    filterBank.setTransitionTime (transitionTime);
+    cascadeBank.setTransitionTime (transitionTime);
 
     // Spectral tilt: read once per block, compute one-pole alpha from f0
     float spectralTilt = pSpectralTilt != nullptr ? pSpectralTilt->load() : 0.0f;

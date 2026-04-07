@@ -24,6 +24,11 @@ public:
     void prepare (double sr) noexcept
     {
         sampleRate = sr;
+        for (int i = 0; i < 5; ++i)
+        {
+            smoothedFreq[i].reset (sr, 0.0);
+            smoothedBW[i].reset (sr, 0.0);
+        }
         reset();
     }
 
@@ -31,6 +36,31 @@ public:
     {
         for (int i = 0; i < 5; ++i)
             filters[i].reset();
+    }
+
+    // Configure per-formant transition ramp times
+    // normTime 0-1: 0 = instant (backward compatible), 1 = max transition
+    // Per-formant max times mimic articulatory dynamics:
+    //   F1: 50ms (jaw — fastest), F2-F3: 80ms (tongue body), F4-F5: 120ms (slowest)
+    void setTransitionTime (float normTime) noexcept
+    {
+        static constexpr float maxTimesMs[5] = { 50.0f, 80.0f, 80.0f, 120.0f, 120.0f };
+        for (int i = 0; i < 5; ++i)
+        {
+            double timeSec = static_cast<double> (normTime * maxTimesMs[i]) * 0.001;
+            smoothedFreq[i].reset (sampleRate, timeSec);
+            smoothedBW[i].reset (sampleRate, timeSec);
+        }
+    }
+
+    // Snap all SmoothedValues to current targets (use on note onset for click-free start)
+    void snapToTargets() noexcept
+    {
+        for (int i = 0; i < 5; ++i)
+        {
+            smoothedFreq[i].setCurrentAndTargetValue (smoothedFreq[i].getTargetValue());
+            smoothedBW[i].setCurrentAndTargetValue (smoothedBW[i].getTargetValue());
+        }
     }
 
     // Update coefficients from vowel morph output + shift/spread
@@ -64,19 +94,40 @@ public:
             // Scale bandwidth proportionally with shift to maintain consistent Q
             float scaledBW = bw[i] * shiftFactor;
 
-            // Q = freq / bandwidth, clamped to safe range [0.5, 25]
-            float Q = finalFreq / std::max (scaledBW, 1.0f);
-            Q = juce::jlimit (0.5f, 25.0f, Q);
-
-            auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, finalFreq, Q);
-            filters[i].setCoefficients (coeffs);
+            // Set SmoothedValue targets — per-sample interpolation in process()
+            smoothedFreq[i].setTargetValue (finalFreq);
+            smoothedBW[i].setTargetValue (scaledBW);
             filters[i].gain = gain[i];
+
+            // When not smoothing, apply coefficients directly (zero overhead steady state)
+            if (! smoothedFreq[i].isSmoothing() && ! smoothedBW[i].isSmoothing())
+            {
+                float Q = finalFreq / std::max (scaledBW, 1.0f);
+                Q = juce::jlimit (0.5f, 25.0f, Q);
+                auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, finalFreq, Q);
+                filters[i].setCoefficients (coeffs);
+            }
         }
     }
 
     // Process single sample through all 5 parallel filters, sum outputs
     inline float process (float input) noexcept
     {
+        // Advance smoothed values and recompute coefficients for transitioning formants
+        for (int i = 0; i < 5; ++i)
+        {
+            if (smoothedFreq[i].isSmoothing() || smoothedBW[i].isSmoothing())
+            {
+                float f = smoothedFreq[i].getNextValue();
+                float bw = smoothedBW[i].getNextValue();
+                float Q = f / std::max (bw, 1.0f);
+                Q = juce::jlimit (0.5f, 25.0f, Q);
+                auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (
+                    sampleRate, f, Q);
+                filters[i].setCoefficients (coeffs);
+            }
+        }
+
         float output = 0.0f;
         for (int i = 0; i < 5; ++i)
             output += filters[i].processSample (input);
@@ -85,5 +136,7 @@ public:
 
 private:
     FormantBiquad filters[5];
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedFreq[5];
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedBW[5];
     double sampleRate = 44100.0;
 };

@@ -2,6 +2,26 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.9.0] - 2026-04-07
+
+### Added
+- **Smooth formant transitions with configurable timing** — Per-formant `SmoothedValue<float>` objects (5 frequencies + 5 bandwidths = 10 total) provide sample-rate interpolation when vowel morph position changes. Eliminates step-function jumps from the previous 32-sample block-rate updates. Transition times differ per formant to mimic real articulatory dynamics:
+  - F1: up to 50ms (jaw — fastest articulator)
+  - F2-F3: up to 80ms (tongue body — medium)
+  - F4-F5: up to 120ms (slowest articulatory gestures)
+- **New APVTS parameter: `transitionTime`** (float 0-1, default 0.4) — Scales per-formant ramp durations. At 0 = instant transitions (backward compatible with previous behavior). At 1 = maximum transition times (F1: 50ms, F2-F3: 80ms, F4-F5: 120ms). The formula: `rampTime = transitionTime * perFormantMaxTime`.
+- **Zero-overhead steady state** — Biquad coefficients are only recomputed per-sample when `SmoothedValue::isSmoothing()` returns true. When formants are stable, processing cost is identical to previous version.
+- **Click-free note onset** — SmoothedValues snap to current targets via `setCurrentAndTargetValue()` on `noteStarted()`, preventing formant smearing at note attack.
+- **Both filter topologies supported** — Smoothing applied to both `FormantFilterBank` (parallel) and `CascadeFormantBank` (cascade/hybrid) with identical per-formant timing schedules.
+- **UI: Transition knob** — Added to the Character parameter group in the WebView UI.
+- **Factory presets updated** — All 16 presets include characterful `transitionTime` values (e.g., Robotic Speech=0.0 instant, Ethereal Drone=0.8 slow morph, Glitch Vocal=0.1 near-instant).
+
+### Technical Notes
+- FormantFilterBank: `setTransitionTime(float)` configures 10 SmoothedValues with per-formant ramp durations; `snapToTargets()` for note onset; `updateCoefficients()` sets targets instead of direct application; `process()` advances smoothing and recomputes biquad coefficients per-sample only during active transitions
+- CascadeFormantBank: identical smoothing treatment for cascade/hybrid topologies
+- FormantVoice: reads `transitionTime` at block rate, calls `setTransitionTime()` on both banks each block, snaps on noteStarted
+- 1 new APVTS parameter (30 total), with WebView relay + attachment, pluginval pending
+
 ## [1.8.0] - 2026-04-07
 
 ### Added
