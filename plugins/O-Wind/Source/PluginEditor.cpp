@@ -28,6 +28,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
     breathNoiseRelay = std::make_unique<juce::WebSliderRelay>("breathNoise");
 
     // Resonator Controls
+    materialRelay = std::make_unique<juce::WebSliderRelay>("material");
     toneColorRelay = std::make_unique<juce::WebSliderRelay>("toneColor");
     airColumnRelay = std::make_unique<juce::WebSliderRelay>("airColumn");
     jetReflectionRelay = std::make_unique<juce::WebSliderRelay>("jetReflection");
@@ -79,6 +80,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             .withOptionsFrom(*embouchureRelay)
             .withOptionsFrom(*breathNoiseRelay)
             // Resonator Controls
+            .withOptionsFrom(*materialRelay)
             .withOptionsFrom(*toneColorRelay)
             .withOptionsFrom(*airColumnRelay)
             .withOptionsFrom(*jetReflectionRelay)
@@ -480,6 +482,8 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
         *apvts.getParameter("breathNoise"), *breathNoiseRelay, nullptr);
 
     // Resonator Controls
+    materialAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("material"), *materialRelay, nullptr);
     toneColorAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("toneColor"), *toneColorRelay, nullptr);
     airColumnAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -548,6 +552,7 @@ OWindAudioProcessorEditor::~OWindAudioProcessorEditor()
     jetReflectionAttachment.reset();
     airColumnAttachment.reset();
     toneColorAttachment.reset();
+    materialAttachment.reset();
     breathNoiseAttachment.reset();
     embouchureAttachment.reset();
     breathPressureAttachment.reset();

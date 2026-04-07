@@ -150,7 +150,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "ms"
     ));
 
-    // ========== Output (3) ==========
+    // ========== Output (4) ==========
+
+    // MATERIAL - Timbral macro: 0=dark wood/bamboo, 1=bright metal
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "material", 1 },
+        "Material",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
 
     // WIDTH - Stereo spread
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -441,6 +449,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 300.0f) },
         { "width",           normalize("width", 1.0f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
@@ -467,6 +476,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 500.0f) },
         { "width",           normalize("width", 0.8f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
@@ -493,6 +503,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 1.2f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
@@ -519,6 +530,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 400.0f) },
         { "width",           normalize("width", 1.4f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
@@ -545,6 +557,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 200.0f) },
         { "width",           normalize("width", 0.6f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
@@ -571,6 +584,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 450.0f) },
         { "width",           normalize("width", 1.5f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
@@ -597,6 +611,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 250.0f) },
         { "width",           normalize("width", 0.5f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", -3.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
@@ -623,6 +638,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 0.7f) },
         { "formant",         normalize("formant", 0.5f) },
+        { "material",        normalize("material", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },

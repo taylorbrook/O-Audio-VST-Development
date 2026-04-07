@@ -37,6 +37,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> embouchureRelay;
     std::unique_ptr<juce::WebSliderRelay> breathNoiseRelay;
     // Resonator Controls
+    std::unique_ptr<juce::WebSliderRelay> materialRelay;
     std::unique_ptr<juce::WebSliderRelay> toneColorRelay;
     std::unique_ptr<juce::WebSliderRelay> airColumnRelay;
     std::unique_ptr<juce::WebSliderRelay> jetReflectionRelay;
@@ -68,6 +69,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> embouchureAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> breathNoiseAttachment;
     // Resonator Controls
+    std::unique_ptr<juce::WebSliderParameterAttachment> materialAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> toneColorAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> airColumnAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> jetReflectionAttachment;

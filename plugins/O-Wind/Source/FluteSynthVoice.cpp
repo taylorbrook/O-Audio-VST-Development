@@ -133,6 +133,11 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     strouhalFreqScale  = 1.0f + (voiceRng.nextFloat() * 2.0f - 1.0f) * 0.10f * h;
     vibratoOnsetOffsetMs = (voiceRng.nextFloat() * 2.0f - 1.0f) * 50.0f * h;
 
+    // Randomize growl oscillator frequency (70-120 Hz range) per note
+    growlFreq = 70.0f + voiceRng.nextFloat() * 50.0f;
+    growlPhaseInc = static_cast<float> (growlFreq / internalSampleRate);
+    growlPhase = voiceRng.nextFloat();
+
     // Start breath attack envelope (with humanized attack time and chiff amplitude)
     jetExciter.startNote (velocity, attackTimeScale, noiseBurstScale);
 
@@ -346,6 +351,16 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // ========== STEP 1: Jet Exciter ==========
         float boreFeedback = boreWaveguide.getFeedback();
+
+        // Growl: sawtooth AM on bore feedback (vocal-fold coupling roughness)
+        if (growlParam > 0.0f)
+        {
+            boreFeedback *= (1.0f - growlParam * 0.6f * growlPhase);
+            growlPhase += growlPhaseInc;
+            if (growlPhase >= 1.0f)
+                growlPhase -= 1.0f;
+        }
+
         float excitation = jetExciter.processSample (boreFeedback);
 
         // ========== STEP 2: Jet Delay (Lagrange3rd) ==========
@@ -425,10 +440,13 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     float reversedJet    = parameters->getRawParameterValue ("reversedJet")->load();
     float subHarmonics   = parameters->getRawParameterValue ("subHarmonics")->load();
 
+    float material        = parameters->getRawParameterValue ("material")->load();
+
     float attackChiff     = parameters->getRawParameterValue ("attackChiff")->load();
     float humanize        = parameters->getRawParameterValue ("humanize")->load();
     float flutterTongue   = parameters->getRawParameterValue ("flutterTongue")->load();
     float flutterRate     = parameters->getRawParameterValue ("flutterRate")->load();
+    float growl           = parameters->getRawParameterValue ("growl")->load();
 
     // CC overrides (CC takes priority when non-zero)
     if (ccBreathPressure > 0.0f) breathPressure = ccBreathPressure;
@@ -441,6 +459,9 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     // Cache humanize for per-note randomization in startNote
     humanizeParam = humanize;
 
+    // Cache growl for per-sample bore feedback modulation
+    growlParam = growl;
+
     // Store breath pressure for per-sample register transition mapping
     breathPressureParam = breathPressure;
 
@@ -448,8 +469,12 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     embouchureSmoothed.setTargetValue (embouchure);
 
     // Remap endReflection: raw [-1,1] → magnitude [0.7, 0.98], preserve sign
+    // Material nudges end reflection: metal (1) → +0.05 (brighter reflections),
+    // wood (0) → -0.05 (more damped reflections), centered at material=0.5
     float endReflSign = (endReflection >= 0.0f) ? 1.0f : -1.0f;
-    float endReflMapped = endReflSign * (0.7f + std::abs (endReflection) * 0.28f);
+    float endReflBase = 0.7f + std::abs (endReflection) * 0.28f;
+    float materialEndReflNudge = (material - 0.5f) * 0.1f;
+    float endReflMapped = endReflSign * juce::jlimit (0.5f, 0.99f, endReflBase + materialEndReflNudge);
 
     // Remap jetReflection: raw [-1,1] → magnitude [0.3, 0.75], preserve sign
     float jetReflSign = (jetReflection >= 0.0f) ? 1.0f : -1.0f;
@@ -483,16 +508,29 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     boreWaveguide.setInfiniteSustain (infSustain);
     boreWaveguide.setSubHarmonics (subHarmonics);
 
+    // Material macro: continuous wood (0) to metal (1) timbral offset
+    // Maps 0→0.6x, 0.5→1.0x, 1→1.4x for bore loss and noise
+    float materialBoreScale = 0.6f + material * 0.8f;
+    // Maps 0→0.7x, 0.5→1.0x, 1→1.3x for radiation
+    float materialRadScale  = 0.7f + material * 0.6f;
+
     // Tone color -> bore loss filter cutoff (1000-12000 Hz, log scale)
     float cutoffBase = 1000.0f * std::pow (12.0f, toneColor);
     float cutoffReduction = 1.0f - airColumn * 0.7f;
-    float lossCutoff = cutoffBase * cutoffReduction;
+    float lossCutoff = cutoffBase * cutoffReduction * materialBoreScale;
     float lossQ = 0.707f * (1.0f - airColumn * 0.3f);
     boreWaveguide.updateBoreLossFilter (lossCutoff, lossQ);
 
+    // Radiation filter: preset base cutoff scaled by material (wood=darker, metal=brighter)
+    boreWaveguide.updateRadiationFilter (currentPreset.radiationCutoff * materialRadScale);
+
+    // End reflection filter: preset base cutoff scaled by material
+    boreWaveguide.updateEndReflectionFilter (currentPreset.endReflCutoff * materialRadScale);
+
     // Update Strouhal bandpass: center frequency scales with breath pressure
+    // Material scales noise center similarly to bore loss (wood=darker noise, metal=brighter)
     // Per-note humanization: shift center freq by +/-10%
-    jetExciter.updateStrouhalBandpass (breathPressure, strouhalFreqScale);
+    jetExciter.updateStrouhalBandpass (breathPressure, strouhalFreqScale * materialBoreScale);
 
     // Output gain (dB to linear)
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);

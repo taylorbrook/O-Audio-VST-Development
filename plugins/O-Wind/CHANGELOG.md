@@ -1,5 +1,27 @@
 # O-Wind Changelog
 
+## [1.8.0] - 2026-04-06
+
+### Added — Material Macro Parameter
+
+Continuous wood-to-metal timbral blending macro per RESEARCH-realism-v2.md §2.3:
+
+**New APVTS Parameter:**
+- `material` (0.0-1.0, default 0.5) — timbral macro (0 = dark wood/bamboo, 1 = bright metal)
+
+**DSP Implementation (FluteSynthVoice — updateParametersFromAPVTS):**
+- Bore loss filter cutoff multiplier: 0.6x (wood) to 1.4x (metal) of base toneColor cutoff
+- Strouhal noise bandpass center freq: same 0.6x-1.4x scaling (darker/brighter turbulence)
+- Radiation filter cutoff: 0.7x (wood) to 1.3x (metal) of preset base cutoff
+- End reflection filter cutoff: same 0.7x-1.3x scaling as radiation
+- End reflection coefficient: nudged +/-0.05 from base (metal = more reflective, wood = more damped)
+- No new DSP components — multipliers applied in updateParametersFromAPVTS before passing to existing filters
+- Works as additive offset on top of instrument presets (material=0.5 = no change from preset base)
+
+**WebView UI:**
+- New "Material" knob added to Resonator section on SOUND tab (first position)
+- All 8 factory presets updated (material=0.5 default — neutral, no timbral offset)
+
 ## [1.7.0] - 2026-04-06
 
 ### Added — Headjoint Formant Resonance Filter
