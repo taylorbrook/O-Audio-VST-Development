@@ -2,6 +2,21 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.11.1] - 2026-04-07
+
+### Fixed
+- **Held tone now audible in Cascade/Hybrid topology** — The cascade formant bank was using `makeBandPass` (zero-pole BPF) instead of all-pole resonators for series-chained filters. Bandpass filters at different center frequencies (F1=700Hz, F2=1200Hz, etc.) have non-overlapping passbands, so cascading them produced ~60+ dB cumulative attenuation — effectively silence for the voiced path. Consonant attack was still audible because consonants route through the parallel bank, which sums BPF outputs correctly.
+- **Root cause:** `CascadeFormantBank` used `juce::dsp::IIR::ArrayCoefficients::makeBandPass` which creates a filter with zeros at DC and Nyquist, explicitly cutting frequencies outside the passband. Klatt cascade synthesis requires all-pole resonators that add peaks without cutting other frequencies.
+- **Fix:** Replaced `makeBandPass` with custom `makeResonator()` — all-pole second-order resonator with unity DC gain normalization (`A = 1 - 2r·cos(θ) + r²`). Cascade filters now correctly shape the broadband glottal excitation into vowel spectra. Hybrid mode parallel filters (F4-F5) retain BPF for proper band isolation.
+- **Removed 12 dB compensation gain** — No longer needed since resonators don't attenuate the signal like bandpass filters did.
+
+### Technical Notes
+- `CascadeFormantBank::makeResonator(sr, freq, bw)` — static method computing all-pole resonator coefficients: `r = exp(-π·BW/Fs)`, `θ = 2π·F/Fs`, feedback coeffs `a1 = -2r·cos(θ)`, `a2 = r²`, feedforward `b0 = A, b1 = b2 = 0`
+- Pole radius clamped to r ≤ 0.9999 for stability; frequency and bandwidth clamped to safe ranges
+- Both `updateCoefficients()` and `process()` (smoothing path) use resonators for cascade indices and BPF for parallel indices
+- Existing `tanh()` soft-clip in FormantVoice handles resonator peak amplitudes
+- No parameter changes (31 total unchanged), no breaking changes
+
 ## [1.11.0] - 2026-04-07
 
 ### Added

@@ -68,13 +68,10 @@ public:
     void setNumCascadeStages (int n) noexcept
     {
         numCascade = juce::jlimit (1, 5, n);
-        // Gain compensation: series filters attenuate more than parallel
-        // ~2.4 dB per cascade stage empirically tuned
-        compensationGain = std::pow (2.0f, numCascade * 0.4f);
     }
 
     // Update coefficients — same freq/bw/shift/spread as parallel bank
-    // No per-filter gain: cascade auto-produces correct relative amplitudes
+    // Cascade filters use all-pole resonators (Klatt 1980); hybrid parallel filters use BPF
     void updateCoefficients (const float freq[5], const float bw[5],
                              float shift, float spread, double sr) noexcept
     {
@@ -105,15 +102,23 @@ public:
 
             if (! smoothedFreq[i].isSmoothing() && ! smoothedBW[i].isSmoothing())
             {
-                float Q = finalFreq / std::max (scaledBW, 1.0f);
-                Q = juce::jlimit (0.5f, 25.0f, Q);
-                auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, finalFreq, Q);
-                filters[i].setCoefficients (coeffs);
+                if (i < numCascade)
+                {
+                    auto coeffs = makeResonator (sr, finalFreq, scaledBW);
+                    filters[i].setCoefficients (coeffs);
+                }
+                else
+                {
+                    float Q = finalFreq / std::max (scaledBW, 1.0f);
+                    Q = juce::jlimit (0.5f, 25.0f, Q);
+                    auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, finalFreq, Q);
+                    filters[i].setCoefficients (coeffs);
+                }
             }
         }
     }
 
-    // Process: first numCascade filters in series, remaining in parallel
+    // Process: first numCascade filters in series (resonators), remaining in parallel (BPF)
     inline float process (float input) noexcept
     {
         // Advance smoothed values and recompute coefficients for transitioning formants
@@ -123,15 +128,24 @@ public:
             {
                 float f = smoothedFreq[i].getNextValue();
                 float bw = smoothedBW[i].getNextValue();
-                float Q = f / std::max (bw, 1.0f);
-                Q = juce::jlimit (0.5f, 25.0f, Q);
-                auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (
-                    sampleRate, f, Q);
-                filters[i].setCoefficients (coeffs);
+
+                if (i < numCascade)
+                {
+                    auto coeffs = makeResonator (sampleRate, f, bw);
+                    filters[i].setCoefficients (coeffs);
+                }
+                else
+                {
+                    float Q = f / std::max (bw, 1.0f);
+                    Q = juce::jlimit (0.5f, 25.0f, Q);
+                    auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (
+                        sampleRate, f, Q);
+                    filters[i].setCoefficients (coeffs);
+                }
             }
         }
 
-        // Cascade path: chain filters in series
+        // Cascade path: chain all-pole resonators in series
         float cascadeOut = input;
         for (int i = 0; i < numCascade; ++i)
             cascadeOut = filters[i].processSample (cascadeOut);
@@ -141,14 +155,36 @@ public:
         for (int i = numCascade; i < 5; ++i)
             parallelOut += filters[i].processSample (input);
 
-        return cascadeOut * compensationGain + parallelOut;
+        return cascadeOut + parallelOut;
     }
 
 private:
+    // All-pole resonator for Klatt cascade synthesis (Klatt, 1980).
+    // Unlike makeBandPass (which has zeros that kill out-of-band signal),
+    // this adds a peak at freq without attenuating other frequencies,
+    // allowing cascade of resonators at different formant frequencies.
+    static std::array<float, 6> makeResonator (double sr, float freq, float bw) noexcept
+    {
+        float nyLimit = static_cast<float> (sr * 0.5) - 100.0f;
+        freq = juce::jlimit (20.0f, nyLimit, freq);
+        bw = std::max (1.0f, bw);
+
+        float theta = juce::MathConstants<float>::twoPi * freq / static_cast<float> (sr);
+        float r = std::exp (-juce::MathConstants<float>::pi * bw / static_cast<float> (sr));
+        r = std::min (r, 0.9999f);
+
+        float cosTheta = std::cos (theta);
+
+        // Unity DC gain: A = 1 - 2r*cos(θ) + r²
+        float A = 1.0f - 2.0f * r * cosTheta + r * r;
+
+        // {b0, b1, b2, a0, a1, a2}
+        return { A, 0.0f, 0.0f, 1.0f, -2.0f * r * cosTheta, r * r };
+    }
+
     FormantBiquad filters[5];
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedFreq[5];
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedBW[5];
     int numCascade = 5;
-    float compensationGain = 4.0f; // ~12 dB for 5 stages
     double sampleRate = 44100.0;
 };
