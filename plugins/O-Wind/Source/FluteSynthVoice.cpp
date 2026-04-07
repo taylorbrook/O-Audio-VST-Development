@@ -510,6 +510,10 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     boreWaveguide.setInfiniteSustain (infSustain);
     boreWaveguide.setSubHarmonics (subHarmonics);
 
+    // Inharmonicity: APVTS param multiplies preset base for effective allpass coefficient
+    float inharmonicity = parameters->getRawParameterValue ("inharmonicity")->load();
+    boreWaveguide.setInharmonicity (inharmonicity * currentPreset.inharmonicityBase);
+
     // Material macro: continuous wood (0) to metal (1) timbral offset
     // Maps 0→0.6x, 0.5→1.0x, 1→1.4x for bore loss and noise
     float materialBoreScale = 0.6f + material * 0.8f;

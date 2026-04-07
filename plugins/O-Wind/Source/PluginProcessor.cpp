@@ -185,6 +185,16 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "dB"
     ));
 
+    // ========== Resonator — Inharmonicity (1) ==========
+
+    // INHARMONICITY - Allpass partial detuning for conical bore approximation
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "inharmonicity", 1 },
+        "Inharmonicity",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.2f
+    ));
+
     // ========== Impossible Physics (3) ==========
 
     // INFINITE_SUSTAIN - Reduces damping toward zero

@@ -1,5 +1,34 @@
 # O-Wind Changelog
 
+## [1.10.0] - 2026-04-06
+
+### Added — Allpass Inharmonicity Filters
+
+Bore waveguide allpass inharmonicity for natural partial detuning and conical bore approximation per RESEARCH-realism-v2.md §2.6:
+
+**New APVTS Parameter:**
+- `inharmonicity` (0.0-1.0, default 0.2) — controls allpass partial detuning amount
+
+**DSP Implementation (BoreWaveguide — processSample):**
+- Two cascaded first-order allpass filters in bore backward delay path (after end reflection, after backward delay pop)
+- Allpass coefficient `a = effective * 0.05`, where `effective = APVTS_param * preset.inharmonicityBase`
+- Frequency-dependent phase delay detunes upper harmonics by ~5-15 cents — matching measured flute inharmonicity
+- Coefficients updated once per block via `setInharmonicity(effective)` with change detection
+- Allpass phase delay included in `getFilterPhaseDelay()` for dynamic loop delay compensation
+- Zero CPU cost when inharmonicity = 0 (filters bypassed)
+
+**Per-Instrument Preset Base Values (InstrumentPresets — inharmonicityBase):**
+- Concert Flute: 0.15 (cylindrical bore, minimal inharmonicity)
+- Shakuhachi: 0.5 (conical bore, high inharmonicity)
+- Bansuri: 0.35 (bamboo bore irregularities)
+- Native Am. Flute: 0.4 (dual-chamber conical bore)
+- Recorder: 0.3 (slightly tapered bore)
+- Pan Flute: 0.35 (closed-end cylindrical, end correction effects)
+- Piccolo: 0.2 (short conical bore)
+- Ocarina: 0.4 (Helmholtz resonator, inherently inharmonic)
+
+**Files Modified:** BoreWaveguide.h, InstrumentPresets.h, PluginProcessor.cpp, FluteSynthVoice.cpp
+
 ## [1.9.0] - 2026-04-06
 
 ### Added — Register-Dependent Spectral Shaping

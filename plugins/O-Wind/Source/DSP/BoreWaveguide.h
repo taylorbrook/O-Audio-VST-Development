@@ -59,6 +59,10 @@ public:
         endReflectionFilter.prepare (spec);
         radiationFilter.prepare (spec);
 
+        // Prepare allpass inharmonicity filters
+        allpass1.prepare (spec);
+        allpass2.prepare (spec);
+
         // Default filter coefficients
         updateBoreLossFilter (6000.0f, 0.707f);
         updateEndReflectionFilter (3000.0f);
@@ -76,6 +80,8 @@ public:
         boreLossHigh.reset();
         endReflectionFilter.reset();
         radiationFilter.reset();
+        allpass1.reset();
+        allpass2.reset();
         boreFeedback = 0.0f;
     }
 
@@ -91,6 +97,22 @@ public:
     void setEndReflection (float coeff)     { endReflectionCoeff = coeff; }
     void setInfiniteSustain (float amount)  { infiniteSustainParam = amount; }
     void setSubHarmonics (float amount)     { subHarmonicsParam = amount; }
+
+    // Inharmonicity: sets allpass coefficient for frequency-dependent phase delay
+    // in the bore feedback path. Coefficient a controls partial detuning (~5-15 cents).
+    void setInharmonicity (float effective)
+    {
+        float a = effective * 0.05f;
+        if (std::abs (a - inharmonicityCoeff) < 1.0e-6f)
+            return;
+        inharmonicityCoeff = a;
+        if (sampleRate > 0.0 && a > 0.0f)
+        {
+            auto coeffs = juce::dsp::IIR::Coefficients<float> (a, 1.0f, 1.0f, a);
+            *allpass1.coefficients = coeffs;
+            *allpass2.coefficients = coeffs;
+        }
+    }
 
     // Update bore loss: two cascaded 1st-order lowpass filters for frequency-dependent loss.
     // Low cutoff (~2kHz) provides base viscothermal damping.
@@ -175,6 +197,14 @@ public:
         boreFeedback = boreBwd.popSample (0, halfDelay);
         boreFeedback *= feedbackGain;  // compensate cumulative filter losses
 
+        // Allpass inharmonicity: frequency-dependent phase delay detunes upper
+        // partials by ~5-15 cents, approximating conical bore behavior
+        if (inharmonicityCoeff > 0.0f)
+        {
+            boreFeedback = allpass1.processSample (boreFeedback);
+            boreFeedback = allpass2.processSample (boreFeedback);
+        }
+
         // Radiation filter (output tap from forward wave at bore end)
         float voiceOutput = radiationFilter.processSample (pPlusFiltered);
 
@@ -219,6 +249,14 @@ public:
             totalDelay += -phase / omega;
         }
 
+        // Allpass inharmonicity filters (2x, same coefficients)
+        if (inharmonicityCoeff > 0.0f && allpass1.coefficients != nullptr)
+        {
+            auto phase = static_cast<float> (
+                allpass1.coefficients->getPhaseForFrequency (freq, sampleRate));
+            totalDelay += -phase / omega * 2.0f;  // 2 cascaded allpass filters
+        }
+
         return std::max (0.0f, totalDelay);
     }
 
@@ -256,6 +294,10 @@ private:
     juce::dsp::IIR::Filter<float> endReflectionFilter;  // high-shelf for open-end radiation
     juce::dsp::IIR::Filter<float> radiationFilter;
 
+    // Allpass inharmonicity filters (conical bore approximation)
+    juce::dsp::IIR::Filter<float> allpass1;
+    juce::dsp::IIR::Filter<float> allpass2;
+
     // State
     float boreFeedback = 0.0f;
     float currentBoreDelay = 200.0f;
@@ -264,6 +306,7 @@ private:
     float endReflectionCoeff = 0.5f;
     float infiniteSustainParam = 0.0f;
     float subHarmonicsParam = 0.0f;
+    float inharmonicityCoeff = 0.0f;  // allpass coefficient for partial detuning
 
     // Filter group delay compensation (approx 2 samples from bore loss + end refl)
     static constexpr float filterGroupDelay = 2.0f;
