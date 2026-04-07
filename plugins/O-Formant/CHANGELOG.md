@@ -2,6 +2,19 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.6.0] - 2026-04-06
+
+### Added
+- **Dynamic formant bandwidth variation** — Bandwidths now modulate based on vowel openness and breathiness instead of remaining fixed from VowelData interpolation. Two modulation sources applied at block rate after Shepard interpolation:
+  - *Vowel openness:* F1 frequency used as proxy for jaw opening. B1 scaled by `(1.0 + 0.4 * (F1 - 400) / 800)`, clamped to [40, 200] Hz. B2-B5 receive 30% of B1's scaling. Open vowels (/a/) get wider B1 (~+12%), closed vowels (/i/) slightly narrower (~-4%).
+  - *Breathiness coupling:* All BW1-BW5 scaled by `(1.0 + breathiness * 0.5)`, giving breathy voices up to 50% wider bandwidths for a more diffuse, airy resonance.
+
+### Technical Notes
+- No new parameters — uses existing `breathiness` (0-1) and derived F1 from vowel morpher output
+- Modulation inserted in FormantVoice::renderNextBlock between vowelMorpher.compute() and filterBank.updateCoefficients(), preserving existing shift/spread/Q pipeline
+- Perceptual effect: breathy voices sound more diffuse; open vowels have warmer, less resonant quality (ref: Fleischer et al., 2015 vocal tract measurements)
+- 27 APVTS parameters unchanged
+
 ## [1.5.0] - 2026-04-06
 
 ### Added

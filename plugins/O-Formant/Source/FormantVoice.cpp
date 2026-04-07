@@ -287,6 +287,23 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             vowelMorpher.compute (vowelX, vowelY, focus,
                                   formantFreqs, formantBWs, formantGains);
 
+            // Dynamic bandwidth variation based on vowel openness and breathiness
+            // (1) Openness — F1 as proxy: higher F1 = more open = wider B1
+            float opennessFactor = 0.4f * (formantFreqs[0] - 400.0f) / 800.0f;
+
+            formantBWs[0] = juce::jlimit (40.0f, 200.0f,
+                formantBWs[0] * (1.0f + opennessFactor));
+
+            // B2-B5: 30% of B1's openness scaling
+            float minorOpenness = opennessFactor * 0.3f;
+            for (int fi = 1; fi < 5; ++fi)
+                formantBWs[fi] *= (1.0f + minorOpenness);
+
+            // (2) Breathiness coupling — wider bandwidths for breathier voice
+            float breathBWScale = 1.0f + effectiveBreath * 0.5f;
+            for (int fi = 0; fi < 5; ++fi)
+                formantBWs[fi] *= breathBWScale;
+
             filterBank.updateCoefficients (formantFreqs, formantBWs, formantGains,
                                            shift, spread, getSampleRate());
         }
