@@ -95,7 +95,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         0.3f
     ));
 
-    // ========== Articulation (2) ==========
+    // ========== Articulation (3) ==========
 
     // FLUTTER_TONGUE - Flutter tongue AM depth (0 = off, 1 = full)
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -112,6 +112,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         juce::NormalisableRange<float>(15.0f, 30.0f, 0.1f),
         22.0f,
         "Hz"
+    ));
+
+    // GROWL - Secondary LFO modulating bore feedback (vocal-fold coupling roughness)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "growl", 1 },
+        "Growl",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
     ));
 
     // ========== Modulation (3) ==========
@@ -142,7 +150,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "ms"
     ));
 
-    // ========== Output (2) ==========
+    // ========== Output (3) ==========
 
     // WIDTH - Stereo spread
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -150,6 +158,14 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "Width",
         juce::NormalisableRange<float>(0.0f, 2.0f, 0.01f),
         1.0f
+    ));
+
+    // FORMANT - Headjoint formant resonance prominence
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "formant", 1 },
+        "Formant",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
     ));
 
     // OUTPUT_LEVEL - Master output gain
@@ -301,11 +317,18 @@ void OWindAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock)
 
     // Prepare stereo width processor
     stereoWidth.prepare (sampleRate, samplesPerBlock);
+
+    // Prepare formant resonance filter (flat initially, updated in processBlock)
+    formantFilterL.reset();
+    formantFilterR.reset();
+    lastFormantPresetIndex = -1;  // force coefficient update on first block
 }
 
 void OWindAudioProcessor::releaseResources()
 {
     stereoWidth.reset();
+    formantFilterL.reset();
+    formantFilterR.reset();
 }
 
 void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
@@ -326,6 +349,44 @@ void OWindAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     // Post-voice stereo width processing
     auto* widthParam = parameters.getRawParameterValue ("width");
     stereoWidth.processBlock (buffer, widthParam->load());
+
+    // Post-width headjoint formant resonance filter
+    {
+        auto formantVal = parameters.getRawParameterValue ("formant")->load();
+        int presetIdx = static_cast<int> (parameters.getRawParameterValue ("instrumentPreset")->load());
+        const auto& preset = InstrumentPresets::getPreset (presetIdx);
+        float centerHz = preset.formantCenterHz;
+        float gainDb = formantVal * 6.0f;  // 0dB at formant=0, +6dB at formant=1
+
+        // Update coefficients only when parameters change
+        if (presetIdx != lastFormantPresetIndex || std::abs (gainDb - lastFormantGainDb) > 0.01f)
+        {
+            lastFormantPresetIndex = presetIdx;
+            lastFormantGainDb = gainDb;
+            lastFormantCenterHz = centerHz;
+
+            auto coeffs = juce::dsp::IIR::Coefficients<float>::makePeakFilter (
+                getSampleRate(), centerHz, 1.5f,
+                juce::Decibels::decibelsToGain (gainDb));
+            *formantFilterL.coefficients = *coeffs;
+            *formantFilterR.coefficients = *coeffs;
+        }
+
+        // Skip processing when gain is negligible (formant near 0)
+        if (gainDb > 0.05f)
+        {
+            auto numSamples = buffer.getNumSamples();
+            auto* left  = buffer.getWritePointer (0);
+            auto* right = buffer.getNumChannels() > 1 ? buffer.getWritePointer (1) : nullptr;
+
+            for (int i = 0; i < numSamples; ++i)
+                left[i] = formantFilterL.processSample (left[i]);
+
+            if (right != nullptr)
+                for (int i = 0; i < numSamples; ++i)
+                    right[i] = formantFilterR.processSample (right[i]);
+        }
+    }
 }
 
 juce::AudioProcessorEditor* OWindAudioProcessor::createEditor()
@@ -379,12 +440,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.15f) },
         { "vibratoOnset",    normalize("vibratoOnset", 300.0f) },
         { "width",           normalize("width", 1.0f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 0.0f) },
     }, {} });
@@ -403,12 +466,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.25f) },
         { "vibratoOnset",    normalize("vibratoOnset", 500.0f) },
         { "width",           normalize("width", 0.8f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.1f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 1.0f) },
     }, {} });
@@ -427,12 +492,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.18f) },
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 1.2f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  1.0f },
         { "instrumentPreset", normalize("instrumentPreset", 2.0f) },
     }, {} });
@@ -451,12 +518,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.3f) },
         { "vibratoOnset",    normalize("vibratoOnset", 400.0f) },
         { "width",           normalize("width", 1.4f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.05f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 3.0f) },
     }, {} });
@@ -475,12 +544,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.08f) },
         { "vibratoOnset",    normalize("vibratoOnset", 200.0f) },
         { "width",           normalize("width", 0.6f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  1.0f },
         { "instrumentPreset", normalize("instrumentPreset", 4.0f) },
     }, {} });
@@ -499,12 +570,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
         { "vibratoOnset",    normalize("vibratoOnset", 450.0f) },
         { "width",           normalize("width", 1.5f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 5.0f) },
     }, {} });
@@ -523,12 +596,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
         { "vibratoOnset",    normalize("vibratoOnset", 250.0f) },
         { "width",           normalize("width", 0.5f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", -3.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  1.0f },
         { "instrumentPreset", normalize("instrumentPreset", 6.0f) },
     }, {} });
@@ -547,12 +622,14 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "vibratoDepth",    normalize("vibratoDepth", 0.2f) },
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 0.7f) },
+        { "formant",         normalize("formant", 0.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
         { "flutterTongue",   normalize("flutterTongue", 0.0f) },
         { "flutterRate",     normalize("flutterRate", 22.0f) },
+        { "growl",           normalize("growl", 0.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 7.0f) },
     }, {} });

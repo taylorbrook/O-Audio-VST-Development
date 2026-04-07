@@ -1,5 +1,49 @@
 # O-Wind Changelog
 
+## [1.7.0] - 2026-04-06
+
+### Added — Headjoint Formant Resonance Filter
+
+Models the characteristic resonant peak of the headjoint/embouchure cavity in the radiation output path per RESEARCH-realism-v2.md §2.4:
+
+**New APVTS Parameter:**
+- `formant` (0.0-1.0, default 0.5) — formant resonance prominence (0 = flat/0dB, 1 = full/+6dB)
+
+**DSP Implementation (PluginProcessor):**
+- Stereo IIR biquad parametric EQ (Q = 1.5) applied post-StereoWidth, pre-output
+- Center frequency is preset-dependent via new `formantCenterHz` field in InstrumentPreset:
+  - Piccolo: 4000 Hz, Recorder: 3000 Hz, Concert Flute: 2500 Hz
+  - Pan Flute: 2200 Hz, Bansuri: 2000 Hz, Ocarina: 2000 Hz
+  - Shakuhachi: 1800 Hz, Native Am. Flute: 1500 Hz
+- Gain mapped linearly: formant=0 → 0dB (flat), formant=1 → +6dB
+- Coefficients updated only on parameter or preset change (not per-sample)
+- Processing skipped entirely when gain < 0.05dB (formant near 0)
+
+**WebView UI:**
+- New "Formant" knob added to Output section on SOUND tab
+- All 8 factory presets updated (formant=0.5 default)
+
+## [1.6.0] - 2026-04-06
+
+### Added — Growl Effect (Vocal-Fold Coupling)
+
+Models growl/roughness via secondary low-frequency sawtooth oscillator modulating bore feedback per RESEARCH-realism-v2.md §2.2:
+
+**New APVTS Parameter:**
+- `growl` (0.0-1.0, default 0.0) — growl depth (0 = off, 1 = full roughness)
+
+**DSP Implementation (FluteSynthVoice):**
+- Sawtooth oscillator (70-120 Hz, randomized per-note) modulates bore feedback signal
+- Formula: `boreFeedback *= (1.0 - growl * 0.6 * sawPhase)` where `sawPhase` ramps 0→1
+- At growl=0: multiplier is 1.0 (no effect, zero CPU cost via early-exit)
+- At growl=1: bore feedback reduced up to 60% at sawtooth peak, creating characteristic roughness
+- Per-note frequency randomization (70-120 Hz range) + random start phase via per-voice RNG
+- Simulates vocal-fold coupling where sub-glottal turbulence modulates the air column
+
+**WebView UI:**
+- New "Growl" knob added to Expression section on SOUND tab
+- All 8 factory presets updated (growl=0 — articulation effect, not default sound)
+
 ## [1.5.0] - 2026-04-06
 
 ### Added — Flutter Tongue Articulation

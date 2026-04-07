@@ -593,6 +593,11 @@
                             <div class="knob-label">Flut Rate</div>
                             <div class="knob-value">22.0 Hz</div>
                         </div>
+                        <div class="knob-control" data-param="growl">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Growl</div>
+                            <div class="knob-value">0.00</div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -607,6 +612,11 @@
                             <div class="knob-wrapper"></div>
                             <div class="knob-label">Width</div>
                             <div class="knob-value">1.00</div>
+                        </div>
+                        <div class="knob-control" data-param="formant">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Formant</div>
+                            <div class="knob-value">0.50</div>
                         </div>
                         <div class="knob-control" data-param="outputLevel">
                             <div class="knob-wrapper"></div>
@@ -715,7 +725,9 @@
             vibratoDepth:    { min: 0, max: 1, default: 0.3, unit: '', decimals: 2 },
             flutterTongue:   { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             flutterRate:     { min: 15, max: 30, default: 22, unit: ' Hz', decimals: 1 },
+            growl:           { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             width:           { min: 0, max: 2, default: 1, unit: '', decimals: 2 },
+            formant:         { min: 0, max: 1, default: 0.5, unit: '', decimals: 2 },
             outputLevel:     { min: -60, max: 12, default: 0, unit: ' dB', decimals: 1 },
             infiniteSustain: { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             reversedJet:     { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
