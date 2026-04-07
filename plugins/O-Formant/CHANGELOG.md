@@ -2,6 +2,18 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.10.0] - 2026-04-07
+
+### Changed
+- **Pitch-synchronous aspiration noise** — Breathiness is no longer constant white noise. Aspiration amplitude is now modulated by the glottal cycle phase, peaking during the open phase (~0.0–0.6) and dipping during the closed phase (~0.6–1.0). Uses a cosine window centered at phase=0.3 with a 30% floor: `noiseGain = 0.3 + 0.7 * (0.5 + 0.5 * cos(2π(phase - 0.3)))`. This makes breathiness sound throaty and organic rather than like added static.
+- **Upgraded aspiration noise filter** — Replaced single-pole IIR lowpass at 4kHz with a biquad bandpass filter centered at 3kHz (Q=1.0, ~3kHz bandwidth) to better match real aspiration spectra. Uses transposed direct form II for numerical stability.
+
+### Technical Notes
+- LFGlottalSource: added `getPhase()` public getter exposing the [0,1) phase accumulator
+- AspirationNoise: added `setGlottalPhase(float)` for per-sample phase injection; replaced `lpCoeff`/`prevFilterOutput` with biquad state (`bpB0/B1/B2`, `bpA1/A2`, `bpZ1/Z2`); `computeBandpassCoeffs()` derives coefficients from Audio EQ Cookbook BPF formula
+- FormantVoice: calls `aspirationNoise.setGlottalPhase(glottalSource.getPhase())` each sample after `getNextSample()`
+- No new parameters (30 total unchanged), no breaking changes
+
 ## [1.9.0] - 2026-04-07
 
 ### Added

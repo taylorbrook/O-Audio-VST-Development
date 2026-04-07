@@ -126,6 +126,8 @@ public:
         return lerp (v0, v1, levelFrac) * cycleGainMod;
     }
 
+    float getPhase() const noexcept { return static_cast<float> (phase); }
+
     void reset() noexcept
     {
         phase = 0.0;

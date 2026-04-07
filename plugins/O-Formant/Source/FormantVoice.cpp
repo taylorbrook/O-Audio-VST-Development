@@ -356,6 +356,9 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Generate glottal pulse sample
         float glottal = glottalSource.getNextSample();
 
+        // Pass glottal cycle phase for pitch-synchronous aspiration
+        aspirationNoise.setGlottalPhase (glottalSource.getPhase());
+
         // Mix with aspiration noise
         float source = aspirationNoise.process (glottal);
 
