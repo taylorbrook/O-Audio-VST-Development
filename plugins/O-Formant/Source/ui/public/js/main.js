@@ -2,7 +2,7 @@ import { getSliderState, getToggleState } from './juce/index.js';
 
 // Relay states
 let vowelXState, vowelYState, vowelFocusState;
-let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibratoDelayState;
+let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibratoDelayState, jitterState, shimmerState, rdModDepthState;
 let consonantLevelState, consonantToneState, sibilanceState, autoConsonantState;
 let consonantAttackState, consonantHoldState, consonantDecayState;
 let attackState, decayState, sustainState, releaseState;
@@ -121,6 +121,9 @@ function initRelays() {
   vibratoRateState = getSliderState('vibratoRateSlider');
   vibratoDepthState = getSliderState('vibratoDepthSlider');
   vibratoDelayState = getSliderState('vibratoDelaySlider');
+  jitterState = getSliderState('jitterSlider');
+  shimmerState = getSliderState('shimmerSlider');
+  rdModDepthState = getSliderState('rdModDepthSlider');
   consonantLevelState = getSliderState('consonantLevelSlider');
   consonantToneState = getSliderState('consonantToneSlider');
   sibilanceState = getSliderState('sibilanceSlider');
@@ -146,6 +149,9 @@ function initRelays() {
     vibratoRate: vibratoRateState,
     vibratoDepth: vibratoDepthState,
     vibratoDelay: vibratoDelayState,
+    jitter: jitterState,
+    shimmer: shimmerState,
+    rdModDepth: rdModDepthState,
     consonantLevel: consonantLevelState,
     consonantAttack: consonantAttackState,
     consonantHold: consonantHoldState,
@@ -480,6 +486,22 @@ function updateConsonantXYFromPointer(e) {
   drawConsonantXYPad();
 }
 
+// IPA consonant positions (X=place, Y=manner where 0=plosive, 1=fricative)
+const consonantLabels = [
+  // Plosives (bottom)
+  { label: 'p',         x: 0.00, y: 0.05 },
+  { label: 't',         x: 0.33, y: 0.05 },
+  { label: 'k',         x: 1.00, y: 0.05 },
+  // Fricatives (top)
+  { label: 'f',         x: 0.08, y: 0.95 },
+  { label: 's',         x: 0.33, y: 0.95 },
+  { label: '\u0283',    x: 0.67, y: 0.95 },  // ʃ (palatal)
+  // Nasals (mid)
+  { label: 'm',         x: 0.00, y: 0.50 },
+  { label: 'n',         x: 0.33, y: 0.50 },
+  { label: '\u014B',    x: 1.00, y: 0.50 },  // ŋ (velar)
+];
+
 // Place frequency mapping (matches ConsonantEngine.h)
 function computePlaceFreq(place) {
   if (place <= 0.33) return 500 + (place / 0.33) * 2500;
@@ -507,11 +529,21 @@ function drawConsonantXYPad() {
   const midY = ch / 2;
   cxyCtx.beginPath(); cxyCtx.moveTo(0, midY); cxyCtx.lineTo(cw, midY); cxyCtx.stroke();
 
-  // Place markers along bottom (text handled by HTML labels)
-  // Frequency readout near cursor
+  // IPA consonant labels
+  const pad = 6;
+  cxyCtx.font = '12px Garamond, Times New Roman, serif';
+  cxyCtx.fillStyle = 'rgba(60,47,47,0.4)';
+  cxyCtx.textAlign = 'center';
+  cxyCtx.textBaseline = 'middle';
+  for (const c of consonantLabels) {
+    const lx = pad + c.x * (cw - pad * 2);
+    const ly = pad + (1.0 - c.y) * (ch - pad * 2);
+    cxyCtx.fillText(c.label, lx, ly);
+  }
+
+  // Cursor
   const normX = consonantToneState.getNormalisedValue();
   const normY = sibilanceState.getNormalisedValue();
-  const pad = 6;
   const cx = pad + normX * (cw - pad * 2);
   const cy = pad + (1.0 - normY) * (ch - pad * 2);
 

@@ -2,6 +2,40 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.5.0] - 2026-04-06
+
+### Added
+- **Dynamic Rd (vocal effort) modulation** — Glottal source Rd now responds automatically to pitch, velocity, and expression instead of remaining static per voice. Three modulation sources combined at block rate:
+  - *Pitch tracking:* -0.3 Rd per octave above middle C (higher pitch = more pressed voice)
+  - *Velocity mapping:* MIDI velocity 0-127 scales to 0 to -0.5 Rd offset (harder attack = more effort)
+  - *Expression:* MPE pressure / aftertouch maps 0-1 to +/-0.4 Rd offset (continuous effort control)
+- **New APVTS parameter: `rdModDepth`** (float 0-1, default 0.5) — Master depth control that scales all three Rd modulation sources. At 0 the voice quality knob behaves exactly as before (static Rd). At 1 full dynamic modulation is applied.
+- **20ms SmoothedValue ramp** — Per-sample linear smoothing on the effective Rd prevents clicks during rapid modulation changes.
+- **UI: Rd Mod knob** — Added to the Glottal Source parameter group in the WebView UI.
+- **Factory presets updated** — All 16 presets include characterful rdModDepth values (e.g., Robotic Speech=0.0, Natural Tenor=0.6, Pressed Baritone=0.7).
+
+### Technical Notes
+- FormantVoice: effective Rd computed at block rate from base knob + modDepth * (pitch + velocity + expression offsets), clamped to valid LF model range [0.3, 2.7]
+- Per-sample `glottalSource.setRd(rdSmoothed.getNextValue())` replaces previous block-rate static setRd
+- Note onset initializes rdSmoothed with `setCurrentAndTargetValue()` for click-free first block
+- 1 new APVTS parameter (27 total), with WebView relay + attachment
+
+## [1.4.0] - 2026-04-06
+
+### Added
+- **Jitter and shimmer modeling** — Per-cycle random perturbation of f0 (jitter) and amplitude (shimmer) in the LF glottal source for vocal naturalness. Uses 1/f noise approximation via EMA-filtered random values (~50ms time constant). Perturbations applied once per glottal cycle at phase wrap, not per-sample.
+- **Inverse scaling** — Both jitter and shimmer scale inversely with pitch (more perturbation at low f0, ref 200Hz) and inversely with velocity (controlled singing = less perturbation).
+- **Two new APVTS parameters** — `jitter` (0-1, default 0.15, maps to 0-2% relative f0 perturbation) and `shimmer` (0-1, default 0.1, maps to 0-5% relative amplitude perturbation). Defaults sit within healthy voice norms (<1% jitter, <3% shimmer).
+- **Per-voice RNG seeding** — Each voice gets a unique Xorshift32 seed for uncorrelated perturbation patterns across polyphonic notes.
+- **UI: Jitter and Shimmer knobs** — Added to the Glottal Source parameter group.
+- **Factory presets updated** — All 16 presets now include characterful jitter/shimmer values (e.g., Robotic Speech=0/0, Creature Growl=0.3/0.3, Natural Tenor=0.15/0.1).
+
+### Technical Notes
+- LFGlottalSource: `setJitterShimmer()` and `setSeed()` methods, cycle detection via phase accumulator wrap
+- Jitter modifies `phaseIncrement` multiplier per cycle; shimmer modifies output gain multiplier per cycle
+- EMA alpha computed from cycle period: `alpha = 1 - exp(-cyclePeriod / 0.050)`
+- 2 new APVTS parameters (26 total), with WebView relays + attachments
+
 ## [1.3.0] - 2026-04-06
 
 ### Added

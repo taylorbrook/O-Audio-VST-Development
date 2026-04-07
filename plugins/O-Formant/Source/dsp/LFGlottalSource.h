@@ -16,6 +16,7 @@
 #pragma once
 #include "GlottalWavetable.h"
 #include <cmath>
+#include <cstdint>
 #include <algorithm>
 
 class LFGlottalSource
@@ -31,6 +32,10 @@ public:
         sampleRate = sr;
         phase = 0.0;
         phaseIncrement = 0.0;
+        jitterEma = 0.0f;
+        shimmerEma = 0.0f;
+        cyclePhaseIncrementMod = 1.0;
+        cycleGainMod = 1.0f;
     }
 
     void setFrequency (float f0) noexcept
@@ -44,16 +49,37 @@ public:
         currentRd = rd;
     }
 
+    // Set jitter/shimmer amounts and note velocity for inverse scaling
+    // jitterAmt: 0-1 maps to 0-2% relative f0 perturbation
+    // shimmerAmt: 0-1 maps to 0-5% relative amplitude perturbation
+    void setJitterShimmer (float jitterAmt, float shimmerAmt, float velocity) noexcept
+    {
+        jitterAmount = jitterAmt * 0.02f;
+        shimmerAmount = shimmerAmt * 0.05f;
+        noteVelocity = velocity;
+    }
+
+    // Seed RNG per-voice for uncorrelated perturbation patterns
+    void setSeed (uint32_t seed) noexcept
+    {
+        rngState = seed != 0 ? seed : 1;
+    }
+
     // Inline hot path -- bilinear interpolation (2 Rd x 2 mipmap levels)
     inline float getNextSample() noexcept
     {
         if (wavetable == nullptr)
             return 0.0f;
 
-        // Advance phase accumulator
-        phase += phaseIncrement;
+        // Advance phase accumulator with jitter-modified increment
+        phase += phaseIncrement * cyclePhaseIncrementMod;
+
+        // Detect cycle boundary (phase wrap) — update perturbations once per cycle
         if (phase >= 1.0)
+        {
             phase -= 1.0;
+            updateCyclePerturbations();
+        }
 
         // Mipmap level from frequency
         float baseFreq = static_cast<float> (sampleRate) / static_cast<float> (GlottalWavetable::kTableSize);
@@ -96,12 +122,17 @@ public:
                           wavetable->getSample (level1, rd1, idx0 + 1), frac);
         float v1 = lerp (s10, s11, rdFrac);
 
-        return lerp (v0, v1, levelFrac);
+        // Apply shimmer (per-cycle amplitude modulation)
+        return lerp (v0, v1, levelFrac) * cycleGainMod;
     }
 
     void reset() noexcept
     {
         phase = 0.0;
+        jitterEma = 0.0f;
+        shimmerEma = 0.0f;
+        cyclePhaseIncrementMod = 1.0;
+        cycleGainMod = 1.0f;
     }
 
 private:
@@ -110,10 +141,52 @@ private:
         return a + t * (b - a);
     }
 
+    // Called once per glottal cycle at phase wrap
+    void updateCyclePerturbations() noexcept
+    {
+        // 1/f approximation: EMA-filtered white noise (~50ms time constant)
+        float cyclePeriod = 1.0f / std::max (frequency, 20.0f);
+        float alpha = 1.0f - std::exp (-cyclePeriod / 0.050f);
+
+        float randJ = nextRandom();
+        float randS = nextRandom();
+
+        jitterEma += alpha * (randJ - jitterEma);
+        shimmerEma += alpha * (randS - shimmerEma);
+
+        // Inverse pitch scaling: more perturbation at low f0 (ref 200 Hz)
+        float pitchScale = std::min (200.0f / std::max (frequency, 20.0f), 2.0f);
+        // Inverse velocity scaling: high velocity = more controlled
+        float velScale = 1.0f - noteVelocity * 0.7f;
+        float scale = pitchScale * velScale;
+
+        cyclePhaseIncrementMod = 1.0 + static_cast<double> (jitterAmount * jitterEma * scale);
+        cycleGainMod = 1.0f + shimmerAmount * shimmerEma * scale;
+    }
+
+    // Xorshift32 PRNG — fast, sufficient quality for noise perturbation
+    float nextRandom() noexcept
+    {
+        rngState ^= rngState << 13;
+        rngState ^= rngState >> 17;
+        rngState ^= rngState << 5;
+        return static_cast<float> (static_cast<int32_t> (rngState)) * (1.0f / 2147483648.0f);
+    }
+
     const GlottalWavetable* wavetable = nullptr;
     double sampleRate = 44100.0;
     float frequency = 220.0f;
     double phase = 0.0;
     double phaseIncrement = 0.0;
     float currentRd = 1.0f;
+
+    // Jitter/shimmer state
+    float jitterAmount = 0.0f;
+    float shimmerAmount = 0.0f;
+    float noteVelocity = 0.0f;
+    float jitterEma = 0.0f;
+    float shimmerEma = 0.0f;
+    double cyclePhaseIncrementMod = 1.0;
+    float cycleGainMod = 1.0f;
+    uint32_t rngState = 2463534242u;
 };

@@ -61,6 +61,9 @@ private:
     float mpeVowelYOffset = 0.0f;
     float noteVelocity = 0.0f;
 
+    // Smoothed Rd for dynamic vocal effort modulation (20ms ramp)
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> rdSmoothed;
+
     // Block-rate formant data (updated every kCoeffUpdateInterval samples)
     static constexpr int kCoeffUpdateInterval = 32;
     float formantFreqs[5] = {};
@@ -83,6 +86,9 @@ private:
     std::atomic<float>* pVibratoRate   = nullptr;
     std::atomic<float>* pVibratoDepth  = nullptr;
     std::atomic<float>* pVibratoDelay  = nullptr;
+    std::atomic<float>* pJitter        = nullptr;
+    std::atomic<float>* pShimmer       = nullptr;
+    std::atomic<float>* pRdModDepth    = nullptr;
 
     // Consonant / Noise
     std::atomic<float>* pConsonantLevel   = nullptr;

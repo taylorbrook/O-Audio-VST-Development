@@ -72,6 +72,24 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         300.0f,
         "ms"));
 
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "jitter", 1 },
+        "Jitter",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.15f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "shimmer", 1 },
+        "Shimmer",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.1f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "rdModDepth", 1 },
+        "Rd Mod Depth",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.5f));
+
     // --- Consonant / Noise (4) ---
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "consonantLevel", 1 },
@@ -201,6 +219,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.8f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 0.4f}, {"breathiness", 0.3f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.3f}, {"shimmer", 0.3f}, {"rdModDepth", 0.3f},
             {"consonantLevel", 0.6f}, {"consonantTone", 0.95f}, {"sibilance", 0.1f}, {"autoConsonant", 1.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", -12.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -210,6 +229,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 1.5f},
             {"glottalRd", 2.5f}, {"breathiness", 0.7f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.2f}, {"shimmer", 0.15f}, {"rdModDepth", 0.2f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.67f}, {"sibilance", 0.85f}, {"autoConsonant", 0.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 12.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -219,6 +239,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 1.0f}, {"breathiness", 0.1f},
             {"vibratoRate", 4.0f}, {"vibratoDepth", 20.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.05f}, {"shimmer", 0.05f}, {"rdModDepth", 0.4f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.1f}, {"sibilance", 0.7f}, {"autoConsonant", 0.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 0.5f},
             {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -228,6 +249,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 4.0f},
             {"glottalRd", 1.8f}, {"breathiness", 0.2f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.1f}, {"shimmer", 0.08f}, {"rdModDepth", 0.3f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.33f}, {"sibilance", 0.4f}, {"autoConsonant", 0.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 3.0f},
             {"formantShift", 0.0f}, {"formantSpread", 1.8f}, {"pitchGlide", 0.0f},
@@ -239,6 +261,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.8f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 0.3f}, {"breathiness", 0.1f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.08f}, {"shimmer", 0.05f}, {"rdModDepth", 0.2f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.0f}, {"sibilance", 0.05f}, {"autoConsonant", 1.0f},
             {"attack", 0.001f}, {"decay", 0.5f}, {"sustain", 0.4f}, {"release", 0.5f},
             {"formantShift", -18.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -248,6 +271,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 1.2f}, {"breathiness", 0.1f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 8.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.05f}, {"shimmer", 0.03f}, {"rdModDepth", 0.3f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.1f}, {"sibilance", 0.9f}, {"autoConsonant", 0.0f},
             {"attack", 0.8f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 2.0f},
             {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -257,6 +281,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 0.5f}, {"breathiness", 0.1f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.4f}, {"shimmer", 0.35f}, {"rdModDepth", 0.1f},
             {"consonantLevel", 0.8f}, {"consonantTone", 0.33f}, {"sibilance", 0.15f}, {"autoConsonant", 1.0f},
             {"attack", 0.001f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -266,6 +291,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 5.5f},
             {"glottalRd", 1.0f}, {"breathiness", 0.0f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 0.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.0f}, {"shimmer", 0.0f}, {"rdModDepth", 0.0f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.33f}, {"sibilance", 0.85f}, {"autoConsonant", 1.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 0.0f}, {"formantSpread", 0.8f}, {"pitchGlide", 0.0f},
@@ -277,6 +303,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 2.2f}, {"breathiness", 0.5f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.05f}, {"shimmer", 0.03f}, {"rdModDepth", 0.3f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.67f}, {"sibilance", 0.9f}, {"autoConsonant", 0.0f},
             {"attack", 2.0f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 5.0f},
             {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -286,6 +313,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 1.0f},
             {"glottalRd", 2.7f}, {"breathiness", 0.9f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.25f}, {"shimmer", 0.2f}, {"rdModDepth", 0.2f},
             {"consonantLevel", 0.4f}, {"consonantTone", 0.1f}, {"sibilance", 0.95f}, {"autoConsonant", 0.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 0.0f}, {"formantSpread", 1.5f}, {"pitchGlide", 0.0f},
@@ -295,6 +323,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 5.0f},
             {"glottalRd", 0.8f}, {"breathiness", 0.1f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 500.0f},
+            {"jitter", 0.1f}, {"shimmer", 0.08f}, {"rdModDepth", 0.4f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.9f}, {"sibilance", 0.3f}, {"autoConsonant", 1.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 0.0f}, {"formantSpread", 0.7f}, {"pitchGlide", 0.0f},
@@ -304,6 +333,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 2.0f}, {"breathiness", 0.6f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.2f}, {"shimmer", 0.15f}, {"rdModDepth", 0.3f},
             {"consonantLevel", 0.5f}, {"consonantTone", 0.5f}, {"sibilance", 0.8f}, {"autoConsonant", 0.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 4.0f},
             {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -315,6 +345,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 1.0f}, {"breathiness", 0.1f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 15.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.15f}, {"shimmer", 0.1f}, {"rdModDepth", 0.6f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.33f}, {"sibilance", 0.5f}, {"autoConsonant", 1.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -324,6 +355,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 2.0f}, {"breathiness", 0.4f},
             {"vibratoRate", 6.0f}, {"vibratoDepth", 12.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.2f}, {"shimmer", 0.12f}, {"rdModDepth", 0.5f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.5f}, {"sibilance", 0.7f}, {"autoConsonant", 1.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 8.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -333,6 +365,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 3.0f},
             {"glottalRd", 0.4f}, {"breathiness", 0.0f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 10.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.1f}, {"shimmer", 0.08f}, {"rdModDepth", 0.7f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.9f}, {"sibilance", 0.1f}, {"autoConsonant", 1.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", -8.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
@@ -342,6 +375,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"vowelX", 0.5f}, {"vowelY", 0.5f}, {"vowelFocus", 2.5f},
             {"glottalRd", 1.5f}, {"breathiness", 0.2f},
             {"vibratoRate", 5.5f}, {"vibratoDepth", 5.0f}, {"vibratoDelay", 300.0f},
+            {"jitter", 0.18f}, {"shimmer", 0.12f}, {"rdModDepth", 0.5f},
             {"consonantLevel", 0.3f}, {"consonantTone", 0.4f}, {"sibilance", 0.6f}, {"autoConsonant", 1.0f},
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantShift", 18.0f}, {"formantSpread", 1.3f}, {"pitchGlide", 0.0f},

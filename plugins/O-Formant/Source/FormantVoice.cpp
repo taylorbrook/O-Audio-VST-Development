@@ -31,6 +31,9 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pVibratoRate   = apvts->getRawParameterValue ("vibratoRate");
     pVibratoDepth  = apvts->getRawParameterValue ("vibratoDepth");
     pVibratoDelay  = apvts->getRawParameterValue ("vibratoDelay");
+    pJitter        = apvts->getRawParameterValue ("jitter");
+    pShimmer       = apvts->getRawParameterValue ("shimmer");
+    pRdModDepth    = apvts->getRawParameterValue ("rdModDepth");
 
     pConsonantLevel  = apvts->getRawParameterValue ("consonantLevel");
     pConsonantTone   = apvts->getRawParameterValue ("consonantTone");
@@ -67,6 +70,7 @@ void FormantVoice::prepare (double sampleRate)
     pitchGlide.prepare (sampleRate);
     consonantEngine.prepare (sampleRate, voiceIdx);
     adsr.setSampleRate (sampleRate);
+    rdSmoothed.reset (sampleRate, 0.020); // 20ms ramp for Rd modulation
 }
 
 void FormantVoice::noteStarted()
@@ -120,9 +124,23 @@ void FormantVoice::noteStarted()
 
     wasActive = true;
 
-    // Set initial Rd
-    if (pGlottalRd != nullptr)
-        glottalSource.setRd (pGlottalRd->load());
+    // Seed RNG per-voice for uncorrelated jitter/shimmer patterns
+    glottalSource.setSeed (static_cast<uint32_t> (voiceIdx * 7919 + 2463534242u));
+
+    // Set initial Rd with modulation applied at note onset
+    {
+        float baseRd = pGlottalRd != nullptr ? pGlottalRd->load() : 1.0f;
+        float modDepth = pRdModDepth != nullptr ? pRdModDepth->load() : 0.5f;
+
+        float midiNote = static_cast<float> (currentlyPlayingNote.initialNote);
+        float pitchRdOffset = -0.3f * (midiNote - 60.0f) / 12.0f;
+        float velRdOffset = -0.5f * noteVelocity;
+
+        float initRd = juce::jlimit (0.3f, 2.7f,
+            baseRd + modDepth * (pitchRdOffset + velRdOffset));
+        rdSmoothed.setCurrentAndTargetValue (initRd);
+        glottalSource.setRd (initRd);
+    }
 
     // Always trigger consonant envelope + burst at note onset
     consonantEngine.triggerBurst (noteVelocity);
@@ -190,9 +208,30 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float effectiveBreath = knobBreath + mpeBreathOffset * (1.0f - knobBreath);
     aspirationNoise.setBreathiness (effectiveBreath);
 
-    // Read Rd once per block
-    float rd = pGlottalRd != nullptr ? pGlottalRd->load() : 1.0f;
-    glottalSource.setRd (rd);
+    // Dynamic Rd modulation: pitch + velocity + expression
+    {
+        float baseRd = pGlottalRd != nullptr ? pGlottalRd->load() : 1.0f;
+        float modDepth = pRdModDepth != nullptr ? pRdModDepth->load() : 0.5f;
+
+        // (1) Pitch tracking: -0.3 Rd per octave above middle C
+        float midiNote = static_cast<float> (currentlyPlayingNote.initialNote);
+        float pitchRdOffset = -0.3f * (midiNote - 60.0f) / 12.0f;
+
+        // (2) Velocity: higher velocity = lower Rd (more effort)
+        float velRdOffset = -0.5f * noteVelocity;
+
+        // (3) Expression: MPE pressure 0-1 -> +/-0.4 Rd offset
+        float exprRdOffset = (mpeBreathOffset - 0.5f) * 0.8f;
+
+        float effectiveRd = juce::jlimit (0.3f, 2.7f,
+            baseRd + modDepth * (pitchRdOffset + velRdOffset + exprRdOffset));
+        rdSmoothed.setTargetValue (effectiveRd);
+    }
+
+    // Read jitter/shimmer once per block
+    float jitter  = pJitter  != nullptr ? pJitter->load()  : 0.15f;
+    float shimmer = pShimmer != nullptr ? pShimmer->load() : 0.1f;
+    glottalSource.setJitterShimmer (jitter, shimmer, noteVelocity);
 
     // Read vibrato params once per block
     float vibratoRate  = pVibratoRate  != nullptr ? pVibratoRate->load()  : 5.0f;
@@ -258,6 +297,9 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float jitter = vibratoLFO.getJitterOffset();
         float finalF0 = baseF0 * std::pow (2.0f, vibCents / 1200.0f) * (1.0f + jitter);
         glottalSource.setFrequency (finalF0);
+
+        // Per-sample smoothed Rd update (20ms ramp avoids clicks)
+        glottalSource.setRd (rdSmoothed.getNextValue());
 
         // Generate glottal pulse sample
         float glottal = glottalSource.getNextSample();

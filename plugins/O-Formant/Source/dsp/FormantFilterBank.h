@@ -61,9 +61,12 @@ public:
             float nyquistLimit = static_cast<float> (sr * 0.5) - 100.0f;
             finalFreq = std::max (20.0f, std::min (finalFreq, nyquistLimit));
 
-            // Q = freq / bandwidth, clamped min 0.5
-            float Q = finalFreq / std::max (bw[i], 1.0f);
-            Q = std::max (Q, 0.5f);
+            // Scale bandwidth proportionally with shift to maintain consistent Q
+            float scaledBW = bw[i] * shiftFactor;
+
+            // Q = freq / bandwidth, clamped to safe range [0.5, 25]
+            float Q = finalFreq / std::max (scaledBW, 1.0f);
+            Q = juce::jlimit (0.5f, 25.0f, Q);
 
             auto coeffs = juce::dsp::IIR::ArrayCoefficients<float>::makeBandPass (sr, finalFreq, Q);
             filters[i].setCoefficients (coeffs);

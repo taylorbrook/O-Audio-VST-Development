@@ -13,6 +13,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     vibratoRateRelay   = std::make_unique<juce::WebSliderRelay> ("vibratoRateSlider");
     vibratoDepthRelay  = std::make_unique<juce::WebSliderRelay> ("vibratoDepthSlider");
     vibratoDelayRelay  = std::make_unique<juce::WebSliderRelay> ("vibratoDelaySlider");
+    jitterRelay        = std::make_unique<juce::WebSliderRelay> ("jitterSlider");
+    shimmerRelay       = std::make_unique<juce::WebSliderRelay> ("shimmerSlider");
+    rdModDepthRelay    = std::make_unique<juce::WebSliderRelay> ("rdModDepthSlider");
     consonantLevelRelay = std::make_unique<juce::WebSliderRelay> ("consonantLevelSlider");
     consonantToneRelay = std::make_unique<juce::WebSliderRelay> ("consonantToneSlider");
     sibilanceRelay     = std::make_unique<juce::WebSliderRelay> ("sibilanceSlider");
@@ -51,6 +54,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*vibratoRateRelay)
             .withOptionsFrom (*vibratoDepthRelay)
             .withOptionsFrom (*vibratoDelayRelay)
+            .withOptionsFrom (*jitterRelay)
+            .withOptionsFrom (*shimmerRelay)
+            .withOptionsFrom (*rdModDepthRelay)
             .withOptionsFrom (*consonantLevelRelay)
             .withOptionsFrom (*consonantToneRelay)
             .withOptionsFrom (*sibilanceRelay)
@@ -176,6 +182,9 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     vibratoRateAttachment   = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("vibratoRate"), *vibratoRateRelay);
     vibratoDepthAttachment  = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("vibratoDepth"), *vibratoDepthRelay);
     vibratoDelayAttachment  = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("vibratoDelay"), *vibratoDelayRelay);
+    jitterAttachment        = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("jitter"), *jitterRelay);
+    shimmerAttachment       = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("shimmer"), *shimmerRelay);
+    rdModDepthAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("rdModDepth"), *rdModDepthRelay);
     consonantLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantLevel"), *consonantLevelRelay);
     consonantToneAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantTone"), *consonantToneRelay);
     sibilanceAttachment     = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("sibilance"), *sibilanceRelay);
@@ -214,6 +223,9 @@ OFormantEditor::~OFormantEditor()
     consonantToneAttachment.reset();
     consonantLevelAttachment.reset();
     vibratoDelayAttachment.reset();
+    rdModDepthAttachment.reset();
+    shimmerAttachment.reset();
+    jitterAttachment.reset();
     vibratoDepthAttachment.reset();
     vibratoRateAttachment.reset();
     breathinessAttachment.reset();
@@ -238,6 +250,9 @@ OFormantEditor::~OFormantEditor()
     consonantToneRelay.reset();
     consonantLevelRelay.reset();
     vibratoDelayRelay.reset();
+    rdModDepthRelay.reset();
+    shimmerRelay.reset();
+    jitterRelay.reset();
     vibratoDepthRelay.reset();
     vibratoRateRelay.reset();
     breathinessRelay.reset();

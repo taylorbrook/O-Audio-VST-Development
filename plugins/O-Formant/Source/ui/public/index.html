@@ -146,13 +146,27 @@ canvas#xy-pad {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
   position: relative;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(139,115,85,0.3) transparent;
+}
+.right-col::-webkit-scrollbar {
+  width: 4px;
+}
+.right-col::-webkit-scrollbar-thumb {
+  background: rgba(139,115,85,0.3);
+  border-radius: 2px;
+}
+.right-col::-webkit-scrollbar-track {
+  background: transparent;
 }
 
 .param-group {
   position: relative;
   z-index: 1;
+  flex-shrink: 0;
 }
 .param-group h3 {
   font-size: 10px;
@@ -437,6 +451,21 @@ canvas#consonant-xy-pad {
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
           <div class="knob-label">Vib Delay</div>
           <div class="knob-value">300 ms</div>
+        </div>
+        <div class="knob-wrap" data-param="jitter">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Jitter</div>
+          <div class="knob-value">0.15</div>
+        </div>
+        <div class="knob-wrap" data-param="shimmer">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Shimmer</div>
+          <div class="knob-value">0.10</div>
+        </div>
+        <div class="knob-wrap" data-param="rdModDepth">
+          <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+          <div class="knob-label">Rd Mod</div>
+          <div class="knob-value">0.50</div>
         </div>
       </div>
     </div>
