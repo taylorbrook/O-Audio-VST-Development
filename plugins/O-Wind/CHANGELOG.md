@@ -1,5 +1,26 @@
 # O-Wind Changelog
 
+## [1.5.0] - 2026-04-06
+
+### Added — Flutter Tongue Articulation
+
+Models flutter tongue (Flatterzunge) via amplitude modulation of breath pressure per RESEARCH-realism-v2.md §2.1:
+
+**New APVTS Parameters:**
+- `flutterTongue` (0.0-1.0, default 0.0) — flutter tongue AM depth (0 = off, 1 = full modulation)
+- `flutterRate` (15-30 Hz, default 22 Hz) — flutter tongue oscillation rate
+
+**DSP Implementation (JetExciter):**
+- In `processSample()`, effectivePressure is multiplied by `(1 - ft + ft * (0.5 + 0.5 * sin(phase)))` where `ft` = flutterTongue
+- At flutterTongue=0: multiplier is 1.0 (no effect, zero CPU cost via early-exit)
+- At flutterTongue=1: full AM from 0 to 1× breath pressure at flutter rate
+- Per-cycle rate randomization (+/-5%) applied at each phase wraparound for naturalism
+- Jittered rate stored per-voice, no per-sample random calls
+
+**WebView UI:**
+- Two new knobs added to Expression section on SOUND tab: "Flutter" and "Flut Rate"
+- All 8 factory presets updated (flutterTongue=0, flutterRate=22 Hz — articulation, not default sound)
+
 ## [1.4.0] - 2026-04-06
 
 ### Added — Per-Note Humanization System

@@ -95,6 +95,25 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         0.3f
     ));
 
+    // ========== Articulation (2) ==========
+
+    // FLUTTER_TONGUE - Flutter tongue AM depth (0 = off, 1 = full)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "flutterTongue", 1 },
+        "Flutter Tongue",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
+    ));
+
+    // FLUTTER_RATE - Flutter tongue oscillation rate
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "flutterRate", 1 },
+        "Flutter Rate",
+        juce::NormalisableRange<float>(15.0f, 30.0f, 0.1f),
+        22.0f,
+        "Hz"
+    ));
+
     // ========== Modulation (3) ==========
 
     // VIBRATO_RATE - LFO frequency for pitch vibrato
@@ -364,6 +383,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 0.0f) },
     }, {} });
@@ -386,6 +407,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.1f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 1.0f) },
     }, {} });
@@ -408,6 +431,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  1.0f },
         { "instrumentPreset", normalize("instrumentPreset", 2.0f) },
     }, {} });
@@ -430,6 +455,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.05f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 3.0f) },
     }, {} });
@@ -452,6 +479,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  1.0f },
         { "instrumentPreset", normalize("instrumentPreset", 4.0f) },
     }, {} });
@@ -474,6 +503,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 5.0f) },
     }, {} });
@@ -496,6 +527,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  1.0f },
         { "instrumentPreset", normalize("instrumentPreset", 6.0f) },
     }, {} });
@@ -518,6 +551,8 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
         { "reversedJet",     normalize("reversedJet", 0.0f) },
         { "subHarmonics",    normalize("subHarmonics", 0.0f) },
+        { "flutterTongue",   normalize("flutterTongue", 0.0f) },
+        { "flutterRate",     normalize("flutterRate", 22.0f) },
         { "toneHoleToggle",  0.0f },
         { "instrumentPreset", normalize("instrumentPreset", 7.0f) },
     }, {} });

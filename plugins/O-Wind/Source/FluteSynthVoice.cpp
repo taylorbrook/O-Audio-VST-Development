@@ -427,6 +427,8 @@ void FluteSynthVoice::updateParametersFromAPVTS()
 
     float attackChiff     = parameters->getRawParameterValue ("attackChiff")->load();
     float humanize        = parameters->getRawParameterValue ("humanize")->load();
+    float flutterTongue   = parameters->getRawParameterValue ("flutterTongue")->load();
+    float flutterRate     = parameters->getRawParameterValue ("flutterRate")->load();
 
     // CC overrides (CC takes priority when non-zero)
     if (ccBreathPressure > 0.0f) breathPressure = ccBreathPressure;
@@ -460,6 +462,8 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     jetExciter.setAttackChiff (attackChiff);
     jetExciter.setVibratoRate (0.0f);
     jetExciter.setVibratoDepth (0.0f);
+    jetExciter.setFlutterTongue (flutterTongue);
+    jetExciter.setFlutterRate (flutterRate);
 
     // Pitch vibrato parameters (applied per-sample in render loop)
     vibratoDepthParam = vibratoDepth;
