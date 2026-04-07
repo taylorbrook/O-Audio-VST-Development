@@ -1,5 +1,12 @@
 # O-Reed Changelog
 
+## v1.0.3 (2026-04-06)
+
+### Fixed
+
+- **Mouthpiece chamber damping** -- increased Helmholtz resonator damping from 0.001 to 0.05, bringing Q from ~164 down to ~3. The original Q~164 produced an unrealistic 4.6 kHz spike that colored all patches using the chamber. New damping models realistic mouthpiece cavity losses.
+- **Mouthpiece chamber bypassed by default** -- changed `mouthpieceVol` parameter default from 0.3 to 0.0 so the chamber is off unless explicitly enabled. All 24 factory presets updated to 0.0.
+
 ## v1.0.2 (2026-04-06)
 
 ### Fixed
