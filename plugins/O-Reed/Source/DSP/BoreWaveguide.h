@@ -171,9 +171,11 @@ public:
         float g = 0.995f + infiniteSustain * 0.005f;
         *viscFilter.coefficients = juce::dsp::IIR::Coefficients<float>(g * (1.0f - p), 0.0f, 1.0f, -p);
 
-        // Feedback gain compensation for cumulative viscothermal + bell reflection losses
-        float viscGain = g;  // DC gain of visc filter ≈ 0.99 for typical settings
-        feedbackGain = std::min(2.0f, 1.0f / std::max(0.5f, viscGain * 0.98f));
+        // No feedback gain compensation — bell allpass has unity gain (no loss),
+        // and visc filter's ~0.5% loss per round trip is the correct physical damping.
+        // v1.0.4 had feedbackGain = 1/max(0.5, g*0.98) ≈ 1.026, giving round-trip
+        // gain > 1.0 which caused self-oscillation (permanent tone after note-off).
+        feedbackGain = 1.0f;
     }
 
     void updateToneHoles(float toneHoleCutoff, float registerHole)

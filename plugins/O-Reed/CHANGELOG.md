@@ -1,5 +1,11 @@
 # O-Reed Changelog
 
+## v1.0.5 (2026-04-07)
+
+### Fixed
+
+- **Bore waveguide self-oscillation** -- removed `feedbackGain` compensation from `BoreWaveguide` that was introduced in v1.0.4. The formula `1 / max(0.5, viscGain * 0.98)` yielded ~1.026 feedback gain, giving a round-trip gain of ~1.02 (>1.0). This caused the bore to self-excite after any note, producing a continuous high-pitched tone at ~-12 dB that never decayed. The bell allpass filter has unity gain (no energy loss to compensate for), and the viscothermal filter's 0.5% loss is correct physical damping. Root cause: v1.0.4 feedbackGain overcompensation.
+
 ## v1.0.4 (2026-04-06)
 
 ### Improved
