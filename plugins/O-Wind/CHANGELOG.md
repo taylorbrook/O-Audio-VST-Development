@@ -1,5 +1,38 @@
 # O-Wind Changelog
 
+## [1.3.0] - 2026-04-06
+
+### Improved — Vibrato Humanization
+
+Replaces mechanical sine-wave LFO vibrato with organic, human-like modulation per RESEARCH-realism-v2.md §1.2:
+
+**Delayed Onset (FluteSynthVoice):**
+- Vibrato depth ramps linearly from 0 to target over configurable onset delay (0-1000ms)
+- Prevents instant vibrato on note attack — matches real flautist technique where vibrato develops after tone stabilizes
+
+**Rate Drift:**
+- Slow oscillator (~0.47 Hz) modulates LFO rate by +/- 0.75 Hz
+- Per-note random drift phase eliminates locked periodicity between notes
+
+**Depth Drift:**
+- Independent slow oscillator (~0.31 Hz) modulates vibrato depth +/- 25%
+- Creates natural amplitude variation in vibrato intensity
+
+**Shape Asymmetry:**
+- Vibrato waveform changed from `sin(phase)` to `sin(phase) + 0.1*sin(2*phase)`
+- Adds slight second-harmonic content matching diaphragm-driven vibrato asymmetry
+
+**Random Initial Phase:**
+- Vibrato LFO starts at random phase on each noteOn
+- Eliminates phase-locked vibrato across simultaneous or sequential notes
+
+**New APVTS Parameter:**
+- `vibratoOnset` (0-1000ms, default 300ms) — delay before vibrato ramp-in after noteOn
+
+**Factory Preset Values:**
+- Shakuhachi: 500ms, Pan Flute: 450ms, Native Am. Flute: 400ms, Bansuri: 350ms, Ocarina: 350ms
+- Concert Flute: 300ms (default), Piccolo: 250ms, Recorder: 200ms
+
 ## [1.2.0] - 2026-04-06
 
 ### Added — Attack Transient "Chiff" Modeling

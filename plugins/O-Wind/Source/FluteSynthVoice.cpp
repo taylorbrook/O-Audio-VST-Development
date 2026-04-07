@@ -99,8 +99,18 @@ void FluteSynthVoice::startNote (int midiNoteNumber, float velocity,
     float initJetRatio = embouchureToJetRatio (initEmb, initBreath, currentOverblowEase);
     boreWaveguide.setBoreDelay (totalLoopDelay / (1.0f + initJetRatio));
 
-    // Reset vibrato phase for new note
-    vibratoPhase = 0.0f;
+    // Random initial vibrato phase per note (humanization)
+    vibratoPhase = juce::Random::getSystemRandom().nextFloat()
+                   * juce::MathConstants<float>::twoPi;
+
+    // Reset vibrato onset counter
+    samplesSinceNoteOn = 0;
+
+    // Randomize drift oscillator phases for variation between notes
+    vibratoRateDriftPhase = juce::Random::getSystemRandom().nextFloat()
+                            * juce::MathConstants<float>::twoPi;
+    vibratoDepthDriftPhase = juce::Random::getSystemRandom().nextFloat()
+                             * juce::MathConstants<float>::twoPi;
 
     // Apply instrument preset coefficients
     applyPresetCoefficients();
@@ -203,6 +213,12 @@ void FluteSynthVoice::prepareToPlay (double sampleRate, int maxBlockSize)
     totalDelaySmoothed.reset (internalSampleRate, 0.003);  // 3ms delay crossfade
     embouchureSmoothed.reset (internalSampleRate, 0.005);  // 5ms embouchure smoothing
 
+    // Vibrato drift oscillator phase increments (fixed slow rates)
+    vibratoRateDriftInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
+                                                * 0.47 / internalSampleRate);
+    vibratoDepthDriftInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
+                                                 * 0.31 / internalSampleRate);
+
     // Preallocate temp buffer for oversampling I/O
     tempBuffer.setSize (1, maxBlockSize);
 }
@@ -274,15 +290,42 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             totalDelay *= pitchOvershootFactor;
         }
 
-        // Apply pitch vibrato (modulates delay for true frequency vibrato)
+        // Apply humanized pitch vibrato (modulates delay for true frequency vibrato)
         if (vibratoDepthParam > 0.0f)
         {
-            float vibSemitones = vibratoDepthParam * std::sin (vibratoPhase);
+            // Onset ramp: linear 0→1 over vibratoOnset ms after noteOn
+            float onsetGain = (vibratoOnsetSamples > 0 && samplesSinceNoteOn < vibratoOnsetSamples)
+                ? static_cast<float> (samplesSinceNoteOn) / static_cast<float> (vibratoOnsetSamples)
+                : 1.0f;
+
+            // Rate drift: slow noise (~0.47 Hz) modulating LFO rate +/- 0.75 Hz
+            float rateDrift = std::sin (vibratoRateDriftPhase) * 0.75f;
+            float driftedPhaseInc = vibratoPhaseInc
+                + static_cast<float> (2.0 * juce::MathConstants<double>::pi * rateDrift / internalSampleRate);
+
+            // Depth drift: independent slow noise (~0.31 Hz) +/- 25%
+            float depthScale = 1.0f + std::sin (vibratoDepthDriftPhase) * 0.25f;
+
+            // Shape asymmetry: sin(phase) + 0.1*sin(2*phase)
+            float vibratoShape = std::sin (vibratoPhase)
+                               + 0.1f * std::sin (2.0f * vibratoPhase);
+
+            float vibSemitones = vibratoDepthParam * depthScale * onsetGain * vibratoShape;
             totalDelay *= std::pow (2.0f, -vibSemitones / 12.0f);
-            vibratoPhase += vibratoPhaseInc;
+
+            vibratoPhase += driftedPhaseInc;
             if (vibratoPhase > juce::MathConstants<float>::twoPi)
                 vibratoPhase -= juce::MathConstants<float>::twoPi;
+
+            vibratoRateDriftPhase += vibratoRateDriftInc;
+            if (vibratoRateDriftPhase > juce::MathConstants<float>::twoPi)
+                vibratoRateDriftPhase -= juce::MathConstants<float>::twoPi;
+
+            vibratoDepthDriftPhase += vibratoDepthDriftInc;
+            if (vibratoDepthDriftPhase > juce::MathConstants<float>::twoPi)
+                vibratoDepthDriftPhase -= juce::MathConstants<float>::twoPi;
         }
+        ++samplesSinceNoteOn;
 
         // Split total delay between bore and jet based on embouchure (register-aware)
         float emb = embouchureSmoothed.getNextValue();
@@ -407,6 +450,11 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     vibratoDepthParam = vibratoDepth;
     vibratoPhaseInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
                                            * vibratoRate / internalSampleRate);
+
+    // Vibrato onset delay
+    float vibratoOnset = parameters->getRawParameterValue ("vibratoOnset")->load();
+    vibratoOnsetMs = vibratoOnset;
+    vibratoOnsetSamples = static_cast<int> (internalSampleRate * vibratoOnsetMs * 0.001);
 
     // Update jet nonlinearity
     jetNonlinearity.setReversedJet (reversedJet);

@@ -87,7 +87,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         0.5f
     ));
 
-    // ========== Modulation (2) ==========
+    // ========== Modulation (3) ==========
 
     // VIBRATO_RATE - LFO frequency for pitch vibrato
     layout.add(std::make_unique<juce::AudioParameterFloat>(
@@ -104,6 +104,15 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "Vibrato Depth",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.3f
+    ));
+
+    // VIBRATO_ONSET - Delay before vibrato ramp-in after note-on
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "vibratoOnset", 1 },
+        "Vibrato Onset",
+        juce::NormalisableRange<float>(0.0f, 1000.0f, 1.0f),
+        300.0f,
+        "ms"
     ));
 
     // ========== Output (2) ==========
@@ -341,6 +350,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.55f) },
         { "vibratoRate",     normalize("vibratoRate", 5.0f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.15f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 300.0f) },
         { "width",           normalize("width", 1.0f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
@@ -362,6 +372,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.4f) },
         { "vibratoRate",     normalize("vibratoRate", 4.0f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.25f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 500.0f) },
         { "width",           normalize("width", 0.8f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
@@ -383,6 +394,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.5f) },
         { "vibratoRate",     normalize("vibratoRate", 5.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.18f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 1.2f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
@@ -404,6 +416,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.35f) },
         { "vibratoRate",     normalize("vibratoRate", 3.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.3f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 400.0f) },
         { "width",           normalize("width", 1.4f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
@@ -425,6 +438,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.6f) },
         { "vibratoRate",     normalize("vibratoRate", 5.0f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.08f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 200.0f) },
         { "width",           normalize("width", 0.6f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
@@ -446,6 +460,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.3f) },
         { "vibratoRate",     normalize("vibratoRate", 4.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 450.0f) },
         { "width",           normalize("width", 1.5f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
@@ -467,6 +482,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.65f) },
         { "vibratoRate",     normalize("vibratoRate", 5.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 250.0f) },
         { "width",           normalize("width", 0.5f) },
         { "outputLevel",     normalize("outputLevel", -3.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },
@@ -488,6 +504,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.35f) },
         { "vibratoRate",     normalize("vibratoRate", 4.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.2f) },
+        { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 0.7f) },
         { "outputLevel",     normalize("outputLevel", 0.0f) },
         { "infiniteSustain", normalize("infiniteSustain", 0.0f) },

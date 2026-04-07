@@ -83,6 +83,15 @@ private:
     float vibratoPhaseInc = 0.0f;
     float vibratoDepthParam = 0.0f;
 
+    // Vibrato humanization
+    float vibratoOnsetMs = 300.0f;
+    int vibratoOnsetSamples = 0;
+    int samplesSinceNoteOn = 0;
+    float vibratoRateDriftPhase = 0.0f;
+    float vibratoDepthDriftPhase = 0.0f;
+    float vibratoRateDriftInc = 0.0f;
+    float vibratoDepthDriftInc = 0.0f;
+
     // Dynamic filter delay compensation (computed once per block)
     float filterDelayCompensation = 2.0f;
 
