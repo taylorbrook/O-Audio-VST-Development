@@ -522,8 +522,7 @@ void FluteSynthVoice::updateParametersFromAPVTS()
 
     // Tone color -> bore loss filter cutoff (1000-12000 Hz, log scale)
     float cutoffBase = 1000.0f * std::pow (12.0f, toneColor);
-    float cutoffReduction = 1.0f - airColumn * 0.7f;
-    float lossCutoff = cutoffBase * cutoffReduction * materialBoreScale;
+    float lossCutoff = cutoffBase * materialBoreScale;
 
     // Register-dependent spectral shaping: modulate bore loss cutoff by pitch
     // Low notes (C3) ≈ 0.9x (wider relative to fundamental, richer harmonics)

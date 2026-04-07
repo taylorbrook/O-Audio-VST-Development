@@ -1,5 +1,17 @@
 # O-Wind Changelog
 
+## [1.10.1] - 2026-04-07
+
+### Fixed — Air Column Parameter No Longer Bends Pitch
+
+Removed erroneous cutoff frequency reduction from air column parameter in bore loss filter. Air column was modifying the filter cutoff by up to 70%, which changed the filter's phase delay and shifted pitch through the dynamic delay compensation loop.
+
+**Root Cause:** `cutoffReduction = 1.0 - airColumn * 0.7` was multiplied into `lossCutoff`, causing phase delay changes that the delay compensation subtracted from the total loop delay, bending the fundamental frequency.
+
+**Fix:** Air column now only controls the Q (rolloff steepness) of the bore loss filter as originally intended by the architecture. Tone color remains the sole control for bore loss cutoff frequency.
+
+**Files Modified:** FluteSynthVoice.cpp
+
 ## [1.10.0] - 2026-04-06
 
 ### Added — Allpass Inharmonicity Filters
