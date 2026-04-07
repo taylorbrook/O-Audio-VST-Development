@@ -2,6 +2,20 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.11.0] - 2026-04-07
+
+### Added
+- **Source-filter coupling** — Subtle harmonic reinforcement approximation inspired by Titze (2008, JASA). At block rate, checks if harmonics 2f0–4f0 fall within ±bandwidth of F1 or F2. When a harmonic is near a formant peak, applies a smoothed gain boost (up to +2 dB) scaled by proximity: `boost = 2dB * (1 - |harmonic - formantFreq| / bandwidth) * coupling`. Also increases pitch jitter by up to +0.3% when harmonics cross formant boundaries, simulating the f0 instabilities documented in source-filter interaction research.
+- **New APVTS parameter: `sourceFilterCoupling`** (float 0-1, default 0.3) — Scales both the harmonic reinforcement gain and the jitter modulation. At 0 the effect is disabled (pure linear source-filter model). At 1 full +2 dB boost and +0.3% jitter when harmonics align with formants.
+- **Factory presets updated** — All 16 presets include characterful coupling values (e.g., Robotic Speech=0.0 disabled, Overtone Chant=0.7 strong reinforcement, Formant Bass=0.6, Glitch Vocal=0.1 minimal).
+
+### Technical Notes
+- FormantVoice: block-rate proximity detection (every 32 samples) scans harmonics 2-4 against F1/F2 using `formantFreqs[]`/`formantBWs[]`; best proximity across all pairs drives both gain and jitter
+- Gain applied via `SmoothedValue<float>` (10ms ramp) between formant filter output and `tanh()` soft-clip
+- Jitter boost additive to existing VibratoLFO micro-jitter offset in per-sample pitch computation
+- F0 estimate for block-rate check uses `currentlyPlayingNote.getFrequencyInHertz()` (MIDI note frequency, adequate accuracy for proximity detection)
+- 1 new APVTS parameter (31 total), no breaking changes
+
 ## [1.10.0] - 2026-04-07
 
 ### Changed

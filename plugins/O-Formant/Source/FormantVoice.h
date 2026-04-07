@@ -69,6 +69,10 @@ private:
     // Spectral tilt one-pole filter state
     float spectralTiltPrev = 0.0f;
 
+    // Source-filter coupling state (Titze 2008 harmonic reinforcement)
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> sourceFilterGain;
+    float sourceFilterJitterBoost = 0.0f;
+
     // Block-rate formant data (updated every kCoeffUpdateInterval samples)
     static constexpr int kCoeffUpdateInterval = 32;
     float formantFreqs[5] = {};
@@ -117,6 +121,7 @@ private:
     std::atomic<float>* pFormantSpread = nullptr;
     std::atomic<float>* pPitchGlide    = nullptr;
     std::atomic<float>* pTransitionTime = nullptr;
+    std::atomic<float>* pSourceFilterCoupling = nullptr;
 
     // Output
     std::atomic<float>* pOutputGain   = nullptr;

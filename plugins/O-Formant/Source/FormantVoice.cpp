@@ -54,6 +54,7 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pFormantSpread = apvts->getRawParameterValue ("formantSpread");
     pPitchGlide    = apvts->getRawParameterValue ("pitchGlide");
     pTransitionTime = apvts->getRawParameterValue ("transitionTime");
+    pSourceFilterCoupling = apvts->getRawParameterValue ("sourceFilterCoupling");
 
     pOutputGain   = apvts->getRawParameterValue ("outputGain");
     pStereoWidth  = apvts->getRawParameterValue ("stereoWidth");
@@ -75,6 +76,8 @@ void FormantVoice::prepare (double sampleRate)
     consonantEngine.prepare (sampleRate, voiceIdx);
     adsr.setSampleRate (sampleRate);
     rdSmoothed.reset (sampleRate, 0.020); // 20ms ramp for Rd modulation
+    sourceFilterGain.reset (sampleRate, 0.010); // 10ms ramp for coupling gain
+    sourceFilterGain.setCurrentAndTargetValue (1.0f);
 }
 
 void FormantVoice::noteStarted()
@@ -98,6 +101,8 @@ void FormantVoice::noteStarted()
     mpeBreathOffset = 0.0f;
     mpeVowelYOffset = 0.0f;
     spectralTiltPrev = 0.0f;
+    sourceFilterGain.setCurrentAndTargetValue (1.0f);
+    sourceFilterJitterBoost = 0.0f;
 
     // Store velocity for consonant burst scaling
     noteVelocity = getCurrentlyPlayingNote().noteOnVelocity.asUnsignedFloat();
@@ -341,13 +346,45 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
                 cascadeBank.updateCoefficients (formantFreqs, formantBWs,
                                                 shift, spread, getSampleRate());
             }
+
+            // Source-filter coupling: harmonic reinforcement near formant peaks (Titze 2008)
+            float coupling = pSourceFilterCoupling != nullptr ? pSourceFilterCoupling->load() : 0.3f;
+            if (coupling > 0.0f)
+            {
+                float f0Est = static_cast<float> (currentlyPlayingNote.getFrequencyInHertz());
+                float bestProximity = 0.0f;
+
+                for (int h = 2; h <= 4; ++h)
+                {
+                    float harmFreq = f0Est * static_cast<float> (h);
+                    for (int fi = 0; fi < 2; ++fi)
+                    {
+                        float bw = formantBWs[fi];
+                        if (bw > 0.0f)
+                        {
+                            float dist = std::abs (harmFreq - formantFreqs[fi]);
+                            if (dist < bw)
+                                bestProximity = std::max (bestProximity, 1.0f - dist / bw);
+                        }
+                    }
+                }
+
+                float boostDb = 2.0f * bestProximity * coupling;
+                sourceFilterGain.setTargetValue (juce::Decibels::decibelsToGain (boostDb));
+                sourceFilterJitterBoost = 0.003f * bestProximity * coupling;
+            }
+            else
+            {
+                sourceFilterGain.setTargetValue (1.0f);
+                sourceFilterJitterBoost = 0.0f;
+            }
         }
 
         // --- Per-sample pitch: PitchGlide -> VibratoLFO -> final F0 ---
         float baseF0 = pitchGlide.getNextFrequency();
         float vibCents = vibratoLFO.getNextValue (vibratoRate, vibratoDepth);
-        float jitter = vibratoLFO.getJitterOffset();
-        float finalF0 = baseF0 * std::pow (2.0f, vibCents / 1200.0f) * (1.0f + jitter);
+        float jitterOffset = vibratoLFO.getJitterOffset() + sourceFilterJitterBoost;
+        float finalF0 = baseF0 * std::pow (2.0f, vibCents / 1200.0f) * (1.0f + jitterOffset);
         glottalSource.setFrequency (finalF0);
 
         // Per-sample smoothed Rd update (20ms ramp avoids clicks)
@@ -399,6 +436,9 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
             sample = voicedFiltered + consonantFiltered;
         }
+
+        // Source-filter coupling: harmonic reinforcement gain (smoothed)
+        sample *= sourceFilterGain.getNextValue();
 
         // Soft-clip to prevent extreme amplitudes from resonant filters
         sample = std::tanh (sample);
