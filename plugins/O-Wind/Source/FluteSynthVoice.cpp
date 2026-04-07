@@ -482,7 +482,9 @@ void FluteSynthVoice::updateParametersFromAPVTS()
 
     // Update jet exciter (vibrato is now pitch-based in voice, not breath-based)
     jetExciter.setBreathPressure (breathPressure);
-    jetExciter.setBreathNoise (breathNoise);
+    // Register-dependent noise: more breath noise for low notes, less for high
+    float registerNoiseMult = 1.4f - (static_cast<float> (currentMidiNote) / 127.0f) * 0.8f;
+    jetExciter.setBreathNoise (breathNoise * registerNoiseMult);
     jetExciter.setJetReflection (jetReflMapped);
     jetExciter.setAttackChiff (attackChiff);
     jetExciter.setVibratoRate (0.0f);
@@ -518,6 +520,13 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     float cutoffBase = 1000.0f * std::pow (12.0f, toneColor);
     float cutoffReduction = 1.0f - airColumn * 0.7f;
     float lossCutoff = cutoffBase * cutoffReduction * materialBoreScale;
+
+    // Register-dependent spectral shaping: modulate bore loss cutoff by pitch
+    // Low notes (C3) ≈ 0.9x (wider relative to fundamental, richer harmonics)
+    // High notes (C7) ≈ 1.2x (narrower relative to fundamental, purer tone)
+    float registerCutoffMult = 0.6f + (static_cast<float> (currentMidiNote) / 127.0f) * 0.8f;
+    lossCutoff *= registerCutoffMult;
+
     float lossQ = 0.707f * (1.0f - airColumn * 0.3f);
     boreWaveguide.updateBoreLossFilter (lossCutoff, lossQ);
 

@@ -1,5 +1,27 @@
 # O-Wind Changelog
 
+## [1.9.0] - 2026-04-06
+
+### Added — Register-Dependent Spectral Shaping
+
+Automatic pitch-aware timbral adaptation per RESEARCH-realism-v2.md §2.5:
+
+**Bore Loss Filter — Register Cutoff Modulation (FluteSynthVoice — updateParametersFromAPVTS):**
+- Cutoff multiplier formula: `0.6 + (currentMidiNote / 127.0) * 0.8`
+- Applied to toneColor-derived cutoff after material scaling, before `boreWaveguide.updateBoreLossFilter()`
+- Low notes (C3, MIDI 48): ~0.9x multiplier — richer harmonic content relative to fundamental
+- High notes (C7, MIDI 96): ~1.2x multiplier — purer tone relative to fundamental
+- Smooth continuous scaling across full MIDI range
+
+**Breath Noise — Inverse Register Scaling:**
+- Noise multiplier formula: `1.4 - (currentMidiNote / 127.0) * 0.8`
+- Applied to breathNoise parameter before `jetExciter.setBreathNoise()`
+- Low notes: ~1.1x noise gain — more audible breath turbulence
+- High notes: ~0.8x noise gain — cleaner, less breathy tone
+- Symmetric inverse of bore loss scaling
+
+**No new APVTS parameters** — fully automatic behavior driven by current MIDI note number. Zero additional CPU cost (two multiply-adds per block).
+
 ## [1.8.0] - 2026-04-06
 
 ### Added — Material Macro Parameter
