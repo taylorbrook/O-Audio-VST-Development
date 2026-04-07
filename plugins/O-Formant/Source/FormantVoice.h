@@ -122,6 +122,7 @@ private:
     std::atomic<float>* pPitchGlide    = nullptr;
     std::atomic<float>* pTransitionTime = nullptr;
     std::atomic<float>* pSourceFilterCoupling = nullptr;
+    std::atomic<float>* pSingersFormant = nullptr;
 
     // Output
     std::atomic<float>* pOutputGain   = nullptr;

@@ -7,7 +7,7 @@ let consonantLevelState, consonantToneState, sibilanceState, autoConsonantState;
 let consonantAttackState, consonantHoldState, consonantDecayState;
 let attackState, decayState, sustainState, releaseState;
 let formantTopologyState;
-let formantShiftState, formantSpreadState, pitchGlideState, transitionTimeState;
+let formantShiftState, formantSpreadState, pitchGlideState, transitionTimeState, singersFormantState;
 let outputGainState, stereoWidthState;
 
 // Vowel XY pad
@@ -143,6 +143,7 @@ function initRelays() {
   formantSpreadState = getSliderState('formantSpreadSlider');
   pitchGlideState = getSliderState('pitchGlideSlider');
   transitionTimeState = getSliderState('transitionTimeSlider');
+  singersFormantState = getSliderState('singersFormantSlider');
   outputGainState = getSliderState('outputGainSlider');
   stereoWidthState = getSliderState('stereoWidthSlider');
 
@@ -166,6 +167,7 @@ function initRelays() {
     formantSpread: formantSpreadState,
     pitchGlide: pitchGlideState,
     transitionTime: transitionTimeState,
+    singersFormant: singersFormantState,
     vowelFocus: vowelFocusState,
     attack: attackState,
     decay: decayState,

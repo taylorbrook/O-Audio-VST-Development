@@ -55,6 +55,7 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pPitchGlide    = apvts->getRawParameterValue ("pitchGlide");
     pTransitionTime = apvts->getRawParameterValue ("transitionTime");
     pSourceFilterCoupling = apvts->getRawParameterValue ("sourceFilterCoupling");
+    pSingersFormant = apvts->getRawParameterValue ("singersFormant");
 
     pOutputGain   = apvts->getRawParameterValue ("outputGain");
     pStereoWidth  = apvts->getRawParameterValue ("stereoWidth");
@@ -334,6 +335,22 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             float breathBWScale = 1.0f + effectiveBreath * 0.5f;
             for (int fi = 0; fi < 5; ++fi)
                 formantBWs[fi] *= breathBWScale;
+
+            // Singer's formant: cluster F3-F5 toward ~3 kHz (Sundberg)
+            float singersFormant = pSingersFormant != nullptr ? pSingersFormant->load() : 0.0f;
+            if (singersFormant > 0.0f)
+            {
+                static constexpr float clusterCenter = 3000.0f;
+                static constexpr float clusterStrength[3] = { 0.7f, 0.8f, 0.6f }; // F3, F4, F5
+                float gainBoost = juce::Decibels::decibelsToGain (4.0f * singersFormant);
+
+                for (int fi = 2; fi < 5; ++fi)
+                {
+                    formantFreqs[fi] += singersFormant * (clusterCenter - formantFreqs[fi]) * clusterStrength[fi - 2];
+                    formantBWs[fi] *= (1.0f - singersFormant * 0.4f);
+                    formantGains[fi] *= gainBoost;
+                }
+            }
 
             // Always update parallel bank (used by all topologies)
             filterBank.updateCoefficients (formantFreqs, formantBWs, formantGains,

@@ -42,6 +42,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> formantSpreadRelay;
     std::unique_ptr<juce::WebSliderRelay> pitchGlideRelay;
     std::unique_ptr<juce::WebSliderRelay> transitionTimeRelay;
+    std::unique_ptr<juce::WebSliderRelay> singersFormantRelay;
     std::unique_ptr<juce::WebSliderRelay> outputGainRelay;
     std::unique_ptr<juce::WebSliderRelay> stereoWidthRelay;
 
@@ -74,6 +75,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> formantSpreadAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> pitchGlideAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> transitionTimeAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> singersFormantAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputGainAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> stereoWidthAttachment;
 

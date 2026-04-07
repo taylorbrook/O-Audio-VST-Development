@@ -2,6 +2,21 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.12.0] - 2026-04-07
+
+### Added
+- **Singer's Formant control** — Models the trained operatic singing voice phenomenon (Sundberg) where the pharynx-to-epilarynx tube ratio causes F3, F4, and F5 to cluster into a single reinforced spectral peak around 2.5-3.5 kHz, enabling vocal projection over orchestral accompaniment.
+- **New APVTS parameter: `singersFormant`** (float 0-1, default 0) — At 0 no effect. At 1.0, F3/F4/F5 frequencies are pulled toward 3000 Hz with per-formant cluster strengths (F3: 0.7, F4: 0.8, F5: 0.6 — F4 clusters most strongly as the primary contributor). Bandwidths of F3-F5 narrow by up to 40% to sharpen the cluster peak. Gains of F3-F5 boosted by up to +4 dB to model acoustic reinforcement.
+- **UI: Singer's F knob** — Added to the Character parameter group in the WebView UI.
+- **Factory presets updated** — 5 presets include characterful singer's formant values: Overtone Chant=0.7, Pressed Baritone=0.7, Natural Tenor=0.5, Sci-Fi Choir=0.4, Breathy Soprano=0.3. Remaining presets default to 0 (speech-like character).
+
+### Technical Notes
+- Clustering applied in FormantVoice::renderNextBlock at block rate (every 32 samples) AFTER vowel morph + dynamic bandwidth variation, BEFORE passing to filter banks — both parallel and cascade topologies benefit
+- Formula: `F_clustered = F_base + singersFormant * (3000 - F_base) * clusterStrength[i]`
+- Bandwidth narrowing: `BW *= (1.0 - singersFormant * 0.4)`
+- Gain boost: `gain *= dB_to_linear(4.0 * singersFormant)`
+- 1 new APVTS parameter (32 total), no breaking changes
+
 ## [1.11.1] - 2026-04-07
 
 ### Fixed

@@ -30,6 +30,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     formantSpreadRelay = std::make_unique<juce::WebSliderRelay> ("formantSpreadSlider");
     pitchGlideRelay    = std::make_unique<juce::WebSliderRelay> ("pitchGlideSlider");
     transitionTimeRelay = std::make_unique<juce::WebSliderRelay> ("transitionTimeSlider");
+    singersFormantRelay = std::make_unique<juce::WebSliderRelay> ("singersFormantSlider");
     outputGainRelay    = std::make_unique<juce::WebSliderRelay> ("outputGainSlider");
     stereoWidthRelay   = std::make_unique<juce::WebSliderRelay> ("stereoWidthSlider");
 
@@ -74,6 +75,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*formantSpreadRelay)
             .withOptionsFrom (*pitchGlideRelay)
             .withOptionsFrom (*transitionTimeRelay)
+            .withOptionsFrom (*singersFormantRelay)
             .withOptionsFrom (*outputGainRelay)
             .withOptionsFrom (*stereoWidthRelay)
 
@@ -205,6 +207,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     formantSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("formantSpread"), *formantSpreadRelay);
     pitchGlideAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("pitchGlide"), *pitchGlideRelay);
     transitionTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("transitionTime"), *transitionTimeRelay);
+    singersFormantAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("singersFormant"), *singersFormantRelay);
     outputGainAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("outputGain"), *outputGainRelay);
     stereoWidthAttachment   = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("stereoWidth"), *stereoWidthRelay);
 
@@ -220,6 +223,7 @@ OFormantEditor::~OFormantEditor()
     // Destroy in reverse: attachments first, then webView, then relays
     stereoWidthAttachment.reset();
     outputGainAttachment.reset();
+    singersFormantAttachment.reset();
     transitionTimeAttachment.reset();
     pitchGlideAttachment.reset();
     formantSpreadAttachment.reset();
@@ -250,6 +254,7 @@ OFormantEditor::~OFormantEditor()
 
     stereoWidthRelay.reset();
     outputGainRelay.reset();
+    singersFormantRelay.reset();
     transitionTimeRelay.reset();
     pitchGlideRelay.reset();
     formantSpreadRelay.reset();

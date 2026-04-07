@@ -210,6 +210,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
         0.3f));
 
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "singersFormant", 1 },
+        "Singer's Formant",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.0f));
+
     // --- Output (2) ---
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "outputGain", 1 },
@@ -249,6 +255,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", -12.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.6f}, {"sourceFilterCoupling", 0.5f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Cinematic", "Alien Whisper", {
@@ -260,6 +267,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 12.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.7f}, {"sourceFilterCoupling", 0.2f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Cinematic", "Sci-Fi Choir", {
@@ -271,6 +279,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.3f},
+            {"singersFormant", 0.4f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.9f}
         }, juce::var() },
         { "Cinematic", "Spectral Voice", {
@@ -282,6 +291,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 3.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.8f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.4f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
 
@@ -295,6 +305,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.001f}, {"decay", 0.5f}, {"sustain", 0.4f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", -18.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.3f}, {"sourceFilterCoupling", 0.6f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Electronic", "Vowel Pad", {
@@ -306,6 +317,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.8f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 2.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.6f}, {"sourceFilterCoupling", 0.3f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.7f}
         }, juce::var() },
         { "Electronic", "Glitch Vocal", {
@@ -317,6 +329,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.001f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.1f}, {"sourceFilterCoupling", 0.1f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Electronic", "Robotic Speech", {
@@ -328,6 +341,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 0.8f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.0f}, {"sourceFilterCoupling", 0.0f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
 
@@ -341,6 +355,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 2.0f}, {"decay", 0.3f}, {"sustain", 1.0f}, {"release", 5.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.8f}, {"sourceFilterCoupling", 0.2f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.8f}
         }, juce::var() },
         { "Ambient", "Breath Texture", {
@@ -352,6 +367,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.5f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.1f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Ambient", "Overtone Chant", {
@@ -363,6 +379,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 0.7f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.7f},
+            {"singersFormant", 0.7f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Ambient", "Wind Voice", {
@@ -374,6 +391,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 4.0f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.7f}, {"sourceFilterCoupling", 0.2f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
 
@@ -387,6 +405,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 0.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.4f},
+            {"singersFormant", 0.5f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Breathy Soprano", {
@@ -398,6 +417,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 8.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.5f}, {"sourceFilterCoupling", 0.3f},
+            {"singersFormant", 0.3f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Pressed Baritone", {
@@ -409,6 +429,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", -8.0f}, {"formantSpread", 1.0f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.3f}, {"sourceFilterCoupling", 0.5f},
+            {"singersFormant", 0.7f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
         { "Speech", "Child Voice", {
@@ -420,6 +441,7 @@ OFormantAudioProcessor::OFormantAudioProcessor()
             {"attack", 0.01f}, {"decay", 0.3f}, {"sustain", 0.8f}, {"release", 0.5f},
             {"formantTopology", 0.0f}, {"formantShift", 18.0f}, {"formantSpread", 1.3f}, {"pitchGlide", 0.0f},
             {"transitionTime", 0.4f}, {"sourceFilterCoupling", 0.3f},
+            {"singersFormant", 0.0f},
             {"outputGain", 0.0f}, {"stereoWidth", 0.5f}
         }, juce::var() },
     };
