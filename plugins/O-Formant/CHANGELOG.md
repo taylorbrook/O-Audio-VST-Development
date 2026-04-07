@@ -2,6 +2,28 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.8.0] - 2026-04-07
+
+### Added
+- **Cascade formant filter topology** — Klatt-style series resonator bank as alternative to existing parallel topology. Cascade chains 5 bandpass filters in series (F1→F2→F3→F4→F5), automatically producing correct relative formant amplitudes without per-formant gain control (Klatt, 1980). This is the most physically accurate model for vowel synthesis.
+- **New APVTS parameter: `formantTopology`** (Choice: Cascade/Parallel/Hybrid, default Cascade) — Three topology modes:
+  - *Cascade* (0): All 5 formants in series for voiced path. Correct 1/f spectral envelope slope, natural amplitude relationships. Consonant noise routed through parallel bank.
+  - *Parallel* (1): Legacy behavior — voice and consonant mixed through 5 parallel bandpass filters with explicit per-formant gains. Preserves backward compatibility with existing presets.
+  - *Hybrid* (2): F1-F3 in cascade (low formants benefit most from series topology), F4-F5 in parallel. Best of both worlds.
+- **Split voiced/consonant signal paths** — In Cascade and Hybrid modes, glottal source routes through cascade bank while consonant noise routes independently through parallel bank. Consonants need per-formant gain control that parallel provides. Spectral tilt applied only to voiced path (physically correct — models glottal spectral slope, not vocal tract).
+- **Gain compensation** — Cascade output boosted ~12 dB (5 stages) or ~7 dB (3 stages in hybrid) to compensate for series filter attenuation. Uses `2^(numStages * 0.4)` scaling.
+- **UI: Topology selector** — Segmented control (Cascade/Parallel/Hybrid) in the Character parameter group.
+- **Factory presets updated** — All 16 presets include `formantTopology` set to Cascade for improved vowel naturalness.
+
+### Technical Notes
+- New class `CascadeFormantBank` in `Source/dsp/CascadeFormantBank.h` — reuses `FormantBiquad` struct, shares coefficient computation with `FormantFilterBank` but sets per-filter gain to unity
+- `CascadeFormantBank::process()` chains first N filters in series, sums remaining in parallel (supports both full cascade and hybrid)
+- `setNumCascadeStages(n)` configures cascade/hybrid split and auto-computes compensation gain
+- FormantVoice topology routing: block-rate parameter read, per-sample branched signal flow
+- Topology=1 (Parallel) uses exact legacy code path for backward compatibility
+- WebView: `WebComboBoxRelay` + `WebComboBoxParameterAttachment` for topology selector
+- 1 new APVTS parameter (29 total), pluginval validated at strictness 5
+
 ## [1.7.0] - 2026-04-06
 
 ### Added

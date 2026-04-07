@@ -37,6 +37,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> decayRelay;
     std::unique_ptr<juce::WebSliderRelay> sustainRelay;
     std::unique_ptr<juce::WebSliderRelay> releaseRelay;
+    std::unique_ptr<juce::WebComboBoxRelay> formantTopologyRelay;
     std::unique_ptr<juce::WebSliderRelay> formantShiftRelay;
     std::unique_ptr<juce::WebSliderRelay> formantSpreadRelay;
     std::unique_ptr<juce::WebSliderRelay> pitchGlideRelay;
@@ -67,6 +68,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> decayAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sustainAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> releaseAttachment;
+    std::unique_ptr<juce::WebComboBoxParameterAttachment> formantTopologyAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> formantShiftAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> formantSpreadAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> pitchGlideAttachment;

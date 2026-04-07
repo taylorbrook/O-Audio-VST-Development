@@ -330,6 +330,45 @@ canvas#xy-pad {
   text-align: center;
 }
 
+/* Segmented control (topology selector) */
+.segmented-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+.segmented-label {
+  font-size: 9px;
+  color: #8B7355;
+  margin-bottom: 2px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+.segmented-control {
+  display: flex;
+  border: 1px solid #8B7355;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.segmented-btn {
+  background: #EDE0CF;
+  border: none;
+  border-right: 1px solid rgba(139,115,85,0.3);
+  color: #8B7355;
+  font-family: 'Garamond', serif;
+  font-size: 9px;
+  padding: 3px 10px;
+  cursor: pointer;
+  letter-spacing: 0.5px;
+  transition: background 0.12s, color 0.12s;
+}
+.segmented-btn:last-child { border-right: none; }
+.segmented-btn:hover { background: #E3D4C0; }
+.segmented-btn.active {
+  background: #8BA870;
+  color: #F5E6D3;
+}
+
 /* Consonant XY pad layout */
 .consonant-row {
   display: flex;
@@ -522,6 +561,14 @@ canvas#consonant-xy-pad {
 
     <div class="param-group">
       <h3>Character</h3>
+      <div class="segmented-wrap">
+        <span class="segmented-label">Topology</span>
+        <div class="segmented-control" id="topology-control">
+          <button class="segmented-btn active" data-index="0">Cascade</button>
+          <button class="segmented-btn" data-index="1">Parallel</button>
+          <button class="segmented-btn" data-index="2">Hybrid</button>
+        </div>
+      </div>
       <div class="param-row">
         <div class="knob-wrap" data-param="formantShift">
           <div class="knob"><div class="knob-indicator"></div><div class="knob-center"></div></div>

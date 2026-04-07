@@ -49,6 +49,7 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pSustain = apvts->getRawParameterValue ("sustain");
     pRelease = apvts->getRawParameterValue ("release");
 
+    pFormantTopology = apvts->getRawParameterValue ("formantTopology");
     pFormantShift  = apvts->getRawParameterValue ("formantShift");
     pFormantSpread = apvts->getRawParameterValue ("formantSpread");
     pPitchGlide    = apvts->getRawParameterValue ("pitchGlide");
@@ -67,6 +68,7 @@ void FormantVoice::prepare (double sampleRate)
     glottalSource.prepare (sampleRate);
     aspirationNoise.prepare (sampleRate);
     filterBank.prepare (sampleRate);
+    cascadeBank.prepare (sampleRate);
     vibratoLFO.prepare (sampleRate);
     pitchGlide.prepare (sampleRate);
     consonantEngine.prepare (sampleRate, voiceIdx);
@@ -83,6 +85,7 @@ void FormantVoice::noteStarted()
     glottalSource.reset();
     aspirationNoise.reset();
     filterBank.reset();
+    cascadeBank.reset();
     vibratoLFO.reset();
     consonantEngine.reset();
 
@@ -257,6 +260,9 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         consonantEngine.setManualEnvelope (consAtk, consHold, consDecay, getSampleRate());
     }
 
+    // Formant topology: 0=Cascade, 1=Parallel (legacy), 2=Hybrid
+    int topology = pFormantTopology != nullptr ? static_cast<int> (pFormantTopology->load()) : 0;
+
     // Spectral tilt: read once per block, compute one-pole alpha from f0
     float spectralTilt = pSpectralTilt != nullptr ? pSpectralTilt->load() : 0.0f;
     float tiltNorm = spectralTilt / 12.0f; // normalize to -1...+1
@@ -314,8 +320,17 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             for (int fi = 0; fi < 5; ++fi)
                 formantBWs[fi] *= breathBWScale;
 
+            // Always update parallel bank (used by all topologies)
             filterBank.updateCoefficients (formantFreqs, formantBWs, formantGains,
                                            shift, spread, getSampleRate());
+
+            // Update cascade bank when needed (cascade or hybrid topology)
+            if (topology != 1)
+            {
+                cascadeBank.setNumCascadeStages (topology == 0 ? 5 : 3);
+                cascadeBank.updateCoefficients (formantFreqs, formantBWs,
+                                                shift, spread, getSampleRate());
+            }
         }
 
         // --- Per-sample pitch: PitchGlide -> VibratoLFO -> final F0 ---
@@ -345,18 +360,32 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float env = adsr.getNextSample();
         float voiceWithEnv = voiceSource * env;
 
-        // Route through formant filters (vocal tract resonance for both)
-        float fullSource = voiceWithEnv + consonantNoise;
+        // Route through formant filters — topology determines signal path
+        float sample;
 
-        // Spectral tilt: one-pole filter for independent voice brightness
-        // Positive = darker (blend toward lowpass), negative = brighter (boost highs)
-        float tiltLP = (1.0f - tiltAlpha) * fullSource + tiltAlpha * spectralTiltPrev;
-        spectralTiltPrev = tiltLP;
-        float tiltedSource = fullSource - tiltNorm * (fullSource - tiltLP);
+        if (topology == 1) // Parallel (legacy): voice+consonant mixed, then parallel bank
+        {
+            float fullSource = voiceWithEnv + consonantNoise;
+            float tiltLP = (1.0f - tiltAlpha) * fullSource + tiltAlpha * spectralTiltPrev;
+            spectralTiltPrev = tiltLP;
+            float tiltedSource = fullSource - tiltNorm * (fullSource - tiltLP);
+            sample = filterBank.process (tiltedSource);
+        }
+        else // Cascade (0) or Hybrid (2): split voiced/consonant paths
+        {
+            // Spectral tilt on voiced path only (models glottal spectral slope)
+            float tiltLP = (1.0f - tiltAlpha) * voiceWithEnv + tiltAlpha * spectralTiltPrev;
+            spectralTiltPrev = tiltLP;
+            float tiltedVoice = voiceWithEnv - tiltNorm * (voiceWithEnv - tiltLP);
 
-        float mixed = filterBank.process (tiltedSource);
+            // Voiced through cascade bank (correct relative formant amplitudes)
+            float voicedFiltered = cascadeBank.process (tiltedVoice);
 
-        float sample = mixed;
+            // Consonant through parallel bank (needs per-formant gain control)
+            float consonantFiltered = filterBank.process (consonantNoise);
+
+            sample = voicedFiltered + consonantFiltered;
+        }
 
         // Soft-clip to prevent extreme amplitudes from resonant filters
         sample = std::tanh (sample);
@@ -366,6 +395,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         {
             sample = 0.0f;
             filterBank.reset();
+            cascadeBank.reset();
             consonantEngine.reset();
         }
 

@@ -25,6 +25,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     decayRelay         = std::make_unique<juce::WebSliderRelay> ("decaySlider");
     sustainRelay       = std::make_unique<juce::WebSliderRelay> ("sustainSlider");
     releaseRelay       = std::make_unique<juce::WebSliderRelay> ("releaseSlider");
+    formantTopologyRelay = std::make_unique<juce::WebComboBoxRelay> ("formantTopologyComboBox");
     formantShiftRelay  = std::make_unique<juce::WebSliderRelay> ("formantShiftSlider");
     formantSpreadRelay = std::make_unique<juce::WebSliderRelay> ("formantSpreadSlider");
     pitchGlideRelay    = std::make_unique<juce::WebSliderRelay> ("pitchGlideSlider");
@@ -67,6 +68,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*decayRelay)
             .withOptionsFrom (*sustainRelay)
             .withOptionsFrom (*releaseRelay)
+            .withOptionsFrom (*formantTopologyRelay)
             .withOptionsFrom (*formantShiftRelay)
             .withOptionsFrom (*formantSpreadRelay)
             .withOptionsFrom (*pitchGlideRelay)
@@ -196,6 +198,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     decayAttachment         = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("decay"), *decayRelay);
     sustainAttachment       = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("sustain"), *sustainRelay);
     releaseAttachment       = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("release"), *releaseRelay);
+    formantTopologyAttachment = std::make_unique<juce::WebComboBoxParameterAttachment> (*apvts.getParameter ("formantTopology"), *formantTopologyRelay);
     formantShiftAttachment  = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("formantShift"), *formantShiftRelay);
     formantSpreadAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("formantSpread"), *formantSpreadRelay);
     pitchGlideAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("pitchGlide"), *pitchGlideRelay);
@@ -216,6 +219,7 @@ OFormantEditor::~OFormantEditor()
     outputGainAttachment.reset();
     pitchGlideAttachment.reset();
     formantSpreadAttachment.reset();
+    formantTopologyAttachment.reset();
     formantShiftAttachment.reset();
     releaseAttachment.reset();
     sustainAttachment.reset();
@@ -244,6 +248,7 @@ OFormantEditor::~OFormantEditor()
     outputGainRelay.reset();
     pitchGlideRelay.reset();
     formantSpreadRelay.reset();
+    formantTopologyRelay.reset();
     formantShiftRelay.reset();
     releaseRelay.reset();
     sustainRelay.reset();

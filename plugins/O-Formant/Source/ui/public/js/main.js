@@ -1,4 +1,4 @@
-import { getSliderState, getToggleState } from './juce/index.js';
+import { getSliderState, getToggleState, getComboBoxState } from './juce/index.js';
 
 // Relay states
 let vowelXState, vowelYState, vowelFocusState;
@@ -6,6 +6,7 @@ let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibra
 let consonantLevelState, consonantToneState, sibilanceState, autoConsonantState;
 let consonantAttackState, consonantHoldState, consonantDecayState;
 let attackState, decayState, sustainState, releaseState;
+let formantTopologyState;
 let formantShiftState, formantSpreadState, pitchGlideState;
 let outputGainState, stereoWidthState;
 
@@ -108,6 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
   bindConsonantXYPad();
   bindKnobs();
   bindToggle();
+  bindTopologySelector();
   drawADSR();
   initPresetBrowser();
 });
@@ -136,6 +138,7 @@ function initRelays() {
   decayState = getSliderState('decaySlider');
   sustainState = getSliderState('sustainSlider');
   releaseState = getSliderState('releaseSlider');
+  formantTopologyState = getComboBoxState('formantTopologyComboBox');
   formantShiftState = getSliderState('formantShiftSlider');
   formantSpreadState = getSliderState('formantSpreadSlider');
   pitchGlideState = getSliderState('pitchGlideSlider');
@@ -197,6 +200,9 @@ function initRelays() {
 
   // Toggle automation
   autoConsonantState.valueChangedEvent.addListener(() => updateToggleVisual());
+
+  // Topology automation
+  formantTopologyState.valueChangedEvent.addListener(() => updateTopologyVisual());
 
   // Store map globally
   window._paramMap = paramMap;
@@ -704,6 +710,38 @@ function updateToggleVisual() {
       envControls.classList.remove('hidden');
     }
   }
+}
+
+// ============================================================================
+// Topology Selector
+// ============================================================================
+function bindTopologySelector() {
+  const control = document.getElementById('topology-control');
+  if (!control) return;
+
+  control.addEventListener('click', (e) => {
+    const btn = e.target.closest('.segmented-btn');
+    if (!btn) return;
+    const idx = parseInt(btn.dataset.index, 10);
+    formantTopologyState.setChoiceIndex(idx);
+    updateTopologyVisual();
+  });
+
+  updateTopologyVisual();
+}
+
+function updateTopologyVisual() {
+  const control = document.getElementById('topology-control');
+  if (!control) return;
+  const idx = formantTopologyState.getChoiceIndex();
+  const btns = control.querySelectorAll('.segmented-btn');
+  btns.forEach((btn) => {
+    if (parseInt(btn.dataset.index, 10) === idx) {
+      btn.classList.add('active');
+    } else {
+      btn.classList.remove('active');
+    }
+  });
 }
 
 // ============================================================================

@@ -14,6 +14,7 @@
 #include "dsp/LFGlottalSource.h"
 #include "dsp/AspirationNoise.h"
 #include "dsp/FormantFilterBank.h"
+#include "dsp/CascadeFormantBank.h"
 #include "dsp/VowelMorpher.h"
 #include "dsp/GlottalWavetable.h"
 #include "dsp/VibratoLFO.h"
@@ -44,6 +45,7 @@ private:
     LFGlottalSource glottalSource;
     AspirationNoise aspirationNoise;
     FormantFilterBank filterBank;
+    CascadeFormantBank cascadeBank;
     VowelMorpher vowelMorpher;
     VibratoLFO vibratoLFO;
     PitchGlide pitchGlide;
@@ -110,6 +112,7 @@ private:
     std::atomic<float>* pRelease = nullptr;
 
     // Voice Character
+    std::atomic<float>* pFormantTopology = nullptr;
     std::atomic<float>* pFormantShift  = nullptr;
     std::atomic<float>* pFormantSpread = nullptr;
     std::atomic<float>* pPitchGlide    = nullptr;
