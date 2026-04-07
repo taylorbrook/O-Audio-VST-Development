@@ -328,6 +328,28 @@ canvas#xy-pad {
   align-items: center;
   gap: 6px;
 }
+.consonant-env-controls {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  transition: opacity 0.2s;
+}
+.consonant-env-controls.hidden {
+  opacity: 0.25;
+  pointer-events: none;
+}
+.consonant-env-controls .knob-wrap {
+  width: 42px;
+}
+.knob.knob-sm {
+  width: 38px; height: 38px;
+}
+.knob-sm .knob-indicator {
+  height: 10px;
+  top: 3px;
+  transform-origin: 50% 16px;
+}
 .consonant-xy-wrap {
   flex: 1;
   height: 80px;
@@ -442,6 +464,23 @@ canvas#consonant-xy-pad {
             <span class="cxy-label cxy-right">Vel</span>
             <span class="cxy-label cxy-top">Fric</span>
             <span class="cxy-label cxy-bottom">Plos</span>
+          </div>
+        </div>
+        <div class="consonant-env-controls" id="consonant-env-controls">
+          <div class="knob-wrap" data-param="consonantAttack">
+            <div class="knob knob-sm"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+            <div class="knob-label">Atk</div>
+            <div class="knob-value">20 ms</div>
+          </div>
+          <div class="knob-wrap" data-param="consonantHold">
+            <div class="knob knob-sm"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+            <div class="knob-label">Hold</div>
+            <div class="knob-value">30 ms</div>
+          </div>
+          <div class="knob-wrap" data-param="consonantDecay">
+            <div class="knob knob-sm"><div class="knob-indicator"></div><div class="knob-center"></div></div>
+            <div class="knob-label">Decay</div>
+            <div class="knob-value">40 ms</div>
           </div>
         </div>
       </div>

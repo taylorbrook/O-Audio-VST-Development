@@ -4,6 +4,7 @@ import { getSliderState, getToggleState } from './juce/index.js';
 let vowelXState, vowelYState, vowelFocusState;
 let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibratoDelayState;
 let consonantLevelState, consonantToneState, sibilanceState, autoConsonantState;
+let consonantAttackState, consonantHoldState, consonantDecayState;
 let attackState, decayState, sustainState, releaseState;
 let formantShiftState, formantSpreadState, pitchGlideState;
 let outputGainState, stereoWidthState;
@@ -124,6 +125,9 @@ function initRelays() {
   consonantToneState = getSliderState('consonantToneSlider');
   sibilanceState = getSliderState('sibilanceSlider');
   autoConsonantState = getToggleState('autoConsonantToggle');
+  consonantAttackState = getSliderState('consonantAttackSlider');
+  consonantHoldState = getSliderState('consonantHoldSlider');
+  consonantDecayState = getSliderState('consonantDecaySlider');
   attackState = getSliderState('attackSlider');
   decayState = getSliderState('decaySlider');
   sustainState = getSliderState('sustainSlider');
@@ -143,6 +147,9 @@ function initRelays() {
     vibratoDepth: vibratoDepthState,
     vibratoDelay: vibratoDelayState,
     consonantLevel: consonantLevelState,
+    consonantAttack: consonantAttackState,
+    consonantHold: consonantHoldState,
+    consonantDecay: consonantDecayState,
     formantShift: formantShiftState,
     formantSpread: formantSpreadState,
     pitchGlide: pitchGlideState,
@@ -648,10 +655,20 @@ function bindToggle() {
 function updateToggleVisual() {
   const btn = document.getElementById('autoConsonant-toggle');
   if (!btn) return;
-  if (autoConsonantState.getValue()) {
+  const isAuto = autoConsonantState.getValue();
+  if (isAuto) {
     btn.classList.add('active');
   } else {
     btn.classList.remove('active');
+  }
+  // Dim manual envelope knobs when auto is on (timing derived from manner)
+  const envControls = document.getElementById('consonant-env-controls');
+  if (envControls) {
+    if (isAuto) {
+      envControls.classList.add('hidden');
+    } else {
+      envControls.classList.remove('hidden');
+    }
   }
 }
 

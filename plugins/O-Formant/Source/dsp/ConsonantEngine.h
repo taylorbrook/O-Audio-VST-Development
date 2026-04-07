@@ -61,6 +61,7 @@ public:
     }
 
     // Block-rate coefficient update: place = X (0-1), manner = Y (0-1)
+    // When auto mode is on, envelope timing is derived from manner.
     void updateCoefficients (float place, float manner, double sr) noexcept
     {
         float nyquist = static_cast<float> (sr * 0.5) - 100.0f;
@@ -101,7 +102,16 @@ public:
         cachedDecaySamples  = juce::jmax (1, static_cast<int> (envDecayMs * 0.001f * srF));
     }
 
-    inline float getNextSample (float consonantLevel, bool autoConsonant) noexcept
+    // Override envelope timing with user-specified values (called when auto is off)
+    void setManualEnvelope (float attackMs, float holdMs, float decayMs, double sr) noexcept
+    {
+        float srF = static_cast<float> (sr);
+        cachedAttackSamples = juce::jmax (1, static_cast<int> (attackMs * 0.001f * srF));
+        cachedHoldSamples   = static_cast<int> (holdMs * 0.001f * srF);
+        cachedDecaySamples  = juce::jmax (1, static_cast<int> (decayMs * 0.001f * srF));
+    }
+
+    inline float getNextSample (float consonantLevel) noexcept
     {
         // Onset suppression envelope
         if (onsetSamplesRemaining > 0)
@@ -119,8 +129,8 @@ public:
         }
 
         // Early-out: no consonant activity
-        bool burstActive = autoConsonant && burstSamplesRemaining > 0;
-        bool envActive = autoConsonant && consonantPhase != EnvPhase::Off;
+        bool burstActive = burstSamplesRemaining > 0;
+        bool envActive = consonantPhase != EnvPhase::Off;
 
         if (consonantLevel < 0.001f && ! burstActive && ! envActive)
             return 0.0f;
@@ -146,9 +156,8 @@ public:
             --burstSamplesRemaining;
         }
 
-        // When autoConsonant is on, gate output with dedicated consonant envelope
-        if (autoConsonant)
-            output *= advanceEnvelope();
+        // Always gate output with dedicated consonant envelope
+        output *= advanceEnvelope();
 
         return juce::jlimit (-1.0f, 1.0f, output);
     }

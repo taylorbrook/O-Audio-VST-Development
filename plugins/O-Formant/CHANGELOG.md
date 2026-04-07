@@ -2,6 +2,22 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.3.0] - 2026-04-06
+
+### Added
+- **Manual consonant envelope parameters** — Three new knobs (Cons Attack 1-100ms, Cons Hold 0-200ms, Cons Decay 5-200ms) for user control of the consonant envelope when Auto is off. When Auto is on, timing is derived from manner parameter as before.
+- **Consonant envelope always triggers at note onset** — Both auto and manual modes now trigger the consonant envelope on every note. Auto toggle switches between manner-derived timing and user knob timing.
+- **UI: consonant envelope knobs** — Three small knobs appear in the consonant section, dimmed when Auto is active (timing from manner), fully interactive when Auto is off.
+
+### Changed
+- **autoConsonant parameter behavior** — Now toggles between auto-derived envelope timing (from manner) and manual envelope timing (from knobs). Both modes have transient consonant behavior. Previously, turning auto off meant continuous noise with no independent envelope.
+
+### Technical Notes
+- ConsonantEngine: new `setManualEnvelope()` overrides cached attack/hold/decay sample counts
+- `getNextSample()` signature simplified — removed `autoConsonant` parameter, envelope always applied
+- `triggerBurst()` always called at note onset regardless of auto setting
+- 3 new APVTS parameters: consonantAttack, consonantHold, consonantDecay (24 total)
+
 ## [1.2.0] - 2026-04-06
 
 ### Changed

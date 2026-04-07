@@ -85,10 +85,13 @@ private:
     std::atomic<float>* pVibratoDelay  = nullptr;
 
     // Consonant / Noise
-    std::atomic<float>* pConsonantLevel = nullptr;
-    std::atomic<float>* pConsonantTone  = nullptr;
-    std::atomic<float>* pSibilance      = nullptr;
-    std::atomic<float>* pAutoConsonant  = nullptr;
+    std::atomic<float>* pConsonantLevel   = nullptr;
+    std::atomic<float>* pConsonantTone    = nullptr;
+    std::atomic<float>* pSibilance        = nullptr;
+    std::atomic<float>* pAutoConsonant    = nullptr;
+    std::atomic<float>* pConsonantAttack  = nullptr;
+    std::atomic<float>* pConsonantHold    = nullptr;
+    std::atomic<float>* pConsonantDecay   = nullptr;
 
     // Envelope
     std::atomic<float>* pAttack  = nullptr;

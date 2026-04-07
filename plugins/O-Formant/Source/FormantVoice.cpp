@@ -32,10 +32,13 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pVibratoDepth  = apvts->getRawParameterValue ("vibratoDepth");
     pVibratoDelay  = apvts->getRawParameterValue ("vibratoDelay");
 
-    pConsonantLevel = apvts->getRawParameterValue ("consonantLevel");
-    pConsonantTone  = apvts->getRawParameterValue ("consonantTone");
-    pSibilance      = apvts->getRawParameterValue ("sibilance");
-    pAutoConsonant  = apvts->getRawParameterValue ("autoConsonant");
+    pConsonantLevel  = apvts->getRawParameterValue ("consonantLevel");
+    pConsonantTone   = apvts->getRawParameterValue ("consonantTone");
+    pSibilance       = apvts->getRawParameterValue ("sibilance");
+    pAutoConsonant   = apvts->getRawParameterValue ("autoConsonant");
+    pConsonantAttack = apvts->getRawParameterValue ("consonantAttack");
+    pConsonantHold   = apvts->getRawParameterValue ("consonantHold");
+    pConsonantDecay  = apvts->getRawParameterValue ("consonantDecay");
 
     pAttack  = apvts->getRawParameterValue ("attack");
     pDecay   = apvts->getRawParameterValue ("decay");
@@ -121,10 +124,8 @@ void FormantVoice::noteStarted()
     if (pGlottalRd != nullptr)
         glottalSource.setRd (pGlottalRd->load());
 
-    // Auto-consonant plosive burst
-    bool autoConsonant = pAutoConsonant != nullptr && pAutoConsonant->load() >= 0.5f;
-    if (autoConsonant)
-        consonantEngine.triggerBurst (noteVelocity);
+    // Always trigger consonant envelope + burst at note onset
+    consonantEngine.triggerBurst (noteVelocity);
 
     // Force immediate coefficient update on first sample
     sampleCounter = 0;
@@ -206,6 +207,15 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // Update consonant filter coefficients (block-rate)
     consonantEngine.updateCoefficients (consonantTone, sibilance, getSampleRate());
 
+    // When auto is off, override envelope timing with user knobs
+    if (! autoConsonant)
+    {
+        float consAtk   = pConsonantAttack != nullptr ? pConsonantAttack->load() : 20.0f;
+        float consHold  = pConsonantHold   != nullptr ? pConsonantHold->load()   : 30.0f;
+        float consDecay = pConsonantDecay  != nullptr ? pConsonantDecay->load()  : 40.0f;
+        consonantEngine.setManualEnvelope (consAtk, consHold, consDecay, getSampleRate());
+    }
+
     // Stereo width: compute pan gains from MIDI note (block-rate)
     float stereoWidth = pStereoWidth != nullptr ? pStereoWidth->load() : 0.5f;
     float noteNorm = currentlyPlayingNote.initialNote / 127.0f;
@@ -255,23 +265,19 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Mix with aspiration noise
         float source = aspirationNoise.process (glottal);
 
-        // Consonant noise (shaped by tone/sibilance filters + own envelope when autoConsonant)
-        float consonantNoise = consonantEngine.getNextSample (consonantLevel, autoConsonant);
+        // Consonant noise (shaped by place/manner filters + dedicated envelope)
+        float consonantNoise = consonantEngine.getNextSample (consonantLevel);
         float onsetSuppression = consonantEngine.getOnsetSuppression();
 
         // During plosive onset, suppress glottal source so noise dominates
         float voiceSource = source * (1.0f - 0.7f * onsetSuppression);
 
-        // ADSR envelope — applied to voiced source only (consonant has its own envelope)
+        // ADSR envelope — applied to voiced source only
         float env = adsr.getNextSample();
         float voiceWithEnv = voiceSource * env;
 
-        // When autoConsonant is off, consonant follows main ADSR;
-        // when on, ConsonantEngine applies its own Attack/Hold/Decay envelope
-        float consonantOut = autoConsonant ? consonantNoise : (consonantNoise * env);
-
         // Route through formant filters (vocal tract resonance for both)
-        float fullSource = voiceWithEnv + consonantOut;
+        float fullSource = voiceWithEnv + consonantNoise;
         float mixed = filterBank.process (fullSource);
 
         float sample = mixed;

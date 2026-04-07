@@ -96,6 +96,28 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         "Auto Consonant",
         false));
 
+    // --- Consonant Envelope (3) ---
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "consonantAttack", 1 },
+        "Cons Attack",
+        juce::NormalisableRange<float> (1.0f, 100.0f, 0.1f, 0.5f),
+        20.0f,
+        "ms"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "consonantHold", 1 },
+        "Cons Hold",
+        juce::NormalisableRange<float> (0.0f, 200.0f, 0.1f),
+        30.0f,
+        "ms"));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "consonantDecay", 1 },
+        "Cons Decay",
+        juce::NormalisableRange<float> (5.0f, 200.0f, 0.1f, 0.5f),
+        40.0f,
+        "ms"));
+
     // --- Envelope (4) ---
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "attack", 1 },
@@ -382,6 +404,14 @@ void OFormantAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
         float gain = outputGainSmoothed.getNextValue();
         for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
             buffer.setSample (ch, i, buffer.getSample (ch, i) * gain);
+    }
+
+    // Brickwall safety limiter — hard clip at 0 dBFS
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+    {
+        auto* channelData = buffer.getWritePointer (ch);
+        for (int i = 0; i < buffer.getNumSamples(); ++i)
+            channelData[i] = juce::jlimit (-1.0f, 1.0f, channelData[i]);
     }
 }
 
