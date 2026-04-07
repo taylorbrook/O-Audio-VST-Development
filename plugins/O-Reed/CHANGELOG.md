@@ -1,5 +1,11 @@
 # O-Reed Changelog
 
+## v1.0.4 (2026-04-06)
+
+### Improved
+
+- **Bore feedback gain compensation** -- added `feedbackGain` to `BoreWaveguide` that compensates for cumulative viscothermal filter and bell reflection losses. Computed as `1 / max(0.5, viscGain * 0.98)` clamped to 2.0x, applied to the backward-traveling wave returning to the reed. Prevents energy decay from damping sustained tones, similar to O-Wind's mechanism.
+
 ## v1.0.3 (2026-04-06)
 
 ### Fixed

@@ -170,6 +170,10 @@ public:
         // Infinite sustain: viscothermal gain approaches 1.0 (lossless)
         float g = 0.995f + infiniteSustain * 0.005f;
         *viscFilter.coefficients = juce::dsp::IIR::Coefficients<float>(g * (1.0f - p), 0.0f, 1.0f, -p);
+
+        // Feedback gain compensation for cumulative viscothermal + bell reflection losses
+        float viscGain = g;  // DC gain of visc filter ≈ 0.99 for typical settings
+        feedbackGain = std::min(2.0f, 1.0f / std::max(0.5f, viscGain * 0.98f));
     }
 
     void updateToneHoles(float toneHoleCutoff, float registerHole)
@@ -302,7 +306,7 @@ public:
         // --- Step 6: Energy tracking ---
         energyEstimate = 0.999f * energyEstimate + 0.001f * std::abs(lastRadiatedOutput);
 
-        return seg_bwd[0];  // Wave arriving at reed from bore
+        return seg_bwd[0] * feedbackGain;  // Wave arriving at reed from bore
     }
 
     float getRadiatedOutput() const { return lastRadiatedOutput + totalToneHoleRadiation * toneHoleRadiationMix; }
@@ -343,6 +347,7 @@ public:
         energyEstimate = 0.0f;
         targetFrequency = 440.0f;
         currentViscCutoff = 1500.0f;
+        feedbackGain = 1.0f;
     }
 
 private:
@@ -381,4 +386,5 @@ private:
     float energyEstimate     = 0.0f;
     float targetFrequency    = 440.0f;
     float currentViscCutoff  = 1500.0f;
+    float feedbackGain       = 1.0f;
 };
