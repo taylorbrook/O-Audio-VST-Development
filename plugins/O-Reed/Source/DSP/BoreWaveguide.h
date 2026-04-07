@@ -193,7 +193,7 @@ public:
         {
             if (opening < 1e-6f) return 0.0f;
             float holeStrength = opening * rr2 / (2.0f * tEff);
-            return -holeStrength / (1.0f + holeStrength);
+            return -2.0f * holeStrength / (2.0f + holeStrength);
         };
 
         toneHoleScatter[0] = computeScatter(hole1_opening, hrr2, tEffNormalized);

@@ -1,5 +1,11 @@
 # O-Reed Changelog
 
+## v1.0.2 (2026-04-06)
+
+### Fixed
+
+- **Tone hole energy conservation** — scatter coefficient formula changed from `-holeStrength / (1 + holeStrength)` to `-2*holeStrength / (2 + holeStrength)` (normalized Kelly-Lochbaum). The old formula destroyed ~24% of wave energy at each three-port junction. Applies to all 4 tone holes and the register hole.
+
 ## v1.0.1 (2026-04-06)
 
 ### Fixed
