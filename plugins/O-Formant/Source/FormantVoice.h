@@ -64,6 +64,9 @@ private:
     // Smoothed Rd for dynamic vocal effort modulation (20ms ramp)
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> rdSmoothed;
 
+    // Spectral tilt one-pole filter state
+    float spectralTiltPrev = 0.0f;
+
     // Block-rate formant data (updated every kCoeffUpdateInterval samples)
     static constexpr int kCoeffUpdateInterval = 32;
     float formantFreqs[5] = {};
@@ -89,6 +92,7 @@ private:
     std::atomic<float>* pJitter        = nullptr;
     std::atomic<float>* pShimmer       = nullptr;
     std::atomic<float>* pRdModDepth    = nullptr;
+    std::atomic<float>* pSpectralTilt  = nullptr;
 
     // Consonant / Noise
     std::atomic<float>* pConsonantLevel   = nullptr;

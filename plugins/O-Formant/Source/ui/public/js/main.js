@@ -2,7 +2,7 @@ import { getSliderState, getToggleState } from './juce/index.js';
 
 // Relay states
 let vowelXState, vowelYState, vowelFocusState;
-let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibratoDelayState, jitterState, shimmerState, rdModDepthState;
+let glottalRdState, breathinessState, vibratoRateState, vibratoDepthState, vibratoDelayState, jitterState, shimmerState, rdModDepthState, spectralTiltState;
 let consonantLevelState, consonantToneState, sibilanceState, autoConsonantState;
 let consonantAttackState, consonantHoldState, consonantDecayState;
 let attackState, decayState, sustainState, releaseState;
@@ -124,6 +124,7 @@ function initRelays() {
   jitterState = getSliderState('jitterSlider');
   shimmerState = getSliderState('shimmerSlider');
   rdModDepthState = getSliderState('rdModDepthSlider');
+  spectralTiltState = getSliderState('spectralTiltSlider');
   consonantLevelState = getSliderState('consonantLevelSlider');
   consonantToneState = getSliderState('consonantToneSlider');
   sibilanceState = getSliderState('sibilanceSlider');
@@ -152,6 +153,7 @@ function initRelays() {
     jitter: jitterState,
     shimmer: shimmerState,
     rdModDepth: rdModDepthState,
+    spectralTilt: spectralTiltState,
     consonantLevel: consonantLevelState,
     consonantAttack: consonantAttackState,
     consonantHold: consonantHoldState,

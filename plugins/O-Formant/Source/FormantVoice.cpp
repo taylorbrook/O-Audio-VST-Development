@@ -34,6 +34,7 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pJitter        = apvts->getRawParameterValue ("jitter");
     pShimmer       = apvts->getRawParameterValue ("shimmer");
     pRdModDepth    = apvts->getRawParameterValue ("rdModDepth");
+    pSpectralTilt  = apvts->getRawParameterValue ("spectralTilt");
 
     pConsonantLevel  = apvts->getRawParameterValue ("consonantLevel");
     pConsonantTone   = apvts->getRawParameterValue ("consonantTone");
@@ -88,6 +89,7 @@ void FormantVoice::noteStarted()
     // MPE state reset
     mpeBreathOffset = 0.0f;
     mpeVowelYOffset = 0.0f;
+    spectralTiltPrev = 0.0f;
 
     // Store velocity for consonant burst scaling
     noteVelocity = getCurrentlyPlayingNote().noteOnVelocity.asUnsignedFloat();
@@ -255,6 +257,14 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         consonantEngine.setManualEnvelope (consAtk, consHold, consDecay, getSampleRate());
     }
 
+    // Spectral tilt: read once per block, compute one-pole alpha from f0
+    float spectralTilt = pSpectralTilt != nullptr ? pSpectralTilt->load() : 0.0f;
+    float tiltNorm = spectralTilt / 12.0f; // normalize to -1...+1
+    float tiltF0 = static_cast<float> (currentlyPlayingNote.getFrequencyInHertz());
+    float tiltCutoff = tiltF0 * 2.0f;
+    float tiltAlpha = std::exp (-juce::MathConstants<float>::twoPi * tiltCutoff
+                                / static_cast<float> (getSampleRate()));
+
     // Stereo width: compute pan gains from MIDI note (block-rate)
     float stereoWidth = pStereoWidth != nullptr ? pStereoWidth->load() : 0.5f;
     float noteNorm = currentlyPlayingNote.initialNote / 127.0f;
@@ -337,7 +347,14 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // Route through formant filters (vocal tract resonance for both)
         float fullSource = voiceWithEnv + consonantNoise;
-        float mixed = filterBank.process (fullSource);
+
+        // Spectral tilt: one-pole filter for independent voice brightness
+        // Positive = darker (blend toward lowpass), negative = brighter (boost highs)
+        float tiltLP = (1.0f - tiltAlpha) * fullSource + tiltAlpha * spectralTiltPrev;
+        spectralTiltPrev = tiltLP;
+        float tiltedSource = fullSource - tiltNorm * (fullSource - tiltLP);
+
+        float mixed = filterBank.process (tiltedSource);
 
         float sample = mixed;
 

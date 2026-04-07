@@ -2,6 +2,21 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.7.0] - 2026-04-06
+
+### Added
+- **Spectral tilt filter** — Independent voice brightness/darkness control decoupled from Rd voice quality. One-pole IIR filter between source and formant filter bank shapes the H1-H2 balance (the #1 perceptual correlate of phonation type per Kreiman et al., 2015).
+- **New APVTS parameter: `spectralTilt`** (float -12 to +12 dB, default 0, label "Spectral Tilt") — Positive values attenuate upper harmonics (darker/breathier), negative values boost upper harmonics relative to fundamental (brighter/more pressed). Enables combinations like "breathy but bright" or "pressed but dark" that the Rd parameter alone cannot produce.
+- **UI: Tilt knob** — Added to the Glottal Source parameter group in the WebView UI.
+- **Factory presets updated** — All 16 presets include characterful spectralTilt values (e.g., Creature Growl=-3dB bright+pressed, Alien Whisper=+4dB dark+breathy, Breath Texture=+5dB very dark).
+
+### Technical Notes
+- One-pole lowpass: `lp = (1-alpha)*x + alpha*prev`, cutoff at 2*f0, alpha updated at block rate from current pitch
+- Unified tilt formula: `output = x - tiltNorm * (x - lp)` handles both positive (blend toward lowpass) and negative (boost highpass complement) in a single expression
+- tiltNorm = tiltDdB / 12.0 normalizes range to [-1, +1]; at 0 the filter is transparent (output = input)
+- Filter state reset on noteStarted() for click-free onset
+- 1 new APVTS parameter (28 total), with WebView relay + attachment
+
 ## [1.6.0] - 2026-04-06
 
 ### Added

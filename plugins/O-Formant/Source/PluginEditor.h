@@ -28,6 +28,7 @@ private:
     std::unique_ptr<juce::WebSliderRelay> jitterRelay;
     std::unique_ptr<juce::WebSliderRelay> shimmerRelay;
     std::unique_ptr<juce::WebSliderRelay> rdModDepthRelay;
+    std::unique_ptr<juce::WebSliderRelay> spectralTiltRelay;
     std::unique_ptr<juce::WebSliderRelay> consonantLevelRelay;
     std::unique_ptr<juce::WebSliderRelay> consonantToneRelay;
     std::unique_ptr<juce::WebSliderRelay> sibilanceRelay;
@@ -57,6 +58,7 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> jitterAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> shimmerAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> rdModDepthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> spectralTiltAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> consonantLevelAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> consonantToneAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> sibilanceAttachment;

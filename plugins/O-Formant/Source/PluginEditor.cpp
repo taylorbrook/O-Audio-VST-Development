@@ -16,6 +16,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     jitterRelay        = std::make_unique<juce::WebSliderRelay> ("jitterSlider");
     shimmerRelay       = std::make_unique<juce::WebSliderRelay> ("shimmerSlider");
     rdModDepthRelay    = std::make_unique<juce::WebSliderRelay> ("rdModDepthSlider");
+    spectralTiltRelay  = std::make_unique<juce::WebSliderRelay> ("spectralTiltSlider");
     consonantLevelRelay = std::make_unique<juce::WebSliderRelay> ("consonantLevelSlider");
     consonantToneRelay = std::make_unique<juce::WebSliderRelay> ("consonantToneSlider");
     sibilanceRelay     = std::make_unique<juce::WebSliderRelay> ("sibilanceSlider");
@@ -57,6 +58,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*jitterRelay)
             .withOptionsFrom (*shimmerRelay)
             .withOptionsFrom (*rdModDepthRelay)
+            .withOptionsFrom (*spectralTiltRelay)
             .withOptionsFrom (*consonantLevelRelay)
             .withOptionsFrom (*consonantToneRelay)
             .withOptionsFrom (*sibilanceRelay)
@@ -185,6 +187,7 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     jitterAttachment        = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("jitter"), *jitterRelay);
     shimmerAttachment       = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("shimmer"), *shimmerRelay);
     rdModDepthAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("rdModDepth"), *rdModDepthRelay);
+    spectralTiltAttachment  = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("spectralTilt"), *spectralTiltRelay);
     consonantLevelAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantLevel"), *consonantLevelRelay);
     consonantToneAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("consonantTone"), *consonantToneRelay);
     sibilanceAttachment     = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("sibilance"), *sibilanceRelay);
@@ -223,6 +226,7 @@ OFormantEditor::~OFormantEditor()
     consonantToneAttachment.reset();
     consonantLevelAttachment.reset();
     vibratoDelayAttachment.reset();
+    spectralTiltAttachment.reset();
     rdModDepthAttachment.reset();
     shimmerAttachment.reset();
     jitterAttachment.reset();
@@ -250,6 +254,7 @@ OFormantEditor::~OFormantEditor()
     consonantToneRelay.reset();
     consonantLevelRelay.reset();
     vibratoDelayRelay.reset();
+    spectralTiltRelay.reset();
     rdModDepthRelay.reset();
     shimmerRelay.reset();
     jitterRelay.reset();
