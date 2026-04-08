@@ -248,6 +248,8 @@ private:
         std::atomic<float>* reverbDamp = nullptr;
         std::atomic<float>* reverbPredelay = nullptr;
         std::atomic<float>* reverbMix = nullptr;
+        std::atomic<float>* reverbMod = nullptr;
+        std::atomic<float>* reverbShimmer = nullptr;
     };
     EffectsParamCache fxCache;
 

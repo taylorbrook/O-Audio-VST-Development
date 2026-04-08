@@ -2,6 +2,23 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.1.0] - 2026-04-07
+
+### Changed
+
+- **FDN plate reverb replaces Freeverb** — Complete reverb engine rewrite for dramatically improved sound quality
+  - 8-channel Feedback Delay Network with Householder matrix mixing (replaces 8-comb + 4-allpass Freeverb)
+  - 4-stage input diffusion with Hadamard mixing for instant high echo density (~2000-4000 echoes/sec)
+  - Optimized coprime delay lengths from DAFx 2023 research for minimal coloration
+  - 2-band frequency-dependent decay: HF damps faster than LF (matching real plate/harp physics)
+  - Multi-LFO delay modulation on 4 of 8 channels for lush, detuned tail without metallic ringing
+
+### Added
+
+- **Mod knob** — Controls delay modulation depth in the reverb tank (0-100%, default 20%). Subtle chorus-like movement that smooths the reverb tail and prevents metallic resonances
+- **Shimmer knob** — Octave-up pitch-shifted feedback into the reverb tank (0-100%, default off). Even small amounts (10-15%) add ethereal bloom that complements the sympathetic resonance engine
+- Updated atmospheric factory presets (Harmonic Dreams, Shimmering Heights, Ethereal Chime, Angelic Choir) with shimmer and increased modulation
+
 ## [2.0.2] - 2026-03-06
 
 ### Added

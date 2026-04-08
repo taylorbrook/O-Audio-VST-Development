@@ -477,6 +477,12 @@ juce::AudioProcessorValueTreeState::ParameterLayout OLyricaAudioProcessor::creat
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "reverbMix", 1 }, "Reverb Mix",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbMod", 1 }, "Reverb Mod",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.2f));
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "reverbShimmer", 1 }, "Reverb Shimmer",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f), 0.0f));
 
     return layout;
 }
@@ -523,6 +529,8 @@ OLyricaAudioProcessor::OLyricaAudioProcessor()
     fxCache.reverbDamp      = parameters.getRawParameterValue("reverbDamp");
     fxCache.reverbPredelay  = parameters.getRawParameterValue("reverbPredelay");
     fxCache.reverbMix       = parameters.getRawParameterValue("reverbMix");
+    fxCache.reverbMod       = parameters.getRawParameterValue("reverbMod");
+    fxCache.reverbShimmer   = parameters.getRawParameterValue("reverbShimmer");
 
     // v1.35.0: Cache crosstalk parameter pointer
     crosstalkParam = parameters.getRawParameterValue("stringCrosstalk");
@@ -919,6 +927,8 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         reverbProcessor.setDamping(fxCache.reverbDamp->load(std::memory_order_relaxed));
         reverbProcessor.setPredelay(fxCache.reverbPredelay->load(std::memory_order_relaxed));
         reverbProcessor.setMix(fxCache.reverbMix->load(std::memory_order_relaxed));
+        reverbProcessor.setMod(fxCache.reverbMod->load(std::memory_order_relaxed));
+        reverbProcessor.setShimmer(fxCache.reverbShimmer->load(std::memory_order_relaxed));
 
         float reverbMixVal = fxCache.reverbMix->load(std::memory_order_relaxed);
         if (reverbMixVal > 0.001f)
@@ -1127,7 +1137,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.3f }, { "reverbDamp", 0.6f },
-        { "reverbPredelay", 0.05f }, { "reverbMix", 0.2f }
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.2f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Fireside Tales", {
@@ -1141,7 +1152,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Medieval Court", {
@@ -1156,7 +1168,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.4f },
-        { "reverbPredelay", 0.15f }, { "reverbMix", 0.25f }
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.25f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Warm Classical", {
@@ -1171,7 +1184,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.72f }, { "reverbDamp", 0.38f },
-        { "reverbPredelay", 0.18f }, { "reverbMix", 0.32f }
+        { "reverbPredelay", 0.18f }, { "reverbMix", 0.32f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Bardic Song", {
@@ -1185,7 +1199,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Nostalgic Whisper", {
@@ -1200,7 +1215,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.65f }, { "reverbDamp", 0.55f },
-        { "reverbPredelay", 0.2f }, { "reverbMix", 0.3f }
+        { "reverbPredelay", 0.2f }, { "reverbMix", 0.3f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     // ========================================================================
@@ -1217,7 +1233,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Folk Ballad", {
@@ -1231,7 +1248,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Gentle Stream", {
@@ -1246,7 +1264,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.5f },
-        { "reverbPredelay", 0.1f }, { "reverbMix", 0.2f }
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.2f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Morning Dew", {
@@ -1260,7 +1279,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Pastoral Scene", {
@@ -1275,7 +1295,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.45f }, { "reverbDamp", 0.35f },
-        { "reverbPredelay", 0.15f }, { "reverbMix", 0.2f }
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.2f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Harmonic Dreams", {
@@ -1291,7 +1312,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.5f },
-        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f },
+        { "reverbMod", 0.3f }, { "reverbShimmer", 0.1f }
     }, {} });
 
     // ========================================================================
@@ -1308,7 +1330,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Articulate Pluck", {
@@ -1322,7 +1345,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Concert Grand", {
@@ -1337,7 +1361,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.54f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.55f }, { "reverbDamp", 0.4f },
-        { "reverbPredelay", 0.12f }, { "reverbMix", 0.22f }
+        { "reverbPredelay", 0.12f }, { "reverbMix", 0.22f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Modern Classic", {
@@ -1351,7 +1376,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Silver Strings", {
@@ -1365,7 +1391,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusRate", 0.06f }, { "chorusDepth", 0.25f }, { "chorusMix", 0.12f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Pedal Technique", {
@@ -1380,7 +1407,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.45f },
-        { "reverbPredelay", 0.1f }, { "reverbMix", 0.18f }
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.18f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     // ========================================================================
@@ -1397,7 +1425,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Precision Touch", {
@@ -1411,7 +1440,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Extended Range", {
@@ -1425,7 +1455,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Studio Session", {
@@ -1439,7 +1470,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.54f }, { "eqHighGain", 0.56f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Clean Articulation", {
@@ -1453,7 +1485,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Harmonic Purity", {
@@ -1469,7 +1502,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.4f }, { "reverbDamp", 0.3f },
-        { "reverbPredelay", 0.05f }, { "reverbMix", 0.18f }
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.18f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     // ========================================================================
@@ -1486,7 +1520,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Bell Tones", {
@@ -1500,7 +1535,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.58f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Orchestral Ring", {
@@ -1515,7 +1551,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.4f },
-        { "reverbPredelay", 0.15f }, { "reverbMix", 0.22f }
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.22f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Shimmering Heights", {
@@ -1529,7 +1566,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusRate", 0.04f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Warm Metallic", {
@@ -1543,7 +1581,9 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbSize", 0.7f }, { "reverbDamp", 0.35f },
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.3f },
+        { "reverbMod", 0.35f }, { "reverbShimmer", 0.15f }
     }, {} });
 
     presets.push_back({ "Ethereal Chime", {
@@ -1558,7 +1598,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.55f }, { "reverbDamp", 0.45f },
-        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f },
+        { "reverbMod", 0.3f }, { "reverbShimmer", 0.12f }
     }, {} });
 
     // ========================================================================
@@ -1576,7 +1617,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.45f }, { "reverbDamp", 0.3f },
-        { "reverbPredelay", 0.05f }, { "reverbMix", 0.2f }
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.2f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Fragile Beauty", {
@@ -1590,7 +1632,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Ice Palace", {
@@ -1605,7 +1648,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.75f }, { "reverbDamp", 0.25f },
-        { "reverbPredelay", 0.2f }, { "reverbMix", 0.3f }
+        { "reverbPredelay", 0.2f }, { "reverbMix", 0.3f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Winter Bells", {
@@ -1620,7 +1664,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.5f }, { "reverbDamp", 0.35f },
-        { "reverbPredelay", 0.1f }, { "reverbMix", 0.22f }
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.22f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Delicate Touch", {
@@ -1634,7 +1679,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Harmonic Prism", {
@@ -1649,7 +1695,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusRate", 0.05f }, { "chorusDepth", 0.3f }, { "chorusMix", 0.15f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     // ========================================================================
@@ -1666,7 +1713,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Mystical Glow", {
@@ -1681,7 +1729,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.65f }, { "reverbDamp", 0.5f },
-        { "reverbPredelay", 0.15f }, { "reverbMix", 0.28f }
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.28f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Sacred Space", {
@@ -1696,7 +1745,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.8f }, { "reverbDamp", 0.45f },
-        { "reverbPredelay", 0.25f }, { "reverbMix", 0.35f }
+        { "reverbPredelay", 0.25f }, { "reverbMix", 0.35f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Singing Bowls", {
@@ -1711,7 +1761,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.55f },
-        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Meditation", {
@@ -1726,7 +1777,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.7f }, { "reverbDamp", 0.6f },
-        { "reverbPredelay", 0.15f }, { "reverbMix", 0.3f }
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.3f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Angelic Choir", {
@@ -1742,7 +1794,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.65f }, { "reverbDamp", 0.4f },
-        { "reverbPredelay", 0.15f }, { "reverbMix", 0.28f }
+        { "reverbPredelay", 0.15f }, { "reverbMix", 0.28f },
+        { "reverbMod", 0.3f }, { "reverbShimmer", 0.1f }
     }, {} });
 
     // ========================================================================
@@ -1759,7 +1812,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayTime", 0.08f }, { "delayFeedback", 0.35f }, { "delayMix", 0.2f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Plasma Resonance", {
@@ -1774,7 +1828,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayBypass", 0.0f }, { "delayTime", 0.1f }, { "delayFeedback", 0.4f }, { "delayMix", 0.18f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.4f }, { "reverbDamp", 0.3f },
-        { "reverbPredelay", 0.05f }, { "reverbMix", 0.15f }
+        { "reverbPredelay", 0.05f }, { "reverbMix", 0.15f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Electric Dreams", {
@@ -1788,7 +1843,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusRate", 0.08f }, { "chorusDepth", 0.4f }, { "chorusMix", 0.2f },
         { "delayBypass", 0.0f }, { "delayTime", 0.15f }, { "delayFeedback", 0.35f }, { "delayMix", 0.18f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Cosmic Harp", {
@@ -1804,7 +1860,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "delayMode", 1.0f }, { "delayMix", 0.2f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
         { "reverbBypass", 0.0f }, { "reverbSize", 0.6f }, { "reverbDamp", 0.45f },
-        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f }
+        { "reverbPredelay", 0.1f }, { "reverbMix", 0.25f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Neon Glow", {
@@ -1818,7 +1875,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusRate", 0.1f }, { "chorusDepth", 0.35f }, { "chorusMix", 0.18f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     presets.push_back({ "Future Primitive", {
@@ -1832,7 +1890,8 @@ void OLyricaAudioProcessor::initializeFactoryPresets()
         { "chorusBypass", 0.0f }, { "chorusMix", 0.0f },
         { "delayBypass", 0.0f }, { "delayMix", 0.0f },
         { "eqBypass", 0.0f }, { "eqLowGain", 0.5f }, { "eqMidGain", 0.5f }, { "eqHighGain", 0.5f },
-        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f }
+        { "reverbBypass", 0.0f }, { "reverbMix", 0.0f },
+        { "reverbMod", 0.2f }, { "reverbShimmer", 0.0f }
     }, {} });
 
     // Initialize all presets and write version marker

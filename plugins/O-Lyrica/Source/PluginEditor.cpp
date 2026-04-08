@@ -101,6 +101,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
     reverbDampRelay = std::make_unique<juce::WebSliderRelay>("reverbDamp");
     reverbPredelayRelay = std::make_unique<juce::WebSliderRelay>("reverbPredelay");
     reverbMixRelay = std::make_unique<juce::WebSliderRelay>("reverbMix");
+    reverbModRelay = std::make_unique<juce::WebSliderRelay>("reverbMod");
+    reverbShimmerRelay = std::make_unique<juce::WebSliderRelay>("reverbShimmer");
     delayModeRelay = std::make_unique<juce::WebComboBoxRelay>("delayMode");
     chorusBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("chorusBypass");
     delayBypassRelay = std::make_unique<juce::WebToggleButtonRelay>("delayBypass");
@@ -852,6 +854,8 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
             .withOptionsFrom(*reverbDampRelay)
             .withOptionsFrom(*reverbPredelayRelay)
             .withOptionsFrom(*reverbMixRelay)
+            .withOptionsFrom(*reverbModRelay)
+            .withOptionsFrom(*reverbShimmerRelay)
             .withOptionsFrom(*delayModeRelay)
             .withOptionsFrom(*chorusBypassRelay)
             .withOptionsFrom(*delayBypassRelay)
@@ -1027,6 +1031,10 @@ OLyricaAudioProcessorEditor::OLyricaAudioProcessorEditor(OLyricaAudioProcessor& 
         *apvts.getParameter("reverbPredelay"), *reverbPredelayRelay, nullptr);
     reverbMixAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("reverbMix"), *reverbMixRelay, nullptr);
+    reverbModAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbMod"), *reverbModRelay, nullptr);
+    reverbShimmerAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("reverbShimmer"), *reverbShimmerRelay, nullptr);
     delayModeAttachment = std::make_unique<juce::WebComboBoxParameterAttachment>(
         *apvts.getParameter("delayMode"), *delayModeRelay, nullptr);
     chorusBypassAttachment = std::make_unique<juce::WebToggleButtonParameterAttachment>(

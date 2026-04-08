@@ -121,6 +121,8 @@ private:
     std::unique_ptr<juce::WebSliderRelay> reverbDampRelay;
     std::unique_ptr<juce::WebSliderRelay> reverbPredelayRelay;
     std::unique_ptr<juce::WebSliderRelay> reverbMixRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbModRelay;
+    std::unique_ptr<juce::WebSliderRelay> reverbShimmerRelay;
     std::unique_ptr<juce::WebComboBoxRelay> delayModeRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> chorusBypassRelay;
     std::unique_ptr<juce::WebToggleButtonRelay> delayBypassRelay;
@@ -210,6 +212,8 @@ private:
     std::unique_ptr<juce::WebSliderParameterAttachment> reverbDampAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> reverbPredelayAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> reverbMixAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbModAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> reverbShimmerAttachment;
     std::unique_ptr<juce::WebComboBoxParameterAttachment> delayModeAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> chorusBypassAttachment;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> delayBypassAttachment;

@@ -662,11 +662,13 @@ function initializeEffects() {
             { id: 'eqHighGain', label: 'High' },
         ]);
 
-        // Reverb
+        // Reverb (v2.1.0: FDN plate reverb with mod + shimmer)
         populateFxKnobs('reverb-knobs', [
             { id: 'reverbSize', label: 'Size' },
             { id: 'reverbDamp', label: 'Damp' },
             { id: 'reverbPredelay', label: 'Pre-dly' },
+            { id: 'reverbMod', label: 'Mod' },
+            { id: 'reverbShimmer', label: 'Shimmer' },
             { id: 'reverbMix', label: 'Mix' },
         ]);
 
@@ -686,6 +688,8 @@ function initializeEffects() {
         const reverbDampState     = Juce.getSliderState('reverbDamp');
         const reverbPredelayState = Juce.getSliderState('reverbPredelay');
         const reverbMixState      = Juce.getSliderState('reverbMix');
+        const reverbModState      = Juce.getSliderState('reverbMod');
+        const reverbShimmerState  = Juce.getSliderState('reverbShimmer');
         const chorusBypassState   = Juce.getToggleState('chorusBypass');
         const delayBypassState    = Juce.getToggleState('delayBypass');
         const eqBypassState       = Juce.getToggleState('eqBypass');
@@ -705,6 +709,8 @@ function initializeEffects() {
         setupFxKnob('reverbSize',      reverbSizeState,     0, 100, '%', v => Math.round(v));
         setupFxKnob('reverbDamp',      reverbDampState,     0, 100, '%', v => Math.round(v));
         setupFxKnob('reverbPredelay',  reverbPredelayState, 0, 200, ' ms', v => Math.round(v));
+        setupFxKnob('reverbMod',       reverbModState,      0, 100, '%', v => Math.round(v));
+        setupFxKnob('reverbShimmer',   reverbShimmerState,  0, 100, '%', v => Math.round(v));
         setupFxKnob('reverbMix',       reverbMixState,      0, 100, '%', v => Math.round(v));
 
         // --- Delay mode dropdown ---
