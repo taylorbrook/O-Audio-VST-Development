@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./handoff-3-to-4.schema.json",
+  "$id": "handoff-3-to-4.schema.json",
   "title": "Stage 3 to 4 Handoff",
   "description": "GUI to Polish stage transition handoff",
   "type": "object",
@@ -38,7 +38,7 @@
     "decisions": {
       "type": "array",
       "items": {
-        "$ref": "./decision-entry.schema.json"
+        "$ref": "decision-entry.schema.json"
       },
       "minItems": 0,
       "description": "Decisions made during GUI stage"

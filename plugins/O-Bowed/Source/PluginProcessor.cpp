@@ -152,6 +152,40 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBowedAudioProcessor::create
         0
     ));
 
+    // ========== Advanced Physics (4) ==========
+
+    // SYMPATHETIC_DECAY - How long sympathetic strings ring (loss coefficient)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "sympatheticDecay", 1 },
+        "Sympathetic Decay",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
+    // BODY_AMOUNT - Dry/wet blend of body resonator
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bodyAmount", 1 },
+        "Body Amount",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.6f
+    ));
+
+    // STRING_GAUGE - String wave impedance (thin/bright to thick/dark)
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "stringGauge", 1 },
+        "String Gauge",
+        juce::NormalisableRange<float>(0.1f, 2.0f, 0.01f, 0.5f),
+        0.5f
+    ));
+
+    // BOW_HAIR_STIFFNESS - Bristle stiffness for Enhanced/Quality friction tiers
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "bowHairStiffness", 1 },
+        "Bow Hair Stiffness",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.5f
+    ));
+
     // ========== Output (2) ==========
 
     // WIDTH - Stereo spread of multi-string output
@@ -304,6 +338,10 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     float brightness      = parameters.getRawParameterValue ("brightness")->load();
     float infSustain      = parameters.getRawParameterValue ("infiniteSustain")->load();
     float refPitch        = parameters.getRawParameterValue ("referencePitch")->load();
+    float sympDecay       = parameters.getRawParameterValue ("sympatheticDecay")->load();
+    float bodyAmount      = parameters.getRawParameterValue ("bodyAmount")->load();
+    float stringGauge     = parameters.getRawParameterValue ("stringGauge")->load();
+    float bowHairStiff    = parameters.getRawParameterValue ("bowHairStiffness")->load();
 
     // === 1b. Wire tuning engine ===
     tuningEngine.setMasterTune (static_cast<double> (refPitch));
@@ -368,10 +406,15 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // === 6. Update body resonator ===
     bodyResonator.setMaterial (material);
     bodyResonator.setSize (bodySize);
+    bodyResonator.setBodyAmount (bodyAmount);
 
     // === 7. Update sympathetic engine ===
     sympatheticEngine.setCount (sympatheticCount);
     sympatheticEngine.setAmount (sympatheticAmt);
+    sympatheticEngine.setDecay (sympDecay);
+
+    // === 7b. Wire string gauge to drone friction models ===
+    droneEngine.setStringGauge (stringGauge);
 
     // Collect fundamentals from active voices for sympathetic tuning
     float fundamentals[16];
@@ -417,10 +460,29 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         auto symp = sympatheticEngine.processSample (excitation);
         leftData[i]  += symp.left;
         rightData[i] += symp.right;
+
+        // DC blocker: y[n] = x[n] - x[n-1] + R * y[n-1], R = 0.9995
+        constexpr float R = 0.9995f;
+        float xL = leftData[i];
+        float xR = rightData[i];
+        leftData[i]  = xL - dcBlockX[0] + R * dcBlockY[0];
+        rightData[i] = xR - dcBlockX[1] + R * dcBlockY[1];
+        dcBlockX[0] = xL;  dcBlockY[0] = leftData[i];
+        dcBlockX[1] = xR;  dcBlockY[1] = rightData[i];
     }
 
     // === 9. Stereo width ===
     stereoWidthProcessor.processBlock (buffer, width);
+
+    // === 10. Master output gain ===
+    float outputLevel = parameters.getRawParameterValue ("outputLevel")->load();
+    buffer.applyGain (juce::Decibels::decibelsToGain (outputLevel));
+
+    // === 11. Safety limiter ===
+    for (int ch = 0; ch < buffer.getNumChannels(); ++ch)
+        juce::FloatVectorOperations::clip (buffer.getWritePointer (ch),
+                                           buffer.getReadPointer (ch),
+                                           -2.0f, 2.0f, buffer.getNumSamples());
 }
 
 juce::AudioProcessorEditor* OBowedAudioProcessor::createEditor()

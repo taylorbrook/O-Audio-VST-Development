@@ -1,5 +1,19 @@
 # O-Reed Changelog
 
+## v1.0.6 (2026-04-07)
+
+### Fixed
+
+- **Silent output from voice DSP** -- four interacting bugs prevented the reed model from producing audible sound:
+  1. **Reed force unit mismatch**: `dp * A_reed` used total force (N) but stiffness/damping/mass params are per-unit-area. Removed `A_reed` multiplier so pressure (Pa) drives the reed directly.
+  2. **Reed force sign inversion**: `+dp` opened the reed under pressure (wrong). Changed to `-dp` so positive mouth pressure closes the reed, enabling negative-resistance self-oscillation.
+  3. **Numerical instability**: explicit Euler integration diverged because damping rate (~270 kHz) >> sample rate (~88 kHz). Replaced with semi-implicit Euler (implicit damping) for unconditional stability.
+  4. **Startup deadlock**: hard reed closure (`S_opening = max(x+H, 0)`) gave zero flow when closed, preventing bore excitation. Added 0.5% soft minimum opening for startup leakage.
+- **Mouth pressure overdriving reed**: fixed 12000 Pa scaling (3x the reed's closure pressure) which permanently overblew the reed. Now scales to `reedModel.getClosurePressure()` so the reed operates in the self-oscillation regime at any parameter setting.
+- **Output normalization**: removed impedance-based normalization (`1/2.67e6`) that crushed signal by ~5000x. Replaced with `1/500` matching O-Wind/O-Bowed approach.
+- **Radiation filter killing fundamental**: output was taken from highpass-filtered bore radiation (3400 Hz cutoff), attenuating the fundamental by ~22 dB. Now uses bore pressure at reed (full spectrum), consistent with other physical model plugins.
+- **Turbulence seeding**: added 2% breath-proportional noise to seed bore resonance during reed closure.
+
 ## v1.0.5 (2026-04-07)
 
 ### Fixed

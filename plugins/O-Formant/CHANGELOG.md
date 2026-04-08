@@ -2,6 +2,15 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.12.1] - 2026-04-07
+
+### Changed
+- **Consonant Level parameter range doubled** — Extended from 0.0–1.0 to 0.0–2.0 so consonants can be mixed louder. At max (2.0), consonant noise is twice the previous maximum amplitude. Existing presets (all ≤ 0.8) load unchanged. Signal path protected by per-voice `tanh()` soft-clip and brickwall limiter.
+
+### Technical Notes
+- `consonantLevel` NormalisableRange max changed from 1.0f to 2.0f in APVTS layout
+- No new parameters (32 total unchanged), no breaking changes — stored parameter values remain valid
+
 ## [1.12.0] - 2026-04-07
 
 ### Added

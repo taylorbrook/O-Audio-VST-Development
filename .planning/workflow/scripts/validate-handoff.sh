@@ -138,6 +138,7 @@ else
         # Run from schema directory for proper resolution
         if ! (cd "$SCHEMA_DIR" && npx --yes ajv-cli validate \
             --spec=draft2020 \
+            --strict=false \
             -s "$SCHEMA_BASENAME" \
             -d "$HANDOFF_FILE" \
             -r "decision-entry.schema.json" 2>&1); then
@@ -161,7 +162,7 @@ echo "Checking artifact existence..."
 # Determine plugin directory (handoff is at plugins/NAME/.planning/stages/X-stage/HANDOFF.json)
 # Go up from HANDOFF.json location to get plugin root
 HANDOFF_DIR=$(dirname "$HANDOFF_FILE")
-PLUGIN_DIR=$(cd "$HANDOFF_DIR/../.." && pwd)
+PLUGIN_DIR=$(cd "$HANDOFF_DIR/../../.." && pwd)
 
 # Extract artifacts where exists=true
 MISSING_ARTIFACTS=()

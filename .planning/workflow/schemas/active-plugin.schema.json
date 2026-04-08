@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./active-plugin.schema.json",
+  "$id": "active-plugin.schema.json",
   "title": "Active Plugin",
   "description": "Current plugin focus state for session tracking",
   "type": "object",

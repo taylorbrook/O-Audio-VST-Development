@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./critic-report.schema.json",
+  "$id": "critic-report.schema.json",
   "title": "Critic Report",
   "description": "Base schema for domain-specific critic feedback reports with numeric scoring",
   "type": "object",

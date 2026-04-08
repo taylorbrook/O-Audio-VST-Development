@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./decision-entry.schema.json",
+  "$id": "decision-entry.schema.json",
   "title": "Decision Entry",
   "description": "Reusable schema for decision audit trail entries in handoff documents",
   "type": "object",

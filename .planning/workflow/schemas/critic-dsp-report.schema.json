@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./critic-dsp-report.schema.json",
+  "$id": "critic-dsp-report.schema.json",
   "title": "DSP Critic Report",
   "description": "DSP domain critic feedback with real-time safety, buffer handling, and parameter integration scoring. Extends critic-report.schema.json with DSP-specific scoring categories.",
   "type": "object",

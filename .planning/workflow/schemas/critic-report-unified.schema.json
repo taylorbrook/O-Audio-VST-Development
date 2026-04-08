@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./critic-report-unified.schema.json",
+  "$id": "critic-report-unified.schema.json",
   "title": "Unified Critic Report",
   "description": "Merged output from multiple domain critics, sorted by severity, with progression gate decision",
   "type": "object",

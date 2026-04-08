@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./checkpoint.schema.json",
+  "$id": "checkpoint.schema.json",
   "title": "Checkpoint",
   "description": "Task-level checkpoint for session resume and handoff context preservation",
   "type": "object",

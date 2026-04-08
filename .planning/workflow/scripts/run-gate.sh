@@ -498,7 +498,8 @@ if [ "$CRITICAL_PASSED" = true ]; then
 
     if [ "$SKIP_REVIEW" = true ]; then
         echo -e "${YELLOW}Code review skipped (--skip-review)${NC}"
-        read -p "Justification for skipping review: " SKIP_JUSTIFICATION
+        SKIP_JUSTIFICATION=""
+        read -p "Justification for skipping review: " SKIP_JUSTIFICATION || true
         if [ -z "$SKIP_JUSTIFICATION" ]; then
             SKIP_JUSTIFICATION="No justification provided"
         fi

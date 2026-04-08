@@ -38,6 +38,9 @@ public:
 
         // Reset vibrato
         vibratoPhase = 0.0f;
+
+        // Reset flutter tongue
+        flutterPhase = 0.0f;
     }
 
     void reset()
@@ -48,6 +51,7 @@ public:
         envelopeIncrement = 0.0f;
         vibratoPhase = 0.0f;
         chiffLevel = 0.0f;
+        flutterPhase = 0.0f;
     }
 
     // Called once per block from voice
@@ -58,6 +62,8 @@ public:
     void setVibratoDepth (float depth)      { vibratoDepth = depth; }
     void setJetAmplification (float mu)      { jetAmplification = mu; }
     void setAttackChiff (float chiff)         { attackChiffParam = chiff; }
+    void setFlutterTongue (float amount)      { flutterTongueParam = amount; }
+    void setFlutterRate (float rateHz)        { flutterRateParam = rateHz; flutterRateJittered = rateHz; }
 
     // Start note: begin attack envelope ramp + chiff transient
     // attackTimeScale: per-note humanization multiplier on attack duration (+/-20%)
@@ -125,6 +131,26 @@ public:
 
         // Breath pressure with envelope and vibrato
         float effectivePressure = breathPressureParam * breathEnvelope * vibratoMod;
+
+        // Flutter tongue: AM modulation of breath pressure
+        if (flutterTongueParam > 0.0f && sampleRate > 0.0)
+        {
+            float flutterMod = 1.0f - flutterTongueParam
+                              + flutterTongueParam * (0.5f + 0.5f * std::sin (flutterPhase));
+            effectivePressure *= flutterMod;
+
+            float flutterPhaseInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
+                                                          * flutterRateJittered / sampleRate);
+            flutterPhase += flutterPhaseInc;
+            if (flutterPhase > juce::MathConstants<float>::twoPi)
+            {
+                flutterPhase -= juce::MathConstants<float>::twoPi;
+                // Per-cycle rate randomization: +/-5% for naturalism
+                flutterRateJittered = flutterRateParam
+                    * (1.0f + (noiseRng.nextFloat() * 2.0f - 1.0f) * 0.05f);
+            }
+        }
+
         effectivePressure = juce::jlimit (0.0f, 1.0f, effectivePressure);
 
         // Bernoulli: jet velocity ~ pressure^1.5
@@ -220,6 +246,12 @@ private:
 
     // Vibrato LFO
     float vibratoPhase = 0.0f;
+
+    // Flutter tongue state
+    float flutterTongueParam = 0.0f;
+    float flutterRateParam = 22.0f;
+    float flutterRateJittered = 22.0f;  // per-cycle jittered rate
+    float flutterPhase = 0.0f;
 
     // Noise
     juce::Random noiseRng;

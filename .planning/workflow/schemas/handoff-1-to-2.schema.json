@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./handoff-1-to-2.schema.json",
+  "$id": "handoff-1-to-2.schema.json",
   "title": "Stage 1 to 2 Handoff",
   "description": "Foundation to DSP stage transition handoff",
   "type": "object",
@@ -38,7 +38,7 @@
     "decisions": {
       "type": "array",
       "items": {
-        "$ref": "./decision-entry.schema.json"
+        "$ref": "decision-entry.schema.json"
       },
       "minItems": 0,
       "description": "Decisions made during foundation stage"

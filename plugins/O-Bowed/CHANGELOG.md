@@ -7,6 +7,7 @@ All notable changes to O-Bowed will be documented in this file.
 ### Fixed
 - Critical waveguide scattering junction bug: outgoing waves were pushed back into the same delay line they came from instead of crossing to the opposite side, causing incorrect wave propagation in both `processSample()` and `writeJunction()`
 - Bridge output now correctly reads from nut reflection (wave traveling toward bridge)
+- Critical sustained oscillation failure: bow injection was added to BOTH outgoing delay lines (common-mode), causing the termination reflections to cancel the injection after each round trip — only a transient click was audible. Fixed by injecting only into the bridge delay line (one-sided injection), which breaks the cancellation and allows energy to accumulate across round trips
 
 ## [1.0.1] - 2026-04-06
 

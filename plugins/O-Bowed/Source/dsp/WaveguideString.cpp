@@ -119,12 +119,19 @@ float WaveguideString::processSample (float v_bow, float F_bow,
     // Step 6: Compute injected velocity
     float newVelocity = v_delta * rho;
 
-    // Step 7: Write outgoing waves into both delay lines (cross-feed)
-    bridgeDelay.pushSample (0, nutReflection + newVelocity);
-    neckDelay.pushSample (0, bridgeReflection + newVelocity);
+    // Step 7: Write outgoing waves into delay lines (one-sided injection)
+    // In a round-trip delay architecture, injecting into BOTH delays causes
+    // the common-mode injection to cancel after the termination reflections
+    // return. Injecting only into the bridge delay breaks this cancellation
+    // and allows sustained oscillation. The wave naturally propagates to the
+    // nut side via cross-feed.
+    float toBridge = juce::jlimit (-1.5f, 1.5f, nutReflection + newVelocity);
+    float toNeck = juce::jlimit (-1.5f, 1.5f, bridgeReflection);
+    bridgeDelay.pushSample (0, toBridge);
+    neckDelay.pushSample (0, toNeck);
 
     // Step 8: Output from bridge end
-    float output = nutReflection + newVelocity;
+    float output = toBridge;
 
     // Energy tracking for voice cleanup
     energyEstimate = 0.999f * energyEstimate + 0.001f * std::abs (output);
@@ -188,12 +195,14 @@ float WaveguideString::writeJunction (float rho, float v_delta, const JunctionSt
     // Step 6: Compute injected velocity
     float newVelocity = v_delta * rho;
 
-    // Step 7: Write outgoing waves into both delay lines (cross-feed)
-    bridgeDelay.pushSample (0, state.nutReflection + newVelocity);
-    neckDelay.pushSample (0, state.bridgeReflection + newVelocity);
+    // Step 7: Write outgoing waves into delay lines (one-sided injection)
+    float toBridge = juce::jlimit (-1.5f, 1.5f, state.nutReflection + newVelocity);
+    float toNeck = juce::jlimit (-1.5f, 1.5f, state.bridgeReflection);
+    bridgeDelay.pushSample (0, toBridge);
+    neckDelay.pushSample (0, toNeck);
 
     // Step 8: Output from bridge end
-    float output = state.nutReflection + newVelocity;
+    float output = toBridge;
 
     // Energy tracking for voice cleanup
     energyEstimate = 0.999f * energyEstimate + 0.001f * std::abs (output);

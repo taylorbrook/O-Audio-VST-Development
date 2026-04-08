@@ -1,0 +1,83 @@
+{
+  "$schema": "../../../.planning/workflow/schemas/handoff-2-to-3.schema.json",
+  "schemaVersion": "1.0.0",
+  "plugin": "O-Wind",
+  "timestamp": "2026-04-05T12:00:00Z",
+  "summary": "Complete jet-drive waveguide flute physical model with 8 presets, impossible physics, tone holes, and full MIDI/MPE support.",
+  "stateSnapshot": {
+    "stage": "2-dsp",
+    "phase": "complete",
+    "dspComplexity": 8,
+    "realtimeSafe": true,
+    "source": [
+      "VERIFICATION.md",
+      "SUMMARY.md"
+    ]
+  },
+  "artifacts": {
+    "required": [
+      { "path": "Source/PluginProcessor.h", "exists": true, "type": "header", "note": "Main processor with 8-voice synth, MIDI/MPE, oversampling" },
+      { "path": "Source/PluginProcessor.cpp", "exists": true, "type": "implementation", "note": "processBlock, prepareToPlay, APVTS layout (16 params)" },
+      { "path": "Source/FluteSynthVoice.h", "exists": true, "type": "header", "note": "Per-voice DSP: jet exciter, bore waveguide, 2x oversampling" },
+      { "path": "Source/FluteSynthVoice.cpp", "exists": true, "type": "implementation", "note": "renderNextBlock with full physical model loop" },
+      { "path": "Source/FluteSynthSound.h", "exists": true, "type": "header", "note": "SynthesiserSound for all MIDI channels" },
+      { "path": "Source/DSP/JetExciter.h", "exists": true, "type": "header", "note": "Breath pressure p^1.5, turbulence noise, vibrato LFO" },
+      { "path": "Source/DSP/JetNonlinearity.h", "exists": true, "type": "header", "note": "tanh saturation for jet wavefront" },
+      { "path": "Source/DSP/DCBlocker.h", "exists": true, "type": "header", "note": "DC blocker in feedback loop (0.995 coefficient)" },
+      { "path": "Source/DSP/BoreWaveguide.h", "exists": true, "type": "header", "note": "Bidirectional Thiran allpass delay, end reflection, radiation filter" },
+      { "path": "Source/DSP/InstrumentPresets.h", "exists": true, "type": "header", "note": "8 presets: Concert Flute, Shakuhachi, Bansuri, Native Am., Recorder, Pan Flute, Piccolo, Ocarina" },
+      { "path": "Source/DSP/StereoWidth.h", "exists": true, "type": "header", "note": "Allpass decorrelation + mid-side matrix" },
+      { "path": "Source/DSP/SubHarmonics.h", "exists": true, "type": "header", "note": "Asymmetric clipping for sub-harmonic generation" },
+      { "path": "Source/DSP/ToneHoleSystem.h", "exists": true, "type": "header", "note": "Tier 2 Keefe scattering, 8 junctions, half-holing" },
+      { "path": "Source/PluginEditor.h", "exists": true, "type": "header", "note": "Placeholder editor for Stage 3 GUI" },
+      { "path": "Source/PluginEditor.cpp", "exists": true, "type": "implementation", "note": "Placeholder editor" },
+      { "path": "CMakeLists.txt", "exists": true, "type": "config", "note": "Build config with tuning module, WebView2 static linking" }
+    ],
+    "validation": {
+      "allRequiredPresent": true,
+      "checkedAt": "2026-04-05T12:00:00Z"
+    }
+  },
+  "decisions": [
+    {
+      "id": "DSP-001",
+      "decision": "Each voice owns its own Oversampling<float> instance rather than shared post-mix oversampling",
+      "rationale": "Physical model feedback loop needs oversampling inside the loop to prevent aliasing in nonlinear jet processing",
+      "date": "2026-04-05",
+      "alternatives": ["Post-mix oversampling (simpler but aliasing in feedback loop)", "4x oversampling (better quality but CPU heavy for 8 voices)"],
+      "supersedes": null
+    },
+    {
+      "id": "DSP-002",
+      "decision": "Use DelayLine<float, Thiran> for fractional-sample bore delay",
+      "rationale": "Thiran allpass preserves phase accuracy at fractional delays, critical for pitch accuracy in waveguide models",
+      "date": "2026-04-05",
+      "alternatives": ["Lagrange interpolation (less phase-accurate)", "Linear interpolation (cheapest but pitch errors)"],
+      "supersedes": null
+    },
+    {
+      "id": "DSP-003",
+      "decision": "Tier 2 tone holes implemented but enabled=false by default",
+      "rationale": "CPU cost of 8 scattering junctions is significant; enable via preset or UI toggle in Stage 3",
+      "date": "2026-04-05",
+      "alternatives": ["Always enabled (CPU heavy)", "Remove until polish stage (loses flexibility)"],
+      "supersedes": null
+    }
+  ],
+  "contextForNextStage": {
+    "receivingStage": "3-gui",
+    "keyInformation": [
+      "16 APVTS parameters: BREATH_PRESSURE, EMBOUCHURE, OVERBLOW, JET_NOISE, VIBRATO_RATE, VIBRATO_DEPTH, BORE_LENGTH, AIR_COLUMN, INFINITE_SUSTAIN, REVERSED_JET, SUB_HARMONICS, WIDTH, TONE_HOLES_ENABLE, INSTRUMENT_PRESET, TUNING_SYSTEM, REFERENCE_PITCH",
+      "Preset selection via std::atomic<int> currentPresetIndex — needs UI selector",
+      "ToneHoleSystem.enabled defaults false — needs UI toggle or preset-based activation",
+      "CC/MPE mapping: CC2->breath, CC74->embouchure, CC1->vibrato, pitch bend +/-2 semitones",
+      "Build verified: ninja O-Wind_VST3 O-Wind_AU, pluginval strictness 10, auval all pass",
+      "3 impossible physics params (INFINITE_SUSTAIN, REVERSED_JET, SUB_HARMONICS) need prominent UI placement"
+    ],
+    "continueCommand": "/plugin-discuss O-Wind 3-gui",
+    "alternativeCommands": [
+      "/plugin-status O-Wind",
+      "/test O-Wind"
+    ]
+  }
+}

@@ -59,6 +59,11 @@
 - O-Reed: sqrt() in Bernoulli flow requires epsilon guard: sqrt(max(|dp|, 1e-10)) -- zero pressure difference causes denormals and NaN propagation
 - O-Reed: Tone hole scattering junctions cost ~5-10 multiplies each per sample -- use 4 virtual holes + register hole (not full 24-hole clarinet lattice) for production quality at acceptable CPU
 
+- ** SWAM for solos, Spitfire/CSS for sections.\n392\t**Pain points:** SWAM's learning curve. Cost of full woodwind coverage. No non-Western winds for ethnic scoring cues.\n393\t**O-Reed angle:** Quick-
+- Error resolved: {"parentUuid":"34bfe99a-3c4e-4285-af48-eb30a13abdd9","isSidechain":true,"promptId":"c0d08e10-c3a7-41
+- Error resolved: {"parentUuid":"6eb46d25-702e-4c2b-a1c1-33b5137f25e3","isSidechain":true,"promptId":"c0d08e10-c3a7-41
+- Error resolved: {"parentUuid":"6a5c23ae-5cfe-4850-bb12-72a1f56f5fe3","isSidechain":true,"promptId":"c0d08e10-c3a7-41
+
 ## Common Issues
 - WebSearch returns outdated JUCE 6 docs; always verify JUCE API by reading local JUCE source at /Users/taylorbrook/JUCE/modules/
 - JUCE getLatencySamples() is NOT virtual in JUCE 8 -- must use setLatencySamples() instead

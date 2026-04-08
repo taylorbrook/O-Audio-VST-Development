@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./dependencies.schema.json",
+  "$id": "dependencies.schema.json",
   "title": "Plugin Dependencies",
   "description": "Forward dependency declaration for a single plugin",
   "type": "object",

@@ -307,7 +307,9 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         totalDelay *= (1.0f + embouchureDelayOffset);
 
         // Apply humanized pitch vibrato (modulates delay for true frequency vibrato)
-        if (vibratoDepthParam > 0.0f)
+        // and phase-locked tremolo (amplitude modulation)
+        float tremoloGain = 1.0f;
+        if (vibratoDepthParam > 0.0f || vibratoTremoloDepthParam > 0.0f)
         {
             // Onset ramp: linear 0→1 over vibratoOnset ms after noteOn
             float onsetGain = (vibratoOnsetSamples > 0 && samplesSinceNoteOn < vibratoOnsetSamples)
@@ -326,8 +328,18 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             float vibratoShape = std::sin (vibratoPhase)
                                + 0.1f * std::sin (2.0f * vibratoPhase);
 
-            float vibSemitones = vibratoDepthParam * depthScale * onsetGain * vibratoShape;
-            totalDelay *= std::pow (2.0f, -vibSemitones / 12.0f);
+            // Pitch vibrato: modulate bore delay
+            if (vibratoDepthParam > 0.0f)
+            {
+                float vibSemitones = vibratoDepthParam * depthScale * onsetGain * vibratoShape;
+                totalDelay *= std::pow (2.0f, -vibSemitones / 12.0f);
+            }
+
+            // Tremolo: amplitude modulation locked to same vibrato phase
+            // Positive vibratoShape (pitch up) = louder, negative (pitch down) = softer
+            // At max depth (1.0), amplitude varies ±30% (~2.5 dB)
+            if (vibratoTremoloDepthParam > 0.0f)
+                tremoloGain = 1.0f + vibratoTremoloDepthParam * depthScale * onsetGain * vibratoShape * 0.3f;
 
             vibratoPhase += driftedPhaseInc;
             if (vibratoPhase > juce::MathConstants<float>::twoPi)
@@ -381,8 +393,8 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         auto result = boreWaveguide.processSample (dcOut);
         float sample = result.voiceOutput;
 
-        // Apply output gain
-        sample *= outputGainLinear;
+        // Apply output gain and phase-locked tremolo
+        sample *= outputGainLinear * tremoloGain;
 
         // Safety hard-clip
         sample = juce::jlimit (-2.0f, 2.0f, sample);
@@ -494,6 +506,7 @@ void FluteSynthVoice::updateParametersFromAPVTS()
 
     // Pitch vibrato parameters (applied per-sample in render loop)
     vibratoDepthParam = vibratoDepth;
+    vibratoTremoloDepthParam = parameters->getRawParameterValue ("vibratoTremolo")->load();
     vibratoPhaseInc = static_cast<float> (2.0 * juce::MathConstants<double>::pi
                                            * vibratoRate / internalSampleRate);
 
@@ -547,11 +560,18 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     // Output gain (dB to linear)
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
 
-    // Dynamic filter delay compensation: compute phase delay of bore filters
-    // at the current fundamental frequency (replaces static 2.0 sample estimate)
-    // BoreWaveguide sampleRate is already the internal (2x) rate
+    // Dynamic loop delay compensation: account for ALL phase/delay contributions
+    // in the feedback loop beyond the explicit delay lines.
+    // BoreWaveguide sampleRate is already the internal (2x) rate.
     float bendedFreq = currentFrequency * std::pow (2.0f, pitchBendSemitones / 12.0f);
-    filterDelayCompensation = boreWaveguide.getFilterPhaseDelay (bendedFreq);
+    float boreFilterDelay = boreWaveguide.getFilterPhaseDelay (bendedFreq);
+    float dcPhaseDelay = dcBlocker.getPhaseDelay (
+        static_cast<double> (bendedFreq), internalSampleRate);
+
+    // Total compensation = bore filter phase delay (positive, filters lag)
+    //                     + DC blocker phase delay (negative, highpass advances)
+    //                     + 1 implicit sample (feedback read from previous iteration)
+    filterDelayCompensation = boreFilterDelay + dcPhaseDelay + 1.0f;
 
     // Read tone hole toggle from APVTS (stored for future ToneHoleSystem integration)
     // ToneHoleSystem scattering will be wired in a future DSP update

@@ -48,6 +48,7 @@ private:
     // Modulation
     std::unique_ptr<juce::WebSliderRelay> vibratoRateRelay;
     std::unique_ptr<juce::WebSliderRelay> vibratoDepthRelay;
+    std::unique_ptr<juce::WebSliderRelay> vibratoTremoloRelay;
     // Output
     std::unique_ptr<juce::WebSliderRelay> widthRelay;
     std::unique_ptr<juce::WebSliderRelay> outputLevelRelay;
@@ -80,6 +81,7 @@ private:
     // Modulation
     std::unique_ptr<juce::WebSliderParameterAttachment> vibratoRateAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> vibratoDepthAttachment;
+    std::unique_ptr<juce::WebSliderParameterAttachment> vibratoTremoloAttachment;
     // Output
     std::unique_ptr<juce::WebSliderParameterAttachment> widthAttachment;
     std::unique_ptr<juce::WebSliderParameterAttachment> outputLevelAttachment;

@@ -439,6 +439,19 @@
             height: 100%;
         }
 
+        #tuning-container .tuning-panel {
+            --tuning-bg: rgba(245, 230, 211, 0.95);
+            --tuning-border: rgba(139, 115, 85, 0.5);
+            --tuning-text: #3C2F2F;
+            --tuning-text-muted: #8B7355;
+            --tuning-accent: #6B8E4E;
+            --tuning-input-bg: rgba(255, 248, 230, 0.9);
+            --tuning-hover: rgba(107, 142, 78, 0.2);
+            --tuning-active: rgba(107, 142, 78, 0.3);
+            font-family: 'Garamond', 'Times New Roman', serif;
+            height: 100%;
+        }
+
         /* ====================================================================
            Effects Tab (placeholder)
            ==================================================================== */
@@ -585,8 +598,13 @@
                         </div>
                         <div class="knob-control" data-param="vibratoDepth">
                             <div class="knob-wrapper"></div>
-                            <div class="knob-label">Vib Depth</div>
+                            <div class="knob-label">Vib Pitch</div>
                             <div class="knob-value">0.30</div>
+                        </div>
+                        <div class="knob-control" data-param="vibratoTremolo">
+                            <div class="knob-wrapper"></div>
+                            <div class="knob-label">Vib Tremolo</div>
+                            <div class="knob-value">0.00</div>
                         </div>
                         <div class="knob-control" data-param="flutterTongue">
                             <div class="knob-wrapper"></div>
@@ -729,6 +747,7 @@
             endReflection:   { min: -1, max: 1, default: 0.5, unit: '', decimals: 2 },
             vibratoRate:     { min: 2, max: 8, default: 5, unit: ' Hz', decimals: 1 },
             vibratoDepth:    { min: 0, max: 1, default: 0.3, unit: '', decimals: 2 },
+            vibratoTremolo:  { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             flutterTongue:   { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
             flutterRate:     { min: 15, max: 30, default: 22, unit: ' Hz', decimals: 1 },
             growl:           { min: 0, max: 1, default: 0, unit: '', decimals: 2 },
@@ -1133,12 +1152,11 @@
         // ====================================================================
         async function initTuningPanel() {
             try {
-                const module = await import('/js/tuning-panel.js');
-                if (module && module.initTuningPanel) {
-                    module.initTuningPanel(document.getElementById('tuning-container'), Juce);
-                } else if (module && module.default) {
-                    module.default(document.getElementById('tuning-container'), Juce);
-                }
+                const { TuningPanel } = await import('/js/tuning-panel.js');
+                const container = document.getElementById('tuning-container');
+                const tuningPanel = new TuningPanel(container, Juce);
+                await tuningPanel.init();
+                console.log('[Tuning] Panel initialized successfully');
             } catch (err) {
                 console.error('Failed to init tuning panel:', err);
                 document.getElementById('tuning-container').innerHTML =

@@ -133,12 +133,20 @@ juce::AudioProcessorValueTreeState::ParameterLayout OWindAudioProcessor::createP
         "Hz"
     ));
 
-    // VIBRATO_DEPTH - Vibrato modulation depth
+    // VIBRATO_DEPTH - Vibrato pitch modulation depth
     layout.add(std::make_unique<juce::AudioParameterFloat>(
         juce::ParameterID { "vibratoDepth", 1 },
-        "Vibrato Depth",
+        "Vibrato Pitch",
         juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
         0.3f
+    ));
+
+    // VIBRATO_TREMOLO - Amplitude modulation depth locked to vibrato phase
+    layout.add(std::make_unique<juce::AudioParameterFloat>(
+        juce::ParameterID { "vibratoTremolo", 1 },
+        "Vibrato Tremolo",
+        juce::NormalisableRange<float>(0.0f, 1.0f, 0.01f),
+        0.0f
     ));
 
     // VIBRATO_ONSET - Delay before vibrato ramp-in after note-on
@@ -456,6 +464,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.55f) },
         { "vibratoRate",     normalize("vibratoRate", 5.0f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.15f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.15f) },
         { "vibratoOnset",    normalize("vibratoOnset", 300.0f) },
         { "width",           normalize("width", 1.0f) },
         { "formant",         normalize("formant", 0.5f) },
@@ -483,6 +492,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.4f) },
         { "vibratoRate",     normalize("vibratoRate", 4.0f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.25f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.2f) },
         { "vibratoOnset",    normalize("vibratoOnset", 500.0f) },
         { "width",           normalize("width", 0.8f) },
         { "formant",         normalize("formant", 0.5f) },
@@ -498,7 +508,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "instrumentPreset", normalize("instrumentPreset", 1.0f) },
     }, {} });
 
-    // 3. Bansuri
+    // 3. Bansuri (gentle tremolo)
     presets.push_back({ "Bansuri", {
         { "breathPressure",  normalize("breathPressure", 0.5f) },
         { "embouchure",      normalize("embouchure", 0.5f) },
@@ -510,6 +520,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.5f) },
         { "vibratoRate",     normalize("vibratoRate", 5.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.18f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.15f) },
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 1.2f) },
         { "formant",         normalize("formant", 0.5f) },
@@ -537,6 +548,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.35f) },
         { "vibratoRate",     normalize("vibratoRate", 3.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.3f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.25f) },
         { "vibratoOnset",    normalize("vibratoOnset", 400.0f) },
         { "width",           normalize("width", 1.4f) },
         { "formant",         normalize("formant", 0.5f) },
@@ -564,6 +576,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.6f) },
         { "vibratoRate",     normalize("vibratoRate", 5.0f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.08f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.05f) },
         { "vibratoOnset",    normalize("vibratoOnset", 200.0f) },
         { "width",           normalize("width", 0.6f) },
         { "formant",         normalize("formant", 0.5f) },
@@ -591,6 +604,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.3f) },
         { "vibratoRate",     normalize("vibratoRate", 4.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.1f) },
         { "vibratoOnset",    normalize("vibratoOnset", 450.0f) },
         { "width",           normalize("width", 1.5f) },
         { "formant",         normalize("formant", 0.5f) },
@@ -618,6 +632,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.65f) },
         { "vibratoRate",     normalize("vibratoRate", 5.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.12f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.1f) },
         { "vibratoOnset",    normalize("vibratoOnset", 250.0f) },
         { "width",           normalize("width", 0.5f) },
         { "formant",         normalize("formant", 0.5f) },
@@ -645,6 +660,7 @@ void OWindAudioProcessor::initializeFactoryPresets()
         { "endReflection",   normalize("endReflection", 0.35f) },
         { "vibratoRate",     normalize("vibratoRate", 4.5f) },
         { "vibratoDepth",    normalize("vibratoDepth", 0.2f) },
+        { "vibratoTremolo",  normalize("vibratoTremolo", 0.15f) },
         { "vibratoOnset",    normalize("vibratoOnset", 350.0f) },
         { "width",           normalize("width", 0.7f) },
         { "formant",         normalize("formant", 0.5f) },

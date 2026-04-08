@@ -19,50 +19,50 @@ lastUpdated: 2026-04-04
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| FUNC-01 | Bowed string synthesis via digital waveguide + nonlinear friction junction | must | pending | stage-2 |
-| FUNC-02 | Tiered friction model: hyperbolic bow table (core), elasto-plastic bristle (enhanced), thermal rosin (quality) | must | pending | stage-2 |
-| FUNC-03 | Morphable body resonator with Material (membrane-wood-metal-glass) and Size macros | must | pending | stage-2 |
-| FUNC-04 | Configurable 1-4 active bowed strings | must | pending | stage-2 |
-| FUNC-05 | Sympathetic string coupling (0-12 passive waveguide strings) | should | pending | stage-2 |
-| FUNC-06 | Hybrid bow behavior: sustained while held, velocity/CC controls articulation | must | pending | stage-2 |
-| FUNC-07 | Continuous impossible physics knobs (infinite sustain, reversed friction, sub-harmonics) | should | pending | stage-2 |
-| FUNC-08 | Bow noise generator in signal chain | should | pending | stage-2 |
-| FUNC-09 | Bridge filter with Brightness cutoff control | must | pending | stage-2 |
-| FUNC-10 | Instrument presets (violin, cello, viola, bass, erhu, sarangi, nyckelharpa) | should | pending | stage-2 |
-| FUNC-11 | Sound design presets (glass bow, metal drone, impossible strings, breath of strings) | nice | pending | stage-2 |
+| FUNC-01 | Bowed string synthesis via digital waveguide + nonlinear friction junction | must | complete | stage-2 |
+| FUNC-02 | Tiered friction model: hyperbolic bow table (core), elasto-plastic bristle (enhanced), thermal rosin (quality) | must | complete | stage-2 |
+| FUNC-03 | Morphable body resonator with Material (membrane-wood-metal-glass) and Size macros | must | complete | stage-2 |
+| FUNC-04 | Configurable 1-4 active bowed strings | must | complete | stage-2 |
+| FUNC-05 | Sympathetic string coupling (0-12 passive waveguide strings) | should | complete | stage-2 |
+| FUNC-06 | Hybrid bow behavior: sustained while held, velocity/CC controls articulation | must | complete | stage-2 |
+| FUNC-07 | Continuous impossible physics knobs (infinite sustain, reversed friction, sub-harmonics) | should | complete | stage-2 |
+| FUNC-08 | Bow noise generator in signal chain | should | complete | stage-2 |
+| FUNC-09 | Bridge filter with Brightness cutoff control | must | complete | stage-2 |
+| FUNC-10 | Instrument presets (violin, cello, viola, bass, erhu, sarangi, nyckelharpa) | should | complete | stage-4 |
+| FUNC-11 | Sound design presets (glass bow, metal drone, impossible strings, breath of strings) | nice | complete | stage-4 |
 
 ### DSP (DSP)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| DSP-01 | Digital waveguide string model with delay-line topology | must | pending | stage-2 |
-| DSP-02 | Nonlinear friction junction with enhanced hyperbolic bow table | must | pending | stage-2 |
-| DSP-03 | 2x internal oversampling for friction junction stability | must | pending | stage-2 |
-| DSP-04 | Parallel biquad bank body resonator (6-10 sections) | must | pending | stage-2 |
-| DSP-05 | Per-string stereo panning with Width parameter (0-200%) | should | pending | stage-2 |
-| DSP-06 | Zero algorithmic latency (waveguide is causal) | must | pending | stage-2 |
+| DSP-01 | Digital waveguide string model with delay-line topology | must | complete | stage-2 |
+| DSP-02 | Nonlinear friction junction with enhanced hyperbolic bow table | must | complete | stage-2 |
+| DSP-03 | 2x internal oversampling for friction junction stability | must | complete | stage-2 |
+| DSP-04 | Parallel biquad bank body resonator (6-10 sections) | must | complete | stage-2 |
+| DSP-05 | Per-string stereo panning with Width parameter (0-200%) | should | complete | stage-2 |
+| DSP-06 | Zero algorithmic latency (waveguide is causal) | must | complete | stage-2 |
 
 ### Tuning (TUNE)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| TUNE-01 | Scala/TUN file import for custom tuning systems | must | pending | stage-2 |
-| TUNE-02 | MTS-ESP support for real-time retuning from host | must | pending | stage-2 |
-| TUNE-03 | Per-string tuning offset with cent resolution (+/- 2400 cents) | must | pending | stage-2 |
-| TUNE-04 | Adjustable reference pitch (A4 = 220-880 Hz, default 440) | should | pending | stage-2 |
+| TUNE-01 | Scala/TUN file import for custom tuning systems | must | complete | stage-2 |
+| TUNE-02 | MTS-ESP support for real-time retuning from host | must | complete | stage-2 |
+| TUNE-03 | Per-string tuning offset with cent resolution (+/- 2400 cents) | must | complete | stage-2 |
+| TUNE-04 | Adjustable reference pitch (A4 = 220-880 Hz, default 440) | should | complete | stage-2 |
 
 ### UI (UI)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| UI-01 | All parameters accessible and controllable from GUI | must | pending | stage-3 |
-| UI-02 | Visual feedback for bow state (speed, pressure, position) | should | pending | stage-3 |
+| UI-01 | All parameters accessible and controllable from GUI | must | complete | stage-3 |
+| UI-02 | Visual feedback for bow state (speed, pressure, position) | should | complete | stage-3 |
 
 ### Performance (PERF)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | pending | stage-2 |
+| PERF-01 | Real-time safe audio processing (no allocations in processBlock) | must | complete | stage-2 |
 | PERF-02 | CPU per string (core tier) < 2% | should | pending | stage-2 |
 | PERF-03 | CPU total (2 strings + body) < 6% | nice | pending | stage-2 |
 
@@ -70,16 +70,16 @@ lastUpdated: 2026-04-04
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | pending | stage-1 |
-| COMPAT-02 | Full MPE support — per-note pitch bend, pressure (Z), slide (Y) | must | pending | stage-2 |
+| COMPAT-01 | Passes pluginval validation (VST3 and AU) | must | complete | stage-2 |
+| COMPAT-02 | Full MPE support — per-note pitch bend, pressure (Z), slide (Y) | must | complete | stage-2 |
 
 ### Quality (QUAL)
 
 | ID | Description | Priority | Status | Verified At |
 |----|-------------|----------|--------|-------------|
-| QUAL-01 | No audio artifacts at normal parameter ranges | must | pending | stage-2 |
-| QUAL-02 | Stable friction junction across full Schelleng diagram (bow speed x pressure) | nice | pending | stage-2 |
-| QUAL-03 | Smooth parameter transitions without clicks or glitches | nice | pending | stage-2 |
+| QUAL-01 | No audio artifacts at normal parameter ranges | must | complete | stage-2 |
+| QUAL-02 | Stable friction junction across full Schelleng diagram (bow speed x pressure) | nice | complete | stage-2 |
+| QUAL-03 | Smooth parameter transitions without clicks or glitches | nice | complete | stage-2 |
 
 ## Acceptance Criteria Details
 

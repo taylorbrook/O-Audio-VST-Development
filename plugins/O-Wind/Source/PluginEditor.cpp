@@ -41,6 +41,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
     // Modulation
     vibratoRateRelay = std::make_unique<juce::WebSliderRelay>("vibratoRate");
     vibratoDepthRelay = std::make_unique<juce::WebSliderRelay>("vibratoDepth");
+    vibratoTremoloRelay = std::make_unique<juce::WebSliderRelay>("vibratoTremolo");
 
     // Output
     widthRelay = std::make_unique<juce::WebSliderRelay>("width");
@@ -91,6 +92,7 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
             // Modulation
             .withOptionsFrom(*vibratoRateRelay)
             .withOptionsFrom(*vibratoDepthRelay)
+            .withOptionsFrom(*vibratoTremoloRelay)
             // Output
             .withOptionsFrom(*widthRelay)
             .withOptionsFrom(*outputLevelRelay)
@@ -504,6 +506,8 @@ OWindAudioProcessorEditor::OWindAudioProcessorEditor(OWindAudioProcessor& p)
         *apvts.getParameter("vibratoRate"), *vibratoRateRelay, nullptr);
     vibratoDepthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
         *apvts.getParameter("vibratoDepth"), *vibratoDepthRelay, nullptr);
+    vibratoTremoloAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
+        *apvts.getParameter("vibratoTremolo"), *vibratoTremoloRelay, nullptr);
 
     // Output
     widthAttachment = std::make_unique<juce::WebSliderParameterAttachment>(
@@ -544,6 +548,7 @@ OWindAudioProcessorEditor::~OWindAudioProcessorEditor()
     infiniteSustainAttachment.reset();
     outputLevelAttachment.reset();
     widthAttachment.reset();
+    vibratoTremoloAttachment.reset();
     vibratoDepthAttachment.reset();
     vibratoRateAttachment.reset();
     flutterRateAttachment.reset();

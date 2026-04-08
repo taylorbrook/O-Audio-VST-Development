@@ -1,5 +1,52 @@
 # O-Wind Changelog
 
+## [1.11.2] - 2026-04-07
+
+### Fixed — Tuning Module Not Affecting Pitch
+
+Tuning panel changes (reference pitch, temperament presets, Scala files, custom intervals) now correctly affect played notes. Previously, all tuning modifications were immediately overwritten and had no audible effect.
+
+**Root Cause:** `processBlock()` contained a block-time sync that overwrote the TuningEngine state every audio callback with stale APVTS default values (440 Hz / 12-TET). The WebView tuning panel updates the TuningEngine directly via native functions — but the block-time sync clobbered those changes ~1000x/second, making every tuning modification inaudible.
+
+**Fix:** Removed the block-time APVTS→TuningEngine sync from `processBlock()`. The TuningEngine is now the source of truth, updated directly by native functions (UI) and `parameterChanged` listener (automation/presets).
+
+**Files Modified:** PluginProcessor.cpp
+
+## [1.11.1] - 2026-04-07
+
+### Fixed — Waveguide Pitch Tracking Accuracy
+
+MIDI notes now produce correct pitches across the entire range. Previously, played notes were audibly sharp — worst at low pitches (~70 cents at C4) and negligible at high pitches (~3 cents at C6).
+
+**Root Cause:** Two uncompensated delay sources in the waveguide feedback loop:
+1. **Implicit 1-sample feedback delay** — `boreWaveguide.getFeedback()` returns the value computed in the *previous* iteration, adding 1 sample to the loop that was never subtracted from `totalDelay`.
+2. **DC blocker phase advance** — The DC blocker (`y[n] = x[n] - x[n-1] + 0.995*y[n-1]`) has significant frequency-dependent phase advance at audio frequencies relative to the 88.2kHz internal rate (e.g. -5 samples at A4, -14 samples at C4), but was excluded from `getFilterPhaseDelay()`.
+
+**Fix:** Extended the dynamic loop delay compensation in `updateParametersFromAPVTS()` to include the DC blocker's phase delay and the implicit 1-sample feedback delay alongside the existing bore filter compensation. Added `DCBlocker::getPhaseDelay()` method for frequency-dependent phase delay calculation.
+
+**Files Modified:** DSP/DCBlocker.h, FluteSynthVoice.cpp
+
+## [1.11.0] - 2026-04-07
+
+### Added — Phase-Locked Vibrato Tremolo
+
+Amplitude modulation locked to vibrato LFO phase — replicates the natural coupling between pitch and loudness variation heard in real flute playing. Highest pitch = loudest, lowest pitch = softest.
+
+**New APVTS Parameter:**
+- `vibratoTremolo` (0.0-1.0, default 0.0) — tremolo depth, at max produces ±2.5 dB amplitude variation
+
+**DSP Implementation (FluteSynthVoice — renderNextBlock):**
+- Reuses the existing vibrato LFO signal (including onset ramp, rate drift, depth drift, and asymmetric shape)
+- Computes `tremoloGain = 1.0 + depth * depthScale * onsetGain * vibratoShape * 0.3` per sample
+- Applied to output after outputGainLinear, before safety clip
+- Zero CPU cost when vibratoTremolo = 0
+
+**UI:** Existing "Vib Depth" knob renamed to "Vib Pitch" for clarity. New "Vib Tremolo" knob added to Expression section.
+
+**Factory Presets:** All 8 presets updated with musically appropriate tremolo depths (0.05-0.25).
+
+**Files Modified:** PluginProcessor.cpp, FluteSynthVoice.h, FluteSynthVoice.cpp, PluginEditor.h, PluginEditor.cpp, Resources/ui/index.html
+
 ## [1.10.1] - 2026-04-07
 
 ### Fixed — Air Column Parameter No Longer Bends Pitch

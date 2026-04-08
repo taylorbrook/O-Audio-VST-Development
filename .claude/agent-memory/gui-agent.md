@@ -27,5 +27,24 @@
 - WebView resource loading fails silently -- if withResourceProvider returns empty Optional for a path, the page shows "Frame load interrupted" with no console error
 - JUCE WebBrowserComponent options must be set before construction -- cannot change WebView2 options after the component is created
 
+- O-Formant: 21 relays (20 slider + 1 toggle) works fine with constructor-body init and explicit destructor reset() -- no issues scaling beyond 10 relays
+- O-Formant: For XY pad canvas in WebView, use style.width/height in px from parent clientWidth/clientHeight, then canvas.width/height = style * dpr for backing store -- avoids replaced element sizing issues
+- O-Formant: Knob drag sensitivity of 200px vertical travel for 0-1 range feels natural for 55px diameter knobs
+
+- O-Wind: TuningExporter API is `toHTML(engine, pluginName)` not `exportHTML(engine)` -- check actual method signatures before copying from O-Bells
+- O-Wind: AudioParameterInt for instrumentPreset (0-7) can be bound as WebSliderRelay -- normalize as idx/7 for UI, round(norm*7) for readback
+- O-Wind: When replacing std::atomic<int> currentPresetIndex with APVTS param, voice reads from getRawParameterValue() each block -- no pointer needed
+- O-Wind: Lambda capturing shared_ptr<FileChooser> + complete callback requires explicit function type `std::function<void(juce::var)>` not `auto complete` for JUCE native function registration
+
+- O-Bowed: 23 relays (21 slider + 2 combo) works fine with constructor-body init -- no issues at scale
+- O-Bowed: Canvas visualizations in WebView -- use style.width/height from parent clientWidth/clientHeight, then canvas.width/height = style * dpr for DPR-aware rendering
+- O-Bowed: getVisualizationState native function returning JSON string is efficient for 15Hz polling -- parse on JS side with JSON.parse()
+- O-Bowed: Schelleng diagram: P_min proportional to v_B/(beta^2 * Z), P_max proportional to v_B/(beta * Z) -- simplified Helmholtz boundary model
+- O-Bowed: For conditional visibility of controls (stringTuning knobs based on stringCount), use classList.add/remove('hidden') triggered by valueChangedEvent listener
+
+- O-Reed: 35 relays (28 slider + 6 combo + 1 toggle) with XY pad (boreCharacter x doubleReed) -- use setPointerCapture on the pad element and sliderDragStarted/Ended on both axes simultaneously for smooth 2D dragging
+- O-Reed: For skewed NormalisableRange params (toneHoleCutoff skew=0.3), display formatting must invert the skew: rawValue = min + pow(norm, 1/skew) * (max - min) -- otherwise displayed values won't match DAW automation readout
+- O-Reed: Collapsible sections with max-height transition work well for 28+ knobs -- keeps instrument panel scannable without overwhelming the user
+
 ## Last Updated
-2026-03-07 (O-Gain Stage 3)
+2026-04-06 (O-Reed Stage 3)

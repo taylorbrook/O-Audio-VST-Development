@@ -82,6 +82,7 @@ private:
     float vibratoPhase = 0.0f;
     float vibratoPhaseInc = 0.0f;
     float vibratoDepthParam = 0.0f;
+    float vibratoTremoloDepthParam = 0.0f;  // amplitude mod locked to vibrato phase
 
     // Vibrato humanization
     float vibratoOnsetMs = 300.0f;
@@ -143,6 +144,12 @@ private:
     float embouchureDelayOffset = 0.0f;   // +/-1% of bore delay (timbre shift)
     float strouhalFreqScale = 1.0f;       // +/-10% of Strouhal center freq
     float vibratoOnsetOffsetMs = 0.0f;    // +/-50ms of vibrato onset delay
+
+    // Growl: secondary low-frequency sawtooth oscillator modulating bore feedback
+    float growlParam = 0.0f;              // cached from APVTS (0 = off, 1 = full)
+    float growlPhase = 0.0f;              // sawtooth phase [0, 1)
+    float growlPhaseInc = 0.0f;           // phase increment per oversampled sample
+    float growlFreq = 90.0f;             // randomized 70-120 Hz per note
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR (FluteSynthVoice)
 };

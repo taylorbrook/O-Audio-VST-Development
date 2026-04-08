@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./critic-ui-report.schema.json",
+  "$id": "critic-ui-report.schema.json",
   "title": "UI Critic Report",
   "description": "UI domain critic feedback with polish and consistency scoring. Extends critic-report.schema.json with UI-specific scoring categories.",
   "type": "object",

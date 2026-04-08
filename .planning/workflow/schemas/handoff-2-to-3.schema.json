@@ -1,6 +1,6 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
-  "$id": "./handoff-2-to-3.schema.json",
+  "$id": "handoff-2-to-3.schema.json",
   "title": "Stage 2 to 3 Handoff",
   "description": "DSP to GUI stage transition handoff",
   "type": "object",
@@ -38,7 +38,7 @@
     "decisions": {
       "type": "array",
       "items": {
-        "$ref": "./decision-entry.schema.json"
+        "$ref": "decision-entry.schema.json"
       },
       "minItems": 0,
       "description": "Decisions made during DSP stage"
