@@ -9,7 +9,7 @@ All notable changes to O-Lyrica are documented in this file.
 - **Shimmer pitch shifter quality** — Replaced 2-grain pitch shifter with 4-head design for artifact-free octave shifting
   - 4 read heads at 90-degree intervals (was 2 at 180) eliminates audible amplitude modulation
   - Doubled grain size to 4096 samples (~85ms) for smoother crossfades
-  - Added 6 kHz LP filter on shimmer output to prevent harsh HF accumulation through feedback iterations
+  - 2 kHz high-pass filter on shimmer output — strips low/mid content that caused resonator-like buildup, keeps only bright airy octave-shifted content feeding back through the tank
 
 ## [2.1.0] - 2026-04-07
 

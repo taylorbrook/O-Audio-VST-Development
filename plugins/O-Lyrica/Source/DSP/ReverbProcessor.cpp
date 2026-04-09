@@ -63,13 +63,14 @@ void ReverbProcessor::ShimmerShifter::prepare (float sr, int /*maxBlockSize*/)
     sampleRate = sr;
     grainBuffer.resize (kGrainSize * 2);
     readPos = 0.0f;
-    lpState = 0.0f;
+    hpPrevIn = 0.0f;
+    hpPrevOut = 0.0f;
 
-    // LP filter at ~6 kHz to tame HF buildup through shimmer feedback
-    float cutoff = 6000.0f;
+    // HP filter at ~2 kHz — keep only bright, airy content for shimmer feedback
+    float cutoff = 2000.0f;
     float rc = 1.0f / (juce::MathConstants<float>::twoPi * cutoff);
     float dt = 1.0f / sr;
-    lpCoeff = dt / (rc + dt);
+    hpAlpha = rc / (rc + dt);
 }
 
 float ReverbProcessor::ShimmerShifter::process (float input)
@@ -103,9 +104,12 @@ float ReverbProcessor::ShimmerShifter::process (float input)
     // Normalize: 4 Hann windows at 90-degree spacing sum to 2.0
     out *= 0.5f;
 
-    // LP filter to prevent harsh HF accumulation through feedback
-    lpState += lpCoeff * (out - lpState);
-    out = lpState;
+    // HP filter: y[n] = alpha * (y[n-1] + x[n] - x[n-1])
+    // Strips low/mid content, keeps only bright airy shimmer
+    float hpOut = hpAlpha * (hpPrevOut + out - hpPrevIn);
+    hpPrevIn = out;
+    hpPrevOut = hpOut;
+    out = hpOut;
 
     // Advance read position at 2x rate (octave up)
     readPos += 2.0f;
@@ -119,7 +123,8 @@ void ReverbProcessor::ShimmerShifter::clear()
 {
     grainBuffer.clear();
     readPos = 0.0f;
-    lpState = 0.0f;
+    hpPrevIn = 0.0f;
+    hpPrevOut = 0.0f;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
