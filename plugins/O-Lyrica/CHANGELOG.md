@@ -2,6 +2,12 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.1.2] - 2026-04-09
+
+### Changed
+
+- **Effects chain reorder** — EQ now processes after reverb instead of before (Chorus → Delay → Reverb → EQ). Allows EQ to shape the reverb tail and overall tonal balance post-reverb
+
 ## [2.1.1] - 2026-04-08
 
 ### Fixed

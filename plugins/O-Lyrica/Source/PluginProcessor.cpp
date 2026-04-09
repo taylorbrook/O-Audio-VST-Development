@@ -868,7 +868,7 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             buffer.copyFrom(ch, 0, ch0, buffer.getNumSamples());
     }
 
-    // v1.32.0: Effects chain (Chorus -> Delay -> EQ -> Reverb)
+    // v2.1.2: Effects chain (Chorus -> Delay -> Reverb -> EQ)
     juce::dsp::AudioBlock<float> block(buffer);
 
     // 1. Chorus
@@ -908,18 +908,7 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
             delay.process(block);
     }
 
-    // 3. EQ
-    bool eqBypassed = fxCache.eqBypass->load(std::memory_order_relaxed) >= 0.5f;
-    if (!eqBypassed)
-    {
-        eq.setLowGain(fxCache.eqLowGain->load(std::memory_order_relaxed));
-        eq.setMidGain(fxCache.eqMidGain->load(std::memory_order_relaxed));
-        eq.setMidFreq(fxCache.eqMidFreq->load(std::memory_order_relaxed));
-        eq.setHighGain(fxCache.eqHighGain->load(std::memory_order_relaxed));
-        eq.process(block);
-    }
-
-    // 4. Reverb
+    // 3. Reverb
     bool reverbBypassed = fxCache.reverbBypass->load(std::memory_order_relaxed) >= 0.5f;
     if (!reverbBypassed)
     {
@@ -933,6 +922,17 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
         float reverbMixVal = fxCache.reverbMix->load(std::memory_order_relaxed);
         if (reverbMixVal > 0.001f)
             reverbProcessor.process(block);
+    }
+
+    // 4. EQ
+    bool eqBypassed = fxCache.eqBypass->load(std::memory_order_relaxed) >= 0.5f;
+    if (!eqBypassed)
+    {
+        eq.setLowGain(fxCache.eqLowGain->load(std::memory_order_relaxed));
+        eq.setMidGain(fxCache.eqMidGain->load(std::memory_order_relaxed));
+        eq.setMidFreq(fxCache.eqMidFreq->load(std::memory_order_relaxed));
+        eq.setHighGain(fxCache.eqHighGain->load(std::memory_order_relaxed));
+        eq.process(block);
     }
 
     // Apply master volume
