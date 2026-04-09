@@ -35,7 +35,7 @@ Ouaricon Plugins:
 | O-DigiDelay | 📦 Installed | 1.2.9 | Audio Effect (Delay) | 2026-02-14 |
 | O-SimpleReverb | 📦 Installed | 1.5.5 | Audio Effect (Reverb) | 2026-02-15 |
 | O-Polystutter | 📦 Installed | 1.12.2 | Audio Effect (Beat Repeater) | 2026-03-06 | **Packaged:** [O-Polystutter-OuariconAudio.pkg](plugins/O-Polystutter/dist/) (4.5 MB, Signed) |
-| O-Lyrica | 📦 Installed | 2.1.0 | Synth (Physical Modeling Harp) | 2026-04-07 |
+| O-Lyrica | 📦 Installed | 2.1.1 | Synth (Physical Modeling Harp) | 2026-04-08 |
 | O-MultiBandCompressor | 📦 Installed | 1.2.0 | Audio Effect (Dynamics) | 2026-01-26 |
 | O-Bass | 📦 Installed | 1.3.1 | Audio Effect (Bass Enhancer) | 2026-01-28 |
 | O-IntonationPad | 📦 Installed | 2.7.2 | Synth (Wavetable Pad) | 2026-03-09 |
@@ -48,11 +48,11 @@ Ouaricon Plugins:
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
-| O-Prism | 📦 Installed | 1.11.0 | Synth (Microtonal Wavetable) | 2026-03-09 |
+| O-Prism | 📦 Installed | 1.12.0 | Synth (Microtonal Wavetable) | 2026-04-08 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
 | O-Formant | 📦 Installed | 1.12.1 | Synth (Physical Model Vocal) | 2026-04-07 |
 | O-Bowed | 📦 Installed | 1.0.2 | Synth (Physical Model Bowed String) | 2026-04-06 |
-| O-Reed | 📦 Installed | 1.0.6 | Synth (Physical Modeling Reed Wind) | 2026-04-07 |
+| O-Reed | 📦 Installed | 1.0.7 | Synth (Physical Modeling Reed Wind) | 2026-04-08 |
 | O-Wind | 📦 Installed | 1.11.2 | Synth (Physical Model Flute) | 2026-04-07 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**

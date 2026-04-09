@@ -94,18 +94,22 @@ private:
         float delta = 0.0f;
     };
 
-    // ── Shimmer pitch shifter (dual-grain octave up) ───────────────────
+    // ── Shimmer pitch shifter (4-head octave up with LP feedback filter) ──
     struct ShimmerShifter
     {
-        void prepare (float sampleRate, int maxBlockSize);
+        void prepare (float sr, int maxBlockSize);
         float process (float input);
         void clear();
 
     private:
-        static constexpr int kGrainSize = 2048;
+        static constexpr int kGrainSize = 4096;
+        static constexpr int kNumHeads = 4;
         DelayLine grainBuffer;
         float readPos = 0.0f;
         float sampleRate = 44100.0f;
+        // LP filter on output to tame HF buildup through feedback
+        float lpState = 0.0f;
+        float lpCoeff = 0.0f; // set in prepare()
     };
 
     // ── Internal state ─────────────────────────────────────────────────

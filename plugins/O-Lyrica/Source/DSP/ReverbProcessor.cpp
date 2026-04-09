@@ -63,29 +63,54 @@ void ReverbProcessor::ShimmerShifter::prepare (float sr, int /*maxBlockSize*/)
     sampleRate = sr;
     grainBuffer.resize (kGrainSize * 2);
     readPos = 0.0f;
+    lpState = 0.0f;
+
+    // LP filter at ~6 kHz to tame HF buildup through shimmer feedback
+    float cutoff = 6000.0f;
+    float rc = 1.0f / (juce::MathConstants<float>::twoPi * cutoff);
+    float dt = 1.0f / sr;
+    lpCoeff = dt / (rc + dt);
 }
 
 float ReverbProcessor::ShimmerShifter::process (float input)
 {
     grainBuffer.push (input);
 
-    // Two read heads, 180 degrees apart, advancing at 2x (octave up)
-    float head1Delay = static_cast<float> (kGrainSize) - readPos;
-    float head2Delay = head1Delay + static_cast<float> (kGrainSize / 2);
-    if (head2Delay >= static_cast<float> (kGrainSize))
-        head2Delay -= static_cast<float> (kGrainSize);
+    constexpr float grainSizeF = static_cast<float> (kGrainSize);
+    constexpr float headSpacing = grainSizeF / static_cast<float> (kNumHeads);
 
-    // Hann crossfade between the two grains
-    float fade1 = readPos / static_cast<float> (kGrainSize);
-    float w1 = 0.5f - 0.5f * std::cos (fade1 * juce::MathConstants<float>::twoPi);
-    float w2 = 1.0f - w1;
+    float out = 0.0f;
 
-    float out = grainBuffer.read (head1Delay) * w1 + grainBuffer.read (head2Delay) * w2;
+    // 4 read heads at 90-degree intervals, each with Hann crossfade
+    for (int h = 0; h < kNumHeads; ++h)
+    {
+        float headOffset = static_cast<float> (h) * headSpacing;
+        float headPos = readPos + headOffset;
+        if (headPos >= grainSizeF)
+            headPos -= grainSizeF;
+
+        // Delay from write position
+        float delay = grainSizeF - headPos;
+        if (delay < 1.0f) delay += grainSizeF;
+
+        // Hann window based on position within the grain cycle
+        float phase = headPos / grainSizeF;
+        float window = 0.5f - 0.5f * std::cos (phase * juce::MathConstants<float>::twoPi);
+
+        out += grainBuffer.read (delay) * window;
+    }
+
+    // Normalize: 4 Hann windows at 90-degree spacing sum to 2.0
+    out *= 0.5f;
+
+    // LP filter to prevent harsh HF accumulation through feedback
+    lpState += lpCoeff * (out - lpState);
+    out = lpState;
 
     // Advance read position at 2x rate (octave up)
     readPos += 2.0f;
-    if (readPos >= static_cast<float> (kGrainSize))
-        readPos -= static_cast<float> (kGrainSize);
+    if (readPos >= grainSizeF)
+        readPos -= grainSizeF;
 
     return out;
 }
@@ -94,6 +119,7 @@ void ReverbProcessor::ShimmerShifter::clear()
 {
     grainBuffer.clear();
     readPos = 0.0f;
+    lpState = 0.0f;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
