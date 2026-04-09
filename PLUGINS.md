@@ -51,9 +51,9 @@ Ouaricon Plugins:
 | O-Prism | 📦 Installed | 1.12.0 | Synth (Microtonal Wavetable) | 2026-04-08 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
 | O-Formant | 📦 Installed | 1.12.1 | Synth (Physical Model Vocal) | 2026-04-07 |
-| O-Bowed | 📦 Installed | 1.0.2 | Synth (Physical Model Bowed String) | 2026-04-06 |
+| O-Bowed | 📦 Installed | 1.0.3 | Synth (Physical Model Bowed String) | 2026-04-09 |
 | O-Reed | 📦 Installed | 1.0.8 | Synth (Physical Modeling Reed Wind) | 2026-04-08 |
-| O-Wind | 📦 Installed | 1.11.2 | Synth (Physical Model Flute) | 2026-04-07 |
+| O-Wind | 📦 Installed | 1.11.3 | Synth (Physical Model Flute) | 2026-04-09 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
 | Plugin Name | Status | Version | Type | Last Updated |

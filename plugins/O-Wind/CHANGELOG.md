@@ -1,5 +1,17 @@
 # O-Wind Changelog
 
+## [1.11.3] - 2026-04-09
+
+### Fixed — Embedded Tunings Not Affecting Pitch
+
+Selecting an embedded tuning (e.g., Pythagorean, Just Intonation, Werckmeister III) from the tuning panel now correctly changes the instrument's pitch. Previously, embedded tunings appeared selected in the UI but produced standard 12-TET pitches.
+
+**Root Cause:** `TuningEngine::setCustomIntervals()` stored new scale intervals and rebuilt the frequency table, but never switched `currentMode` from `TwelveTET` to `Scala`. Since `rebuildFrequencyTable()` only uses custom intervals in `Scala` mode, the new intervals were silently ignored. The `tuningSystem` parameter defaults to "12-TET" (index 2), so the mode was always wrong for custom intervals.
+
+**Fix:** Added `currentMode.store(Mode::Scala)` in `setCustomIntervals()`, consistent with `setSingleInterval()` which already auto-switched. Callers that need a different mode (e.g., `setBuiltInPreset` for Equal12TET) override the mode explicitly after the call.
+
+**Files Modified:** modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp (shared module — also fixes O-Reed, O-Bowed)
+
 ## [1.11.2] - 2026-04-07
 
 ### Fixed — Tuning Module Not Affecting Pitch
