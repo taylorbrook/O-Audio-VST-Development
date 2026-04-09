@@ -389,6 +389,18 @@ void OBowedAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
     // === 4. Render polyphonic voices ===
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
 
+    // === 4b. Gate drone bowing on MIDI note activity ===
+    bool anyVoiceActive = false;
+    for (int i = 0; i < synthesiser.getNumVoices(); ++i)
+    {
+        if (synthesiser.getVoice (i)->isActive())
+        {
+            anyVoiceActive = true;
+            break;
+        }
+    }
+    droneEngine.setNotesActive (anyVoiceActive);
+
     // === 5. Update drone engine parameters ===
     droneEngine.setReferencePitch (refPitch);
     droneEngine.setTuning (0, tuning1);

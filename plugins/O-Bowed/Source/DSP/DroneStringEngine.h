@@ -27,6 +27,7 @@ public:
 
     // Parameter updates (called once per processBlock)
     void setStringCount (int count);
+    void setNotesActive (bool active);  // gate bowing on MIDI note activity
     void setTuning (int stringIndex, float cents);
     void setReferencePitch (float hz);
     void setBowSpeed (float speed);
@@ -71,6 +72,7 @@ private:
 
     float lastBridgeOutput = 0.0f;
     double currentSampleRate = 44100.0;
+    bool bowing = false;  // true when at least one MIDI note is active
 
     void updatePanPositions();
     void initVariations();

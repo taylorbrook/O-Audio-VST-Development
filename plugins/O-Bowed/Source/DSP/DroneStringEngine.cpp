@@ -39,6 +39,7 @@ void DroneStringEngine::reset()
         d.active = false;
     }
     activeCount = 0;
+    bowing = false;
     lastBridgeOutput = 0.0f;
 }
 
@@ -54,6 +55,29 @@ void DroneStringEngine::initVariations()
 }
 
 //==============================================================================
+void DroneStringEngine::setNotesActive (bool active)
+{
+    if (active && ! bowing)
+    {
+        // Notes just became active — start bowing all active drones
+        bowing = true;
+        for (int i = 0; i < activeCount; ++i)
+        {
+            drones[i].bow.startBow (0.5f);
+            drones[i].bow.setBowSpeed (sharedBowSpeed * drones[i].speedVariation);
+            drones[i].bow.setBowPressure (sharedBowPressure * drones[i].pressureVariation);
+        }
+    }
+    else if (! active && bowing)
+    {
+        // All notes released — stop bowing (natural release decay)
+        bowing = false;
+        for (int i = 0; i < activeCount; ++i)
+            drones[i].bow.stopBow();
+    }
+}
+
+//==============================================================================
 void DroneStringEngine::setStringCount (int count)
 {
     count = juce::jlimit (1, MAX_DRONES, count);
@@ -65,9 +89,12 @@ void DroneStringEngine::setStringCount (int count)
     {
         updateDroneFrequency (i);
         drones[i].waveguide.trigger (drones[i].targetFrequency);
-        drones[i].bow.startBow (0.5f);  // constant moderate velocity
-        drones[i].bow.setBowSpeed (sharedBowSpeed * drones[i].speedVariation);
-        drones[i].bow.setBowPressure (sharedBowPressure * drones[i].pressureVariation);
+        if (bowing)
+        {
+            drones[i].bow.startBow (0.5f);
+            drones[i].bow.setBowSpeed (sharedBowSpeed * drones[i].speedVariation);
+            drones[i].bow.setBowPressure (sharedBowPressure * drones[i].pressureVariation);
+        }
         drones[i].active = true;
     }
 
