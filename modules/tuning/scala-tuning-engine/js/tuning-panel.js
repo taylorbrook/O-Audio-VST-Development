@@ -1,6 +1,6 @@
 /**
  * tuning-panel.js
- * scala-tuning-engine module v2.0.0
+ * scala-tuning-engine module v3.0.0
  *
  * Complete tuning panel UI component for WebView-based JUCE plugins.
  * Includes:
@@ -12,11 +12,14 @@
  * - Octave stretch control
  * - Scala file I/O (.scl, .kbm)
  * - HTML export
+ * - Real-time note highlighting (noteOn/noteOff)
  *
  * Usage:
- *   import { TuningPanel } from './tuning-panel.js';
+ *   import { TuningPanel, initTuningPanel } from './tuning-panel.js';
  *   const panel = new TuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
  *   panel.init();
+ *   // or:
+ *   const panel = await initTuningPanel(document.getElementById('tuning-container'), window.__JUCE__);
  */
 
 export class TuningPanel {
@@ -33,6 +36,9 @@ export class TuningPanel {
         this.libraryFilter = 'all';
         this.generatorType = 'edo';
         this.heldNotes = new Set();
+        this.heldNotesMidi = [];
+        this.heldNotesFreqs = [];
+        this.activeScaleDegrees = new Set();
 
         // Note names for display
         this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -44,12 +50,13 @@ export class TuningPanel {
         await this.loadInitialState();
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // RENDERING
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     render() {
         this.container.innerHTML = `
+            <div class="tuning-panel-root">
             <div class="tuning-panel">
                 <!-- LEFT: Interval List -->
                 <div class="tuning-viz-container">
@@ -71,18 +78,18 @@ export class TuningPanel {
                 <div class="viz-container" id="viz-container">
                     <div class="viz-view active" id="circle-view">
                         <div class="pitch-circle">
-                            <svg viewBox="0 0 188 188" id="pitch-circle-svg">
-                                <circle cx="94" cy="94" r="88" fill="none" stroke="#8B7355" stroke-width="1.5"/>
-                                <circle cx="94" cy="94" r="73" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
-                                <circle cx="94" cy="94" r="4" fill="#3C2F2F"/>
+                            <svg viewBox="0 0 320 320" id="pitch-circle-svg">
+                                <circle cx="160" cy="160" r="150" fill="none" stroke="#8B7355" stroke-width="1.5"/>
+                                <circle cx="160" cy="160" r="125" fill="rgba(235, 217, 199, 0.4)" stroke="#8B7355" stroke-width="0.5"/>
+                                <circle cx="160" cy="160" r="4" fill="#3C2F2F"/>
                                 <g id="interval-lines"></g>
-                                <g id="degree-labels" font-size="9" fill="#5C4033"></g>
+                                <g id="degree-labels" font-size="10" fill="#5C4033"></g>
                             </svg>
                             <div class="pitch-circle-label">Scale Intervals</div>
                         </div>
                     </div>
                     <div class="viz-view" id="polar-view">
-                        <canvas id="polar-canvas" width="180" height="180"></canvas>
+                        <canvas id="polar-canvas"></canvas>
                     </div>
                     <div class="viz-view matrix-view" id="matrix-view"></div>
                     <div class="viz-view truekeys-view" id="truekeys-view">
@@ -97,7 +104,7 @@ export class TuningPanel {
                     <div class="library-section" id="library-section">
                         <div class="library-header">
                             <span class="library-header-text">Tuning Library</span>
-                            <span class="library-toggle" id="library-toggle">▼</span>
+                            <span class="library-toggle" id="library-toggle">&#9660;</span>
                         </div>
                         <div class="library-content" id="library-content">
                             <div class="library-filter">
@@ -153,7 +160,7 @@ export class TuningPanel {
                     <div class="generator-section" id="generator-section">
                         <div class="generator-header">
                             <span class="generator-header-text">Generate Scale</span>
-                            <span class="generator-toggle" id="generator-toggle">▼</span>
+                            <span class="generator-toggle" id="generator-toggle">&#9660;</span>
                         </div>
                         <div class="generator-content" id="generator-content">
                             <div class="generator-type-row">
@@ -177,6 +184,7 @@ export class TuningPanel {
                         </div>
                     </div>
                 </div>
+            </div>
             </div>
         `;
     }
@@ -210,9 +218,9 @@ export class TuningPanel {
         this.setupRefPitchKnob();
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // STATE MANAGEMENT
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     async loadInitialState() {
         if (!this.juce) return;
@@ -247,9 +255,9 @@ export class TuningPanel {
         await this.loadInitialState();
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // INTERVAL LIST
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     updateIntervalList() {
         const listEl = this.container.querySelector('#interval-list');
@@ -266,9 +274,9 @@ export class TuningPanel {
         html += `
             <div class="tonic-selector">
                 <span class="tonic-label">Tonic</span>
-                <button class="tonic-arrow" id="tonic-down">◄</button>
+                <button class="tonic-arrow" id="tonic-down">&#9668;</button>
                 <span class="tonic-value" id="tonic-value">${this.noteNames[this.tonic]}</span>
-                <button class="tonic-arrow" id="tonic-up">►</button>
+                <button class="tonic-arrow" id="tonic-up">&#9658;</button>
             </div>
         `;
 
@@ -278,7 +286,7 @@ export class TuningPanel {
             const isOctave = i === this.intervals.length - 1;
             html += `
                 <div class="interval-item ${isOctave ? 'octave' : ''}">
-                    <span class="interval-degree">${i}</span>
+                    <span class="interval-degree">${this.getNoteLabel(i, count)}</span>
                     <input type="text" class="interval-input" data-index="${i}"
                            value="${cents.toFixed(2)}" ${isOctave ? 'readonly' : ''}>
                     <span class="interval-unit">c</span>
@@ -339,9 +347,9 @@ export class TuningPanel {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // VISUALIZATION
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     setVizMode(mode) {
         this.currentVizMode = mode;
@@ -387,7 +395,10 @@ export class TuningPanel {
         linesGroup.innerHTML = '';
         labelsGroup.innerHTML = '';
 
-        const cx = 94, cy = 94, radius = 73;
+        // Store spoke elements for note highlighting
+        this.spokeElements = [];
+
+        const cx = 160, cy = 160, radius = 125;
         const count = this.intervals.length - 1; // Exclude period
         const period = this.intervals[this.intervals.length - 1] || 1200;
 
@@ -398,26 +409,37 @@ export class TuningPanel {
             const x = cx + Math.cos(angle) * radius;
             const y = cy + Math.sin(angle) * radius;
 
-            // Line from center
+            const isActive = this.activeScaleDegrees.has(i);
+            const spokeColor = isActive ? '#C0392B' : '#5C4033';
+            const dotColor = isActive ? '#C0392B' : '#8B7355';
+            const dotRadius = isActive ? 6 : 5;
+            const strokeWidth = isActive ? 2.5 : 1.5;
+
+            // Line from center (spoke)
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', cx);
             line.setAttribute('y1', cy);
             line.setAttribute('x2', x);
             line.setAttribute('y2', y);
-            line.setAttribute('stroke', '#5C4033');
-            line.setAttribute('stroke-width', '1.5');
+            line.setAttribute('stroke', spokeColor);
+            line.setAttribute('stroke-width', strokeWidth);
+            line.dataset.degree = i;
             linesGroup.appendChild(line);
 
             // Dot at interval position
             const dot = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
             dot.setAttribute('cx', x);
             dot.setAttribute('cy', y);
-            dot.setAttribute('r', '4');
-            dot.setAttribute('fill', '#8B7355');
+            dot.setAttribute('r', dotRadius);
+            dot.setAttribute('fill', dotColor);
+            dot.dataset.degree = i;
             linesGroup.appendChild(dot);
 
-            // Degree label
-            const labelRadius = radius + 12;
+            // Store references for fast updates
+            this.spokeElements.push({ line, dot, degree: i });
+
+            // Degree label (note name for 12-note scales, number otherwise)
+            const labelRadius = radius + 16;
             const lx = cx + Math.cos(angle) * labelRadius;
             const ly = cy + Math.sin(angle) * labelRadius;
 
@@ -426,7 +448,7 @@ export class TuningPanel {
             label.setAttribute('y', ly);
             label.setAttribute('text-anchor', 'middle');
             label.setAttribute('dominant-baseline', 'middle');
-            label.textContent = i.toString();
+            label.textContent = this.getNoteLabel(i, count);
             labelsGroup.appendChild(label);
         }
     }
@@ -436,7 +458,18 @@ export class TuningPanel {
         if (!canvas) return;
 
         const ctx = canvas.getContext('2d');
-        const w = canvas.width, h = canvas.height;
+
+        // Dynamic sizing based on container
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const size = Math.max(Math.min(rect.width, rect.height) - 20, 100);
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = size * dpr;
+        canvas.height = size * dpr;
+        canvas.style.width = size + 'px';
+        canvas.style.height = size + 'px';
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+
+        const w = size, h = size;
         const cx = w / 2, cy = h / 2;
         const radius = Math.min(cx, cy) - 10;
 
@@ -519,7 +552,7 @@ export class TuningPanel {
             const interval = notes[i] - notes[0];
             const scaleDegree = interval % (this.intervals.length - 1);
             const cents = this.intervals[scaleDegree] || (interval * 100);
-            html += `<div class="tk-interval">${notes[0]}→${notes[i]}: ${cents.toFixed(1)}c</div>`;
+            html += `<div class="tk-interval">${notes[0]}->${notes[i]}: ${cents.toFixed(1)}c</div>`;
         }
 
         html += '</div>';
@@ -557,17 +590,72 @@ export class TuningPanel {
         container.innerHTML = html;
     }
 
-    // Called by host when notes change
-    setHeldNotes(notes) {
-        this.heldNotes = new Set(notes);
+    // ===================================================================
+    // NOTE HIGHLIGHTING
+    // ===================================================================
+
+    /**
+     * v3.0.0: Called by host via window.updateHeldNotes with MIDI notes + actual frequencies.
+     * Enables accurate interval reporting using real tuning engine frequencies.
+     */
+    updateHeldNotes(notes, freqs) {
+        this.heldNotesMidi = notes || [];
+        this.heldNotesFreqs = freqs || [];
+        this.heldNotes = new Set(notes || []);
         if (this.currentVizMode === 'truekeys') {
             this.drawTrueKeys();
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    /**
+     * Backward-compatible alias for updateHeldNotes.
+     */
+    setHeldNotes(notes) {
+        this.updateHeldNotes(notes, []);
+    }
+
+    /**
+     * Called when a MIDI note starts sounding.
+     * Maps the MIDI note to a scale degree and highlights the corresponding spoke.
+     */
+    noteOn(midiNote) {
+        const scaleSize = this.intervals.length - 1;
+        if (scaleSize <= 0) return;
+        // Map MIDI note to scale degree (relative to tonic)
+        const degree = ((midiNote - this.tonic) % scaleSize + scaleSize) % scaleSize;
+        this.activeScaleDegrees.add(degree);
+        this.updateSpokeHighlights();
+    }
+
+    /**
+     * Called when a MIDI note stops sounding.
+     */
+    noteOff(midiNote) {
+        const scaleSize = this.intervals.length - 1;
+        if (scaleSize <= 0) return;
+        const degree = ((midiNote - this.tonic) % scaleSize + scaleSize) % scaleSize;
+        this.activeScaleDegrees.delete(degree);
+        this.updateSpokeHighlights();
+    }
+
+    /**
+     * Fast in-place spoke color update without full redraw.
+     */
+    updateSpokeHighlights() {
+        if (!this.spokeElements || this.currentVizMode !== 'circle') return;
+
+        for (const { line, dot, degree } of this.spokeElements) {
+            const isActive = this.activeScaleDegrees.has(degree);
+            line.setAttribute('stroke', isActive ? '#C0392B' : '#5C4033');
+            line.setAttribute('stroke-width', isActive ? '2.5' : '1.5');
+            dot.setAttribute('fill', isActive ? '#C0392B' : '#8B7355');
+            dot.setAttribute('r', isActive ? '6' : '5');
+        }
+    }
+
+    // ===================================================================
     // TUNING LIBRARY
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     toggleLibrary() {
         const content = this.container.querySelector('#library-content');
@@ -638,9 +726,9 @@ export class TuningPanel {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // SCALE GENERATOR
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     toggleGenerator() {
         const content = this.container.querySelector('#generator-content');
@@ -743,9 +831,9 @@ export class TuningPanel {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // FILE OPERATIONS
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     async loadSCL() {
         if (!this.juce) return;
@@ -795,9 +883,9 @@ export class TuningPanel {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // OCTAVE STRETCH
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     async setOctaveStretch(value) {
         const stretch = parseFloat(value);
@@ -811,9 +899,9 @@ export class TuningPanel {
         }
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // REFERENCE PITCH KNOB
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     setupRefPitchKnob() {
         const knob = this.container.querySelector('#ref-pitch-knob');
@@ -865,9 +953,9 @@ export class TuningPanel {
         });
     }
 
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
     // HELPERS
-    // ═══════════════════════════════════════════════════════════════════
+    // ===================================================================
 
     updateScaleNameDisplay() {
         const el = this.container.querySelector('#scale-name-display');
@@ -875,7 +963,29 @@ export class TuningPanel {
             el.textContent = this.scaleName;
         }
     }
+
+    /**
+     * Get note name label for a scale degree.
+     * For 12-note scales: returns chromatic note names rotated by tonic (C, C#, D, ...).
+     * For other scales: returns the degree number.
+     */
+    getNoteLabel(index, scaleSize) {
+        if (scaleSize === 12) {
+            return this.noteNames[(this.tonic + index) % 12];
+        }
+        return index.toString();
+    }
 }
 
 // Default export for convenience
 export default TuningPanel;
+
+/**
+ * Convenience function for plugins that expect a function-style initialization.
+ * Usage: const panel = await initTuningPanel(container, Juce);
+ */
+export async function initTuningPanel(container, juceApi) {
+    const panel = new TuningPanel(container, juceApi);
+    await panel.init();
+    return panel;
+}
