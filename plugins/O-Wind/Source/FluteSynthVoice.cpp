@@ -560,6 +560,20 @@ void FluteSynthVoice::updateParametersFromAPVTS()
     // Output gain (dB to linear)
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
 
+    // Re-query tuning engine per block so tuning changes take effect on held notes
+    if (tuningEngine != nullptr)
+    {
+        float newFreq = static_cast<float> (tuningEngine->getFrequency (currentMidiNote));
+        if (std::abs (newFreq - currentFrequency) > 0.01f)
+        {
+            currentFrequency = newFreq;
+            float bendedFreq = currentFrequency * std::pow (2.0f, pitchBendSemitones / 12.0f);
+            float totalLoopDelay = static_cast<float> (internalSampleRate) / bendedFreq;
+            totalLoopDelay = std::max (4.0f, totalLoopDelay);
+            totalDelaySmoothed.setTargetValue (totalLoopDelay);
+        }
+    }
+
     // Dynamic loop delay compensation: account for ALL phase/delay contributions
     // in the feedback loop beyond the explicit delay lines.
     // BoreWaveguide sampleRate is already the internal (2x) rate.

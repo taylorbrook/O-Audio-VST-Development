@@ -2,15 +2,19 @@
 
 ## [1.11.3] - 2026-04-09
 
-### Fixed — Embedded Tunings Not Affecting Pitch
+### Fixed — Tuning Changes Not Affecting Pitch (Two Root Causes)
 
-Selecting an embedded tuning (e.g., Pythagorean, Just Intonation, Werckmeister III) from the tuning panel now correctly changes the instrument's pitch. Previously, embedded tunings appeared selected in the UI but produced standard 12-TET pitches.
+Selecting an embedded tuning now correctly changes the instrument's pitch — both for new notes and held notes.
 
-**Root Cause:** `TuningEngine::setCustomIntervals()` stored new scale intervals and rebuilt the frequency table, but never switched `currentMode` from `TwelveTET` to `Scala`. Since `rebuildFrequencyTable()` only uses custom intervals in `Scala` mode, the new intervals were silently ignored. The `tuningSystem` parameter defaults to "12-TET" (index 2), so the mode was always wrong for custom intervals.
+**Root Cause 1 — Mode never switched to Scala:** `TuningEngine::setCustomIntervals()` stored new scale intervals but never switched `currentMode` from `TwelveTET` to `Scala`. Since `rebuildFrequencyTable()` only uses custom intervals in `Scala` mode, the new intervals were silently ignored.
 
-**Fix:** Added `currentMode.store(Mode::Scala)` in `setCustomIntervals()`, consistent with `setSingleInterval()` which already auto-switched. Callers that need a different mode (e.g., `setBuiltInPreset` for Equal12TET) override the mode explicitly after the call.
+**Fix 1:** Added `currentMode.store(Mode::Scala)` in `setCustomIntervals()`, consistent with `setSingleInterval()` which already auto-switched.
 
-**Files Modified:** modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp (shared module — also fixes O-Reed, O-Bowed)
+**Root Cause 2 — Voice frequency only queried at note-on:** `FluteSynthVoice` called `tuningEngine->getFrequency()` only in `startNote()`, never per-block. Tuning changes during held notes had no effect on bore delay, so pitch stayed locked to the note-on frequency.
+
+**Fix 2:** Added per-block tuning re-query in `updateParametersFromAPVTS()` — re-reads `tuningEngine->getFrequency(currentMidiNote)` every block and smoothly updates `totalDelaySmoothed` when the frequency changes. Matches O-Reed's `getBaseFrequencyFromTuning()` pattern.
+
+**Files Modified:** modules/tuning/scala-tuning-engine/cpp/TuningEngine.cpp (shared module), FluteSynthVoice.cpp
 
 ## [1.11.2] - 2026-04-07
 
