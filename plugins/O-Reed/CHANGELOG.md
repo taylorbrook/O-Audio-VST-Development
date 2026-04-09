@@ -1,5 +1,19 @@
 # O-Reed Changelog
 
+## v1.0.8 (2026-04-08)
+
+### Fixed
+
+- **Voices not clearing after note-off (4-28s delay)** -- bore waveguide energy decayed too slowly for timely voice cleanup. With `feedbackGain=1.0` and viscothermal `g=0.995` (0.5% loss/round-trip), the bore ring-down took ~4s at 440Hz and ~28s at C2 (65Hz). Voices stayed allocated the entire time, eating polyphony and wasting CPU. Two fixes:
+  1. **Post-release bore damping**: once breath envelope reaches Off state, apply exponential damping (~50ms time constant) to the bore feedback path. This drains bore energy in ~500ms regardless of pitch, while preserving the natural 150ms breath release tail.
+  2. **Energy estimate tracks bore wave directly**: changed `energyEstimate` from tracking `|lastRadiatedOutput|` (highpass-filtered at ~3400Hz) to `|seg_bwd[0]|` (full-spectrum backward wave at reed). The radiation highpass severely underreported bore energy for low notes where most energy is below the cutoff. Energy estimate now reflects actual bore content.
+
+## v1.0.7 (2026-04-08)
+
+### Fixed
+
+- **Continuous tone at -12 dB after note-off** -- reed model self-excited at zero mouth pressure due to Bernoulli flow through the full rest opening (H_eff ≈ 0.54mm). With Z_c ≈ 1.08e6 and S_opening ≈ 5.4e-6 m², the reed junction reflection gain exceeded 1.0 for bore pressures below ~14 Pa, creating a negative resistance that sustained oscillation indefinitely. Root cause: `dp = -p_bore_minus` drives flow through the open reed channel even without breath, and `Z_c * u_reed` exceeds the incoming wave amplitude at low levels. Fix: gate the reed opening by mouth pressure (threshold = 1% of closure pressure) so the reed rests closed against the mouthpiece when breath is off, matching physical behavior. The bore now rings down naturally through viscothermal loss (~0.5%/round-trip).
+
 ## v1.0.6 (2026-04-07)
 
 ### Fixed

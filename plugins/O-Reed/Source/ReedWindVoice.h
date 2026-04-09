@@ -85,6 +85,10 @@ private:
     float paramSmoothCoeff = 0.001f;
     bool chamberWasActive = false;
 
+    // Post-release bore damping: accelerates bore decay after breath envelope goes Off
+    float releaseDampGain = 1.0f;       // Current per-sample damping multiplier (1.0 = no damping)
+    float releaseDampCoeff = 0.9998f;   // Per-sample decay coefficient (~50ms TC at 88.2kHz)
+
     // --- APVTS ---
     juce::AudioProcessorValueTreeState* parameters = nullptr;
 

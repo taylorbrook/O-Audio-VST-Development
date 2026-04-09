@@ -108,9 +108,14 @@ void ReedWindVoice::prepare(double sampleRate, int maxBlockSize)
     vibratoPhase = 0.0f;
     growlPhase = 0.0f;
     flutterPhase = 0.0f;
+    releaseDampGain = 1.0f;
 
     // ~20ms smoothing time constant (at oversampled rate for per-sample use)
     paramSmoothCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(osRate) * 0.020f));
+
+    // Post-release bore damping: ~50ms time constant at oversampled rate
+    // Gives ~500ms bore tail after breath fully off (10 time constants to ~1e-4)
+    releaseDampCoeff = std::exp(-1.0f / (static_cast<float>(osRate) * 0.05f));
 }
 
 float ReedWindVoice::getBaseFrequencyFromTuning(int midiNote) const
@@ -190,6 +195,7 @@ void ReedWindVoice::noteStarted()
     vibratoPhase = 0.0f;
     growlPhase = 0.0f;
     flutterPhase = 0.0f;
+    releaseDampGain = 1.0f;
 
     // Get note information (tuning-aware frequency + MPE pitchbend)
     auto note = getCurrentlyPlayingNote();
@@ -262,6 +268,7 @@ void ReedWindVoice::noteStopped(bool allowTailOff)
         vibratoPhase = 0.0f;
         growlPhase = 0.0f;
         flutterPhase = 0.0f;
+        releaseDampGain = 1.0f;
         clearCurrentNote();
     }
 }
@@ -418,6 +425,8 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         getActiveOversampling().reset();
         // Update smoothing coeff for new oversampled rate
         paramSmoothCoeff = 1.0f - std::exp(-1.0f / (static_cast<float>(osRate) * 0.020f));
+        releaseDampCoeff = std::exp(-1.0f / (static_cast<float>(osRate) * 0.05f));
+        releaseDampGain = 1.0f;
     }
 
     // Oversampled rate for LFO phase increments
@@ -529,6 +538,15 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         // 8. Bore waveguide(s): push forward, process bell/loss, returns next p_bore_minus
         prevBoreMinus = bore.processSample(p_bore_plus);
 
+        // 8.5. Post-release bore damping: once breath envelope fully off,
+        // apply exponential damping (~50ms TC) to accelerate bore decay.
+        // Without this, bore rings 4-28s depending on pitch (0.5% visc loss/trip).
+        if (breathEnv.getState() == BreathEnvelope::State::Off)
+            releaseDampGain *= releaseDampCoeff;
+        else
+            releaseDampGain = 1.0f;
+        prevBoreMinus *= releaseDampGain;
+
         // 9. Output: use bore pressure at reed (prevBoreMinus) as audio signal
         //    This bypasses the radiation highpass which kills the fundamental.
         //    Bore pressure naturally contains the full harmonic spectrum.
@@ -537,6 +555,7 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
         if (dualBoreActive)
         {
             prevBore2Minus = bore2.processSample(p_bore_plus);
+            prevBore2Minus *= releaseDampGain;
             output = (prevBoreMinus + prevBore2Minus) * normalization * outputGain;
         }
         else

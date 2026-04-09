@@ -215,6 +215,12 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createReverbPara
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "reverbMix", 1 }, "Reverb Mix",
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbModDepth", 1 }, "Reverb Mod Depth",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.001f), 0.3f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "reverbModRate", 1 }, "Reverb Mod Rate",
+        juce::NormalisableRange<float> (0.1f, 5.0f, 0.01f, 0.5f), 1.0f));
 
     return params;
 }
@@ -412,7 +418,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout OPrismAudioProcessor::create
     addSection (createFilterParameters ("filtB")); //  5
     addSection (createFilterRoutingParameters()); //  1
     addSection (createTuningParameters());       //  7
-    addSection (createReverbParameters());       //  4
+    addSection (createReverbParameters());       //  6
     addSection (createDelayParameters());        //  5
     addSection (createChorusParameters());       //  3
     addSection (createDistortionParameters());   //  3
@@ -623,10 +629,14 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         float reverbDamp = parameters.getRawParameterValue ("reverbDamp")->load();
         float reverbPredelay = parameters.getRawParameterValue ("reverbPredelay")->load();
         float reverbMix = parameters.getRawParameterValue ("reverbMix")->load();
+        float reverbModDepth = parameters.getRawParameterValue ("reverbModDepth")->load();
+        float reverbModRate = parameters.getRawParameterValue ("reverbModRate")->load();
         reverbProcessor.setSize (reverbSize);
         reverbProcessor.setDamping (reverbDamp);
         reverbProcessor.setPredelay (reverbPredelay);
         reverbProcessor.setMix (reverbMix);
+        reverbProcessor.setModDepth (reverbModDepth);
+        reverbProcessor.setModRate (reverbModRate);
         if (reverbMix > 0.001f)
             reverbProcessor.process (block);
     }

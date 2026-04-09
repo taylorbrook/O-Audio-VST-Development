@@ -1,5 +1,21 @@
 # O-Prism Changelog
 
+## v1.12.0 (2026-04-08)
+
+### Changed
+- **Dattorro plate reverb**: Replaced stock `juce::dsp::Reverb` (Freeverb/Schroeder-Moorer) with a full Dattorro plate reverb implementation. Figure-8 tank topology with 4-stage input diffusion, cross-fed parallel decay paths, one-pole damping filters, and multi-tap stereo output. All delay lengths scaled from the original 29761 Hz reference rate.
+
+### Added
+- **Reverb modulation controls**: Two new parameters — `reverbModDepth` (0-100%, default 30%) and `reverbModRate` (0.1-5.0 Hz, default 1.0 Hz). LFO modulates tank delay lines with 90-degree phase offset between left and right paths for lush stereo movement characteristic of plate reverbs.
+
+### Technical Notes
+- Domain: DSP + GUI
+- Dattorro reference: "Effect Design Part 1: Reverberator and Other Filters", J. Audio Eng. Soc., 1997
+- Custom allpass, delay line, and one-pole filter structs (no heap allocation in audio thread)
+- Existing parameters (Size, Damp, Pre-Dly, Mix) preserved with same IDs — full backward compatibility
+- Size maps to tank decay coefficient (0.0-0.98), Damp maps to one-pole LPF coefficient
+- No breaking parameter changes — existing presets load without issue
+
 ## v1.11.0 (2026-03-09)
 
 ### Added

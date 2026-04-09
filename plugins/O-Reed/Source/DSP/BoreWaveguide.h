@@ -306,9 +306,12 @@ public:
         segBackwardDelay[4].pushSample(0, th4_bwd);
 
         // --- Step 6: Energy tracking ---
-        energyEstimate = 0.999f * energyEstimate + 0.001f * std::abs(lastRadiatedOutput);
+        // Track backward wave at reed (full spectrum) not highpass-filtered radiation.
+        // Radiation HP at ~3400 Hz underreports bore energy for low notes.
+        float returnWave = seg_bwd[0] * feedbackGain;
+        energyEstimate = 0.999f * energyEstimate + 0.001f * std::abs(returnWave);
 
-        return seg_bwd[0] * feedbackGain;  // Wave arriving at reed from bore
+        return returnWave;  // Wave arriving at reed from bore
     }
 
     float getRadiatedOutput() const { return lastRadiatedOutput + totalToneHoleRadiation * toneHoleRadiationMix; }

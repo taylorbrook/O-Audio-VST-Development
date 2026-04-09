@@ -1282,6 +1282,8 @@ body {
             <div class="knob-container"><div class="knob" id="knob-reverbDamp"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbDamp" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Damp</span><span class="knob-value" id="val-reverbDamp">50%</span></div></div>
             <div class="knob-container"><div class="knob" id="knob-reverbPredelay"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbPredelay" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Pre-Dly</span><span class="knob-value" id="val-reverbPredelay">20ms</span></div></div>
             <div class="knob-container"><div class="knob" id="knob-reverbMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-reverbMix">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbModDepth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbModDepth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mod</span><span class="knob-value" id="val-reverbModDepth">30%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbModRate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbModRate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-reverbModRate">1.0Hz</span></div></div>
         </div>
     </div>
 
@@ -1670,6 +1672,10 @@ const lfoRateFmt = (n) => {
     const v = skewMap(n, 0.01, 20.0, 0.35);
     return v >= 10 ? v.toFixed(0) + ' Hz' : v.toFixed(1) + ' Hz';
 };
+const reverbModRateFmt = (n) => {
+    const v = skewMap(n, 0.1, 5.0, 0.5);
+    return v.toFixed(1) + ' Hz';
+};
 
 // ─── BIND SLIDER PARAMS ───
 
@@ -1745,10 +1751,12 @@ bindDropdown(document.getElementById('select-glideMode'), 'glideMode', 3);
 bindKnob('glideTime',     glideTimeFmt, 0.02);
 
 // Reverb
-bindKnob('reverbSize',     pct,          0.5);
-bindKnob('reverbDamp',     pct,          0.5);
-bindKnob('reverbPredelay', predelayFmt,  0.1);
-bindKnob('reverbMix',      pct,          0.0);
+bindKnob('reverbSize',     pct,              0.5);
+bindKnob('reverbDamp',     pct,              0.5);
+bindKnob('reverbPredelay', predelayFmt,      0.1);
+bindKnob('reverbMix',      pct,              0.0);
+bindKnob('reverbModDepth', pct,              0.3);
+bindKnob('reverbModRate',  reverbModRateFmt, 0.43);
 
 // Delay
 bindKnob('delayTime',     delayTimeFmt, 0.187);

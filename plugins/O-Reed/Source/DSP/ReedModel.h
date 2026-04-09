@@ -138,7 +138,15 @@ public:
         // Reed channel opening area with soft minimum for startup excitation
         // 0.5% leakage prevents dead-lock when reed fully closed
         float opening = state.x + H_eff;
-        float S_opening = params.w_reed * std::max(opening, H_eff * 0.005f);
+
+        // Physical behavior: without mouth pressure, reed rests closed against
+        // mouthpiece. Gates the opening by mouth pressure to prevent Bernoulli
+        // self-excitation through the rest opening at zero breath.
+        float gateThreshold = std::max(0.01f * k_eff * H_eff, 1.0f);
+        float mouthGate = std::min(std::abs(p_mouth) / gateThreshold, 1.0f);
+        opening *= mouthGate;
+
+        float S_opening = params.w_reed * std::max(opening, H_eff * 0.005f * mouthGate);
 
         // Guillemain Psi confinement for double-reed morphing
         // psi_denom = 1 + psi * (S_opening / S_reed)^2

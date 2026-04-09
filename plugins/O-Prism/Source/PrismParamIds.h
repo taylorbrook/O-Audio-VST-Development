@@ -93,7 +93,7 @@ namespace PrismParamIds
         all.addArray ({ "tuningPreset", "tonic", "masterTune", "octaveStretch",
                         "pitchBendRange", "glideMode", "glideTime" });           //  7
         all.addArray ({ "reverbSize", "reverbDamp", "reverbPredelay",
-                        "reverbMix" });                                          //  4
+                        "reverbMix", "reverbModDepth", "reverbModRate" });       //  6
         all.addArray ({ "delayTime", "delayFeedback", "delayMode",
                         "delayMix" });                                           //  4
         all.addArray ({ "chorusRate", "chorusDepth", "chorusMix" });              //  3
@@ -106,7 +106,7 @@ namespace PrismParamIds
                         "lfo4Rate", "lfo4Shape", "lfo4Division" });            // 12
         all.addArray (modMatrixSliderIds());                                     // 48
         all.addArray ({ "masterVol", "oscMix", "velocityCurve" });                 //  3
-        return all;                                                              // 124
+        return all;                                                              // 126
     }
 
 } // namespace PrismParamIds
