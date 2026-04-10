@@ -2,6 +2,11 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.0.5] - 2026-04-09
+
+### Fixed
+- Output clipping at +6dB even with quiet settings. Root cause: `BodyResonator::processStereo()` summed 8 parallel peaking EQ filters without averaging — each filter outputs ~unity at non-peak frequencies, inflating the baseline by 8x (~+18dB). Fixed by dividing the parallel sum by `NUM_MODES`, restoring unity baseline gain while preserving relative resonant peak character
+
 ## [1.0.4] - 2026-04-09
 
 ### Fixed

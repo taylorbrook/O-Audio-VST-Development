@@ -176,8 +176,12 @@ void BodyResonator::processStereo (float& left, float& right)
         resonantR += bodyModesR[i].processSample (right);
     }
 
-    resonantL *= normGain;
-    resonantR *= normGain;
+    // Average parallel filter outputs instead of summing them.
+    // Each peaking filter outputs ~unity at non-peak frequencies,
+    // so the raw sum inflates the baseline by NUM_MODES (~+18dB).
+    constexpr float invModes = 1.0f / static_cast<float> (NUM_MODES);
+    resonantL *= normGain * invModes;
+    resonantR *= normGain * invModes;
 
     left  = left  * dryMix + resonantL * wetMix;
     right = right * dryMix + resonantR * wetMix;

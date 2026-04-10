@@ -48,11 +48,11 @@ Ouaricon Plugins:
 | O-Orbit | 📦 Installed | 1.0.0 | Audio Effect (Spatial Orbiter) | 2026-02-11 |
 | O-TextureForge | 📦 Installed | 1.0.2 | Instrument (Concatenative Synth) | 2026-02-18 |
 | O-Texture | 📦 Installed | 0.1.0 | Instrument/Effect (Neural Texture Synth) | 2026-02-14 |
-| O-Prism | 📦 Installed | 1.12.1 | Synth (Microtonal Wavetable) | 2026-04-09 |
+| O-Prism | 📦 Installed | 1.13.0 | Synth (Microtonal Wavetable) | 2026-04-09 |
 | O-Gain | 📦 Installed | 1.0.0 | Audio Effect (Gain Staging Utility) | 2026-03-07 |
 | O-Formant | 📦 Installed | 1.12.1 | Synth (Physical Model Vocal) | 2026-04-07 |
-| O-Bowed | 📦 Installed | 1.0.4 | Synth (Physical Model Bowed String) | 2026-04-09 |
-| O-Reed | 📦 Installed | 1.0.8 | Synth (Physical Modeling Reed Wind) | 2026-04-08 |
+| O-Bowed | 📦 Installed | 1.0.5 | Synth (Physical Model Bowed String) | 2026-04-09 |
+| O-Reed | 📦 Installed | 1.0.9 | Synth (Physical Modeling Reed Wind) | 2026-04-09 |
 | O-Wind | 📦 Installed | 1.11.3 | Synth (Physical Model Flute) | 2026-04-09 |
 
 Plugins created by **[TÂCHES](https://youtube.com/tachesteaches)**
