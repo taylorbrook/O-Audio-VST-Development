@@ -2,6 +2,14 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.1.4] - 2026-04-10
+
+### Fixed
+
+- **Crosstalk LP filter state continuity** — The one-pole lowpass inside the inter-string crosstalk loop (`PluginProcessor.cpp`) had its `stateA`/`stateB` declared as inner-scope locals, so the filter reset to 0 on every `processBlock` call. This made the filter discontinuous across block boundaries, producing per-block restart glitches and incorrect HF rolloff that scaled with block size.
+- **Root cause:** Filter state was block-local rather than persistent. The one-pole needs the previous sample's output to compute the next, but every new block began from zero, effectively restarting the filter ~600-1400 times per second depending on DAW buffer size.
+- **Fix:** Added persistent `crosstalkStateA[32][32]` / `crosstalkStateB[32][32]` arrays to `PluginProcessor.h`, indexed by the active voice pair (voiceIndexA, voiceIndexB). State is loaded into fast locals at loop entry, updated per sample, and written back at loop exit. Initialized to zero in `prepareToPlay()` so the filter starts clean on transport start / sample rate change.
+
 ## [2.1.3] - 2026-04-10
 
 ### Fixed

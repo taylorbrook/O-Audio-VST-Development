@@ -217,6 +217,13 @@ private:
     std::atomic<float>* crosstalkParam = nullptr;
     float crosstalkLPCoeff = 0.0f;
 
+    // v2.1.4: Persistent per-voice-pair LP filter state for crosstalk
+    // (previously declared as locals inside the inner loop → reset every block)
+    // Indexed by [voiceIndexA][voiceIndexB]; synthesiser has 32 voices.
+    static constexpr int kNumCrosstalkVoices = 32;
+    float crosstalkStateA[kNumCrosstalkVoices][kNumCrosstalkVoices] {};
+    float crosstalkStateB[kNumCrosstalkVoices][kNumCrosstalkVoices] {};
+
     // v1.33.1: Shared body resonance (post-mix, single instance for all voices)
     BodyResonance bodyResonance;
 

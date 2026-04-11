@@ -668,6 +668,11 @@ void OLyricaAudioProcessor::prepareToPlay(double sampleRate, int samplesPerBlock
     // v1.35.0: Compute one-pole lowpass coefficient for ~2kHz crosstalk filter
     crosstalkLPCoeff = 1.0f - std::exp(-juce::MathConstants<float>::twoPi * 2000.0f / static_cast<float>(sampleRate));
 
+    // v2.1.4: Reset persistent per-voice-pair crosstalk filter state on prepare
+    for (int i = 0; i < kNumCrosstalkVoices; ++i)
+        for (int j = 0; j < kNumCrosstalkVoices; ++j)
+            crosstalkStateA[i][j] = crosstalkStateB[i][j] = 0.0f;
+
     // v1.32.0: Prepare effects chain
     juce::dsp::ProcessSpec spec;
     spec.sampleRate = sampleRate;
@@ -836,7 +841,13 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                     const float* dataA = vA->getVoiceOutputBuffer().getReadPointer(0);
                     const float* dataB = vB->getVoiceOutputBuffer().getReadPointer(0);
 
-                    float stateA = 0.0f, stateB = 0.0f;
+                    // v2.1.4: Use persistent per-voice-pair filter state so the one-pole LP
+                    // is continuous across processBlock boundaries (previously reset to 0
+                    // every block because stateA/stateB were inner-scope locals).
+                    const int idxA = active[a].index;
+                    const int idxB = active[b].index;
+                    float stateA = crosstalkStateA[idxA][idxB];
+                    float stateB = crosstalkStateB[idxA][idxB];
 
                     for (int s = 0; s < numSamples; ++s)
                     {
@@ -846,6 +857,9 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
                         stateB = filtB;
                         ch0[s] += (filtA + filtB) * gain;
                     }
+
+                    crosstalkStateA[idxA][idxB] = stateA;
+                    crosstalkStateB[idxA][idxB] = stateB;
                 }
             }
         }
