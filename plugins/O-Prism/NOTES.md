@@ -2,11 +2,13 @@
 
 ## Status
 - **Current Status:** 📦 Installed
-- **Version:** 1.1.5
+- **Version:** 1.13.5
 - **Type:** Synth (Microtonal Wavetable)
 
 ## Lifecycle Timeline
 
+- **2026-04-11 (v1.13.5):** Code quality — extracted `PrismParamIds::kCustomTuningPresetIndex` constant to replace hardcoded `10.0f` literal across 5 `setValueNotifyingHost` call sites in `PluginEditor.cpp`. Zero behavior change.
+- **2026-04-11 (v1.13.4):** DSP perf — hoisted per-sample key tracking `std::pow` out of render loop (block-constant multipliers). Zero audible change.
 - **2026-02-16:** Ideated — Creative brief and requirements created
 
 ## Description

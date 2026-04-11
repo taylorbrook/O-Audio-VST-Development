@@ -1,5 +1,52 @@
 # O-Prism Changelog
 
+## v1.15.0 (2026-04-11)
+
+### Changed
+- **Independent per-filter envelope depth** (`PluginProcessor.cpp`, `PrismVoice.cpp/h`, `PrismParamIds.h`, `index.html`). Split the shared `filtEnvDepth` parameter into two independent parameters, `filtAEnvDepth` and `filtBEnvDepth`, so Filter A and Filter B can be modulated by the filter envelope with their own depth/polarity. Both parameters keep the original range (-1..1, default 0). UI replaces the single "Depth" knob in the Filter Envelope section with two knobs labelled "Dep A" and "Dep B".
+
+### Technical Notes
+- Domain: DSP + UI (parameter split)
+- Motivation: previous behavior forced both filters to track the filter envelope with the same depth and sign, preventing common patches like envelope-opening LP on Filter A while Filter B stays static (or moves inversely). Two depths give the standard Serum/Vital dual-filter modulation flexibility.
+- DSP change at `PrismVoice.cpp` cutoff computation: `modulatedCutoffA = baseCutoffA * pow(2, filtEnvVal * filtAEnvDepth * 4)` and `modulatedCutoffB = baseCutoffB * pow(2, filtEnvVal * filtBEnvDepth * 4)`. Previously both used the single `filtEnvDepth`.
+- Breaking for existing sessions: the `filtEnvDepth` parameter ID has been removed. Sessions/presets that stored a non-zero value will reset both new params to their default 0 on load (APVTS silently ignores the unknown key). To preserve the old patch, set `filtAEnvDepth` and `filtBEnvDepth` to the previous depth value.
+- `allSliderIds` in `PrismParamIds.h` now lists 6 filter-envelope params instead of 5 (auto-attach stays correct — no editor code changes needed).
+
+## v1.14.0 (2026-04-11)
+
+### Added
+- **Per-LFO free-running mode** (`PluginProcessor.cpp`, `PrismVoice.cpp`, `index.html`). New `lfo1FreeRun`..`lfo4FreeRun` bool parameters (default `false`). When enabled, an LFO's phase continues across note boundaries instead of resetting on note-on. Each LFO gains a "Retrig / Free Run" toggle button in its section header (adjacent to the existing Free/Sync rate-mode toggle).
+
+### Technical Notes
+- Domain: DSP + UI (feature addition)
+- Architecture: 4 shared phase accumulators (`OPrismAudioProcessor::globalLfoPhase`) advance once per block in `processBlock` after `renderNextBlock`, using the same sync-aware rate calculation as voices. Each voice queries `getGlobalLfoPhase(i)` at the start of its sample loop and, when that LFO's `FreeRun` is enabled, copies the global phase into its local `LFO` via the new `setPhase()` accessor. All 16 voices read the same global phase → phase-locked across the voice pool, which means free-running is coherent under polyphony (not just for held monophonic notes). Without this, newly-allocated or stolen voices would start at phase 0 even when other voices are mid-cycle.
+- Voice also skips `lfo[N].reset()` in `startNote` when `lfoNFreeRun` is on, so retriggered voices preserve their local state between the block-start sync writes.
+- Default `false` = zero behavior change for existing presets/sessions.
+- Tempo-sync compatible: the global phase advance uses the same `kDivBeats` table and `Sync`/`Division` params as `PrismVoice::renderNextBlock`, so switching between Free/Sync rate modes while Free Run is active doesn't break phase continuity.
+- UI labels deliberately chosen to avoid collision with the pre-existing "Free"/"Sync" rate-mode toggle: "Retrig" (default, phase resets on note-on) vs "Free Run" (active, phase continues).
+
+## v1.13.5 (2026-04-11)
+
+### Changed
+- **Code quality: extracted custom tuning preset index magic number** (`PrismParamIds.h`, `PluginEditor.cpp`). Introduced `PrismParamIds::kCustomTuningPresetIndex = 10` to replace the hardcoded `10.0f` literal used in 5 `setValueNotifyingHost` call sites that sync APVTS to the Custom tuning slot (setCustomTuning, setSingleInterval, loadScalaFile, applyTuningByName, applyGeneratedScale). The constant documents its coupling to the `tuningPreset` choice StringArray in `PluginProcessor::createParameterLayout()`, reducing the risk of silent drift if preset ordering ever changes.
+
+### Technical Notes
+- Domain: Code quality (refactoring)
+- Root cause: Magic number repeated across 5 call sites with no named reference to the `tuningPreset` choice array. If a new built-in tuning were inserted before "Custom" in the StringArray, every site would need manual updating — the constant centralizes that coupling.
+- Zero behavior change. `static_cast<float>(10)` is bit-identical to `10.0f`.
+- Note: user request specified "3 locations" but code inspection found 5 — all 5 were updated for consistency.
+
+## v1.13.4 (2026-04-11)
+
+### Changed
+- **DSP perf: hoisted key tracking `std::pow` out of sample loop** (`PrismVoice.cpp`). Filter A and B key-tracking were calling `std::pow(2.0, (filtKeyTrack * (currentMidiNote - 60)) / 12.0)` on every sample, even though `currentMidiNote`, `filtAKeyTrack`, and `filtBKeyTrack` are all constant within a render block. Replaced with two block-scoped `const double` multipliers (`keytrackMultiplierA`/`keytrackMultiplierB`) computed once before the sample loop, then applied per-sample as simple multiplications. Gated on `> 0.001f` (skips `pow` entirely when key tracking is disabled, resolving to multiply-by-1.0).
+
+### Technical Notes
+- Domain: DSP (performance)
+- Root cause: Per-sample `std::pow` call on values that never change within a block. At typical buffer sizes (128–512 samples) this is 2 redundant transcendentals × buffer_size × active_voices every processBlock.
+- Zero audible change — algebraic identity. Output is bit-identical to v1.13.3 (multiplication is commutative/associative for the same operand).
+- Parallels the same-block hoisting pattern used for `filtEnvVal * filtEnvDepth` cutoff modulation, which remains per-sample (correctly — filter envelope is sample-varying).
+
 ## v1.13.3 (2026-04-10)
 
 ### Fixed

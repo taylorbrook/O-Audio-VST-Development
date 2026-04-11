@@ -118,9 +118,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         intervals.push_back (static_cast<double> (val));
                     processorRef.getTuningEngine()->setCustomIntervals (intervals, "Custom");
-                    // Sync APVTS to Custom (index 10) for persistence
+                    // Sync APVTS to Custom for persistence
                     if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                        param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
+                        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
                     complete (true);
                     return;
                 }
@@ -140,9 +140,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                 int index = static_cast<int> (args[0]);
                 double cents = static_cast<double> (args[1]);
                 processorRef.getTuningEngine()->setSingleInterval (index, cents);
-                // Sync APVTS to Custom (index 10) for persistence
+                // Sync APVTS to Custom for persistence
                 if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                    param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
+                    param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
                 complete (true);
                 return;
             }
@@ -243,9 +243,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                         bool success = processorRef.getTuningEngine()->loadScalaFile (file);
                         if (success)
                         {
-                            // Sync APVTS to Custom (index 10) for persistence
+                            // Sync APVTS to Custom for persistence
                             if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                                param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
+                                param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
                         }
                         complete (success ? juce::var (processorRef.getTuningEngine()->getActiveTuningName())
                                          : juce::var());
@@ -398,9 +398,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     intervals.push_back (tuning->period);
                     processorRef.getTuningEngine()->setCustomIntervals (
                         intervals, juce::String (tuning->name));
-                    // Sync APVTS to Custom (index 10) for persistence
+                    // Sync APVTS to Custom for persistence
                     if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                        param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
+                        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
                     complete (true);
                     return;
                 }
@@ -420,9 +420,9 @@ OPrismAudioProcessorEditor::addNativeFunctions (juce::WebBrowserComponent::Optio
                     for (const auto& val : *arr)
                         intervals.push_back (static_cast<double> (val));
                     processorRef.getTuningEngine()->setCustomIntervals (intervals, "Generated");
-                    // Sync APVTS to Custom (index 10) for persistence
+                    // Sync APVTS to Custom for persistence
                     if (auto* param = processorRef.getAPVTS().getParameter ("tuningPreset"))
-                        param->setValueNotifyingHost (param->convertTo0to1 (10.0f));
+                        param->setValueNotifyingHost (param->convertTo0to1 (static_cast<float> (PrismParamIds::kCustomTuningPresetIndex)));
                     complete (true);
                     return;
                 }
@@ -917,6 +917,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
     for (int i = 1; i <= 4; ++i)
         lfoSyncRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> ("lfo" + juce::String (i) + "Sync"));
 
+    // LFO free-run toggle relays
+    for (int i = 1; i <= 4; ++i)
+        lfoFreeRunRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> ("lfo" + juce::String (i) + "FreeRun"));
+
     // Bypass toggle relays
     for (const auto& id : bypassIds)
         bypassRelays.push_back (std::make_unique<juce::WebToggleButtonRelay> (id));
@@ -943,6 +947,10 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
 
     // Add LFO sync toggle relays
     for (const auto& relay : lfoSyncRelays)
+        options = options.withOptionsFrom (*relay);
+
+    // Add LFO free-run toggle relays
+    for (const auto& relay : lfoFreeRunRelays)
         options = options.withOptionsFrom (*relay);
 
     // Add bypass toggle relays
@@ -1001,6 +1009,19 @@ OPrismAudioProcessorEditor::OPrismAudioProcessorEditor (OPrismAudioProcessor& p)
             lfoSyncAttachments.push_back (
                 std::make_unique<juce::WebToggleButtonParameterAttachment> (
                     *param, *lfoSyncRelays[static_cast<size_t> (i)], nullptr));
+        }
+    }
+
+    // LFO free-run toggle attachments
+    for (int i = 0; i < 4; ++i)
+    {
+        auto paramId = "lfo" + juce::String (i + 1) + "FreeRun";
+        auto* param = processorRef.getAPVTS().getParameter (paramId);
+        if (param != nullptr)
+        {
+            lfoFreeRunAttachments.push_back (
+                std::make_unique<juce::WebToggleButtonParameterAttachment> (
+                    *param, *lfoFreeRunRelays[static_cast<size_t> (i)], nullptr));
         }
     }
 

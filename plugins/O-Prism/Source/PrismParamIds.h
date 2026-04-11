@@ -20,6 +20,12 @@ namespace PrismParamIds
 {
     static constexpr int kNumModSlots = 16;
 
+    // Index of the "Custom" entry in the tuningPreset choice parameter.
+    // Must stay in sync with the StringArray in PluginProcessor::createParameterLayout()
+    // (12-TET, Pythagorean, Zarlino, Meantone 1/4, Werckmeister III, Kirnberger III,
+    //  Vallotti, Well Tempered, Just Intonation, Bohlen-Pierce, Custom = 10).
+    static constexpr int kCustomTuningPresetIndex = 10;
+
     // ─── Oscillator IDs (prefix + shared suffixes) ───
 
     inline juce::StringArray oscIds (const juce::String& prefix)
@@ -86,7 +92,7 @@ namespace PrismParamIds
                         "noiseType", "noiseLevel", "subRouting" });               //  6
         all.addArray ({ "ampAttack", "ampDecay", "ampSustain", "ampRelease" });   //  4
         all.addArray ({ "filtAttack", "filtDecay", "filtSustain",
-                        "filtRelease", "filtEnvDepth" });                         //  5
+                        "filtRelease", "filtAEnvDepth", "filtBEnvDepth" });       //  6
         all.addArray (filterIds ("filtA"));                                       //  5
         all.addArray (filterIds ("filtB"));                                       //  5
         all.addArray ({ "filtRouting" });                                         //  1

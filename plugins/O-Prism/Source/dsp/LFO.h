@@ -27,6 +27,12 @@ public:
     /** Returns bipolar output in range [-1, 1] */
     float getNextSample();
 
+    /** Set phase directly in [0, 1). Used for free-running sync from global phase. */
+    void setPhase (double newPhase) { phase = newPhase; }
+
+    /** Get current phase in [0, 1). */
+    double getPhase() const { return phase; }
+
 private:
     double sampleRate = 44100.0;
     double phase = 0.0;

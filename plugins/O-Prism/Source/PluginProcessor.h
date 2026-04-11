@@ -125,6 +125,12 @@ public:
     /** Get current BPM from host transport (default 120 when not playing) */
     double getCurrentBPM() const { return currentBPM.load (std::memory_order_relaxed); }
 
+    /** Get shared global LFO phase [0, 1) for free-running mode. idx is 0..3. */
+    double getGlobalLfoPhase (int idx) const
+    {
+        return (idx >= 0 && idx < 4) ? globalLfoPhase[static_cast<size_t> (idx)] : 0.0;
+    }
+
     /** Get currently active MIDI notes and their microtonal frequencies */
     std::vector<std::pair<int, double>> getActiveNotes()
     {
@@ -181,6 +187,11 @@ private:
 
     // Host transport BPM for tempo-synced LFOs
     std::atomic<double> currentBPM { 120.0 };
+
+    // Shared global LFO phase accumulators for free-running mode.
+    // Advanced at block rate after renderNextBlock; voices copy from here when lfoNFreeRun=true.
+    std::array<double, 4> globalLfoPhase {};
+    void advanceGlobalLfoPhases (int numSamples, double sampleRate);
 
     void updateWavetableAssignments();
 

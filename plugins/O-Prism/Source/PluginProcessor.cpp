@@ -125,7 +125,10 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createFilterEnve
         juce::ParameterID { "filtRelease", 1 }, "Filter Release",
         juce::NormalisableRange<float> (0.001f, 20.0f, 0.001f, 0.3f), 0.5f));
     params.push_back (std::make_unique<juce::AudioParameterFloat> (
-        juce::ParameterID { "filtEnvDepth", 1 }, "Filter Env Depth",
+        juce::ParameterID { "filtAEnvDepth", 1 }, "Filter A Env Depth",
+        juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
+    params.push_back (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "filtBEnvDepth", 1 }, "Filter B Env Depth",
         juce::NormalisableRange<float> (-1.0f, 1.0f, 0.01f), 0.0f));
 
     return params;
@@ -340,6 +343,8 @@ static std::vector<std::unique_ptr<juce::RangedAudioParameter>> createLFOParamet
         params.push_back (std::make_unique<juce::AudioParameterChoice> (
             juce::ParameterID { "lfo" + n + "Division", 1 }, "LFO " + n + " Division",
             divNames, 2)); // default 1/4
+        params.push_back (std::make_unique<juce::AudioParameterBool> (
+            juce::ParameterID { "lfo" + n + "FreeRun", 1 }, "LFO " + n + " Free Run", false));
     }
 
     return params;
@@ -471,9 +476,48 @@ OPrismAudioProcessor::~OPrismAudioProcessor() = default;
 // Audio Processing
 // ═══════════════════════════════════════════════════════════════════
 
+void OPrismAudioProcessor::advanceGlobalLfoPhases (int numSamples, double sampleRate)
+{
+    // Keep in sync with the rate calculation in PrismVoice::renderNextBlock.
+    static constexpr float kDivBeats[18] = {
+        4.0f, 2.0f, 1.0f, 0.5f, 0.25f, 0.125f,
+        6.0f, 3.0f, 1.5f, 0.75f, 0.375f, 0.1875f,
+        2.6667f, 1.3333f, 0.6667f, 0.3333f, 0.1667f, 0.0833f
+    };
+
+    const double bpm = currentBPM.load (std::memory_order_relaxed);
+
+    for (int i = 0; i < 4; ++i)
+    {
+        auto n = juce::String (i + 1);
+        auto* pSync = parameters.getRawParameterValue ("lfo" + n + "Sync");
+        auto* pRate = parameters.getRawParameterValue ("lfo" + n + "Rate");
+        auto* pDiv  = parameters.getRawParameterValue ("lfo" + n + "Division");
+
+        float rateHz;
+        if (pSync->load() > 0.5f)
+        {
+            const int divIdx = juce::jlimit (0, 17, static_cast<int> (pDiv->load()));
+            const float beats = kDivBeats[divIdx];
+            const float seconds = static_cast<float> (beats * 60.0 / bpm);
+            rateHz = 1.0f / seconds;
+        }
+        else
+        {
+            rateHz = pRate->load();
+        }
+
+        double& phase = globalLfoPhase[static_cast<size_t> (i)];
+        phase += (static_cast<double> (rateHz) / sampleRate) * static_cast<double> (numSamples);
+        phase -= std::floor (phase); // wrap to [0, 1)
+    }
+}
+
 void OPrismAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlock)
 {
     synthesiser.setCurrentPlaybackSampleRate (sampleRate);
+
+    globalLfoPhase.fill (0.0);
 
     // Prepare all voices
     for (int i = 0; i < synthesiser.getNumVoices(); ++i)
@@ -557,6 +601,9 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
 
     // Render synth voices
     synthesiser.renderNextBlock (buffer, midiMessages, 0, buffer.getNumSamples());
+
+    // Advance shared free-running LFO phases for next block
+    advanceGlobalLfoPhases (buffer.getNumSamples(), getSampleRate());
 
     // Effects chain (float precision)
     juce::dsp::AudioBlock<float> block (buffer);

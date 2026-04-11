@@ -104,7 +104,8 @@ private:
     std::atomic<float>* pFiltBKeyTrack = nullptr;
     // Filter routing
     std::atomic<float>* pFiltRouting = nullptr;
-    std::atomic<float>* pFiltEnvDepth = nullptr;
+    std::atomic<float>* pFiltAEnvDepth = nullptr;
+    std::atomic<float>* pFiltBEnvDepth = nullptr;
     // Envelopes
     std::atomic<float>* pAmpAttack = nullptr;
     std::atomic<float>* pAmpDecay = nullptr;
@@ -119,18 +120,22 @@ private:
     std::atomic<float>* pLfo1Shape = nullptr;
     std::atomic<float>* pLfo1Sync = nullptr;
     std::atomic<float>* pLfo1Division = nullptr;
+    std::atomic<float>* pLfo1FreeRun = nullptr;
     std::atomic<float>* pLfo2Rate = nullptr;
     std::atomic<float>* pLfo2Shape = nullptr;
     std::atomic<float>* pLfo2Sync = nullptr;
     std::atomic<float>* pLfo2Division = nullptr;
+    std::atomic<float>* pLfo2FreeRun = nullptr;
     std::atomic<float>* pLfo3Rate = nullptr;
     std::atomic<float>* pLfo3Shape = nullptr;
     std::atomic<float>* pLfo3Sync = nullptr;
     std::atomic<float>* pLfo3Division = nullptr;
+    std::atomic<float>* pLfo3FreeRun = nullptr;
     std::atomic<float>* pLfo4Rate = nullptr;
     std::atomic<float>* pLfo4Shape = nullptr;
     std::atomic<float>* pLfo4Sync = nullptr;
     std::atomic<float>* pLfo4Division = nullptr;
+    std::atomic<float>* pLfo4FreeRun = nullptr;
     // Velocity
     std::atomic<float>* pVelocityCurve = nullptr;
 

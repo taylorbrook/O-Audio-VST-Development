@@ -72,7 +72,8 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pFiltBKeyTrack = apvts->getRawParameterValue ("filtBKeyTrack");
 
     pFiltRouting   = apvts->getRawParameterValue ("filtRouting");
-    pFiltEnvDepth  = apvts->getRawParameterValue ("filtEnvDepth");
+    pFiltAEnvDepth = apvts->getRawParameterValue ("filtAEnvDepth");
+    pFiltBEnvDepth = apvts->getRawParameterValue ("filtBEnvDepth");
 
     pAmpAttack     = apvts->getRawParameterValue ("ampAttack");
     pAmpDecay      = apvts->getRawParameterValue ("ampDecay");
@@ -88,18 +89,22 @@ void PrismVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pLfo1Shape     = apvts->getRawParameterValue ("lfo1Shape");
     pLfo1Sync      = apvts->getRawParameterValue ("lfo1Sync");
     pLfo1Division  = apvts->getRawParameterValue ("lfo1Division");
+    pLfo1FreeRun   = apvts->getRawParameterValue ("lfo1FreeRun");
     pLfo2Rate      = apvts->getRawParameterValue ("lfo2Rate");
     pLfo2Shape     = apvts->getRawParameterValue ("lfo2Shape");
     pLfo2Sync      = apvts->getRawParameterValue ("lfo2Sync");
     pLfo2Division  = apvts->getRawParameterValue ("lfo2Division");
+    pLfo2FreeRun   = apvts->getRawParameterValue ("lfo2FreeRun");
     pLfo3Rate      = apvts->getRawParameterValue ("lfo3Rate");
     pLfo3Shape     = apvts->getRawParameterValue ("lfo3Shape");
     pLfo3Sync      = apvts->getRawParameterValue ("lfo3Sync");
     pLfo3Division  = apvts->getRawParameterValue ("lfo3Division");
+    pLfo3FreeRun   = apvts->getRawParameterValue ("lfo3FreeRun");
     pLfo4Rate      = apvts->getRawParameterValue ("lfo4Rate");
     pLfo4Shape     = apvts->getRawParameterValue ("lfo4Shape");
     pLfo4Sync      = apvts->getRawParameterValue ("lfo4Sync");
     pLfo4Division  = apvts->getRawParameterValue ("lfo4Division");
+    pLfo4FreeRun   = apvts->getRawParameterValue ("lfo4FreeRun");
 
     pVelocityCurve = apvts->getRawParameterValue ("velocityCurve");
 }
@@ -248,11 +253,11 @@ void PrismVoice::startNote (int midiNoteNumber, float velocity,
     filterBL.reset();
     filterBR.reset();
 
-    // Reset LFOs for consistent per-note modulation
-    lfo1.reset();
-    lfo2.reset();
-    lfo3.reset();
-    lfo4.reset();
+    // Reset LFOs for consistent per-note modulation (skip if free-running)
+    if (pLfo1FreeRun == nullptr || pLfo1FreeRun->load() < 0.5f) lfo1.reset();
+    if (pLfo2FreeRun == nullptr || pLfo2FreeRun->load() < 0.5f) lfo2.reset();
+    if (pLfo3FreeRun == nullptr || pLfo3FreeRun->load() < 0.5f) lfo3.reset();
+    if (pLfo4FreeRun == nullptr || pLfo4FreeRun->load() < 0.5f) lfo4.reset();
 
     // Amplitude ADSR
     float attack = pAmpAttack->load();
@@ -336,7 +341,8 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float filtBKeyTrack = pFiltBKeyTrack->load();
 
     int filtRouting = static_cast<int> (pFiltRouting->load());
-    float filtEnvDepth = pFiltEnvDepth->load();
+    float filtAEnvDepth = pFiltAEnvDepth->load();
+    float filtBEnvDepth = pFiltBEnvDepth->load();
 
     // Note division multipliers: how many beats per LFO cycle
     // Index order: 1/1, 1/2, 1/4, 1/8, 1/16, 1/32,
@@ -385,6 +391,20 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     lfo4.setRate (lfo4Rate);
     lfo4.setShape (static_cast<LFO::Shape> (lfo4Shape));
 
+    // Sync voice LFO phase to processor-level global phase when free-running.
+    // All voices reading the same global phase stay phase-locked across the pool.
+    if (processor != nullptr)
+    {
+        if (pLfo1FreeRun != nullptr && pLfo1FreeRun->load() > 0.5f)
+            lfo1.setPhase (processor->getGlobalLfoPhase (0));
+        if (pLfo2FreeRun != nullptr && pLfo2FreeRun->load() > 0.5f)
+            lfo2.setPhase (processor->getGlobalLfoPhase (1));
+        if (pLfo3FreeRun != nullptr && pLfo3FreeRun->load() > 0.5f)
+            lfo3.setPhase (processor->getGlobalLfoPhase (2));
+        if (pLfo4FreeRun != nullptr && pLfo4FreeRun->load() > 0.5f)
+            lfo4.setPhase (processor->getGlobalLfoPhase (3));
+    }
+
     // ─── Update mod matrix routing from APVTS (once per block) ───
     modMatrix.updateFromAPVTS();
 
@@ -407,6 +427,16 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     auto* rightChannel = outputBuffer.getNumChannels() > 1
                              ? outputBuffer.getWritePointer (1)
                              : nullptr;
+
+    // Precompute key tracking multipliers (block-constant: currentMidiNote and
+    // filt[A/B]KeyTrack don't change within a render block, so std::pow can be
+    // hoisted out of the per-sample loop).
+    const double keytrackMultiplierA = (filtAKeyTrack > 0.001f)
+        ? std::pow (2.0, (filtAKeyTrack * (currentMidiNote - 60)) / 12.0)
+        : 1.0;
+    const double keytrackMultiplierB = (filtBKeyTrack > 0.001f)
+        ? std::pow (2.0, (filtBKeyTrack * (currentMidiNote - 60)) / 12.0)
+        : 1.0;
 
     for (int sample = startSample; sample < startSample + numSamples; ++sample)
     {
@@ -547,8 +577,8 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         double baseCutoffA = static_cast<double> (filtACutoff);
         double baseCutoffB = static_cast<double> (filtBCutoff);
 
-        double modulatedCutoffA = baseCutoffA * std::pow (2.0, filtEnvVal * filtEnvDepth * 4.0);
-        double modulatedCutoffB = baseCutoffB * std::pow (2.0, filtEnvVal * filtEnvDepth * 4.0);
+        double modulatedCutoffA = baseCutoffA * std::pow (2.0, filtEnvVal * filtAEnvDepth * 4.0);
+        double modulatedCutoffB = baseCutoffB * std::pow (2.0, filtEnvVal * filtBEnvDepth * 4.0);
 
         // Mod matrix cutoff offsets (multiplicative, octave-scaled)
         float cutoffModA = modMatrix.getModOffset (ModDest::FiltACutoff);
@@ -558,17 +588,9 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         if (std::abs (cutoffModB) > 0.001f)
             modulatedCutoffB *= std::pow (2.0, static_cast<double> (cutoffModB) * 4.0);
 
-        // Key tracking
-        if (filtAKeyTrack > 0.001f)
-        {
-            double ktOffset = filtAKeyTrack * (currentMidiNote - 60);
-            modulatedCutoffA *= std::pow (2.0, ktOffset / 12.0);
-        }
-        if (filtBKeyTrack > 0.001f)
-        {
-            double ktOffset = filtBKeyTrack * (currentMidiNote - 60);
-            modulatedCutoffB *= std::pow (2.0, ktOffset / 12.0);
-        }
+        // Key tracking (block-constant multiplier precomputed above loop)
+        modulatedCutoffA *= keytrackMultiplierA;
+        modulatedCutoffB *= keytrackMultiplierB;
 
         modulatedCutoffA = juce::jlimit (20.0, 20000.0, modulatedCutoffA);
         modulatedCutoffB = juce::jlimit (20.0, 20000.0, modulatedCutoffB);

@@ -38,6 +38,7 @@ private:
     std::vector<std::unique_ptr<juce::WebSliderRelay>> sliderRelays;
     std::unique_ptr<juce::WebToggleButtonRelay> delaySyncRelay;
     std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> lfoSyncRelays;
+    std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> lfoFreeRunRelays;
     std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> bypassRelays;
     std::vector<std::unique_ptr<juce::WebToggleButtonRelay>> modSlotToggleRelays;
 
@@ -48,6 +49,7 @@ private:
     std::vector<std::unique_ptr<juce::WebSliderParameterAttachment>> sliderAttachments;
     std::unique_ptr<juce::WebToggleButtonParameterAttachment> delaySyncAttachment;
     std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> lfoSyncAttachments;
+    std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> lfoFreeRunAttachments;
     std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> bypassAttachments;
     std::vector<std::unique_ptr<juce::WebToggleButtonParameterAttachment>> modSlotToggleAttachments;
 
