@@ -426,7 +426,7 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float pitchModOffset = modMatrix.getModOffset (ModDest::Pitch);
         double pitchModRatio = 1.0;
         if (std::abs (pitchModOffset) > 0.0001f)
-            pitchModRatio = std::pow (2.0, static_cast<double> (pitchModOffset) * 12.0 / 12.0);
+            pitchModRatio = std::exp2 (static_cast<double> (pitchModOffset));
 
         // Update oscillator frequencies with glide + pitch ratios + pitch mod
         oscA.setFrequency (glidedFreq * pitchRatioA * pitchModRatio);
@@ -596,10 +596,10 @@ void PrismVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             filteredL = filterBL.processSample (filterAL.processSample (mixedL));
             filteredR = filterBR.processSample (filterAR.processSample (mixedR));
         }
-        else // Parallel: A + B
+        else // Parallel: A + B (0.5x to match serial gain)
         {
-            filteredL = filterAL.processSample (mixedL) + filterBL.processSample (mixedL);
-            filteredR = filterAR.processSample (mixedR) + filterBR.processSample (mixedR);
+            filteredL = 0.5 * (filterAL.processSample (mixedL) + filterBL.processSample (mixedL));
+            filteredR = 0.5 * (filterAR.processSample (mixedR) + filterBR.processSample (mixedR));
         }
 
         // Post-filter sub routing (default): add sub after filters

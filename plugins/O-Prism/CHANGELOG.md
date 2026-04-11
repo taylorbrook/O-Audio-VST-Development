@@ -1,5 +1,42 @@
 # O-Prism Changelog
 
+## v1.13.1 (2026-04-10)
+
+### Fixed
+- **Parallel filter routing +6dB gain inflation**: Parallel mode (Filter A + B) summed both filters at unity, producing ~2x the level of serial mode (A → B). Added 0.5x scaling to the parallel sum so both routing modes output at matched levels.
+
+### Changed
+- **Pitch mod cleanup**: Removed redundant `* 12.0 / 12.0` no-op from `pitchModRatio` calculation and replaced `std::pow(2.0, x)` with `std::exp2(x)` for clarity (`PrismVoice.cpp:429`). Zero behavior change — algebraic identity.
+
+### Technical Notes
+- Domain: DSP
+- Root cause: Uncompensated additive sum in parallel filter path (`PrismVoice.cpp:601-602`)
+- No parameter changes — full backward compatibility
+
+## v1.13.0 (2026-04-09)
+
+### Changed
+- **Reorder FX chain**: Moved reverb from last to second-last position in the effects chain. New order: Distortion → Chorus → Delay → Reverb → EQ. EQ is now the final stage for post-reverb tonal shaping.
+- **Effects tab UI**: Reordered to match signal chain — reverb now appears directly above EQ at bottom of effects tab.
+
+### Technical Notes
+- Domain: DSP + GUI
+- No parameter changes — full backward compatibility
+- Presets load identically; only processing order changed
+
+## v1.12.1 (2026-04-09)
+
+### Fixed
+- **Reverb buzzing**: `tankFeedbackA`/`tankFeedbackB` were local variables in `process()`, reset to zero every buffer call. The Dattorro figure-8 cross-feedback was broken at buffer boundaries (~86 Hz discontinuity at 512-sample buffers). Moved to member variables for correct inter-buffer persistence.
+- **Incorrect output tap formula**: Only 5 taps per channel with wrong delay line sources and reused tap positions. Replaced with full Dattorro Table 1 output: 7 taps per channel from correct delay lines and allpass diffuser nodes. Added `read()` method to `Allpass` struct for diffuser taps.
+- **Static decay diffusion 2 coefficient**: Second decay diffuser used fixed `0.7f` instead of the Dattorro decay-dependent formula `decay² × 0.5 + 0.15`. Now updates dynamically with the Size parameter for natural decay character.
+- **Per-sample `scaledDelay()` in audio loop**: `tankDelayA2` and `tankDelayB2` read positions were recomputed every sample via float division. Precomputed as `delayA2len`/`delayB2len` in `prepare()`.
+
+### Technical Notes
+- Domain: DSP
+- Root cause: v1.12.0 Dattorro implementation had local feedback state and incomplete output tap network
+- No parameter changes — full backward compatibility
+
 ## v1.12.0 (2026-04-08)
 
 ### Changed

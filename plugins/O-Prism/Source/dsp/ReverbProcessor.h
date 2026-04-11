@@ -59,6 +59,13 @@ private:
             return output;
         }
 
+        float read (int delaySamples) const
+        {
+            int idx = writeIndex - delaySamples;
+            if (idx < 0) idx += bufferSize;
+            return buffer[static_cast<size_t> (idx)];
+        }
+
         std::vector<float> buffer;
         int bufferSize = 1;
         int writeIndex = 0;
@@ -175,6 +182,13 @@ private:
 
     float currentSampleRate = 44100.0f;
 
+    // ─── Cross-feedback state (persists across buffers) ───
+    float tankFeedbackA = 0.0f;
+    float tankFeedbackB = 0.0f;
+
+    // ─── Decay diffusion 2 coefficient (decay-dependent) ───
+    float decDiff2Coeff = 0.5f;
+
     // ─── Dattorro delay lengths (at 29761 Hz reference rate) ───
     // Scaled to actual sample rate in prepare()
     static constexpr float kRefRate = 29761.0f;
@@ -200,11 +214,15 @@ private:
     static constexpr int kDecayDiff2B = 2656;
     static constexpr int kDelayB2     = 3163;
 
-    // Output tap positions (relative to delay line write heads)
-    int tapA1pos = 0, tapA2pos = 0, tapA3pos = 0;
-    int tapB1pos = 0, tapB2pos = 0, tapB3pos = 0;
-    int tapA1neg = 0, tapB1neg = 0;
+    // Output tap positions (Dattorro paper, delay-line-only taps, scaled in prepare)
+    // Left:  +A1[266] +A1[2974] -A2[1913] +A2[1990] -B1[1990] -B2[187]
+    // Right: +B1[353] +B1[3627] -B2[1228] +B2[2111] -A1[2111] -A2[335]
+    int tapA1_266 = 0, tapA1_2974 = 0, tapA1_2111 = 0;
+    int tapA2_1913 = 0, tapA2_1990 = 0, tapA2_335 = 0;
+    int tapB1_353 = 0, tapB1_3627 = 0, tapB1_1990 = 0;
+    int tapB2_187 = 0, tapB2_1228 = 0, tapB2_2111 = 0;
 
-    // Scaled delay lengths (set in prepare)
+    // Precomputed fixed delay lengths (set in prepare, used in process)
     int delayA1len = 0, delayB1len = 0;
+    int delayA2len = 0, delayB2len = 0;
 };

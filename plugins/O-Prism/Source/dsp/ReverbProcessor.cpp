@@ -35,7 +35,8 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     tankDelayA1.setSize (delayA1len + 64);  // Extra room for modulation excursion
     tankDampA.clear();
     tankDiffusionA2.setSize (scaledDelay (kDecayDiff2A));
-    tankDelayA2.setSize (scaledDelay (kDelayA2));
+    delayA2len = scaledDelay (kDelayA2);
+    tankDelayA2.setSize (delayA2len);
 
     // Tank half B
     tankDiffusionB1.setSize (scaledDelay (kDecayDiff1B));
@@ -43,17 +44,26 @@ void ReverbProcessor::prepare (const juce::dsp::ProcessSpec& spec)
     tankDelayB1.setSize (delayB1len + 64);
     tankDampB.clear();
     tankDiffusionB2.setSize (scaledDelay (kDecayDiff2B));
-    tankDelayB2.setSize (scaledDelay (kDelayB2));
+    delayB2len = scaledDelay (kDelayB2);
+    tankDelayB2.setSize (delayB2len);
 
-    // Output tap positions (from Dattorro paper, scaled)
-    tapA1pos = scaledDelay (266);
-    tapA2pos = scaledDelay (2974);
-    tapA3pos = scaledDelay (1913);
-    tapB1pos = scaledDelay (353);
-    tapB2pos = scaledDelay (3627);
-    tapB3pos = scaledDelay (1228);
-    tapA1neg = scaledDelay (1990);
-    tapB1neg = scaledDelay (187);
+    // Output tap positions (delay-line-only, all within buffer bounds)
+    tapA1_266  = scaledDelay (266);   // A1 max: 4453 ✓
+    tapA1_2974 = scaledDelay (2974);
+    tapA1_2111 = scaledDelay (2111);
+    tapA2_1913 = scaledDelay (1913);  // A2 max: 3720 ✓
+    tapA2_1990 = scaledDelay (1990);
+    tapA2_335  = scaledDelay (335);
+    tapB1_353  = scaledDelay (353);   // B1 max: 4217 ✓
+    tapB1_3627 = scaledDelay (3627);
+    tapB1_1990 = scaledDelay (1990);
+    tapB2_187  = scaledDelay (187);   // B2 max: 3163 ✓
+    tapB2_1228 = scaledDelay (1228);
+    tapB2_2111 = scaledDelay (2111);
+
+    // Cross-feedback state
+    tankFeedbackA = 0.0f;
+    tankFeedbackB = 0.0f;
 
     // LFO
     lfoPhase = 0.0f;
@@ -81,6 +91,9 @@ void ReverbProcessor::reset()
     tankDiffusionB2.clear();
     tankDelayB2.clear();
 
+    tankFeedbackA = 0.0f;
+    tankFeedbackB = 0.0f;
+
     lfoPhase = 0.0f;
 }
 
@@ -88,6 +101,9 @@ void ReverbProcessor::setSize (float size)
 {
     // Map 0-1 to decay coefficient 0.0 - 0.98
     decayCoeff = size * 0.98f;
+
+    // Dattorro: decayDiffusion2 = decay^2 * 0.5 + 0.15
+    decDiff2Coeff = decayCoeff * decayCoeff * 0.5f + 0.15f;
 }
 
 void ReverbProcessor::setDamping (float damp)
@@ -132,12 +148,8 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
     static constexpr float kInDiff1 = 0.75f;
     static constexpr float kInDiff2 = 0.625f;
 
-    // Decay diffusion coefficients
+    // Decay diffusion 1 coefficient (fixed per Dattorro)
     static constexpr float kDecDiff1 = 0.7f;
-
-    // Cross-feedback state from previous sample
-    float tankFeedbackA = 0.0f;
-    float tankFeedbackB = 0.0f;
 
     for (size_t i = 0; i < numSamples; ++i)
     {
@@ -164,34 +176,29 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
 
         // ─── LFO for tank modulation ───
         float lfoA = std::sin (lfoPhase * 6.2831853f) * modDepth;
-        float lfoB = std::sin ((lfoPhase + 0.25f) * 6.2831853f) * modDepth;  // 90-degree offset
+        float lfoB = std::sin ((lfoPhase + 0.25f) * 6.2831853f) * modDepth;
         lfoPhase += lfoIncrement;
         if (lfoPhase >= 1.0f) lfoPhase -= 1.0f;
 
         // ─── Tank Half A ───
         float tankInputA = diffused + tankFeedbackB * decayCoeff;
 
-        // Decay diffuser 1
+        // Decay diffuser 1 (negative coefficient per Dattorro)
         float decDiff1A = tankDiffusionA1.process (tankInputA, -kDecDiff1);
 
         // Modulated delay 1
         tankDelayA1.write (decDiff1A);
         float delayedA1 = tankDelayA1.readInterpolated (static_cast<float> (delayA1len) + lfoA);
 
-        // Damping
-        float dampedA = tankDampA.process (delayedA1);
+        // Damping + decay
+        float dampedA = tankDampA.process (delayedA1) * decayCoeff;
 
-        // Apply decay
-        dampedA *= decayCoeff;
+        // Decay diffuser 2 (decay-dependent coefficient per Dattorro)
+        float decDiff2A = tankDiffusionA2.process (dampedA, decDiff2Coeff);
 
-        // Decay diffuser 2
-        float decDiff2A = tankDiffusionA2.process (dampedA, kDecDiff1);
-
-        // Delay 2
+        // Delay 2 (precomputed length)
         tankDelayA2.write (decDiff2A);
-        float delayedA2 = tankDelayA2.read (scaledDelay (kDelayA2));
-
-        tankFeedbackA = delayedA2;
+        tankFeedbackA = tankDelayA2.read (delayA2len);
 
         // ─── Tank Half B ───
         float tankInputB = diffused + tankFeedbackA * decayCoeff;
@@ -201,34 +208,31 @@ void ReverbProcessor::process (juce::dsp::AudioBlock<float>& block)
         tankDelayB1.write (decDiff1B);
         float delayedB1 = tankDelayB1.readInterpolated (static_cast<float> (delayB1len) + lfoB);
 
-        float dampedB = tankDampB.process (delayedB1);
-        dampedB *= decayCoeff;
+        float dampedB = tankDampB.process (delayedB1) * decayCoeff;
 
-        float decDiff2B = tankDiffusionB2.process (dampedB, kDecDiff1);
+        float decDiff2B = tankDiffusionB2.process (dampedB, decDiff2Coeff);
 
         tankDelayB2.write (decDiff2B);
-        float delayedB2 = tankDelayB2.read (scaledDelay (kDelayB2));
+        tankFeedbackB = tankDelayB2.read (delayB2len);
 
-        tankFeedbackB = delayedB2;
+        // ─── Output taps (delay-line-only, all within buffer bounds) ───
+        float outL = tankDelayA1.read (tapA1_266)
+                   + tankDelayA1.read (tapA1_2974)
+                   - tankDelayA2.read (tapA2_1913)
+                   + tankDelayA2.read (tapA2_1990)
+                   - tankDelayB1.read (tapB1_1990)
+                   - tankDelayB2.read (tapB2_187);
 
-        // ─── Output taps (multi-tap stereo from both tank halves) ───
-        // Taps read at fixed offsets behind each delay's write head
+        float outR = tankDelayB1.read (tapB1_353)
+                   + tankDelayB1.read (tapB1_3627)
+                   - tankDelayB2.read (tapB2_1228)
+                   + tankDelayB2.read (tapB2_2111)
+                   - tankDelayA1.read (tapA1_2111)
+                   - tankDelayA2.read (tapA2_335);
 
-        float outL = tankDelayA1.read (tapA1pos)
-                   + tankDelayA1.read (tapA2pos)
-                   - tankDelayB2.read (tapA3pos)
-                   + tankDelayA2.read (tapA1neg)
-                   - tankDelayB1.read (tapB1neg);
-
-        float outR = tankDelayB1.read (tapB1pos)
-                   + tankDelayB1.read (tapB2pos)
-                   - tankDelayA2.read (tapB3pos)
-                   + tankDelayB2.read (tapA1neg)
-                   - tankDelayA1.read (tapA1neg);
-
-        // Scale output
-        leftData[i]  = outL * 0.6f;
-        rightData[i] = outR * 0.6f;
+        // Scale output (6 taps summed)
+        leftData[i]  = outL * 0.4f;
+        rightData[i] = outR * 0.4f;
     }
 
     dryWetMixer.mixWetSamples (block);

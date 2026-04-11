@@ -605,23 +605,7 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
             delay.process (block);
     }
 
-    // 4. EQ
-    bool eqBypassed = parameters.getRawParameterValue ("eqBypass")->load() > 0.5f;
-    if (! eqBypassed)
-    {
-        float eqLowGain = parameters.getRawParameterValue ("eqLowGain")->load();
-        float eqMidGain = parameters.getRawParameterValue ("eqMidGain")->load();
-        float eqMidFreq = parameters.getRawParameterValue ("eqMidFreq")->load();
-        float eqHighGain = parameters.getRawParameterValue ("eqHighGain")->load();
-        eq.setLowGain (eqLowGain);
-        eq.setMidGain (eqMidGain);
-        eq.setMidFreq (eqMidFreq);
-        eq.setHighGain (eqHighGain);
-        if (std::abs (eqLowGain) > 0.1f || std::abs (eqMidGain) > 0.1f || std::abs (eqHighGain) > 0.1f)
-            eq.process (block);
-    }
-
-    // 5. Reverb
+    // 4. Reverb
     bool reverbBypassed = parameters.getRawParameterValue ("reverbBypass")->load() > 0.5f;
     if (! reverbBypassed)
     {
@@ -639,6 +623,22 @@ void OPrismAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juce:
         reverbProcessor.setModRate (reverbModRate);
         if (reverbMix > 0.001f)
             reverbProcessor.process (block);
+    }
+
+    // 5. EQ
+    bool eqBypassed = parameters.getRawParameterValue ("eqBypass")->load() > 0.5f;
+    if (! eqBypassed)
+    {
+        float eqLowGain = parameters.getRawParameterValue ("eqLowGain")->load();
+        float eqMidGain = parameters.getRawParameterValue ("eqMidGain")->load();
+        float eqMidFreq = parameters.getRawParameterValue ("eqMidFreq")->load();
+        float eqHighGain = parameters.getRawParameterValue ("eqHighGain")->load();
+        eq.setLowGain (eqLowGain);
+        eq.setMidGain (eqMidGain);
+        eq.setMidFreq (eqMidFreq);
+        eq.setHighGain (eqHighGain);
+        if (std::abs (eqLowGain) > 0.1f || std::abs (eqMidGain) > 0.1f || std::abs (eqHighGain) > 0.1f)
+            eq.process (block);
     }
 
     // Stereo width (mid-side processing) + master volume (smoothed per-sample)

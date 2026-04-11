@@ -1274,19 +1274,6 @@ body {
 <!-- ─── EFFECTS TAB ─── -->
 <div id="effects-tab" class="tab-content">
 
-    <!-- Reverb -->
-    <div class="effect-section" id="section-reverb">
-        <div class="section-header"><span>Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle">ON</button></div>
-        <div class="param-row">
-            <div class="knob-container"><div class="knob" id="knob-reverbSize"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbSize" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Size</span><span class="knob-value" id="val-reverbSize">50%</span></div></div>
-            <div class="knob-container"><div class="knob" id="knob-reverbDamp"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbDamp" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Damp</span><span class="knob-value" id="val-reverbDamp">50%</span></div></div>
-            <div class="knob-container"><div class="knob" id="knob-reverbPredelay"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbPredelay" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Pre-Dly</span><span class="knob-value" id="val-reverbPredelay">20ms</span></div></div>
-            <div class="knob-container"><div class="knob" id="knob-reverbMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-reverbMix">0%</span></div></div>
-            <div class="knob-container"><div class="knob" id="knob-reverbModDepth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbModDepth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mod</span><span class="knob-value" id="val-reverbModDepth">30%</span></div></div>
-            <div class="knob-container"><div class="knob" id="knob-reverbModRate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbModRate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-reverbModRate">1.0Hz</span></div></div>
-        </div>
-    </div>
-
     <!-- Delay -->
     <div class="effect-section" id="section-delay">
         <div class="section-header"><span>Delay</span><button id="toggle-delayBypass" class="bypass-toggle">ON</button></div>
@@ -1329,6 +1316,19 @@ body {
             </div>
             <div class="knob-container"><div class="knob" id="knob-distDrive"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-distDrive" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Drive</span><span class="knob-value" id="val-distDrive">0%</span></div></div>
             <div class="knob-container"><div class="knob" id="knob-distMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-distMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-distMix">0%</span></div></div>
+        </div>
+    </div>
+
+    <!-- Reverb -->
+    <div class="effect-section" id="section-reverb">
+        <div class="section-header"><span>Reverb</span><button id="toggle-reverbBypass" class="bypass-toggle">ON</button></div>
+        <div class="param-row">
+            <div class="knob-container"><div class="knob" id="knob-reverbSize"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbSize" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Size</span><span class="knob-value" id="val-reverbSize">50%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbDamp"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbDamp" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Damp</span><span class="knob-value" id="val-reverbDamp">50%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbPredelay"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbPredelay" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Pre-Dly</span><span class="knob-value" id="val-reverbPredelay">20ms</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbMix"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbMix" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mix</span><span class="knob-value" id="val-reverbMix">0%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbModDepth"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbModDepth" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Mod</span><span class="knob-value" id="val-reverbModDepth">30%</span></div></div>
+            <div class="knob-container"><div class="knob" id="knob-reverbModRate"><div class="knob-visual"><svg viewBox="0 0 52 52"><circle class="knob-track" cx="26" cy="26" r="22"/><circle class="knob-vine" id="vine-reverbModRate" cx="26" cy="26" r="22" stroke-dasharray="103.67" stroke-dashoffset="103.67"/></svg></div><span class="knob-label">Rate</span><span class="knob-value" id="val-reverbModRate">1.0Hz</span></div></div>
         </div>
     </div>
 
