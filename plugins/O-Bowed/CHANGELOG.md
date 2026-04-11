@@ -2,6 +2,15 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.0.6] - 2026-04-11
+
+### Fixed
+- Sound design presets (Glass Bow, Metal Drone, Impossible Strings, Breath of Strings) produced saturated infinite tones with overtone dominance instead of musical bowed sounds. Three root causes:
+  1. Loop gain reached 1.0 at high `infiniteSustain` (zero energy loss), causing waveguide saturation and harmonic distortion from tanh limiter. Capped max loop gain at 0.9995 (~15s decay at 440Hz)
+  2. No feedback mechanism to reduce bow excitation at high waveguide energy. Added energy-aware excitation limiting: automatically scales down reflection coefficient when waveguide energy exceeds a sustain-dependent threshold (physically motivated — bow loses grip on strongly oscillating string). Zero effect when `infiniteSustain` = 0
+  3. Reversed friction could push rho beyond stable range, causing excessive velocity injection. Clamped post-reversal rho to max 0.85
+- Retuned all 4 sound design preset values for stability: Glass Bow (infSustain 0.8→0.45), Metal Drone (infSustain 0.5→0.3, reversed 0.4→0.2, subHarm 0.6→0.3), Impossible Strings (infSustain 0.7→0.4, reversed 0.6→0.3, subHarm 0.8→0.35), Breath of Strings (infSustain 0.3→0.15)
+
 ## [1.0.5] - 2026-04-09
 
 ### Fixed

@@ -48,6 +48,7 @@ public:
     float writeJunction (float rho, float v_delta, const JunctionState& state);
 
     bool isActive() const noexcept;
+    float getEnergyEstimate() const noexcept { return energyEstimate; }
 
     // Parameter setters (called once per block from voice)
     void setBowPosition (float beta);          // 0.02 - 0.30

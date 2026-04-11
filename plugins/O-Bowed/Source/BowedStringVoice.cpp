@@ -167,6 +167,20 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         if (reversedAmount >= 0.001f)
             rho = rho + reversedAmount * (1.0f - 2.0f * rho);
 
+        // Clamp rho to prevent excessive velocity injection
+        rho = std::min (rho, 0.85f);
+
+        // Energy-aware excitation limiting for high-sustain modes.
+        // Reduces excitation as waveguide energy builds — physically motivated:
+        // bow loses grip on strongly oscillating string.
+        if (cachedInfSustain > 0.05f)
+        {
+            float energy = waveguideString.getEnergyEstimate();
+            float targetEnergy = 0.5f * (1.0f - 0.75f * cachedInfSustain);
+            if (energy > targetEnergy)
+                rho *= targetEnergy / energy;
+        }
+
         // Steps 6-8: Write junction (inject velocity, push to delays, output)
         float sample = waveguideString.writeJunction (rho, v_delta, jState);
 
@@ -183,14 +197,15 @@ void BowedStringVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // 5. Mix voiceBuffer into outputBuffer with panning + bow noise (at native rate)
     for (int i = 0; i < numSamples; ++i)
     {
-        float sample = voiceBuffer.getSample (0, i);
+        // Normalize waveguide velocity units to audio range
+        float sample = voiceBuffer.getSample (0, i) * 0.35f;
 
         // Add bow noise (post-body, post-downsample)
         float noise = bowNoiseGen.processSample (effectivePressure, effectiveSpeed, bowNoiseAmount);
         sample += noise;
 
         // Safety hard-clip to prevent runaway
-        sample = juce::jlimit (-2.0f, 2.0f, sample);
+        sample = juce::jlimit (-1.0f, 1.0f, sample);
 
         // Write to stereo output with per-voice panning
         outputBuffer.addSample (0, startSample + i, sample * panL);
@@ -251,6 +266,7 @@ void BowedStringVoice::updateParametersFromAPVTS()
     frictionModel.setRosin (rosin);
     waveguideString.setBrightness (brightness);
     waveguideString.setInfiniteSustain (infSustain);
+    cachedInfSustain = infSustain;
     outputGainLinear = juce::Decibels::decibelsToGain (outputLevel);
 
     // Update advanced friction models with matching parameters

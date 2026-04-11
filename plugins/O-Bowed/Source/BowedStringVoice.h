@@ -109,6 +109,9 @@ private:
     float mpeExpression = 1.0f;    // CC11 (0-1)
     float bowNoiseAmount = 0.0f;
 
+    // Cached for energy-aware excitation limiting
+    float cachedInfSustain = 0.0f;
+
     // Effective values (knob + MPE modulation)
     float effectivePressure = 0.5f;
     float effectiveSpeed = 0.2f;
