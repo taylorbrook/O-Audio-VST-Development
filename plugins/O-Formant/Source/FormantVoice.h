@@ -15,6 +15,7 @@
 #include "dsp/AspirationNoise.h"
 #include "dsp/FormantFilterBank.h"
 #include "dsp/CascadeFormantBank.h"
+#include "dsp/NasalPoleZero.h"
 #include "dsp/VowelMorpher.h"
 #include "dsp/GlottalWavetable.h"
 #include "dsp/VibratoLFO.h"
@@ -46,6 +47,7 @@ private:
     AspirationNoise aspirationNoise;
     FormantFilterBank filterBank;
     CascadeFormantBank cascadeBank;
+    NasalPoleZero nasalPoleZero;
     VowelMorpher vowelMorpher;
     VibratoLFO vibratoLFO;
     PitchGlide pitchGlide;
@@ -124,6 +126,10 @@ private:
     std::atomic<float>* pTransitionTime = nullptr;
     std::atomic<float>* pSourceFilterCoupling = nullptr;
     std::atomic<float>* pSingersFormant = nullptr;
+
+    // Nasal
+    std::atomic<float>* pNasalCoupling = nullptr;
+    std::atomic<float>* pNasalPlace    = nullptr;
 
     // Output
     std::atomic<float>* pOutputGain   = nullptr;

@@ -57,6 +57,9 @@ void FormantVoice::setAPVTS (juce::AudioProcessorValueTreeState* apvts)
     pSourceFilterCoupling = apvts->getRawParameterValue ("sourceFilterCoupling");
     pSingersFormant = apvts->getRawParameterValue ("singersFormant");
 
+    pNasalCoupling = apvts->getRawParameterValue ("nasalCoupling");
+    pNasalPlace    = apvts->getRawParameterValue ("nasalPlace");
+
     pOutputGain   = apvts->getRawParameterValue ("outputGain");
     pStereoWidth  = apvts->getRawParameterValue ("stereoWidth");
 }
@@ -72,6 +75,7 @@ void FormantVoice::prepare (double sampleRate)
     aspirationNoise.prepare (sampleRate);
     filterBank.prepare (sampleRate);
     cascadeBank.prepare (sampleRate);
+    nasalPoleZero.prepare (sampleRate);
     vibratoLFO.prepare (sampleRate);
     pitchGlide.prepare (sampleRate);
     consonantEngine.prepare (sampleRate, voiceIdx);
@@ -92,12 +96,14 @@ void FormantVoice::noteStarted()
     aspirationNoise.reset();
     filterBank.reset();
     cascadeBank.reset();
+    nasalPoleZero.reset();
     vibratoLFO.reset();
     consonantEngine.reset();
 
     // Snap formant SmoothedValues to current targets for click-free onset
     filterBank.snapToTargets();
     cascadeBank.snapToTargets();
+    nasalPoleZero.snapToTargets();
 
     // MPE state reset
     mpeBreathOffset = 0.0f;
@@ -221,9 +227,20 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         });
     }
 
+    // Nasal state (read once per block; used for breath suppression + BW widening + amp reduction)
+    float nasalCouplingVal = pNasalCoupling != nullptr ? pNasalCoupling->load() : 0.0f;
+    float nasalPlaceVal    = pNasalPlace    != nullptr ? pNasalPlace->load()    : 0.5f;
+    nasalPoleZero.updateCoefficients (nasalCouplingVal, nasalPlaceVal, getSampleRate());
+
+    // Nasal amplitude reduction: -8 dB at full coupling (nasals are ~6-10 dB quieter)
+    float nasalAmpGain = juce::Decibels::decibelsToGain (-8.0f * nasalCouplingVal);
+
     // Breathiness: knob + MPE pressure offset
     float knobBreath = pBreathiness != nullptr ? pBreathiness->load() : 0.1f;
     float effectiveBreath = knobBreath + mpeBreathOffset * (1.0f - knobBreath);
+
+    // Suppress aspiration during nasal murmurs (nasals are purely voiced)
+    effectiveBreath *= (1.0f - nasalCouplingVal * 0.8f);
 
     // Envelope-aware breath modulation: aspirated onset + release breath burst
     {
@@ -369,6 +386,14 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             for (int fi = 0; fi < 5; ++fi)
                 formantBWs[fi] *= breathBWScale;
 
+            // (3) Nasal damping — nasal cavity walls add loss, widening formant BWs up to 2x
+            if (nasalCouplingVal > 0.0f)
+            {
+                float nasalBWScale = 1.0f + nasalCouplingVal;
+                for (int fi = 0; fi < 5; ++fi)
+                    formantBWs[fi] *= nasalBWScale;
+            }
+
             // Singer's formant: cluster F3-F5 toward ~3 kHz (Sundberg)
             float singersFormant = pSingersFormant != nullptr ? pSingersFormant->load() : 0.0f;
             if (singersFormant > 0.0f)
@@ -490,6 +515,10 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         // Source-filter coupling: harmonic reinforcement gain (smoothed)
         sample *= sourceFilterGain.getNextValue();
 
+        // Nasal pole-zero filtering (transparent when nasalCoupling = 0 via wet/dry mix)
+        sample = nasalPoleZero.process (sample);
+        sample *= nasalAmpGain;
+
         // Soft-clip to prevent extreme amplitudes from resonant filters
         sample = std::tanh (sample);
 
@@ -499,6 +528,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             sample = 0.0f;
             filterBank.reset();
             cascadeBank.reset();
+            nasalPoleZero.reset();
             consonantEngine.reset();
         }
 

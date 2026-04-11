@@ -216,6 +216,19 @@ juce::AudioProcessorValueTreeState::ParameterLayout OFormantAudioProcessor::crea
         juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
         0.0f));
 
+    // --- Nasal (2) ---
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "nasalCoupling", 1 },
+        "Nasality",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.0f));
+
+    layout.add (std::make_unique<juce::AudioParameterFloat> (
+        juce::ParameterID { "nasalPlace", 1 },
+        "Nasal Place",
+        juce::NormalisableRange<float> (0.0f, 1.0f, 0.0f),
+        0.5f));
+
     // --- Output (2) ---
     layout.add (std::make_unique<juce::AudioParameterFloat> (
         juce::ParameterID { "outputGain", 1 },

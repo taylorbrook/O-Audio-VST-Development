@@ -31,6 +31,8 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     pitchGlideRelay    = std::make_unique<juce::WebSliderRelay> ("pitchGlideSlider");
     transitionTimeRelay = std::make_unique<juce::WebSliderRelay> ("transitionTimeSlider");
     singersFormantRelay = std::make_unique<juce::WebSliderRelay> ("singersFormantSlider");
+    nasalCouplingRelay = std::make_unique<juce::WebSliderRelay> ("nasalCouplingSlider");
+    nasalPlaceRelay    = std::make_unique<juce::WebSliderRelay> ("nasalPlaceSlider");
     outputGainRelay    = std::make_unique<juce::WebSliderRelay> ("outputGainSlider");
     stereoWidthRelay   = std::make_unique<juce::WebSliderRelay> ("stereoWidthSlider");
 
@@ -76,6 +78,8 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
             .withOptionsFrom (*pitchGlideRelay)
             .withOptionsFrom (*transitionTimeRelay)
             .withOptionsFrom (*singersFormantRelay)
+            .withOptionsFrom (*nasalCouplingRelay)
+            .withOptionsFrom (*nasalPlaceRelay)
             .withOptionsFrom (*outputGainRelay)
             .withOptionsFrom (*stereoWidthRelay)
 
@@ -208,6 +212,8 @@ OFormantEditor::OFormantEditor (OFormantAudioProcessor& p)
     pitchGlideAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("pitchGlide"), *pitchGlideRelay);
     transitionTimeAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("transitionTime"), *transitionTimeRelay);
     singersFormantAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("singersFormant"), *singersFormantRelay);
+    nasalCouplingAttachment = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("nasalCoupling"), *nasalCouplingRelay);
+    nasalPlaceAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("nasalPlace"), *nasalPlaceRelay);
     outputGainAttachment    = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("outputGain"), *outputGainRelay);
     stereoWidthAttachment   = std::make_unique<juce::WebSliderParameterAttachment> (*apvts.getParameter ("stereoWidth"), *stereoWidthRelay);
 

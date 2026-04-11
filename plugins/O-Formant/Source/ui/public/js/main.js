@@ -8,6 +8,7 @@ let consonantAttackState, consonantHoldState, consonantDecayState;
 let attackState, decayState, sustainState, releaseState;
 let formantTopologyState;
 let formantShiftState, formantSpreadState, pitchGlideState, transitionTimeState, singersFormantState;
+let nasalCouplingState, nasalPlaceState;
 let outputGainState, stereoWidthState;
 
 // Vowel XY pad
@@ -27,6 +28,8 @@ const vowelLabels = [
   { label: '\u0251', x: 0.83, y: 0.00 },
   { label: 'o',  x: 1.00, y: 0.35 },
   { label: 'u',  x: 0.98, y: 0.93 },
+  { label: 'r',  x: 0.12, y: 0.72 },
+  { label: 'l',  x: 0.55, y: 0.85 },
 ];
 
 // Vowel formant data (matches VowelData.h exactly)
@@ -51,6 +54,14 @@ const VOWELS = [
     freq: [350, 600, 2400, 2675, 2950],
     bw: [40, 80, 100, 120, 120],
     gain: [1.0, 0.1000, 0.0251, 0.0398, 0.0158] },
+  { name: 'R', x: 0.12, y: 0.72,
+    freq: [340, 1050, 1600, 3500, 4300],
+    bw: [60, 90, 130, 250, 280],
+    gain: [1.0, 0.3981, 0.1995, 0.0631, 0.0316] },
+  { name: 'L', x: 0.55, y: 0.85,
+    freq: [400, 900, 2600, 3400, 4200],
+    bw: [80, 120, 150, 250, 280],
+    gain: [1.0, 0.5012, 0.1585, 0.0794, 0.0398] },
 ];
 
 // Shepard IDW interpolation (matches VowelMorpher.h)
@@ -144,6 +155,8 @@ function initRelays() {
   pitchGlideState = getSliderState('pitchGlideSlider');
   transitionTimeState = getSliderState('transitionTimeSlider');
   singersFormantState = getSliderState('singersFormantSlider');
+  nasalCouplingState = getSliderState('nasalCouplingSlider');
+  nasalPlaceState = getSliderState('nasalPlaceSlider');
   outputGainState = getSliderState('outputGainSlider');
   stereoWidthState = getSliderState('stereoWidthSlider');
 
@@ -168,6 +181,8 @@ function initRelays() {
     pitchGlide: pitchGlideState,
     transitionTime: transitionTimeState,
     singersFormant: singersFormantState,
+    nasalCoupling: nasalCouplingState,
+    nasalPlace: nasalPlaceState,
     vowelFocus: vowelFocusState,
     attack: attackState,
     decay: decayState,

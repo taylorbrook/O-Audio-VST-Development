@@ -2,6 +2,35 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.16.0] - 2026-04-11
+
+### Added
+- **Nasal consonant support (/m/, /n/, /ŋ/)** — Klatt-style pole-zero filter added to the voice signal chain with two new parameters: `nasalCoupling` (0–1 velum opening) and `nasalPlace` (0=bilabial /m/, 0.5=alveolar /n/, 1.0=velar /ŋ/). The pole-zero chain consists of a fixed nasal-cavity resonator at 270 Hz and two anti-formant notches whose center frequencies interpolate across the place axis (/m/ 800/2700 Hz → /n/ 1700/3500 Hz → /ŋ/ 3200/4800 Hz). Two new knobs labeled **Nasality** and **Nasal Place** added to the Voice Character section of the UI. Default `nasalCoupling = 0` means existing presets are unaffected.
+- **Nasal-aware voice shaping** — When `nasalCoupling > 0`, aspiration noise is suppressed (up to 80% at full coupling, since nasals are purely voiced), formant bandwidths widen up to 2× (nasal-cavity wall damping), and overall amplitude is reduced by up to 8 dB (nasals are ~6–10 dB quieter than vowels). All scaled linearly with coupling.
+
+### Technical Notes
+- New file `Source/dsp/NasalPoleZero.h` — three `FormantBiquad` stages in series (fixed-frequency nasal pole via `makeResonator` + two `juce::dsp::IIR::ArrayCoefficients<float>::makeNotch` anti-formants). `SmoothedValue` ramps for coupling (20 ms) and place sweeps (50 ms).
+- **Transparency at coupling=0 via wet/dry mix**, not pole/zero cancellation: `output = input + mix * (wet - input)` where `mix = smoothedCoupling`. Guarantees bit-exact passthrough when the parameter is at default and eliminates the risk of imperfect cancellation in the filter chain. Cost: ~1 multiply-add per sample beyond the 3 biquads.
+- **Integration at FormantVoice layer, not CascadeFormantBank** (deviation from original plan): the nasal stage runs on the final filter output after either the cascade or parallel path completes, so all three topologies (Cascade / Parallel / Hybrid) are handled uniformly without requiring a duplicate NasalPoleZero instance for the parallel path. Cleaner than dual-instance routing.
+- APVTS: two new `AudioParameterFloat`s in a new "Nasal (2)" section of `createParameterLayout`; plugin now has 34 parameters (up from 32). No breaking changes — existing presets load with defaults (`nasalCoupling=0`, `nasalPlace=0.5`).
+- WebView bindings: `nasalCouplingRelay` + `nasalPlaceRelay` in PluginEditor, matching JS relays in `main.js`, two new `knob-wrap` elements in `index.html` Voice Character section.
+- `noteStarted()` calls `nasalPoleZero.reset()` and `snapToTargets()` for click-free onset.
+- CPU: ~15 FLOPS/sample/voice (3 biquads + wet/dry mix), ≈0.3% single-core at 16 voices/48 kHz — negligible.
+- CMakeLists VERSION 1.15.0 → 1.16.0.
+
+## [1.15.0] - 2026-04-11
+
+### Added
+- **Liquid consonants /r/ and /l/ as morph targets** — Extended the 2D vowel morph space from 5 to 7 anchor points. Retroflex /r/ placed at (0.12, 0.72) with its characteristic very-low F3 (1600 Hz) signature, and dark (velarized) /l/ at (0.55, 0.85) with low F2 (900 Hz) and raised F3. Both are sonorants driven by the glottal source — no new DSP filters or parameters needed. Shepard IDW interpolation in `VowelMorpher` auto-adapts via `kNumVowels`, so sweeping the XY pad now smoothly transitions between vowels and liquid consonants.
+
+### Technical Notes
+- `VowelData.h`: `kNumVowels` 5→7, added R and L VowelEntry structs. /r/ formants F1=340, F2=1050, F3=1600, F4=3500, F5=4300 Hz (BW 60/90/130/250/280, gains 0/-8/-14/-24/-30 dB from Espy-Wilson 1992). /l/ dark F1=400, F2=900, F3=2600, F4=3400, F5=4200 Hz (BW 80/120/150/250/280, gains 0/-6/-16/-22/-28 dB from Stevens 1998).
+- `VowelMorpher.h`: unchanged — already iterates over `VowelData::kNumVowels`.
+- `Source/ui/public/js/main.js`: added 'r' and 'l' labels to `vowelLabels` array (XY pad rendering) and matching R/L entries to the `VOWELS` JS mirror array (spectrum display).
+- No APVTS changes (32 params unchanged), existing presets load unaffected.
+- CPU impact: negligible — Shepard IDW is O(N) over vowels (7 vs 5) at block rate.
+- CMakeLists VERSION bumped 1.12.2 → 1.15.0 (CMake version field had drifted from CHANGELOG — aligning it).
+
 ## [1.14.1] - 2026-04-10
 
 ### Fixed
