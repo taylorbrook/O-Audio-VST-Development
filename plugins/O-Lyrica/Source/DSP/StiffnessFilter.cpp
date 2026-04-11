@@ -42,6 +42,21 @@ float StiffnessFilter::processSample(float input)
     output = allpassStages[1].process(output);
     output = allpassStages[2].process(output);
     output = allpassStages[3].process(output);
+
+    // v2.1.7: Denormal flush on allpass z1 state variables. During long quiet
+    // passages the recursive z1 feedback accumulates subnormal floats, which
+    // the FPU handles in microcode and causes large per-sample CPU spikes.
+    // Mirrors the 1e-15f threshold flush WaveguideString::processSample already
+    // uses on its own output.
+    for (auto& stage : allpassStages)
+    {
+        if (std::abs(stage.z1) < 1e-15f)
+            stage.z1 = 0.0f;
+    }
+
+    if (std::abs(output) < 1e-15f)
+        output = 0.0f;
+
     return output;
 }
 

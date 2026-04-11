@@ -2,6 +2,34 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.1.7] - 2026-04-10
+
+### Fixed
+
+- **Denormal flush on `StiffnessFilter` allpass cascade** — During long quiet passages (sustain tails, silence between notes), the 4-stage allpass cascade inside `StiffnessFilter::processSample` would accumulate subnormal (denormal) floats in its `z1` state variables. Each `AllpassStage::process()` feeds its previous input back into `z1` via `z1 = input - coefficient * output`, so once an exponentially-decaying signal drops below ~1e-38f the state keeps iterating through progressively smaller denormals rather than hitting a clean zero.
+- **Root cause:** Denormal floats are handled by the CPU in microcode rather than native FPU hardware, causing per-sample CPU spikes (often 10-100x slower than normalized float arithmetic). With 4 stiffness-filter stages running inside every active waveguide voice, these spikes were visible as periodic DSP load jumps in quiet passages even though no audible signal was being produced.
+- **Fix:** Added a post-cascade denormal flush in `StiffnessFilter::processSample` that zeros each stage's `z1` when `|z1| < 1e-15f`, plus a matching flush on the final `output`. Mirrors the same 1e-15f threshold pattern already used in `WaveguideString::processSample`. Zero overhead on non-silent signal (branch predictor trivially hits the "not denormal" path); eliminates the spike entirely on quiet signal.
+- Files modified: `Source/DSP/StiffnessFilter.cpp`
+
+## [2.1.6] - 2026-04-10
+
+### Changed
+
+- **Code quality cleanups (no audible/behavioral change):**
+  - **Removed dead CSS from binary data** — `Resources/ui/css/styles.css` was compiled into `OLyricaBinaryData` via `juce_add_binary_data()` in `CMakeLists.txt` but never referenced by the WebView resource provider in `PluginEditor.cpp`. CSS is fully inlined inside `<style>` in `Resources/ui/index.html`, so the embedded copy was dead binary weight on every plugin load. Removed the `SOURCES` entry; plugin binary size drops by the size of the compiled styles.css blob.
+  - **De-duplicated `reverbMix` atomic load in `processBlock`** — `PluginProcessor.cpp` previously loaded `fxCache.reverbMix` twice per audio block: once to call `reverbProcessor.setMix(...)` and again to store into `reverbMixVal` for the `> 0.001f` bypass gate. Now loads once into `reverbMixVal` and reuses it for both the setter and the gate. Minor win, but the other FX channels (chorus/delay) already use this pattern — bringing reverb into line.
+  - **Replaced `static const std::vector<std::vector<int>>` scale patterns with `constexpr` C arrays** — `HarpSynthVoice.cpp` built a `std::vector<std::vector<int>>` of fixed major/minor/pentatonic patterns inside `updateGlissandoRange()`. Despite being `static const`, first-call construction triggered three nested heap allocations inside the note-on call path. Replaced with `static constexpr int kMajorPattern[]/kMinorPattern[]/kPentatonicPattern[]` plus a lookup table of pointers + sizes — zero heap allocation, identical pattern lookup logic, no behavior change.
+- Files modified: `CMakeLists.txt`, `Source/PluginProcessor.cpp`, `Source/HarpSynthVoice.cpp`
+
+## [2.1.5] - 2026-04-10
+
+### Fixed
+
+- **Thread-safe `SympatheticResonanceEngine::setResonatorQ`** — The Q setter called `designResonatorFilter()` directly, which mutates `juce::dsp::IIR::Filter::coefficients` (a reference-counted shared pointer). Because the call site may execute off the audio thread while `computeSympatheticContribution()` is concurrently reading those filter coefficients, this was a data race on the coefficient pointer and on the `*filter.coefficients = *coefficients` assignment. In addition, `filter.reset()` would clear the filter state mid-sample from a non-audio thread.
+- **Root cause:** Direct coefficient mutation from the setter violated the single-writer-on-audio-thread invariant used everywhere else in the DSP graph.
+- **Fix:** Applied the same deferred pending-atomic pattern already used in `BodyResonance` (`filterUpdatePending` / `pendingBodySize` / etc.) and `WaveguideString` (`pendingBridgeCutoff` / etc.). `setResonatorQ()` now only stores `pendingResonatorQ` and sets the `qUpdatePending` flag. `syncBeforeBlock()`, which already runs at the top of every `processBlock` on the audio thread, now applies the pending Q to all active voice slots before any `computeSympatheticContribution()` reads execute. `reset()` also clears the pending-Q flag to stay consistent.
+- Files modified: `Source/DSP/SympatheticResonance.h`, `Source/DSP/SympatheticResonance.cpp`
+
 ## [2.1.4] - 2026-04-10
 
 ### Fixed
