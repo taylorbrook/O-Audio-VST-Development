@@ -1,5 +1,33 @@
 # O-Prism Changelog
 
+## v1.13.3 (2026-04-10)
+
+### Fixed
+- **WebView event listener leaks**: Document- and window-level listeners were being attached without cleanup paths, so they persisted for the lifetime of the page and could accumulate if their host scopes ever re-ran.
+  - **`wavetable-editor.js`**: `document.keydown`, `window.resize`, and `window.mouseup` (harmonic mouse-up) were bound inside `bindEvents()` as anonymous handlers and never removed. Moved them into new `bindGlobalListeners()` / `unbindGlobalListeners()` functions that run on `onTabActivated()` / `onTabDeactivated()`, guarded by a `globalListenersBound` flag. Handlers are now stored as module-level refs so they can be removed by identity.
+  - **`tuning-panel.js`**: `setupRefPitchKnob()` attached `document.mousemove` and `document.mouseup` as inline anonymous arrows. Converted to instance-stored refs (`_refPitchMouseMove`, `_refPitchMouseUp`) and added a `destroy()` method that detaches them for clean teardown when the panel is replaced.
+  - **`index.html` (inline tuning IIFE, ~line 2823)**: `document.mousemove` and `document.mouseup` on the A4 reference-pitch knob were anonymous. Converted to named handlers (`refPitchMouseMoveHandler`, `refPitchMouseUpHandler`) and registered a `window.__prismTuningCleanup()` hook that detaches them, giving any future teardown path a way to prevent accumulation across re-inits.
+
+### Technical Notes
+- Domain: UI (WebView)
+- Root cause: Global-scope (`document`/`window`) listeners attached as anonymous functions with no removal path. While the JUCE WebView reloads fresh on each editor open (so leaks don't currently persist across plugin instances), the pattern was fragile — any future re-activation logic or UI rebuild would have caused real accumulation. This change makes every such listener removable by identity.
+- No parameter changes, no DSP changes — behavior is byte-identical. Element-scoped listeners (on knob/canvas nodes inside the container) are left untouched since they die with their DOM nodes when the container is cleared.
+- Note: `tuning-panel.js` is not currently imported by `index.html` (the live tuning UI is inlined), but was fixed preemptively so the pattern is correct if the module is wired in later.
+
+## v1.13.2 (2026-04-10)
+
+### Fixed
+- **Reference pitch (A4) knob sync**: The tuning panel's reference pitch knob was desynced from the backend master tune parameter in two ways:
+  1. On init, the knob hardcoded 440 Hz instead of fetching the actual `masterTune` value from the backend — the UI showed 440 even when a saved session had a different value.
+  2. On mousedown, the drag baseline (`startValue`) was captured once at setup and never refreshed, so after any external parameter change (preset load, automation, undo) subsequent drags jumped relative to a stale baseline.
+
+  Fix: `loadInitialState()` now calls `getMasterTune` and updates the knob UI via a new `updateRefPitchKnobUI()` method. The current value is mirrored on `this.masterTune`, which `mousedown` reads to set a fresh `startValue` on every drag (`tuning-panel.js`).
+
+### Technical Notes
+- Domain: UI (WebView)
+- Root cause: Drag-baseline closure captured once at `setupRefPitchKnob()` time and UI init didn't query backend state
+- No parameter changes — full backward compatibility
+
 ## v1.13.1 (2026-04-10)
 
 ### Fixed

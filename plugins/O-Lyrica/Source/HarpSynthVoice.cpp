@@ -267,11 +267,16 @@ void HarpSynthVoice::setupScaleLockedGlissando(int midiNoteNumber)
 
     if (scaleIndex < 3) // Major=0, Minor=1, Pentatonic=2 (only for 12-note scales)
     {
-        static const std::vector<std::vector<int>> scalePatterns = {
-            {0, 2, 4, 5, 7, 9, 11},   // Major
-            {0, 2, 3, 5, 7, 8, 10},    // Minor (natural)
-            {0, 2, 4, 7, 9}             // Pentatonic
-        };
+        // v2.1.6: constexpr C arrays (no heap allocation on note-on). Previously
+        // `static const std::vector<std::vector<int>>` which allocated on first entry.
+        static constexpr int kMajorPattern[]      = {0, 2, 4, 5, 7, 9, 11};
+        static constexpr int kMinorPattern[]      = {0, 2, 3, 5, 7, 8, 10};
+        static constexpr int kPentatonicPattern[] = {0, 2, 4, 7, 9};
+        static constexpr const int* kScalePatterns[3]  = { kMajorPattern, kMinorPattern, kPentatonicPattern };
+        static constexpr int         kScalePatternSizes[3] = { 7, 7, 5 };
+
+        const int* pattern  = kScalePatterns[scaleIndex];
+        const int patternSz = kScalePatternSizes[scaleIndex];
 
         int anchorNote = 60 + glissTonic;
         std::vector<double> filtered;
@@ -281,9 +286,9 @@ void HarpSynthVoice::setupScaleLockedGlissando(int midiNoteNumber)
             if (n < 0) continue;
             int degreeInScale = ((n - anchorNote) % 12 + 12) % 12;
             bool inScale = false;
-            for (int d : scalePatterns[scaleIndex])
+            for (int i = 0; i < patternSz; ++i)
             {
-                if (d == degreeInScale) { inScale = true; break; }
+                if (pattern[i] == degreeInScale) { inScale = true; break; }
             }
             if (inScale)
                 filtered.push_back(tuningEngine->getFrequency(n));

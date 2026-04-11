@@ -2820,16 +2820,32 @@ window._wtSelectors = [wtSelectorA, wtSelectorB];
             updateKnobVisual(0.5);
         });
     }
-    document.addEventListener('mousemove', (e) => {
+    // Named handlers so they are removable by identity. Stored on the
+    // tuningCleanup registry (see below) so any future teardown path can
+    // detach them and prevent accumulation across re-inits.
+    const refPitchMouseMoveHandler = (e) => {
         if (!knobDragging) return;
         let v = knobStartValue + (knobStartY - e.clientY) * 0.005;
         v = Math.max(0, Math.min(1, v));
         if (masterTuneState) masterTuneState.setNormalisedValue(v);
         updateKnobVisual(v);
-    });
-    document.addEventListener('mouseup', () => {
+    };
+    const refPitchMouseUpHandler = () => {
         if (knobDragging) { knobDragging = false; if (masterTuneState) masterTuneState.sliderDragEnded(); }
-    });
+    };
+    document.addEventListener('mousemove', refPitchMouseMoveHandler);
+    document.addEventListener('mouseup', refPitchMouseUpHandler);
+
+    // Cleanup registry — any code that needs to tear down the tuning UI
+    // (e.g. future destroy path) can call window.__prismTuningCleanup() to
+    // detach document-level listeners. Prevents listener accumulation if
+    // the tuning IIFE is ever re-run (e.g. hot-reload, UI rebuild).
+    const prevCleanup = window.__prismTuningCleanup;
+    window.__prismTuningCleanup = () => {
+        document.removeEventListener('mousemove', refPitchMouseMoveHandler);
+        document.removeEventListener('mouseup', refPitchMouseUpHandler);
+        if (typeof prevCleanup === 'function') prevCleanup();
+    };
 
     // ── Octave Stretch (via APVTS relay) ──
     const stretchSlider = document.getElementById('octave-stretch');

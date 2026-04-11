@@ -1,5 +1,14 @@
 # O-Reed Changelog
 
+## v1.0.9 (2026-04-09)
+
+### Fixed
+
+- **Some notes silent, others produce glitchy high-pitched clipping tone** -- bore waveguide delay compensation computed filter group delays at DC instead of at the playing frequency. The DC formula (`sr / 2π*fc`) overestimates the viscothermal filter's group delay by up to 20x at high frequencies (e.g., 22.9 samples at DC vs 1.4 samples at 2kHz for a narrow bore). Combined with the bell allpass being hardcoded at 0.5 samples (actual: 5-30 samples depending on frequency), the `compensatedDelay` could go negative for many note/parameter combinations. When negative, all 5 bore segments clamped to the 2-sample minimum, producing a fixed ~4.4kHz parasitic tone regardless of MIDI note — or preventing self-oscillation entirely (silence). Three fixes:
+  1. **Frequency-dependent viscothermal group delay**: replaced DC approximation with exact one-pole formula `GD(f) = p*(cos(ω)-p) / (1-2p*cos(ω)+p²)` evaluated at the target frequency. Stored filter pole coefficient from `updateParams()` for use in `setFrequency()`.
+  2. **Frequency-dependent bell allpass group delay**: replaced static `bellGD = 0.5` with exact first-order allpass formula `GD(f) = (1-a²) / (1+a²-2a*cos(ω))`. Stored allpass coefficient similarly.
+  3. **Safety clamp on compensatedDelay**: added `std::max(4.0f, compensatedDelay)` before segment division, matching O-Wind/O-Bowed pattern. Prevents negative delays from reaching Thiran interpolation. Reduced per-segment minimum from 2.0 to 1.0 for better high-frequency resolution.
+
 ## v1.0.8 (2026-04-08)
 
 ### Fixed

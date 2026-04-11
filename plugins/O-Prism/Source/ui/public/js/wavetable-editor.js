@@ -15,6 +15,11 @@ const WavetableEditor = (() => {
     let isInitialized = false;
     let editorActive = false;
     let isDragging = false;
+    let globalListenersBound = false;
+
+    // ─── Stored global listener refs (for cleanup on tab deactivation) ───
+    let keydownHandler = null;
+    let resizeHandler = null;
 
     // ─── Native Function Bindings (lazy-init from JUCE module) ───
     let nativeFns = null;
@@ -508,6 +513,7 @@ const WavetableEditor = (() => {
             isInitialized = true;
             bindEvents();
         }
+        bindGlobalListeners();
         switchOsc(activeOsc);
     }
 
@@ -517,6 +523,7 @@ const WavetableEditor = (() => {
             if (fn) fn.stopWavetableEditor();
             editorActive = false;
         }
+        unbindGlobalListeners();
         undoStack.length = 0;
         redoStack.length = 0;
     }
@@ -528,12 +535,11 @@ const WavetableEditor = (() => {
             stripCanvas.addEventListener('click', handleFrameStripClick);
         }
 
-        // Harmonic canvas
+        // Harmonic canvas (DOM-scoped — tied to element lifetime, not document)
         const harmCanvas = document.getElementById('wt-harmonic-canvas');
         if (harmCanvas) {
             harmCanvas.addEventListener('mousedown', handleHarmonicMouseDown);
             harmCanvas.addEventListener('mousemove', handleHarmonicDrag);
-            window.addEventListener('mouseup', handleHarmonicMouseUp);
         }
 
         // Bin count buttons
@@ -567,8 +573,19 @@ const WavetableEditor = (() => {
         document.getElementById('wt-undo-btn')?.addEventListener('click', performUndo);
         document.getElementById('wt-redo-btn')?.addEventListener('click', performRedo);
 
-        // Keyboard shortcuts
-        document.addEventListener('keydown', e => {
+        // Keyboard shortcuts + window resize + harmonic window-level mouseup
+        // are now bound/unbound in bindGlobalListeners/unbindGlobalListeners,
+        // tied to tab activation lifecycle to prevent listener accumulation.
+    }
+
+    // ─── Global listeners (window/document) — bound per activation ───
+    // These are stored as module-level refs so they can be removed in
+    // onTabDeactivated. Previously they were anonymous and leaked for the
+    // lifetime of the page.
+    function bindGlobalListeners() {
+        if (globalListenersBound) return;
+
+        keydownHandler = (e) => {
             const wtTab = document.getElementById('wavetable-tab');
             if (!wtTab || !wtTab.classList.contains('active')) return;
 
@@ -579,16 +596,39 @@ const WavetableEditor = (() => {
                 e.preventDefault();
                 performRedo();
             }
-        });
+        };
+        document.addEventListener('keydown', keydownHandler);
 
-        // Window resize handler
-        window.addEventListener('resize', () => {
+        resizeHandler = () => {
             const wtTab = document.getElementById('wavetable-tab');
             if (wtTab && wtTab.classList.contains('active')) {
                 drawHarmonicBars();
                 drawFrameStrip();
             }
-        });
+        };
+        window.addEventListener('resize', resizeHandler);
+
+        // handleHarmonicMouseUp is already a named function declared elsewhere;
+        // we reference it directly so we can remove it by identity later.
+        window.addEventListener('mouseup', handleHarmonicMouseUp);
+
+        globalListenersBound = true;
+    }
+
+    function unbindGlobalListeners() {
+        if (!globalListenersBound) return;
+
+        if (keydownHandler) {
+            document.removeEventListener('keydown', keydownHandler);
+            keydownHandler = null;
+        }
+        if (resizeHandler) {
+            window.removeEventListener('resize', resizeHandler);
+            resizeHandler = null;
+        }
+        window.removeEventListener('mouseup', handleHarmonicMouseUp);
+
+        globalListenersBound = false;
     }
 
     return { onTabActivated, onTabDeactivated };

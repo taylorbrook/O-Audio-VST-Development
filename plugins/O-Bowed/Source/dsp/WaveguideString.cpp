@@ -116,17 +116,27 @@ float WaveguideString::processSample (float v_bow, float F_bow,
     // Step 5: Evaluate friction -> reflection coefficient
     float rho = friction.computeReflectionCoefficient (v_delta, F_bow);
 
-    // Step 6: Compute injected velocity
-    float newVelocity = v_delta * rho;
+    // Step 6: Compute velocity injection (stick-slip model)
+    // Reconstruct friction-limited velocity from rho: rho = r/(1+r) → r = rho/(1-rho)
+    // frictionVelocity = 2r = mu*F_bow/(2*R_s), the max velocity the bow can impose.
+    // Sticking (|v_delta| < frictionVel): injection = v_delta (string follows bow)
+    // Slipping (|v_delta| ≥ frictionVel): injection = frictionVel (capped — negative slope)
+    float clampedRho = std::min (rho, 0.99f);
+    float frictionVelocity = 2.0f * clampedRho / (1.0f - clampedRho);
+    float absVd = std::abs (v_delta);
+    float injection = std::min (frictionVelocity, absVd);
+    float newVelocity = (v_delta >= 0.0f) ? injection : -injection;
 
-    // Step 7: Write outgoing waves into delay lines (one-sided injection)
-    // In a round-trip delay architecture, injecting into BOTH delays causes
-    // the common-mode injection to cancel after the termination reflections
-    // return. Injecting only into the bridge delay breaks this cancellation
-    // and allows sustained oscillation. The wave naturally propagates to the
-    // nut side via cross-feed.
-    float toBridge = juce::jlimit (-1.5f, 1.5f, nutReflection + newVelocity);
-    float toNeck = juce::jlimit (-1.5f, 1.5f, bridgeReflection);
+    // Step 7: Write outgoing waves into delay lines (symmetric injection)
+    float toBridge = nutReflection + newVelocity;
+    float toNeck = bridgeReflection + newVelocity;
+
+    // Soft saturation prevents numerical blowup without generating DC
+    // (tanh is odd-symmetric, unlike hard clipping which creates DC offset)
+    constexpr float sat = 4.0f;
+    toBridge = sat * std::tanh (toBridge / sat);
+    toNeck = sat * std::tanh (toNeck / sat);
+
     bridgeDelay.pushSample (0, toBridge);
     neckDelay.pushSample (0, toNeck);
 
@@ -192,12 +202,21 @@ WaveguideString::JunctionState WaveguideString::readJunction (float /*v_bow*/)
 
 float WaveguideString::writeJunction (float rho, float v_delta, const JunctionState& state)
 {
-    // Step 6: Compute injected velocity
-    float newVelocity = v_delta * rho;
+    // Step 6: Compute velocity injection (stick-slip model)
+    float clampedRho = std::min (rho, 0.99f);
+    float frictionVelocity = 2.0f * clampedRho / (1.0f - clampedRho);
+    float absVd = std::abs (v_delta);
+    float injection = std::min (frictionVelocity, absVd);
+    float newVelocity = (v_delta >= 0.0f) ? injection : -injection;
 
-    // Step 7: Write outgoing waves into delay lines (one-sided injection)
-    float toBridge = juce::jlimit (-1.5f, 1.5f, state.nutReflection + newVelocity);
-    float toNeck = juce::jlimit (-1.5f, 1.5f, state.bridgeReflection);
+    // Step 7: Write outgoing waves into delay lines (symmetric injection)
+    float toBridge = state.nutReflection + newVelocity;
+    float toNeck = state.bridgeReflection + newVelocity;
+
+    constexpr float sat = 4.0f;
+    toBridge = sat * std::tanh (toBridge / sat);
+    toNeck = sat * std::tanh (toNeck / sat);
+
     bridgeDelay.pushSample (0, toBridge);
     neckDelay.pushSample (0, toNeck);
 

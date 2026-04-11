@@ -85,6 +85,7 @@ void FormantVoice::noteStarted()
 {
     voiceActive = true;
     sampleCounter = 0;
+    releaseSampleCount = -1;
 
     // Reset DSP state for clean note onset
     glottalSource.reset();
@@ -170,6 +171,7 @@ void FormantVoice::noteStopped (bool allowTailOff)
     if (allowTailOff)
     {
         adsr.noteOff();
+        releaseSampleCount = 0;
     }
     else
     {
@@ -222,6 +224,37 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     // Breathiness: knob + MPE pressure offset
     float knobBreath = pBreathiness != nullptr ? pBreathiness->load() : 0.1f;
     float effectiveBreath = knobBreath + mpeBreathOffset * (1.0f - knobBreath);
+
+    // Envelope-aware breath modulation: aspirated onset + release breath burst
+    {
+        float sr = static_cast<float> (getSampleRate());
+        float breathEnvMul = 1.0f;
+
+        if (releaseSampleCount >= 0)
+        {
+            // Release phase: brief breath burst as vocal folds disengage (~40ms)
+            float tMs = releaseSampleCount * 1000.0f / sr;
+            if (tMs < 40.0f)
+            {
+                float decayTau = 12.0f; // ms time constant
+                breathEnvMul = juce::Decibels::decibelsToGain (3.0f * std::exp (-tMs / decayTau));
+            }
+            releaseSampleCount += numSamples;
+        }
+        else
+        {
+            // Attack phase: boost breath for aspirated vocal onset (~50ms)
+            float tMs = sampleCounter * 1000.0f / sr;
+            if (tMs < 50.0f)
+            {
+                float decayTau = 15.0f; // ms time constant
+                breathEnvMul = juce::Decibels::decibelsToGain (4.5f * std::exp (-tMs / decayTau));
+            }
+        }
+
+        effectiveBreath = juce::jlimit (0.0f, 1.0f, effectiveBreath * breathEnvMul);
+    }
+
     aspirationNoise.setBreathiness (effectiveBreath);
 
     // Dynamic Rd modulation: pitch + velocity + expression

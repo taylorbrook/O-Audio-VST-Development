@@ -393,11 +393,12 @@ void FluteSynthVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         auto result = boreWaveguide.processSample (dcOut);
         float sample = result.voiceOutput;
 
-        // Apply output gain and phase-locked tremolo
-        sample *= outputGainLinear * tremoloGain;
+        // Apply output gain, phase-locked tremolo, and fixed voice attenuation
+        // -6 dB (0.5x) attenuation keeps raw waveguide output at comfortable level
+        sample *= outputGainLinear * tremoloGain * 0.5f;
 
-        // Safety hard-clip
-        sample = juce::jlimit (-2.0f, 2.0f, sample);
+        // Soft safety clip (tanh-based to avoid aliasing from hard discontinuities)
+        sample = std::tanh (sample * 0.5f) * 2.0f;
 
         // Track silence for voice cleanup
         if (std::abs (sample) < energyThreshold)

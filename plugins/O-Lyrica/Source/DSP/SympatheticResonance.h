@@ -99,6 +99,9 @@ public:
      * Synchronize coupling matrix before processing a block
      * Call this at the START of each processBlock to safely update the read buffer
      * if any voices have been registered/unregistered since last block.
+     *
+     * v2.1.5: Also applies any pending resonator Q updates on the audio thread
+     * before computeSympatheticContribution reads filter state.
      */
     void syncBeforeBlock();
 
@@ -157,8 +160,14 @@ private:
 
     // Parameters
     float intensity = 0.3f;          // Global intensity parameter
-    float resonatorQ = 5.0f;         // v1.3.0: Resonator Q (sharpness)
+    float resonatorQ = 5.0f;         // v1.3.0: Resonator Q (sharpness) — applied value (audio thread only)
     double sampleRate = 44100.0;     // Current sample rate
+
+    // v2.1.5: Thread-safe Q updates — deferred atomic pending pattern
+    // Message thread writes pendingResonatorQ + sets qUpdatePending;
+    // audio thread applies in syncBeforeBlock() before any filter reads.
+    std::atomic<float> pendingResonatorQ { 5.0f };
+    std::atomic<bool> qUpdatePending { false };
 
     /**
      * Find slot index for a voice ID, or -1 if not found

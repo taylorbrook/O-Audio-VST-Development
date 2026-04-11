@@ -135,8 +135,7 @@ public:
             }
         }
 
-        // Reed channel opening area with soft minimum for startup excitation
-        // 0.5% leakage prevents dead-lock when reed fully closed
+        // Reed channel opening area
         float opening = state.x + H_eff;
 
         // Physical behavior: without mouth pressure, reed rests closed against
@@ -146,7 +145,10 @@ public:
         float mouthGate = std::min(std::abs(p_mouth) / gateThreshold, 1.0f);
         opening *= mouthGate;
 
-        float S_opening = params.w_reed * std::max(opening, H_eff * 0.005f * mouthGate);
+        // No soft minimum: the old 0.5% leakage continuously pumped flow into the
+        // bore even during reed closure, driving bore pressure to 40-60 kPa (vs
+        // intended ~3 kPa). Turbulence noise in the voice loop seeds startup instead.
+        float S_opening = params.w_reed * std::max(opening, 0.0f);
 
         // Guillemain Psi confinement for double-reed morphing
         // psi_denom = 1 + psi * (S_opening / S_reed)^2

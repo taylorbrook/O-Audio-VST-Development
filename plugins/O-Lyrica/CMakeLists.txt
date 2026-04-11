@@ -85,10 +85,11 @@ endif()
 # Phase 3.1: WebView UI Resources - Embed as BinaryData
 # ═══════════════════════════════════════════════════════════════════
 # v1.4.0: Added Ouaricon Naturalist aesthetic images
+# v2.1.6: Removed Resources/ui/css/styles.css — CSS is inlined in index.html,
+#         never referenced by the resource provider (dead binary data).
 juce_add_binary_data(OLyricaBinaryData
     SOURCES
         Resources/ui/index.html
-        Resources/ui/css/styles.css
         Resources/ui/js/app.js
         Resources/ui/js/juce/index.js
         Resources/ui/js/juce/check_native_interop.js

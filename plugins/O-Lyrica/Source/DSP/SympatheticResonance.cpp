@@ -185,26 +185,41 @@ void SympatheticResonanceEngine::setIntensity(float newIntensity)
 
 void SympatheticResonanceEngine::setResonatorQ(float Q)
 {
+    // v2.1.5: Thread-safe — store pending Q atomically, defer filter coefficient
+    // updates to the audio thread (syncBeforeBlock). Previously this redesigned
+    // filters directly from the message thread while the audio thread could be
+    // reading filter state in computeSympatheticContribution, creating a data race
+    // on juce::dsp::IIR::Filter::coefficients (reference-counted shared pointer).
     float newQ = juce::jlimit(0.1f, 20.0f, Q);
 
-    // Only update if Q changed significantly
-    if (std::abs(newQ - resonatorQ) < Q_CHANGE_THRESHOLD)
+    // Only flag update if Q changed significantly (compared against pending value
+    // so rapid setter calls between blocks don't spam-flag).
+    float currentPending = pendingResonatorQ.load(std::memory_order_relaxed);
+    if (std::abs(newQ - currentPending) < Q_CHANGE_THRESHOLD)
         return;
 
-    resonatorQ = newQ;
-
-    // Update all existing resonator filters with new Q
-    for (auto& slot : voiceSlots)
-    {
-        if (slot.active.load(std::memory_order_relaxed))
-        {
-            designResonatorFilter(slot.resonatorFilter, slot.frequency, resonatorQ);
-        }
-    }
+    pendingResonatorQ.store(newQ, std::memory_order_relaxed);
+    qUpdatePending.store(true, std::memory_order_release);
 }
 
 void SympatheticResonanceEngine::syncBeforeBlock()
 {
+    // v2.1.5: Apply pending Q updates on the audio thread before any
+    // computeSympatheticContribution calls read filter state this block.
+    // This pairs with setResonatorQ() which only stores pendingResonatorQ.
+    if (qUpdatePending.load(std::memory_order_acquire))
+    {
+        resonatorQ = pendingResonatorQ.load(std::memory_order_relaxed);
+
+        for (auto& slot : voiceSlots)
+        {
+            if (slot.active.load(std::memory_order_relaxed))
+                designResonatorFilter(slot.resonatorFilter, slot.frequency, resonatorQ);
+        }
+
+        qUpdatePending.store(false, std::memory_order_relaxed);
+    }
+
     // Check if rebuild is needed (acquire to see all prior writes)
     if (!rebuildPending.load(std::memory_order_acquire))
         return;
@@ -339,6 +354,9 @@ void SympatheticResonanceEngine::reset()
     }
 
     rebuildPending.store(false, std::memory_order_relaxed);
+
+    // v2.1.5: Clear pending Q flag — no active slots means nothing to update
+    qUpdatePending.store(false, std::memory_order_relaxed);
 }
 
 float SympatheticResonanceEngine::computeCouplingStrength(double freq1, double freq2) const

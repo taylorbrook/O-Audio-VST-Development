@@ -57,6 +57,7 @@ private:
     bool wasActive = false;
     int voiceIdx = 0;
     int sampleCounter = 0;
+    int releaseSampleCount = -1; // -1 = not in release; >=0 = samples since noteOff
 
     // Per-voice MPE modulation state
     float mpeBreathOffset = 0.0f;

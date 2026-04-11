@@ -33,6 +33,8 @@ public:
             smoothedFreq[i].reset (sr, 0.0);
             smoothedBW[i].reset (sr, 0.0);
         }
+        normGainSmoothed.reset (sr, 0.010); // 10ms ramp to avoid clicks
+        normGainSmoothed.setCurrentAndTargetValue (1.0f);
         reset();
     }
 
@@ -62,6 +64,7 @@ public:
             smoothedFreq[i].setCurrentAndTargetValue (smoothedFreq[i].getTargetValue());
             smoothedBW[i].setCurrentAndTargetValue (smoothedBW[i].getTargetValue());
         }
+        normGainSmoothed.setCurrentAndTargetValue (normGainSmoothed.getTargetValue());
     }
 
     // Set number of cascade stages (5 = full cascade, 3 = hybrid F1-F3 cascade + F4-F5 parallel)
@@ -86,6 +89,8 @@ public:
             centerOfMass += shiftedFreq[i];
         centerOfMass *= 0.2f;
 
+        float maxPeakGain = 1.0f;
+
         for (int i = 0; i < 5; ++i)
         {
             float distance = shiftedFreq[i] - centerOfMass;
@@ -99,6 +104,19 @@ public:
             smoothedFreq[i].setTargetValue (finalFreq);
             smoothedBW[i].setTargetValue (scaledBW);
             filters[i].gain = 1.0f;
+
+            // Estimate resonator peak gain for cascade normalization
+            if (i < numCascade)
+            {
+                float r = std::exp (-juce::MathConstants<float>::pi * scaledBW
+                                    / static_cast<float> (sr));
+                float theta = juce::MathConstants<float>::twoPi * finalFreq
+                              / static_cast<float> (sr);
+                float sinTheta = std::abs (std::sin (theta));
+                float A = 1.0f - 2.0f * r * std::cos (theta) + r * r;
+                float peakGain = A / std::max (2.0f * (1.0f - r) * sinTheta, 0.01f);
+                maxPeakGain = std::max (maxPeakGain, peakGain);
+            }
 
             if (! smoothedFreq[i].isSmoothing() && ! smoothedBW[i].isSmoothing())
             {
@@ -116,6 +134,9 @@ public:
                 }
             }
         }
+
+        // Cascade gain compensation: normalize by max resonator peak gain
+        normGainSmoothed.setTargetValue (1.0f / maxPeakGain);
     }
 
     // Process: first numCascade filters in series (resonators), remaining in parallel (BPF)
@@ -149,6 +170,9 @@ public:
         float cascadeOut = input;
         for (int i = 0; i < numCascade; ++i)
             cascadeOut = filters[i].processSample (cascadeOut);
+
+        // Normalize cascade output by estimated peak gain to prevent saturation
+        cascadeOut *= normGainSmoothed.getNextValue();
 
         // Parallel path: remaining filters sum independently (hybrid mode)
         float parallelOut = 0.0f;
@@ -185,6 +209,7 @@ private:
     FormantBiquad filters[5];
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedFreq[5];
     juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> smoothedBW[5];
+    juce::SmoothedValue<float, juce::ValueSmoothingTypes::Linear> normGainSmoothed { 1.0f };
     int numCascade = 5;
     double sampleRate = 44100.0;
 };

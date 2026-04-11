@@ -1,5 +1,27 @@
 # O-Wind Changelog
 
+## [1.11.4] - 2026-04-09
+
+### Fixed — Physical Model Instability, Distortion, and Excessive Output Level
+
+Waveguide now oscillates cleanly without octave jumping, clipping distortion, or excessively hot output.
+
+**Root Cause 1 — Jet amplification (mu) 10-20x too high:** `jetAmplification` values across all 8 instrument presets (12.0-35.0) produced small-signal loop gains of ~26-36x. A stable waveguide model needs 3-7x. The massively overdriven loop caused deep tanh saturation every cycle (square-wave-like oscillation), mode-locking onto the 2nd harmonic (octave jumping), and signals exceeding safety clamps.
+
+**Fix 1:** Scaled `jetAmplification` down by ~5x across all presets (Concert Flute 25→5, Recorder 35→7, Piccolo 30→6, etc.) to bring loop gain into the 3-7x range.
+
+**Root Cause 2 — Hard clip before tanh nonlinearity:** `JetNonlinearity::processSample()` hard-clamped input to ±3.0 before the tanh soft-limiter. With the high jet amplification, excitation signals regularly exceeded ±3.0 and were hard-clipped, generating harsh harmonics that the tanh was supposed to prevent.
+
+**Fix 2:** Widened safety clamp from ±3.0 to ±10.0 so the tanh does the actual soft-limiting.
+
+**Root Cause 3 — Hard safety clip in voice output:** `renderNextBlock()` used `jlimit(-2.0, 2.0)` as a safety clip on the oversampled signal. Hard discontinuities in the oversampled domain create aliasing artifacts after downsampling.
+
+**Fix 3:** Replaced hard clip with `tanh(sample * 0.5) * 2.0` soft-clip — transparent below ±1.5, gentle compression above, no hard edges.
+
+**Output level reduction:** Added -6 dB fixed voice attenuation (`* 0.5f`) before the output gain stage. Combined with the reduced jet amplification, raw waveguide output now sits at a comfortable level.
+
+**Files Modified:** DSP/InstrumentPresets.h, DSP/JetNonlinearity.h, FluteSynthVoice.cpp
+
 ## [1.11.3] - 2026-04-09
 
 ### Fixed — Tuning Changes Not Affecting Pitch (Two Root Causes)

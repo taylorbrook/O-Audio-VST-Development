@@ -504,7 +504,19 @@ inline void OuariconPresetManager::initializeFactoryPresets(
         auto* paramsObj = new juce::DynamicObject();
 
         for (const auto& [paramId, value] : preset.parameters)
-            paramsObj->setProperty(paramId, value);
+        {
+            // Convert denormalized values to normalized (0-1) to match
+            // the format produced by createPresetJson / getValue()
+            if (auto* param = parameters.getParameter(paramId))
+            {
+                auto normValue = param->convertTo0to1(value);
+                paramsObj->setProperty(paramId, normValue);
+            }
+            else
+            {
+                paramsObj->setProperty(paramId, value);
+            }
+        }
 
         presetObj->setProperty("parameters", juce::var(paramsObj));
 

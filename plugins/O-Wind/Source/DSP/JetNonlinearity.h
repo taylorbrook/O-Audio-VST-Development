@@ -31,8 +31,8 @@ public:
         if (jetVelocity < 0.001f)
             return 0.0f;
 
-        // Safety clamp input
-        float clamped = juce::jlimit (-3.0f, 3.0f, jetOutput);
+        // Safety clamp input (wide range — tanh does the real soft-limiting)
+        float clamped = juce::jlimit (-10.0f, 10.0f, jetOutput);
 
         // Reversed jet: phase-invert jet signal before nonlinearity
         // Changes phase relationship between jet and bore -> different resonance modes

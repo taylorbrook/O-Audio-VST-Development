@@ -61,15 +61,44 @@ public:
 
         targetFrequency = hz;
 
-        float totalDelay = sr / hz;
+        float totalDelay = (sr / hz) * cylindricalDelayScale;
 
-        // Subtract filter group delays for pitch accuracy
-        float viscGD = (currentViscCutoff > 0.0f)
-                     ? sr / (6.2831853f * currentViscCutoff)
-                     : 0.0f;
+        // Compute filter group delays at the TARGET frequency (not DC).
+        // The DC approximation (sr / 2*pi*fc) overestimates by up to 20x at high
+        // notes, causing negative compensatedDelay and fixed high-pitched parasitic
+        // tones when all segments clamp to minimum delay.
+        constexpr float twoPi = 6.2831853f;
+        float omega = twoPi * hz / sr;
+        float cosW = std::cos(omega);
+
+        // Viscothermal one-pole lowpass: GD(f) = p*(cos(w)-p) / (1 - 2p*cos(w) + p^2)
+        float viscGD = 0.0f;
+        {
+            float p = viscPole;
+            if (p > 0.0f)
+            {
+                float denom = 1.0f - 2.0f * p * cosW + p * p;
+                if (denom > 1e-10f)
+                    viscGD = std::max(0.0f, p * (cosW - p) / denom);
+            }
+        }
+
+        // Bell first-order allpass: GD(f) = (1 - a^2) / (1 + a^2 - 2a*cos(w))
         float bellGD = 0.5f;
+        {
+            float a = bellAllpassA;
+            float denom = 1.0f + a * a - 2.0f * a * cosW;
+            if (denom > 1e-10f)
+                bellGD = std::max(0.0f, (1.0f - a * a) / denom);
+        }
 
-        float compensatedDelay = totalDelay - viscGD - bellGD;
+        // Subtract 1 for the prevBellReflection one-sample storage delay
+        // (bell reflection is stored and used in the next processSample call)
+        float compensatedDelay = totalDelay - viscGD - bellGD - 1.0f;
+
+        // Safety clamp: prevent negative or near-zero delay
+        // (matches O-Wind/O-Bowed pattern of minimum 4 samples)
+        compensatedDelay = std::max(4.0f, compensatedDelay);
 
         // Split into 5 segments with prescribed fractions
         constexpr float fractions[5] = { 0.10f, 0.20f, 0.20f, 0.25f, 0.25f };
@@ -77,7 +106,7 @@ public:
         for (int i = 0; i < 5; ++i)
         {
             float halfDelay = compensatedDelay * fractions[i] * 0.5f;
-            halfDelay = std::max(halfDelay, 2.0f);
+            halfDelay = std::max(halfDelay, 1.0f);
             segForwardDelay[i].setDelay(halfDelay);
             segBackwardDelay[i].setDelay(halfDelay);
         }
@@ -87,6 +116,12 @@ public:
                       float infiniteSustain = 0.0f, float reverseBore = 0.0f, float boreProfile = 0.0f)
     {
         constexpr float pi = 3.14159265f;
+
+        // Cylindrical-to-conical delay correction:
+        // Cylindrical bore (closed-open) resonates at quarter-wave: f = c/(4L)
+        // Conical bore (open-open via Strategy C) resonates at half-wave: f = c/(2L)
+        // Scale total delay so fundamental matches target pitch for both types.
+        cylindricalDelayScale = 0.5f + boreCharacter * 0.5f;
 
         // --- Per-segment conical scale factors (Strategy C) ---
         float halfAngle = boreCharacter * 1.6f * (pi / 180.0f);
@@ -153,6 +188,7 @@ public:
 
         float t = std::tan(pi * sustainedBellCutoff / sr);
         float a = (1.0f - t) / (1.0f + t);
+        bellAllpassA = a;
         *bellFilter.coefficients = juce::dsp::IIR::Coefficients<float>(a, 1.0f, 1.0f, a);
 
         // --- Radiation output filter (first-order highpass at bell cutoff) ---
@@ -166,6 +202,7 @@ public:
         currentViscCutoff = viscCutoff;
 
         float p = std::exp(-2.0f * pi * viscCutoff / sr);
+        viscPole = p;
 
         // Infinite sustain: viscothermal gain approaches 1.0 (lossless)
         float g = 0.995f + infiniteSustain * 0.005f;
@@ -353,6 +390,9 @@ public:
         targetFrequency = 440.0f;
         currentViscCutoff = 1500.0f;
         feedbackGain = 1.0f;
+        viscPole = 0.0f;
+        bellAllpassA = 0.0f;
+        cylindricalDelayScale = 0.5f;
     }
 
 private:
@@ -392,4 +432,11 @@ private:
     float targetFrequency    = 440.0f;
     float currentViscCutoff  = 1500.0f;
     float feedbackGain       = 1.0f;
+
+    // Stored filter coefficients for frequency-dependent group delay in setFrequency()
+    float viscPole       = 0.0f;   // Viscothermal one-pole coefficient (from updateParams)
+    float bellAllpassA   = 0.0f;   // Bell allpass coefficient (from updateParams)
+
+    // Cylindrical-to-conical delay correction (0.5 = cylindrical, 1.0 = full cone)
+    float cylindricalDelayScale = 0.5f;
 };

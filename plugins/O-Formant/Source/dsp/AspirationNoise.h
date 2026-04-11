@@ -6,10 +6,10 @@
     Ouaricon Audio
     Developer: Taylor Brook
 
-    Per-voice pitch-synchronous aspiration noise (unfiltered white noise).
-    Noise amplitude modulated by glottal cycle phase — peaks during open phase,
-    dips during closed phase for organic, throaty breathiness.
-    Spectral shaping is handled by the downstream formant filter bank.
+    Per-voice pitch-synchronous aspiration noise with:
+    - Asymmetric triangular glottal envelope (dual-peak: open-phase ramp + closure burst)
+    - Breathiness-dependent spectral tilt (one-pole LP: 2kHz breathy, 6kHz pressed)
+    - Stochastic drift on amplitude and tilt cutoff (~75ms random walk)
 
   ==============================================================================
 */
@@ -29,7 +29,13 @@ public:
     void prepare (double sr) noexcept
     {
         sampleRate = sr;
-        breathSmoothed.reset (sr, 0.020); // 20ms ramp
+        breathSmoothed.reset (sr, 0.020);  // 20ms ramp
+        driftAmpSmoothed.reset (sr, 0.050); // 50ms ramp for drift interpolation
+        driftTiltSmoothed.reset (sr, 0.050);
+        driftAmpSmoothed.setCurrentAndTargetValue (0.0f);
+        driftTiltSmoothed.setCurrentAndTargetValue (0.0f);
+        driftUpdateInterval = static_cast<int> (sr * 0.075); // ~75ms
+        if (driftUpdateInterval < 1) driftUpdateInterval = 1;
         glottalPhase = 0.0f;
     }
 
@@ -43,37 +49,100 @@ public:
         glottalPhase = phase01;
     }
 
-    // Mix glottal sample with pitch-synchronous noise based on breathiness
-    // (no internal filtering — formant bank downstream handles spectral shaping)
     inline float process (float glottalSample) noexcept
     {
         // Generate white noise [-1, 1]
         float noise = random.nextFloat() * 2.0f - 1.0f;
 
-        // Pitch-synchronous amplitude modulation
-        // Peak during open phase (~0.0-0.6), dip during closed phase (~0.6-1.0)
-        // Window centered at phase=0.3 with 30% floor
-        float phaseArg = juce::MathConstants<float>::twoPi * (glottalPhase - 0.3f);
-        float noiseGain = 0.3f + 0.7f * (0.5f + 0.5f * std::cos (phaseArg));
-        noiseGain = juce::jlimit (0.3f, 1.0f, noiseGain);
+        // --- (1) Asymmetric triangular envelope with closure burst ---
+        // Dual-peak pattern: ramp during open phase, burst at glottal closure
+        static constexpr float openPhaseEnd = 0.6f;
+        static constexpr float burstWidth   = 0.05f;
+        static constexpr float noiseFloor   = 0.3f;
 
-        float modulatedNoise = noise * noiseGain;
+        float noiseGain;
+        if (glottalPhase < openPhaseEnd)
+        {
+            // Open phase: linear rise from floor to peak
+            noiseGain = noiseFloor + (1.0f - noiseFloor) * (glottalPhase / openPhaseEnd);
+        }
+        else if (glottalPhase < openPhaseEnd + burstWidth)
+        {
+            // Closure burst: brief spike decaying to floor
+            float burstProgress = (glottalPhase - openPhaseEnd) / burstWidth;
+            noiseGain = 1.0f - (1.0f - noiseFloor) * burstProgress;
+        }
+        else
+        {
+            // Closed phase: floor
+            noiseGain = noiseFloor;
+        }
 
-        // Smooth breathiness and mix
+        // --- (3) Stochastic drift — non-stationary breath turbulence ---
+        updateDrift();
+        float ampDriftLinear = juce::Decibels::decibelsToGain (driftAmpSmoothed.getNextValue());
+
+        float modulatedNoise = noise * noiseGain * ampDriftLinear;
+
+        // --- (2) Spectral tilt one-pole lowpass ---
+        // High breathiness -> 2kHz (warm/airy), low breathiness -> 6kHz (hissy/pressed)
         float breath = breathSmoothed.getNextValue();
-        return (1.0f - breath) * glottalSample + breath * modulatedNoise;
+        float baseCutoff = 6000.0f - breath * 4000.0f;
+        float cutoff = juce::jlimit (500.0f, 10000.0f,
+                                     baseCutoff + driftTiltSmoothed.getNextValue());
+        float alpha = std::exp (-juce::MathConstants<float>::twoPi * cutoff
+                                / static_cast<float> (sampleRate));
+        float filtered = (1.0f - alpha) * modulatedNoise + alpha * tiltPrev;
+        tiltPrev = filtered;
+
+        // Mix: voice/noise crossfade based on breathiness
+        return (1.0f - breath) * glottalSample + breath * filtered;
     }
 
     void reset() noexcept
     {
         glottalPhase = 0.0f;
         breathSmoothed.setCurrentAndTargetValue (0.1f);
+        tiltPrev = 0.0f;
+        driftAmpDb = 0.0f;
+        driftTiltHz = 0.0f;
+        driftAmpSmoothed.setCurrentAndTargetValue (0.0f);
+        driftTiltSmoothed.setCurrentAndTargetValue (0.0f);
+        driftCounter = 0;
     }
 
 private:
+    void updateDrift() noexcept
+    {
+        if (++driftCounter >= driftUpdateInterval)
+        {
+            driftCounter = 0;
+
+            // Independent random walks for amplitude and tilt cutoff
+            float ampStep = (random.nextFloat() * 2.0f - 1.0f) * 0.5f;
+            driftAmpDb = juce::jlimit (-2.0f, 2.0f, driftAmpDb + ampStep);
+            driftAmpSmoothed.setTargetValue (driftAmpDb);
+
+            float tiltStep = (random.nextFloat() * 2.0f - 1.0f) * 50.0f;
+            driftTiltHz = juce::jlimit (-200.0f, 200.0f, driftTiltHz + tiltStep);
+            driftTiltSmoothed.setTargetValue (driftTiltHz);
+        }
+    }
+
     juce::Random random;
     double sampleRate = 44100.0;
 
     float glottalPhase = 0.0f;
     juce::SmoothedValue<float> breathSmoothed { 0.1f };
+
+    // Spectral tilt one-pole state
+    float tiltPrev = 0.0f;
+
+    // Stochastic drift state
+    float driftAmpDb  = 0.0f;
+    float driftTiltHz = 0.0f;
+    juce::SmoothedValue<float> driftAmpSmoothed { 0.0f };
+    juce::SmoothedValue<float> driftTiltSmoothed { 0.0f };
+    int driftCounter = 0;
+    int driftUpdateInterval = 3307; // ~75ms at 44.1kHz, recalculated in prepare()
 };

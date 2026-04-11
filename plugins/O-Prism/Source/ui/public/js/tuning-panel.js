@@ -33,6 +33,7 @@ export class TuningPanel {
         this.libraryFilter = 'all';
         this.generatorType = 'edo';
         this.heldNotes = new Set();
+        this.masterTune = 440;
 
         // Note names for display
         this.noteNames = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
@@ -232,6 +233,11 @@ export class TuningPanel {
             const stretch = await this.juce.getNativeFunction('getOctaveStretch')();
             this.container.querySelector('#octave-stretch').value = stretch;
             this.container.querySelector('#octave-stretch-value').textContent = stretch.toFixed(2);
+
+            // Get master tune (A4 reference pitch)
+            const masterTuneHz = await this.juce.getNativeFunction('getMasterTune')();
+            this.masterTune = masterTuneHz;
+            this.updateRefPitchKnobUI(masterTuneHz);
 
             // Update UI
             this.updateIntervalList();
@@ -815,38 +821,46 @@ export class TuningPanel {
     // REFERENCE PITCH KNOB
     // ═══════════════════════════════════════════════════════════════════
 
+    updateRefPitchKnobUI(hz) {
+        const indicator = this.container.querySelector('#ref-pitch-indicator');
+        const valueEl = this.container.querySelector('#ref-pitch-value');
+        if (indicator) {
+            const angle = ((hz - 400) / 80) * 270 - 135;
+            indicator.style.transform = `rotate(${angle}deg)`;
+        }
+        if (valueEl) {
+            valueEl.textContent = `${hz.toFixed(1)} Hz`;
+        }
+    }
+
     setupRefPitchKnob() {
         const knob = this.container.querySelector('#ref-pitch-knob');
         if (!knob) return;
 
-        let isDragging = false;
-        let startY = 0;
-        let startValue = 440;
+        // Drag state lives on the instance so named handlers can access it
+        // and the panel can be torn down cleanly via destroy().
+        this._refPitchDrag = { isDragging: false, startY: 0 };
 
-        const updateKnob = (hz) => {
-            const indicator = this.container.querySelector('#ref-pitch-indicator');
-            const valueEl = this.container.querySelector('#ref-pitch-value');
-            if (indicator) {
-                const angle = ((hz - 400) / 80) * 270 - 135;
-                indicator.style.transform = `rotate(${angle}deg)`;
-            }
-            if (valueEl) {
-                valueEl.textContent = `${hz.toFixed(1)} Hz`;
-            }
+        // Store handler refs on the instance so destroy() can remove them.
+        // Previously these were anonymous inline functions, which meant the
+        // document-level listeners could never be detached and accumulated
+        // if the panel was re-initialized.
+        this._refPitchMouseDown = (e) => {
+            this._refPitchDrag.isDragging = true;
+            this._refPitchDrag.startY = e.clientY;
+            // Refresh baseline from current parameter value so drag
+            // starts from the latest state (handles external changes).
+            this._refPitchStartValue = this.masterTune;
+            document.body.style.cursor = 'ns-resize';
         };
 
-        knob.addEventListener('mousedown', (e) => {
-            isDragging = true;
-            startY = e.clientY;
-            document.body.style.cursor = 'ns-resize';
-        });
+        this._refPitchMouseMove = async (e) => {
+            if (!this._refPitchDrag.isDragging) return;
 
-        document.addEventListener('mousemove', async (e) => {
-            if (!isDragging) return;
-
-            const delta = (startY - e.clientY) * 0.5;
-            const newHz = Math.max(400, Math.min(480, startValue + delta));
-            updateKnob(newHz);
+            const delta = (this._refPitchDrag.startY - e.clientY) * 0.5;
+            const newHz = Math.max(400, Math.min(480, this._refPitchStartValue + delta));
+            this.masterTune = newHz;
+            this.updateRefPitchKnobUI(newHz);
 
             if (this.juce) {
                 try {
@@ -855,14 +869,38 @@ export class TuningPanel {
                     // Throttled errors expected
                 }
             }
-        });
+        };
 
-        document.addEventListener('mouseup', () => {
-            if (isDragging) {
-                isDragging = false;
+        this._refPitchMouseUp = () => {
+            if (this._refPitchDrag.isDragging) {
+                this._refPitchDrag.isDragging = false;
                 document.body.style.cursor = '';
             }
-        });
+        };
+
+        knob.addEventListener('mousedown', this._refPitchMouseDown);
+        document.addEventListener('mousemove', this._refPitchMouseMove);
+        document.addEventListener('mouseup', this._refPitchMouseUp);
+    }
+
+    /**
+     * Tear down the panel: remove all document-level listeners to prevent
+     * accumulation. Call this when the panel is replaced or the host UI
+     * is about to be destroyed.
+     */
+    destroy() {
+        if (this._refPitchMouseMove) {
+            document.removeEventListener('mousemove', this._refPitchMouseMove);
+            this._refPitchMouseMove = null;
+        }
+        if (this._refPitchMouseUp) {
+            document.removeEventListener('mouseup', this._refPitchMouseUp);
+            this._refPitchMouseUp = null;
+        }
+        // Element-scoped listeners (on the knob itself) die with the node
+        // when the container is cleared; no explicit removal needed.
+        this._refPitchMouseDown = null;
+        this._refPitchDrag = null;
     }
 
     // ═══════════════════════════════════════════════════════════════════

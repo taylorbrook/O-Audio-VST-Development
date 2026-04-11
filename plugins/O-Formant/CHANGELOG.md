@@ -2,6 +2,46 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.14.1] - 2026-04-10
+
+### Fixed
+- **Cascade formant bank clipping** — Added dynamic gain normalization to the cascade (series) resonator bank. All-pole resonators with narrow bandwidths produced peak gains of 10–20× at formant frequencies, driving the per-voice `tanh()` soft-clipper into heavy saturation that sounded like hard clipping. The normalization estimates each resonator's peak gain from its bandwidth/frequency ratio and scales the cascade output by the inverse of the maximum, keeping levels in a range where `tanh()` provides gentle limiting rather than audible distortion. Smoothed over 10ms to prevent clicks during vowel transitions.
+
+### Technical Notes
+- Root cause: `makeResonator()` uses unity DC gain (`A = 1 − 2r·cos(θ) + r²`), but peak gain at resonance ≈ `A / (2(1−r)|sin(θ)|)` — ranges from 9× (F1, BW=60Hz) to 20× (F3–F5, BW=100–130Hz). Singer's Formant narrowing BW by 40% pushed peak gains to ~33×
+- Fix in `CascadeFormantBank::updateCoefficients()`: computes `maxPeakGain` across all cascade stages, sets `normGainSmoothed` target to `1/maxPeakGain`
+- Fix in `CascadeFormantBank::process()`: multiplies cascade output by `normGainSmoothed.getNextValue()`
+- `normGainSmoothed`: 10ms ramp, snapped on note onset via `snapToTargets()`
+- No new APVTS parameters (32 total unchanged), no breaking changes
+
+## [1.14.0] - 2026-04-10
+
+### Changed
+- **Asymmetric triangular glottal noise envelope** — Replaced symmetric cosine window with a piecewise linear envelope matching real dual-peak glottal noise patterns. Linear ramp from 30% floor to peak over the open phase (0–0.6), brief noise burst at the glottal closure instant (0.6–0.65 rapid decay), then floor during closed phase. Produces more realistic aspirated-to-closed transitions than the previous smooth cosine.
+- **Breathiness-dependent spectral tilt filter** — Added one-pole lowpass on aspiration noise output whose cutoff varies with the breathiness parameter: high breathiness → 2kHz cutoff (warm, airy turbulence), low breathiness → 6kHz cutoff (hissy, pressed character). Previously the noise was spectrally flat (white) before reaching the formant bank.
+- **Stochastic breath drift** — Added slow random walk (~75ms update interval) that modulates noise amplitude by ±1–2dB and spectral tilt cutoff by ±200Hz. Two independent walks with SmoothedValue interpolation prevent the frozen-noise quality of deterministic envelopes. Real breath turbulence is non-stationary — this models that.
+
+### Technical Notes
+- All changes contained in `AspirationNoise.h` — no interface changes, `FormantVoice.cpp` unmodified
+- Triangular envelope: `noiseFloor=0.3`, `openPhaseEnd=0.6`, `burstWidth=0.05` (5% of cycle)
+- Spectral tilt: `cutoff = 6000 - breath * 4000 + driftHz`, one-pole α from `exp(-2πf/sr)`
+- Drift: independent Xorshift random walks — amplitude (±0.5dB steps, ±2dB clamp), tilt (±50Hz steps, ±200Hz clamp), SmoothedValue ramps (50ms) for click-free interpolation
+- No new APVTS parameters (32 total unchanged), no breaking changes
+
+## [1.13.0] - 2026-04-10
+
+### Added
+- **Envelope-aware breath amplitude modulation** — Aspiration noise now varies by ADSR phase to model realistic vocal onset and release behavior:
+  - **Attack onset (0–50ms):** Breath boosted +4.5dB (exponential decay, τ=15ms) simulating aspirated vocal fold engagement
+  - **Sustain:** Breath at user-set level (unchanged behavior)
+  - **Release onset (0–40ms):** Breath boosted +3dB (exponential decay, τ=12ms) simulating vocal fold disengagement, then fades with main envelope
+
+### Technical Notes
+- New `releaseSampleCount` member tracks ADSR phase (noteOn resets to -1, noteOff sets to 0)
+- `breathEnvMul` computed per-block from elapsed time, applied to `effectiveBreath` before `setBreathiness()`
+- Clamped to [0, 1] after multiplication — high breathiness settings saturate naturally at pure noise during onset
+- No new APVTS parameters (32 total unchanged), no breaking changes
+
 ## [1.12.1] - 2026-04-07
 
 ### Changed

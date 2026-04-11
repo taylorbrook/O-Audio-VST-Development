@@ -926,14 +926,15 @@ void OLyricaAudioProcessor::processBlock(juce::AudioBuffer<float>& buffer, juce:
     bool reverbBypassed = fxCache.reverbBypass->load(std::memory_order_relaxed) >= 0.5f;
     if (!reverbBypassed)
     {
+        // v2.1.6: Load reverbMix once and reuse — previously loaded twice (setMix + gate check).
+        float reverbMixVal = fxCache.reverbMix->load(std::memory_order_relaxed);
         reverbProcessor.setSize(fxCache.reverbSize->load(std::memory_order_relaxed));
         reverbProcessor.setDamping(fxCache.reverbDamp->load(std::memory_order_relaxed));
         reverbProcessor.setPredelay(fxCache.reverbPredelay->load(std::memory_order_relaxed));
-        reverbProcessor.setMix(fxCache.reverbMix->load(std::memory_order_relaxed));
+        reverbProcessor.setMix(reverbMixVal);
         reverbProcessor.setMod(fxCache.reverbMod->load(std::memory_order_relaxed));
         reverbProcessor.setShimmer(fxCache.reverbShimmer->load(std::memory_order_relaxed));
 
-        float reverbMixVal = fxCache.reverbMix->load(std::memory_order_relaxed);
         if (reverbMixVal > 0.001f)
             reverbProcessor.process(block);
     }

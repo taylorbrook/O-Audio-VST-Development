@@ -391,9 +391,11 @@ void ReedWindVoice::renderNextBlock(juce::AudioBuffer<float>& outputBuffer,
     float Z_c = reedModel.getZc();
     float outputGain = juce::Decibels::decibelsToGain(outputGainDb);
 
-    // Output normalization: bore operates at physical Pa levels; scale to audio range
-    // Typical bore radiated output is 50-500 Pa during playing; /500 maps to tanh's linear region
-    float normalization = 1.0f / 500.0f;
+    // Output normalization: bore pressure at the reed stabilizes near p_closure during
+    // self-oscillation. Normalize by 2*p_closure so tanh operates in its useful range
+    // (output ~0.5-0.8 at typical playing levels, soft-limiting at fortissimo).
+    float closurePa = reedModel.getClosurePressure();
+    float normalization = 1.0f / std::max(closurePa * 2.0f, 200.0f);
 
     // Mouthpiece chamber: compute physical volume and bore area
     // mouthpieceVol 0-1 -> 0 to 15 cm^3 (1.5e-5 m^3)

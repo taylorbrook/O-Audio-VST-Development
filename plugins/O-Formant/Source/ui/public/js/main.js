@@ -1,4 +1,4 @@
-import { getSliderState, getToggleState, getComboBoxState } from './juce/index.js';
+import { getSliderState, getToggleState, getComboBoxState, getNativeFunction } from './juce/index.js';
 
 // Relay states
 let vowelXState, vowelYState, vowelFocusState;
@@ -754,19 +754,17 @@ function updateTopologyVisual() {
 let presetFns = {};
 
 async function initPresetBrowser() {
-  const backend = window.__JUCE__.backend;
-
   presetFns = {
-    getPresetList: backend.getNativeFunction('getPresetList'),
-    getPresetListWithCategories: backend.getNativeFunction('getPresetListWithCategories'),
-    getCurrentPreset: backend.getNativeFunction('getCurrentPreset'),
-    loadPreset: backend.getNativeFunction('loadPreset'),
-    loadPresetFromCategory: backend.getNativeFunction('loadPresetFromCategory'),
-    savePreset: backend.getNativeFunction('savePreset'),
-    selectNextPreset: backend.getNativeFunction('selectNextPreset'),
-    selectPreviousPreset: backend.getNativeFunction('selectPreviousPreset'),
-    deletePreset: backend.getNativeFunction('deletePreset'),
-    isFactoryPreset: backend.getNativeFunction('isFactoryPreset'),
+    getPresetList: getNativeFunction('getPresetList'),
+    getPresetListWithCategories: getNativeFunction('getPresetListWithCategories'),
+    getCurrentPreset: getNativeFunction('getCurrentPreset'),
+    loadPreset: getNativeFunction('loadPreset'),
+    loadPresetFromCategory: getNativeFunction('loadPresetFromCategory'),
+    savePreset: getNativeFunction('savePreset'),
+    selectNextPreset: getNativeFunction('selectNextPreset'),
+    selectPreviousPreset: getNativeFunction('selectPreviousPreset'),
+    deletePreset: getNativeFunction('deletePreset'),
+    isFactoryPreset: getNativeFunction('isFactoryPreset'),
   };
 
   const nameEl = document.getElementById('preset-name');
