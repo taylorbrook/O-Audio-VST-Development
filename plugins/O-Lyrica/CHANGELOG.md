@@ -2,6 +2,12 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.1.3] - 2026-04-10
+
+### Fixed
+
+- **Frequency guard in StiffnessFilter** — Clamp frequency to minimum 20 Hz in `calculateFrequencyScaling()` before division, preventing inf/NaN in allpass coefficients when frequency is 0 or negative
+
 ## [2.1.2] - 2026-04-09
 
 ### Changed

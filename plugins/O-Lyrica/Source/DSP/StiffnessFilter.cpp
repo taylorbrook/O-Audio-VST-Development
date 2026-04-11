@@ -93,11 +93,14 @@ float StiffnessFilter::calculateFrequencyScaling(double frequency) const
     // Bass strings (low frequencies) exhibit more stiffness in real instruments
     // This creates the characteristic "stretched octaves" in pianos
 
+    // Guard against zero or negative frequency (would cause div-by-zero / NaN)
+    double safeFreq = juce::jmax(20.0, frequency);
+
     // Reference frequency (A4 = 440 Hz)
     constexpr double referenceFreq = 440.0;
 
     // Calculate frequency ratio (log scale)
-    double freqRatio = frequency / referenceFreq;
+    double freqRatio = safeFreq / referenceFreq;
 
     // Scaling curve: lower frequencies have higher scaling
     // Bass notes (110 Hz / A2): scaling ≈ 1.5
