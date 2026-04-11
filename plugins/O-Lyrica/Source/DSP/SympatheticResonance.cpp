@@ -38,7 +38,9 @@ namespace
     constexpr float UNISON_COUPLING = 0.9f;             // 1:1 ratio - strongest
     constexpr float OCTAVE_COUPLING = 0.7f;             // 2:1 ratio
     constexpr float FIFTH_COUPLING = 0.5f;              // 3:2 ratio
-    constexpr float THIRD_COUPLING = 0.3f;              // 5:4 ratio - weakest
+    constexpr float FOURTH_COUPLING = 0.4f;             // 4:3 ratio - prominent in Celtic/lever harp
+    constexpr float THIRD_COUPLING = 0.3f;              // 5:4 ratio
+    constexpr float SEVENTH_COUPLING = 0.2f;            // 7:4 ratio - septimal minor 7th, weakest
 }
 
 SympatheticResonanceEngine::SympatheticResonanceEngine()
@@ -367,6 +369,7 @@ float SympatheticResonanceEngine::computeCouplingStrength(double freq1, double f
     // 15 cents ~ 2^(15/1200) ~ 1.00868
     // 20 cents ~ 2^(20/1200) ~ 1.01159
     // 25 cents ~ 2^(25/1200) ~ 1.01451
+    // 30 cents ~ 2^(30/1200) ~ 1.01744
 
     // Unison (1/1) - strongest coupling
     float unisonCoupling = checkHarmonicIntervalFast(freq1, freq2, 1.0, 1.00578);
@@ -387,12 +390,32 @@ float SympatheticResonanceEngine::computeCouplingStrength(double freq1, double f
     if (fifthCoupling > 0.0f)
         return fifthCoupling * FIFTH_COUPLING;
 
+    // Perfect Fourth (3/4, 4/3) - medium-weak coupling
+    // Prominent in Celtic/lever harp sympathetic vibration. 12-TET P4 is only
+    // ~2 cents sharp of 4:3, so 25-cent tolerance captures tempered fourths cleanly.
+    float fourthDownCoupling = checkHarmonicIntervalFast(freq1, freq2, 3.0/4.0, 1.01451);
+    float fourthUpCoupling = checkHarmonicIntervalFast(freq1, freq2, 4.0/3.0, 1.01451);
+    float fourthCoupling = std::max(fourthDownCoupling, fourthUpCoupling);
+    if (fourthCoupling > 0.0f)
+        return fourthCoupling * FOURTH_COUPLING;
+
     // Major Third (4/5, 5/4) - weak coupling
     float thirdDownCoupling = checkHarmonicIntervalFast(freq1, freq2, 4.0/5.0, 1.01451);
     float thirdUpCoupling = checkHarmonicIntervalFast(freq1, freq2, 5.0/4.0, 1.01451);
     float thirdCoupling = std::max(thirdDownCoupling, thirdUpCoupling);
     if (thirdCoupling > 0.0f)
         return thirdCoupling * THIRD_COUPLING;
+
+    // Septimal Minor Seventh (4/7, 7/4) - weakest coupling
+    // The 7:4 harmonic is 31 cents flat of the 12-TET minor 7th, so we use a
+    // 30-cent tolerance window to keep it distinct: tempered m7s won't false-
+    // trigger this, but actual 7:4 intervals (blue notes, natural-horn 7ths,
+    // just-intoned harp tunings) will excite the coupling.
+    float seventhDownCoupling = checkHarmonicIntervalFast(freq1, freq2, 4.0/7.0, 1.01744);
+    float seventhUpCoupling = checkHarmonicIntervalFast(freq1, freq2, 7.0/4.0, 1.01744);
+    float seventhCoupling = std::max(seventhDownCoupling, seventhUpCoupling);
+    if (seventhCoupling > 0.0f)
+        return seventhCoupling * SEVENTH_COUPLING;
 
     return 0.0f;
 }

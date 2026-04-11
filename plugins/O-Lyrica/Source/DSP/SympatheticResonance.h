@@ -8,8 +8,9 @@
 
     Models acoustic coupling between strings. Tracks all active voices and
     their fundamental frequencies, identifies harmonically related voices
-    (unison, octave, fifth, third), and applies damped coupling based on
-    frequency relationships and material properties.
+    (unison, octave, fifth, fourth, third, septimal minor seventh), and
+    applies damped coupling based on frequency relationships and material
+    properties.
 
     THREAD SAFETY (v1.3.2):
     - Uses fixed-size arrays instead of dynamic maps (no allocation on audio thread)
@@ -187,7 +188,8 @@ private:
 
     /**
      * Compute coupling strength between two frequencies
-     * Detects harmonic relationships: unison, octave, fifth, third
+     * Detects harmonic relationships: unison, octave, fifth, fourth, third,
+     * septimal minor seventh (7:4)
      * OPTIMIZED: Avoids log2 in hot path by using ratio-based detection
      *
      * @param freq1 First frequency

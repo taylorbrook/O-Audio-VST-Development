@@ -2,6 +2,59 @@
 
 All notable changes to O-Lyrica are documented in this file.
 
+## [2.2.0] - 2026-04-11
+
+### Added
+
+- **Perfect fourth and septimal minor seventh sympathetic coupling** in `SympatheticResonanceEngine::computeCouplingStrength`. Real harp sympathetic vibration — especially on Celtic and lever harps — couples strongly at 4:3 (perfect 4th) and, on natural/just-intoned tunings, at 7:4 (septimal minor 7th). Previously only unison, octave, fifth, and major third excited the coupling matrix; players holding a 4th or a blue-note 7th heard no sympathetic bloom from neighboring strings even though the physical model is otherwise detailed enough to warrant it.
+- **Perfect fourth:** ratio `4:3` (and `3:4` inverse), coupling weight `0.4f` (between `FIFTH_COUPLING 0.5f` and `THIRD_COUPLING 0.3f`), tolerance `1.01451` (~25 cents — matches the third's window; 12-TET P4 is only ~2 cents sharp of 4:3 so tempered fourths are captured cleanly).
+- **Septimal minor seventh:** ratio `7:4` (and `4:7` inverse), coupling weight `0.2f` (weakest interval), tolerance `1.01744` (~30 cents). The 30-cent window is deliberately *looser* than other intervals because the 7:4 harmonic is ~31 cents flat of the 12-TET minor 7th — a tighter window would miss real 7:4 intervals, and a wider one would false-trigger on every tempered m7. The chosen window lets true 7:4 (natural-horn 7ths, just-intoned harp tunings, blue-note inflections) excite the coupling while tempered m7s correctly fall through to `return 0.0f`.
+- **Detection ordering** in `computeCouplingStrength` is musical-strength descending with early returns: Unison → Octave → Fifth → Fourth → Third → Seventh. The strongest match wins; weaker intervals only run when none of the stronger ones fit. This keeps the hot-path cost bounded (typically 1-2 ratio checks per voice pair).
+- **Comment block** at top of `computeCouplingStrength` now lists the new 30-cent precomputed tolerance ratio (`2^(30/1200) ~ 1.01744`) alongside the existing 10/15/20/25-cent entries.
+- **Header docstring** in `SympatheticResonance.h` (class-level and `computeCouplingStrength` doxygen) updated from "unison, octave, fifth, third" to "unison, octave, fifth, fourth, third, septimal minor seventh".
+
+### Technical notes
+
+- **Non-destructive behavior:** Purely additive. Any voice pair that previously matched unison/octave/fifth/third still returns the same coupling value via the same early-return path — existing presets, projects, and tonal character are unchanged. The new intervals only add coupling where there was previously zero.
+- **Audio-thread cost:** Two additional `checkHarmonicIntervalFast` calls per voice-pair in the coupling-matrix rebuild path. `rebuildCouplingMatrix` runs only at block boundaries on voice register/unregister (gated by `rebuildPending`), never per-sample — zero audio-thread cost in steady state. Even at `MAX_VOICES=16` fully active with all voices changing every block, the rebuild loop is O(N²) over 16 voices with ~6 cheap ratio comparisons each: still negligible.
+- **Thread safety preserved:** All new constants are `constexpr` in the same anonymous namespace as the existing coupling weights; detection logic runs inside the existing double-buffered `rebuildCouplingMatrix` → atomic buffer swap pattern. No new shared state, no new synchronization required.
+- **Files modified:** `Source/DSP/SympatheticResonance.cpp`, `Source/DSP/SympatheticResonance.h`
+- **Version bump rationale:** MINOR (v2.1.10 → v2.2.0) because this introduces new physical-model behavior — strings will now ring sympathetically at interval classes where they previously stayed silent. Not a bug fix (nothing was broken), and not breaking (no parameter or state changes).
+
+## [2.1.10] - 2026-04-11
+
+### Changed
+
+- **Velocity-to-brightness curve in `HarpSynthVoice::startNote`** — Replaced the v1.32.7 velocity→`fingerHardness` mapping `jmap(velocity, 0→1, 0.78→1.10)` with `fingerHardness *= 0.7f + 0.3f * velocity`. Soft notes now start at `0.7×` the patch hardness (warmer, less HF excitation) and the curve tops out at `1.0×` at full velocity instead of pushing past the user's patch setting. On a real harp, harder plucks excite higher partials — this remaps that response so the parameter-set hardness acts as an upper bound rather than a mid-point. Velocity→amplitude behavior (`Synthesiser`'s envelope gain and the unchanged brightness mapping at line 164-166) is untouched.
+- **File:** `plugins/O-Lyrica/Source/HarpSynthVoice.cpp` lines 190-195.
+
+## [2.1.9] - 2026-04-11
+
+### Changed
+
+- **Material parameter crossfade in `HarpSynthVoice`** — When the user changes `stringMaterial` mid-note (e.g., automating Gut → Crystal), the five material-backed physics values (`dampingCoeff`, `brightnessCutoff`, `stiffnessAmount`, `sympatheticCoupling`, `noiseContent`) now lerp smoothly over ~50 ms at block rate instead of snapping in a single block.
+- **Root cause:** `HarpSynthVoice::updateParametersFromAPVTS()` previously replaced `currentMaterial` with a fresh `StringMaterial::fromType(newType)` the moment the material index changed, then called `stringModel.setMaterial()` once. v2.1.8 added a 64-sample (~1.5 ms @ 44.1 kHz) filter-coefficient crossfade inside `WaveguideString`, but that only smoothed the downstream filter *response* — the underlying material property values themselves still stepped instantly, and 1.5 ms was too short to mask the timbral character shift between distant materials. The audible artifact was a "jerk" on fast material automation, particularly on sustained notes.
+- **Fix:** Added crossfade state to `HarpSynthVoice` (`crossfadeFromMaterial`, `crossfadeTargetMaterial`, `materialCrossfadeSamplesTotal`, `materialCrossfadeSamplesRemaining`, `currentSampleRate`). When the material index changes, the voice snapshots the current (possibly mid-ramp) `currentMaterial` into `crossfadeFromMaterial`, assigns the new `fromType()` preset to `crossfadeTargetMaterial`, and sets the sample budget to `sampleRate * 0.05`. Each render block, `updateParametersFromAPVTS(int numSamples)` computes `t = 1 - remaining/total`, calls `crossfadeFromMaterial.interpolate(crossfadeTargetMaterial, t)` (the pre-existing `StringMaterial::interpolate()` already lerps all five fields), pushes the result into `stringModel.setMaterial()`, then decrements `remaining` by the block size. On completion the ramp snaps exactly to the target to guarantee a bit-identical steady state.
+- **Cascading behavior:** If the user scrubs the material parameter rapidly — e.g., Gut → Nylon → Crystal within 30 ms — each new target re-snapshots `currentMaterial` (which may itself be an in-flight interpolation) as the new `crossfadeFromMaterial` and resets the counter. Transitions chain smoothly instead of stacking hard steps.
+- **Interaction with v2.1.8 filter crossfade:** Each block's `setMaterial()` call drives the existing `WaveguideString::applyPendingFilterUpdates()` 64-sample coefficient crossfade, so material changes are now doubly smoothed: material values ramp across the ~50 ms window at block rate, and within each block the waveguide's bridge/nut/damping filter coefficients crossfade over 64 samples. No click sources remain on the material-change path.
+- **Note-start behavior:** `HarpSynthVoice::startNote()` explicitly cancels any in-flight crossfade (`materialCrossfadeSamplesRemaining = 0`, both source and target set to the freshly-loaded `currentMaterial`) so a new note always begins at the exact target material with no stale ramp state from a previous note's automation.
+- **RT-safety:** All crossfade work is plain float arithmetic and struct copies — no allocations. `StringMaterial` is a trivially-copyable POD of 5 floats plus a `juce::String` name; the in-place assignment of `crossfadeFromMaterial = currentMaterial` on the audio thread is safe because `juce::String` has its own thread-safe refcounted backing store.
+- **Why ~50 ms:** Short enough to feel instant under manual knob twiddling, long enough to mask the step change on distant material pairs (e.g., Gut dampingCoeff 0.50 → Crystal 0.02, brightnessCutoff 2 kHz → 16 kHz). At 44.1 kHz a 512-sample block gives ~4 block updates across the ramp — plenty of resolution given the downstream 64-sample filter smoothing.
+- Files modified: `Source/HarpSynthVoice.h`, `Source/HarpSynthVoice.cpp`
+- Testing: Build-verified in Release. Steady-state response for each material is unchanged vs v2.1.8 (crossfade terminates with `currentMaterial = crossfadeTargetMaterial` exactly). Listen-test target: automating `stringMaterial` on sustained notes (especially across distant pairs like Gut → Crystal, Wire → Glass) should now sound like a smooth tonal morph rather than a stepped snap.
+
+## [2.1.8] - 2026-04-11
+
+### Fixed
+
+- **Crossfaded filter coefficient transitions in `WaveguideString`** — Previously, `WaveguideString::applyPendingFilterUpdates()` swapped the bridge, nut, and loop-damping filter coefficients in a single sample whenever brightness, tension, or material parameters changed. Because these filters sit inside the waveguide feedback loop (upper rail → bridge filter → damping → ... → lower rail → nut filter → back to upper rail), a one-sample step in filter response injected a step discontinuity into the circulating signal, producing audible clicks on fast parameter sweeps.
+- **Root cause:** Instant coefficient replacement caused a hard discontinuity in the filtered feedback path. The delay-line length compensation (`calculateRailDelay` / `calculateFilterGroupDelay`) already smooths pitch drift, but the filter-output waveform itself was not being smoothed — any brightness/tension/material change landed as a transient kick inside the resonator.
+- **Fix:** Replaced the three `juce::dsp::IIR::Filter<float>` instances with a local `OnePoleLPF` POD struct whose bilinear-transform coefficient math and TDF-II state update are byte-for-byte equivalent to `juce::dsp::IIR::Coefficients<float>::makeFirstOrderLowPass` (so steady-state timbre is unchanged). Because `OnePoleLPF` is trivially copyable, `applyPendingFilterUpdates()` now snapshots each live filter (coefs + state) into a shadow copy via plain assignment, installs the new cutoff on the live filter in place, and starts a 64-sample linear crossfade. `WaveguideString::processSample()` runs the shadow filters in parallel during the crossfade window and blends their outputs with the active filters — at `t=0` the output is identical to the pre-update response (no discontinuity), at `t=1` it matches the new response, with a smooth lerp in between. If another parameter update lands mid-crossfade, the shadow is re-snapshotted from the current in-flight state and the counter resets, cascading transitions smoothly instead of stacking clicks. 64 samples ≈ 1.5 ms @ 44.1 kHz — inaudible as a transition, long enough to mask the step.
+- **Bonus:** Eliminates a pre-existing hidden RT-safety hazard — the old code called `Coefficients::makeFirstOrderLowPass(...)` on the audio thread, which allocates a new refcounted `Coefficients` object on every parameter change. The new `OnePoleLPF::setCutoff` writes the 3 coefficient floats in place, no allocation.
+- **Crossfade also resets on `reset()` and `trigger()`** to guarantee clean per-note behavior and avoid partial-fade state leaking across note triggers.
+- Files modified: `Source/DSP/WaveguideString.h`, `Source/DSP/WaveguideString.cpp`
+- Testing: Build-verified in Release. Steady-state response unchanged vs v2.1.7 (coefficient math matches JUCE's `makeFirstOrderLowPass` exactly). Listen-test target: fast automation sweeps of Brightness, Bridge Brightness, Tension, Gauge, or material changes on sustained notes should no longer click.
+
 ## [2.1.7] - 2026-04-10
 
 ### Fixed
