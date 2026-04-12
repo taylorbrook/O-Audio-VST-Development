@@ -2,6 +2,14 @@
 
 All notable changes to O-Bowed will be documented in this file.
 
+## [1.0.7] - 2026-04-11
+
+### Fixed
+- Phantom second note playing in harmony alongside every MIDI note. Root cause: `stringCount` parameter range was 1-4 (minimum 1), forcing at least one drone string to always be active. Drone strings play at the fixed reference pitch (440Hz default), not the MIDI note frequency, producing an audible second tone at a different pitch from the played note. The drone persisted beyond note-off due to natural waveguide energy decay
+  - Changed `stringCount` range from 1-4 to 0-4 with default 0 (no drones)
+  - Updated `DroneStringEngine::setStringCount()` to accept 0
+  - Recalculated all factory preset drone counts: realistic instruments (Violin, Cello, Viola, Double Bass, Erhu, Sarangi) now default to 0 drones; Nyckelharpa keeps 1 drone (authentic); Metal Drone and Impossible Strings keep 2 drones (intentional)
+
 ## [1.0.6] - 2026-04-11
 
 ### Fixed

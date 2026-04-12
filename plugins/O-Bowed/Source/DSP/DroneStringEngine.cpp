@@ -80,7 +80,7 @@ void DroneStringEngine::setNotesActive (bool active)
 //==============================================================================
 void DroneStringEngine::setStringCount (int count)
 {
-    count = juce::jlimit (1, MAX_DRONES, count);
+    count = juce::jlimit (0, MAX_DRONES, count);
     if (count == activeCount)
         return;
 
@@ -202,8 +202,8 @@ void DroneStringEngine::processSample (float& outL, float& outR)
         d.bow.updateEnvelope();
         float v_bow = d.bow.getBowVelocity();
         float F_bow = d.bow.getBowForce();
-        float sample = d.waveguide.processSample (v_bow, F_bow, d.friction);
-        sample = juce::jlimit (-1.0f, 1.0f, sample);
+        float sample = d.waveguide.processSample (v_bow, F_bow, d.friction) * 0.35f;
+        sample = juce::jlimit (-0.5f, 0.5f, sample);
 
         bridgeSum += sample;
         outL += sample * d.panL;

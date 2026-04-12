@@ -90,13 +90,13 @@ juce::AudioProcessorValueTreeState::ParameterLayout OBowedAudioProcessor::create
 
     // ========== String Configuration (7) ==========
 
-    // STRING_COUNT - Number of active bowed strings
+    // STRING_COUNT - Number of active drone strings (0 = no drones)
     layout.add(std::make_unique<juce::AudioParameterInt>(
         juce::ParameterID { "stringCount", 1 },
         "String Count",
-        1,
+        0,
         4,
-        1
+        0
     ));
 
     // STRING_TUNING_1 - Pitch offset for string 1
@@ -526,7 +526,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
     // All values normalized 0.0-1.0
     // bowSpeed: sqrt((v-0.02)/1.98)  |  bowPressure: sqrt((v-0.01)/4.99)
     // bowPosition: (v-0.02)/0.28  |  brightness: pow((v-20)/19980, 4.0)
-    // stringCount: (v-1)/3.0  |  sympatheticCount: v/12.0
+    // stringCount: v/4.0  |  sympatheticCount: v/12.0
     // outputLevel: (v+60)/72  |  referencePitch: (v-220)/660
     // frictionTier: index/2.0  |  tuningSystem: index/2.0
     // Linear 0-1 params: rosin, bowNoise, bodyMaterial, bodySize, width(/2), sympatheticAmount,
@@ -540,7 +540,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.30151f}, {"bowPressure", 0.31336f}, {"bowPosition", 0.357f},
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.3f}, {"brightness", 0.876f},
-             {"stringCount", 1.0f},
+             {"stringCount", 0.0f},
              {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
@@ -553,7 +553,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.27832f}, {"bowPressure", 0.34996f}, {"bowPosition", 0.393f},
              {"rosin", 0.55f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.7f}, {"brightness", 0.8f},
-             {"stringCount", 1.0f},
+             {"stringCount", 0.0f},
              {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
@@ -566,7 +566,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.28925f}, {"bowPressure", 0.33098f}, {"bowPosition", 0.375f},
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.45f}, {"brightness", 0.84f},
-             {"stringCount", 1.0f},
+             {"stringCount", 0.0f},
              {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
@@ -579,7 +579,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.26591f}, {"bowPressure", 0.37606f}, {"bowPosition", 0.429f},
              {"rosin", 0.55f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.9f}, {"brightness", 0.7f},
-             {"stringCount", 1.0f},
+             {"stringCount", 0.0f},
              {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
@@ -618,7 +618,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.30151f}, {"bowPressure", 0.31336f}, {"bowPosition", 0.357f},
              {"rosin", 0.5f}, {"bowNoise", 0.0f},
              {"bodyMaterial", 0.4f}, {"bodySize", 0.4f}, {"brightness", 0.876f},
-             {"stringCount", 1.0f},
+             {"stringCount", 0.25f},
              {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.5f}, {"sympatheticCount", 0.833f},
              {"width", 0.5f}, {"outputLevel", 0.833f},
@@ -645,7 +645,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.31623f}, {"bowPressure", 0.34996f}, {"bowPosition", 0.357f},
              {"rosin", 0.55f}, {"bowNoise", 0.15f},
              {"bodyMaterial", 0.7f}, {"bodySize", 0.7f}, {"brightness", 0.8f},
-             {"stringCount", 0.333f},
+             {"stringCount", 0.5f},
              {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.0f}, {"sympatheticCount", 0.0f},
              {"width", 0.65f}, {"outputLevel", 0.833f},
@@ -658,7 +658,7 @@ void OBowedAudioProcessor::initializeFactoryPresets()
             {{"bowSpeed", 0.34996f}, {"bowPressure", 0.31336f}, {"bowPosition", 0.286f},
              {"rosin", 0.6f}, {"bowNoise", 0.2f},
              {"bodyMaterial", 0.5f}, {"bodySize", 0.5f}, {"brightness", 0.876f},
-             {"stringCount", 1.0f},
+             {"stringCount", 0.5f},
              {"stringTuning1", 0.5f}, {"stringTuning2", 0.5f}, {"stringTuning3", 0.5f}, {"stringTuning4", 0.5f},
              {"sympatheticAmount", 0.3f}, {"sympatheticCount", 0.5f},
              {"width", 0.7f}, {"outputLevel", 0.833f},
