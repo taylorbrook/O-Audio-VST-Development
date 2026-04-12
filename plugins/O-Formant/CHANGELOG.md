@@ -2,6 +2,23 @@
 
 All notable changes to O-Formant will be documented in this file.
 
+## [1.17.0] - 2026-04-11
+
+### Added
+- **Velocity-to-amplitude dynamics** — Voice output now scales with MIDI velocity (~12 dB dynamic range). Low velocity produces softer notes, high velocity produces full amplitude. Previously velocity only affected glottal Rd (timbral character) with no amplitude response, making soft playing nearly silent.
+
+### Fixed
+- **Cascade normalization too aggressive** — Relaxed formant cascade gain compensation from `1/maxPeakGain` to `1/sqrt(maxPeakGain)`, recovering ~12 dB of headroom. The v1.14.1 normalization prevented clipping but over-attenuated the signal, making `tanh()` soft-clipper a no-op instead of providing gentle saturation. Peaks now reach 2–4× into tanh for natural warmth.
+- **Nasality amplitude compensation** — Reduced excessive volume drop when `nasalCoupling` is active. Direct attenuation reduced from -8 dB to -3 dB at full coupling; formant bandwidth widening scaled from 2× max to 1.6× max; aspiration suppression reduced from 80% to 50%.
+
+### Technical Notes
+- `FormantVoice.cpp`: block-rate `velocityGain = 0.25 + 0.75 * noteVelocity` applied to both voiced source and consonant noise before formant filters
+- `CascadeFormantBank.h` line 139: normalization changed from `1.0f / maxPeakGain` to `1.0f / std::sqrt(maxPeakGain)`
+- `FormantVoice.cpp` line 236: `nasalAmpGain` changed from `-8.0f * nasalCouplingVal` to `-3.0f * nasalCouplingVal`
+- `FormantVoice.cpp` line 243: aspiration suppression coefficient changed from `0.8f` to `0.5f`
+- `FormantVoice.cpp` line 392: `nasalBWScale` changed from `1.0f + nasalCouplingVal` to `1.0f + nasalCouplingVal * 0.6f`
+- No parameter ID changes — existing presets and automation unaffected.
+
 ## [1.16.0] - 2026-04-11
 
 ### Added

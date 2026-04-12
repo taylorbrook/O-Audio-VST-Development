@@ -135,8 +135,9 @@ public:
             }
         }
 
-        // Cascade gain compensation: normalize by max resonator peak gain
-        normGainSmoothed.setTargetValue (1.0f / maxPeakGain);
+        // Cascade gain compensation: sqrt normalization allows gentle tanh saturation
+        // Full 1/maxPeakGain was too aggressive (-20 to -26 dB), making output near-silent
+        normGainSmoothed.setTargetValue (1.0f / std::sqrt (maxPeakGain));
     }
 
     // Process: first numCascade filters in series (resonators), remaining in parallel (BPF)

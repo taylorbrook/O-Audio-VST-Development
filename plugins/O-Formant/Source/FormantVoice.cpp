@@ -232,15 +232,15 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float nasalPlaceVal    = pNasalPlace    != nullptr ? pNasalPlace->load()    : 0.5f;
     nasalPoleZero.updateCoefficients (nasalCouplingVal, nasalPlaceVal, getSampleRate());
 
-    // Nasal amplitude reduction: -8 dB at full coupling (nasals are ~6-10 dB quieter)
-    float nasalAmpGain = juce::Decibels::decibelsToGain (-8.0f * nasalCouplingVal);
+    // Nasal amplitude reduction: -3 dB at full coupling (gentle dip, not dramatic drop)
+    float nasalAmpGain = juce::Decibels::decibelsToGain (-3.0f * nasalCouplingVal);
 
     // Breathiness: knob + MPE pressure offset
     float knobBreath = pBreathiness != nullptr ? pBreathiness->load() : 0.1f;
     float effectiveBreath = knobBreath + mpeBreathOffset * (1.0f - knobBreath);
 
     // Suppress aspiration during nasal murmurs (nasals are purely voiced)
-    effectiveBreath *= (1.0f - nasalCouplingVal * 0.8f);
+    effectiveBreath *= (1.0f - nasalCouplingVal * 0.5f);
 
     // Envelope-aware breath modulation: aspirated onset + release breath burst
     {
@@ -346,6 +346,9 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
     float panLGain = std::cos (panNorm * halfPi);
     float panRGain = std::sin (panNorm * halfPi);
 
+    // Velocity-to-amplitude: ~12 dB dynamic range (0.25 at vel=0, 1.0 at vel=1)
+    float velocityGain = 0.25f + 0.75f * noteVelocity;
+
     auto* outL = outputBuffer.getWritePointer (0, startSample);
     auto* outR = outputBuffer.getNumChannels() > 1
                      ? outputBuffer.getWritePointer (1, startSample)
@@ -389,7 +392,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
             // (3) Nasal damping — nasal cavity walls add loss, widening formant BWs up to 2x
             if (nasalCouplingVal > 0.0f)
             {
-                float nasalBWScale = 1.0f + nasalCouplingVal;
+                float nasalBWScale = 1.0f + nasalCouplingVal * 0.6f;
                 for (int fi = 0; fi < 5; ++fi)
                     formantBWs[fi] *= nasalBWScale;
             }
@@ -475,7 +478,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
         float source = aspirationNoise.process (glottal);
 
         // Consonant noise (shaped by place/manner filters + dedicated envelope)
-        float consonantNoise = consonantEngine.getNextSample (consonantLevel);
+        float consonantNoise = consonantEngine.getNextSample (consonantLevel) * velocityGain;
         float onsetSuppression = consonantEngine.getOnsetSuppression();
 
         // During plosive onset, suppress glottal source so noise dominates
@@ -483,7 +486,7 @@ void FormantVoice::renderNextBlock (juce::AudioBuffer<float>& outputBuffer,
 
         // ADSR envelope — applied to voiced source only
         float env = adsr.getNextSample();
-        float voiceWithEnv = voiceSource * env;
+        float voiceWithEnv = voiceSource * env * velocityGain;
 
         // Route through formant filters — topology determines signal path
         float sample;
